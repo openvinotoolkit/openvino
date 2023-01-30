@@ -38,5 +38,12 @@ struct depth_to_space : public primitive_base<depth_to_space> {
     size_t block_size;
     /// @brief depth division mode
     depth_to_space_mode mode;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, block_size);
+        seed = hash_combine(seed, mode);
+        return seed;
+    }
 };
 }  // namespace cldnn

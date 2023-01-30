@@ -107,6 +107,11 @@ public:
         return params;
     }
 
+    void calculate_hash() override {
+        parent::calculate_hash();
+        seed = hash_combine(seed, transposed);
+    }
+
 private:
     bool transposed;
     uint32_t groups;

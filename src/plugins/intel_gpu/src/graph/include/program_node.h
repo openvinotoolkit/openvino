@@ -370,6 +370,9 @@ public:
     void set_preferred_input_fmt(size_t idx, format::type type);
     void set_preferred_output_fmt(size_t idx, format::type type);
 
+    virtual void calculate_hash() {}
+
+    size_t get_hash() const { return seed; }
 
 protected:
     size_t unique_id = 0;
@@ -410,6 +413,8 @@ protected:
     std::vector<fused_primitive_desc> fused_prims;
 
     void invalidate_users() const;
+
+    size_t seed = 0;
 
 private:
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -452,6 +457,16 @@ public:
 
     std::shared_ptr<const PType> get_primitive() const {
         return std::static_pointer_cast<const PType>(program_node::get_primitive());
+    }
+
+    void calculate_hash() override {
+        // hash for primitive
+        seed = get_primitive()->hash();
+
+        // hash for fused prims
+        for (auto& prim : fused_prims) {
+            seed = hash_combine(seed, prim.desc->hash());
+        }
     }
 
 protected:

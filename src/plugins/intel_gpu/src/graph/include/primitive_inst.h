@@ -214,6 +214,9 @@ public:
 
     virtual void update_output_memory() {}
 
+    virtual size_t get_impl_key(const kernel_impl_params& params) const;
+    virtual size_t get_impl_key() const;
+
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
 
@@ -291,7 +294,8 @@ protected:
 
     virtual void update_shape();
     virtual event::ptr update_weights();
-    void update_impl();
+    // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
+    bool update_impl();
     void realloc_if_needed();
 
     cldnn::network::ptr get_unfused_subgraph();

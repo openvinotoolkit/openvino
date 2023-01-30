@@ -55,6 +55,15 @@ struct dft : public primitive_base<dft> {
     ov::Shape output_shape;
     dft_direction direction;
     dft_mode mode;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_range(seed, axes.begin(), axes.end());
+        seed = hash_range(seed, signal_size.begin(), signal_size.end());
+        seed = hash_combine(seed, direction);
+        seed = hash_combine(seed, mode);
+        return seed;
+    }
 };
 
 }  // namespace cldnn

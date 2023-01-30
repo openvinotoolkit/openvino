@@ -71,5 +71,14 @@ struct border : public primitive_base<border> {
     ov::op::PadMode pad_mode;
     /// @brief Border value that is used in constant mode.
     float pad_value;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_range(seed, pads_begin.begin(), pads_begin.end());
+        seed = hash_range(seed, pads_end.begin(), pads_end.end());
+        seed = hash_combine(seed, pad_mode);
+        seed = hash_combine(seed, pad_value);
+        return seed;
+    }
 };
 }  // namespace cldnn

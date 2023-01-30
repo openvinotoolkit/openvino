@@ -40,6 +40,17 @@ struct experimental_detectron_roi_feature_extractor : public primitive_base<expe
     std::vector<int64_t> pyramid_scales;
     int sampling_ratio = 0;
     bool aligned = false;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, output_dim);
+        seed = hash_combine(seed, pooled_height);
+        seed = hash_combine(seed, pooled_width);
+        seed = hash_range(seed, pyramid_scales.begin(), pyramid_scales.end());
+        seed = hash_combine(seed, sampling_ratio);
+        seed = hash_combine(seed, aligned);
+        return seed;
+    }
 };
 
 }  // namespace cldnn

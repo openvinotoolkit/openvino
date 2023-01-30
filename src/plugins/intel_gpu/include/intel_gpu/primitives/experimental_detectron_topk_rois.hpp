@@ -31,6 +31,12 @@ struct experimental_detectron_topk_rois : public primitive_base<experimental_det
 
     /// maximal numbers of output ROIs.
     size_t max_rois;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, max_rois);
+        return seed;
+    }
 };
 
 }  // namespace cldnn

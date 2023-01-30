@@ -54,5 +54,14 @@ struct extract_image_patches : public primitive_base<extract_image_patches> {
     std::string auto_pad;
     /// @brief Shape of output layout
     tensor output_shape;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_range(seed, sizes.begin(), sizes.end());
+        seed = hash_range(seed, strides.begin(), strides.end());
+        seed = hash_range(seed, rates.begin(), rates.end());
+        seed = hash_combine(seed, auto_pad);
+        return seed;
+    }
 };
 }  // namespace cldnn
