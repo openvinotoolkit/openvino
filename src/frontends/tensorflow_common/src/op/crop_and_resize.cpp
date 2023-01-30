@@ -42,7 +42,7 @@ OutputVector translate_crop_and_resize_bilinear(const NodeContext& node) {
     // use Convolution for the swapping
     auto new_shape = make_shared<Constant>(element::i32, Shape{4}, vector<int32_t>{-1, 5, 1, 1});
     boxes = make_shared<Reshape>(boxes, new_shape, false);
-    // kernel for the swapping should be the folloging:
+    // kernel for the swapping should be the following:
     // 1, 0, 0, 0, 0,
     // 0, 0, 1, 0, 0,
     // 0, 1, 0, 0, 0,
