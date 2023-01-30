@@ -58,9 +58,6 @@ void op::v1::GatherTree::validate_and_infer_types() {
                           "Element type of inputs must be numeric. Got: ",
                           result_et);
 
-    const auto input_shapes = ov::get_node_input_partial_shapes(*this);
-    auto output_shapes = std::vector<ov::PartialShape>(1);
-    shape_infer(this, input_shapes, output_shapes);
-
-    set_output_type(0, result_et, output_shapes[0]);
+    const auto output_shape = shape_infer(this, ov::get_node_input_partial_shapes(*this)).front();
+    set_output_type(0, result_et, output_shape);
 }
