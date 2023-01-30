@@ -10,7 +10,7 @@ pytest==7.2.0; python_version >= '3.10'
 numpy>=1.16.6,<1.18.0
 protobuf>=3.18.1,<4.0.0
 defusedxml>=0.7.1
-requests>=2.25.1
+requests>=2.25.1sdadw
 fastjsonschema>=2.15.1,<2.17
 coverage>=4.4.2,<=7.0.5
 astroid>=2.9.0

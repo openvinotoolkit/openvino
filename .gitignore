@@ -51,6 +51,7 @@ __pycache__
 /tools/mo/*.json
 /tools/mo/*.so
 /tools/mo/*.txt
+/tools/mo/!constraints.txt
 /tools/mo/*.pb
 /tools/mo/*.pbtxt
 /tools/mo/!CMakeLists.txt
