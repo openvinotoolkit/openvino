@@ -58,3 +58,12 @@ def save_tf2_saved_model_to_tflite(savedmodel):
 
     return tflite_model_path
 
+
+def get_tensors_from_graph(graph, ops: list):
+    tensors = []
+    for input_op in ops:
+        input_op_tensors = graph.get_operation_by_name(input_op).outputs
+        for op_out_tensor in input_op_tensors:
+            tensors.append(op_out_tensor)
+
+    return tensors

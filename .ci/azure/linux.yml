@@ -509,6 +509,13 @@ jobs:
 
   - script: |
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
+      export PYTHONPATH=$(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR):$PYTHONPATH
+      export TEST_DEVICE=CPU
+      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_lite_tests/ --junitxml=$(INSTALL_TEST_DIR)/TEST-tfl_fe.xmlTEST
+    displayName: 'TensorFlow Lite Layer Tests - TFL FE'
+
+  - script: |
+      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
       export TEST_DEVICE=CPU
       $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/mo_python_api_tests/test_mo_convert_complex_params.py --ir_version=11 --junitxml=./TEST-test_mo_convert_complex_params.xmlTEST
