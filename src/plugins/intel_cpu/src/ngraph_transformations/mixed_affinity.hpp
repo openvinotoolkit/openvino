@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include "mixed_affinity_utils.hpp"
 #include <openvino/pass/graph_rewrite.hpp>
 
