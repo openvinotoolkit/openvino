@@ -24,6 +24,13 @@ Intel® GNA hardware requires a driver to be installed on the system.
 
 Ensure that make, gcc, and Linux kernel headers are installed.
 
+@sphinxdirective
+
+.. important:: The GNA plugin is supported on Ubuntu versions up to and including 20.04. Currently, the support on later releases of Ubuntu is still in experimental stages of development.
+
+@endsphinxdirective
+
+
 ### Configuration steps
 
 @sphinxdirective

@@ -13,10 +13,19 @@ If it is already installed, and you want to keep it, you can skip the installati
 
 ## Linux
 
+@sphinxdirective
+
+.. important:: The GPU plugin is supported on Ubuntu versions up to and including 20.04. Currently, the support on later releases of Ubuntu is still in experimental stages of development.
+
+@endsphinxdirective
+
+
 To install the latest available **Intel® Graphics Compute Runtime for OpenCL™** for your OS, see the [Install Guides](https://github.com/intel/compute-runtime/releases/latest).
 
-> **NOTE**: If you use RedHat 8 OS please install OpenCL library as prerequisite via following command line:  
-> ```sh rpm -ivh http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/ocl-icd-2.2.12-1.el8.x86_64.rpm```
+Note that if you use RedHat 8 OS, you need to install OpenCL library as a prerequisite, using the following command line:
+```
+sh rpm -ivh http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/ocl-icd-2.2.12-1.el8.x86_64.rpm
+```
 
 > **NOTE**: For instructions specific to discrete graphics platforms, refer to [the dgpu guide](https://dgpu-docs.intel.com/installation-guides/index.html) (Intel® Arc™ A-Series Graphics, Intel® Data Center GPU Flex Series, Intel® Data Center GPU MAX Series, Intel® processor graphics Gen12, and Intel® Iris Xe MAX codename DG1).
 

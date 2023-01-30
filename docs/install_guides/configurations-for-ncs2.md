@@ -9,6 +9,13 @@
 
 ## Linux
 
+@sphinxdirective
+
+.. important:: The MYRIAD plugin is supported on Ubuntu versions up to and including 20.04. Currently, the support on later releases of Ubuntu is still in experimental stages of development.
+
+@endsphinxdirective
+
+
 Once you have OpenVINO™ Runtime installed, follow these steps to be able to work on NCS2:
 
 1. Go to the install_dependencies directory:

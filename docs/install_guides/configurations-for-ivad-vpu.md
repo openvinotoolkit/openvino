@@ -21,6 +21,13 @@ For troubleshooting issues, please see the [Troubleshooting Guide](troubleshooti
 
 For Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, the following additional installation steps are required.
 
+@sphinxdirective
+
+.. important:: The HDDL plugin is supported on Ubuntu versions up to and including 20.04. Currently, the support on later releases of Ubuntu is still in experimental stages of development.
+
+@endsphinxdirective
+
+
 > **NOTE**: If you installed OpenVINO™ Runtime to the non-default install directory, replace `/opt/intel` with the directory in which you installed the software.
 
 1. Set the environment variables:
