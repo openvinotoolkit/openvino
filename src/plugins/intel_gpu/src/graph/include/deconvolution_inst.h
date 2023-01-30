@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,6 +32,8 @@ public:
 
     bool bias_term() const { return !get_primitive()->bias.empty();}
 
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {2}; }
+
     using parent::get_kernel_impl_params;
     std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const override {
         auto params = parent::get_kernel_impl_params(in_layouts, out_layouts);
@@ -40,7 +42,6 @@ public:
             params->bias_layout = optional_layout(bias().get_output_layout());
         return params;
     }
-
 
 private:
     uint32_t groups;
@@ -54,6 +55,8 @@ class typed_primitive_inst<deconvolution> : public typed_primitive_inst_base<dec
     using parent::parent;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(deconvolution_node const& node, const kernel_impl_params& impl_param);
     static layout calc_output_layout(deconvolution_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(deconvolution_node const& node);
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,8 +16,6 @@
 
 #include "inference_engine.hpp"
 #include "openvino/openvino.hpp"
-#include <vpu/private_plugin_config.hpp>
-#include <vpu/utils/string.hpp>
 
 static constexpr char help_message[] =
                                              "Optional. Print the usage message.";
@@ -80,22 +78,6 @@ static constexpr char api1_message[] =
                                              "Optional. Compile model to legacy format for usage in Inference Engine API,\n"
 "                                             by default compiles to OV 2.0 API";
 
-// MYRIAD-specific
-static constexpr char number_of_shaves_message[] =
-                                             "Optional. Specifies number of shaves.\n"
-"                                             Should be set with \"VPU_NUMBER_OF_CMX_SLICES\".\n"
-"                                             Overwrites value from config.\n";
-
-static constexpr char number_of_cmx_slices_message[] =
-                                             "Optional. Specifies number of CMX slices.\n"
-"                                             Should be set with \"VPU_NUMBER_OF_SHAVES\".\n"
-"                                             Overwrites value from config.";
-
-static constexpr char tiling_cmx_limit_message[] =
-                                             "Optional. Specifies CMX limit for data tiling.\n"
-"                                             Value should be equal or greater than -1.\n"
-"                                             Overwrites value from config.";
-
 DEFINE_bool(h, false, help_message);
 DEFINE_string(m, "", model_message);
 DEFINE_string(d, "", targetDeviceMessage);
@@ -112,10 +94,6 @@ DEFINE_string(iml, "", inputs_model_layout_message);
 DEFINE_string(oml, "", outputs_model_layout_message);
 DEFINE_string(ioml, "", ioml_message);
 DEFINE_bool(ov_api_1_0, false, api1_message);
-DEFINE_string(VPU_NUMBER_OF_SHAVES, "", number_of_shaves_message);
-DEFINE_string(VPU_NUMBER_OF_CMX_SLICES, "", number_of_cmx_slices_message);
-DEFINE_string(VPU_TILING_CMX_LIMIT_KB, "", tiling_cmx_limit_message);
-
 
 namespace {
 std::vector<std::string> splitStringList(const std::string& str, char delim) {
@@ -375,21 +353,7 @@ bool isFP32(const ov::element::Type& type) {
 static void setDefaultIO(ov::preprocess::PrePostProcessor& preprocessor,
                          const std::vector<ov::Output<ov::Node>>& inputs,
                          const std::vector<ov::Output<ov::Node>>& outputs) {
-    const bool isMYRIAD = FLAGS_d.find("MYRIAD") != std::string::npos;
     const bool isVPUX = FLAGS_d.find("VPUX") != std::string::npos;
-
-    if (isMYRIAD) {
-        for (size_t i = 0; i < inputs.size(); i++) {
-            if (isFP32(inputs[i].get_element_type())) {
-                preprocessor.input(i).tensor().set_element_type(ov::element::f16);
-            }
-        }
-        for (size_t i = 0; i < outputs.size(); i++) {
-            if (isFP32(outputs[i].get_element_type())) {
-                preprocessor.output(i).tensor().set_element_type(ov::element::f16);
-            }
-        }
-    }
 
     if (isVPUX) {
         for (size_t i = 0; i < inputs.size(); i++) {
@@ -589,11 +553,6 @@ static void showUsage() {
     std::cout << "    -oml                         <value>     "   << outputs_model_layout_message << std::endl;
     std::cout << "    -ioml                       \"<value>\"    "   << ioml_message               << std::endl;
     std::cout << "    -ov_api_1_0                              "   << api1_message                 << std::endl;
-    std::cout                                                                                      << std::endl;
-    std::cout << " MYRIAD-specific options:                    "                                   << std::endl;
-    std::cout << "      -VPU_NUMBER_OF_SHAVES      <value>     "   << number_of_shaves_message     << std::endl;
-    std::cout << "      -VPU_NUMBER_OF_CMX_SLICES  <value>     "   << number_of_cmx_slices_message << std::endl;
-    std::cout << "      -VPU_TILING_CMX_LIMIT_KB   <value>     "   << tiling_cmx_limit_message     << std::endl;
     std::cout << std::endl;
 }
 
@@ -650,27 +609,6 @@ static std::map<std::string, std::string> parseConfigFile(char comment = '#') {
     return config;
 }
 
-static std::map<std::string, std::string> configure() {
-    const bool isMYRIAD = FLAGS_d.find("MYRIAD") != std::string::npos;
-    auto config = parseConfigFile();
-
-    if (isMYRIAD) {
-        if (!FLAGS_VPU_NUMBER_OF_SHAVES.empty()) {
-            config[InferenceEngine::MYRIAD_NUMBER_OF_SHAVES] = FLAGS_VPU_NUMBER_OF_SHAVES;
-        }
-
-        if (!FLAGS_VPU_NUMBER_OF_CMX_SLICES.empty()) {
-            config[InferenceEngine::MYRIAD_NUMBER_OF_CMX_SLICES] = FLAGS_VPU_NUMBER_OF_CMX_SLICES;
-        }
-
-        if (!FLAGS_VPU_TILING_CMX_LIMIT_KB.empty()) {
-            config[InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB] = FLAGS_VPU_TILING_CMX_LIMIT_KB;
-        }
-    }
-
-    return config;
-}
-
 bool isFP16(InferenceEngine::Precision precision) {
     return precision == InferenceEngine::Precision::FP16;
 }
@@ -684,24 +622,7 @@ bool isFloat(InferenceEngine::Precision precision) {
 }
 
 static void setDefaultIO(InferenceEngine::CNNNetwork& network) {
-    const bool isMYRIAD = FLAGS_d.find("MYRIAD") != std::string::npos;
     const bool isVPUX = FLAGS_d.find("VPUX") != std::string::npos;
-
-    if (isMYRIAD) {
-        const InferenceEngine::Precision fp16 = InferenceEngine::Precision::FP16;
-
-        for (auto&& layer : network.getInputsInfo()) {
-            if (isFloat(layer.second->getPrecision())) {
-                layer.second->setPrecision(fp16);
-            }
-        }
-
-        for (auto&& layer : network.getOutputsInfo()) {
-            if (isFloat(layer.second->getPrecision())) {
-                layer.second->setPrecision(fp16);
-            }
-        }
-    }
 
     if (isVPUX) {
         const InferenceEngine::Precision u8 = InferenceEngine::Precision::U8;
@@ -762,7 +683,7 @@ int main(int argc, char* argv[]) {
             printInputAndOutputsInfo(network);
 
             auto timeBeforeLoadNetwork = std::chrono::steady_clock::now();
-            auto executableNetwork = ie.LoadNetwork(network, FLAGS_d, configure());
+            auto executableNetwork = ie.LoadNetwork(network, FLAGS_d, parseConfigFile());
             loadNetworkTimeElapsed = std::chrono::duration_cast<TimeDiff>(std::chrono::steady_clock::now() - timeBeforeLoadNetwork);
 
             std::string outputName = FLAGS_o;
@@ -790,7 +711,7 @@ int main(int argc, char* argv[]) {
             configurePrePostProcessing(model, FLAGS_ip, FLAGS_op, FLAGS_iop, FLAGS_il, FLAGS_ol, FLAGS_iol, FLAGS_iml, FLAGS_oml, FLAGS_ioml);
             printInputAndOutputsInfoShort(*model);
             auto timeBeforeLoadNetwork = std::chrono::steady_clock::now();
-            auto configs = configure();
+            auto configs = parseConfigFile();
             auto compiledModel = core.compile_model(model, FLAGS_d, {configs.begin(), configs.end()});
             loadNetworkTimeElapsed = std::chrono::duration_cast<TimeDiff>(std::chrono::steady_clock::now() - timeBeforeLoadNetwork);
             std::string outputName = FLAGS_o;

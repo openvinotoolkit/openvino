@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+import sys
 import numpy as np
 import os
-from sys import platform
 from pathlib import Path
 
-import openvino.runtime.opset8 as ov
 from openvino.runtime import (
     Model,
     Core,
@@ -23,17 +22,17 @@ from openvino.runtime import (
 from tests.conftest import (
     model_path,
     model_onnx_path,
-    plugins_path,
     get_model_with_template_extension,
 )
 
 from tests.test_utils.test_utils import (
     generate_image,
-    generate_relu_model,
+    generate_relu_compiled_model,
+    get_relu_model,
+    plugins_path,
 )
 
 
-plugins_xml, plugins_win_xml, plugins_osx_xml = plugins_path()
 test_net_xml, test_net_bin = model_path()
 test_net_onnx = model_onnx_path()
 
@@ -41,19 +40,15 @@ test_net_onnx = model_onnx_path()
 def test_compact_api_xml():
     img = generate_image()
 
-    model = compile_model(test_net_xml)
-    assert isinstance(model, CompiledModel)
-    results = model.infer_new_request({"data": img})
-    assert np.argmax(results[list(results)[0]]) == 9
+    compiled_model = compile_model(get_relu_model())
+    assert isinstance(compiled_model, CompiledModel)
+    results = compiled_model.infer_new_request({"data": img})
+    assert np.argmax(results[list(results)[0]]) == 531
 
 
 def test_compact_api_xml_posix_path():
-    img = generate_image()
-
-    model = compile_model(Path(test_net_xml))
-    assert isinstance(model, CompiledModel)
-    results = model.infer_new_request({"data": img})
-    assert np.argmax(results[list(results)[0]]) == 9
+    compiled_model = compile_model(Path(test_net_xml))
+    assert isinstance(compiled_model, CompiledModel)
 
 
 def test_compact_api_wrong_path():
@@ -69,35 +64,17 @@ def test_compact_api_wrong_path():
     assert "Path: 'test class' does not exist. Please provide valid model's path either as a string, bytes or pathlib.Path" in str(e.value)
 
 
-def test_compact_api_onnx():
-    img = generate_image()
-
-    model = compile_model(test_net_onnx)
-    assert isinstance(model, CompiledModel)
-    results = model.infer_new_request({"data": img})
-    assert np.argmax(results[list(results)[0]]) == 9
-
-
-def test_compact_api_onnx_posix_path():
-    img = generate_image()
-
-    model = compile_model(Path(test_net_onnx))
-    assert isinstance(model, CompiledModel)
-    results = model.infer_new_request({"data": img})
-    assert np.argmax(results[list(results)[0]]) == 9
-
-
-def test_core_class():
+def test_core_class(device):
     input_shape = [1, 3, 4, 4]
-    model = generate_relu_model(input_shape)
+    compiled_model = generate_relu_compiled_model(device, input_shape=input_shape)
 
-    request = model.create_infer_request()
+    request = compiled_model.create_infer_request()
     input_data = np.random.rand(*input_shape).astype(np.float32) - 0.5
 
     expected_output = np.maximum(0.0, input_data)
 
     input_tensor = Tensor(input_data)
-    results = request.infer({"parameter": input_tensor})
+    results = request.infer({"data": input_tensor})
     assert np.allclose(results[list(results)[0]], expected_output)
 
 
@@ -276,50 +253,44 @@ def test_query_model(device):
     assert [
         key for key in query_model.keys() if key not in ops_func_names
     ] == [], "Not all network layers present in query_model results"
-    assert next(iter(set(query_model.values()))) == device, "Wrong device for some layers"
+    assert device in next(iter(set(query_model.values()))), "Wrong device for some layers"
 
 
 @pytest.mark.dynamic_library()
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
 def test_register_plugin():
+    device = "TEST_DEVICE"
+    lib_name = "test_plugin"
+    full_lib_name = lib_name + ".dll" if sys.platform == "win32" else "lib" + lib_name + ".so"
+
     core = Core()
-    core.register_plugin("openvino_intel_cpu_plugin", "BLA")
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
-    exec_net = core.compile_model(model, "BLA")
-    assert isinstance(exec_net, CompiledModel), "Cannot load the network to the registered plugin with name 'BLA'"
+    core.register_plugin(lib_name, device)
+    with pytest.raises(RuntimeError) as e:
+        core.get_versions(device)
+    assert f"Cannot load library '{full_lib_name}'" in str(e.value)
 
 
 @pytest.mark.dynamic_library()
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
 def test_register_plugins():
+    device = "TEST_DEVICE"
+    lib_name = "test_plugin"
+    full_lib_name = lib_name + ".dll" if sys.platform == "win32" else "lib" + lib_name + ".so"
+    plugins_xml = plugins_path(device, full_lib_name)
+
     core = Core()
-    if platform == "linux" or platform == "linux2":
-        core.register_plugins(plugins_xml)
-    elif platform == "darwin":
-        core.register_plugins(plugins_osx_xml)
-    elif platform == "win32":
-        core.register_plugins(plugins_win_xml)
+    core.register_plugins(plugins_xml)
+    os.remove(plugins_xml)
 
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
-    exec_net = core.compile_model(model, "CUSTOM")
-    assert isinstance(exec_net, CompiledModel), (
-        "Cannot load the network to "
-        "the registered plugin with name 'CUSTOM' "
-        "registered in the XML file"
-    )
-
-
-@pytest.mark.skip(reason="Need to figure out if it's expected behaviour (fails with C++ API as well")
-def test_unregister_plugin(device):
-    core = Core()
-    core.unload_plugin(device)
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
     with pytest.raises(RuntimeError) as e:
-        core.load_network(model, device)
-    assert (
-        f"Device with '{device}' name is not registered in the OpenVINO Runtime"
-        in str(e.value)
-    )
+        core.get_versions(device)
+    assert f"Cannot load library '{full_lib_name}'" in str(e.value)
+
+
+def test_unload_plugin(device):
+    core = Core()
+    # Trigger plugin loading
+    core.get_versions(device)
+    # Unload plugin
+    core.unload_plugin(device)
 
 
 @pytest.mark.template_plugin()
@@ -336,8 +307,8 @@ def test_add_extension_template_extension(device):
     model.reshape(new_shapes)
     # compile to check objects can be destroyed
     # in order core -> model -> compiled
-    compiled = core.compile_model(model, device)
-    assert compiled.input().partial_shape == after_reshape
+    compiled_model = core.compile_model(model, device)
+    assert compiled_model.input().partial_shape == after_reshape
 
 
 def test_add_extension():

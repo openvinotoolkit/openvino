@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -336,7 +336,7 @@ std::shared_ptr<ngraph::Node> ReshapeBiasConst(std::shared_ptr<ngraph::opset7::A
     IE_ASSERT(add_const);
 
     auto bias_size = shape_size(add_const->get_shape());
-    return ngraph::op::util::make_try_fold<ngraph::opset7::Reshape>(add_const,
+    return ov::op::util::make_try_fold<ngraph::opset7::Reshape>(add_const,
         ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, ngraph::Shape{1, bias_size, 1, 1}), false);
 }
 
@@ -388,7 +388,7 @@ static std::vector<std::shared_ptr<ngraph::Node>> Split2DConvFilters(std::shared
     }
 
     for (auto& new_filter : result)
-        new_filter = ngraph::op::util::make_try_fold<ngraph::opset7::Reshape>(new_filter,
+        new_filter = ov::op::util::make_try_fold<ngraph::opset7::Reshape>(new_filter,
             ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, reshape_shape), false);
 
     return result;
@@ -725,7 +725,7 @@ std::shared_ptr<ngraph::Function> Decompose2DConvTestFixture::get_reference(cons
 
 void execute_test(modelType model, std::shared_ptr<ngraph::Function> function, std::shared_ptr<ngraph::Function> reference_function) {
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
     InferenceEngine::Precision gnaPrecision = InferenceEngine::Precision::I16;
 
     switch (model) {

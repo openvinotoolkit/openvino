@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -7,24 +7,24 @@ function links static library without removing any symbol from it.
 
 ieTargetLinkWholeArchive(<target name> <lib1> [<lib2> ...])
 Example:
-ieTargetLinkWholeArchive("MyriadFunctionalTests" "CommonLib" "AnotherLib")
+ieTargetLinkWholeArchive("FunctionalTests" "CommonLib" "AnotherLib")
 
 #]]
 
 function(ieTargetLinkWholeArchive targetName)
     set(libs)
     foreach(staticLib ${ARGN})
-        if (MSVC)
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
             # CMake does not support generator expression in LINK_FLAGS, so we workaround it a little bit:
             # passing same static library as normal link (to get build deps working, and includes too), than using WHOLEARCHIVE option
             # it's important here to not use slash '/' for option !
-            if (CMAKE_GENERATOR MATCHES "Visual Studio")
+            if(CMAKE_GENERATOR MATCHES "Visual Studio")
                 # MSBuild is unhappy when parsing double quotes in combination with WHOLEARCHIVE flag.
                 # remove quotes from path - so build path with spaces not supported, but it's better than nothing.
                 list(APPEND libs ${staticLib}
                     "-WHOLEARCHIVE:$<TARGET_FILE:${staticLib}>"
                     )
-                if (CMAKE_CURRENT_BINARY_DIR MATCHES " ")
+                if(CMAKE_CURRENT_BINARY_DIR MATCHES " ")
                     message(WARNING "Visual Studio CMake generator may cause problems if your build directory contains spaces. "
                         "Remove spaces from path or select different generator.")
                 endif()
@@ -47,7 +47,7 @@ function(ieTargetLinkWholeArchive targetName)
                 )
         endif()
     endforeach()
-    if (libs)
+    if(libs)
         target_link_libraries(${targetName} PRIVATE ${libs})
     endif()
 endfunction()

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1419,7 +1419,7 @@ TEST(eval, topk_v1_dyn) {
     Shape shape{2, 3, 2};
 
     auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto k = make_shared<op::Parameter>(element::u32, Shape{});
+    auto k = make_shared<op::Parameter>(element::i32, Shape{});
     auto B = make_shared<op::v1::TopK>(A, k, 1, "max", "index", element::i32);
 
     auto fun = make_shared<Function>(OutputVector{B->output(0), B->output(1)}, ParameterVector{A, k});

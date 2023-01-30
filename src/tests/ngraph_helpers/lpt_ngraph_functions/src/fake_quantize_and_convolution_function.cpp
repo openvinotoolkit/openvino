@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -188,10 +188,10 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
 
     std::shared_ptr<Node> lastOperation;
     if (operation == "Convolution") {
-        lastOperation = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Convolution>>(
+        lastOperation = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Convolution>>(
             ngraph::opset1::Convolution(
-                ngraph::op::TemporaryReplaceOutputType(parentOnActivation, element::f32).get(),
-                ngraph::op::TemporaryReplaceOutputType(parentOnWeights, element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(parentOnActivation, element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(parentOnWeights, element::f32).get(),
                 ngraph::Strides{ 1, 1 },
                 ngraph::CoordinateDiff{ 0, 0 },
                 ngraph::CoordinateDiff{ 0, 0 },
@@ -199,10 +199,10 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{});
     } else if (operation == "GroupConvolution") {
-        lastOperation = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::GroupConvolution>>(
+        lastOperation = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::GroupConvolution>>(
             ngraph::opset1::GroupConvolution(
-                ngraph::op::TemporaryReplaceOutputType(parentOnActivation, element::f32).get(),
-                ngraph::op::TemporaryReplaceOutputType(parentOnWeights, element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(parentOnActivation, element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(parentOnWeights, element::f32).get(),
                 ngraph::Strides{ 1, 1 },
                 ngraph::CoordinateDiff{ 0, 0 },
                 ngraph::CoordinateDiff{ 0, 0 },

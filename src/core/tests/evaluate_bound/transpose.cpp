@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include "gmock/gmock.h"
 #include "openvino/opsets/opset9.hpp"
 #include "sequnce_generator.hpp"
+#include "type_prop.hpp"
 
 namespace {
 template <typename T>
@@ -54,7 +55,7 @@ protected:
 
     PartialShape p_shape;
     element::Type dtype{element::from<int32_t>()};
-    element::Type label_dtype{element::u64};
+    element::Type label_dtype{element::from<label_t>()};
 
     std::vector<int32_t> axes_order, lower_values, upper_values;
     HostTensorPtr lower_v_tensor, upper_v_tensor, axes_v_tensor;
@@ -144,7 +145,7 @@ TEST_P(TransposeEvalBoundTest, evaluate_label_but_empty_label_set) {
 TEST_P(TransposeEvalBoundTest, evaluate_label_but_order_has_no_bound_set) {
     exp_result = TensorVector{Tensor(label_dtype, {0})};
 
-    std::generate_n(std::back_inserter(labels), shape_size(p_shape.get_shape()), SeqGen<size_t>(30));
+    std::generate_n(std::back_inserter(labels), shape_size(p_shape.get_shape()), SeqGen<label_t>(30));
     arg->get_default_output().get_tensor().set_value_label(labels);
 
     ASSERT_FALSE(transpose->evaluate_label(out_labels));
@@ -153,13 +154,12 @@ TEST_P(TransposeEvalBoundTest, evaluate_label_but_order_has_no_bound_set) {
 TEST_P(TransposeEvalBoundTest, evaluate_label) {
     exp_result = TensorVector{Tensor(label_dtype, {0})};
 
-    std::generate_n(std::back_inserter(labels), shape_size(p_shape.get_shape()), SeqGen<size_t>(5));
+    std::generate_n(std::back_inserter(labels), shape_size(p_shape.get_shape()), SeqGen<label_t>(5));
     arg->get_default_output().get_tensor().set_value_label(labels);
 
     node_set_lower_and_upper(order.get(), axes_v_tensor, axes_v_tensor);
 
-    auto labels_u64 = std::vector<uint64_t>(labels.cbegin(), labels.cend());
-    auto inputs = TensorVector{Tensor(label_dtype, p_shape.get_shape(), labels_u64.data()),
+    auto inputs = TensorVector{Tensor(label_dtype, p_shape.get_shape(), labels.data()),
                                Tensor(dtype, Shape{axes_order.size()}, axes_order.data())};
 
     auto exp_eval_result = transpose->evaluate(exp_result, inputs);
@@ -167,5 +167,5 @@ TEST_P(TransposeEvalBoundTest, evaluate_label) {
     ASSERT_EQ(transpose->evaluate_label(out_labels), exp_eval_result);
     ASSERT_THAT(
         out_labels[Transpose::ARG_T],
-        ElementsAreArray(exp_result[Transpose::ARG_T].data<uint64_t>(), exp_result[Transpose::ARG_T].get_size()));
+        ElementsAreArray(exp_result[Transpose::ARG_T].data<label_t>(), exp_result[Transpose::ARG_T].get_size()));
 }

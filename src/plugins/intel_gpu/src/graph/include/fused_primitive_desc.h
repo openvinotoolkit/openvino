@@ -42,9 +42,6 @@ struct fused_primitive_desc {
     std::map<primitive_id, size_t> fused_deps;
     size_t dep_start_idx;
     size_t total_num_deps = 0;
-
-    activation_func activation;
-    activation_additional_params activation_params = { 0.f, 0.f };
 };
 
 #ifdef ENABLE_ONEDNN_FOR_GPU

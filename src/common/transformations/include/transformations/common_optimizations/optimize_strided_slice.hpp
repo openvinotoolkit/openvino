@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -70,12 +70,3 @@ public:
 private:
     bool m_use_shapes = true;
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::GroupedStridedSliceOptimizer;
-using ov::pass::SharedStridedSliceEraser;
-using ov::pass::StridedSliceOptimization;
-using ov::pass::UselessStridedSliceEraser;
-}  // namespace pass
-}  // namespace ngraph

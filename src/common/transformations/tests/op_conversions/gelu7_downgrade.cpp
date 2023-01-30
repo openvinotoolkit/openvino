@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ TEST_F(TransformationTestsF, Gelu7Downgrade) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gelu}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::Gelu7Downgrade>();
+        manager.register_pass<ov::pass::Gelu7Downgrade>();
     }
 
     {

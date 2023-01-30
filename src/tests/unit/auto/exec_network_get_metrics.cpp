@@ -1,9 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <ie_metric_helpers.hpp>
 #include <common_test_utils/test_constants.hpp>
+#include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
+#include "openvino/runtime/compiled_model.hpp"
+#include "so_ptr.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp"
 #include "unit_test_utils/mocks/mock_iinfer_request.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
@@ -11,12 +15,12 @@
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_ivariable_state_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
 #include <ie_core.hpp>
+#include <memory>
 #include <multi-device/multi_device_config.hpp>
 #include <ngraph_functions/subgraph_builders.hpp>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include "plugin/mock_auto_device_plugin.hpp"
-#include "cpp/ie_plugin.hpp"
 #include <chrono>
 #include <thread>
 #include "mock_common.hpp"
@@ -48,13 +52,13 @@ public:
     std::shared_ptr<MockIExecutableNetworkInternal> cpuMockIExeNet;
     ov::SoPtr<IExecutableNetworkInternal>  cpuMockExeNetwork;
     MockIInferencePlugin*                           cpuMockIPlugin;
-    InferenceEngine::InferencePlugin                cpuMockPlugin;
+    std::shared_ptr<InferenceEngine::IInferencePlugin> cpuMockPlugin;
 
     //mock actual exeNetwork
     std::shared_ptr<MockIExecutableNetworkInternal> actualMockIExeNet;
     ov::SoPtr<IExecutableNetworkInternal>  actualMockExeNetwork;
     MockIInferencePlugin*                           actualMockIPlugin;
-    InferenceEngine::InferencePlugin                actualMockPlugin;
+    std::shared_ptr<InferenceEngine::IInferencePlugin> actualMockPlugin;
 
     // config for Auto device
     std::map<std::string, std::string>              config;
@@ -81,19 +85,19 @@ public:
        cpuMockIExeNet = std::make_shared<MockIExecutableNetworkInternal>();
        auto cpuMockIPluginPtr = std::make_shared<MockIInferencePlugin>();
        ON_CALL(*cpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(cpuMockIExeNet));
-       cpuMockPlugin = InferenceEngine::InferencePlugin{cpuMockIPluginPtr, {}};
+       cpuMockPlugin = cpuMockIPluginPtr;
        // remove annoying ON CALL message
        EXPECT_CALL(*cpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).Times(1);
-       cpuMockExeNetwork = cpuMockPlugin.LoadNetwork(CNNNetwork{}, {});
+       cpuMockExeNetwork = ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(cpuMockPlugin->LoadNetwork(CNNNetwork{}, {}), {});
 
        // prepare actualMockExeNetwork
        actualMockIExeNet = std::make_shared<MockIExecutableNetworkInternal>();
        auto actualMockIPluginPtr = std::make_shared<MockIInferencePlugin>();
        ON_CALL(*actualMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(actualMockIExeNet));
-       actualMockPlugin = InferenceEngine::InferencePlugin{actualMockIPluginPtr, {}};
+       actualMockPlugin = actualMockIPluginPtr;
        // remove annoying ON CALL message
        EXPECT_CALL(*actualMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).Times(1);
-       actualMockExeNetwork = actualMockPlugin.LoadNetwork(CNNNetwork{}, {});
+       actualMockExeNetwork = ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(actualMockPlugin->LoadNetwork(CNNNetwork{}, {}), {});
 
        // prepare mockicore and cnnNetwork for loading
        core  = std::shared_ptr<MockICore>(new MockICore());
@@ -365,14 +369,14 @@ const std::vector<ConfigParams> testConfigs = {
                                                ConfigParams {true,  3, 5, false, 2, 5, true, CommonTestUtils::DEVICE_KEEMBAY,  8, 0},
                                                ConfigParams {false, 3, 5, true, 2, 5, false, CommonTestUtils::DEVICE_KEEMBAY,  2, 0},
                                                ConfigParams {true,  3, 5, true, 2, 5, false, CommonTestUtils::DEVICE_KEEMBAY,  2, 0},
-                                               ConfigParams {false, 3, -1, false, 2, -1, true, CommonTestUtils::DEVICE_MYRIAD,  1, 0},
-                                               ConfigParams {true,  3, -1, false, 2, -1, true, CommonTestUtils::DEVICE_MYRIAD,  6, 0},
-                                               ConfigParams {false, 3, -1, true, 2, -1, false, CommonTestUtils::DEVICE_MYRIAD,  2, 0},
-                                               ConfigParams {true,  3, -1, true, 2, -1, false, CommonTestUtils::DEVICE_MYRIAD,  2, 0},
-                                               ConfigParams {false, 3, 5, false, 2, 5, true, CommonTestUtils::DEVICE_MYRIAD,  1, 0},
-                                               ConfigParams {true,  3, 5, false, 2, 5, true, CommonTestUtils::DEVICE_MYRIAD,  6, 0},
-                                               ConfigParams {false, 3, 5, true, 2, 5, false, CommonTestUtils::DEVICE_MYRIAD,  2, 0},
-                                               ConfigParams {true,  3, 5, true, 2, 5, false, CommonTestUtils::DEVICE_MYRIAD,  2, 0},
+                                               ConfigParams {false, 3, -1, false, 2, -1, true, "MYRIAD",  1, 0},
+                                               ConfigParams {true,  3, -1, false, 2, -1, true, "MYRIAD",  6, 0},
+                                               ConfigParams {false, 3, -1, true, 2, -1, false, "MYRIAD",  2, 0},
+                                               ConfigParams {true,  3, -1, true, 2, -1, false, "MYRIAD",  2, 0},
+                                               ConfigParams {false, 3, 5, false, 2, 5, true, "MYRIAD",  1, 0},
+                                               ConfigParams {true,  3, 5, false, 2, 5, true, "MYRIAD",  6, 0},
+                                               ConfigParams {false, 3, 5, true, 2, 5, false, "MYRIAD",  2, 0},
+                                               ConfigParams {true,  3, 5, true, 2, 5, false, "MYRIAD",  2, 0},
                                               };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,

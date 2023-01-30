@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@ using namespace ov::intel_gna;
 
 IE_SUPPRESS_DEPRECATED_START
 const std::map<std::string, std::string>  supportedConfigKeysWithDefaults = {
+    {CONFIG_KEY(CACHE_DIR), ""},
     {GNA_CONFIG_KEY(SCALE_FACTOR), "1.000000"},
     {GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_0"), "1.000000"},
     {GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE), ""},
