@@ -89,13 +89,8 @@ Pad::Pad(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr conte
         IE_THROW() << errorPrefix << "couldn't be casted to op of opset1";
     }
 
-    for (size_t i = 0lu; i < op->get_input_size(); i++) {
-        auto constValue = ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
-
-        if (!constValue && one_of(i, 1, 2)) {
-            shapeHasDataDependency = true;
-        }
-    }
+    shapeHasDataDependency = !ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(PADS_BEGIN_ID)) ||
+            !ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(PADS_END_ID));
 
     auto fillingInParameters = [&](std::vector<unsigned int>& parameter, const size_t type) {
         if (type < PADS_BEGIN_ID)
@@ -117,6 +112,7 @@ Pad::Pad(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr conte
 
     const auto pad_mode = pad->get_pad_mode();
     isPadValueSpecified = pad->get_input_size() == 4;
+    size_t inParamsNum = pad->get_input_size();
     if (pad_mode == ngraph::op::PadMode::CONSTANT) {
         attrs.padMode = CONSTANT;
         if (isPadValueSpecified && op->get_input_node_shared_ptr(PAD_VALUE_ID)->get_type_info() ==
@@ -137,6 +133,8 @@ Pad::Pad(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr conte
     } else {
         IE_THROW() << errorPrefix << "has unsupported pad_mode: " + ngraph::as_string(pad_mode);
     }
+    srcMemory.assign(inParamsNum, nullptr);
+    dstMemory.assign(1, nullptr);
 }
 
 void Pad::getSupportedDescriptors() {}
@@ -206,6 +204,10 @@ bool Pad::needShapeInfer() const {
     return Node::inputShapesModified() || shapeHasDataDependency;
 }
 
+bool Pad::needPrepareParams() const {
+    return Node::inputShapesModified() || shapeHasDataDependency;
+}
+
 void Pad::createPrimitive() {
     if (inputShapesDefined() && isExecutable() && !shapeHasDataDependency) {
         prepareParams();
@@ -219,17 +221,10 @@ bool Pad::isExecutable() const {
 
 void Pad::prepareParams() {
     updateLastInputDims();
-    if (srcMemory.empty()) {
-        for (int i = 0; i < getOriginalInputsNumber(); i++) {
-            srcMemory.push_back(getParentEdgeAt(i)->getMemoryPtr());
-        }
+    for (int i = 0; i < getOriginalInputsNumber(); i++) {
+        srcMemory[i] = getParentEdgeAt(i)->getMemoryPtr();
     }
-
-    if (dstMemory.empty()) {
-        for (int i = 0; i < getOriginalOutputsNumber(); i++) {
-            dstMemory.push_back(getChildEdgeAt(i)->getMemoryPtr());
-        }
-    }
+    dstMemory[0] = getChildEdgeAt(0)->getMemoryPtr();
     execPtr = std::make_shared<PadExecutor>(
         attrs,
         srcMemory,

@@ -26,6 +26,7 @@ public:
     void prepareParams() override;
     bool needShapeInfer() const override;
     bool isExecutable() const override;
+    bool needPrepareParams() const override;
 
 protected:
     void executeDynamicImpl(dnnl::stream strm) override;

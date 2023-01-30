@@ -69,7 +69,7 @@ protected:
             if (i == 0) {
                 tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 10, 1, 1);
             } else {
-                if (ov::is_scalar(funcInput.get_partial_shape()))
+                if (funcInput.get_node()->get_friendly_name() == "pad_value")
                     tensor = ov::Tensor{funcInput.get_element_type(), ov::Shape{}, &padValue};
                 else
                     tensor = ov::Tensor{funcInput.get_element_type(), targetInputStaticShapes[i], inputValues[i-1]};
@@ -107,6 +107,7 @@ protected:
             if (padMode == ngraph::helpers::PadMode::CONSTANT) {
                 valueNode = std::make_shared<ngraph::opset1::Parameter>(dataType, ov::Shape{});
                 params.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(valueNode));
+                params.back()->set_friendly_name("pad_value");
             }
             pad = ngraph::builder::makePad(params[0], beginNode, endNode, valueNode, padMode);
         } else {
