@@ -59,7 +59,7 @@ def _(
     # Edge-case for numpy arrays if shape is "empty",
     # assume this is a scalar value - always copy
     if not value.shape:
-        return Tensor(np.ndarray([], type(value), np.array(value)))
+        return Tensor(np.ndarray([], value.dtype, np.array(value)))
     tensor_type = get_request_tensor(request, key).get_element_type()
     tensor_dtype = tensor_type.to_dtype()
     # WA for FP16-->BF16 edge-case - always copy
