@@ -323,7 +323,7 @@ void AutoSchedule::TryToLoadNetWork(AutoLoadContext& context, const std::string&
             int maxNumThreads = 0;
             try {
                 maxNumThreads = _autoSContext->_core->GetConfig(device, GPU_CONFIG_KEY(MAX_NUM_THREADS)).as<int>();
-            } catch (const InferenceEngine::Exception&) {
+            } catch (const IE::Exception&) {
                 LOG_DEBUG_TAG("cannot get MAX_NUM_THREADS from GPU");
             }
             if (maxNumThreads == static_cast<int>(std::thread::hardware_concurrency())) {
