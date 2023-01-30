@@ -53,12 +53,10 @@ class TestEltwiseInfer(unittest.TestCase):
                              ('node_3', 'op_output')
                              ],
                             {'node_3': {'shape': None},
-                             'node_1': {
-                                 'shape': shape_array(value1).shape if value1 is not None else shape_array(shape1),
-                                 'value': value1},
-                             'node_2': {
-                                 'shape': shape_array(value2).shape if value2 is not None else shape_array(shape2),
-                                 'value': value2}
+                             'node_1': {'shape': shape_array(value1).shape if value1 is not None else shape_array(shape1),
+                                        'value': value1},
+                             'node_2': {'shape': shape_array(value2).shape if value2 is not None else shape_array(shape2),
+                                        'value': value2}
                              })
 
         graph.graph['layout'] = 'NCHW'
