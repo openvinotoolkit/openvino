@@ -4,6 +4,7 @@
 
 #include "template_plugin.hpp"
 
+#include "converter_utils.hpp"
 #include "ie_metric_helpers.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/op/ops.hpp"
@@ -77,29 +78,27 @@ void TransformNetwork(const std::shared_ptr<ov::Model>& model) {
 // ! [plugin:transform_network]
 
 // ! [plugin:load_exe_network_impl]
-std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> TemplatePlugin::Plugin::compile_model(
-    const std::shared_ptr<const ov::Model>& model,
-    const ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                                          const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::compile_model");
 
     auto fullConfig = Configuration{properties, _cfg};
-    return std::make_shared<ExecutableNetwork>(model,
-                                               fullConfig,
-                                               std::static_pointer_cast<const Plugin>(shared_from_this()));
+    return ov::legacy_convert::convert_compiled_model(
+        std::make_shared<ExecutableNetwork>(model,
+                                            fullConfig,
+                                            std::static_pointer_cast<const Plugin>(shared_from_this())));
 }
 
-std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> TemplatePlugin::Plugin::compile_model(
-    const std::shared_ptr<const ov::Model>& model,
-    const ov::AnyMap& properties,
-    const ov::RemoteContext& context) const {
+std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                                          const ov::AnyMap& properties,
+                                                                          const ov::RemoteContext& context) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 // ! [plugin:load_exe_network_impl]
 
 // ! [plugin:import_network]
-std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> TemplatePlugin::Plugin::import_model(
-    std::istream& model,
-    const ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::import_model(std::istream& model,
+                                                                         const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::import_model");
 
     auto fullConfig = Configuration{properties, _cfg};
@@ -107,13 +106,12 @@ std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> TemplatePlugin::Plu
                                                     fullConfig,
                                                     std::static_pointer_cast<const Plugin>(shared_from_this()));
     // SetExeNetworkInfo(exec, exec->_function);
-    return exec;
+    return ov::legacy_convert::convert_compiled_model(exec);
 }
 
-std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> TemplatePlugin::Plugin::import_model(
-    std::istream& model,
-    const ov::RemoteContext& context,
-    const ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::import_model(std::istream& model,
+                                                                         const ov::RemoteContext& context,
+                                                                         const ov::AnyMap& properties) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 // ! [plugin:import_network]
