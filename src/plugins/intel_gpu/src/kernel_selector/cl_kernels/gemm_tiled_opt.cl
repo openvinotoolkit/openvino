@@ -98,16 +98,7 @@ KERNEL(gemm_tiled_opt)(
 #endif // IS_DYNAMIC
     uint y = tile_m_offset;
 
-#if IS_DYNAMIC
     const uint tile_m_iterations = TILE_M_NOT_DIVISIBLE ? (tile_m_num == (tile_m_size - 1) ? TILE_M_LEFTOVER : TILE_M) : TILE_M;
-#else // IS_DYNAMIC
-#if TILE_M_NOT_DIVISIBLE
-    const uint tile_m_iterations = tile_m_num == (tile_m_size - 1) ? TILE_M_LEFTOVER : TILE_M;
-#else // TILE_M_NOT_DIVISIBLE
-    const uint tile_m_iterations = TILE_M;
-#endif // TILE_M_NOT_DIVISIBLE
-#endif // IS_DYNAMIC
-
     const uint z = batch_number % OUTPUT_SIZE_Z;
     batch_number /= OUTPUT_SIZE_Z;
     const uint w = batch_number % OUTPUT_SIZE_W;

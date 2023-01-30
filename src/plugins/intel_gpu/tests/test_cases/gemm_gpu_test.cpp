@@ -395,6 +395,11 @@ TEST(gemm_gpu, dynamic_multi_inference_same_shape) {
         ASSERT_EQ(outputs.size(), size_t(1));
         ASSERT_EQ(outputs.begin()->first, "gemm");
 
+        auto prog = network.get_program();
+        auto& node = prog->get_node("gemm");
+        auto kernel_name = node.get_selected_impl()->get_kernel_name();
+        ASSERT_EQ(kernel_name, "gemm_tiled_opt");
+
         auto output_prim_mem = outputs.begin()->second.get_memory();
         cldnn::mem_lock<float> output_ptr(output_prim_mem, get_test_stream());
 
@@ -476,6 +481,11 @@ TEST(gemm_gpu, dynamic_multi_inference_different_shape) {
         auto outputs = network.execute();
         ASSERT_EQ(outputs.size(), size_t(1));
         ASSERT_EQ(outputs.begin()->first, "gemm");
+
+        auto prog = network.get_program();
+        auto& node = prog->get_node("gemm");
+        auto kernel_name = node.get_selected_impl()->get_kernel_name();
+        ASSERT_EQ(kernel_name, "gemm_tiled_opt");
 
         auto output_prim_mem = outputs.begin()->second.get_memory();
         cldnn::mem_lock<float> output_ptr(output_prim_mem, get_test_stream());

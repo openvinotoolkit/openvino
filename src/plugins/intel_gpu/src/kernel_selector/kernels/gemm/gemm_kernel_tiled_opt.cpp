@@ -55,7 +55,7 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
 
     GemmKernelTiledOpt::GemmTuningData tuning_data;
 
-     if (!params.has_dynamic_tensors()) {
+     if (!params.is_shape_agnostic) {
         auto m_size = output.Y().v;
         auto n_size = output.X().v;
         auto k_size = params.transpose_input0 ? params.inputs[0].Y().v : params.inputs[0].X().v;
@@ -105,11 +105,11 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
         auto n_size = toCodeString(output.X(), 17);
         auto k_size = params.transpose_input0 ? toCodeString(params.inputs[0].Y(), 4) : toCodeString(params.inputs[0].X(), 5);
         const std::string leftover_m = "(" + m_size + "%" + std::to_string(tuning_data.tile_m_size) + ")";
-        const std::string leftover_n = "(" + k_size + "%" + std::to_string(tuning_data.tile_n_size) + ")";
+        const std::string leftover_n = "(" + n_size + "%" + std::to_string(tuning_data.tile_n_size) + ")";
         const std::string leftover_k = "(" + k_size + "%" + std::to_string(tuning_data.tile_k_size) + ")";
-        const std::string not_devisible_m = "(" + leftover_m + "!=0)";
-        const std::string not_devisible_n = "(" + leftover_n + "!=0)";
-        const std::string not_devisible_k = "(" + leftover_k + "!=0)";
+        const std::string not_divisible_m = "(" + leftover_m + "!=0)";
+        const std::string not_divisible_n = "(" + leftover_n + "!=0)";
+        const std::string not_divisible_k = "(" + leftover_k + "!=0)";
         const std::string full_iteration_k = "(" + k_size + "/" + std::to_string(tuning_data.tile_k_size) + ")";
 
         jit.AddConstants({
@@ -121,9 +121,9 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
             MakeJitConstant("TILE_K", tuning_data.tile_k_size),
             MakeJitConstant("TILE_N", tuning_data.tile_n_size),
             MakeJitConstant("K_FULL_ITERATIONS", full_iteration_k),
-            MakeJitConstant("TILE_M_NOT_DIVISIBLE", not_devisible_m),
-            MakeJitConstant("TILE_K_NOT_DIVISIBLE", not_devisible_k),
-            MakeJitConstant("TILE_N_NOT_DIVISIBLE", not_devisible_n),
+            MakeJitConstant("TILE_M_NOT_DIVISIBLE", not_divisible_m),
+            MakeJitConstant("TILE_K_NOT_DIVISIBLE", not_divisible_k),
+            MakeJitConstant("TILE_N_NOT_DIVISIBLE", not_divisible_n),
             MakeJitConstant("TILE_M_LEFTOVER", leftover_m),
             MakeJitConstant("TILE_K_LEFTOVER", leftover_k),
             MakeJitConstant("TILE_N_LEFTOVER", leftover_n),
@@ -224,6 +224,8 @@ bool GemmKernelTiledOpt::Validate(const Params& params, const optional_params& o
     const auto& gmm_params = static_cast<const gemm_params&>(params);
     bool gemm_leftovers = gmm_params.inputs[0].X().v % 16 || gmm_params.inputs[0].Y().v % 16 ||
                           gmm_params.inputs[1].X().v % 16 || gmm_params.inputs[1].Y().v % 16;
+    // If gmm_params has dynamic inputs, the correct dimension value cannot be obtained
+    // and leftovers cannot be calculated, so it returns false
     if ((gmm_params.transpose_input0 || gmm_params.transpose_input1) && (gemm_leftovers || gmm_params.has_dynamic_inputs()))
         return false;
 
