@@ -14,7 +14,7 @@ class TFLiteLayerTest(CommonLayerTest):
     allowed_ops = None
 
     def make_model(self, params):
-        raise RuntimeError("This is Tensorflow Lite base layer test class, "
+        raise RuntimeError("This is TensorFlow Lite base layer test class, "
                            "please implement make_model function for the specific test")
 
     def produce_tflite_model(self, framework_model, save_path):
