@@ -145,7 +145,7 @@ ov::Tensor create_tensor_from_numpy(const std::vector<std::string>& files,
     for (size_t batch_nr = 0; batch_nr < numpy_batch_size; ++batch_nr) {
         for (size_t input_tensor_nr = 0; input_tensor_nr < tensor_size; ++input_tensor_nr) {
             size_t offset = batch_nr * tensor_size + input_tensor_nr;
-            for(size_t byte_nr; byte_nr < type_bytes_size; ++byte_nr){
+            for (size_t byte_nr; byte_nr < type_bytes_size; ++byte_nr) {
                 bytes_buffer[byte_nr] = numpy_array_pointers.at(batch_nr).get()[offset * type_bytes_size + byte_nr];
             }
             data[offset] = *((T*)bytes_buffer);
@@ -279,11 +279,11 @@ ov::Tensor get_image_tensor(const std::vector<std::string>& files,
     auto type = inputInfo.second.type;
     if (type == ov::element::f16) {
         return create_tensor_from_image<ov::float16>(files,
-                                               inputId,
-                                               batchSize,
-                                               inputInfo.second,
-                                               inputInfo.first,
-                                               filenames_used);
+                                                     inputId,
+                                                     batchSize,
+                                                     inputInfo.second,
+                                                     inputInfo.first,
+                                                     filenames_used);
     } else if (type == ov::element::f32) {
         return create_tensor_from_image<float>(files,
                                                inputId,
