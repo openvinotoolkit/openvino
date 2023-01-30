@@ -785,7 +785,7 @@ void RNN::copyWeightsData() {
      *   ====== GRU ======
      *   IE - URO, onednn - URO
      */
-    const int gate_map_lstm[] = {1, 0, 2, 3};  // FICO -> IFCO
+    const int gate_map_lstm[] = {0, 1, 2, 3};  // FICO -> IFCO
     const int gate_map_gru[]  = {0, 1, 2, 3};
     const int gate_map_rnn[]  = {0};
     const int *gate_map;
