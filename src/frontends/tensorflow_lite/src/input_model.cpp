@@ -102,6 +102,12 @@ void InputModel::InputModelTFLiteImpl::loadModel() {
                                                                  data);
                     constant->set_friendly_name(name);
                     m_tensor_values[name] = constant;
+                } else if (place->get_partial_shape() == PartialShape{0}) { // empty constant
+                    auto constant = ov::op::v0::Constant::create(place->get_element_type(),
+                                                                 place->get_partial_shape().to_shape(),
+                                                                 {});
+                    constant->set_friendly_name(name);
+                    m_tensor_values[name] = constant;
                 } else {
                     FRONT_END_GENERAL_CHECK(false,
                                             "This tensor should be either input, constant or ",
