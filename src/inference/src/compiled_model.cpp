@@ -112,8 +112,13 @@ void CompiledModel::set_property(const AnyMap& config) {
     OV_COMPILED_MODEL_CALL_STATEMENT(_impl->set_property(config));
 }
 
-Any CompiledModel::get_property(const std::string& name) const {
-    OV_COMPILED_MODEL_CALL_STATEMENT(return {_impl->get_property(name), {_so}});
+Any CompiledModel::get_property(const std::string& name, const std::string& target_device) const {
+    OV_COMPILED_MODEL_CALL_STATEMENT({
+        if (target_device.empty())
+            return {_impl->get_property(name), {_so}};
+        else
+            return {_impl->get_property(name, target_device), {_so}};
+    });
 }
 
 RemoteContext CompiledModel::get_context() const {

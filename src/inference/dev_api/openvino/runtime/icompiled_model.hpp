@@ -108,6 +108,16 @@ public:
     virtual ov::Any get_property(const std::string& name) const = 0;
 
     /**
+     * @brief Returns property requested from the specified device
+     *
+     * @param name Property name
+     * @param target_device device name
+     *
+     * @return Property value
+     */
+    virtual ov::Any get_property(const std::string& name, const std::string& target_device) const = 0;
+
+    /**
      * @brief Creates device specific remote context
      *
      * @return OpenVINO RemoteContext

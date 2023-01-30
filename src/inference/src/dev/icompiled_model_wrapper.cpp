@@ -37,6 +37,15 @@ void InferenceEngine::ICompiledModelWrapper::set_property(const ov::AnyMap& prop
     m_model->SetConfig(properties);
 }
 
+ov::Any InferenceEngine::ICompiledModelWrapper::get_property(const std::string& name,
+                                                             const std::string& target_device) const {
+    try {
+        return {m_model->GetMetric(name, target_device)};
+    } catch (InferenceEngine::Exception&) {
+        return {m_model->GetConfig(name, target_device)};
+    }
+}
+
 ov::Any InferenceEngine::ICompiledModelWrapper::get_property(const std::string& name) const {
     if (ov::loaded_from_cache == name) {
         return m_model->isLoadedFromCache();

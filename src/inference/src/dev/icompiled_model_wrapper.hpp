@@ -22,6 +22,7 @@ public:
     void set_property(const ov::AnyMap& properties) override;
 
     ov::Any get_property(const std::string& name) const override;
+    ov::Any get_property(const std::string& name, const std::string& target_device) const override;
 
     ov::RemoteContext get_context() const override;
 

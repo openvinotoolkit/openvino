@@ -300,6 +300,31 @@ TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_EXEC_DEVICES, GetMetricNoThro
 
     ASSERT_EQ(expectedTargets, exeTargets);
 }
+
+TEST_P(OVClassExecutableNetworkGetMetricTest_DEVICE_PROPERTIES, GetMetricWithDevicePropertiesNoThrow) {
+    ov::Core core = createCoreWithTemplate();
+    auto compiled_model = core.compile_model(simpleNetwork, target_device, configuration);
+    int32_t expected_value = configuration[device_name].as<ov::AnyMap>()[ov::num_streams.name()].as<int32_t>();
+    int32_t actual_value = -1;
+    ASSERT_NO_THROW(actual_value = compiled_model.get_property(ov::device::properties(device_name, ov::num_streams)));
+    ASSERT_EQ(expected_value, actual_value);
+}
+
+TEST_P(OVClassExecutableNetworkGetMetricTestUnsupportConfigThrow_DEVICE_PROPERTIES,
+       GetMetricWithDevicePropertiesThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    auto compiled_model = ie.compile_model(simpleNetwork, target_device, configuration);
+    // throw exception when getting unsupported property through device's executable network via this API
+    ASSERT_THROW(compiled_model.get_property(ov::device::properties(device_name, ov::device::priorities)),
+                 ov::Exception);
+}
+
+TEST_P(OVClassExecutableNetworkGetMetricTestInvalidDeviceThrow_DEVICE_PROPERTIES, GetMetricWithDevicePropertiesThrow) {
+    ov::Core core = createCoreWithTemplate();
+    auto compiled_model = core.compile_model(simpleNetwork, target_device, configuration);
+    // executable network is not found in meta plugin
+    ASSERT_THROW(compiled_model.get_property(ov::device::properties(device_name, ov::num_streams)), ov::Exception);
+}
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
