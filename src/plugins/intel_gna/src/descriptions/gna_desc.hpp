@@ -4,17 +4,16 @@
 
 #pragma once
 
-#include <vector>
-#include <numeric>
 #include <functional>
+#include <numeric>
 #include <unordered_set>
-
-#include "ie_precision.hpp"
-#include "ie_input_info.hpp"
-#include "ie_algorithm.hpp"
+#include <vector>
 
 #include "backend/dnn_types.hpp"
 #include "gna_plugin_config.hpp"
+#include "ie_algorithm.hpp"
+#include "ie_input_info.hpp"
+#include "ie_precision.hpp"
 
 namespace ov {
 namespace intel_gna {

@@ -4,7 +4,6 @@
 
 #include <gna/gna_config.hpp>
 
-
 class GnaLayerTestCheck {
     bool verRead = false;
     int verMajor;

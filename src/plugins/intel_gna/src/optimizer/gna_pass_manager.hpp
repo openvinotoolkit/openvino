@@ -3,11 +3,12 @@
 //
 
 #pragma once
-#include <vector>
+#include <ie_common.h>
+
+#include <map>
 #include <memory>
 #include <string>
-#include <map>
-#include <ie_common.h>
+#include <vector>
 
 namespace ov {
 namespace intel_gna {
@@ -16,12 +17,14 @@ namespace intel_gna {
  * @brief interface for gna-pass, special transformer that will be run on input network in order to generate GNABlob
  */
 class Pass {
- public:
+public:
     virtual ~Pass() = default;
-    virtual void attach(const std::vector<InferenceEngine::CNNLayerPtr> & layers)  = 0;
+    virtual void attach(const std::vector<InferenceEngine::CNNLayerPtr>& layers) = 0;
     virtual std::string getName() const = 0;
     virtual void run() = 0;
-    virtual bool runBeforeCopyPass() { return false; }
+    virtual bool runBeforeCopyPass() {
+        return false;
+    }
 };
 /**
  * Passmanager interface available for individual passes, usually needed to store shared data between passes
@@ -29,45 +32,53 @@ class Pass {
 class IPassManager {
 public:
     virtual ~IPassManager() = default;
-    virtual int &getIntVar(std::string name) = 0;
+    virtual int& getIntVar(std::string name) = 0;
     virtual const bool& isLowPrecision() const = 0;
-    virtual InferenceEngine::CNNNetwork &getNetwork() = 0;
+    virtual InferenceEngine::CNNNetwork& getNetwork() = 0;
 };
 
 class BasePass : public Pass {
- protected:
-    const std::vector<InferenceEngine::CNNLayerPtr> * pLayers = nullptr;
+protected:
+    const std::vector<InferenceEngine::CNNLayerPtr>* pLayers = nullptr;
     std::weak_ptr<IPassManager> mgr;
- public:
+
+public:
     BasePass() = default;
     explicit BasePass(std::shared_ptr<IPassManager> mgr) : mgr(mgr) {}
-    void attach(const std::vector<InferenceEngine::CNNLayerPtr> & layersToAttach) override {
+    void attach(const std::vector<InferenceEngine::CNNLayerPtr>& layersToAttach) override {
         pLayers = &layersToAttach;
     }
- protected:
+
+protected:
     std::shared_ptr<IPassManager> getPassManager();
 };
 
-#define DECL_PASS(PassName) \
-class PassName##Pass : public BasePass {\
- public:\
-    using BasePass::BasePass;\
-    void run() override;\
-    std::string getName() const override { return #PassName;}\
-}
+#define DECL_PASS(PassName)                    \
+    class PassName##Pass : public BasePass {   \
+    public:                                    \
+        using BasePass::BasePass;              \
+        void run() override;                   \
+        std::string getName() const override { \
+            return #PassName;                  \
+        }                                      \
+    }
 
-#define DECL_PASS_BEFORE_COPY(PassName) \
-class PassName##Pass : public BasePass {\
- public:\
-    using BasePass::BasePass;\
-    void run() override;\
-    bool runBeforeCopyPass() override { return true; };\
-    std::string getName() const override { return #PassName;}\
-}
+#define DECL_PASS_BEFORE_COPY(PassName)        \
+    class PassName##Pass : public BasePass {   \
+    public:                                    \
+        using BasePass::BasePass;              \
+        void run() override;                   \
+        bool runBeforeCopyPass() override {    \
+            return true;                       \
+        };                                     \
+        std::string getName() const override { \
+            return #PassName;                  \
+        }                                      \
+    }
 
 /**
-* @brief GNA affine layers are always have activation attached, while IR not
-*/
+ * @brief GNA affine layers are always have activation attached, while IR not
+ */
 DECL_PASS(InsertIdentityLayer);
 
 /**
@@ -128,13 +139,14 @@ DECL_PASS(ForbidActivationFusing);
 DECL_PASS(InsertCopyLayer);
 
 /**
- * @brief aligning filter layer insertion required in cases when split/slice have output connections on not aligned addresses
+ * @brief aligning filter layer insertion required in cases when split/slice have output connections on not aligned
+ * addresses
  */
 DECL_PASS(InsertSplitAligningFilter);
 
 /**
-* @brief Pass that flattens trivial concatenations inputs and output and changes its axis to 1
-*/
+ * @brief Pass that flattens trivial concatenations inputs and output and changes its axis to 1
+ */
 DECL_PASS(FlattenTrivialConcat);
 
 /**
@@ -143,41 +155,41 @@ DECL_PASS(FlattenTrivialConcat);
 DECL_PASS(InsertConcatAligningFilter);
 
 /**
- * @brief concat-aligning filter if inserted need to be folowed by left aligning inupt in multiple inputs to concate case
- * or just followed by first input to concate. This cannot be done in inserting concat aliging phase
+ * @brief concat-aligning filter if inserted need to be folowed by left aligning inupt in multiple inputs to concate
+ * case or just followed by first input to concate. This cannot be done in inserting concat aliging phase
  */
 DECL_PASS(ReorderConcatInputs);
 
 /**
-* @brief in cases that network output layer is connected to only one layer which is activation additional identity is inserted
-* so the operation is not fused with the activation allowing to get te results from said layer
-*/
+ * @brief in cases that network output layer is connected to only one layer which is activation additional identity is
+ * inserted so the operation is not fused with the activation allowing to get te results from said layer
+ */
 DECL_PASS(BreakFusingOfOutputLayers);
 
 /**
- * @brief insert identity at the output of LSTMCell which fixes cases where data is not propagated correctly through network
- * and LSTMCell returns all zeroes
+ * @brief insert identity at the output of LSTMCell which fixes cases where data is not propagated correctly through
+ * network and LSTMCell returns all zeroes
  */
 DECL_PASS_BEFORE_COPY(InsertIdentityToLSTMCell);
 
 /**
-* @brief unrolled LSTM cell layer in supported GNA primitives
-*/
+ * @brief unrolled LSTM cell layer in supported GNA primitives
+ */
 DECL_PASS_BEFORE_COPY(UnrollLSTMCell);
 
 /**
-* @brief unrolled Tensor Iterator layer in supported GNA layers
-*/
+ * @brief unrolled Tensor Iterator layer in supported GNA layers
+ */
 DECL_PASS_BEFORE_COPY(UnrollTI);
 
 /**
-* @brief removed const layer before reshape layer
-*/
+ * @brief removed const layer before reshape layer
+ */
 DECL_PASS_BEFORE_COPY(RemoveConst);
 
 /**
  * @brief remove concat layers with single input
-*/
+ */
 DECL_PASS_BEFORE_COPY(RemoveSingleInputConcat);
 
 /**
@@ -186,26 +198,26 @@ DECL_PASS_BEFORE_COPY(RemoveSingleInputConcat);
 DECL_PASS(FuseMultipleIdentities);
 
 /**
-* @brief Brodcast data in Const layer
-*/
+ * @brief Brodcast data in Const layer
+ */
 DECL_PASS(BroadcastConst);
 
 /**
-* @brief runs static quantisation on given floating weights and replaces fakeQuantize with constblobs
-*/
+ * @brief runs static quantisation on given floating weights and replaces fakeQuantize with constblobs
+ */
 DECL_PASS(FuseFQIntoWeights);
 
 /**
-* @brief remove all fake quantize layers while moving it's settings into QuantParams for certain layer
-*/
+ * @brief remove all fake quantize layers while moving it's settings into QuantParams for certain layer
+ */
 DECL_PASS(MoveFakeQuantizeLayerIntoQuantParams);
 
 /**
-* @brief convert FullyConnected, ScaleShift and Eltwise layers weights order from NCHW to NHWC.
-* Information for transposition is found from convolution/pooling input or output dimensions.
-* Convolution weights are transposed in finalizeConvolution1DPrimitive() method (gna_graph_compiler.cpp).
-* They are transposed for the both, NCHW and NHWC models since MO always stores them in NCHW layout.
-*/
+ * @brief convert FullyConnected, ScaleShift and Eltwise layers weights order from NCHW to NHWC.
+ * Information for transposition is found from convolution/pooling input or output dimensions.
+ * Convolution weights are transposed in finalizeConvolution1DPrimitive() method (gna_graph_compiler.cpp).
+ * They are transposed for the both, NCHW and NHWC models since MO always stores them in NCHW layout.
+ */
 DECL_PASS(TransposeWeightsFromNCHWToNHWC);
 
 struct PassManagerSettings {
@@ -213,7 +225,6 @@ struct PassManagerSettings {
     bool runBeforeCopy;
     bool lowPrecision;
 };
-
 
 class PassManager : public IPassManager, public std::enable_shared_from_this<PassManager> {
     PassManagerSettings settings;
@@ -223,14 +234,14 @@ class PassManager : public IPassManager, public std::enable_shared_from_this<Pas
 
 public:
     explicit PassManager(PassManagerSettings settings, InferenceEngine::CNNNetwork network) noexcept
-    : settings(settings)
-    , network(network) {}
+        : settings(settings),
+          network(network) {}
 
     template <class T>
     void registerPass() {
         passes.push_back(std::make_shared<T>(shared_from_this()));
     }
-    int & getIntVar(std::string name) override {
+    int& getIntVar(std::string name) override {
         return intMap[name];
     }
     const bool& isLowPrecision() const override {
