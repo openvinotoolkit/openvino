@@ -128,7 +128,7 @@ class InferRequest(_InferRequestWrapper):
                               * scalar inputs (i.e. `np.float_`/`int`/`float`)
                               Keeps Tensor inputs "as-is".
                               Note: Use with extra care, shared data can be modified during runtime!
-                              Note: Using shared memory may result in extra memory overhead.
+                              Note: Using `shared_memory` may result in extra memory overhead.
 
                               Default value: False
         :type shared_memory: bool, optional
@@ -247,7 +247,7 @@ class CompiledModel(CompiledModelBase):
                               * scalar inputs (i.e. `np.float_`/`int`/`float`)
                               Keeps Tensor inputs "as-is".
                               Note: Use with extra care, shared data can be modified during runtime!
-                              Note: Using shared memory may result in extra memory overhead.
+                              Note: Using `shared_memory` may result in extra memory overhead.
 
                               Default value: True
         :type shared_memory: bool, optional
@@ -335,7 +335,7 @@ class AsyncInferQueue(AsyncInferQueueBase):
                               * scalar inputs (i.e. `np.float_`/`int`/`float`)
                               Keeps Tensor inputs "as-is".
                               Note: Use with extra care, shared data can be modified during runtime!
-                              Note: Using shared memory may result in extra memory overhead.
+                              Note: Using `shared_memory` may result in extra memory overhead.
 
                               Default value: False
         """
