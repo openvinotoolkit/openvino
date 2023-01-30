@@ -6,6 +6,7 @@
 
 #include <numeric>
 
+#include "bound_evaluate.hpp"
 #include "compare.hpp"
 #include "itt.hpp"
 #include "ngraph/runtime/reference/slice.hpp"

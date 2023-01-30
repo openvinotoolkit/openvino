@@ -4,7 +4,7 @@
 
 #include "ngraph/op/reduce_prod.hpp"
 
-#include "bound_evaluation_util.hpp"
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/util/evaluate_helpers.hpp"

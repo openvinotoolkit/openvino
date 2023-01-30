@@ -6,7 +6,7 @@
 
 #include <ngraph/validation_util.hpp>
 
-#include "bound_evaluation_util.hpp"
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/op/and.hpp"
 #include "ngraph/op/equal.hpp"

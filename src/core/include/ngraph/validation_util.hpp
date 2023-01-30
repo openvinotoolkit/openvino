@@ -160,11 +160,6 @@ NGRAPH_API void evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map
                                const OutputVector& outputs,
                                const EvaluationContext& evaluation_context = EvaluationContext());
 
-/// \brief Checks if lower and upper bounds of the corresponding tensor are set (not nullptr)
-/// and pointers are the same. It doesn't check if lower and upper values are the same relying
-/// only on pointers comparison.
-NGRAPH_API bool has_and_set_equal_bounds(const Output<Node>& source);
-
 /// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::max()
 NGRAPH_API std::shared_ptr<op::Constant> get_constant_max_of_type(element::Type_t t);
 

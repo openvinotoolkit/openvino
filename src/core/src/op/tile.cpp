@@ -4,9 +4,9 @@
 
 #include "ngraph/op/tile.hpp"
 
-#include <ngraph/validation_util.hpp>
 #include <tile_shape_inference.hpp>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/reference/tile.hpp"

@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "bound_evaluate.hpp"
 #include "concat_shape_inference.hpp"
 #include "dimension_tracker.hpp"
 #include "itt.hpp"

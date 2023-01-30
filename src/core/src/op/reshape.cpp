@@ -8,7 +8,7 @@
 #include <dimension_tracker.hpp>
 #include <ngraph/validation_util.hpp>
 
-#include "bound_evaluation_util.hpp"
+#include "bound_evaluate.hpp"
 #include "compare.hpp"
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"

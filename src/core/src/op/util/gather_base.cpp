@@ -4,8 +4,7 @@
 
 #include "ngraph/op/util/gather_base.hpp"
 
-#include <ngraph/validation_util.hpp>
-
+#include "bound_evaluate.hpp"
 #include "gather_shape_inference.hpp"
 #include "itt.hpp"
 #include "ngraph/op/concat.hpp"

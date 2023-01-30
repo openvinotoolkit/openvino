@@ -7,7 +7,7 @@
 #include <ngraph/validation_util.hpp>
 #include <numeric>
 
-#include "bound_evaluation_util.hpp"
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/concat.hpp"
@@ -234,7 +234,7 @@ void ov::op::util::BroadcastBase::validate_and_infer_types() {
                                   " doesn't match rank of input tensor ",
                                   input_rank);
 
-            if (output_shape_defined && ngraph::has_and_set_equal_bounds(input_value(2))) {
+            if (output_shape_defined && has_and_set_equal_bounds(input_value(2))) {
                 auto axes_mapping_val = get_constant_from_source(input_value(2))->get_axis_vector_val();
                 validate_target_shape_none(arg_shape, axes_mapping_val, output_shape);
             }

@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "bound_evaluate.hpp"
 #include "compare.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
@@ -17,7 +18,6 @@
 #include "ngraph/slice_plan.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
-#include "ngraph/validation_util.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "strided_slice_shape_inference.hpp"
 

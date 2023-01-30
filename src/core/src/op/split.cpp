@@ -7,6 +7,7 @@
 #include <numeric>
 #include <split_shape_inference.hpp>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/split.hpp"

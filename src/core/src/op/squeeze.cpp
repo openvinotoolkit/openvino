@@ -9,10 +9,10 @@
 #include <functional>
 #include <set>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/reference/copy.hpp"
-#include "ngraph/validation_util.hpp"
 #include "squeeze_shape_inference.hpp"
 
 using namespace std;

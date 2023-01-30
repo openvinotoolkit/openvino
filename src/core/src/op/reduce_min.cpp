@@ -4,7 +4,7 @@
 
 #include <ngraph/validation_util.hpp>
 
-#include "bound_evaluation_util.hpp"
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/op/min.hpp"
 #include "ngraph/op/util/evaluate_helpers.hpp"

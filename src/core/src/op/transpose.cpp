@@ -4,6 +4,7 @@
 
 #include "ngraph/op/transpose.hpp"
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/runtime/reference/transpose.hpp"
 #include "ngraph/validation_util.hpp"

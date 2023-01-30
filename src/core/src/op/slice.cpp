@@ -6,12 +6,12 @@
 
 #include <numeric>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/reference/slice.hpp"
-#include "ngraph/validation_util.hpp"
 #include "slice_shape_inference.hpp"
 
 using namespace std;
