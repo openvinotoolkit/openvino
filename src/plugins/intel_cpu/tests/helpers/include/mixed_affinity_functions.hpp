@@ -82,6 +82,13 @@ protected:
     std::shared_ptr<ov::Model> initReference() override;
 };
 
+class ConvWithLRNFunction : public MixedAffinityFunctionBase {
+public:
+    explicit ConvWithLRNFunction(const std::vector<ov::PartialShape>& input_shapes);
+protected:
+    std::shared_ptr<ov::Model> initOriginal() override;
+};
+
 class ConvWithSplitAndResultFunction : public MixedAffinityFunctionBase {
 public:
     explicit ConvWithSplitAndResultFunction(const std::vector<ov::PartialShape>& input_shapes);

@@ -57,6 +57,7 @@ std::vector<std::vector<ov::PartialShape>> one_input_shapes = {
 };
 
 std::vector<MixedAffinityBuilder> one_input_builders = {
+    {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<ConvWithLRNFunction>(shapes); }, "ConvWithLRN"},
     {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<ConvWithBiasFunction>(shapes); }, "ConvWithBias"},
     {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<TwoConvWithS2BFunction>(shapes); }, "TwoConvWithS2B"},
     {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<ConvWithReshapeFunction>(shapes); }, "ConvWithReshape"},

@@ -28,6 +28,12 @@ public:
     MarkupFullyConnectedOptimalBS();
 };
 
+class MarkupBlockers : public ov::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    MarkupBlockers();
+};
+
 class MarkupOptimalBS : public ov::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;

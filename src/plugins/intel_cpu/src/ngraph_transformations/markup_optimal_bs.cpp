@@ -17,6 +17,7 @@ NGRAPH_RTTI_DEFINITION(MarkupOptimalBS, "MarkupOptimalBS", 0);
 NGRAPH_RTTI_DEFINITION(MarkupConvolutionOptimalBS, "MarkupConvolutionOptimalBS", 0);
 NGRAPH_RTTI_DEFINITION(MarkupGroupConvolutionOptimalBS, "MarkupGroupConvolutionOptimalBS", 0);
 NGRAPH_RTTI_DEFINITION(MarkupFullyConnectedOptimalBS, "MarkupFullyConnectedOptimalBS", 0);
+NGRAPH_RTTI_DEFINITION(MarkupBlockers, "MarkupBlockers", 0);
 
 MarkupConvolutionOptimalBS::MarkupConvolutionOptimalBS() {
     auto conv_m = ov::pass::pattern::wrap_type<ov::opset1::Convolution>(ov::pass::pattern::has_static_shape());
@@ -133,8 +134,21 @@ MarkupFullyConnectedOptimalBS::MarkupFullyConnectedOptimalBS() {
     this->register_matcher(m, callback);
 }
 
+MarkupBlockers::MarkupBlockers() {
+    auto blocker_m = ov::pass::pattern::wrap_type<ov::opset1::LRN>();
+
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+        set_optimal_bs(m.get_match_root(), m.get_match_value().get_shape()[0]);
+        return false;
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(blocker_m, "MarkupBlockers");
+    this->register_matcher(m, callback);
+}
+
 MarkupOptimalBS::MarkupOptimalBS() {
     add_matcher<MarkupConvolutionOptimalBS>();
     add_matcher<MarkupGroupConvolutionOptimalBS>();
     add_matcher<MarkupFullyConnectedOptimalBS>();
+    add_matcher<MarkupBlockers>();
 }

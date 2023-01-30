@@ -346,6 +346,23 @@ std::shared_ptr<ov::Model> ConvWithReshapeFunction::initReference() {
     return std::make_shared<ov::Model>(ov::NodeVector{reshape}, parameters);
 }
 
+ConvWithLRNFunction::ConvWithLRNFunction(const std::vector<ov::PartialShape>& input_shapes) : MixedAffinityFunctionBase(input_shapes) {
+    NGRAPH_CHECK(input_shapes.size() == 1, "Got invalid number of input shapes");
+}
+
+std::shared_ptr<ov::Model> ConvWithLRNFunction::initOriginal() {
+    const auto parameters = ngraph::builder::makeDynamicParams(ov::element::f32, input_shapes);
+
+    const size_t out_channels = 30;
+    const auto convolution = getDefaultConv(parameters[0], out_channels);
+    convolution->set_friendly_name("convolution");
+
+    const auto lrn = std::make_shared<ov::opset1::LRN>(convolution, 9e-5, 0.75, 1, 5);
+    lrn->set_friendly_name("lrn");
+
+    return std::make_shared<ov::Model>(ov::NodeVector{lrn}, parameters);
+}
+
 ConvWithSplitAndResultFunction::ConvWithSplitAndResultFunction(const std::vector<ov::PartialShape>& input_shapes) : MixedAffinityFunctionBase(input_shapes) {
     NGRAPH_CHECK(input_shapes.size() == 1, "Got invalid number of input shapes");
 }
