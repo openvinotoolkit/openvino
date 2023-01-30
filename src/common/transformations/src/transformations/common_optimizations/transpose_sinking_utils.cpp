@@ -130,7 +130,7 @@ ov::Output<ov::Node> FixInputNodeRank(ov::Output<ov::Node> input_node, ov::Rank:
 
 namespace sink_forward {
 AxisVector AlignTransposeOrder(const Output<Node>& output, const TransposeInputsInfo& transpose_input_info) {
-    auto num_of_val = shape_size(transpose_input_info.transpose_const->get_shape());
+    auto num_of_val = static_cast<int64_t>(shape_size(transpose_input_info.transpose_const->get_shape()));
     const auto rank = output.get_partial_shape().rank().get_length();
 
     AxisVector new_transpose_order;
@@ -143,7 +143,8 @@ AxisVector AlignTransposeOrder(const Output<Node>& output, const TransposeInputs
             new_transpose_order[i] = transpose_axis_order[i - diff] + diff;
         }
     } else {
-        new_transpose_order = transpose_input_info.transpose_const->get_axis_vector_val();;
+        new_transpose_order = transpose_input_info.transpose_const->get_axis_vector_val();
+        ;
     }
     return new_transpose_order;
 }
@@ -198,10 +199,8 @@ NodeVector InsertOutputTransposes(const NodePtr& main_node, const TransposeInput
     NodeVector new_nodes;
 
     for (size_t i = 0; i < main_node->get_output_size(); ++i) {
-
-        auto new_transpose_const = std::make_shared<Constant>(transpose_element_type,
-                                                              Shape{new_transpose_order.size()},
-                                                              new_transpose_order);
+        auto new_transpose_const =
+            std::make_shared<Constant>(transpose_element_type, Shape{new_transpose_order.size()}, new_transpose_order);
         auto main_node_consumers = main_node->output(i).get_target_inputs();
         auto new_transpose = std::make_shared<Transpose>(main_node->output(i), new_transpose_const);
         for (auto& consumer : main_node_consumers) {
