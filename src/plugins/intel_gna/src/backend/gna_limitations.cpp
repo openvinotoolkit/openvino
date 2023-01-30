@@ -551,12 +551,22 @@ bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMe
             return false;
         }
 
-        auto & secondLayers = getInputTo(inputs.begin()->second->getInputData());
-        if (secondLayers.empty()) {
+        // Find the first input connected to any layer in the graph
+        bool emptyGraph = true;
+        for (auto input : inputs) {
+            auto& secondLayers = getInputTo(input.second->getInputData());
+
+            if (!secondLayers.empty()) {
+                startLayer = secondLayers.begin()->second;
+                emptyGraph = false;
+                break;
+            }
+        }
+
+        if (emptyGraph) {
             errMessage = "Network consists of input layer only (GNA)\n";
             return false;
         }
-        startLayer = secondLayers.begin()->second;
     }
     auto batch_size = network.getBatchSize();
     bool check_result = true;
