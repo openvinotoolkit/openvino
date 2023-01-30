@@ -25,7 +25,8 @@ OutputVector translate_unfold(NodeContext& context) {
     auto input_shape = context.mark_node(std::make_shared<ShapeOf>(input));
     auto input_rank = context.mark_node(std::make_shared<ShapeOf>(input_shape));
 
-    auto dimension = context.mark_node(Constant::create(element::i64, Shape{1}, {context.const_input<int64_t>(1)}));
+    auto dimension_input = context.mark_node(std::make_shared<Unsqueeze>(context.get_input(1), const_0));
+    auto dimension = context.mark_node(std::make_shared<Convert>(dimension_input, element::i64));
     auto dimension_plus_1 = context.mark_node(std::make_shared<Add>(dimension, const_1_list));
 
     auto size_scalar = context.mark_node(std::make_shared<Convert>(context.get_input(2), element::i64));
