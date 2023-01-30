@@ -14,7 +14,6 @@
 #include <vector>
 
 #include "format_reader_ptr.h"
-#include "ngraph/type/bfloat16.hpp"
 #include "npy.h"
 #include "samples/slog.hpp"
 #include "shared_tensor_allocator.hpp"

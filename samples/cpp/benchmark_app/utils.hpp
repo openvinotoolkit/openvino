@@ -5,15 +5,11 @@
 #pragma once
 
 #include <chrono>
-#include <fstream>
 #include <iomanip>
-#include <iterator>
 #include <map>
 #include <openvino/openvino.hpp>
 #include <samples/slog.hpp>
-#include <sstream>
 #include <string>
-#include <type_traits>
 #include <unordered_set>
 #include <vector>
 
