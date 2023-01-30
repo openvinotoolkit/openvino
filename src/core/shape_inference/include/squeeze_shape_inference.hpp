@@ -30,6 +30,7 @@ void shape_infer(const Squeeze* op,
 
     NODE_VALIDATION_CHECK(op, output_shapes.size() == 1);
     const auto number_of_inputs = input_shapes.size();
+    OPENVINO_ASSERT(!input_shapes.empty());
 
     const auto& arg_shape = input_shapes[0];
     const auto& arg_rank = arg_shape.rank();

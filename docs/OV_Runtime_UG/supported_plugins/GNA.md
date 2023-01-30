@@ -3,7 +3,7 @@
 The Intel® Gaussian & Neural Accelerator (GNA) is a low-power neural coprocessor for continuous inference at the edge.
 
 Intel® GNA is not intended to replace typical inference devices such as the
-CPU, graphics processing unit (GPU), or vision processing unit (VPU). It is designed for offloading
+CPU and GPU. It is designed for offloading
 continuous inference workloads including but not limited to noise reduction or speech recognition
 to save power and free CPU resources.
 
