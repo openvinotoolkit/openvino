@@ -21,10 +21,11 @@ from openvino.runtime.utils.data_helpers import (
     tensor_from_file,
 )
 
+
 class InferRequest(_InferRequestWrapper):
     """InferRequest class represents infer request which can be run in asynchronous or synchronous manners."""
 
-    def infer(self, inputs: Any = None, shared_memory:bool = False) -> dict:
+    def infer(self, inputs: Any = None, shared_memory: bool = False) -> dict:
         """Infers specified input(s) in synchronous mode.
 
         Blocks all methods of InferRequest while request is running.
@@ -96,7 +97,7 @@ class InferRequest(_InferRequestWrapper):
                 inputs,
                 is_shared=shared_memory,
             ),
-            userdata
+            userdata,
         )
 
 
@@ -107,9 +108,9 @@ class CompiledModel(CompiledModelBase):
     multiple optimization transformations, then mapping to compute kernels.
     """
 
-    def __init__(self, other):
+    def __init__(self, other: CompiledModelBase) -> None:
         # Private memeber to store already created InferRequest
-        self._infer_request = None
+        self._infer_request: Optional[InferRequest] = None
         super().__init__(other)
 
     def create_infer_request(self) -> InferRequest:
@@ -201,7 +202,7 @@ class AsyncInferQueue(AsyncInferQueueBase):
         self,
         inputs: Any = None,
         userdata: Any = None,
-        shared_memory:bool = False,
+        shared_memory: bool = False,
     ) -> None:
         """Run asynchronous inference using the next available InferRequest from the pool.
 
@@ -232,8 +233,9 @@ class AsyncInferQueue(AsyncInferQueueBase):
                 inputs,
                 is_shared=shared_memory,
             ),
-            userdata
+            userdata,
         )
+
 
 class Core(CoreBase):
     """Core class represents OpenVINO runtime Core entity.

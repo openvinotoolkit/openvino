@@ -928,7 +928,7 @@ def test_array_like_input_request(device, shared_flag):
 
 
 @pytest.mark.parametrize("shared_flag", [True, False])
-def test_array_like_input_async(device,shared_flag):
+def test_array_like_input_async(device, shared_flag):
     class ArrayLikeObject:
         # Array-like object accepted by np.array to test inputs similar to torch tensor and tf.Tensor
         def __init__(self, array) -> None:

@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+# Copyright (C) 2018-2023 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import numpy as np
 
 from openvino._pyopenvino import Tensor
@@ -12,7 +16,7 @@ def tensor_from_file(path: str) -> Tensor:
 class _InferRequestWrapper(InferRequestBase):
     """InferRequest class with internal memory."""
 
-    def __init__(self, other):
+    def __init__(self, other: InferRequestBase) -> None:
         # Private memeber to store newly created shared memory data
         self._inputs_data = None
         super().__init__(other)
