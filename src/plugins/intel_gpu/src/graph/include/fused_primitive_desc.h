@@ -95,6 +95,8 @@ struct fused_primitive_desc_onednn {
     onednn_post_op_type op_type; // onednn post-operation type
     size_t mem_offset;           // index of a memory buffer for current post-operation
     size_t mem_dep;              // memory dependency for working with fused node
+    dnnl::memory::format_tag tag;
+    bool flatten;
 };
 #endif // ENABLE_ONEDNN_FOR_GPU
 } // namespace cldnn
