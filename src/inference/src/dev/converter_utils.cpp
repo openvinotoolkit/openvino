@@ -172,7 +172,7 @@ namespace ov {
 
 class IInferencePluginWrapper : public InferenceEngine::IInferencePlugin {
 public:
-    IInferencePluginWrapper(const std::shared_ptr<ov::IPlugin>& plugin) {
+    IInferencePluginWrapper(const std::shared_ptr<ov::IPlugin>& plugin) : m_plugin(plugin) {
         auto& ver = plugin->get_version();
         InferenceEngine::Version version;
         version.buildNumber = ver.buildNumber;

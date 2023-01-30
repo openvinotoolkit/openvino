@@ -8,6 +8,7 @@
 #include <ie_plugin_config.hpp>
 #include <threading/ie_executor_manager.hpp>
 
+#include "converter_utils.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "ie_icnn_network.hpp"
 #include "ie_icore.hpp"

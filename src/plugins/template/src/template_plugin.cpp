@@ -4,7 +4,10 @@
 
 #include "template_plugin.hpp"
 
+#include <memory>
+
 #include "converter_utils.hpp"
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_metric_helpers.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/op/ops.hpp"
@@ -83,10 +86,12 @@ std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::compile_model(const 
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::compile_model");
 
     auto fullConfig = Configuration{properties, _cfg};
-    return ov::legacy_convert::convert_compiled_model(
-        std::make_shared<ExecutableNetwork>(model,
-                                            fullConfig,
-                                            std::static_pointer_cast<const Plugin>(shared_from_this())));
+    auto exec_network = std::make_shared<ExecutableNetwork>(model,
+                                                            fullConfig,
+                                                            std::static_pointer_cast<const Plugin>(shared_from_this()));
+    exec_network->SetPointerToPlugin(
+        ov::legacy_convert::convert_plugin(std::const_pointer_cast<ov::IPlugin>(shared_from_this())));
+    return ov::legacy_convert::convert_compiled_model(exec_network);
 }
 
 std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
