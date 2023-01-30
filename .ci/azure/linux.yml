@@ -103,6 +103,11 @@ jobs:
     OV_PYTHON_VERSION: 3.10 # Newest version of 3.10
 
   steps:
+  - script: |
+      echo $(Agent.ToolsDirectory)
+      ls $(Agent.ToolsDirectory)
+      which python3
+      
   - task: UsePythonVersion@0
     inputs:
       versionSpec: '3.10'
