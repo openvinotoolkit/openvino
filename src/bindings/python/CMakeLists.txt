@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -21,7 +21,7 @@ endif()
 #
 
 set(ov_python_req "${OpenVINOPython_SOURCE_DIR}/requirements.txt")
-set(ie_python_req "cython>=0.29.22")
+set(ie_python_req "cython>=0.29.32")
 
 function(ov_check_python_build_conditions)
     # user explicitly specified ENABLE_PYTHON=ON

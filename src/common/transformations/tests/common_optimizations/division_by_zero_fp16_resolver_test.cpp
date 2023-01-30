@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ TEST_F(TransformationTestsF, DivisionByZeroMinimalPattern) {
 
         function = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input_1, input_2});
 
-        manager.register_pass<pass::DivisionByZeroFP16Resolver>();
+        manager.register_pass<ov::pass::DivisionByZeroFP16Resolver>();
     }
 
     {
@@ -58,7 +58,7 @@ TEST_F(TransformationTestsF, PowWithNegativeExponent) {
 
         function = std::make_shared<Model>(NodeVector{mul}, ParameterVector{input_1, input_2});
 
-        manager.register_pass<pass::DivisionByZeroFP16Resolver>();
+        manager.register_pass<ov::pass::DivisionByZeroFP16Resolver>();
     }
 
     {
@@ -90,7 +90,7 @@ TEST_F(TransformationTestsF, PowWithPositiveExponent) {
 
         function = std::make_shared<Model>(NodeVector{mul}, ParameterVector{input_1, input_2});
 
-        manager.register_pass<pass::DivisionByZeroFP16Resolver>();
+        manager.register_pass<ov::pass::DivisionByZeroFP16Resolver>();
     }
 
     {
@@ -120,7 +120,7 @@ TEST_F(TransformationTestsF, DivisionByZeroMinimalPatternUnchanged) {
 
         function = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input_1, input_2});
 
-        manager.register_pass<pass::DivisionByZeroFP16Resolver>();
+        manager.register_pass<ov::pass::DivisionByZeroFP16Resolver>();
     }
 
     {
@@ -151,7 +151,7 @@ TEST_F(TransformationTestsF, DivisionByZeroInL2NormWithSqrtAndWithMax) {
 
         function = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input});
 
-        manager.register_pass<pass::DivisionByZeroFP16Resolver>();
+        manager.register_pass<ov::pass::DivisionByZeroFP16Resolver>();
     }
 
     {
@@ -186,7 +186,7 @@ TEST_F(TransformationTestsF, DivisionByZeroInL2NormWithSqrtAndWithAdd) {
 
         function = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input});
 
-        manager.register_pass<pass::DivisionByZeroFP16Resolver>();
+        manager.register_pass<ov::pass::DivisionByZeroFP16Resolver>();
     }
 
     {

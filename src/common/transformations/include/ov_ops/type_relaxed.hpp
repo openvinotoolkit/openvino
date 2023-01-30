@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -337,11 +337,3 @@ OPENVINO_SUPPRESS_DEPRECATED_END
 
 }  // namespace op
 }  // namespace ov
-
-namespace ngraph {
-namespace op {
-using ov::op::TemporaryReplaceOutputType;
-using ov::op::TypeRelaxed;
-using ov::op::TypeRelaxedBase;
-}  // namespace op
-}  // namespace ngraph

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -198,7 +198,6 @@ private:
     void fuse_sigmoid_mul_to_swish(program &p);
     void fuse_bias(program &p);
     void fuse_reorders(program& p);
-    void fuse_activations(program& p);
     void fuse_simple_primitives(program &p);
     void optimize_fused_ops(program &p);
     void remove_redundant_reshape(program &p);
@@ -276,7 +275,9 @@ public:
 
 private:
     void run(program& p) override;
-    std::list<std::pair<primitive_id, memory::ptr>> calculate(engine& engine, build_options bo);
+    std::list<std::pair<primitive_id, memory::ptr>> calculate(engine& engine,
+                                                              const ExecutionConfig& config,
+                                                              std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor);
     bool has_non_const_user(program_node& node) const;
     void handle_constant(program& prog, program_node& node);
     void add_constant(program& prog, program_node& node);

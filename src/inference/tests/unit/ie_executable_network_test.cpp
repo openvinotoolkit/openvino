@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,8 @@
 #include <vector>
 
 #include "cpp/ie_executable_network_base.hpp"
-#include "cpp/ie_plugin.hpp"
+#include "openvino/runtime/compiled_model.hpp"
+#include "so_ptr.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
@@ -40,7 +41,7 @@ protected:
     std::shared_ptr<MockIExecutableNetworkInternal> mockIExeNet;
     ov::SoPtr<IExecutableNetworkInternal> exeNetwork;
     MockIInferencePlugin* mockIPlugin;
-    InferencePlugin plugin;
+    std::shared_ptr<InferenceEngine::IInferencePlugin> plugin;
 
     void TearDown() override {
         mockIExeNet.reset();
@@ -52,8 +53,8 @@ protected:
         mockIExeNet = std::make_shared<MockIExecutableNetworkInternal>();
         auto mockIPluginPtr = std::make_shared<MockIInferencePlugin>();
         ON_CALL(*mockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(mockIExeNet));
-        plugin = InferenceEngine::InferencePlugin{mockIPluginPtr, {}};
-        exeNetwork = plugin.LoadNetwork(CNNNetwork{}, {});
+        plugin = mockIPluginPtr;
+        exeNetwork = ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(plugin->LoadNetwork(CNNNetwork{}, {}), {});
     }
 };
 

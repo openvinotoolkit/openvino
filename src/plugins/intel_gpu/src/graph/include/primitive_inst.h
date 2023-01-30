@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
@@ -53,7 +52,6 @@ struct primitive_impl {
     virtual void set_arguments(kernel_arguments_data_idx& args_idx) = 0;
     virtual kernel_arguments_data get_arguments(const primitive_inst& instance) const = 0;
     virtual event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) = 0;
-    virtual bool validate(const primitive_inst& instance) const = 0;
     std::string get_kernel_name() const { return _kernel_name; }
     // TODO: added a derived class for weights reordering (maybe for all static data reordering)
     kernel_selector::weights_reorder_params _weights_reorder_params;
@@ -160,12 +158,8 @@ public:
     }
     void set_arguments();
 
-    bool validate() const {
+    void validate() const {
         OPENVINO_ASSERT(_impl != nullptr || is_dynamic(), "[GPU] Invalid impl object for ", id(), " primitive");
-        if (_impl)
-            return _impl->validate(*this);
-
-        return true;
     }
     bool output_changed() const { return _output_changed; }
     void reset_output_change() { _output_changed = false; }
@@ -282,8 +276,10 @@ protected:
     bool _is_constant = false;
 
     size_t max_output_layout_size = 0;
+    std::vector<size_t> max_intermediates_memory_sizes;
 
     std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr);
+    memory::ptr allocate_internal_buffer(size_t idx);
     static std::vector<std::shared_ptr<primitive_inst>> build_exec_deps(
         std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> const& mem_deps);
     void convert_args(const kernel_arguments_data& args, kernel_arguments_data_idx& args_idx) const;
@@ -393,19 +389,7 @@ private:
         kernel_arguments_data args;
         return args;
     }
-    virtual event::ptr execute_impl(const std::vector<event::ptr>& event,
-                                         typed_primitive_inst<PType>& instance) = 0;
-
-    bool validate(const primitive_inst& instance) const override {
-        if (instance.type() != PType::type_id())
-            throw std::invalid_argument("Implementation type does not match primitive type");
-        if (instance.get_impl() != this)
-            throw std::invalid_argument(
-                "Trying to validate primitive implementation with mismatching primitive instance");
-
-        return validate_impl(reinterpret_cast<const typed_primitive_inst<PType>&>(instance));
-    }
-    virtual bool validate_impl(const typed_primitive_inst<PType>&) const { return true; }
+    virtual event::ptr execute_impl(const std::vector<event::ptr>& event, typed_primitive_inst<PType>& instance) = 0;
 };
 
 template <class PType>
@@ -422,6 +406,26 @@ public:
 
     static kernel_impl_params get_fake_aligned_params(kernel_impl_params const& orig_impl_param) {
         return std::move(orig_impl_param);
+    }
+
+    static std::vector<size_t> extend_input_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t input_idx) {
+        ov::PartialShape ps =  orig_impl_param.get_input_layout(input_idx).get_partial_shape();
+
+        if (ps.size() < 4) {
+            ps.insert(ps.end(), 4 - ps.size(), ov::Dimension(1));
+        }
+        layout l(ps, data_types::i32, format::get_default_format(ps.size()));
+        return l.transform(format::bfwzyx).to_shape();
+    }
+
+    static std::vector<size_t> extend_output_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t output_idx) {
+        ov::PartialShape ps = orig_impl_param.get_output_layout(output_idx).get_partial_shape();
+
+        if (ps.size() < 4) {
+            ps.insert(ps.end(), 4 - ps.size(), ov::Dimension(1));
+        }
+        layout l(ps, data_types::i32, format::get_default_format(ps.size()));
+        return l.transform(format::bfwzyx).to_shape();
     }
 
     typed_primitive_inst_base(network& network, typed_node const& node)
@@ -441,8 +445,9 @@ protected:
 
 private:
     bool do_allocate_memory(typed_node const& typ_node) {
-        if (typ_node.get_output_layout().is_dynamic())
-            return false;
+        if (typ_node.get_output_layout().is_dynamic() && !typ_node.get_output_layout().has_upper_bound()) {
+                return false;
+        }
 
         if (typ_node.template have_user_with_type<concatenation>() && typ_node.get_users().size() == 1 &&
             typ_node.get_users().front()->can_be_optimized()) {  // check if the only user is concat

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -148,9 +148,8 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
       _new_api(newAPI) {
     {
         ov::pass::Manager m;
-        using namespace ngraph::pass;
-        REGISTER_PASS(m, FixRtInfo)
         using namespace ov::pass;
+        REGISTER_PASS(m, FixRtInfo)
         REGISTER_PASS(m, EliminateScatterUpdate)
         REGISTER_PASS(m, RemoveConcatZeroDimInput)
         REGISTER_PASS(m, RemoveMultiSubGraphOpDanglingParams)
@@ -215,7 +214,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
     _ngraph_function = ngraph::clone_function(*network.getFunction());
     {
         ov::pass::Manager m;
-        using namespace ngraph::pass;
+        using namespace ov::pass;
         REGISTER_PASS(m, FixRtInfo)
         m.run_passes(_ngraph_function);
     }
@@ -326,7 +325,7 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName,
 }
 
 void CNNNetworkNGraphImpl::addOutput(const ::ngraph::Output<::ngraph::Node>& output) {
-    auto dataName = ngraph::op::util::create_ie_output_name(output);
+    auto dataName = ov::op::util::create_ie_output_name(output);
     DataPtr data;
     if (_data.count(dataName))
         data = _data[dataName];
@@ -399,7 +398,7 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::Par
 
         try {
             ngraph::pass::Manager ssr_manager;
-            using namespace ngraph::pass;
+            using namespace ov::pass;
             REGISTER_PASS(ssr_manager, SmartReshape)
             ssr_manager.run_passes(_ngraph_function);
 
@@ -514,13 +513,16 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
                 ::ngraph::pass::Manager manager;
                 // resolves dynamism by replacing dynamic operation with static version
                 using namespace ngraph::pass;
+                using namespace ov::pass;
                 REGISTER_PASS(manager, ConvertNMS5ToLegacyMatcher, false)
                 REGISTER_PASS(manager, ConvertMulticlassNmsToMulticlassNmsIE, false)
                 REGISTER_PASS(manager, ConvertMatrixNmsToMatrixNmsIE, false)
                 REGISTER_PASS(manager, ConvertNMS9ToNMSIEInternal)
                 REGISTER_PASS(manager, ConvertGP9ToGPIEInternal)
-                using namespace ov::pass;
-                REGISTER_PASS(manager, MarkDequantizationSubgraph)
+                REGISTER_PASS(
+                    manager,
+                    MarkDequantizationSubgraph,
+                    ov::element::TypeVector{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4})
                 REGISTER_PASS(manager, DisableDecompressionConvertConstantFolding)
                 REGISTER_PASS(manager, ConstantFolding)
 
@@ -698,8 +700,8 @@ StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* respons
                 std::ceil(size * static_cast<float>(shape[0]) / static_cast<float>(getBatchSize())))};
             inShapes[parameter->get_friendly_name()] = shape;
         }
-        ngraph::pass::Manager ssr_manager;
-        using namespace ngraph::pass;
+        ov::pass::Manager ssr_manager;
+        using namespace ov::pass;
         REGISTER_PASS(ssr_manager, SetBatchSize)
         ssr_manager.run_passes(_ngraph_function);
 

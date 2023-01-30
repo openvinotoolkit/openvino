@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,6 @@ namespace op {
 class Scalar  : public ov::op::v0::Constant {
 public:
     OPENVINO_OP("Scalar", "SnippetsOpset", ov::op::v0::Constant);
-    BWDCMP_RTTI_DECLARATION;
 
     Scalar() = default;
 
@@ -37,6 +36,7 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     void validate_and_infer_types() override;
+    bool visit_attributes(AttributeVisitor& visitor) override;
 };
 
 } // namespace op

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,8 +30,8 @@ TEST(TransformationTests, ConvertBroadcastToTilesDynamic) {
         auto f = std::make_shared<ngraph::Function>(ngraph::NodeVector{broadcast}, ngraph::ParameterVector{input1});
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::ConvertBroadcastToTiles>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::ConvertBroadcastToTiles>();
         ASSERT_NO_THROW(manager.run_passes(f));
         ASSERT_NO_THROW(check_rt_info(f));
     }

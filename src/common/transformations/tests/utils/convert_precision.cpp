@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -322,7 +322,7 @@ TEST(TransformationTests, ConvertPrecision_Unique10) {
 
         static const precisions_array precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
-        manager.register_pass<pass::ConvertPrecision>(precisions);
+        manager.register_pass<ov::pass::ConvertPrecision>(precisions);
         manager.run_passes(model);
     }
 

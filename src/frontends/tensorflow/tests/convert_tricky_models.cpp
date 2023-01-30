@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,6 +59,24 @@ TEST(FrontEndConvertTrickyModels, undefined_input_shape) {
     }
 }
 
+TEST(FrontEndConvertTrickyModels, simple_wide_and_deep) {
+    shared_ptr<Model> model;
+    try {
+        model = convert_model("simple_wide_and_deep/simple_wide_and_deep.pb");
+    } catch (std::exception& ex) {
+        ASSERT_TRUE(false) << ex.what();
+    }
+
+    int num_emb_segment_sum = 0;
+    for (auto& node : model->get_ordered_ops()) {
+        if (std::dynamic_pointer_cast<EmbeddingSegmentsSum>(node)) {
+            ++num_emb_segment_sum;
+        }
+    }
+
+    ASSERT_EQ(num_emb_segment_sum, 1) << "The number of EmbeddingSegmentsSum nodes must be 1";
+}
+
 TEST(FrontEndConvertTrickyModels, model_with_output_shapes) {
     shared_ptr<Model> model;
     try {
@@ -112,5 +130,119 @@ TEST_F(TransformationTestsF, ModelWithSwishF32BodyGraph) {
         auto sigmoid2 = make_shared<Sigmoid>(mul);
 
         model_ref = make_shared<Model>(OutputVector{sigmoid2}, ParameterVector{x});
+    }
+}
+
+TEST_F(TransformationTestsF, PartitionedCall) {
+    {
+        model = convert_model("partitioned_call/partitioned_call.pb");
+        // need to call shape inference since body graphs can be injected with undefined shapes
+        model->validate_nodes_and_infer_types();
+    }
+    {
+        auto x = make_shared<Parameter>(i32, Shape{2});
+        auto y = make_shared<Parameter>(i32, Shape{1});
+        auto sub = make_shared<Subtract>(x, y);
+        auto const_pow = make_shared<Constant>(i32, Shape{}, 2);
+        auto pow = make_shared<Power>(sub, const_pow);
+
+        model_ref = make_shared<Model>(OutputVector{pow}, ParameterVector{x, y});
+    }
+}
+
+TEST_F(TransformationTestsF, ModelWithIf) {
+    { model = convert_model("model_with_if/model_with_if.pb"); }
+    {
+        // create then branch body graph
+        auto then_x = make_shared<Parameter>(i32, Shape{2});
+        auto then_y = make_shared<Parameter>(i32, Shape{1});
+        auto add = make_shared<Add>(then_x, then_y);
+        auto then_result = make_shared<Result>(add);
+        auto then_model = make_shared<Model>(OutputVector{then_result}, ParameterVector{then_x, then_y});
+
+        // create else branch body graph
+        auto else_x = make_shared<Parameter>(i32, Shape{2});
+        auto else_y = make_shared<Parameter>(i32, Shape{1});
+        auto sub = make_shared<Subtract>(else_x, else_y);
+        auto else_result = make_shared<Result>(sub);
+        auto else_model = make_shared<Model>(OutputVector{else_result}, ParameterVector{else_x, else_y});
+
+        // create the main graph
+        auto x = make_shared<Parameter>(i32, Shape{2});
+        auto y = make_shared<Parameter>(i32, Shape{1});
+        auto cond_const = make_shared<Constant>(i32, Shape{}, 10);
+        auto cond = make_shared<Greater>(x, cond_const);
+        auto if_op = make_shared<If>(cond);
+        if_op->set_then_body(then_model);
+        if_op->set_else_body(else_model);
+        if_op->set_input(x, then_x, else_x);
+        if_op->set_input(y, then_y, else_y);
+        if_op->set_output(then_result, else_result);
+
+        model_ref = make_shared<Model>(OutputVector{if_op}, ParameterVector{x, y});
+    }
+}
+
+TEST_F(TransformationTestsF, InjectedBodyAndIf) {
+    {
+        model = convert_model("injected_body_and_if/injected_body_and_if.pb");
+        // need to call shape inference since body graphs can be injected with undefined shapes
+        model->validate_nodes_and_infer_types();
+    }
+    {
+        // create then branch body graph
+        auto then_x = make_shared<Parameter>(i32, Shape{2});
+        auto then_y = make_shared<Parameter>(i32, Shape{1});
+        auto add = make_shared<Add>(then_x, then_y);
+        auto then_result = make_shared<Result>(add);
+        auto then_model = make_shared<Model>(OutputVector{then_result}, ParameterVector{then_x, then_y});
+
+        // create else branch body graph
+        auto else_x = make_shared<Parameter>(i32, Shape{2});
+        auto else_y = make_shared<Parameter>(i32, Shape{1});
+        auto sub = make_shared<Subtract>(else_x, else_y);
+        auto pow_const = make_shared<Constant>(i32, Shape{}, 2);
+        auto pow = make_shared<Power>(sub, pow_const);
+        auto else_result = make_shared<Result>(pow);
+        auto else_model = make_shared<Model>(OutputVector{else_result}, ParameterVector{else_x, else_y});
+
+        // create the main graph
+        auto x = make_shared<Parameter>(i32, Shape{2});
+        auto y = make_shared<Parameter>(i32, Shape{1});
+        auto cond_const = make_shared<Constant>(i32, Shape{}, 10);
+        auto cond = make_shared<Greater>(x, cond_const);
+        auto if_op = make_shared<If>(cond);
+        if_op->set_then_body(then_model);
+        if_op->set_else_body(else_model);
+        if_op->set_input(x, then_x, else_x);
+        if_op->set_input(y, then_y, else_y);
+        if_op->set_output(then_result, else_result);
+
+        model_ref = make_shared<Model>(OutputVector{if_op}, ParameterVector{x, y});
+    }
+}
+
+// Ticket 101756
+TEST_F(TransformationTestsF, DISABLED_ModelWithDilatedGroupConvolution) {
+    {
+        model = convert_model("dilated_gconv_model/dilated_gconv_model.pb");
+        // need to call MOC to fuse BatchToSpace/SpaceToBatch with GroupConvolution
+        manager.register_pass<pass::MOCTransformations>(false);
+    }
+    {
+        auto x = make_shared<Parameter>(f32, Shape{1, 129, 257, 384});
+        auto transpose_before_const = make_shared<Constant>(i64, Shape{4}, std::vector<int64_t>{0, 3, 1, 2});
+        auto transpose_before = make_shared<Transpose>(x, transpose_before_const);
+        auto const_filter = make_shared<Constant>(f32, Shape{384, 1, 1, 3, 3}, std::vector<float>(384 * 3 * 3, 0));
+        Strides dilations{2, 2};
+        CoordinateDiff pads_begin{2, 2};
+        CoordinateDiff pads_end{2, 2};
+        Strides strides{1, 1};
+        auto gconv =
+            make_shared<GroupConvolution>(transpose_before, const_filter, strides, pads_begin, pads_end, dilations);
+        auto transpose_after_const = make_shared<Constant>(i64, Shape{4}, std::vector<int64_t>{0, 2, 3, 1});
+        auto transpose_after = make_shared<Transpose>(gconv, transpose_after_const);
+
+        model_ref = make_shared<Model>(OutputVector{transpose_after}, ParameterVector{x});
     }
 }

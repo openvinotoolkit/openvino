@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,7 +57,7 @@ static bool InsertReshape(
         if (add_input->get_output_shape(0).size() != 2) {
             auto consumers = add_input->output(0).get_target_inputs();
             std::vector<int> before_shape = {-1, static_cast<int>(add_input->get_output_shape(0).back())};
-            auto reshape_add_input = ngraph::op::util::make_try_fold<ngraph::opset8::Reshape>(add_input,
+            auto reshape_add_input = ov::op::util::make_try_fold<ngraph::opset8::Reshape>(add_input,
                 std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{before_shape.size()}, before_shape), false);
             reshape_add_input->set_friendly_name(reshape_add_input->get_friendly_name() + "/reshape_before_add");
             ngraph::copy_runtime_info(add_node, reshape_add_input);
