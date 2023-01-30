@@ -10,7 +10,6 @@ import numpy as np
 import pytest
 
 from pathlib import Path
-from platform import processor
 
 import openvino
 import openvino.runtime.opset8 as ops
@@ -28,30 +27,10 @@ def test_compare_models():
         print("openvino.test_utils.compare_models is not available")  # noqa: T201
 
 
-def generate_lib_name(device, full_device_name):
-    lib_name = ""
-    arch = processor()
-    if arch == "x86_64" or "Intel" in full_device_name or device in ["GNA", "HDDL", "MYRIAD", "VPUX"]:
-        lib_name = "openvino_intel_" + device.lower() + "_plugin"
-    elif arch != "x86_64" and device == "CPU":
-        lib_name = "openvino_arm_cpu_plugin"
-    elif device in ["HETERO", "MULTI", "AUTO"]:
-        lib_name = "openvino_" + device.lower() + "_plugin"
-    return lib_name
-
-
-def plugins_path(device, full_device_name):
-    lib_name = generate_lib_name(device, full_device_name)
-    full_lib_name = ""
-
-    if sys.platform == "win32":
-        full_lib_name = lib_name + ".dll"
-    else:
-        full_lib_name = "lib" + lib_name + ".so"
-
+def plugins_path(device, lib_path):
     plugin_xml = f"""<ie>
     <plugins>
-        <plugin location="{full_lib_name}" name="CUSTOM">
+        <plugin location="{lib_path}" name="{device}">
         </plugin>
     </plugins>
     </ie>"""

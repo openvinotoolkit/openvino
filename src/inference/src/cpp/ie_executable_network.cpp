@@ -25,16 +25,6 @@ namespace InferenceEngine {
         InferenceEngine::details::Rethrow();                                \
     }
 
-#define OV_EXEC_NET_CALL_STATEMENT(...)                                          \
-    OPENVINO_ASSERT(_impl != nullptr, "ExecutableNetwork was not initialized."); \
-    try {                                                                        \
-        __VA_ARGS__;                                                             \
-    } catch (const std::exception& ex) {                                         \
-        throw ov::Exception(ex.what());                                          \
-    } catch (...) {                                                              \
-        OPENVINO_ASSERT(false, "Unexpected exception");                          \
-    }
-
 ExecutableNetwork::~ExecutableNetwork() {
     _impl = {};
 }
@@ -116,102 +106,6 @@ ExecutableNetwork::operator bool() const noexcept {
 }
 }  // namespace InferenceEngine
 
-namespace ov {
-
-CompiledModel::~CompiledModel() {
-    _impl = {};
-}
-
-CompiledModel::CompiledModel(const std::shared_ptr<ie::IExecutableNetworkInternal>& impl,
-                             const std::shared_ptr<void>& so)
-    : _impl{impl},
-      _so{so} {
-    OPENVINO_ASSERT(_impl != nullptr, "CompiledModel was not initialized.");
-}
-
-std::shared_ptr<const Model> CompiledModel::get_runtime_model() const {
-    OV_EXEC_NET_CALL_STATEMENT(return std::const_pointer_cast<const Model>(_impl->GetExecGraphInfo()));
-}
-
-std::vector<ov::Output<const ov::Node>> CompiledModel::inputs() const {
-    OV_EXEC_NET_CALL_STATEMENT({
-        std::vector<ov::Output<const ov::Node>> inputs;
-        for (const auto& input : _impl->getInputs()) {
-            inputs.emplace_back(input);
-        }
-        return inputs;
-    });
-}
-
-ov::Output<const ov::Node> CompiledModel::input() const {
-    OV_EXEC_NET_CALL_STATEMENT({
-        const auto inputs = _impl->getInputs();
-        if (inputs.size() != 1) {
-            throw ov::Exception("input() must be called on a function with exactly one parameter.");
-        }
-        return inputs.at(0);
-    });
-}
-
-ov::Output<const ov::Node> CompiledModel::input(size_t i) const {
-    OV_EXEC_NET_CALL_STATEMENT(return _impl->getInputs().at(i));
-}
-
-ov::Output<const ov::Node> CompiledModel::input(const std::string& tensor_name) const {
-    OV_EXEC_NET_CALL_STATEMENT({
-        for (const auto& param : _impl->getInputs()) {
-            if (param->get_output_tensor(0).get_names().count(tensor_name)) {
-                return param;
-            }
-        }
-        throw ov::Exception("Input for tensor name '" + tensor_name + "' is not found.");
-    });
-}
-
-std::vector<ov::Output<const ov::Node>> CompiledModel::outputs() const {
-    OV_EXEC_NET_CALL_STATEMENT({
-        std::vector<ov::Output<const ov::Node>> outputs;
-        for (const auto& output : _impl->getOutputs()) {
-            outputs.emplace_back(output);
-        }
-        return outputs;
-    });
-}
-ov::Output<const ov::Node> CompiledModel::output() const {
-    OV_EXEC_NET_CALL_STATEMENT({
-        const auto outputs = _impl->getOutputs();
-        if (outputs.size() != 1) {
-            throw ov::Exception("output() must be called on a function with exactly one result.");
-        }
-        return outputs.at(0);
-    });
-}
-ov::Output<const ov::Node> CompiledModel::output(size_t i) const {
-    OV_EXEC_NET_CALL_STATEMENT(return _impl->getOutputs().at(i));
-}
-ov::Output<const ov::Node> CompiledModel::output(const std::string& tensor_name) const {
-    OV_EXEC_NET_CALL_STATEMENT({
-        for (const auto& result : _impl->getOutputs()) {
-            if (result->get_output_tensor(0).get_names().count(tensor_name)) {
-                return result;
-            }
-        }
-        throw ov::Exception("Output for tensor name '" + tensor_name + "' is not found.");
-    });
-}
-
-InferRequest CompiledModel::create_infer_request() {
-    OV_EXEC_NET_CALL_STATEMENT(return {_impl->CreateInferRequest(), _so});
-}
-
-void CompiledModel::export_model(std::ostream& networkModel) {
-    OV_EXEC_NET_CALL_STATEMENT(_impl->Export(networkModel));
-}
-
-void CompiledModel::set_property(const AnyMap& config) {
-    OV_EXEC_NET_CALL_STATEMENT(_impl->SetConfig(config));
-}
-
 Any CompiledModel::get_property(const std::string& name, const std::string& target_device) const {
     OV_EXEC_NET_CALL_STATEMENT({
         if (ov::loaded_from_cache == name) {
@@ -259,17 +153,3 @@ Any CompiledModel::get_property(const std::string& name, const std::string& targ
         }
     });
 }
-
-RemoteContext CompiledModel::get_context() const {
-    OV_EXEC_NET_CALL_STATEMENT(return {_impl->GetContext(), {_so}});
-}
-
-bool CompiledModel::operator!() const noexcept {
-    return !_impl;
-}
-
-CompiledModel::operator bool() const noexcept {
-    return !!_impl;
-}
-
-}  // namespace ov

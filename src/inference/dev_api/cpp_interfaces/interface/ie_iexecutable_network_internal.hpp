@@ -30,6 +30,7 @@ class IInferencePlugin;
 class IInferRequestInternal;
 class RemoteContext;
 class IVariableStateInternal;
+class ICompiledModelWrapper;
 
 /**
  * @interface IExecutableNetworkInternal
@@ -229,6 +230,8 @@ protected:
      * @brief If true, it means that model was loaded from cache
      */
     bool _loadedFromCache = false;
+
+    friend InferenceEngine::ICompiledModelWrapper;
 };
 
 /**

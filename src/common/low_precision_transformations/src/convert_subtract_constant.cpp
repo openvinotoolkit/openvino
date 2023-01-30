@@ -67,7 +67,7 @@ ngraph::pass::low_precision::ConvertSubtractConstant::ConvertSubtractConstant(co
         auto resultSubtractConstant = NetworkHelper::round(subtractConstant, quantizePrecision);
         if (NetworkHelper::isScalarLike(resultSubtractConstant)) {
             resultSubtractConstant = NetworkHelper::toScalar(resultSubtractConstant);
-            if (op::util::constantIsEqualTo(resultSubtractConstant, 0.f)) {
+            if (ov::op::util::constantIsEqualTo(resultSubtractConstant, 0.f)) {
                 resultSubtractConstant = nullptr;
             }
         }
