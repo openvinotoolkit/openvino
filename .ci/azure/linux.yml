@@ -99,13 +99,13 @@ jobs:
     CMAKE_VERSION: 3.24.0
     BUILD_PYTHON: $(WORK_DIR)/build_python
     INSTALL_PYTHON: $(INSTALL_OPENVINO)/extras/python
-    LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(getTaskVariable(name:string):isExplicit)/x64/lib
-    OV_PYTHON_VERSION: 3.10
+    LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
+    OV_PYTHON_VERSION: 3.10.9 # Newest version of 3.10
 
   steps:
   - task: UsePythonVersion@0
     inputs:
-      versionSpec: '$(OV_PYTHON_VERSION)'
+      versionSpec: '3.10'
       addToPath: true
       disableDownloadFromRegistry: false
       architecture: 'x64'

@@ -66,12 +66,12 @@ jobs:
     SHARE_DIR: /mount/cinfsshare/onnxtestdata
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux
     LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
-    OV_PYTHON_VERSION: 3.10
+    OV_PYTHON_VERSION: 3.10.9 # Newest version of 3.10
 
   steps:
   - task: UsePythonVersion@0
     inputs:
-      versionSpec: '$(OV_PYTHON_VERSION)'
+      versionSpec: '3.10'
       addToPath: true
       disableDownloadFromRegistry: false
       architecture: 'x64'
