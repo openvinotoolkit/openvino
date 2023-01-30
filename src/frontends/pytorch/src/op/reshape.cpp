@@ -13,7 +13,8 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_reshape(NodeContext& context) {
-    auto reshape = context.mark_node(std::make_shared<opset10::Reshape>(context.get_input(0), context.get_input(1), false));
+    auto reshape =
+        context.mark_node(std::make_shared<opset10::Reshape>(context.get_input(0), context.get_input(1), false));
     return {reshape};
 };
 

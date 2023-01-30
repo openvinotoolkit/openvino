@@ -39,7 +39,8 @@ ListConstructReshapeReplacer::ListConstructReshapeReplacer() {
         };
         return false;
     };
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(view_op, "ov::frontend::pytorch::pass::ListConstructReshapeReplacer");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(view_op,
+                                                          "ov::frontend::pytorch::pass::ListConstructReshapeReplacer");
     this->register_matcher(m, callback);
 };
 
