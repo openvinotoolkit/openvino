@@ -99,7 +99,7 @@ jobs:
     CMAKE_VERSION: 3.24.0
     BUILD_PYTHON: $(WORK_DIR)/build_python
     INSTALL_PYTHON: $(INSTALL_OPENVINO)/extras/python
-    LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
+    LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(getTaskVariable(name:string):isExplicit)/x64/lib
     OV_PYTHON_VERSION: 3.10
 
   steps:
