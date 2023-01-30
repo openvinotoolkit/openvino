@@ -18,20 +18,11 @@ class TestSize(PytorchLayerTest):
             def forward(self, x):
                 return x.shape
 
-        class aten_size_get_item(torch.nn.Module):
-            def forward(self, x):
-                return x.shape[0]
-
         ref_net = None
 
-        op_cls = {
-            "size": (aten_size, "aten::size"),
-            "size_with_getitem": (aten_size_get_item, ["aten::size", "aten::__getitem__"])
-        }
-        op, op_in_graph = op_cls[case]
+        op = aten_size()
 
-        return op(), ref_net, op_in_graph
-
+        return op(), ref_net, "aten::size"
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.parametrize("input_shape", [[1,], [1, 2], [1, 2, 3], [1, 2, 3, 4], [1, 2, 3, 4, 5]])

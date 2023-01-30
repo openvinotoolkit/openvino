@@ -94,17 +94,6 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
             }
             return true;
         }
-        if (auto shape_of = std::dynamic_pointer_cast<opset10::ShapeOf>(input_node)) {
-            // case aten::size as input
-            auto getitem_idx = getitem->input(1).get_source_output();
-            auto zero = opset10::Constant::create(element::i32, Shape{}, {0});
-            auto dim = std::make_shared<opset10::Gather>(input_node, getitem_idx, zero);
-
-            copy_runtime_info({getitem, input_node}, dim);
-            replace_node(getitem, dim);
-
-            return true;
-        }
 
         return false;
     };
