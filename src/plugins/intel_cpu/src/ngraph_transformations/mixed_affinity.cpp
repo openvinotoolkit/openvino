@@ -17,9 +17,6 @@
 #include "rt_info/optimal_batch_size.hpp"
 #include "rt_info/num_splits.hpp"
 
-#include <ngraph/pass/serialize.hpp>
-#include <ngraph/pass/visualize_tree.hpp>
-
 using namespace ov::intel_cpu::mixed_affinity;
 
 NGRAPH_RTTI_DEFINITION(MixedAffinity, "MixedAffinity", 0);
@@ -80,33 +77,13 @@ std::unordered_map<Properties, Subgraph> MixedAffinity::formSubgraphs(const std:
 bool MixedAffinity::run_on_model(const std::shared_ptr<ov::Model>& m) {
     ov::pass::Manager markup_manager(get_pass_config());
     markup_manager.set_per_pass_validation(false);
-    // markup_manager.register_pass<ngraph::pass::Serialize>("/home/vgolubev/models/test.xml", "/home/vgolubev/models/test.bin");
     markup_manager.register_pass<MarkupOptimalBS>();
     markup_manager.register_pass<PropagateOptimalBS>();
-    // markup_manager.register_pass<ngraph::pass::VisualizeTree>("/home/vgolubev/models/test.before.svg");
     markup_manager.run_passes(m);
 
-    // get graph components separated by batch size
     const auto& subgraphs = formSubgraphs(m);
-
-    // for (const auto& subgraph : subgraphs) {
-    //     std::cout << "Batch=" << subgraph.first.opt_bs << std::endl;
-    //     std::cout << "N_splits=" << subgraph.first.n_splits << std::endl;
-    //     std::cout << "\tStarts:\n";
-    //     for (const auto start : subgraph.second.starts) {
-    //         std::cout << "\t\t" << start << std::endl;
-    //     }
-    //     std::cout << "\tEnds:\n";
-    //     for (const auto end : subgraph.second.ends) {
-    //         std::cout << "\t\t" << end << std::endl;
-    //     }
-    // }
-
     ov::pass::Manager switch_affinity_manager(get_pass_config());
-    // TODO: remove 'share_constants' parameter
-    switch_affinity_manager.register_pass<SwitchAffinity>(subgraphs, true);
-    // switch_affinity_manager.register_pass<ngraph::pass::VisualizeTree>("/home/vgolubev/models/test.before.svg");
-    // switch_affinity_manager.register_pass<ngraph::pass::Serialize>("/home/vgolubev/models/affinity.xml", "/home/vgolubev/models/affinity.bin");
+    switch_affinity_manager.register_pass<SwitchAffinity>(subgraphs);
     switch_affinity_manager.run_passes(m);
 
     return false;

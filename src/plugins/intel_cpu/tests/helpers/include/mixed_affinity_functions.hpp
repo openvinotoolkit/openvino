@@ -137,6 +137,14 @@ protected:
     std::shared_ptr<ov::Model> initOriginal() override;
     std::shared_ptr<ov::Model> initReference() override;
 };
+
+class ConvWithTransposeAddFunction : public MixedAffinityFunctionBase {
+public:
+    explicit ConvWithTransposeAddFunction(const std::vector<ov::PartialShape>& input_shapes);
+protected:
+    std::shared_ptr<ov::Model> initOriginal() override;
+    std::shared_ptr<ov::Model> initReference() override;
+};
 }  // namespace mixed_affinity
 }  // namespace test
 }  // namespace ov

@@ -57,12 +57,12 @@ std::vector<std::vector<ov::PartialShape>> one_input_shapes = {
 };
 
 std::vector<MixedAffinityBuilder> one_input_builders = {
-    {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<ConvWithBiasFunction>(shapes); }, "ConvWithBiasFunction"},
-    {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<TwoConvWithS2BFunction>(shapes); }, "TwoConvWithS2BFunction"},
-    {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<ConvWithReshapeFunction>(shapes); }, "ConvWithReshapeFunction"},
-    {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<ConvWithTransposeFunction>(shapes); }, "ConvWithTransposeFunction"},
-    {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<ConvolutionsAndSplitFunction>(shapes); }, "ConvolutionsAndSplitFunction"},
-    {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<ConvWithSplitAndResultFunction>(shapes); }, "ConvWithSplitAndResultFunction"},
+    {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<ConvWithBiasFunction>(shapes); }, "ConvWithBias"},
+    {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<TwoConvWithS2BFunction>(shapes); }, "TwoConvWithS2B"},
+    {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<ConvWithReshapeFunction>(shapes); }, "ConvWithReshape"},
+    {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<ConvWithTransposeFunction>(shapes); }, "ConvWithTranspose"},
+    {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<ConvolutionsAndSplitFunction>(shapes); }, "ConvolutionsAndSplit"},
+    {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<ConvWithSplitAndResultFunction>(shapes); }, "ConvWithSplitAndResult"},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_MixedAffinity_1input, MixedAffinityTest,
@@ -78,10 +78,11 @@ std::vector<std::vector<ov::PartialShape>> two_inputs_shapes = {
 };
 
 std::vector<MixedAffinityBuilder> two_input_builders = {
-    {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<TwoConvAndAddFunction>(shapes); }, "TwoConvAndAddFunction"},
-    {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<ConvWithConcatFunction>(shapes); }, "ConvWithConcatFunction"},
-    {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<ConvAndAddWithParameterFunction>(shapes); }, "ConvAndAddWithParameterFunction"},
-    {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<ConvWithTransposeAndAddFunction>(shapes); }, "ConvWithTransposeAndAddFunction"},
+    {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<TwoConvAndAddFunction>(shapes); }, "TwoConvAndAdd"},
+    {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<ConvWithConcatFunction>(shapes); }, "ConvWithConcat"},
+    {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<ConvWithTransposeAddFunction>(shapes); }, "ConvWithTransposeAdd"},
+    {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<ConvAndAddWithParameterFunction>(shapes); }, "ConvAndAddWithParameter"},
+    {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<ConvWithTransposeAndAddFunction>(shapes); }, "ConvWithTransposeAndAdd"},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_MixedAffinity_2inputs, MixedAffinityTest,
@@ -92,7 +93,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MixedAffinity_2inputs, MixedAffinityTest,
 
 std::vector<ov::PartialShape> conv_with_param_weights_shapes = {{8, 3, 56, 56}, {3, 1, 1, 3, 3}};
 MixedAffinityBuilder conv_with_param_weights_builder = {
-    [](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<GrConvWithParamFunction>(shapes); }, "GrConvWithParamFunction"
+    [](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<GrConvWithParamFunction>(shapes); }, "GrConvWithParam"
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_MixedAffinity_conv_with_param_weights, MixedAffinityTest,

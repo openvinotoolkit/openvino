@@ -8,26 +8,16 @@
 #include <vector>
 
 #include <openvino/opsets/opset1.hpp>
-#include <openvino/op/op.hpp>
 #include <dimension_tracker.hpp>
+#include <openvino/op/op.hpp>
 
-#include "rt_info/optimal_batch_size.hpp"
-#include "utils/rt_info/memory_formats_attribute.hpp"
 #include "ngraph_transformations/op/fully_connected.hpp"
+#include "utils/rt_info/memory_formats_attribute.hpp"
 #include "transformations/utils/utils.hpp"
-
-#include <openvino/pass/visualize_tree.hpp>
-#include <openvino/pass/serialize.hpp>
 
 namespace {
 using namespace ov::intel_cpu::mixed_affinity;
 static const char skip_reshape[] = "skip_reshape";
-
-void serialize(const std::shared_ptr<ov::Model> model, std::string name) {
-    std::string path = "/home/vgolubev/models/" + name;
-    ov::pass::VisualizeTree(path + ".svg").run_on_model(model);
-    ov::pass::Serialize(path + ".xml", path + ".bin").run_on_model(model);
-}
 
 void force_replace_output(ov::Output<ov::Node> target, const ov::Output<ov::Node>& replacement) {
     const std::string new_name = ov::op::util::get_ie_output_name(target);
@@ -87,9 +77,7 @@ bool switchToImageAffinity(const Properties& props, const Subgraph& subgraph_bor
                                                                   ov::is_type<ov::op::util::DeformableConvolutionBase>(start.get_node()) ||
                                                                   ov::is_type<ov::intel_cpu::FullyConnectedNode>(start.get_node()));
 
-        const auto& start_shape = start.get_partial_shape();
-        const auto main_param = std::make_shared<ov::opset1::Parameter>(start.get_element_type(), start_shape);
-
+        auto start_shape = start.get_partial_shape();
         size_t batch_idx = get_batch_idx(start_shape);
         // if dimension label isn't set for input shape, than check output one
         if (ov::DimensionTracker::get_label(start_shape[batch_idx]) != batch_label) {
@@ -99,6 +87,8 @@ bool switchToImageAffinity(const Properties& props, const Subgraph& subgraph_bor
                          "Batch label must be set for each node output in mixed affinity subgraph.");
         }
 
+        ov::DimensionTracker::set_label(start_shape[batch_idx], batch_label);
+        const auto main_param = std::make_shared<ov::opset1::Parameter>(start.get_element_type(), start_shape);
         const size_t cur_bs = start_shape[batch_idx].get_length();
         if (is_shared_weights || cur_bs == 1) {
             start_splits.push_back(start.get_source_output().get_node_shared_ptr());
