@@ -43,6 +43,11 @@ void op::v1::Reverse::validate_and_infer_types() {
         NODE_VALIDATION_CHECK(this,
                               get_input_element_type(1) == element::boolean,
                               "In 'mask' mode the second input must contain boolean values.");
+    } else {
+        // INdex mode
+        NODE_VALIDATION_CHECK(this,
+                              get_input_element_type(1).is_integral_number(),
+                              "In 'index' mode the second input must contain integer values.");
     }
 
     const auto input_shape = get_input_partial_shape(0);
@@ -78,7 +83,7 @@ void op::v1::Reverse::validate_and_infer_types() {
         if (const auto& rev_axes_constant = get_constant_from_source(input_value(1))) {
             if (m_mode == Mode::INDEX) {
                 const AxisSet rev_axes = rev_axes_constant->get_axis_set_val();
-
+                // Dead check because of set.
                 NODE_VALIDATION_CHECK(this,
                                       rev_axes.size() <= rank,
                                       "Too many axes(",
