@@ -86,7 +86,7 @@ elif [ -f /etc/redhat-release ] || grep -q "rhel" /etc/os-release ; then
     yum install -y centos-release-scl epel-release
     yum install -y \
         file \
-        `# build tools`
+        `# build tools` \
         cmake3 \
         ccache \
         gcc \
