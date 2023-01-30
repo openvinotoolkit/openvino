@@ -41,6 +41,14 @@ void run_gather_nd_test(const GatherNDParams& test_params) {
         << "Failed for input shapes: " << ov::util::vector_to_string(test_params.input_shapes)
         << " and batch_dims = " << test_params.batch_dims << std::endl;
 }
+
+std::string print_params(const testing::TestParamInfo<GatherNDParams>& test_params) {
+    std::ostringstream results;
+    results << "in_shapes: " << ov::util::vector_to_string(test_params.param.input_shapes)
+            << ", batch_dims = " << test_params.param.batch_dims;
+    return results.str();
+}
+
 }  // namespace
 
 template <class TGatherND>
@@ -111,6 +119,10 @@ INSTANTIATE_TYPED_TEST_SUITE_P(shape_infer, StaticShapeInferenceGatherNDTest, Ga
 // ------------------------------ V5 ------------------------------
 class StaticShapeInferenceGatherNDV5Test : public TestWithParam<GatherNDParams> {};
 
+TEST_P(StaticShapeInferenceGatherNDV5Test, gather_nd_v5_test) {
+    run_gather_nd_test<op::v5::GatherND>(GetParam());
+}
+
 INSTANTIATE_TEST_SUITE_P(
     shape_infer,
     StaticShapeInferenceGatherNDV5Test,
@@ -121,8 +133,7 @@ INSTANTIATE_TEST_SUITE_P(
                       GatherNDParams{ShapeVector{{6, 4, 1, 12, 13}, {6, 4, 1, 1}}, StaticShape{24, 13}, 3},
                       GatherNDParams{ShapeVector{{6, 4, 1, 12, 13}, {6, 4, 1, 2}}, StaticShape{24}, 3},
                       GatherNDParams{ShapeVector{{6, 4, 1, 12, 13}, {6, 4, 1, 5, 2}}, StaticShape{24, 5}, 3}),
-
-    PrintToStringParamName());
+    print_params);
 
 // ------------------------------ V8 ------------------------------
 class StaticShapeInferenceGatherNDV8Test : public TestWithParam<GatherNDParams> {};
@@ -141,4 +152,4 @@ INSTANTIATE_TEST_SUITE_P(
                       GatherNDParams{ShapeVector{{6, 4, 1, 12, 13}, {6, 4, 1, 1}}, StaticShape{6, 4, 1, 13}, 3},
                       GatherNDParams{ShapeVector{{6, 4, 1, 12, 13}, {6, 4, 1, 2}}, StaticShape{6, 4, 1}, 3},
                       GatherNDParams{ShapeVector{{6, 4, 1, 12, 13}, {6, 4, 1, 5, 2}}, StaticShape{6, 4, 1, 5}, 3}),
-    PrintToStringParamName());
+    print_params);
