@@ -5,6 +5,7 @@
 #include "listconstruct_reshape_replacer.hpp"
 
 #include "openvino/core/rt_info.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "utils.hpp"
@@ -32,9 +33,8 @@ ListConstructReshapeReplacer::ListConstructReshapeReplacer() {
                 inputs.push_back(unsqueeze);
             }
             auto concat = std::make_shared<opset10::Concat>(inputs, 0);
-            auto reshape = std::make_shared<opset10::Reshape>(view_op->get_input_source_output(0), concat, false);
-            copy_runtime_info({view_op, shape_node}, reshape);
-            replace_node(view_op, reshape);
+            copy_runtime_info({shape_node}, concat);
+            replace_node(shape_node, concat);
             return true;
         };
         return false;
