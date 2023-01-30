@@ -153,8 +153,10 @@ required_cmake_ver=3.20.0
 if [ ! "$(printf '%s\n' "$required_cmake_ver" "$current_cmake_ver" | sort -V | head -n1)" = "$required_cmake_ver" ]; then
     installed_cmake_ver=3.23.2
     arch=$(uname -m)
-    wget "https://github.com/Kitware/CMake/releases/download/v${installed_cmake_ver}/cmake-${installed_cmake_ver}-linux-${arch}.sh"
-    chmod +x "cmake-${installed_cmake_ver}-linux-${arch}.sh"
-    "./cmake-${installed_cmake_ver}-linux-${arch}.sh" --skip-license --prefix=/usr/local
-    rm -rf "cmake-${installed_cmake_ver}-linux-${arch}.sh"
+    cmake_install_bin="cmake-${installed_cmake_ver}-linux-${arch}.sh"
+    github_cmake_release="https://github.com/Kitware/CMake/releases/download/v${installed_cmake_ver}/${cmake_install_bin}"
+    wget "${github_cmake_release}" -O "${cmake_install_bin}"
+    chmod +x "${cmake_install_bin}"
+    "./${cmake_install_bin}" --skip-license --prefix=/usr/local
+    rm -rf "${cmake_install_bin}"
 fi
