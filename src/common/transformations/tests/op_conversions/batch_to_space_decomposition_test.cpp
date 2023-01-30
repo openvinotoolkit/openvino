@@ -236,12 +236,10 @@ void op_convertion_test(const Params& params) {
     vector<int64_t> block;
     vector<int64_t> input_2;  // crops_begin or pads_begin
     vector<int64_t> input_3;  // crops_end or pads_end
-    bool by_elements;
-    tie(data_shape, block, input_2, input_3, expected_output_shape) = get<0>(params);
-    by_elements = get<1>(params);
+    const bool by_elements = get<0>(params);
+    tie(data_shape, block, input_2, input_3, expected_output_shape) = get<1>(params);
 
     const auto data = make_shared<Parameter>(element::f32, PartialShape::dynamic(data_shape.size()));
-    data->get_default_output().get_tensor().add_names({"data"});
     const auto block_p = make_shared<Constant>(element::i64, Shape{block.size()}, block);
     const auto input_2_p = make_shared<Constant>(element::i64, Shape{input_2.size()}, input_2);
     const auto input_3_p = make_shared<Constant>(element::i64, Shape{input_3.size()}, input_3);
@@ -249,12 +247,14 @@ void op_convertion_test(const Params& params) {
     const auto f = make_shared<Function>(NodeVector{batch_to_space}, ParameterVector{data});
 
     Manager m;
-    m.register_pass<Conversion>();
+    m.set_per_pass_validation(false);
+    m.register_pass<Conversion>(by_elements);
     ASSERT_NO_THROW(m.run_passes(f));
     ASSERT_EQ(count_ops_of_type<Op>(f), 0);
     EXPECT_TRUE(f->get_result()->get_input_partial_shape(0).is_dynamic());
 
-    f->reshape({{"data", PartialShape{data_shape}}});
+    data->set_partial_shape(data_shape);
+    f->validate_nodes_and_infer_types();
     ASSERT_EQ(f->get_result()->get_input_shape(0), expected_output_shape);
 }
 
@@ -265,9 +265,8 @@ using BatchToSpaceParams = tuple<Shape,            // data_shape
                                  Shape             // expected_output_shape
                                  >;
 
-using BatchToSpaceDecomposeParams = tuple<BatchToSpaceParams,
-                                          bool  // by_elements
-                                          >;
+using BatchToSpaceDecomposeParams = tuple<bool,  // by_elements
+                                          BatchToSpaceParams>;
 
 class BatchToSpaceDecompositionWithParams : public testing::WithParamInterface<BatchToSpaceDecomposeParams>,
                                             public TransformationTests {};
@@ -286,8 +285,8 @@ static vector<BatchToSpaceParams> batch_to_space_params = {
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          BatchToSpaceDecompositionWithParams,
-                         ::testing::Combine(::testing::ValuesIn(batch_to_space_params),
-                                            ::testing::ValuesIn({true, false})));
+                         ::testing::Combine(::testing::ValuesIn({false, true}),
+                                            ::testing::ValuesIn(batch_to_space_params)));
 
 using SpaceToBatchParams = tuple<Shape,            // data_shape
                                  vector<int64_t>,  // block
@@ -296,9 +295,8 @@ using SpaceToBatchParams = tuple<Shape,            // data_shape
                                  Shape             // expected_output_shape
                                  >;
 
-using SpaceToBatchDecomposeParams = tuple<SpaceToBatchParams,
-                                          bool  // by_elements
-                                          >;
+using SpaceToBatchDecomposeParams = tuple<bool,  // by_elements
+                                          SpaceToBatchParams>;
 
 class SpaceToBatchDecompositionWithParams : public testing::WithParamInterface<SpaceToBatchDecomposeParams>,
                                             public TransformationTests {};
@@ -317,5 +315,5 @@ static vector<SpaceToBatchParams> space_to_batch_params = {
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          SpaceToBatchDecompositionWithParams,
-                         ::testing::Combine(::testing::ValuesIn(space_to_batch_params),
-                                            ::testing::ValuesIn({true, false})));
+                         ::testing::Combine(::testing::ValuesIn({false, true}),
+                                            ::testing::ValuesIn(space_to_batch_params)));

@@ -51,6 +51,8 @@ void ov::pass::ConvertSpaceToBatch::convert_space_to_batch() {
         const auto out_shape = rg.make<ShapeOf>(flat_node);
 
         const auto zero = rg.make<Constant>(i64, Shape{1}, 0);
+        const auto one = rg.make<Constant>(i64, Shape{1}, 1);
+        const auto int_max = rg.make<Constant>(i64, Shape{1}, INT_MAX);
 
         // First we have to disperse the data from spatial dimensions, then
         // rearrange them so as appropriate chunks of data where close to their
@@ -60,27 +62,18 @@ void ov::pass::ConvertSpaceToBatch::convert_space_to_batch() {
         //      x' = reshape(x, [batch, (D_1 + P_1) / B_1, B_1, (D_2 + P_2) / B_2, B_2, ...,
         //      (D_{N - 1} + P_{N - 1}) / B_{N - 1}, B_{N - 1}]), where B_i = block_shape[i]
         const auto batch = rg.make<Gather>(out_shape, zero, zero);
-        NodeVector dispersed_shape_prep{batch};
+        const auto out_shape_tail = rg.make<Slice>(out_shape, one, int_max, one);
+        const auto block_tail = rg.make<Slice>(block, one, int_max, one);
+        const auto div_tail = rg.make<Divide>(out_shape_tail, block_tail);
 
-        //    y = reshape(x'', [batch * B_1 * ... * B_{N - 1}, (D_1 + P_1) / B_1, (D_2 + P_2) / B_2, ...,
-        //      (D_{N - 1} + P_{N - 1}) / B_{N - 1}])
-        //    note: B_0 is assumed to be 1 by op definion
-        const auto block_prod = rg.make<ReduceProd>(block, zero);
-        NodeVector squeezed_shape_prep{rg.make<Multiply>(batch, block_prod)};
+        // make interleave labma
+        const auto c = rg.make<Concat>(NodeVector{div_tail, block_tail}, 0);
+        const auto r =
+            rg.make<Reshape>(c, rg.make<Constant>(i64, Shape{2}, vector<int64_t>{2, block_lenght - 1}), false);
+        const auto t = rg.make<Transpose>(r, rg.make<Constant>(i64, Shape{2}, vector<int64_t>{1, 0}));
+        const auto i = rg.make<Reshape>(t, rg.make<Constant>(i64, Shape{1}, 2 * (block_lenght - 1)), false);
 
-        for (int64_t idx = 1; idx < block_lenght; ++idx) {
-            const auto index = rg.make<Constant>(i64, Shape{1}, idx);
-            const auto out_dim = rg.make<Gather>(out_shape, index, zero);
-            const auto block_value = rg.make<Gather>(block, index, zero);
-            const auto div = rg.make<Divide>(out_dim, block_value);
-
-            dispersed_shape_prep.push_back(div);
-            dispersed_shape_prep.push_back(block_value);
-
-            squeezed_shape_prep.push_back(div);
-        }
-
-        const auto dispersed_shape = rg.make<Concat>(dispersed_shape_prep, 0);
+        const auto dispersed_shape = rg.make<Concat>(NodeVector{batch, i}, 0);
         flat_node = rg.make<Reshape>(flat_node, dispersed_shape, false);
 
         //    x'' = transpose(x',  [2, 4, ..., (N - 1) + (N - 1), 0, 1, 3, ..., N + (N - 1)])
@@ -96,7 +89,11 @@ void ov::pass::ConvertSpaceToBatch::convert_space_to_batch() {
         const auto axes_order_const = rg.make<Constant>(i64, Shape{axes_order.size()}, axes_order);
         flat_node = rg.make<Transpose>(flat_node, axes_order_const);
 
-        const auto squeezed_shape = rg.make<Concat>(squeezed_shape_prep, 0);
+        //    y = reshape(x'', [batch * B_1 * ... * B_{N - 1}, (D_1 + P_1) / B_1, (D_2 + P_2) / B_2, ...,
+        //      (D_{N - 1} + P_{N - 1}) / B_{N - 1}])
+        //    note: B_0 is assumed to be 1 by op definion
+        const auto block_prod = rg.make<ReduceProd>(block, zero);
+        const auto squeezed_shape = rg.make<Concat>(NodeVector{rg.make<Multiply>(batch, block_prod), div_tail}, 0);
         flat_node = rg.make<Reshape>(flat_node, squeezed_shape, false);
 
         flat_node->set_friendly_name(space_to_batch->get_friendly_name());
@@ -145,28 +142,29 @@ void ov::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
             const auto block_index = rg.make<Constant>(i64, Shape{1}, b_idx);
             const auto block_index_next = rg.make<Constant>(i64, Shape{1}, b_idx + 1);
             const auto block_value = rg.make<Gather>(block, block_index, zero);
-            int64_t sq_idx = block_lenght - 1;
             int64_t axis_idx = axes_order.size() - 1;
 
-            NodeVector dispersed_shape_prep(block_lenght + 1);
             for (int64_t ds_idx = block_lenght; ds_idx >= 0; --ds_idx) {
-                const auto squeezed_index = rg.make<Constant>(i64, Shape{1}, sq_idx);
                 if (ds_idx == (b_idx + 1)) {
-                    dispersed_shape_prep[ds_idx] = block_value;
                     axes_order[0] = ds_idx;
                 } else if (ds_idx == b_idx) {
-                    const auto squeezed_element = rg.make<Gather>(squeezed_shape, squeezed_index, zero);
-                    dispersed_shape_prep[ds_idx] = rg.make<Divide>(squeezed_element, block_value);
                     axes_order[axis_idx] = ds_idx;
                     axis_idx--;
-                    sq_idx--;
                 } else {
-                    dispersed_shape_prep[ds_idx] = rg.make<Gather>(squeezed_shape, squeezed_index, zero);
                     axes_order[axis_idx] = ds_idx;
                     axis_idx--;
-                    sq_idx--;
                 }
             }
+
+            NodeVector dispersed_shape_prep;
+            dispersed_shape_prep.reserve(block_lenght + 1);
+            if (b_idx > 0)  // avoid addind empty Slice into Concat
+                dispersed_shape_prep.push_back(rg.make<Slice>(squeezed_shape, zero, block_index, one));
+            const auto squeezed_element = rg.make<Gather>(squeezed_shape, block_index, zero);
+            dispersed_shape_prep.push_back(rg.make<Divide>(squeezed_element, block_value));
+            dispersed_shape_prep.push_back(block_value);
+            if (b_idx + 1 < block_lenght)  // avoid addind empty Slice into Concat
+                dispersed_shape_prep.push_back(rg.make<Slice>(squeezed_shape, block_index_next, int_max, one));
 
             const auto dispersed_shape = rg.make<Concat>(dispersed_shape_prep, 0);
             constexpr auto special_zero = false;
@@ -178,6 +176,7 @@ void ov::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
             // don't change squeezed_shape at the last iteration, block[0] is assumed to be 1 by op definion
             if (b_idx > 0) {
                 NodeVector squeezed_shape_prep;
+                squeezed_shape_prep.reserve(block_lenght);
                 squeezed_shape_prep.push_back(
                     rg.make<Multiply>(rg.make<Gather>(squeezed_shape, zero, zero), block_value));
                 if (b_idx > 1) {  // avoid addind empty Slice into Concat
@@ -185,7 +184,7 @@ void ov::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
                 }
                 squeezed_shape_prep.push_back(
                     rg.make<Divide>(rg.make<Gather>(squeezed_shape, block_index, zero), block_value));
-                if (b_idx < block_lenght - 1) {  // avoid addind empty Slice into Concat
+                if (b_idx + 1 < block_lenght) {  // avoid addind empty Slice into Concat
                     squeezed_shape_prep.push_back(rg.make<Slice>(squeezed_shape, block_index_next, int_max, one));
                 }
 
