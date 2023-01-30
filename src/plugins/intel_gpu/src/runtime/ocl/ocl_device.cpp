@@ -209,7 +209,8 @@ device_info init_device_info(const cl::Device& device) {
         std::fill_n(std::begin(info.uuid.val), device_uuid::max_uuid_size, 0);
     }
 
-    bool device_attr_supported = extensions.find("cl_intel_device_attribute_query ") != std::string::npos;
+    bool device_attr_supported = extensions.find("cl_intel_device_attribute_query") != std::string::npos;
+    bool nv_device_attr_supported = extensions.find("cl_nv_device_attribute_query") != std::string::npos;
     if (device_attr_supported) {
         info.gfx_ver = parse_version(device.getInfo<CL_DEVICE_IP_VERSION_INTEL>());
         info.device_id = device.getInfo<CL_DEVICE_ID_INTEL>();
@@ -224,6 +225,10 @@ device_info init_device_info(const cl::Device& device) {
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->disable_onednn)
             info.supports_immad = false;
+    } else if (nv_device_attr_supported) {
+        info.gfx_ver = {static_cast<uint16_t>(device.getInfo<CL_DEVICE_COMPUTE_CAPABILITY_MAJOR_NV>()),
+                        static_cast<uint8_t>(device.getInfo<CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV>()),
+                        0};
     } else {
         info.gfx_ver = {0, 0, 0};
         info.device_id = driver_dev_id();
