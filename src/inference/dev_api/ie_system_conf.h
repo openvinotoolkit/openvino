@@ -136,6 +136,19 @@ INFERENCE_ENGINE_API_CPP(bool) with_cpu_x86_avx512_core_amx();
  * @enum cpu_core_type_of_processor
  * @brief This enum contains defination of processor based on specific cpu core types.
  * Will extend to support other CPU core type like ARM.
+ *
+ * This enum are also defination of each columns in processor type table. Below are two example of processor type table.
+ *  1. Processor table of two socket CPUs XEON server
+ *
+ *  ALL_PROC | MAIN_CORE_PROC | HYPER_THREADING_PROC | EFFICIENT_CORE_PROC
+ *     96            48                   48                   0            // Total number of two sockets
+ *     48            24                   24                   0            // Number of socket one
+ *     48            24                   24                   0            // Number of socket two
+ *
+ * 2. Processor table of one socket CPU desktop
+ *
+ *  ALL_PROC | MAIN_CORE_PROC | HYPER_THREADING_PROC | EFFICIENT_CORE_PROC
+ *     32            8                    8                   16            // Total number of one socket
  */
 typedef enum {
     ALL_PROC = 0,              //!< All processors, regardless of backend cpu
@@ -154,7 +167,7 @@ typedef enum {
  *  3. There are no duplicate group IDs in the system
  *
  * Below is the example of CPU mapping table.
- *  1. Four processors of two Pcore
+ *  1. Four processors of two Pcores
  *  2. Four processors of four Ecores shared L2 cache
  *
  *  PROCESSOR_ID | SOCKET_ID | CORE_ID | CORE_TYPE | GROUP_ID | Used
