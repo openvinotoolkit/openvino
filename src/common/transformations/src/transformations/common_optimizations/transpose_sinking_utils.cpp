@@ -144,7 +144,6 @@ AxisVector AlignTransposeOrder(const Output<Node>& output, const TransposeInputs
         }
     } else {
         new_transpose_order = transpose_input_info.transpose_const->get_axis_vector_val();
-        ;
     }
     return new_transpose_order;
 }
