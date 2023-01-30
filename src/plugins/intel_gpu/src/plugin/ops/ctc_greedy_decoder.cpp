@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,7 +52,7 @@ static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngr
             IE_THROW() << "Unsupported blank_index node type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         }
         float val;
-        if (ngraph::shape_size(blank_index_node->get_output_shape(0)) != 1 || !ngraph::op::util::get_single_value(blank_index_node, val)) {
+        if (ngraph::shape_size(blank_index_node->get_output_shape(0)) != 1 || !ov::op::util::get_single_value(blank_index_node, val)) {
             IE_THROW() << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         }
         blank_index = static_cast<uint32_t>(val);

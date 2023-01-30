@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,11 +32,11 @@ ov::pass::EnableDecompressionConvertConstantFolding::EnableDecompressionConvertC
 
 bool ov::pass::ConvertCompressedOnlyToLegacy::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_MODEL_SCOPE(ConvertCompressedOnlyToLegacy);
-    if (ngraph::op::util::has_decompression_converts(f)) {
+    if (ov::op::util::has_decompression_converts(f)) {
         Manager manager(get_pass_config());
 
         const precisions_array convert_precision_list{{ov::element::f32, ov::element::f16}};
-        manager.register_pass<ngraph::pass::ConvertPrecision>(convert_precision_list);
+        manager.register_pass<ConvertPrecision>(convert_precision_list);
         using namespace ov::pass;
         REGISTER_PASS(manager, EnableDecompressionConvertConstantFolding)
         REGISTER_PASS(manager, ConstantFolding)

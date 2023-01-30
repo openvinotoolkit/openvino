@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,6 +41,7 @@ struct non_max_suppression_params : public base_params {
     bool has_second_output;
     bool has_third_output;
     bool use_multiple_outputs;
+    bool reuse_internal_buffer = false;
 
     uint32_t GetIndexNumSelectPerClass() const {
         uint32_t input_idx = 2;

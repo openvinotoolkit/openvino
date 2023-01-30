@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,41 +48,6 @@ static constexpr Property<bool, PropertyMutability::RW> partial_build_program{"G
 static constexpr Property<bool, PropertyMutability::RW> allow_new_shape_infer{"GPU_ALLOW_NEW_SHAPE_INFER"};
 static constexpr Property<std::string, PropertyMutability::RW> dump_graphs{"GPU_DUMP_GRAPHS"};
 static constexpr Property<std::vector<std::string>, PropertyMutability::RW> custom_outputs{"GPU_CUSTOM_OUTPUTS"};
-
-/// @brief Tuning mode.
-enum class TuningMode {
-    /// @brief Tuning is disabled.
-    tuning_disabled,
-
-    /// @brief Tuning using the cached data (no on-line tuning for non-existing data).
-    tuning_use_cache,
-
-    /// @brief Tuning using the cached data if exist, tune and update cache otherwise.
-    tuning_tune_and_cache,
-
-    /// @brief Tuning using the cached data and update tasks.
-    /// @details Performs updating tasks like removal of invalid caches, promoting to new format, etc.
-    /// No tuning for non-existing data.
-    tuning_use_and_update,
-
-    /// @brief Retune the cache data even if it exists.
-    tuning_retune_and_cache
-};
-
-struct TuningConfig {
-    TuningMode mode;
-    std::string cache_file_path;
-
-    TuningConfig() : mode(TuningMode::tuning_disabled), cache_file_path("") {}
-};
-
-inline std::ostream& operator<<(std::ostream& os, const TuningConfig& val) {
-    os << val.cache_file_path;
-    return os;
-}
-
-static constexpr Property<TuningConfig, PropertyMutability::RW> tuning_config{"GPU_TUNING_CONFIG"};
-
 static constexpr Property<ImplForcingMap, PropertyMutability::RW> force_implementations{"GPU_FORCE_IMPLEMENTATIONS"};
 static constexpr Property<std::string, PropertyMutability::RW> config_file{"CONFIG_FILE"};
 static constexpr Property<bool, PropertyMutability::RW> enable_lp_transformations{"LP_TRANSFORMS_MODE"};

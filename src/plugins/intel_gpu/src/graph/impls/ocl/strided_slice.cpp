@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -143,6 +143,8 @@ public:
             // instead.
             vector_assign_if_not_mask(params.striding_params[1], out_shape, params.end_mask);
             for (size_t dim = 0; dim < params.striding_params[2].size(); dim++) {
+                auto begin_org = params.striding_params[0][dim];
+                auto end_org = params.striding_params[1][dim];
                 if (params.striding_params[0][dim] < 0)
                     params.striding_params[0][dim] = std::max(out_shape[dim] + params.striding_params[0][dim], (int32_t)0);
                 if (params.striding_params[1][dim] < 0)
@@ -154,17 +156,30 @@ public:
                 auto& begin = params.striding_params[0][dim];
                 auto& end = params.striding_params[1][dim];
                 auto& stride = params.striding_params[2][dim];
+                bool is_clamp_begin = begin_org != begin;
+                bool is_clamp_end = end_org != end;
                 bool is_reverse = stride < 0;
                 // If begin > end && is_reverse, then we don't need to adjust begin/end values, the kernel will process it correctly
+                // However, in case of out-of-bounds begin/end values, it will be clamped, so we subtract 1 from each of them manually
+                // E.g. out_shape[dim] = 100; begin=10000; end=-10000; stride=-1
+                // clamp: begin=100; end=0;
+                // sub: begin=99; end=-1;
                 // If begin <= end, then we swap begin/end values and subtruct 1 from each of them
                 // E.g. out_shape[dim] = 100; begin=0; end=100; stride=-1
                 // swap: begin=100; end=0;
                 // sub: begin=99; end=-1;
                 // So the kernel will put the slices [99, 0] in reversed order as expected.
-                if (is_reverse && begin <= end) {
-                    std::swap(begin, end);
-                    begin--;
-                    end--;
+                if (is_reverse) {
+                    if (begin <= end) {
+                        std::swap(begin, end);
+                        begin--;
+                        end--;
+                    } else {
+                        if (is_clamp_begin)
+                            begin--;
+                        if (is_clamp_end)
+                            end--;
+                    }
                 }
             }
         }

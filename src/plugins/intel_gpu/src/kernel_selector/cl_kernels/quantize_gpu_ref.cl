@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,12 +8,14 @@
 REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 #endif
 __attribute__((reqd_work_group_size(LWS_0, LWS_1, LWS_2)))
-KERNEL(quantize_ref)(const __global INPUT0_TYPE* input,
-                     const __global INPUT1_TYPE* input_low,
-                     const __global INPUT2_TYPE* input_high,
-                     const __global INPUT3_TYPE* output_low,
-                     const __global INPUT4_TYPE* output_high,
-                           __global OUTPUT_TYPE* output)
+KERNEL(quantize_ref)(
+    OPTIONAL_SHAPE_INFO_ARG
+    const __global INPUT0_TYPE* input,
+    const __global INPUT1_TYPE* input_low,
+    const __global INPUT2_TYPE* input_high,
+    const __global INPUT3_TYPE* output_low,
+    const __global INPUT4_TYPE* output_high,
+          __global OUTPUT_TYPE* output)
 {
     const int b = get_global_id(0);
     const int of = get_global_id(1);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,6 @@
 #include "fully_connected/fully_connected_params.h"
 
 #include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_runner.h"
 
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
@@ -119,7 +118,6 @@ public:
             params.quantization = kernel_selector::QuantizationType::NONE;
         }
 
-        optional_params.tuningParams.runner = std::make_shared<gpu::kernel_runner>(progam.get_engine(), progam.get_id(), true);
         return {params, optional_params};
     }
 

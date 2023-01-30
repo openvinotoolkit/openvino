@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -128,7 +128,7 @@ allocation_type ocl_engine::detect_usm_allocation_type(const void* memory) const
 }
 
 memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type type, bool reset) {
-    OPENVINO_ASSERT(!layout.is_dynamic(), "[GPU] Can't allocate memory for dynamic layout");
+    OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(), "[GPU] Can't allocate memory for dynamic layout");
 
     OPENVINO_ASSERT(layout.bytes_count() <= get_device_info().max_alloc_mem_size,
                     "[GPU] Exceeded max size of memory object allocation: ",

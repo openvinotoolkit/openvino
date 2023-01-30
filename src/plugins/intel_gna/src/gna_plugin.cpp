@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -461,7 +461,7 @@ void GNAPlugin::UpdateInputs(const std::vector<std::shared_ptr<const ov::Node>>&
 void GNAPlugin::UpdateOutputs(const std::vector<std::shared_ptr<const ov::Node>>& results) {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "UpdateOutputs");
     for (const auto& result : results) {
-        const std::string ie_name = ngraph::op::util::create_ie_output_name(result->input_value(0));
+        const std::string ie_name = ov::op::util::create_ie_output_name(result->input_value(0));
         outputs_[ie_name].name = ie_name;
         outputs_[ie_name].tensor_names = result->get_output_tensor(0).get_names();
     }
@@ -647,6 +647,7 @@ void GNAPlugin::AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
 
 void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "LoadNetwork");
+    _network_name = _network.getName();
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
 
     const auto effectiveGnaCompileTargetValue = effectiveGnaCompileTarget();
@@ -659,28 +660,28 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(_network);
         const auto& graph = clonedNetwork.getFunction();
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
 
-        fake_quantized = ngraph::op::util::has_op_with_type<ngraph::opset7::FakeQuantize>(graph);
+        fake_quantized = ov::op::util::has_op_with_type<ngraph::opset7::FakeQuantize>(graph);
         // In OV API 2.0(IRv10) default convertion to fp32 (inputs, outputs and weights) is disabled
         // and we need to run the ConvertPrecision transformation to support old networks.
-        manager.register_pass<ngraph::pass::ConvertPrecision>(
+        manager.register_pass<ov::pass::ConvertPrecision>(
             precisions_array{{ngraph::element::f16, ngraph::element::f32}});
-        manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6>();
+        manager.register_pass<ov::pass::ConvertMVN1ToMVN6>();
         manager.register_pass<ov::intel_gna::pass::DecomposeMVN>();
-        manager.register_pass<ngraph::pass::CommonOptimizations>();
+        manager.register_pass<ov::pass::CommonOptimizations>();
         manager.register_pass<ov::intel_gna::pass::RemoveInputConvert>();
         manager.register_pass<ov::intel_gna::pass::RemoveOutputConvert>();
-        manager.register_pass<ngraph::pass::ConvertSequenceToTensorIterator>();
-        manager.register_pass<ngraph::pass::GRUCellDecomposition>();
-        manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
+        manager.register_pass<ov::pass::ConvertSequenceToTensorIterator>();
+        manager.register_pass<ov::pass::GRUCellDecomposition>();
+        manager.register_pass<ov::pass::LSTMCellDecomposition>();
         manager.register_pass<ov::intel_gna::pass::ConvertDWSCToScaleShifts>();
         manager.register_pass<ov::intel_gna::pass::ConvertPaddedToValidConv>();
         manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBiasAF>(effectiveGnaCompileTargetValue, config.gnaPrecision);
         manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBias>(effectiveGnaCompileTargetValue, config.gnaPrecision);
         manager.register_pass<ov::intel_gna::pass::Decompose2DConv>(effectiveGnaCompileTargetValue, config.gnaPrecision);
         // TODO enable this transformation for networks with convolutions
-        if (!ngraph::op::util::has_op_with_type<ngraph::opset7::Convolution>(graph)) {
+        if (!ov::op::util::has_op_with_type<ngraph::opset7::Convolution>(graph)) {
             manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithFqToPointWiseConvolution>();
             manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithBiasToPointWiseConvolution>();
             manager.register_pass<ov::intel_gna::pass::ConvertMatmulToPointWiseConvolution>();
@@ -705,8 +706,9 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         manager.register_pass<ov::intel_gna::pass::ReorderActivationAndPooling>();
         manager.register_pass<ov::intel_gna::pass::RemoveSingleInputConcat>();
         manager.register_pass<ov::intel_gna::pass::SubstituteSoftsign>();
-        manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
-        manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+        manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeLayerToBeEliminated>();
+        manager.register_pass<ov::pass::ConvertOpSet3ToOpSet2>();
+        manager.register_pass<ov::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
         manager.register_pass<ov::intel_gna::pass::MarkupFusableTranspose>();
         manager.register_pass<ov::intel_gna::pass::RemoveExtraReshapes>();
@@ -738,7 +740,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
             manager.register_pass<ov::intel_gna::pass::PWLApproximationWithFq>(config.gnaFlags.pwlMaxErrorPercent);
             manager.register_pass<ov::intel_gna::pass::PWLApproximation>(config.gnaFlags.pwlMaxErrorPercent);
         }
-        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>();
         manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>();
         manager.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>();
@@ -749,19 +751,19 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         pass_config->disable<ov::pass::ConvertCompressedOnlyToLegacy>();
         pass_config->disable<ov::pass::DisableDecompressionConvertConstantFolding>();
 
-        pass_config->disable<ngraph::pass::FakeQuantizeMulFusion>();
-        pass_config->disable<ngraph::pass::FakeQuantizeReshapeFusion>();
-        pass_config->disable<ngraph::pass::PullTransposeThroughFQUp>();
-        pass_config->disable<ngraph::pass::ReluFakeQuantizeFusion>();
+        pass_config->disable<ov::pass::FakeQuantizeMulFusion>();
+        pass_config->disable<ov::pass::FakeQuantizeReshapeFusion>();
+        pass_config->disable<ov::pass::PullTransposeThroughFQUp>();
+        pass_config->disable<ov::pass::ReluFakeQuantizeFusion>();
         // Consider to enable after per-channel quantization on FakeQuantize layer is supported in GNAPlugin, see issue
         // 52034
-        pass_config->disable<ngraph::pass::AddFakeQuantizeFusion>();
+        pass_config->disable<ov::pass::AddFakeQuantizeFusion>();
         // TransposeReduction can be enabled when Transpose-Conv-Transpose patterns will be handled in ngraph
         // transformations
-        pass_config->disable<ngraph::pass::TransposeReduction>();
+        pass_config->disable<ov::pass::TransposeReduction>();
         // Operations Max and Min aren't supported
-        pass_config->disable<ngraph::pass::ConcatReduceFusion>();
-        // pass_config->disable<ngraph::pass::SoftSignDecomposition>();
+        pass_config->disable<ov::pass::ConcatReduceFusion>();
+        // pass_config->disable<ov::pass::SoftSignDecomposition>();
         manager.run_passes(graph);
         convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, clonedNetwork);
         isNgraphPassesUsed = true;
@@ -1120,7 +1122,8 @@ std::string GNAPlugin::effectiveGnaCompileTarget() const {
 }
 
 std::shared_ptr<request::Worker> GNAPlugin::createWorkerForLoadNetwork(bool trivial, bool fp32Mode) {
-    return createWorker(createModelWrapperForLoadNetwork(trivial), trivial, fp32Mode);
+    // Do not initialize gna model for fp32 mode (create trivial model wraper)
+    return createWorker(createModelWrapperForLoadNetwork(trivial || fp32Mode), trivial, fp32Mode);
 }
 
 std::shared_ptr<request::Worker> GNAPlugin::createWorker(std::shared_ptr<request::ModelWrapper> modelWrapper,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -225,8 +225,8 @@ namespace {
 
     void execute_test(std::shared_ptr<ngraph::Function> function, std::shared_ptr<ngraph::Function> reference_function) {
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
-    manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::ConvertMVN1ToMVN6>();
     manager.register_pass<ov::intel_gna::pass::DecomposeMVN>();
     manager.run_passes(function);
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);

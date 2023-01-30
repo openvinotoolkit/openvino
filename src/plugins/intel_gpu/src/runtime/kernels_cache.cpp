@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -213,7 +213,7 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
             current_dump_file_name += '/';
 
         current_dump_file_name += "clDNN_program_" + std::to_string(_prog_id) + "_bucket_" + std::to_string(batch.bucket_id)
-                               + "_part_" + std::to_string(batch.batch_id) + ".cl";
+                               + "_part_" + std::to_string(batch.batch_id) + "_" + std::to_string(batch.hash_value) + ".cl";
     }
 
     std::ofstream dump_file;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,9 +30,3 @@ public:
     OPENVINO_RTTI("UnrollTensorIterator", "0");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::UnrollTensorIterator;
-}  // namespace pass
-}  // namespace ngraph

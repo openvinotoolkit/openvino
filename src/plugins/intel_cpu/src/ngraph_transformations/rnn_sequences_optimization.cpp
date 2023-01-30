@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,8 +54,8 @@ namespace {
         if (seqAxis == 0) {
             ngraph::Output<ngraph::Node> in_0 = sequenceOp->get_input_node_shared_ptr(0)->input_value(0);
 
-            auto shapeBeforeTranspose = ngraph::op::util::make_try_fold<ngraph::opset1::ShapeOf>(in_0);
-            auto newInShape = ngraph::op::util::make_try_fold<ngraph::opset8::Gather>(shapeBeforeTranspose,
+            auto shapeBeforeTranspose = ov::op::util::make_try_fold<ngraph::opset1::ShapeOf>(in_0);
+            auto newInShape = ov::op::util::make_try_fold<ngraph::opset8::Gather>(shapeBeforeTranspose,
                 ngraph::opset1::Constant::create(ngraph::element::i32, { 3 }, { 1, 0, 2 }),
                 ngraph::opset1::Constant::create(ngraph::element::i32, {}, { 0 }));
             auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(in_0, newInShape, false);
@@ -67,8 +67,8 @@ namespace {
                 return false;
             auto transposeAfter = seqTargetInputs.begin()->get_node()->shared_from_this();
 
-            auto lstmOutShape = ngraph::op::util::make_try_fold<ngraph::opset1::ShapeOf>(sequenceOp->output(0));
-            auto newOutShape = ngraph::op::util::make_try_fold<ngraph::opset8::Gather>(lstmOutShape,
+            auto lstmOutShape = ov::op::util::make_try_fold<ngraph::opset1::ShapeOf>(sequenceOp->output(0));
+            auto newOutShape = ov::op::util::make_try_fold<ngraph::opset8::Gather>(lstmOutShape,
                 ngraph::opset1::Constant::create(ngraph::element::i32, { 4 }, { 2, 1, 0, 3 }),
                 ngraph::opset1::Constant::create(ngraph::element::i32, {}, { 0 }));
 
