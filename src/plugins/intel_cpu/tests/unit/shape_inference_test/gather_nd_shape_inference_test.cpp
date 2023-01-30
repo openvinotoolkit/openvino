@@ -16,6 +16,34 @@ using namespace op;
 using namespace ov::intel_cpu;
 using namespace testing;
 
+namespace {
+struct GatherNDParams {
+    ShapeVector input_shapes;
+    StaticShape exp_shape;
+    size_t batch_dims;
+};
+
+template <class TGatherND>
+std::shared_ptr<TGatherND> make_gather_nd(size_t batch_dims) {
+    auto data_param = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto indicies_param = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic());
+
+    return std::make_shared<TGatherND>(data_param, indicies_param, batch_dims);
+}
+
+template <typename TGatherND>
+void run_gather_nd_test(GatherNDParams test_params) {
+    auto op = make_gather_nd<TGatherND>(test_params.batch_dims);
+
+    ShapeVector output_shapes(1);
+    shape_inference(op.get(), test_params.input_shapes, output_shapes);
+
+    EXPECT_EQ(output_shapes[0], test_params.exp_shape)
+    << "Failed for input shapes: " << ov::util::vector_to_string(test_params.input_shapes)
+    << " and batch_dims = " << test_params.batch_dims << std::endl;
+}
+} // namespace
+
 using GatherNDTestParams = std::tuple<ShapeVector, StaticShape, size_t>;
 
 template <class TGatherND>
@@ -23,13 +51,6 @@ class StaticShapeInferenceGatherNDTest : public OpStaticShapeInferenceTest<TGath
 protected:
     void SetUp() override {
         OpStaticShapeInferenceTest<TGatherND>::output_shapes = ShapeVector(1);
-    }
-
-    std::shared_ptr<TGatherND> make_gather() {
-        auto data_param = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
-        auto indicies_param = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic());
-
-        return this->make_op(data_param, indicies_param, batch_dims);
     }
     size_t batch_dims = 1;
 };
@@ -67,7 +88,7 @@ TYPED_TEST_P(StaticShapeInferenceGatherNDTest, gather_nd_batch_dims_1) {
     for (auto&& params : GatherNDGatherNDTestParams) {
         std::tie(this->input_shapes, this->exp_shape, this->batch_dims) = params;
 
-        auto op = this->make_gather();
+        auto op = make_gather_nd<TypeParam>(this->batch_dims);
         shape_inference(op.get(), this->input_shapes, this->output_shapes);
 
         EXPECT_EQ(this->output_shapes.front(), this->exp_shape)
@@ -79,3 +100,29 @@ TYPED_TEST_P(StaticShapeInferenceGatherNDTest, gather_nd_batch_dims_1) {
 REGISTER_TYPED_TEST_SUITE_P(StaticShapeInferenceGatherNDTest, gather_nd_batch_dims_1);
 using GatherNDTypes = Types<op::v5::GatherND, op::v8::GatherND>;
 INSTANTIATE_TYPED_TEST_SUITE_P(shape_infer, StaticShapeInferenceGatherNDTest, GatherNDTypes);
+
+
+// ------------------------------ V5 ------------------------------
+class StaticShapeInferenceGatherNDV5Test : public TestWithParam<GatherNDParams> {};
+
+TEST_P(StaticShapeInferenceGatherNDV5Test, gather_nd_v5_test1) {
+    run_gather_nd_test<op::v5::GatherND>(GetParam());
+}
+
+INSTANTIATE_TEST_SUITE_P(gather_nd_v5_tests,
+                         StaticShapeInferenceGatherNDV5Test,
+                         ::testing::Values(GatherNDParams{ShapeVector{{6, 4, 11, 12, 13}, {6, 4, 2}}, StaticShape{24, 13}, 2}),
+                         PrintToStringParamName());
+
+
+// ------------------------------ V8 ------------------------------
+class StaticShapeInferenceGatherNDV8Test : public TestWithParam<GatherNDParams> {};
+
+TEST_P(StaticShapeInferenceGatherNDV8Test, gather_nd_v8_test1) {
+    run_gather_nd_test<op::v8::GatherND>(GetParam());
+}
+
+INSTANTIATE_TEST_SUITE_P(gather_nd_v8_tests,
+                         StaticShapeInferenceGatherNDV8Test,
+                         ::testing::Values(GatherNDParams{ShapeVector{{6, 4, 11, 12, 13}, {6, 4, 2}}, StaticShape{6, 4, 13}, 2}),
+                         PrintToStringParamName());
