@@ -60,6 +60,7 @@
       "dependencies" : ["ie_core"],
       "files": [
         "runtime/lib/intel64/cache.json",
+        "install_dependencies/install_NEO_OCL_driver.sh",
         "runtime/lib/intel64/libopenvino_intel_gpu_plugin.so"
       ]
     },
