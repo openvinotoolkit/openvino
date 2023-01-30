@@ -24,23 +24,18 @@ namespace {
 void translate_framework_node(const std::shared_ptr<ov::frontend::tensorflow::FrameworkNode>& node,
                               const ov::frontend::tensorflow_lite::TranslatorDictionaryType& op_translators) {
     auto type = node->get_op_type();
-
     const auto& TRANSLATE_OP_MAP = op_translators;
     auto translator_it = TRANSLATE_OP_MAP.find(type);
     FRONT_END_OP_CONVERSION_CHECK(translator_it != TRANSLATE_OP_MAP.end(), "No translator found for ", type, " node.");
-
     ov::OutputVector ov_inputs = node->input_values();
     ov::frontend::tensorflow_lite::NodeContext node_ctx(node->get_decoder(), ov_inputs);
-    auto new_node_outputs = translator_it->second(node_ctx);
-    ov::frontend::tensorflow_lite::op::set_output_names(node_ctx, new_node_outputs);
-
-    auto new_output = new_node_outputs.begin();
+    auto new_outputs = translator_it->second(node_ctx);
+    ov::frontend::tensorflow_lite::op::set_output_names(node_ctx, new_outputs);
     auto old_outputs = node->outputs();
-    auto old_output = old_outputs.begin();
-
-    for (; new_output != new_node_outputs.end() && old_output != old_outputs.end(); ++old_output, ++new_output) {
-        old_output->replace(*new_output);
-        apply_quantization(*new_output);
+    FRONT_END_GENERAL_CHECK(new_outputs.size() == old_outputs.size());
+    for (auto i = 0; i < new_outputs.size(); ++i) {
+        old_outputs[i].replace(new_outputs[i]);
+        apply_quantization(new_outputs[i], node->get_output_element_type(i));
     }
 }
 }  // namespace

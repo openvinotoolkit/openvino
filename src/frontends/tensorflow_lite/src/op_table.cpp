@@ -59,7 +59,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         // DENSIFY
         {"DEPTH_TO_SPACE", depth_to_space},
         {"DEPTHWISE_CONV_2D", depthwise_conv2d},
-        // DEQUANTIZE
+        {"DEQUANTIZE", dequantize},
         {"DIV", translate_binary_op_with_activation<opset10::Divide, tflite::DivOptions>},
         // DYNAMIC_UPDATE_SLICE
         {"ELU", ov::frontend::tensorflow::op::translate_elu_op},
@@ -120,7 +120,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         {"PADV2", OP_CONVERT_TYPE_RENAME(ov::frontend::tensorflow::op::translate_padv2_op, "PadV2")},
         {"POW", ov::frontend::tensorflow::op::translate_binary_op<opset8::Power>},
         {"PRELU", ov::frontend::tensorflow::op::translate_binary_op<opset10::PRelu>},
-        // QUANTIZE
+        {"QUANTIZE", quantize},
         // RANDOM_STANDARD_NORMAL
         // RANDOM_UNIFORM
         {"RANGE", range},

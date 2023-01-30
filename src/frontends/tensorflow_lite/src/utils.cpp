@@ -80,19 +80,23 @@ ov::Shape get_quant_shape(const Output<Node>& output,
     return shape;
 }
 
-void ov::frontend::tensorflow_lite::apply_quantization(ov::Output<ov::Node>& output) {
+void ov::frontend::tensorflow_lite::apply_quantization(ov::Output<ov::Node>& output, element::Type type) {
     auto rt_info = output.get_rt_info();
-    if (!rt_info.count(QuantizationInfo::get_type_info_static()))  // no quantization
+    auto input_type = output.get_element_type();
+    if (!rt_info.count(QuantizationInfo::get_type_info_static())) {  // no quantization
+        FRONT_END_GENERAL_CHECK(input_type.compatible(type), "Inconsistent type inference: tflite ", type, ", ov ", input_type);
         return;
+    }
 
     auto quantization = rt_info[QuantizationInfo::get_type_info_static()].as<std::shared_ptr<QuantizationInfo>>();
-    if (!quantization || quantization->is_disabled())
+    if (!quantization || quantization->is_disabled()) {
+        FRONT_END_GENERAL_CHECK(input_type.compatible(type), "Inconsistent type inference: tflite ", type, ", ov ", input_type);
         return;
+    }
 
     bool is_constant = ov::is_type<ov::opset10::Constant>(output.get_node_shared_ptr());
     bool is_input = ov::is_type<ov::opset10::Parameter>(output.get_node_shared_ptr());
 
-    auto input_type = output.get_element_type();
     ov::Output<ov::Node> input_low, input_high, output_low, output_high;
 
     auto zp = quantization->get_zero_point();
@@ -100,9 +104,6 @@ void ov::frontend::tensorflow_lite::apply_quantization(ov::Output<ov::Node>& out
 
     auto zp_shape = get_quant_shape(output, quantization, zp.size());
     auto scale_shape = get_quant_shape(output, quantization, scale.size());
-
-    auto input_rank = output.get_partial_shape().rank();
-    FRONT_END_GENERAL_CHECK(input_rank.is_static(), "Quantization is no");
 
     auto zp_node = ov::opset10::Constant::create(element::f32, zp_shape, zp);
     auto scale_node = ov::opset10::Constant::create(element::f32, scale_shape, scale);

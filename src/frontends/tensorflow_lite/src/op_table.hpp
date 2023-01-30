@@ -57,6 +57,8 @@ OutputVector arg_max(const ov::frontend::tensorflow_lite::NodeContext& node);
 OutputVector transpose_conv(const ov::frontend::tensorflow_lite::NodeContext& node);
 OutputVector complex_abs(const ov::frontend::tensorflow_lite::NodeContext& node);
 OutputVector rfft2d(const ov::frontend::tensorflow_lite::NodeContext& node);
+OutputVector quantize(const ov::frontend::tensorflow_lite::NodeContext& node);
+OutputVector dequantize(const ov::frontend::tensorflow_lite::NodeContext& node);
 
 template <typename OV_TYPE, typename TF_TYPE>
 OutputVector translate_binary_op_with_activation(const ov::frontend::tensorflow_lite::NodeContext& node);

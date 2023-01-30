@@ -10,5 +10,5 @@ void ov::frontend::tensorflow_lite::TensorLitePlace::translate(ov::Output<ov::No
     output.set_names({*get_names().begin()});
     output.get_rt_info()[QuantizationInfo::get_type_info_static()] = m_quantization;
     if (convert_tensor_attrs_to_nodes)
-        apply_quantization(output);
+        apply_quantization(output, get_element_type());
 }
