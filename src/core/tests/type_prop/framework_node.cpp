@@ -75,6 +75,13 @@ TEST(type_prop, dynamic_framework_node_with_dynamic_input) {
 
     ASSERT_NO_THROW(f_node->validate_and_infer_types());
     ASSERT_EQ(f_node->get_output_partial_shape(0), ov::PartialShape::dynamic());
+
+    // Set static type
+    param->set_element_type(ov::element::f32);
+    param->validate_and_infer_types();
+
+    ASSERT_NO_THROW(f_node->validate_and_infer_types());
+    ASSERT_EQ(f_node->get_output_element_type(0), ov::element::dynamic);
 }
 
 TEST(type_prop, dynamic_framework_node_with_static_rank) {
