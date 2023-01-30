@@ -21,9 +21,6 @@ OutputVector translate_crop_and_resize_bilinear(const NodeContext& node) {
     auto box_ind = node.get_input(2);
     auto crop_size = node.get_input(3);
 
-    // retrieve attributes
-    auto method = node.get_attribute<string>("method", "bilinear");
-
     // try to retrive crop_size as the constant, otherwise, we cannot support it
     Shape crop_sizes;
     get_const_input(node, 3, &crop_sizes);
