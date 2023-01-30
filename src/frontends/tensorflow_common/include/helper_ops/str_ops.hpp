@@ -627,7 +627,7 @@ public:
             auto st = StructuralTypeAttribute::get(get_input_tensor(0).get_rt_info());
             get_output_tensor(0).get_rt_info()["structural_type"] =
                 StructuralTypeAttribute(element::StructuralType::Ragged(st));
-        } else if(bind_inputs.size() == 2) {
+        } else {
             std::cerr << "WordpieceTokenizeWithOffsets: 1\n";
             // Code output ragged[str] tensor, the same as bind_input[0]
             const auto& indices = bind_inputs[0].inputs;
@@ -635,14 +635,14 @@ public:
 
             for(size_t i = 0; i < indices.size() - 1; ++i) {
                 auto index = indices[i];
-                set_output_type(index, get_input_element_type(index), get_input_partial_shape(index));
-                new_indices.push_back(index);
+                set_output_type(i, get_input_element_type(index), get_input_partial_shape(index));
+                new_indices.push_back(i);
             }
 
             for(size_t i = indices.size() - 2 - 1; i < indices.size(); ++i) {
                 auto index = indices[i];
-                set_output_type(index + 2, get_input_element_type(index), get_input_partial_shape(index));
-                new_indices.push_back(index + 2);
+                set_output_type(i + 2, get_input_element_type(index), get_input_partial_shape(index));
+                new_indices.push_back(i + 2);
             }
 
             StructuralTypeProxy::BindInputs bind_outputs{BindInput(new_indices, element::StructuralType::Ragged(bind_inputs[0].structural_type))};   // TODO: Add offsets
@@ -668,46 +668,14 @@ public:
     }
 
     ConstantVector evaluate_internal_helper(const ov::TensorVector& inputs) const {
-        //auto input = StructuralTypeProxy::TensorStr<const ov::TensorVector::value_type*>(&inputs[0], &inputs[1], &inputs[2]);
-
-        /*
-        // We are supporting 1D inputs only, therefore we are making 2D ragged tensor
-        size_t regular_size = input.get_shape()[0];
-
-        // Parts of ragged representation
-        std::vector<int> new_ragged_begins(regular_size), new_ragged_ends(regular_size);
-        std::vector<int> new_str_begins, new_str_ends;
-        std::string new_chars;
-
-        for(size_t i = 0; i < regular_size; ++i) {
-            // Stub: synthetic processing
-            std::string value = input.element_by_offset(i);
-            size_t part_size = 1;
-            size_t skip_size = 1;
-            size_t string_begin = 0;
-            assert(new_str_begins.size() == new_str_ends.size());
-            new_ragged_begins.push_back(new_str_begins.size());
-            while(string_begin < value.length()) {
-                std::string part = value.substr(string_begin, part_size);
-                new_str_begins.push_back(new_chars.length());
-                new_chars += part;
-                new_str_ends.push_back(new_chars.length());
-                string_begin += part_size + skip_size;
-                skip_size = 1 - skip_size;
-            }
-            assert(new_str_begins.size() == new_str_ends.size());
-            new_ragged_ends.push_back(new_str_begins.size());
-            assert(new_ragged_begins.size() == new_ragged_ends.size());
-        }
-
-        */
         ConstantVector results;
         // We always adding one new ragged dimension to input tensor
         // Each ragged dimension is represented by a pair of index tensors
         // We suppose Ragged Tensor or regular tensor of string in the input,
         // so it is represented as the 2*n + 2 + 1 tensors, where n is the number of input ragged dimensions
         // 2 is indices for str begins and end, and 1 is for symbols
-        for(int i = 0; i < inputs.size() - 2 - 1; ++i) {
+
+        for(int i = 3; i < inputs.size() - 2 - 1; ++i) {
             results.push_back(make_shared<ov::opset1::Constant>(
                 inputs[i].get_element_type(),
                 inputs[i].get_shape(),
@@ -732,19 +700,10 @@ public:
                 inputs[i].data(inputs[i].get_element_type())));
         }
 
-        /*
-        results.push_back(make_shared<ov::opset1::Constant>(element::i32, Shape{regular_size}, &new_ragged_begins[0]));
-        results.push_back(make_shared<ov::opset1::Constant>(element::i32, Shape{regular_size}, &new_ragged_ends[0]));
-        results.push_back(make_shared<ov::opset1::Constant>(element::i32, Shape{new_str_begins.size()}, &new_str_begins[0]));
-        results.push_back(make_shared<ov::opset1::Constant>(element::i32, Shape{new_str_ends.size()}, &new_str_ends[0]));
-        results.push_back(make_shared<ov::opset1::Constant>(element::u8, Shape{new_chars.length()}, new_chars.data()));
-        */
-
         return results;
     }
 
     std::shared_ptr<ov::Node> clone_with_new_inputs(const OutputVector& inputs) const override {
-        //std::cerr << "[ CLONING ] StaticRegexReplace\n";
         return std::make_shared<WordpieceTokenizeWithOffsets>(inputs, StructuralTypeProxy::StructuralTypeMapAttribute::get_input(get_rt_info()));
     }
 
@@ -754,6 +713,144 @@ public:
 
     bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
         auto results = evaluate_internal_helper(inputs);
+        for(size_t i = 0; i < results.size(); ++i) {
+            size_t length = results[i]->get_byte_size();
+            std::cerr << "Expected length " << length << ", allocated: " << outputs[i].get_shape() << "\n";
+            memcpy(outputs[i].data(), results[i]->get_data_ptr(), length);
+        }
+        return true;
+    }
+
+    bool has_evaluate() const {
+        return true;
+    }
+};
+
+
+
+inline Any replace_stuctural_type_recursively (Any st, Any target, Any replacement) {
+    using namespace element::StructuralType;
+    if (st == target) {
+        return replacement;
+    } else if (st.is<element::StructuralType::Tensor>()) {
+        return element::StructuralType::Tensor(replace_stuctural_type_recursively(st.as<element::StructuralType::Tensor>().element_type, target, replacement));
+    } else if (st.is<element::StructuralType::List>()) {
+        return element::StructuralType::List(replace_stuctural_type_recursively(st.as<element::StructuralType::List>().element_type, target, replacement));
+    } else if (st.is<element::StructuralType::Ragged>()) {
+        return element::StructuralType::Ragged(replace_stuctural_type_recursively(st.as<element::StructuralType::Ragged>().element_type, target, replacement));
+    }
+    return st;
+}
+
+
+class LookupTableFindV2 : public StructuralTypedOp {
+public:
+    OPENVINO_OP("LookupTableFindV2", "0", StructuralTypedOp);
+
+    LookupTableFindV2 (const OutputVector& inputs, const StructuralTypeProxy::BindInputs& bind_inputs = {}) : StructuralTypedOp(inputs, bind_inputs) {
+        constructor_validate_and_infer_types();
+    }
+
+    void validate_and_infer_types() override {
+
+        std::cerr << "LookupTableFindV2: -1\n";
+
+        auto bind_inputs = StructuralTypeProxy::StructuralTypeMapAttribute::get_input(get_rt_info());
+        if(bind_inputs.empty()) {
+            std::cerr << "LookupTableFindV2: 0\n";
+            if(get_input_size() < 2) {
+                std::cerr << "Expect at least 2 inputs in structural_type processing flow\n";
+                throw "Error";
+            }
+            // Real type infer
+            set_output_type(0, element::dynamic, get_input_partial_shape(0));
+            auto st = StructuralTypeAttribute::get(get_input_tensor(1).get_rt_info());
+            auto new_st = replace_stuctural_type_recursively(st, element::StructuralType::Str(), element::i32);    // FIXME: i32 is a stub, should be read from input 0
+            get_output_tensor(0).get_rt_info()["structural_type"] =
+                StructuralTypeAttribute(new_st);
+        } else {
+            std::cerr << "LookupTableFindV2: 1\n";
+            // Produce ragged*[int] as an input -- the same as input except 2 str index dimensions near the end
+            const auto& indices = bind_inputs[1].inputs;
+            std::vector<size_t> new_indices;
+            std::cerr << "LookupTableFindV2: 2\n";
+
+            for(size_t i = 0; i < indices.size() - 3; ++i) {    // all ragged components except the last 2 + 1 tensors for str indices and symbols
+                auto index = indices[i];    // suppose order is predefined and everytime ordered (TODO)
+                set_output_type(i, get_input_element_type(index), get_input_partial_shape(index));
+                new_indices.push_back(i);
+            }
+            std::cerr << "LookupTableFindV2: 3\n";
+
+            set_output_type(indices.size() - 3, element::i32, get_input_partial_shape(indices.size() - 2)); // indices.size() - 2 is dimension for str indices, it defines final shape for i32 output
+            new_indices.push_back(indices.size() - 3);
+            std::cerr << "LookupTableFindV2: 4\n";
+
+            StructuralTypeProxy::BindInputs bind_outputs{BindInput(new_indices, replace_stuctural_type_recursively(bind_inputs[1].structural_type, element::StructuralType::Str(), element::i32))};
+            StructuralTypeProxy::StructuralTypeMapAttribute(bind_outputs).set_output(get_rt_info());
+
+            std::cerr << "LookupTableFindV2: 5\n";
+            if(all_inputs_are_constants(this)) {
+                // Evaluate mode
+                std::cerr << "[ EVALUATION MODE ] LookupTableFindV2\n";
+                ov::TensorVector inputs;
+                ConstantVector outputs;
+                // FIXME: remove this part when CPU fixes evaluate with internally dynamic operations
+                for(size_t i = 0; i < get_input_size(); ++i) {
+                    auto constant = std::dynamic_pointer_cast<ov::opset1::Constant>(get_input_node_shared_ptr(i));
+                    inputs.push_back(Tensor(constant->get_element_type(), constant->get_shape(), const_cast<void*>(constant->get_data_ptr())));
+                }
+                outputs = evaluate_internal_helper(inputs);
+
+                for(size_t i = 0; i < get_output_size(); ++i) {
+                    set_output_type(i, outputs[i]->get_element_type(), outputs[i]->get_shape());
+                }
+            }
+            std::cerr << "LookupTableFindV2: 6\n";
+        }
+    }
+
+    ConstantVector evaluate_internal_helper(const ov::TensorVector& inputs) const {
+        ConstantVector results;
+        // We always adding one new ragged dimension to input tensor
+        // Each ragged dimension is represented by a pair of index tensors
+        // We suppose Ragged Tensor or regular tensor of string in the input,
+        // so it is represented as the 2*n + 2 + 1 tensors, where n is the number of input ragged dimensions
+        // 2 is indices for str begins and end, and 1 is for symbols
+
+        for(int i = 3; i < inputs.size() - 2 - 1 - 1; ++i) {
+            results.push_back(make_shared<ov::opset1::Constant>(
+                inputs[i].get_element_type(),
+                inputs[i].get_shape(),
+                inputs[i].data(inputs[i].get_element_type())));
+        }
+
+        // Just ignore two index tensors for string, but other (outer ragged dimensions) are kept the same
+        // FIXME: generating range of numbers for now regardless of the original content
+
+        auto size = inputs[inputs.size() - 2].get_shape()[0];
+        std::vector<int> range(size);
+        for(size_t i = 0; i < size; ++i) {
+            range[i] = static_cast<int>(i);
+        }
+
+        results.push_back(make_shared<ov::opset1::Constant>(element::i32, Shape{size}, &range[0]));
+
+        return results;
+    }
+
+    std::shared_ptr<ov::Node> clone_with_new_inputs(const OutputVector& inputs) const override {
+        return std::make_shared<LookupTableFindV2>(inputs, StructuralTypeProxy::StructuralTypeMapAttribute::get_input(get_rt_info()));
+    }
+
+    bool visit_attributes(ov::AttributeVisitor& visitor) override {
+        return true;
+    }
+
+    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
+        auto results = evaluate_internal_helper(inputs);
+        std::cerr << "[ INFO ] Required outputs: " << outputs.size() << "\n";
+        std::cerr << "[ INFO ] Proposed outputs: " << results.size() << "\n";
         for(size_t i = 0; i < results.size(); ++i) {
             size_t length = results[i]->get_byte_size();
             std::cerr << "Expected length " << length << ", allocated: " << outputs[i].get_shape() << "\n";

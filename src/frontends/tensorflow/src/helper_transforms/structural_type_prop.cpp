@@ -7,6 +7,8 @@
 #include <memory>
 #include <vector>
 #include <numeric>
+#include <fstream>
+#include <string>
 
 #include "helper_ops/str_ops.hpp"
 
@@ -14,6 +16,7 @@
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/pattern/op/or.hpp>
 #include "openvino/core/type/non_tensor_type.hpp"
 #include <openvino/opsets/opset9.hpp>
 
@@ -47,6 +50,7 @@ namespace {
                ov::is_type<ov::frontend::tensorflow::NormalizeUTF8>(node) ||
                ov::is_type<ov::frontend::tensorflow::StaticRegexReplace>(node) ||
                ov::is_type<ov::frontend::tensorflow::WordpieceTokenizeWithOffsets>(node) ||
+               ov::is_type<ov::frontend::tensorflow::LookupTableFindV2>(node) ||
                ov::is_type<ov::frontend::tensorflow::RegexSplitWithOffsets>(node);
     }
 
@@ -161,8 +165,53 @@ bool DecomposeStrParameters::run_on_model(const std::shared_ptr<Model>& model) {
 
     for (size_t i = 0; i < parameters.size(); ++i) {
         auto parameter = parameters[i];
-        std::cerr << "[ PARAMETER ] " << i << "\n";
-        std::cerr << parameter << "\n";
+        std::cerr << "[ PARAMETER ] " << i << ": " << parameter << "\n";
+
+        /////////////////// VOCAB READING HACK //////////////////
+
+        std::vector<Input<Node>> relevant;
+
+        // Check consumers, find for WordpieceTokenize
+        auto consumers = parameter->get_output_target_inputs(0);
+        for(std::set<Input<Node>>::iterator i = consumers.begin(); i != consumers.end(); ++i) {
+            std::cerr << "    " << i->get_node() << "\n";
+            if(dynamic_cast<const WordpieceTokenizeWithOffsets*>(i->get_node()) || dynamic_cast<const LookupTableFindV2*>(i->get_node())) {
+                relevant.push_back(*i);
+            }
+        }
+
+        if(relevant.size() == consumers.size()) {
+            std::cerr << "    All consumers allow Vocab replacement HACK\n";
+            // FIXME: should get path from the model, now it is hard-coded
+            std::string vocab_file_path = "/home/slyalin/jupyter/openvino-main/tmpa38yfctx_saved_model/assets/vocab.txt";
+            std::ifstream vocab_file(vocab_file_path);
+            std::string line;
+            std::vector<int32_t> indices;
+            std::string symbols;
+            while(std::getline(vocab_file, line)) {
+                indices.push_back(symbols.length());
+                //std::cerr << line << ' ';
+                symbols += line;
+            }
+            indices.push_back(symbols.length());
+
+            OutputVector results;
+            results.push_back(make_shared<ov::opset1::Constant>(element::i32, Shape{indices.size() - 1}, &indices[0]));
+            results.push_back(make_shared<ov::opset1::Constant>(element::i32, Shape{indices.size() - 1}, &indices[1]));
+            results.push_back(make_shared<ov::opset1::Constant>(element::u8, Shape{symbols.length()}, symbols.data()));
+
+            auto struct_pack = make_shared<StructPack>(
+                results,
+                element::StructuralType::Str(),
+                PartialShape{indices.size() - 1}
+            );
+
+            replace_node(parameter, struct_pack);
+            model->remove_parameter({parameter});
+            continue;
+        }
+
+        /////////////////////////////////////////////////////////
 
         // Check 1D and Str structural type
         auto rank = parameter->get_partial_shape().rank();
@@ -372,7 +421,9 @@ ThroughStrOpsProp::ThroughStrOpsProp() {
 ThroughReshapeProp::ThroughReshapeProp() {
     // Should better match node that has at least one StructPack at least at one inputs
     auto input = wrap_type<StructPack>();
-    auto node = ngraph::pattern::wrap_type<ov::opset9::Reshape>(OutputVector{input, any_input()});
+    auto node = make_shared<ngraph::pattern::op::Or>(OutputVector{
+        ngraph::pattern::wrap_type<ov::opset9::Reshape>(OutputVector{input, any_input()}),
+        ngraph::pattern::wrap_type<ov::opset9::Unsqueeze>(OutputVector{input, any_input()})});
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto node = m.get_match_root();
@@ -396,6 +447,7 @@ ThroughReshapeProp::ThroughReshapeProp() {
                 std::cerr << "[ 2 ]\n";
                 // Scalar case, represented as a single input tensor of rank 1
                 FRONT_END_GENERAL_CHECK(input_inputs.size() == 1, "Expected one input to StructPack when output type is scalar Str");
+                FRONT_END_GENERAL_CHECK(std::dynamic_pointer_cast<ov::opset9::Reshape>(node), "Unsqueezing from a scalar with string element is now unsupported");
 
                 if(target_rank == 0) {
                     // Nothing to do as we are converting scalar to scalar
@@ -439,6 +491,45 @@ ThroughReshapeProp::ThroughReshapeProp() {
     };
 
     auto m = make_shared<ov::pass::pattern::Matcher>(node, "ov::frontend::tensorflow::pass::ThroughStrOpsProp");
+    register_matcher(m, callback);
+}
+
+
+bool is_empty_string (Output<Node> output) {
+    // TODO: stub, provide real implementation supposing that output is Constant
+    return false;
+}
+
+
+ThroughNotEqualProp::ThroughNotEqualProp() {
+    // Should better match node that has at least one StructPack at least at one inputs
+    auto input1 = wrap_type<StructPack>();
+    auto input2 = wrap_type<StructPack>();
+    auto node = ngraph::pattern::wrap_type<ov::opset9::NotEqual>(OutputVector{input1, input2});
+
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto node = m.get_match_root();
+        std::cerr << "[ INFO TF FE ] Matching NotEqual op: " << node->get_type_name() << "\n";
+
+        auto inputs = node->inputs();
+        auto target_shape = node->get_output_partial_shape(0);  // validation has already done a good part of the job here, just reuse
+        if(
+            StructuralTypeAttribute::has_type(inputs[0].get_tensor().get_rt_info(), element::StructuralType::Str()) &&
+            StructuralTypeAttribute::has_type(inputs[1].get_tensor().get_rt_info(), element::StructuralType::Str())) {
+
+            // Now support only a signle case: when one of the strings is empty, try to find such a string as an argument first
+
+            auto not_empty_input = is_empty_string(inputs[0].get_source_output().get_node_shared_ptr()) ? inputs[1] : inputs[0];
+            auto input_inputs = get_inputs(not_empty_input.get_source_output().get_node_shared_ptr());
+
+            auto new_node = node->clone_with_new_inputs({input_inputs[0], input_inputs[1]});
+            replace_node(node, new_node);
+            return true;
+        }
+        return false;
+    };
+
+    auto m = make_shared<ov::pass::pattern::Matcher>(node, "ov::frontend::tensorflow::pass::ThroughNotEqualProp");
     register_matcher(m, callback);
 }
 
@@ -489,16 +580,8 @@ bool ReplaceParameterByVocab::run_on_model(const std::shared_ptr<Model>& model) 
     auto parameters = model->get_parameters();
     for (size_t i = 0; i < parameters.size(); ++i) {
         auto parameter = parameters[i];
-        std::cerr << "[ PARAMETER ] " << i << "\n";
+        std::cerr << "    [ PARAMETER ] " << i << ": ";
         std::cerr << parameter << "\n";
-
-        // Check consumers, find for WordpieceTokenize
-        auto consumers = parameter->get_output_target_inputs(0);
-        for(std::set<Input<Node>>::iterator i = consumers.begin(); i != consumers.end(); ++i) {
-            if(std::dynamic_pointer_cast<WordpieceTokenizeWithOffsets>(i->get_node())) {
-                std::cerr << "BINGO!\n";
-            }
-        }
     }
 
     return true;

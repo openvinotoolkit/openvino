@@ -21,7 +21,12 @@ namespace op {
 
 OutputVector translate_const_op(const NodeContext& node) {
     try {
-        auto ov_type = node.get_attribute<element::Type>("dtype");
+        auto ov_type = node.get_attribute_as_any("dtype");
+        if(!ov_type.is<element::Type>()) {
+            // FIXME: kind of a work around, the next line should raise StructuralTypeWA with necessary data encapsulated
+            node.get_attribute<ov::Tensor>("value");
+            std::cerr << "----------------------------- CANNOT BE ------------------------------\n";
+        }
         std::shared_ptr<Node> const_node;
         if (ov_type == element::undefined) {
             const_node = std::make_shared<UnsupportedConstant>();
