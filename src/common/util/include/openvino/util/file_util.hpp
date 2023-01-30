@@ -252,6 +252,22 @@ inline std::basic_string<C> make_plugin_library_name(const std::basic_string<C>&
 }
 
 /**
+ * @brief TODO
+ * @param plugin - TODO
+ * @return TODO
+ */
+FilePath get_plugin_path(const std::string& plugin);
+
+/**
+ * @brief TODO
+ * @param plugin - TODO
+ * @param xml_path - TODO
+ * @param as_abs_only - TODO
+ * @return TODO
+ */
+FilePath get_plugin_path(const std::string& plugin, const std::string& xml_path, bool as_abs_only = false);
+
+/**
  * @brief load binary data from file
  * @param path - binary file path to load
  * @return binary vector
