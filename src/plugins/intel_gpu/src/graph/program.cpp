@@ -486,6 +486,11 @@ void program::set_options() {
     if (!_config.get_property(ov::intel_gpu::force_implementations).empty()) {
         _config.set_property(ov::intel_gpu::optimize_data(true));
     }
+
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
+        _config.set_property(ov::intel_gpu::dump_graphs(debug_config->dump_graphs));
+    }
 }
 
 void program::build_program(bool is_internal) {
