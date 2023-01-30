@@ -85,9 +85,14 @@ std::string getRelativePath(const std::string& from, const std::string& to) {
         while ((end = path.find(sep, start)) != std::string::npos) {
             token = path.substr(start, end - start);
             start = end + 1;
+            if (!token.empty())
+                retvalue.push_back(token);
+        }
+
+        token = path.substr(start);
+        if (!token.empty()) {
             retvalue.push_back(token);
         }
-        retvalue.push_back(path.substr(start));
         return retvalue;
     };
 
@@ -105,7 +110,7 @@ std::string getRelativePath(const std::string& from, const std::string& to) {
     if (mismatch_it.first != from_vec.end()) {
         // adds signs: "../" until it meets the top common directory
         // for example if start path is: /aaa/bbb/ddd/eee and destination path is: /aaa/bbb/cc/test_app
-        // it generates: "../../../"
+        // it generates: "../../"
         output += std::accumulate(mismatch_it.first,
                                   from_vec.end(),
                                   std::string{},
@@ -115,8 +120,8 @@ std::string getRelativePath(const std::string& from, const std::string& to) {
     }
     // adds path to the destination. If before generates path contains signs: "../",
     // for example if start path is: "/aaa/bbb/ddd/eee" and destination path is: "/aaa/bbb/cc/test_app"
-    // To the generated path: "../../../" adds: "cc/test_app",
-    // the output path is: "../../../cc/test_app"
+    // To the generated path: "../../" adds: "cc/test_app",
+    // the output path is: "../../cc/test_app"
     output += std::accumulate(mismatch_it.second,
                               to_vec.end(),
                               std::string{},
