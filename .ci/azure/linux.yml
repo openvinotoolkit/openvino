@@ -100,6 +100,7 @@ jobs:
     BUILD_PYTHON: $(WORK_DIR)/build_python
     INSTALL_PYTHON: $(INSTALL_OPENVINO)/extras/python
     # LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
+    LD_LIBRARY_PATH: /usr/lib/python3.8
     OV_PYTHON_VERSION: 3.10 # Newest version of 3.10
 
   steps:
@@ -112,8 +113,8 @@ jobs:
 
   - task: UsePythonVersion@0
     inputs:
-      versionSpec: '3.10'
-      addToPath: false
+      versionSpec: '$(OV_PYTHON_VERSION)'
+      addToPath: true
       disableDownloadFromRegistry: false
       architecture: 'x64'
       githubToken: $(auth_token)
