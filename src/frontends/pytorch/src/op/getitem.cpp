@@ -3,8 +3,8 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
 #include "utils.hpp"
 
 namespace ov {
