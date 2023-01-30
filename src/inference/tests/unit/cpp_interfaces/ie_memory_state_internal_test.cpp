@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,8 @@
 #include <cpp/ie_executable_network_base.hpp>
 #include <cpp/ie_infer_async_request_base.hpp>
 
-#include "cpp/ie_plugin.hpp"
+#include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_ivariable_state_internal.hpp"
@@ -25,7 +26,7 @@ protected:
     shared_ptr<MockIInferRequestInternal> mockInferRequestInternal;
     shared_ptr<MockIVariableStateInternal> mockVariableStateInternal;
     MockIInferencePlugin* mockIPlugin;
-    InferencePlugin plugin;
+    std::shared_ptr<InferenceEngine::IInferencePlugin> plugin;
     ov::SoPtr<IExecutableNetworkInternal> net;
     IInferRequestInternal::Ptr req;
 
@@ -37,8 +38,8 @@ protected:
         auto mockIPluginPtr = std::make_shared<MockIInferencePlugin>();
         ON_CALL(*mockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _))
             .WillByDefault(Return(mockExeNetworkInternal));
-        plugin = InferenceEngine::InferencePlugin{mockIPluginPtr, {}};
-        net = plugin.LoadNetwork(CNNNetwork{}, {});
+        plugin = mockIPluginPtr;
+        net = ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(plugin->LoadNetwork(CNNNetwork{}, {}), {});
         req = net->CreateInferRequest();
     }
 };

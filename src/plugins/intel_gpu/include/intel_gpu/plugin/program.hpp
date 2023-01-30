@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,11 +34,11 @@ enum class eltwise_mode : int32_t;
 #define REGISTER_FACTORY_IMPL(op_version, op_name)                                                \
 void __register ## _ ## op_name ## _ ## op_version();                                             \
 void __register ## _ ## op_name ## _ ## op_version() {                                            \
-    Program::RegisterFactory<ngraph::op::op_version::op_name>(                                    \
-    [](Program& p, const std::shared_ptr<ngraph::Node>& op) {                                     \
-        auto op_casted = std::dynamic_pointer_cast<ngraph::op::op_version::op_name>(op);          \
+    Program::RegisterFactory<ov::op::op_version::op_name>(                                        \
+    [](Program& p, const std::shared_ptr<ov::Node>& op) {                                         \
+        auto op_casted = std::dynamic_pointer_cast<ov::op::op_version::op_name>(op);              \
         if (!op_casted)                                                                           \
-            IE_THROW() << "Invalid ngraph Node type passed into " << __PRETTY_FUNCTION__;         \
+            IE_THROW() << "Invalid ov Node type passed into " << __PRETTY_FUNCTION__;             \
         Create##op_name##Op(p, op_casted);                                                        \
        });                                                                                        \
 }

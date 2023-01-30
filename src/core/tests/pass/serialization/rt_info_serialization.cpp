@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,10 +7,10 @@
 #include <common_test_utils/file_utils.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "ngraph/pass/serialize.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "transformations/rt_info/attributes.hpp"
-#include "transformations/serialize.hpp"
 
 class RTInfoSerializationTest : public CommonTestUtils::TestsCommon {
 protected:

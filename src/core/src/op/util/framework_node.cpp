@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -149,16 +149,15 @@ void ov::op::util::FrameworkNode::validate_and_infer_types() {
                        rank.get_length() == orig_input_pshape.rank().get_length()) {
                 for (int64_t dim = 0; dim < rank.get_length(); ++dim) {
                     NODE_VALIDATION_CHECK(this,
-                                          input_pshape[dim].is_dynamic() ||
-                                              (orig_input_pshape[dim].is_static() &&
-                                               orig_input_pshape[dim].get_length() == input_pshape[dim].get_length()),
+                                          orig_input_pshape[dim].compatible(input_pshape[dim]),
                                           get_error_message());
                 }
                 reset_output_shape_to_dynamic = true;
             } else {
-                NODE_VALIDATION_CHECK(this,
-                                      m_inputs_desc[i] == std::make_tuple(input_pshape, input_type),
-                                      get_error_message());
+                NODE_VALIDATION_CHECK(
+                    this,
+                    orig_input_pshape.compatible(input_pshape) && std::get<1>(m_inputs_desc[i]).compatible(input_type),
+                    get_error_message());
             }
         }
     }

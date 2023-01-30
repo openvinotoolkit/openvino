@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import itertools
@@ -34,7 +34,6 @@ class CommonLayerTest:
                                                        Example: "transform_1,transform_2"
         """
         model_path = self.produce_model_path(framework_model=framework_model, save_path=temp_dir)
-
         self.use_new_frontend = use_new_frontend
         self.use_old_api = use_old_api
         # TODO Pass environment variables via subprocess environment

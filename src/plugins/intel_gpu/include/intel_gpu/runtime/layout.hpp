@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -475,6 +475,14 @@ struct layout {
     std::string to_short_string() const;
 
     bool is_dynamic() const;
+
+    bool has_upper_bound() const {
+        for (auto i : size) {
+            if (i.get_max_length() == -1)
+                return false;
+        }
+        return true;
+    }
 
     bool is_static() const;
 

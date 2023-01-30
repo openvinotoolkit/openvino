@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -138,8 +138,8 @@ protected:
         if (seqMode != ngraph::helpers::SequenceTestsMode::PURE_SEQ) {
             ov::pass::Manager manager;
             if (direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL)
-                manager.register_pass<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
-            manager.register_pass<ngraph::pass::ConvertGRUSequenceToTensorIterator>();
+                manager.register_pass<ov::pass::BidirectionalGRUSequenceDecomposition>();
+            manager.register_pass<ov::pass::ConvertGRUSequenceToTensorIterator>();
             manager.run_passes(function);
             bool ti_found = ngraph::helpers::is_tensor_iterator_exist(function);
             EXPECT_EQ(ti_found, true);

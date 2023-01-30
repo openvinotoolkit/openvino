@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ TEST_F(TransformationTestsF, ReduceL1DecompositionTest) {
         function =
             std::make_shared<ngraph::Function>(ngraph::NodeVector{reduce_l1}, ngraph::ParameterVector{data, axes});
 
-        manager.register_pass<ngraph::pass::ReduceL1Decomposition>();
+        manager.register_pass<ov::pass::ReduceL1Decomposition>();
     }
 
     {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -219,5 +219,30 @@ TEST_F(TransformationTestsF, InjectedBodyAndIf) {
         if_op->set_output(then_result, else_result);
 
         model_ref = make_shared<Model>(OutputVector{if_op}, ParameterVector{x, y});
+    }
+}
+
+// Ticket 101756
+TEST_F(TransformationTestsF, DISABLED_ModelWithDilatedGroupConvolution) {
+    {
+        model = convert_model("dilated_gconv_model/dilated_gconv_model.pb");
+        // need to call MOC to fuse BatchToSpace/SpaceToBatch with GroupConvolution
+        manager.register_pass<pass::MOCTransformations>(false);
+    }
+    {
+        auto x = make_shared<Parameter>(f32, Shape{1, 129, 257, 384});
+        auto transpose_before_const = make_shared<Constant>(i64, Shape{4}, std::vector<int64_t>{0, 3, 1, 2});
+        auto transpose_before = make_shared<Transpose>(x, transpose_before_const);
+        auto const_filter = make_shared<Constant>(f32, Shape{384, 1, 1, 3, 3}, std::vector<float>(384 * 3 * 3, 0));
+        Strides dilations{2, 2};
+        CoordinateDiff pads_begin{2, 2};
+        CoordinateDiff pads_end{2, 2};
+        Strides strides{1, 1};
+        auto gconv =
+            make_shared<GroupConvolution>(transpose_before, const_filter, strides, pads_begin, pads_end, dilations);
+        auto transpose_after_const = make_shared<Constant>(i64, Shape{4}, std::vector<int64_t>{0, 2, 3, 1});
+        auto transpose_after = make_shared<Transpose>(gconv, transpose_after_const);
+
+        model_ref = make_shared<Model>(OutputVector{transpose_after}, ParameterVector{x});
     }
 }

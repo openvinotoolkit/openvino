@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -10,8 +10,7 @@ from tests.conftest import model_path
 from tests.test_utils.test_utils import get_relu_model, generate_image, generate_model_and_image, generate_relu_compiled_model
 from openvino.runtime import Model, ConstOutput, Shape, Core, Tensor
 
-is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
-test_net_xml, test_net_bin = model_path(is_myriad)
+test_net_xml, test_net_bin = model_path()
 
 
 def test_get_property(device):

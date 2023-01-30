@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,8 +36,8 @@ void regmodule_offline_transformations(py::module m) {
         [](std::shared_ptr<ov::Model> model, bool cf, bool smart_reshape) {
             ov::pass::Manager manager;
             if (smart_reshape)
-                manager.register_pass<ngraph::pass::SmartReshape>();
-            manager.register_pass<ngraph::pass::MOCTransformations>(cf);
+                manager.register_pass<ov::pass::SmartReshape>();
+            manager.register_pass<ov::pass::MOCTransformations>(cf);
             manager.run_passes(model);
         },
         py::arg("model"),
@@ -128,7 +128,7 @@ void regmodule_offline_transformations(py::module m) {
         "convert_sequence_to_tensor_iterator_transformation",
         [](std::shared_ptr<ov::Model> model) {
             ov::pass::Manager manager;
-            manager.register_pass<ngraph::pass::ConvertSequenceToTensorIterator>();
+            manager.register_pass<ov::pass::ConvertSequenceToTensorIterator>();
             manager.run_passes(model);
         },
         py::arg("model"));

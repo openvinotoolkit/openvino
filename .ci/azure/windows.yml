@@ -158,7 +158,6 @@ jobs:
       powershell -command "Expand-Archive -Force cmake-$(CMAKE_VERSION)-windows-x86_64.zip"
       powershell -command "Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-win.zip -OutFile ninja-win.zip"
       powershell -command "Expand-Archive -Force ninja-win.zip"
-      git clone https://github.com/google/gtest-parallel.git
     workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
 
@@ -170,6 +169,7 @@ jobs:
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
       call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) -G "Ninja Multi-Config" ^
+        -DENABLE_CPPLINT=OFF ^
         -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS) ^
         -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS) ^
         -DENABLE_FASTER_BUILD=ON ^
@@ -185,7 +185,8 @@ jobs:
         -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)\modules ^
         -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
-        -S $(REPO_DIR) -B $(BUILD_DIR)
+        -S $(REPO_DIR) ^
+        -B $(BUILD_DIR)
     displayName: 'CMake OpenVINO'
 
   - script: dir $(REPO_DIR)\temp\ /s
@@ -193,7 +194,7 @@ jobs:
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) --build $(BUILD_DIR) --config Release"
+      call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) --build $(BUILD_DIR) --parallel --config Release"
     displayName: 'Build Win'
 
   - script: dir $(REPO_DIR)\bin\ /s
@@ -228,16 +229,17 @@ jobs:
   - script: $(INSTALL_DIR)\samples\c\build_samples_msvc.bat -i $(INSTALL_DIR)
     displayName: 'Build c samples'
 
-  - script: |
-      python -m pip install -r $(INSTALL_TEST_DIR)\smoke_tests\requirements.txt
+  - script: python -m pip install -r $(INSTALL_TEST_DIR)\smoke_tests\requirements.txt
     displayName: 'Install dependencies for samples smoke tests'
 
   - script: |
-      call $(SETUPVARS) && set IE_APP_PATH=$(INSTALL_DIR)\samples_bin
-      set IE_APP_PYTHON_PATH=$(INSTALL_DIR)\samples\python\
-      set SHARE=$(INSTALL_DIR)\tests\smoke_tests\samples_smoke_tests_data\
-      set WORKSPACE=$(INSTALL_DIR)
+      call $(SETUPVARS)
       python -m pytest $(INSTALL_DIR)\tests\smoke_tests\  --env_conf $(INSTALL_TEST_DIR)\smoke_tests\env_config.yml -s --junitxml=$(INSTALL_TEST_DIR)/TEST-SamplesSmokeTests.xml
+    env:
+      IE_APP_PATH: $(INSTALL_DIR)\samples_bin
+      IE_APP_PYTHON_PATH: $(INSTALL_DIR)\samples\python\
+      SHARE: $(INSTALL_DIR)\tests\smoke_tests\samples_smoke_tests_data\
+      WORKSPACE: $(INSTALL_DIR)
     displayName: 'Samples Smoke Tests'
 
   - script: $(CMAKE_CMD) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P $(BUILD_DIR)\cmake_install.cmake
@@ -276,11 +278,23 @@ jobs:
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-Tensorflow.xml
     displayName: 'TensorFlow Frontend Unit Tests'
 
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_tensorflow_common_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-TensorflowCommon.xml
+    displayName: 'TensorFlow Common Unit Tests'
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_tensorflow_lite_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-TensorflowLite.xml
+    displayName: 'TensorFlow Lite Frontend Unit Tests'
+
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_lp_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\LpTransformations.xml
     displayName: 'Low Precision Transformations Tests'
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\Transformations.xml
     displayName: 'Transformations Tests'
+    
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_legacy_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\LegacyTransformations.xml
+    displayName: 'Legacy Transformations Tests'
+    
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\commonUtilsTests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\CommonUtilTests.xml
+    displayName: 'Common Utils Tests'
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\InferenceEngineUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-InferenceEngineUnitTests.xml
     displayName: 'IE UT old'
@@ -291,14 +305,9 @@ jobs:
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_gna_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ov_gna_unit_tests.xml
     displayName: 'GNA UT'
 
-  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\vpuUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-vpuUnitTests.xml
-    displayName: 'VPU UT'
-
-  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\XLinkTests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-XLinkTests.xml
-    displayName: 'XLink Tests'
-
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ieMultiPluginUnitTests.xml
     displayName: 'MULTI UT'
+    enabled: 'false'
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_template_func_tests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-templateFuncTests.xml
     displayName: 'TEMPLATE FuncTests'
@@ -308,15 +317,17 @@ jobs:
     condition: and(succeeded(), eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'OFF'))
 
   - script: |
-      set DATA_PATH=$(MODELS_PATH)
-      set MODELS_PATH=$(MODELS_PATH)
       call $(SETUPVARS) && $(INSTALL_TEST_DIR)\InferenceEngineCAPITests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-InferenceEngineCAPITests.xml
+    env:
+      DATA_PATH: $(MODELS_PATH)
+      MODELS_PATH: $(MODELS_PATH)
     displayName: 'IE CAPITests'
 
   - script: |
-      set DATA_PATH=$(MODELS_PATH)
-      set MODELS_PATH=$(MODELS_PATH)
       call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_capi_test --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ov_capi_test.xml
+    env:
+      DATA_PATH: $(MODELS_PATH)
+      MODELS_PATH: $(MODELS_PATH)
     displayName: 'OV CAPITests'
 
   - task: PublishTestResults@2

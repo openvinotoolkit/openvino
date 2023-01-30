@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 #include "data_inst.h"
 #include "mutable_data_inst.h"
 #include "reshape_inst.h"
+#include "quantize_inst.h"
 #include "program_node.h"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/itt.hpp"
@@ -39,6 +40,11 @@ void compile_graph::run(program& p) {
         // TODO: Remove this WA once we have shape agnostic reshape kernel
         if (node->is_type<reshape>() && node->is_dynamic() && !node->can_be_optimized())
             can_select_impl = false;
+
+        // TODO: Remove this WA once we have shape agnostic quantize_scale_shift kernel
+        if (node->is_type<quantize>() && node->is_dynamic() && node->as<quantize>().get_scale_shift_opt()) {
+            can_select_impl = false;
+        }
 
         // TODO: need to come up with better handling of unsupported shape agnostic cases
         // e.g. process exceptions from choose_impl() and ignore those for dynamic parameters

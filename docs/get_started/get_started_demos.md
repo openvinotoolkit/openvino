@@ -2,7 +2,7 @@
 
 The guide presents a basic workflow for building and running C++ code samples in OpenVINO. Note that these steps will not work with the Python samples. 
 
-To get started, you must first install OpenVINO Runtime, install OpenVINO Development tools, and build the sample applications. See the <a href="#prerequisites">Prerequisites</a> section for instructions.
+To get started, you must first install OpenVINO Runtime, install OpenVINO Development tools, and build the sample applications. See the <a href="#prerequisites-samples">Prerequisites</a> section for instructions.
 
 Once the prerequisites have been installed, perform the following steps:
 
@@ -11,7 +11,7 @@ Once the prerequisites have been installed, perform the following steps:
 3. <a href="#download-media">Download media files to run inference.</a>
 4. <a href="#run-image-classification">Run inference with the Image Classification sample application and see the results.</a>
 
-## <a name="prerequisites"></a>Prerequisites
+## <a name="prerequisites-samples"></a>Prerequisites
 
 ### Install OpenVINO Runtime
 
@@ -355,7 +355,7 @@ When the sample application is complete, you are given the label and confidence 
 
 @endsphinxdirective
 
-The following two examples show how to run the same sample using GPU or MYRIAD as the target device.
+The following example shows how to run the same sample using GPU as the target device.
 
 #### Running Inference on GPU
 
@@ -373,31 +373,6 @@ The following two examples show how to run the same sample using GPU or MYRIAD a
    .. code-block:: bat
 
       .\classification_sample_async.exe -i %USERPROFILE%\Downloads\dog.bmp -m %USERPROFILE%\Documents\ir\googlenet-v1.xml -d GPU
-
-@endsphinxdirective
-
-#### Running Inference on MYRIAD
-
-   > **NOTE**: Running inference on VPU devices (Intel® Movidius™ Neural Compute Stick or Intel® Neural Compute Stick 2) with the MYRIAD plugin requires [additional hardware configuration steps](../install_guides/configurations-for-ncs2.md), as described earlier on this page.
-
-@sphinxdirective
-.. tab:: Linux
-
-   .. code-block:: sh
-
-      ./classification_sample_async -i ~/Downloads/dog.bmp -m ~/ir/googlenet-v1.xml -d MYRIAD
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      .\classification_sample_async.exe -i %USERPROFILE%\Downloads\dog.bmp -m %USERPROFILE%\Documents\ir\googlenet-v1.xml -d MYRIAD
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      ./classification_sample_async -i ~/Downloads/dog.bmp -m ~/ir/googlenet-v1.xml -d MYRIAD
 
 @endsphinxdirective
 

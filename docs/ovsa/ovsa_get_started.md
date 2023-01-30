@@ -100,7 +100,7 @@ After the license is successfully validated, the OpenVINO™ Model Server loads 
 <br>
 **Where the OpenVINO™ Security Add-on Fits into Model Development and Deployment**
 
-![Security Add-on Diagram](ovsa_diagram.png)
+![Security Add-on Diagram](ovsa_diagram.svg)
 
 The binding between SWTPM (vTPM used in guest VM) and HW TPM (TPM on the host) is explained in [this document](https://github.com/openvinotoolkit/security_addon/blob/master/docs/fingerprint-changes.md)
 
@@ -120,7 +120,7 @@ For example:
 |  Guest VM    |    The Model Developer uses the Guest VM to enable access control to the completed model. <br>The Independent Software Provider uses the Guest VM to host the License Service.<br>The User uses the Guest VM to contact the License Service and run the access controlled model.   |
 
 
-## Prerequisites <a name="prerequisites"></a>
+## Prerequisites <a name="prerequisites-ovsa"></a>
 
 **Hardware**
 * Intel® Core™ or Xeon® processor<br>
@@ -140,7 +140,7 @@ This section is for the combined role of Model Developer and Independent Softwar
 
 ### Step 1: Set up Packages on the Host Machine<a name="setup-packages"></a>
 
-Begin this step on the Intel® Core™ or Xeon® processor machine that meets the <a href="#prerequisites">prerequisites</a>.
+Begin this step on the Intel® Core™ or Xeon® processor machine that meets the <a href="#prerequisites-ovsa">prerequisites</a>.
 
 > **NOTE**: As an alternative to manually following steps 1 - 11, you can run the script `install_host_deps.sh` in the `Scripts/reference directory` under the OpenVINO™ Security Add-on repository. The script stops with an error message if it identifies any issues. If the script halts due to an error, correct the issue that caused the error and restart the script. The script runs for several minutes and provides progress information.
 
@@ -152,7 +152,7 @@ Begin this step on the Intel® Core™ or Xeon® processor machine that meets th
    * `/dev/tpm0`
    * `/dev/tpmrm0`
    
-   If you do not see this information, your system does not meet the <a href="#prerequisites">prerequisites</a>  to use the OpenVINO™ Security Add-on.
+   If you do not see this information, your system does not meet the <a href="#prerequisites-ovsa">prerequisites</a>  to use the OpenVINO™ Security Add-on.
 2. Make sure hardware virtualization support is enabled in the BIOS:
    ```sh
    kvm-ok 
@@ -650,7 +650,7 @@ The following figure describes the interactions between the Model Developer, Ind
 
 > **TIP**: The Model Developer/Independent Software Vendor and User roles are related to virtual machine use and one person might fill the tasks required by multiple roles. In this document the tasks of Model Developer and Independent Software Vendor are combined and use the Guest VM named `ovsa_isv`. It is possible to have all roles set up on the same Host Machine.
 
-![OpenVINO™ Security Add-on Example Diagram](ovsa_example.png)
+![OpenVINO™ Security Add-on Example Diagram](ovsa_example.svg)
 
 ### Model Developer Instructions
 

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -38,7 +38,7 @@ ie_option (ENABLE_UB_SANITIZER "enable UndefinedBahavior sanitizer" OFF)
 
 ie_option (ENABLE_THREAD_SANITIZER "enable checking data races via ThreadSanitizer" OFF)
 
-ie_dependent_option (ENABLE_COVERAGE "enable code coverage" OFF "CMAKE_CXX_COMPILER_ID STREQUAL GNU OR OV_COMPILER_IS_CLANG" OFF)
+ie_dependent_option (ENABLE_COVERAGE "enable code coverage" OFF "CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG" OFF)
 
 # Defines CPU capabilities
 
@@ -48,13 +48,8 @@ ie_dependent_option (ENABLE_AVX2 "Enable AVX2 optimizations" ON "X86_64 OR (X86 
 
 ie_dependent_option (ENABLE_AVX512F "Enable AVX512 optimizations" ON "X86_64 OR (X86 AND NOT EMSCRIPTEN)" OFF)
 
-if(EMSCRIPTEN)
-    set (BUILD_SHARED_LIBS_DEFAULT OFF)
-else()
-    set (BUILD_SHARED_LIBS_DEFAULT ON)
-endif()
-
 # Type of build, we add this as an explicit option to default it to ON
+get_property(BUILD_SHARED_LIBS_DEFAULT GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS)
 ie_option (BUILD_SHARED_LIBS "Build as a shared library" ${BUILD_SHARED_LIBS_DEFAULT})
 
 # Android does not support SOVERSION
@@ -63,7 +58,7 @@ ie_dependent_option (ENABLE_LIBRARY_VERSIONING "Enable libraries versioning" ON 
 
 ie_dependent_option (ENABLE_FASTER_BUILD "Enable build features (PCH, UNITY) to speed up build time" OFF "CMAKE_VERSION VERSION_GREATER_EQUAL 3.16" OFF)
 
-if(CMAKE_CROSSCOMPILING)
+if(CMAKE_CROSSCOMPILING OR WIN32)
     set(STYLE_CHECKS_DEFAULT OFF)
 else()
     set(STYLE_CHECKS_DEFAULT ON)

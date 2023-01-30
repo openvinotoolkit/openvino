@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,6 +65,16 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, RemoteContextImpl::Ptr context, const
     m_program = std::make_shared<Program>(get_engine(), config);
     if (m_program->m_max_batch > 1)
         m_config.set_property(ov::intel_gpu::max_dynamic_batch(m_program->m_max_batch));
+
+    bool need_onednn_engine = false;
+    ib >> need_onednn_engine;
+    if (need_onednn_engine) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        get_engine().create_onednn_engine(config);
+#else
+        IE_THROW() << "[GPU] Current model cache requires OneDNN, but cannot use it.";
+#endif  // ENABLE_ONEDNN_FOR_GPU
+    }
 
     ib >> m_program->inputLayouts;
     ib >> primitiveIDs;
@@ -470,6 +480,17 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
 //     [ ov::intel_gpu::Graph::outputDims ]
 //     [ cldnn::network ]
 void Graph::Export(cldnn::BinaryOutputBuffer &ob) {
+    bool need_onednn_engine = false;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    try {
+        get_engine().get_onednn_engine();
+        need_onednn_engine = true;
+    } catch (ov::AssertFailure &) {
+        need_onednn_engine = false;
+    }
+#endif  // ENABLE_ONEDNN_FOR_GPU
+    ob << need_onednn_engine;
+
     ob << m_program->inputLayouts;
     ob << primitiveIDs;
     ob << outputDims;
