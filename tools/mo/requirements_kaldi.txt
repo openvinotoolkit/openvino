@@ -1,2 +1,6 @@
--c ../../src/bindings/python/constraints.txt
--r ./requirements.txt
+-c requirements.txt
+networkx
+numpy
+defusedxml
+requests
+fastjsonschema

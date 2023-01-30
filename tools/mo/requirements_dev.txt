@@ -1,4 +1,4 @@
--c ../../src/bindings/python/constraints.txt
+-c requirements.txt
 coverage
 astroid
 pylint

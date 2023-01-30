@@ -11,7 +11,6 @@ $ python setup.py sdist bdist_wheel
 
 import os
 import re
-import sys
 from pathlib import Path
 from shutil import copyfile, copy
 
@@ -19,12 +18,63 @@ from setuptools import setup, find_namespace_packages
 from setuptools.command.build_py import build_py
 from setuptools.command.install import install
 
+from typing import Dict, List
+
 prefix = 'openvino/tools/mo/'
 SETUP_DIR = Path(__file__).resolve().parent / Path(prefix)
 
 
-def read_text(path):
-    return (Path(__file__).resolve().parent / path).read_text()
+def read_constraints(path: str='constraints.txt') -> Dict[str, str]:
+    """
+    Read a constraints.txt file and return a dict
+    of {package_name: required_version}
+    """
+    constraints = {}
+    with open(Path(__file__).resolve().parent / path) as f:
+        raw_constraints = f.readlines()
+    for line in raw_constraints:
+        # skip comments
+        if line.startswith('#'):
+            continue
+        line = line.replace('\n', '')
+        # read constraints for that package
+        package, delimiter, constraint = re.split('(~|=|<|>|;)', line, maxsplit=1)
+        constraints[package] = delimiter + constraint
+    return constraints
+
+
+def read_requirements(path: str) -> List[str]:
+    """
+    Read a requirements.txt file and return a list
+    of requirements. Three cases are supported, the
+    list corresponds to priority:
+    1. version specified in requirements.txt
+    2. version specified in constraints.txt
+    3. version unbound
+    """
+    requirements = []
+    constraints = read_constraints()
+    with open(Path(__file__).resolve().parent / path) as f:
+        raw_requirements = f.readlines()
+    for line in raw_requirements:
+        # skip comments and constraints link
+        if line.startswith(('#', '-c')):
+            continue
+        # get rid of newlines
+        line = line.replace('\n', '')
+        # if version is specified (non-word chars present)
+        if re.search('\W', line):
+            requirements.append(line)
+        # else get version from constraints
+        else:
+            constraint = constraints.get(line)
+            # if version found in constraints.txt
+            if constraint:
+                requirements.append(line+constraint)
+            # else version is unbound
+            else:
+                requirements.append(line)
+    return requirements
 
 
 # Detect all the framework specific requirements_*.txt files.
@@ -91,17 +141,17 @@ setup(
       'openvino.tools.mo.front.caffe': ['CustomLayersMapping.xml*']
     },
     extras_require={
-      'caffe': read_text('requirements_caffe.txt'),
-      'kaldi': read_text('requirements_kaldi.txt'),
-      'mxnet': read_text('requirements_mxnet.txt'),
-      'onnx': read_text('requirements_onnx.txt'),
-      'tensorflow': read_text('requirements_tf.txt'),
-      'tensorflow2': read_text('requirements_tf2.txt'),
+      'caffe': read_requirements('requirements_caffe.txt'),
+      'kaldi': read_requirements('requirements_kaldi.txt'),
+      'mxnet': read_requirements('requirements_mxnet.txt'),
+      'onnx': read_requirements('requirements_onnx.txt'),
+      'tensorflow': read_requirements('requirements_tf.txt'),
+      'tensorflow2': read_requirements('requirements_tf2.txt'),
     },
     classifiers=[
       "Programming Language :: Python :: 3",
       "License :: OSI Approved :: Apache Software License",
       "Operating System :: OS Independent",
     ],
-    install_requires=read_text('requirements.txt'),
+    install_requires=read_requirements('requirements.txt'),
 )
