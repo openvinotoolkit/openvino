@@ -10,11 +10,14 @@
 #include <transformations/init_node_info.hpp>
 #include "common_test_utils/ngraph_test_utils.hpp"
 
-class PropagateOptimalBSTest: public TransformationTestsF{
+namespace ov {
+namespace test {
+namespace mixed_affinity {
+class PropagateOptimalBSTest: public TransformationTestsF {
 public:
     void SetUp() override {
         TransformationTestsF::SetUp();
-        manager.register_pass<ov::intel_cpu::PropagateOptimalBS>();
+        manager.register_pass<ov::intel_cpu::mixed_affinity::PropagateOptimalBS>();
     }
 };
 
@@ -160,3 +163,6 @@ TEST_F(PropagateOptimalBSTest, ConvWithConcatFunction) {
     model_ref = builder.getOriginal(reference_markup);
     ov::pass::InitNodeInfo().run_on_model(model_ref);
 }
+}  // namespace mixed_affinity
+}  // namespace test
+}  // namespace ov

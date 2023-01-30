@@ -9,16 +9,17 @@
 
 #include <openvino/core/model.hpp>
 
+namespace ov {
+namespace test {
+namespace mixed_affinity {
+using MixedAffinityMarkup = std::unordered_map<std::string, std::pair<size_t, size_t>>;
+
+MixedAffinityMarkup transformBSMarkup(const std::unordered_map<std::string, size_t>& markup);
 
 /* This file contains definitions of relatively simple functions (models) that will be used
  * to test mixed affinity behavior. All the functions are expected to be direct descendants of
  * MixedAffinityFunctionBase, so their constructors take only one (input_shapes) argument.
  */
-
-using MixedAffinityMarkup = std::unordered_map<std::string, std::pair<size_t, size_t>>;
-
-MixedAffinityMarkup transformBSMarkup(const std::unordered_map<std::string, size_t>& markup);
-
 class MixedAffinityFunctionBase {
 public:
     explicit MixedAffinityFunctionBase(const std::vector<ov::PartialShape>& input_shapes) : input_shapes(input_shapes) {}
@@ -33,6 +34,13 @@ protected:
 private:
     void markup_model(const std::shared_ptr<ov::Model>& m, const MixedAffinityMarkup& markup);
 };
+
+using MixedAffinityBuilder =
+    std::pair<std::function<std::shared_ptr<MixedAffinityFunctionBase>(const std::vector<ov::PartialShape>& shapes)>,
+              std::string>;
+using MixedAffinityParams = typename std::tuple<
+        std::vector<ov::PartialShape>, // Input shapes
+        MixedAffinityBuilder>;         // builder
 
 class ConvWithBiasFunction : public MixedAffinityFunctionBase {
 public:
@@ -129,3 +137,6 @@ protected:
     std::shared_ptr<ov::Model> initOriginal() override;
     std::shared_ptr<ov::Model> initReference() override;
 };
+}  // namespace mixed_affinity
+}  // namespace test
+}  // namespace ov

@@ -7,6 +7,7 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace mixed_affinity {
 bool has_optimal_bs(const std::shared_ptr<ov::Node>& node);
 size_t get_optimal_bs(const std::shared_ptr<ov::Node>& node);
 void set_optimal_bs(const std::shared_ptr<ov::Node>& node, const size_t opt_batch);
@@ -26,5 +27,6 @@ public:
 private:
     size_t value = 0;
 };
+}  // namespace mixed_affinity
 }  // namespace intel_cpu
 }  // namespace ov

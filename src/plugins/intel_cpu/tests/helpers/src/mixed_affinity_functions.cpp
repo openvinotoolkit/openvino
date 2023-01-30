@@ -13,7 +13,9 @@
 #include "ngraph_functions/builders.hpp"
 #include <ov_ops/type_relaxed.hpp>
 
-
+namespace ov {
+namespace test {
+namespace mixed_affinity {
 namespace {
 std::shared_ptr<ov::Node> getDefaultConv(const ov::Output<ov::Node> data, const size_t out_channels) {
     const ov::op::PadType pad_type = ov::op::PadType::EXPLICIT;
@@ -36,9 +38,9 @@ void MixedAffinityFunctionBase::markup_model(const std::shared_ptr<ov::Model>& m
     for (const auto& node : m->get_ordered_ops()) {
         auto it = markup.find(node->get_friendly_name());
         if (it != markup.end()) {
-            ov::intel_cpu::set_optimal_bs(node, it->second.first);
+            ov::intel_cpu::mixed_affinity::set_optimal_bs(node, it->second.first);
             if (it->second.second > 0)
-                ov::intel_cpu::set_num_splits(node, it->second.second);
+                ov::intel_cpu::mixed_affinity::set_num_splits(node, it->second.second);
         }
     }
 }
@@ -921,3 +923,7 @@ std::shared_ptr<ov::Model> ConvWithConcatFunction::initReference() {
     concat->set_friendly_name("concat");
     return std::make_shared<ov::Model>(ov::NodeVector{concat}, parameters);
 }
+}  // namespace mixed_affinity
+}  // namespace test
+}  // namespace ov
+

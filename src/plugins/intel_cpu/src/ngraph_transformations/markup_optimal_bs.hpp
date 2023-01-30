@@ -8,6 +8,7 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace mixed_affinity {
 
 class MarkupConvolutionOptimalBS: public ov::pass::MatcherPass {
 public:
@@ -33,5 +34,6 @@ public:
     MarkupOptimalBS();
 };
 
+}  // namespace mixed_affinity
 }  // namespace intel_cpu
 }  // namespace ov

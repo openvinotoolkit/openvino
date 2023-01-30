@@ -11,12 +11,14 @@
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <transformations/utils/utils.hpp>
 
-NGRAPH_RTTI_DEFINITION(ov::intel_cpu::MarkupOptimalBS, "MarkupOptimalBS", 0);
-NGRAPH_RTTI_DEFINITION(ov::intel_cpu::MarkupConvolutionOptimalBS, "MarkupConvolutionOptimalBS", 0);
-NGRAPH_RTTI_DEFINITION(ov::intel_cpu::MarkupGroupConvolutionOptimalBS, "MarkupGroupConvolutionOptimalBS", 0);
-NGRAPH_RTTI_DEFINITION(ov::intel_cpu::MarkupFullyConnectedOptimalBS, "MarkupFullyConnectedOptimalBS", 0);
+using namespace ov::intel_cpu::mixed_affinity;
 
-ov::intel_cpu::MarkupConvolutionOptimalBS::MarkupConvolutionOptimalBS() {
+NGRAPH_RTTI_DEFINITION(MarkupOptimalBS, "MarkupOptimalBS", 0);
+NGRAPH_RTTI_DEFINITION(MarkupConvolutionOptimalBS, "MarkupConvolutionOptimalBS", 0);
+NGRAPH_RTTI_DEFINITION(MarkupGroupConvolutionOptimalBS, "MarkupGroupConvolutionOptimalBS", 0);
+NGRAPH_RTTI_DEFINITION(MarkupFullyConnectedOptimalBS, "MarkupFullyConnectedOptimalBS", 0);
+
+MarkupConvolutionOptimalBS::MarkupConvolutionOptimalBS() {
     auto conv_m = ov::pass::pattern::wrap_type<ov::opset1::Convolution>(ov::pass::pattern::has_static_shape());
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
@@ -47,7 +49,7 @@ ov::intel_cpu::MarkupConvolutionOptimalBS::MarkupConvolutionOptimalBS() {
         // TODO: do we really need this check?
         const auto optimal_bs = original_batch % new_batch == 0 ? new_batch : original_batch;
         const auto batch_to_set = optimal_bs <= original_batch ? optimal_bs : original_batch;
-        ov::intel_cpu::set_optimal_bs(node, batch_to_set);
+        set_optimal_bs(node, batch_to_set);
 
         // set optimal bs also for dequantization subtract before convolution
         // in order to save inseparable Subtract->Convolution sequence after graph partition
@@ -56,7 +58,7 @@ ov::intel_cpu::MarkupConvolutionOptimalBS::MarkupConvolutionOptimalBS() {
             if (ov::is_type<opset1::Subtract>(parent) &&
                 parent->get_input_element_type(0).is_integral() &&
                 parent->get_input_element_type(1).is_integral()) {
-                ov::intel_cpu::set_optimal_bs(parent, batch_to_set);
+                set_optimal_bs(parent, batch_to_set);
             }
         }
 
@@ -67,7 +69,7 @@ ov::intel_cpu::MarkupConvolutionOptimalBS::MarkupConvolutionOptimalBS() {
     this->register_matcher(m, callback);
 }
 
-ov::intel_cpu::MarkupGroupConvolutionOptimalBS::MarkupGroupConvolutionOptimalBS() {
+MarkupGroupConvolutionOptimalBS::MarkupGroupConvolutionOptimalBS() {
     auto group_conv_m = ov::pass::pattern::wrap_type<ov::opset1::GroupConvolution>(ov::pass::pattern::has_static_shape());
 
         ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
@@ -99,7 +101,7 @@ ov::intel_cpu::MarkupGroupConvolutionOptimalBS::MarkupGroupConvolutionOptimalBS(
         // TODO: do we really need this check?
         const auto optimal_bs = original_batch % new_batch == 0 ? new_batch : original_batch;
         const auto batch_to_set = optimal_bs <= original_batch ? optimal_bs : original_batch;
-        ov::intel_cpu::set_optimal_bs(node, batch_to_set);
+        set_optimal_bs(node, batch_to_set);
 
         // set optimal bs also for dequantization subtract before convolution
         // in order to save inseparable Subtract->Convolution sequence after graph partition
@@ -108,7 +110,7 @@ ov::intel_cpu::MarkupGroupConvolutionOptimalBS::MarkupGroupConvolutionOptimalBS(
             if (ov::is_type<opset1::Subtract>(parent) &&
                 parent->get_input_element_type(0).is_integral() &&
                 parent->get_input_element_type(1).is_integral()) {
-                ov::intel_cpu::set_optimal_bs(parent, batch_to_set);
+                set_optimal_bs(parent, batch_to_set);
             }
         }
 
@@ -119,11 +121,11 @@ ov::intel_cpu::MarkupGroupConvolutionOptimalBS::MarkupGroupConvolutionOptimalBS(
     this->register_matcher(m, callback);
 }
 
-ov::intel_cpu::MarkupFullyConnectedOptimalBS::MarkupFullyConnectedOptimalBS() {
+MarkupFullyConnectedOptimalBS::MarkupFullyConnectedOptimalBS() {
     auto group_conv_m = ov::pass::pattern::wrap_type<ov::intel_cpu::FullyConnectedNode>(ov::pass::pattern::has_static_shape());
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-        ov::intel_cpu::set_optimal_bs(m.get_match_root(), m.get_match_value().get_shape()[0]);
+        set_optimal_bs(m.get_match_root(), m.get_match_value().get_shape()[0]);
         return false;
     };
 
@@ -131,7 +133,7 @@ ov::intel_cpu::MarkupFullyConnectedOptimalBS::MarkupFullyConnectedOptimalBS() {
     this->register_matcher(m, callback);
 }
 
-ov::intel_cpu::MarkupOptimalBS::MarkupOptimalBS() {
+MarkupOptimalBS::MarkupOptimalBS() {
     add_matcher<MarkupConvolutionOptimalBS>();
     add_matcher<MarkupGroupConvolutionOptimalBS>();
     add_matcher<MarkupFullyConnectedOptimalBS>();

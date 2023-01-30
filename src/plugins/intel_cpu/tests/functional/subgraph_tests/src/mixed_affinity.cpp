@@ -13,16 +13,11 @@
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include <mixed_affinity_functions.hpp>
 
-
+namespace ov {
+namespace test {
+namespace mixed_affinity {
 using namespace ov::test;
 using namespace ngraph::helpers;
-
-using MixedAffinityBuilder =
-    std::pair<std::function<std::shared_ptr<MixedAffinityFunctionBase>(const std::vector<ov::PartialShape>& shapes)>,
-              std::string>;
-using MixedAffinityParams = typename std::tuple<
-        std::vector<ov::PartialShape>, // Input shapes
-        MixedAffinityBuilder>;         // builder
 
 class MixedAffinityTest : public testing::WithParamInterface<MixedAffinityParams>, virtual public SubgraphBaseTest {
 public:
@@ -57,7 +52,6 @@ TEST_P(MixedAffinityTest, CompareWithRefs) {
     run();
 }
 
-namespace {
 std::vector<std::vector<ov::PartialShape>> one_input_shapes = {
     {{8, 3, 70, 70}},
 };
@@ -106,4 +100,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_MixedAffinity_conv_with_param_weights, MixedAffin
                                  ::testing::Values(conv_with_param_weights_shapes),
                                  ::testing::Values(conv_with_param_weights_builder)),
                          MixedAffinityTest::getTestCaseName);
-}  // namespace
+}  // namespace mixed_affinity
+}  // namespace test
+}  // namespace ov

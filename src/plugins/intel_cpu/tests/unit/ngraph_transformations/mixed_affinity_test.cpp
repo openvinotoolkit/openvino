@@ -10,13 +10,9 @@
 #include "ngraph_transformations/mixed_affinity.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
 
-using MixedAffinityBuilder =
-    std::pair<std::function<std::shared_ptr<MixedAffinityFunctionBase>(const std::vector<ov::PartialShape>& shapes)>,
-              std::string>;
-using MixedAffinityParams = typename std::tuple<
-        std::vector<ov::PartialShape>, // Input shapes
-        MixedAffinityBuilder>;         // builder
-
+namespace ov {
+namespace test {
+namespace mixed_affinity {
 class MixedAffinityTests : public testing::WithParamInterface<MixedAffinityParams>, public TransformationTestsF {
 public:
     MixedAffinityTests() : TransformationTestsF() {
@@ -44,7 +40,7 @@ public:
 protected:
     void SetUp() override {
         TransformationTestsF::SetUp();
-        manager.register_pass<ov::intel_cpu::MixedAffinity>();
+        manager.register_pass<ov::intel_cpu::mixed_affinity::MixedAffinity>();
     }
 };
 
@@ -57,7 +53,6 @@ TEST_P(MixedAffinityTests, CompareFunctions) {
     model_ref = builder.first(shapes)->getReference();
 }
 
-namespace {
 std::vector<std::vector<ov::PartialShape>> one_input_shapes = {
     {{4, 3, 70, 70}},
 };
@@ -109,4 +104,6 @@ INSTANTIATE_TEST_SUITE_P(TransformationTests_conv_with_param_weights, MixedAffin
                                  ::testing::Values(conv_with_param_weights_shapes),
                                  ::testing::Values(conv_with_param_weights_builder)),
                          MixedAffinityTests::getTestCaseName);
-}  // namespace
+}  // namespace mixed_affinity
+}  // namespace test
+}  // namespace ov

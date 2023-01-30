@@ -67,9 +67,7 @@ void setBatch(const std::shared_ptr<ov::Model> model, const size_t batch_value) 
     model->validate_nodes_and_infer_types();
 }
 
-bool switchToImageAffinity(const ov::intel_cpu::mixed_affinity::Properties& props,
-                           const ov::intel_cpu::mixed_affinity::Subgraph& subgraph_borders,
-                           const bool share_constants) {
+bool switchToImageAffinity(const Properties& props, const Subgraph& subgraph_borders, const bool share_constants) {
     if (props.n_splits == 1)
         return false;
 
@@ -191,9 +189,9 @@ bool switchToImageAffinity(const ov::intel_cpu::mixed_affinity::Properties& prop
 }
 } // namespace
 
-NGRAPH_RTTI_DEFINITION(ov::intel_cpu::SwitchAffinity, "SwitchAffinity", 0);
+NGRAPH_RTTI_DEFINITION(SwitchAffinity, "SwitchAffinity", 0);
 
-bool ov::intel_cpu::SwitchAffinity::run_on_model(const std::shared_ptr<ov::Model>& m) {
+bool SwitchAffinity::run_on_model(const std::shared_ptr<ov::Model>& m) {
     bool rewritten = false;
     for (const auto& subgraph : subgraphs) {
         bool status = switchToImageAffinity(subgraph.first, subgraph.second, share_constants);
@@ -202,8 +200,7 @@ bool ov::intel_cpu::SwitchAffinity::run_on_model(const std::shared_ptr<ov::Model
     return rewritten;
 }
 
-ov::intel_cpu::SwitchAffinity::SwitchAffinity(const std::unordered_map<mixed_affinity::Properties, mixed_affinity::Subgraph>& subgraphs,
-                                              const bool share_constants)
+SwitchAffinity::SwitchAffinity(const std::unordered_map<Properties, Subgraph>& subgraphs, const bool share_constants)
     : ov::pass::ModelPass(),
       subgraphs(subgraphs),
       share_constants(share_constants) {}

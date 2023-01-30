@@ -10,8 +10,9 @@
 #include "ngraph_transformations/mixed_affinity.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
 
-
-using namespace ov::intel_cpu;
+namespace ov {
+namespace test {
+namespace mixed_affinity {
 using namespace ov::intel_cpu::mixed_affinity;
 struct SubgraphInOut {
     std::string name;
@@ -252,3 +253,6 @@ TEST_F(FormSubgraphsTests, GrConvWithParamFunction) {
         },
     };
 }
+}  // namespace mixed_affinity
+}  // namespace test
+}  // namespace ov
