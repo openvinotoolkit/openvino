@@ -101,12 +101,11 @@ jobs:
     INSTALL_PYTHON: $(INSTALL_OPENVINO)/extras/python
     # LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
     OV_PYTHON_VERSION: 3.10 # Newest version of 3.10
-
+     
   steps:
   - script: |
-      echo $(LD_LIBRARY_PATH)
-      echo $LD_LIBRARY_PATH
       echo $(Agent.ToolsDirectory)
+      echo $(setupPython.pythonLocation)
       ls $(Agent.ToolsDirectory)
       which python3
       whereis python3
@@ -124,6 +123,7 @@ jobs:
   - bash: |
       #!/bin/bash
       python -V
+      echo $(setupPython.pythonLocation)
 
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
