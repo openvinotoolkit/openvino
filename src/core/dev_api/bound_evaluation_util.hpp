@@ -8,6 +8,10 @@
 
 namespace ov {
 
+/// \brief Checks if bounds can be propagated on Node output.
+/// \param output  Node output to test for bound propagation.
+/// \param order   return vector of nodes for output which can be processed for bound evaluation.
+/// \return True if bounds can be propagated for output and order vector has valid data, otherwise false.
 OPENVINO_API bool could_propagate(const Output<Node>& output, std::vector<Node*>& order);
 
 /// \brief Evaluates lower value estimation of the output tensor. Traverses graph up to deduce
