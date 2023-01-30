@@ -16,7 +16,7 @@ namespace op {
 OutputVector cast(const ov::frontend::tensorflow_lite::NodeContext& node) {
     const auto& decoder = get_decoder(node);
     std::map<std::string, ov::Any> attrs{
-        {"DstT", get_ov_type(decoder->get_attribute(&tflite::CastOptions::out_data_type))},
+        {"DstT", decoder->get_output_tensor_type(0)},
     };
     return attribute_helper(node, attrs, ov::frontend::tensorflow::op::translate_cast_op);
 }
