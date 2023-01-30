@@ -24,25 +24,22 @@ NGRAPH_RTTI_DEFINITION(ov::intel_cpu::MixedAffinity, "MixedAffinity", 0);
 
 using namespace ov::intel_cpu::mixed_affinity;
 
-std::unordered_map<Characteristics, Subgraph> ov::intel_cpu::MixedAffinity::formSubgraphs(const std::shared_ptr<ov::Model>& m) {
-    std::unordered_map<Characteristics, Subgraph> subgraphs;
+std::unordered_map<Properties, Subgraph> ov::intel_cpu::MixedAffinity::formSubgraphs(const std::shared_ptr<ov::Model>& m) {
+    std::unordered_map<Properties, Subgraph> subgraphs;
 
-    auto optimal_bs_is_equal = [](const std::shared_ptr<ov::Node>& node, const size_t value) {
-        return ov::intel_cpu::has_optimal_bs(node) && ov::intel_cpu::get_optimal_bs(node) == value;
+    auto subgraph_props_match = [](const std::shared_ptr<ov::Node>& node, const Properties& props) {
+        return (ov::intel_cpu::has_optimal_bs(node) && ov::intel_cpu::get_optimal_bs(node) == props.opt_bs) &&
+               (ov::intel_cpu::has_num_splits(node) && ov::intel_cpu::get_num_splits(node) == props.n_splits);
     };
 
-    auto n_splits_is_equal = [](const std::shared_ptr<ov::Node>& node, const size_t value) {
-        return ov::intel_cpu::has_num_splits(node) && ov::intel_cpu::get_num_splits(node) == value;
-    };
-
-    auto add_start = [&subgraphs](const ov::Input<ov::Node>& start, const Characteristics& key) {
+    auto add_start = [&subgraphs](const ov::Input<ov::Node>& start, const Properties& key) {
         if (subgraphs.count(key))
             subgraphs[key].starts.push_back(start);
         else
             subgraphs[key] = Subgraph{{start}, {}};
     };
 
-    auto add_end = [&subgraphs](const ov::Output<ov::Node>& end, const Characteristics& key) {
+    auto add_end = [&subgraphs](const ov::Output<ov::Node>& end, const Properties& key) {
         if (subgraphs.count(key))
             subgraphs[key].ends.push_back(end);
         else
@@ -57,21 +54,21 @@ std::unordered_map<Characteristics, Subgraph> ov::intel_cpu::MixedAffinity::form
                      "formSubgraphs: node ",
                      node->get_friendly_name(),
                      " lacks 'NumSplits' rt info that must be if rt info contains 'OptimalBatchSize' ");
-        const size_t n_splits = ov::intel_cpu::get_num_splits(node);
-        const size_t opt_bs = ov::intel_cpu::get_optimal_bs(node);
+
+        const Properties props(ov::intel_cpu::get_optimal_bs(node), ov::intel_cpu::get_num_splits(node));
         for (const auto& input : node->inputs()) {
             const auto input_node = input.get_source_output().get_node_shared_ptr();
             const bool non_data_const = input.get_index() > 0 && ov::is_type<ov::opset1::Constant>(input_node);
-            if (!non_data_const && (!optimal_bs_is_equal(input_node, opt_bs) || !n_splits_is_equal(input_node, n_splits))) {
-                add_start(input, Characteristics(opt_bs, n_splits));
+            if (!non_data_const && !subgraph_props_match(input_node, props)) {
+                add_start(input, props);
             }
         }
 
         for (const auto& output : node->outputs()) {
             for (const auto& target_input : output.get_target_inputs()) {
                 const auto output_node = target_input.get_node()->shared_from_this();
-                if (!optimal_bs_is_equal(output_node, opt_bs) || !n_splits_is_equal(output_node, n_splits)) {
-                    add_end(output, Characteristics(opt_bs, n_splits));
+                if (!subgraph_props_match(output_node, props)) {
+                    add_end(output, props);
                 }
             }
         }

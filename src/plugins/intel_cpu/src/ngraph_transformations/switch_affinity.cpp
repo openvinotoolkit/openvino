@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <openvino/opsets/opset1.hpp>
+#include <openvino/op/op.hpp>
 #include <dimension_tracker.hpp>
 
 #include "rt_info/optimal_batch_size.hpp"
@@ -66,10 +67,10 @@ void setBatch(const std::shared_ptr<ov::Model> model, const size_t batch_value) 
     model->validate_nodes_and_infer_types();
 }
 
-bool switchToImageAffinity(const ov::intel_cpu::mixed_affinity::Characteristics& characteristics,
+bool switchToImageAffinity(const ov::intel_cpu::mixed_affinity::Properties& props,
                            const ov::intel_cpu::mixed_affinity::Subgraph& subgraph_borders,
                            const bool share_constants) {
-    if (characteristics.n_splits == 1)
+    if (props.n_splits == 1)
         return false;
 
     ov::NodeVector start_splits;
@@ -84,6 +85,8 @@ bool switchToImageAffinity(const ov::intel_cpu::mixed_affinity::Characteristics&
         const bool is_shared_weights = start.get_index() == 1 && (ov::is_type<ov::opset1::Convolution>(start.get_node()) ||
                                                                   ov::is_type<ov::opset1::GroupConvolution>(start.get_node()) ||
                                                                   ov::is_type<ov::opset1::ConvolutionBackpropData>(start.get_node()) ||
+                                                                  ov::is_type<ov::opset1::GroupConvolutionBackpropData>(start.get_node()) ||
+                                                                  ov::is_type<ov::op::util::DeformableConvolutionBase>(start.get_node()) ||
                                                                   ov::is_type<ov::intel_cpu::FullyConnectedNode>(start.get_node()));
 
         const auto& start_shape = start.get_partial_shape();
@@ -104,7 +107,7 @@ bool switchToImageAffinity(const ov::intel_cpu::mixed_affinity::Characteristics&
             main_param->get_rt_info()[skip_reshape] = true;
         } else {
             const auto split_axis = ov::opset1::Constant::create(ov::element::i32, {}, {batch_idx});
-            const auto split = std::make_shared<ov::opset1::Split>(start.get_source_output(), split_axis, characteristics.n_splits);
+            const auto split = std::make_shared<ov::opset1::Split>(start.get_source_output(), split_axis, props.n_splits);
             start_splits.push_back(split);
         }
 
@@ -112,10 +115,8 @@ bool switchToImageAffinity(const ov::intel_cpu::mixed_affinity::Characteristics&
     }
 
     // Temporary insert params instead of start to extract a subgraph
-    size_t k = 0;
-    for (const auto& start : subgraph_borders.starts) {
-        start.replace_source_output(main_params[k]);
-        k++;
+    for (size_t i = 0; i < subgraph_borders.starts.size(); ++i) {
+        subgraph_borders.starts[i].replace_source_output(main_params[i]);
     }
 
     ov::OutputVector result_vec;
@@ -138,7 +139,7 @@ bool switchToImageAffinity(const ov::intel_cpu::mixed_affinity::Characteristics&
     // map to match an old output and new outputs with optimal batch from subgraphs
     std::map<ov::Output<ov::Node>, ov::OutputVector> concatenate_map;
     for (const auto& original_out : result_vec) {
-        concatenate_map[original_out] = ov::OutputVector(characteristics.n_splits);
+        concatenate_map[original_out] = ov::OutputVector(props.n_splits);
     }
 
     auto change_names = [&](const std::shared_ptr<ov::Model>& m, const size_t batch_idx) {
@@ -154,8 +155,8 @@ bool switchToImageAffinity(const ov::intel_cpu::mixed_affinity::Characteristics&
         }
     };
 
-    setBatch(subgraph, characteristics.opt_bs);
-    for (size_t branch_idx = 0; branch_idx < characteristics.n_splits; ++branch_idx) {
+    setBatch(subgraph, props.opt_bs);
+    for (size_t branch_idx = 0; branch_idx < props.n_splits; ++branch_idx) {
         auto cloned_nodes = common_nodes;
         const auto branch = ov::clone_model(*subgraph, cloned_nodes);
         change_names(branch, branch_idx);
@@ -175,7 +176,6 @@ bool switchToImageAffinity(const ov::intel_cpu::mixed_affinity::Characteristics&
             const auto& clone_with_opt_batch = cloned_nodes.find(orig_out.get_node());
             if (clone_with_opt_batch == cloned_nodes.end())
                 OPENVINO_UNREACHABLE("Mixed Affinity: clone with optimal batch wasn't found");
-
             elem.second[branch_idx] = clone_with_opt_batch->second->output(orig_out.get_index());
         }
     }
@@ -202,7 +202,7 @@ bool ov::intel_cpu::SwitchAffinity::run_on_model(const std::shared_ptr<ov::Model
     return rewritten;
 }
 
-ov::intel_cpu::SwitchAffinity::SwitchAffinity(const std::unordered_map<mixed_affinity::Characteristics, mixed_affinity::Subgraph>& subgraphs,
+ov::intel_cpu::SwitchAffinity::SwitchAffinity(const std::unordered_map<mixed_affinity::Properties, mixed_affinity::Subgraph>& subgraphs,
                                               const bool share_constants)
     : ov::pass::ModelPass(),
       subgraphs(subgraphs),

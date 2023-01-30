@@ -34,7 +34,7 @@ bool PropagateOptimalBS::run_on_model(const std::shared_ptr<ov::Model>& model) {
             NGRAPH_CHECK(in_shape.rank().is_static(),
                          "Node ",
                          node->get_friendly_name(),
-                         " whose rt_info contains 'OptimalBatchSize' has dynamic rank.");
+                         ", whose rt_info contains 'OptimalBatchSize', has dynamic rank.");
             ov::DimensionTracker::set_label(const_cast<ov::Dimension&>(in_shape[0]), mixed_affinity::batch_label);
             node->validate_and_infer_types();
             set_n_splits(in_shape[0], get_optimal_bs(node));
@@ -45,34 +45,26 @@ bool PropagateOptimalBS::run_on_model(const std::shared_ptr<ov::Model>& model) {
         if (out_shape.rank().is_dynamic())
             continue;
 
-        // ::mixed_affinity propagation
+        // batch_label propagation
         node->validate_and_infer_types();
         if (std::all_of(out_shape.begin(), out_shape.end(),
             [](const ov::Dimension& d) { return ov::DimensionTracker::get_label(d) != mixed_affinity::batch_label; })) {
             continue;
         }
 
-        auto get_batch_dim = [](const ov::PartialShape& shape) -> size_t {
-            for (size_t i = 0; i < shape.size(); ++i) {
-                if (ov::DimensionTracker::get_label(shape[i]) == mixed_affinity::batch_label)
-                    return i;
-            }
-            return 0;
-        };
-
-        const size_t out_batch_dim = get_batch_dim(out_shape);
-        const auto out_batch = out_shape[out_batch_dim].get_length();
+        const size_t out_batch_idx = mixed_affinity::get_batch_idx(out_shape);
+        const auto out_batch = out_shape[out_batch_idx].get_length();
         for (const auto& input : node->input_values()) {
             const auto& in_shape = input.get_partial_shape();
-            const size_t in_batch_dim = get_batch_dim(in_shape);
+            const size_t in_batch_idx = mixed_affinity::get_batch_idx(in_shape);
 
-            const bool in_out_batches_match = in_shape.rank().is_static() && in_batch_dim < in_shape.size() &&
-                                              in_shape[in_batch_dim].is_static() &&
-                                              in_shape[in_batch_dim].get_length() == out_batch;
+            const bool in_out_batches_match = in_shape.rank().is_static() && in_batch_idx < in_shape.size() &&
+                                              in_shape[in_batch_idx].is_static() &&
+                                              in_shape[in_batch_idx].get_length() == out_batch;
 
             if (in_out_batches_match && has_optimal_bs(input.get_node_shared_ptr())) {
                 const size_t opt_bs = get_optimal_bs(input.get_node_shared_ptr());
-                set_n_splits(in_shape[in_batch_dim], opt_bs);
+                set_n_splits(in_shape[in_batch_idx], opt_bs);
                 set_optimal_bs(node, opt_bs);
                 break;
             }

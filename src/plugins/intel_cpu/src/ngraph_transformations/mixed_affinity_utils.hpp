@@ -17,11 +17,11 @@ struct Subgraph {
     std::vector<ov::Output<ov::Node>> ends;
 };
 
-class Characteristics {
+class Properties {
 public:
-    Characteristics(const size_t opt_bs, const size_t n_splits) : opt_bs(opt_bs), n_splits(n_splits) {}
-    bool operator<(const Characteristics& other) const;
-    bool operator==(const Characteristics& other) const;
+    Properties(const size_t opt_bs, const size_t n_splits) : opt_bs(opt_bs), n_splits(n_splits) {}
+    bool operator<(const Properties& other) const;
+    bool operator==(const Properties& other) const;
 
     size_t opt_bs;
     size_t n_splits;
@@ -34,8 +34,8 @@ size_t get_batch_idx(const ov::PartialShape& shape);
 
 namespace std {
 template <>
-struct hash<ov::intel_cpu::mixed_affinity::Characteristics> {
-    size_t operator()(const ov::intel_cpu::mixed_affinity::Characteristics& other) const;
+struct hash<ov::intel_cpu::mixed_affinity::Properties> {
+    size_t operator()(const ov::intel_cpu::mixed_affinity::Properties& other) const;
 };
 
 }  // namespace std

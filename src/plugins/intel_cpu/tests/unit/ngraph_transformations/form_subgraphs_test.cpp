@@ -20,7 +20,7 @@ struct SubgraphInOut {
 
 using SubgraphInputs = std::vector<SubgraphInOut>;
 using SubgraphOutputs = SubgraphInputs;
-using SubgraphsMarkup = std::unordered_map<Characteristics, std::pair<SubgraphInputs, SubgraphOutputs>>;
+using SubgraphsMarkup = std::unordered_map<Properties, std::pair<SubgraphInputs, SubgraphOutputs>>;
 
 class FormSubgraphsTests: public TransformationTests {
 public:
@@ -68,7 +68,7 @@ TEST_F(FormSubgraphsTests, ConvWithBias) {
 
     ref_subgraphs = {
         {
-            Characteristics{1, 4},
+            Properties{1, 4},
             {SubgraphInputs{{"convolution", 0}}, SubgraphOutputs{{"bias", 0}}}
         }
     };
@@ -83,11 +83,11 @@ TEST_F(FormSubgraphsTests, ConvWithBias2) {
 
     ref_subgraphs = {
         {
-            Characteristics{1, 4},
+            Properties{1, 4},
             {SubgraphInputs{{"convolution", 0}}, SubgraphOutputs{{"convolution", 0}}}
         },
         {
-            Characteristics{2, 2},
+            Properties{2, 2},
             {SubgraphInputs{{"bias", 0}}, SubgraphOutputs{{"bias", 0}}}
         }
     };
@@ -101,7 +101,7 @@ TEST_F(FormSubgraphsTests, ConvWithTranspose) {
 
     ref_subgraphs = {
         {
-            Characteristics{1, 4},
+            Properties{1, 4},
             {SubgraphInputs{{"convolution", 0}}, SubgraphOutputs{{"transpose", 0}}}
         },
     };
@@ -115,7 +115,7 @@ TEST_F(FormSubgraphsTests, ConvWithReshapeDynamicShapes) {
 
     ref_subgraphs = {
         {
-            Characteristics{1, 4},
+            Properties{1, 4},
             {SubgraphInputs{{"convolution", 0}}, SubgraphOutputs{{"convolution", 0}}}
         },
     };
@@ -135,7 +135,7 @@ TEST_F(FormSubgraphsTests, TwoConvAndAddEqualShapes) {
 
     ref_subgraphs = {
         {
-            Characteristics{1, 4},
+            Properties{1, 4},
             {SubgraphInputs{{"convolution_1", 0}, {"convolution_2", 0}}, SubgraphOutputs{{"add", 0}}}
         },
     };
@@ -156,11 +156,11 @@ TEST_F(FormSubgraphsTests, TwoConvAndAddDifferentShapes) {
 
     ref_subgraphs = {
         {
-            Characteristics{1, 4},
+            Properties{1, 4},
             {SubgraphInputs{{"convolution_1", 0}, {"add", 1}}, SubgraphOutputs{{"add", 0}}}
         },
         {
-            Characteristics{1, 1},
+            Properties{1, 1},
             {SubgraphInputs{{"convolution_2", 0}}, SubgraphOutputs{{"bias_2", 0}}}
         },
     };
@@ -181,11 +181,11 @@ TEST_F(FormSubgraphsTests, TwoConvAndAddDifferentOptBatches) {
 
     ref_subgraphs = {
         {
-            Characteristics{2, 2},
+            Properties{2, 2},
             {SubgraphInputs{{"convolution_1", 0}, {"add", 1}}, SubgraphOutputs{{"add", 0}}}
         },
         {
-            Characteristics{1, 1},
+            Properties{1, 1},
             {SubgraphInputs{{"convolution_2", 0}}, SubgraphOutputs{{"bias_2", 0}}}
         },
     };
@@ -202,11 +202,11 @@ TEST_F(FormSubgraphsTests, TwoConvWithS2BFunction) {
 
     ref_subgraphs = {
         {
-            Characteristics{1, 4},
+            Properties{1, 4},
             {SubgraphInputs{{"convolution_1", 0}}, SubgraphOutputs{{"convolution_1", 0}}}
         },
         {
-            Characteristics{1, 16},
+            Properties{1, 16},
             {SubgraphInputs{{"convolution_2", 0}}, SubgraphOutputs{{"convolution_2", 0}}}
         },
     };
@@ -226,11 +226,11 @@ TEST_F(FormSubgraphsTests, ConvWithSplitAndResultFunction) {
 
     ref_subgraphs = {
         {
-            Characteristics{1, 4},
+            Properties{1, 4},
             {SubgraphInputs{{"convolution_1", 0}}, SubgraphOutputs{{"split", 0}, {"split", 1}}}
         },
         {
-            Characteristics{2, 2},
+            Properties{2, 2},
             {SubgraphInputs{{"convolution_2", 0}}, SubgraphOutputs{{"relu_2", 0}}}
         },
     };
@@ -247,7 +247,7 @@ TEST_F(FormSubgraphsTests, GrConvWithParamFunction) {
 
     ref_subgraphs = {
         {
-            Characteristics{1, 8},
+            Properties{1, 8},
             {SubgraphInputs{{"group_conv", 0}, {"group_conv", 1}}, SubgraphOutputs{{"group_conv", 0}}}
         },
     };

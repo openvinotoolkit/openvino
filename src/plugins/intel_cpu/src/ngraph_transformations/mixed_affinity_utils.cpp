@@ -8,11 +8,11 @@
 namespace ov {
 namespace intel_cpu {
 namespace mixed_affinity {
-bool Characteristics::operator<(const Characteristics& other) const {
+bool Properties::operator<(const Properties& other) const {
     return opt_bs < other.opt_bs || n_splits < other.n_splits;
 }
 
-bool Characteristics::operator==(const Characteristics& other) const {
+bool Properties::operator==(const Properties& other) const {
     return opt_bs == other.opt_bs && n_splits == other.n_splits;
 }
 
@@ -29,7 +29,7 @@ size_t get_batch_idx(const ov::PartialShape& shape) {
 }  // namespace ov
 
 namespace std {
-size_t hash<ov::intel_cpu::mixed_affinity::Characteristics>::operator()(const  ov::intel_cpu::mixed_affinity::Characteristics& other) const {
+size_t hash<ov::intel_cpu::mixed_affinity::Properties>::operator()(const  ov::intel_cpu::mixed_affinity::Properties& other) const {
     return std::hash<size_t>()(other.opt_bs) ^ (std::hash<size_t>()(other.n_splits) << 10);
 }
 }  // namespace std
