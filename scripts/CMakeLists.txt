@@ -67,7 +67,10 @@ if(LINUX)
     if(ENABLE_INTEL_MYRIAD)
         list(APPEND install_dependencies_files install_NCS_udev_rules.sh)
     endif()
-
+    if(ENABLE_INTEL_GPU)
+        list(APPEND install_dependencies_files install_NEO_OCL_driver.sh)
+    endif()
+    
     foreach(install_dependencies_file IN LISTS install_dependencies_files)
         install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/install_dependencies/${install_dependencies_file}"
                 DESTINATION install_dependencies/
