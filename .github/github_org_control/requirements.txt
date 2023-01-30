@@ -1,3 +1,2 @@
--c ../../src/bindings/python/constraints.txt
-PyGithub
-ldap3
+PyGithub==1.55
+ldap3==2.7

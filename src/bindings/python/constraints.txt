@@ -1,19 +1,13 @@
 # used in multiple components
-defusedxml>=0.7.1  # Model Optimizer, openvino/tests
-fastjsonschema~=2.15.1  # Model Optimizer, openvino/tests
-Jinja2>=2.11.2  # openvino/tests, .../tests/ie_test_utils/functional_test_utils/layer_tests_summary
 opencv-python>=4.5  # Benchmark tool, Cross check tool, openvino/tests
 py>=1.9.0  # Python bindings, openvino/tests, Model Optimizer
-pylint>=2.7.0  # Model Optimizer, openvino/.github
-requests>=2.25.1  # Model Optimizer, openvino/tests
-test-generator==0.1.1  # Model Optimizer, openvino/tests
 
 # pytest
 pytest==7.2.0; python_version >= '3.10'
-pytest>=6.2.4; python_version < '3.10'
+pytest>=5.0,<=7.0.1; python_version < '3.10'
 pytest-dependency==0.5.1
 pytest-forked; platform_system != "Windows"
-pytest-html>=1.19.0
+pytest-html==1.19.0
 pytest-timeout==2.0.1
 
 # Python bindings
@@ -48,13 +42,7 @@ PyYAML>=5.4.1
 scipy>=1.8; python_version >= '3.8'
 scipy~=1.7; python_version == '3.7'
 wheel>=0.38.1
-
-# openvino/.github
-ldap3==2.7
-PyGithub==1.55
-
-# .../intel_cpu/tools/dump_check
-matplotlib>=3.3.4,<3.6
-
-# .../tests/ie_test_utils/functional_test_utils/layer_tests_summary
-openpyxl==3.0.10
+defusedxml>=0.7.1
+fastjsonschema~=2.15.1
+test-generator==0.1.1
+requests>=2.25.1
