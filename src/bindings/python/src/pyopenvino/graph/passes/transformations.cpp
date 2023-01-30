@@ -22,17 +22,6 @@
 namespace py = pybind11;
 using Version = ov::pass::Serialize::Version;
 
-inline Version convert_to_version(const std::string& version) {
-    if (version == "UNSPECIFIED")
-        return Version::UNSPECIFIED;
-    if (version == "IR_V10")
-        return Version::IR_V10;
-    if (version == "IR_V11")
-        return Version::IR_V11;
-    throw ov::Exception("Invoked with wrong version argument: '" + version +
-                        "'! The supported versions are: 'UNSPECIFIED'(default), 'IR_V10', 'IR_V11'.");
-}
-
 void regclass_transformations(py::module m) {
     py::enum_<Version>(m, "Version", py::arithmetic())
         .value("UNSPECIFIED", Version::UNSPECIFIED)
@@ -44,21 +33,21 @@ void regclass_transformations(py::module m) {
     serialize.doc() = "openvino.runtime.passes.Serialize transformation";
 
     serialize.def(
-        py::init(
-            [](const py::object& path_to_xml, const py::object& path_to_bin, const py::object& version) {
-                if (py::isinstance<py::str>(version)) {
-                    return std::make_shared<ov::pass::Serialize>(Common::utils::convert_path_to_string(path_to_xml),
-                                                                 Common::utils::convert_path_to_string(path_to_bin),
-                                                                 convert_to_version(version.cast<std::string>()));
-                } else if (py::isinstance<ov::pass::Serialize::Version>(version)) {
-                    return std::make_shared<ov::pass::Serialize>(Common::utils::convert_path_to_string(path_to_xml),
-                                                                 Common::utils::convert_path_to_string(path_to_bin),
-                                                                 version.cast<ov::pass::Serialize::Version>());
-                } else {
-                    return std::make_shared<ov::pass::Serialize>(Common::utils::convert_path_to_string(path_to_xml),
-                                                                 Common::utils::convert_path_to_string(path_to_bin));
-                }
-            }),
+        py::init([](const py::object& path_to_xml, const py::object& path_to_bin, const py::object& version) {
+            if (py::isinstance<py::str>(version)) {
+                return std::make_shared<ov::pass::Serialize>(
+                    Common::utils::convert_path_to_string(path_to_xml),
+                    Common::utils::convert_path_to_string(path_to_bin),
+                    Common::utils::convert_to_version(version.cast<std::string>()));
+            } else if (py::isinstance<Version>(version)) {
+                return std::make_shared<ov::pass::Serialize>(Common::utils::convert_path_to_string(path_to_xml),
+                                                             Common::utils::convert_path_to_string(path_to_bin),
+                                                             version.cast<Version>());
+            } else {
+                return std::make_shared<ov::pass::Serialize>(Common::utils::convert_path_to_string(path_to_xml),
+                                                             Common::utils::convert_path_to_string(path_to_bin));
+            }
+        }),
         py::arg("path_to_xml"),
         py::arg("path_to_bin"),
         py::arg("version") = py::none(),
