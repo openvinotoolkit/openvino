@@ -205,6 +205,9 @@ struct proposal_impl : typed_primitive_impl<proposal> {
         const auto& primitive = instance.get_typed_desc<proposal>();
         bool swap_xy = primitive->swap_xy;
 
+        size_t hahash = primitive->hash();
+        std::cout << hahash << std::endl;
+
         // original input image to the graph (after possible scaling etc.) so that coordinates are valid for it
         int img_w = 1;
         int img_h = 1;
