@@ -552,6 +552,7 @@ bool ov::op::v0::Constant::visit_attributes(AttributeVisitor& visitor) {
 bool ov::op::v0::Constant::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Constant_evaluate);
     auto output = outputs[0];
+    output->set_shape(get_shape());
     output->write(get_data_ptr(), output->get_size_in_bytes());
     return true;
 }
@@ -561,9 +562,9 @@ bool ov::op::v0::Constant::has_evaluate() const {
     return true;
 }
 
-bool ov::op::v0::Constant::evaluate_lower(const HostTensorVector& outputs) const {
+bool ov::op::v0::Constant::evaluate_lower(TensorVector& outputs) const {
     return evaluate(outputs, {});
 }
-bool ov::op::v0::Constant::evaluate_upper(const HostTensorVector& outputs) const {
+bool ov::op::v0::Constant::evaluate_upper(TensorVector& outputs) const {
     return evaluate(outputs, {});
 }

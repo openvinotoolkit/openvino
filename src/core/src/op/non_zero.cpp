@@ -56,15 +56,19 @@ void op::v3::NonZero::validate_and_infer_types() {
 
     set_input_is_relevant_to_shape(0);
 
-    if (const auto& input_constant =
-            get_constant_from_source(input_value(0))) {  // input_value is available to calculate output shape
+    if (const auto& input_constant = get_constant_from_source(input_value(0))) {
+        // input_value is available to calculate output shape
         const auto& input_data = std::make_shared<HostTensor>(input_constant);
         auto output = std::make_shared<HostTensor>(m_output_type, get_output_partial_shape(0));
         if (!evaluate({output}, {input_data}))
             return;
         set_output_type(0, m_output_type, output->get_partial_shape());
-        get_output_tensor(0).set_lower_value(output);
-        get_output_tensor(0).set_upper_value(output);
+
+        auto t = Tensor(output->get_element_type(), output->get_shape());
+        memcpy(t.data(), output->get_data_ptr(), t.get_byte_size());
+
+        get_output_tensor(0).set_lower_value(t);
+        get_output_tensor(0).set_upper_value(t);
     }
 }
 

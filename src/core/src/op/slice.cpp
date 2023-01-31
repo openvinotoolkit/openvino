@@ -6,12 +6,12 @@
 
 #include <numeric>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/reference/slice.hpp"
-#include "ngraph/validation_util.hpp"
 #include "slice_shape_inference.hpp"
 
 using namespace std;
@@ -205,16 +205,12 @@ bool slice_input_check(const ov::Node* node) {
 }
 }  // namespace
 
-bool op::v8::Slice::evaluate_lower(const HostTensorVector& output_values) const {
-    if (!slice_input_check(this))
-        return false;
-    return default_lower_bound_evaluator(this, output_values);
+bool op::v8::Slice::evaluate_lower(ov::TensorVector& output_values) const {
+    return slice_input_check(this) && default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v8::Slice::evaluate_upper(const HostTensorVector& output_values) const {
-    if (!slice_input_check(this))
-        return false;
-    return default_upper_bound_evaluator(this, output_values);
+bool op::v8::Slice::evaluate_upper(ov::TensorVector& output_values) const {
+    return slice_input_check(this) && default_upper_bound_evaluator(this, output_values);
 }
 
 bool op::v8::Slice::evaluate_label(TensorLabelVector& output_labels) const {

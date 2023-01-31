@@ -52,22 +52,22 @@ void ov::descriptor::Tensor::set_partial_shape(const PartialShape& partial_shape
 OPENVINO_SUPPRESS_DEPRECATED_END
 
 void ov::descriptor::Tensor::invalidate_values() {
-    m_upper_value = nullptr;
-    m_lower_value = nullptr;
+    m_upper_value = {};
+    m_lower_value = {};
     m_value_label.clear();
 }
 
-void ov::descriptor::Tensor::set_lower_value(const ngraph::HostTensorPtr& value) {
-    NGRAPH_CHECK(value != nullptr);
-    NGRAPH_CHECK(m_partial_shape.same_scheme(value->get_partial_shape()));
-    NGRAPH_CHECK(m_element_type == value->get_element_type());
+void ov::descriptor::Tensor::set_lower_value(const ov::Tensor& value) {
+    OPENVINO_ASSERT(static_cast<bool>(value));
+    OPENVINO_ASSERT(m_partial_shape.same_scheme(value.get_shape()));
+    OPENVINO_ASSERT(m_element_type == value.get_element_type());
     m_lower_value = value;
 }
 
-void ov::descriptor::Tensor::set_upper_value(const ngraph::HostTensorPtr& value) {
-    NGRAPH_CHECK(value != nullptr);
-    NGRAPH_CHECK(m_partial_shape.same_scheme(value->get_partial_shape()));
-    NGRAPH_CHECK(m_element_type == value->get_element_type());
+void ov::descriptor::Tensor::set_upper_value(const ov::Tensor& value) {
+    OPENVINO_ASSERT(static_cast<bool>(value));
+    OPENVINO_ASSERT(m_partial_shape.same_scheme(value.get_shape()));
+    OPENVINO_ASSERT(m_element_type == value.get_element_type());
     m_upper_value = value;
 }
 

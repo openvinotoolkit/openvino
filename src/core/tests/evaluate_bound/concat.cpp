@@ -20,18 +20,14 @@ using TestParams = std::tuple<int64_t, LabeledShapeVector>;
 
 class EvaluateLabelTest : public Test {
 protected:
-    ov::element::Type label_dtype{ov::element::u64};
-    ov::TensorLabelVector out_labels;
-
     bool exp_evaluate_status;
+    ov::TensorLabelVector out_labels;
     ov::TensorVector exp_result, inputs;
-    std::vector<std::vector<uint64_t>> labels_u64;  //!< Storage for tensor labels.
 };
 
 class ConcatEvaluateLabelTest : public EvaluateLabelTest, public WithParamInterface<TestParams> {
 protected:
     void SetUp() override {
-        exp_result = ov::TensorVector{ov::Tensor(ov::element::u64, {0})};
         const auto& labeled_shapes = std::get<1>(GetParam());
 
         exp_evaluate_status =
@@ -44,7 +40,7 @@ protected:
             bool add_labels;
             std::tie(shape, add_labels) = labeled_shape;
 
-            auto param = params.make<Parameter>(ov::element::u64, shape);
+            auto param = params.make<Parameter>(ov::element::from<ov::label_t>(), shape);
 
             if (exp_evaluate_status) {
                 auto min_shape = shape.get_min_shape();
@@ -55,8 +51,8 @@ protected:
                     param->get_default_output().get_tensor().set_value_label(labels);
                 }
 
-                labels_u64.emplace_back(std::vector<uint64_t>(labels.cbegin(), labels.cend()));
-                inputs.emplace_back(label_dtype, min_shape, labels_u64.back().data());
+                inputs.emplace_back(ov::element::from<ov::label_t>(), min_shape);
+                std::copy_n(labels.begin(), labels.size(), inputs.back().data<ov::label_t>());
             }
         }
     }
@@ -102,12 +98,14 @@ INSTANTIATE_TEST_SUITE_P(evaluate_bound,
 TEST_P(ConcatEvaluateLabelTest, evaluate_label) {
     const auto concat = std::make_shared<Concat>(params.get(), std::get<0>(GetParam()));
     out_labels.resize(concat->get_output_size());
+    exp_result.emplace_back(ov::element::from<ov::label_t>(), concat->get_shape());
+
+    ASSERT_EQ(concat->evaluate_label(out_labels), exp_evaluate_status);
 
     if (exp_evaluate_status) {
         concat->evaluate(exp_result, inputs);
-    }
 
-    ASSERT_EQ(concat->evaluate_label(out_labels), exp_evaluate_status);
-    ASSERT_THAT(out_labels.front(),
-                ElementsAreArray(exp_result.front().data<uint64_t>(), exp_result.front().get_size()));
+        ASSERT_THAT(out_labels.front(),
+                    ElementsAreArray(exp_result.front().data<ov::label_t>(), exp_result.front().get_size()));
+    }
 }
