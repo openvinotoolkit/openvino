@@ -44,6 +44,7 @@ OP_CONVERTER(translate_full);
 OP_CONVERTER(translate_full_like);
 OP_CONVERTER(translate_gelu);
 OP_CONVERTER(translate_get_attr);
+OP_CONVERTER(translate_getitem);
 OP_CONVERTER(translate_glu);
 OP_CONVERTER(translate_grid_sampler);
 OP_CONVERTER(translate_group_norm);
@@ -117,6 +118,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
         {"aten::__and__", op::translate_1to1_match_2_inputs<opset10::LogicalAnd>},  // TODO: cover numerical cases
         {"aten::__not__", op::translate_1to1_match_1_inputs<opset10::LogicalNot>},
+        {"aten::__getitem__", op::translate_getitem},
         {"aten::_convolution", op::translate_convolution},
         {"aten::_convolution_mode", op::translate_convolution_mode},
         {"aten::abs", op::translate_1to1_match_1_inputs<opset10::Abs>},
