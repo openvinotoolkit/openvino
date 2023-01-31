@@ -537,7 +537,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         return decltype(ov::intel_gpu::device_id)::value_type {s.str()};
     } else if (name == ov::device::architecture) {
         std::stringstream s;
-        s << "GPU: ";
+        s << "GPU: vendor=0x" << std::hex << device_info.vendor_id << std::dec << " arch=";
         if (device_info.gfx_ver.major == 0 && device_info.gfx_ver.minor == 0) {
             s << device_info.dev_name;
         } else {

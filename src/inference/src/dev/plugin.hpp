@@ -9,8 +9,8 @@
  */
 #pragma once
 
-#include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "ie_iextension.h"
+#include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
 
 namespace ov {
@@ -44,24 +44,22 @@ public:
 
     void set_property(const ov::AnyMap& config);
 
-    SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                                     const ov::AnyMap& properties) const;
+    SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                            const ov::AnyMap& properties) const;
 
-    SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model(const std::string& model_path,
-                                                                     const ov::AnyMap& properties) const;
+    SoPtr<ov::ICompiledModel> compile_model(const std::string& model_path, const ov::AnyMap& properties) const;
 
-    SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                                     const ov::RemoteContext& context,
-                                                                     const ov::AnyMap& properties) const;
+    SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                            const ov::RemoteContext& context,
+                                            const ov::AnyMap& properties) const;
 
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& properties) const;
 
-    SoPtr<InferenceEngine::IExecutableNetworkInternal> import_model(std::istream& model,
-                                                                    const ov::AnyMap& properties) const;
+    SoPtr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const;
 
-    SoPtr<InferenceEngine::IExecutableNetworkInternal> import_model(std::istream& networkModel,
-                                                                    const ov::RemoteContext& context,
-                                                                    const ov::AnyMap& config) const;
+    SoPtr<ov::ICompiledModel> import_model(std::istream& networkModel,
+                                           const ov::RemoteContext& context,
+                                           const ov::AnyMap& config) const;
 
     ov::RemoteContext create_context(const AnyMap& params) const;
 

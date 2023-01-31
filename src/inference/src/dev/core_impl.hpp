@@ -20,6 +20,7 @@
 #include "openvino/core/extension.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
 #include "threading/ie_executor_manager.hpp"
 
 #ifdef OPENVINO_STATIC_LIBRARY
@@ -217,29 +218,27 @@ private:
 
     const bool m_new_api;
 
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model_impl(
-        const std::shared_ptr<const ov::Model>& model,
-        ov::Plugin& plugin,
-        const ov::AnyMap& parsedConfig,
-        const ov::RemoteContext& context,
-        const CacheContent& cacheContent,
-        bool forceDisableCache = false) const;
+    ov::SoPtr<ov::ICompiledModel> compile_model_impl(const std::shared_ptr<const ov::Model>& model,
+                                                     ov::Plugin& plugin,
+                                                     const ov::AnyMap& parsedConfig,
+                                                     const ov::RemoteContext& context,
+                                                     const CacheContent& cacheContent,
+                                                     bool forceDisableCache = false) const;
 
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> load_model_from_cache(
-        const CacheContent& cacheContent,
-        ov::Plugin& plugin,
-        const ov::AnyMap& config,
-        const ov::RemoteContext& context,
-        bool& networkIsImported) const;
+    ov::SoPtr<ov::ICompiledModel> load_model_from_cache(const CacheContent& cacheContent,
+                                                               ov::Plugin& plugin,
+                                                               const ov::AnyMap& config,
+                                                               const ov::RemoteContext& context,
+                                                               bool& networkIsImported) const;
 
     bool device_supports_import_export(const ov::Plugin& plugin) const;
 
     bool device_supports_property(const ov::Plugin& plugin, const std::string& key) const;
 
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model(ov::Plugin& plugin,
-                                                                         const std::shared_ptr<const ov::Model>& model,
-                                                                         const ov::RemoteContext& context,
-                                                                         const ov::AnyMap& config) const;
+    ov::SoPtr<ov::ICompiledModel> compile_model(ov::Plugin& plugin,
+                                                const std::shared_ptr<const ov::Model>& model,
+                                                const ov::RemoteContext& context,
+                                                const ov::AnyMap& config) const;
 
     ov::AnyMap create_compile_config(const ov::Plugin& plugin,
                                      const std::string& deviceFamily,
@@ -448,26 +447,26 @@ public:
 
     std::shared_ptr<ov::Model> read_model(const std::string& model_path, const std::string& bin_path) const override;
 
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                                         const std::string& device_name,
-                                                                         const ov::AnyMap& config = {}) const override;
+    ov::SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                const std::string& device_name,
+                                                const ov::AnyMap& config = {}) const override;
 
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                                         const ov::RemoteContext& context,
-                                                                         const ov::AnyMap& config = {}) const override;
+    ov::SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                const ov::RemoteContext& context,
+                                                const ov::AnyMap& config = {}) const override;
 
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model(const std::string& model_path,
-                                                                         const std::string& device_name,
-                                                                         const ov::AnyMap& config) const override;
+    ov::SoPtr<ov::ICompiledModel> compile_model(const std::string& model_path,
+                                                const std::string& device_name,
+                                                const ov::AnyMap& config) const override;
 
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model(const std::string& model_str,
-                                                                         const ov::Tensor& weights,
-                                                                         const std::string& device_name,
-                                                                         const ov::AnyMap& config) const override;
+    ov::SoPtr<ov::ICompiledModel> compile_model(const std::string& model_str,
+                                                const ov::Tensor& weights,
+                                                const std::string& device_name,
+                                                const ov::AnyMap& config) const override;
 
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> import_model(std::istream& model,
-                                                                        const std::string& device_name = {},
-                                                                        const ov::AnyMap& config = {}) const override;
+    ov::SoPtr<ov::ICompiledModel> import_model(std::istream& model,
+                                               const std::string& device_name = {},
+                                               const ov::AnyMap& config = {}) const override;
 
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const std::string& device_name,
