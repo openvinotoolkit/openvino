@@ -35,7 +35,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         input_model = moc_front_end.load(argv.input_model)
 
         # Remove temporary model file if it was used
-        if argv.need_remove_tmp_model:
+        if hasattr(argv, 'need_remove_tmp_model') and argv.need_remove_tmp_model:
             import os
             if os.path.exists(argv.input_model):
                 os.remove(argv.input_model)
