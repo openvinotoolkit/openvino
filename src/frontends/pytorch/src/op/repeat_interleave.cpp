@@ -38,7 +38,7 @@ OutputVector translate_repeat_interleave(NodeContext& context) {
     auto repeats_ext_node = context.get_input_from_visible_context(1).get_node_shared_ptr();
     auto repeats_fw_node = std::dynamic_pointer_cast<opset10::Constant>(repeats_ext_node);
     if (repeats_fw_node && repeats_fw_node->cast_vector<int32_t>().size() > 1) {
-        // repeats is Constant
+        // repeats is Constant with more then 1 element
         auto repeats = repeats_fw_node->cast_vector<int32_t>();
         if (context.input_is_none(2)) {
             // case (repeats=tensor, dim=None)
