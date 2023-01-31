@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,7 +41,7 @@ class ONNX_IMPORTER_API Node {
 public:
     Node() = delete;
     // TODO: hide this ctor since it uses protobufs generated structures
-    Node(const ONNX_NAMESPACE::NodeProto& node_proto, const Graph& graph);
+    Node(const ONNX_NAMESPACE::NodeProto& node_proto, Graph* graph);
 
     Node(Node&&) noexcept;
     Node(const Node&);

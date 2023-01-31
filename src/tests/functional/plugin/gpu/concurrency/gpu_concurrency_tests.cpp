@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,7 +55,7 @@ TEST_P(OVConcurrencyTest, canInferTwoExecNets) {
         auto fn = fn_ptrs[i];
 
         auto exec_net = ie.compile_model(fn_ptrs[i], CommonTestUtils::DEVICE_GPU,
-                                         {{ov::ie::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, std::to_string(num_streams)}});
+                                         ov::num_streams(num_streams), ov::inference_precision(ov::element::f32));
 
         auto input = fn_ptrs[i]->get_parameters().at(0);
         auto output = fn_ptrs[i]->get_results().at(0);
@@ -115,7 +115,7 @@ TEST(canSwapTensorsBetweenInferRequests, inputs) {
     auto fn = ngraph::builder::subgraph::makeSplitMultiConvConcat();
 
     auto ie = ov::Core();
-    auto compiled_model = ie.compile_model(fn, CommonTestUtils::DEVICE_GPU);
+    auto compiled_model = ie.compile_model(fn, CommonTestUtils::DEVICE_GPU, ov::inference_precision(ov::element::f32));
 
     const int infer_requests_num = 2;
     ov::InferRequest infer_request1 = compiled_model.create_infer_request();
@@ -193,7 +193,7 @@ TEST(smoke_InferRequestDeviceMemoryAllocation, usmHostIsNotChanged) {
     auto fn = ngraph::builder::subgraph::makeDetectionOutput(ngraph::element::Type_t::f32);
 
     auto ie = ov::Core();
-    auto compiled_model = ie.compile_model(fn, CommonTestUtils::DEVICE_GPU);
+    auto compiled_model = ie.compile_model(fn, CommonTestUtils::DEVICE_GPU, ov::inference_precision(ov::element::f32));
 
     ov::InferRequest infer_request1 = compiled_model.create_infer_request();
     ov::InferRequest infer_request2 = compiled_model.create_infer_request();
@@ -232,7 +232,7 @@ TEST(smoke_InferRequestDeviceMemoryAllocation, canSetSystemHostTensor) {
     auto fn = ngraph::builder::subgraph::makeDetectionOutput(ngraph::element::Type_t::f32);
 
     auto ie = ov::Core();
-    auto compiled_model = ie.compile_model(fn, CommonTestUtils::DEVICE_GPU);
+    auto compiled_model = ie.compile_model(fn, CommonTestUtils::DEVICE_GPU, ov::inference_precision(ov::element::f32));
 
     ov::InferRequest infer_request1 = compiled_model.create_infer_request();
     ov::InferRequest infer_request2 = compiled_model.create_infer_request();
@@ -258,7 +258,7 @@ TEST(canSwapTensorsBetweenInferRequests, outputs) {
     auto fn = ngraph::builder::subgraph::makeSplitMultiConvConcat();
 
     auto ie = ov::Core();
-    auto compiled_model = ie.compile_model(fn, CommonTestUtils::DEVICE_GPU);
+    auto compiled_model = ie.compile_model(fn, CommonTestUtils::DEVICE_GPU, ov::inference_precision(ov::element::f32));
 
     const int infer_requests_num = 2;
     ov::InferRequest infer_request1 = compiled_model.create_infer_request();

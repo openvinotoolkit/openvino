@@ -1,19 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <limits>
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Select method for coding the prior-boxes in the @ref detection output layer.
 enum class prior_box_code_type : int32_t {
@@ -127,10 +120,30 @@ struct detection_output : public primitive_base<detection_output> {
     /// @brief Clip decoded boxes after nms step
     const bool clip_after_nms;
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, num_classes);
+        seed = hash_combine(seed, keep_top_k);
+        seed = hash_combine(seed, share_location);
+        seed = hash_combine(seed, background_label_id);
+        seed = hash_combine(seed, nms_threshold);
+        seed = hash_combine(seed, top_k);
+        seed = hash_combine(seed, eta);
+        seed = hash_combine(seed, code_type);
+        seed = hash_combine(seed, variance_encoded_in_target);
+        seed = hash_combine(seed, confidence_threshold);
+        seed = hash_combine(seed, prior_info_size);
+        seed = hash_combine(seed, prior_coordinates_offset);
+        seed = hash_combine(seed, prior_is_normalized);
+        seed = hash_combine(seed, input_width);
+        seed = hash_combine(seed, input_height);
+        seed = hash_combine(seed, decrease_label_id);
+        seed = hash_combine(seed, clip_before_nms);
+        seed = hash_combine(seed, clip_after_nms);
+        return seed;
+    }
+
 protected:
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

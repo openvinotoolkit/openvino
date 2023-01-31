@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -148,6 +148,24 @@ const std::vector<std::pair<ov::AnyMap, std::string>> autoExeDeviceConfigs = {
                                         ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}}, "CPU,GPU"),
             std::make_pair(ov::AnyMap{{ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU),
                                         ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}}, "GPU,CPU"),
+            std::make_pair(ov::AnyMap{{ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU),
+                                        ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT),
+                                        ov::hint::allow_auto_batching(true)}}, "GPU,CPU"),
+            #endif
+    };
+
+const std::vector<std::pair<ov::AnyMap, std::string>> multiExeDeviceConfigs = {
+            std::make_pair(ov::AnyMap{{ov::device::priorities("GPU.0")}}, "GPU.0"),
+            #ifdef ENABLE_INTEL_CPU
+            std::make_pair(ov::AnyMap{{ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU)}}, "GPU,CPU"),
+            std::make_pair(ov::AnyMap{{ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU)}}, "CPU,GPU"),
+            std::make_pair(ov::AnyMap{{ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU),
+                                        ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}}, "CPU,GPU"),
+            std::make_pair(ov::AnyMap{{ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU),
+                                        ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}}, "GPU,CPU"),
+            std::make_pair(ov::AnyMap{{ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU),
+                                        ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT),
+                                        ov::hint::allow_auto_batching(true)}}, "GPU,CPU"),
             #endif
     };
 
@@ -155,6 +173,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiCompileModelBehaviorTests,
                          OVCompileModelGetExecutionDeviceTests,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                             ::testing::ValuesIn(autoExeDeviceConfigs)),
+                         OVCompileModelGetExecutionDeviceTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MultiCompileModelBehaviorTests,
+                         OVCompileModelGetExecutionDeviceTests,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                                            ::testing::ValuesIn(multiExeDeviceConfigs)),
                          OVCompileModelGetExecutionDeviceTests::getTestCaseName);
 
 } // namespace

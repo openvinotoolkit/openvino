@@ -7,9 +7,8 @@
 #include "log/log.hpp"
 #include "log/debug.hpp"
 
-using namespace ov::intel_gna;
-
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 
 SimpleCrop get_crop_params(const std::vector<int32_t>& axis_in,
                            const std::vector<int32_t>& offset_in,
@@ -57,4 +56,5 @@ SimpleCrop GetCropParams(InferenceEngine::CropLayer* cropLayer) {
     return out_val;
 }
 
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

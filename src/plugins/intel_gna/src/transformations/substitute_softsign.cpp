@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,7 @@ public:
             return false;
 
         float value;
-        if (!ngraph::op::util::get_single_value(node, value)) {
+        if (!ov::op::util::get_single_value(node, value)) {
             return false;
         }
 

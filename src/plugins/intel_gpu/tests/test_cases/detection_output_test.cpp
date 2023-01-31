@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "test_utils.h"
 
@@ -149,8 +147,8 @@ public:
 
         topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k));
 
-        build_options opts;
-        network network(engine, topology, opts);
+        ExecutionConfig config;
+        network network(engine, topology, config);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
         network.set_input_data("input_prior_box", input_prior_box);
@@ -184,8 +182,8 @@ public:
         topology.add(detection_output("detection_output_1", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k));
         topology.add(detection_output("detection_output_2", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k));
 
-        build_options opts;
-        network network(engine, topology, opts);
+        ExecutionConfig config;
+        network network(engine, topology, config);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
         network.set_input_data("input_prior_box", input_prior_box);
@@ -226,8 +224,8 @@ public:
 
         topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
-        build_options opts;
-        network network(engine, topology, opts);
+        ExecutionConfig config;
+        network network(engine, topology, config);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
         network.set_input_data("input_prior_box", input_prior_box);
@@ -274,8 +272,8 @@ public:
 
         topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
-        build_options opts;
-        network network(engine, topology, opts);
+        ExecutionConfig config;
+        network network(engine, topology, config);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
         network.set_input_data("input_prior_box", input_prior_box);
@@ -316,8 +314,8 @@ public:
 
         topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
-        build_options opts;
-        network network(engine, topology, opts);
+        ExecutionConfig config;
+        network network(engine, topology, config);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
         network.set_input_data("input_prior_box", input_prior_box);
@@ -369,8 +367,8 @@ public:
 
         topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
-        build_options opts;
-        network network(engine, topology, opts);
+        ExecutionConfig config;
+        network network(engine, topology, config);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
         network.set_input_data("input_prior_box", input_prior_box);
@@ -432,8 +430,8 @@ public:
             prior_coordinates_offset, prior_is_normalized, input_width, input_height, decrease_label_id
         ));
 
-        build_options opts;
-        network network(engine, topology, opts);
+        ExecutionConfig config;
+        network network(engine, topology, config);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
         network.set_input_data("input_prior_box", input_prior_box);
@@ -482,8 +480,8 @@ public:
 
         topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
-        build_options opts;
-        network network(engine, topology, opts);
+        ExecutionConfig config;
+        network network(engine, topology, config);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
         network.set_input_data("input_prior_box", input_prior_box);
@@ -543,8 +541,8 @@ public:
 
         topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
-        build_options opts;
-        network network(engine, topology, opts);
+        ExecutionConfig config;
+        network network(engine, topology, config);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
         network.set_input_data("input_prior_box", input_prior_box);
@@ -591,8 +589,8 @@ public:
 
         topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
-        build_options opts;
-        network network(engine, topology, opts);
+        ExecutionConfig config;
+        network network(engine, topology, config);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
         network.set_input_data("input_prior_box", input_prior_box);
@@ -642,8 +640,8 @@ public:
 
         topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
-        build_options opts;
-        network network(engine, topology, opts);
+        ExecutionConfig config;
+        network network(engine, topology, config);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
         network.set_input_data("input_prior_box", input_prior_box);
@@ -688,8 +686,8 @@ public:
 
         topology.add(detection_output("detection_output", input_info("input_location_padded"), input_info("input_confidence_padded"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
-        build_options opts;
-        network network(engine, topology, opts);
+        ExecutionConfig config;
+        network network(engine, topology, config);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
         network.set_input_data("input_prior_box", input_prior_box);
@@ -751,13 +749,13 @@ public:
             prior_is_normalized, this->img_size, this->img_size
         ));
 
-        build_options opts;
+        ExecutionConfig config;
         cldnn::network::ptr network;
 
         if (is_caching_test) {
             membuf mem_buf;
             {
-                cldnn::network _network(engine, topology, opts);
+                cldnn::network _network(engine, topology, config);
                 std::ostream out_mem(&mem_buf);
                 BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
                 _network.save(ob);
@@ -768,7 +766,7 @@ public:
                 network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
             }
         } else {
-            network = std::make_shared<cldnn::network>(engine, topology, opts);
+            network = std::make_shared<cldnn::network>(engine, topology, config);
         }
 
         network->set_input_data("input_location", input_location);

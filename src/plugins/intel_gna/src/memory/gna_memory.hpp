@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,12 +26,13 @@
 #include <iomanip>
 #endif
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace memory {
 
 class GNAFloatAllocator : public std::allocator < uint8_t > {
  public:
-    void setTag(void*, GNAPluginNS::memory::rRegion) {
+    void setTag(void*, memory::rRegion) {
     }
 };
 
@@ -154,7 +155,7 @@ protected:
     }
 
     template<class T>
-    void iterate_binded(GNAPluginNS::memory::MemRequest & reference, const T & visitor) {
+    void iterate_binded(memory::MemRequest & reference, const T & visitor) {
         for (auto &re : getQueue(REGION_AUTO)->_mem_requests) {
             if ((re._type & REQUEST_BIND) && (re._ptr_in == reference._ptr_out)) {
                 // log::trace() << "  [binded=" << rTypeToStr(re._type) << ", ptr=" << re._ptr_out <<"]\n";
@@ -291,4 +292,5 @@ protected:
 };
 
 }  // namespace memory
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

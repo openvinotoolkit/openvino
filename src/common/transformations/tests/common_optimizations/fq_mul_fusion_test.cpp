@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -76,8 +76,8 @@ TEST_P(FQMulFusion, ExpectFusion) {
     auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
-    manager.register_pass<ngraph::pass::FakeQuantizeMulFusion>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::FakeQuantizeMulFusion>();
     manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
 
     manager.run_passes(m_function);
@@ -221,8 +221,8 @@ TEST(FQMulFusion_NonConstInputs, AllInputsNonConst) {
                                            ngraph::ParameterVector{data, in_low, in_high, out_low, out_high});
 
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
-    manager.register_pass<ngraph::pass::FakeQuantizeMulFusion>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::FakeQuantizeMulFusion>();
 
     manager.run_passes(function);
     ASSERT_NO_THROW(check_rt_info(function));
@@ -259,8 +259,8 @@ TEST(FQMulFusion_NonConstInputs, FQ_out_high_const) {
                                            ngraph::ParameterVector{data, in_low, in_high, out_low});
 
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
-    manager.register_pass<ngraph::pass::FakeQuantizeMulFusion>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::FakeQuantizeMulFusion>();
 
     manager.run_passes(function);
     ASSERT_NO_THROW(check_rt_info(function));
@@ -296,8 +296,8 @@ TEST(FQMulFusion_FQ_Mul_inputs, FQ_out_to_mul_input_2) {
         std::make_shared<ngraph::Function>(ngraph::OutputVector{expected_fq}, ngraph::ParameterVector{});
 
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
-    manager.register_pass<ngraph::pass::FakeQuantizeMulFusion>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::FakeQuantizeMulFusion>();
 
     manager.run_passes(function);
     ASSERT_NO_THROW(check_rt_info(function));
@@ -333,8 +333,8 @@ TEST(FQMulFusion_FQ_Mul_inputs, FQ_out_to_mul_input_2_param) {
         std::make_shared<ngraph::Function>(ngraph::OutputVector{expected_fq}, ngraph::ParameterVector{out_high});
 
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
-    manager.register_pass<ngraph::pass::FakeQuantizeMulFusion>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::FakeQuantizeMulFusion>();
 
     manager.run_passes(function);
     ASSERT_NO_THROW(check_rt_info(function));
@@ -360,8 +360,8 @@ TEST(TransformationTests, FakeQuantizeMultiplyFusionNegative) {
     auto function = std::make_shared<ngraph::Function>(ngraph::OutputVector{mul}, ngraph::ParameterVector{out_high});
 
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
-    manager.register_pass<ngraph::pass::FakeQuantizeMulFusion>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::FakeQuantizeMulFusion>();
 
     manager.run_passes(function);
     ASSERT_NO_THROW(check_rt_info(function));
@@ -398,8 +398,8 @@ TEST(TransformationTests, FakeQuantizeMultiplyFusionMulConstWithEqualValues) {
                                                                       ngraph::ParameterVector{data, in_low, in_high});
 
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
-    manager.register_pass<ngraph::pass::FakeQuantizeMulFusion>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::FakeQuantizeMulFusion>();
 
     manager.run_passes(function);
     ASSERT_NO_THROW(check_rt_info(function));

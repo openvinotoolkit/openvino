@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,7 +90,7 @@ static void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v8::Ma
     cldnn::layout mutableLayout = cldnn::layout(cldnn::element_type_to_data_type(mutable_precision),
                                                 cldnn::format::get_default_format(output_shape.size()),
                                                 tensor_from_dims(output_shape));
-    const auto shared_memory = p.GetEngine().allocate_memory(mutableLayout);
+    const auto shared_memory = p.get_engine().allocate_memory(mutableLayout);
     const cldnn::primitive_id maxpool_mutable_id_w = layer_type_name + "_md_write";
     auto indices_mutable_prim = cldnn::mutable_data(maxpool_mutable_id_w,
                                                           shared_memory);

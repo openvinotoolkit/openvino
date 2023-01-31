@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -111,23 +111,6 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     auto InputNode = [](const ngraph::Input<ngraph::Node>& input) {
         return input.get_source_output().get_node();
     };
-
-    // Set results, constants and parameters affinity
-    for (auto&& node : clonedFunction->get_ops()) {
-        if (ngraph::op::is_constant(node) || ngraph::op::is_output(node) || ngraph::op::is_parameter(node)) {
-            if (!contains(queryNetworkResult.supportedLayersMap, node->get_friendly_name())) {
-                auto& nodeWithAffinityName =
-                    ngraph::op::is_output(node)
-                        ? node->input_value(0).get_node()->get_friendly_name()
-                        : node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name();
-                auto itAffinity = queryNetworkResult.supportedLayersMap.find(nodeWithAffinityName);
-                if (itAffinity == queryNetworkResult.supportedLayersMap.end()) {
-                    IE_THROW() << "Node " << nodeWithAffinityName << " was not assigned on any pointed device.";
-                }
-                queryNetworkResult.supportedLayersMap.emplace(node->get_friendly_name(), itAffinity->second);
-            }
-        }
-    }
 
     std::unordered_set<std::string> devices;
     NodeMap<std::string> affinities;
@@ -499,7 +482,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
             if (!InferenceEngine::details::contains(externalOutputsData, output.first)) {
                 for (auto&& result : subgraph._results) {
                     auto source_output = result->input_value(0);
-                    auto output_name = ngraph::op::util::create_ie_output_name(source_output);
+                    auto output_name = ov::op::util::create_ie_output_name(source_output);
                     if (output_name == output.first) {
                         output.second->setPrecision(
                             InferenceEngine::details::convertPrecision(toLegacyType(source_output.get_element_type())));
@@ -692,7 +675,7 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
     const auto serializeNode = [&](const std::shared_ptr<const ov::Node>& node, pugi::xml_node& xml_node) {
         const bool is_result = ov::is_type<ov::op::v0::Result>(node);
         const std::string name =
-            is_result ? ngraph::op::util::create_ie_output_name(node->input_value(0)) : node->get_friendly_name();
+            is_result ? ov::op::util::create_ie_output_name(node->input_value(0)) : node->get_friendly_name();
         xml_node.append_attribute("operation_name").set_value(name.c_str());
         xml_node.append_attribute("element_type").set_value(node->get_output_element_type(0).get_type_name().c_str());
 

@@ -55,7 +55,7 @@ static std::shared_ptr<ngraph::Function> createFunction(const ngraph::Shape& inp
     }
 
     if (split) {
-        auto split_sizes_per_axis = GNAPluginNS::AlignedSplitSizesPerAxis(input_shape);
+        auto split_sizes_per_axis = ov::intel_gna::AlignedSplitSizesPerAxis(input_shape);
         auto split0 = std::make_shared<ngraph::opset9::VariadicSplit>(last_node0,
                 ngraph::opset9::Constant::create(ngraph::element::i64, ngraph::Shape({1}), std::vector<int64_t>{split_sizes_per_axis.first}),
                 ngraph::opset9::Constant::create(ngraph::element::i64, ngraph::Shape({split_sizes_per_axis.second.size()}), split_sizes_per_axis.second));
@@ -133,7 +133,7 @@ void SplitEltwiseTestSuiteFixture::SetUp() {
 void execute_test(std::shared_ptr<ngraph::Function> function,
                   std::shared_ptr<ngraph::Function> reference_function) {
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::intel_gna::pass::SplitEltwise>();
     manager.run_passes(function);
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
