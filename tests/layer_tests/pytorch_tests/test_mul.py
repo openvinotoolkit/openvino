@@ -39,6 +39,7 @@ class TestMul(PytorchLayerTest):
         self.other_type = np.float32
         self._test(*self.create_model(), ie_device, precision, ir_version)
 
+
 class TestMulTypes(PytorchLayerTest):
 
     def _prepare_input(self):

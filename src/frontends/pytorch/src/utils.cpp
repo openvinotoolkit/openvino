@@ -474,7 +474,10 @@ std::unordered_map<size_t, element::Type> bit_to_int{
 };
 }  // namespace
 
-void align_eltwise_input_types(const NodeContext& context, ov::Output<ov::Node>* lhs, ov::Output<ov::Node>* rhs) {
+void align_eltwise_input_types(const NodeContext& context,
+                               ov::Output<ov::Node>* lhs,
+                               ov::Output<ov::Node>* rhs,
+                               bool is_div) {
     const auto& lhs_type = lhs->get_element_type();
     const auto& rhs_type = rhs->get_element_type();
     if (lhs_type.is_dynamic() || rhs_type.is_dynamic()) {
@@ -503,7 +506,9 @@ void align_eltwise_input_types(const NodeContext& context, ov::Output<ov::Node>*
         auto rhs_dst_type = rhs_type;
         if (is_lhs_scalar) {
             if (lhs_type.is_real() && !rhs_type.is_real()) {
-                lhs_dst_type = element::f32;
+                // if div we need to also align float types to highest biyness regardless of scalar
+                if (!is_div)
+                    lhs_dst_type = element::f32;
                 rhs_dst_type = element::f32;
             } else {
                 *lhs = context.mark_node(std::make_shared<opset10::ConvertLike>(*lhs, *rhs));
@@ -512,33 +517,35 @@ void align_eltwise_input_types(const NodeContext& context, ov::Output<ov::Node>*
         } else if (is_rhs_scalar) {
             if (!lhs_type.is_real() && rhs_type.is_real()) {
                 lhs_dst_type = element::f32;
-                rhs_dst_type = element::f32;
+                // if div we need to also align float types to highest biyness regardless of scalar
+                if (!is_div)
+                    rhs_dst_type = element::f32;
             } else {
                 *rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(*rhs, *lhs));
                 return;
             }
-        } else {
-            if (lhs_type == element::boolean || rhs_type == element::boolean) {
-                // Do nothing with bool
-                return;
-            }
+        }
 
-            if (!lhs_type.is_real() && rhs_type.is_real()) {
-                lhs_dst_type = element::f32;
-            } else if (lhs_type.is_real() && !rhs_type.is_real()) {
-                rhs_dst_type = element::f32;
-            }
-            // Align bitness to higher
-            if (lhs_dst_type.bitwidth() != rhs_dst_type.bitwidth()) {
-                const auto dst_bitness = std::max(lhs_dst_type.bitwidth(), rhs_dst_type.bitwidth());
-                element::Type* type_to_align = &lhs_dst_type;
-                if (rhs_dst_type.bitwidth() < dst_bitness)
-                    type_to_align = &rhs_dst_type;
-                if (type_to_align->is_real()) {
-                    *type_to_align = bit_to_float.at(dst_bitness);
-                } else {
-                    *type_to_align = bit_to_int.at(dst_bitness);
-                }
+        if (lhs_dst_type == element::boolean || rhs_dst_type == element::boolean) {
+            // Do nothing with bool
+            return;
+        }
+
+        if (!lhs_dst_type.is_real() && rhs_dst_type.is_real()) {
+            lhs_dst_type = element::f32;
+        } else if (lhs_dst_type.is_real() && !rhs_dst_type.is_real()) {
+            rhs_dst_type = element::f32;
+        }
+        // Align bitness to higher
+        if (lhs_dst_type.bitwidth() != rhs_dst_type.bitwidth()) {
+            const auto dst_bitness = std::max(lhs_dst_type.bitwidth(), rhs_dst_type.bitwidth());
+            element::Type* type_to_align = &lhs_dst_type;
+            if (rhs_dst_type.bitwidth() < dst_bitness)
+                type_to_align = &rhs_dst_type;
+            if (type_to_align->is_real()) {
+                *type_to_align = bit_to_float.at(dst_bitness);
+            } else {
+                *type_to_align = bit_to_int.at(dst_bitness);
             }
         }
 

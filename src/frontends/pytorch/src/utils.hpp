@@ -55,7 +55,10 @@ std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> 
 // TODO: Elimitate the need of this function by implementing more accurate custom data type handling
 Any simplified_type_interpret(Any type);
 
-void align_eltwise_input_types(const NodeContext& context, ov::Output<ov::Node>* lhs, ov::Output<ov::Node>* rhs);
+void align_eltwise_input_types(const NodeContext& context,
+                               ov::Output<ov::Node>* lhs,
+                               ov::Output<ov::Node>* rhs,
+                               bool is_div = false);
 
 namespace op {
 template <OutputVector (*T)(NodeContext&), size_t idx = 0>
