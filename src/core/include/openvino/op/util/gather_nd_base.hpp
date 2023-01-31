@@ -27,6 +27,10 @@ public:
         return m_batch_dims;
     }
 
+    void set_batch_dims(size_t batch_dims) {
+        m_batch_dims = batch_dims;
+    }
+
     void validate_inputs_and_infer_shape();
 
     bool visit_attributes(AttributeVisitor& visitor) override;
