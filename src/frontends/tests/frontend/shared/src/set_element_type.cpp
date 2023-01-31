@@ -15,7 +15,6 @@ std::string FrontEndElementTypeTest::getTestCaseName(const testing::TestParamInf
 }
 
 void FrontEndElementTypeTest::SetUp() {
-    FrontEndTestUtils::setupTestEnv();
     m_fem = FrontEndManager();  // re-initialize after setting up environment
     initParamTest();
 }

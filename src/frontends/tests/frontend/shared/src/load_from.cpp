@@ -18,7 +18,6 @@ std::string FrontEndLoadFromTest::getTestCaseName(const testing::TestParamInfo<L
 }
 
 void FrontEndLoadFromTest::SetUp() {
-    FrontEndTestUtils::setupTestEnv();
     m_fem = FrontEndManager();  // re-initialize after setting up environment
     m_param = GetParam();
 }

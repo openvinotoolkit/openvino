@@ -20,7 +20,6 @@ std::string FrontEndConversionExtensionTest::getTestCaseName(
 }
 
 void FrontEndConversionExtensionTest::SetUp() {
-    FrontEndTestUtils::setupTestEnv();
     initParamTest();
 }
 

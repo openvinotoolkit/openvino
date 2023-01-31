@@ -16,7 +16,6 @@ std::string FrontEndBasicTest::getTestCaseName(const testing::TestParamInfo<Basi
 }
 
 void FrontEndBasicTest::SetUp() {
-    FrontEndTestUtils::setupTestEnv();
     m_fem = FrontEndManager();  // re-initialize after setting up environment
     initParamTest();
 }

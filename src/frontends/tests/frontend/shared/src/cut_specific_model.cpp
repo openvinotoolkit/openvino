@@ -24,7 +24,6 @@ std::string FrontEndCutModelTest::getTestCaseName(const testing::TestParamInfo<C
 }
 
 void FrontEndCutModelTest::SetUp() {
-    FrontEndTestUtils::setupTestEnv();
     m_fem = FrontEndManager();  // re-initialize after setting up environment
     initParamTest();
 }

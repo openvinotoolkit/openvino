@@ -21,7 +21,6 @@ std::string FrontEndPartialShapeTest::getTestCaseName(const testing::TestParamIn
 }
 
 void FrontEndPartialShapeTest::SetUp() {
-    FrontEndTestUtils::setupTestEnv();
     m_fem = FrontEndManager();  // re-initialize after setting up environment
     initParamTest();
 }
