@@ -29,8 +29,7 @@ endif()
 list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_extension)
 list(APPEND UNIT_TESTS_DEPENDENCIES template_extension)
 
-list(APPEND EXCLUDE_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/frontend
-                          ${CMAKE_CURRENT_SOURCE_DIR}/dnnl.cpp)
+list(APPEND EXCLUDE_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/dnnl.cpp)
 if (ENABLE_TEMPLATE)
     list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_plugin)
 else()
@@ -59,6 +58,7 @@ ov_add_test_target(
             Threads::Threads
             openvino::conditional_compilation
             openvino::runtime::dev
+            frontend_common_obj # for FRONTEND_LIB_PREFIX and SUFFIX
         ADD_CLANG_FORMAT
         LABELS
             OV
