@@ -33,7 +33,7 @@ std::vector<std::string> supported_configKeys = {CONFIG_KEY(AUTO_BATCH_DEVICE_CO
                                                  CONFIG_KEY(CACHE_DIR)};
 
 // plugin SetConfig and GetConfig
-std::vector<std::string> supported_plugin_configKeys = {CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), CONFIG_KEY(CACHE_DIR)};
+std::vector<std::string> supported_plugin_configKeys = {CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)};
 
 template <Precision::ePrecision precision>
 Blob::Ptr create_shared_blob_on_top_of_batched_blob(Blob::Ptr batched_blob,

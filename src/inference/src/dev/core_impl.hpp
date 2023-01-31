@@ -104,8 +104,17 @@ private:
         bool is_core_config(const std::string& config_name) const;
 
         // Check whether this global config is supported by plugin, and the coresponding propertie will be removed
-        // from plugin in the furture. It is a whitelist to check.
-        bool plugin_config_is_supported(const ov::Plugin& plugin, const std::string& config_name) const;
+        // from plugin. It is a whitelist to check.
+        // There will be a global properties whitelist for each plugin, such as:
+        //   ov::auto_batch_timeout         - only for BATCH plugins
+        //   ov::hint::allow_auto_batching  - only for AUTO/MULTTI plugins
+        //   ov::cache_dir                  - will not set to any plugins anymore, but it supports CPU/GPU/GNA/AUTO
+        //   plugins
+        bool plugin_config_is_supported(const ov::Plugin& plugin,
+                                        const std::string& config_name) const;
+
+        // Check whether this global config can be set to plugin
+        bool plugin_config_can_set(const ov::Plugin& plugin, const std::string& config_name) const;
 
         // Intercept global config that will be set to plugin by calling plugin.set_property().
         // Put it into global config map if this plugin supported
@@ -113,7 +122,6 @@ private:
 
         // Clean up global config for input config.
         void cleanup_config(ov::Plugin& plugin, ov::AnyMap& config) const;
-        void process_cache_dir(ov::Plugin& plugin, ov::AnyMap& config) const;
 
         // Update input config with the help of core_plugins_properties:
         //  1. Remove the global properties that this plugin doesn't support
@@ -217,12 +225,12 @@ private:
         const CacheContent& cacheContent,
         bool forceDisableCache = false) const;
 
-    static ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> load_model_from_cache(
+    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> load_model_from_cache(
         const CacheContent& cacheContent,
         ov::Plugin& plugin,
         const ov::AnyMap& config,
         const ov::RemoteContext& context,
-        bool& networkIsImported);
+        bool& networkIsImported) const;
 
     bool device_supports_import_export(const ov::Plugin& plugin) const;
 

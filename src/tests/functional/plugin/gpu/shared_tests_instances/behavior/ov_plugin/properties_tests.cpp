@@ -118,7 +118,6 @@ auto auto_multi_plugin_properties = []() {
     return std::vector<ov::AnyMap>{{ov::device::priorities(CommonTestUtils::DEVICE_GPU),
                                     ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
                                     ov::hint::num_requests(2),
-                                    ov::hint::allow_auto_batching(false),
                                     ov::enable_profiling(false)}};
 };
 auto auto_multi_compileModel_properties = []() {

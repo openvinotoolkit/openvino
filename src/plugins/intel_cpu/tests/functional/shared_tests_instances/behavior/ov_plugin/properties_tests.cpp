@@ -57,7 +57,6 @@ const std::vector<ov::AnyMap> auto_multi_plugin_properties = {
     {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
      ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
      ov::hint::num_requests(2),
-     ov::hint::allow_auto_batching(false),
      ov::enable_profiling(false)}};
 const std::vector<ov::AnyMap> auto_multi_compileModel_properties = {
     {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
@@ -78,8 +77,6 @@ const std::vector<ov::AnyMap> default_properties = {
         {ov::enable_profiling(false)},
         {ov::log::level("LOG_NONE")},
         {ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
-        {ov::hint::allow_auto_batching(true)},
-        {ov::auto_batch_timeout("1000")},
         {ov::intel_auto::device_bind_buffer(false)},
         {ov::device::priorities("")}
 };
@@ -88,6 +85,22 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBehaviorTests, OVPropertiesDefaultTests,
                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                 ::testing::ValuesIn(default_properties)),
         OVPropertiesDefaultTests::getTestCaseName);
+
+const std::vector<ov::AnyMap> core_properties = {
+    {ov::auto_batch_timeout("2000")},
+    {ov::hint::allow_auto_batching("NO")},
+    {ov::cache_dir("./")},
+};
+
+const std::vector<std::string> target_devices = {
+    CommonTestUtils::DEVICE_AUTO,
+    CommonTestUtils::DEVICE_CPU,
+    std::string("BATCH:CPU(4)"),
+};
+INSTANTIATE_TEST_SUITE_P(smoke_AutoBehaviorTests,
+                         OVCorePropertiesTest,
+                         ::testing::Combine(::testing::ValuesIn(target_devices), ::testing::ValuesIn(core_properties)),
+                         OVCorePropertiesTest::getTestCaseName);
 
 const std::vector<std::pair<ov::AnyMap, std::string>> automultiExeDeviceConfigs = {
             std::make_pair(ov::AnyMap{{ov::device::priorities(CommonTestUtils::DEVICE_CPU)}}, "CPU")

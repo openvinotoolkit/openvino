@@ -127,6 +127,24 @@ TEST_P(OVPropertiesDefaultTests, CheckDefaultValues) {
     }
 }
 
+TEST_P(OVCorePropertiesTest, SetPropertiesWithoutDeviceName) {
+    OV_ASSERT_NO_THROW(core->set_property(properties));
+    for (auto&& p : properties) {
+        Any property;
+        OV_ASSERT_NO_THROW(property = core->get_property(p.first));
+        EXPECT_EQ(p.second.as<std::string>(), property.as<std::string>());
+    }
+    ASSERT_NO_THROW(core->compile_model(model, target_device));
+}
+
+TEST_P(OVCorePropertiesTest, SetPropertiesWithDeviceName) {
+    ASSERT_THROW(core->set_property(target_device, properties), ov::Exception);
+}
+
+TEST_P(OVCorePropertiesTest, CompileModelWithProperties) {
+    ASSERT_NO_THROW(core->compile_model(model, target_device, properties));
+}
+
 TEST_P(OVSetPropComplieModleGetPropTests, SetPropertyComplieModelGetProperty) {
     OV_ASSERT_NO_THROW(core->set_property(target_device, properties));
 

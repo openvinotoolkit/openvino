@@ -59,8 +59,6 @@ struct Config {
     bool manualEnforceBF16 = false;
 #endif
 
-    std::string cache_dir{};
-
     DenormalsOptMode denormalsOptMode = DenormalsOptMode::DO_Keep;
 
     void readProperties(const std::map<std::string, std::string> &config);

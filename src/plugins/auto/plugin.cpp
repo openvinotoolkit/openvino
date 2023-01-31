@@ -347,8 +347,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                                                   PluginConfigParams::THROUGHPUT);
         }
     }
-    if (!loadConfig._isSetCacheDir)
-        fullConfig.erase(CONFIG_KEY(CACHE_DIR));
     // collect the settings that are applicable to the devices we are loading the network to
     std::unordered_map<std::string, InferenceEngine::Parameter> multiNetworkConfig;
     std::vector<DeviceInformation> metaDevices;
@@ -429,7 +427,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
             // carry on batch configs only if user explicitly sets
             if (config.find(CONFIG_KEY(ALLOW_AUTO_BATCHING)) != config.end())
                 insertPropToConfig(CONFIG_KEY(ALLOW_AUTO_BATCHING), iter->deviceName, configs);
-            insertPropToConfig(CONFIG_KEY(CACHE_DIR), iter->deviceName, configs);
             strDevices += iter->deviceName;
             strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
             LOG_INFO_TAG("device:%s, priority:%ld", iter->deviceName.c_str(), iter->devicePriority);
@@ -489,7 +486,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
             if (config.find(CONFIG_KEY(ALLOW_AUTO_BATCHING)) != config.end())
                 p.config.insert({tmpiter->first, tmpiter->second});
         }
-        insertPropToConfig(CONFIG_KEY(CACHE_DIR), p.deviceName, p.config);
         const auto& deviceName = p.deviceName;
         const auto& deviceConfig = p.config;
         SoExecutableNetworkInternal exec_net;
