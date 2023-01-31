@@ -40,9 +40,11 @@ if (mock_available):
     import glob
     from pathlib import Path
     import pybind_mock_frontend
+    # Assume "mock_py" frontend is nearby to "pybind_mock_frontend"
     mock_py_fe_path_l = glob.glob(str(Path(pybind_mock_frontend.__file__).parent / f"*{MOCK_PY_FRONTEND_NAME}*"))
     if not mock_py_fe_path_l:
         raise Exception(f"Path to frontend '{MOCK_PY_FRONTEND_NAME}' can't be found")
+    # If multiple "mock_py" frontends found, use any - only one is real, the rest are symlinks to real
     fem.register_front_end(MOCK_PY_FRONTEND_NAME, mock_py_fe_path_l[0])
 
 

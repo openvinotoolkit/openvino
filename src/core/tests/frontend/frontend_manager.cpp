@@ -29,8 +29,7 @@ TEST(FrontEndManagerTest, testAvailableFrontEnds) {
     auto frontends = fem.get_available_front_ends();
     ASSERT_NE(std::find(frontends.begin(), frontends.end(), "mock"), frontends.end());
     FrontEnd::Ptr fe;
-    // ASSERT_NO_THROW(fe = fem.load_by_framework("mock"));
-    fe = fem.load_by_framework("mock");
+    ASSERT_NO_THROW(fe = fem.load_by_framework("mock"));
 
     FrontEndManager fem2 = std::move(fem);
     frontends = fem2.get_available_front_ends();
