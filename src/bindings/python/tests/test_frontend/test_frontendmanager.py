@@ -27,15 +27,23 @@ try:
 except Exception:
     mock_available = False
 
-# FrontEndManager shall be initialized and destroyed after all tests finished
-# This is because destroy of FrontEndManager will unload all plugins, no objects shall exist after this
-fem = FrontEndManager()
-
 mock_needed = pytest.mark.skipif(not mock_available, reason="Mock frontend is not available. Check paths in:"
                                                             f" LD_LIBRARY_PATH={os.environ.get('LD_LIBRARY_PATH','')}"
                                                             f", PYTHONPATH={os.environ.get('PYTHONPATH','')}")
 
 MOCK_PY_FRONTEND_NAME = "mock_py"
+
+# FrontEndManager shall be initialized and destroyed after all tests finished
+# This is because destroy of FrontEndManager will unload all plugins, no objects shall exist after this
+fem = FrontEndManager()
+if (mock_available):
+    import glob
+    from pathlib import Path
+    import pybind_mock_frontend
+    mock_py_fe_path_l = glob.glob(str(Path(pybind_mock_frontend.__file__).parent / f"*{MOCK_PY_FRONTEND_NAME}*"))
+    if not mock_py_fe_path_l:
+        raise Exception(f"Path to frontend '{MOCK_PY_FRONTEND_NAME}' can't be found")
+    fem.register_front_end(MOCK_PY_FRONTEND_NAME, mock_py_fe_path_l[0])
 
 
 def clear_all_stat():
