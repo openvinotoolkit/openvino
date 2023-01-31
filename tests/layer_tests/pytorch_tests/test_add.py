@@ -50,8 +50,8 @@ class TestAddTypes(PytorchLayerTest):
                 torch.randn(self.rhs_shape).to(self.rhs_type).numpy())
 
     def create_model(self, lhs_type, lhs_shape, rhs_type, rhs_shape):
-        class aten_add(torch.nn.Module):
 
+        class aten_add(torch.nn.Module):
             def __init__(self, lhs_type, lhs_shape, rhs_type, rhs_shape):
                 super().__init__()
                 self.lhs_type = lhs_type
@@ -93,7 +93,7 @@ class TestAddTypes(PytorchLayerTest):
                                                           ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_add(self, ie_device, precision, ir_version, lhs_type, lhs_shape, rhs_type, rhs_shape):
+    def test_add_types(self, ie_device, precision, ir_version, lhs_type, lhs_shape, rhs_type, rhs_shape):
         self.lhs_type = lhs_type
         self.lhs_shape = lhs_shape
         self.rhs_type = rhs_type
