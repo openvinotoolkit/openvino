@@ -157,6 +157,10 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
     reshapeRnnSeq(graph);
     graph.RemoveDroppedNodes();
 
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "RemoveSameConvert");
+    RemoveSameConvert(graph);
+    graph.RemoveDroppedNodes();
+
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "RemoveDroppedEdges");
     graph.RemoveDroppedEdges();
 }
@@ -2220,6 +2224,23 @@ void GraphOptimizer::reshapeRnnSeq(Graph &graph) {
         }
     }
 }
+
+void GraphOptimizer::RemoveSameConvert(Graph &graph) {
+    auto& graphNodes = graph.GetNodes();
+
+    auto isSuitableParentNode = [](NodePtr parentNode) {
+        return parentNode->getType() == Type::Convert &&
+            (parentNode->getOriginalOutputPrecisionAtPort(0) == parentNode->getOriginalInputPrecisionAtPort(0));
+    };
+    
+    for (size_t i = 0; i < graphNodes.size(); i++) {
+        auto parentNode = graphNodes[i];
+        if (!isSuitableParentNode(parentNode)) {
+            continue;
+        }
+        graph.DropNode(parentNode);
+    }
+} 
 
 }   // namespace intel_cpu
 }   // namespace ov
