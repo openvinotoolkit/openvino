@@ -1,4 +1,4 @@
-# CPU Plugin
+# OpenVINO Intel CPU Plugin
 
 ## Key Contacts
 

@@ -1,4 +1,4 @@
-# Inference Engine hetero plugin design overview
+# OpenVINO Hetero plugin design overview
 
 ## Subgraphs selection
 
