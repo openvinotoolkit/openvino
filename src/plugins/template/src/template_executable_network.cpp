@@ -110,7 +110,7 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const
         _parameters.emplace_back(input.get_node_shared_ptr());
     }
     for (const auto& result : m_model->get_results()) {
-        const auto output = result->output(0);
+        const auto output = result->input_value(0);
         InferenceEngine::DataPtr output_info;
         ov::legacy_convert::fill_output_info(output, output_info);
         _networkOutputs[output_info->getName()] = output_info;
@@ -162,7 +162,7 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream& model,
         _parameters.emplace_back(input.get_node_shared_ptr());
     }
     for (const auto& result : m_model->get_results()) {
-        const auto output = result->output(0);
+        const auto output = result->input_value(0);
         InferenceEngine::DataPtr output_info;
         ov::legacy_convert::fill_output_info(output, output_info);
         _networkOutputs[output_info->getName()] = output_info;
