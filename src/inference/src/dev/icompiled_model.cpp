@@ -39,50 +39,30 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
             }
         }
 
-        if (!m_plugin->is_new_api()) {
+        if (add_operation_names) {
             for (const auto& param : model->get_parameters()) {
                 const auto& param_name = param->get_friendly_name();
-                auto new_param = ov::as_type_ptr<ov::op::v0::Parameter>(param->copy_with_new_inputs({}));
-                new_param->set_friendly_name(param_name);
-                if (add_operation_names) {
-                    OPENVINO_ASSERT(
-                        !m_plugin->is_new_api() || leaf_names.find(param_name) == leaf_names.end() ||
-                            param->output(0).get_names().find(param_name) != param->output(0).get_names().end(),
-                        "Model operation names have collisions with tensor names.",
-                        " Please use MO to generate new IR version, it should allow to avoid the issue");
-                    leaf_names.insert(param_name);
-                    new_param->output(0).get_tensor().add_names({param_name});
-                }
-                new_param->set_layout(param->get_layout());
-                new_param->output(0).get_rt_info() = param->output(0).get_rt_info();
-                new_param->validate_and_infer_types();
-                _parameters.emplace_back(new_param);
+                OPENVINO_ASSERT(!m_plugin->is_new_api() || leaf_names.find(param_name) == leaf_names.end() ||
+                                    param->output(0).get_names().find(param_name) != param->output(0).get_names().end(),
+                                "Model operation names have collisions with tensor names.",
+                                " Please use MO to generate new IR version, it should allow to avoid the issue");
+                leaf_names.insert(param_name);
+                param->output(0).get_tensor().add_names({param_name});
                 m_inputs.emplace_back(
-                    ov::Output<const ov::Node>{new_param->output(0).get_node(), new_param->output(0).get_index()});
+                    ov::Output<const ov::Node>{param->output(0).get_node(), param->output(0).get_index()});
             }
             for (const auto& result : model->get_results()) {
                 auto fake_param = std::make_shared<ov::op::v0::Parameter>(result->get_output_element_type(0),
                                                                           result->get_output_partial_shape(0));
                 const std::string res_name = ov::op::util::create_ie_output_name(result->input_value(0));
-                fake_param->set_friendly_name(res_name);
-                fake_param->validate_and_infer_types();
-                auto new_result = result->copy_with_new_inputs({fake_param});
-                new_result->set_friendly_name(result->get_friendly_name());
-                new_result->validate_and_infer_types();
-                if (add_operation_names) {
-                    OPENVINO_ASSERT(
-                        !m_plugin->is_new_api() || leaf_names.find(res_name) == leaf_names.end() ||
-                            result->output(0).get_names().find(res_name) != result->output(0).get_names().end(),
-                        "Model operation names have collisions with tensor names.",
-                        " Please use MO to generate new IR version, it should allow to avoid the issue");
-                    leaf_names.insert(res_name);
-                    new_result->output(0).get_tensor().add_names({res_name});
-                }
-                auto r = std::dynamic_pointer_cast<ov::op::v0::Result>(new_result);
-                r->set_layout(result->get_layout());
-                _results.emplace_back(new_result);
-                auto out = r->input_value(0);
-                m_outputs.emplace_back(ov::Output<const ov::Node>{out.get_node(), out.get_index()});
+                OPENVINO_ASSERT(!m_plugin->is_new_api() || leaf_names.find(res_name) == leaf_names.end() ||
+                                    result->output(0).get_names().find(res_name) != result->output(0).get_names().end(),
+                                "Model operation names have collisions with tensor names.",
+                                " Please use MO to generate new IR version, it should allow to avoid the issue");
+                leaf_names.insert(res_name);
+                result->output(0).get_tensor().add_names({res_name});
+                m_outputs.emplace_back(
+                    ov::Output<const ov::Node>{result->output(0).get_node(), result->output(0).get_index()});
             }
         } else {
             m_inputs = model->inputs();

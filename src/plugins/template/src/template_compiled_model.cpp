@@ -144,17 +144,17 @@ std::shared_ptr<InferenceEngine::IInferRequestInternal> TemplatePlugin::Compiled
 
 std::shared_ptr<InferenceEngine::IInferRequestInternal> TemplatePlugin::CompiledModel::create_sync_infer_request()
     const {
-    std::vector<std::shared_ptr<const ov::Node>> inputs, outputs;
+    std::vector<std::shared_ptr<const ov::Node>> _inputs, _outputs;
     for (const auto& output : m_model->inputs()) {
-        inputs.emplace_back(output.get_node_shared_ptr());
+        _inputs.emplace_back(output.get_node_shared_ptr());
     }
-    for (const auto& output : m_model->outputs()) {
-        outputs.emplace_back(output.get_node_shared_ptr());
+    for (const auto& output : outputs()) {
+        _outputs.emplace_back(output.get_node_shared_ptr());
     }
 
     return std::make_shared<TemplateInferRequest>(
-        inputs,
-        outputs,
+        _inputs,
+        _outputs,
         std::static_pointer_cast<const TemplatePlugin::CompiledModel>(shared_from_this()));
 }
 // ! [executable_network:create_infer_request]

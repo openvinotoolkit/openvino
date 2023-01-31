@@ -330,8 +330,10 @@ public:
             _parameters.emplace_back(input.get_node_shared_ptr());
         }
         for (const auto& output : m_model->outputs()) {
+            auto out = output.get_node()->input_value(0);
             InferenceEngine::DataPtr output_info;
-            ov::legacy_convert::fill_output_info(output, output_info);
+            ov::legacy_convert::fill_output_info(ov::Output<const ov::Node>(out.get_node(), out.get_index()),
+                                                 output_info);
             _networkOutputs[output_info->getName()] = output_info;
             _results.emplace_back(output.get_node_shared_ptr());
         }
