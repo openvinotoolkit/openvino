@@ -3,8 +3,13 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/floor.hpp"
 #include "utils.hpp"
+
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -23,17 +28,17 @@ OutputVector translate_div(NodeContext& context) {
         const auto x_dtype = x.get_element_type();
         const auto y_dtype = y.get_element_type();
         if (x_dtype.is_static() && x_dtype.is_integral() && y_dtype.is_static() && y_dtype.is_integral()) {
-            x = context.mark_node(std::make_shared<opset10::Convert>(x, element::f32));
-            y = context.mark_node(std::make_shared<opset10::Convert>(y, element::f32));
+            x = context.mark_node(std::make_shared<v0::Convert>(x, element::f32));
+            y = context.mark_node(std::make_shared<v0::Convert>(y, element::f32));
         }
     }
     align_eltwise_input_types(context, &x, &y, true);
-    auto res = context.mark_node(std::make_shared<opset10::Divide>(x, y, true));
+    auto res = context.mark_node(std::make_shared<v1::Divide>(x, y, true));
     if (rounding_mode == "floor") {
-        res = context.mark_node(std::make_shared<opset10::Floor>(res));
+        res = context.mark_node(std::make_shared<v0::Floor>(res));
     } else if (rounding_mode == "trunc") {
-        const auto convert = context.mark_node(std::make_shared<opset10::Convert>(res, element::i64));
-        res = context.mark_node(std::make_shared<opset10::ConvertLike>(convert, x));
+        const auto convert = context.mark_node(std::make_shared<v0::Convert>(res, element::i64));
+        res = context.mark_node(std::make_shared<v1::ConvertLike>(convert, x));
     }
     return {res};
 };
