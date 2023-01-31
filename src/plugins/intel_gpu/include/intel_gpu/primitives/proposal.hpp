@@ -15,6 +15,10 @@ namespace cldnn {
 struct proposal : public primitive_base<proposal> {
     CLDNN_DECLARE_PRIMITIVE(proposal)
 
+    proposal() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     proposal(const primitive_id& id,
              const input_info& cls_scores,
              const input_info& bbox_pred,
@@ -189,6 +193,52 @@ struct proposal : public primitive_base<proposal> {
         seed = hash_combine(seed, shift_anchors);
         seed = hash_combine(seed, normalize);
         return seed;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        ob << max_proposals;
+        ob << iou_threshold;
+        ob << base_bbox_size;
+        ob << min_bbox_size;
+        ob << feature_stride;
+        ob << pre_nms_topn;
+        ob << post_nms_topn;
+        ob << ratios;
+        ob << scales;
+        ob << coordinates_offset;
+        ob << box_coordinate_scale;
+        ob << box_size_scale;
+        ob << for_deformable;
+        ob << swap_xy;
+        ob << initial_clip;
+        ob << clip_before_nms;
+        ob << clip_after_nms;
+        ob << round_ratios;
+        ob << shift_anchors;
+        ob << normalize;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        ib >> max_proposals;
+        ib >> iou_threshold;
+        ib >> base_bbox_size;
+        ib >> min_bbox_size;
+        ib >> feature_stride;
+        ib >> pre_nms_topn;
+        ib >> post_nms_topn;
+        ib >> ratios;
+        ib >> scales;
+        ib >> coordinates_offset;
+        ib >> box_coordinate_scale;
+        ib >> box_size_scale;
+        ib >> for_deformable;
+        ib >> swap_xy;
+        ib >> initial_clip;
+        ib >> clip_before_nms;
+        ib >> clip_after_nms;
+        ib >> round_ratios;
+        ib >> shift_anchors;
+        ib >> normalize;
     }
 };
 

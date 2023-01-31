@@ -189,32 +189,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
 
     proposal_impl() : parent() {}
 
-    explicit proposal_impl(const proposal_node& arg) {
-        set_node_params(arg);
-    }
-
-    explicit proposal_impl(const proposal_impl& other) : parent(other) {
-        max_proposals = other.max_proposals;
-        iou_threshold = other.iou_threshold;
-        base_bbox_size = other.base_bbox_size;
-        min_bbox_size = other.min_bbox_size;
-        feature_stride = other.feature_stride;
-        pre_nms_topn = other.pre_nms_topn;
-        post_nms_topn = other.post_nms_topn;
-        ratios = other.ratios;
-        scales = other.scales;
-        coordinates_offset = other.coordinates_offset;
-        box_coordinate_scale = other.box_coordinate_scale;
-        box_size_scale = other.box_size_scale;
-        for_deformable = other.for_deformable;
-        swap_xy = other.swap_xy;
-        initial_clip = other.initial_clip;
-        clip_before_nms = other.clip_before_nms;
-        clip_after_nms = other.clip_after_nms;
-        round_ratios = other.round_ratios;
-        shift_anchors = other.shift_anchors;
-        normalize = other.normalize;
-    }
+    explicit proposal_impl(const proposal_node& arg) {}
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -222,85 +197,13 @@ struct proposal_impl : typed_primitive_impl<proposal> {
         return make_unique<proposal_impl>(*this);
     }
 
-    void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<proposal>());
-        const auto& node = arg.as<proposal>();
-        auto desc = node.get_primitive();
-        max_proposals = desc->max_proposals;
-        iou_threshold = desc->iou_threshold;
-        base_bbox_size = desc->base_bbox_size;
-        min_bbox_size = desc->min_bbox_size;
-        feature_stride = desc->feature_stride;
-        pre_nms_topn = desc->pre_nms_topn;
-        post_nms_topn = desc->post_nms_topn;
-        ratios = desc->ratios;
-        scales = desc->scales;
-        coordinates_offset = desc->coordinates_offset;
-        box_coordinate_scale = desc->box_coordinate_scale;
-        box_size_scale = desc->box_size_scale;
-        for_deformable = desc->for_deformable;
-        swap_xy = desc->swap_xy;
-        initial_clip = desc->initial_clip;
-        clip_before_nms = desc->clip_before_nms;
-        clip_after_nms = desc->clip_after_nms;
-        round_ratios = desc->round_ratios;
-        shift_anchors = desc->shift_anchors;
-        normalize = desc->normalize;
-    }
-
-    void save(BinaryOutputBuffer& ob) const override {
-        ob << max_proposals;
-        ob << iou_threshold;
-        ob << base_bbox_size;
-        ob << min_bbox_size;
-        ob << feature_stride;
-        ob << pre_nms_topn;
-        ob << post_nms_topn;
-        ob << ratios;
-        ob << scales;
-        ob << coordinates_offset;
-        ob << box_coordinate_scale;
-        ob << box_size_scale;
-        ob << for_deformable;
-        ob << swap_xy;
-        ob << initial_clip;
-        ob << clip_before_nms;
-        ob << clip_after_nms;
-        ob << round_ratios;
-        ob << shift_anchors;
-        ob << normalize;
-    }
-
-    void load(BinaryInputBuffer& ib) override {
-        ib >> max_proposals;
-        ib >> iou_threshold;
-        ib >> base_bbox_size;
-        ib >> min_bbox_size;
-        ib >> feature_stride;
-        ib >> pre_nms_topn;
-        ib >> post_nms_topn;
-        ib >> ratios;
-        ib >> scales;
-        ib >> coordinates_offset;
-        ib >> box_coordinate_scale;
-        ib >> box_size_scale;
-        ib >> for_deformable;
-        ib >> swap_xy;
-        ib >> initial_clip;
-        ib >> clip_before_nms;
-        ib >> clip_after_nms;
-        ib >> round_ratios;
-        ib >> shift_anchors;
-        ib >> normalize;
-    }
-
     template <typename dtype>
     void read_image_info(stream& stream, proposal_inst& instance, im_info_t& im_info) {
         auto image_info = instance.dep_memory_ptr(proposal_inst::image_info_index);
         mem_lock<dtype, mem_lock_type::read> image_info_ptr{image_info, stream};
         const dtype* image_info_mem = image_info_ptr.data();
-
-        bool swap_xy = this->swap_xy;
+        const auto& primitive = instance.get_typed_desc<proposal>();
+        bool swap_xy = primitive->swap_xy;
 
         // original input image to the graph (after possible scaling etc.) so that coordinates are valid for it
         int img_w = 1;
@@ -312,7 +215,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
         auto image_info_size = image_info->get_layout().get_tensor();
         auto image_info_count = image_info_size.feature[0] == 1 ? image_info_size.batch[0] : image_info_size.feature[0];
 
-        int scaled_min_bbox_size = this->min_bbox_size;
+        int scaled_min_bbox_size = primitive->min_bbox_size;
 
         if (image_info_count == 4) {
             img_w =
@@ -363,15 +266,15 @@ struct proposal_impl : typed_primitive_impl<proposal> {
 
         auto cls_scores = instance.dep_memory_ptr(proposal_inst::cls_scores_index);
         auto bbox_pred = instance.dep_memory_ptr(proposal_inst::bbox_pred_index);
-
-        bool swap_xy = this->swap_xy;
-        bool initial_clip = this->initial_clip;
-        bool clip_before_nms = this->clip_before_nms;
-        bool clip_after_nms = this->clip_after_nms;
-        float coordinates_offset = this->coordinates_offset;
-        float box_coordinate_scale = this->box_coordinate_scale;
-        float box_size_scale = this->box_size_scale;
-        bool for_deformable = this->for_deformable;
+        const auto& primitive = instance.get_typed_desc<proposal>();
+        bool swap_xy = primitive->swap_xy;
+        bool initial_clip = primitive->initial_clip;
+        bool clip_before_nms = primitive->clip_before_nms;
+        bool clip_after_nms = primitive->clip_after_nms;
+        float coordinates_offset = primitive->coordinates_offset;
+        float box_coordinate_scale = primitive->box_coordinate_scale;
+        float box_size_scale = primitive->box_size_scale;
+        bool for_deformable = primitive->for_deformable;
 
         // feat map sizes
         const auto& score_layout = cls_scores->get_layout();
@@ -391,8 +294,8 @@ struct proposal_impl : typed_primitive_impl<proposal> {
             sorted_proposals_confidence.reserve(num_proposals);
             for (int y = 0; y < fm_h; ++y) {
                 for (int x = 0; x < fm_w; ++x) {
-                    const int anchor_shift_x = (swap_xy ? y : x) * this->feature_stride;
-                    const int anchor_shift_y = (swap_xy ? x : y) * this->feature_stride;
+                    const int anchor_shift_x = (swap_xy ? y : x) * primitive->feature_stride;
+                    const int anchor_shift_y = (swap_xy ? x : y) * primitive->feature_stride;
                     const int location_index = y * fm_w + x;
 
                     // we assume proposals are grouped by window location
@@ -437,19 +340,19 @@ struct proposal_impl : typed_primitive_impl<proposal> {
                 }
             }
 
-            size_t pre_nms = std::min(this->pre_nms_topn, static_cast<int>(sorted_proposals_confidence.size()));
+            size_t pre_nms = std::min(primitive->pre_nms_topn, static_cast<int>(sorted_proposals_confidence.size()));
             sort_and_keep_n_items(sorted_proposals_confidence, pre_nms);
             std::vector<roi_t> res = perform_nms(sorted_proposals_confidence,
-                                                 this->iou_threshold,
-                                                 this->post_nms_topn,
+                                                 primitive->iou_threshold,
+                                                 primitive->post_nms_topn,
                                                  coordinates_offset);
 
             auto output = instance.output_memory_ptr();
 
             mem_lock<dtype, mem_lock_type::write> output_ptr{output, stream};
-            dtype* top_data = output_ptr.data() + n * this->post_nms_topn * 5;
+            dtype* top_data = output_ptr.data() + n * primitive->post_nms_topn * 5;
 
-            dtype* top_data_prob = proposal_prob_ptr == nullptr ? nullptr : proposal_prob_ptr + n * this->post_nms_topn;
+            dtype* top_data_prob = proposal_prob_ptr == nullptr ? nullptr : proposal_prob_ptr + n * primitive->post_nms_topn;
 
             size_t res_num_rois = res.size();
 
@@ -462,16 +365,16 @@ struct proposal_impl : typed_primitive_impl<proposal> {
                 }
 
                 float_write_helper(top_data + 5 * i + 0, static_cast<float>(n));
-                float_write_helper(top_data + 5 * i + 1, res[i].x0 / (this->normalize ? im_info.img_w : 1.0f));
-                float_write_helper(top_data + 5 * i + 2, res[i].y0 / (this->normalize ? im_info.img_h : 1.0f));
-                float_write_helper(top_data + 5 * i + 3, res[i].x1 / (this->normalize ? im_info.img_w : 1.0f));
-                float_write_helper(top_data + 5 * i + 4, res[i].y1 / (this->normalize ? im_info.img_h : 1.0f));
+                float_write_helper(top_data + 5 * i + 1, res[i].x0 / (primitive->normalize ? im_info.img_w : 1.0f));
+                float_write_helper(top_data + 5 * i + 2, res[i].y0 / (primitive->normalize ? im_info.img_h : 1.0f));
+                float_write_helper(top_data + 5 * i + 3, res[i].x1 / (primitive->normalize ? im_info.img_w : 1.0f));
+                float_write_helper(top_data + 5 * i + 4, res[i].y1 / (primitive->normalize ? im_info.img_h : 1.0f));
                 if (top_data_prob != nullptr && i < sorted_proposals_confidence.size()) {
                     float_write_helper(top_data_prob + i, sorted_proposals_confidence[i].confidence);
                 }
             }
 
-            for (size_t i = res_num_rois; i < (size_t)this->post_nms_topn; i++) {
+            for (size_t i = res_num_rois; i < (size_t)primitive->post_nms_topn; i++) {
                 float_write_helper(top_data + 5 * i + 0, -1.0f);
                 float_write_helper(top_data + 5 * i + 1, 0.0f);
                 float_write_helper(top_data + 5 * i + 2, 0.0f);
@@ -539,28 +442,6 @@ struct proposal_impl : typed_primitive_impl<proposal> {
 
         return make_unique<proposal_impl>(arg);
     }
-
-private:
-    int max_proposals;
-    float iou_threshold;
-    int base_bbox_size;
-    int min_bbox_size;
-    int feature_stride;
-    int pre_nms_topn;
-    int post_nms_topn;
-    std::vector<float> ratios;
-    std::vector<float> scales;
-    float coordinates_offset;
-    float box_coordinate_scale;
-    float box_size_scale;
-    bool for_deformable;
-    bool swap_xy;
-    bool initial_clip;
-    bool clip_before_nms;
-    bool clip_after_nms;
-    bool round_ratios;
-    bool shift_anchors;
-    bool normalize;
 };
 
 namespace detail {
@@ -577,3 +458,4 @@ attach_proposal_impl::attach_proposal_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::proposal_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::proposal)
