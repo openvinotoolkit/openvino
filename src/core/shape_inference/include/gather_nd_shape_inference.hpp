@@ -75,12 +75,14 @@ void shape_infer(const GatherND* op, const std::vector<TShape>& input_shapes, st
     auto batch_dims = op->get_batch_dims();
     if (batch_dims > 1 && output_shapes[0].rank().is_static()) {
         const auto& output_base_shape = output_shapes[0];
-        std::vector<DimType> output_shape{1};
-        for (size_t dim = 0; dim < batch_dims; ++dim) {
-            output_shape[0] *= output_base_shape[dim];
-        }
-        output_shape.insert(output_shape.begin() + 1, output_base_shape.begin() + batch_dims, output_base_shape.end());
-        output_shapes[0] = TShape(output_shape);
+        std::vector<DimType> output_dims{1};
+        output_dims[0] = std::accumulate(output_base_shape.begin(),
+                                         output_base_shape.begin() + batch_dims,
+                                         output_dims[0],
+                                         std::multiplies<DimType>());
+
+        output_dims.insert(output_dims.begin() + 1, output_base_shape.begin() + batch_dims, output_base_shape.end());
+        output_shapes[0] = TShape(output_dims);
     }
 }
 }  // namespace v5
