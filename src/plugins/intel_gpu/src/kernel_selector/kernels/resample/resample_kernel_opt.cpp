@@ -73,7 +73,6 @@ ParamsKey ResampleKernelOpt::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableReampleType(ResampleType::BILINEAR_INTERP);
     k.EnableReampleType(ResampleType::NEAREST_NEIGHBOR);
-    k.EnableReampleType(ResampleType::LINEAR_ONNX);
     k.EnableReampleType(ResampleType::CAFFE_BILINEAR_INTERP);
     return k;
 }
@@ -140,30 +139,16 @@ bool ResampleKernelOpt::Validate(const Params& p, const optional_params& o) cons
     if (!Parent::Validate(p, o))
         return false;
 
-    if (p.GetType() != KernelType::RESAMPLE || o.GetType() != KernelType::RESAMPLE)
-        return false;
-
-    if (params.inputs.empty())
-        return false;
-
     const auto& input = params.inputs[0];
-    const auto & output = params.outputs[0];
 
     if ((input.GetDType() == Datatype::UINT8 || input.GetDType() == Datatype::INT8) &&
         params.resampleType != ResampleType::NEAREST_NEIGHBOR &&
-        params.resampleType != ResampleType::BILINEAR_INTERP &&
-        params.resampleType != ResampleType::LINEAR_ONNX)
+        params.resampleType != ResampleType::BILINEAR_INTERP)
         return false;
 
-    // in the case of 5D support only NEAREST_NEIGHBOR and partially LINEAR_ONNX (interpolate X and Y axes)
-    if (input.Dimentions() == 5 &&
-         params.resampleType != ResampleType::NEAREST_NEIGHBOR &&
-         !(params.resampleType == ResampleType::LINEAR_ONNX &&
-           input.Batch().v == output.Batch().v &&
-           input.Feature().v == output.Feature().v &&
-           input.Z().v == output.Z().v))
+    // in the case of 5D support only NEAREST_NEIGHBOR
+    if (input.Dimentions() == 5 && params.resampleType != ResampleType::NEAREST_NEIGHBOR)
         return false;
-
 
     return true;
 }
@@ -192,7 +177,11 @@ JitConstants ResampleKernelOpt::GetJitConstants(const resample_params &params) c
 
     if (!params.fused_ops.empty()) {
         if (params.resampleType != ResampleType::CAFFE_BILINEAR_INTERP) {
-            std::vector<std::string> idx_order = {"b", "feature_block", "y", "(x + out_x)"};
+            std::vector<std::string> idx_order;
+            if (params.inputs[0].Dimentions() == 5)
+                idx_order = {"b", "feature_block", "z", "y", "(x + out_x)"};
+            else
+                idx_order = {"b", "feature_block", "y", "(x + out_x)"};
             FusedOpsConfiguration conf = {"", idx_order, "res", GetAccumulatorType(params), vec_size, LoadType::LT_ALIGNED_READ};
             conf.SetVectorAxis(Tensor::DataChannelName::FEATURE);
             jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
