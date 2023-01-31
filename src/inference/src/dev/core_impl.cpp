@@ -665,7 +665,7 @@ void ov::CoreImpl::set_property(const std::string& device_name, const AnyMap& pr
                     "You can configure the devices with set_property before creating the BATCH on top.");
 
     // unsupport to set ov::device::properties to HW device through this function
-    auto devices = GetListOfDevicesInRegistry();
+    auto devices = get_registered_devices();
     for (auto&& config : properties) {
         auto parsed = parseDeviceNameIntoConfig(config.first);
         auto is_secondary_config_for_hw_device =
