@@ -80,16 +80,14 @@ bool evaluate_shape_of(const HostTensorPtr& output_value, const HostTensorPtr& i
     return rc;
 }
 
-bool evaluate_shape_of(ov::Tensor& output_value, const ov::Tensor& input_value) {
+bool evaluate_shape_of(ov::Tensor& output_value, const Shape& input_shape) {
     bool rc;
-    const auto shape = input_value.get_shape();
-    output_value.set_shape(ov::Shape{shape.size()});
-
+    output_value.set_shape(ov::Shape{input_shape.size()});
     switch (output_value.get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_shape_of, i32, shape, output_value);
-        NGRAPH_TYPE_CASE(evaluate_shape_of, i64, shape, output_value);
-        NGRAPH_TYPE_CASE(evaluate_shape_of, u32, shape, output_value);
-        NGRAPH_TYPE_CASE(evaluate_shape_of, u64, shape, output_value);
+        NGRAPH_TYPE_CASE(evaluate_shape_of, i32, input_shape, output_value);
+        NGRAPH_TYPE_CASE(evaluate_shape_of, i64, input_shape, output_value);
+        NGRAPH_TYPE_CASE(evaluate_shape_of, u32, input_shape, output_value);
+        NGRAPH_TYPE_CASE(evaluate_shape_of, u64, input_shape, output_value);
     default:
         rc = false;
         break;
@@ -126,21 +124,19 @@ bool evaluate_bound_shape(const Node* shape_of_node, ov::TensorVector& output_va
                                                                       : interval.get_max_val();
     }
     NGRAPH_CHECK(pshape_up.is_static() && pshape_low.is_static());
-    const auto input_et = shape_of_node->get_input_element_type(0);
     const auto output_et = shape_of_node->get_output_element_type(0);
 
     if (pshape_low.to_shape() == pshape_up.to_shape()) {
-        const auto input_low = ov::TensorVector{{input_et, pshape_low.to_shape()}};
-        shape_of_node->evaluate(output_values, input_low);
+        shape_of::evaluate_shape_of(output_values[0], pshape_low.to_shape());
         shape_of_node->get_output_tensor(0).set_lower_value(output_values[0]);
         shape_of_node->get_output_tensor(0).set_upper_value(output_values[0]);
     } else {
         auto&& upper = is_upper ? output_values : ov::TensorVector{{output_et, Shape{pshape_up.to_shape().size()}}};
-        shape_of_node->evaluate(upper, {{input_et, pshape_up.to_shape()}});
+        shape_of::evaluate_shape_of(upper[0], pshape_up.to_shape());
         shape_of_node->get_output_tensor(0).set_upper_value(upper[0]);
 
         auto&& lower = is_upper ? ov::TensorVector{{output_et, Shape{pshape_low.to_shape().size()}}} : output_values;
-        shape_of_node->evaluate(lower, {{input_et, pshape_low.to_shape()}});
+        shape_of::evaluate_shape_of(lower[0], pshape_low.to_shape());
         shape_of_node->get_output_tensor(0).set_lower_value(lower[0]);
 
         vector<char> dynamic_mask;  // true if dimension is dynamic
@@ -187,7 +183,7 @@ bool op::v3::ShapeOf::evaluate(ov::TensorVector& output_values, const ov::Tensor
     OPENVINO_ASSERT(input_values.size() == 1);
     OPENVINO_ASSERT(output_values.size() == 1);
 
-    return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
+    return shape_of::evaluate_shape_of(output_values[0], input_values[0].get_shape());
 }
 
 bool op::v3::ShapeOf::has_evaluate() const {
@@ -265,7 +261,7 @@ bool op::v0::ShapeOf::evaluate(ov::TensorVector& output_values, const ov::Tensor
     OPENVINO_ASSERT(input_values.size() == 1);
     OPENVINO_ASSERT(output_values.size() == 1);
 
-    return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
+    return shape_of::evaluate_shape_of(output_values[0], input_values[0].get_shape());
 }
 
 bool op::v0::ShapeOf::has_evaluate() const {
