@@ -34,6 +34,13 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     else:
         input_model = moc_front_end.load(argv.input_model)
 
+        # Remove temporary model file if it was used
+        if argv.need_remove_tmp_model:
+            import os
+            if os.path.exists(argv.input_model):
+                os.remove(argv.input_model)
+            delattr(argv, 'need_remove_tmp_model')
+
     user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
         input_model, argv.placeholder_shapes, argv.placeholder_data_types,
         argv.output, argv.freeze_placeholder_with_value, moc_front_end.get_name())

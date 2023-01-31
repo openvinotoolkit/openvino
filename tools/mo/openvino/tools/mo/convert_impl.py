@@ -182,7 +182,6 @@ def arguments_post_parsing(argv: argparse.Namespace):
     elif (is_kaldi or is_onnx) and not argv.input_model:
         raise Error('Path to input model is required: use --input_model.')
 
-    log.debug(str(argv))
     log.debug("Model Optimizer started")
 
     log.debug('Output model name would be {}{{.xml, .bin}}'.format(argv.model_name))
@@ -921,6 +920,9 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
         send_params_info(argv, cli_parser)
 
         non_default_params = get_non_default_params(argv, cli_parser)
+
+        # Log dictionary with non-default cli parameters where complex classes are excluded.
+        log.debug(str(non_default_params))
 
         if inp_model_is_object:
             argv.model_name = "model"

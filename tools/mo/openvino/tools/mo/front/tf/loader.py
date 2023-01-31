@@ -331,7 +331,15 @@ def convert_to_pb(argv: argparse.Namespace):
     if argv.input_model and not argv.input_model_is_text and not argv.input_checkpoint:
         import pathlib
         if not isinstance(argv.input_model, (str, pathlib.Path)):
-            argv.input_model = prepare_graph_def(argv.input_model)[0].SerializeToString()
+            # Convert model to Protobuf
+            model_pb = prepare_graph_def(argv.input_model)[0]
+
+            # Save model to temporary .pb file
+            tmp_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
+            tf.io.write_graph(model_pb, tmp_dir, 'model.pb', False)
+
+            argv.input_model = os.path.join(os.path.realpath(tmp_dir), 'model.pb')
+            setattr(argv, 'need_remove_tmp_model', True)
         return None
 
     user_output_node_names_list = argv.output.split(',') if argv.output else None
