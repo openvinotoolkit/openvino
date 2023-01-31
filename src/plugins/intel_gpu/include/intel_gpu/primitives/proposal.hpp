@@ -180,7 +180,7 @@ struct proposal : public primitive_base<proposal> {
             save(ob);
         }
         seed = hash_range(seed, mem_buf.begin(), mem_buf.end());
-        
+
         return seed;
     }
 
