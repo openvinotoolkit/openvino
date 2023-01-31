@@ -10,10 +10,8 @@
 
 #include "common_op_table.hpp"
 #include "decoder_map.hpp"
-#include "openvino/core/node_vector.hpp"
 #include "openvino/opsets/opset10.hpp"
-#include "openvino_conversions.hpp"
-#include "utils.hpp"
+#include "openvino/frontend/tensorflow_lite/visibility.hpp"
 
 namespace ov {
 namespace frontend {
@@ -30,9 +28,7 @@ public:
           m_zero_point(zero_point),
           m_axis(axis) {}
 
-    bool is_copyable() const override {
-        return false;
-    }
+    bool is_copyable() const override;
     const std::vector<float>& get_scale() const {
         return m_scale;
     }

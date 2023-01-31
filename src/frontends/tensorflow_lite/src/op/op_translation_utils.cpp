@@ -38,9 +38,10 @@ void del_output_names(OutputVector& outputs) {
 void get_conv(ov::OutputVector& output,
               const ov::frontend::NodeContext& node,
               const std::shared_ptr<ov::frontend::tensorflow_lite::DecoderMap>& decoder,
-              ov::OutputVector (*converter)(const ov::frontend::NodeContext&)) {
+              ov::OutputVector (*converter)(const ov::frontend::NodeContext&),
+              ov::AxisVector transpose_axes) {
     ov::OutputVector inputs = {node.get_input(0),
-                               ov::frontend::tensorflow::make_transpose(node.get_input(1), ov::AxisVector{1, 2, 3, 0})};
+                               ov::frontend::tensorflow::make_transpose(node.get_input(1), transpose_axes)};
     auto context = ov::frontend::tensorflow_lite::NodeContext(decoder, inputs);
     output = converter(context);
     del_output_names(output);
@@ -62,7 +63,6 @@ void get_bias(ov::OutputVector& output,
     if (node.get_input_size() == 3) {
         const OutputVector inputs_for_bias = {output[0], node.get_input(2)};
         auto context_for_bias_add = ov::frontend::tensorflow_lite::NodeContext(decoder, inputs_for_bias);
-        // FIXME: dependence on layout?
         output = ov::frontend::tensorflow::op::translate_binary_op<ov::opset10::Add>(context_for_bias_add);
         del_output_names(output);
     }

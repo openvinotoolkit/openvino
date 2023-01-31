@@ -18,7 +18,10 @@ OutputVector quantize(const ov::frontend::tensorflow_lite::NodeContext& node) {
 }
 
 OutputVector dequantize(const ov::frontend::tensorflow_lite::NodeContext& node) {
-    return node.get_inputs();
+    auto decoder = get_decoder(node);
+    auto convert = make_shared<opset10::Convert>(node.get_input(0), decoder->get_output_tensor_type(0));
+    convert->set_friendly_name(node.get_name());
+    return convert->outputs();
 }
 
 }  // namespace op

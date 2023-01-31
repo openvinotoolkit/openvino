@@ -16,6 +16,8 @@
 #include "tf_framework_node.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "tflite_transformations/rfft2d_complex_abs.h"
+#include "tflite_transformations/tflite_quantize_resolver.hpp"
+#include "openvino/pass/visualize_tree.hpp"
 
 using namespace ov;
 using namespace ov::frontend::tensorflow_lite;
@@ -265,9 +267,12 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
     ov::pass::Manager manager;
     // TODO: register i8 weights normalization after implemented
     // TODO: remove custom transpose sinking after common TS ready
+    manager.register_pass<ov::frontend::tensorflow_lite::pass::TFLQuantizeResolver>();
+    manager.register_pass<ov::pass::VisualizeTree>("translated.svg");
     manager.register_pass<ov::frontend::tensorflow_lite::pass::Rfft2dSimplifier>();
     manager.register_pass<ov::pass::TransposeSinking>();
     manager.register_pass<ov::frontend::tensorflow::pass::TransposeSinking>();
+    manager.register_pass<ov::pass::VisualizeTree>("normalized.svg");
     manager.run_passes(function);
 }
 

@@ -5,8 +5,10 @@
 #include "utils.hpp"
 
 #include <openvino/opsets/opset10.hpp>
+#include <openvino/frontend/tensorflow_lite/node_context.hpp>
 
 #include "schema_generated.h"
+#include "tflite_ops/tflite_quantize.hpp"
 
 using namespace ov;
 
@@ -66,20 +68,6 @@ ov::PartialShape ov::frontend::tensorflow_lite::get_ov_shape(const flatbuffers::
     return ov::Shape{tf_shape->begin(), tf_shape->end()};
 }
 
-ov::Shape get_quant_shape(const Output<Node>& output,
-                          const std::shared_ptr<ov::frontend::tensorflow_lite::QuantizationInfo>& quantization,
-                          const size_t& size) {
-    auto shape = ov::Shape{};
-    if (size > 1) {
-        FRONT_END_GENERAL_CHECK(output.get_partial_shape().rank().is_static(),
-                                "Per-Channel Quantization of tensor with dynamic rank");
-        auto rank = output.get_partial_shape().size();
-        shape = ov::Shape(rank, 1);
-        shape[quantization->get_axis()] = size;
-    }
-    return shape;
-}
-
 void ov::frontend::tensorflow_lite::apply_quantization(ov::Output<ov::Node>& output, element::Type type) {
     auto rt_info = output.get_rt_info();
     auto input_type = output.get_element_type();
@@ -87,65 +75,21 @@ void ov::frontend::tensorflow_lite::apply_quantization(ov::Output<ov::Node>& out
         FRONT_END_GENERAL_CHECK(input_type.compatible(type), "Inconsistent type inference: tflite ", type, ", ov ", input_type);
         return;
     }
-
     auto quantization = rt_info[QuantizationInfo::get_type_info_static()].as<std::shared_ptr<QuantizationInfo>>();
     if (!quantization || quantization->is_disabled()) {
         FRONT_END_GENERAL_CHECK(input_type.compatible(type), "Inconsistent type inference: tflite ", type, ", ov ", input_type);
         return;
     }
 
-    bool is_constant = ov::is_type<ov::opset10::Constant>(output.get_node_shared_ptr());
-    bool is_input = ov::is_type<ov::opset10::Parameter>(output.get_node_shared_ptr());
+    output = std::make_shared<TFLQuantize>(output, quantization, type);
+    return;
+}
 
-    ov::Output<ov::Node> input_low, input_high, output_low, output_high;
-
-    auto zp = quantization->get_zero_point();
-    auto scale = quantization->get_scale();
-
-    auto zp_shape = get_quant_shape(output, quantization, zp.size());
-    auto scale_shape = get_quant_shape(output, quantization, scale.size());
-
-    auto zp_node = ov::opset10::Constant::create(element::f32, zp_shape, zp);
-    auto scale_node = ov::opset10::Constant::create(element::f32, scale_shape, scale);
-
-    if (is_constant) {
-        output = std::make_shared<ov::opset10::Convert>(output, element::f32);
-        if (std::any_of(zp.begin(), zp.end(), [](const int64_t& i) {
-                return i != 0;
-            }))
-            output = std::make_shared<ov::opset10::Subtract>(output, zp_node);
-        output = std::make_shared<ov::opset10::Multiply>(output, scale_node);
-        return;
+void ov::frontend::tensorflow_lite::dequantize_inputs(OutputVector& deq_inputs) {
+    for (auto & deq_input : deq_inputs) {
+        auto input = deq_input.get_node_shared_ptr();
+        if (!ov::is_type<ov::frontend::tensorflow_lite::TFLQuantize>(input))
+            continue;
+        deq_input = std::make_shared<opset10::Convert>(deq_input, element::f32);
     }
-
-    auto levels = 256;
-    if (is_input) {
-        FRONT_END_GENERAL_CHECK(input_type == element::u8 || input_type == element::i8,
-                                "Inputs of type other than u8 is not yet supported");
-        if (input_type == element::u8) {
-            output = std::make_shared<ov::opset10::Convert>(output, element::f32);
-            input_low = ov::opset10::Constant::create(element::f32, {}, {0});
-            input_high = ov::opset10::Constant::create(element::f32, {}, {levels - 1});
-        } else if (input_type == element::i8) {
-            output = std::make_shared<ov::opset10::Convert>(output, element::f32);
-            input_low = ov::opset10::Constant::create(element::f32, {}, {-128});
-            input_high = ov::opset10::Constant::create(element::f32, {}, {127});
-        }
-    }
-    if (std::all_of(zp.begin(), zp.end(), [](const int64_t& i) {
-            return i == 0;
-        })) {
-        output_low = ov::opset10::Constant::create(element::f32, {}, {0});
-    } else {
-        output_low = std::make_shared<opset10::Multiply>(std::make_shared<opset10::Negative>(scale_node), zp_node);
-    }
-    output_high = std::make_shared<opset10::Multiply>(
-        scale_node,
-        std::make_shared<opset10::Subtract>(ov::opset10::Constant::create(element::f32, {}, {levels - 1}), zp_node));
-    if (!is_input) {
-        input_low = output_low;
-        input_high = output_high;
-    }
-    output = std::make_shared<opset10::FakeQuantize>(output, input_low, input_high, output_low, output_high, levels);
-    quantization->disable();  // we applied parameters -- disable them so that they won't apply twice
 }

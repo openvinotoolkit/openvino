@@ -24,47 +24,58 @@ using CreatorFunction = std::function<OutputVector(const ov::frontend::tensorflo
 
 std::map<std::string, CreatorFunction> get_supported_ops();
 
-OutputVector batch_matmul(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector cast(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector conv2d(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector depthwise_conv2d(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector fully_connected(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector max_pool_2d(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector avg_pool_2d(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector concatenation(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector reshape(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector pack(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector softmax(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector resize_nearest_neightbor(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector resize_bilinear(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector squeeze(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector split(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector shape(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector range(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector strided_slice(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector gather(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector space_to_depth(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector depth_to_space(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector leaky_relu(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector mirror_pad(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector one_hot(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector reverse_sequence(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector unique(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector unpack(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector l2_normalization(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector arg_min(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector arg_max(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector transpose_conv(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector complex_abs(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector rfft2d(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector quantize(const ov::frontend::tensorflow_lite::NodeContext& node);
-OutputVector dequantize(const ov::frontend::tensorflow_lite::NodeContext& node);
+#define TFL_OP_CONVERTER(op) OutputVector op(const ov::frontend::tensorflow_lite::NodeContext& node)
+
+TFL_OP_CONVERTER(arg_max);
+TFL_OP_CONVERTER(arg_min);
+TFL_OP_CONVERTER(avg_pool_2d);
+TFL_OP_CONVERTER(batch_matmul);
+TFL_OP_CONVERTER(cast);
+TFL_OP_CONVERTER(concatenation);
+TFL_OP_CONVERTER(conv2d);
+TFL_OP_CONVERTER(complex_abs);
+TFL_OP_CONVERTER(depthwise_conv2d);
+TFL_OP_CONVERTER(depth_to_space);
+TFL_OP_CONVERTER(dequantize);
+TFL_OP_CONVERTER(fully_connected);
+TFL_OP_CONVERTER(gather);
+TFL_OP_CONVERTER(l2_normalization);
+TFL_OP_CONVERTER(leaky_relu);
+TFL_OP_CONVERTER(max_pool_2d);
+TFL_OP_CONVERTER(mirror_pad);
+TFL_OP_CONVERTER(reshape);
+TFL_OP_CONVERTER(pack);
+TFL_OP_CONVERTER(softmax);
+TFL_OP_CONVERTER(resize_nearest_neightbor);
+TFL_OP_CONVERTER(resize_bilinear);
+TFL_OP_CONVERTER(squeeze);
+TFL_OP_CONVERTER(split);
+TFL_OP_CONVERTER(shape);
+TFL_OP_CONVERTER(range);
+TFL_OP_CONVERTER(strided_slice);
+TFL_OP_CONVERTER(space_to_depth);
+TFL_OP_CONVERTER(one_hot);
+TFL_OP_CONVERTER(reverse_sequence);
+TFL_OP_CONVERTER(unique);
+TFL_OP_CONVERTER(unpack);
+TFL_OP_CONVERTER(transpose_conv);
+TFL_OP_CONVERTER(rfft2d);
+TFL_OP_CONVERTER(quantize);
 
 template <typename OV_TYPE, typename TF_TYPE>
 OutputVector translate_binary_op_with_activation(const ov::frontend::tensorflow_lite::NodeContext& node);
 
 template <typename OV_TYPE>
 OutputVector translate_reduce_op(const ov::frontend::tensorflow_lite::NodeContext& node);
+
+template <typename OV_TYPE>
+OutputVector translate_unary(const ov::frontend::tensorflow_lite::NodeContext& node) {
+    auto inputs = node.get_inputs();
+    ov::frontend::tensorflow_lite::dequantize_inputs(inputs);
+    auto context = ov::frontend::tensorflow_lite::NodeContext(node.get_decoder(), inputs);
+    return ov::frontend::tensorflow::op::translate_unary_op<OV_TYPE>(context);
+}
+
 }  // namespace op
 }  // namespace tensorflow_lite
 }  // namespace frontend
