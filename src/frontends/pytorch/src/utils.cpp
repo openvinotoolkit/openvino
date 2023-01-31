@@ -487,7 +487,8 @@ void align_eltwise_input_types(const NodeContext& context, ov::Output<ov::Node>*
         if (lhs_type == rhs_type)
             return;
 
-        // if one of operands is scalar, the resulting type is taken from the other operand
+        // if one of operands is scalar, the resulting type is taken from the other operand except when scalar is float
+        // type and other operand is int, in that case BOTH operands get fp32 type
         const auto& lhs_rank = lhs->get_partial_shape().rank();
         const auto& rhs_rank = rhs->get_partial_shape().rank();
         // consider dynamic rank as non scalar
@@ -498,36 +499,46 @@ void align_eltwise_input_types(const NodeContext& context, ov::Output<ov::Node>*
             *rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(*rhs, *lhs));
             return;
         }
-        if (is_lhs_scalar) {
-            *lhs = context.mark_node(std::make_shared<opset10::ConvertLike>(*lhs, *rhs));
-            return;
-        } else if (is_rhs_scalar) {
-            *rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(*rhs, *lhs));
-            return;
-        }
-
-        if (lhs_type == element::boolean || rhs_type == element::boolean) {
-            // Do nothing with bool
-            return;
-        }
-
         auto lhs_dst_type = lhs_type;
         auto rhs_dst_type = rhs_type;
-        if (!lhs_type.is_real() && rhs_type.is_real()) {
-            lhs_dst_type = element::f32;
-        } else if (lhs_type.is_real() && !rhs_type.is_real()) {
-            rhs_dst_type = element::f32;
-        }
-        // Align bitness to higher
-        if (lhs_dst_type.bitwidth() != rhs_dst_type.bitwidth()) {
-            const auto dst_bitness = std::max(lhs_dst_type.bitwidth(), rhs_dst_type.bitwidth());
-            element::Type* type_to_align = &lhs_dst_type;
-            if (rhs_dst_type.bitwidth() < dst_bitness)
-                type_to_align = &rhs_dst_type;
-            if (type_to_align->is_real()) {
-                *type_to_align = bit_to_float.at(dst_bitness);
+        if (is_lhs_scalar) {
+            if (lhs_type.is_real() && !rhs_type.is_real()) {
+                lhs_dst_type = element::f32;
+                rhs_dst_type = element::f32;
             } else {
-                *type_to_align = bit_to_int.at(dst_bitness);
+                *lhs = context.mark_node(std::make_shared<opset10::ConvertLike>(*lhs, *rhs));
+                return;
+            }
+        } else if (is_rhs_scalar) {
+            if (!lhs_type.is_real() && rhs_type.is_real()) {
+                lhs_dst_type = element::f32;
+                rhs_dst_type = element::f32;
+            } else {
+                *rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(*rhs, *lhs));
+                return;
+            }
+        } else {
+            if (lhs_type == element::boolean || rhs_type == element::boolean) {
+                // Do nothing with bool
+                return;
+            }
+
+            if (!lhs_type.is_real() && rhs_type.is_real()) {
+                lhs_dst_type = element::f32;
+            } else if (lhs_type.is_real() && !rhs_type.is_real()) {
+                rhs_dst_type = element::f32;
+            }
+            // Align bitness to higher
+            if (lhs_dst_type.bitwidth() != rhs_dst_type.bitwidth()) {
+                const auto dst_bitness = std::max(lhs_dst_type.bitwidth(), rhs_dst_type.bitwidth());
+                element::Type* type_to_align = &lhs_dst_type;
+                if (rhs_dst_type.bitwidth() < dst_bitness)
+                    type_to_align = &rhs_dst_type;
+                if (type_to_align->is_real()) {
+                    *type_to_align = bit_to_float.at(dst_bitness);
+                } else {
+                    *type_to_align = bit_to_int.at(dst_bitness);
+                }
             }
         }
 
