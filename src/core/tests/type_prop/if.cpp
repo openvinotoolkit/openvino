@@ -335,3 +335,46 @@ TEST(type_prop, if_scalar_and_1d_static_union) {
     auto sh = result0->get_output_partial_shape(0);
     EXPECT_EQ(sh, out_shape);
 }
+
+TEST(type_prop, if_element_type_dynamic) {
+    // That which we iterate over
+    auto X = make_shared<op::Parameter>(element::dynamic, Shape{32, 40, 10});
+    auto Y = make_shared<op::Parameter>(element::dynamic, Shape{32, 40, 10});
+    auto cond = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+
+    // Set up the cell body, a function from (Xi, Yi) -> (Zo)
+    // Body parameters
+    auto Xt = make_shared<op::Parameter>(element::dynamic, PartialShape::dynamic());
+    auto Yt = make_shared<op::Parameter>(element::dynamic, PartialShape::dynamic());
+    auto Xe = make_shared<op::Parameter>(element::dynamic, PartialShape::dynamic());
+    auto Ye = make_shared<op::Parameter>(element::dynamic, PartialShape::dynamic());
+    // Body
+    auto then_op = std::make_shared<op::v1::Add>(Xt, Yt);
+    auto then_op_res = std::make_shared<op::Result>(then_op);
+
+    auto then_body = make_shared<ngraph::Function>(OutputVector{then_op_res}, ParameterVector{Xt, Yt});
+
+    auto else_op = std::make_shared<op::v1::Maximum>(Xe, Ye);
+    auto else_op_res = std::make_shared<op::Result>(else_op);
+    auto else_body = make_shared<ngraph::Function>(OutputVector{else_op_res}, ParameterVector{Xe, Ye});
+    auto if_op = make_shared<op::v8::If>(cond);
+    if_op->set_then_body(then_body);
+    if_op->set_else_body(else_body);
+    if_op->set_input(X, Xt, Xe);
+    if_op->set_input(Y, Yt, Ye);
+    auto res = if_op->set_output(then_op_res, else_op_res);
+    auto result0 = make_shared<op::Result>(res);
+    Shape out0_shape{32, 40, 10};
+    auto sh = result0->get_output_shape(0);
+    EXPECT_EQ(sh, out0_shape);
+    // Check that If validation validates both bodies
+    Xt->set_element_type(ov::element::f16);
+    Yt->set_element_type(ov::element::f16);
+    Xe->set_element_type(ov::element::f16);
+    Ye->set_element_type(ov::element::f16);
+    X->set_element_type(ov::element::f16);
+    Y->set_element_type(ov::element::f16);
+    if_op->validate_and_infer_types();
+    EXPECT_EQ(else_op_res->get_element_type(), ov::element::f16);
+    EXPECT_EQ(then_op_res->get_element_type(), ov::element::f16);
+}
