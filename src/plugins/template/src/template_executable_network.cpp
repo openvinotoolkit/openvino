@@ -174,10 +174,13 @@ InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::C
     }
     if (!internalRequest)
         internalRequest = CreateInferRequestImpl(_networkInputs, _networkOutputs);
-    return std::make_shared<TemplateAsyncInferRequest>(std::static_pointer_cast<TemplateInferRequest>(internalRequest),
-                                                       _taskExecutor,
-                                                       _plugin->_waitExecutor,
-                                                       _callbackExecutor);
+    auto asyncRequestImpl =
+        std::make_shared<TemplateAsyncInferRequest>(std::static_pointer_cast<TemplateInferRequest>(internalRequest),
+                                                    _taskExecutor,
+                                                    _plugin->_waitExecutor,
+                                                    _callbackExecutor);
+    asyncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
+    return asyncRequestImpl;
 }
 // ! [executable_network:create_infer_request]
 

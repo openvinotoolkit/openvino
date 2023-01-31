@@ -14,6 +14,7 @@
 #include <ie_plugin_config.hpp>
 #include <ie_version.hpp>
 #include <memory>
+#include <mutex>
 #include <openvino/core/except.hpp>
 #include <openvino/op/parameter.hpp>
 #include <openvino/runtime/exception.hpp>
@@ -183,7 +184,7 @@ namespace ov {
 
 class IInferencePluginWrapper : public InferenceEngine::IInferencePlugin {
 public:
-    IInferencePluginWrapper(const std::shared_ptr<ov::IPlugin>& plugin) {
+    IInferencePluginWrapper(const std::shared_ptr<ov::IPlugin>& plugin) : m_plugin(plugin) {
         auto& ver = plugin->get_version();
         InferenceEngine::Version version;
         version.buildNumber = ver.buildNumber;
@@ -524,7 +525,11 @@ class IAsyncInferRequestWrapper : public ov::IAsyncInferRequest {
 public:
     IAsyncInferRequestWrapper(const std::shared_ptr<InferenceEngine::IInferRequestInternal>& request)
         : ov::IAsyncInferRequest(nullptr, nullptr, nullptr),
-          m_request(request) {}
+          m_request(request) {
+        if (m_request->getPointerToExecutableNetworkInternal())
+            m_compiled_model =
+                ov::legacy_convert::convert_compiled_model(m_request->getPointerToExecutableNetworkInternal());
+    }
     std::shared_ptr<InferenceEngine::IInferRequestInternal> get_infer_request() {
         return m_request;
     }
@@ -619,6 +624,8 @@ public:
     std::vector<ov::Tensor> get_tensors(const ov::Output<const ov::Node>& port) const override {
         auto blobs = m_request->GetBlobs(get_legacy_name_from_port(port));
         std::vector<ov::Tensor> ret;
+        if (!blobs)
+            return ret;
         for (size_t i = 0; i < blobs->size(); i++) {
             ret.emplace_back(ov::Tensor{blobs->getBlob(i), {}});
         }
@@ -646,8 +653,30 @@ public:
         m_request->SetCallback(std::move(callback));
     }
 
+    const std::shared_ptr<ov::ICompiledModel>& get_compiled_model() const override {
+        if (!m_compiled_model) {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            if (!m_compiled_model) {
+                if (m_request->getPointerToExecutableNetworkInternal())
+                    m_compiled_model =
+                        ov::legacy_convert::convert_compiled_model(m_request->getPointerToExecutableNetworkInternal());
+            }
+        }
+        OPENVINO_ASSERT(m_compiled_model);
+        return m_compiled_model;
+    }
+
+    const std::vector<ov::Output<const ov::Node>>& get_inputs() const override {
+        return get_compiled_model()->inputs();
+    }
+    const std::vector<ov::Output<const ov::Node>>& get_outputs() const override {
+        return get_compiled_model()->outputs();
+    }
+
 private:
     std::shared_ptr<InferenceEngine::IInferRequestInternal> m_request;
+    mutable std::shared_ptr<ov::ICompiledModel> m_compiled_model;
+    mutable std::mutex m_mutex;
 };
 
 }  // namespace InferenceEngine

@@ -158,7 +158,7 @@ void InferRequest::set_output_tensor(const Tensor& tensor) {
 Tensor InferRequest::get_tensor(const ov::Output<const ov::Node>& port) {
     std::vector<std::shared_ptr<void>> soVec;
     OV_INFER_REQ_CALL_STATEMENT({
-        OPENVINO_ASSERT(!_impl->get_tensors(port).empty(),
+        OPENVINO_ASSERT(_impl->get_tensors(port).empty(),
                         "get_tensor shall not be used together with batched "
                         "set_tensors/set_input_tensors for port '",
                         port,
