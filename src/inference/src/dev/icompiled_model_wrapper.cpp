@@ -80,6 +80,7 @@ ov::RemoteContext InferenceEngine::ICompiledModelWrapper::get_context() const {
     return {m_model->GetContext(), {}};
 }
 
-std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> InferenceEngine::ICompiledModelWrapper::get_model() {
+std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
+InferenceEngine::ICompiledModelWrapper::get_executable_network() {
     return m_model;
 }
