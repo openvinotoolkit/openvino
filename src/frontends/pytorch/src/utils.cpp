@@ -506,26 +506,28 @@ void align_eltwise_input_types(const NodeContext& context, ov::Output<ov::Node>*
             return;
         }
 
+        if (lhs_type == element::boolean || rhs_type == element::boolean) {
+            // Do nothing with bool
+            return;
+        }
+
         auto lhs_dst_type = lhs_type;
         auto rhs_dst_type = rhs_type;
-        if (lhs_type.is_integral_number() && lhs_type.is_signed() && rhs_type.is_real()) {
+        if (!lhs_type.is_real() && rhs_type.is_real()) {
             lhs_dst_type = element::f32;
-        } else if (lhs_type.is_real() && rhs_type.is_integral_number() && rhs_type.is_signed()) {
+        } else if (lhs_type.is_real() && !rhs_type.is_real()) {
             rhs_dst_type = element::f32;
-        } else {
-            // Do nothing with bool and uint8
-            return;
         }
         // Align bitness to higher
         if (lhs_dst_type.bitwidth() != rhs_dst_type.bitwidth()) {
-            auto dst_bitness = std::max(lhs_dst_type.bitwidth(), rhs_dst_type.bitwidth());
-            element::Type& type_to_align = lhs_dst_type;
+            const auto dst_bitness = std::max(lhs_dst_type.bitwidth(), rhs_dst_type.bitwidth());
+            element::Type* type_to_align = &lhs_dst_type;
             if (rhs_dst_type.bitwidth() < dst_bitness)
-                type_to_align = rhs_dst_type;
-            if (type_to_align.is_real()) {
-                type_to_align = bit_to_float.at(dst_bitness);
-            } else if (type_to_align.is_signed()) {
-                type_to_align = bit_to_int.at(dst_bitness);
+                type_to_align = &rhs_dst_type;
+            if (type_to_align->is_real()) {
+                *type_to_align = bit_to_float.at(dst_bitness);
+            } else {
+                *type_to_align = bit_to_int.at(dst_bitness);
             }
         }
 
