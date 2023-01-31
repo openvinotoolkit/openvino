@@ -40,7 +40,7 @@ static std::shared_ptr<ngraph::Node> DecomposeDWSC(std::shared_ptr<ngraph::opset
     // Reshape bias const
     if (bias_const) {
         auto bias_size = shape_size(bias_const->get_shape());
-        reshaped_bias = ngraph::op::util::make_try_fold<ngraph::opset7::Reshape>(bias_const,
+        reshaped_bias = ov::op::util::make_try_fold<ngraph::opset7::Reshape>(bias_const,
             ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, ngraph::Shape{1, bias_size}), false);
     }
 
@@ -124,10 +124,10 @@ static bool Convert(std::shared_ptr<ngraph::Node> leading_transpose,
     auto filters_const = std::dynamic_pointer_cast<ngraph::Node>(dwsc->get_input_node_shared_ptr(1));
     auto filters_size = shape_size(filters_const->get_shape());
 
-    auto transposed_filters_const = ngraph::op::util::make_try_fold<ngraph::opset7::Transpose>(filters_const,
+    auto transposed_filters_const = ov::op::util::make_try_fold<ngraph::opset7::Transpose>(filters_const,
         ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{5}, ngraph::Shape{4, 1, 2, 3, 0}));
 
-    auto flat_filters_plane = ngraph::op::util::make_try_fold<ngraph::opset7::Reshape>(transposed_filters_const,
+    auto flat_filters_plane = ov::op::util::make_try_fold<ngraph::opset7::Reshape>(transposed_filters_const,
         ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, ngraph::Shape{1, filters_size}), false);
 
     copy_runtime_info(dwsc, {flat_input_plane, transposed_filters_const, flat_filters_plane});

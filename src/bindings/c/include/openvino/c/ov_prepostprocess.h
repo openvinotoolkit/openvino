@@ -77,6 +77,7 @@ typedef enum {
     I420_THREE_PLANES,  //!< Image in I420 format represented as separate tensors for Y, U and V planes.
     RGB,                //!< Image in RGB interleaved format (3 channels)
     BGR,                //!< Image in BGR interleaved format (3 channels)
+    GRAY,               //!< Image in GRAY format (1 channel)
     RGBX,               //!< Image in RGBX interleaved format (4 channels)
     BGRX                //!< Image in BGRX interleaved format (4 channels)
 } ov_color_format_e;
