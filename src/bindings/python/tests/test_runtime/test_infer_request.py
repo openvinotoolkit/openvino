@@ -998,7 +998,6 @@ def test_array_like_input_async_infer_queue(device, shared_flag):
     infer_queue_list.wait_all()
 
     for i in range(jobs):
-        print(infer_queue_list[i].get_output_tensor().data)
         assert np.array_equal(infer_queue_list[i].get_output_tensor().data, np.abs(input_data))
 
 
