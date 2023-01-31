@@ -15,7 +15,6 @@ import torch
                                         {'repeats': [3, 2, 1], 'dim': 3},
                                         {'repeats': 2, 'dim': None},
                                         {'repeats': [random.randint(1, 5) for _ in range(36)], 'dim': None}))
-# @pytest.mark.parametrize('input_data', ({'repeats': 2, 'dim': 2},))
 class TestRepeatInterleaveConstRepeats(PytorchLayerTest):
 
     def _prepare_input(self):
