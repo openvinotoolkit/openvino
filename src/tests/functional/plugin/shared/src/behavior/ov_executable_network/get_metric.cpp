@@ -119,6 +119,15 @@ TEST_P(OVClassExecutableNetworkGetMetricTest_DEVICE_PRIORITY, GetMetricNoThrow) 
     ASSERT_EQ(value, configuration[ov::device::priorities.name()].as<std::string>());
 }
 
+TEST_P(OVClassExecutableNetworkGetMetricTest_PERFORMANCE_HINT, GetMetricNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    auto compiled_model = ie.compile_model(simpleNetwork, target_device, configuration);
+
+    ov::hint::PerformanceMode value;
+    OV_ASSERT_NO_THROW(value = compiled_model.get_property(ov::hint::performance_mode));
+    ASSERT_EQ(value, configuration[ov::hint::performance_mode.name()].as<ov::hint::PerformanceMode>());
+}
+
 TEST_P(OVClassExecutableNetworkGetMetricTest_ThrowsUnsupported, GetMetricThrow) {
     ov::Core ie = createCoreWithTemplate();
 
