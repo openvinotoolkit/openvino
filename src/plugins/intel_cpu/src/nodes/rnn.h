@@ -52,13 +52,6 @@ private:
     bool verifyWeightsPrecision(const InferenceEngine::Precision& layerPrec,
                                 const InferenceEngine::Precision& weightsPrec);
 
-    template <typename Prec>
-    void fillWeights(const int* gate_map, const size_t wIdx, const size_t rIdx);
-    template <InferenceEngine::Precision::ePrecision Prec>
-    void fillBiases(const int* gate_map);
-
-    void copyWeightsData();
-
     /** Specify mode Cell or Seq. true - Cell, false - Seq */
     bool is_cell = false;
 

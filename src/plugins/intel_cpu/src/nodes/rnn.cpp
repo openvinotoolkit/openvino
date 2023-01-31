@@ -525,8 +525,6 @@ void RNN::fillCellDesc() {
         inDataDescs.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(attnShape, inDataTypes[aIdx], memory::format_tag::tnc));
     }
 
-    copyWeightsData();
-
     // Expected shapes.
     const Shape shapeD{{N.minVal, DC}, {N.maxVal, DC}};
     const Shape shapeS{{N.minVal, SC}, {N.maxVal, SC}};
@@ -549,9 +547,10 @@ void RNN::fillCellDesc() {
         outCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(shapeS, outDataTypes[coIdx], memory::format_tag::nc));
     }
 
-    inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(WShape, inDataTypes[wIdx], memory::format_tag::nc));
-    inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(RShape, inDataTypes[rIdx], memory::format_tag::nc));
-    inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(BShape, inDataTypes[bIdx], memory::format_tag::x));
+    // report plain layout for weights
+    inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(WShape, inDataTypes[wIdx], memory::format_tag::ab));
+    inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(RShape, inDataTypes[rIdx], memory::format_tag::ab));
+    inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(BShape, inDataTypes[bIdx], memory::format_tag::a));
 
     if (haveAttention(cell_type)) {
         Shape shapeAttn{{N.minVal, 1}, {N.maxVal, 1}};
@@ -610,8 +609,6 @@ void RNN::fillSequenceDesc() {
         inDataDescs.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(attnShape, inDataTypes[aIdx], memory::format_tag::tnc));
     }
 
-    copyWeightsData();
-
     const Shape shapeNDSC {{N.minVal, D, SC}, {N.maxVal, D, SC}};
     Shape shapeNTSC {{N.minVal, T.minVal, SC}, {N.maxVal, T.maxVal, SC}};
     const Shape shapeNTDC {{N.minVal, T.minVal, DC}, {N.maxVal, T.maxVal, DC}};
@@ -653,9 +650,13 @@ void RNN::fillSequenceDesc() {
     }
 
     inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(TShape, inDataTypes[sIdx], memory::format_tag::x)); // sequence lengths
-    inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(WShape, inDataTypes[wIdx], memory::format_tag::ntc)); // W
-    inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(RShape, inDataTypes[rIdx], memory::format_tag::ntc)); // R
-    inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(BShape, inDataTypes[bIdx], memory::format_tag::nc)); // B
+
+    // exact layout for weights cannot be determined at `getSupportedDescriptors()` stage, thus we report plain format
+    // here to prevent framework from insertting any redundant reorders, the reorder is delayed to `prepareParam()` stage
+    // where exact input shapes are determined and primitive is created, only after that we can be sure of the weight's layout.
+    inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(WShape, inDataTypes[wIdx], memory::format_tag::abc)); // W
+    inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(RShape, inDataTypes[rIdx], memory::format_tag::abc)); // R
+    inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(BShape, inDataTypes[bIdx], memory::format_tag::ab)); // B
 
     if (haveAttention(cell_type)) {
         Shape shapeAttn{{N.minVal, T.minVal, 1}, {N.maxVal, T.maxVal, 1}};
@@ -663,177 +664,6 @@ void RNN::fillSequenceDesc() {
     }
 
     createDescriptor(inCandidate, outCandidate);
-}
-
-template <typename Prec>
-void RNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t rIdx) {
-    const auto& weightPrec       = DnnlExtensionUtils::DataTypeToIEPrecision(inDataTypes[wIdx]);
-    const auto& targetWeightPrec = DnnlExtensionUtils::DataTypeToIEPrecision(weightsByinputDataType.at(inDataTypes[xIdx]));
-
-    // create weight blobs (data and state part)
-    const VectorDims dims_w = { L, D, DC, G, SC };
-    TensorDesc w_data_desc(targetWeightPrec, dims_w, getWeightsLayoutByDims(dims_w, false));
-
-    Blob::Ptr w_data_mem = make_shared_blob<Prec>(w_data_desc);
-    w_data_mem->allocate();
-    auto w_ptr = static_cast<Prec*>(w_data_mem->buffer());
-    if (w_ptr == nullptr)
-        IE_THROW(NotAllocated) << "Internal blob was not allocated for node " << getName() << ".";
-
-    const VectorDims dims_s = { L, D, SC, G, SC };
-    TensorDesc w_state_desc(targetWeightPrec, dims_s, getWeightsLayoutByDims(dims_s, false));
-    Blob::Ptr w_state_mem = make_shared_blob<Prec>(w_state_desc);
-    w_state_mem->allocate();
-    auto r_ptr = static_cast<Prec*>(w_state_mem->buffer());
-    if (r_ptr == nullptr)
-        IE_THROW(NotAllocated) << "Internal blob was not allocated for node " << getName() << ".";
-
-    const size_t ie_w_vec_size = getInputShapeAtPort(wIdx).getElementsCount();
-    const size_t ie_r_vec_size = getInputShapeAtPort(rIdx).getElementsCount();
-
-    auto *wInputNode = dynamic_cast<Input *>(getParentEdgesAtPort(wIdx)[0]->getParent().get());
-    auto wConstBlob = wInputNode->getMemoryPtr();
-
-    auto *rInputNode = dynamic_cast<Input *>(getParentEdgesAtPort(rIdx)[0]->getParent().get());
-    auto rConstBlob = rInputNode->getMemoryPtr();
-
-    std::vector<Prec> ie_w_vec(ie_w_vec_size), ie_r_vec(ie_r_vec_size);
-
-    auto ie_w_ptr = ie_w_vec.data();
-    auto ie_r_ptr = ie_r_vec.data();
-
-    cpu_convert(wConstBlob->GetPtr(), ie_w_ptr, weightPrec, targetWeightPrec, ie_w_vec_size);
-    cpu_convert(rConstBlob->GetPtr(), ie_r_ptr, weightPrec, targetWeightPrec, ie_r_vec_size);
-
-    const int step = SC * G;
-
-    for (int g = 0; g < G; g++) {
-        for (int out_i = 0; out_i < SC; out_i++) {
-            Prec *l_w_ptr = w_ptr + gate_map[g] * SC + out_i;
-            for (int in_i = 0; in_i < DC; in_i++) {
-                *l_w_ptr = *ie_w_ptr;
-                ie_w_ptr++;
-                l_w_ptr += step;
-            }
-
-            Prec *l_r_ptr = r_ptr + gate_map[g] * SC + out_i;
-            for (int in_i = 0; in_i < SC; in_i++) {
-                *l_r_ptr = *ie_r_ptr;
-                ie_r_ptr++;
-                l_r_ptr += step;
-            }
-        }
-    }
-
-    internalBlobs.push_back(w_data_mem);
-    internalBlobs.push_back(w_state_mem);
-}
-
-template <Precision::ePrecision Prec>
-void RNN::fillBiases(const int *gate_map) {
-    using dataType = typename PrecisionTrait<Prec>::value_type;
-
-    if (inDataTypes[bIdx] != memory::data_type::f32) {
-        THROW_ERROR << "doesn't support bias data type: " << DnnlExtensionUtils::DataTypeToIEPrecision(inDataTypes[bIdx]);
-    }
-
-    VectorDims dims_b = { L, D, Gb, SC };
-    TensorDesc w_bias_data_desc(Prec, dims_b, getWeightsLayoutByDims(dims_b, false));
-    Blob::Ptr w_bias_data_mem = make_shared_blob<dataType>(w_bias_data_desc);
-    w_bias_data_mem->allocate();
-    auto b_ptr = static_cast<dataType*>(w_bias_data_mem->buffer());
-    if (b_ptr == nullptr)
-        IE_THROW(NotAllocated) << "Internal blob was not allocated for node " << getName() << ".";
-
-    auto *constInputNode = dynamic_cast<Input *>(getParentEdgesAtPort(bIdx)[0]->getParent().get());
-    auto constBlob = constInputNode->getMemoryPtr();
-    auto const elementsCount = constBlob->GetSize() / constBlob->getDesc().getPrecision().size();
-
-    std::vector<dataType> ie_b_vec(elementsCount);
-    cpu_convert(constBlob->GetPtr(),
-                &ie_b_vec[0],
-                DnnlExtensionUtils::DataTypeToIEPrecision(constBlob->GetDataType()),
-                Prec,
-                elementsCount);
-
-    for (int g = 0; g < Gb; g++) {
-        dataType *l_b_ptr = b_ptr + gate_map[g] * SC;
-        const dataType *l_ie_b_ptr = &ie_b_vec[g * SC];
-        cpu_memcpy(l_b_ptr, l_ie_b_ptr, SC * sizeof(typename PrecisionTrait<Prec>::value_type));
-    }
-    // @todo replace push_back with copy assignment by index, since order matters
-    internalBlobs.push_back(w_bias_data_mem);
-}
-
-void RNN::copyWeightsData() {
-    /* Copy Weight data
-     * IE format:
-     *   W - [gates, out_state_size, in_data_size]
-     *   R - [gates, out_state_size, in_state_size]
-     *   B - [gates, out_state_size]
-     *
-     * DNNL format:
-     *   W - [1, 1, in_date_size,  gates, out_state_size]
-     *   R - [1, 1, in_state_size, gates, out_state_size]
-     *   B - [gates, out_state_size]
-     *
-     *   Gate order
-     *   ====== LSTM ======
-     *   Caffe - IFOC, ONNX   - IOFC
-     *   IE    - FICO, onednn - IFCO
-     *
-     *   ====== GRU ======
-     *   IE - URO, onednn - URO
-     */
-    const int gate_map_lstm[] = {0, 1, 2, 3};  // FICO -> IFCO
-    const int gate_map_gru[]  = {0, 1, 2, 3};
-    const int gate_map_rnn[]  = {0};
-    const int *gate_map;
-    const int gate_map_lstm_size = sizeof(gate_map_lstm) / sizeof(int);
-    const int gate_map_gru_size = sizeof(gate_map_gru) / sizeof(int);
-    const int gate_map_rnn_size = sizeof(gate_map_rnn) / sizeof(int);
-    if (cell_type == dnnl::algorithm::vanilla_lstm) {
-        gate_map = gate_map_lstm;
-        if (G > gate_map_lstm_size) {
-            THROW_ERROR << ". G isn't equal to the size of gate_map.";
-        }
-    } else if (cell_type == dnnl::algorithm::vanilla_gru || cell_type == dnnl::algorithm::vanilla_augru) {
-        gate_map = gate_map_gru;
-        if (G > gate_map_gru_size) {
-            THROW_ERROR << ". G isn't equal to the size of gate_map";
-        }
-    } else if (cell_type == dnnl::algorithm::lbr_gru || cell_type == dnnl::algorithm::lbr_augru) {
-        gate_map = gate_map_gru;
-        if (G > gate_map_gru_size) {
-            THROW_ERROR << ". G isn't equal to the size of gate_map.";
-        }
-    } else if (cell_type == dnnl::algorithm::vanilla_rnn) {
-        gate_map = gate_map_rnn;
-        if (G > gate_map_rnn_size) {
-            THROW_ERROR << ". G isn't equal to the size of gate_map.";
-        }
-    } else {
-        gate_map = gate_map_gru;
-        if (G > gate_map_gru_size) {
-            THROW_ERROR << ". G isn't equal to the size of gate_map.";
-        }
-    }
-
-    const auto& dataType = inDataTypes[xIdx];
-    if (dataType == memory::data_type::bf16) {
-        fillWeights<uint16_t>(gate_map, wIdx, rIdx);
-    } else if (dataType == memory::data_type::f32) {
-        // WA To avoid different weights layer and iter formats in FP32 case
-        if (T.minVal > 1 || N.maxVal < optimalBatchSize)
-            wFormat = dnnl::memory::format_tag::ldigo;
-        fillWeights<float>(gate_map, wIdx, rIdx);
-    } else if (dataType == memory::data_type::u8 || dataType == memory::data_type::s8) {
-        fillWeights<int8_t>(gate_map, wIdx, rIdx);
-    } else {
-        THROW_ERROR << "has unsupported data type: " << DnnlExtensionUtils::DataTypeToIEPrecision(dataType);
-    }
-
-    fillBiases<Precision::FP32>(gate_map);
 }
 
 void RNN::fillDescs() {
@@ -1077,17 +907,59 @@ void RNN::prepareParams() {
         auto pd = (*prim).get_primitive_desc();
         auto query_weights_md = [&](int idx = 0) -> dnnl::memory::desc {
             auto what = dnnl::convert_to_c(dnnl::query::weights_md);
-            const dnnl_memory_desc_t *cdesc = dnnl_primitive_desc_query_md(pd, what, idx);
+            const dnnl_memory_desc_t* cdesc = dnnl_primitive_desc_query_md(pd, what, idx);
             if (!cdesc)
                 IE_THROW() << "query_weights_md failed for node " << getName() << " idx " << idx << ".";
             return dnnl::memory::desc(*cdesc);
         };
-        std::vector<DnnlMemoryDescPtr> intDescs {
-            DnnlExtensionUtils::makeDescriptor(query_weights_md(0)),
-            DnnlExtensionUtils::makeDescriptor(query_weights_md(1)),
-            DnnlExtensionUtils::makeDescriptor(query_weights_md(2))
-        };
-        prepareMemory(intDescs);
+        std::vector<DnnlMemoryDescPtr> intDescs{DnnlExtensionUtils::makeDescriptor(query_weights_md(0)),
+                                                DnnlExtensionUtils::makeDescriptor(query_weights_md(1)),
+                                                DnnlExtensionUtils::makeDescriptor(query_weights_md(2))};
+        // reorder W/R/B, but first need to canonicalize the order of dimensions
+        // according oneDNN's requirement:
+        //  weights dnnl_ldigo : (num_layers, num_directions, input_channels, num_gates, output_channels)
+        //  bias    dnnl_ldgo : (num_layers, num_directions, num_gates, output_channels)
+        //
+        // but in CPU node (num_directions is missing when is_cell is true):
+        //   WShape {D, G * SC, DC} : (1, num_directions, num_gates * state_channels, input_channels)
+        //   RShape {D, G * SC, SC} : (1, num_directions, num_gates * state_channels, state_channels)
+        //   BShape {D, Gb * SC}    : (1, num_directions, num_gates * state_channels)
+        dnnl::memory wMem = getParentEdgeAt(wIdx)->getMemoryPtr()->GetPrimitive();
+        dnnl::memory rMem = getParentEdgeAt(rIdx)->getMemoryPtr()->GetPrimitive();
+        dnnl::memory bMem = getParentEdgeAt(bIdx)->getMemoryPtr()->GetPrimitive();
+        auto wDesc = wMem.get_desc();
+        auto rDesc = rMem.get_desc();
+        auto bDesc = bMem.get_desc();
+
+        auto num_layers = static_cast<dnnl::memory::dim>(L);
+        auto num_directions = static_cast<dnnl::memory::dim>(D);
+        auto num_gates = static_cast<dnnl::memory::dim>(G);
+        auto input_channels = static_cast<dnnl::memory::dim>(DC);
+        auto state_channels = static_cast<dnnl::memory::dim>(SC);
+
+        wDesc = wDesc.reshape({num_layers, num_directions, num_gates, state_channels, input_channels});
+        wDesc = wDesc.permute_axes({0, 1, 3, 4, 2});
+        rDesc = rDesc.reshape({num_layers, num_directions, num_gates, state_channels, state_channels});
+        rDesc = rDesc.permute_axes({0, 1, 3, 4, 2});
+        bDesc = bDesc.reshape({num_layers, num_directions, num_gates, state_channels});
+        // prepareMemory(intDescs);
+        internalBlobMemory.clear();
+
+        auto engine = context->getEngine();
+        auto create =
+            [&](const dnnl::memory& src, const dnnl::memory::desc& srcDesc, const dnnl::memory::desc& dstDesc) {
+                Memory memory{engine};
+                memory.Create(DnnlExtensionUtils::makeDescriptor(srcDesc), src.get_data_handle());
+                MemoryPtr _ptr = MemoryPtr(new Memory(engine));
+                _ptr->Create(DnnlExtensionUtils::makeDescriptor(dstDesc));
+                _ptr->SetData(memory);
+                return _ptr;
+            };
+
+        internalBlobMemory.push_back(create(wMem, wDesc, query_weights_md(0)));
+        internalBlobMemory.push_back(create(rMem, rDesc, query_weights_md(1)));
+        internalBlobMemory.push_back(create(bMem, bDesc, query_weights_md(2)));
+
         wasMemoryPrepared = true;
     }
 }
