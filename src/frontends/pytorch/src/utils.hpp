@@ -18,12 +18,16 @@ class FrameworkNode;
 namespace frontend {
 namespace pytorch {
 
+void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs);
+
 Output<Node> make_optional_bias(const Output<Node>& base_op,
                                 const NodeContext& context,
                                 size_t bias_input_idx,
                                 const std::vector<int>& unsqueeze_dims = {});
 
-Output<ov::Node> reshape_conv_bias(const NodeContext& context, Output<ov::Node> bias, Output<ngraph::Node> conv);
+Output<ov::Node> reshape_channelwise(const NodeContext& context,
+                                     Output<ov::Node> data,
+                                     Output<ngraph::Node> shape_source);
 
 std::shared_ptr<ov::Node> get_rank_node(const Output<Node>& node);
 

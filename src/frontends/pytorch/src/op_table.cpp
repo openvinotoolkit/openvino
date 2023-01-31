@@ -45,10 +45,12 @@ OP_CONVERTER(translate_full_like);
 OP_CONVERTER(translate_gelu);
 OP_CONVERTER(translate_get_attr);
 OP_CONVERTER(translate_glu);
+OP_CONVERTER(translate_grid_sampler);
 OP_CONVERTER(translate_group_norm);
 OP_CONVERTER(translate_hardtanh);
 OP_CONVERTER(translate_if);
 OP_CONVERTER(translate_im2col);
+OP_CONVERTER(translate_instance_norm);
 OP_CONVERTER(translate_int);
 OP_CONVERTER(translate_layer_norm);
 OP_CONVERTER(translate_len);
@@ -189,6 +191,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::group_norm", op::translate_group_norm},
         {"aten::ge", op::translate_1to1_match_2_inputs<opset10::GreaterEqual>},
         {"aten::gt", op::translate_1to1_match_2_inputs<opset10::Greater>},
+        {"aten::grid_sampler", op::translate_grid_sampler},
         {"aten::hardsigmoid", op::translate_1to1_match_1_inputs<opset10::HSigmoid>},
         {"aten::hardswish", op::translate_1to1_match_1_inputs<opset10::HSwish>},
         {"aten::hardswish_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::HSwish>>},
@@ -197,6 +200,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::Int", op::translate_int},
         {"aten::IntImplicit", op::translate_int},
         {"aten::im2col", op::translate_im2col},
+        {"aten::instance_norm", op::translate_instance_norm},
         {"aten::is_grad_enabled", op::return_false_scalar},
         {"aten::layer_norm", op::translate_layer_norm},
         {"aten::leaky_relu", op::translate_1to1_match_2_inputs<opset10::PRelu>},
