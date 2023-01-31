@@ -116,6 +116,15 @@ public:
         m_plugins.push_back(std::move(plugin_info));
     }
 
+    void register_front_end(const std::string& name, const std::string& library_path) {
+        auto lib_path = ov::util::from_file_path(ov::util::get_plugin_path(library_path));
+        PluginInfo plugin;
+        plugin.m_file_path = lib_path;
+        plugin.m_file_name = ov::util::get_file_name(lib_path);
+        FRONT_END_GENERAL_CHECK(plugin.load(), "Cannot load frontend ", plugin.get_name_from_file());
+        register_front_end(name, std::move(plugin.get_creator().m_creator));
+    }
+
     static void shutdown() {
         std::lock_guard<std::mutex> guard(m_shared_objects_map_mutex);
         m_shared_objects_map.clear();
@@ -237,6 +246,10 @@ std::vector<std::string> FrontEndManager::get_available_front_ends() {
 
 void FrontEndManager::register_front_end(const std::string& name, FrontEndFactory creator) {
     m_impl->register_front_end(name, std::move(creator));
+}
+
+void FrontEndManager::register_front_end(const std::string& name, const std::string& library_path) {
+    m_impl->register_front_end(name, library_path);
 }
 
 template <>
