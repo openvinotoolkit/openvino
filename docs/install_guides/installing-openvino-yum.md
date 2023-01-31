@@ -61,7 +61,7 @@ Installing OpenVINO Runtime from YUM is recommended for C++ developers. If you a
    
    .. code-block:: sh
 
-      sudo mv /tmp/openvino-2022.repo /etc/yum.repos.d
+    sudo mv /tmp/openvino-2022.repo /etc/yum.repos.d
 
 
 3.	Verify that the new repository is set up properly.
@@ -70,21 +70,21 @@ Installing OpenVINO Runtime from YUM is recommended for C++ developers. If you a
    
    .. code-block:: sh
 
-      sudo yum repolist
+    sudo yum repolist
 
    
    And enter `y` to the question about adding the GPG key, as shown below:
    
    .. code-block:: sh
 
-      Is this ok [y/N]: y
+    Is this ok [y/N]: y
 
    
    Then, query `openvino` in the repository list:
 
    .. code-block:: sh
 
-      yum repolist | grep -i openvino
+    yum repolist | grep -i openvino
 
    
    You will see the available list of packages.
@@ -94,7 +94,7 @@ To list available OpenVINO packages, use the following command:
 
    .. code-block:: sh
 
-     yum list 'openvino*'
+    yum list 'openvino*'
 
 
 @endsphinxdirective
