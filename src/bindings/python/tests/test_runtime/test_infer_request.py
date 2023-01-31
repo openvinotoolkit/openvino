@@ -980,21 +980,23 @@ def test_array_like_input_async_infer_queue(device, shared_flag):
     compiled_model = core.compile_model(model, "CPU")
 
     model_input_object = ArrayLikeObject(input_data)
-    model_input_list = [ArrayLikeObject(input_data)]
+    model_input_list = [[ArrayLikeObject(input_data)] for _ in range(jobs)]
 
     # Test single array-like object in AsyncInferQueue.start_async()
     infer_queue_object = AsyncInferQueue(compiled_model, jobs)
     for _i in range(jobs):
         infer_queue_object.start_async(model_input_object)
     infer_queue_object.wait_all()
+
     for i in range(jobs):
         assert np.array_equal(infer_queue_object[i].get_output_tensor().data, np.abs(input_data))
 
     # Test list of array-like objects in AsyncInferQueue.start_async()
     infer_queue_list = AsyncInferQueue(compiled_model, jobs)
-    for _i in range(jobs):
-        infer_queue_list.start_async(model_input_list, shared_memory=shared_flag)
+    for i in range(jobs):
+        infer_queue_list.start_async(model_input_list[i], shared_memory=shared_flag)
     infer_queue_list.wait_all()
+
     for i in range(jobs):
         assert np.array_equal(infer_queue_list[i].get_output_tensor().data, np.abs(input_data))
 
