@@ -68,7 +68,8 @@ std::vector<float>,
 bool,
 bool,
 float,
-float
+float,
+bool
 >
 GemmParams;
 
@@ -83,11 +84,12 @@ protected:
     bool transpose_input1;
     float alpha;
     float beta;
+    bool is_caching_test;
 
     virtual void fill_gemm_params() {
         GemmParams params = testing::TestWithParam<GemmParams>::GetParam();
         std::tie(shapes, input_data, fmt, type, out_data, transpose_input0,
-                 transpose_input1, alpha, beta) = params;
+                 transpose_input1, alpha, beta, is_caching_test) = params;
     }
 
     virtual void process_program(program::ptr) {
@@ -220,7 +222,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(planar_formats), ::testing::ValuesIn(float_types),
         ::testing::Values(std::vector<float>{}),
         ::testing::Values(true), ::testing::Values(false),
-        ::testing::Values(1.0f), ::testing::Values(0.0f)));
+        ::testing::Values(1.0f), ::testing::Values(0.0f), ::testing::Values(false)));
 
 INSTANTIATE_TEST_SUITE_P(
     GemmGPUTest_basic_t2, GemmGPUTestRandom,
@@ -231,14 +233,15 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(planar_formats), ::testing::ValuesIn(float_types),
         ::testing::Values(std::vector<float>{}),
         ::testing::Values(false), ::testing::Values(true),
-        ::testing::Values(1.0f), ::testing::Values(0.0f)));
+        ::testing::Values(1.0f), ::testing::Values(0.0f), ::testing::Values(false)));
 
-TEST(gemm_gpu, basic_bfyx_t2_inplace_crop_with_pad) {
+template <typename T>
+void test_basic_bfyx_t2_inplace_crop_with_pad(bool is_caching_test) {
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 4, 3 } });
     auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 1 } });
 
-    std::vector<float> input_data = {
+    std::vector<T> input_data = {
         1.f, -2.f,  3.f, -4.f,
         5.f,  6.f, 1.f, 2.f,
         3.f, 3.f, 2.f, -1.f,
@@ -248,13 +251,13 @@ TEST(gemm_gpu, basic_bfyx_t2_inplace_crop_with_pad) {
         3.f, 3.f, 2.f, -1.f,
     };
 
-    std::vector<float> input_data2 = {
+    std::vector<T> input_data2 = {
         2.f, 5.f, -4.f, -7.f,
     };
     set_values(input, input_data);
     set_values(input2, input_data2);
 
-    std::vector<float> out_data = {
+    std::vector<T> out_data = {
         8.f, 22.f, 20.f
     };
 
@@ -274,18 +277,44 @@ TEST(gemm_gpu, basic_bfyx_t2_inplace_crop_with_pad) {
 
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
-    network network(engine, topology, config);
-    network.set_input_data("input", input);
-    network.set_input_data("input2", input2);
-    auto outputs = network.execute();
+    cldnn::network::ptr network;
+
+    if (is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology, config);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, topology, config);
+    }
+
+    network->set_input_data("input", input);
+    network->set_input_data("input2", input2);
+    auto outputs = network->execute();
 
     auto output = outputs.at("output").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(output_ptr.size(), (uint32_t)3);
     for (uint32_t i = 0; i < out_data.size(); ++i) {
         ASSERT_FLOAT_EQ(output_ptr[i], out_data[i]);
     }
+}
+
+TEST(gemm_gpu, basic_bfyx_t2_inplace_crop_with_pad) {
+    test_basic_bfyx_t2_inplace_crop_with_pad<float>(false);
+}
+
+TEST(gemm_gpu, basic_bfyx_t2_inplace_crop_with_pad_cached) {
+    test_basic_bfyx_t2_inplace_crop_with_pad<float>(true);
 }
 
 TEST(gemm_gpu, dynamic) {
@@ -535,7 +564,8 @@ INSTANTIATE_TEST_SUITE_P(
             ::testing::Values(true),
             ::testing::Values(true),
             ::testing::Values(1.0f),
-            ::testing::Values(0.0f)
+            ::testing::Values(0.0f),
+            ::testing::Values(false)
             )
         );
 
@@ -563,7 +593,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(planar_formats), ::testing::ValuesIn(all_types),
         ::testing::Values(std::vector<float>{26.0f, 26.0f, 28.0f, 10.0f}),
         ::testing::Values(false), ::testing::Values(false),
-        ::testing::Values(2.0f), ::testing::Values(10.0f)));
+        ::testing::Values(2.0f), ::testing::Values(10.0f), ::testing::Values(false)));
 
 INSTANTIATE_TEST_SUITE_P(
         GemmGPUTest_input3_t1t2,
@@ -599,7 +629,8 @@ INSTANTIATE_TEST_SUITE_P(
                     ::testing::Values(true),
                     ::testing::Values(true),
                     ::testing::Values(2.0f),
-                    ::testing::Values(3.0f)
+                    ::testing::Values(3.0f),
+                    ::testing::Values(false)
             )
 );
 
@@ -640,7 +671,8 @@ INSTANTIATE_TEST_SUITE_P(
                     ::testing::Values(false),
                     ::testing::Values(false),
                     ::testing::Values(2.0f),
-                    ::testing::Values(3.0f)
+                    ::testing::Values(3.0f),
+                    ::testing::Values(false)
             )
 );
 
@@ -680,7 +712,8 @@ INSTANTIATE_TEST_SUITE_P(
                     ::testing::Values(false),
                     ::testing::Values(true),
                     ::testing::Values(2.0f),
-                    ::testing::Values(3.0f)
+                    ::testing::Values(3.0f),
+                    ::testing::Values(false)
             )
 );
 
@@ -719,7 +752,8 @@ INSTANTIATE_TEST_SUITE_P(
                     ::testing::Values(true),
                     ::testing::Values(false),
                     ::testing::Values(2.0f),
-                    ::testing::Values(3.0f)
+                    ::testing::Values(3.0f),
+                    ::testing::Values(false)
             )
 );
 
@@ -735,7 +769,8 @@ INSTANTIATE_TEST_SUITE_P(
                     ::testing::Values(false),
                     ::testing::Values(false),
                     ::testing::Values(1.0f),
-                    ::testing::Values(0.0f)
+                    ::testing::Values(0.0f),
+                    ::testing::Values(false)
             )
 );
 
@@ -752,7 +787,8 @@ INSTANTIATE_TEST_SUITE_P(
                     ::testing::Values(false),
                     ::testing::Values(false),
                     ::testing::Values(1.0f),
-                    ::testing::Values(0.0f)
+                    ::testing::Values(0.0f),
+                    ::testing::Values(false)
             )
 );
 
@@ -768,7 +804,8 @@ INSTANTIATE_TEST_SUITE_P(
                     ::testing::Values(false),
                     ::testing::Values(false),
                     ::testing::Values(1.0f),
-                    ::testing::Values(0.0f)
+                    ::testing::Values(0.0f),
+                    ::testing::Values(false)
             )
 );
 
@@ -784,7 +821,8 @@ INSTANTIATE_TEST_SUITE_P(
                     ::testing::Values(false),
                     ::testing::Values(false),
                     ::testing::Values(1.0f),
-                    ::testing::Values(0.0f)
+                    ::testing::Values(0.0f),
+                    ::testing::Values(false)
             )
 );
 
@@ -800,7 +838,8 @@ INSTANTIATE_TEST_SUITE_P(
                     ::testing::Values(false),
                     ::testing::Values(false),
                     ::testing::Values(1.0f),
-                    ::testing::Values(0.0f)
+                    ::testing::Values(0.0f),
+                    ::testing::Values(false)
             )
 );
 // TODO: enable in scope of CVS-85940
@@ -816,7 +855,8 @@ INSTANTIATE_TEST_SUITE_P(
                     ::testing::Values(false),
                     ::testing::Values(false),
                     ::testing::Values(1.0f),
-                    ::testing::Values(0.0f)
+                    ::testing::Values(0.0f),
+                    ::testing::Values(false)
             )
 );
 
@@ -832,7 +872,8 @@ INSTANTIATE_TEST_SUITE_P(
                     ::testing::Values(false),
                     ::testing::Values(false),
                     ::testing::Values(1.0f),
-                    ::testing::Values(0.0f)
+                    ::testing::Values(0.0f),
+                    ::testing::Values(false)
             )
 );
 
