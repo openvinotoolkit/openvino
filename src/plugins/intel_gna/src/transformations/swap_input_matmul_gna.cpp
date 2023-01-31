@@ -14,11 +14,14 @@
 #include <openvino/cc/ngraph/itt.hpp>
 #include <transformations/swap_input_matmul_gna.hpp>
 #include <vector>
+#include <ie/ie_common.h>
+#include <ops/util/util.hpp>
 
 #include "log/log.hpp"
 
 using namespace ov::intel_gna;
 using namespace ov::intel_gna::pass;
+using namespace ov::intel_gna::ngraph_util;
 
 static void SwapAndTransposeInputs(std::shared_ptr<ngraph::opset8::MatMul> matmul_node,
                                    const std::string& last_layer_name,
@@ -131,7 +134,11 @@ static void SwapAndTransposeInputs(std::shared_ptr<ngraph::opset8::MatMul> matmu
     }
 
     if (transpose == nullptr) {
-        new_node = create_transpose(new_node, last_layer_name);
+        auto in_dims = new_node->input(0).get_shape();
+        if (!is_one_dim_shape(in_dims)) {
+            new_node = create_transpose(new_node, last_layer_name);
+        }
+        new_ops.push_back(new_node);
     } else {
         ngraph::replace_output_update_name(transpose->output(0), transpose->input_value(0));
         new_node->set_friendly_name(last_layer_name);
