@@ -53,7 +53,7 @@ Output<ov::Node> reshape_channelwise(const NodeContext& context, Output<ov::Node
     auto new_shape =
         context.mark_node(std::make_shared<opset10::Concat>(OutputVector{one_const, channels_dim, tail_shape}, 0));
 
-    return context.mark_node(std::make_shared<opset10::Reshape>(value, new_shape, false));
+    return context.mark_node(std::make_shared<opset10::Reshape>(data, new_shape, false));
 }
 
 std::shared_ptr<Node> get_rank_node(const Output<Node>& node) {

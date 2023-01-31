@@ -33,12 +33,12 @@ OutputVector translate_instance_norm_inference(const NodeContext& context,
         std::make_shared<ov::op::v6::MVN>(input, reduction_axes, true, eps, ov::op::MVNEpsMode::INSIDE_SQRT));
     if (!context.input_is_none(1)) {
         auto weight = context.get_input(1);
-        weight = reshape_chanelwise(context, weight, norm);
+        weight = reshape_channelwise(context, weight, norm);
         norm = context.mark_node(std::make_shared<ov::op::v1::Multiply>(norm, weight));
     }
     if (!context.input_is_none(2)) {
         auto bias = context.get_input(2);
-        bias = reshape_chanelwise(context, bias, norm);
+        bias = reshape_channelwise(context, bias, norm);
         norm = context.mark_node(std::make_shared<ov::op::v1::Add>(norm, bias));
     }
     return {norm};
