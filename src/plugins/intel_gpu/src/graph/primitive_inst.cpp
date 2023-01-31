@@ -11,11 +11,13 @@
 #include "fully_connected_inst.h"
 #include "convolution_inst.h"
 #include "crop_inst.h"
+#include "eltwise_inst.h"
 #include "deconvolution_inst.h"
 #include "shape_of_inst.h"
 #include "gemm_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "compilation_context.hpp"
+#include "implementation_map.hpp"
 
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/graph/network.hpp"
@@ -367,7 +369,7 @@ bool primitive_inst::update_impl() {
         auto& cache = get_network().get_program()->get_implementations_cache();
         std::shared_ptr<primitive_impl> cached_impl = nullptr;
         {
-            cached_impl = cache.get(updated_params);
+            // cached_impl = cache.get(updated_params);
             if (cached_impl) {
                 _impl = cached_impl->clone();
                 GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
@@ -735,19 +737,19 @@ event::ptr primitive_inst::update_weights() {
         return nullptr;
 
     auto& engine = _network.get_engine();
-    auto& weights_params = _impl->_weights_reorder_params;
+    auto reorder_kernel_params = _impl->get_weights_reorder_kernel_params();
 
     auto weights_idx = _node->get_primitive()->input.size();
     auto original_weights_memory = dep_memory_ptr(weights_idx);
     auto original_layout = original_weights_memory->get_layout();
 
-    if (weights_params.engine == kernel_selector::GenericKernelParams::Engine::NONE) {
+    if (!_impl->need_weights_reorder()) {
         // If kernel doesn't says that it doesn't require weights reorder, but weights were reordered previously, then
         // incorrect memory buffer may be assigned, so reset cached weights for such case
         _reordered_weights_cache.add(original_layout, original_weights_memory);
         _impl_params->weights_layout = optional_layout(original_layout);
     } else {
-        auto expected_layout = from_weights_tensor(weights_params.dest);
+        auto expected_layout = reorder_kernel_params->get_output_layout();
         // Set original patrial shape, because it may be lost during kernel_selector::weights_tensor -> layout conversion
         expected_layout.set_partial_shape(original_layout.get_partial_shape());
         _impl_params->weights_layout = optional_layout(expected_layout);
@@ -764,30 +766,34 @@ event::ptr primitive_inst::update_weights() {
             return nullptr;
         } else {
             GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(false);
-            auto get_kernel_key = [&]() -> size_t {
-                auto seed = _node->get_primitive()->hash();
-                seed = hash_combine(seed, expected_layout.hash());
-                seed = hash_combine(seed, original_layout.hash());
-                return seed;
-            };
+            auto& cache = get_network().get_program()->get_implementations_cache();
+            generic_layer_inst inst(get_network());
+            auto prim = std::make_shared<generic_layer>("weights_reorder", "", weights_params);
 
-            cldnn::kernel::ptr kernel = nullptr;
-            auto kernel_key = get_kernel_key();
-            auto& cache = get_network().get_in_mem_kernels_cache();
-            if (cache.has(kernel_key)) {
+            kernel_impl_params reorder_impl_params;
+            reorder_impl_params.desc = prim;
+            reorder_impl_params.unique_id = weights_params->hash();
+            reorder_impl_params.input_layouts.push_back(original_layout);
+            reorder_impl_params.output_layouts.push_back(expected_layout);
+
+            if (cache.has(reorder_impl_params)) {
                 GPU_DEBUG_TRACE_DETAIL << id() << ": reorder weights (cached) from " << original_layout.to_short_string()
                                        << " to " << expected_layout.to_short_string() << std::endl;
-                GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
-                kernel = cache.get(kernel_key);
+                inst.set_impl(cache.get(reorder_impl_params)->clone());
             } else {
                 GPU_DEBUG_TRACE_DETAIL << id() << ": reorder weights from " << original_layout.to_short_string()
                                        << " to " << expected_layout.to_short_string() << std::endl;
+
+                auto factory = WeightsReordersFactory::get(impl_types::ocl, shape_types::static_shape);
                 auto& kernels_cache = get_network().get_program()->get_kernels_cache();
-                auto kernels = kernels_cache.compile(*_impl_params, {weights_params.clKernel->code.kernelString});
-                OPENVINO_ASSERT(kernels.size() == 1, "The output of kernel compile has issue");
-                auto& kernel_data = kernels.begin()->second;
-                kernel = kernel_data[0].first;
-                cache.add(kernel_key, kernel);
+                auto reorder_impl = factory(kernels_cache, reorder_impl_params);
+                auto kernels = kernels_cache.compile(*_impl_params, reorder_impl->get_kernels_source());
+                OPENVINO_ASSERT(kernels.size() == 1, "[GPU] Expected number of compiled kernels is 1, but got ", kernels.size());
+                reorder_impl->set_kernels(kernels);
+
+                inst.set_impl(reorder_impl->clone());
+
+                cache.add(reorder_impl_params, reorder_impl->clone());
             }
 
             auto& stream = get_network().get_stream();
@@ -815,8 +821,11 @@ event::ptr primitive_inst::update_weights() {
             kernel_arguments_data args;
             args.inputs.push_back(original_weights_memory);
             args.outputs.push_back(weights_memory);
-            stream.set_arguments(*kernel, weights_params.clKernel->params, args);
-            auto ev = stream.enqueue_kernel(*kernel, weights_params.clKernel->params, args, {}, true);
+
+            auto reorder_impl = inst.get_impl();
+
+            reorder_impl->set_arguments(inst, args);
+            auto ev = reorder_impl->execute({}, inst);
 
             GPU_DEBUG_GET_INSTANCE(debug_config);
             GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {

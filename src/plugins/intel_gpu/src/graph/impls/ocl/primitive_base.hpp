@@ -40,7 +40,6 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
 
     typed_primitive_impl_ocl() :  _kernel_data({}), _cached_kernel_ids({}), _kernels({}) {
         _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
-        _kernel_data.weightsReorderParams.cpuKernel = nullptr;
         _kernel_data.weightsReorderParams.clKernel = nullptr;
     }
 
@@ -56,12 +55,19 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         this->can_reuse_memory = _kernel_data.can_reuse_memory;
     }
 
+    static std::shared_ptr<WeightsReorderParams> create_weights_reorder_params(const kernel_selector::WeightsReorderParams& params) {
+        if (params.engine == kernel_selector::generic_kernel_params::Engine::NONE) {
+            return nullptr;
+        }
+
+        return std::make_shared<WeightsReorderParamsOCL>(params);
+    }
+
     typed_primitive_impl_ocl(const kernel_selector::kernel_data& kd)
-        : typed_primitive_impl<PType>(kd.weightsReorderParams, kd.kernelName),
+        : typed_primitive_impl<PType>(create_weights_reorder_params(kd.weightsReorderParams), kd.kernelName),
           _kernel_data(kd) {
         // weights reorder params got copied to parent, clear in _kernel_data to release shared ptr
         _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
-        _kernel_data.weightsReorderParams.cpuKernel = nullptr;
         _kernel_data.weightsReorderParams.clKernel = nullptr;
 
         this->can_reuse_memory = _kernel_data.can_reuse_memory;
@@ -210,6 +216,18 @@ protected:
             }
 
             stream.set_arguments(*_kernels[kd_idx], _kernel_data.kernels[kd_idx].params, args);
+        }
+    }
+
+    void set_arguments_impl(typed_primitive_inst<PType>& instance, kernel_arguments_data& args) override {
+        if (instance.can_be_optimized() || is_cpu()) {
+            return;
+        }
+
+        stream& stream = instance.get_network().get_stream();
+
+        for (size_t k = 0; k < _kernels.size(); ++k) {
+            stream.set_arguments(*_kernels[k], _kernel_data.kernels[k].params, args);
         }
     }
 

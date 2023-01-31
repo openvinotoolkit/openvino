@@ -14,6 +14,7 @@
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/primitives/quantize.hpp"
 #include "intel_gpu/primitives/activation.hpp"
+#include "intel_gpu/primitives/generic_layer.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
 
 #include "kernel_selector_params.h"
@@ -165,7 +166,7 @@ inline optional_params_t get_default_weights_bias_optional_params(const program&
 }
 
 inline kernel_selector::eltwise_mode convert_to_eltwise_mode(eltwise_mode mode) {
-switch (mode) {
+    switch (mode) {
         case eltwise_mode::sum:
             return kernel_selector::eltwise_mode::ADD;
         case eltwise_mode::sub:
@@ -267,5 +268,14 @@ inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& im
     }
     return updated_impl_params;
 }
+
+class WeightsReorderParamsOCL : public WeightsReorderParams {
+public:
+    explicit WeightsReorderParamsOCL(const kernel_selector::WeightsReorderParams& params)
+    : WeightsReorderParams(from_weights_tensor(params.src), from_weights_tensor(params.dest)) {
+        cl_kernel = params.clKernel;
+    }
+    std::shared_ptr<kernel_selector::clKernelData> cl_kernel;
+};
 
 }  // namespace cldnn

@@ -6,17 +6,24 @@
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 
-// TODO: Remove OCL impl dependency here or move to OCL folder
-#include "impls/ocl/kernel_selector_helper.h"
-
 #include <vector>
 
 namespace cldnn {
 
+struct WeightsReorderParams {
+    WeightsReorderParams(layout in_layout, layout out_layout) : _in_layout(in_layout), _out_layout(out_layout) {}
+    virtual ~WeightsReorderParams() = default;
+    virtual size_t hash() const { return hash_combine(_in_layout.hash(), _out_layout.hash()); }
+    layout get_input_layout() const { return _in_layout; }
+    layout get_output_layout() const { return _out_layout; }
+
+protected:
+    layout _in_layout;
+    layout _out_layout;
+};
+
 /// @brief Changes how data is ordered in memory. Value type is not changed & all information is preserved.
 /// @details Corresponding values are bitwise equal before/after reorder.
-/// Also merged with subtraction layer, which can subtract values while doing reordering.
-/// NOTE THAT THIS WILL SUBTRACT THE SAME VALUES FROM EACH BATCH.
 struct generic_layer : public primitive_base<generic_layer> {
     CLDNN_DECLARE_PRIMITIVE(generic_layer)
 
@@ -27,14 +34,11 @@ struct generic_layer : public primitive_base<generic_layer> {
     /// @param mean Primitive id to get mean subtract values.
     generic_layer(const primitive_id& id,
                   const primitive_id& input,
-                  const layout& output_layout,
-                  const kernel_selector::generic_kernel_params& generic_params,
+                  std::shared_ptr<WeightsReorderParams> params,
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}), output_layout(output_layout), generic_params(generic_params) {}
+        : primitive_base(id, {input}, {output_padding}), params(params) {}
 
-    /// @brief Requested memory layout.
-    layout output_layout;
-    const kernel_selector::generic_kernel_params generic_params;
+    std::shared_ptr<WeightsReorderParams> params;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

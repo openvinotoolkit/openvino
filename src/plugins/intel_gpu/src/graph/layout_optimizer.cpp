@@ -13,11 +13,12 @@
 #include "reshape_inst.h"
 #include "arg_max_min_inst.h"
 #include "shape_of_inst.h"
-#include "generic_layer.hpp"
 #include <sstream>
 
 #include "gemm_inst.h"
 #include "deconvolution_inst.h"
+#include "fully_connected_inst.h"
+#include "non_max_suppression_inst.h"
 #include "eltwise_inst.h"
 #include "pooling_inst.h"
 #include "reduce_inst.h"
@@ -155,50 +156,21 @@ std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive
     return std::make_pair(reorder, false);
 }
 
-std::vector<std::pair<std::shared_ptr<primitive>, bool>> reorder_factory::get_weights_reorder(
-    primitive_id input_id,
-    const layout& old_layout,
-    const kernel_selector::weights_reorder_params& reorder_params) {
-
-    if (reorder_params.engine == kernel_selector::weights_reorder_params::Engine::NONE)
-        return {};
-
-    std::vector<std::pair<std::shared_ptr<primitive>, bool>> ret;
-
-    if (reorder_params.engine == kernel_selector::weights_reorder_params::Engine::CPU &&
-        reorder_params.cpuKernel != nullptr) {
-        const auto intermediate_format = from_weights_layout(reorder_params.cpuKernel->GetExpectedInputLayout());
-        const auto intermediate_type = from_weights_type(reorder_params.cpuKernel->GetExpectedInputType());
-        if (intermediate_format != old_layout.format || intermediate_type != old_layout.data_type) {
-            const layout intermediate_layout = { intermediate_type,
-                                                intermediate_format,
-                                                old_layout.get_tensor().transform(intermediate_format, 1) };
-
-            auto reorder = get_reorder(input_id, old_layout, intermediate_layout);
-            if (reorder.first) {
-                ret.push_back(reorder);
-                input_id = reorder.first->id;
-            }
-        }
-    }
-
-    layout expected_layout = from_weights_tensor(reorder_params.dest);
-
-    cache_key ckey{ input_id, expected_layout, false };
-    auto itr = _cached_generic_reorders.find(ckey);
-    if (itr != _cached_generic_reorders.end()) {
-        ret.push_back(std::make_pair(itr->second, true));
+std::pair<std::shared_ptr<primitive>, bool> reorder_factory::get_weights_reorder(primitive_id input_id,
+                                                                                 const layout& old_layout,
+                                                                                 std::shared_ptr<WeightsReorderParams> reorder_params) {
+    auto hash = reorder_params->hash();
+    if (_cached_weights_reorders.has(hash)) {
+        return std::make_pair(_cached_weights_reorders.get(hash), true);
     } else {
-        auto count = _cached_generic_reorders.size();
+        auto count = _cached_weights_reorders.size();
         std::stringstream ss;
         ss << input_id << "_generic_layer_" << count;
 
-        auto reorder = std::make_shared<cldnn::generic_layer>(ss.str(), input_id, expected_layout, reorder_params);
-        _cached_generic_reorders[ckey] = reorder;
-        ret.push_back(std::make_pair(reorder, false));
+        auto reorder = std::make_shared<cldnn::generic_layer>(ss.str(), input_id, reorder_params);
+        _cached_weights_reorders.add(hash, reorder);
+        return std::make_pair(reorder, false);
     }
-
-    return ret;
 }
 
 bool layout_optimizer::is_format_supported(program_node& node, format::type fmt) {

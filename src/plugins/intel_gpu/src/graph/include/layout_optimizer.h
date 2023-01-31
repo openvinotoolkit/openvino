@@ -7,21 +7,15 @@
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/utils.hpp"
+#include "intel_gpu/runtime/lru_cache.hpp"
 
 #include "data_inst.h"
+#include "generic_layer_inst.h"
 #include "reorder_inst.h"
 #include "convolution_inst.h"
 #include "deconvolution_inst.h"
-#include "fully_connected_inst.h"
 #include "detection_output_inst.h"
 #include "binary_convolution_inst.h"
-#include "lstm_gemm_inst.h"
-#include "generic_layer.hpp"
-#include "non_max_suppression_inst.h"
-#include "region_yolo_inst.h"
-
-// TODO: add generic interface for weights_reorder_params and get rid of this dependency
-#include "impls/ocl/kernel_selector_helper.h"
 
 #include <vector>
 #include <memory>
@@ -52,10 +46,9 @@ public:
                                                           const layout& in_layout,
                                                           const layout& out_layout);
 
-    std::vector<std::pair<std::shared_ptr<primitive>, bool>> get_weights_reorder(
-        primitive_id input_id,
-        const layout& old_layout,
-        const kernel_selector::weights_reorder_params& reorder_params);
+    std::pair<std::shared_ptr<primitive>, bool> get_weights_reorder(primitive_id input_id,
+                                                                    const layout& old_layout,
+                                                                    std::shared_ptr<WeightsReorderParams> reorder_params);
 
 private:
     struct cache_key {
@@ -80,7 +73,7 @@ private:
     };
 
     std::map<cache_key, std::shared_ptr<reorder>> _cached_reorders;
-    std::map<cache_key, std::shared_ptr<generic_layer>> _cached_generic_reorders;
+    LruCache<size_t, std::shared_ptr<generic_layer>> _cached_weights_reorders{0};
 };
 
 class layout_optimizer {
