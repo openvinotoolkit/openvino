@@ -49,6 +49,7 @@ OP_CONVERTER(translate_group_norm);
 OP_CONVERTER(translate_hardtanh);
 OP_CONVERTER(translate_if);
 OP_CONVERTER(translate_im2col);
+OP_CONVERTER(translate_instance_norm);
 OP_CONVERTER(translate_int);
 OP_CONVERTER(translate_layer_norm);
 OP_CONVERTER(translate_len);
@@ -196,6 +197,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::Int", op::translate_int},
         {"aten::IntImplicit", op::translate_int},
         {"aten::im2col", op::translate_im2col},
+        {"aten::instance_norm", op::translate_instance_norm},
         {"aten::is_grad_enabled", op::return_false_scalar},
         {"aten::layer_norm", op::translate_layer_norm},
         {"aten::leaky_relu", op::translate_1to1_match_2_inputs<opset10::PRelu>},
