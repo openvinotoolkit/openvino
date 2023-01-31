@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "../skip_tests_check.hpp"
+#include "openvino/runtime/intel_gna/properties.hpp"
 
 using namespace LayerTestsDefinitions;
 
@@ -57,6 +58,10 @@ const std::vector<std::vector<size_t >> strides2DInvalid = {
         {8, 8}, {1, 8}
 };
 const std::vector<std::vector<ptrdiff_t>> padBegins2D = { {0, 0},
+};
+// Padding must be less than kernel size
+const std::vector<std::vector<ptrdiff_t>> padTooBigForKernels2D = {
+    {3, 3},
 };
 const std::vector<std::vector<ptrdiff_t>> padEnds2D = { {0, 0},
 };
@@ -158,10 +163,19 @@ const auto conv2DParametersInvalidDilation = ::testing::Combine(
         ::testing::ValuesIn(numOutChannels2D),
         ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
+const auto conv2DParametersInvalidPaddingSize = ::testing::Combine(
+    ::testing::ValuesIn(kernels2D),
+    ::testing::ValuesIn(strides2D),
+    ::testing::ValuesIn(padTooBigForKernels2D),
+    ::testing::ValuesIn(padTooBigForKernels2D),
+    ::testing::ValuesIn(dilations2D),
+    ::testing::ValuesIn(numOutChannels2D),
+    ::testing::Values(ngraph::op::PadType::EXPLICIT));
 
 class GnaConv2DNegativeTest : public ConvolutionLayerTest {
 protected:
     virtual std::string expectedSubstring() = 0;
+    virtual std::string getTarget() = 0;
     void Run() override {
         try {
             ConvolutionLayerTest::LoadNetwork();
@@ -177,19 +191,27 @@ protected:
     }
     void SetUp() override {
         ConvolutionLayerTest::SetUp();
+        const auto target = getTarget();
+        configuration[ov::intel_gna::execution_target.name()] = target;
+        configuration[ov::intel_gna::compile_target.name()] = target;
     }
 };
 
-#define GNA_NEG_INSTANTIATE(whats_wrong, suffix_params, suffix_input, error_message)                            \
+#define GNA_NEG_INSTANTIATE(whats_wrong, suffix_params, suffix_input, error_message, gna_hw_gen)                \
 struct GnaConv2DNegativeTest##whats_wrong : GnaConv2DNegativeTest {                                             \
     std::string expectedSubstring() override {                                                                  \
         return error_message;                                                                                   \
+    }                                                                                                           \
+    std::string getTarget() override {                                                                          \
+        std::stringstream s;                                                                                    \
+        s << gna_hw_gen;                                                                                        \
+        return s.str();                                                                                         \
     }                                                                                                           \
 };                                                                                                              \
 TEST_P(GnaConv2DNegativeTest##whats_wrong, ThrowAsNotSupported) {                                               \
     Run();                                                                                                      \
 }                                                                                                               \
-INSTANTIATE_TEST_SUITE_P(smoke_GnaConv2DNegativeTestInvalid##whats_wrong, GnaConv2DNegativeTest##whats_wrong,    \
+INSTANTIATE_TEST_SUITE_P(smoke_GnaConv2DNegativeTestInvalid##whats_wrong, GnaConv2DNegativeTest##whats_wrong,   \
 ::testing::Combine(                                                                                             \
     conv2DParameters##suffix_params,                                                                            \
     ::testing::ValuesIn(netPrecisions),                                                                         \
@@ -201,15 +223,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_GnaConv2DNegativeTestInvalid##whats_wrong, GnaCon
     ::testing::Values(CommonTestUtils::DEVICE_GNA)),                                                            \
     GnaConv2DNegativeTest##whats_wrong::getTestCaseName);
 
-GNA_NEG_INSTANTIATE(FilterNumber, InvalidFilterNumber, Fine, "Unsupported number of kernels")
-GNA_NEG_INSTANTIATE(Kernel, InvalidKernel, Fine, "Unsupported kernel shape")
-GNA_NEG_INSTANTIATE(BigKernelFor56InC, InvalidKernelFor56InC, WithInC56, "Unsupported kernel shape")
-GNA_NEG_INSTANTIATE(BigKernelFor120InC, InvalidKernelFor120InC, WithInC120, "Unsupported kernel shape")
-GNA_NEG_INSTANTIATE(InputH, Fine, InvalidInputH, "Unsupported input height")
-GNA_NEG_INSTANTIATE(InputW, Fine, InvalidInputW, "Unsupported input width")
-GNA_NEG_INSTANTIATE(InputC, Fine, InvalidInputC, "Unsupported number of input channels")
-GNA_NEG_INSTANTIATE(Padding, InvalidPadding, Fine, "Convolution's input padding is not supported")
-GNA_NEG_INSTANTIATE(Stride, InvalidStride, Fine, "Unsupported convolution stride shape")
-GNA_NEG_INSTANTIATE(Dilation, InvalidDilation, Fine, "dilation is not supported on GNA")
+constexpr auto GNA_3_0 = ov::intel_gna::HWGeneration::GNA_3_0;
+constexpr auto GNA_3_5 = ov::intel_gna::HWGeneration::GNA_3_5;
+
+GNA_NEG_INSTANTIATE(FilterNumber, InvalidFilterNumber, Fine, "Unsupported number of kernels", GNA_3_0)
+GNA_NEG_INSTANTIATE(Kernel, InvalidKernel, Fine, "Unsupported kernel shape", GNA_3_0)
+GNA_NEG_INSTANTIATE(BigKernelFor56InC, InvalidKernelFor56InC, WithInC56, "Unsupported kernel shape", GNA_3_0)
+GNA_NEG_INSTANTIATE(BigKernelFor120InC, InvalidKernelFor120InC, WithInC120, "Unsupported kernel shape", GNA_3_0)
+GNA_NEG_INSTANTIATE(InputH, Fine, InvalidInputH, "Unsupported input height", GNA_3_0)
+GNA_NEG_INSTANTIATE(InputW, Fine, InvalidInputW, "Unsupported input width", GNA_3_0)
+GNA_NEG_INSTANTIATE(InputC, Fine, InvalidInputC, "Unsupported number of input channels", GNA_3_0)
+GNA_NEG_INSTANTIATE(Padding, InvalidPadding, Fine, "Unsupported convolution input padding", GNA_3_0)
+GNA_NEG_INSTANTIATE(Stride, InvalidStride, Fine, "Unsupported convolution stride shape", GNA_3_0)
+GNA_NEG_INSTANTIATE(Dilation, InvalidDilation, Fine, "dilation is not supported on GNA", GNA_3_0)
+GNA_NEG_INSTANTIATE(Dilation35, InvalidDilation, Fine, "dilation is not supported on GNA", GNA_3_5)
+GNA_NEG_INSTANTIATE(PaddingSize, InvalidPaddingSize, Fine, "Unsupported convolution input padding", GNA_3_0)
+GNA_NEG_INSTANTIATE(PaddingSize35, InvalidPaddingSize, Fine, "Unsupported convolution input padding", GNA_3_5)
 
 }  // namespace

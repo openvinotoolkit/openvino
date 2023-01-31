@@ -1,19 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Normalizes the input using an L2 norm and multiplies the output with scale value.
 /// The scale can be equal for all channels or one scale per channel.
@@ -62,10 +55,14 @@ struct normalize : public primitive_base<normalize> {
     /// @brief Epsilon for not dividing by zero while normalizing.
     float epsilon;
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, across_spatial);
+        seed = hash_combine(seed, epsilon);
+        return seed;
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override { return {scale_input}; }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

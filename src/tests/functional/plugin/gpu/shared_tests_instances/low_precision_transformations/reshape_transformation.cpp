@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ const std::vector<ReshapeTransformationParam> params = {
         { -1 },
         { 256ul, ngraph::Shape{}, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         "Reshape",
-        "FP32"
+        "U8"
     },
     // 4D -> 3D
     {

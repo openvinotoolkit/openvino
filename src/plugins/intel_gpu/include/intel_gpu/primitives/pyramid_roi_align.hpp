@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,12 +10,6 @@
 #include <utility>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Performs RoI Align using image pyramid.
 /// @details Applies RoI Align to layer from the image pyramid.
@@ -64,8 +58,13 @@ struct pyramid_roi_align : public primitive_base<pyramid_roi_align> {
     int sampling_ratio;
     std::vector<int> pyramid_scales;
     int pyramid_starting_level;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, sampling_ratio);
+        seed = hash_range(seed, pyramid_scales.begin(), pyramid_scales.end());
+        seed = hash_combine(seed, pyramid_starting_level);
+        return seed;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

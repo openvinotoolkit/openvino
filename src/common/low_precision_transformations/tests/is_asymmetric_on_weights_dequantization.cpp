@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -102,7 +102,7 @@ const std::vector<IsAsymmetricOnWeightsDequantizationTestValues> testValues = {
      {{ngraph::element::f32}, {128.f}, {0.02f}},
      op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{2.f}),
      {{ngraph::element::f32},
-      {{0, 0, 1.e-7, 0, 0, 0}, ngraph::element::f32, {6, 1, 1, 1}},
+      {{0, 0, 1.e-7f, 0, 0, 0}, ngraph::element::f32, {6, 1, 1, 1}},
       {{1, 2, 3, 4, 5, 6}, ngraph::element::f32, {6, 1, 1, 1}}},
      false}};
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,8 +58,8 @@ bool If::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::st
     return true;
 }
 
-If::If(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache, InternalDynShapeInferFactory()), ovOp(op) {
+If::If(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
+        Node(op, context, InternalDynShapeInferFactory()), ovOp(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -71,8 +71,8 @@ void If::getSupportedDescriptors() {
 
     const std::shared_ptr<const ov::Model>& thenBody = ifOp->get_then_body();
     const std::shared_ptr<const ov::Model>& elseBody = ifOp->get_else_body();
-    subGraphThen.CreateGraph(thenBody, ext_mng, weightCache, sharedMutex);
-    subGraphElse.CreateGraph(elseBody, ext_mng, weightCache, sharedMutex);
+    subGraphThen.CreateGraph(thenBody, context);
+    subGraphElse.CreateGraph(elseBody, context);
 
     const auto &inMapThen = subGraphThen.GetInputNodesMap();
     for (const auto &param : ifOp->get_then_body()->get_parameters()) {
@@ -99,7 +99,7 @@ void If::getSupportedDescriptors() {
     const auto &outMapThen = subGraphThen.GetOutputNodesMap();
     for (const auto& out : ifOp->get_then_body()->get_results()) {
         const auto prev = out->input_value(0);
-        const std::string inputID = ngraph::op::util::get_ie_output_name(prev);
+        const std::string inputID = ov::op::util::get_ie_output_name(prev);
         auto outNode = outMapThen.find(inputID);
         if (outNode != outMapThen.end()) {
             auto outMem = outNode->second->getParentEdgeAt(0)->getMemoryPtr();
@@ -113,7 +113,7 @@ void If::getSupportedDescriptors() {
     const auto &outMapElse = subGraphElse.GetOutputNodesMap();
     for (const auto& out : ifOp->get_else_body()->get_results()) {
         const auto prev = out->input_value(0);
-        const std::string inputID = ngraph::op::util::get_ie_output_name(prev);
+        const std::string inputID = ov::op::util::get_ie_output_name(prev);
         auto outNode = outMapElse.find(inputID);
         if (outNode != outMapElse.end()) {
             auto outMem = outNode->second->getParentEdgeAt(0)->getMemoryPtr();

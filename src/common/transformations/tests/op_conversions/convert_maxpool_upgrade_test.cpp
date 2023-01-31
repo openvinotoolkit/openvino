@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ TEST_F(TransformationTestsF, ConvertMaxPool1ToMaxPool8) {
         function = std::make_shared<ngraph::Function>(ngraph::OutputVector{maxpool_1->output(0)},
                                                       ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::ConvertMaxPool1ToMaxPool8>();
+        manager.register_pass<ov::pass::ConvertMaxPool1ToMaxPool8>();
     }
 
     {
@@ -52,7 +52,7 @@ TEST_F(TransformationTestsF, negative_ConvertMaxPool1ToMaxPool8_dynamic_rank) {
         function = std::make_shared<ngraph::Function>(ngraph::OutputVector{maxpool_1->output(0)},
                                                       ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::ConvertMaxPool1ToMaxPool8>();
+        manager.register_pass<ov::pass::ConvertMaxPool1ToMaxPool8>();
     }
 
     {

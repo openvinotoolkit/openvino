@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -105,7 +105,7 @@ def get_input_data(paths_to_input, app_input_info):
                                    f"provided data shapes. Only {binaries_to_be_used_map[info.name]} binaries will be processed for this input.")
                 elif binaries_to_be_used_map[info.name] < total_frames:
                     logger.warning(f"Some binaries will be dublicated: {total_frames} is required, "
-                                   f"but only {images_to_be_used_map[info.name]} were provided.")
+                                   f"but only {binaries_to_be_used_map[info.name]} were provided.")
             else:
                 if not (info.is_image_info and len(image_sizes) == 1):
                     logger.warning(f"No input files were given for input '{info.name}'!. This input will be filled with random values!")
@@ -168,18 +168,6 @@ def get_image_tensors(image_paths, info, batch_sizes):
                 if image.shape[:-1] != new_im_size:
                     logger.warning(f"Image is resized from ({image.shape[:-1]}) to ({new_im_size})")
                     image = cv2.resize(image, new_im_size)
-
-            if info.scale.size or info.mean.size:
-                blue, green, red = cv2.split(image)
-                if info.mean.size:
-                    blue = np.subtract(blue, info.mean[0])
-                    green = np.subtract(green, info.mean[1])
-                    red = np.subtract(red, info.mean[2])
-                if info.scale.size:
-                    blue = np.divide(blue, info.scale[0])
-                    green = np.divide(green, info.scale[1])
-                    red = np.divide(red, info.scale[2])
-                image = cv2.merge([blue, green, red])
 
             model_channel = int(str(info.channels))
             image_channel = image.shape[-1]
@@ -272,7 +260,7 @@ def get_image_info_tensors(image_sizes, layer):
 
 def fill_tensors_with_random(layer):
     dtype = get_dtype(layer.element_type)
-    rand_min, rand_max = (0, 1) if dtype == np.bool else (np.iinfo(np.uint8).min, np.iinfo(np.uint8).max)
+    rand_min, rand_max = (0, 1) if dtype == bool else (np.iinfo(np.uint8).min, np.iinfo(np.uint8).max)
     # np.random.uniform excludes high: add 1 to have it generated
     if np.dtype(dtype).kind in ['i', 'u', 'b']:
         rand_max += 1

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import inspect
@@ -14,6 +14,7 @@ from common.utils.common_utils import copy_files_by_pattern
 def pytest_generate_tests(metafunc):
     test_gen_attrs_names = list(inspect.signature(get_params).parameters)
     params = get_params()
+    setattr(metafunc.cls, 'tflite', metafunc.config.getoption('tflite'))
     metafunc.parametrize(test_gen_attrs_names, params, scope="function")
 
 
