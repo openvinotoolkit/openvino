@@ -40,9 +40,10 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::cache_dir, ""),
         std::make_tuple(ov::num_streams, 1),
         std::make_tuple(ov::compilation_num_threads, std::max(1, static_cast<int>(std::thread::hardware_concurrency()))),
-        std::make_tuple(ov::hint::inference_precision, ov::element::f16, InferencePrecisionValidator()),
+        std::make_tuple(ov::inference_precision, ov::element::f16, InferencePrecisionValidator()),
         std::make_tuple(ov::hint::model_priority, ov::hint::Priority::MEDIUM),
         std::make_tuple(ov::hint::performance_mode, ov::hint::PerformanceMode::LATENCY, PerformanceModeValidator()),
+        std::make_tuple(ov::hint::execution_mode, ov::hint::ExecutionMode::PERFORMANCE),
         std::make_tuple(ov::hint::num_requests, 0),
 
         std::make_tuple(ov::intel_gpu::hint::host_task_priority, ov::hint::Priority::MEDIUM),
@@ -64,7 +65,6 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::intel_gpu::enable_memory_pool, true),
         std::make_tuple(ov::intel_gpu::allow_static_input_reorder, false),
         std::make_tuple(ov::intel_gpu::custom_outputs, std::vector<std::string>{}),
-        std::make_tuple(ov::intel_gpu::tuning_config, ov::intel_gpu::TuningConfig{}),
         std::make_tuple(ov::intel_gpu::dump_graphs, ""),
         std::make_tuple(ov::intel_gpu::force_implementations, ImplForcingMap{}),
         std::make_tuple(ov::intel_gpu::partial_build_program, false),
@@ -119,6 +119,22 @@ Any ExecutionConfig::get_property(const std::string& name) const {
     return internal_properties.at(name);
 }
 
+void ExecutionConfig::apply_execution_hints(const cldnn::device_info& info) {
+    if (is_set_by_user(ov::hint::execution_mode)) {
+        const auto mode = get_property(ov::hint::execution_mode);
+        if (!is_set_by_user(ov::inference_precision)) {
+            if (mode == ov::hint::ExecutionMode::ACCURACY) {
+                set_property(ov::inference_precision(ov::element::f32));
+            } else if (mode == ov::hint::ExecutionMode::PERFORMANCE) {
+                if (info.supports_fp16)
+                    set_property(ov::inference_precision(ov::element::f16));
+                else
+                    set_property(ov::inference_precision(ov::element::f32));
+            }
+        }
+    }
+}
+
 void ExecutionConfig::apply_performance_hints(const cldnn::device_info& info) {
     if (is_set_by_user(ov::hint::performance_mode)) {
         const auto mode = get_property(ov::hint::performance_mode);
@@ -158,6 +174,7 @@ void ExecutionConfig::apply_debug_options(const cldnn::device_info& info) {
 }
 
 void ExecutionConfig::apply_hints(const cldnn::device_info& info) {
+    apply_execution_hints(info);
     apply_performance_hints(info);
     apply_priority_hints(info);
     apply_debug_options(info);
