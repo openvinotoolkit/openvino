@@ -350,7 +350,7 @@ class TestMoConvertTF(CommonMOConvertTest):
                                    temp_dir, use_new_frontend, use_old_api):
         fw_model, graph_ref, mo_params = create_model(temp_dir)
 
-        test_params = {'input_model': fw_model, 'use_new_frontend': True}
+        test_params = {'input_model': fw_model}
         if mo_params is not None:
             test_params.update(mo_params)
         self._test_by_ref_graph(temp_dir, test_params, graph_ref, compare_tensor_names=False)
