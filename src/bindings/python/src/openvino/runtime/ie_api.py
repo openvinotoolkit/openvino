@@ -39,11 +39,10 @@ class InferRequest(_InferRequestWrapper):
 
         The allowed types of values in the `inputs` are:
 
-        (1) `numpy.array`
+        (1) `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
         (2) `openvino.runtime.Tensor`
-        (3) array-like object with `__array__` attribute
 
-        Can be called with only one `openvino.runtime.Tensor` or `numpy.array`,
+        Can be called with only one `openvino.runtime.Tensor` or `numpy.ndarray`,
         it will work only with one-input models. When model has more inputs,
         function throws error.
 
@@ -57,10 +56,9 @@ class InferRequest(_InferRequestWrapper):
 
                               If set to `True` the data dispatcher tries to provide "zero-copy"
                               Tensors for every input in form of:
-                              * `numpy.array`
-                              * array-like object with `__array__` attribute
+                              * `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
                               Data that is going to be copied:
-                              * `numpy.array` which are not C contiguous
+                              * `numpy.ndarray` which are not C contiguous
                               * inputs which data types are mismatched from Infer Request's inputs
                               * inputs that should be in `BF16` data type
                               * scalar inputs (i.e. `np.float_`/`int`/`float`)
@@ -71,7 +69,7 @@ class InferRequest(_InferRequestWrapper):
                               Default value: False
         :type shared_memory: bool, optional
         :return: Dictionary of results from output tensors with ports as keys.
-        :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
+        :rtype: Dict[openvino.runtime.ConstOutput, numpy.ndarray]
         """
         return super().infer(_data_dispatch(
             self,
@@ -99,11 +97,10 @@ class InferRequest(_InferRequestWrapper):
 
         The allowed types of values in the `inputs` are:
 
-        (1) `numpy.array`
+        (1) `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
         (2) `openvino.runtime.Tensor`
-        (3) array-like object with `__array__` attribute
 
-        Can be called with only one `openvino.runtime.Tensor` or `numpy.array`,
+        Can be called with only one `openvino.runtime.Tensor` or `numpy.ndarray`,
         it will work only with one-input models. When model has more inputs,
         function throws error.
 
@@ -119,10 +116,9 @@ class InferRequest(_InferRequestWrapper):
 
                               If set to `True` the data dispatcher tries to provide "zero-copy"
                               Tensors for every input in form of:
-                              * `numpy.array`
-                              * array-like object with `__array__` attribute
+                              * `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
                               Data that is going to be copied:
-                              * `numpy.array` which are not C contiguous
+                              * `numpy.ndarray` which are not C contiguous
                               * inputs which data types are mismatched from Infer Request's inputs
                               * inputs that should be in `BF16` data type
                               * scalar inputs (i.e. `np.float_`/`int`/`float`)
@@ -182,15 +178,15 @@ class CompiledModel(CompiledModelBase):
 
         The allowed types of values in the `inputs` are:
 
-        (1) `numpy.array`
+        (1) `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
         (2) `openvino.runtime.Tensor`
 
-        Can be called with only one `openvino.runtime.Tensor` or `numpy.array`,
+        Can be called with only one `openvino.runtime.Tensor` or `numpy.ndarray`,
         it will work only with one-input models. When model has more inputs,
         function throws error.
 
         :param inputs: Data to be set on input tensors.
-        :type inputs: Union[Dict[keys, values], List[values], Tuple[values], Tensor, numpy.array], optional
+        :type inputs: Union[Dict[keys, values], List[values], Tuple[values], Tensor, numpy.ndarray], optional
         :return: Dictionary of results from output tensors with ports as keys.
         :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
         """
@@ -222,15 +218,15 @@ class CompiledModel(CompiledModelBase):
 
         The allowed types of values in the `inputs` are:
 
-        (1) `numpy.array`
+        (1) `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
         (2) `openvino.runtime.Tensor`
 
-        Can be called with only one `openvino.runtime.Tensor` or `numpy.array`,
+        Can be called with only one `openvino.runtime.Tensor` or `numpy.ndarray`,
         it will work only with one-input models. When model has more inputs,
         function throws error.
 
         :param inputs: Data to be set on input tensors.
-        :type inputs: Union[Dict[keys, values], List[values], Tuple[values], Tensor, numpy.array], optional
+        :type inputs: Union[Dict[keys, values], List[values], Tuple[values], Tensor, numpy.ndarray], optional
         :param shared_memory: Enables `shared_memory` mode.
 
                               If set to `False` inputs the data dispatcher will safely copy data
@@ -239,10 +235,9 @@ class CompiledModel(CompiledModelBase):
 
                               If set to `True` the data dispatcher tries to provide "zero-copy"
                               Tensors for every input in form of:
-                              * `numpy.array`
-                              * array-like object with `__array__` attribute
+                              * `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
                               Data that is going to be copied:
-                              * `numpy.array` which are not C contiguous
+                              * `numpy.ndarray` which are not C contiguous
                               * inputs which data types are mismatched from Infer Request's inputs
                               * inputs that should be in `BF16` data type
                               * scalar inputs (i.e. `np.float_`/`int`/`float`)
@@ -254,7 +249,7 @@ class CompiledModel(CompiledModelBase):
         :type shared_memory: bool, optional
 
         :return: Dictionary of results from output tensors with ports as keys.
-        :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
+        :rtype: Dict[openvino.runtime.ConstOutput, numpy.ndarray]
         """
         if self._infer_request is None:
             self._infer_request = self.create_infer_request()
@@ -307,11 +302,10 @@ class AsyncInferQueue(AsyncInferQueueBase):
 
         The allowed types of values in the `inputs` are:
 
-        (1) `numpy.array`
+        (1) `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
         (2) `openvino.runtime.Tensor`
-        (3) array-like object with `__array__` attribute
 
-        Can be called with only one `openvino.runtime.Tensor` or `numpy.array`,
+        Can be called with only one `openvino.runtime.Tensor` or `numpy.ndarray`,
         it will work only with one-input models. When model has more inputs,
         function throws error.
 
@@ -327,10 +321,9 @@ class AsyncInferQueue(AsyncInferQueueBase):
 
                               If set to `True` the data dispatcher tries to provide "zero-copy"
                               Tensors for every input in form of:
-                              * `numpy.array`
-                              * array-like object with `__array__` attribute
+                              * `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
                               Data that is going to be copied:
-                              * `numpy.array` which are not C contiguous
+                              * `numpy.ndarray` which are not C contiguous
                               * inputs which data types are mismatched from Infer Request's inputs
                               * inputs that should be in `BF16` data type
                               * scalar inputs (i.e. `np.float_`/`int`/`float`)
