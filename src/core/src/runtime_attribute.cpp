@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,10 @@ Any RuntimeAttribute::merge(const ngraph::OutputVector& outputs) const {
 
 bool RuntimeAttribute::is_copyable() const {
     return true;
+}
+
+bool RuntimeAttribute::is_copyable(const std::shared_ptr<Node>& to) const {
+    return is_copyable();
 }
 
 std::ostream& operator<<(std::ostream& os, const RuntimeAttribute& attrubute) {

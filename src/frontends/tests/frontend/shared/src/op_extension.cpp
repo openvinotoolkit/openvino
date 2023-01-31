@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,6 @@ std::string FrontEndOpExtensionTest::getTestCaseName(const testing::TestParamInf
 }
 
 void FrontEndOpExtensionTest::SetUp() {
-    FrontEndTestUtils::setupTestEnv();
     initParamTest();
 }
 

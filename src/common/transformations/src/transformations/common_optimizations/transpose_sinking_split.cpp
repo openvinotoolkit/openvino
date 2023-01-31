@@ -52,78 +52,69 @@ OutputTranspose GetOutputTransposes(NodePtr node) {
     return OutputTranspose();
 }
 
-NodePtr FindSplitInput(Node* node) {
+template <typename NodeT>
+std::shared_ptr<ov::Node> FindInputNode(ov::Node* node) {
     for (size_t input_idx = 0; input_idx < node->get_input_size(); ++input_idx) {
-        NodePtr input_node = node->get_input_node_shared_ptr(input_idx);
-        auto split_node = as_type_ptr<Split>(input_node);
-        if (split_node)
-            return split_node;
+        std::shared_ptr<ov::Node> input_node = node->get_input_node_shared_ptr(input_idx);
+        auto target_node = ov::as_type_ptr<NodeT>(input_node);
+        if (target_node)
+            return target_node;
     }
     return {};
 }
 
-std::shared_ptr<Constant> GetTransposeConstant(Input<Node> input) {
-    auto transpose_node = dynamic_cast<Transpose*>(input.get_node());
-    if (!transpose_node)
-        return {};
-
-    if (!is_sinking_node(input.get_node()))
-        return {};
-
-    auto constant_node = as_type_ptr<Constant>(transpose_node->input_value(1).get_node_shared_ptr());
-    if (!constant_node)
-        return {};
-
-    return constant_node;
-}
-
 bool HasInputSplitAndTransposeSiblings(const Output<Node>& output) {
-    NodePtr split_node = FindSplitInput(output.get_node());
-    if (!split_node) {
+    NodePtr main_node = FindInputNode<Split>(output.get_node());
+    if (!main_node) {
         return false;
     }
 
-    AxisVector first_transpose_axis_order;
-    // get first transpose axis
-    {
-        auto constant_node = GetTransposeConstant(*(split_node->get_output_target_inputs(0).begin()));
-        if (!constant_node)
-            return false;
-        first_transpose_axis_order = constant_node->get_axis_vector_val();
-    }
-
-    for (size_t output_idx = 1; output_idx < split_node->get_output_size(); ++output_idx) {
-        for (auto& input : split_node->get_output_target_inputs(output_idx)) {
-            auto constant_node = GetTransposeConstant(input);
-            if (!constant_node)
-                return false;
-
-            AxisVector transpose_axis_order = constant_node->get_axis_vector_val();
-            if (transpose_axis_order.size() != first_transpose_axis_order.size())
-                return false;
-            if (!std::equal(transpose_axis_order.begin(),
-                            transpose_axis_order.end(),
-                            first_transpose_axis_order.begin()))
-                return false;
-        }
-    }
-
-    return true;
+    return HasSameOutputTransposeNodes(main_node);
 }
+
+bool IsSplitSinked(const Output<Node>& output) {
+    return HasInputSplitAndTransposeSiblings(output) && is_sinking_node(output);
+}
+
 }  // namespace
 
+/*
+ * We follow Transpose operations rather than Split. We cannot create matcher pattern
+ * for Split with Transpose outputs since Split can have different number of outputs.
+ * We just can:
+ * - specify Split as searched node and check if it has transpose outputs
+ * - specify Transpose as searched node and check if it has Split input
+ * Transformations are called on each found node in sorted order from the start to end
+ * of the network. When we proceed Split backward sinking we move input transpose
+ * to the input of the Split operation.
+ * Consider case Split (1) -> Split (2) -> Transpose
+ * If specify Split as main searched node after first transformation work we will have
+ * Split (1) -> Transpose -> Split(2)
+ * Matcher pass will not call TransposeSinkingSplitBackward since
+ * - matcher pattern has no Transpose label
+ * - Split (1) has already been proceeded
+ * Adding Split(2) into the working queue as register_new_node(split)
+ * cannot help us. We just can try to find all input Split operations and add them with
+ * register_new_node(). Implemented way is simpler.
+ *
+ * We sink Transpose through Split operation in a backward way only if all the output
+ * nodes are the same Transpose. We can:
+ * - clone Split with all outputs except Transpose
+ *   causes perfomance problems
+ * - add reversed Transpose operations on all outputs except sinking Transpose
+ *   nothing to do with new added output Transposes
+ */
 ov::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
     MATCHER_SCOPE(TransposeSinkingSplitBackward);
 
-    auto transpose_const_label = wrap_type<Constant>(consumers_count(1));
-    auto transpose_label =
-        wrap_type<Transpose>({any_input(), transpose_const_label}, HasInputSplitAndTransposeSiblings);
+    auto transpose_const_label = wrap_type<Constant>();
+    auto transpose_label = wrap_type<Transpose>({any_input(), transpose_const_label}, IsSplitSinked);
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose_label_node = pattern_to_output.at(transpose_label).get_node();
 
-        NodePtr split = FindSplitInput(transpose_label_node);
+        NodePtr split = FindInputNode<Split>(transpose_label_node);
         auto split_axis_constant = as_type_ptr<Constant>(split->input_value(1).get_node_shared_ptr());
         OutputTranspose output_transpose = GetOutputTransposes(split);
 
@@ -155,13 +146,14 @@ ov::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
                                                                Shape{},
                                                                reversed_transposed_split_axis);
         split->input(1).replace_source_output(new_split_axis_const);
+        copy_runtime_info({split_axis_constant,
+                           output_transpose.transpose->shared_from_this(),
+                           output_transpose.transpose_const->shared_from_this()},
+                          new_split_axis_const);
 
         // remove split output transposes
-        for (size_t output_idx = 0; output_idx < split->get_output_size(); ++output_idx) {
-            for (auto& input : split->get_output_target_inputs(output_idx)) {
-                input.get_node()->output(0).replace(split->output(output_idx));
-            }
-        }
+        RemoveSingleOutputConsumers(split);
+
         return true;
     };
 
@@ -182,7 +174,7 @@ ov::pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
 
         TransposeInputsInfo transpose_input_info = GetFirstTransposeInput(main_node);
 
-        sink_forward::RemoveZeroInputNode(main_node);
+        sink_forward::RemoveInputNode(main_node, /* input_idx */ 0);
         for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
             register_new_node(new_node);
             transpose_sinking::UpdateForwardSinkingAbility(new_node);
@@ -196,6 +188,8 @@ ov::pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
         auto new_split_axis_const =
             std::make_shared<Constant>(split_axis_constant->get_element_type(), Shape{}, transposed_split_axis);
         split_node->input(1).replace_source_output(new_split_axis_const);
+        copy_runtime_info({split_axis_constant, transpose_input_info.transpose, transpose_input_info.transpose_const},
+                          new_split_axis_const);
 
         return true;
     };

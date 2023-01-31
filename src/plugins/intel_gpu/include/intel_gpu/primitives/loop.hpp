@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <vector>
 #include <functional>
@@ -11,12 +10,7 @@
 
 #define DEFAULT_MAX_NUM_ITERATION 256
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
+
 ///
 /// @brief Adds primitive which performs recurrent execution of the topology.
 ///
@@ -76,6 +70,7 @@ struct loop : public primitive_base<loop> {
             end(end),
             stride(stride)
             {}
+        io_primitive_map() {}
         primitive_id external_id;
         primitive_id internal_id;
         int64_t axis;
@@ -91,6 +86,7 @@ struct loop : public primitive_base<loop> {
         /// @param to Input data primitive id of body topology
         backedge_mapping(primitive_id from, primitive_id to)
             : from(from), to(to) {}
+        backedge_mapping() {}
         primitive_id from;
         primitive_id to;
     };
@@ -171,6 +167,12 @@ struct loop : public primitive_base<loop> {
 
     int64_t max_iteration;
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, id);
+        return seed;
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret{
@@ -190,7 +192,4 @@ protected:
     }
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

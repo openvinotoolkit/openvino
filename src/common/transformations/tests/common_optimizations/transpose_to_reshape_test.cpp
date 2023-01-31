@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -110,8 +110,8 @@ TEST_P(TransposeToReshapeTests, CompareFunctions) {
     auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
     pass::Manager m;
     m.register_pass<pass::InitUniqueNames>(unh);
-    m.register_pass<ngraph::pass::InitNodeInfo>();
-    m.register_pass<ngraph::pass::TransposeToReshape>();
+    m.register_pass<ov::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::TransposeToReshape>();
     m.register_pass<ngraph::pass::CheckUniqueNames>(unh);
     m.run_passes(f);
     f->validate_nodes_and_infer_types();
@@ -176,7 +176,10 @@ TEST(TransformationTests, replace_transpose_with_reshape) {
 
         shared_ptr<Node> perm;
         if (i32) {
-            std::vector<int32_t> perm_val_i32(perm_val.begin(), perm_val.end());
+            std::vector<int32_t> perm_val_i32(perm_val.size());
+            std::transform(perm_val.begin(), perm_val.end(), perm_val_i32.begin(), [](int64_t x) {
+                return (int32_t)x;
+            });
             perm = op::Constant::create<int32_t>(element::i32, Shape{perm_val.size()}, perm_val_i32);
         } else {
             perm = op::Constant::create<int64_t>(element::i64, Shape{perm_val.size()}, perm_val);
@@ -207,9 +210,9 @@ TEST(TransformationTests, replace_transpose_with_reshape) {
         auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
         pass::Manager m;
         m.register_pass<pass::InitUniqueNames>(unh);
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ngraph::pass::Validate>();
-        m.register_pass<ngraph::pass::TransposeToReshape>();
+        m.register_pass<ov::pass::TransposeToReshape>();
         m.register_pass<ngraph::pass::CheckUniqueNames>(unh);
         m.run_passes(optimized_f);
 

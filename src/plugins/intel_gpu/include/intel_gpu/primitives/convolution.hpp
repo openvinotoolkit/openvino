@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include "openvino/core/strides.hpp"
@@ -10,12 +9,6 @@
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Performs forward spatial convolution with weight sharing.
 /// Also supports built-in Relu @CLDNN_PRIMITIVE_DESC{activation} available by setting it in arguments.
@@ -770,8 +763,23 @@ struct convolution : public primitive_base<convolution> {
     /// @brief List of primitive ids containing compensation.
     primitive_id_arr compensation;
 
-    /// @brief On how many cards split the computation to.
-    int32_t split() const { return static_cast<int32_t>(weights.size()); }
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_range(seed, pad.begin(), pad.end());
+        seed = hash_range(seed, stride.begin(), stride.end());
+        seed = hash_range(seed, dilation.begin(), dilation.end());
+        seed = hash_combine(seed, groups);
+        seed = hash_combine(seed, deformable_groups);
+        seed = hash_combine(seed, deformable_mode);
+        seed = hash_combine(seed, bilinear_interpolation_pad);
+        seed = hash_combine(seed, grouped_weights_shape);
+        seed = hash_combine(seed, weights.size());
+        seed = hash_combine(seed, bias.size());
+        seed = hash_combine(seed, weights_zero_points.size());
+        seed = hash_combine(seed, activations_zero_points.size());
+        seed = hash_combine(seed, compensation.size());
+        return seed;
+    }
 
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
@@ -836,6 +844,20 @@ struct deformable_interp : public primitive_base<deformable_interp> {
     /// @brief if bilinear_interpolation_pad is true and the sampling location is within one pixel outside
     /// of the feature map boundary, then bilinear interpolation is performed on the zero padded feature map.
     bool bilinear_interpolation_pad {false};
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = cldnn::hash_range(seed, pad.begin(), pad.end());
+        seed = cldnn::hash_range(seed, stride.begin(), stride.end());
+        seed = cldnn::hash_range(seed, dilation.begin(), dilation.end());
+        seed = cldnn::hash_combine(seed, kernel_size.hash());
+        seed = cldnn::hash_combine(seed, groups);
+        seed = cldnn::hash_combine(seed, deformable_groups);
+        seed = cldnn::hash_range(seed, padding_above.begin(), padding_above.end());
+        seed = cldnn::hash_range(seed, padding_below.begin(), padding_below.end());
+        seed = cldnn::hash_combine(seed, bilinear_interpolation_pad);
+        return seed;
+    }
 };
 
 struct deformable_conv : public primitive_base<deformable_conv> {
@@ -863,8 +885,13 @@ struct deformable_conv : public primitive_base<deformable_conv> {
     /// @brief List of primitive ids containing bias data.
     const primitive_id_arr bias;
 
-    /// @brief On how many cards split the computation to.
-    int32_t split() const { return static_cast<int32_t>(weights.size()); }
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, groups);
+        seed = hash_combine(seed, weights.size());
+        seed = hash_combine(seed, bias.size());
+        return seed;
+    }
 
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
@@ -875,7 +902,4 @@ struct deformable_conv : public primitive_base<deformable_conv> {
     }
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

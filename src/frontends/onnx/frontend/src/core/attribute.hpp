@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -265,7 +265,7 @@ public:
     const std::string& get_string() const {
         return m_attribute_proto->s();
     }
-    Subgraph get_subgraph(const Graph* parent_graph) const;
+    Subgraph get_subgraph(Graph* parent_graph) const;
 
     std::vector<Tensor> get_tensor_array() const {
         std::vector<Tensor> ret;

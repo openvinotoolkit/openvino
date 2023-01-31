@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,9 +42,9 @@ TEST(TransformationTests, ConvToBinaryConvOutputLowZeroOutputHighOne) {
         f = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
 
         pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::ConvToBinaryConv>();
-        m.register_pass<pass::ConstantFolding>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvToBinaryConv>();
+        m.register_pass<ov::pass::ConstantFolding>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -67,7 +67,7 @@ TEST(TransformationTests, ConvToBinaryConvOutputLowZeroOutputHighOne) {
                                                         CoordinateDiff{0, 0},
                                                         Strides{1, 1},
                                                         opset5::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT,
-                                                        -1,
+                                                        -1.0f,
                                                         op::PadType::EXPLICIT);
         auto add = std::make_shared<opset5::Add>(conv, opset5::Constant::create(element::f32, Shape{1, 1, 1}, {0.7f}));
         auto mul = std::make_shared<opset5::Multiply>(add, opset5::Constant::create(element::f32, Shape{}, {0.2f}));
@@ -101,9 +101,9 @@ TEST(TransformationTests, ConvToBinaryConvOutputLowMinusOneOutputHighOne) {
         f = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
 
         pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::ConvToBinaryConv>();
-        m.register_pass<pass::ConstantFolding>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvToBinaryConv>();
+        m.register_pass<ov::pass::ConstantFolding>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -126,7 +126,7 @@ TEST(TransformationTests, ConvToBinaryConvOutputLowMinusOneOutputHighOne) {
                                                         CoordinateDiff{0, 0},
                                                         Strides{1, 1},
                                                         opset5::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT,
-                                                        0,
+                                                        0.0f,
                                                         op::PadType::EXPLICIT);
 
         f_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
@@ -158,9 +158,9 @@ TEST(TransformationTests, NegativeConvToBinaryConvInvalidWeights) {
         f = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
 
         pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::ConvToBinaryConv>();
-        m.register_pass<pass::ConstantFolding>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvToBinaryConv>();
+        m.register_pass<ov::pass::ConstantFolding>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -211,9 +211,9 @@ TEST(TransformationTests, NegativeConvToBinaryConvInvalidLevels) {
         f = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
 
         pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::ConvToBinaryConv>();
-        m.register_pass<pass::ConstantFolding>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvToBinaryConv>();
+        m.register_pass<ov::pass::ConstantFolding>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -264,9 +264,9 @@ TEST(TransformationTests, NegativeConvToBinaryConvOutputLowHigh) {
         f = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
 
         pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::ConvToBinaryConv>();
-        m.register_pass<pass::ConstantFolding>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvToBinaryConv>();
+        m.register_pass<ov::pass::ConstantFolding>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
