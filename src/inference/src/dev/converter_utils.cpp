@@ -165,6 +165,9 @@ std::shared_ptr<const ov::Model> ov::legacy_convert::convert_model(const Inferen
         auto& rt_info = output.get_rt_info();
         rt_info["ie_legacy_td"] = output_info->getTensorDesc();
     }
+    if (!cloned_model->has_rt_info("version")) {
+        cloned_model->set_rt_info(int64_t(10), "version");
+    }
     return cloned_model;
 }
 

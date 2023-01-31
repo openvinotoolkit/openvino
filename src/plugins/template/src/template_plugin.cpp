@@ -120,7 +120,7 @@ std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::import_model(std::is
     ov::Tensor weights;
     model.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
     if (0 != dataSize) {
-        weights = ov::Tensor(ov::element::u8, ov::Shape{dataSize});
+        weights = ov::Tensor(ov::element::from<char>(), ov::Shape{dataSize});
         model.read(weights.data<char>(), dataSize);
     }
 

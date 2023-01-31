@@ -203,6 +203,18 @@ InferenceEngine::Parameter TemplatePlugin::CompiledModel::get_property(const std
         unsigned int value = _cfg._streamsExecutorConfig._streams;
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, value);
     }
+
+    if (ov::supported_properties == name) {
+        std::vector<ov::PropertyName> supported_properties{METRIC_KEY(NETWORK_NAME),
+                                                           METRIC_KEY(SUPPORTED_METRICS),
+                                                           METRIC_KEY(SUPPORTED_CONFIG_KEYS),
+                                                           METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS),
+                                                           CONFIG_KEY(DEVICE_ID),
+                                                           CONFIG_KEY(PERF_COUNT),
+                                                           TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS)};
+        return supported_properties;
+    }
+
     return _cfg.Get(name);
 }
 // ! [executable_network:get_config]
