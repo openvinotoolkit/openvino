@@ -235,6 +235,15 @@ macro(ov_cpack_settings)
         set(pytorch_copyright "generic")
     endif()
 
+    if(ENABLE_OV_TF_LITE_FRONTEND)
+        set(CPACK_COMPONENT_TENSORFLOW_LITE_DESCRIPTION "OpenVINO TensorFlow Lite Frontend")
+        set(CPACK_RPM_TENSORFLOW_LITE_PACKAGE_NAME "libopenvino-tensorflow-lite-frontend-${cpack_name_ver}")
+        set(CPACK_RPM_TENSORFLOW_LITE_POST_INSTALL_SCRIPT_FILE "${def_triggers}")
+        set(CPACK_RPM_TENSORFLOW_LITE_POST_UNINSTALL_SCRIPT_FILE "${def_triggers}")
+        _ov_add_package(frontend_packages tensorflow_lite)
+        set(tensorflow_lite_copyright "generic")
+    endif()
+
     #
     # core_dev: depends on core and frontends (since frontends don't want to provide its own dev packages)
     #

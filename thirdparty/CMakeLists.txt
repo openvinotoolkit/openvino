@@ -326,7 +326,7 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         set(Protobuf_LIBRARIES protobuf::libprotobuf)
         set(PROTOC_EXECUTABLE protobuf::protoc)
 
-        foreach(target ${PROTOC_EXECUTABLE} ${Protobuf_LIBRARIES} ${Protobuf_LITE_LIBRARIES})
+        foreach(target IN LISTS PROTOC_EXECUTABLE Protobuf_LIBRARIES Protobuf_LITE_LIBRARIES)
             set_property(TARGET ${target} PROPERTY IMPORTED_GLOBAL ON)
         endforeach()
     else()
@@ -351,6 +351,44 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
             target_compile_options(${target} ${link_type} -Wno-undef)
         endif()
     endforeach()
+endif()
+
+#
+# Flat Buffers
+#
+
+if(ENABLE_OV_TF_LITE_FRONTEND)
+    if(ENABLE_SYSTEM_FLATBUFFERS)
+        if(CMAKE_HOST_LINUX AND EMSCRIPTEN AND HOST_X86_64)
+            set(_old_flat_CMAKE_LIBRARY_ARCHITECTURE ${CMAKE_LIBRARY_ARCHITECTURE})
+            # without this WA cmake does not search in <triplet> subfolder
+            # see https://cmake.org/cmake/help/latest/command/find_package.html#config-mode-search-procedure
+            set(CMAKE_LIBRARY_ARCHITECTURE "x86_64-linux-gnu")
+        endif()
+
+        find_host_package(Flatbuffers QUIET NO_CMAKE_FIND_ROOT_PATH)
+
+        if(DEFINED _old_flat_CMAKE_LIBRARY_ARCHITECTURE)
+            set(CMAKE_LIBRARY_ARCHITECTURE ${_old_flat_CMAKE_LIBRARY_ARCHITECTURE})
+            unset(_old_flat_CMAKE_LIBRARY_ARCHITECTURE)
+        endif()
+    endif()
+
+    if(Flatbuffers_FOUND)
+        # we don't actually use library files (.so | .dylib | .a) itself, only headers
+        set(flatbuffers_LIBRARY flatbuffers::flatbuffers)
+        set(flatbuffers_COMPILER flatbuffers::flatc)
+
+        foreach(target IN LISTS flatbuffers_LIBRARY flatbuffers_COMPILER)
+            set_property(TARGET ${target} PROPERTY IMPORTED_GLOBAL ON)
+        endforeach()
+    else()
+        add_subdirectory(flatbuffers EXCLUDE_FROM_ALL)
+    endif()
+
+    set(flatbuffers_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:${flatbuffers_LIBRARY},INTERFACE_INCLUDE_DIRECTORIES> PARENT_SCOPE)
+    set(flatbuffers_COMPILER ${flatbuffers_COMPILER} PARENT_SCOPE)
+    set(flatbuffers_DEPENDENCY ${flatbuffers_DEPENDENCY} PARENT_SCOPE)
 endif()
 
 #

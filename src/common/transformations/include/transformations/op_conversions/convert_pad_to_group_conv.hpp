@@ -31,9 +31,3 @@ public:
     OPENVINO_RTTI("ConvertPadToGroupConvolution", "0");
     ConvertPadToGroupConvolution();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertPadToGroupConvolution;
-}  // namespace pass
-}  // namespace ngraph
