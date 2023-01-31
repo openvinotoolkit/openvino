@@ -19,10 +19,9 @@
 #include "so_extension.hpp"
 #include "tf_framework_node.hpp"
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
+#include "transformations/common_optimizations/transpose_sinking_general.hpp"
 #include "translate_session.hpp"
 #include "utils.hpp"
-#include "transformations/common_optimizations/transpose_sinking.hpp"
-#include "transformations/common_optimizations/transpose_sinking_general.hpp"
 
 using namespace ov;
 using namespace ov::frontend::tensorflow;

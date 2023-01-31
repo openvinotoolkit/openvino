@@ -73,7 +73,7 @@ shared_ptr<Model> CreateFunction(size_t num_pad_ops, element::Type input_type) {
     auto X = make_shared<Parameter>(input_type, input_shape);
 
     auto order = make_shared<Constant>(element::i64, Shape{4}, Shape{0, 3, 1, 2});
-    auto transpose = make_shared<Transpose>(X, order); // 96 55 32 55
+    auto transpose = make_shared<Transpose>(X, order);  // 96 55 32 55
 
     OutputVector outputs;
     Output<Node> in_op = transpose->output(0);
