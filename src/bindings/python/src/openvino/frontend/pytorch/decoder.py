@@ -16,7 +16,10 @@ def get_type_from_py_type(value):
     if isinstance(value, float):
         return OVType.f32
     if isinstance(value, int):
-        return OVType.i32
+        # Python int is 64 bit, but we will convert it to int32 except cases when it can't fit in 32 bits
+        if torch.iinfo(torch.int).min <= value <= torch.iinfo(torch.int).max:
+            return OVType.i32
+        return OVType.i64
     if isinstance(value, bool):
         return OVType.boolean
     return OVType.dynamic
@@ -25,8 +28,6 @@ def get_type_from_py_type(value):
 def ivalue_to_constant(ivalue):
     ov_type = get_type_from_py_type(ivalue)
     if ov_type.is_static():
-        if ov_type == OVType.i32 and torch.iinfo(torch.int).max < ivalue or torch.iinfo(torch.int).min > ivalue:
-            ov_type = OVType.i64
         return op.Constant(ov_type, Shape([]), [ivalue]).outputs()
 
     if isinstance(ivalue, (list, tuple)):
