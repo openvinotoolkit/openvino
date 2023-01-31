@@ -81,7 +81,7 @@ PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
         auto pad_begins_full = create_padding(input_rank, pad_values, start_pad_begins, minus_one);
         auto pad_ends_full = create_padding(input_rank, pad_values, start_pad_ends, zero);
         auto mode_const = pad_op->input_value(2).get_node_shared_ptr();
-        std::shared_ptr<Node> pad_value = zero_f;
+        auto pad_value = pad_op->input_value(3).get_node_shared_ptr();
         if (const auto& fw_node_mode = cast_fw_node(mode_const, "prim::Constant")) {
             const auto& attrs = fw_node_mode->get_attrs();
             if (attrs.find("string_value") != attrs.end()) {
@@ -90,10 +90,10 @@ PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
         }
         if (mode == "constant") {
             if (const auto& fw_node_value =
-                    cast_fw_node(pad_op->input_value(3).get_node_shared_ptr(), "prim::Constant")) {
+                    cast_fw_node(pad_value, "prim::Constant")) {
                 const auto& attrs = fw_node_value->get_attrs();
                 if (attrs.find("none_value") != attrs.end()) {
-                    pad_value = pad_op->input_value(3).get_node_shared_ptr();
+                    pad_value = zero_f;
                 }
             }
         }
