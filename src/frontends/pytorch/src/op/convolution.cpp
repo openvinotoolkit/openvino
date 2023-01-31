@@ -69,7 +69,7 @@ OutputVector translate_convolution(NodeContext& context) {
         auto bias = context.get_input(2);
         auto bias_rank = bias.get_partial_shape().rank();
         if (bias_rank == 1) {
-            bias = reshape_conv_bias(context, bias, conv);
+            bias = reshape_channelwise(context, bias, conv);
         }
 
         conv = context.mark_node(std::make_shared<opset10::Add>(conv, bias));
