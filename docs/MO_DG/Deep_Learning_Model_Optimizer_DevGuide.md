@@ -35,10 +35,7 @@ where IR is a pair of files describing the model:
 
 *  <code>.bin</code> - Contains the weights and biases binary data.
 
-The OpenVINO IR can be additionally optimized for inference by [Post-training optimization](../../tools/pot/docs/Introduction.md)
-> that applies post-training quantization methods.
-
-> **TIP**: You can also work with Model Optimizer in OpenVINO™ [Deep Learning Workbench (DL Workbench)](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Introduction.html), which is a web-based tool with GUI for optimizing, fine-tuning, analyzing, visualizing, and comparing performance of deep learning models.
+The OpenVINO IR can be additionally optimized for inference by [Post-training optimization](../../tools/pot/docs/Introduction.md) that applies post-training quantization methods.
 
 ## How to Run Model Optimizer
 
@@ -88,7 +85,7 @@ For more information, refer to the [Converting a TensorFlow Model](prepare_model
 ```sh
 mo --input_model ocr.onnx --output probabilities
 ```
-For more information, refer to the [Converting an ONNX Model (prepare_model/convert_model/Convert_Model_From_ONNX.md) guide.
+For more information, refer to the [Converting an ONNX Model](prepare_model/convert_model/Convert_Model_From_ONNX.md) guide.
 
 > **NOTE**: PyTorch models must be exported to the ONNX format before conversion into IR. More information can be found in [Converting a PyTorch Model](prepare_model/convert_model/Convert_Model_From_PyTorch.md).
 

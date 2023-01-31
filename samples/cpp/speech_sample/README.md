@@ -21,9 +21,9 @@ Basic OpenVINO™ Runtime API is covered by [Hello Classification C++ sample](..
 
 | Options | Values |
 | :--- | :--- |
-| Validated Models | Acoustic model based on Kaldi\* neural networks (see [Model Preparation](#model-preparation) section) |
+| Validated Models | Acoustic model based on Kaldi\* neural networks (see [Model Preparation](#model-preparation-speech) section) |
 | Model Format | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin) |
-| Supported devices | See [Execution Modes](#execution-modes) section below and [List Supported Devices](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
+| Supported devices | See [Execution Modes](#execution-modes-speech) section below and [List Supported Devices](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 
 ## How It Works
 
@@ -52,7 +52,7 @@ network.
 >
 > - It is not always possible to use 8-bit weights due to GNA hardware limitations. For example, convolutional layers always use 16-bit weights (GNA hardware version 1 and 2). This limitation will be removed in GNA hardware version 3 and higher.
 
-#### Execution Modes
+#### <a name="execution-modes-speech"></a> Execution Modes
 
 Several execution modes are supported via the `-d` flag:
 
@@ -122,7 +122,7 @@ Options:
 Available target devices:  CPU  GNA  GPU
 ```
 
-### Model Preparation
+### <a name="model-preparation-speech"></a> Model Preparation
 
 You can use the following model optimizer command to convert a Kaldi nnet1 or nnet2 neural model to OpenVINO™ toolkit Intermediate Representation format:
 
@@ -216,7 +216,7 @@ Kaldi's nnet-forward command. Since the `speech_sample` does not yet use pipes, 
    ./speech_sample -d GNA_AUTO -bs 8 -i feat.ark -m wsj_dnn5b.xml -o scores.ark
    ```
 
-   OpenVINO™ toolkit Intermediate Representation `wsj_dnn5b.xml` file was generated in the previous [Model Preparation](#model-preparation) section.
+   OpenVINO™ toolkit Intermediate Representation `wsj_dnn5b.xml` file was generated in the previous [Model Preparation](#model-preparation-speech) section.
 
 3. Run the Kaldi decoder to produce n-best text hypotheses and select most likely text given the WFST (`HCLG.fst`), vocabulary (`words.txt`), and TID/PID mapping (`final.mdl`):
    ```sh

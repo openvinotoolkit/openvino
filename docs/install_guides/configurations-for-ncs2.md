@@ -35,8 +35,6 @@ Once you have OpenVINO™ Runtime installed, follow these steps to be able to wo
 You've completed all required configuration steps to perform inference on Intel® Neural Compute Stick 2.
 
 
-@sphinxdirective
-
 .. _ncs guide macos:
 
 @endsphinxdirective
