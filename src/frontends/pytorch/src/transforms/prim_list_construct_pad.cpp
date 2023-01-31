@@ -89,8 +89,7 @@ PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
             }
         }
         if (mode == "constant") {
-            if (const auto& fw_node_value =
-                    cast_fw_node(pad_value, "prim::Constant")) {
+            if (const auto& fw_node_value = cast_fw_node(pad_value, "prim::Constant")) {
                 const auto& attrs = fw_node_value->get_attrs();
                 if (attrs.find("none_value") != attrs.end()) {
                     pad_value = zero_f;
