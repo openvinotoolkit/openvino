@@ -1,6 +1,6 @@
--c constraints.txt
+-c ../constraints.txt
+numpy>=1.16.6,<1.25.0
 networkx
-numpy
 defusedxml
 requests
 fastjsonschema

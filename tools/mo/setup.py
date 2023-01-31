@@ -24,10 +24,14 @@ prefix = 'openvino/tools/mo/'
 SETUP_DIR = Path(__file__).resolve().parent / Path(prefix)
 
 
-def read_constraints(path: str='constraints.txt') -> Dict[str, str]:
+def read_constraints(path: str='../constraints.txt') -> Dict[str, List[str]]:
     """
     Read a constraints.txt file and return a dict
-    of {package_name: required_version}
+    of {package_name: [required_version_1, required_version_2]}.
+    The dict values are a list because a package can be mentioned
+    multiple times, for example:
+        mxnet~=1.2.0; sys_platform == 'win32'
+        mxnet>=1.7.0; sys_platform != 'win32'
     """
     constraints = {}
     with open(Path(__file__).resolve().parent / path) as f:
@@ -39,7 +43,12 @@ def read_constraints(path: str='constraints.txt') -> Dict[str, str]:
         line = line.replace('\n', '')
         # read constraints for that package
         package, delimiter, constraint = re.split('(~|=|<|>|;)', line, maxsplit=1)
-        constraints[package] = delimiter + constraint
+        # if there is no entry for that package, add it
+        if constraints.get(package) is None:
+            constraints[package] = [delimiter + constraint]
+        # else add another entry for that package
+        else:
+            constraints[package].extend([delimiter + constraint])
     return constraints
 
 
@@ -70,7 +79,8 @@ def read_requirements(path: str) -> List[str]:
             constraint = constraints.get(line)
             # if version found in constraints.txt
             if constraint:
-                requirements.append(line+constraint)
+                for marker in constraint:
+                    requirements.append(line+marker)
             # else version is unbound
             else:
                 requirements.append(line)

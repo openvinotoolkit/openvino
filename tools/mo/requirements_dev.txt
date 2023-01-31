@@ -1,4 +1,4 @@
--c constraints.txt
+-c ../constraints.txt
 coverage
 astroid
 pylint

@@ -1,7 +1,6 @@
--c constraints.txt
+-c ../constraints.txt
 tensorflow>=2.5,<=2.11.0
-numpy
-networkx
+numpy>=1.16.6,<1.25.0
 networkx
 defusedxml
 requests

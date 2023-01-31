@@ -1,7 +1,7 @@
--c constraints.txt
+-c ../constraints.txt
+numpy>=1.16.6,<1.25.0
 mxnet
 networkx
-numpy
 defusedxml
 urllib3
 requests

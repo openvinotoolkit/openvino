@@ -1,6 +1,5 @@
 # used in multiple components
-opencv-python>=4.5  # Benchmark tool, Cross check tool, openvino/tests
-py>=1.9.0  # Python bindings, openvino/tests, Model Optimizer
+py>=1.9.0  # Python bindings, openvino/tests
 
 # pytest
 pytest==7.2.0; python_version >= '3.10'
@@ -20,17 +19,6 @@ gast==0.3.3
 paddlepaddle==2.4.1
 six~=1.16.0
 
-# Model Optimizer
-astroid>=2.9.0
-coverage>=4.4.2,<=7.0.5
-importlib-metadata; python_version < "3.8" and sys_platform == 'win32'
-mxnet>=1.7.0.post2,<=1.9.1; sys_platform != 'win32'
-mxnet~=1.2.0; sys_platform == 'win32'
-networkx<=2.8.8
-openvino-telemetry>=2022.1.0
-pyenchant>=3.0.0
-urllib3>=1.26.4
-
 # openvino/tests
 attrs==22.1.0
 distro==1.8.0
@@ -46,3 +34,4 @@ defusedxml>=0.7.1
 fastjsonschema~=2.15.1
 test-generator==0.1.1
 requests>=2.25.1
+opencv-python>=4.5
