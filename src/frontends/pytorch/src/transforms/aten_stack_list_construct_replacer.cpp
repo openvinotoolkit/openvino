@@ -10,30 +10,36 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "utils.hpp"
 
+using namespace ov::pass::pattern;
+
 namespace ov {
 namespace frontend {
 namespace pytorch {
 namespace pass {
 
 AtenStackListConstructReplacer::AtenStackListConstructReplacer() {
-    auto stack = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>();
+    auto list_construct = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>();
+    auto axis = ov::pass::pattern::wrap_type<opset10::Constant>();
 
-    ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
+    auto stack = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>({list_construct, axis});
+
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto stack = cast_fw_node(m.get_match_root(), "aten::stack");
         if (!stack) {
             return false;
         }
-        auto input_node = stack->input_value(0).get_node_shared_ptr();
-        auto axis_node = stack->input_value(1).get_node_shared_ptr();
+        const auto& pattern_map = m.get_pattern_value_map();
+        auto input_node = pattern_map.at(list_construct).get_node_shared_ptr();
+        auto axis_node = pattern_map.at(axis).get_node_shared_ptr();
         auto axis_const = std::dynamic_pointer_cast<opset10::Constant>(axis_node);
         auto axis = axis_const->cast_vector<int64_t>();
 
-        if (auto list_construct = cast_fw_node(input_node, "prim::ListConstruct")) {
-            auto list_inputs = list_construct->input_values();
+        if (auto list_construct_node = cast_fw_node(input_node, "prim::ListConstruct")) {
+            const auto& list_inputs = list_construct_node->input_values();
             OutputVector node_vector;
             auto zero = opset10::Constant::create(element::i32, Shape{}, {0});
-            for (size_t i = 0; i < list_inputs.size(); i++) {
-                auto node = concat_list_construct(list_inputs[i].get_node_shared_ptr());
+            for (const auto& list_input : list_inputs) {
+                auto node = concat_list_construct(list_input.get_node_shared_ptr());
                 auto unsqueezed_node = std::make_shared<opset10::Unsqueeze>(node, axis_const);
                 node_vector.push_back(unsqueezed_node);
             }
@@ -46,9 +52,7 @@ AtenStackListConstructReplacer::AtenStackListConstructReplacer() {
         return false;
     };
 
-    auto m =
-        std::make_shared<ov::pass::pattern::Matcher>(stack,
-                                                     "ov::frontend::pytorch::pass::AtenStackListConstructReplacer");
+    auto m = std::make_shared<Matcher>(stack, "ov::frontend::pytorch::pass::AtenStackListConstructReplacer");
     this->register_matcher(m, callback);
 };
 
