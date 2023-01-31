@@ -44,6 +44,7 @@ void DnnlExecutor::reset(dnnl::primitive p, dnnl::primitive_desc_base prim_desc)
     // privateWeightCache was kept to always reference weights of different format
     setScratchPad();
 }
+
 // scenario
 //    infer[i-1](shape1) ===>  infer[i](shape2) ==> infer[i+1](shape2)
 //
@@ -81,23 +82,21 @@ void DnnlExecutor::setArg(int arg_id,
         return ss.str();
     };
 
+    internal_desc = pd.query_md(dnnl::query::exec_arg_md, arg_id);
+
     if (arg_id >= DNNL_ARG_SRC && arg_id <= DNNL_ARG_SRC_3) {
-        internal_desc = pd.src_desc(arg_id - DNNL_ARG_SRC);
         DEBUG_LOG(" DNNL_ARG_SRC_", arg_id - DNNL_ARG_SRC, " is set to ", external_mem.get_desc(), canonical2str());
     } else if (arg_id >= DNNL_ARG_WEIGHTS && arg_id <= DNNL_ARG_WEIGHTS_3) {
-        internal_desc = pd.weights_desc(arg_id - DNNL_ARG_WEIGHTS);
         DEBUG_LOG(" DNNL_ARG_WEIGHTS_",
                   arg_id - DNNL_ARG_WEIGHTS,
                   " is set to ",
                   external_mem.get_desc(),
                   canonical2str());
     } else if (arg_id >= DNNL_ARG_DST && arg_id <= DNNL_ARG_DST_2) {
-        internal_desc = pd.dst_desc(arg_id - DNNL_ARG_DST);
         is_output = true;
         DEBUG_LOG(" DNNL_ARG_DST_", arg_id - DNNL_ARG_DST, " is set to ", external_mem.get_desc(), canonical2str());
     } else if (arg_id >= DNNL_ARG_DIFF_DST && arg_id <= DNNL_ARG_DIFF_DST_2) {
         // for convolution_backward_data, diff_dst is input
-        internal_desc = pd.diff_dst_desc(arg_id - DNNL_ARG_DIFF_DST);
         DEBUG_LOG(" DNNL_ARG_DIFF_DST_",
                   arg_id - DNNL_ARG_DIFF_DST,
                   " is set to ",
@@ -105,13 +104,14 @@ void DnnlExecutor::setArg(int arg_id,
                   canonical2str());
     } else if (arg_id >= DNNL_ARG_DIFF_SRC && arg_id <= DNNL_ARG_DIFF_SRC_3) {
         // for convolution_backward_data, diff_src is output
-        internal_desc = pd.diff_src_desc(arg_id - DNNL_ARG_DIFF_SRC);
         is_output = true;
         DEBUG_LOG(" DNNL_ARG_DIFF_SRC_",
                   arg_id - DNNL_ARG_DIFF_SRC,
                   " is set to ",
                   external_mem.get_desc(),
                   canonical2str());
+    } else if (arg_id == DNNL_ARG_BIAS) {
+        DEBUG_LOG(" DNNL_ARG_BIAS is set to ", external_mem.get_desc(), canonical2str());
     } else {
         // normal ARGS w/o reorder
         args[arg_id] = external_mem;

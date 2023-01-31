@@ -293,8 +293,10 @@ void FullyConnected::prepareParams() {
     }
     executor.setArg(DNNL_ARG_DST, dstMem, false, &canonical_dst_desc);
 
-    if (biasMem)
-        executor.setArg(DNNL_ARG_BIAS, biasMem);
+    if (biasMem) {
+        auto biasDesc = executor.queryArgMD(DNNL_ARG_BIAS);
+        executor.setArg(DNNL_ARG_BIAS, biasMem, false, &biasDesc);
+    }
 
     for (auto & entry : postOpsArgs) {
         executor.setArg(entry.first, entry.second->GetPrimitive());

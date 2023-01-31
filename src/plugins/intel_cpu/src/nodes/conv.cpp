@@ -1315,8 +1315,10 @@ void Convolution::prepareParams() {
     executor.setArg(DNNL_ARG_WEIGHTS, weightMem, getParentEdgeAt(1)->getParent()->isConstant());
     executor.setArg(DNNL_ARG_DST, dstMem);
 
-    if (withBiases)
-        executor.setArg(DNNL_ARG_BIAS, biasMem);
+    if (withBiases) {
+        auto biasDesc = executor.queryArgMD(DNNL_ARG_BIAS);
+        executor.setArg(DNNL_ARG_BIAS, biasMem, false, &biasDesc);
+    }
 
     if (preferLegacyZeroPoint) {
         if (legacyInputZeroPointsMemPtr != nullptr)

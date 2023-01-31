@@ -343,7 +343,7 @@ private:
 } // namespace
 
 RNN::RNN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
-        Node(op, context, RnnShapeInferFactory(op)) {
+        Node(op, context, RnnShapeInferFactory(op)), executor(context, getName()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -865,103 +865,139 @@ void RNN::prepareParams() {
 
     const auto attr = initPrimitiveAttr();
 
-    auto builder = [this, attr](const RNNKey& key) -> std::shared_ptr<dnnl::primitive> {
+    auto builder = [this, attr](const RNNKey& key) -> std::pair<dnnl::primitive, dnnl::primitive_desc_base> {
         fillDescs();
 
         if (key.cellType == dnnl::algorithm::vanilla_rnn) {
             std::shared_ptr<vanilla_rnn_forward::desc> desc = descs[0];
-            return std::make_shared<vanilla_rnn_forward>(vanilla_rnn_forward::primitive_desc(*desc, *attr, getEngine()));
+            auto pd = vanilla_rnn_forward::primitive_desc(*desc, *attr, getEngine());
+            return std::make_pair(vanilla_rnn_forward(pd), pd);
         } else if (key.cellType == dnnl::algorithm::vanilla_gru) {
             std::shared_ptr<gru_forward::desc> desc = descs[0];
-            return std::make_shared<gru_forward>(gru_forward::primitive_desc(*desc, *attr, getEngine()));
+            auto pd = gru_forward::primitive_desc(*desc, *attr, getEngine());
+            return std::make_pair(gru_forward(pd), pd);
         } else if (key.cellType == dnnl::algorithm::lbr_gru) {
             std::shared_ptr<lbr_gru_forward::desc> desc = descs[0];
-            return std::make_shared<lbr_gru_forward>(lbr_gru_forward::primitive_desc(*desc, *attr, getEngine()));
+            auto pd = lbr_gru_forward::primitive_desc(*desc, *attr, getEngine());
+            return std::make_pair(lbr_gru_forward(pd), pd);
         } else if (key.cellType == dnnl::algorithm::vanilla_lstm) {
             std::shared_ptr<lstm_forward::desc> desc = descs[0];
-            return std::make_shared<lstm_forward>(lstm_forward::primitive_desc(*desc, *attr, getEngine()));
+            auto pd = lstm_forward::primitive_desc(*desc, *attr, getEngine());
+            return std::make_pair(lstm_forward(pd), pd);
         } else if (key.cellType == dnnl::algorithm::vanilla_augru) {
             std::shared_ptr<augru_forward::desc> desc = descs[0];
-            return std::make_shared<augru_forward>(augru_forward::primitive_desc(*desc, *attr, getEngine()));
+            auto pd = augru_forward::primitive_desc(*desc, *attr, getEngine());
+            return std::make_pair(augru_forward(pd), pd);
         } else if (key.cellType == dnnl::algorithm::lbr_augru) {
             std::shared_ptr<lbr_augru_forward::desc> desc = descs[0];
-            return std::make_shared<lbr_augru_forward>(lbr_augru_forward::primitive_desc(*desc, *attr, getEngine()));
+            auto pd = lbr_augru_forward::primitive_desc(*desc, *attr, getEngine());
+            return std::make_pair(lbr_augru_forward(pd), pd);
         } else {
-            return nullptr;
+            return std::make_pair(dnnl::primitive(), dnnl::primitive_desc());
         }
     };
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
 
-    if (!result.first) {
+    if (!result.first.first) {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
 
-    prim = result.first;
+    auto prim_pd = result.first;
 
-    auto pd = (*prim).get_primitive_desc();
-    scratchpadMem = getScratchPadMem(pd);
+    executor.reset(prim_pd.first, prim_pd.second);
 
-    if (!wasMemoryPrepared || wFormatWasChanged) {
-        auto pd = (*prim).get_primitive_desc();
-        auto query_weights_md = [&](int idx = 0) -> dnnl::memory::desc {
-            auto what = dnnl::convert_to_c(dnnl::query::weights_md);
-            const dnnl_memory_desc_t* cdesc = dnnl_primitive_desc_query_md(pd, what, idx);
-            if (!cdesc)
-                IE_THROW() << "query_weights_md failed for node " << getName() << " idx " << idx << ".";
-            return dnnl::memory::desc(*cdesc);
-        };
-        std::vector<DnnlMemoryDescPtr> intDescs{DnnlExtensionUtils::makeDescriptor(query_weights_md(0)),
-                                                DnnlExtensionUtils::makeDescriptor(query_weights_md(1)),
-                                                DnnlExtensionUtils::makeDescriptor(query_weights_md(2))};
-        // reorder W/R/B, but first need to canonicalize the order of dimensions
-        // according oneDNN's requirement:
-        //  weights dnnl_ldigo : (num_layers, num_directions, input_channels, num_gates, output_channels)
-        //  bias    dnnl_ldgo : (num_layers, num_directions, num_gates, output_channels)
-        //
-        // but in CPU node (num_directions is missing when is_cell is true):
-        //   WShape {D, G * SC, DC} : (1, num_directions, num_gates * state_channels, input_channels)
-        //   RShape {D, G * SC, SC} : (1, num_directions, num_gates * state_channels, state_channels)
-        //   BShape {D, Gb * SC}    : (1, num_directions, num_gates * state_channels)
-        dnnl::memory wMem = getParentEdgeAt(wIdx)->getMemoryPtr()->GetPrimitive();
-        dnnl::memory rMem = getParentEdgeAt(rIdx)->getMemoryPtr()->GetPrimitive();
-        dnnl::memory bMem = getParentEdgeAt(bIdx)->getMemoryPtr()->GetPrimitive();
-        auto wDesc = wMem.get_desc();
-        auto rDesc = rMem.get_desc();
-        auto bDesc = bMem.get_desc();
+    auto batch_size = static_cast<dnnl::memory::dim>(B);
+    auto seq_length = static_cast<dnnl::memory::dim>(SL);
+    auto num_layers = static_cast<dnnl::memory::dim>(L);
+    auto num_directions = static_cast<dnnl::memory::dim>(D);
+    auto num_gates = static_cast<dnnl::memory::dim>(G);
+    auto num_gates_in_bias = static_cast<dnnl::memory::dim>(Gb);
+    auto input_channels = static_cast<dnnl::memory::dim>(DC);
+    auto state_channels = static_cast<dnnl::memory::dim>(SC);
 
-        auto num_layers = static_cast<dnnl::memory::dim>(L);
-        auto num_directions = static_cast<dnnl::memory::dim>(D);
-        auto num_gates = static_cast<dnnl::memory::dim>(G);
-        auto input_channels = static_cast<dnnl::memory::dim>(DC);
-        auto state_channels = static_cast<dnnl::memory::dim>(SC);
+    const auto srcMem = getParentEdgeAt(0)->getMemoryPtr()->GetPrimitive();
+    const auto srcMemConst = getParentEdgeAt(0)->getParent()->isConstant();
+    const auto dstMem = getChildEdgeAt(0)->getMemoryPtr()->GetPrimitive();
 
-        wDesc = wDesc.reshape({num_layers, num_directions, num_gates, state_channels, input_channels});
-        wDesc = wDesc.permute_axes({0, 1, 3, 4, 2});
-        rDesc = rDesc.reshape({num_layers, num_directions, num_gates, state_channels, state_channels});
-        rDesc = rDesc.permute_axes({0, 1, 3, 4, 2});
-        bDesc = bDesc.reshape({num_layers, num_directions, num_gates, state_channels});
-        // prepareMemory(intDescs);
-        internalBlobMemory.clear();
+    // RNN CPU node only exposes 1 layout in which:
+    //  - all inputs/outputs are configured in a way that
+    //    when rnn primitive is created with tnc/ldnc layout
+    //    it can work on external memory w/o any extra reordering
+    //
+    //  - all weights/bias are configured to be equal to ngraph's
+    //    definition to prevent premature reordering, so here we
+    //    can canonicalize them and let executor to insert runtime
+    //    reorders to handle them.
+    auto srcCanonicalDesc = executor.queryArgMD(DNNL_ARG_SRC_LAYER);
+    auto dstCanonicalDesc = executor.queryArgMD(DNNL_ARG_DST_LAYER);
 
-        auto engine = context->getEngine();
-        auto create =
-            [&](const dnnl::memory& src, const dnnl::memory::desc& srcDesc, const dnnl::memory::desc& dstDesc) {
-                Memory memory{engine};
-                memory.Create(DnnlExtensionUtils::makeDescriptor(srcDesc), src.get_data_handle());
-                MemoryPtr _ptr = MemoryPtr(new Memory(engine));
-                _ptr->Create(DnnlExtensionUtils::makeDescriptor(dstDesc));
-                _ptr->SetData(memory);
-                return _ptr;
-            };
+    executor.setArg(DNNL_ARG_SRC_LAYER, srcMem, srcMemConst, &srcCanonicalDesc);
+    executor.setArg(DNNL_ARG_DST_LAYER, dstMem, false, &dstCanonicalDesc);
 
-        internalBlobMemory.push_back(create(wMem, wDesc, query_weights_md(0)));
-        internalBlobMemory.push_back(create(rMem, rDesc, query_weights_md(1)));
-        internalBlobMemory.push_back(create(bMem, bDesc, query_weights_md(2)));
+    // reorder W/R/B, but first need to canonicalize the order of dimensions
+    // according oneDNN's requirement:
+    //  weights dnnl_ldigo : (num_layers, num_directions, input_channels, num_gates, output_channels)
+    //  bias    dnnl_ldgo : (num_layers, num_directions, num_gates, output_channels)
+    //
+    // but in CPU node (num_directions is missing when is_cell is true):
+    //   WShape {D, G * SC, DC} : (1, num_directions, num_gates * state_channels, input_channels)
+    //   RShape {D, G * SC, SC} : (1, num_directions, num_gates * state_channels, state_channels)
+    //   BShape {D, Gb * SC}    : (1, num_directions, num_gates * state_channels)
+    dnnl::memory wMem = getParentEdgeAt(wIdx)->getMemoryPtr()->GetPrimitive();
+    dnnl::memory rMem = getParentEdgeAt(rIdx)->getMemoryPtr()->GetPrimitive();
+    dnnl::memory bMem = getParentEdgeAt(bIdx)->getMemoryPtr()->GetPrimitive();
+    auto wDesc = wMem.get_desc();
+    auto rDesc = rMem.get_desc();
+    auto bDesc = bMem.get_desc();
 
-        wasMemoryPrepared = true;
+    wDesc = wDesc.reshape({num_layers, num_directions, num_gates, state_channels, input_channels});
+    wDesc = wDesc.permute_axes({0, 1, 3, 4, 2});
+    rDesc = rDesc.reshape({num_layers, num_directions, num_gates, state_channels, state_channels});
+    rDesc = rDesc.permute_axes({0, 1, 3, 4, 2});
+    bDesc = bDesc.reshape({num_layers, num_directions, num_gates_in_bias, state_channels});
+
+    executor.setArg(DNNL_ARG_WEIGHTS_LAYER, wMem, getParentEdgeAt(wIdx)->getParent()->isConstant(), &wDesc);
+    executor.setArg(DNNL_ARG_WEIGHTS_ITER, rMem, getParentEdgeAt(rIdx)->getParent()->isConstant(), &rDesc);
+    executor.setArg(DNNL_ARG_BIAS, bMem, getParentEdgeAt(bIdx)->getParent()->isConstant(), &bDesc);
+
+    int state_i_tags[]{DNNL_ARG_SRC_ITER, DNNL_ARG_SRC_ITER_C};
+    int state_o_tags[]{DNNL_ARG_DST_ITER, DNNL_ARG_DST_ITER_C};
+    for (size_t s = 0; s < S; s++) {
+        auto iterMem = getParentEdgeAt(s + 1)->getMemoryPtr()->GetPrimitive();
+        auto isConst = getParentEdgeAt(s + 1)->getParent()->isConstant();
+        auto iterDesc = executor.queryArgMD(state_i_tags[s]);
+        executor.setArg(state_i_tags[s], iterMem, isConst, &iterDesc);
     }
+
+    if (is_augru) {
+        const auto atten_port = is_cell ? 5 : 6;
+        auto attDesc = executor.queryArgMD(DNNL_ARG_AUGRU_ATTENTION);
+        executor.setArg(DNNL_ARG_AUGRU_ATTENTION,
+                        getParentEdgeAt(atten_port)->getMemoryPtr()->GetPrimitive(),
+                        getParentEdgeAt(atten_port)->getParent()->isConstant(),
+                        &attDesc);
+    }
+
+    if (is_cell) {
+        for (size_t s = 0; s < S; s++) {
+            auto iterMem = getChildEdgesAtPort(s)[0]->getMemoryPtr()->GetPrimitive();
+            auto iterDesc = executor.queryArgMD(state_o_tags[s]);
+            executor.setArg(state_o_tags[s], iterMem, false, &iterDesc);
+        }
+    } else {
+        size_t n_ports_with_init_states = outputShapes.size() - 1;  // first is a sequence data
+        for (size_t s = 0; s < std::min(S, n_ports_with_init_states); s++) {
+            if (s < outputShapes.size()) {
+                auto iterMem = getChildEdgesAtPort(s + 1)[0]->getMemoryPtr()->GetPrimitive();
+                auto iterDesc = executor.queryArgMD(state_o_tags[s]);
+                executor.setArg(state_o_tags[s], iterMem, false, &iterDesc);
+            }
+        }
+    }
+
+    wasMemoryPrepared = true;
 }
 
 std::shared_ptr<MemoryDesc> RNN::getSrcMemDesc(dnnl::primitive_desc_iterator& primitive_desc_it, size_t idx) {
@@ -973,49 +1009,11 @@ std::shared_ptr<MemoryDesc> RNN::getDstMemDesc(dnnl::primitive_desc_iterator& pr
 }
 
 void RNN::execute(dnnl::stream strm) {
-    if (!prim)
-        THROW_ERROR << "does not have initialized primitive to execute.";
-
-    const auto src_data_mem = getParentEdgeAt(0)->getMemoryPtr();
-    const auto dst_data_mem = getChildEdgeAt(0)->getMemoryPtr();
-
-    const auto &wgh_data_mem = internalBlobMemory[0];
-    const auto &wgh_stat_mem = internalBlobMemory[1];
-    const auto &wgh_bias_mem = internalBlobMemory[2];
-
-    std::unordered_map<int, memory> args {
-        {DNNL_ARG_SRC_LAYER,     src_data_mem->GetPrimitive()},
-        {DNNL_ARG_WEIGHTS_LAYER, wgh_data_mem->GetPrimitive()},
-        {DNNL_ARG_WEIGHTS_ITER,  wgh_stat_mem->GetPrimitive()},
-        {DNNL_ARG_BIAS,          wgh_bias_mem->GetPrimitive()},
-        {DNNL_ARG_DST_LAYER,     dst_data_mem->GetPrimitive()},
-        {DNNL_ARG_SCRATCHPAD,    scratchpadMem->GetPrimitive()}
-    };
-
-    int state_i_tags[] {DNNL_ARG_SRC_ITER, DNNL_ARG_SRC_ITER_C};
-    int state_o_tags[] {DNNL_ARG_DST_ITER, DNNL_ARG_DST_ITER_C};
-    for (size_t s = 0; s < S; s++) {
-        args[state_i_tags[s]] = getParentEdgeAt(s+1)->getMemoryPtr()->GetPrimitive();
-    }
-    if (is_augru) {
-        const auto atten_port = is_cell ? 5 : 6;
-        args[DNNL_ARG_AUGRU_ATTENTION] = getParentEdgeAt(atten_port)->getMemoryPtr()->GetPrimitive();
+    if (!executor) {
+        IE_THROW() << "Can't execute RNN node with name: " << getName() << ", because executor is not compiled";
     }
 
-    if (is_cell) {
-        for (size_t s = 0; s < S; s++) {
-            args[state_o_tags[s]] = getChildEdgesAtPort(s)[0]->getMemoryPtr()->GetPrimitive();
-        }
-    } else {
-        size_t n_ports_with_init_states = outputShapes.size() - 1; // first is a sequence data
-        for (size_t s = 0; s < std::min(S, n_ports_with_init_states); s++) {
-            if (s < outputShapes.size()) {
-                args[state_o_tags[s]] = getChildEdgesAtPort(s+1)[0]->getMemoryPtr()->GetPrimitive();
-            }
-        }
-    }
-
-    (*prim).execute(strm, args);
+    executor.exec(strm);
 }
 
 void RNN::executeDynamicImpl(dnnl::stream strm) {

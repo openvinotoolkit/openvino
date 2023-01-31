@@ -725,8 +725,10 @@ void Deconvolution::prepareParams() {
                         getParentEdgeAt(1)->getParent()->isConstant(),
                         &canonical_weight_desc);
         executor.setArg(DNNL_ARG_DST, dstMem);
-        if (withBiases)
-            executor.setArg(DNNL_ARG_BIAS, biasMem);
+        if (withBiases) {
+            auto biasDesc = executor.queryArgMD(DNNL_ARG_BIAS);
+            executor.setArg(DNNL_ARG_BIAS, biasMem, false, &biasDesc);
+        }
     } else {
         executor.setArg(DNNL_ARG_DIFF_DST, srcMem);
         executor.setArg(DNNL_ARG_WEIGHTS,

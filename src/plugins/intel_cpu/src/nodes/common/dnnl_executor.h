@@ -37,7 +37,9 @@ class DnnlExecutor {
         const dnnl::primitive_desc_base & getPrimitiveDesc() const {
             return pd;
         }
-        dnnl::memory::desc queryMD(const dnnl::query& what, int idx);
+        dnnl::memory::desc queryArgMD(int arg_id) const {
+            return pd.query_md(dnnl::query::exec_arg_md, arg_id);
+        }
         impl_desc_type getImplementationType() const;
 
         // when reinterpret_as is not a nullptr, it means `arg_mem` must be wrapped again with new desc `canonical_desc`

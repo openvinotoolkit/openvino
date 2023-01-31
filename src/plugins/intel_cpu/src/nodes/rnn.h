@@ -6,6 +6,7 @@
 
 #include <node.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "common/dnnl_executor.h"
 
 #include <string>
 #include <memory>
@@ -137,6 +138,8 @@ private:
     float inputScale    = 0.f;
     float inputShift    = 0.f;
     std::vector<float> weightsScales;
+
+    DnnlExecutor executor;
 };
 
 }   // namespace node
