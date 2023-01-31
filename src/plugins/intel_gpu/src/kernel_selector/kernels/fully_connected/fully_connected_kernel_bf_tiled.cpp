@@ -80,6 +80,13 @@ bool FullyConnected_bf_tiled::Validate(const Params& params, const optional_para
             return false;
     }
 
+    // Dynamic kernel doesn't support dynamic weights yet
+    if (fc_params.is_dynamic && input.is_dynamic()) {
+        if ((output.GetLayout() == DataLayout::bfyx && input.Y().v == 0) ||
+            (output.GetLayout() == DataLayout::bf && input.Feature().v == 0))
+            return false;
+    }
+
     if (input.GetLayout() == DataLayout::bfyx) {
         // Padding on input is not supported.
         // TODO: Enable by mirroring the padding in weights.

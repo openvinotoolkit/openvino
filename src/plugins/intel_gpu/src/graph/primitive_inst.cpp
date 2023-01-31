@@ -344,10 +344,7 @@ bool primitive_inst::update_impl() {
                             return;
                     }
 
-                    auto static_params = updated_params;
-                    static_params.is_dynamic = false;
-
-                    auto impl = _node->type()->choose_impl(*_node, static_params);
+                    auto impl = _node->type()->choose_impl(*_node, updated_params);
                     auto kernel_ids = kc.add_kernels_source(impl->get_kernels_source());
                     impl->set_kernel_ids(kernel_ids);
                     kc.compile();
@@ -359,9 +356,9 @@ bool primitive_inst::update_impl() {
                 });
 
                 _impl = _dynamic_impl->clone();
-                _impl->update_dispatch_data(updated_params);
+                _impl->update_dispatch_data(*_impl_params);
 
-                update_shape_info(updated_params);
+                update_shape_info(*_impl_params);
             } else {
                 _impl = _node->type()->choose_impl(*_node, updated_params);
                 auto& kernels_cache = get_network().get_kernels_cache();
@@ -1277,6 +1274,7 @@ size_t primitive_inst::get_impl_key(const kernel_impl_params& params) const {
     }
     return seed;
 }
+
 size_t primitive_inst::get_impl_key() const {
     auto updated_params = _node->type()->get_fake_aligned_params(*_impl_params);
     return get_impl_key(updated_params);

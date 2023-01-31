@@ -1791,7 +1791,7 @@ TEST(fully_connected_gpu, dynamic) {
     auto output_prim_mem = outputs.begin()->second.get_memory();
 
     auto out_l = network.get_output_layout(outputs.begin()->first);
-    ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, 16)); // fake_alignment
+    ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, 8)); // fake_alignment
     ASSERT_EQ(out_l.batch(), input_b);
     ASSERT_EQ(out_l.feature(), weight_b);
     ASSERT_EQ(out_l.spatial(0), 1);
@@ -1843,7 +1843,7 @@ TEST(fully_connected_gpu, dynamic_multi_inference_same_shape) {
         auto output_prim_mem = outputs.begin()->second.get_memory();
 
         auto out_l = network.get_output_layout(outputs.begin()->first);
-        ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, 16)); // fake_alignment
+        ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, 8)); // fake_alignment
         ASSERT_EQ(out_l.batch(), input_b);
         ASSERT_EQ(out_l.feature(), weight_b);
         ASSERT_EQ(out_l.spatial(0), 1);
@@ -1867,7 +1867,7 @@ TEST(fully_connected_gpu, dynamic_multi_inference_same_shape) {
         auto output_prim_mem = outputs.begin()->second.get_memory();
 
         auto out_l = network.get_output_layout(outputs.begin()->first);
-        ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, 16)); // fake_alignment
+        ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, 8)); // fake_alignment
         ASSERT_EQ(out_l.batch(), input_b);
         ASSERT_EQ(out_l.feature(), weight_b);
         ASSERT_EQ(out_l.spatial(0), 1);
@@ -1928,7 +1928,7 @@ TEST(fully_connected_gpu, dynamic_multi_inference_different_shape) {
         auto output_prim_mem = outputs.begin()->second.get_memory();
 
         auto out_l = network.get_output_layout(outputs.begin()->first);
-        ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(2, 16)); // fake_alignment
+        ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(2, 8)); // fake_alignment
         ASSERT_EQ(out_l.batch(), 2);
         ASSERT_EQ(out_l.feature(), weight_b);
         ASSERT_EQ(out_l.spatial(0), 1);
@@ -1957,7 +1957,7 @@ TEST(fully_connected_gpu, dynamic_multi_inference_different_shape) {
         auto output_prim_mem = outputs.begin()->second.get_memory();
 
         auto out_l = network.get_output_layout(outputs.begin()->first);
-        ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(1, 16)); // fake_alignment
+        ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(1, 8)); // fake_alignment
         ASSERT_EQ(out_l.batch(), 1);
         ASSERT_EQ(out_l.feature(), weight_b);
         ASSERT_EQ(out_l.spatial(0), 1);
@@ -2015,7 +2015,7 @@ TEST(fully_connected_gpu, dynamic_multi_inference_multiple_shapes) {
             auto output_prim_mem = outputs.begin()->second.get_memory();
 
             auto out_l = network.get_output_layout(outputs.begin()->first);
-            ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(2, 16)); // fake_alignment
+            ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(2, 8)); // fake_alignment
             ASSERT_EQ(out_l.batch(), 2); // fake_alignment
             ASSERT_EQ(out_l.feature(), weight_b);
             ASSERT_EQ(out_l.spatial(0), 1);
@@ -2044,7 +2044,7 @@ TEST(fully_connected_gpu, dynamic_multi_inference_multiple_shapes) {
             auto output_prim_mem = outputs.begin()->second.get_memory();
 
             auto out_l = network.get_output_layout(outputs.begin()->first);
-            ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(1, 16)); // fake_alignment
+            ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(1, 8)); // fake_alignment
             ASSERT_EQ(out_l.batch(), 1); // fake_alignment
             ASSERT_EQ(out_l.feature(), weight_b);
             ASSERT_EQ(out_l.spatial(0), 1);

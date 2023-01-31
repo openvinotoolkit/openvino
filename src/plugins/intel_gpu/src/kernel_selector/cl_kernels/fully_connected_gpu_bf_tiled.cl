@@ -150,8 +150,8 @@ KERNEL(fc)(
             weights_offset += TILE_K_OFM * SIMD;
 
             unroll_for (uint kii = 0; kii < TILE_K; ++kii) {
+                const uint total_k = ki * TILE_K + kii;
                 unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
-                    const uint total_k = ki * TILE_K + kii;
                     INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
                     unroll_for (uint fi = 0; fi < TILE_OFM; ++fi) {
                         ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((FILTER_TYPE*)(&wei))[kii * TILE_OFM + fi];
