@@ -8,12 +8,20 @@
 namespace ov {
 namespace intel_cpu {
 namespace mixed_affinity {
+bool Properties::is_set() const {
+    return *this != Properties();
+}
+
 bool Properties::operator<(const Properties& other) const {
     return opt_bs < other.opt_bs || n_splits < other.n_splits;
 }
 
 bool Properties::operator==(const Properties& other) const {
     return opt_bs == other.opt_bs && n_splits == other.n_splits;
+}
+
+bool Properties::operator!=(const Properties& other) const {
+    return opt_bs != other.opt_bs || n_splits != other.n_splits;
 }
 
 size_t get_batch_idx(const ov::PartialShape& shape) {

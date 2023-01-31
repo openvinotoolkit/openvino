@@ -62,9 +62,9 @@ bool switchToImageAffinity(const Properties& props, const Subgraph& subgraph_bor
         return false;
 
     ov::NodeVector start_splits;
-    ov::ParameterVector main_params;
+    ov::ParameterVector subgraph_params;
     start_splits.reserve(subgraph_borders.starts.size());
-    main_params.reserve(subgraph_borders.starts.size());
+    subgraph_params.reserve(subgraph_borders.starts.size());
 
     // create split by batch in the original ov::Model if necessary and
     // create parameters to extract graph component from original ov::Model
@@ -87,46 +87,48 @@ bool switchToImageAffinity(const Properties& props, const Subgraph& subgraph_bor
                          "Batch label must be set for each node output in mixed affinity subgraph.");
         }
 
-        ov::DimensionTracker::set_label(start_shape[batch_idx], batch_label);
-        const auto main_param = std::make_shared<ov::opset1::Parameter>(start.get_element_type(), start_shape);
         const size_t cur_bs = start_shape[batch_idx].get_length();
+        // shared nodes mustn't be splitted, whereas the rest nodes should be splitted by batch
         if (is_shared_weights || cur_bs == 1) {
             start_splits.push_back(start.get_source_output().get_node_shared_ptr());
-            main_param->get_rt_info()[skip_reshape] = true;
+            auto param = std::make_shared<ov::opset1::Parameter>(start.get_element_type(), start_shape);
+            param->get_rt_info()[skip_reshape] = true;
+            subgraph_params.push_back(param);
         } else {
             const auto split_axis = ov::opset1::Constant::create(ov::element::i32, {}, {batch_idx});
             const auto split = std::make_shared<ov::opset1::Split>(start.get_source_output(), split_axis, props.n_splits);
             start_splits.push_back(split);
-        }
 
-        main_params.push_back(main_param);
+            ov::DimensionTracker::set_label(start_shape[batch_idx], batch_label);
+            subgraph_params.push_back(std::make_shared<ov::opset1::Parameter>(start.get_element_type(), start_shape));
+        }
     }
 
     // Temporary insert params instead of start to extract a subgraph
     for (size_t i = 0; i < subgraph_borders.starts.size(); ++i) {
-        subgraph_borders.starts[i].replace_source_output(main_params[i]);
+        subgraph_borders.starts[i].replace_source_output(subgraph_params[i]);
     }
 
-    ov::OutputVector result_vec;
-    result_vec.reserve(subgraph_borders.ends.size());
+    ov::OutputVector subgraph_results;
+    subgraph_results.reserve(subgraph_borders.ends.size());
     for (const auto& end : subgraph_borders.ends) {
-        result_vec.push_back(end);
+        subgraph_results.push_back(end);
     }
 
     // create an ov::Model from a graph component
-    const auto subgraph = std::make_shared<ov::Model>(result_vec, main_params);
-    ngraph::NodeMap common_nodes;
+    const auto subgraph = std::make_shared<ov::Model>(subgraph_results, subgraph_params);
+    ngraph::NodeMap shared_constants;
     if (share_constants) {
         for (const auto& op : subgraph->get_ordered_ops()) {
             if (ov::is_type<ov::opset1::Constant>(op)) {
-                common_nodes[op.get()] = op;
+                shared_constants[op.get()] = op;
             }
         }
     }
 
     // map to match an old output and new outputs with optimal batch from subgraphs
     std::map<ov::Output<ov::Node>, ov::OutputVector> concatenate_map;
-    for (const auto& original_out : result_vec) {
+    for (const auto& original_out : subgraph_results) {
         concatenate_map[original_out] = ov::OutputVector(props.n_splits);
     }
 
@@ -145,11 +147,11 @@ bool switchToImageAffinity(const Properties& props, const Subgraph& subgraph_bor
 
     setBatch(subgraph, props.opt_bs);
     for (size_t branch_idx = 0; branch_idx < props.n_splits; ++branch_idx) {
-        auto cloned_nodes = common_nodes;
+        auto cloned_nodes = shared_constants;
         const auto branch = ov::clone_model(*subgraph, cloned_nodes);
         change_names(branch, branch_idx);
 
-        // starts processing
+        // starts processing: replace batch subgraph param with the corresponding split/shared_node output
         for (size_t start_idx = 0; start_idx < start_splits.size(); ++start_idx) {
             const auto& cur_param = branch->get_parameters()[start_idx];
             const auto out_to_replace = start_splits[start_idx]->get_output_size() == 1
@@ -158,7 +160,7 @@ bool switchToImageAffinity(const Properties& props, const Subgraph& subgraph_bor
             replace_output_update_name(cur_param, out_to_replace);
         }
 
-        // ends processing
+        // ends processing: fill the corresponding concat inputs for the current batch branch
         for (auto& elem : concatenate_map) {
             const auto& orig_out = elem.first;
             const auto& clone_with_opt_batch = cloned_nodes.find(orig_out.get_node());

@@ -19,18 +19,29 @@ namespace mixed_affinity {
 using namespace ov::test;
 using namespace ngraph::helpers;
 
+using MixedAffinityParams = std::tuple<
+    std::vector<InputShape>,       // Input shapes
+    MixedAffinityBuilder>;         // builder
+
 class MixedAffinityTest : public testing::WithParamInterface<MixedAffinityParams>, virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<MixedAffinityParams> obj) {
-        std::vector<ov::PartialShape> shapes;
+        std::vector<InputShape> shapes;
         MixedAffinityBuilder builder;
         std::tie(shapes, builder) = obj.param;
 
         std::ostringstream result;
         result << "IS=";
         for (const auto& elem : shapes) {
-            result << elem << ",";
+            result << elem.first << ",";
         }
+        result << "TS=";
+        for (const auto& shape : shapes) {
+            for (const auto& elem : shape.second) {
+                result << CommonTestUtils::vec2str(elem) << "_";
+            }
+        }
+
         result << "builder=" << builder.second;
         return result.str();
     }
@@ -38,13 +49,13 @@ public:
 protected:
     void SetUp() override {
         rel_threshold = 1e-4f;
-        std::vector<ov::PartialShape> shapes;
+        std::vector<InputShape> input_shapes;
         MixedAffinityBuilder builder;
-        std::tie(shapes, builder) = this->GetParam();
+        std::tie(input_shapes, builder) = this->GetParam();
 
         targetDevice = CommonTestUtils::DEVICE_CPU;
-        init_input_shapes(static_partial_shapes_to_test_representation(shapes));
-        function = builder.first(shapes)->getOriginal();
+        init_input_shapes(input_shapes);
+        function = builder.first(inputDynamicShapes)->getOriginal();
     }
 };
 
@@ -52,13 +63,14 @@ TEST_P(MixedAffinityTest, CompareWithRefs) {
     run();
 }
 
-std::vector<std::vector<ov::PartialShape>> one_input_shapes = {
-    {{8, 3, 70, 70}},
+std::vector<std::vector<InputShape>> one_input_shapes = {
+    {{{}, {{8, 3, 70, 70}}}},
 };
 
 std::vector<MixedAffinityBuilder> one_input_builders = {
     {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<ConvWithLRNFunction>(shapes); }, "ConvWithLRN"},
     {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<ConvWithBiasFunction>(shapes); }, "ConvWithBias"},
+    {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<ConvAndGrConvFunction>(shapes); }, "ConvAndGrConv"},
     {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<TwoConvWithS2BFunction>(shapes); }, "TwoConvWithS2B"},
     {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<ConvWithReshapeFunction>(shapes); }, "ConvWithReshape"},
     {[](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<ConvWithTransposeFunction>(shapes); }, "ConvWithTranspose"},
@@ -72,10 +84,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_MixedAffinity_1input, MixedAffinityTest,
                                  ::testing::ValuesIn(one_input_builders)),
                          MixedAffinityTest::getTestCaseName);
 
-std::vector<std::vector<ov::PartialShape>> two_inputs_shapes = {
-    {{8, 3, 56, 56}, {8, 3, 56, 56}},
-    {{8, 3, 56, 56}, {1, 3, 56, 56}},
-    {{1, 3, 56, 56}, {8, 3, 56, 56}},
+std::vector<std::vector<InputShape>> two_inputs_shapes = {
+    {{{}, {{8, 3, 70, 70}}}, {{}, {{8, 3, 70, 70}}}},
+    {{{}, {{8, 3, 70, 70}}}, {{}, {{1, 3, 70, 70}}}},
+    {{{}, {{1, 3, 70, 70}}}, {{}, {{8, 3, 70, 70}}}},
 };
 
 std::vector<MixedAffinityBuilder> two_input_builders = {
@@ -92,7 +104,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_MixedAffinity_2inputs, MixedAffinityTest,
                                  ::testing::ValuesIn(two_input_builders)),
                          MixedAffinityTest::getTestCaseName);
 
-std::vector<ov::PartialShape> conv_with_param_weights_shapes = {{8, 3, 56, 56}, {3, 1, 1, 3, 3}};
+std::vector<InputShape> conv_with_param_weights_shapes = {
+    {{}, {{8, 3, 56, 56}}},
+    {{}, {{3, 1, 1, 3, 3}}}
+};
 MixedAffinityBuilder conv_with_param_weights_builder = {
     [](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<GrConvWithParamFunction>(shapes); }, "GrConvWithParam"
 };
@@ -101,6 +116,33 @@ INSTANTIATE_TEST_SUITE_P(smoke_MixedAffinity_conv_with_param_weights, MixedAffin
                          ::testing::Combine(
                                  ::testing::Values(conv_with_param_weights_shapes),
                                  ::testing::Values(conv_with_param_weights_builder)),
+                         MixedAffinityTest::getTestCaseName);
+
+std::vector<InputShape> conv_and_gather_with_param_shapes = {
+    {{}, {{4, 3, 56, 56}}},
+    {{}, {{2}}}
+};
+MixedAffinityBuilder conv_and_gather_with_param_builder = {
+    [](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<ConvAndGatherWithParamFunction>(shapes); }, "ConvAndGatherWithParam"
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_MixedAffinity_conv_and_gather_with_param, MixedAffinityTest,
+                         ::testing::Combine(
+                                 ::testing::Values(conv_and_gather_with_param_shapes),
+                                 ::testing::Values(conv_and_gather_with_param_builder)),
+                         MixedAffinityTest::getTestCaseName);
+
+std::vector<InputShape> conv_and_reshape_dynamic_shapes = {
+    {{8, -1, 70, 70}, {{8, 3, 70, 70}}}
+};
+MixedAffinityBuilder conv_and_reshape_dynamic_builder = {
+    [](const std::vector<ov::PartialShape>& shapes){ return std::make_shared<ConvWithReshapeFunction>(shapes); }, "ConvWithReshape"
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_MixedAffinity_conv_and_reshape_dynamic, MixedAffinityTest,
+                         ::testing::Combine(
+                                 ::testing::Values(conv_and_reshape_dynamic_shapes),
+                                 ::testing::Values(conv_and_reshape_dynamic_builder)),
                          MixedAffinityTest::getTestCaseName);
 }  // namespace mixed_affinity
 }  // namespace test

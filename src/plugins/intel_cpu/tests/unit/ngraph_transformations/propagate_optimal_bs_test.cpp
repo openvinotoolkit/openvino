@@ -21,15 +21,13 @@ public:
     }
 };
 
-using BSMarkup = std::unordered_map<std::string, size_t>;
-
 TEST_F(PropagateOptimalBSTest, ConvWithBias) {
     ov::PartialShape input_shape{4, 3, 16, 16};
     ConvWithBiasFunction builder({input_shape});
 
-    BSMarkup actual_markup{{"convolution", 1}};
+    MixedAffinityMarkup actual_markup{{"convolution", {1, 4}}};
     MixedAffinityMarkup reference_markup{{"convolution", {1, 4}}, {"bias", {1, 4}}};
-    model = builder.getOriginal(transformBSMarkup(actual_markup));
+    model = builder.getOriginal(actual_markup);
     model_ref = builder.getOriginal(reference_markup);
     ov::pass::InitNodeInfo().run_on_model(model_ref);
 }
@@ -38,9 +36,9 @@ TEST_F(PropagateOptimalBSTest, ConvWithBias2) {
     ov::PartialShape input_shape{4, 3, 16, 16};
     ConvWithBiasFunction builder({input_shape});
 
-    BSMarkup actual_markup{{"convolution", 1}, {"bias", 2}};
+    MixedAffinityMarkup actual_markup{{"convolution", {1, 4}}, {"bias", {2, 2}}};
     MixedAffinityMarkup reference_markup{{"convolution", {1, 4}}, {"bias", {2, 2}}};
-    model = builder.getOriginal(transformBSMarkup(actual_markup));
+    model = builder.getOriginal((actual_markup));
     model_ref = builder.getOriginal(reference_markup);
     ov::pass::InitNodeInfo().run_on_model(model_ref);
 }
@@ -49,8 +47,8 @@ TEST_F(PropagateOptimalBSTest, ConvWithTranspose) {
     ov::PartialShape input_shape{4, 3, 16, 16};
     ConvWithTransposeFunction builder({input_shape});
 
-    BSMarkup actual_markup{{"convolution", 1}};
-    model = builder.getOriginal(transformBSMarkup(actual_markup));
+    MixedAffinityMarkup actual_markup{{"convolution", {1, 4}}};
+    model = builder.getOriginal((actual_markup));
     MixedAffinityMarkup reference_markup{{"convolution", {1, 4}}, {"transpose", {1, 4}}};
     model_ref = builder.getOriginal(reference_markup);
     ov::pass::InitNodeInfo().run_on_model(model_ref);
@@ -60,8 +58,8 @@ TEST_F(PropagateOptimalBSTest, ConvWithReshapeDynamicShapes) {
     ov::PartialShape input_shape{4, 3, -1, -1};
     ConvWithReshapeFunction builder({input_shape});
 
-    BSMarkup actual_markup{{"convolution", 1}};
-    model = builder.getOriginal(transformBSMarkup(actual_markup));
+    MixedAffinityMarkup actual_markup{{"convolution", {1, 4}}};
+    model = builder.getOriginal((actual_markup));
     MixedAffinityMarkup reference_markup{{"convolution", {1, 4}}};
     model_ref = builder.getOriginal(reference_markup);
     ov::pass::InitNodeInfo().run_on_model(model_ref);
@@ -71,8 +69,8 @@ TEST_F(PropagateOptimalBSTest, TwoConvAndAddEqualShapes) {
     ov::PartialShape input_shape{4, 3, 16, 16};
     TwoConvAndAddFunction builder({input_shape, input_shape});
 
-    BSMarkup actual_markup{{"convolution_1", 1}, {"convolution_2", 1}};
-    model = builder.getOriginal(transformBSMarkup(actual_markup));
+    MixedAffinityMarkup actual_markup{{"convolution_1", {1, 4}}, {"convolution_2", {1, 4}}};
+    model = builder.getOriginal((actual_markup));
     MixedAffinityMarkup reference_markup{
         {"convolution_1", {1, 4}},
         {"bias_1", {1, 4}},
@@ -89,8 +87,8 @@ TEST_F(PropagateOptimalBSTest, TwoConvAndAddDifferentBatches) {
     ov::PartialShape input_shape_2{1, 3, 16, 16};
     TwoConvAndAddFunction builder({input_shape_1, input_shape_2});
 
-    BSMarkup actual_markup{{"convolution_1", 2}, {"convolution_2", 1}};
-    model = builder.getOriginal(transformBSMarkup(actual_markup));
+    MixedAffinityMarkup actual_markup{{"convolution_1", {2, 2}}, {"convolution_2", {1, 1}}};
+    model = builder.getOriginal((actual_markup));
     MixedAffinityMarkup reference_markup{
         {"convolution_1", {2, 2}},
         {"bias_1", {2, 2}},
@@ -107,8 +105,8 @@ TEST_F(PropagateOptimalBSTest, TwoConvAndAddDifferentBatches2) {
     ov::PartialShape input_shape_2{4, 3, 16, 16};
     TwoConvAndAddFunction builder({input_shape_1, input_shape_2});
 
-    BSMarkup actual_markup{{"convolution_1", 1}, {"convolution_2", 2}};
-    model = builder.getOriginal(transformBSMarkup(actual_markup));
+    MixedAffinityMarkup actual_markup{{"convolution_1", {1, 1}}, {"convolution_2", {2, 2}}};
+    model = builder.getOriginal((actual_markup));
     MixedAffinityMarkup reference_markup{
         {"convolution_1", {1, 1}},
         {"bias_1", {1, 1}},
@@ -125,12 +123,11 @@ TEST_F(PropagateOptimalBSTest, TwoConvAndAddDifferentBatches3) {
     ov::PartialShape input_shape_2{4, 3, 16, 16};
     TwoConvAndAddFunction builder({input_shape_1, input_shape_2});
 
-    BSMarkup actual_markup{{"convolution_2", 1}};
-    model = builder.getOriginal(transformBSMarkup(actual_markup));
+    MixedAffinityMarkup actual_markup{{"convolution_2", {1, 4}}};
+    model = builder.getOriginal((actual_markup));
     MixedAffinityMarkup reference_markup{
         {"convolution_2", {1, 4}},
         {"bias_2", {1, 4}},
-        {"add", {1, 4}},
     };
     model_ref = builder.getOriginal(reference_markup);
     ov::pass::InitNodeInfo().run_on_model(model_ref);
@@ -139,8 +136,8 @@ TEST_F(PropagateOptimalBSTest, TwoConvAndAddDifferentBatches3) {
 TEST_F(PropagateOptimalBSTest, TwoConvWithS2BFunction) {
     ov::PartialShape input_shape{4, 3, 16, 16};
     TwoConvWithS2BFunction builder({input_shape});
-    BSMarkup actual_markup{{"convolution_1", 1}, {"convolution_2", 1}};
-    model = builder.getOriginal(transformBSMarkup(actual_markup));
+    MixedAffinityMarkup actual_markup{{"convolution_1", {1, 4}}, {"convolution_2", {1, 16}}};
+    model = builder.getOriginal((actual_markup));
     MixedAffinityMarkup reference_markup{
         {"convolution_1", {1, 4}},
         {"convolution_2", {1, 16}},
@@ -152,8 +149,8 @@ TEST_F(PropagateOptimalBSTest, TwoConvWithS2BFunction) {
 TEST_F(PropagateOptimalBSTest, ConvWithConcatFunction) {
     ov::PartialShape input_shape{4, 3, 16, 16};
     ConvWithConcatFunction builder({input_shape, input_shape});
-    BSMarkup actual_markup{{"convolution_1", 1}, {"convolution_2", 1}};
-    model = builder.getOriginal(transformBSMarkup(actual_markup));
+    MixedAffinityMarkup actual_markup{{"convolution_1", {1, 4}}, {"convolution_2", {1, 4}}};
+    model = builder.getOriginal((actual_markup));
     MixedAffinityMarkup reference_markup{
         {"convolution_1", {1, 4}},
         {"transpose_1", {1, 4}},

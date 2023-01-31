@@ -7,8 +7,7 @@
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset10.hpp>
 
-#include <ngraph_transformations/rt_info/optimal_batch_size.hpp>
-#include <ngraph_transformations/rt_info/num_splits.hpp>
+#include <ngraph_transformations/rt_info/mixed_affinity_props.hpp>
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "ngraph_functions/builders.hpp"
 #include <ov_ops/type_relaxed.hpp>
@@ -27,20 +26,12 @@ std::shared_ptr<ov::Node> getRandomConst(const ov::element::Type& precision, con
 }
 } // namespace
 
-MixedAffinityMarkup transformBSMarkup(const std::unordered_map<std::string, size_t>& markup) {
-    MixedAffinityMarkup markup_with_nsplits;
-    for (const auto& elem : markup)
-        markup_with_nsplits[elem.first] = {elem.second, 0};
-    return markup_with_nsplits;
-}
-
 void MixedAffinityFunctionBase::markup_model(const std::shared_ptr<ov::Model>& m, const MixedAffinityMarkup& markup) {
     for (const auto& node : m->get_ordered_ops()) {
         auto it = markup.find(node->get_friendly_name());
         if (it != markup.end()) {
-            ov::intel_cpu::mixed_affinity::set_optimal_bs(node, it->second.first);
-            if (it->second.second > 0)
-                ov::intel_cpu::mixed_affinity::set_num_splits(node, it->second.second);
+            ov::intel_cpu::mixed_affinity::Properties props(it->second.first, it->second.second);
+            ov::intel_cpu::mixed_affinity::set_properties(node, props);
         }
     }
 }
@@ -117,6 +108,36 @@ std::shared_ptr<ov::Model> ConvWithBiasFunction::initReference() {
     concat->set_friendly_name(bias_name);
 
     return std::make_shared<ov::Model>(ov::NodeVector{concat}, parameters);
+}
+
+ConvAndGrConvFunction::ConvAndGrConvFunction(const std::vector<ov::PartialShape>& input_shapes) : MixedAffinityFunctionBase(input_shapes) {
+    NGRAPH_CHECK(input_shapes.size() == 1, "Got invalid number of input shapes");
+}
+
+std::shared_ptr<ov::Model> ConvAndGrConvFunction::initOriginal() {
+    const auto parameters = ngraph::builder::makeDynamicParams(ov::element::f32, input_shapes);
+
+    const size_t out_channels = 10;
+    const size_t in_channels = parameters[0]->get_partial_shape()[1].get_length();
+    const auto conv_weights_const = getRandomConst(ov::element::f32, {out_channels, in_channels, 9, 9});
+    const auto convolution = std::make_shared<ov::opset1::Convolution>(parameters[0],
+                                                                       conv_weights_const,
+                                                                       ov::Strides{2, 2},
+                                                                       ov::CoordinateDiff{0, 0},
+                                                                       ov::CoordinateDiff{0, 0},
+                                                                       ov::Strides{1, 1});
+    convolution->set_friendly_name("convolution");
+
+    const auto gr_conv_weights_const = getRandomConst(ov::element::f32, {out_channels, 1, 1, 3, 3});
+    auto group_conv = std::make_shared<ov::opset1::GroupConvolution>(convolution,
+                                                                     gr_conv_weights_const,
+                                                                     ov::Strides{1, 1},
+                                                                     ov::CoordinateDiff{0, 0},
+                                                                     ov::CoordinateDiff{0, 0},
+                                                                     ov::Strides{1, 1});
+    group_conv->set_friendly_name("group_conv");
+
+    return std::make_shared<ov::Model>(ov::NodeVector{group_conv}, parameters);
 }
 
 Int8ConvWithDqSubFunction::Int8ConvWithDqSubFunction(const std::vector<ov::PartialShape>& input_shapes) : MixedAffinityFunctionBase(input_shapes) {
@@ -233,6 +254,23 @@ std::shared_ptr<ov::Model> GrConvWithParamFunction::initReference() {
     return std::make_shared<ov::Model>(ov::NodeVector{concat}, parameters);
 }
 
+ConvAndGatherWithParamFunction::ConvAndGatherWithParamFunction(const std::vector<ov::PartialShape>& input_shapes) : MixedAffinityFunctionBase(input_shapes) {
+    NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
+}
+
+std::shared_ptr<ov::Model> ConvAndGatherWithParamFunction::initOriginal() {
+    const auto parameters = ngraph::builder::makeDynamicParams({ov::element::f32, ov::element::i32}, input_shapes);
+    const size_t out_channels = 30;
+    const auto convolution = getDefaultConv(parameters[0], out_channels);
+    convolution->set_friendly_name("convolution");
+
+    auto gather_axis = ov::opset1::Constant::create(ov::element::i32, {}, {1});
+    auto gather = std::make_shared<ov::opset10::Gather>(convolution, parameters[1], gather_axis);
+    gather->set_friendly_name("gather");
+
+    return std::make_shared<ov::Model>(ov::NodeVector{gather}, parameters);
+}
+
 ConvWithTransposeFunction::ConvWithTransposeFunction(const std::vector<ov::PartialShape>& input_shapes) : MixedAffinityFunctionBase(input_shapes) {
     NGRAPH_CHECK(input_shapes.size() == 1, "Got invalid number of input shapes");
 }
@@ -291,18 +329,27 @@ ConvWithReshapeFunction::ConvWithReshapeFunction(const std::vector<ov::PartialSh
 }
 
 std::shared_ptr<ov::Model> ConvWithReshapeFunction::initOriginal() {
-    const auto parameters = ngraph::builder::makeDynamicParams(ov::element::f32, input_shapes);
-
-    const size_t out_channels = 30;
-    const auto convolution = getDefaultConv(parameters[0], out_channels);
+    auto parameters = ngraph::builder::makeDynamicParams(ov::element::f32, input_shapes);
+    auto relu = std::make_shared<ov::opset1::Relu>(parameters[0]);
+    auto weights_const = getRandomConst(ov::element::f32, {30, 3, 3, 3});
+    auto convolution = std::make_shared<ov::opset1::Convolution>(relu,
+                                                                 weights_const,
+                                                                 ov::Strides{1, 1},
+                                                                 ov::CoordinateDiff{0, 0},
+                                                                 ov::CoordinateDiff{0, 0},
+                                                                 ov::Strides{1, 1});
     convolution->set_friendly_name("convolution");
 
-    const auto& conv_out_shape = convolution->get_output_partial_shape(0);
-    std::vector<std::int64_t> requested_shape = {conv_out_shape[0].is_static() ? conv_out_shape[0].get_length() : 4,
-                                                 conv_out_shape[1].get_length(),
-                                                 -1};
-    const auto reshape_const = ov::opset1::Constant::create(ov::element::i32, {3}, requested_shape);
-    const auto reshape = std::make_shared<ov::opset1::Reshape>(convolution, reshape_const, true);
+    auto shape_of = std::make_shared<ov::opset10::ShapeOf>(relu, ov::element::i32);
+    auto gather_axis = ov::opset1::Constant::create(ov::element::i32, {1}, {0});
+    auto gather_indices = ov::opset1::Constant::create(ov::element::i32, {1}, {1});
+    auto gather = std::make_shared<ov::opset10::Gather>(shape_of, gather_indices, gather_axis);
+
+    auto zero_const = ov::opset1::Constant::create(ov::element::i32, {1}, {0});
+    auto minus_one_const = ov::opset1::Constant::create(ov::element::i32, {1}, {-1});
+    auto requested_shape = std::make_shared<ov::opset1::Concat>(ov::OutputVector{zero_const, gather, minus_one_const}, 0);
+
+    auto reshape = std::make_shared<ov::opset1::Reshape>(convolution, requested_shape, true);
     reshape->set_friendly_name("reshape");
 
     return std::make_shared<ov::Model>(ov::NodeVector{reshape}, parameters);
@@ -310,12 +357,13 @@ std::shared_ptr<ov::Model> ConvWithReshapeFunction::initOriginal() {
 
 std::shared_ptr<ov::Model> ConvWithReshapeFunction::initReference() {
     const auto parameters = ngraph::builder::makeDynamicParams(ov::element::f32, input_shapes);
+    auto relu = std::make_shared<ov::opset1::Relu>(parameters[0]);
     const size_t batch_size = input_shapes[0][0].get_length();
     const auto split_axis = ov::opset1::Constant::create(ov::element::i32, {}, {0});
-    const auto split = std::make_shared<ov::opset1::Split>(parameters[0], split_axis, batch_size);
+    const auto split = std::make_shared<ov::opset1::Split>(relu, split_axis, batch_size);
 
     const size_t out_channels = 30;
-    const size_t in_channels = input_shapes[0][1].get_length();
+    const size_t in_channels = input_shapes[0][1].is_static() ? input_shapes[0][1].get_length() : 3;
     const auto weights_const = getRandomConst(ov::element::f32, {out_channels, in_channels, 3, 3});
 
     const std::string conv_name = "convolution";
@@ -335,12 +383,15 @@ std::shared_ptr<ov::Model> ConvWithReshapeFunction::initReference() {
     const auto concat = ngraph::builder::makeConcat(concat_inputs, 0);
     concat->set_friendly_name(conv_name);
 
-    const auto& concat_out_shape = concat->get_output_partial_shape(0);
-    std::vector<std::int64_t> requested_shape = {concat_out_shape[0].is_static() ? concat_out_shape[0].get_length() : 4,
-                                                 concat_out_shape[1].get_length(),
-                                                 -1};
-    const auto reshape_const = ov::opset1::Constant::create(ov::element::i32, {3}, requested_shape);
-    const auto reshape = std::make_shared<ov::opset1::Reshape>(concat, reshape_const, true);
+    auto shape_of = std::make_shared<ov::opset10::ShapeOf>(relu, ov::element::i32);
+    auto gather_axis = ov::opset1::Constant::create(ov::element::i32, {1}, {0});
+    auto gather_indices = ov::opset1::Constant::create(ov::element::i32, {1}, {1});
+    auto gather = std::make_shared<ov::opset10::Gather>(shape_of, gather_indices, gather_axis);
+
+    auto zero_const = ov::opset1::Constant::create(ov::element::i32, {1}, {0});
+    auto minus_one_const = ov::opset1::Constant::create(ov::element::i32, {1}, {-1});
+    auto requested_shape = std::make_shared<ov::opset1::Concat>(ov::OutputVector{zero_const, gather, minus_one_const}, 0);
+    const auto reshape = std::make_shared<ov::opset1::Reshape>(concat, requested_shape, true);
     reshape->set_friendly_name("reshape");
 
     return std::make_shared<ov::Model>(ov::NodeVector{reshape}, parameters);
@@ -717,10 +768,9 @@ std::shared_ptr<ov::Model> ConvAndAddWithParameterFunction::initReference() {
     }
     auto parameters = ngraph::builder::makeDynamicParams(ov::element::f32, input_shapes);
     const size_t bs_left = input_shapes[0][0].get_length();
-    const size_t bs_right = input_shapes[1][0].get_length();
 
-    const auto split_axis_left = ov::opset1::Constant::create(ov::element::i32, {}, {0});
-    const auto split_left = std::make_shared<ov::opset1::Split>(parameters[0], split_axis_left, bs_left);
+    const auto split_axis = ov::opset1::Constant::create(ov::element::i32, {}, {0});
+    const auto split = std::make_shared<ov::opset1::Split>(parameters[0], split_axis, bs_left);
 
     const size_t out_channels = 3;
     const size_t in_channels = input_shapes[0][1].get_length();
@@ -728,23 +778,11 @@ std::shared_ptr<ov::Model> ConvAndAddWithParameterFunction::initReference() {
     const auto bias_const = ov::opset1::Constant::create(ov::element::f32, {1, out_channels, 1, 1}, {2.f});
     const std::string conv_name = "convolution";
     const std::string bias_name = "bias";
-    const std::string add_name = "add";
-
-    ov::OutputVector add_second_inputs;
-    if (bs_right == 1) {
-        add_second_inputs.push_back(parameters[1]);
-    } else {
-        const auto split_axis_right = ov::opset1::Constant::create(ov::element::i32, {}, {0});
-        const auto split_right = std::make_shared<ov::opset1::Split>(parameters[1], split_axis_right, bs_right);
-        for (const auto& output : split_right->outputs()) {
-            add_second_inputs.push_back(output);
-        }
-    }
 
     ov::OutputVector concat_inputs(bs_left);
     for (size_t i = 0; i < bs_left; ++i) {
         std::string name_suffix = "_" + std::to_string(i);
-        const auto convolution = std::make_shared<ov::opset1::Convolution>(split_left->output(i),
+        const auto convolution = std::make_shared<ov::opset1::Convolution>(split->output(i),
                                                                            weights_const,
                                                                            ov::Strides{1, 1},
                                                                            ov::CoordinateDiff{0, 0},
@@ -753,17 +791,16 @@ std::shared_ptr<ov::Model> ConvAndAddWithParameterFunction::initReference() {
         convolution->set_friendly_name(conv_name + name_suffix);
         const auto bias = ngraph::builder::makeEltwise(convolution, bias_const, ngraph::helpers::ADD);
         bias->set_friendly_name(bias_name + name_suffix);
-
-        const auto add = ngraph::builder::makeEltwise(bias,
-                                                      add_second_inputs.size() == 1 ? add_second_inputs[0] : add_second_inputs[i],
-                                                      ngraph::helpers::ADD);
-        add->set_friendly_name(add_name + name_suffix);
-        concat_inputs[i] = add;
+        concat_inputs[i] = bias;
     }
 
     const auto concat = ngraph::builder::makeConcat(concat_inputs, 0);
-    concat->set_friendly_name(add_name);
-    return std::make_shared<ov::Model>(ov::NodeVector{concat}, parameters);
+    concat->set_friendly_name(bias_name);
+
+    const auto add = ngraph::builder::makeEltwise(concat, parameters[1], ngraph::helpers::ADD);
+    add->set_friendly_name("add");
+
+    return std::make_shared<ov::Model>(ov::NodeVector{add}, parameters);
 }
 
 ConvWithTransposeAndAddFunction::ConvWithTransposeAndAddFunction(const std::vector<ov::PartialShape>& input_shapes) : MixedAffinityFunctionBase(input_shapes) {
@@ -980,23 +1017,6 @@ std::shared_ptr<ov::Model> ConvWithTransposeAddFunction::initReference() {
     auto parameters = ngraph::builder::makeDynamicParams(ov::element::f32, input_shapes);
 
     const std::string transpose_2_name = "transpose_2";
-    auto get_second_branch = [&]() {
-        const auto transpose_const_2 = ov::opset1::Constant::create(ov::element::i32, {4}, {1, 0, 2, 3});
-        const auto transpose_2 = std::make_shared<ov::opset1::Transpose>(parameters[1], transpose_const_2);
-        transpose_2->set_friendly_name(transpose_2_name);
-        const size_t bs = parameters[1]->get_partial_shape()[0].get_length();
-        if (bs == 1) {
-            return ov::OutputVector{transpose_2};
-        }
-        const auto split_axis = ov::opset1::Constant::create(ov::element::i32, {}, {1});
-        const auto split = std::make_shared<ov::opset1::Split>(transpose_2, split_axis, bs);
-
-        ov::OutputVector res;
-        for (const auto& output : split->outputs())
-            res.push_back(output);
-        return res;
-    };
-
     const size_t in_channels = input_shapes[0][1].get_length();
     const auto weights_const = getRandomConst(ov::element::f32, {in_channels, in_channels, 1, 1});
     const auto transpose_const = ov::opset1::Constant::create(ov::element::i32, {4}, {1, 0, 2, 3});
@@ -1005,11 +1025,9 @@ std::shared_ptr<ov::Model> ConvWithTransposeAddFunction::initReference() {
     const auto split_axis = ov::opset1::Constant::create(ov::element::i32, {}, {0});
     const auto split = std::make_shared<ov::opset1::Split>(parameters[0], split_axis, batch_size);
 
-    std::string add_name = "add";
     std::string conv_name = "convolution";
     std::string transpose_1_name = "transpose_1";
 
-    const auto second_branch = get_second_branch();
     ov::OutputVector concat_inputs(batch_size);
     for (size_t i = 0; i < batch_size; ++i) {
         auto convolution = std::make_shared<ov::opset1::Convolution>(split->output(i),
@@ -1021,17 +1039,20 @@ std::shared_ptr<ov::Model> ConvWithTransposeAddFunction::initReference() {
         convolution->set_friendly_name(conv_name + "_" + std::to_string(i));
         const auto transpose = std::make_shared<ov::opset1::Transpose>(convolution, transpose_const);
         transpose->set_friendly_name(transpose_1_name + "_" + std::to_string(i));
-
-        auto add = ngraph::builder::makeEltwise(transpose,
-                                                second_branch.size() == 1 ? second_branch[0] : second_branch[i],
-                                                ngraph::helpers::ADD);
-        add->set_friendly_name(add_name + "_" + std::to_string(i));
-        concat_inputs[i] = add;
+        concat_inputs[i] = transpose;
     }
 
     const auto concat = ngraph::builder::makeConcat(concat_inputs, 1);
-    concat->set_friendly_name(add_name);
-    return std::make_shared<ov::Model>(ov::NodeVector{concat}, parameters);
+    concat->set_friendly_name(transpose_1_name);
+
+    const auto transpose_const_2 = ov::opset1::Constant::create(ov::element::i32, {4}, {1, 0, 2, 3});
+    const auto transpose_2 = std::make_shared<ov::opset1::Transpose>(parameters[1], transpose_const_2);
+    transpose_2->set_friendly_name(transpose_2_name);
+
+    auto add = ngraph::builder::makeEltwise(concat, transpose_2, ngraph::helpers::ADD);
+    add->set_friendly_name("add");
+
+    return std::make_shared<ov::Model>(ov::NodeVector{add}, parameters);
 }
 }  // namespace mixed_affinity
 }  // namespace test

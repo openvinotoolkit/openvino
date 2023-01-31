@@ -7,7 +7,7 @@
 
 #include <openvino/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
-#include "rt_info/optimal_batch_size.hpp"
+#include "rt_info/mixed_affinity_props.hpp"
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <transformations/utils/utils.hpp>
 
@@ -47,10 +47,10 @@ MarkupConvolutionOptimalBS::MarkupConvolutionOptimalBS() {
         };
 
         const auto new_batch = get_opt_batch();
-        // TODO: do we really need this check?
-        const auto optimal_bs = original_batch % new_batch == 0 ? new_batch : original_batch;
-        const auto batch_to_set = optimal_bs <= original_batch ? optimal_bs : original_batch;
-        set_optimal_bs(node, batch_to_set);
+        const auto batch_to_set = new_batch <= original_batch ? new_batch : original_batch;
+        const size_t n_splits = original_batch / batch_to_set;
+        const auto props = Properties(batch_to_set, n_splits);
+        set_properties(node, props);
 
         // set optimal bs also for dequantization subtract before convolution
         // in order to save inseparable Subtract->Convolution sequence after graph partition
@@ -59,7 +59,7 @@ MarkupConvolutionOptimalBS::MarkupConvolutionOptimalBS() {
             if (ov::is_type<opset1::Subtract>(parent) &&
                 parent->get_input_element_type(0).is_integral() &&
                 parent->get_input_element_type(1).is_integral()) {
-                set_optimal_bs(parent, batch_to_set);
+                set_properties(parent, props);
             }
         }
 
@@ -98,11 +98,10 @@ MarkupGroupConvolutionOptimalBS::MarkupGroupConvolutionOptimalBS() {
         };
 
         const auto new_batch = get_opt_batch();
-        // std::cout << "New bs: " << new_batch << " metric: " << metric << std::endl;
-        // TODO: do we really need this check?
-        const auto optimal_bs = original_batch % new_batch == 0 ? new_batch : original_batch;
-        const auto batch_to_set = optimal_bs <= original_batch ? optimal_bs : original_batch;
-        set_optimal_bs(node, batch_to_set);
+        const auto batch_to_set = new_batch <= original_batch ? new_batch : original_batch;
+        const size_t n_splits = original_batch / batch_to_set;
+        const auto props = Properties(batch_to_set, n_splits);
+        set_properties(node, props);
 
         // set optimal bs also for dequantization subtract before convolution
         // in order to save inseparable Subtract->Convolution sequence after graph partition
@@ -111,7 +110,7 @@ MarkupGroupConvolutionOptimalBS::MarkupGroupConvolutionOptimalBS() {
             if (ov::is_type<opset1::Subtract>(parent) &&
                 parent->get_input_element_type(0).is_integral() &&
                 parent->get_input_element_type(1).is_integral()) {
-                set_optimal_bs(parent, batch_to_set);
+                set_properties(parent, props);
             }
         }
 
@@ -126,7 +125,7 @@ MarkupFullyConnectedOptimalBS::MarkupFullyConnectedOptimalBS() {
     auto group_conv_m = ov::pass::pattern::wrap_type<ov::intel_cpu::FullyConnectedNode>(ov::pass::pattern::has_static_shape());
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-        set_optimal_bs(m.get_match_root(), m.get_match_value().get_shape()[0]);
+        set_properties(m.get_match_root(), Properties(m.get_match_value().get_shape()[0], 1));
         return false;
     };
 
@@ -135,10 +134,10 @@ MarkupFullyConnectedOptimalBS::MarkupFullyConnectedOptimalBS() {
 }
 
 MarkupBlockers::MarkupBlockers() {
-    auto blocker_m = ov::pass::pattern::wrap_type<ov::opset1::LRN>();
+    auto blocker_m = ov::pass::pattern::wrap_type<ov::opset1::LRN>(ov::pass::pattern::has_static_shape());
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-        set_optimal_bs(m.get_match_root(), m.get_match_value().get_shape()[0]);
+        set_properties(m.get_match_root(), Properties(m.get_match_value().get_shape()[0], 1));
         return false;
     };
 

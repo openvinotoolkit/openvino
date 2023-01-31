@@ -14,8 +14,6 @@ namespace test {
 namespace mixed_affinity {
 using MixedAffinityMarkup = std::unordered_map<std::string, std::pair<size_t, size_t>>;
 
-MixedAffinityMarkup transformBSMarkup(const std::unordered_map<std::string, size_t>& markup);
-
 /* This file contains definitions of relatively simple functions (models) that will be used
  * to test mixed affinity behavior. All the functions are expected to be direct descendants of
  * MixedAffinityFunctionBase, so their constructors take only one (input_shapes) argument.
@@ -38,9 +36,6 @@ private:
 using MixedAffinityBuilder =
     std::pair<std::function<std::shared_ptr<MixedAffinityFunctionBase>(const std::vector<ov::PartialShape>& shapes)>,
               std::string>;
-using MixedAffinityParams = typename std::tuple<
-        std::vector<ov::PartialShape>, // Input shapes
-        MixedAffinityBuilder>;         // builder
 
 class ConvWithBiasFunction : public MixedAffinityFunctionBase {
 public:
@@ -48,6 +43,13 @@ public:
 protected:
     std::shared_ptr<ov::Model> initOriginal() override;
     std::shared_ptr<ov::Model> initReference() override;
+};
+
+class ConvAndGrConvFunction : public MixedAffinityFunctionBase {
+public:
+    explicit ConvAndGrConvFunction(const std::vector<ov::PartialShape>& input_shapes);
+protected:
+    std::shared_ptr<ov::Model> initOriginal() override;
 };
 
 class Int8ConvWithDqSubFunction : public MixedAffinityFunctionBase {
@@ -64,6 +66,13 @@ public:
 protected:
     std::shared_ptr<ov::Model> initOriginal() override;
     std::shared_ptr<ov::Model> initReference() override;
+};
+
+class ConvAndGatherWithParamFunction : public MixedAffinityFunctionBase {
+public:
+    explicit ConvAndGatherWithParamFunction(const std::vector<ov::PartialShape>& input_shapes);
+protected:
+    std::shared_ptr<ov::Model> initOriginal() override;
 };
 
 class ConvWithTransposeFunction : public MixedAffinityFunctionBase {

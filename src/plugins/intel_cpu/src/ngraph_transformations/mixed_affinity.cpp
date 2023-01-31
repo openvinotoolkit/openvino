@@ -14,8 +14,7 @@
 #include <openvino/pass/manager.hpp>
 #include <openvino/opsets/opset1.hpp>
 
-#include "rt_info/optimal_batch_size.hpp"
-#include "rt_info/num_splits.hpp"
+#include "rt_info/mixed_affinity_props.hpp"
 
 using namespace ov::intel_cpu::mixed_affinity;
 
@@ -25,8 +24,7 @@ std::unordered_map<Properties, Subgraph> MixedAffinity::formSubgraphs(const std:
     std::unordered_map<Properties, Subgraph> subgraphs;
 
     auto subgraph_props_match = [](const std::shared_ptr<ov::Node>& node, const Properties& props) {
-        return (has_optimal_bs(node) && get_optimal_bs(node) == props.opt_bs) &&
-               (has_num_splits(node) && get_num_splits(node) == props.n_splits);
+        return has_properties(node) && get_properties(node) == props;
     };
 
     auto add_start = [&subgraphs](const ov::Input<ov::Node>& start, const Properties& key) {
@@ -44,15 +42,10 @@ std::unordered_map<Properties, Subgraph> MixedAffinity::formSubgraphs(const std:
     };
 
     for (const auto& node : m->get_ordered_ops()) {
-        if (!has_optimal_bs(node))
+        if (!has_properties(node))
             continue;
 
-        NGRAPH_CHECK(has_num_splits(node),
-                     "formSubgraphs: node ",
-                     node->get_friendly_name(),
-                     " lacks 'NumSplits' rt info that must be if rt info contains 'OptimalBatchSize' ");
-
-        const Properties props(get_optimal_bs(node), get_num_splits(node));
+        const Properties props = get_properties(node);
         for (const auto& input : node->inputs()) {
             const auto input_node = input.get_source_output().get_node_shared_ptr();
             const bool non_data_const = input.get_index() > 0 && ov::is_type<ov::opset1::Constant>(input_node);

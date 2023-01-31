@@ -19,9 +19,12 @@ struct Subgraph {
 
 class Properties {
 public:
+    Properties() : opt_bs(0), n_splits(0) {}
     Properties(const size_t opt_bs, const size_t n_splits) : opt_bs(opt_bs), n_splits(n_splits) {}
+    bool is_set() const;
     bool operator<(const Properties& other) const;
     bool operator==(const Properties& other) const;
+    bool operator!=(const Properties& other) const;
 
     size_t opt_bs;
     size_t n_splits;

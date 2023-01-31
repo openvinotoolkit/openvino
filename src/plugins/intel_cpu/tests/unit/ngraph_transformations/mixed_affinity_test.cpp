@@ -13,6 +13,9 @@
 namespace ov {
 namespace test {
 namespace mixed_affinity {
+using MixedAffinityParams = typename std::tuple<
+    std::vector<ov::PartialShape>, // Input shapes
+    MixedAffinityBuilder>;         // builder
 class MixedAffinityTests : public testing::WithParamInterface<MixedAffinityParams>, public TransformationTestsF {
 public:
     MixedAffinityTests() : TransformationTestsF() {
