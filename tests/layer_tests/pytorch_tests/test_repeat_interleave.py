@@ -15,6 +15,7 @@ import torch
                                         {'repeats': [3, 2, 1], 'dim': 3},
                                         {'repeats': 2, 'dim': None},
                                         {'repeats': [random.randint(1, 5) for _ in range(36)], 'dim': None}))
+# @pytest.mark.parametrize('input_data', ({'repeats': 2, 'dim': 2},))
 class TestRepeatInterleaveConstRepeats(PytorchLayerTest):
 
     def _prepare_input(self):
@@ -42,12 +43,12 @@ class TestRepeatInterleaveConstRepeats(PytorchLayerTest):
         dim = input_data['dim']
         self._test(*self.create_model_const_repeat(repeats, dim),
                    ie_device, precision, ir_version)
-        
-@pytest.mark.parametrize('input_data', ({'repeats': np.array([1]), 'dim': 0},
-                                        {'repeats': np.array(1), 'dim': 1},
-                                        {'repeats': np.array([2]), 'dim': 2},
-                                        {'repeats': np.array(2), 'dim': 1},
-                                        {'repeats': np.array([3]), 'dim': None}))
+
+@pytest.mark.parametrize('input_data', ({'repeats': np.array([1]).astype(np.int32), 'dim': 0},
+                                        {'repeats': np.array(1).astype(np.int32), 'dim': 1},
+                                        {'repeats': np.array([2]).astype(np.int32), 'dim': 2},
+                                        {'repeats': np.array(2).astype(np.int32), 'dim': 1},
+                                        {'repeats': np.array([3]).astype(np.int32), 'dim': None}))
 class TestRepeatInterleaveNonConstRepeats(PytorchLayerTest):
 
     def _prepare_input(self):
