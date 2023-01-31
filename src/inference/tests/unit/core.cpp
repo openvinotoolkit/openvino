@@ -67,7 +67,7 @@ TEST(CoreTests_get_plugin_path_from_xml, Convert_relative_path_as_relative_to_xm
 
 TEST(CoreTests_get_plugin_path_from_xml, Convert_filename_to_abs_path_if_as_abs_only) {
     auto xml_path = "path_to_plugins.xml";
-    auto name = "test_name.ext";                                                // test_name.ext
+    auto name = "test_name.ext";                                            // test_name.ext
     auto abs_path = from_file_path(get_plugin_path(name, xml_path, true));  // XMLDIR/libtest_name.ext.so
     EXPECT_TRUE(is_absolute_file_path(abs_path));
 
@@ -78,7 +78,7 @@ TEST(CoreTests_get_plugin_path_from_xml, Convert_filename_to_abs_path_if_as_abs_
 
 TEST(CoreTests_get_plugin_path_from_xml, Use_filename_if_not_as_abs_only) {
     auto xml_path = "path_to_plugins.xml";
-    auto name = "test_name.ext";                                          // test_name.ext
+    auto name = "test_name.ext";                                      // test_name.ext
     auto lib_name = from_file_path(get_plugin_path(name, xml_path));  // libtest_name.ext.so
     auto ref_name = FileUtils::makePluginLibraryName({}, std::string(name));
     EXPECT_STREQ(lib_name.c_str(), ref_name.c_str());

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/util/file_util.hpp"
+
 #include <sys/stat.h>
 
 #include <algorithm>
@@ -10,7 +12,6 @@
 #include <fstream>
 #include <sstream>
 
-#include "openvino/util/file_util.hpp"
 #include "openvino/util/common_util.hpp"
 
 #ifdef _WIN32

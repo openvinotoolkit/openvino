@@ -75,7 +75,7 @@ public:
     ///
     /// \param name Name of front end
     ///
-    /// \param library_path Path (absolute or relative) or name of a frontend library. If name is 
+    /// \param library_path Path (absolute or relative) or name of a frontend library. If name is
     /// provided, depending on platform, it will be wrapped with shared library suffix and prefix
     /// to identify library full name
     void register_front_end(const std::string& name, const std::string& library_path);
