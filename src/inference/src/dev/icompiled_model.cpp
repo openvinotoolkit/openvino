@@ -30,10 +30,7 @@ const std::vector<ov::Output<const ov::Node>>& ov::ICompiledModel::inputs() cons
     return m_inputs;
 }
 std::shared_ptr<InferenceEngine::IInferRequestInternal> ov::ICompiledModel::create_infer_request() const {
-    if (m_task_executor && m_callback_executor) {
-        return create_async_infer_request();
-    }
-    return create_sync_infer_request();
+    return create_async_infer_request();
 }
 
 std::shared_ptr<const ov::IPlugin> ov::ICompiledModel::get_plugin() const {
@@ -42,7 +39,7 @@ std::shared_ptr<const ov::IPlugin> ov::ICompiledModel::get_plugin() const {
 
 void ov::ICompiledModel::loaded_from_cache() {
     if (auto wrapper = dynamic_cast<InferenceEngine::ICompiledModelWrapper*>(this)) {
-        wrapper->get_model()->loadedFromCache();
+        wrapper->get_executable_network()->loadedFromCache();
         return;
     }
     OPENVINO_NOT_IMPLEMENTED;
