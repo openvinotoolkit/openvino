@@ -14,6 +14,8 @@
 #include "Python.h"
 #include "openvino/frontend/decoder.hpp"
 
+using Version = ov::pass::Serialize::Version;
+
 namespace Common {
 namespace utils {
 
@@ -163,6 +165,17 @@ std::string convert_path_to_string(const py::object& path) {
         << " does not exist. Please provide valid model's path either as a string, bytes or pathlib.Path. "
            "Examples:\n(1) '/home/user/models/model.onnx'\n(2) Path('/home/user/models/model/model.onnx')";
     throw ov::Exception(str.str());
+}
+
+Version convert_to_version(const std::string& version) {
+    if (version == "UNSPECIFIED")
+        return Version::UNSPECIFIED;
+    if (version == "IR_V10")
+        return Version::IR_V10;
+    if (version == "IR_V11")
+        return Version::IR_V11;
+    throw ov::Exception("Invoked with wrong version argument: '" + version +
+                        "'! The supported versions are: 'UNSPECIFIED'(default), 'IR_V10', 'IR_V11'.");
 }
 
 void deprecation_warning(const std::string& function_name, const std::string& version, const std::string& message) {
