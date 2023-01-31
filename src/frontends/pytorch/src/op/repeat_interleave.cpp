@@ -55,7 +55,7 @@ OutputVector translate_repeat_interleave(NodeContext& context) {
             result = std::make_shared<opset10::Gather>(input, concat, dimension);
         }
     } else {
-        // repeats is not Constant
+        // repeats is not Constant or single element constant
         // Curently we support only case when repeats contains only one element. Otherwise next Reshape will fail.
         auto repeats_input =
             context.mark_node(std::make_shared<opset10::Reshape>(context.get_input(1), const_1_list, false));
