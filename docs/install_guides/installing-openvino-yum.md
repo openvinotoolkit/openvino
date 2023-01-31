@@ -41,7 +41,7 @@ Installing OpenVINO Runtime from YUM is recommended for C++ developers. If you a
 
 ### Step 1: Set Up the Repository
 
-1. Create the YUM repo file in the `/tmp` directory as a normal user:
+1. Create the `openvino-2022.repo` YUM repo file in the `/tmp` directory as a normal user:
    ```
    tee > /tmp/openvino-2022.repo << EOF
    [OpenVINO]
@@ -53,7 +53,7 @@ Installing OpenVINO Runtime from YUM is recommended for C++ developers. If you a
    gpgkey=https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
    EOF
    ```
-2.	Move the new openvino-2022.repo file to the YUM configuration directory `/etc/yum.repos.d`:
+2.	Move the new `openvino-2022.repo` file to the YUM configuration directory `/etc/yum.repos.d`:
    ```sh
    sudo mv /tmp/openvino-2022.repo /etc/yum.repos.d
    ```
