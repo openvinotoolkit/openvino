@@ -93,16 +93,19 @@ public:
         const VectorDims& weightShape = input_shapes[1].get();
         size_t activationRank = activationShape.size();
         size_t channelRank = weightShape.size() - 1;
-        VectorDims outputShape;
-        // set batch dims
-        for (size_t i = 0; i < activationRank - channelRank; ++i) {
-            outputShape.push_back(activationShape[i]);
-        }
-        // append Co
-        outputShape.push_back(weightShape[0]);
 
-        while (outputShape.size() < out_rank) {
-            outputShape.insert(outputShape.begin(), 1);
+        // activation   weight    output_shape
+        // NCHW         CoCHW     NCo
+        // TNC          CoC       TNCo
+        // NC           CoC       NCo
+        VectorDims outputShape(out_rank, 1);
+        // set Co
+        outputShape.back() = weightShape[0];
+        // set batch dims
+        size_t batchRank = activationRank - channelRank;
+        size_t startIdx = out_rank - batchRank - 1;
+        for (size_t i = 0; i < batchRank; i++) {
+            outputShape[i + startIdx] = activationShape[i];
         }
 
         return {outputShape};
