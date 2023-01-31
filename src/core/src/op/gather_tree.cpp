@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/gather_tree.hpp"
+#include "ngraph/op/gather_tree.hpp"
 
 #include "gather_tree_shape_inference.hpp"
 #include "itt.hpp"
+#include "ngraph/shape.hpp"
 #include "openvino/core/validation_util.hpp"
 
 using namespace std;
-using namespace ov;
+using namespace ngraph;
 
 op::v1::GatherTree::GatherTree(const Output<Node>& step_ids,
                                const Output<Node>& parent_idx,
@@ -25,7 +26,7 @@ shared_ptr<Node> op::v1::GatherTree::clone_with_new_inputs(const OutputVector& n
     return make_shared<v1::GatherTree>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
 }
 
-bool op::v1::GatherTree::visit_attributes(AttributeVisitor& visitor) {
+bool ngraph::op::v1::GatherTree::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v1_GatherTree_visit_attributes);
     return true;
 }
