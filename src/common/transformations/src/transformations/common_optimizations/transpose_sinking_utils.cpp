@@ -148,13 +148,13 @@ AxisVector AlignTransposeOrder(const Output<Node>& output, const TransposeInputs
     return new_transpose_order;
 }
 
-void UpdateInputTransposes(const NodePtr& main_node, const TransposeInputsInfo& transpose_input_info) {
+bool UpdateInputTransposes(const NodePtr& main_node, const TransposeInputsInfo& transpose_input_info) {
     if (transpose_input_info.isEmpty() || HasDynamicRankInput(main_node))
-        return;
+        return false;
 
     const auto max_input_rank = GetMaxInputRank(main_node);
     if (max_input_rank < 0)
-        return;
+        return false;
 
     const size_t tranpose_input_index = transpose_input_info.input_idx;
     const auto transpose_element_type = transpose_input_info.transpose_const->get_element_type();
@@ -178,6 +178,7 @@ void UpdateInputTransposes(const NodePtr& main_node, const TransposeInputsInfo& 
             copy_runtime_info(input_node.get_node_shared_ptr(), {new_transpose, new_transpose_const});
         }
     }
+    return true;
 }
 
 void RemoveInputNode(const NodePtr& main_node, size_t input_idx) {
