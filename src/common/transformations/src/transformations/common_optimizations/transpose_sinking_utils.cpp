@@ -139,7 +139,7 @@ AxisVector AlignTransposeOrder(const Output<Node>& output, const TransposeInputs
         new_transpose_order.resize(rank);
         std::iota(new_transpose_order.begin(), new_transpose_order.end(), 0);
         auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
-        for (size_t i = diff; i < rank; ++i) {
+        for (int64_t i = diff; i < rank; ++i) {
             new_transpose_order[i] = transpose_axis_order[i - diff] + diff;
         }
     } else {
