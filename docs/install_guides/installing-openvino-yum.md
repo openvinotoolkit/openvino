@@ -41,44 +41,52 @@ Installing OpenVINO Runtime from YUM is recommended for C++ developers. If you a
 
 ### Step 1: Set Up the Repository
 
+@sphinxdirective
+
 1. Create the YUM repo file in the `/tmp` directory as a normal user:
-   ```
-   tee > /tmp/openvino-2022.repo << EOF
-   [OpenVINO]
-   name=Intel(R) Distribution of OpenVINO 2022
-   baseurl=https://yum.repos.intel.com/openvino/2022
-   enabled=1
-   gpgcheck=1
-   repo_gpgcheck=1
-   gpgkey=https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-   EOF
-   ```
+
+   .. code-block:: sh
+
+     tee > /tmp/openvino-2022.repo << EOF
+     [OpenVINO]
+     name=Intel(R) Distribution of OpenVINO 2022
+     baseurl=https://yum.repos.intel.com/openvino/2022
+     enabled=1
+     gpgcheck=1
+     repo_gpgcheck=1
+     gpgkey=https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+     EOF
+
 2.	Move the new openvino-2022.repo file to the YUM configuration directory `/etc/yum.repos.d`:
-   ```sh
-   sudo mv /tmp/openvino-2022.repo /etc/yum.repos.d
-   ```
+   
+   .. code-block:: sh
+
+     sudo mv /tmp/openvino-2022.repo /etc/yum.repos.d
+
 3.	Verify that the new repository is set up properly.
 
-   a. First, list all valid repositories
-      ```sh
-      sudo yum repolist
-      ```
-      And enter `y` to the question about adding the GPG key, as shown below:
-      ```sh
-      Is this ok [y/N]: y
-      ```
+   First, list all valid repositories:
+   
+   .. code-block:: sh
 
-   b. Then, query `openvino` in the repository list:
-      ```sh
-      yum repolist | grep -i openvino
-      ```
+     sudo yum repolist
+   
+   And enter `y` to the question about adding the GPG key, as shown below:
+   
+   .. code-block:: sh
 
-      You will see the available list of packages.
+     Is this ok [y/N]: y
+   
+   Then, query `openvino` in the repository list:
+
+   .. code-block:: sh
+
+     yum repolist | grep -i openvino
+   
+   You will see the available list of packages.
 
 
 To list available OpenVINO packages, use the following command:
-
-@sphinxdirective
 
    .. code-block:: sh
 
