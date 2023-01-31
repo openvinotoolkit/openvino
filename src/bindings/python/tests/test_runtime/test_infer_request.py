@@ -967,12 +967,12 @@ def test_array_like_input_async_infer_queue(device, shared_flag):
             self.data = array
 
         def __array__(self):
-            return np.array(self.data)
+            return self.data
 
     jobs = 8
     ov_type = Type.f32
     input_shape = [2, 2]
-    input_data = [[-2, -1], [0, 1]]
+    input_data = np.ascontiguousarray([[-2, -1], [0, 1]])
     param = ops.parameter(input_shape, ov_type)
     layer = ops.abs(param)
     model = Model([layer], [param])
@@ -980,7 +980,7 @@ def test_array_like_input_async_infer_queue(device, shared_flag):
     compiled_model = core.compile_model(model, "CPU")
 
     model_input_object = ArrayLikeObject(input_data)
-    model_input_list = [[ArrayLikeObject(input_data)] for _ in range(jobs)]
+    model_input_list = [[ArrayLikeObject(deepcopy(input_data))] for _ in range(jobs)]
 
     # Test single array-like object in AsyncInferQueue.start_async()
     infer_queue_object = AsyncInferQueue(compiled_model, jobs)
@@ -998,6 +998,7 @@ def test_array_like_input_async_infer_queue(device, shared_flag):
     infer_queue_list.wait_all()
 
     for i in range(jobs):
+        print(infer_queue_list[i].get_output_tensor().data)
         assert np.array_equal(infer_queue_list[i].get_output_tensor().data, np.abs(input_data))
 
 
