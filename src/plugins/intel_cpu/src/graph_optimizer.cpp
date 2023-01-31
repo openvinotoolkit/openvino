@@ -2232,7 +2232,7 @@ void GraphOptimizer::RemoveSameConvert(Graph &graph) {
         return parentNode->getType() == Type::Convert &&
             (parentNode->getOriginalOutputPrecisionAtPort(0) == parentNode->getOriginalInputPrecisionAtPort(0));
     };
-    
+
     for (size_t i = 0; i < graphNodes.size(); i++) {
         auto parentNode = graphNodes[i];
         if (!isSuitableParentNode(parentNode)) {
@@ -2240,7 +2240,7 @@ void GraphOptimizer::RemoveSameConvert(Graph &graph) {
         }
         graph.DropNode(parentNode);
     }
-} 
+}
 
 }   // namespace intel_cpu
 }   // namespace ov

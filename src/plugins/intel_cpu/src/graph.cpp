@@ -1534,7 +1534,7 @@ void Graph::EnforceBF16() {
     // starting from output nodes
     for (const auto& entry : outputNodesMap) {
         const auto& node = entry.second;
-        if(node->getOriginalInputPrecisionAtPort(0) == Precision::BF16)
+        if (node->getOriginalInputPrecisionAtPort(0) == Precision::BF16)
             continue;
         searchForNodesToSkip(node, nodesToSkip);
     }
