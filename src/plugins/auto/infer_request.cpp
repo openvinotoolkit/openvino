@@ -92,10 +92,10 @@ void MultiDeviceInferRequest::SetBlob(const std::string& name, const InferenceEn
 }
 
 void MultiDeviceInferRequest::SetBlob(const std::string& name, const Blob::Ptr& blob, const PreProcessInfo& info) {
-    if (_sharedRequest)
-        _sharedRequest->SetBlob(name, blob, info);
-    else
-        IInferRequestInternal::SetBlob(name, blob, info);
+    // if (_sharedRequest)
+    //     _sharedRequest->SetBlob(name, blob, info);
+    // else
+    //     IInferRequestInternal::SetBlob(name, blob, info);
 }
 
 InferenceEngine::Blob::Ptr MultiDeviceInferRequest::GetBlob(const std::string& name) {
