@@ -19,9 +19,10 @@
 #include "ie_api.h"
 #include "ie_common.h"
 #include "ie_ngraph_utils.hpp"
+#include "ie_remote_blob.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/partial_shape.hpp"
-#include "template_executable_network.hpp"
+#include "template_compiled_model.hpp"
 #include "template_itt.hpp"
 #include "template_plugin.hpp"
 
@@ -31,40 +32,33 @@ using namespace InferenceEngine;
 using Time = std::chrono::high_resolution_clock;
 
 // ! [infer_request:ctor]
-TemplateInferRequest::TemplateInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
-                                           const InferenceEngine::OutputsDataMap& networkOutputs,
-                                           const std::shared_ptr<TemplatePlugin::ExecutableNetwork>& executableNetwork)
-    : IInferRequestInternal(networkInputs, networkOutputs),
-      _executableNetwork(executableNetwork) {
-    createInferRequest();
-}
-
 TemplateInferRequest::TemplateInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                            const std::vector<std::shared_ptr<const ov::Node>>& outputs,
-                                           const std::shared_ptr<TemplatePlugin::ExecutableNetwork>& executableNetwork)
+                                           const std::shared_ptr<const TemplatePlugin::CompiledModel>& compiled_model)
     : IInferRequestInternal(inputs, outputs),
-      _executableNetwork(executableNetwork) {
+      m_compiled_model(compiled_model) {
     createInferRequest();
 }
 
 void TemplateInferRequest::createInferRequest() {
     // TODO: allocate infer request device and host buffers if needed, fill actual list of profiling tasks
 
-    auto requestID = std::to_string(_executableNetwork->_requestId.fetch_add(1));
+    auto compiled_model = std::const_pointer_cast<TemplatePlugin::CompiledModel>(m_compiled_model);
+    auto requestID = std::to_string(compiled_model->_requestId.fetch_add(1));
 
-    std::string name = _executableNetwork->m_model->get_friendly_name() + "_Req" + requestID;
+    std::string name = m_compiled_model->m_model->get_friendly_name() + "_Req" + requestID;
     _profilingTask = {
-        openvino::itt::handle("Template" + std::to_string(_executableNetwork->_cfg.deviceId) + "_" + name +
+        openvino::itt::handle("Template" + std::to_string(m_compiled_model->_cfg.deviceId) + "_" + name +
                               "_Preprocess"),
-        openvino::itt::handle("Template" + std::to_string(_executableNetwork->_cfg.deviceId) + "_" + name +
+        openvino::itt::handle("Template" + std::to_string(m_compiled_model->_cfg.deviceId) + "_" + name +
                               "_Postprocess"),
-        openvino::itt::handle("Template" + std::to_string(_executableNetwork->_cfg.deviceId) + "_" + name +
+        openvino::itt::handle("Template" + std::to_string(m_compiled_model->_cfg.deviceId) + "_" + name +
                               "_StartPipline"),
-        openvino::itt::handle("Template" + std::to_string(_executableNetwork->_cfg.deviceId) + "_" + name +
+        openvino::itt::handle("Template" + std::to_string(m_compiled_model->_cfg.deviceId) + "_" + name +
                               "_WaitPipline"),
     };
 
-    _executable = _executableNetwork->_plugin->_backend->compile(_executableNetwork->m_model);
+    _executable = m_compiled_model->get_template_plugin()->_backend->compile(m_compiled_model->m_model);
 
     allocateDeviceBuffers();
     allocateBlobs();
@@ -73,7 +67,8 @@ void TemplateInferRequest::createInferRequest() {
 
 // ! [infer_request:dtor]
 TemplateInferRequest::~TemplateInferRequest() {
-    _executableNetwork->_requestId--;
+    auto compiled_model = std::const_pointer_cast<TemplatePlugin::CompiledModel>(m_compiled_model);
+    compiled_model->_requestId--;
 }
 // ! [infer_request:dtor]
 
@@ -124,17 +119,17 @@ static void AllocateImpl(const BlobDataMap& userDataMap,
 }
 
 void TemplateInferRequest::allocateBlobs() {
-    auto&& parameters = _executableNetwork->m_model->get_parameters();
+    auto&& parameters = m_compiled_model->m_model->get_parameters();
     AllocateImpl(_networkInputs, _inputs, _deviceInputs, [&](const std::string& blobName) {
-        return parameters.at(_executableNetwork->_inputIndex.at(blobName))->get_element_type();
+        return parameters.at(m_compiled_model->_inputIndex.at(blobName))->get_element_type();
     });
-    auto&& results = _executableNetwork->m_model->get_results();
+    auto&& results = m_compiled_model->m_model->get_results();
     AllocateImpl(
         _networkOutputs,
         _outputs,
         _networkOutputBlobs,
         [&](const std::string& blobName) {
-            return results.at(_executableNetwork->_outputIndex.at(blobName))->get_element_type();
+            return results.at(m_compiled_model->_outputIndex.at(blobName))->get_element_type();
         },
         false);
 }
@@ -265,8 +260,8 @@ void TemplateInferRequest::inferPreprocess() {
     //       input can points to other memory region than it was allocated in constructor.
     IInferRequestInternal::execDataPreprocessing(_deviceInputs);
     for (auto&& networkInput : _deviceInputs) {
-        auto index = _executableNetwork->_inputIndex[networkInput.first];
-        const auto& parameter = _executableNetwork->m_model->get_parameters()[index];
+        auto index = m_compiled_model->_inputIndex.at(networkInput.first);
+        const auto& parameter = m_compiled_model->m_model->get_parameters()[index];
         auto parameterShape = networkInput.second->getTensorDesc().getDims();
         auto srcShape = networkInput.second->getTensorDesc().getBlockingDesc().getBlockDims();
         const auto& parameterType = parameter->get_element_type();
@@ -287,9 +282,10 @@ void TemplateInferRequest::inferPreprocess() {
         };
         if (isNonRoiDesc(networkInput.second->getTensorDesc().getBlockingDesc())) {
             // No ROI extraction is needed
-            _inputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor(parameterType,
-                                                                                        parameterShape,
-                                                                                        mem_blob->rmap().as<void*>());
+            _inputTensors[index] =
+                m_compiled_model->get_template_plugin()->_backend->create_tensor(parameterType,
+                                                                                 parameterShape,
+                                                                                 mem_blob->rmap().as<void*>());
         } else {
             OPENVINO_ASSERT(parameterType.bitwidth() % 8 == 0,
                             "Template plugin: Unsupported ROI tensor with element type having ",
@@ -298,7 +294,8 @@ void TemplateInferRequest::inferPreprocess() {
             // Perform manual extraction of ROI tensor
             // Basic implementation doesn't take axis order into account `desc.getBlockingDesc().getOrder()`
             // Performance of manual extraction is not optimal, but it is ok for template implementation
-            _inputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor(parameterType, parameterShape);
+            _inputTensors[index] =
+                m_compiled_model->get_template_plugin()->_backend->create_tensor(parameterType, parameterShape);
             auto desc = mem_blob->getTensorDesc();
             auto* src_data = mem_blob->rmap().as<uint8_t*>();
             auto dst_tensor = std::dynamic_pointer_cast<ngraph::runtime::HostTensor>(_inputTensors[index]);
@@ -323,18 +320,18 @@ void TemplateInferRequest::inferPreprocess() {
     for (auto&& output : _outputs) {
         auto outputBlob = output.second;
         auto networkOutput = _networkOutputBlobs[output.first];
-        auto index = _executableNetwork->_outputIndex[output.first];
+        auto index = m_compiled_model->_outputIndex.at(output.first);
         if (outputBlob->getTensorDesc().getPrecision() == networkOutput->getTensorDesc().getPrecision()) {
             networkOutput = outputBlob;
         }
-        const auto& result = _executableNetwork->m_model->get_results()[index];
+        const auto& result = m_compiled_model->m_model->get_results()[index];
         if (result->get_output_partial_shape(0).is_dynamic()) {
-            _outputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor();
+            _outputTensors[index] = m_compiled_model->get_template_plugin()->_backend->create_tensor();
             continue;
         }
         const auto& resultShape = result->get_shape();
         const auto& resultType = result->get_element_type();
-        _outputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor(
+        _outputTensors[index] = m_compiled_model->get_template_plugin()->_backend->create_tensor(
             resultType,
             resultShape,
             InferenceEngine::as<InferenceEngine::MemoryBlob>(networkOutput)->wmap().as<void*>());
@@ -365,8 +362,8 @@ void TemplateInferRequest::inferPostprocess() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, _profilingTask[Postprocess]);
     auto start = Time::now();
     for (auto&& output : _networkOutputs) {
-        auto index = _executableNetwork->_outputIndex[output.first];
-        const auto& result = _executableNetwork->m_model->get_results()[index];
+        auto index = m_compiled_model->_outputIndex.at(output.first);
+        const auto& result = m_compiled_model->m_model->get_results()[index];
         if (result->get_output_partial_shape(0).is_dynamic()) {
             // Touch blob to allocate it
             GetBlob(output.first);
@@ -376,7 +373,7 @@ void TemplateInferRequest::inferPostprocess() {
         if (outputBlob->getTensorDesc().getPrecision() != networkOutput->getTensorDesc().getPrecision()) {
             blobCopy(networkOutput, outputBlob);
         } else if (result->get_output_partial_shape(0).is_dynamic()) {
-            auto tensor = _outputTensors[_executableNetwork->_outputIndex.at(output.first)];
+            auto tensor = _outputTensors[m_compiled_model->_outputIndex.at(output.first)];
             tensor->read(InferenceEngine::as<InferenceEngine::MemoryBlob>(outputBlob)->wmap().as<char*>(),
                          tensor->get_size_in_bytes());
         }
@@ -401,15 +398,15 @@ InferenceEngine::Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name
             data = _inputs[name];
             SizeVector dims;
             if (!data) {
-                auto&& parameters = _executableNetwork->m_model->get_parameters();
-                const auto& pshape = parameters.at(_executableNetwork->_inputIndex.at(name))->get_partial_shape();
+                auto&& parameters = m_compiled_model->m_model->get_parameters();
+                const auto& pshape = parameters.at(m_compiled_model->_inputIndex.at(name))->get_partial_shape();
                 dims = pshape.is_dynamic() ? SizeVector({0}) : pshape.get_shape();
                 AllocateImplSingle(
                     _inputs,
                     _deviceInputs,
                     *_networkInputs.find(name),
                     [&](const std::string& blobName) {
-                        return parameters.at(_executableNetwork->_inputIndex.at(blobName))->get_element_type();
+                        return parameters.at(m_compiled_model->_inputIndex.at(blobName))->get_element_type();
                     },
                     dims);
                 data = _inputs[name];
@@ -433,22 +430,22 @@ InferenceEngine::Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name
         };
         if (!has_zeros(foundOutput->getTensorDesc().getDims())) {
             dims = foundOutput->getTensorDesc().getDims();
-        } else if (_outputTensors[_executableNetwork->_outputIndex.at(name)] &&
-                   _outputTensors[_executableNetwork->_outputIndex.at(name)]->get_partial_shape().is_static()) {
-            dims = _outputTensors[_executableNetwork->_outputIndex.at(name)]->get_shape();
+        } else if (_outputTensors[m_compiled_model->_outputIndex.at(name)] &&
+                   _outputTensors[m_compiled_model->_outputIndex.at(name)]->get_partial_shape().is_static()) {
+            dims = _outputTensors[m_compiled_model->_outputIndex.at(name)]->get_shape();
         } else {
             auto rank = foundOutput->getTensorDesc().getDims().size();
             dims = SizeVector(rank == 0 ? 1 : rank, 0);
         }
 
         if (data->getTensorDesc().getDims() != dims) {
-            auto&& results = _executableNetwork->m_model->get_results();
+            auto&& results = m_compiled_model->m_model->get_results();
             AllocateImplSingle(
                 _outputs,
                 _networkOutputBlobs,
                 *_networkOutputs.find(name),
                 [&](const std::string& blobName) {
-                    return results.at(_executableNetwork->_outputIndex.at(blobName))->get_element_type();
+                    return results.at(m_compiled_model->_outputIndex.at(blobName))->get_element_type();
                 },
                 dims);
             data = _outputs[name];
@@ -476,7 +473,7 @@ void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngin
     };
     const bool isInput = findInputAndOutputBlobByName(name, foundInput, foundOutput);
     const bool compoundBlobPassed = userBlob->is<CompoundBlob>();
-    const bool remoteBlobPassed = userBlob->is<RemoteBlob>();
+    const bool remoteBlobPassed = userBlob->is<InferenceEngine::RemoteBlob>();
     if (!compoundBlobPassed && !remoteBlobPassed && userBlob->buffer() == nullptr)
         IE_THROW(NotAllocated) << "Input data was not allocated. Input name: \'" << name << "\'";
     bool input_dynamic = foundInput && has_zeros(foundInput->getInputData()->getDims());

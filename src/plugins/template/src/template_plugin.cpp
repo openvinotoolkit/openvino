@@ -6,14 +6,13 @@
 
 #include <memory>
 
-#include "converter_utils.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_metric_helpers.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/manager.hpp"
 #include "template/template_config.hpp"
-#include "template_executable_network.hpp"
+#include "template_compiled_model.hpp"
 #include "template_infer_request.hpp"
 #include "template_itt.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
@@ -56,7 +55,7 @@ ov::RemoteContext TemplatePlugin::Plugin::get_default_context(const ov::AnyMap& 
 }
 
 // ! [plugin:transform_network]
-void TransformNetwork(const std::shared_ptr<ov::Model>& model) {
+void transform_model(const std::shared_ptr<ov::Model>& model) {
     // Perform common optimizations and device-specific transformations
     ov::pass::Manager passManager;
     // Example: register CommonOptimizations transformation from transformations library
@@ -86,12 +85,15 @@ std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::compile_model(const 
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::compile_model");
 
     auto fullConfig = Configuration{properties, _cfg};
-    auto exec_network = std::make_shared<ExecutableNetwork>(model,
-                                                            fullConfig,
-                                                            std::static_pointer_cast<const Plugin>(shared_from_this()));
-    exec_network->SetPointerToPlugin(
-        ov::legacy_convert::convert_plugin(std::const_pointer_cast<ov::IPlugin>(shared_from_this())));
-    return ov::legacy_convert::convert_compiled_model(exec_network);
+    auto streamsExecutorConfig =
+        InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(fullConfig._streamsExecutorConfig);
+    streamsExecutorConfig._name = "TemplateStreamsExecutor";
+    auto compiled_model =
+        std::make_shared<CompiledModel>(model,
+                                        shared_from_this(),
+                                        get_executor_manager()->getIdleCPUStreamsExecutor(streamsExecutorConfig),
+                                        fullConfig);
+    return compiled_model;
 }
 
 std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -107,13 +109,31 @@ std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::import_model(std::is
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::import_model");
 
     auto fullConfig = Configuration{properties, _cfg};
-    auto exec = std::make_shared<ExecutableNetwork>(model,
-                                                    fullConfig,
-                                                    std::static_pointer_cast<const Plugin>(shared_from_this()));
-    exec->SetPointerToPlugin(
-        ov::legacy_convert::convert_plugin(std::const_pointer_cast<ov::IPlugin>(shared_from_this())));
-    SetExeNetworkInfo(exec, exec->m_model, is_new_api());
-    return ov::legacy_convert::convert_compiled_model(exec);
+    // read XML content
+    std::string xmlString;
+    std::uint64_t dataSize = 0;
+    model.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+    xmlString.resize(dataSize);
+    model.read(const_cast<char*>(xmlString.c_str()), dataSize);
+
+    // read blob content
+    ov::Tensor weights;
+    model.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+    if (0 != dataSize) {
+        weights = ov::Tensor(ov::element::u8, ov::Shape{dataSize});
+        model.read(weights.data<char>(), dataSize);
+    }
+
+    auto ov_model = get_core()->read_model(xmlString, weights);
+    auto streamsExecutorConfig =
+        InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(fullConfig._streamsExecutorConfig);
+    streamsExecutorConfig._name = "TemplateStreamsExecutor";
+    auto compiled_model =
+        std::make_shared<CompiledModel>(ov_model,
+                                        shared_from_this(),
+                                        get_executor_manager()->getIdleCPUStreamsExecutor(streamsExecutorConfig),
+                                        fullConfig);
+    return compiled_model;
 }
 
 std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::import_model(std::istream& model,
@@ -136,7 +156,7 @@ ov::SupportedOpsMap TemplatePlugin::Plugin::query_model(const std::shared_ptr<co
         model,
         [&](std::shared_ptr<ov::Model>& model) {
             // 1. It is needed to apply all transformations as it is done in LoadExeNetworkImpl
-            TransformNetwork(model);
+            transform_model(model);
         },
         [&](std::shared_ptr<ngraph::Node> node) {
             // 2. Сheck whether node is supported

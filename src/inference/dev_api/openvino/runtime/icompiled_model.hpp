@@ -158,7 +158,9 @@ protected:
      *
      * @return OpenVINO Plugin interface
      */
-    std::shared_ptr<const ov::IPlugin> get_plugin() const;
+    const std::shared_ptr<const ov::IPlugin>& get_plugin() const;
+    const InferenceEngine::ITaskExecutor::Ptr get_task_executor() const;
+    const InferenceEngine::ITaskExecutor::Ptr get_callback_executor() const;
 };
 
 }  // namespace ov

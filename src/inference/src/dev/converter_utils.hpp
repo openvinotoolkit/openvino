@@ -19,15 +19,12 @@ void fill_output_info(const ov::Output<const ov::Node>& output, InferenceEngine:
 InferenceEngine::CNNNetwork convert_model(const std::shared_ptr<const ov::Model>& model, bool is_new_api);
 std::shared_ptr<const ov::Model> convert_model(const InferenceEngine::CNNNetwork& model, bool is_new_api);
 
-// TODO: Remove export
-OPENVINO_RUNTIME_API std::shared_ptr<::InferenceEngine::IInferencePlugin> convert_plugin(
-    const std::shared_ptr<::ov::IPlugin>& plugin);
+std::shared_ptr<::InferenceEngine::IInferencePlugin> convert_plugin(const std::shared_ptr<::ov::IPlugin>& plugin);
 std::shared_ptr<::ov::IPlugin> convert_plugin(const std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin);
 
-// TODO: Remove export
-OPENVINO_RUNTIME_API std::shared_ptr<::InferenceEngine::IExecutableNetworkInternal> convert_compiled_model(
+std::shared_ptr<::InferenceEngine::IExecutableNetworkInternal> convert_compiled_model(
     const std::shared_ptr<::ov::ICompiledModel>& model);
-OPENVINO_RUNTIME_API std::shared_ptr<::ov::ICompiledModel> convert_compiled_model(
+std::shared_ptr<::ov::ICompiledModel> convert_compiled_model(
     const std::shared_ptr<::InferenceEngine::IExecutableNetworkInternal>& model);
 
 }  // namespace legacy_convert

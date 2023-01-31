@@ -33,8 +33,14 @@ std::shared_ptr<InferenceEngine::IInferRequestInternal> ov::ICompiledModel::crea
     return create_async_infer_request();
 }
 
-std::shared_ptr<const ov::IPlugin> ov::ICompiledModel::get_plugin() const {
+const std::shared_ptr<const ov::IPlugin>& ov::ICompiledModel::get_plugin() const {
     return m_plugin;
+}
+const InferenceEngine::ITaskExecutor::Ptr ov::ICompiledModel::get_task_executor() const {
+    return m_task_executor;
+}
+const InferenceEngine::ITaskExecutor::Ptr ov::ICompiledModel::get_callback_executor() const {
+    return m_callback_executor;
 }
 
 void ov::ICompiledModel::loaded_from_cache() {

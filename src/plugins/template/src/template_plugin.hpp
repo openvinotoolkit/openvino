@@ -7,8 +7,8 @@
 #include "backend.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
+#include "template_compiled_model.hpp"
 #include "template_config.hpp"
-#include "template_executable_network.hpp"
 
 //! [plugin:header]
 namespace TemplatePlugin {
@@ -45,7 +45,7 @@ public:
                                     const ov::AnyMap& properties) const override;
 
 private:
-    friend class ExecutableNetwork;
+    friend class TemplatePlugin::CompiledModel;
     friend class TemplateInferRequest;
 
     std::shared_ptr<ngraph::runtime::Backend> _backend;
