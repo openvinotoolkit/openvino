@@ -19,6 +19,7 @@
 
 namespace InferenceEngine {
 class Blob;
+class IAsyncInferRequestWrapper;
 }  // namespace InferenceEngine
 
 namespace ov {
@@ -28,6 +29,7 @@ class CoreImpl;
 class InferRequest;
 class RemoteContext;
 class VariableState;
+class IInferRequestInternalWrapper;
 
 /**
  * @brief Tensor API holding host memory
@@ -52,6 +54,8 @@ protected:
     friend class ov::InferRequest;
     friend class ov::RemoteContext;
     friend class ov::VariableState;
+    friend class ov::IInferRequestInternalWrapper;
+    friend class InferenceEngine::IAsyncInferRequestWrapper;
 
 public:
     /// @brief Default constructor

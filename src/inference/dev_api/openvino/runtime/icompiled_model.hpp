@@ -15,6 +15,7 @@
 
 #include "openvino/core/node_output.hpp"
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"
 #include "threading/ie_itask_executor.hpp"
@@ -28,8 +29,6 @@ namespace ov {
 class CoreImpl;
 class IPlugin;
 class IExecutableNetworkWrapper;
-class IInferRequest;
-class ISyncInferRequest;
 class IAsyncInferRequest;
 
 /**
@@ -76,7 +75,7 @@ public:
      *
      * @return Infer request interface
      */
-    virtual std::shared_ptr<ov::IInferRequest> create_infer_request() const;
+    virtual std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const;
 
     /**
      * @brief Export compiled model to stream
@@ -150,14 +149,9 @@ protected:
      */
     template <typename AsyncInferRequestType = ov::IAsyncInferRequest>
     std::shared_ptr<ov::IAsyncInferRequest> create_async_infer_request() const {
-        std::shared_ptr<ov::ISyncInferRequest> syncRequestImpl = this->create_sync_infer_request();
+        auto syncRequestImpl = create_sync_infer_request();
         return std::make_shared<AsyncInferRequestType>(syncRequestImpl, m_task_executor, m_callback_executor);
     }
-
-    std::shared_ptr<ov::IInferRequest> create_infer_request(
-        const std::shared_ptr<ov::ISyncInferRequest>& request) const;
-    std::shared_ptr<ov::IInferRequest> create_infer_request(
-        const std::shared_ptr<ov::IAsyncInferRequest>& request) const;
 
     /**
      * @brief Returns pointer to the plugin

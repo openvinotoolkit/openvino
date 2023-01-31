@@ -8,11 +8,10 @@
 #include <memory>
 #include <string>
 
-#include "dev/iinfer_request.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/exception.hpp"
-#include "openvino/runtime/isync_infer_request.hpp"
+#include "openvino/runtime/iasync_infer_request.hpp"
 #include "transformations/utils/utils.hpp"
 
 #define OV_INFER_REQ_CALL_STATEMENT(...)                                    \
@@ -46,25 +45,13 @@ inline bool getPort(ov::Output<const ov::Node>& res_port,
 
 }  // namespace
 
-namespace {
-
-std::string get_legacy_name_from_port(const ov::Output<const ov::Node>& port) {
-    ov::Output<ngraph::Node> p(std::const_pointer_cast<ov::Node>(port.get_node_shared_ptr()), port.get_index());
-    if (auto node = std::dynamic_pointer_cast<ov::op::v0::Result>(p.get_node_shared_ptr())) {
-        p = node->input_value(0);
-    }
-    return ov::op::util::create_ie_output_name(p);
-}
-
-}  // namespace
-
 namespace ov {
 
 InferRequest::~InferRequest() {
     _impl = {};
 }
 
-InferRequest::InferRequest(const std::shared_ptr<ov::IInferRequest>& impl, const std::shared_ptr<void>& so)
+InferRequest::InferRequest(const std::shared_ptr<ov::IAsyncInferRequest>& impl, const std::shared_ptr<void>& so)
     : _impl{impl},
       _so{so} {
     OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized.");

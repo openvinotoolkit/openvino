@@ -28,11 +28,22 @@
 #include "ie_icore.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "iplugin_wrapper.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/variable_state.hpp"
 #include "so_ptr.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
+
+std::string get_legacy_name_from_port(const ov::Output<const ov::Node>& port) {
+    ov::Output<ngraph::Node> p(std::const_pointer_cast<ov::Node>(port.get_node_shared_ptr()), port.get_index());
+    if (auto node = std::dynamic_pointer_cast<ov::op::v0::Result>(p.get_node_shared_ptr())) {
+        p = node->input_value(0);
+    }
+    return ov::op::util::create_ie_output_name(p);
+}
 
 void fill_input_info(ov::Output<ov::Node>& input, InferenceEngine::InputInfo::Ptr& input_info) {
     const ov::Output<const ov::Node> const_input(input.get_node(), input.get_index());
@@ -393,11 +404,265 @@ std::shared_ptr<ov::ICompiledModel> ov::legacy_convert::convert_compiled_model(
     return std::make_shared<InferenceEngine::ICompiledModelWrapper>(model);
 }
 
+namespace ov {
+
+class IInferRequestInternalWrapper : public InferenceEngine::IInferRequestInternal {
+    ov::Output<const ov::Node> find_port(const std::string& legacy_name) const {
+        for (const auto& port : m_request->get_inputs()) {
+            if (get_legacy_name_from_port(port) == legacy_name)
+                return port;
+        }
+        for (const auto& port : m_request->get_outputs()) {
+            if (get_legacy_name_from_port(port) == legacy_name)
+                return port;
+        }
+        // TODO:
+        OPENVINO_ASSERT(false);
+    }
+
+public:
+    explicit IInferRequestInternalWrapper(const std::shared_ptr<ov::IAsyncInferRequest>& request)
+        : m_request(request) {}
+
+    void Infer() override {
+        m_request->infer();
+    }
+
+    void Cancel() override {
+        m_request->cancel();
+    }
+
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override {
+        OPENVINO_NOT_IMPLEMENTED;
+        // TODO:
+        auto res = m_request->get_profiling_info();
+        std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> ret;
+        return ret;
+    }
+
+    void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data) override {
+        m_request->set_tensor(find_port(name), ov::Tensor{data, {}});
+    }
+
+    void SetBlobs(const std::string& name, const std::vector<InferenceEngine::Blob::Ptr>& blobs) override {
+        std::vector<ov::Tensor> tensors;
+        for (const auto& blob : blobs) {
+            tensors.emplace_back(ov::Tensor{blob, {}});
+        }
+        m_request->set_tensors(find_port(name), tensors);
+    }
+
+    InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override {
+        return m_request->get_tensor(find_port(name))._impl;
+    }
+
+    InferenceEngine::BatchedBlob::Ptr GetBlobs(const std::string& name) override {
+        auto tensors = m_request->get_tensors(find_port(name));
+        std::vector<InferenceEngine::Blob::Ptr> blobs;
+        for (const auto& tensor : tensors) {
+            blobs.emplace_back(tensor._impl);
+        }
+        return std::make_shared<InferenceEngine::BatchedBlob>(blobs);
+    }
+
+    void SetBlob(const std::string& name,
+                 const InferenceEngine::Blob::Ptr& data,
+                 const InferenceEngine::PreProcessInfo& info) override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    const InferenceEngine::PreProcessInfo& GetPreProcess(const std::string& name) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    void SetBatch(int batch) override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> QueryState() override {
+        auto res = m_request->query_state();
+        std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> ret;
+        for (const auto& state : res) {
+            ret.emplace_back(state._impl);
+        }
+        return ret;
+    }
+
+    void StartAsync() override {
+        m_request->start_async();
+    }
+
+    InferenceEngine::StatusCode Wait(int64_t millis_timeout) override {
+        if (millis_timeout == InferenceEngine::IInferRequest::RESULT_READY) {
+            m_request->wait();
+        } else {
+            std::chrono::milliseconds timeout(millis_timeout);
+            bool res = m_request->wait_for(timeout);
+            if (!res)
+                return InferenceEngine::StatusCode::RESULT_NOT_READY;
+        }
+        return InferenceEngine::StatusCode::OK;
+    }
+
+    void SetCallback(std::function<void(std::exception_ptr)> callback) override {
+        m_request->set_callback(std::move(callback));
+    }
+
+    std::shared_ptr<ov::IAsyncInferRequest> get_infer_request() {
+        return m_request;
+    }
+
+private:
+    std::shared_ptr<ov::IAsyncInferRequest> m_request;
+};
+
+}  // namespace ov
+
+namespace InferenceEngine {
+
+class IAsyncInferRequestWrapper : public ov::IAsyncInferRequest {
+public:
+    IAsyncInferRequestWrapper(const std::shared_ptr<InferenceEngine::IInferRequestInternal>& request)
+        : ov::IAsyncInferRequest(nullptr, nullptr, nullptr),
+          m_request(request) {}
+    std::shared_ptr<InferenceEngine::IInferRequestInternal> get_infer_request() {
+        return m_request;
+    }
+
+    void infer() override {
+        m_request->Infer();
+    }
+    void start_async() override {
+        m_request->StartAsync();
+    }
+
+    void wait() override {
+        try {
+            m_request->Wait(InferenceEngine::InferRequest::RESULT_READY);
+        } catch (const InferenceEngine::InferCancelled& e) {
+            throw ov::Cancelled{e.what()};
+        } catch (const std::exception& ex) {
+            throw Exception(ex.what());
+        } catch (...) {
+            OPENVINO_UNREACHABLE("Unexpected exception");
+        }
+    }
+    bool wait_for(const std::chrono::milliseconds& timeout) override {
+        try {
+            return m_request->Wait(timeout.count()) == InferenceEngine::OK;
+        } catch (const InferenceEngine::InferCancelled& e) {
+            throw ov::Cancelled{e.what()};
+        } catch (const std::exception& ex) {
+            throw Exception(ex.what());
+        } catch (...) {
+            OPENVINO_UNREACHABLE("Unexpected exception");
+        }
+    }
+
+    void cancel() override {
+        m_request->Cancel();
+    }
+
+    std::vector<ov::ProfilingInfo> get_profiling_info() const override {
+        auto ieInfos = m_request->GetPerformanceCounts();
+        std::vector<ov::ProfilingInfo> infos;
+        infos.reserve(ieInfos.size());
+        while (!ieInfos.empty()) {
+            auto itIeInfo = std::min_element(
+                std::begin(ieInfos),
+                std::end(ieInfos),
+                [](const decltype(ieInfos)::value_type& lhs, const decltype(ieInfos)::value_type& rhs) {
+                    return lhs.second.execution_index < rhs.second.execution_index;
+                });
+            IE_ASSERT(itIeInfo != ieInfos.end());
+            auto& ieInfo = itIeInfo->second;
+            infos.push_back(ov::ProfilingInfo{});
+            auto& info = infos.back();
+            switch (ieInfo.status) {
+            case InferenceEngine::InferenceEngineProfileInfo::NOT_RUN:
+                info.status = ov::ProfilingInfo::Status::NOT_RUN;
+                break;
+            case InferenceEngine::InferenceEngineProfileInfo::OPTIMIZED_OUT:
+                info.status = ov::ProfilingInfo::Status::OPTIMIZED_OUT;
+                break;
+            case InferenceEngine::InferenceEngineProfileInfo::EXECUTED:
+                info.status = ov::ProfilingInfo::Status::EXECUTED;
+                break;
+            }
+            info.real_time = std::chrono::microseconds{ieInfo.realTime_uSec};
+            info.cpu_time = std::chrono::microseconds{ieInfo.cpu_uSec};
+            info.node_name = itIeInfo->first;
+            info.exec_type = std::string{ieInfo.exec_type};
+            info.node_type = std::string{ieInfo.layer_type};
+            ieInfos.erase(itIeInfo);
+        }
+        return infos;
+    }
+
+    ov::Tensor get_tensor(const ov::Output<const ov::Node>& port) const override {
+        const auto& name = get_legacy_name_from_port(port);
+        OPENVINO_ASSERT(!m_request->GetBlobs(name),
+                        "get_tensor shall not be used together with batched "
+                        "set_tensors/set_input_tensors for name '",
+                        name,
+                        "'");
+        auto blob = m_request->GetBlob(name);
+        // soVec = {_so, _impl->getPointerToSo()};
+        // Tensor tensor = {blob, soVec};
+        ov::Tensor tensor = {blob, {}};
+        return tensor;
+    }
+    void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) override {
+        m_request->SetBlob(get_legacy_name_from_port(port), tensor._impl);
+    }
+
+    std::vector<ov::Tensor> get_tensors(const ov::Output<const ov::Node>& port) const override {
+        auto blobs = m_request->GetBlobs(get_legacy_name_from_port(port));
+        std::vector<ov::Tensor> ret;
+        for (size_t i = 0; i < blobs->size(); i++) {
+            ret.emplace_back(ov::Tensor{blobs->getBlob(i), {}});
+        }
+        return ret;
+    }
+    void set_tensors(const ov::Output<const ov::Node>& port, const std::vector<ov::Tensor>& tensors) override {
+        std::vector<InferenceEngine::Blob::Ptr> blobs;
+        for (const auto& tensor : tensors) {
+            blobs.emplace_back(tensor._impl);
+        }
+        m_request->SetBlobs(get_legacy_name_from_port(port), blobs);
+    }
+
+    std::vector<ov::VariableState> query_state() const override {
+        std::vector<ov::VariableState> variable_states;
+        std::vector<std::shared_ptr<void>> soVec;
+        soVec = {m_request->getPointerToSo()};
+        for (auto&& state : m_request->QueryState()) {
+            variable_states.emplace_back(ov::VariableState{state, soVec});
+        }
+        return variable_states;
+    }
+
+    void set_callback(std::function<void(std::exception_ptr)> callback) override {
+        m_request->SetCallback(std::move(callback));
+    }
+
+private:
+    std::shared_ptr<InferenceEngine::IInferRequestInternal> m_request;
+};
+
+}  // namespace InferenceEngine
+
 std::shared_ptr<::InferenceEngine::IInferRequestInternal> ov::legacy_convert::convert_infer_request(
-    const std::shared_ptr<::ov::IInferRequest>& request) {
-    OPENVINO_NOT_IMPLEMENTED;
+    const std::shared_ptr<::ov::IAsyncInferRequest>& request) {
+    if (auto comp_model = std::dynamic_pointer_cast<InferenceEngine::IAsyncInferRequestWrapper>(request)) {
+        return comp_model->get_infer_request();
+    }
+    return std::make_shared<ov::IInferRequestInternalWrapper>(request);
 }
-std::shared_ptr<::ov::IInferRequest> ov::legacy_convert::convert_infer_request(
+std::shared_ptr<::ov::IAsyncInferRequest> ov::legacy_convert::convert_infer_request(
     const std::shared_ptr<::InferenceEngine::IInferRequestInternal>& request) {
-    OPENVINO_NOT_IMPLEMENTED;
+    if (auto comp_model = std::dynamic_pointer_cast<ov::IInferRequestInternalWrapper>(request)) {
+        return comp_model->get_infer_request();
+    }
+    return std::make_shared<InferenceEngine::IAsyncInferRequestWrapper>(request);
 }

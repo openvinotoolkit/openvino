@@ -10,6 +10,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -79,6 +80,8 @@ void check_batched_tensors(const ov::Output<const ov::Node>& input, const std::v
 }
 
 }  // namespace
+
+ov::IInferRequest::~IInferRequest() = default;
 
 ov::ISyncInferRequest::ISyncInferRequest(const std::shared_ptr<ov::ICompiledModel>& compiled_model)
     : m_compiled_model(compiled_model) {}
@@ -204,14 +207,6 @@ void ov::ISyncInferRequest::set_tensors_impl(const ov::Output<const ov::Node> po
                            false,
                            "Not Implemented",
                            "set_input_tensors/set_tensors are not supported by this plugin");
-}
-
-std::vector<ov::VariableState> ov::ISyncInferRequest::query_state() const {
-    OPENVINO_NOT_IMPLEMENTED;
-}
-
-void ov::ISyncInferRequest::set_callback(std::function<void(std::exception_ptr)> callback) {
-    m_callback = std::move(callback);
 }
 
 void ov::ISyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) const {

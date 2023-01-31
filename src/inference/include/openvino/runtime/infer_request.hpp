@@ -22,14 +22,14 @@
 namespace ov {
 
 class CompiledModel;
-class IInferRequest;
+class IAsyncInferRequest;
 
 /**
  * @brief This is a class of infer request that can be run in asynchronous or synchronous manners.
  * @ingroup ov_runtime_cpp_api
  */
 class OPENVINO_RUNTIME_API InferRequest {
-    std::shared_ptr<ov::IInferRequest> _impl;
+    std::shared_ptr<ov::IAsyncInferRequest> _impl;
     std::shared_ptr<void> _so;
 
     /**
@@ -38,7 +38,7 @@ class OPENVINO_RUNTIME_API InferRequest {
      * @param so Plugin to use. This is required to ensure that InferRequest can work properly even if a plugin object
      * is destroyed.
      */
-    InferRequest(const std::shared_ptr<ov::IInferRequest>& impl, const std::shared_ptr<void>& so);
+    InferRequest(const std::shared_ptr<ov::IAsyncInferRequest>& impl, const std::shared_ptr<void>& so);
     friend class ov::CompiledModel;
 
 public:

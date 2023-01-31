@@ -23,7 +23,7 @@ InferenceEngine::ICompiledModelWrapper::ICompiledModelWrapper(
     m_outputs = outputs;
 }
 
-std::shared_ptr<ov::IInferRequest> InferenceEngine::ICompiledModelWrapper::create_infer_request() const {
+std::shared_ptr<ov::IAsyncInferRequest> InferenceEngine::ICompiledModelWrapper::create_infer_request() const {
     return ov::legacy_convert::convert_infer_request(m_model->CreateInferRequest());
 }
 

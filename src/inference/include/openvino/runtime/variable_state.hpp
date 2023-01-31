@@ -17,11 +17,13 @@
 
 namespace InferenceEngine {
 class IVariableStateInternal;
+class IAsyncInferRequestWrapper;
 }  // namespace InferenceEngine
 
 namespace ov {
 
 class InferRequest;
+class IInferRequestInternalWrapper;
 
 /**
  * @brief VariableState class
@@ -41,6 +43,8 @@ class OPENVINO_RUNTIME_API VariableState {
                   const std::vector<std::shared_ptr<void>>& so);
 
     friend class ov::InferRequest;
+    friend class ov::IInferRequestInternalWrapper;
+    friend class InferenceEngine::IAsyncInferRequestWrapper;
 
 public:
     /**

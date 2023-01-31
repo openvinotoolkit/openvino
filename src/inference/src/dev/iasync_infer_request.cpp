@@ -28,7 +28,7 @@ ov::IAsyncInferRequest::~IAsyncInferRequest() {
     stop_and_wait();
 }
 
-ov::IAsyncInferRequest::IAsyncInferRequest(const std::shared_ptr<ISyncInferRequest>& request,
+ov::IAsyncInferRequest::IAsyncInferRequest(const std::shared_ptr<IInferRequest>& request,
                                            const InferenceEngine::ITaskExecutor::Ptr& task_executor,
                                            const InferenceEngine::ITaskExecutor::Ptr& callback_executor)
     : m_pipeline{{m_request_executor,
@@ -246,6 +246,24 @@ void ov::IAsyncInferRequest::stop_and_wait() {
     }
 }
 
+void ov::IAsyncInferRequest::infer() {
+    m_sync_request->infer();
+}
+
+void ov::IAsyncInferRequest::check_tensors() const {
+    m_sync_request->check_tensors();
+}
+
 const ov::IAsyncInferRequest::InferState& ov::IAsyncInferRequest::get_state() const {
     return m_state;
+}
+const std::shared_ptr<ov::ICompiledModel>& ov::IAsyncInferRequest::get_compiled_model() const {
+    return m_sync_request->get_compiled_model();
+}
+
+const std::vector<ov::Output<const ov::Node>>& ov::IAsyncInferRequest::get_inputs() const {
+    return m_sync_request->get_inputs();
+}
+const std::vector<ov::Output<const ov::Node>>& ov::IAsyncInferRequest::get_outputs() const {
+    return m_sync_request->get_outputs();
 }

@@ -1,4 +1,3 @@
-
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -13,20 +12,19 @@
 #include <future>
 #include <memory>
 
+#include "ie_common.h"
 #include "openvino/runtime/common.hpp"
-#include "openvino/runtime/isync_infer_request.hpp"
+#include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "threading/ie_itask_executor.hpp"
 
 namespace ov {
 
-class IInferRequest;
-
-class OPENVINO_RUNTIME_API IAsyncInferRequest {
+class OPENVINO_RUNTIME_API IAsyncInferRequest : public IInferRequest {
 public:
     enum InferState { Idle, Busy, Cancelled, Stop };
-    IAsyncInferRequest(const std::shared_ptr<ISyncInferRequest>& request,
+    IAsyncInferRequest(const std::shared_ptr<IInferRequest>& request,
                        const InferenceEngine::ITaskExecutor::Ptr& task_executor,
                        const InferenceEngine::ITaskExecutor::Ptr& callback_executor);
     ~IAsyncInferRequest();
@@ -38,19 +36,26 @@ public:
 
     virtual void cancel();
 
-    virtual std::vector<ov::ProfilingInfo> get_profiling_info() const;
+    void infer() override;
 
-    virtual ov::Tensor get_tensor(const ov::Output<const ov::Node>& port) const;
-    virtual void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor);
+    std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
-    virtual std::vector<ov::Tensor> get_tensors(const ov::Output<const ov::Node>& port) const;
-    virtual void set_tensors(const ov::Output<const ov::Node>& port, const std::vector<ov::Tensor>& tensors);
+    ov::Tensor get_tensor(const ov::Output<const ov::Node>& port) const override;
+    void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) override;
 
-    virtual std::vector<ov::VariableState> query_state() const;
+    std::vector<ov::Tensor> get_tensors(const ov::Output<const ov::Node>& port) const override;
+    void set_tensors(const ov::Output<const ov::Node>& port, const std::vector<ov::Tensor>& tensors) override;
+
+    std::vector<ov::VariableState> query_state() const override;
 
     virtual void set_callback(std::function<void(std::exception_ptr)> callback);
 
     const InferState& get_state() const;
+
+    const std::shared_ptr<ov::ICompiledModel>& get_compiled_model() const override;
+
+    const std::vector<ov::Output<const ov::Node>>& get_inputs() const override;
+    const std::vector<ov::Output<const ov::Node>>& get_outputs() const override;
 
 protected:
     using Stage = std::pair<InferenceEngine::ITaskExecutor::Ptr, InferenceEngine::Task>;
@@ -67,6 +72,7 @@ protected:
      */
     virtual void infer_thread_unsafe();
     virtual void start_async_thread_unsafe();
+    void check_tensors() const override;
 
     Pipeline m_pipeline;       //!< Pipeline variable that should be filled by inherited class.
     Pipeline m_sync_pipeline;  //!< Synchronous pipeline variable that should be filled by inherited class.
@@ -102,7 +108,7 @@ private:
 
     template <typename F>
     void infer_impl(const F& f) {
-        m_sync_request->check_tensors();
+        check_tensors();
         InferState state = InferState::Idle;
         {
             std::lock_guard<std::mutex> lock{m_mutex};
@@ -144,7 +150,7 @@ private:
         }
     }
 
-    std::shared_ptr<ISyncInferRequest> m_sync_request;
+    std::shared_ptr<IInferRequest> m_sync_request;
 
     InferenceEngine::ITaskExecutor::Ptr m_request_executor;  //!< Used to run inference CPU tasks.
     InferenceEngine::ITaskExecutor::Ptr
@@ -153,8 +159,6 @@ private:
         m_sync_callback_executor;  //!< Used to run post inference callback in synchronous pipline
     mutable std::mutex m_mutex;
     std::function<void(std::exception_ptr)> m_callback;
-
-    friend ov::IInferRequest;
 };
 
 }  // namespace ov

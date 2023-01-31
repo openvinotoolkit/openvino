@@ -16,36 +16,27 @@
 #include <vector>
 
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 
 namespace ov {
 
-class IAsyncInferRequest;
-
-class OPENVINO_RUNTIME_API ISyncInferRequest : public std::enable_shared_from_this<ISyncInferRequest> {
+class OPENVINO_RUNTIME_API ISyncInferRequest : public IInferRequest {
 public:
     ISyncInferRequest(const std::shared_ptr<ov::ICompiledModel>& compiled_model);
 
-    virtual void infer() = 0;
+    ov::Tensor get_tensor(const ov::Output<const ov::Node>& port) const override;
+    void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) override;
 
-    virtual std::vector<ov::ProfilingInfo> get_profiling_info() const = 0;
+    std::vector<ov::Tensor> get_tensors(const ov::Output<const ov::Node>& port) const override;
+    void set_tensors(const ov::Output<const ov::Node>& port, const std::vector<ov::Tensor>& tensors) override;
+    void set_tensors_impl(const ov::Output<const ov::Node> port, const std::vector<ov::Tensor>& tensors);
 
-    virtual ov::Tensor get_tensor(const ov::Output<const ov::Node>& port) const;
-    virtual void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor);
+    const std::vector<ov::Output<const ov::Node>>& get_inputs() const override;
+    const std::vector<ov::Output<const ov::Node>>& get_outputs() const override;
 
-    virtual std::vector<ov::Tensor> get_tensors(const ov::Output<const ov::Node>& port) const;
-    virtual void set_tensors(const ov::Output<const ov::Node>& port, const std::vector<ov::Tensor>& tensors);
-    virtual void set_tensors_impl(const ov::Output<const ov::Node> port, const std::vector<ov::Tensor>& tensors);
-
-    virtual std::vector<ov::VariableState> query_state() const = 0;
-
-    virtual void set_callback(std::function<void(std::exception_ptr)> callback) = 0;
-
-    const std::vector<ov::Output<const ov::Node>>& get_inputs() const;
-    const std::vector<ov::Output<const ov::Node>>& get_outputs() const;
-
-    const std::shared_ptr<ov::ICompiledModel>& get_compiled_model() const;
+    const std::shared_ptr<ov::ICompiledModel>& get_compiled_model() const override;
 
 protected:
     struct FoundPort {
@@ -67,7 +58,7 @@ protected:
     void convert_batched_tensors();
     void check_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) const;
 
-    virtual void check_tensors() const;
+    void check_tensors() const override;
 
     std::vector<ov::Tensor> m_input_tensors;
     std::vector<ov::Tensor> m_output_tensors;
@@ -75,8 +66,6 @@ protected:
 
 private:
     std::shared_ptr<ov::ICompiledModel> m_compiled_model;
-    std::function<void(std::exception_ptr)> m_callback;
-    friend IAsyncInferRequest;
 };
 
 };  // namespace ov

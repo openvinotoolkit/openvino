@@ -7,8 +7,8 @@
 #include "cpp/ie_cnn_network.h"
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
-#include "iinfer_request.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
 
@@ -30,8 +30,8 @@ std::shared_ptr<::ov::ICompiledModel> convert_compiled_model(
     const std::shared_ptr<::InferenceEngine::IExecutableNetworkInternal>& model);
 
 std::shared_ptr<::InferenceEngine::IInferRequestInternal> convert_infer_request(
-    const std::shared_ptr<::ov::IInferRequest>& request);
-std::shared_ptr<::ov::IInferRequest> convert_infer_request(
+    const std::shared_ptr<::ov::IAsyncInferRequest>& request);
+std::shared_ptr<::ov::IAsyncInferRequest> convert_infer_request(
     const std::shared_ptr<::InferenceEngine::IInferRequestInternal>& request);
 
 }  // namespace legacy_convert
