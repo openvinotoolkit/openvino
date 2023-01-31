@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "prim_tuple_construct_replacer.hpp"
+#include "prim_list_tuple_construct_replacer.hpp"
 
 #include "openvino/frontend/pytorch/decoder.hpp"
 #include "openvino/op/result.hpp"
@@ -14,7 +14,8 @@ namespace frontend {
 namespace pytorch {
 namespace pass {
 
-bool DecomposeTupleResults::run_on_model(const std::shared_ptr<Model>& model) {
+namespace {
+bool decompose_list_tuple_results(const std::shared_ptr<Model>& model) {
     bool at_least_one_decomposed = false;
 
     ResultVector results = model->get_results();
@@ -23,7 +24,8 @@ bool DecomposeTupleResults::run_on_model(const std::shared_ptr<Model>& model) {
         auto result = results[i];
         auto input_node = result->get_input_node_shared_ptr(0);
         auto tuple_construct = cast_fw_node(input_node, "prim::TupleConstruct");
-        if (!tuple_construct) {
+        auto list_construct = cast_fw_node(input_node, "prim::ListConstruct");
+        if (!tuple_construct && !list_construct) {
             continue;
         }
         for (const auto& input : input_node->inputs()) {
@@ -39,9 +41,22 @@ bool DecomposeTupleResults::run_on_model(const std::shared_ptr<Model>& model) {
             }
             model->add_results({std::make_shared<ov::op::v0::Result>(out)});
         }
-
-        model->remove_result(result);
         at_least_one_decomposed = true;
+        model->remove_result(result);
+    }
+    return at_least_one_decomposed;
+}
+};  // namespace
+
+bool DecomposeListTupleResults::run_on_model(const std::shared_ptr<Model>& model) {
+    bool at_least_one_decomposed = false;
+    bool current_decomposed = false;
+    current_decomposed = decompose_list_tuple_results(model);
+    if (current_decomposed) {
+        at_least_one_decomposed = current_decomposed;
+    }
+    while (current_decomposed) {
+        current_decomposed = decompose_list_tuple_results(model);
     }
 
     return at_least_one_decomposed;

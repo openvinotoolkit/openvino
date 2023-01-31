@@ -12,10 +12,10 @@ namespace frontend {
 namespace pytorch {
 namespace pass {
 
-class DecomposeListResults : public ov::pass::ModelPass {
+class MinMaxPrimListConstructReplacer : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pytorch::pass::DecomposeListResults");
-    bool run_on_model(const std::shared_ptr<Model>& model) override;
+    OPENVINO_RTTI("ov::frontend::pytorch::pass::MinMaxPrimListConstructReplacer");
+    MinMaxPrimListConstructReplacer();
 };
 
 }  // namespace pass
