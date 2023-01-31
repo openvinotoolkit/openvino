@@ -137,7 +137,8 @@ namespace testValues1 {
 const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> shapes = {
     {{-1, -1, -1, -1}, {-1, -1, -1, -1}},
     {{1, 16, 384, 64}, {1, 16, 64, 384}},
-    {{4, 16, 384, 64}, {4, 16, 64, 384}}};
+    {{1, 1, 4, 16, 384, 64}, {1, 1, 4, 16, 64, 384}},
+    {{64}, {64}}};
 
 std::vector<MatMullTransformationTestValues> testValues = {
     // U8 + I8: Constant on dequantization operations on 0 branch
