@@ -4,7 +4,7 @@
 import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.eltwise import eltwise_infer, bias_add_infer, eltwise_reverse_infer
-from openvino.tools.mo.front.common.partial_infer.utils import float32_array
+from openvino.tools.mo.front.common.partial_infer.utils import float32_array, reverse_bypass_infer
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.middle.passes.infer import copy_type_infer
 from openvino.tools.mo.ops.op import Op
@@ -48,6 +48,7 @@ class UnaryElementwise(Elementwise):
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {**{
             'in_ports_count': 1,
+            'reverse_infer': lambda node: reverse_bypass_infer(node, in_ports=[0]),
         }, **attrs})
 
     @staticmethod
