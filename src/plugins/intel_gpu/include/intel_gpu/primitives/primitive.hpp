@@ -85,6 +85,23 @@ public:
 
     virtual primitive_id type_string() const = 0;
 
+    virtual size_t hash() const {
+        size_t seed = 0;
+        // hash for type
+        primitive_id type_str = type_string();
+        for (size_t idx = 0; idx < type_str.size(); idx++) {
+            seed = hash_combine(seed, type_str[idx]);
+        }
+
+        // hash for number of outputs
+        seed = hash_combine(seed, num_outputs);
+
+        // hash for number of inputs
+        auto inputs = dependencies();
+        seed = hash_combine(seed, inputs.size());
+        return seed;
+    }
+
     /// @brief Implicit conversion to primiitive id.
     operator primitive_id() const { return id; }
 
