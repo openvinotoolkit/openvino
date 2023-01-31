@@ -335,7 +335,7 @@ endif()
 # nlohmann json
 #
 
-if(ENABLE_SAMPLES)
+if(ENABLE_SAMPLES OR ENABLE_TESTS)
     add_subdirectory(json)
 
     # this is required only because of VPUX plugin reused this
