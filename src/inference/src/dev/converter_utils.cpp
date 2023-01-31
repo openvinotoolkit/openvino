@@ -11,6 +11,7 @@
 
 #include <fstream>
 #include <ie_input_info.hpp>
+#include <ie_plugin_config.hpp>
 #include <ie_version.hpp>
 #include <memory>
 #include <openvino/core/except.hpp>
@@ -21,9 +22,9 @@
 
 #include "any_copy.hpp"
 #include "cnn_network_ngraph_impl.hpp"
-#include "cpp/ie_plugin.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
+#include "icompiled_model_wrapper.hpp"
 #include "ie_icore.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "iplugin_wrapper.hpp"
@@ -57,21 +58,11 @@ void fill_output_info(ov::Output<ov::Node>& input, InferenceEngine::DataPtr& out
     }
 }
 
-InferenceEngine::SizeVector get_dims(const ov::Output<const ov::Node>& port,
-                                     const std::function<bool(InferenceEngine::SizeVector& dims)>& callback = {}) {
+InferenceEngine::SizeVector get_dims(const ov::Output<const ov::Node>& port) {
     InferenceEngine::SizeVector dims = {};
     const auto& p_shape = port.get_partial_shape();
     if (p_shape.is_static())
         dims = p_shape.get_shape();
-    else {
-        if (!callback || !callback(dims)) {
-            if (p_shape.rank().is_static()) {
-                for (size_t i = 0; i < static_cast<size_t>(p_shape.rank().get_length()); i++) {
-                    dims.emplace_back(0);
-                }
-            }
-        }
-    }
     return dims;
 }
 
@@ -82,14 +73,7 @@ void ov::legacy_convert::fill_input_info(const ov::Output<const ov::Node>& input
     if (!input_info) {
         // Create input info
         auto param_name = input.get_node()->get_friendly_name();
-        auto dims = get_dims(input, [&](InferenceEngine::SizeVector& dims) -> bool {
-            auto param = std::dynamic_pointer_cast<const ov::op::v0::Parameter>(input.get_node_shared_ptr());
-            if (param && param->get_partial_shape().is_static()) {
-                dims = param->get_partial_shape().get_shape();
-                return true;
-            }
-            return false;
-        });
+        auto dims = get_dims(input);
         InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(input.get_element_type()),
                                          dims,
                                          InferenceEngine::TensorDesc::getLayoutByDims(dims));
@@ -137,7 +121,7 @@ InferenceEngine::CNNNetwork ov::legacy_convert::convert_model(const std::shared_
     for (auto&& input : cloned_model->inputs()) {
         auto param_name = input.get_node()->get_friendly_name();
 
-        OPENVINO_ASSERT(network.getInputsInfo().find(param_name) != network.getInputsInfo().end());
+        OPENVINO_ASSERT(network.getInputsInfo().count(param_name));
 
         auto input_info = network.getInputsInfo()[param_name];
         ::fill_input_info(input, input_info);
@@ -146,7 +130,7 @@ InferenceEngine::CNNNetwork ov::legacy_convert::convert_model(const std::shared_
         auto output = result->input_value(0);
         const auto& res_name = ov::op::util::create_ie_output_name(output);
 
-        OPENVINO_ASSERT(network.getOutputsInfo().find(res_name) != network.getOutputsInfo().end());
+        OPENVINO_ASSERT(network.getOutputsInfo().count(res_name));
         auto output_info = network.getOutputsInfo()[res_name];
 
         ::fill_output_info(output, output_info);
@@ -164,7 +148,7 @@ std::shared_ptr<const ov::Model> ov::legacy_convert::convert_model(const Inferen
     for (auto&& input : cloned_model->inputs()) {
         auto param_name = input.get_node()->get_friendly_name();
 
-        OPENVINO_ASSERT(network.getInputsInfo().find(param_name) != network.getInputsInfo().end());
+        OPENVINO_ASSERT(network.getInputsInfo().count(param_name));
 
         auto input_info = network.getInputsInfo().at(param_name);
         auto& rt_info = input.get_rt_info();
@@ -175,7 +159,7 @@ std::shared_ptr<const ov::Model> ov::legacy_convert::convert_model(const Inferen
         auto output = result->input_value(0);
         const auto& res_name = ov::op::util::create_ie_output_name(output);
 
-        OPENVINO_ASSERT(network.getOutputsInfo().find(res_name) != network.getOutputsInfo().end());
+        OPENVINO_ASSERT(network.getOutputsInfo().count(res_name));
         auto output_info = network.getOutputsInfo().at(res_name);
 
         auto& rt_info = output.get_rt_info();
@@ -208,24 +192,26 @@ public:
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> LoadNetwork(
         const InferenceEngine::CNNNetwork& network,
         const std::map<std::string, std::string>& config) override {
-        return m_plugin->compile_model(ov::legacy_convert::convert_model(network, m_plugin->is_new_api()),
-                                       ov::any_copy(config));
+        return ov::legacy_convert::convert_compiled_model(
+            m_plugin->compile_model(ov::legacy_convert::convert_model(network, m_plugin->is_new_api()),
+                                    ov::any_copy(config)));
     }
 
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> LoadNetwork(
         const InferenceEngine::CNNNetwork& network,
         const std::map<std::string, std::string>& config,
         const std::shared_ptr<InferenceEngine::RemoteContext>& context) override {
-        return m_plugin->compile_model(ov::legacy_convert::convert_model(network, m_plugin->is_new_api()),
-                                       ov::any_copy(config),
-                                       ov::RemoteContext{context, {}});
+        return ov::legacy_convert::convert_compiled_model(
+            m_plugin->compile_model(ov::legacy_convert::convert_model(network, m_plugin->is_new_api()),
+                                    ov::any_copy(config),
+                                    ov::RemoteContext{context, {}}));
     }
 
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> LoadNetwork(
         const std::string& modelPath,
         const std::map<std::string, std::string>& config) override {
         return ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(
-            m_plugin->compile_model(modelPath, ov::any_copy(config)),
+            ov::legacy_convert::convert_compiled_model(m_plugin->compile_model(modelPath, ov::any_copy(config))),
             {});
     }
 
@@ -266,20 +252,21 @@ public:
         const std::string& modelFileName,
         const std::map<std::string, std::string>& config) override {
         std::ifstream model(modelFileName, std::ios::binary);
-        return m_plugin->import_model(model, ov::any_copy(config));
+        return ov::legacy_convert::convert_compiled_model(m_plugin->import_model(model, ov::any_copy(config)));
     }
 
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ImportNetwork(
         std::istream& networkModel,
         const std::map<std::string, std::string>& config) override {
-        return m_plugin->import_model(networkModel, ov::any_copy(config));
+        return ov::legacy_convert::convert_compiled_model(m_plugin->import_model(networkModel, ov::any_copy(config)));
     }
 
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ImportNetwork(
         std::istream& networkModel,
         const std::shared_ptr<InferenceEngine::RemoteContext>& context,
         const std::map<std::string, std::string>& config) override {
-        return m_plugin->import_model(networkModel, ov::RemoteContext{context, {}}, ov::any_copy(config));
+        return ov::legacy_convert::convert_compiled_model(
+            m_plugin->import_model(networkModel, ov::RemoteContext{context, {}}, ov::any_copy(config)));
     }
 
     void SetCore(std::weak_ptr<InferenceEngine::ICore> core) override {
@@ -326,4 +313,82 @@ std::shared_ptr<::ov::IPlugin> ov::legacy_convert::convert_plugin(
     const std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) {
     std::shared_ptr<::ov::IPlugin> ov_plugin(new ::InferenceEngine::IPluginWrapper(plugin));
     return ov_plugin;
+}
+
+namespace ov {
+
+class IExecutableNetworkWrapper : public InferenceEngine::IExecutableNetworkInternal {
+public:
+    explicit IExecutableNetworkWrapper(const std::shared_ptr<ov::ICompiledModel>& model) : m_model(model) {
+        for (const auto& input : m_model->inputs()) {
+            InferenceEngine::InputInfo::Ptr input_info;
+            ov::legacy_convert::fill_input_info(input, input_info);
+            _networkInputs[input_info->name()] = input_info;
+            _parameters.emplace_back(input.get_node_shared_ptr());
+        }
+        for (const auto& output : m_model->outputs()) {
+            InferenceEngine::DataPtr output_info;
+            ov::legacy_convert::fill_output_info(output, output_info);
+            _networkOutputs[output_info->getName()] = output_info;
+            _results.emplace_back(output.get_node_shared_ptr());
+        }
+        _plugin = ov::legacy_convert::convert_plugin(std::const_pointer_cast<ov::IPlugin>(m_model->m_plugin));
+    }
+
+    std::shared_ptr<InferenceEngine::IInferRequestInternal> CreateInferRequest() override {
+        return m_model->create_infer_request();
+    }
+
+    void Export(std::ostream& model) override {
+        m_model->export_model(model);
+    }
+
+    void Export(const std::string& modelFileName) override {
+        std::ofstream ostream(modelFileName, std::ios::out | std::ios::binary);
+        Export(ostream);
+    }
+
+    std::shared_ptr<ngraph::Function> GetExecGraphInfo() override {
+        return m_model->get_runtime_model();
+    }
+
+    void SetConfig(const std::map<std::string, InferenceEngine::Parameter>& config) override {
+        m_model->set_property(config);
+    }
+
+    InferenceEngine::Parameter GetConfig(const std::string& name) const override {
+        return m_model->get_property(name);
+    }
+
+    InferenceEngine::Parameter GetMetric(const std::string& name) const override {
+        return m_model->get_property(name);
+    }
+
+    std::shared_ptr<InferenceEngine::RemoteContext> GetContext() const override {
+        return m_model->get_context()._impl;
+    }
+
+    std::shared_ptr<ov::ICompiledModel> get_compiled_model() {
+        return m_model;
+    }
+
+private:
+    std::shared_ptr<ov::ICompiledModel> m_model;
+};
+}  // namespace ov
+
+std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::legacy_convert::convert_compiled_model(
+    const std::shared_ptr<ov::ICompiledModel>& model) {
+    if (auto comp_model = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(model)) {
+        return comp_model->get_executable_network();
+    }
+    return std::make_shared<ov::IExecutableNetworkWrapper>(model);
+}
+
+std::shared_ptr<ov::ICompiledModel> ov::legacy_convert::convert_compiled_model(
+    const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& model) {
+    if (auto comp_model = std::dynamic_pointer_cast<ov::IExecutableNetworkWrapper>(model)) {
+        return comp_model->get_compiled_model();
+    }
+    return std::make_shared<InferenceEngine::ICompiledModelWrapper>(model);
 }

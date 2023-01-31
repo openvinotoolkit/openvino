@@ -51,7 +51,7 @@ bool check_shapes(const ngraph::PartialShape& pshape_input,
                                    pshape_input[3]};
     }
 
-    if (!ngraph::op::util::shapes_equal_except_dynamic_expected_batch(expected_reshape_before, pshape_reshape_before)) {
+    if (!ov::op::util::shapes_equal_except_dynamic_expected_batch(expected_reshape_before, pshape_reshape_before)) {
         return false;
     }
 
@@ -70,7 +70,7 @@ bool check_shapes(const ngraph::PartialShape& pshape_input,
     }
 
     // y = reshape(x'', [N, C, H, W])
-    if (!ngraph::op::util::shapes_equal_except_dynamic_expected_batch(pshape_input, pshape_reshape_after)) {
+    if (!ov::op::util::shapes_equal_except_dynamic_expected_batch(pshape_input, pshape_reshape_after)) {
         return false;
     }
 
