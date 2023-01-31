@@ -272,7 +272,6 @@ def concat_files(output_file, input_files):
                 outfile.write(content)
     return output_file
 
-install_reqs = read_requirements(SCRIPT_DIR / 'requirements.txt')
 description_md = SCRIPT_DIR.parents[1] / 'docs' / 'install_guides' / 'pypi-openvino-dev.md'
 md_files = [description_md, SCRIPT_DIR.parents[1] / 'docs' / 'install_guides' / 'pre-release-note.md']
 docs_url = 'https://docs.openvino.ai/latest/index.html'
@@ -306,7 +305,7 @@ setup(
     entry_points = {
         'console_scripts': [],
     },
-    install_requires=install_reqs,
+    install_requires=read_requirements(SCRIPT_DIR / 'requirements.txt'),
     packages=find_namespace_packages(where=str(SRC_DIR)),
     package_dir={'': str(SRC_DIR)},
 )
