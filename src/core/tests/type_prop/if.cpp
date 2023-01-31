@@ -338,8 +338,8 @@ TEST(type_prop, if_scalar_and_1d_static_union) {
 
 TEST(type_prop, if_element_type_dynamic) {
     // That which we iterate over
-    auto X = make_shared<op::Parameter>(element::dynamic, Shape{32, 40, 10});
-    auto Y = make_shared<op::Parameter>(element::dynamic, Shape{32, 40, 10});
+    auto X = make_shared<op::Parameter>(element::f16, Shape{32, 40, 10});
+    auto Y = make_shared<op::Parameter>(element::f16, Shape{32, 40, 10});
     auto cond = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
 
     // Set up the cell body, a function from (Xi, Yi) -> (Zo)
@@ -368,12 +368,6 @@ TEST(type_prop, if_element_type_dynamic) {
     auto sh = result0->get_output_shape(0);
     EXPECT_EQ(sh, out0_shape);
     // Check that If validation validates both bodies
-    Xt->set_element_type(ov::element::f16);
-    Yt->set_element_type(ov::element::f16);
-    Xe->set_element_type(ov::element::f16);
-    Ye->set_element_type(ov::element::f16);
-    X->set_element_type(ov::element::f16);
-    Y->set_element_type(ov::element::f16);
     if_op->validate_and_infer_types();
     EXPECT_EQ(else_op_res->get_element_type(), ov::element::f16);
     EXPECT_EQ(then_op_res->get_element_type(), ov::element::f16);
