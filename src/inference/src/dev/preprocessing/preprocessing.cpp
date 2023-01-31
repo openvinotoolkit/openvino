@@ -4,6 +4,8 @@
 
 #include "preprocessing.hpp"
 
+#include <ie_common.h>
+
 #include "dev/converter_utils.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "openvino/cc/pass/itt.hpp"
@@ -78,6 +80,16 @@ bool ov::pass::AddPreprocessing::run_on_model(const std::shared_ptr<ov::Model>& 
         default:
             break;
         }
+    }
+    for (size_t i = 0; i < model->outputs().size(); i++) {
+        ov::Output<const Node> const_output(model->output(i).get_node(), model->output(i).get_index());
+        InferenceEngine::DataPtr output_info;
+        // I don't remove rt info to have information in InputsInfo about pre-processing in legacy
+        // ExecutableNetwork
+        ov::legacy_convert::fill_output_info(const_output, output_info);
+        OPENVINO_ASSERT(output_info);
+        preproc.output(i).tensor().set_element_type(
+            InferenceEngine::details::convertPrecision(output_info->getPrecision()));
     }
     auto& non_const_ptr = const_cast<std::shared_ptr<ov::Model>&>(model);
     non_const_ptr = preproc.build();
