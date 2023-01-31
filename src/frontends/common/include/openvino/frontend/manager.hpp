@@ -71,7 +71,7 @@ public:
     /// be created
     void register_front_end(const std::string& name, FrontEndFactory creator);
 
-    /// \brief TODO: Register frontend with name and factory loaded from provided library
+    /// \brief Register frontend with name and factory loaded from provided library
     ///
     /// \param name Name of front end
     ///
