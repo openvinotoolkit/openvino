@@ -8,7 +8,7 @@ If you have another implementation of CRNN model, it can be converted to OpenVIN
 
 **To convert the model to IR:**
 
-**Step 1.** Clone this GitHub repository and checkout the commit:
+**Step 1.** Clone this GitHub repository and check out the commit:
     1. Clone the repository:
 ```sh
 git clone https://github.com/MaybeShewill-CV/CRNN_Tensorflow.git
@@ -17,7 +17,7 @@ git clone https://github.com/MaybeShewill-CV/CRNN_Tensorflow.git
 ```sh
 cd path/to/CRNN_Tensorflow
 ```
-    3. Checkout necessary commit:
+    3. Check out the necessary commit:
 ```sh
 git checkout 64f1f1867bffaacfeacc7a80eebf5834a5726122
 ```
