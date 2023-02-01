@@ -36,10 +36,11 @@ public:
     bool is_changed() {
         return in != out;
     }
+
 private:
     ov::element::Type in;
     ov::element::Type out;
 };
-} // namespace rt_info
-} // namespace intel_gna
-} // namespace ov
+}  // namespace rt_info
+}  // namespace intel_gna
+}  // namespace ov
