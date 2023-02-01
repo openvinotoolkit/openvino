@@ -127,6 +127,7 @@ program::program(engine& engine_ref,
     } else {
         build_program(is_internal);
     }
+    calc_nodes_hash();
 }
 
 program::program(engine& engine_ref,
@@ -151,6 +152,7 @@ program::program(engine& engine_ref,
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(nodes);
     build_program(is_internal);
+    calc_nodes_hash();
 }
 
 program::program(engine& engine)
@@ -536,6 +538,12 @@ void program::query_local_block_io_supported() {
     } catch (...) {
         is_subgroup_local_block_io_supported = static_cast<int8_t>(false);
         return;
+    }
+}
+
+void program::calc_nodes_hash() {
+    for (auto& node : processing_order) {
+        node->calculate_hash();
     }
 }
 

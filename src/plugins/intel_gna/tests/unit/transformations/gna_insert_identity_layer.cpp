@@ -4,15 +4,15 @@
 
 #include <gtest/gtest.h>
 
+#include <common_test_utils/ngraph_test_utils.hpp>
+#include <legacy/ngraph_ops/eltwise.hpp>
 #include <ngraph/function.hpp>
-#include <ngraph/opsets/opset9.hpp>
 #include <ngraph/opsets/opset7.hpp>
+#include <ngraph/opsets/opset9.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph_functions/builders.hpp>
 #include <transformations/init_node_info.hpp>
-#include <common_test_utils/ngraph_test_utils.hpp>
 #include <transformations/utils/utils.hpp>
-#include <legacy/ngraph_ops/eltwise.hpp>
 
 #include "ops/identity.hpp"
 #include "transformations/insert_identity_layer.hpp"
@@ -20,10 +20,11 @@
 
 namespace testing {
 
-class InsertIdentityLayerTest: public CommonTestUtils::TestsCommon {
+class InsertIdentityLayerTest : public CommonTestUtils::TestsCommon {
 public:
     virtual void Validate();
     virtual void Run();
+
 public:
     std::shared_ptr<ngraph::Function> m_func, m_ref_func;
     ngraph::Shape m_input_shape{10};
@@ -58,15 +59,16 @@ void InsertIdentityLayerTest::Run() {
     Validate();
 }
 
-/******************************************************* Concat layer tests *******************************************************/
+/******************************************************* Concat layer tests
+ * *******************************************************/
 
-typedef std::tuple<
-        size_t,    // Concat axis
-        size_t     // input number
-> InsertIdentityConcatTestParams;
+typedef std::tuple<size_t,  // Concat axis
+                   size_t   // input number
+                   >
+    InsertIdentityConcatTestParams;
 
-class InsertIdentityLayerConcatTest: public InsertIdentityLayerTest,
-                                     public ::testing::WithParamInterface<InsertIdentityConcatTestParams> {
+class InsertIdentityLayerConcatTest : public InsertIdentityLayerTest,
+                                      public ::testing::WithParamInterface<InsertIdentityConcatTestParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<InsertIdentityConcatTestParams>& obj) {
         size_t axis, inputs_num;
@@ -95,8 +97,7 @@ public:
             }
             auto concat = std::make_shared<ngraph::opset9::Concat>(concat_inputs, axis);
             auto result = std::make_shared<ngraph::opset9::Result>(concat);
-            m_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                        ngraph::ParameterVector{params});
+            m_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{params});
         }
 
         {
@@ -113,8 +114,8 @@ public:
             }
             auto concat = std::make_shared<ngraph::opset9::Concat>(concat_inputs, axis);
             auto result = std::make_shared<ngraph::opset9::Result>(concat);
-            m_ref_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                            ngraph::ParameterVector{params});
+            m_ref_func =
+                std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{params});
         }
     }
 };
@@ -126,15 +127,15 @@ TEST_P(InsertIdentityLayerConcatTest, CompareWithRefs) {
     Run();
 }
 
-INSTANTIATE_TEST_SUITE_P(TransformationTests, InsertIdentityLayerConcatTest,
-                         ::testing::Combine(
-                                ::testing::Values(axis),
-                                ::testing::ValuesIn(inputCounts)),
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         InsertIdentityLayerConcatTest,
+                         ::testing::Combine(::testing::Values(axis), ::testing::ValuesIn(inputCounts)),
                          InsertIdentityLayerConcatTest::getTestCaseName);
 
-/******************************************************* Split layer tests *******************************************************/
+/******************************************************* Split layer tests
+ * *******************************************************/
 
-class InsertIdentityLayerSplitTest: public InsertIdentityLayerTest {
+class InsertIdentityLayerSplitTest : public InsertIdentityLayerTest {
 public:
     void SetUp() override {
         InsertIdentityLayerTest::SetUp();
@@ -177,16 +178,17 @@ TEST_F(InsertIdentityLayerSplitTest, CompareWithRefs) {
     Run();
 }
 
-/******************************************************* Eltwise layer tests *******************************************************/
+/******************************************************* Eltwise layer tests
+ * *******************************************************/
 
-typedef std::tuple<
-        ELTWISE_TYPE,   // eltwise type
-        bool,           // use low precision input
-        bool            // both 32bit inputs
-> InsertIdentityEltwiseTestParams;
+typedef std::tuple<ELTWISE_TYPE,  // eltwise type
+                   bool,          // use low precision input
+                   bool           // both 32bit inputs
+                   >
+    InsertIdentityEltwiseTestParams;
 
-class InsertIdentityLayerEltwiseTest: public InsertIdentityLayerTest,
-                                      public ::testing::WithParamInterface<InsertIdentityEltwiseTestParams> {
+class InsertIdentityLayerEltwiseTest : public InsertIdentityLayerTest,
+                                       public ::testing::WithParamInterface<InsertIdentityEltwiseTestParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<InsertIdentityEltwiseTestParams>& obj) {
         ELTWISE_TYPE type;
@@ -238,8 +240,7 @@ public:
             auto eltwise3 = std::make_shared<ngraph::op::Eltwise>(eltwise1, second_input, type);
 
             auto result = std::make_shared<ngraph::opset9::Result>(eltwise3);
-            m_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                        ngraph::ParameterVector{params});
+            m_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{params});
         }
 
         {
@@ -277,8 +278,8 @@ public:
             auto eltwise3 = std::make_shared<ngraph::op::Eltwise>(first_input, second_input, type);
 
             auto result = std::make_shared<ngraph::opset9::Result>(eltwise3);
-            m_ref_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                            ngraph::ParameterVector{params});
+            m_ref_func =
+                std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{params});
         }
     }
 };
@@ -287,16 +288,17 @@ TEST_P(InsertIdentityLayerEltwiseTest, CompareWithRefs) {
     Run();
 }
 
-INSTANTIATE_TEST_SUITE_P(TransformationTests, InsertIdentityLayerEltwiseTest,
-                         ::testing::Combine(
-                                ::testing::ValuesIn({ELTWISE_TYPE::Sum, ELTWISE_TYPE::Prod}),
-                                ::testing::ValuesIn({true, false}),
-                                ::testing::ValuesIn({true, false})),
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         InsertIdentityLayerEltwiseTest,
+                         ::testing::Combine(::testing::ValuesIn({ELTWISE_TYPE::Sum, ELTWISE_TYPE::Prod}),
+                                            ::testing::ValuesIn({true, false}),
+                                            ::testing::ValuesIn({true, false})),
                          InsertIdentityLayerEltwiseTest::getTestCaseName);
 
-/******************************************* Eltwise layer tests (Multiple outputs) *************************************************/
+/******************************************* Eltwise layer tests (Multiple outputs)
+ * *************************************************/
 
-class InsertIdentityLayerEltwiseMultipleOutputTest: public InsertIdentityLayerEltwiseTest {
+class InsertIdentityLayerEltwiseMultipleOutputTest : public InsertIdentityLayerEltwiseTest {
 public:
     void SetUp() override {
         ELTWISE_TYPE type;
@@ -377,17 +379,17 @@ TEST_P(InsertIdentityLayerEltwiseMultipleOutputTest, CompareWithRefs) {
     Run();
 }
 
-INSTANTIATE_TEST_SUITE_P(TransformationTests, InsertIdentityLayerEltwiseMultipleOutputTest,
-                         ::testing::Combine(
-                                ::testing::ValuesIn({ELTWISE_TYPE::Sum, ELTWISE_TYPE::Prod}),
-                                ::testing::ValuesIn({true, false}),
-                                ::testing::ValuesIn({true, false})),
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         InsertIdentityLayerEltwiseMultipleOutputTest,
+                         ::testing::Combine(::testing::ValuesIn({ELTWISE_TYPE::Sum, ELTWISE_TYPE::Prod}),
+                                            ::testing::ValuesIn({true, false}),
+                                            ::testing::ValuesIn({true, false})),
                          InsertIdentityLayerEltwiseMultipleOutputTest::getTestCaseName);
 
+/*************************************************** Eltwise with FQ layer tests
+ * ****************************************************/
 
-/*************************************************** Eltwise with FQ layer tests ****************************************************/
-
-class InsertIdentityLayerEltwiseFQTest: public InsertIdentityLayerEltwiseTest {
+class InsertIdentityLayerEltwiseFQTest : public InsertIdentityLayerEltwiseTest {
 public:
     void SetUp() override {
         ELTWISE_TYPE type;
@@ -402,7 +404,12 @@ public:
             auto input_high = ngraph::opset9::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {5});
             auto output_low = ngraph::opset9::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
             auto output_high = ngraph::opset9::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {10});
-            return std::make_shared<ngraph::opset9::FakeQuantize>(node, input_low, input_high, output_low, output_high, levels);
+            return std::make_shared<ngraph::opset9::FakeQuantize>(node,
+                                                                  input_low,
+                                                                  input_high,
+                                                                  output_low,
+                                                                  output_high,
+                                                                  levels);
         };
 
         {
@@ -435,13 +442,10 @@ public:
             auto eltwise3_fq = add_fake_quantize(eltwise3);
 
             auto result = std::make_shared<ngraph::opset9::Result>(eltwise3_fq);
-            m_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                        ngraph::ParameterVector{params});
+            m_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{params});
         }
 
-        {
-            m_ref_func = m_func->clone();
-        }
+        { m_ref_func = m_func->clone(); }
     }
 };
 
@@ -449,23 +453,24 @@ TEST_P(InsertIdentityLayerEltwiseFQTest, CompareWithRefs) {
     Run();
 }
 
-INSTANTIATE_TEST_SUITE_P(TransformationTests, InsertIdentityLayerEltwiseFQTest,
-                         ::testing::Combine(
-                                ::testing::ValuesIn({ELTWISE_TYPE::Sum, ELTWISE_TYPE::Prod}),
-                                ::testing::ValuesIn({true, false}),
-                                ::testing::ValuesIn({true, false})),
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         InsertIdentityLayerEltwiseFQTest,
+                         ::testing::Combine(::testing::ValuesIn({ELTWISE_TYPE::Sum, ELTWISE_TYPE::Prod}),
+                                            ::testing::ValuesIn({true, false}),
+                                            ::testing::ValuesIn({true, false})),
                          InsertIdentityLayerEltwiseFQTest::getTestCaseName);
 
-/***************************************************** Convolution layer tests *****************************************************/
+/***************************************************** Convolution layer tests
+ * *****************************************************/
 
-typedef std::tuple<
-        bool,           // with pooling
-        bool,           // with activation
-        bool            // swap matmul input
-> InsertIdentityConvTestParams;
+typedef std::tuple<bool,  // with pooling
+                   bool,  // with activation
+                   bool   // swap matmul input
+                   >
+    InsertIdentityConvTestParams;
 
-class InsertIdentityLayerConvMatMulTest: public InsertIdentityLayerTest,
-                                         public ::testing::WithParamInterface<InsertIdentityConvTestParams> {
+class InsertIdentityLayerConvMatMulTest : public InsertIdentityLayerTest,
+                                          public ::testing::WithParamInterface<InsertIdentityConvTestParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<InsertIdentityConvTestParams>& obj) {
         bool with_pool, with_act, swap_matmul;
@@ -490,9 +495,9 @@ public:
         {
             std::shared_ptr<ov::Node> last_node;
             auto input = std::make_shared<ngraph::opset9::Parameter>(ngraph::element::f32, m_input_shape);
-            auto weights = ngraph::opset9::Constant::create(ngraph::element::f32,
-                                                            ngraph::Shape{3, 3, 1, 2}, {1});
-            auto conv = std::make_shared<ngraph::opset9::Convolution>(input, weights,
+            auto weights = ngraph::opset9::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 2}, {1});
+            auto conv = std::make_shared<ngraph::opset9::Convolution>(input,
+                                                                      weights,
                                                                       ngraph::Strides{1, 1},
                                                                       ngraph::CoordinateDiff{0, 0},
                                                                       ngraph::CoordinateDiff{0, 1},
@@ -510,27 +515,28 @@ public:
                 auto relu = std::make_shared<ngraph::opset9::Relu>(last_node);
                 last_node = relu;
             }
-            auto reshape_const = ngraph::opset9::Constant::create(ngraph::element::i64, ngraph::Shape{reshape_shape.size()}, reshape_shape);
+            auto reshape_const = ngraph::opset9::Constant::create(ngraph::element::i64,
+                                                                  ngraph::Shape{reshape_shape.size()},
+                                                                  reshape_shape);
             auto reshape = std::make_shared<ngraph::opset9::Reshape>(last_node, reshape_const, false);
             auto matmul_const = ngraph::opset9::Constant::create(ngraph::element::f32, {64, 3}, {1.2});
-            auto matmul = swap_matmul ? std::make_shared<ngraph::opset9::MatMul>(matmul_const, reshape) :
-                                        std::make_shared<ngraph::opset9::MatMul>(reshape, matmul_const);
+            auto matmul = swap_matmul ? std::make_shared<ngraph::opset9::MatMul>(matmul_const, reshape)
+                                      : std::make_shared<ngraph::opset9::MatMul>(reshape, matmul_const);
 
             auto result = std::make_shared<ngraph::opset9::Result>(matmul);
-            m_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                        ngraph::ParameterVector{input});
+            m_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{input});
         }
 
         {
             std::shared_ptr<ov::Node> last_node;
             auto input = std::make_shared<ngraph::opset9::Parameter>(ngraph::element::f32, m_input_shape);
-            auto weights = ngraph::opset9::Constant::create(ngraph::element::f32,
-                                                            ngraph::Shape{3, 3, 1, 2}, {1});
-            auto conv = std::make_shared<ngraph::opset9::Convolution>(input, weights,
-                                                                       ngraph::Strides{1, 1},
-                                                                       ngraph::CoordinateDiff{0, 0},
-                                                                       ngraph::CoordinateDiff{0, 1},
-                                                                       ngraph::Strides{1, 1});
+            auto weights = ngraph::opset9::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 2}, {1});
+            auto conv = std::make_shared<ngraph::opset9::Convolution>(input,
+                                                                      weights,
+                                                                      ngraph::Strides{1, 1},
+                                                                      ngraph::CoordinateDiff{0, 0},
+                                                                      ngraph::CoordinateDiff{0, 1},
+                                                                      ngraph::Strides{1, 1});
             last_node = conv;
             if (with_pool) {
                 auto max_pool = std::make_shared<ngraph::opset7::MaxPool>(last_node,
@@ -547,15 +553,17 @@ public:
                 auto identity = std::make_shared<ov::intel_gna::op::Identity>(last_node);
                 last_node = identity;
             }
-            auto reshape_const = ngraph::opset9::Constant::create(ngraph::element::i64, ngraph::Shape{reshape_shape.size()}, reshape_shape);
+            auto reshape_const = ngraph::opset9::Constant::create(ngraph::element::i64,
+                                                                  ngraph::Shape{reshape_shape.size()},
+                                                                  reshape_shape);
             auto reshape = std::make_shared<ngraph::opset9::Reshape>(last_node, reshape_const, false);
             auto matmul_const = ngraph::opset9::Constant::create(ngraph::element::f32, {64, 3}, {1.2});
-            auto matmul = swap_matmul ? std::make_shared<ngraph::opset9::MatMul>(matmul_const, reshape) :
-                                        std::make_shared<ngraph::opset9::MatMul>(reshape, matmul_const);
+            auto matmul = swap_matmul ? std::make_shared<ngraph::opset9::MatMul>(matmul_const, reshape)
+                                      : std::make_shared<ngraph::opset9::MatMul>(reshape, matmul_const);
 
             auto result = std::make_shared<ngraph::opset9::Result>(matmul);
-            m_ref_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                            ngraph::ParameterVector{input});
+            m_ref_func =
+                std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{input});
         }
     }
 };
@@ -564,16 +572,17 @@ TEST_P(InsertIdentityLayerConvMatMulTest, CompareWithRefs) {
     Run();
 }
 
-INSTANTIATE_TEST_SUITE_P(TransformationTests, InsertIdentityLayerConvMatMulTest,
-                         ::testing::Combine(
-                                ::testing::ValuesIn({true, false}),
-                                ::testing::ValuesIn({true, false}),
-                                ::testing::ValuesIn({true, false})),
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         InsertIdentityLayerConvMatMulTest,
+                         ::testing::Combine(::testing::ValuesIn({true, false}),
+                                            ::testing::ValuesIn({true, false}),
+                                            ::testing::ValuesIn({true, false})),
                          InsertIdentityLayerConvMatMulTest::getTestCaseName);
 
-/***************************************************** Result layer tests *****************************************************/
+/***************************************************** Result layer tests
+ * *****************************************************/
 
-class InsertIdentityLayerResultTest: public InsertIdentityLayerTest {
+class InsertIdentityLayerResultTest : public InsertIdentityLayerTest {
 public:
     void SetUp() override {
         InsertIdentityLayerTest::SetUp();
@@ -615,4 +624,4 @@ public:
 TEST_F(InsertIdentityLayerResultTest, CompareWithRefs) {
     Run();
 }
-} // namespace testing
+}  // namespace testing
