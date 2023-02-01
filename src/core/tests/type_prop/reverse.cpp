@@ -315,3 +315,20 @@ TEST_F(TypePropReverseV1Test, axes_index_interval_1d_tensor) {
     EXPECT_EQ(op->get_element_type(), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), param_shape);
 }
+
+TEST_F(TypePropReverseV1Test, default_ctor) {
+    PartialShape param_shape{2, {2, 10}, 8};
+    auto param = make_shared<Parameter>(element::f32, param_shape);
+    auto axes = Constant::create(element::i64, Shape{3}, {2, 0, 1});
+
+    auto op = make_op();
+    op->set_arguments(OutputVector{param, axes});
+    op->set_mode(op::v1::Reverse::Mode::INDEX);
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_mode(), op::v1::Reverse::Mode::INDEX);
+    EXPECT_EQ(op->get_input_size(), 2);
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), param_shape);
+}
