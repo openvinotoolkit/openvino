@@ -26,7 +26,7 @@ public:
 
     /**
      * @see WorkerPool::addModelWorker()
-    */
+     */
     void addModelWorker(std::shared_ptr<Worker> worker) override;
 
     /**

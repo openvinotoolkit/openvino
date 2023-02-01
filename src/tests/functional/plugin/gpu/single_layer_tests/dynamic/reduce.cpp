@@ -139,7 +139,7 @@ const ReduceInput dyn1d = {
 
 const ReduceInput dyn2d = {
     {
-        { {-1, -1}, {{4, 5}, {5, 6}} }
+        { {-1, -1}, {{100, 3}, {5, 6}} }
     },
     {1}
 };
