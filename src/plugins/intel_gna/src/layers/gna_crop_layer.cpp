@@ -1,11 +1,12 @@
 // Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "gna_crop_layer.hpp"
+
 #include <vector>
 
-#include "gna_crop_layer.hpp"
-#include "log/log.hpp"
 #include "log/debug.hpp"
+#include "log/log.hpp"
 
 namespace ov {
 namespace intel_gna {
