@@ -86,7 +86,7 @@ if(ENABLE_INTEL_GPU)
 
     # override INTERFACE_INCLUDE_DIRECTORIES with BUILD_INTERFACE
     foreach(opencl_dir "${CMAKE_CURRENT_SOURCE_DIR}/ocl/clhpp_headers/include" "${CMAKE_CURRENT_SOURCE_DIR}/ocl/cl_headers")
-        if(EXISTS "${opencl_dir}")
+        if(EXISTS "${opencl_dir}" AND OFF)
             set_property(TARGET ${opencl_target} APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES
                 $<BUILD_INTERFACE:${opencl_dir}>)
         endif()
