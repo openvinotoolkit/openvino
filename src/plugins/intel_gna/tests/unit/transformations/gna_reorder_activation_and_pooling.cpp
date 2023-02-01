@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -169,7 +169,7 @@ std::shared_ptr<ngraph::Function> ConvolutionActivationPoolTestFixture::get_refe
 
 void execute_test(std::shared_ptr<ngraph::Function> function, std::shared_ptr<ngraph::Function> reference_function) {
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::intel_gna::pass::ReorderActivationAndPooling>();
     manager.run_passes(function);
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
@@ -237,7 +237,7 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestConvFqMp) {
                                                   ngraph::ParameterVector{input_params_convolution});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
 
         m.register_pass<ov::intel_gna::pass::ReorderActivationAndPooling>();
         m.run_passes(func);
@@ -328,7 +328,7 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestConvAddFqMp) {
                                                   ngraph::ParameterVector{input_params_convolution, input_params_add});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
 
         m.register_pass<ov::intel_gna::pass::ReorderActivationAndPooling>();
         m.run_passes(func);

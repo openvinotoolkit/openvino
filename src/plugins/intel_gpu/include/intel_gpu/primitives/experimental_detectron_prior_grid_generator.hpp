@@ -8,12 +8,7 @@
 
 namespace cldnn {
 
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
+
 
 /// @brief Constructs experimental_detectron_prior_grid_generator primitive.
 struct experimental_detectron_prior_grid_generator
@@ -51,6 +46,20 @@ struct experimental_detectron_prior_grid_generator
     uint64_t featmap_width;
     uint64_t image_height;
     uint64_t image_width;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, flatten);
+        seed = hash_combine(seed, h);
+        seed = hash_combine(seed, w);
+        seed = hash_combine(seed, stride_x);
+        seed = hash_combine(seed, stride_y);
+        seed = hash_combine(seed, featmap_height);
+        seed = hash_combine(seed, featmap_width);
+        seed = hash_combine(seed, image_height);
+        seed = hash_combine(seed, image_width);
+        return seed;
+    }
 };
 
 }  // namespace cldnn

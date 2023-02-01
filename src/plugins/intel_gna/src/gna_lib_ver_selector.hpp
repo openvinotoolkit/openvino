@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,12 +28,15 @@
  */
 #define ALIGN64(number) ALIGN(number, 64)
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace tools {
+
 template <typename T, typename... Args>
 std::unique_ptr<T> make_unique(Args&&... args) {
     return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
 }
-}  // namespace tools
 
-}  // namespace GNAPluginNS
+}  // namespace tools
+}  // namespace intel_gna
+}  // namespace ov

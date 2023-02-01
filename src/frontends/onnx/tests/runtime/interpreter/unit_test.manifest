@@ -32,6 +32,7 @@ INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_uint8_negative_axis
 # ONNX evaluate method not implemented for If operator
 INTERPRETER.onnx_if_inside_if
 INTERPRETER.onnx_if_inside_loop
+INTERPRETER.onnx_if_inside_if_inside_loop
 
 # Activation function hardsigmoid unsupported
 onnx_model_gru_fwd_activations_relu_hardsigmoid

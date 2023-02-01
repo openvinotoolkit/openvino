@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -120,6 +120,7 @@ inline std::string onednn_post_op_type_to_str(onednn_post_op_type type) {
     case onednn_post_op_type::eltwise_round: return "eltwise_round";
     case onednn_post_op_type::binary_mul: return "binary_mul";
     case onednn_post_op_type::binary_add: return "binary_add";
+    case onednn_post_op_type::binary_sub: return "binary_add";
     case onednn_post_op_type::binary_max: return "binary_max";
     case onednn_post_op_type::binary_min: return "binary_min";
     case onednn_post_op_type::binary_relu: return "binary_relu";

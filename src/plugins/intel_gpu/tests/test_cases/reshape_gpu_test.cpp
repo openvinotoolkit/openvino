@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "test_utils.h"
 
@@ -18,11 +16,11 @@ using namespace testing;
 
 namespace {
 void verify_float(const float& output_value, const float& value) {
-    EXPECT_FLOAT_EQ(output_value, value);
+    ASSERT_FLOAT_EQ(output_value, value);
 }
 
 void verify_int(const int32_t& output_value, const int32_t& value) {
-    EXPECT_EQ(output_value, value);
+    ASSERT_EQ(output_value, value);
 }
 
 template <class ElemType>
@@ -67,10 +65,10 @@ void generic_reshape_test(format fmt, tensor const& input_size, tensor const& re
     }
     tpl.add(reshape("reshape", reshape_input, reshape_size, cldnn::reshape::reshape_mode::base, output_padd));
 
-    build_options bo;
-    bo.set_option(build_option::outputs({reshape_input, "reshape"}));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{reshape_input, "reshape"}));
 
-    network net(engine, tpl, bo);
+    network net(engine, tpl, config);
     net.set_input_data("input", input);
     auto outputs = net.execute();
 
@@ -78,8 +76,8 @@ void generic_reshape_test(format fmt, tensor const& input_size, tensor const& re
     auto net_input = outputs.at(reshape_input).get_memory();
     auto output = outputs.at("reshape").get_memory();
 
-    EXPECT_EQ(output->get_layout().data_type, input->get_layout().data_type);        //reshape should not change data_type
-    EXPECT_TRUE(output->get_layout().format.value == input->get_layout().format.value);  //reshape should not change format
+    ASSERT_EQ(output->get_layout().data_type, input->get_layout().data_type);        //reshape should not change data_type
+    ASSERT_TRUE(output->get_layout().format.value == input->get_layout().format.value);  //reshape should not change format
 
     //output size should be equal to requested plus output padding
     ASSERT_TRUE(output->get_layout().get_tensor() == reshape_size);
@@ -467,13 +465,13 @@ TEST(reshape_gpu_f32, multiple_users_with_reorder) {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < out1.size(); i++)
-        EXPECT_EQ(output_ptr[i], out1[i]);
+        ASSERT_EQ(output_ptr[i], out1[i]);
 
     auto output_2 = outputs.at("relu2").get_memory();
     cldnn::mem_lock<float> output_ptr_2(output_2, get_test_stream());
 
     for (size_t i = 0; i < out2.size(); i++)
-        EXPECT_EQ(output_ptr_2[i], out2[i]);
+        ASSERT_EQ(output_ptr_2[i], out2[i]);
 }
 
 TEST(reshape_gpu_f32, calc_output_shape) {
@@ -501,13 +499,13 @@ TEST(reshape_gpu_f32, calc_output_shape) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "reshape");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reshape");
 
     auto output = outputs.at("reshape").get_memory();
 
-    EXPECT_EQ(output->get_layout().data_type, input->get_layout().data_type);
-    EXPECT_EQ(output->get_layout().format, input->get_layout().format);
+    ASSERT_EQ(output->get_layout().data_type, input->get_layout().data_type);
+    ASSERT_EQ(output->get_layout().format, input->get_layout().format);
 
     ASSERT_TRUE(output->get_layout().get_tensor() == tensor(1, 1, 1, 4));
 
@@ -515,7 +513,7 @@ TEST(reshape_gpu_f32, calc_output_shape) {
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     for (int i = 0; i < 4; i++) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -568,19 +566,19 @@ TEST(reshape_gpu_f32, basic_bfwzyx) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "reshape");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reshape");
 
     auto output = outputs.at("reshape").get_memory();
 
-    EXPECT_EQ(output->get_layout().data_type, input->get_layout().data_type);
-    EXPECT_EQ(output->get_layout().format, input->get_layout().format);
+    ASSERT_EQ(output->get_layout().data_type, input->get_layout().data_type);
+    ASSERT_EQ(output->get_layout().format, input->get_layout().format);
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     ASSERT_EQ(output_ptr.size(), expected_out.size());
 
     for (size_t i = 0; i < expected_out.size(); i++) {
-        EXPECT_TRUE(are_equal(expected_out[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(expected_out[i], output_ptr[i]));
     }
 }
 
@@ -615,9 +613,9 @@ TEST(reshape_gpu_f32, shrink_chain_partial) {
     std::vector<float> out = {5.f, 12.f, 15.f, 32.0f};
     set_values(input, input_vec);
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -625,7 +623,7 @@ TEST(reshape_gpu_f32, shrink_chain_partial) {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < out.size(); i++)
-        EXPECT_EQ(output_ptr[i], out[i]) << " i=" << i;
+        ASSERT_EQ(output_ptr[i], out[i]) << " i=" << i;
 }
 
 TEST(reshape_gpu_f32, shrink_chain_full) {
@@ -655,9 +653,9 @@ TEST(reshape_gpu_f32, shrink_chain_full) {
     std::vector<float> out = {5.f, 12.f, 15.f, 32.0f};
     set_values(input, input_vec);
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -665,7 +663,7 @@ TEST(reshape_gpu_f32, shrink_chain_full) {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < out.size(); i++)
-        EXPECT_EQ(output_ptr[i], out[i]) << " i=" << i;
+        ASSERT_EQ(output_ptr[i], out[i]) << " i=" << i;
 }
 
 TEST(reshape_gpu_f32, shrink_chain_out) {
@@ -690,9 +688,9 @@ TEST(reshape_gpu_f32, shrink_chain_out) {
     std::vector<float> out = {0.f, 2.f, 0.f, 4.0f};
     set_values(input, input_vec);
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -700,7 +698,7 @@ TEST(reshape_gpu_f32, shrink_chain_out) {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < out.size(); i++)
-        EXPECT_EQ(output_ptr[i], out[i]) << " i=" << i;
+        ASSERT_EQ(output_ptr[i], out[i]) << " i=" << i;
 }
 
 TEST(reshape_gpu_f32, basic_runtime_static_shape) {
@@ -729,19 +727,19 @@ TEST(reshape_gpu_f32, basic_runtime_static_shape) {
 
     set_values(input, input_data);
 
-    build_options bo;
-    bo.set_option(build_option::allow_new_shape_infer(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "reshape");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reshape");
 
     auto output = outputs.at("reshape").get_memory();
 
-    EXPECT_EQ(output->get_layout().data_type, input->get_layout().data_type);
-    EXPECT_EQ(output->get_layout().format, format::bfyx);
+    ASSERT_EQ(output->get_layout().data_type, input->get_layout().data_type);
+    ASSERT_EQ(output->get_layout().format, format::bfyx);
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     ASSERT_EQ(output_ptr.size(), input_data.size());
@@ -777,20 +775,20 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape) {
 
     set_values(input, input_data);
 
-    build_options bo;
-    bo.set_option(build_option::allow_new_shape_infer(true));
-    bo.set_option(build_option::optimize_data(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "reshape");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reshape");
 
     auto output = outputs.at("reshape").get_memory();
 
-    EXPECT_EQ(output->get_layout().data_type, input->get_layout().data_type);
-    EXPECT_EQ(output->get_layout().format, format::bfyx);
+    ASSERT_EQ(output->get_layout().data_type, input->get_layout().data_type);
+    ASSERT_EQ(output->get_layout().format, format::bfyx);
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     ASSERT_EQ(output_ptr.size(), input_data.size());
@@ -828,25 +826,25 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape_with_const) {
 
     set_values(input, input_data);
 
-    build_options bo;
-    bo.set_option(build_option::allow_new_shape_infer(true));
-    bo.set_option(build_option::optimize_data(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "reshape");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reshape");
 
     auto output = outputs.at("reshape").get_memory();
 
-    EXPECT_EQ(output->get_layout().data_type, input->get_layout().data_type);
-    EXPECT_EQ(output->get_layout().format, format::bfyx);
-    EXPECT_TRUE(output->get_layout().is_static());
+    ASSERT_EQ(output->get_layout().data_type, input->get_layout().data_type);
+    ASSERT_EQ(output->get_layout().format, format::bfyx);
+    ASSERT_TRUE(output->get_layout().is_static());
     std::vector<int32_t> ref_dims = {12, 3, 1, 1};
-    EXPECT_EQ(output->get_layout().get_dims(), ref_dims);
+    ASSERT_EQ(output->get_layout().get_dims(), ref_dims);
     ov::PartialShape ref_pshape = {12, 3};
-    EXPECT_EQ(output->get_layout().get_partial_shape(), ref_pshape);
+    ASSERT_EQ(output->get_layout().get_partial_shape(), ref_pshape);
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     ASSERT_EQ(output_ptr.size(), input_data.size());
@@ -885,25 +883,25 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape_with_const_optimized_out) {
 
     set_values(input, input_data);
 
-    build_options bo;
-    bo.set_option(build_option::allow_new_shape_infer(true));
-    bo.set_option(build_option::optimize_data(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "reorder");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reorder");
 
     auto output = outputs.at("reorder").get_memory();
 
-    EXPECT_EQ(output->get_layout().data_type, input->get_layout().data_type);
-    EXPECT_EQ(output->get_layout().format, format::bfyx);
-    EXPECT_TRUE(output->get_layout().is_static());
+    ASSERT_EQ(output->get_layout().data_type, input->get_layout().data_type);
+    ASSERT_EQ(output->get_layout().format, format::bfyx);
+    ASSERT_TRUE(output->get_layout().is_static());
     std::vector<int32_t> ref_dims = {12, 3, 1, 1};
-    EXPECT_EQ(output->get_layout().get_dims(), ref_dims);
+    ASSERT_EQ(output->get_layout().get_dims(), ref_dims);
     ov::PartialShape ref_pshape = {12, 3};
-    EXPECT_EQ(output->get_layout().get_partial_shape(), ref_pshape);
+    ASSERT_EQ(output->get_layout().get_partial_shape(), ref_pshape);
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     ASSERT_EQ(output_ptr.size(), input_data.size());

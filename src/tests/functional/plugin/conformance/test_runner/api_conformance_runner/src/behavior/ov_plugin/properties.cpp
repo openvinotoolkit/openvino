@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,4 +54,26 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin_AutoBatch, OVPropertiesTests,
                 ::testing::Values(CommonTestUtils::DEVICE_BATCH),
                 ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(CommonTestUtils::DEVICE_BATCH, auto_batch_properties))),
         OVPropertiesTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckChangePropComplieModleGetPropTests,
+        ::testing::Combine(
+                        ::testing::ValuesIn(return_all_possible_device_combination()),
+                        ::testing::ValuesIn(OVCheckChangePropComplieModleGetPropTests::getPropertiesValues())),
+        OVCheckChangePropComplieModleGetPropTests::getTestCaseName);
+
+const std::vector<ov::AnyMap> device_properties = {
+        {ov::device::id("0")},
+};
+
+INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
+        ::testing::Combine(
+                ::testing::ValuesIn(return_all_possible_device_combination()),
+                ::testing::ValuesIn(device_properties)),
+        OVCheckChangePropComplieModleGetPropTests_DEVICE_ID::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckChangePropComplieModleGetPropTests_ModelDependceProps,
+        ::testing::Combine(
+                ::testing::ValuesIn(return_all_possible_device_combination()),
+                ::testing::ValuesIn(OVCheckChangePropComplieModleGetPropTests::getModelDependcePropertiesValues())),
+        OVCheckChangePropComplieModleGetPropTests_ModelDependceProps::getTestCaseName);
 } // namespace

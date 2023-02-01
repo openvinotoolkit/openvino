@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -6,7 +6,7 @@
 # Common cmake options
 #
 
-ie_dependent_option (ENABLE_INTEL_CPU "CPU plugin for OpenVINO Runtime" ON "X86_64" OFF)
+ie_dependent_option (ENABLE_INTEL_CPU "CPU plugin for OpenVINO Runtime" ON "RISCV64 OR X86 OR X86_64" OFF)
 
 ie_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
 
@@ -79,13 +79,7 @@ ie_dependent_option (ENABLE_INTEL_GNA "GNA support for OpenVINO Runtime" ON
 
 ie_option (ENABLE_INTEL_GNA_DEBUG "GNA debug build" OFF)
 
-if(ENABLE_TESTS OR BUILD_SHARED_LIBS)
-    set(ENABLE_IR_V7_READER_DEFAULT ON)
-else()
-    set(ENABLE_IR_V7_READER_DEFAULT OFF)
-endif()
-
-ie_option (ENABLE_IR_V7_READER "Enables IR v7 reader" ${ENABLE_IR_V7_READER_DEFAULT})
+ie_dependent_option (ENABLE_IR_V7_READER "Enables IR v7 reader" ${BUILD_SHARED_LIBS} "ENABLE_TESTS;ENABLE_INTEL_GNA" OFF)
 
 ie_option (ENABLE_GAPI_PREPROCESSING "Enables G-API preprocessing" ON)
 
@@ -98,23 +92,7 @@ ie_option (ENABLE_HETERO "Enables Hetero Device Plugin" ON)
 
 ie_option (ENABLE_TEMPLATE "Enable template plugin" ON)
 
-ie_dependent_option (ENABLE_INTEL_MYRIAD_COMMON "common part of myriad plugin" ON "NOT WINDOWS_PHONE;NOT WINDOWS_STORE" OFF)
-
-if(UNIVERSAL2)
-    set(ENABLE_INTEL_MYRIAD_DEFAULT OFF)
-else()
-    set(ENABLE_INTEL_MYRIAD_DEFAULT ON)
-endif()
-
-ie_dependent_option (ENABLE_INTEL_MYRIAD "myriad targeted plugin for OpenVINO Runtime" ${ENABLE_INTEL_MYRIAD_DEFAULT} "NOT RISCV64;ENABLE_INTEL_MYRIAD_COMMON" OFF)
-
-ie_dependent_option (ENABLE_MYRIAD_NO_BOOT "myriad plugin will skip device boot" OFF "ENABLE_INTEL_MYRIAD" OFF)
-
-ie_dependent_option (ENABLE_GAPI_TESTS "tests for GAPI kernels" ON "ENABLE_GAPI_PREPROCESSING;ENABLE_TESTS" OFF)
-
-ie_dependent_option (GAPI_TEST_PERF "if GAPI unit tests should examine performance" OFF "ENABLE_GAPI_TESTS" OFF)
-
-ie_dependent_option (ENABLE_MYRIAD_MVNC_TESTS "functional and behavior tests for mvnc api" OFF "ENABLE_TESTS;ENABLE_INTEL_MYRIAD" OFF)
+ie_dependent_option (GAPI_TEST_PERF "if GAPI unit tests should examine performance" OFF "ENABLE_TESTS;ENABLE_GAPI_PREPROCESSING" OFF)
 
 ie_dependent_option (ENABLE_DATA "fetch models from testdata repo" ON "ENABLE_FUNCTIONAL_TESTS;NOT ANDROID" OFF)
 
@@ -132,7 +110,7 @@ set(OPENVINO_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to inc
 
 ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are linked to the OpenVINO Runtime binaries" ON "THREADING MATCHES TBB;LINUX" OFF)
 
-if(LINUX)
+if(CMAKE_HOST_LINUX AND LINUX)
     # Debian packages are enabled on Ubuntu systems
     # so, system TBB / pugixml can be tried for usage
     set(ENABLE_SYSTEM_LIBS_DEFAULT ON)
@@ -166,13 +144,17 @@ find_host_package(PythonInterp 3 QUIET)
 ie_option(ENABLE_OV_ONNX_FRONTEND "Enable ONNX FrontEnd" ${PYTHONINTERP_FOUND})
 ie_option(ENABLE_OV_PADDLE_FRONTEND "Enable PaddlePaddle FrontEnd" ON)
 ie_option(ENABLE_OV_IR_FRONTEND "Enable IR FrontEnd" ON)
+ie_option(ENABLE_OV_PYTORCH_FRONTEND "Enable PyTorch FrontEnd" ON)
 ie_option(ENABLE_OV_TF_FRONTEND "Enable TensorFlow FrontEnd" ON)
+ie_option(ENABLE_OV_TF_LITE_FRONTEND "Enable TensorFlow Lite FrontEnd" ON)
 ie_dependent_option(ENABLE_SYSTEM_PROTOBUF "Use system protobuf" OFF
     "ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_TF_FRONTEND;BUILD_SHARED_LIBS" OFF)
+ie_option(ENABLE_OV_IR_FRONTEND "Enable IR FrontEnd" ON)
+ie_dependent_option(ENABLE_SYSTEM_FLATBUFFERS "Use system flatbuffers" ON
+    "ENABLE_OV_TF_LITE_FRONTEND" OFF)
 
 ie_dependent_option(ENABLE_OV_CORE_UNIT_TESTS "Enables OpenVINO core unit tests" ON "ENABLE_TESTS" OFF)
 ie_option(ENABLE_OPENVINO_DEBUG "Enable output for OPENVINO_DEBUG statements" OFF)
-ie_dependent_option(ENABLE_REQUIREMENTS_INSTALL "Dynamic dependencies install" ON "ENABLE_TESTS;NOT CMAKE_CROSSCOMPILING" OFF)
 
 if(NOT BUILD_SHARED_LIBS AND ENABLE_OV_TF_FRONTEND)
     set(FORCE_FRONTENDS_USE_PROTOBUF ON)
@@ -190,10 +172,6 @@ endif()
 
 if (ENABLE_PROFILING_RAW)
     add_definitions(-DENABLE_PROFILING_RAW=1)
-endif()
-
-if (ENABLE_INTEL_CPU)
-    add_definitions(-DENABLE_INTEL_CPU=1)
 endif()
 
 print_enabled_features()

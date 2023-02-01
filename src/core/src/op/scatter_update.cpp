@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/scatter_update.hpp"
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/runtime/reference/scatter_update.hpp"
 #include "ngraph/shape.hpp"
@@ -92,13 +93,13 @@ bool op::v3::ScatterUpdate::evaluate(const HostTensorVector& outputs, const Host
     return evaluate_scatter_update(outputs, inputs);
 }
 
-bool op::v3::ScatterUpdate::evaluate_lower(const HostTensorVector& outputs) const {
+bool op::v3::ScatterUpdate::evaluate_lower(ov::TensorVector& outputs) const {
     OV_OP_SCOPE(v3_ScatterUpdate_evaluate_lower);
     return get_input_tensor(1).has_and_set_bound() && get_input_tensor(3).has_and_set_bound() &&
            default_lower_bound_evaluator(this, outputs);
 }
 
-bool op::v3::ScatterUpdate::evaluate_upper(const HostTensorVector& outputs) const {
+bool op::v3::ScatterUpdate::evaluate_upper(ov::TensorVector& outputs) const {
     OV_OP_SCOPE(v3_ScatterUpdate_evaluate_upper);
     return get_input_tensor(1).has_and_set_bound() && get_input_tensor(3).has_and_set_bound() &&
            default_upper_bound_evaluator(this, outputs);
@@ -119,6 +120,58 @@ bool op::v3::ScatterUpdate::has_evaluate() const {
         return true;
     default:
         break;
+    }
+    return false;
+}
+
+namespace {
+bool scatter_label_evaluator(const Node* node, TensorLabelVector& output_labels) {
+    const auto& input_values = node->input_values();
+
+    constexpr auto data_in_idx = 0;
+    constexpr auto updates_in_idx = 2;
+    auto data_labels = input_values[data_in_idx].get_tensor().get_value_label();
+    auto updates_labels = input_values[updates_in_idx].get_tensor().get_value_label();
+
+    if (ov::has_no_labels(data_labels) && ov::has_no_labels(updates_labels)) {
+        return false;
+    }
+
+    ov::TensorVector input_tensors;
+    input_tensors.reserve(input_values.size());
+
+    auto make_input_label = [&](const Output<Node>& input, TensorLabel& labels) {
+        input_tensors.emplace_back(ov::element::from<ov::label_t>(), input.get_shape());
+        labels.resize(shape_size(input.get_shape()));
+        memcpy(input_tensors.back().data(), labels.data(), input_tensors.back().get_byte_size());
+    };
+
+    for (size_t i = 0; i < input_values.size(); ++i) {
+        const auto& input = input_values[i];
+        if (i == data_in_idx) {
+            make_input_label(input, data_labels);
+        } else if (i == updates_in_idx) {
+            make_input_label(input, updates_labels);
+        } else {
+            input_tensors.push_back(input.get_tensor().get_lower_value());
+        }
+    }
+
+    ov::TensorVector output_tensors{ov::Tensor(ov::element::from<ov::label_t>(), node->get_output_shape(0))};
+    if (node->evaluate(output_tensors, input_tensors)) {
+        output_labels[0] = ov::TensorLabel(output_tensors[0].data<ov::label_t>(),
+                                           output_tensors[0].data<ov::label_t>() + output_tensors[0].get_size());
+        return true;
+    }
+    return false;
+}
+}  // namespace
+
+bool op::v3::ScatterUpdate::evaluate_label(TensorLabelVector& output_labels) const {
+    OV_OP_SCOPE(v3_ScatterUpdate_evaluate_label);
+    if (get_input_partial_shape(0).is_static() && get_input_partial_shape(2).is_static() &&
+        get_input_tensor(1).has_and_set_bound() && get_input_tensor(3).has_and_set_bound()) {
+        return scatter_label_evaluator(this, output_labels);
     }
     return false;
 }

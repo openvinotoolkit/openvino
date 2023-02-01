@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,13 +23,17 @@ ParamsKey DeformableConvolutionKernel_bfyx_interp::GetSupportedKey() const {
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
     k.EnableBatching();
-    k.EnableSplitSupport();
-    k.EnableDepthwiseSeparableOpt();
-    k.DisableTuning();
     k.EnableGroupedConvolution();
     k.EnableDeformableMode();
     k.EnableDeformableMask();
     k.EnableBilinearInterpolationPad();
+    return k;
+}
+
+DeviceFeaturesKey DeformableConvolutionKernel_bfyx_interp::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_reqd_subgroup_size();
+
     return k;
 }
 
@@ -91,7 +95,7 @@ KernelsData DeformableConvolutionKernel_bfyx_interp::GetKernelsData(const Params
 
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, DEFAULT,
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, EXE_MODE_DEFAULT,
                      false, false, static_cast<int>(newParams.inputs.size()));
 
     return {kd};

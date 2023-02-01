@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,11 +43,3 @@ public:
     OPENVINO_RTTI("TransposeMatMul", "0");
     TransposeMatMul();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ReshapeAMatMul;
-using ov::pass::ReshapeBMatMul;
-using ov::pass::TransposeMatMul;
-}  // namespace pass
-}  // namespace ngraph

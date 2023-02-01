@@ -1,18 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief CTC greedy decoder primitve
 struct ctc_greedy_decoder : public primitive_base<ctc_greedy_decoder> {
@@ -38,8 +31,13 @@ struct ctc_greedy_decoder : public primitive_base<ctc_greedy_decoder> {
     bool ctc_merge_repeated;
     tensor output_tensor;
     primitive_id second_output;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, blank_index);
+        seed = hash_combine(seed, ctc_merge_repeated);
+        seed = hash_combine(seed, second_output.empty());
+        return seed;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

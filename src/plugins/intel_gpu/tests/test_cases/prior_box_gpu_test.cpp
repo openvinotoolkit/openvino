@@ -90,9 +90,9 @@ public:
         topo.add(prior_box);
         topo.add(reorder("prior_box", input_info("blocked_prior_box"), plain_format, output_data_type));
 
-        build_options bo;
-        bo.set_option(build_option::optimize_data(false));
-        network network(engine, topo, bo);
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::optimize_data(false));
+        network network(engine, topo, config);
         const auto outputs = network.execute();
         const auto output = outputs.at("prior_box").get_memory();
 
@@ -100,7 +100,7 @@ public:
 
         ASSERT_EQ(output_ptr.size(), expected_values.size());
         for (size_t i = 0; i < output_ptr.size(); ++i) {
-            EXPECT_NEAR(output_ptr[i], expected_values[i], 2e-3)
+            ASSERT_NEAR(output_ptr[i], expected_values[i], 2e-3)
                 << "target_format=" << fmt_to_str(target_format) << ", i=" << i;
         }
     }

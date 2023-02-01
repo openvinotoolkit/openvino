@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,9 +77,9 @@ void positive_test(const Shape& data_shape,
                                                levels);
 
         pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::ConvertQuantizeDequantize>();
-        m.register_pass<pass::ConstantFolding>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertQuantizeDequantize>();
+        m.register_pass<ov::pass::ConstantFolding>();
         m.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));
@@ -225,8 +225,8 @@ void negative_test(const Shape& data_shape,
                                                scale_values,
                                                levels);
         pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::ConvertQuantizeDequantize>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertQuantizeDequantize>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }

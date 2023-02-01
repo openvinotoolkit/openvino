@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -134,10 +134,14 @@ void fillTensors(ov::InferRequest &infer_request, std::vector<T> &inputs) {
 
         if (inputs[i].get_element_type() == ov::element::f32) {
             input_tensor = fillTensorRandom<T, float>(inputs[i]);
+        } else if (inputs[i].get_element_type() == ov::element::f64) {
+            input_tensor = fillTensorRandom<T, double>(inputs[i]);
         } else if (inputs[i].get_element_type() == ov::element::f16) {
             input_tensor = fillTensorRandom<T, short>(inputs[i]);
         } else if (inputs[i].get_element_type() == ov::element::i32) {
             input_tensor = fillTensorRandom<T, int32_t>(inputs[i]);
+        } else if (inputs[i].get_element_type() == ov::element::i64) {
+            input_tensor = fillTensorRandom<T, int64_t>(inputs[i]);
         } else if (inputs[i].get_element_type() == ov::element::u8) {
             input_tensor = fillTensorRandom<T, uint8_t>(inputs[i]);
         } else if (inputs[i].get_element_type() == ov::element::i8) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,7 +66,7 @@ void TransformNetwork(std::shared_ptr<ngraph::Function>& function,
     passManager.register_pass<ngraph::pass::AddPreprocessing>(inputInfoMap);
     // TODO: add post-processing based on outputsInfoMap
     // Example: register CommonOptimizations transformation from transformations library
-    passManager.register_pass<ngraph::pass::CommonOptimizations>();
+    passManager.register_pass<ov::pass::CommonOptimizations>();
     // G-API supports only FP32 networks for pre-processing
     bool needF16toF32 = false;
     for (const auto& param : function->get_parameters()) {
@@ -78,7 +78,7 @@ void TransformNetwork(std::shared_ptr<ngraph::Function>& function,
         }
     }
     if (needF16toF32) {
-        passManager.register_pass<ngraph::pass::ConvertPrecision>(
+        passManager.register_pass<ov::pass::ConvertPrecision>(
             precisions_array{{ngraph::element::f16, ngraph::element::f32}});
     }
     // Example: register plugin specific transformation
