@@ -751,16 +751,6 @@ void ov::CoreImpl::set_property_for_devivce(const ov::AnyMap& configMap, const s
         return;
     }
 
-    if (!deviceName.empty()) {
-        auto tmp = std::find_if(configMap.begin(), configMap.end(), [this](const std::pair<std::string, ov::Any>& it) {
-            return coreConfig.is_core_config(it.first);
-        });
-        OPENVINO_ASSERT(tmp == configMap.end(),
-                        "set_property is not supported to set core global property to specified device."
-                        "You can set_property without device name for core global property : ",
-                        tmp->first.c_str());
-    }
-
     InferenceEngine::DeviceIDParser parser(deviceName);
     std::string clearDeviceName = parser.getDeviceName();
 
@@ -1103,6 +1093,13 @@ void ov::CoreImpl::CoreConfig::update_config(ov::Plugin& plugin, std::map<std::s
         // If the property has been contained in input config, it will not be overwritten.
         auto item = config.find(it.first);
         if (item != config.end()) {
+            // ov::auto_batch_timeout will not be to AUTO plugin, it will be stored.
+            if (item->first == ov::auto_batch_timeout.name()) {
+                if (device_name.find("AUTO") != std::string::npos) {
+                    ov::Any value = item->second;
+                    _core_plugins_properties[item->first] = value.as<std::string>();
+                }
+            }
             // Erase if it cannot be set into this device.
             if (!core_config_supported(plugin, it.first)) {
                 config.erase(item);

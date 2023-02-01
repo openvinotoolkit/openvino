@@ -147,11 +147,11 @@ private:
         mutable std::mutex _core_property_mutex;
         // Core global properties, which will not set to any plugins.
         // It will be updated if core.set_property() without device name is called.
-        ov::AnyMap _core_global_properties = {{ov::force_tbb_terminate.name(), ov::Any(false)}};
+        mutable ov::AnyMap _core_global_properties = {{ov::force_tbb_terminate.name(), ov::Any(false)}};
 
         // Core plugins properties, which will set to specified or all plugins.
         // It will be updated if core.set_property() without device name is called.
-        ov::AnyMap _core_plugins_properties = {{ov::cache_dir.name(), ""},
+        mutable ov::AnyMap _core_plugins_properties = {{ov::cache_dir.name(), ""},
                                                {ov::hint::allow_auto_batching.name(), ov::Any(true)},
                                                {ov::auto_batch_timeout.name(), "1000"}};
     };
