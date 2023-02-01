@@ -672,17 +672,6 @@ void ov::CoreImpl::set_property(const std::string& device_name, const AnyMap& pr
                     "set_property is supported only for BATCH itself (without devices). "
                     "You can configure the devices with set_property before creating the BATCH on top.");
 
-    if (!device_name.empty()) {
-        auto tmp =
-            std::find_if(properties.begin(), properties.end(), [this](const std::pair<std::string, ov::Any>& it) {
-                return coreConfig.is_core_config(it.first);
-            });
-        OPENVINO_ASSERT(tmp == properties.end(),
-                        "set_property is not supported to set core global property to specified device."
-                        "You can set_property without device name for core global property : ",
-                        tmp->first.c_str());
-    }
-
     bool isMetaDevice = device_name.find("AUTO") != std::string::npos ||
                         device_name.find("MULTI") != std::string::npos ||
                         device_name.find("HETERO") != std::string::npos;
@@ -780,6 +769,17 @@ void ov::CoreImpl::set_property_for_devivce(const ov::AnyMap& configMap, const s
     auto config = configMap;
     if (config.empty()) {
         return;
+    }
+
+    if (!deviceName.empty()) {
+        auto tmp =
+            std::find_if(configMap.begin(), configMap.end(), [this](const std::pair<std::string, ov::Any>& it) {
+                return coreConfig.is_core_config(it.first);
+            });
+        OPENVINO_ASSERT(tmp == configMap.end(),
+                        "set_property is not supported to set core global property to specified device."
+                        "You can set_property without device name for core global property : ",
+                        tmp->first.c_str());
     }
 
     InferenceEngine::DeviceIDParser parser(deviceName);
@@ -900,8 +900,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_impl(const std::shared
     ov::SoPtr<ov::ICompiledModel> execNetwork;
     auto _parsedConfig = parsedConfig;
     coreConfig.update_config(plugin, _parsedConfig);
-    execNetwork =
-        context._impl ? plugin.compile_model(model, context, _parsedConfig) : plugin.compile_model(model, _parsedConfig);
+    execNetwork = context._impl ? plugin.compile_model(model, context, _parsedConfig)
+                                : plugin.compile_model(model, _parsedConfig);
     if (!forceDisableCache && cacheContent.cacheManager && device_supports_import_export(plugin)) {
         try {
             // need to export network for further import from "cache"
@@ -1070,37 +1070,20 @@ bool ov::CoreImpl::CoreConfig::is_core_config(const std::string& config_name) co
     return ret;
 }
 
-bool ov::CoreImpl::CoreConfig::plugin_config_can_set(const ov::Plugin& plugin, const std::string& config_name) const {
-    std::string device_name = plugin.get_name();
-    auto supported = false;
-
-    // There will be a global properties whitelist for each plugin, such as:
-    //   ov::auto_batch_timeout         - only for BATCH plugins
-    //   ov::hint::allow_auto_batching  - only for AUTO/MULTTI plugins
-    //   ov::cache_dir                  - will not set to any plugins anymore, but it supports CPU/GPU/GNA/AUTO plugins
-    if (config_name == ov::auto_batch_timeout.name()) {
-        supported = device_name.find("BATCH") != std::string::npos;
-    } else if (config_name == ov::hint::allow_auto_batching.name()) {
-        supported = device_name.find("AUTO") != std::string::npos || device_name.find("MULTI") != std::string::npos;
-    }
-    return supported;
-}
-
 bool ov::CoreImpl::CoreConfig::plugin_config_is_supported(const ov::Plugin& plugin,
                                                           const std::string& config_name) const {
     std::string device_name = plugin.get_name();
     auto supported = false;
 
-    if (config_name == ov::cache_dir.name()) {
-        supported = device_name.find("CPU") != std::string::npos || device_name.find("BATCH") != std::string::npos ||
-                    device_name.find("AUTO") != std::string::npos || device_name.find("GNA") != std::string::npos;
-        // GPU plugin need an env varible to enable ov::cache_dir supported
-        if (!supported) {
-            supported = util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir);
-        }
-    } else {
-        supported = plugin_config_can_set(plugin, config_name);
+    // There will be a global properties whitelist for each plugin, such as:
+    //   ov::auto_batch_timeout         - can pass to BATCH plugins
+    //   ov::hint::allow_auto_batching  - can pass to AUTO/MULTTI plugins
+    //   ov::cache_dir                  - can pass to CPU/GPU/GNA/AUTO/MULTI/BATCH plugins
+    if (config_name == ov::auto_batch_timeout.name() || config_name == ov::hint::allow_auto_batching.name() ||
+        config_name == ov::cache_dir.name()) {
+        supported = util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir);
     }
+
     return supported;
 }
 
@@ -1129,7 +1112,7 @@ void ov::CoreImpl::CoreConfig::cleanup_config(ov::Plugin& plugin, ov::AnyMap& co
     std::lock_guard<std::mutex> lock(_core_property_mutex);
     for (auto& it : _core_plugins_properties) {
         auto item = config.find(it.first);
-        if (item != config.end() && it.first != ov::cache_dir.name()) {
+        if (item != config.end()) {
             config.erase(item);
         }
     }
@@ -1145,14 +1128,14 @@ void ov::CoreImpl::CoreConfig::update_config(ov::Plugin& plugin, std::map<std::s
         auto item = config.find(it.first);
         if (item != config.end()) {
             // Erase if it cannot be set into this device.
-            if (!plugin_config_can_set(plugin, it.first)) {
+            if (!plugin_config_is_supported(plugin, it.first)) {
                 config.erase(item);
             }
             continue;
         }
 
         // Add whitelist global properties into config if it doesn't have.
-        if (plugin_config_can_set(plugin, it.first)) {
+        if (plugin_config_is_supported(plugin, it.first)) {
             config[it.first] = it.second.as<std::string>();
         }
     }

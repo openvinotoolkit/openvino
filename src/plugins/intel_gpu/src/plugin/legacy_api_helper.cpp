@@ -231,6 +231,7 @@ std::vector<std::string> LegacyAPIHelper::get_supported_configs() {
         CONFIG_KEY(CONFIG_FILE),
         CONFIG_KEY(DEVICE_ID),
         CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),
+        CONFIG_KEY(CACHE_DIR),
         CONFIG_KEY(GPU_THROUGHPUT_STREAMS),
         GPU_CONFIG_KEY(PLUGIN_PRIORITY),
         GPU_CONFIG_KEY(PLUGIN_THROTTLE),

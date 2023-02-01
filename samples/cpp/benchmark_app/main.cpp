@@ -326,8 +326,6 @@ int main(int argc, char* argv[]) {
             slog::info << "GPU extensions are loaded: " << ext << slog::endl;
         }
 
-        core.set_property(ov::auto_batch_timeout(2000));
-
         slog::info << "OpenVINO:" << slog::endl;
         slog::info << ov::get_openvino_version() << slog::endl;
         slog::info << "Device info:" << slog::endl;

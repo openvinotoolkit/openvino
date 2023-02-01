@@ -32,9 +32,6 @@ std::vector<std::string> supported_configKeys = {CONFIG_KEY(AUTO_BATCH_DEVICE_CO
                                                  CONFIG_KEY(AUTO_BATCH_TIMEOUT),
                                                  CONFIG_KEY(CACHE_DIR)};
 
-// plugin SetConfig and GetConfig
-std::vector<std::string> supported_plugin_configKeys = {CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)};
-
 template <Precision::ePrecision precision>
 Blob::Ptr create_shared_blob_on_top_of_batched_blob(Blob::Ptr batched_blob,
                                                     std::string name,
@@ -748,8 +745,7 @@ RemoteContext::Ptr AutoBatchInferencePlugin::CreateContext(const InferenceEngine
 
 Parameter AutoBatchInferencePlugin::GetConfig(const std::string& name,
                                               const std::map<std::string, Parameter>& options) const {
-    if (supported_plugin_configKeys.end() !=
-        std::find(supported_plugin_configKeys.begin(), supported_plugin_configKeys.end(), name)) {
+    if (supported_configKeys.end() != std::find(supported_configKeys.begin(), supported_configKeys.end(), name)) {
         auto it = _config.find(name);
         if (it == _config.end()) {
             IE_THROW() << "Value for " << name << " is not set";
@@ -757,7 +753,7 @@ Parameter AutoBatchInferencePlugin::GetConfig(const std::string& name,
             return {it->second};
         }
     } else {
-        IE_THROW() << "Unsupported plugin config key: " << name;
+        IE_THROW() << "Unsupported config key: " << name;
     }
 }
 
@@ -765,8 +761,7 @@ void AutoBatchInferencePlugin::CheckConfig(const std::map<std::string, std::stri
     for (auto&& kvp : config) {
         const auto name = kvp.first;
         const auto val = kvp.second;
-        if (supported_plugin_configKeys.end() ==
-            std::find(supported_plugin_configKeys.begin(), supported_plugin_configKeys.end(), name))
+        if (supported_configKeys.end() == std::find(supported_configKeys.begin(), supported_configKeys.end(), name))
             IE_THROW() << "Unsupported plugin config key: " << name;
         if (name == CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)) {
             ParseBatchDevice(val);

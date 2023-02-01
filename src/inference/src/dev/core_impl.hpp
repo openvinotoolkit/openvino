@@ -106,16 +106,7 @@ private:
 
         // Check whether this global config is supported by plugin, and the coresponding propertie will be removed
         // from plugin. It is a whitelist to check.
-        // There will be a global properties whitelist for each plugin, such as:
-        //   ov::auto_batch_timeout         - only for BATCH plugins
-        //   ov::hint::allow_auto_batching  - only for AUTO/MULTTI plugins
-        //   ov::cache_dir                  - will not set to any plugins anymore, but it supports CPU/GPU/GNA/AUTO
-        //   plugins
-        bool plugin_config_is_supported(const ov::Plugin& plugin,
-                                        const std::string& config_name) const;
-
-        // Check whether this global config can be set to plugin
-        bool plugin_config_can_set(const ov::Plugin& plugin, const std::string& config_name) const;
+        bool plugin_config_is_supported(const ov::Plugin& plugin, const std::string& config_name) const;
 
         // Intercept global config that will be set to plugin by calling plugin.set_property().
         // Put it into global config map if this plugin supported

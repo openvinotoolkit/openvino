@@ -550,7 +550,7 @@ TEST_P(CachingTest, TestLoad_by_device_name) {
             EXPECT_CALL(net, Export(_)).Times(1);
         });
         testLoad([&](Core& ie) {
-            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}}, "mock");
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
             m_testFunction(ie);
         });
         EXPECT_EQ(networks.size(), 1);
@@ -565,7 +565,7 @@ TEST_P(CachingTest, TestLoad_by_device_name) {
             EXPECT_CALL(*net, Export(_)).Times(0);  // No more 'Export' for existing networks
         }
         testLoad([&](Core& ie) {
-            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}}, "mock");
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
             m_testFunction(ie);
         });
         EXPECT_EQ(networks.size(), 1);
@@ -832,7 +832,7 @@ TEST_P(CachingTest, TestNoCacheMetricSupported_by_device_name) {
             EXPECT_CALL(net, Export(_)).Times(0);
         });
         testLoad([&](Core& ie) {
-            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}}, "mock");
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
             m_testFunction(ie);
         });
     }
@@ -851,7 +851,8 @@ TEST_P(CachingTest, TestNoCacheMetric_hasCacheDirConfig) {
     EXPECT_CALL(*mockPlugin, SetConfig(_))
         .Times(AtLeast(1))
         .WillRepeatedly(Invoke([](const std::map<std::string, std::string>& config) {
-            ASSERT_GT(config.count(CONFIG_KEY(CACHE_DIR)), 0);
+            // plugin.set_property() should not set CACHE_DIR any more
+            ASSERT_EQ(config.count(CONFIG_KEY(CACHE_DIR)), 0);
         }));
 
     {
@@ -893,8 +894,8 @@ TEST_P(CachingTest, TestNoCacheMetric_hasCacheDirConfig_inline) {
 /// \brief ie.SetConfig(<cachedir>, "deviceName") is propagated to plugin's SetConfig if device supports CACHE_DIR
 TEST_P(CachingTest, TestNoCacheMetric_hasCacheDirConfig_by_device_name) {
     m_checkConfigCb = [](const std::map<std::string, std::string>& config) {
-        // Shall be '0' as appropriate 'cache_dir' is expected in SetConfig, not in Load/Import network
-        EXPECT_EQ(config.count(CONFIG_KEY(CACHE_DIR)), 0);
+        // ie.SetConfig(<cachedir>) will propageted to Load/Import network
+        EXPECT_GT(config.count(CONFIG_KEY(CACHE_DIR)), 0);
     };
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _))
         .Times(AnyNumber())
@@ -908,7 +909,8 @@ TEST_P(CachingTest, TestNoCacheMetric_hasCacheDirConfig_by_device_name) {
     EXPECT_CALL(*mockPlugin, SetConfig(_))
         .Times(AtLeast(1))
         .WillRepeatedly(Invoke([](const std::map<std::string, std::string>& config) {
-            ASSERT_GT(config.count(CONFIG_KEY(CACHE_DIR)), 0);
+            // plugin.SetConfig should not pass cache_dir any more
+            ASSERT_EQ(config.count(CONFIG_KEY(CACHE_DIR)), 0);
         }));
 
     {
@@ -916,7 +918,7 @@ TEST_P(CachingTest, TestNoCacheMetric_hasCacheDirConfig_by_device_name) {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(m_type == TestLoadType::EModelName ? 1 : 0);
         ASSERT_NO_THROW(testLoad([&](Core& ie) {
-            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}}, "mock");
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
             m_testFunction(ie);
         }));
     }
@@ -959,13 +961,14 @@ TEST_P(CachingTest, TestNoCacheMetric_configThrow) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _))
         .Times(AtLeast(1))
         .WillRepeatedly(Return(std::vector<std::string>{CONFIG_KEY(CACHE_DIR)}));
+    // Don't need call it to query whether support ov::cache_dir due to plugin.set_property() will not use ov::cache_dir
     EXPECT_CALL(*mockPlugin, GetMetric(ov::supported_properties.name(), _))
-        .Times(AtLeast(1))
         .WillRepeatedly(Return(std::vector<ov::PropertyName>{ov::supported_properties.name(), ov::cache_dir.name()}));
     EXPECT_CALL(*mockPlugin, SetConfig(_))
         .Times(AtLeast(1))
         .WillRepeatedly(Invoke([](const std::map<std::string, std::string>& config) {
-            ASSERT_GT(config.count(CONFIG_KEY(CACHE_DIR)), 0);
+            // CACHE_DIR cannot be passed to plugin.SetConfig any more
+            ASSERT_EQ(config.count(CONFIG_KEY(CACHE_DIR)), 0);
             throw InferenceEngine::GeneralError("Error occurred");
         }));
 
@@ -1096,7 +1099,7 @@ TEST_P(CachingTest, TestLoadChangeCacheDirOneCore_overwrite_device_dir) {
             m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
                 EXPECT_CALL(net, Export(_)).Times(1);
             });
-            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}}, "mock");
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
             m_testFunction(ie);
             std::string newCacheDir = m_cacheDir + "2";
             m_post_mock_net_callbacks.pop_back();
@@ -1111,10 +1114,10 @@ TEST_P(CachingTest, TestLoadChangeCacheDirOneCore_overwrite_device_dir) {
 }
 
 /// \brief Change CACHE_DIR during working with same 'Core' object for device which supports 'CACHE_DIR' config, not
-/// import_export Expectation is that SetConfig for plugin will be called 2 times - with appropriate cache_dir values
+/// import_export Expectation is that SetConfig for plugin will be called 2 times - without appropriate cache_dir values
 TEST_P(CachingTest, TestLoadChangeCacheDirOneCore_SupportsCacheDir_NoImportExport) {
     m_checkConfigCb = [](const std::map<std::string, std::string>& config) {
-        EXPECT_EQ(config.count(CONFIG_KEY(CACHE_DIR)), 0);
+        EXPECT_GT(config.count(CONFIG_KEY(CACHE_DIR)), 0);
     };
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _))
         .Times(AtLeast(1))
@@ -1134,8 +1137,7 @@ TEST_P(CachingTest, TestLoadChangeCacheDirOneCore_SupportsCacheDir_NoImportExpor
     EXPECT_CALL(*mockPlugin, SetConfig(_))
         .Times(AtLeast(2))
         .WillRepeatedly(Invoke([&](const std::map<std::string, std::string>& config) {
-            ASSERT_NE(config.count(CONFIG_KEY(CACHE_DIR)), 0);
-            set_cache_dir = config.at(CONFIG_KEY(CACHE_DIR));
+            ASSERT_EQ(config.count(CONFIG_KEY(CACHE_DIR)), 0);
         }));
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 2 : 0);
@@ -1149,12 +1151,14 @@ TEST_P(CachingTest, TestLoadChangeCacheDirOneCore_SupportsCacheDir_NoImportExpor
         testLoad([&](Core& ie) {
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
             m_testFunction(ie);
+            set_cache_dir = ie.GetConfig({}, CONFIG_KEY(CACHE_DIR)).as<std::string>();
             EXPECT_EQ(set_cache_dir, m_cacheDir);
 
             std::string new_cache_dir = m_cacheDir + "2";
             MkDirGuard dir(new_cache_dir);
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), new_cache_dir}});
             m_testFunction(ie);
+            set_cache_dir = ie.GetConfig({}, CONFIG_KEY(CACHE_DIR)).as<std::string>();
             EXPECT_EQ(set_cache_dir, new_cache_dir);
         });
     }
@@ -1181,7 +1185,7 @@ TEST_P(CachingTest, TestLoadChangeCacheDirOneCore_by_device_name) {
             m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
                 EXPECT_CALL(net, Export(_)).Times(1);
             });
-            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}}, "mock");
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
             m_testFunction(ie);
             m_post_mock_net_callbacks.pop_back();
             m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
@@ -1189,7 +1193,7 @@ TEST_P(CachingTest, TestLoadChangeCacheDirOneCore_by_device_name) {
             });
             std::string newCacheDir = m_cacheDir + "2";
             MkDirGuard dir(newCacheDir);
-            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), newCacheDir}}, "mock");
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), newCacheDir}});
             m_testFunction(ie);
         });
     }
@@ -1215,7 +1219,7 @@ TEST_P(CachingTest, TestLoadChangeCacheDirOneCore_by_device_name_supports_cache_
     EXPECT_CALL(*mockPlugin, SetConfig(_))
         .Times(AtLeast(2))
         .WillRepeatedly(Invoke([](const std::map<std::string, std::string>& config) {
-            ASSERT_GT(config.count(CONFIG_KEY(CACHE_DIR)), 0);
+            ASSERT_EQ(config.count(CONFIG_KEY(CACHE_DIR)), 0);
         }));
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 2 : 0);
@@ -1227,7 +1231,7 @@ TEST_P(CachingTest, TestLoadChangeCacheDirOneCore_by_device_name_supports_cache_
             m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
                 EXPECT_CALL(net, Export(_)).Times(0);
             });
-            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}}, "mock");
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
             m_testFunction(ie);
             m_post_mock_net_callbacks.pop_back();
             m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
@@ -1235,7 +1239,7 @@ TEST_P(CachingTest, TestLoadChangeCacheDirOneCore_by_device_name_supports_cache_
             });
             std::string newCacheDir = m_cacheDir + "2";
             MkDirGuard dir(newCacheDir);
-            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), newCacheDir}}, "mock");
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), newCacheDir}});
             m_testFunction(ie);
         });
     }
