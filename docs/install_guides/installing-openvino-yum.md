@@ -66,25 +66,27 @@ Installing OpenVINO Runtime from YUM is recommended for C++ developers. If you a
 
 3.	Verify that the new repository is set up properly.
 
-   First, list all valid repositories:
-   
-   .. code-block:: sh
-
-      sudo yum repolist
-
-   And enter `y` to the question about adding the GPG key, as shown below:
-   
-   .. code-block:: sh
-
-      Is this ok [y/N]: y
-
-   Then, query `openvino` in the repository list:
-
    .. code-block:: sh
 
       yum repolist | grep -i openvino
 
    You will see the available list of packages.
+
+   .. note::
+
+      If you encounter an error while running `yum repolist | grep -i openvino` on CentOS, do the following steps first:
+   
+      .. code-block:: sh
+
+         sudo yum repolist
+
+      And enter `y` to the question about adding the GPG key:
+   
+      .. code-block:: sh
+
+         Is this ok [y/N]: y
+
+      Then retry running the query.
 
 
 To list available OpenVINO packages, use the following command:
