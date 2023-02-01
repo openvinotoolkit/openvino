@@ -42,25 +42,33 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     bool _enable_profiling = false;
 
     typed_primitive_onednn_impl(const engine& engine,
-                                const ExecutionConfig& config,
-                                std::shared_ptr<dnnl::primitive_attr> attrs,
-                                const PrimDescType& pd,
-                                kernel_selector::WeightsReorderParams weights_reorder = {})
+            const ExecutionConfig& config,
+            std::shared_ptr<dnnl::primitive_attr> attrs,
+            const PrimDescType& pd,
+            kernel_selector::WeightsReorderParams weights_reorder = {})
         : typed_primitive_impl<PType>(weights_reorder, pd.impl_info_str()),
-          _engine(&engine),
-          _attrs(attrs),
-          _pd(pd),
-          _enable_profiling(config.get_property(ov::enable_profiling)) {
+        _engine(&engine),
+        _attrs(attrs),
+        _pd(pd) {
+            _enable_profiling = config.get_property(ov::enable_profiling);
+            GPU_DEBUG_GET_INSTANCE(debug_config);
+            GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
+                _enable_profiling = true;
+            }
             build_primitive(config);
         }
 
     typed_primitive_onednn_impl(const engine& engine, const ExecutionConfig& config = {})
         : typed_primitive_impl<PType>({}, "undef"),
-          _engine(&engine),
-          _pd(),
-          _prim(),
-          _enable_profiling(config.get_property(ov::enable_profiling)) {
-    }
+        _engine(&engine),
+        _pd(),
+        _prim() {
+            _enable_profiling = config.get_property(ov::enable_profiling);
+            GPU_DEBUG_GET_INSTANCE(debug_config);
+            GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
+                _enable_profiling = true;
+            }
+        }
 
     typed_primitive_onednn_impl()
         : typed_primitive_impl<PType>({}, "undef"),

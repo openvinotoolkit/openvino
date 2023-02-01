@@ -1564,6 +1564,9 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         if (!_optimization_attributes.use_onednn_impls)
             return impl_types::ocl;
 
+        if (node.get_output_layout().data_type == data_types::i32)
+            return impl_types::ocl;
+
         for (auto& dep : node.get_dependencies()) {
             if (dep.first->is_in_data_flow() && dep.first->get_preferred_impl_type() == impl_types::onednn) {
                 return impl_types::onednn;
