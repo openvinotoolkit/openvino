@@ -486,7 +486,7 @@ void align_eltwise_input_types(const NodeContext& context,
         rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(rhs, lhs));
         return;
     }
-    
+
     // Both types are static, align types. If float and int types are used convert int type to f32, after that align
     // to the largest bitness, if both float or both int, just align bitness
     if (lhs_type == rhs_type)
