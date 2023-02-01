@@ -31,9 +31,6 @@ class TestLogicalOps(CommonTFLayerTest):
             Const-------/                   Const-------/
 
         """
-        if not use_new_frontend and op_type == "Any":
-            pytest.xfail(reason="95499")
-
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
