@@ -234,6 +234,11 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
     typedef ACC_VEC_TYPE acc_vec_t;
 
     const int in_size[5] = { INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_Z, INPUT0_SIZE_Y, INPUT0_SIZE_X };
+    if (feature_num >= OUTPUT_FEATURE_NUM) {
+        return;
+    }
+
+    const int FEATURE_LIMIT = (int)(OUTPUT_FEATURE_NUM / FEATURE_SLICE_SIZE) * FEATURE_SLICE_SIZE;
 
 #ifdef SAMPLE_TYPE_NEAREST
     unroll_for (uint out_x = 0; out_x < OUTPUT_X_BLOCK_SIZE; out_x++) {
@@ -288,7 +293,10 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
 #if OUTPUT_DIMS == 5
         WRITE_FUNC(output, OUTPUT_GET_INDEX(b, feature_block, z, y, (x + out_x)), out);
 #else
-        WRITE_FUNC(output, OUTPUT_GET_INDEX(b, feature_block, y, (x + out_x)), out);
+        if (FEATURE_LIMIT > feature_num)
+            WRITE_FUNC(output, OUTPUT_GET_INDEX(b, feature_block, y, (x + out_x)), out);
+        else
+            output[OUTPUT_GET_INDEX(b, feature_num, y, (x + out_x))] = out[0];
 #endif
     }
 }
