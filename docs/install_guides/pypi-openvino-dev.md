@@ -75,7 +75,7 @@ Use the following command:
 ```sh
 pip install openvino-dev[extras]
 ```
- where `extras` is the source deep learning framework for the input model and has the following values: 
+ where `extras` is the source deep learning framework for the input model and is one or more of the following values separated with "," : 
 
 | Extras Value                    | DL Framework                                                                     |
 | :-------------------------------| :------------------------------------------------------------------------------- |
