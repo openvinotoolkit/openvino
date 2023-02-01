@@ -5,6 +5,7 @@
 #pragma once
 
 #include <legacy/ie_layers.h>
+
 #include <cstdint>
 #include <vector>
 
@@ -15,16 +16,16 @@ class GNACropLayer {
     InferenceEngine::CNNLayerPtr cropLayer;
 
 public:
-    explicit GNACropLayer(InferenceEngine::CNNLayerPtr layer) :
-        cropLayer(layer)
-    {}
+    explicit GNACropLayer(InferenceEngine::CNNLayerPtr layer) : cropLayer(layer) {}
 
-    InferenceEngine::CNNLayerPtr getCrop() { return cropLayer; }
+    InferenceEngine::CNNLayerPtr getCrop() {
+        return cropLayer;
+    }
 
     /**
      * pointer to gna croped memory beginning
      */
-    void *gna_ptr = nullptr;
+    void* gna_ptr = nullptr;
 };
 
 struct SimpleCrop {
@@ -37,9 +38,9 @@ struct SimpleCrop {
  * @param cropLayer pointer to a Crop layer
  */
 SimpleCrop get_crop_params(const std::vector<int32_t>& axis_in,
-                                  const std::vector<int32_t>& offset_in,
-                                  const std::vector<int32_t>& dim_in,
-                                  const std::vector<size_t>& input_dims);
+                           const std::vector<int32_t>& offset_in,
+                           const std::vector<int32_t>& dim_in,
+                           const std::vector<size_t>& input_dims);
 
 SimpleCrop GetCropParams(InferenceEngine::CropLayer* cropLayer);
 

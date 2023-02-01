@@ -3,6 +3,7 @@
 //
 
 #include "ie_ir_parser.hpp"
+
 #include "ie_cnn_net_reader_impl.h"
 #include "legacy/ie_reader.hpp"
 
@@ -30,14 +31,16 @@ class WeightsHolderBlob : public TBlob<uint8_t> {
 
 public:
     explicit WeightsHolderBlob(const Blob::CPtr& weights)
-        : TBlob<uint8_t>(weights->getTensorDesc(), weights->cbuffer().as<uint8_t*>()), originBlob(weights) {}
+        : TBlob<uint8_t>(weights->getTensorDesc(), weights->cbuffer().as<uint8_t*>()),
+          originBlob(weights) {}
 };
 
 CNNNetwork CNNParser::parse(const pugi::xml_node& root, const Blob::CPtr& weights) {
     details::CNNNetReaderImpl reader(std::make_shared<details::V2FormatParserCreator>());
     ResponseDesc resp;
     StatusCode ret = reader.ReadNetwork(root, &resp);
-    if (ret != OK) IE_THROW() << resp.msg;
+    if (ret != OK)
+        IE_THROW() << resp.msg;
 
     TBlob<uint8_t>::Ptr weightsPtr;
 
@@ -48,6 +51,7 @@ CNNNetwork CNNParser::parse(const pugi::xml_node& root, const Blob::CPtr& weight
         weightsPtr->allocate();
     }
     ret = reader.SetWeights(weightsPtr, &resp);
-    if (ret != OK) IE_THROW() << resp.msg;
+    if (ret != OK)
+        IE_THROW() << resp.msg;
     return reader.getNetwork();
 }

@@ -81,6 +81,7 @@ OP_CONVERTER(translate_reciprocal);
 OP_CONVERTER(translate_relu6);
 OP_CONVERTER(translate_remainder);
 OP_CONVERTER(translate_repeat);
+OP_CONVERTER(translate_repeat_interleave);
 OP_CONVERTER(translate_reshape);
 OP_CONVERTER(translate_reshape_as);
 OP_CONVERTER(translate_rsub);
@@ -107,7 +108,6 @@ OP_CONVERTER(translate_upsample_bilinear2d);
 OP_CONVERTER(translate_upsample_nearest2d);
 OP_CONVERTER(translate_var);
 OP_CONVERTER(translate_var_mean);
-OP_CONVERTER(translate_view);
 OP_CONVERTER(translate_where);
 OP_CONVERTER(translate_zeros);
 OP_CONVERTER(translate_zeros_like);
@@ -249,6 +249,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::relu6", op::translate_relu6},
         {"aten::remainder", op::translate_remainder},
         {"aten::repeat", op::translate_repeat},
+        {"aten::repeat_interleave", op::translate_repeat_interleave},
         {"aten::reshape", op::translate_reshape},
         {"aten::reshape_as", op::translate_reshape_as},
         {"aten::rsub", op::translate_rsub},
@@ -294,7 +295,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::upsample_nearest2d", op::translate_upsample_nearest2d},
         {"aten::var", op::translate_var},
         {"aten::var_mean", op::translate_var_mean},
-        {"aten::view", op::translate_view},
+        {"aten::view", op::translate_reshape},
         {"aten::where", op::translate_where},
         {"aten::zeros", op::translate_zeros},
         {"aten::zeros_like", op::translate_zeros_like},
