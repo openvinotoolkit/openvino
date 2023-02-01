@@ -9,6 +9,7 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/util/log.hpp"
 #include "pt_framework_node.hpp"
+#include "transformations/common_optimizations/push_constant_to_subgraph.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
 #include "transforms.hpp"
 #include "transforms/append_list_unpack_replacer.hpp"
@@ -81,8 +82,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     ov::pass::Manager manager;
 
     manager.register_pass<ov::pass::ConstantFolding>();
-    manager.register_pass<ov::pass::UnrollIf>();
-    // Have to run UnrollIf second time, because conditions are defined outside of nested If (ticket 98155)
+    manager.register_pass<ov::pass::PushConstantToSubgraph>();
     manager.register_pass<ov::pass::UnrollIf>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenCatToConcat>();
     manager.register_pass<ov::frontend::pytorch::pass::AppendListUnpackReplacer>();
@@ -92,7 +92,6 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::ListConstructReshapeReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::PrimListConstructPadReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::DecomposeTupleResults>();
-    manager.register_pass<ov::pass::ConstantFolding>();
 
     manager.run_passes(model);
 
