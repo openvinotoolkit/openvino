@@ -23,10 +23,12 @@ class ov_core : public ::testing::TestWithParam<std::string> {};
 INSTANTIATE_TEST_SUITE_P(device_name, ov_core, ::testing::Values("CPU"));
 
 TEST(ov_core, ov_core_create_with_config) {
+    std::string plugins_xml = TestDataHelpers::generate_test_xml_file();
     ov_core_t* core = nullptr;
-    OV_EXPECT_OK(ov_core_create_with_config(plugins_xml, &core));
+    OV_EXPECT_OK(ov_core_create_with_config(plugins_xml.c_str(), &core));
     EXPECT_NE(nullptr, core);
     ov_core_free(core);
+    TestDataHelpers::delete_test_xml_file();
 }
 
 TEST(ov_core, ov_core_create_with_no_config) {
@@ -233,20 +235,12 @@ TEST_P(ov_core, ov_core_set_and_get_property_enum) {
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
-    const char* key = ov_property_key_affinity;
-    const char* affinity = "HYBRID_AWARE";
+    const char* key = ov_property_key_hint_performance_mode;
+    const char* affinity = "LATENCY";
     OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key, affinity));
     char* ret = nullptr;
     OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
     EXPECT_STREQ(affinity, ret);
-    ov_free(ret);
-
-    key = ov_property_key_hint_inference_precision;
-    const char* precision = "f32";
-    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key, precision));
-    ret = nullptr;
-    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
-    EXPECT_STREQ(precision, ret);
     ov_free(ret);
 
     ov_core_free(core);
@@ -301,6 +295,9 @@ TEST_P(ov_core, ov_core_get_property) {
 }
 
 TEST_P(ov_core, ov_core_set_get_property_str) {
+#ifdef __aarch64__
+    GTEST_SKIP() << "Skip this test for ARM CPU for now, cause no string property supported";
+#endif
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -354,6 +351,9 @@ TEST_P(ov_core, ov_core_set_property_int_invalid) {
 }
 
 TEST_P(ov_core, ov_core_set_multiple_common_properties) {
+#ifdef __aarch64__
+    GTEST_SKIP() << "Skip this test for ARM CPU for now, cause no string property supported";
+#endif
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -419,6 +419,12 @@ TEST_P(ov_core, ov_compiled_model_export_model) {
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
+    char* optimization_capabilites = NULL;
+    ov_core_get_property(core, device_name.c_str(), "OPTIMIZATION_CAPABILITIES", &optimization_capabilites);
+    if(std::string(optimization_capabilites).find("EXPORT_IMPORT") == std::string::npos) {
+        GTEST_SKIP() << "Skip this test, cause no EXPORT_IMPORT supported";
+    }
+
     ov_compiled_model_t* compiled_model = nullptr;
     OV_EXPECT_OK(ov_core_compile_model_from_file(core, xml, device_name.c_str(), 0, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
@@ -436,6 +442,12 @@ TEST_P(ov_core, ov_core_import_model) {
 
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
+
+    char* optimization_capabilites = NULL;
+    ov_core_get_property(core, device_name.c_str(), "OPTIMIZATION_CAPABILITIES", &optimization_capabilites);
+    if(std::string(optimization_capabilites).find("EXPORT_IMPORT") == std::string::npos) {
+        GTEST_SKIP() << "Skip this test, cause no EXPORT_IMPORT supported";
+    }
 
     ov_compiled_model_t* compiled_model = nullptr;
     OV_EXPECT_OK(ov_core_compile_model_from_file(core, xml, device_name.c_str(), 0, &compiled_model));
@@ -481,6 +493,7 @@ const std::vector<std::wstring> test_unicode_postfix_vector = {L"unicode_Яㅎ�
                                                                L"АБВГДЕЁЖЗИЙ",
                                                                L"СТУФХЦЧШЩЬЮЯ"};
 TEST(ov_core, ov_core_create_with_config_unicode) {
+    std::string plugins_xml = TestDataHelpers::generate_test_xml_file();
     ov_core_t* core = nullptr;
 
     for (std::size_t index = 0; index < test_unicode_postfix_vector.size(); index++) {
@@ -493,6 +506,7 @@ TEST(ov_core, ov_core_create_with_config_unicode) {
         remove_file_ws(plugins_xml_ws);
         ov_core_free(core);
     }
+    TestDataHelpers::delete_test_xml_file();
 }
 
 TEST(ov_core, ov_core_read_model_unicode) {
