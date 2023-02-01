@@ -8,6 +8,7 @@
 #include <openvino/opsets/opset1.hpp>
 #include <type_traits>
 
+#include "bound_evaluation_util.hpp"
 #include "shape_infer_type_utils.hpp"
 
 template <class OpType, class T>
