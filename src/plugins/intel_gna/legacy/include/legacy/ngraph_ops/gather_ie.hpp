@@ -4,10 +4,10 @@
 
 #pragma once
 
+#include <ie_api.h>
+
 #include <memory>
 #include <vector>
-
-#include <ie_api.h>
 
 #include "ngraph/op/op.hpp"
 
@@ -23,8 +23,12 @@ public:
 
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
-    int64_t get_axis() const { return m_axis; }
-    void set_axis(int64_t axis) { m_axis = axis; }
+    int64_t get_axis() const {
+        return m_axis;
+    }
+    void set_axis(int64_t axis) {
+        m_axis = axis;
+    }
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
 protected:

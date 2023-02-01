@@ -5,23 +5,21 @@
 #include "legacy/transformations/convert_opset1_to_legacy/reshape_fully_connected.hpp"
 
 #include <memory>
-#include <vector>
-
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+#include <vector>
 
 #include "legacy/ngraph_ops/fully_connected.hpp"
 #include "transformations/utils/utils.hpp"
 
 ngraph::pass::ReshapeFullyConnected::ReshapeFullyConnected() {
-    auto fc = pattern::wrap_type<op::FullyConnected>({pattern::any_input(pattern::has_static_shape()),
-                                                      pattern::any_input(),
-                                                      pattern::any_input()},
-                                                      pattern::has_static_shape());
+    auto fc = pattern::wrap_type<op::FullyConnected>(
+        {pattern::any_input(pattern::has_static_shape()), pattern::any_input(), pattern::any_input()},
+        pattern::has_static_shape());
 
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto fc = std::dynamic_pointer_cast<ngraph::op::FullyConnected> (m.get_match_root());
+        auto fc = std::dynamic_pointer_cast<ngraph::op::FullyConnected>(m.get_match_root());
         if (!fc || transformation_callback(fc)) {
             return false;
         }
@@ -36,8 +34,10 @@ ngraph::pass::ReshapeFullyConnected::ReshapeFullyConnected() {
         NodeVector new_ops;
 
         std::vector<int64_t> reshape_shape{-1, static_cast<int64_t>(input_shape.back())};
-        auto reshape = std::make_shared<opset1::Reshape>(fc->input_value(0),
-                                                         opset1::Constant::create(element::i64, Shape{2}, reshape_shape), true);
+        auto reshape =
+            std::make_shared<opset1::Reshape>(fc->input_value(0),
+                                              opset1::Constant::create(element::i64, Shape{2}, reshape_shape),
+                                              true);
         new_ops.push_back(reshape);
 
         reshape->set_friendly_name(fc->get_friendly_name() + "/Reshape");

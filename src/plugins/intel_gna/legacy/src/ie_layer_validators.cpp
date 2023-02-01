@@ -2,6 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ie_layer_validators.hpp"
+
+#include <ie_iextension.h>
+#include <legacy/ie_layers.h>
+
 #include <cmath>
 #include <limits>
 #include <map>
@@ -10,11 +15,7 @@
 #include <utility>
 #include <vector>
 
-#include <ie_iextension.h>
 #include "debug.h"
-
-#include <legacy/ie_layers.h>
-#include "ie_layer_validators.hpp"
 
 namespace InferenceEngine {
 
@@ -37,8 +38,7 @@ void CNNLayer::parseParams() {
         LayerValidator::Ptr validator = LayerValidators::getInstance()->getValidator(type);
         validator->parseParams(this);
     } catch (const Exception& ie_e) {
-        IE_THROW() << "Error of validate layer: " << this->name << " with type: " << this->type << ". "
-                           << ie_e.what();
+        IE_THROW() << "Error of validate layer: " << this->name << " with type: " << this->type << ". " << ie_e.what();
     }
 }
 
@@ -54,7 +54,7 @@ LayerValidator::Ptr LayerValidators::getValidator(const std::string& type) {
     return _validators[type];
 }
 
-GeneralValidator::GeneralValidator(const std::string& _type): LayerValidator(_type) {}
+GeneralValidator::GeneralValidator(const std::string& _type) : LayerValidator(_type) {}
 
 //
 
@@ -66,7 +66,7 @@ void FullyConnectedValidator::parseParams(CNNLayer* layer) {
     casted->_out_num = casted->GetParamAsUInt("out-size");
 }
 
-FullyConnectedValidator::FullyConnectedValidator(const std::string& _type): LayerValidator(_type) {}
+FullyConnectedValidator::FullyConnectedValidator(const std::string& _type) : LayerValidator(_type) {}
 
 //
 
@@ -97,11 +97,11 @@ void CropValidator::parseParams(CNNLayer* layer) {
     }
 }
 
-CropValidator::CropValidator(const std::string& _type): LayerValidator(_type) {}
+CropValidator::CropValidator(const std::string& _type) : LayerValidator(_type) {}
 
 //
 
-ConvolutionValidator::ConvolutionValidator(const std::string& _type): LayerValidator(_type) {}
+ConvolutionValidator::ConvolutionValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void ConvolutionValidator::parseParams(CNNLayer* layer) {
     auto convLayer = dynamic_cast<ConvolutionLayer*>(layer);
@@ -187,11 +187,12 @@ void DeconvolutionValidator::parseParams(CNNLayer* layer) {
     ConvolutionValidator::parseParams(layer);
 }
 
-DeconvolutionValidator::DeconvolutionValidator(const std::string& _type): ConvolutionValidator(_type) {}
+DeconvolutionValidator::DeconvolutionValidator(const std::string& _type) : ConvolutionValidator(_type) {}
 
 //
 
-DeformableConvolutionValidator::DeformableConvolutionValidator(const std::string& _type): ConvolutionValidator(_type) {}
+DeformableConvolutionValidator::DeformableConvolutionValidator(const std::string& _type)
+    : ConvolutionValidator(_type) {}
 
 void DeformableConvolutionValidator::parseParams(CNNLayer* layer) {
     auto deformable_conv_layer = dynamic_cast<DeformableConvolutionLayer*>(layer);
@@ -204,7 +205,7 @@ void DeformableConvolutionValidator::parseParams(CNNLayer* layer) {
 
 //
 
-PoolingValidator::PoolingValidator(const std::string& _type): LayerValidator(_type) {}
+PoolingValidator::PoolingValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void PoolingValidator::parseParams(CNNLayer* layer) {
     auto poolLayer = dynamic_cast<PoolingLayer*>(layer);
@@ -325,7 +326,7 @@ void BatchNormalizationValidator::parseParams(CNNLayer* layer) {
     casted->epsilon = casted->GetParamAsFloat("epsilon");
 }
 
-BatchNormalizationValidator::BatchNormalizationValidator(const std::string& _type): LayerValidator(_type) {}
+BatchNormalizationValidator::BatchNormalizationValidator(const std::string& _type) : LayerValidator(_type) {}
 
 //
 
@@ -339,7 +340,7 @@ void PowerValidator::parseParams(CNNLayer* layer) {
     casted->scale = casted->GetParamAsFloat("scale");
 }
 
-PowerValidator::PowerValidator(const std::string& _type): LayerValidator(_type) {}
+PowerValidator::PowerValidator(const std::string& _type) : LayerValidator(_type) {}
 
 //
 
@@ -351,7 +352,7 @@ void PReLUValidator::parseParams(CNNLayer* layer) {
     casted->_channel_shared = casted->GetParamAsBool("channel_shared", false);
 }
 
-PReLUValidator::PReLUValidator(const std::string& _type): LayerValidator(_type) {}
+PReLUValidator::PReLUValidator(const std::string& _type) : LayerValidator(_type) {}
 
 //
 
@@ -365,7 +366,7 @@ void ScaleShiftValidator::parseParams(CNNLayer* layer) {
     }
 }
 
-ScaleShiftValidator::ScaleShiftValidator(const std::string& _type): LayerValidator(_type) {}
+ScaleShiftValidator::ScaleShiftValidator(const std::string& _type) : LayerValidator(_type) {}
 
 //
 
@@ -378,11 +379,11 @@ void TileValidator::parseParams(CNNLayer* layer) {
     casted->tiles = casted->GetParamAsInt("tiles", -1);
 }
 
-TileValidator::TileValidator(const std::string& _type): LayerValidator(_type) {}
+TileValidator::TileValidator(const std::string& _type) : LayerValidator(_type) {}
 
 //
 
-ReshapeValidator::ReshapeValidator(const std::string& _type): LayerValidator(_type) {}
+ReshapeValidator::ReshapeValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void ReshapeValidator::parseParams(CNNLayer* layer) {
     auto casted = dynamic_cast<ReshapeLayer*>(layer);
@@ -456,7 +457,7 @@ void EltwiseValidator::parseParams(CNNLayer* layer) {
     casted->coeff = casted->GetParamAsFloats("coeff", {});
 }
 
-EltwiseValidator::EltwiseValidator(const std::string& _type): LayerValidator(_type) {}
+EltwiseValidator::EltwiseValidator(const std::string& _type) : LayerValidator(_type) {}
 
 //
 
@@ -469,7 +470,7 @@ void ClampValidator::parseParams(CNNLayer* layer) {
     casted->max_value = casted->GetParamAsFloat("max");
 }
 
-ClampValidator::ClampValidator(const std::string& _type): LayerValidator(_type) {}
+ClampValidator::ClampValidator(const std::string& _type) : LayerValidator(_type) {}
 
 //
 
@@ -483,7 +484,7 @@ void ReLUValidator::parseParams(CNNLayer* layer) {
     }
 }
 
-ReLUValidator::ReLUValidator(const std::string& _type): LayerValidator(_type) {}
+ReLUValidator::ReLUValidator(const std::string& _type) : LayerValidator(_type) {}
 
 //
 
@@ -496,7 +497,7 @@ void MVNValidator::parseParams(CNNLayer* layer) {
     casted->normalize = casted->GetParamAsInt("normalize_variance", 1);
 }
 
-MVNValidator::MVNValidator(const std::string& _type): LayerValidator(_type) {}
+MVNValidator::MVNValidator(const std::string& _type) : LayerValidator(_type) {}
 
 //
 
@@ -508,7 +509,7 @@ void GRNValidator::parseParams(CNNLayer* layer) {
     casted->bias = casted->GetParamAsFloat("bias", 0.f);
 }
 
-GRNValidator::GRNValidator(const std::string& _type): LayerValidator(_type) {}
+GRNValidator::GRNValidator(const std::string& _type) : LayerValidator(_type) {}
 
 //
 
@@ -520,7 +521,7 @@ void SoftMaxValidator::parseParams(CNNLayer* layer) {
     casted->axis = casted->GetParamAsInt("axis", 1);
 }
 
-SoftMaxValidator::SoftMaxValidator(const std::string& _type): LayerValidator(_type) {}
+SoftMaxValidator::SoftMaxValidator(const std::string& _type) : LayerValidator(_type) {}
 
 //
 
@@ -537,11 +538,11 @@ void NormValidator::parseParams(CNNLayer* layer) {
     casted->_isAcrossMaps = details::CaselessEq<std::string>()(casted->GetParamAsString("region"), "across");
 }
 
-NormValidator::NormValidator(const std::string& _type): LayerValidator(_type) {}
+NormValidator::NormValidator(const std::string& _type) : LayerValidator(_type) {}
 
 //
 
-SplitValidator::SplitValidator(const std::string& _type): LayerValidator(_type) {}
+SplitValidator::SplitValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void SplitValidator::parseParams(CNNLayer* layer) {
     auto casted = dynamic_cast<SplitLayer*>(layer);
@@ -552,18 +553,20 @@ void SplitValidator::parseParams(CNNLayer* layer) {
 
     std::string out_sizes;
     for (auto& i : layer->outData) {
-        if (!out_sizes.empty()) out_sizes += ",";
+        if (!out_sizes.empty())
+            out_sizes += ",";
         if (static_cast<unsigned>(i->getTensorDesc().getDims().size()) <= casted->_axis) {
             IE_THROW() << "Internal error - dimensions are empty";
         }
         out_sizes += std::to_string(i->getTensorDesc().getDims()[casted->_axis]);
     }
-    if (!out_sizes.empty()) casted->params["out_sizes"] = out_sizes;
+    if (!out_sizes.empty())
+        casted->params["out_sizes"] = out_sizes;
 }
 
 //
 
-ConcatValidator::ConcatValidator(const std::string& _type): LayerValidator(_type) {}
+ConcatValidator::ConcatValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void ConcatValidator::parseParams(CNNLayer* layer) {
     auto casted = dynamic_cast<ConcatLayer*>(layer);
@@ -575,7 +578,7 @@ void ConcatValidator::parseParams(CNNLayer* layer) {
 
 //
 
-GemmValidator::GemmValidator(const std::string& _type): LayerValidator(_type) {}
+GemmValidator::GemmValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void GemmValidator::parseParams(CNNLayer* layer) {
     auto casted = dynamic_cast<GemmLayer*>(layer);
@@ -590,7 +593,7 @@ void GemmValidator::parseParams(CNNLayer* layer) {
 
 //
 
-PadValidator::PadValidator(const std::string& _type): LayerValidator(_type) {}
+PadValidator::PadValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void PadValidator::parseParams(CNNLayer* layer) {
     auto casted = dynamic_cast<PadLayer*>(layer);
@@ -628,7 +631,7 @@ void PadValidator::parseParams(CNNLayer* layer) {
 
 //
 
-GatherValidator::GatherValidator(const std::string& _type): LayerValidator(_type) {}
+GatherValidator::GatherValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void GatherValidator::parseParams(CNNLayer* layer) {
     if (auto casted = dynamic_cast<GatherLayer*>(layer)) {
@@ -640,7 +643,7 @@ void GatherValidator::parseParams(CNNLayer* layer) {
 
 //
 
-StridedSliceValidator::StridedSliceValidator(const std::string& _type): LayerValidator(_type) {}
+StridedSliceValidator::StridedSliceValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void StridedSliceValidator::parseParams(CNNLayer* layer) {
     auto casted = dynamic_cast<StridedSliceLayer*>(layer);
@@ -657,7 +660,7 @@ void StridedSliceValidator::parseParams(CNNLayer* layer) {
 
 //
 
-ShuffleChannelsValidator::ShuffleChannelsValidator(const std::string& _type): LayerValidator(_type) {}
+ShuffleChannelsValidator::ShuffleChannelsValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void ShuffleChannelsValidator::parseParams(CNNLayer* layer) {
     auto casted = dynamic_cast<ShuffleChannelsLayer*>(layer);
@@ -671,7 +674,7 @@ void ShuffleChannelsValidator::parseParams(CNNLayer* layer) {
 
 //
 
-DepthToSpaceValidator::DepthToSpaceValidator(const std::string& _type): LayerValidator(_type) {}
+DepthToSpaceValidator::DepthToSpaceValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void DepthToSpaceValidator::parseParams(CNNLayer* layer) {
     auto casted = dynamic_cast<DepthToSpaceLayer*>(layer);
@@ -684,7 +687,7 @@ void DepthToSpaceValidator::parseParams(CNNLayer* layer) {
 
 //
 
-SpaceToDepthValidator::SpaceToDepthValidator(const std::string& _type): LayerValidator(_type) {}
+SpaceToDepthValidator::SpaceToDepthValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void SpaceToDepthValidator::parseParams(CNNLayer* layer) {
     auto casted = dynamic_cast<SpaceToDepthLayer*>(layer);
@@ -697,7 +700,7 @@ void SpaceToDepthValidator::parseParams(CNNLayer* layer) {
 
 /*--- SpaceToBatchValidator ---*/
 
-SpaceToBatchValidator::SpaceToBatchValidator(const std::string& _type): LayerValidator(_type) {}
+SpaceToBatchValidator::SpaceToBatchValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void SpaceToBatchValidator::parseParams(CNNLayer* layer) {
     auto spaceToBatchLayer = dynamic_cast<SpaceToBatchLayer*>(layer);
@@ -710,8 +713,8 @@ void SpaceToBatchValidator::parseParams(CNNLayer* layer) {
     auto getParams = [](const DataPtr& dataPtr, std::vector<size_t>& dst, std::string& layerName) {
         if (dataPtr == nullptr)
             IE_THROW() << "'" << layerName << "' layer has nullable input data";
-        if (dataPtr->getTensorDesc().getPrecision() != Precision::I32
-                && dataPtr->getTensorDesc().getPrecision() != Precision::I64)
+        if (dataPtr->getTensorDesc().getPrecision() != Precision::I32 &&
+            dataPtr->getTensorDesc().getPrecision() != Precision::I64)
             IE_THROW() << "'" << layerName << "' layer has invalid input precision";
         auto creator = getCreatorLayer(dataPtr).lock();
         if (creator == nullptr)
@@ -739,7 +742,7 @@ void SpaceToBatchValidator::parseParams(CNNLayer* layer) {
 
 /*--- BatchToSpaceValidator ---*/
 
-BatchToSpaceValidator::BatchToSpaceValidator(const std::string& _type): LayerValidator(_type) {}
+BatchToSpaceValidator::BatchToSpaceValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void BatchToSpaceValidator::parseParams(CNNLayer* layer) {
     auto batchToSpaceLayer = dynamic_cast<BatchToSpaceLayer*>(layer);
@@ -757,8 +760,8 @@ void BatchToSpaceValidator::parseParams(CNNLayer* layer) {
     auto getParams = [](const DataPtr& dataPtr, std::vector<size_t>& dst, std::string& layerName) {
         if (dataPtr == nullptr)
             IE_THROW() << "'" << layerName << "' layer has nullable input data";
-        if (dataPtr->getTensorDesc().getPrecision() != Precision::I32
-                && dataPtr->getTensorDesc().getPrecision() != Precision::I64)
+        if (dataPtr->getTensorDesc().getPrecision() != Precision::I32 &&
+            dataPtr->getTensorDesc().getPrecision() != Precision::I64)
             IE_THROW() << "'" << layerName << "' layer has invalid input precision";
         auto creator = getCreatorLayer(dataPtr).lock();
         if (creator == nullptr)
@@ -799,7 +802,7 @@ void BucketizeValidator::parseParams(CNNLayer* layer) {
 
 //
 
-ReverseSequenceValidator::ReverseSequenceValidator(const std::string& _type): LayerValidator(_type) {}
+ReverseSequenceValidator::ReverseSequenceValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void ReverseSequenceValidator::parseParams(CNNLayer* layer) {
     auto casted = dynamic_cast<ReverseSequenceLayer*>(layer);
@@ -816,15 +819,16 @@ void ReverseSequenceValidator::parseParams(CNNLayer* layer) {
 /****************************************/
 
 static RNNCellBase::CellType cell_type_from(string type_name) {
-    const vector<string> to_remove {"Cell", "Sequence"};
+    const vector<string> to_remove{"Cell", "Sequence"};
     for (auto& sub : to_remove) {
         auto idx = type_name.find(sub);
-        if (idx != string::npos) type_name.erase(idx);
+        if (idx != string::npos)
+            type_name.erase(idx);
     }
 
     if (!one_of(type_name, "LSTM", "RNN", "GRU"))
         IE_THROW() << "Unknown RNN cell type " << type_name << ". "
-                           << "Expected one of [ LSTM | RNN | GRU ].";
+                   << "Expected one of [ LSTM | RNN | GRU ].";
 
     return type_name == "LSTM"
                ? RNNSequenceLayer::LSTM
@@ -835,7 +839,7 @@ static RNNCellBase::CellType cell_type_from(string type_name) {
 static RNNSequenceLayer::Direction direction_from(string direction_name) {
     if (!one_of(direction_name, "Forward", "Backward", "Bidirectional"))
         IE_THROW() << "Unknown RNN direction type " << direction_name << ". "
-                           << "Expected one of [ Forward | Backward | Bidirectional ].";
+                   << "Expected one of [ Forward | Backward | Bidirectional ].";
 
     return direction_name == "Forward"
                ? RNNSequenceLayer::FWD
@@ -844,7 +848,7 @@ static RNNSequenceLayer::Direction direction_from(string direction_name) {
                      : direction_name == "Bidirecttional" ? RNNSequenceLayer::BDR : RNNSequenceLayer::FWD;
 }
 
-RNNBaseValidator::RNNBaseValidator(const std::string& _type, RNNSequenceLayer::CellType CELL): LayerValidator(_type) {
+RNNBaseValidator::RNNBaseValidator(const std::string& _type, RNNSequenceLayer::CellType CELL) : LayerValidator(_type) {
     if (RNNSequenceLayer::LSTM == CELL) {
         def_acts = {"sigmoid", "tanh", "tanh"};
         def_alpha = {0, 0, 0};
@@ -870,7 +874,8 @@ RNNBaseValidator::RNNBaseValidator(const std::string& _type, RNNSequenceLayer::C
 
 void RNNBaseValidator::parseParams(CNNLayer* layer) {
     auto rnn = dynamic_cast<RNNCellBase*>(layer);
-    if (!rnn) IE_THROW() << "Layer is not instance of RNNLayer class";
+    if (!rnn)
+        IE_THROW() << "Layer is not instance of RNNLayer class";
 
     rnn->cellType = cell_type_from(layer->type);
     rnn->hidden_size = rnn->GetParamAsInt("hidden_size");
@@ -881,21 +886,23 @@ void RNNBaseValidator::parseParams(CNNLayer* layer) {
 
     if (rnn->cellType == RNNCellBase::GRU) {
         auto lbr = rnn->GetParamAsBool("linear_before_reset", false);
-        if (lbr) rnn->cellType = RNNCellBase::GRU_LBR;
+        if (lbr)
+            rnn->cellType = RNNCellBase::GRU_LBR;
     }
 }
 
 //
 
 template <RNNSequenceLayer::CellType CELL>
-RNNSequenceValidator<CELL>::RNNSequenceValidator(const std::string& _type): RNNBaseValidator(_type, CELL) {}
+RNNSequenceValidator<CELL>::RNNSequenceValidator(const std::string& _type) : RNNBaseValidator(_type, CELL) {}
 
 template <RNNSequenceLayer::CellType CELL>
 void RNNSequenceValidator<CELL>::parseParams(CNNLayer* layer) {
     RNNBaseValidator::parseParams(layer);
 
     auto casted = dynamic_cast<RNNSequenceLayer*>(layer);
-    if (!casted) IE_THROW() << "Layer is not instance of RNNLayer class";
+    if (!casted)
+        IE_THROW() << "Layer is not instance of RNNLayer class";
 
     std::string direction = layer->GetParamAsString("direction");
 
@@ -910,7 +917,7 @@ template class details_legacy::RNNSequenceValidator<RNNSequenceLayer::LSTM>;
 //
 
 template <RNNSequenceLayer::CellType CELL>
-RNNCellValidator<CELL>::RNNCellValidator(const std::string& _type): RNNBaseValidator(_type, CELL) {}
+RNNCellValidator<CELL>::RNNCellValidator(const std::string& _type) : RNNBaseValidator(_type, CELL) {}
 
 template class details_legacy::RNNCellValidator<RNNSequenceLayer::RNN>;
 template class details_legacy::RNNCellValidator<RNNSequenceLayer::GRU>;
@@ -974,7 +981,7 @@ void DetectionOutputValidator::parseParams(CNNLayer* layer) {
     }
 }
 
-DetectionOutputValidator::DetectionOutputValidator(const std::string& _type): LayerValidator(_type) {}
+DetectionOutputValidator::DetectionOutputValidator(const std::string& _type) : LayerValidator(_type) {}
 
 //
 
@@ -984,11 +991,11 @@ void ProposalValidator::parseParams(CNNLayer* layer) {
     }
 }
 
-ProposalValidator::ProposalValidator(const std::string& _type): LayerValidator(_type) {}
+ProposalValidator::ProposalValidator(const std::string& _type) : LayerValidator(_type) {}
 
 //
 
-OneHotValidator::OneHotValidator(const std::string& _type): LayerValidator(_type) {}
+OneHotValidator::OneHotValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void OneHotValidator::parseParams(CNNLayer* layer) {
     auto casted = dynamic_cast<OneHotLayer*>(layer);
@@ -1006,7 +1013,7 @@ void OneHotValidator::parseParams(CNNLayer* layer) {
     auto off_value_str = layer->GetParamAsString("off_value", "0.0");
 
     // there are some key words to represent reserved values
-    auto universal_read = [] (std::string str) {
+    auto universal_read = [](std::string str) {
         float res;
         if (str == "True")
             res = 1.0f;
@@ -1025,7 +1032,7 @@ void OneHotValidator::parseParams(CNNLayer* layer) {
 
 //
 
-QuantizeValidator::QuantizeValidator(const std::string& _type): LayerValidator(_type) {}
+QuantizeValidator::QuantizeValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void QuantizeValidator::parseParams(CNNLayer* layer) {
     auto casted = dynamic_cast<QuantizeLayer*>(layer);
@@ -1037,13 +1044,13 @@ void QuantizeValidator::parseParams(CNNLayer* layer) {
 
     if (casted->levels <= 1) {
         IE_THROW() << layer->name << ": Incorrect value for parameter levels = " << casted->levels
-                           << ". Expected to be > 1.";
+                   << ". Expected to be > 1.";
     }
 }
 
 //
 
-BinaryConvolutionValidator::BinaryConvolutionValidator(const std::string& _type): LayerValidator(_type) {}
+BinaryConvolutionValidator::BinaryConvolutionValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void BinaryConvolutionValidator::parseParams(CNNLayer* layer) {
     auto binConvLayer = dynamic_cast<BinaryConvolutionLayer*>(layer);
@@ -1055,7 +1062,8 @@ void BinaryConvolutionValidator::parseParams(CNNLayer* layer) {
     binConvLayer->_in_depth = binConvLayer->GetParamAsUInt("input");
     binConvLayer->_mode = BinaryConvolutionLayer::xnor_popcount;
     std::string mode = binConvLayer->GetParamAsString("mode", "xnor-popcount");
-    if (mode != "xnor-popcount") IE_THROW() << "Layer with type `" << _type << "` has incorrect mode!";
+    if (mode != "xnor-popcount")
+        IE_THROW() << "Layer with type `" << _type << "` has incorrect mode!";
 
     binConvLayer->_out_depth = binConvLayer->GetParamAsUInt("output");
 
@@ -1128,7 +1136,7 @@ void BinaryConvolutionValidator::parseParams(CNNLayer* layer) {
 
 //
 
-ReduceValidator::ReduceValidator(const std::string& _type): LayerValidator(_type) {}
+ReduceValidator::ReduceValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void ReduceValidator::parseParams(CNNLayer* layer) {
     auto casted = dynamic_cast<ReduceLayer*>(layer);
@@ -1141,7 +1149,7 @@ void ReduceValidator::parseParams(CNNLayer* layer) {
 
 //
 
-TopKValidator::TopKValidator(const std::string& _type): LayerValidator(_type) {}
+TopKValidator::TopKValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void TopKValidator::parseParams(CNNLayer* layer) {
     auto casted = dynamic_cast<TopKLayer*>(layer);
@@ -1152,18 +1160,17 @@ void TopKValidator::parseParams(CNNLayer* layer) {
     casted->mode = layer->GetParamAsString("mode", "max");
     if (casted->mode != "max" && casted->mode != "min")
         IE_THROW() << layer->name
-                           << " TopK can take only 'max' or 'min' for mode, but actually it has: " << casted->mode;
+                   << " TopK can take only 'max' or 'min' for mode, but actually it has: " << casted->mode;
     casted->sort = layer->GetParamAsString("sort", "index");
     if (casted->sort != "value" && casted->sort != "index" && casted->sort != "none")
         IE_THROW() << layer->name
-                           << " TopK can take only 'value', 'index' or 'none' for sort, but actually it has: "
-                           << casted->sort;
+                   << " TopK can take only 'value', 'index' or 'none' for sort, but actually it has: " << casted->sort;
     casted->axis = layer->GetParamAsInt("axis", -1);
 }
 
 //
 
-UniqueValidator::UniqueValidator(const std::string& _type): LayerValidator(_type) {}
+UniqueValidator::UniqueValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void UniqueValidator::parseParams(CNNLayer* layer) {
     auto casted = dynamic_cast<UniqueLayer*>(layer);
@@ -1178,7 +1185,7 @@ void UniqueValidator::parseParams(CNNLayer* layer) {
 
 //
 
-NMSValidator::NMSValidator(const std::string& _type): LayerValidator(_type) {}
+NMSValidator::NMSValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void NMSValidator::parseParams(CNNLayer* layer) {
     auto casted = dynamic_cast<NonMaxSuppressionLayer*>(layer);

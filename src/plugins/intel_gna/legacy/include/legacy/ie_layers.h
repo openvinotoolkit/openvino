@@ -12,17 +12,17 @@
 #include <algorithm>
 #include <cctype>
 #include <iterator>
+#include <legacy/ie_layers_property.hpp>
 #include <limits>
 #include <map>
 #include <memory>
+#include <ngraph/node.hpp>
 #include <string>
 #include <vector>
 
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_data.h"
-#include <legacy/ie_layers_property.hpp>
-#include <ngraph/node.hpp>
 
 #ifdef _WIN32
 #    define _IE_SUPPRESS_DEPRECATED_START_MSVC IE_SUPPRESS_DEPRECATED_START
@@ -64,14 +64,14 @@ struct LayerParams {
      * @brief A copy constructor.
      * @param other An object to copy.
      */
-    LayerParams(const LayerParams & other);
+    LayerParams(const LayerParams& other);
 
     /**
      * @brief A copy assignment operator
      * @param other An object to copy
      * @return A value
      */
-    LayerParams & operator= (const LayerParams & other);
+    LayerParams& operator=(const LayerParams& other);
 
     IE_SUPPRESS_DEPRECATED_END
 
@@ -81,7 +81,7 @@ struct LayerParams {
      * @param type A layer type.
      * @param precision A layer precision.
      */
-    LayerParams(const std::string & name, const std::string & type, Precision precision);
+    LayerParams(const std::string& name, const std::string& type, Precision precision);
 };
 
 /**
@@ -380,7 +380,7 @@ public:
      * @param param Name of the layer parameter
      * @return A string containing an integer or the parameter as string
      */
-    std::string getBoolStrParamAsIntStr(const char *param) const;
+    std::string getBoolStrParamAsIntStr(const char* param) const;
 
     /**
      * @brief Gets the parameter as a std::vector<std::string>
@@ -419,10 +419,10 @@ using CNNLayerWeakPtr = std::weak_ptr<CNNLayer>;
 
 IE_SUPPRESS_DEPRECATED_END
 
-CNNLayerWeakPtr& getCreatorLayer(const DataPtr & data);
+CNNLayerWeakPtr& getCreatorLayer(const DataPtr& data);
 
-std::map<std::string, CNNLayerPtr>& getInputTo(const DataPtr & data);
-std::map<std::string, CNNLayerPtr>& getInputTo(Data * data);
+std::map<std::string, CNNLayerPtr>& getInputTo(const DataPtr& data);
+std::map<std::string, CNNLayerPtr>& getInputTo(Data* data);
 
 _IE_SUPPRESS_DEPRECATED_START_MSVC
 
@@ -430,17 +430,17 @@ _IE_SUPPRESS_DEPRECATED_START_MSVC
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a layer with Weights and/or Biases (e.g. Convolution/Fully Connected, etc.)
  */
-class WeightableLayer: public CNNLayer {
+class WeightableLayer : public CNNLayer {
 public:
     IE_SUPPRESS_DEPRECATED_START
 
     /**
-    * @brief A default constructor. Constructs a WeightableLayer instance and initiates layer parameters with the given
-    * values
-    *
-    * @param prms Initial layer parameters
-    */
-    explicit WeightableLayer(const LayerParams & prms);
+     * @brief A default constructor. Constructs a WeightableLayer instance and initiates layer parameters with the given
+     * values
+     *
+     * @param prms Initial layer parameters
+     */
+    explicit WeightableLayer(const LayerParams& prms);
 
     /**
      * @brief Constructs a WeightableLayer instance and initiates layer parameters with the given values
@@ -473,7 +473,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard 3D Convolution Layer
  */
-class ConvolutionLayer: public WeightableLayer {
+class ConvolutionLayer : public WeightableLayer {
 public:
     /**
      * @brief A convolution kernel array [X, Y, Z, ...]
@@ -514,7 +514,11 @@ public:
      * @brief Creates a new ConvolutionLayer instance.
      */
     explicit ConvolutionLayer(const LayerParams& p)
-        : WeightableLayer(p), _kernel(2, 0u), _padding(2, 0u), _stride(2, 1u), _dilation(2, 1u) {}
+        : WeightableLayer(p),
+          _kernel(2, 0u),
+          _padding(2, 0u),
+          _stride(2, 1u),
+          _dilation(2, 1u) {}
 
     /**
      * @brief assignment operator
@@ -536,7 +540,7 @@ public:
     /**
      * @brief copy constructor
      */
-    ConvolutionLayer(const ConvolutionLayer& that): WeightableLayer(that) {
+    ConvolutionLayer(const ConvolutionLayer& that) : WeightableLayer(that) {
         operator=(that);
     }
     /**
@@ -553,7 +557,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard deconvolution layer
  */
-class DeconvolutionLayer: public ConvolutionLayer {
+class DeconvolutionLayer : public ConvolutionLayer {
 public:
     IE_SUPPRESS_DEPRECATED_START
     using ConvolutionLayer::ConvolutionLayer;
@@ -567,7 +571,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard deformable convolution layer
  */
-class DeformableConvolutionLayer: public ConvolutionLayer {
+class DeformableConvolutionLayer : public ConvolutionLayer {
 public:
     IE_SUPPRESS_DEPRECATED_START
     using ConvolutionLayer::ConvolutionLayer;
@@ -586,7 +590,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard pooling layer
  */
-class PoolingLayer: public CNNLayer {
+class PoolingLayer : public CNNLayer {
 public:
     /**
      * @brief Pooling kernel array [X, Y, Z, ...]
@@ -630,7 +634,7 @@ public:
     /**
      * @brief Creates a new PoolingLayer instance.
      */
-    explicit PoolingLayer(const LayerParams& p): CNNLayer(p), _kernel(2, 0u), _padding(2, 0u), _stride(2, 0u) {}
+    explicit PoolingLayer(const LayerParams& p) : CNNLayer(p), _kernel(2, 0u), _padding(2, 0u), _stride(2, 0u) {}
 
     /**
      * @brief assignment operator
@@ -650,7 +654,7 @@ public:
     /**
      * @brief copy constructor
      */
-    PoolingLayer(const PoolingLayer& that): CNNLayer(that) {
+    PoolingLayer(const PoolingLayer& that) : CNNLayer(that) {
         operator=(that);
     }
 
@@ -668,7 +672,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard binary convolution layer
  */
-class BinaryConvolutionLayer: public WeightableLayer {
+class BinaryConvolutionLayer : public WeightableLayer {
 public:
     /**
      * @enum eBinaryConvolutionMode
@@ -730,7 +734,11 @@ public:
      * @brief Creates a new BinaryConvolutionLayer instance.
      */
     explicit BinaryConvolutionLayer(const LayerParams& p)
-        : WeightableLayer(p), _kernel(2, 0u), _padding(2, 0u), _stride(2, 1u), _dilation(2, 1u) {}
+        : WeightableLayer(p),
+          _kernel(2, 0u),
+          _padding(2, 0u),
+          _stride(2, 1u),
+          _dilation(2, 1u) {}
 
     /**
      * @brief assignment operator
@@ -754,7 +762,7 @@ public:
     /**
      * @brief copy constructor
      */
-    BinaryConvolutionLayer(const BinaryConvolutionLayer& that): WeightableLayer(that) {
+    BinaryConvolutionLayer(const BinaryConvolutionLayer& that) : WeightableLayer(that) {
         operator=(that);
     }
     /**
@@ -773,7 +781,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a fully connected layer
  */
-class FullyConnectedLayer: public WeightableLayer {
+class FullyConnectedLayer : public WeightableLayer {
 public:
     /**
      * @brief A size of output
@@ -796,7 +804,7 @@ public:
  *
  * Takes as input several data elements and merges them to one using the supplied axis
  */
-class ConcatLayer: public CNNLayer {
+class ConcatLayer : public CNNLayer {
 public:
     /**
      * @brief An axis on which concatenation operation is performed
@@ -820,7 +828,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a layer that evenly splits the input into the supplied outputs
  */
-class SplitLayer: public CNNLayer {
+class SplitLayer : public CNNLayer {
 public:
     /**
      * @brief An axis on which split operation is performed
@@ -841,7 +849,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a Linear Response Normalization (LRN) Layer
  */
-class NormLayer: public CNNLayer {
+class NormLayer : public CNNLayer {
 public:
     /**
      * @brief Response size
@@ -878,7 +886,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents standard softmax Layer
  */
-class SoftMaxLayer: public CNNLayer {
+class SoftMaxLayer : public CNNLayer {
 public:
     /**
      * @brief Axis number for a softmax operation
@@ -898,7 +906,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents standard GRN Layer
  */
-class GRNLayer: public CNNLayer {
+class GRNLayer : public CNNLayer {
 public:
     /**
      * @brief A default constructor. Creates a new GRNLayer instance and initializes layer parameters with the given
@@ -920,7 +928,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents standard MVN Layer
  */
-class MVNLayer: public CNNLayer {
+class MVNLayer : public CNNLayer {
 public:
     /**
      * @brief A default constructor. Creates a new MVNLayer instance and initializes layer parameters with the given
@@ -947,7 +955,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a Rectified Linear activation layer
  */
-class ReLULayer: public CNNLayer {
+class ReLULayer : public CNNLayer {
 public:
     /**
      * @brief Negative slope is used to takle negative inputs instead of setting them to 0
@@ -970,7 +978,7 @@ public:
  *
  * Clamps all tensor elements into the range [min_value, max_value]
  */
-class ClampLayer: public CNNLayer {
+class ClampLayer : public CNNLayer {
 public:
     /**
      * @brief A minimum value
@@ -997,14 +1005,14 @@ public:
  *
  * Clamps all tensor elements into the range [0, 6.0]
  */
-class ReLU6Layer: public ClampLayer {
+class ReLU6Layer : public ClampLayer {
 public:
     IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief A constructor with common layer parameters
      * @param prms The common layer parameters
      */
-    explicit ReLU6Layer(const LayerParams& prms): ClampLayer(prms) {
+    explicit ReLU6Layer(const LayerParams& prms) : ClampLayer(prms) {
         max_value = 6.0f;
     }
     IE_SUPPRESS_DEPRECATED_END
@@ -1016,7 +1024,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents an element wise operation layer
  */
-class EltwiseLayer: public CNNLayer {
+class EltwiseLayer : public CNNLayer {
 public:
     /**
      * @enum eOperation
@@ -1070,7 +1078,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard crop layer
  */
-class CropLayer: public CNNLayer {
+class CropLayer : public CNNLayer {
 public:
     /**
      * @brief A vector of dimensions for cropping
@@ -1099,7 +1107,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard reshape layer
  */
-class ReshapeLayer: public CNNLayer {
+class ReshapeLayer : public CNNLayer {
 public:
     /**
      * @brief A vector of sizes of the shape
@@ -1128,7 +1136,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard Tile Layer
  */
-class TileLayer: public CNNLayer {
+class TileLayer : public CNNLayer {
 public:
     /**
      * @brief An index of the axis to tile
@@ -1153,7 +1161,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a Layer which performs Scale and Shift
  */
-class ScaleShiftLayer: public WeightableLayer {
+class ScaleShiftLayer : public WeightableLayer {
 public:
     /**
      * @brief A flag that indicates if the same value is used for all the features. If false, the value is used pixel
@@ -1175,7 +1183,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents TensorIterator layer
  */
-class TensorIterator: public CNNLayer {
+class TensorIterator : public CNNLayer {
 public:
     struct PortMap {
         // Data map rule
@@ -1194,13 +1202,13 @@ public:
      * @brief Describes a tensor iterator body
      */
     struct Body {
-        std::vector<DataPtr> inputs;  //!< Inputs data
+        std::vector<DataPtr> inputs;   //!< Inputs data
         std::vector<DataPtr> outputs;  //!< Outputs data
     };
 
-    std::vector<PortMap> input_port_map;  //!< Input ports map
+    std::vector<PortMap> input_port_map;   //!< Input ports map
     std::vector<PortMap> output_port_map;  //!< Output ports map
-    std::vector<PortMap> back_edges;  //!< Back edges map
+    std::vector<PortMap> back_edges;       //!< Back edges map
 
     Body body;  //!< A Tensor Iterator body
 
@@ -1215,7 +1223,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief Base class for recurrent cell layers
  */
-class RNNCellBase: public WeightableLayer {
+class RNNCellBase : public WeightableLayer {
 public:
     IE_SUPPRESS_DEPRECATED_START
     using WeightableLayer::WeightableLayer;
@@ -1310,7 +1318,7 @@ public:
  * - Ct = ft (.) Ct-1 + it (.) ct
  * - Ht = ot (.) _h(Ct)
  */
-class LSTMCell: public RNNCellBase {
+class LSTMCell : public RNNCellBase {
 public:
     IE_SUPPRESS_DEPRECATED_START
     using RNNCellBase::RNNCellBase;
@@ -1354,7 +1362,7 @@ public:
  * - ht = _g(Wh*[rt (.) Ht-1, Xt] + Bh)
  * - Ht = (1 - zt) (.) ht + zt (.) Ht-1
  */
-class GRUCell: public RNNCellBase {
+class GRUCell : public RNNCellBase {
 public:
     IE_SUPPRESS_DEPRECATED_START
     using RNNCellBase::RNNCellBase;
@@ -1393,7 +1401,7 @@ public:
  *
  * - Ht = _f(Wi*[Ht-1, Xt] + Bi)
  */
-class RNNCell: public RNNCellBase {
+class RNNCell : public RNNCellBase {
 public:
     IE_SUPPRESS_DEPRECATED_START
     using RNNCellBase::RNNCellBase;
@@ -1432,7 +1440,7 @@ public:
  * NB! if ND==2 weights are concatenated cell weights [forward_cell_weights, backward_cell_weights]
  *
  */
-class RNNSequenceLayer: public RNNCellBase {
+class RNNSequenceLayer : public RNNCellBase {
 public:
     IE_SUPPRESS_DEPRECATED_START
     using RNNCellBase::RNNCellBase;
@@ -1465,7 +1473,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a Layer which performs Scale and Shift
  */
-class PReLULayer: public WeightableLayer {
+class PReLULayer : public WeightableLayer {
 public:
     /**
      * @brief A flag that indicates if the same negative_slope value is used for all the features. If false, the value
@@ -1492,7 +1500,7 @@ public:
  *
  * Formula is: output = (offset + scale * input) ^ power
  */
-class PowerLayer: public CNNLayer {
+class PowerLayer : public CNNLayer {
 public:
     /**
      * @brief An exponent value
@@ -1521,7 +1529,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a Batch Normalization Layer
  */
-class BatchNormalizationLayer: public WeightableLayer {
+class BatchNormalizationLayer : public WeightableLayer {
 public:
     /**
      * @brief A small value to add to the variance estimate to avoid division by zero
@@ -1544,7 +1552,7 @@ public:
  *
  * Formula is: dst := alpha*src1*src2 + beta*src3
  */
-class GemmLayer: public CNNLayer {
+class GemmLayer : public CNNLayer {
 public:
     /**
      * @brief A scale factor of src1 matrix
@@ -1578,7 +1586,7 @@ public:
  *
  * Adds paddings to input tensor
  */
-class PadLayer: public CNNLayer {
+class PadLayer : public CNNLayer {
 public:
     /**
      * @enum ePadMode
@@ -1618,7 +1626,7 @@ public:
  *
  * Gather slices from Dictionary according to Indexes
  */
-class GatherLayer: public CNNLayer {
+class GatherLayer : public CNNLayer {
 public:
     /**
      * @brief The axis in Dictionary to gather Indexes from
@@ -1640,7 +1648,7 @@ public:
  *
  * Strided Slice picks from input tensor according parameters
  */
-class StridedSliceLayer: public CNNLayer {
+class StridedSliceLayer : public CNNLayer {
 public:
     /**
      * @brief The begin_mask is a bitmask where bit i being 0 means
@@ -1682,7 +1690,7 @@ public:
  * @brief This class represents a standard Shuffle Channels layer
  * Shuffle Channels picks from input tensor according parameters
  */
-class ShuffleChannelsLayer: public CNNLayer {
+class ShuffleChannelsLayer : public CNNLayer {
 public:
     /**
      * @brief The axis in tensor to shuffle channels
@@ -1709,7 +1717,7 @@ public:
  * @brief This class represents a standard Depth To Space layer
  * Depth To Space picks from input tensor according parameters
  */
-class DepthToSpaceLayer: public CNNLayer {
+class DepthToSpaceLayer : public CNNLayer {
 public:
     /**
      * @brief The group of output shuffled channels
@@ -1731,7 +1739,7 @@ public:
  * @brief This class represents a standard Space To Depth layer
  * Space To Depth picks from input tensor according parameters
  */
-class SpaceToDepthLayer: public CNNLayer {
+class SpaceToDepthLayer : public CNNLayer {
 public:
     /**
      * @brief The group of output Space To Depth
@@ -1754,7 +1762,7 @@ public:
  *
  * Space To Batch picks from input tensor according parameters
  */
-class SpaceToBatchLayer: public CNNLayer {
+class SpaceToBatchLayer : public CNNLayer {
 public:
     /**
      * @brief Spatial dimensions blocks sizes
@@ -1786,7 +1794,7 @@ public:
  *
  * Batch To Space picks from input tensor according parameters
  */
-class BatchToSpaceLayer: public CNNLayer {
+class BatchToSpaceLayer : public CNNLayer {
 public:
     /**
      * @brief Spatial dimensions blocks sizes
@@ -1821,7 +1829,7 @@ public:
  *
  * SparseFillEmptyRows fills empty rows in a sparse tensor
  */
-class SparseFillEmptyRowsLayer: public CNNLayer {
+class SparseFillEmptyRowsLayer : public CNNLayer {
 public:
     /**
      * @brief Creates a new SparseFillEmptyRowsLayer instance.
@@ -1838,7 +1846,7 @@ public:
  * @brief This class represents SparseSegmentMean(SqrtN, Sum) layers
  * SparseSegmentMean(SqrtN, Sum) layer reduces data along sparse segments of a tensor.
  */
-class SparseSegmentReduceLayer: public CNNLayer {
+class SparseSegmentReduceLayer : public CNNLayer {
 public:
     /**
      * @brief Creates a new SparseSegmentReduceLayer instance.
@@ -1858,8 +1866,8 @@ public:
 class ExperimentalSparseWeightedReduceLayer : public CNNLayer {
 public:
     /**
-    * @brief Creates a new ExperimentalSparseWeightedReduceLayer instance.
-    */
+     * @brief Creates a new ExperimentalSparseWeightedReduceLayer instance.
+     */
     IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
     IE_SUPPRESS_DEPRECATED_END
@@ -1875,8 +1883,8 @@ public:
 class SparseToDenseLayer : public CNNLayer {
 public:
     /**
-    * @brief Creates a new SparseToDenseLayer instance.
-    */
+     * @brief Creates a new SparseToDenseLayer instance.
+     */
     IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
     IE_SUPPRESS_DEPRECATED_END
@@ -1897,8 +1905,8 @@ public:
     bool with_right_bound = true;
 
     /**
-    * @brief Creates a new BucketizeLayer instance.
-    */
+     * @brief Creates a new BucketizeLayer instance.
+     */
     IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
     IE_SUPPRESS_DEPRECATED_END
@@ -1912,7 +1920,7 @@ public:
  *
  * Reverse Sequence modifies input tensor according parameters
  */
-class ReverseSequenceLayer: public CNNLayer {
+class ReverseSequenceLayer : public CNNLayer {
 public:
     /**
      * @brief The seq_axis dimension in tensor which is partially reversed
@@ -1939,7 +1947,7 @@ public:
  * @brief This class represents a OneHot layer
  * Converts input into OneHot representation.
  */
-class OneHotLayer: public CNNLayer {
+class OneHotLayer : public CNNLayer {
 public:
     /**
      * @brief A depth of representation
@@ -1977,7 +1985,7 @@ public:
  *
  * RangeLayer modifies input tensor dimensions according parameters
  */
-class RangeLayer: public CNNLayer {
+class RangeLayer : public CNNLayer {
 public:
     /**
      * @brief Creates a new RangeLayer instance.
@@ -1995,7 +2003,7 @@ public:
  *
  * RFill modifies input tensor according parameters
  */
-class FillLayer: public CNNLayer {
+class FillLayer : public CNNLayer {
 public:
     /**
      * @brief Creates a new Fill instance.
@@ -2015,7 +2023,7 @@ public:
  * (“cond”) provided in the first input. The “cond” tensor is broadcasted to “then” and “else” tensors. The output
  * tensor shape is equal to broadcasted shape of “cond”, “then” and “else”.
  */
-class SelectLayer: public CNNLayer {
+class SelectLayer : public CNNLayer {
 public:
     /**
      * @brief Creates a new SelectLayer instance.
@@ -2033,7 +2041,7 @@ public:
  *
  * Broadcast modifies input tensor dimensions according parameters
  */
-class BroadcastLayer: public CNNLayer {
+class BroadcastLayer : public CNNLayer {
 public:
     /**
      * @brief Creates a new Broadcast instance.
@@ -2051,7 +2059,7 @@ public:
  *
  * Element-wise linear quantization of floating point input values into a descrete set of floating point values
  */
-class QuantizeLayer: public CNNLayer {
+class QuantizeLayer : public CNNLayer {
 public:
     /**
      * @brief The number of quantization levels
@@ -2074,7 +2082,7 @@ public:
  *
  * Math modifies input tensor dimensions according parameters
  */
-class MathLayer: public CNNLayer {
+class MathLayer : public CNNLayer {
 public:
     /**
      * @brief Creates a new Math instance.
@@ -2092,7 +2100,7 @@ public:
  *
  * Reduce modifies input tensor according parameters
  */
-class ReduceLayer: public CNNLayer {
+class ReduceLayer : public CNNLayer {
 public:
     /**
      * @brief The keep_dims dimension in tensor which is partially reversed
@@ -2115,7 +2123,7 @@ public:
  *
  * TopK picks top K values from input tensor according parameters
  */
-class TopKLayer: public CNNLayer {
+class TopKLayer : public CNNLayer {
 public:
     /**
      * @brief The mode could be 'max' or 'min'
@@ -2146,7 +2154,7 @@ public:
  *
  * The Unique operation searches for unique elements in 1-D input
  */
-class UniqueLayer: public CNNLayer {
+class UniqueLayer : public CNNLayer {
 public:
     /**
      * @brief A flag indicating whether to sort unique elements
@@ -2175,7 +2183,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard NonMaxSuppression layer
  */
-class NonMaxSuppressionLayer: public CNNLayer {
+class NonMaxSuppressionLayer : public CNNLayer {
 public:
     /**
      * @brief The 'center_point_box' indicates the format of the box data
@@ -2204,7 +2212,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard ScatterUpdate layer
  */
-class ScatterUpdateLayer: public CNNLayer {
+class ScatterUpdateLayer : public CNNLayer {
 public:
     /**
      * @brief Creates a new ScatterUpdateLayer instance.
@@ -2220,7 +2228,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard ScatterElementsUpdate layer
  */
-class ScatterElementsUpdateLayer: public CNNLayer {
+class ScatterElementsUpdateLayer : public CNNLayer {
 public:
     /**
      * @brief Creates a new ScatterElementsUpdateLayer instance.
@@ -2236,7 +2244,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents an onnx ExperimentalDetectronPriorGridGenerator Layer
  */
-class ExperimentalDetectronPriorGridGeneratorLayer: public CNNLayer {
+class ExperimentalDetectronPriorGridGeneratorLayer : public CNNLayer {
 public:
     /**
      * @brief flatten value
@@ -2272,7 +2280,7 @@ public:
 /**
  * @brief This class represents a standard ExperimentalDetectronTopKROIs layer
  */
-class ExperimentalDetectronTopKROIs: public CNNLayer {
+class ExperimentalDetectronTopKROIs : public CNNLayer {
 public:
     /**
      * @brief The maximum number of output rois
@@ -2291,7 +2299,7 @@ public:
 /**
  * @brief This class represents an onnx ExperimentalDetectronGenerateProposalsSingleImage Layer
  */
-class ExperimentalDetectronGenerateProposalsSingleImageLayer: public CNNLayer {
+class ExperimentalDetectronGenerateProposalsSingleImageLayer : public CNNLayer {
 public:
     /**
      * @brief Minimium width and height for boxes

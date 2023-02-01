@@ -12,8 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-op::Interp::Interp(const Output<Node>& image, const InterpolateIEAttrs& attrs)
-    : Op({image}), m_attrs(attrs) {
+op::Interp::Interp(const Output<Node>& image, const InterpolateIEAttrs& attrs) : Op({image}), m_attrs(attrs) {
     constructor_validate_and_infer_types();
 }
 
@@ -74,14 +73,13 @@ bool op::Interp::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-op::ResampleV2::ResampleV2(const Output<Node>& image, const Output<Node>& output_shape,
-                           const ResampleIEAttrs& attrs)
-    : Op({image, output_shape}), m_attrs(attrs) {
+op::ResampleV2::ResampleV2(const Output<Node>& image, const Output<Node>& output_shape, const ResampleIEAttrs& attrs)
+    : Op({image, output_shape}),
+      m_attrs(attrs) {
     constructor_validate_and_infer_types();
 }
 
-op::ResampleV2::ResampleV2(const Output<Node>& image, const ResampleIEAttrs& attrs)
-        : Op({image}), m_attrs(attrs) {
+op::ResampleV2::ResampleV2(const Output<Node>& image, const ResampleIEAttrs& attrs) : Op({image}), m_attrs(attrs) {
     constructor_validate_and_infer_types();
 }
 
@@ -93,8 +91,10 @@ void op::ResampleV2::validate_and_infer_types() {
         }
         set_output_type(0, get_input_element_type(0), output_shape);
     } else if (auto const_shape = dynamic_pointer_cast<op::Constant>(input_value(1).get_node_shared_ptr())) {
-        NODE_VALIDATION_CHECK(this, shape_size(const_shape->get_shape()) == 4 || shape_size(const_shape->get_shape()) == 5,
-                              "Layer shape must have rank 4 or 5", const_shape->get_shape());
+        NODE_VALIDATION_CHECK(this,
+                              shape_size(const_shape->get_shape()) == 4 || shape_size(const_shape->get_shape()) == 5,
+                              "Layer shape must have rank 4 or 5",
+                              const_shape->get_shape());
 
         auto out_shape = const_shape->cast_vector<int64_t>();
         Shape output_shape;

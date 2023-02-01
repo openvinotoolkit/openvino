@@ -39,23 +39,23 @@ public:
     virtual uint32_t createModel(Gna2Model& gnaModel) const = 0;
 
     /**
-    * @brief create request configuration for give id of model
-    * @param modelID id of model on device
-    * @return id of configuration for model
-    * @throw Exception in case of error
-    */
+     * @brief create request configuration for give id of model
+     * @param modelID id of model on device
+     * @return id of configuration for model
+     * @throw Exception in case of error
+     */
     virtual uint32_t createRequestConfig(const uint32_t modelID) const = 0;
 
     /**
-    * @brief Add request to the execution queue.
-    * @param requestConfigID id of request configuration to be used for equing request
-    * @param gna2AccelerationMode acceleration mode of GNA device
-    * @return enqueued request id on device
-    * @throw Exception in case of error
-    */
+     * @brief Add request to the execution queue.
+     * @param requestConfigID id of request configuration to be used for equing request
+     * @param gna2AccelerationMode acceleration mode of GNA device
+     * @return enqueued request id on device
+     * @throw Exception in case of error
+     */
     virtual uint32_t enqueueRequest(const uint32_t requestConfigID, Gna2AccelerationMode gna2AccelerationMode) = 0;
 
-     /**
+    /**
      * @brief Wait for request to be finished.
      * @param requestID id of request enqueued on device
      * @param timeoutMilliseconds maximum timeout to be used for waiting

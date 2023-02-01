@@ -1,19 +1,18 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <openvino/cc/ngraph/itt.hpp>
-
 #include "transformations/split_convolution_with_large_buffer_size.hpp"
-
-#include <numeric>
 
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <numeric>
+#include <openvino/cc/ngraph/itt.hpp>
+
 #include "backend/gna_limitations.hpp"
-#include "layers/gna_split_layer.hpp"
 #include "layers/gna_convolution_layer.hpp"
+#include "layers/gna_split_layer.hpp"
 
 namespace ov {
 namespace intel_gna {

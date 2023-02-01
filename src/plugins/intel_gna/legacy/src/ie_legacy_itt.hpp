@@ -14,8 +14,8 @@
 namespace InferenceEngine {
 namespace itt {
 namespace domains {
-    OV_ITT_DOMAIN(IELegacy);
-    OV_ITT_DOMAIN(IELegacy_LT);
-}
-}
-}
+OV_ITT_DOMAIN(IELegacy);
+OV_ITT_DOMAIN(IELegacy_LT);
+}  // namespace domains
+}  // namespace itt
+}  // namespace InferenceEngine

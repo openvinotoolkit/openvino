@@ -1,8 +1,6 @@
 // Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <openvino/cc/ngraph/itt.hpp>
-
 #include "transformations/split_eltwise.hpp"
 
 #include <ngraph/opsets/opset9.hpp>
@@ -10,11 +8,13 @@
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "legacy/ngraph_ops/eltwise.hpp"
-#include "ops/util/util.hpp"
+#include <openvino/cc/ngraph/itt.hpp>
+
 #include "backend/gna_limitations.hpp"
 #include "layers/gna_split_layer.hpp"
+#include "legacy/ngraph_ops/eltwise.hpp"
 #include "log/log.hpp"
+#include "ops/util/util.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -46,9 +46,9 @@ static std::shared_ptr<ngraph::opset9::VariadicSplit> split_input(
 }
 
 static std::shared_ptr<ngraph::op::Eltwise> create_eltwise(const std::shared_ptr<ov::Node>& node,
-                                                    const std::shared_ptr<ov::Node>& split0,
-                                                    const std::shared_ptr<ov::Node>& split1,
-                                                    size_t index) {
+                                                           const std::shared_ptr<ov::Node>& split0,
+                                                           const std::shared_ptr<ov::Node>& split1,
+                                                           size_t index) {
     auto root_eltwise = std::dynamic_pointer_cast<ngraph::op::Eltwise>(node);
     auto eltwise = std::make_shared<ngraph::op::Eltwise>(split0->output(index),
                                                          split1->output(index),

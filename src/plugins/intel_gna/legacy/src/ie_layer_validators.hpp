@@ -4,13 +4,14 @@
 
 #pragma once
 
+#include <legacy/ie_layers.h>
+
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "caseless.hpp"
-#include <legacy/ie_layers.h>
 
 namespace InferenceEngine {
 namespace details_legacy {
@@ -22,7 +23,7 @@ class LayerValidator {
 public:
     using Ptr = std::shared_ptr<LayerValidator>;
 
-    explicit LayerValidator(const std::string& _type): _type(_type) {}
+    explicit LayerValidator(const std::string& _type) : _type(_type) {}
     virtual ~LayerValidator() = default;
 
     /**
@@ -135,7 +136,8 @@ class ScaleShiftValidator : public LayerValidator {
 public:
     explicit ScaleShiftValidator(const std::string& _type);
 
-    void parseParams(CNNLayer* layer) override;};
+    void parseParams(CNNLayer* layer) override;
+};
 
 class ReshapeValidator : public LayerValidator {
 public:
@@ -296,6 +298,7 @@ public:
     RNNBaseValidator(const std::string& _type, RNNSequenceLayer::CellType CELL);
 
     void parseParams(CNNLayer* layer) override;
+
 protected:
     std::vector<std::string> def_acts;  // Default values for cell gate activations
     std::vector<float> def_alpha;       // Default activation alpha parameter

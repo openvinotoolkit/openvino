@@ -14,7 +14,9 @@ using namespace std;
 using namespace ngraph;
 
 op::ReLUIE::ReLUIE(const Output<Node>& data, const float& negative_slope, const element::Type output_type)
-    : Op(OutputVector {data}), m_negative_slope(negative_slope), m_output_type(output_type) {
+    : Op(OutputVector{data}),
+      m_negative_slope(negative_slope),
+      m_output_type(output_type) {
     constructor_validate_and_infer_types();
 }
 
@@ -24,10 +26,9 @@ std::shared_ptr<Node> op::ReLUIE::clone_with_new_inputs(const OutputVector& new_
 }
 
 void op::ReLUIE::validate_and_infer_types() {
-    set_output_type(
-        0,
-        m_output_type == element::undefined ? get_input_element_type(0) : m_output_type,
-        get_input_partial_shape(0));
+    set_output_type(0,
+                    m_output_type == element::undefined ? get_input_element_type(0) : m_output_type,
+                    get_input_partial_shape(0));
 }
 
 bool op::ReLUIE::visit_attributes(AttributeVisitor& visitor) {

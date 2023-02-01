@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <memory>
-
 #include <ie_api.h>
+
+#include <memory>
 
 #include "ngraph/op/op.hpp"
 
@@ -17,17 +17,21 @@ class ReLUIE : public Op {
 public:
     OPENVINO_OP("ReLUIE", "legacy");
 
-    ReLUIE(const Output<Node> & data, const float & negative_slope, const element::Type output_type);
+    ReLUIE(const Output<Node>& data, const float& negative_slope, const element::Type output_type);
 
     void validate_and_infer_types() override;
 
-    bool visit_attributes(AttributeVisitor &visitor) override;
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    float get_slope() { return m_negative_slope; }
+    float get_slope() {
+        return m_negative_slope;
+    }
 
-    element::Type get_output_type() const { return m_output_type; }
+    element::Type get_output_type() const {
+        return m_output_type;
+    }
 
 private:
     float m_negative_slope;

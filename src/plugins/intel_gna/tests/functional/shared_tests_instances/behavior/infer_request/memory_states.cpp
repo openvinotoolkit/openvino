@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <common_test_utils/test_constants.hpp>
 #include "behavior/infer_request/memory_states.hpp"
+
+#include <common_test_utils/test_constants.hpp>
+
 #include "functional_test_utils/plugin_cache.hpp"
 #include "ngraph_functions/builders.hpp"
 
@@ -36,15 +38,16 @@ InferenceEngine::CNNNetwork getNetwork() {
     mem_w2->add_control_dependency(mem_r2);
     sigm->add_control_dependency(mem_w2);
 
-    auto function = std::make_shared<ngraph::Function>(ngraph::NodeVector{sigm}, ngraph::ParameterVector{input}, "addOutput");
+    auto function =
+        std::make_shared<ngraph::Function>(ngraph::NodeVector{sigm}, ngraph::ParameterVector{input}, "addOutput");
     return InferenceEngine::CNNNetwork{function};
 }
 
 std::vector<memoryStateParams> memoryStateTestCases = {
-        memoryStateParams(getNetwork(), {"c_1-3", "r_1-3"}, CommonTestUtils::DEVICE_GNA, {})
-};
+    memoryStateParams(getNetwork(), {"c_1-3", "r_1-3"}, CommonTestUtils::DEVICE_GNA, {})};
 
-INSTANTIATE_TEST_SUITE_P(smoke_VariableStateBasic, InferRequestVariableStateTest,
+INSTANTIATE_TEST_SUITE_P(smoke_VariableStateBasic,
+                         InferRequestVariableStateTest,
                          ::testing::ValuesIn(memoryStateTestCases),
                          InferRequestVariableStateTest::getTestCaseName);
-} // namespace
+}  // namespace

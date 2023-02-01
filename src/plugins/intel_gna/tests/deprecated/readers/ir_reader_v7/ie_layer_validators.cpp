@@ -5,6 +5,7 @@
 #include "ie_layer_validators.hpp"
 
 #include <ie_iextension.h>
+#include <legacy/ie_layers.h>
 
 #include <cmath>
 #include <limits>
@@ -15,10 +16,9 @@
 #include <vector>
 
 #include "debug.h"
-#include <legacy/ie_layers.h>
 #include "xml_parse_utils.h"
 
-void InferenceEngine::details::validateLayer(const CNNLayer * layer) {
+void InferenceEngine::details::validateLayer(const CNNLayer* layer) {
     try {
         LayerValidator::Ptr validator = LayerValidators::getInstance()->getValidator(layer->type);
         validator->checkParams(layer);
@@ -27,7 +27,7 @@ void InferenceEngine::details::validateLayer(const CNNLayer * layer) {
         validator->checkShapes(layer, shapes.inDims);
     } catch (const Exception& ie_e) {
         IE_THROW() << "Error of validate layer: " << layer->name << " with type: " << layer->type << ". "
-                           << ie_e.what();
+                   << ie_e.what();
     }
 }
 
@@ -55,11 +55,16 @@ struct WeightableParams {
     bool _isKernelFromInput = false;
 
     WeightableParams(size_t outputs, bool isKernelFromInput, size_t groups = 0, const std::vector<size_t>& kernel = {})
-        : _kernel(kernel), _outputs(outputs), _groups(groups), _isKernelFromInput(isKernelFromInput) {}
+        : _kernel(kernel),
+          _outputs(outputs),
+          _groups(groups),
+          _isKernelFromInput(isKernelFromInput) {}
 };
 
-void checkWeightable(const std::map<std::string, Blob::Ptr>& blobs, const vector<SizeVector>& inShapes,
-                     WeightableParams params, const SizeVector& numDims) {
+void checkWeightable(const std::map<std::string, Blob::Ptr>& blobs,
+                     const vector<SizeVector>& inShapes,
+                     WeightableParams params,
+                     const SizeVector& numDims) {
     std::vector<size_t> expected_num_of_shapes = {1, 2, 3};
     bool shape_was_found = false;
     for (const auto& i : expected_num_of_shapes) {
@@ -82,10 +87,11 @@ void checkWeightable(const std::map<std::string, Blob::Ptr>& blobs, const vector
     }
     if (!isOK) {
         IE_THROW() << "Input shape " << details::dumpVec(firstInputShape)
-                           << " has unexpected size, supported sizes: " << details::dumpVec(numDims);
+                   << " has unexpected size, supported sizes: " << details::dumpVec(numDims);
     }
 
-    if (firstInputShape.empty()) IE_THROW() << "Input shape can't be empty";
+    if (firstInputShape.empty())
+        IE_THROW() << "Input shape can't be empty";
 
     size_t IC, OC;
     std::vector<size_t> kernel;
@@ -101,9 +107,7 @@ void checkWeightable(const std::map<std::string, Blob::Ptr>& blobs, const vector
     OC = params._outputs;
 
     auto it = blobs.find("weights");
-    if (it !=
-        blobs
-            .end()) {  // TODO: return with fixing shape infer tests: IE_THROW() << "Invalid blobs: no weights";
+    if (it != blobs.end()) {  // TODO: return with fixing shape infer tests: IE_THROW() << "Invalid blobs: no weights";
         auto weights = it->second;
         if (weights == nullptr || weights->getTensorDesc().getDims().empty())
             IE_THROW() << "Weights can't be empty";
@@ -113,16 +117,18 @@ void checkWeightable(const std::map<std::string, Blob::Ptr>& blobs, const vector
         for (auto k : kernel) {
             expectedWeightsSize *= k;
         }
-        if (params._groups) expectedWeightsSize /= params._groups;
+        if (params._groups)
+            expectedWeightsSize /= params._groups;
         if (expectedWeightsSize != weightsSize) {
             std::string ker_str;
             for (size_t i = 0; i < params._kernel.size(); i++) {
-                if (!ker_str.empty()) ker_str += "x";
+                if (!ker_str.empty())
+                    ker_str += "x";
                 ker_str += std::to_string(kernel[i]);
             }
             IE_THROW() << "New shapes " << details::dumpVec(firstInputShape) << " make Kernels(" << ker_str
-                               << "), Channels(" << IC << "), Output depth(" << OC << "), Groups(" << params._groups
-                               << ") not matching weights size: " << expectedWeightsSize << " vs " << weightsSize;
+                       << "), Channels(" << IC << "), Output depth(" << OC << "), Groups(" << params._groups
+                       << ") not matching weights size: " << expectedWeightsSize << " vs " << weightsSize;
         }
     }
 
@@ -139,22 +145,25 @@ void checkWeightable(const std::map<std::string, Blob::Ptr>& blobs, const vector
 }
 
 void checkDeformableConv(const DeformableConvolutionLayer* deformableConvLayer,
-                         const std::map<std::string, Blob::Ptr>& blobs, const vector<SizeVector>& inShapes) {
+                         const std::map<std::string, Blob::Ptr>& blobs,
+                         const vector<SizeVector>& inShapes) {
     std::vector<size_t> krn;
     for (size_t i = 0; i < deformableConvLayer->_kernel.size(); i++)
         krn.push_back(deformableConvLayer->_kernel[i]);
-    checkWeightable(blobs, {inShapes[0]}, {deformableConvLayer->_out_depth, false, deformableConvLayer->_group, krn},
+    checkWeightable(blobs,
+                    {inShapes[0]},
+                    {deformableConvLayer->_out_depth, false, deformableConvLayer->_group, krn},
                     {4});
 
     SizeVector transInputShape = inShapes[1];
 
-    if (transInputShape.empty()) IE_THROW() << "Trans input shape can't be empty";
+    if (transInputShape.empty())
+        IE_THROW() << "Trans input shape can't be empty";
     size_t TC = transInputShape[1];
 
     if (TC != deformableConvLayer->_deformable_group * 2 * krn[0] * krn[1])
-        IE_THROW() << "Failed with invalid shapes: trans input channel dimension is invalid. Actual value is: "
-                           << TC
-                           << ". Expected value: " << deformableConvLayer->_deformable_group * 2 * krn[0] * krn[1];
+        IE_THROW() << "Failed with invalid shapes: trans input channel dimension is invalid. Actual value is: " << TC
+                   << ". Expected value: " << deformableConvLayer->_deformable_group * 2 * krn[0] * krn[1];
 }
 
 void checkNumOfInput(const std::vector<SizeVector>& inShapes, const vector<size_t>& expected_num_of_shapes) {
@@ -167,7 +176,7 @@ void checkNumOfInput(const std::vector<SizeVector>& inShapes, const vector<size_
     }
     if (!shape_was_found) {
         IE_THROW() << "Number of inputs (" << inShapes.size()
-                           << ") is not equal to expected ones: " << expected_num_of_shapes.size();
+                   << ") is not equal to expected ones: " << expected_num_of_shapes.size();
     }
 }
 
@@ -183,7 +192,7 @@ LayerValidator::Ptr LayerValidators::getValidator(const std::string& type) {
     return _validators[type];
 }
 
-GeneralValidator::GeneralValidator(const std::string& _type): LayerValidator(_type) {}
+GeneralValidator::GeneralValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void FullyConnectedValidator::checkParams(const CNNLayer* layer) {
     auto casted = dynamic_cast<const FullyConnectedLayer*>(layer);
@@ -194,14 +203,16 @@ void FullyConnectedValidator::checkParams(const CNNLayer* layer) {
     (void)_out_num;
 }
 
-void FullyConnectedValidator::checkCorrespondence(const CNNLayer* layer, const std::map<std::string, Blob::Ptr>& blobs,
+void FullyConnectedValidator::checkCorrespondence(const CNNLayer* layer,
+                                                  const std::map<std::string, Blob::Ptr>& blobs,
                                                   const vector<SizeVector>& inShapes) const {
     const auto casted = dynamic_cast<const FullyConnectedLayer*>(layer);
-    if (!casted) IE_THROW() << "Layer is not instance of FullyConnected layer class";
+    if (!casted)
+        IE_THROW() << "Layer is not instance of FullyConnected layer class";
     checkWeightable(blobs, inShapes, {casted->_out_num, true, 1}, {2, 4, 5});
 }
 
-FullyConnectedValidator::FullyConnectedValidator(const std::string& _type): LayerValidator(_type) {}
+FullyConnectedValidator::FullyConnectedValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void FullyConnectedValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const {
     checkNumOfInput(inShapes, {1, 2, 3});
@@ -214,11 +225,11 @@ void CropValidator::checkParams(const CNNLayer* layer) {
     }
     if (casted->axis.size() != casted->offset.size()) {
         IE_THROW() << "Incorrect format of the Crop layer: number of axis doesn't match number of offset - ("
-                           << casted->axis.size() << " vs. " << casted->offset.size() << ")";
+                   << casted->axis.size() << " vs. " << casted->offset.size() << ")";
     }
 }
 
-CropValidator::CropValidator(const std::string& _type): LayerValidator(_type) {}
+CropValidator::CropValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void CropValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>& inShapes) const {
     auto casted = dynamic_cast<const CropLayer*>(layer);
@@ -235,36 +246,32 @@ void CropValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>&
         int offset = casted->offset[i];
         if (static_cast<int>(shapeSize) <= axis)
             IE_THROW() << "Crop axis(" << casted->axis[i]
-                               << ") should be less the number of dimensions of first input (" << firstShape.size()
-                               << ")";
+                       << ") should be less the number of dimensions of first input (" << firstShape.size() << ")";
         if (numInputs == 2) {
             if (casted->params.find("crop_begin") != casted->params.end()) {
                 IE_THROW() << "Incorrect format of the Crop layer: `crop_begin` and `crop_end` attributes are "
-                                      "valid for single input only";
+                              "valid for single input only";
             }
             auto secondShape = inShapes[1];
             if (static_cast<int>(secondShape.size()) <= axis)
-                IE_THROW() << "Crop axis(" << axis
-                                   << ") should be less the number of dimensions of second input ("
-                                   << secondShape.size() << ")";
+                IE_THROW() << "Crop axis(" << axis << ") should be less the number of dimensions of second input ("
+                           << secondShape.size() << ")";
             size_t newSize = secondShape[axis];
             if (firstShape[axis] < static_cast<size_t>(offset + newSize)) {
-                IE_THROW() << "Incorrect crop data! Offset(" << offset << ") + result size of output("
-                                   << newSize << ") should be less then input size(" << firstShape[axis]
-                                   << ") for axis(" << axis << ")";
+                IE_THROW() << "Incorrect crop data! Offset(" << offset << ") + result size of output(" << newSize
+                           << ") should be less then input size(" << firstShape[axis] << ") for axis(" << axis << ")";
             }
         } else if (!casted->dim.empty()) {
             int dim = casted->dim[i];
             if (firstShape[axis] < (static_cast<size_t>(offset) + dim)) {
                 IE_THROW() << "Incorrect crop data! Offset(" << offset << ") + result size of output(" << dim
-                                   << ") should be less then input size(" << firstShape[axis] << ") for axis(" << axis
-                                   << ")";
+                           << ") should be less then input size(" << firstShape[axis] << ") for axis(" << axis << ")";
             }
         }
     }
 }
 
-ConvolutionValidator::ConvolutionValidator(const std::string& _type): LayerValidator(_type) {}
+ConvolutionValidator::ConvolutionValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void ConvolutionValidator::checkParams(const CNNLayer* layer) {
     auto casted = dynamic_cast<const ConvolutionLayer*>(layer);
@@ -299,10 +306,12 @@ void ConvolutionValidator::checkParams(const CNNLayer* layer) {
     casted->GetParamAsUInt("group", 1);
 }
 
-void ConvolutionValidator::checkCorrespondence(const CNNLayer* layer, const std::map<std::string, Blob::Ptr>& blobs,
+void ConvolutionValidator::checkCorrespondence(const CNNLayer* layer,
+                                               const std::map<std::string, Blob::Ptr>& blobs,
                                                const vector<SizeVector>& inShapes) const {
     auto convLayer = dynamic_cast<const ConvolutionLayer*>(layer);
-    if (!convLayer) IE_THROW() << "Layer is not instance of Convolution layer class";
+    if (!convLayer)
+        IE_THROW() << "Layer is not instance of Convolution layer class";
 
     std::vector<size_t> krn;
     for (size_t i = 0; i < convLayer->_kernel.size(); i++)
@@ -347,12 +356,14 @@ void DeconvolutionValidator::checkParams(const CNNLayer* layer) {
     casted->GetParamAsUInt("group", 1);
 }
 
-DeconvolutionValidator::DeconvolutionValidator(const std::string& _type): ConvolutionValidator(_type) {}
+DeconvolutionValidator::DeconvolutionValidator(const std::string& _type) : ConvolutionValidator(_type) {}
 
-void DeconvolutionValidator::checkCorrespondence(const CNNLayer* layer, const std::map<std::string, Blob::Ptr>& blobs,
+void DeconvolutionValidator::checkCorrespondence(const CNNLayer* layer,
+                                                 const std::map<std::string, Blob::Ptr>& blobs,
                                                  const vector<SizeVector>& inShapes) const {
     auto deconv_layer = dynamic_cast<const DeconvolutionLayer*>(layer);
-    if (!deconv_layer) IE_THROW() << "Layer is not instance of Deconvolution layer class";
+    if (!deconv_layer)
+        IE_THROW() << "Layer is not instance of Deconvolution layer class";
 
     std::vector<size_t> krn;
     for (size_t i = 0; i < deconv_layer->_kernel.size(); i++)
@@ -384,13 +395,15 @@ void DeformableConvolutionValidator::checkParams(const CNNLayer* layer) {
     casted->GetParamAsUInt("deformable_group", 1);
 }
 
-DeformableConvolutionValidator::DeformableConvolutionValidator(const std::string& _type): ConvolutionValidator(_type) {}
+DeformableConvolutionValidator::DeformableConvolutionValidator(const std::string& _type)
+    : ConvolutionValidator(_type) {}
 
 void DeformableConvolutionValidator::checkCorrespondence(const CNNLayer* layer,
                                                          const std::map<std::string, Blob::Ptr>& blobs,
                                                          const vector<SizeVector>& inShapes) const {
     auto deformable_conv_layer = dynamic_cast<const DeformableConvolutionLayer*>(layer);
-    if (!deformable_conv_layer) IE_THROW() << "Layer is not instance of DeformableConvolutionLayer class";
+    if (!deformable_conv_layer)
+        IE_THROW() << "Layer is not instance of DeformableConvolutionLayer class";
 
     checkDeformableConv(deformable_conv_layer, blobs, inShapes);
 }
@@ -399,7 +412,7 @@ void DeformableConvolutionValidator::checkShapes(const CNNLayer* layer, const st
     checkNumOfInput(inShapes, {2, 3, 4});
 }
 
-PoolingValidator::PoolingValidator(const std::string& _type): LayerValidator(_type) {}
+PoolingValidator::PoolingValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void PoolingValidator::checkParams(const CNNLayer* layer) {
     // TODO: check that values belong to the scope of the definition according to spec
@@ -420,7 +433,7 @@ void BatchNormalizationValidator::checkParams(const CNNLayer* layer) {
     }
 }
 
-BatchNormalizationValidator::BatchNormalizationValidator(const std::string& _type): LayerValidator(_type) {}
+BatchNormalizationValidator::BatchNormalizationValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void BatchNormalizationValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const {
     checkNumOfInput(inShapes, {1});
@@ -430,7 +443,7 @@ void PowerValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
 }
 
-PowerValidator::PowerValidator(const std::string& _type): LayerValidator(_type) {}
+PowerValidator::PowerValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void PowerValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const {
     checkNumOfInput(inShapes, {1});
@@ -440,7 +453,7 @@ void PReLUValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
 }
 
-PReLUValidator::PReLUValidator(const std::string& _type): LayerValidator(_type) {}
+PReLUValidator::PReLUValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void PReLUValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const {
     checkNumOfInput(inShapes, {1});
@@ -450,7 +463,7 @@ void ScaleShiftValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
 }
 
-ScaleShiftValidator::ScaleShiftValidator(const std::string& _type): LayerValidator(_type) {}
+ScaleShiftValidator::ScaleShiftValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void ScaleShiftValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const {
     checkNumOfInput(inShapes, {1});
@@ -468,25 +481,27 @@ void TileValidator::checkParams(const CNNLayer* layer) {
     }
 }
 
-TileValidator::TileValidator(const std::string& _type): LayerValidator(_type) {}
+TileValidator::TileValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void TileValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const {
     checkNumOfInput(inShapes, {1});
 }
 
-ReshapeValidator::ReshapeValidator(const std::string& _type): LayerValidator(_type) {}
+ReshapeValidator::ReshapeValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void ReshapeValidator::checkParams(const CNNLayer* layer) {
     auto casted = dynamic_cast<const ReshapeLayer*>(layer);
-    if (!casted) IE_THROW() << "Layer is not instance of ReshapeLayer class";
+    if (!casted)
+        IE_THROW() << "Layer is not instance of ReshapeLayer class";
     size_t num = 0;
     for (int dim : casted->shape) {
         if (dim < -1)
-            IE_THROW() << "Invalid value of Reshape mask (dim attribute):" << dim
-                               << ". Supported values: 0, -1, >0";
-        if (dim == -1) num++;
+            IE_THROW() << "Invalid value of Reshape mask (dim attribute):" << dim << ". Supported values: 0, -1, >0";
+        if (dim == -1)
+            num++;
     }
-    if (num > 1) IE_THROW() << "Invalid Reshape mask (dim attribute): at most one dimension can be `-1`";
+    if (num > 1)
+        IE_THROW() << "Invalid Reshape mask (dim attribute): at most one dimension can be `-1`";
 }
 
 void EltwiseValidator::checkParams(const CNNLayer* layer) {
@@ -502,9 +517,9 @@ void EltwiseValidator::checkShapes(const CNNLayer* layer, const std::vector<Size
     }
 }
 
-EltwiseValidator::EltwiseValidator(const std::string& _type): LayerValidator(_type) {}
+EltwiseValidator::EltwiseValidator(const std::string& _type) : LayerValidator(_type) {}
 
-ClampValidator::ClampValidator(const std::string& _type): LayerValidator(_type) {}
+ClampValidator::ClampValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void ClampValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const {
     checkNumOfInput(inShapes, {1});
@@ -521,7 +536,7 @@ void ReLUValidator::checkParams(const CNNLayer* layer) {
     }
 }
 
-ReLUValidator::ReLUValidator(const std::string& _type): LayerValidator(_type) {}
+ReLUValidator::ReLUValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void ReLUValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const {
     checkNumOfInput(inShapes, {1, 2});
@@ -529,7 +544,7 @@ void ReLUValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVec
 
 void MVNValidator::checkParams(const CNNLayer* layer) {}
 
-MVNValidator::MVNValidator(const std::string& _type): LayerValidator(_type) {}
+MVNValidator::MVNValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void MVNValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const {
     checkNumOfInput(inShapes, {1});
@@ -539,7 +554,7 @@ void GRNValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
 }
 
-GRNValidator::GRNValidator(const std::string& _type): LayerValidator(_type) {}
+GRNValidator::GRNValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void GRNValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const {
     checkNumOfInput(inShapes, {1});
@@ -556,7 +571,7 @@ void SoftMaxValidator::checkParams(const CNNLayer* layer) {
     }
 }
 
-SoftMaxValidator::SoftMaxValidator(const std::string& _type): LayerValidator(_type) {}
+SoftMaxValidator::SoftMaxValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void SoftMaxValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const {
     checkNumOfInput(inShapes, {1});
@@ -574,13 +589,13 @@ void NormValidator::checkParams(const CNNLayer* layer) {
     }
 }
 
-NormValidator::NormValidator(const std::string& _type): LayerValidator(_type) {}
+NormValidator::NormValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void NormValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const {
     checkNumOfInput(inShapes, {1});
 }
 
-SplitValidator::SplitValidator(const std::string& _type): LayerValidator(_type) {}
+SplitValidator::SplitValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void SplitValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -598,21 +613,23 @@ void SplitValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVe
     checkNumOfInput(inShapes, {1});
     std::vector<int> out_sizes = layer->GetParamAsInts("out_sizes", {});
     size_t sum(0);
-    for (const auto& size : out_sizes) sum += size;
+    for (const auto& size : out_sizes)
+        sum += size;
     if (inShapes.empty() || inShapes[0].size() <= casted->_axis)
         IE_THROW() << "Layer has incorrect input shapes!";
     if (sum != inShapes[0][casted->_axis]) {
         IE_THROW() << "The sum of the dimensions on the axis(" << casted->_axis
-                           << ") is not equal out_sizes: " << details::dumpVec(out_sizes);
+                   << ") is not equal out_sizes: " << details::dumpVec(out_sizes);
     }
 }
 
-ConcatValidator::ConcatValidator(const std::string& _type): LayerValidator(_type) {}
+ConcatValidator::ConcatValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void ConcatValidator::checkParams(const CNNLayer* layer) {}
 
 void ConcatValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const {
-    if (inShapes.empty()) IE_THROW() << "Inputs are empty";
+    if (inShapes.empty())
+        IE_THROW() << "Inputs are empty";
 
     auto casted = dynamic_cast<const ConcatLayer*>(layer);
     if (!casted) {
@@ -624,23 +641,23 @@ void ConcatValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeV
     size_t axis = casted->_axis;
     if (axis >= firstShapeSize)
         IE_THROW() << "Concat axis(" << axis << ") should be less the number of current input dimensions ("
-                           << firstShapeSize << ")";
+                   << firstShapeSize << ")";
 
     for (size_t i = 1; i < inShapes.size(); i++) {
         auto shape = inShapes[i];
         if (shape.size() != firstShapeSize)
             IE_THROW() << "Invalid inputs for Concat layer: number of dimensions must match: " << firstShapeSize
-                               << " vs " << shape.size();
+                       << " vs " << shape.size();
         bool eq_part1 = std::equal(firstShape.begin(), firstShape.begin() + axis, shape.begin());
         bool eq_part2 = std::equal(firstShape.begin() + axis + 1, firstShape.end(), shape.begin() + axis + 1);
         if (!(eq_part1 && eq_part2))
             IE_THROW() << "Invalid inputs for Concat layer: dimensions should match in all "
-                               << "positions except axis (" << axis << ") : [" << dumpVec(firstShape) << "] vs ["
-                               << dumpVec(shape) << "]";
+                       << "positions except axis (" << axis << ") : [" << dumpVec(firstShape) << "] vs ["
+                       << dumpVec(shape) << "]";
     }
 }
 
-GemmValidator::GemmValidator(const std::string& _type): LayerValidator(_type) {}
+GemmValidator::GemmValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void GemmValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -663,16 +680,18 @@ void GemmValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>&
     unsigned long xAxis0 = static_cast<unsigned long>(dims0.size() - 1);
     unsigned long yAxis0 = static_cast<unsigned long>(dims0.size() - 2);
 
-    if (casted->transpose_a) std::swap(xAxis0, yAxis0);
+    if (casted->transpose_a)
+        std::swap(xAxis0, yAxis0);
 
     unsigned long xAxis1 = static_cast<unsigned long>(dims1.size() - 1);
     unsigned long yAxis1 = static_cast<unsigned long>(dims1.size() - 2);
 
-    if (casted->transpose_b) std::swap(xAxis1, yAxis1);
+    if (casted->transpose_b)
+        std::swap(xAxis1, yAxis1);
 
     if (dims0[xAxis0] != dims1[yAxis1])
         IE_THROW() << "Gemm input0 x dimension must be equal to input1 y dimension (" << dims0[xAxis0] << " vs "
-                           << dims1[yAxis1] << ")";
+                   << dims1[yAxis1] << ")";
 
     if (inShapes.size() == 3) {
         auto dims2 = inShapes[2];
@@ -684,16 +703,16 @@ void GemmValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>&
         unsigned long yAxis2 = static_cast<unsigned long>(dims2.size() - 2);
 
         if (dims2[xAxis2] != dims1[xAxis1])
-            IE_THROW() << "Gemm input2 x dimension must be equal to input1 x dimension (" << dims2[xAxis2]
-                               << " vs " << dims1[xAxis1] << ")";
+            IE_THROW() << "Gemm input2 x dimension must be equal to input1 x dimension (" << dims2[xAxis2] << " vs "
+                       << dims1[xAxis1] << ")";
 
         if (dims2[yAxis2] != dims0[yAxis0])
-            IE_THROW() << "Gemm input2 y dimension must be equal to input0 y dimension (" << dims2[yAxis2]
-                               << " vs " << dims0[yAxis0] << ")";
+            IE_THROW() << "Gemm input2 y dimension must be equal to input0 y dimension (" << dims2[yAxis2] << " vs "
+                       << dims0[yAxis0] << ")";
     }
 }
 
-PadValidator::PadValidator(const std::string& _type): LayerValidator(_type) {}
+PadValidator::PadValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void PadValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -709,31 +728,29 @@ void PadValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>& 
 
     if (inShapes[0].size() != casted->pads_begin.size())
         IE_THROW() << layer->name << " Dimensions count mismatch in layer " << layer->name
-                           << ". Expected: " << casted->pads_begin.size() << " Got: " << inShapes[0].size();
+                   << ". Expected: " << casted->pads_begin.size() << " Got: " << inShapes[0].size();
 
     if (inShapes[0].size() != casted->pads_end.size())
         IE_THROW() << layer->name << " Dimensions count mismatch in layer " << layer->name
-                           << ". Expected: " << casted->pads_end.size() << " Got: " << inShapes[0].size();
+                   << ". Expected: " << casted->pads_end.size() << " Got: " << inShapes[0].size();
 
     if (casted->pad_mode == PadLayer::Symmetric || casted->pad_mode == PadLayer::Reflect) {
         for (size_t i = 0; i < inShapes[0].size(); i++) {
             if (inShapes[0][i] < casted->pads_begin[i]) {
-                IE_THROW() << layer->name
-                                   << " Pad can't be grater than input shape in symmetric and reflect modes."
-                                   << " For dimension " << i << " pad_begin=" << casted->pads_begin[i]
-                                   << " in_shape=" << inShapes[0][i];
+                IE_THROW() << layer->name << " Pad can't be grater than input shape in symmetric and reflect modes."
+                           << " For dimension " << i << " pad_begin=" << casted->pads_begin[i]
+                           << " in_shape=" << inShapes[0][i];
             }
             if (inShapes[0][i] < casted->pads_end[i]) {
-                IE_THROW() << layer->name
-                                   << " Pad can't be grater than input shape in symmetric and reflect modes."
-                                   << " For dimension " << i << " pad_end=" << casted->pads_end[i]
-                                   << " in_shape=" << inShapes[0][i];
+                IE_THROW() << layer->name << " Pad can't be grater than input shape in symmetric and reflect modes."
+                           << " For dimension " << i << " pad_end=" << casted->pads_end[i]
+                           << " in_shape=" << inShapes[0][i];
             }
         }
     }
 }
 
-GatherValidator::GatherValidator(const std::string& _type): LayerValidator(_type) {}
+GatherValidator::GatherValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void GatherValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -751,13 +768,13 @@ void GatherValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector
 
     if (casted->axis > 0 && static_cast<int>(inShapes[0].size()) < (1 + casted->axis))
         IE_THROW() << layer->name << " Incorrect input dictionary dimensions " << inShapes[0].size()
-                           << " and axis number " << casted->axis;
+                   << " and axis number " << casted->axis;
     else if (casted->axis < 0 && (static_cast<int>(inShapes[0].size()) + casted->axis) < 0)
         IE_THROW() << layer->name << " Incorrect input dictionary dimensions " << inShapes[0].size()
-                           << " and axis number " << casted->axis;
+                   << " and axis number " << casted->axis;
 }
 
-StridedSliceValidator::StridedSliceValidator(const std::string& _type): LayerValidator(_type) {}
+StridedSliceValidator::StridedSliceValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void StridedSliceValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -771,18 +788,18 @@ void StridedSliceValidator::checkShapes(const CNNLayer* layer, const vector<Size
 
     size_t numInputs = inShapes.size();
     if (numInputs > 4)
-        IE_THROW() << layer->name
-                           << " StridedSlice can take up to 4 inputs, but actually it has: " << numInputs;
+        IE_THROW() << layer->name << " StridedSlice can take up to 4 inputs, but actually it has: " << numInputs;
 
     size_t ellipsis_mask_counter = 0;
     for (size_t i = 0; i < casted->ellipsis_mask.size(); ++i) {
-        if (casted->ellipsis_mask[i] == '1') ellipsis_mask_counter++;
+        if (casted->ellipsis_mask[i] == '1')
+            ellipsis_mask_counter++;
     }
     if (ellipsis_mask_counter > 1)
         IE_THROW() << layer->name << " 'Ellipsis_mask' must be a power of two (only one ellipsis)!";
 }
 
-ShuffleChannelsValidator::ShuffleChannelsValidator(const std::string& _type): LayerValidator(_type) {}
+ShuffleChannelsValidator::ShuffleChannelsValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void ShuffleChannelsValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -796,29 +813,31 @@ void ShuffleChannelsValidator::checkShapes(const CNNLayer* layer, const vector<S
 
     size_t numInputs = inShapes.size();
     if (numInputs != 1)
-        IE_THROW() << layer->name
-                           << " ShuffleChannels can take only 1 input, but actually it has: " << numInputs;
+        IE_THROW() << layer->name << " ShuffleChannels can take only 1 input, but actually it has: " << numInputs;
 
     if (casted->axis > 0 && static_cast<int>(inShapes[0].size()) < (1 + casted->axis))
-        IE_THROW() << layer->name << "I ncorrect input tensor dimensions " << inShapes[0].size()
-                           << " and axis number " << casted->axis;
+        IE_THROW() << layer->name << "I ncorrect input tensor dimensions " << inShapes[0].size() << " and axis number "
+                   << casted->axis;
     else if (casted->axis < 0 && (static_cast<int>(inShapes[0].size()) + casted->axis) < 0)
         IE_THROW() << layer->name << " Incorrect input dictionary dimensions " << inShapes[0].size()
-                           << " and axis number " << casted->axis;
+                   << " and axis number " << casted->axis;
 
     int axis = casted->axis;
-    if (axis < 0) axis += static_cast<int>(inShapes[0].size());
+    if (axis < 0)
+        axis += static_cast<int>(inShapes[0].size());
 
     if (inShapes[0][axis] % casted->group)
         IE_THROW() << layer->name << " Group parameter must evenly divide the channel dimension!";
 
     size_t dataLength = 1;
-    for (size_t i = axis + 1; i < inShapes[0].size(); i++) dataLength *= inShapes[0][i];
+    for (size_t i = axis + 1; i < inShapes[0].size(); i++)
+        dataLength *= inShapes[0][i];
 
-    if (dataLength == 0) IE_THROW() << layer->name << " Incorrect input parameters dimension!";
+    if (dataLength == 0)
+        IE_THROW() << layer->name << " Incorrect input parameters dimension!";
 }
 
-DepthToSpaceValidator::DepthToSpaceValidator(const std::string& _type): LayerValidator(_type) {}
+DepthToSpaceValidator::DepthToSpaceValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void DepthToSpaceValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -834,16 +853,18 @@ void DepthToSpaceValidator::checkShapes(const CNNLayer* layer, const vector<Size
     if (numInputs != 1)
         IE_THROW() << layer->name << " DepthToSpace can take only 1 input, but actually it has: " << numInputs;
 
-    if (inShapes[0].size() < 3) IE_THROW() << layer->name << " Incorrect number of input dimensions!";
+    if (inShapes[0].size() < 3)
+        IE_THROW() << layer->name << " Incorrect number of input dimensions!";
 
-    if (casted->block_size == 0) IE_THROW() << layer->name << " Incorrect block_size parameter is zero!";
+    if (casted->block_size == 0)
+        IE_THROW() << layer->name << " Incorrect block_size parameter is zero!";
 
     size_t numSpatialDims = inShapes[0].size() - 2;
     if (inShapes[0][1] % static_cast<size_t>(std::pow(casted->block_size, numSpatialDims)))
         IE_THROW() << layer->name << " block_size parameter is incompatible with input tensor Color dimension size!";
 }
 
-SpaceToDepthValidator::SpaceToDepthValidator(const std::string& _type): LayerValidator(_type) {}
+SpaceToDepthValidator::SpaceToDepthValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void SpaceToDepthValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -859,21 +880,21 @@ void SpaceToDepthValidator::checkShapes(const CNNLayer* layer, const vector<Size
     if (numInputs != 1)
         IE_THROW() << layer->name << " SpaceToDepth can take only 1 input, but actually it has: " << numInputs;
 
-    if (inShapes[0].size() < 2) IE_THROW() << layer->name << " Incorrect number of input dimensions!";
+    if (inShapes[0].size() < 2)
+        IE_THROW() << layer->name << " Incorrect number of input dimensions!";
 
-    if (casted->block_size == 0) IE_THROW() << layer->name << " Incorrect block_size parameter is zero!";
+    if (casted->block_size == 0)
+        IE_THROW() << layer->name << " Incorrect block_size parameter is zero!";
 
     if (inShapes[0][inShapes[0].size() - 1] % casted->block_size)
-        IE_THROW() << layer->name
-                           << " block_size parameter is incompatible with input tensor With dimension size!";
+        IE_THROW() << layer->name << " block_size parameter is incompatible with input tensor With dimension size!";
 
     if (inShapes[0][inShapes[0].size() - 2] % casted->block_size)
-        IE_THROW() << layer->name
-                           << " block_size parameter is incompatible with input tensor Height dimension size!";
+        IE_THROW() << layer->name << " block_size parameter is incompatible with input tensor Height dimension size!";
 }
 
 /*--- SpaceToBatchValidator ---*/
-SpaceToBatchValidator::SpaceToBatchValidator(const std::string& _type): LayerValidator(_type) {}
+SpaceToBatchValidator::SpaceToBatchValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void SpaceToBatchValidator::checkParams(const CNNLayer* layer) {
     const auto spaceToBatchLayer = dynamic_cast<const SpaceToBatchLayer*>(layer);
@@ -896,7 +917,7 @@ void SpaceToBatchValidator::checkShapes(const CNNLayer* layer, const vector<Size
 }
 
 /*--- BatchToSpaceValidator ---*/
-BatchToSpaceValidator::BatchToSpaceValidator(const std::string& _type): LayerValidator(_type) {}
+BatchToSpaceValidator::BatchToSpaceValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void BatchToSpaceValidator::checkParams(const CNNLayer* layer) {
     auto batchToSpaceLayer = dynamic_cast<const BatchToSpaceLayer*>(layer);
@@ -915,7 +936,7 @@ void BatchToSpaceValidator::checkShapes(const CNNLayer* layer, const vector<Size
 }
 
 /*--- SparseFillEmptyRowsValidator ---*/
-SparseFillEmptyRowsValidator::SparseFillEmptyRowsValidator(const std::string& _type): LayerValidator(_type) {}
+SparseFillEmptyRowsValidator::SparseFillEmptyRowsValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void SparseFillEmptyRowsValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -929,13 +950,13 @@ void SparseFillEmptyRowsValidator::checkShapes(const CNNLayer* layer, const vect
 
     size_t numInputs = inShapes.size();
     if (numInputs != 4)
-        IE_THROW() << layer->name
-                           << " SparseFillEmptyRows must have 4 inputs, but actually it has: " << numInputs;
+        IE_THROW() << layer->name << " SparseFillEmptyRows must have 4 inputs, but actually it has: " << numInputs;
 
     // Check dimensions of a tensor with input indices
     if (inShapes[0].size() != 2)
         IE_THROW() << layer->name << " Input indices of SparseFillEmptyRows must be 2-D tensor";
-    if (inShapes[0][1] != 2) IE_THROW() << layer->name << " Input indices must be two-dimensional";
+    if (inShapes[0][1] != 2)
+        IE_THROW() << layer->name << " Input indices must be two-dimensional";
 
     // Check dimensions of a tensor with input values
     if (inShapes[1].size() != 1)
@@ -953,7 +974,7 @@ void SparseFillEmptyRowsValidator::checkShapes(const CNNLayer* layer, const vect
         IE_THROW() << layer->name << " Default value of SparseFillEmptyRows must be 1-D tensor";
 }
 
-SparseSegmentReduceValidator::SparseSegmentReduceValidator(const std::string& _type): LayerValidator(_type) {}
+SparseSegmentReduceValidator::SparseSegmentReduceValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void SparseSegmentReduceValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -967,8 +988,7 @@ void SparseSegmentReduceValidator::checkShapes(const CNNLayer* layer, const vect
 
     size_t numInputs = inShapes.size();
     if (numInputs != 3)
-        IE_THROW() << layer->name
-                           << " SparseSegmentReduce must take three inputs, but actually it has: " << numInputs;
+        IE_THROW() << layer->name << " SparseSegmentReduce must take three inputs, but actually it has: " << numInputs;
 
     // check that the second and the third inputs are one-dimensional
     if (inShapes[1].size() != 1) {
@@ -979,13 +999,15 @@ void SparseSegmentReduceValidator::checkShapes(const CNNLayer* layer, const vect
     }
 }
 
-ExperimentalSparseWeightedReduceValidator::ExperimentalSparseWeightedReduceValidator(const std::string& _type) : LayerValidator(_type) {}
+ExperimentalSparseWeightedReduceValidator::ExperimentalSparseWeightedReduceValidator(const std::string& _type)
+    : LayerValidator(_type) {}
 
 void ExperimentalSparseWeightedReduceValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
 }
 
-void ExperimentalSparseWeightedReduceValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>& inShapes) const {
+void ExperimentalSparseWeightedReduceValidator::checkShapes(const CNNLayer* layer,
+                                                            const vector<SizeVector>& inShapes) const {
     auto casted = dynamic_cast<const ExperimentalSparseWeightedReduceLayer*>(layer);
     if (!casted) {
         IE_THROW() << layer->name << " Layer is not instance of ExperimentalSparseWeightedReduce class";
@@ -994,37 +1016,39 @@ void ExperimentalSparseWeightedReduceValidator::checkShapes(const CNNLayer* laye
     size_t numInputs = inShapes.size();
     if (numInputs != 5 && numInputs != 6)
         IE_THROW() << layer->name
-                           << " ExperimentalSparseWeightedReduce must take five or six inputs, but actually it has: "
-                           << numInputs;
+                   << " ExperimentalSparseWeightedReduce must take five or six inputs, but actually it has: "
+                   << numInputs;
 
     // check shapes of inputs
     if (inShapes[0].size() != 2 || inShapes[0][1] != 2) {
         IE_THROW() << layer->name
-                           << " The first input with indices of ExperimentalSparseSegmentReduce must be two-dimensional";
+                   << " The first input with indices of ExperimentalSparseSegmentReduce must be two-dimensional";
     }
     if (inShapes[1].size() != 1) {
         IE_THROW() << layer->name
-                           << " The second input with values of ExperimentalSparseSegmentReduce must be one-dimensional";
+                   << " The second input with values of ExperimentalSparseSegmentReduce must be one-dimensional";
     }
     if (inShapes[1][0] != inShapes[0][0]) {
         IE_THROW() << layer->name
-            << "  The first dimension value of the first and second inputs of ExperimentalSparseSegmentReduce must be the same";
+                   << "  The first dimension value of the first and second inputs of ExperimentalSparseSegmentReduce "
+                      "must be the same";
     }
     if (inShapes[2].size() != 1 || inShapes[2][0] != 2) {
         IE_THROW() << layer->name
-            << " The third input with a dense shape of ExperimentalSparseSegmentReduce must be one-dimensional";
+                   << " The third input with a dense shape of ExperimentalSparseSegmentReduce must be one-dimensional";
     }
     if (inShapes[3].size() < 2) {
         IE_THROW() << layer->name
-            << " The fourth input with parameters table of ExperimentalSparseSegmentReduce must have two dimensions at least";
+                   << " The fourth input with parameters table of ExperimentalSparseSegmentReduce must have two "
+                      "dimensions at least";
     }
     if (inShapes[4].size() != 0) {
         IE_THROW() << layer->name
-            << " The fifth input with a default value of ExperimentalSparseSegmentReduce must be a scalar";
+                   << " The fifth input with a default value of ExperimentalSparseSegmentReduce must be a scalar";
     }
     if (numInputs == 6 && (inShapes[5].size() != 1 || inShapes[5][0] != inShapes[1][0])) {
         IE_THROW() << layer->name
-            << " The second and sixth inputs of ExperimentalSparseSegmentReduce must have the same shapes";
+                   << " The second and sixth inputs of ExperimentalSparseSegmentReduce must have the same shapes";
     }
 
     // check precisions of inputs
@@ -1047,7 +1071,8 @@ void ExperimentalSparseWeightedReduceValidator::checkShapes(const CNNLayer* laye
     Precision input_params_table_precision = layer->insData[INPUT_PARAMS_TABLE].lock()->getTensorDesc().getPrecision();
     if (input_params_table_precision != Precision::FP32)
         IE_THROW() << layer->name << " Incorrect input parameters table precision. Only FP32 are supported!";
-    Precision input_default_value_precision = layer->insData[INPUT_DEFAULT_VALUE].lock()->getTensorDesc().getPrecision();
+    Precision input_default_value_precision =
+        layer->insData[INPUT_DEFAULT_VALUE].lock()->getTensorDesc().getPrecision();
     if (input_default_value_precision != Precision::I32)
         IE_THROW() << layer->name << " Incorrect input default value precision. Only I32 are supported!";
     if (numInputs == 6) {
@@ -1056,7 +1081,6 @@ void ExperimentalSparseWeightedReduceValidator::checkShapes(const CNNLayer* laye
             IE_THROW() << layer->name << " Incorrect input weights precision. Only FP32 are supported!";
     }
 }
-
 
 SparseToDenseValidator::SparseToDenseValidator(const std::string& _type) : LayerValidator(_type) {}
 
@@ -1073,25 +1097,20 @@ void SparseToDenseValidator::checkShapes(const CNNLayer* layer, const vector<Siz
     size_t numInputs = inShapes.size();
     if (numInputs != 3 && numInputs != 4)
         IE_THROW() << layer->name
-                           << " SparseToDense must take three or four inputs, but actually it has: "
-                           << numInputs;
+                   << " SparseToDense must take three or four inputs, but actually it has: " << numInputs;
 
     // check shapes of inputs
     if (inShapes[0].size() != 2) {
-        IE_THROW() << layer->name
-                           << " The first input with indices of SparseToDense must be two-dimensional";
+        IE_THROW() << layer->name << " The first input with indices of SparseToDense must be two-dimensional";
     }
     if (inShapes[1].size() != 1 || inShapes[1][0] != inShapes[0][1]) {
-        IE_THROW() << layer->name
-                           << " The second input with a dense shape of SparseToDense must be one-dimensional";
+        IE_THROW() << layer->name << " The second input with a dense shape of SparseToDense must be one-dimensional";
     }
     if (inShapes[2].size() != 1 || inShapes[2][0] != inShapes[0][0]) {
-        IE_THROW() << layer->name
-                           << " The third input with values of SparseToDense must be one-dimensional";
+        IE_THROW() << layer->name << " The third input with values of SparseToDense must be one-dimensional";
     }
     if (numInputs == 4 && inShapes[3].size() != 0) {
-        IE_THROW() << layer->name
-            << " The fourth input with default value of SparseToDense must be a scalar";
+        IE_THROW() << layer->name << " The fourth input with default value of SparseToDense must be a scalar";
     }
 
     // check precisions of inputs
@@ -1110,12 +1129,12 @@ void SparseToDenseValidator::checkShapes(const CNNLayer* layer, const vector<Siz
     if (input_values_precision != Precision::I32)
         IE_THROW() << layer->name << " Incorrect input values precision. Only I32 are supported!";
     if (numInputs == 4) {
-        Precision input_default_value_precision = layer->insData[INPUT_DEFAULT_VALUE].lock()->getTensorDesc().getPrecision();
+        Precision input_default_value_precision =
+            layer->insData[INPUT_DEFAULT_VALUE].lock()->getTensorDesc().getPrecision();
         if (input_default_value_precision != Precision::I32)
             IE_THROW() << layer->name << " Incorrect input default value precision. Only I32 are supported!";
     }
 }
-
 
 BucketizeValidator::BucketizeValidator(const std::string& _type) : LayerValidator(_type) {}
 
@@ -1131,14 +1150,11 @@ void BucketizeValidator::checkShapes(const CNNLayer* layer, const vector<SizeVec
 
     size_t numInputs = inShapes.size();
     if (numInputs != 2)
-        IE_THROW() << layer->name
-                           << " Bucketize must take two inputs, but actually it has: "
-                           << numInputs;
+        IE_THROW() << layer->name << " Bucketize must take two inputs, but actually it has: " << numInputs;
 
     // check shapes of inputs
     if (inShapes[1].size() != 1) {
-        IE_THROW() << layer->name
-                           << " The second input of Bucketize must be one-dimensional";
+        IE_THROW() << layer->name << " The second input of Bucketize must be one-dimensional";
     }
 
     // check precisions of inputs
@@ -1153,7 +1169,7 @@ void BucketizeValidator::checkShapes(const CNNLayer* layer, const vector<SizeVec
         IE_THROW() << layer->name << " Incorrect input boundaries precision. Only FP32 are supported!";
 }
 
-ReverseSequenceValidator::ReverseSequenceValidator(const std::string& _type): LayerValidator(_type) {}
+ReverseSequenceValidator::ReverseSequenceValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void ReverseSequenceValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -1174,25 +1190,26 @@ void ReverseSequenceValidator::checkShapes(const CNNLayer* layer, const vector<S
 
     if (casted->seq_axis > 0 && static_cast<int>(inShapes[0].size()) < (1 + casted->seq_axis))
         IE_THROW() << layer->name << "Incorrect input tensor dimensions " << inShapes[0].size()
-                           << " and seq_axis number " << casted->seq_axis;
+                   << " and seq_axis number " << casted->seq_axis;
     else if (casted->seq_axis < 0 && (static_cast<int>(inShapes[0].size()) + casted->seq_axis) < 0)
         IE_THROW() << layer->name << " Incorrect input dictionary dimensions " << inShapes[0].size()
-                           << " and seq_axis number " << casted->seq_axis;
+                   << " and seq_axis number " << casted->seq_axis;
 
     if (casted->batch_axis > 0 && static_cast<int>(inShapes[0].size()) < (1 + casted->batch_axis))
         IE_THROW() << layer->name << "Incorrect input tensor dimensions " << inShapes[0].size()
-                           << " and batch_axis number " << casted->batch_axis;
+                   << " and batch_axis number " << casted->batch_axis;
     else if (casted->batch_axis < 0 && (static_cast<int>(inShapes[0].size()) + casted->batch_axis) < 0)
         IE_THROW() << layer->name << " Incorrect input dictionary dimensions " << inShapes[0].size()
-                           << " and batch_axis number " << casted->batch_axis;
+                   << " and batch_axis number " << casted->batch_axis;
 
     int batch_axis = casted->batch_axis;
-    if (batch_axis < 0) batch_axis += static_cast<int>(inShapes[0].size());
+    if (batch_axis < 0)
+        batch_axis += static_cast<int>(inShapes[0].size());
     if (inShapes[1][0] != inShapes[0][batch_axis])
         IE_THROW() << layer->name << " Incorrect 'seq_lengths_dims' parameter dimensions!";
 }
 
-SqueezeValidator::SqueezeValidator(const std::string& _type): LayerValidator(_type) {}
+SqueezeValidator::SqueezeValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void SqueezeValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -1212,7 +1229,7 @@ void SqueezeValidator::checkShapes(const CNNLayer* layer, const vector<SizeVecto
         IE_THROW() << layer->name << " Incorrect number of 'indices_to_squeeze' input dimensions!";
 }
 
-UnsqueezeValidator::UnsqueezeValidator(const std::string& _type): LayerValidator(_type) {}
+UnsqueezeValidator::UnsqueezeValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void UnsqueezeValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -1232,7 +1249,7 @@ void UnsqueezeValidator::checkShapes(const CNNLayer* layer, const vector<SizeVec
         IE_THROW() << layer->name << " Incorrect number of 'indices_to_set' input dimensions!";
 }
 
-RangeValidator::RangeValidator(const std::string& _type): LayerValidator(_type) {}
+RangeValidator::RangeValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void RangeValidator::checkParams(const CNNLayer* layer) {}
 
@@ -1246,14 +1263,17 @@ void RangeValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>
     if (numInputs != 3)
         IE_THROW() << layer->name << " Range can take 3 inputs, but actually it has: " << numInputs;
 
-    if (inShapes[0].size() != 1) IE_THROW() << layer->name << " Incorrect number of 'start' input dimensions!";
+    if (inShapes[0].size() != 1)
+        IE_THROW() << layer->name << " Incorrect number of 'start' input dimensions!";
 
-    if (inShapes[1].size() != 1) IE_THROW() << layer->name << " Incorrect number of 'limit' input dimensions!";
+    if (inShapes[1].size() != 1)
+        IE_THROW() << layer->name << " Incorrect number of 'limit' input dimensions!";
 
-    if (inShapes[2].size() != 1) IE_THROW() << layer->name << " Incorrect number of 'delta' input dimensions!";
+    if (inShapes[2].size() != 1)
+        IE_THROW() << layer->name << " Incorrect number of 'delta' input dimensions!";
 }
 
-FillValidator::FillValidator(const std::string& _type): LayerValidator(_type) {}
+FillValidator::FillValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void FillValidator::checkParams(const CNNLayer* layer) {}
 
@@ -1269,7 +1289,7 @@ void FillValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>&
         IE_THROW() << layer->name << " Incorrect number of 'fill_value' input dimensions!";
 }
 
-BroadcastValidator::BroadcastValidator(const std::string& _type): LayerValidator(_type) {}
+BroadcastValidator::BroadcastValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void BroadcastValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -1285,14 +1305,15 @@ void BroadcastValidator::checkShapes(const CNNLayer* layer, const vector<SizeVec
     if (numInputs != 2)
         IE_THROW() << layer->name << " Broadcast can take 2 inputs, but actually it has: " << numInputs;
 
-    if (inShapes[1].size() != 1) IE_THROW() << layer->name << " Incorrect number of 'shape' input dimensions!";
+    if (inShapes[1].size() != 1)
+        IE_THROW() << layer->name << " Incorrect number of 'shape' input dimensions!";
 }
 
 /****************************************/
 /*** RNN specific validators ************/
 /****************************************/
 
-RNNBaseValidator::RNNBaseValidator(const std::string& _type, RNNSequenceLayer::CellType CELL): LayerValidator(_type) {
+RNNBaseValidator::RNNBaseValidator(const std::string& _type, RNNSequenceLayer::CellType CELL) : LayerValidator(_type) {
     if (RNNSequenceLayer::LSTM == CELL) {
         def_acts = {"sigmoid", "tanh", "tanh"};
         def_alpha = {0, 0, 0};
@@ -1318,9 +1339,11 @@ RNNBaseValidator::RNNBaseValidator(const std::string& _type, RNNSequenceLayer::C
 
 void RNNBaseValidator::checkParams(const InferenceEngine::CNNLayer* layer) {
     auto rnn = dynamic_cast<const RNNCellBase*>(layer);
-    if (!rnn) IE_THROW() << "Layer is not instance of RNNLayer class";
+    if (!rnn)
+        IE_THROW() << "Layer is not instance of RNNLayer class";
 
-    if (rnn->clip < 0.0f) IE_THROW() << "Clip parameter should be positive";
+    if (rnn->clip < 0.0f)
+        IE_THROW() << "Clip parameter should be positive";
 
     for (auto& act : rnn->activations)
         if (!one_of(act, "sigmoid", "tanh", "relu"))
@@ -1328,56 +1351,62 @@ void RNNBaseValidator::checkParams(const InferenceEngine::CNNLayer* layer) {
 
     size_t act_num_required = def_acts.size();
     if (rnn->activations.size() != act_num_required)
-        IE_THROW() << "Expected " << act_num_required << " activations, but provided "
-                           << rnn->activations.size();
+        IE_THROW() << "Expected " << act_num_required << " activations, but provided " << rnn->activations.size();
 
     if (rnn->activation_alpha.size() != act_num_required)
         IE_THROW() << "Expected " << act_num_required << " activation alpha parameters, "
-                           << "but provided " << rnn->activation_alpha.size();
+                   << "but provided " << rnn->activation_alpha.size();
     if (rnn->activation_beta.size() != act_num_required)
         IE_THROW() << "Expected " << act_num_required << " activation beta parameters, "
-                           << "but provided " << rnn->activation_beta.size();
+                   << "but provided " << rnn->activation_beta.size();
 }
 
-void RNNBaseValidator::checkCorrespondence(const CNNLayer* layer, const map<string, Blob::Ptr>& blobs,
+void RNNBaseValidator::checkCorrespondence(const CNNLayer* layer,
+                                           const map<string, Blob::Ptr>& blobs,
                                            const vector<SizeVector>& inShapes) const {
     auto rnn = dynamic_cast<const RNNCellBase*>(layer);
-    if (!rnn) IE_THROW() << "Layer is not instance of RNNLayer class";
+    if (!rnn)
+        IE_THROW() << "Layer is not instance of RNNLayer class";
 
     if (blobs.size() != 2)
         IE_THROW() << "Expected only 2 blobs with trained parameters (weights and biases), "
-                           << "but provided only " << blobs.size();
-    if (inShapes.empty()) IE_THROW() << "No input tensors.";
+                   << "but provided only " << blobs.size();
+    if (inShapes.empty())
+        IE_THROW() << "No input tensors.";
 
     size_t D = inShapes[0].back();
     size_t S = rnn->hidden_size;
     size_t expectetd_w_size = G * S * (D + S);
     size_t expectetd_b_size = G * S;
 
-    if (rnn->cellType == RNNCellBase::GRU_LBR) expectetd_b_size = (G + 1) * S;
+    if (rnn->cellType == RNNCellBase::GRU_LBR)
+        expectetd_b_size = (G + 1) * S;
 
     auto w = blobs.find("weights");
-    if (w == blobs.end()) IE_THROW() << "Weights blob is not provided";
+    if (w == blobs.end())
+        IE_THROW() << "Weights blob is not provided";
 
     if (w->second->size() != expectetd_w_size)
         IE_THROW() << "Weights blob has wrang size. Expected " << expectetd_w_size;
 
     auto b = blobs.find("biases");
-    if (b == blobs.end()) IE_THROW() << "Biases blob is not provided";
+    if (b == blobs.end())
+        IE_THROW() << "Biases blob is not provided";
 
     if (b->second->size() != expectetd_b_size)
         IE_THROW() << "Biases blob has wrang size. Expected " << expectetd_b_size;
 }
 
 template <RNNSequenceLayer::CellType CELL>
-RNNSequenceValidator<CELL>::RNNSequenceValidator(const std::string& _type): RNNBaseValidator(_type, CELL) {}
+RNNSequenceValidator<CELL>::RNNSequenceValidator(const std::string& _type) : RNNBaseValidator(_type, CELL) {}
 
 template <RNNSequenceLayer::CellType CELL>
 void RNNSequenceValidator<CELL>::checkParams(const InferenceEngine::CNNLayer* layer) {
     RNNBaseValidator::checkParams(layer);
 
     auto casted = dynamic_cast<const RNNSequenceLayer*>(layer);
-    if (!casted) IE_THROW() << "Layer is not instance of RNNLayer class";
+    if (!casted)
+        IE_THROW() << "Layer is not instance of RNNLayer class";
 
     if (!one_of(casted->axis, 1u, 0u))
         IE_THROW() << "Unsupported iteration axis for RNNSequense layer. Only 0 or 1 axis are supported.";
@@ -1386,11 +1415,14 @@ void RNNSequenceValidator<CELL>::checkParams(const InferenceEngine::CNNLayer* la
 template <RNNSequenceLayer::CellType CELL>
 void RNNSequenceValidator<CELL>::checkShapes(const CNNLayer* layer, const vector<SizeVector>& inShapes) const {
     auto rnn = dynamic_cast<const RNNSequenceLayer*>(layer);
-    if (!rnn) IE_THROW() << "Layer is not instance of RNNSequenceLayer class";
+    if (!rnn)
+        IE_THROW() << "Layer is not instance of RNNSequenceLayer class";
 
-    if (inShapes.empty()) IE_THROW() << "No input tensors.";
+    if (inShapes.empty())
+        IE_THROW() << "No input tensors.";
 
-    if (inShapes[0].size() != 3) IE_THROW() << "First input data tensor should be 3D";
+    if (inShapes[0].size() != 3)
+        IE_THROW() << "First input data tensor should be 3D";
 
     size_t T_axis = rnn->axis;
     size_t N_axis = (T_axis + 1) % 2;
@@ -1398,14 +1430,15 @@ void RNNSequenceValidator<CELL>::checkShapes(const CNNLayer* layer, const vector
     size_t S = rnn->hidden_size;
     size_t NS = RNNSequenceValidator<CELL>::NS;
 
-    SizeVector expected_state_shape {N, S};
-    SizeVector expected_seq_l_shape {N};
+    SizeVector expected_state_shape{N, S};
+    SizeVector expected_seq_l_shape{N};
 
     if (inShapes.size() > 1) {  // has an initial state blobs
         if (inShapes.size() != 1 + NS && inShapes.size() != 2 + NS)
-            IE_THROW() << "Wrong number of input tensors. Expected 1 (data) or " << 1 + NS
-                               << " (data and states) or " << 2 + NS << " (data, states and seq_length).";
-        if (inShapes[1] != expected_state_shape) IE_THROW() << "Wrong shape of first initial state tensors.";
+            IE_THROW() << "Wrong number of input tensors. Expected 1 (data) or " << 1 + NS << " (data and states) or "
+                       << 2 + NS << " (data, states and seq_length).";
+        if (inShapes[1] != expected_state_shape)
+            IE_THROW() << "Wrong shape of first initial state tensors.";
         //                             << " Expected " << expected_state_shape << " but provided " << inShapes[1];
 
         if (NS == 2 && inShapes[2] != expected_state_shape)
@@ -1422,25 +1455,29 @@ template class RNNSequenceValidator<RNNSequenceLayer::GRU>;
 template class RNNSequenceValidator<RNNSequenceLayer::LSTM>;
 
 template <RNNSequenceLayer::CellType CELL>
-RNNCellValidator<CELL>::RNNCellValidator(const std::string& _type): RNNBaseValidator(_type, CELL) {}
+RNNCellValidator<CELL>::RNNCellValidator(const std::string& _type) : RNNBaseValidator(_type, CELL) {}
 
 template <RNNSequenceLayer::CellType CELL>
 void RNNCellValidator<CELL>::checkShapes(const CNNLayer* layer, const vector<SizeVector>& inShapes) const {
     auto rnn = dynamic_cast<const RNNCellBase*>(layer);
-    if (!rnn) IE_THROW() << "Layer is not instance of RNNSequenceLayer class";
+    if (!rnn)
+        IE_THROW() << "Layer is not instance of RNNSequenceLayer class";
 
     const size_t& NS = RNNCellValidator<CELL>::NS;
 
-    if (inShapes.size() != NS + 1) IE_THROW() << "Wrong number of input tensors. Expected " << NS + 1;
+    if (inShapes.size() != NS + 1)
+        IE_THROW() << "Wrong number of input tensors. Expected " << NS + 1;
 
-    if (inShapes[0].size() != 2) IE_THROW() << "First input data tensor should be 2D";
+    if (inShapes[0].size() != 2)
+        IE_THROW() << "First input data tensor should be 2D";
 
     size_t N = inShapes[0][0];
     size_t S = rnn->hidden_size;
 
-    SizeVector expected_state_shape {N, S};
+    SizeVector expected_state_shape{N, S};
 
-    if (inShapes[1] != expected_state_shape) IE_THROW() << "Wrong shape of first initial state tensors.";
+    if (inShapes[1] != expected_state_shape)
+        IE_THROW() << "Wrong shape of first initial state tensors.";
     //                         << " Expected " << expected_state_shape << " but provided " << inShapes[1];
 
     if (NS == 2 && inShapes[2] != expected_state_shape)
@@ -1461,7 +1498,7 @@ void ArgMaxValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeV
     checkNumOfInput(inShapes, {1});
 }
 
-ArgMaxValidator::ArgMaxValidator(const std::string& _type): LayerValidator(_type) {}
+ArgMaxValidator::ArgMaxValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void CTCGreedyDecoderValidator::checkParams(const CNNLayer* layer) {
     int flag = layer->GetParamAsInt("ctc_merge_repeated", 0);
@@ -1474,7 +1511,7 @@ void CTCGreedyDecoderValidator::checkShapes(const CNNLayer* layer, const std::ve
     checkNumOfInput(inShapes, {1, 2});
 }
 
-CTCGreedyDecoderValidator::CTCGreedyDecoderValidator(const std::string& _type): LayerValidator(_type) {}
+CTCGreedyDecoderValidator::CTCGreedyDecoderValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void DetectionOutputValidator::checkParams(const CNNLayer* layer) {
     unsigned int num_classes = layer->GetParamAsUInt("num_classes");
@@ -1532,7 +1569,7 @@ void DetectionOutputValidator::checkShapes(const CNNLayer* layer, const std::vec
     checkNumOfInput(inShapes, {3, 5});
 }
 
-DetectionOutputValidator::DetectionOutputValidator(const std::string& _type): LayerValidator(_type) {}
+DetectionOutputValidator::DetectionOutputValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void InterpValidator::checkParams(const CNNLayer* layer) {}
 
@@ -1543,11 +1580,14 @@ void InterpValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeV
     };
     if (inShapes.size() != 2) {
         float factor = layer->GetParamAsFloat("factor", 0);
-        if (factor < 0) IE_THROW() << "factor parameter of Interp layer can't be less then zero";
+        if (factor < 0)
+            IE_THROW() << "factor parameter of Interp layer can't be less then zero";
         float shrink_factor = layer->GetParamAsFloat("shrink_factor", 0);
-        if (shrink_factor < 0) IE_THROW() << "shrink_factor parameter of Interp layer can't be less then zero";
+        if (shrink_factor < 0)
+            IE_THROW() << "shrink_factor parameter of Interp layer can't be less then zero";
         float zoom_factor = (layer->GetParamAsFloat("zoom_factor", 0));
-        if (zoom_factor < 0) IE_THROW() << "zoom_factor parameter of Interp layer can't be less then zero";
+        if (zoom_factor < 0)
+            IE_THROW() << "zoom_factor parameter of Interp layer can't be less then zero";
         bool noFactor = IS_ZERO(factor) && IS_ZERO(shrink_factor) && IS_ZERO(zoom_factor);
 
         auto height = layer->GetParamAsUInt("height", 0);
@@ -1555,12 +1595,12 @@ void InterpValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeV
 
         if (noFactor && (height == 0 || width == 0)) {
             IE_THROW() << "Can't reshape without factor, or target resolution. "
-                               << "Supported attributes: factor, shrink_factor, zoom_factor, height, width";
+                       << "Supported attributes: factor, shrink_factor, zoom_factor, height, width";
         }
     }
 }
 
-InterpValidator::InterpValidator(const std::string& _type): LayerValidator(_type) {}
+InterpValidator::InterpValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void PermuteValidator::checkParams(const CNNLayer* layer) {
     std::vector<unsigned int> layerOrder = layer->GetParamAsUInts("order");
@@ -1570,7 +1610,7 @@ void PermuteValidator::checkShapes(const CNNLayer* layer, const std::vector<Size
     checkNumOfInput(inShapes, {1});
 }
 
-PermuteValidator::PermuteValidator(const std::string& _type): LayerValidator(_type) {}
+PermuteValidator::PermuteValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void PriorBoxValidator::checkParams(const CNNLayer* layer) {
     std::vector<unsigned int> min_sizes = layer->GetParamAsUInts("min_size", {});
@@ -1585,7 +1625,7 @@ void PriorBoxValidator::checkParams(const CNNLayer* layer) {
     for (float i : variance_) {
         if (i < 0) {
             IE_THROW() << "The value of PriorBox layer variance parameter is invalid. "
-                                  "Positive value is expected";
+                          "Positive value is expected";
         }
     }
     float step_ = layer->GetParamAsFloat("step", 0);
@@ -1602,7 +1642,7 @@ void PriorBoxValidator::checkShapes(const CNNLayer* layer, const std::vector<Siz
     checkNumOfInput(inShapes, {2});
 }
 
-PriorBoxValidator::PriorBoxValidator(const std::string& _type): LayerValidator(_type) {}
+PriorBoxValidator::PriorBoxValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void PriorBoxClusteredValidator::checkParams(const CNNLayer* layer) {
     std::vector<float> widths = layer->GetParamAsFloats("width", {});
@@ -1630,7 +1670,7 @@ void PriorBoxClusteredValidator::checkParams(const CNNLayer* layer) {
     for (float i : variance_) {
         if (i < 0) {
             IE_THROW() << "The value of PriorBox layer variance parameter is invalid. "
-                                  "Positive value is expected";
+                          "Positive value is expected";
         }
     }
     float step_h_ = layer->GetParamAsFloat("step_h", 0);
@@ -1655,7 +1695,7 @@ void PriorBoxClusteredValidator::checkShapes(const CNNLayer* layer, const std::v
     checkNumOfInput(inShapes, {2});
 }
 
-PriorBoxClusteredValidator::PriorBoxClusteredValidator(const std::string& _type): LayerValidator(_type) {}
+PriorBoxClusteredValidator::PriorBoxClusteredValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void ProposalValidator::checkParams(const CNNLayer* layer) {
     unsigned int post_nms_topn_ = layer->GetParamAsUInt("post_nms_topn");
@@ -1689,7 +1729,7 @@ void ProposalValidator::checkShapes(const CNNLayer* layer, const std::vector<Siz
     checkNumOfInput(inShapes, {3});
 }
 
-ProposalValidator::ProposalValidator(const std::string& _type): LayerValidator(_type) {}
+ProposalValidator::ProposalValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void PSROIPoolingValidator::checkParams(const CNNLayer* layer) {
     unsigned int output_dim = layer->GetParamAsUInt("output_dim");
@@ -1708,7 +1748,7 @@ void PSROIPoolingValidator::checkShapes(const CNNLayer* layer, const std::vector
     checkNumOfInput(inShapes, {1, 2, 3});
 }
 
-PSROIPoolingValidator::PSROIPoolingValidator(const std::string& _type): LayerValidator(_type) {}
+PSROIPoolingValidator::PSROIPoolingValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void RegionYoloValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -1718,7 +1758,7 @@ void RegionYoloValidator::checkShapes(const CNNLayer* layer, const std::vector<S
     checkNumOfInput(inShapes, {1});
 }
 
-RegionYoloValidator::RegionYoloValidator(const std::string& _type): LayerValidator(_type) {}
+RegionYoloValidator::RegionYoloValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void ReorgYoloValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -1728,7 +1768,7 @@ void ReorgYoloValidator::checkShapes(const CNNLayer* layer, const std::vector<Si
     checkNumOfInput(inShapes, {1});
 }
 
-ReorgYoloValidator::ReorgYoloValidator(const std::string& _type): LayerValidator(_type) {}
+ReorgYoloValidator::ReorgYoloValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void ResampleValidator::checkParams(const CNNLayer* layer) {
     if (layer->CheckParamPresence("antialias")) {
@@ -1751,7 +1791,7 @@ void ResampleValidator::checkShapes(const CNNLayer* layer, const std::vector<Siz
     checkNumOfInput(inShapes, {1, 2});
 }
 
-ResampleValidator::ResampleValidator(const std::string& _type): LayerValidator(_type) {}
+ResampleValidator::ResampleValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void ROIPoolingValidator::checkParams(const CNNLayer* layer) {
     unsigned int pooled_h = layer->GetParamAsUInt("pooled_h");
@@ -1768,7 +1808,7 @@ void ROIPoolingValidator::checkShapes(const CNNLayer* layer, const std::vector<S
     checkNumOfInput(inShapes, {1, 2});
 }
 
-ROIPoolingValidator::ROIPoolingValidator(const std::string& _type): LayerValidator(_type) {}
+ROIPoolingValidator::ROIPoolingValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void SimplerNMSValidator::checkParams(const CNNLayer* layer) {
     unsigned int post_nms_topn_ = layer->GetParamAsUInt("post_nms_topn");
@@ -1808,7 +1848,7 @@ void SimplerNMSValidator::checkShapes(const CNNLayer* layer, const std::vector<S
     checkNumOfInput(inShapes, {3});
 }
 
-SimplerNMSValidator::SimplerNMSValidator(const std::string& _type): LayerValidator(_type) {}
+SimplerNMSValidator::SimplerNMSValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void SpatialTransformerValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -1818,7 +1858,7 @@ void SpatialTransformerValidator::checkShapes(const CNNLayer* layer, const std::
     checkNumOfInput(inShapes, {2});
 }
 
-SpatialTransformerValidator::SpatialTransformerValidator(const std::string& _type): LayerValidator(_type) {}
+SpatialTransformerValidator::SpatialTransformerValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void UpsamplingValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -1828,7 +1868,7 @@ void UpsamplingValidator::checkShapes(const CNNLayer* layer, const std::vector<S
     checkNumOfInput(inShapes, {1});
 }
 
-UpsamplingValidator::UpsamplingValidator(const std::string& _type): LayerValidator(_type) {}
+UpsamplingValidator::UpsamplingValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void UnpoolingValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -1838,9 +1878,9 @@ void UnpoolingValidator::checkShapes(const CNNLayer* layer, const std::vector<Si
     checkNumOfInput(inShapes, {1});
 }
 
-UnpoolingValidator::UnpoolingValidator(const std::string& _type): LayerValidator(_type) {}
+UnpoolingValidator::UnpoolingValidator(const std::string& _type) : LayerValidator(_type) {}
 
-ActivationValidator::ActivationValidator(const std::string& _type): LayerValidator(_type) {}
+ActivationValidator::ActivationValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void ActivationValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -1850,7 +1890,7 @@ void ActivationValidator::checkShapes(const CNNLayer* layer, const std::vector<S
     checkNumOfInput(inShapes, {1});
 }
 
-ConstValidator::ConstValidator(const std::string& _type): LayerValidator(_type) {}
+ConstValidator::ConstValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void ConstValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -1860,7 +1900,7 @@ void ConstValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVe
     checkNumOfInput(inShapes, {0, 1});
 }
 
-CopyValidator::CopyValidator(const std::string& _type): LayerValidator(_type) {}
+CopyValidator::CopyValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void CopyValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -1870,7 +1910,7 @@ void CopyValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVec
     checkNumOfInput(inShapes, {1});
 }
 
-ELUValidator::ELUValidator(const std::string& _type): LayerValidator(_type) {}
+ELUValidator::ELUValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void ELUValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -1880,7 +1920,7 @@ void ELUValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVect
     checkNumOfInput(inShapes, {1});
 }
 
-InputValidator::InputValidator(const std::string& _type): LayerValidator(_type) {}
+InputValidator::InputValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void InputValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -1890,7 +1930,7 @@ void InputValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVe
     checkNumOfInput(inShapes, {0});
 }
 
-MemoryValidator::MemoryValidator(const std::string& _type): LayerValidator(_type) {}
+MemoryValidator::MemoryValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void MemoryValidator::checkParams(const CNNLayer* layer) {
     int size = layer->GetParamAsInt("size");
@@ -1903,7 +1943,7 @@ void MemoryValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeV
     checkNumOfInput(inShapes, {1, 0});
 }
 
-NormalizeValidator::NormalizeValidator(const std::string& _type): LayerValidator(_type) {}
+NormalizeValidator::NormalizeValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void NormalizeValidator::checkParams(const CNNLayer* layer) {
     if (layer->CheckParamPresence("eps")) {
@@ -1914,19 +1954,22 @@ void NormalizeValidator::checkParams(const CNNLayer* layer) {
     }
 }
 
-SelectValidator::SelectValidator(const std::string& _type): LayerValidator(_type) {}
+SelectValidator::SelectValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void SelectValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const {
     enum { CONDITION, THEN, ELSE, numOfInputs };
 
     size_t numInputs = inShapes.size();
-    if (numOfInputs != numInputs) IE_THROW() << "Select layer with name '" << layer->name << "' take 3 inputs, but actually it has: " << numInputs;
+    if (numOfInputs != numInputs)
+        IE_THROW() << "Select layer with name '" << layer->name
+                   << "' take 3 inputs, but actually it has: " << numInputs;
 
     size_t new_rank = inShapes[ELSE].size();
     new_rank = std::max(new_rank, inShapes[THEN].size());
 
     if (inShapes[CONDITION].size() > new_rank)
-        IE_THROW() << "Select layer with name '" << layer->name << "' has 'Mask' input's rank more than broadcasted 'Then' and 'Else' inputs' ranks";
+        IE_THROW() << "Select layer with name '" << layer->name
+                   << "' has 'Mask' input's rank more than broadcasted 'Then' and 'Else' inputs' ranks";
 
     for (size_t i = 0; i < new_rank; i++) {
         auto in1 = i < (new_rank - inShapes[THEN].size()) ? 1 : inShapes[THEN][i - (new_rank - inShapes[THEN].size())];
@@ -1936,15 +1979,18 @@ void SelectValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeV
         if (in1 == in2 || in1 == 1 || in2 == 1)
             tmp = std::max(in1, in2);
         else
-            IE_THROW() << "Select layer with name '" << layer->name << "' has incompatible 'Then' and 'Else' inputs' shapes";
+            IE_THROW() << "Select layer with name '" << layer->name
+                       << "' has incompatible 'Then' and 'Else' inputs' shapes";
 
-        auto in0 = i < (new_rank - inShapes[CONDITION].size()) ? 1 : inShapes[CONDITION][i - (new_rank - inShapes[CONDITION].size())];
+        auto in0 = i < (new_rank - inShapes[CONDITION].size())
+                       ? 1
+                       : inShapes[CONDITION][i - (new_rank - inShapes[CONDITION].size())];
 
         if (tmp == in0 || in0 == 1)
             tmp = std::max(tmp, in0);
         else
             IE_THROW() << "Select layer with name '" << layer->name
-                                                        << "' has incompatible 'Mask' input's shapes and broadcasted 'Then' and 'Else' inputs' shapes";
+                       << "' has incompatible 'Mask' input's shapes and broadcasted 'Then' and 'Else' inputs' shapes";
     }
 }
 
@@ -1952,7 +1998,7 @@ void NormalizeValidator::checkShapes(const CNNLayer* layer, const std::vector<Si
     checkNumOfInput(inShapes, {1});
 }
 
-PowerFileValidator::PowerFileValidator(const std::string& _type): LayerValidator(_type) {}
+PowerFileValidator::PowerFileValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void PowerFileValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -1962,7 +2008,7 @@ void PowerFileValidator::checkShapes(const CNNLayer* layer, const std::vector<Si
     checkNumOfInput(inShapes, {1});
 }
 
-ReLU6Validator::ReLU6Validator(const std::string& _type): LayerValidator(_type) {}
+ReLU6Validator::ReLU6Validator(const std::string& _type) : LayerValidator(_type) {}
 
 void ReLU6Validator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -1972,7 +2018,7 @@ void ReLU6Validator::checkShapes(const CNNLayer* layer, const std::vector<SizeVe
     checkNumOfInput(inShapes, {1});
 }
 
-SigmoidValidator::SigmoidValidator(const std::string& _type): LayerValidator(_type) {}
+SigmoidValidator::SigmoidValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void SigmoidValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -1982,13 +2028,13 @@ void SigmoidValidator::checkShapes(const CNNLayer* layer, const std::vector<Size
     checkNumOfInput(inShapes, {1});
 }
 
-TanHValidator::TanHValidator(const std::string& _type): LayerValidator(_type) {}
+TanHValidator::TanHValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void TanHValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const {
     checkNumOfInput(inShapes, {1});
 }
 
-OneHotValidator::OneHotValidator(const std::string& _type): LayerValidator(_type) {}
+OneHotValidator::OneHotValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void OneHotValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -1998,7 +2044,7 @@ void OneHotValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeV
     checkNumOfInput(inShapes, {1});
 }
 
-QuantizeValidator::QuantizeValidator(const std::string& _type): LayerValidator(_type) {}
+QuantizeValidator::QuantizeValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void QuantizeValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -2011,7 +2057,8 @@ void QuantizeValidator::checkShapes(const CNNLayer* layer, const vector<SizeVect
     }
 
     size_t numInputs = inShapes.size();
-    if (numInputs != 5) IE_THROW() << "Quantize can take only 5 inputs, but actually it has: " << numInputs;
+    if (numInputs != 5)
+        IE_THROW() << "Quantize can take only 5 inputs, but actually it has: " << numInputs;
 
     auto dims0 = inShapes[0];
     if (dims0.size() < 1) {
@@ -2019,7 +2066,7 @@ void QuantizeValidator::checkShapes(const CNNLayer* layer, const vector<SizeVect
     }
 }
 
-BinaryConvolutionValidator::BinaryConvolutionValidator(const std::string& _type): LayerValidator(_type) {}
+BinaryConvolutionValidator::BinaryConvolutionValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void BinaryConvolutionValidator::checkParams(const CNNLayer* layer) {
     auto casted = dynamic_cast<const BinaryConvolutionLayer*>(layer);
@@ -2032,20 +2079,21 @@ void BinaryConvolutionValidator::checkCorrespondence(const CNNLayer* layer,
                                                      const std::map<std::string, Blob::Ptr>& blobs,
                                                      const vector<SizeVector>& inShapes) const {
     auto binConvLayer = dynamic_cast<const BinaryConvolutionLayer*>(layer);
-    if (!binConvLayer) IE_THROW() << "Layer is not instance of BinaryConvolutionLayer class";
+    if (!binConvLayer)
+        IE_THROW() << "Layer is not instance of BinaryConvolutionLayer class";
 }
 
 void BinaryConvolutionValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const {
     checkNumOfInput(inShapes, {1});
 }
 
-MathValidator::MathValidator(const std::string& _type): LayerValidator(_type) {}
+MathValidator::MathValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void MathValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const {
     checkNumOfInput(inShapes, {1});
 }
 
-ReduceValidator::ReduceValidator(const std::string& _type): LayerValidator(_type) {}
+ReduceValidator::ReduceValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void ReduceValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -2057,7 +2105,7 @@ void ReduceValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector
         IE_THROW() << layer->name << " Reduce can take up to 2 inputs, but actually it has: " << numInputs;
 }
 
-GatherTreeValidator::GatherTreeValidator(const std::string& _type): LayerValidator(_type) {}
+GatherTreeValidator::GatherTreeValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void GatherTreeValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -2078,7 +2126,7 @@ void GatherTreeValidator::checkShapes(const CNNLayer* layer, const std::vector<S
     }
 }
 
-TopKValidator::TopKValidator(const std::string& _type): LayerValidator(_type) {}
+TopKValidator::TopKValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void TopKValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>& inShapes) const {
     size_t numInputs = inShapes.size();
@@ -2086,7 +2134,7 @@ void TopKValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>&
         IE_THROW() << layer->name << " TopK can take only 2 inputs, but actually it has: " << numInputs;
 }
 
-UniqueValidator::UniqueValidator(const std::string& _type): LayerValidator(_type) {}
+UniqueValidator::UniqueValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void UniqueValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>& inShapes) const {
     size_t numInputs = inShapes.size();
@@ -2094,7 +2142,7 @@ void UniqueValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector
         IE_THROW() << layer->name << " Unique can take only 1 input, but actually it has: " << numInputs;
 }
 
-NMSValidator::NMSValidator(const std::string& _type): LayerValidator(_type) {}
+NMSValidator::NMSValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void NMSValidator::checkParams(const CNNLayer* layer) {
     LayerValidator::checkParams(layer);
@@ -2103,15 +2151,13 @@ void NMSValidator::checkParams(const CNNLayer* layer) {
 void NMSValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>& inShapes) const {
     size_t numInputs = inShapes.size();
     if (numInputs < 2 || numInputs > 6)
-        IE_THROW() << layer->name
-                           << " NonMaxSuppression can take 2 - 6 inputs, but actually it has: " << numInputs;
+        IE_THROW() << layer->name << " NonMaxSuppression can take 2 - 6 inputs, but actually it has: " << numInputs;
 
     if (inShapes[0].size() != 3 || inShapes[0][2] != 4)
         IE_THROW() << layer->name << " 'boxes' should be with shape [num_batches, spatial_dimension, 4]";
 
     if (inShapes[1].size() != 3)
-        IE_THROW() << layer->name
-                           << " 'scores' should be with shape [num_batches, num_classes, spatial_dimension]";
+        IE_THROW() << layer->name << " 'scores' should be with shape [num_batches, num_classes, spatial_dimension]";
 
     if (inShapes[0][0] != inShapes[1][0])
         IE_THROW() << layer->name << " num_batches is different in 'boxes' and 'scores' tensors";
@@ -2129,7 +2175,7 @@ void NMSValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>& 
         IE_THROW() << layer->name << " 'score_threshold' should be scalar";
 }
 
-ScatterUpdateValidator::ScatterUpdateValidator(const std::string& _type): LayerValidator(_type) {}
+ScatterUpdateValidator::ScatterUpdateValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void ScatterUpdateValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>& inShapes) const {
     auto casted = dynamic_cast<const ScatterUpdateLayer*>(layer);
@@ -2155,8 +2201,7 @@ void ScatterUpdateValidator::checkShapes(const CNNLayer* layer, const vector<Siz
     if (inShapes[UPDATES].size() < 1)
         IE_THROW() << layer->name << " 'Updates' tensor rank must be >= 1";
 
-    if (!(inShapes[AXIS].size() == 0 ||
-         (inShapes[AXIS].size() == 1 && inShapes[AXIS][0] == 1)))
+    if (!(inShapes[AXIS].size() == 0 || (inShapes[AXIS].size() == 1 && inShapes[AXIS][0] == 1)))
         IE_THROW() << layer->name << " 'Axis' tensor must be scalar, or 1D array of 1 element";
 
     if (inShapes[UPDATES].size() != inShapes[INDICES].size() + inShapes[DATA].size() - 1)
@@ -2175,7 +2220,7 @@ void ScatterUpdateValidator::checkShapes(const CNNLayer* layer, const vector<Siz
         IE_THROW() << layer->name << " Precision should be equal for input tensors 'Data' and 'Updates'";
 }
 
-ScatterElementsUpdateValidator::ScatterElementsUpdateValidator(const std::string& _type): LayerValidator(_type) {}
+ScatterElementsUpdateValidator::ScatterElementsUpdateValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void ScatterElementsUpdateValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>& inShapes) const {
     auto casted = dynamic_cast<const ScatterElementsUpdateLayer*>(layer);
@@ -2201,8 +2246,7 @@ void ScatterElementsUpdateValidator::checkShapes(const CNNLayer* layer, const ve
     if (inShapes[UPDATES].size() < 1)
         IE_THROW() << layer->name << " 'Updates' tensor rank must be >= 1";
 
-    if (!(inShapes[AXIS].size() == 0 ||
-         (inShapes[AXIS].size() == 1 && inShapes[AXIS][0] == 1)))
+    if (!(inShapes[AXIS].size() == 0 || (inShapes[AXIS].size() == 1 && inShapes[AXIS][0] == 1)))
         IE_THROW() << layer->name << " 'Axis' tensor must be scalar, or 1D array of 1 element";
 
     if (inShapes[INDICES].size() != inShapes[DATA].size())

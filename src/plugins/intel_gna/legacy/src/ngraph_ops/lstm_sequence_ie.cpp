@@ -3,31 +3,37 @@
 //
 
 #include "legacy/ngraph_ops/lstm_sequence_ie.hpp"
-#include "ngraph/op/util/recurrent_sequence.hpp"
 
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "ngraph/op/util/recurrent_sequence.hpp"
+
 using namespace std;
 using namespace ngraph;
 
-op::LSTMSequenceIE::LSTMSequenceIE(const Output<Node> &X,
-                                   const Output<Node> &H_t,
-                                   const Output<Node> &C_t,
-                                   const Output<Node> &seq_lengths,
-                                   const Output<Node> &WR,
-                                   const Output<Node> &B,
+op::LSTMSequenceIE::LSTMSequenceIE(const Output<Node>& X,
+                                   const Output<Node>& H_t,
+                                   const Output<Node>& C_t,
+                                   const Output<Node>& seq_lengths,
+                                   const Output<Node>& WR,
+                                   const Output<Node>& B,
                                    std::size_t hidden_size,
                                    ngraph::op::RecurrentSequenceDirection direction,
-                                   const std::vector<std::string> &activations,
-                                   const std::vector<float> &activations_alpha,
-                                   const std::vector<float> &activations_beta,
+                                   const std::vector<std::string>& activations,
+                                   const std::vector<float>& activations_alpha,
+                                   const std::vector<float>& activations_beta,
                                    float clip,
                                    int64_t seq_axis)
-        : RNNCellBase({X, H_t, C_t, seq_lengths, WR, B}, hidden_size, clip, activations, activations_alpha, activations_beta),
-          m_direction(direction),
-          m_seq_axis(seq_axis) {
+    : RNNCellBase({X, H_t, C_t, seq_lengths, WR, B},
+                  hidden_size,
+                  clip,
+                  activations,
+                  activations_alpha,
+                  activations_beta),
+      m_direction(direction),
+      m_seq_axis(seq_axis) {
     constructor_validate_and_infer_types();
 }
 
@@ -48,8 +54,8 @@ void op::LSTMSequenceIE::validate_and_infer_types() {
     auto wr_pshape = get_input_partial_shape(4);
     auto b_pshape = get_input_partial_shape(5);
 
-    std::vector<ngraph::PartialShape> pshapes = {x_pshape, h_state_pshape, c_state_pshape,
-                                                 seq_lengths_pshape, wr_pshape, b_pshape};
+    std::vector<ngraph::PartialShape> pshapes =
+        {x_pshape, h_state_pshape, c_state_pshape, seq_lengths_pshape, wr_pshape, b_pshape};
     std::vector<std::string> in_names = {"X", "H", "C", "seq_lengths", "WR", "B"};
     // num_direction dimension should be squeezed, we don't support bidirectional case
     std::vector<size_t> ranks = {3, 2, 2, 1, 2, 1};
@@ -83,9 +89,19 @@ bool ngraph::op::LSTMSequenceIE::visit_attributes(AttributeVisitor& visitor) {
     return op::util::RNNCellBase::visit_attributes(visitor);
 }
 
-shared_ptr<Node> op::LSTMSequenceIE::clone_with_new_inputs(const OutputVector &new_args) const {
+shared_ptr<Node> op::LSTMSequenceIE::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
-    return make_shared<op::LSTMSequenceIE>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
-            new_args.at(4), new_args.at(5), m_hidden_size, m_direction, m_activations, m_activations_alpha, m_activations_beta,
-            m_clip, m_seq_axis);
+    return make_shared<op::LSTMSequenceIE>(new_args.at(0),
+                                           new_args.at(1),
+                                           new_args.at(2),
+                                           new_args.at(3),
+                                           new_args.at(4),
+                                           new_args.at(5),
+                                           m_hidden_size,
+                                           m_direction,
+                                           m_activations,
+                                           m_activations_alpha,
+                                           m_activations_beta,
+                                           m_clip,
+                                           m_seq_axis);
 }

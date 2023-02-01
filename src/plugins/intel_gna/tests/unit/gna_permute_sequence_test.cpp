@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
 #include <gtest/gtest.h>
+
 #include <layers/gna_permute.hpp>
+#include <vector>
 
 using namespace ov::intel_gna::permute;
 
-class PermuteSequenceTest : public ::testing::Test {
-};
+class PermuteSequenceTest : public ::testing::Test {};
 
 TEST_F(PermuteSequenceTest, testImpossiblePermute_neg_value) {
     ASSERT_ANY_THROW(genPermutations({-1}));

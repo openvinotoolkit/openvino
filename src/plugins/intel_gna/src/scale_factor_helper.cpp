@@ -36,11 +36,12 @@ static void ApplyScaleFactorsLegacy(const std::vector<float>& input_scale_factor
 
     for (size_t id = 0; id < inputs.size(); ++id) {
         log::warning() << "Using input scale factor: " << input_scale_factors[id]
-                         << ", defined in configuration for input id: " << id << std::endl;
+                       << ", defined in configuration for input id: " << id << std::endl;
         if (input_scale_factors.size() > id) {
             inputs.Get().at(id).scale_factor = input_scale_factors[id];
         } else {
-            log::warning() << "Using default input scale factor: " << kScaleFactorDefault << " for input id: " << id << std::endl;
+            log::warning() << "Using default input scale factor: " << kScaleFactorDefault << " for input id: " << id
+                           << std::endl;
         }
     }
 }
@@ -61,8 +62,7 @@ static bool IsCustomInputScaleFactorPerInputAvailable(const std::map<std::string
     return is_scale_factor_custom;
 }
 
-static void ApplyScaleFactorsPerInput(const std::map<std::string, float>& per_input_scale_factors,
-                                      GnaInputs& inputs) {
+static void ApplyScaleFactorsPerInput(const std::map<std::string, float>& per_input_scale_factors, GnaInputs& inputs) {
     if (per_input_scale_factors.size() > inputs.size()) {
         IE_THROW() << "Configuration per input scale factors count is bigger than inputs count";
     }
@@ -70,8 +70,8 @@ static void ApplyScaleFactorsPerInput(const std::map<std::string, float>& per_in
     for (auto&& sf : per_input_scale_factors) {
         // to support the both legacy and 2.0 API we need to check all possible names in the configuration
         auto input_it = std::find_if(inputs.Get().begin(), inputs.Get().end(), [&](const InputDesc& input_desc) {
-                return sf.first == input_desc.name || input_desc.tensor_names.count(sf.first);
-            });
+            return sf.first == input_desc.name || input_desc.tensor_names.count(sf.first);
+        });
 
         if (input_it == inputs.end()) {
             IE_THROW() << "Given scale factor for invalid input: " << sf.first;

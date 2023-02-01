@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "openvino/opsets/opset9.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 using namespace ov::opset9;
 
@@ -13,7 +13,7 @@ typedef std::tuple<InferenceEngine::Precision,          // Network Precision
                    std::map<std::string, std::string>,  // Configuration
                    std::vector<size_t>,                 // Input Shape
                    ngraph::helpers::InputLayerType,     // Type of Eltwise input
-                   size_t>                             // Order of Eltwise input
+                   size_t>                              // Order of Eltwise input
 
     InputConvAddParams;
 
@@ -30,7 +30,8 @@ public:
         ngraph::helpers::InputLayerType input_eltwise_type;
         size_t input_eltwise_order;
 
-        std::tie(precision, targetDevice, configuration, input_shape, input_eltwise_type, input_eltwise_order) = obj.param;
+        std::tie(precision, targetDevice, configuration, input_shape, input_eltwise_type, input_eltwise_order) =
+            obj.param;
 
         std::ostringstream result;
         result << "netPRC=" << precision.name() << "_";
@@ -61,7 +62,8 @@ protected:
         std::vector<size_t> input_shape;
         ngraph::helpers::InputLayerType input_eltwise_type;
         size_t input_eltwise_order;
-        std::tie(precision, targetDevice, configuration, input_shape, input_eltwise_type, input_eltwise_order) = this->GetParam();
+        std::tie(precision, targetDevice, configuration, input_shape, input_eltwise_type, input_eltwise_order) =
+            this->GetParam();
 
         auto ng_precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(precision);
 
@@ -84,9 +86,11 @@ protected:
         std::shared_ptr<Add> add;
         if (input_eltwise_type == ngraph::helpers::InputLayerType::CONSTANT) {
             auto const_node = std::make_shared<Constant>(ng_precision, ov::Shape{input_shape});
-            add = (input_eltwise_order == 0) ? std::make_shared<Add>(const_node, convolution) : std::make_shared<Add>(convolution, const_node);
+            add = (input_eltwise_order == 0) ? std::make_shared<Add>(const_node, convolution)
+                                             : std::make_shared<Add>(convolution, const_node);
         } else if (input_eltwise_type == ngraph::helpers::InputLayerType::PARAMETER) {
-            add = (input_eltwise_order == 0) ? std::make_shared<Add>(input, convolution) : std::make_shared<Add>(convolution, input);
+            add = (input_eltwise_order == 0) ? std::make_shared<Add>(input, convolution)
+                                             : std::make_shared<Add>(convolution, input);
         }
         auto res = std::make_shared<Result>(add);
         function = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{input});
@@ -97,23 +101,17 @@ TEST_P(InputConvAddTransposing, CompareWithRefImpl) {
     Run();
 };
 
-const std::vector<ngraph::helpers::InputLayerType> eltwise_input_types = {
-    ngraph::helpers::InputLayerType::CONSTANT,
-    ngraph::helpers::InputLayerType::PARAMETER
-};
+const std::vector<ngraph::helpers::InputLayerType> eltwise_input_types = {ngraph::helpers::InputLayerType::CONSTANT,
+                                                                          ngraph::helpers::InputLayerType::PARAMETER};
 
 const std::vector<size_t> eltwise_input_order = {0, 1};
 
 const InferenceEngine::Precision net_precisions{InferenceEngine::Precision::FP32};
 
-const std::vector<std::map<std::string, std::string>> configs = {
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}},
-    {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}
-};
+const std::vector<std::map<std::string, std::string>> configs = {{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}},
+                                                                 {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}};
 
-const std::vector<std::vector<size_t>> input_shapes {
-    {1, 8, 32, 16}
-};
+const std::vector<std::vector<size_t>> input_shapes{{1, 8, 32, 16}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_add_transpose_detection,
                          InputConvAddTransposing,
@@ -124,6 +122,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_add_transpose_detection,
                                             ::testing::ValuesIn(eltwise_input_types),
                                             ::testing::ValuesIn(eltwise_input_order)),
                          InputConvAddTransposing::getTestCaseName);
-
 
 }  // namespace LayerTestsDefinitions

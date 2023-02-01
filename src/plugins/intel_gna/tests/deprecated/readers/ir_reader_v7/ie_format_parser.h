@@ -4,14 +4,15 @@
 
 #pragma once
 
+#include <legacy/ie_layers.h>
+
+#include <legacy/cnn_network_impl.hpp>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include <legacy/cnn_network_impl.hpp>
 #include "caseless.hpp"
-#include <legacy/ie_layers.h>
 #include "parsers.h"
 
 namespace InferenceEngine {
@@ -58,7 +59,7 @@ private:
     std::string type_;
 
 protected:
-    explicit BaseCreator(const std::string& type): type_(type) {}
+    explicit BaseCreator(const std::string& type) : type_(type) {}
 
 public:
     virtual ~BaseCreator() {}
@@ -71,7 +72,7 @@ public:
     }
 };
 
-class FormatParser: public IFormatParser {
+class FormatParser : public IFormatParser {
 public:
     explicit FormatParser(size_t version);
 

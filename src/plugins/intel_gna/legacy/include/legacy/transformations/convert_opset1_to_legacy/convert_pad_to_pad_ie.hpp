@@ -4,17 +4,16 @@
 
 #pragma once
 
-#include <vector>
-#include <memory>
-#include <string>
-
 #include <ie_api.h>
 
-#include <ngraph/pass/graph_rewrite.hpp>
 #include <legacy/ngraph_ops/pad_ie.hpp>
+#include <memory>
+#include <ngraph/pass/graph_rewrite.hpp>
+#include <string>
+#include <vector>
 
-#include "ngraph/op/lrn.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/lrn.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -24,7 +23,7 @@ class ConvertPadToLegacyMatcher;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertPadToLegacyMatcher: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertPadToLegacyMatcher : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertPadToLegacyMatcher", "0");
     ConvertPadToLegacyMatcher();

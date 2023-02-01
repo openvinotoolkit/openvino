@@ -29,6 +29,6 @@ bool Identity::visit_attributes(ngraph::AttributeVisitor& visitor) {
     return true;
 }
 
-} // namespace op
-} // namespace intel_gna
-} // namespace ov
+}  // namespace op
+}  // namespace intel_gna
+}  // namespace ov

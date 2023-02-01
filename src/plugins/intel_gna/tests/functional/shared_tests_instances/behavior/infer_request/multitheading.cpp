@@ -6,9 +6,9 @@
 
 using namespace BehaviorTestsDefinitions;
 namespace {
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestMultithreadingTests,
-        ::testing::Combine(
-                ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                ::testing::Values(std::map<std::string, std::string>({}))),
-        InferRequestMultithreadingTests::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         InferRequestMultithreadingTests,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(std::map<std::string, std::string>({}))),
+                         InferRequestMultithreadingTests::getTestCaseName);
 }  // namespace

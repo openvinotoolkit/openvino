@@ -9,9 +9,9 @@
  */
 #pragma once
 
-#include <vector>
-
 #include <ie_common.h>
+
+#include <vector>
 
 namespace InferenceEngine {
 
@@ -94,10 +94,13 @@ public:
     }
 
     bool operator==(const PropertyVector& src) const {
-        if (this == &src) return true;
-        if (_length != src.size()) return false;
+        if (this == &src)
+            return true;
+        if (_length != src.size())
+            return false;
         for (size_t i = 0; i < N; i++)
-            if ((_allocated[i] != src._allocated[i]) || (_allocated[i] && _axises[i] != src._axises[i])) return false;
+            if ((_allocated[i] != src._allocated[i]) || (_allocated[i] && _axises[i] != src._axises[i]))
+                return false;
         return true;
     }
 

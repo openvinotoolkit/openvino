@@ -26,10 +26,15 @@ inline element::Type getMaxBitwidth(const std::vector<element::Type>& types) {
     return maxType;
 }
 
-op::ScaleShiftIE::ScaleShiftIE(const Output<Node>& data_batch, const Output<Node>& weights, const Output<Node>& bias, const element::Type output_type)
-    : Op({data_batch, weights, bias}), output_type(output_type) {
+op::ScaleShiftIE::ScaleShiftIE(const Output<Node>& data_batch,
+                               const Output<Node>& weights,
+                               const Output<Node>& bias,
+                               const element::Type output_type)
+    : Op({data_batch, weights, bias}),
+      output_type(output_type) {
     if (this->output_type == element::undefined) {
-        this->output_type = getMaxBitwidth({ data_batch.get_element_type(), weights.get_element_type(), bias.get_element_type() });
+        this->output_type =
+            getMaxBitwidth({data_batch.get_element_type(), weights.get_element_type(), bias.get_element_type()});
     }
     constructor_validate_and_infer_types();
 }
@@ -49,9 +54,13 @@ void op::ScaleShiftIE::validate_and_infer_types() {
     element::Type biases_et = get_input_element_type(2);
 
     element::Type et_result;
-    NODE_VALIDATION_CHECK(this, element::Type::merge(et_result, weights_et, biases_et),
-                          "Element types for bias and weights do not match (biases element type: ", biases_et,
-                          ", weights element type: ", weights_et, ").");
+    NODE_VALIDATION_CHECK(this,
+                          element::Type::merge(et_result, weights_et, biases_et),
+                          "Element types for bias and weights do not match (biases element type: ",
+                          biases_et,
+                          ", weights element type: ",
+                          weights_et,
+                          ").");
 
     set_output_type(0, data_et, get_input_partial_shape(0));
 }

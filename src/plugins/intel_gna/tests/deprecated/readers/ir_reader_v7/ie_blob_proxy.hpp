@@ -57,7 +57,9 @@ public:
      * @param dims Dimensions of the given blob
      */
     TBlobProxy(Precision p, Layout l, const MemoryBlob::Ptr& blob, size_t offset, const SizeVector& dims)
-        : base(TensorDesc(p, dims, l)), realObject(blob), offset(offset * blob->element_size()) {
+        : base(TensorDesc(p, dims, l)),
+          realObject(blob),
+          offset(offset * blob->element_size()) {
         checkWindow();
     }
 
@@ -70,7 +72,9 @@ public:
      * @param dims Dimensions of the given blob
      */
     TBlobProxy(Precision p, Layout l, const TBlobProxy<T>& blobProxy, size_t offset, const SizeVector& dims)
-        : TBlob<T>(TensorDesc(p, dims, l)), realObject(blobProxy.realObject), offset(offset * sizeof(T)) {
+        : TBlob<T>(TensorDesc(p, dims, l)),
+          realObject(blobProxy.realObject),
+          offset(offset * sizeof(T)) {
         checkWindow();
     }
 
@@ -121,8 +125,8 @@ protected:
     void checkWindow() {
         if (realObject->size() * realObject->element_size() < base::size() * base::element_size() + offset) {
             IE_THROW() << "cannot create proxy, offsetInBytes=" << offset
-                               << ", sizeInBytes=" << base::size() * base::element_size()
-                               << ", out of original object size=" << realObject->size() * realObject->element_size();
+                       << ", sizeInBytes=" << base::size() * base::element_size()
+                       << ", out of original object size=" << realObject->size() * realObject->element_size();
         }
     }
 

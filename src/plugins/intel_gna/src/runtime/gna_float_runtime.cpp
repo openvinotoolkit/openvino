@@ -1,10 +1,11 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "gna_float_runtime.hpp"
+
 #include <cstdint>
 
 #include "backend/dnn_types.hpp"
-#include "gna_float_runtime.hpp"
 #include "log/debug.hpp"
 
 namespace ov {

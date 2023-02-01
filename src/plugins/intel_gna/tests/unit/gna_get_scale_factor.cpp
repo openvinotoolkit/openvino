@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-#include <limits>
-
 #include <gtest/gtest.h>
+
+#include <limits>
+#include <vector>
 // to suppress deprecated definition errors
 #define IMPLEMENT_INFERENCE_ENGINE_PLUGIN
 #include "frontend/scale_factor_calc.hpp"
@@ -14,7 +14,7 @@
 namespace {
 
 class GnaGetScaleFactorTest : public ::testing::Test {
- protected:
+protected:
     void GetScaleFactorAndCheck(float src_scale, float dst_scale, float weights_scale, float bias_scale) const {
         InferenceEngine::LayerParams params("fc", "FullyConnected", InferenceEngine::Precision::FP32);
         InferenceEngine::CNNLayerPtr layer = std::make_shared<InferenceEngine::CNNLayer>(params);
@@ -55,4 +55,4 @@ TEST_F(GnaGetScaleFactorTest, invalidSF) {
     EXPECT_ANY_THROW(GetScaleFactorAndCheck(100, 200, 300, inf));
 }
 
-} // namespace
+}  // namespace

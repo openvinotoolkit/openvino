@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <memory>
-
 #include <ie_api.h>
+
+#include <memory>
 
 #include "ngraph/op/op.hpp"
 
@@ -17,9 +17,7 @@ class TileIE : public Op {
 public:
     OPENVINO_OP("TileIE", "legacy");
 
-    TileIE(const Output<Node>& data1,
-            const int64_t axis,
-            const int64_t tiles);
+    TileIE(const Output<Node>& data1, const int64_t axis, const int64_t tiles);
 
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;

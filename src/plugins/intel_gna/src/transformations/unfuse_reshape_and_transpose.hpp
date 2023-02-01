@@ -71,6 +71,6 @@ public:
     Unfuse4dto2dReshapeAndTranspose();
 };
 
-} // namespace pass
-} // namespace intel_gna
-} // namespace ov
+}  // namespace pass
+}  // namespace intel_gna
+}  // namespace ov

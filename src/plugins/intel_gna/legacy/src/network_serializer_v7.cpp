@@ -2,22 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "network_serializer_v7.hpp"
+
+#include <deque>
 #include <fstream>
 #include <map>
 #include <queue>
-#include <deque>
-#include <string>
-#include <vector>
-#include <unordered_set>
 #include <sstream>
+#include <string>
+#include <unordered_set>
+#include <vector>
 
-#include "cpp/ie_cnn_network.h"
 #include "caseless.hpp"
+#include "cpp/ie_cnn_network.h"
+#include "exec_graph_info.hpp"
+#include "legacy/details/ie_cnn_network_tools.h"
 #include "legacy/ie_layers.h"
 #include "xml_parse_utils.h"
-#include "exec_graph_info.hpp"
-#include "network_serializer_v7.hpp"
-#include "legacy/details/ie_cnn_network_tools.h"
 
 namespace InferenceEngine {
 namespace Serialization {
@@ -256,8 +257,10 @@ void UpdateStdLayerParams(const CNNLayer::Ptr& layer) {
     }
 }
 
-std::size_t FillXmlDoc(const InferenceEngine::CNNNetwork& network, pugi::xml_document& doc,
-                       const bool execGraphInfoSerialization, const bool dumpWeights) {
+std::size_t FillXmlDoc(const InferenceEngine::CNNNetwork& network,
+                       pugi::xml_document& doc,
+                       const bool execGraphInfoSerialization,
+                       const bool dumpWeights) {
     const std::vector<CNNLayerPtr> ordered = InferenceEngine::details::CNNNetSortTopologically(network);
     pugi::xml_node netXml = doc.append_child("net");
     netXml.append_attribute("name").set_value(network.getName().c_str());
@@ -330,7 +333,8 @@ std::size_t FillXmlDoc(const InferenceEngine::CNNNetwork& network, pugi::xml_doc
         if (dumpWeights && !node->blobs.empty()) {
             auto blobsNode = layer.append_child("blobs");
             for (const auto& dataIt : node->blobs) {
-                if (!dataIt.second) continue;
+                if (!dataIt.second)
+                    continue;
                 size_t dataSize = dataIt.second->byteSize();
                 pugi::xml_node data = blobsNode.append_child(dataIt.first.c_str());
                 data.append_attribute("offset").set_value(static_cast<unsigned long long>(dataOffset));
@@ -351,7 +355,7 @@ std::size_t FillXmlDoc(const InferenceEngine::CNNNetwork& network, pugi::xml_doc
             auto itFrom = matching.find(node);
             if (itFrom == matching.end()) {
                 IE_THROW() << "Internal error, cannot find " << node->name
-                                   << " in matching container during serialization of IR";
+                           << " in matching container during serialization of IR";
             }
             for (size_t oport = 0; oport < node->outData.size(); oport++) {
                 const DataPtr outData = node->outData[oport];
@@ -360,12 +364,14 @@ std::size_t FillXmlDoc(const InferenceEngine::CNNNetwork& network, pugi::xml_doc
                         if (inputTo.second->insData[iport].lock() == outData) {
                             auto itTo = matching.find(inputTo.second);
                             if (itTo == matching.end()) {
-                                IE_THROW() << "Broken edge form layer " << node->name << " to layer "
-                                                   << inputTo.first << "during serialization of IR";
+                                IE_THROW() << "Broken edge form layer " << node->name << " to layer " << inputTo.first
+                                           << "during serialization of IR";
                             }
                             pugi::xml_node edge = edges.append_child("edge");
-                            edge.append_attribute("from-layer").set_value(static_cast<unsigned long long>(itFrom->second));
-                            edge.append_attribute("from-port").set_value(static_cast<unsigned long long>(oport + node->insData.size()));
+                            edge.append_attribute("from-layer")
+                                .set_value(static_cast<unsigned long long>(itFrom->second));
+                            edge.append_attribute("from-port")
+                                .set_value(static_cast<unsigned long long>(oport + node->insData.size()));
 
                             edge.append_attribute("to-layer").set_value(static_cast<unsigned long long>(itTo->second));
                             edge.append_attribute("to-port").set_value(static_cast<unsigned long long>(iport));
@@ -384,7 +390,8 @@ void SerializeBlobs(std::ostream& stream, const InferenceEngine::CNNNetwork& net
     for (auto&& node : ordered) {
         if (!node->blobs.empty()) {
             for (const auto& dataIt : node->blobs) {
-                if (!dataIt.second) continue;
+                if (!dataIt.second)
+                    continue;
                 const char* dataPtr = dataIt.second->buffer().as<char*>();
                 size_t dataSize = dataIt.second->byteSize();
                 stream.write(dataPtr, dataSize);
@@ -417,8 +424,7 @@ void SerializeBlobs(std::ostream& stream, const InferenceEngine::CNNNetwork& net
 
 }  // namespace
 
-void Serialize(const std::string& xmlPath, const std::string& binPath,
-               const InferenceEngine::CNNNetwork& network) {
+void Serialize(const std::string& xmlPath, const std::string& binPath, const InferenceEngine::CNNNetwork& network) {
     // A flag for serializing executable graph information (not complete IR)
     bool execGraphInfoSerialization = false;
     pugi::xml_document doc;
@@ -431,7 +437,7 @@ void Serialize(const std::string& xmlPath, const std::string& binPath,
         for (const auto& layer : ordered) {
             if (layer->params.find(ExecGraphInfoSerialization::PERF_COUNTER) == layer->params.end()) {
                 IE_THROW() << "Each node must have " << ExecGraphInfoSerialization::PERF_COUNTER
-                                   << " parameter set in case of executable graph info serialization";
+                           << " parameter set in case of executable graph info serialization";
             }
         }
     }

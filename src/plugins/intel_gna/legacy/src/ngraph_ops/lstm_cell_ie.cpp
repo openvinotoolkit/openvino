@@ -11,10 +11,16 @@
 using namespace std;
 using namespace ngraph;
 
-op::LSTMCellIE::LSTMCellIE(const Output<Node>& X, const Output<Node>& H_t, const Output<Node>& C_t,
-                           const Output<Node>& WR, const Output<Node>& B, std::size_t hidden_size,
-                           const std::vector<std::string>& activations, const std::vector<float>& activations_alpha,
-                           const std::vector<float>& activations_beta, float clip)
+op::LSTMCellIE::LSTMCellIE(const Output<Node>& X,
+                           const Output<Node>& H_t,
+                           const Output<Node>& C_t,
+                           const Output<Node>& WR,
+                           const Output<Node>& B,
+                           std::size_t hidden_size,
+                           const std::vector<std::string>& activations,
+                           const std::vector<float>& activations_alpha,
+                           const std::vector<float>& activations_beta,
+                           float clip)
     : Op({X, H_t, C_t, WR, B}),
       m_hidden_size(hidden_size),
       m_activations(activations),
@@ -46,6 +52,14 @@ bool ngraph::op::LSTMCellIE::visit_attributes(AttributeVisitor& visitor) {
 
 shared_ptr<Node> op::LSTMCellIE::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
-    return make_shared<op::LSTMCellIE>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), new_args.at(4),
-                                       m_hidden_size, m_activations, m_activations_alpha, m_activations_beta, m_clip);
+    return make_shared<op::LSTMCellIE>(new_args.at(0),
+                                       new_args.at(1),
+                                       new_args.at(2),
+                                       new_args.at(3),
+                                       new_args.at(4),
+                                       m_hidden_size,
+                                       m_activations,
+                                       m_activations_alpha,
+                                       m_activations_beta,
+                                       m_clip);
 }

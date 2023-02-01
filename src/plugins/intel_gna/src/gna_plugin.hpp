@@ -4,27 +4,29 @@
 
 #pragma once
 
-#include <map>
-#include <unordered_map>
-#include <list>
-#include <string>
-#include <utility>
-#include <memory>
-#include <vector>
-#include <tuple>
-#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
+#include <gna2-model-api.h>
+
 #include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
-#include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
-#include "descriptions/gna_flags.hpp"
-#include "descriptions/gna_desc.hpp"
+#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
+#include <legacy/ie_util_internal.hpp>
+#include <list>
+#include <map>
+#include <memory>
+#include <string>
+#include <tuple>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
 #include "backend/am_intel_dnn.hpp"
+#include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
+#include "descriptions/gna_desc.hpp"
+#include "descriptions/gna_flags.hpp"
 #include "gna_data_types.hpp"
 #include "gna_graph_compiler.hpp"
+#include "gna_plugin_config.hpp"
 #include "log/debug.hpp"
 #include "log/log.hpp"
-#include "gna_plugin_config.hpp"
-#include <legacy/ie_util_internal.hpp>
-#include <gna2-model-api.h>
 
 namespace ov {
 namespace intel_gna {
@@ -39,7 +41,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
 protected:
     std::string _pluginName = "GNA";
 
-    Config config {};
+    Config config{};
     std::shared_ptr<backend::AMIntelDNN> dnn;
     std::shared_ptr<GNAFlags> gnaFlags;
     std::shared_ptr<gna_memory_type> gnamem;
@@ -72,7 +74,7 @@ protected:
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> memoryStates;
     bool trivialTopology = false;
 
- public:
+public:
     explicit GNAPlugin(const std::map<std::string, std::string>& configMap);
     /**
      * @brief construct from aot rather then from cnn network
@@ -83,27 +85,29 @@ protected:
     GNAPlugin(GNAPlugin&&) = default;
 
     std::string GetName() const noexcept override;
-    void SetName(const std::string & pluginName) noexcept override;
+    void SetName(const std::string& pluginName) noexcept override;
 
     void LoadNetwork(const InferenceEngine::CNNNetwork& network);
 
-    bool Infer(const InferenceEngine::BlobMap &input, InferenceEngine::BlobMap &result);
+    bool Infer(const InferenceEngine::BlobMap& input, InferenceEngine::BlobMap& result);
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts();
     void AddExtension(const InferenceEngine::IExtensionPtr& extension) override;
 
-    void SetConfig(const std::map<std::string, std::string> &config) override;
-    bool Infer(const InferenceEngine::Blob &input, InferenceEngine::Blob &result);
+    void SetConfig(const std::map<std::string, std::string>& config) override;
+    bool Infer(const InferenceEngine::Blob& input, InferenceEngine::Blob& result);
     void Reset();
-    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork &network,
+    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
                                                      const std::map<std::string, std::string>& config) const override;
-    uint32_t QueueInference(const InferenceEngine::BlobMap &input, InferenceEngine::BlobMap &result);
+    uint32_t QueueInference(const InferenceEngine::BlobMap& input, InferenceEngine::BlobMap& result);
     bool Wait(uint32_t idx);
     RequestStatus WaitFor(uint32_t idx, int64_t millisTimeout);
 
-    InferenceEngine::Parameter GetConfig(const std::string& name,
-                                         const std::map<std::string, InferenceEngine::Parameter> & options) const override;
-    InferenceEngine::Parameter GetMetric(const std::string& name,
-                                         const std::map<std::string, InferenceEngine::Parameter> & options) const override;
+    InferenceEngine::Parameter GetConfig(
+        const std::string& name,
+        const std::map<std::string, InferenceEngine::Parameter>& options) const override;
+    InferenceEngine::Parameter GetMetric(
+        const std::string& name,
+        const std::map<std::string, InferenceEngine::Parameter>& options) const override;
     std::shared_ptr<InferenceEngine::RemoteContext> CreateContext(const InferenceEngine::ParamMap& params) override {
         THROW_GNA_EXCEPTION << "Not implemented";
     }
@@ -111,22 +115,27 @@ protected:
         THROW_GNA_EXCEPTION << "Not implemented";
     }
 
-    void Wait(uint32_t sync, InferenceEngine::Blob &result) { THROW_GNA_EXCEPTION << "Not implemented"; }
-
-    void Export(const std::string &fileName);
-    void Export(std::ostream &networkModel);
-    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(const std::string &modelFileName,
-                                                     const std::map<std::string, std::string> &config) override {
-        THROW_GNA_EXCEPTION << "Not implemented";
-    }
-    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel,
-                                                     const std::shared_ptr<InferenceEngine::RemoteContext>& context,
-                                                     const std::map<std::string, std::string> &config) override {
+    void Wait(uint32_t sync, InferenceEngine::Blob& result) {
         THROW_GNA_EXCEPTION << "Not implemented";
     }
 
-    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel,
-                                                     const std::map<std::string, std::string>& config) override {
+    void Export(const std::string& fileName);
+    void Export(std::ostream& networkModel);
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(
+        const std::string& modelFileName,
+        const std::map<std::string, std::string>& config) override {
+        THROW_GNA_EXCEPTION << "Not implemented";
+    }
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(
+        std::istream& networkModel,
+        const std::shared_ptr<InferenceEngine::RemoteContext>& context,
+        const std::map<std::string, std::string>& config) override {
+        THROW_GNA_EXCEPTION << "Not implemented";
+    }
+
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(
+        std::istream& networkModel,
+        const std::map<std::string, std::string>& config) override {
         THROW_GNA_EXCEPTION << "Not implemented";
     }
 
@@ -140,8 +149,12 @@ protected:
     /**
      * helpers to provide inputs info on AOT network
      */
-    InferenceEngine::InputsDataMap GetNetworkInputs() {return inputs_data_map_;}
-    InferenceEngine::OutputsDataMap GetNetworkOutputs() {return outputs_data_map_;}
+    InferenceEngine::InputsDataMap GetNetworkInputs() {
+        return inputs_data_map_;
+    }
+    InferenceEngine::OutputsDataMap GetNetworkOutputs() {
+        return outputs_data_map_;
+    }
     std::vector<std::shared_ptr<const ov::Node>> GetOutputs();
     std::vector<std::shared_ptr<const ov::Node>> GetInputs();
     /**
@@ -159,64 +172,64 @@ protected:
      * @return
      */
     INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
-    std::vector<InferenceEngine::IVariableStateInternal::Ptr>  QueryState();
+    std::vector<InferenceEngine::IVariableStateInternal::Ptr> QueryState();
 
-     /**
-      * QueryMetrics API
-      */
-     InferenceEngine::Parameter GetAvailableDevices() const;
+    /**
+     * QueryMetrics API
+     */
+    InferenceEngine::Parameter GetAvailableDevices() const;
 
-     ~GNAPlugin();
+    ~GNAPlugin();
 
- protected:
+protected:
     void Init();
 
     void InitGNADevice();
 
     void DumpXNNToFile() const;
 
-    void ImportFrames(void *ptr_dst,
-                     const void *ptr_src,
-                     InferenceEngine::Precision input_precision,
-                     float scaleFactor,
-                     intel_dnn_orientation_t orientation,
-                     uint32_t num_frames,
-                     uint32_t num_group,
-                     uint32_t num_vector_elements,
-                     uint32_t num_vector_stride);
+    void ImportFrames(void* ptr_dst,
+                      const void* ptr_src,
+                      InferenceEngine::Precision input_precision,
+                      float scaleFactor,
+                      intel_dnn_orientation_t orientation,
+                      uint32_t num_frames,
+                      uint32_t num_group,
+                      uint32_t num_vector_elements,
+                      uint32_t num_vector_stride);
 
-    void ExportScores(void *ptr_dst,
-                     const void *ptr_src,
-                     intel_dnn_orientation_t orientation,
-                     uint32_t num_frames,
-                     uint32_t num_group,
-                     uint32_t num_vector_elements,
-                     uint32_t num_active_elements,
-                     uint32_t num_vector_stride,
-                     InferenceEngine::Precision precision_in,
-                     InferenceEngine::Precision precision_out);
+    void ExportScores(void* ptr_dst,
+                      const void* ptr_src,
+                      intel_dnn_orientation_t orientation,
+                      uint32_t num_frames,
+                      uint32_t num_group,
+                      uint32_t num_vector_elements,
+                      uint32_t num_active_elements,
+                      uint32_t num_vector_stride,
+                      InferenceEngine::Precision precision_in,
+                      InferenceEngine::Precision precision_out);
 
     template <typename T, typename U>
-    void copyInputData(T *dst,
-                    const U *src,
-                    uint32_t num_frames,
-                    uint32_t num_group,
-                    uint32_t num_vector_elements,
-                    uint32_t num_vector_stride,
-                    intel_dnn_orientation_t orientation,
-                    float scaleFactor);
+    void copyInputData(T* dst,
+                       const U* src,
+                       uint32_t num_frames,
+                       uint32_t num_group,
+                       uint32_t num_vector_elements,
+                       uint32_t num_vector_stride,
+                       intel_dnn_orientation_t orientation,
+                       float scaleFactor);
 
     void UpdateFieldsFromConfig();
     void UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network);
-    void UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwork &);
+    void UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwork&);
     void UpdateInputsAndOutputsInfoFromModel(std::shared_ptr<const ov::Model> model);
     /**
      * @brief Tries to init an output on the base of a layer data
      * @param portId output port identificator
      * @param layer layer pointer
      * @return true if the output is initiated, false otherwise
-    */
-    bool TryToInitOutput(const std::string &portName, InferenceEngine::CNNLayerPtr layer);
+     */
+    bool TryToInitOutput(const std::string& portName, InferenceEngine::CNNLayerPtr layer);
 
     /**
      * @brief Fills inputs and outputs transposition info for model convertion from NCHW to NHWC.
@@ -236,8 +249,8 @@ protected:
 
 #ifdef PLOT
     void AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
-        InferenceEngine::ordered_properties& printed_properties,
-        InferenceEngine::ordered_properties& node_properties);
+                            InferenceEngine::ordered_properties& printed_properties,
+                            InferenceEngine::ordered_properties& node_properties);
 #endif
 };
 

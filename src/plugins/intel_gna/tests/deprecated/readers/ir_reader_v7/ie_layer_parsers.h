@@ -17,11 +17,12 @@
 inline pugi::xml_node GetChild(const pugi::xml_node& node, std::vector<std::string> tags, bool failIfMissing = true) {
     for (auto tag : tags) {
         pugi::xml_node dn = node.child(tag.c_str());
-        if (!dn.empty()) return dn;
+        if (!dn.empty())
+            return dn;
     }
     if (failIfMissing)
         IE_THROW() << "missing <" << InferenceEngine::details::dumpVec(tags)
-                           << "> Tags at offset :" << node.offset_debug();
+                   << "> Tags at offset :" << node.offset_debug();
     return pugi::xml_node();
 }
 
@@ -32,12 +33,13 @@ namespace details {
 template <class LT>
 class LayerCreator : public BaseCreator {
 public:
-    explicit LayerCreator(const std::string& type): BaseCreator(type) {}
+    explicit LayerCreator(const std::string& type) : BaseCreator(type) {}
 
     CNNLayer::Ptr CreateLayer(pugi::xml_node& node, LayerParseParameters& layerParsePrms) override {
         auto res = std::make_shared<LT>(layerParsePrms.prms);
 
-        if (res->type == "Quantize") res->type = "FakeQuantize";
+        if (res->type == "Quantize")
+            res->type = "FakeQuantize";
 
         if (std::is_same<LT, FullyConnectedLayer>::value) {
             layerChild[res->name] = {"fc", "fc_data", "data"};
@@ -68,7 +70,7 @@ public:
                         IE_THROW() << "Crop layer is nullptr";
                     }
                     std::string axisStr, offsetStr, dimStr;
-                    FOREACH_CHILD(_cn, dn, "crop") {
+                    FOREACH_CHILD (_cn, dn, "crop") {
                         int axis = GetIntAttr(_cn, "axis", 0);
                         crop_res->axis.push_back(axis);
                         axisStr += std::to_string(axis) + ",";
@@ -91,13 +93,13 @@ public:
 
 class ActivationLayerCreator : public BaseCreator {
 public:
-    explicit ActivationLayerCreator(const std::string& type): BaseCreator(type) {}
+    explicit ActivationLayerCreator(const std::string& type) : BaseCreator(type) {}
     CNNLayer::Ptr CreateLayer(pugi::xml_node& node, LayerParseParameters& layerParsePrms) override;
 };
 
 class TILayerCreator : public BaseCreator {
 public:
-    explicit TILayerCreator(const std::string& type): BaseCreator(type) {}
+    explicit TILayerCreator(const std::string& type) : BaseCreator(type) {}
     CNNLayer::Ptr CreateLayer(pugi::xml_node& node, LayerParseParameters& layerParsePrms) override;
 };
 }  // namespace details

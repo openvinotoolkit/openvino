@@ -5,6 +5,11 @@
 #pragma once
 
 #include <algorithm>
+#include <cassert>
+#include <cctype>
+#include <cmath>
+#include <cstdlib>
+#include <cstring>
 #include <functional>
 #include <initializer_list>
 #include <iterator>
@@ -21,9 +26,3 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
-
-#include <cassert>
-#include <cctype>
-#include <cmath>
-#include <cstdlib>
-#include <cstring>

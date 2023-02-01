@@ -3,8 +3,9 @@
 //
 
 #include <gtest/gtest.h>
-#include <inference_engine.hpp>
+
 #include <backend/am_intel_dnn.hpp>
+#include <inference_engine.hpp>
 
 using namespace testing;
 
@@ -13,7 +14,6 @@ protected:
     backend::AMIntelDNN amIntelDnn;
     Gna2Model desc = {};
 };
-
 
 TEST_F(GNA_AmIntelDnn_test, intel_nnet_type_tSecondInitNotAllowed) {
     desc.Operations = nullptr;

@@ -3,9 +3,10 @@
 //
 
 #pragma once
+#include <legacy/ie_layers.h>
+
 #include <tuple>
 
-#include <legacy/ie_layers.h>
 #include "legacy/ie_util_internal.hpp"
 
 namespace InferenceEngine {
@@ -45,8 +46,12 @@ IE_SUPPRESS_DEPRECATED_START
  * @brief gets padding without compile-time type check
  */
 template <class T>
-inline typename std::enable_if<is_one_of<T, DeformableConvolutionLayer, DeconvolutionLayer, ConvolutionLayer,
-                                         BinaryConvolutionLayer, PoolingLayer>::value,
+inline typename std::enable_if<is_one_of<T,
+                                         DeformableConvolutionLayer,
+                                         DeconvolutionLayer,
+                                         ConvolutionLayer,
+                                         BinaryConvolutionLayer,
+                                         PoolingLayer>::value,
                                Paddings>::type
 getPaddings(const T& layer) {
     return getPaddingsImpl(layer);

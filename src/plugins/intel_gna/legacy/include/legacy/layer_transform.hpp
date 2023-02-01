@@ -4,11 +4,11 @@
 
 #pragma once
 
+#include <legacy/ie_layers.h>
+
 #include <memory>
 #include <tuple>
 #include <utility>
-
-#include <legacy/ie_layers.h>
 
 namespace InferenceEngine {
 
@@ -20,21 +20,67 @@ template <class T, class InjectType>
 class LayerInjector : public T {
 public:
     InjectType injected;
-    explicit LayerInjector(const T& base): T(base) {}
+    explicit LayerInjector(const T& base) : T(base) {}
 };
 
-using AllLayers =
-    std::tuple<SelectLayer*, DeformableConvolutionLayer*, DeconvolutionLayer*, ConvolutionLayer*, TopKLayer*,
-               PoolingLayer*, FullyConnectedLayer*, GemmLayer*, PadLayer*, GatherLayer*, StridedSliceLayer*,
-               ShuffleChannelsLayer*, DepthToSpaceLayer*, SpaceToDepthLayer*, SparseFillEmptyRowsLayer*,
-               SparseSegmentReduceLayer*, ExperimentalSparseWeightedReduceLayer*, SparseToDenseLayer*, BucketizeLayer*,
-               ReverseSequenceLayer*, RangeLayer*, FillLayer*, BroadcastLayer*, ConcatLayer*,
-               SplitLayer*, NormLayer*, SoftMaxLayer*, GRNLayer*, MVNLayer*, ReLULayer*, EltwiseLayer*, CropLayer*,
-               ReshapeLayer*, TileLayer*, ScaleShiftLayer*, PReLULayer*, PowerLayer*, BatchNormalizationLayer*,
-               ClampLayer*, TensorIterator*, LSTMCell*, GRUCell*, RNNCell*, RNNSequenceLayer*, QuantizeLayer*,
-               BinaryConvolutionLayer*, WeightableLayer*, OneHotLayer*, MathLayer*, ReduceLayer*, UniqueLayer*,
-               NonMaxSuppressionLayer*, ScatterUpdateLayer*, ScatterElementsUpdateLayer*, ExperimentalDetectronPriorGridGeneratorLayer*,
-               ExperimentalDetectronGenerateProposalsSingleImageLayer*, ExperimentalDetectronTopKROIs*, CNNLayer*>;
+using AllLayers = std::tuple<SelectLayer*,
+                             DeformableConvolutionLayer*,
+                             DeconvolutionLayer*,
+                             ConvolutionLayer*,
+                             TopKLayer*,
+                             PoolingLayer*,
+                             FullyConnectedLayer*,
+                             GemmLayer*,
+                             PadLayer*,
+                             GatherLayer*,
+                             StridedSliceLayer*,
+                             ShuffleChannelsLayer*,
+                             DepthToSpaceLayer*,
+                             SpaceToDepthLayer*,
+                             SparseFillEmptyRowsLayer*,
+                             SparseSegmentReduceLayer*,
+                             ExperimentalSparseWeightedReduceLayer*,
+                             SparseToDenseLayer*,
+                             BucketizeLayer*,
+                             ReverseSequenceLayer*,
+                             RangeLayer*,
+                             FillLayer*,
+                             BroadcastLayer*,
+                             ConcatLayer*,
+                             SplitLayer*,
+                             NormLayer*,
+                             SoftMaxLayer*,
+                             GRNLayer*,
+                             MVNLayer*,
+                             ReLULayer*,
+                             EltwiseLayer*,
+                             CropLayer*,
+                             ReshapeLayer*,
+                             TileLayer*,
+                             ScaleShiftLayer*,
+                             PReLULayer*,
+                             PowerLayer*,
+                             BatchNormalizationLayer*,
+                             ClampLayer*,
+                             TensorIterator*,
+                             LSTMCell*,
+                             GRUCell*,
+                             RNNCell*,
+                             RNNSequenceLayer*,
+                             QuantizeLayer*,
+                             BinaryConvolutionLayer*,
+                             WeightableLayer*,
+                             OneHotLayer*,
+                             MathLayer*,
+                             ReduceLayer*,
+                             UniqueLayer*,
+                             NonMaxSuppressionLayer*,
+                             ScatterUpdateLayer*,
+                             ScatterElementsUpdateLayer*,
+                             ExperimentalDetectronPriorGridGeneratorLayer*,
+                             ExperimentalDetectronGenerateProposalsSingleImageLayer*,
+                             ExperimentalDetectronTopKROIs*,
+                             CNNLayer*>;
 
 template <class Visitor, std::size_t I = 0, typename... Tp>
 inline typename std::enable_if<I == sizeof...(Tp), void>::type visitActualLayer(std::tuple<Tp...>&& t,
@@ -42,9 +88,9 @@ inline typename std::enable_if<I == sizeof...(Tp), void>::type visitActualLayer(
                                                                                 const Visitor& v) {}
 
 template <class Visitor, std::size_t I = 0, typename... Tp>
-    inline typename std::enable_if <
-    I<sizeof...(Tp), void>::type visitActualLayer(std::tuple<Tp...>&& t, const CNNLayer& sourceLayer,
-                                                  const Visitor& visitor) {
+    inline typename std::enable_if < I<sizeof...(Tp), void>::type visitActualLayer(std::tuple<Tp...>&& t,
+                                                                                   const CNNLayer& sourceLayer,
+                                                                                   const Visitor& visitor) {
     using EType = typename std::tuple_element<I, std::tuple<Tp...>>::type;
     auto casted = dynamic_cast<EType>(const_cast<CNNLayer*>(&sourceLayer));
 
@@ -58,7 +104,6 @@ template <class Visitor, std::size_t I = 0, typename... Tp>
     visitActualLayer<Visitor, I + 1, Tp...>(std::move(t), sourceLayer, visitor);
 }
 
-
 template <class InjectedType, std::size_t I = 0, typename... Tp>
 inline typename std::enable_if<I == sizeof...(Tp), void>::type injectHelper(std::tuple<Tp...>& t,
                                                                             const CNNLayer& sourceLayer,
@@ -66,9 +111,10 @@ inline typename std::enable_if<I == sizeof...(Tp), void>::type injectHelper(std:
                                                                             const InjectedType& value) {}
 
 template <class InjectedType, std::size_t I = 0, typename... Tp>
-    inline typename std::enable_if <
-    I<sizeof...(Tp), void>::type injectHelper(std::tuple<Tp...>& t, const CNNLayer& sourceLayer, CNNLayerPtr& target,
-                                              const InjectedType& value) {
+    inline typename std::enable_if < I<sizeof...(Tp), void>::type injectHelper(std::tuple<Tp...>& t,
+                                                                               const CNNLayer& sourceLayer,
+                                                                               CNNLayerPtr& target,
+                                                                               const InjectedType& value) {
     if (target) {
         return;
     }
@@ -98,9 +144,9 @@ inline typename std::enable_if<I == sizeof...(Tp), void>::type locateInjected(st
                                                                               InjectedType*& value) {}
 
 template <class InjectedType, std::size_t I = 0, typename... Tp>
-    inline typename std::enable_if <
-    I<sizeof...(Tp), void>::type locateInjected(std::tuple<Tp...>& t, const CNNLayer& sourceLayer,
-                                                InjectedType*& value) {
+    inline typename std::enable_if < I<sizeof...(Tp), void>::type locateInjected(std::tuple<Tp...>& t,
+                                                                                 const CNNLayer& sourceLayer,
+                                                                                 InjectedType*& value) {
     if (value != nullptr) {
         return;
     }
@@ -114,7 +160,6 @@ template <class InjectedType, std::size_t I = 0, typename... Tp>
 
     locateInjected<InjectedType, I + 1, Tp...>(t, sourceLayer, value);
 }
-
 
 }  // namespace details
 

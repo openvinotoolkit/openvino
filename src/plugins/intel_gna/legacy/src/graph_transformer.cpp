@@ -2,22 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <iterator>
-#include <map>
-#include <utility>
-#include <memory>
-#include <string>
-#include <vector>
-#include <mutex>
-#include <algorithm>
+#include "legacy/graph_transformer.h"
 
 #include <cpp/ie_cnn_network.h>
-#include "blob_factory.hpp"
 
+#include <algorithm>
+#include <iterator>
 #include <legacy/cnn_network_impl.hpp>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "blob_factory.hpp"
 #include "legacy/graph_tools.hpp"
 #include "legacy/net_pass.h"
-#include "legacy/graph_transformer.h"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -25,8 +26,8 @@ using namespace InferenceEngine::details;
 namespace InferenceEngine {
 
 inline bool isForLayers(const CNNLayer& layer, const std::vector<std::string>& types) {
-    for (const DataPtr & data : layer.outData) {
-        for (const auto & it : getInputTo(data)) {
+    for (const DataPtr& data : layer.outData) {
+        for (const auto& it : getInputTo(data)) {
             const CNNLayerPtr childLayer = it.second;
             for (const auto& type : types) {
                 if (childLayer->type.compare(type) == 0) {
@@ -40,7 +41,8 @@ inline bool isForLayers(const CNNLayer& layer, const std::vector<std::string>& t
 }
 
 static std::vector<DataPtr> get_inputs(details::CNNNetworkImpl* _network) {
-    if (!_network) return {};
+    if (!_network)
+        return {};
 
     InputsDataMap ins_info;
     _network->getInputsInfo(ins_info);
@@ -52,7 +54,8 @@ static std::vector<DataPtr> get_inputs(details::CNNNetworkImpl* _network) {
 }
 
 static std::vector<DataPtr> get_outputs(details::CNNNetworkImpl* _network) {
-    if (!_network) return {};
+    if (!_network)
+        return {};
 
     std::map<std::string, DataPtr> outs_info;
     _network->getOutputsInfo(outs_info);
@@ -64,13 +67,17 @@ static std::vector<DataPtr> get_outputs(details::CNNNetworkImpl* _network) {
 }
 
 ConstTransformer::ConstTransformer(details::CNNNetworkImpl* _network)
-        : network(_network), inputs(get_inputs(_network)), outputs(get_outputs(_network)) {
+    : network(_network),
+      inputs(get_inputs(_network)),
+      outputs(get_outputs(_network)) {
     if (!_network)
         IE_THROW() << "[ERROR]: Failed to init ConstTransformer with null pointer of network";
 }
 
-ConstTransformer::ConstTransformer(std::vector<DataPtr> &_inputs, std::vector<DataPtr> &_outputs)
-        : network(nullptr), inputs(_inputs), outputs(_outputs) {
+ConstTransformer::ConstTransformer(std::vector<DataPtr>& _inputs, std::vector<DataPtr>& _outputs)
+    : network(nullptr),
+      inputs(_inputs),
+      outputs(_outputs) {
     if (inputs.empty() || outputs.empty())
         IE_THROW() << "[ERROR]: Failed to init ConstTransformer with empty list of inputs or outputs";
 }
@@ -143,8 +150,9 @@ std::vector<CNNLayerPtr> ConstTransformer::foldConstSubgraphsInternal(const std:
                         if (layer->type != "Const") {
                             // layer was calculated during the Const Propagation, need to hide its semantic (type,
                             // params)
-                            LayerParams layerParams {layer->name + "__" + outData->getName() + "__Const", "Const",
-                                                     layer->precision};
+                            LayerParams layerParams{layer->name + "__" + outData->getName() + "__Const",
+                                                    "Const",
+                                                    layer->precision};
                             auto newLayer = std::make_shared<CNNLayer>(layerParams);
                             for (const auto& data : layer->outData) {
                                 getCreatorLayer(data) = newLayer;
@@ -178,8 +186,9 @@ std::vector<CNNLayerPtr> ConstTransformer::foldConstSubgraphsInternal(const std:
                             if (constLayers.find(inputToName) == constLayers.end()) {
                                 // next layer is not const, need to attach const data to it via blobs["custom"] of new
                                 // Const layer
-                                LayerParams layerParams {layer->name + "__" + outData->getName() + "__Const", "Const",
-                                                         layer->precision};
+                                LayerParams layerParams{layer->name + "__" + outData->getName() + "__Const",
+                                                        "Const",
+                                                        layer->precision};
                                 auto newLayer = std::make_shared<CNNLayer>(layerParams);
                                 remainingConstLayers.push_back(newLayer);
                                 const auto it = constData.find(outData->getName());
@@ -250,7 +259,8 @@ const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::ve
                     isAllInputsConst = false;
                 }
             }
-            if (isAllInputsConst && !layer->insData.empty()) mapConstLayers[layer->name] = false;
+            if (isAllInputsConst && !layer->insData.empty())
+                mapConstLayers[layer->name] = false;
         }
     }
     // Add mark for const layers, if it's used for shape taking layers as second input
@@ -310,10 +320,10 @@ const BlobMap ConstTransformer::getConstData(const std::map<std::string, bool>& 
             bool isForShape = constLayers.at(layerName);
 
             if (!isForShape && layer->type != "Const")
-                IE_THROW() << "Failed to find reference implementation for `" + layer->name +
-                                      "` Layer with `" + layer->type + "` Type on constant propagation";
+                IE_THROW() << "Failed to find reference implementation for `" + layer->name + "` Layer with `" +
+                                  layer->type + "` Type on constant propagation";
             if (!isForShape) {
-                auto & blobs = layer->blobs;
+                auto& blobs = layer->blobs;
                 auto it = blobs.find("custom");
                 if (it == blobs.end())
                     IE_THROW() << "Missed `custom` blob in Const layer";
@@ -332,7 +342,7 @@ const BlobMap ConstTransformer::getConstData(const std::map<std::string, bool>& 
  * @param layer is operation to replace with static reshape
  * @return newly created reshape static layer
  */
-static CNNLayerPtr replace_with_static_reshape(CNNLayerPtr &layer) {
+static CNNLayerPtr replace_with_static_reshape(CNNLayerPtr& layer) {
     IE_ASSERT(layer->insData.size() == 1);
     IE_ASSERT(layer->outData.size() == 1);
 
@@ -347,15 +357,14 @@ static CNNLayerPtr replace_with_static_reshape(CNNLayerPtr &layer) {
     // TODO: Have to use old name instead a new one because tensor statistic is mapped
     //       to layers by name. The old int8 pipeline may be broken because of lose
     //       tensor statistic for particular reshape.
-    auto reshape = std::make_shared<ReshapeLayer>(
-            LayerParams{layer->name, "Reshape", precision});
+    auto reshape = std::make_shared<ReshapeLayer>(LayerParams{layer->name, "Reshape", precision});
 
     reshape->shape.resize(shape.size());
     for (size_t p = 0; p < shape.size(); ++p)
         reshape->shape[p] = static_cast<int>(shape[p]);
 
     // replacement
-    auto &input_to_map = getInputTo(in_data);
+    auto& input_to_map = getInputTo(in_data);
 
     // try to find by name
     auto found_by_name = input_to_map.find(layer->name);
@@ -363,9 +372,11 @@ static CNNLayerPtr replace_with_static_reshape(CNNLayerPtr &layer) {
         input_to_map.erase(found_by_name);
     } else {
         // try to find by ptr
-        auto found_by_ptr = std::find_if(input_to_map.begin(), input_to_map.end(),
-                                         [&layer] (const std::pair<std::string, CNNLayerPtr> &p)
-                                         { return p.second == layer; });
+        auto found_by_ptr = std::find_if(input_to_map.begin(),
+                                         input_to_map.end(),
+                                         [&layer](const std::pair<std::string, CNNLayerPtr>& p) {
+                                             return p.second == layer;
+                                         });
         if (found_by_ptr != input_to_map.end())
             input_to_map.erase(found_by_ptr);
     }
@@ -409,9 +420,7 @@ void ConstTransformer::trimShapeInputs(const std::vector<CNNLayerPtr>& constLaye
     //       all shape taken layers like Squeeze/Flatten with Reshape with single input.
     for (auto& layer : allLayers) {
         // Layer is from list of reshape-like layers
-        if (layer->type != "Reshape" &&
-            layer->type != "Unsqueeze" &&
-            layer->type != "Squeeze" &&
+        if (layer->type != "Reshape" && layer->type != "Unsqueeze" && layer->type != "Squeeze" &&
             layer->type != "Flatten")
             continue;
 
@@ -431,29 +440,34 @@ void ConstTransformer::trimShapeInputs(const std::vector<CNNLayerPtr>& constLaye
 
 void ConstTransformer::cleanup() {
     if (network) {
-        for (const auto &layer : layer_to_remove) network->removeLayer(layer->name);
-        for (const auto &data : data_to_remove) network->removeData(data->getName());
+        for (const auto& layer : layer_to_remove)
+            network->removeLayer(layer->name);
+        for (const auto& data : data_to_remove)
+            network->removeData(data->getName());
 
-        for (const auto &layer : layer_to_add) network->addLayer(layer);
-        for (const auto &data : data_to_add) network->addData(data->getName().c_str(), data);
+        for (const auto& layer : layer_to_add)
+            network->addLayer(layer);
+        for (const auto& data : data_to_add)
+            network->addData(data->getName().c_str(), data);
     } else {
         // Subgraph case
-        auto &const_holder = inputs.back();
+        auto& const_holder = inputs.back();
         if (const_holder->getPrecision() == Precision::UNSPECIFIED) {
-            auto &holder_map = getInputTo(const_holder);
+            auto& holder_map = getInputTo(const_holder);
             // Remove from const holder data object
-            for (const auto &layer : layer_to_remove) {
-                auto self_found = std::find_if(holder_map.begin(), holder_map.end(),
-                        [&layer] (const std::pair<std::string, CNNLayerPtr> kvp) {
-                    return kvp.second == layer;
-                });
+            for (const auto& layer : layer_to_remove) {
+                auto self_found = std::find_if(holder_map.begin(),
+                                               holder_map.end(),
+                                               [&layer](const std::pair<std::string, CNNLayerPtr> kvp) {
+                                                   return kvp.second == layer;
+                                               });
 
                 if (self_found != holder_map.end()) {
                     holder_map.erase(self_found);
                 }
             }
             // Add to const holder
-            for (const auto &layer : layer_to_add) {
+            for (const auto& layer : layer_to_add) {
                 holder_map[layer->name] = layer;
             }
         }
@@ -495,7 +509,7 @@ void ConstTransformer::fullTrim() {
     auto constLayers = foldConstSubgraphsInternal(constMapLayers, constData, sortedLayers);
     trimShapeInputs(constLayers, sortedLayers);
 
-    for (auto &layer : sortedLayers) {
+    for (auto& layer : sortedLayers) {
         if (NetPass::HasInternalSubnet(layer)) {
             auto subgraph = NetPass::GetInternalSubnet(layer);
 
@@ -503,7 +517,8 @@ void ConstTransformer::fullTrim() {
             auto ti_sortedLayers = details::CNNSubnetSortTopologically({subgraph.inputs, subgraph.outputs});
             auto ti_constMapLayers = transformer.getConstLayers(ti_sortedLayers);
             auto ti_constData = transformer.getConstData(ti_constMapLayers, ti_sortedLayers);
-            auto ti_constLayers = transformer.foldConstSubgraphsInternal(ti_constMapLayers, ti_constData, ti_sortedLayers);
+            auto ti_constLayers =
+                transformer.foldConstSubgraphsInternal(ti_constMapLayers, ti_constData, ti_sortedLayers);
             transformer.trimShapeInputs(ti_constLayers, ti_sortedLayers);
             transformer.cleanup();
         }

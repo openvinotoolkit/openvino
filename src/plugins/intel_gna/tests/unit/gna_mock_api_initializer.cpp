@@ -4,10 +4,12 @@
 
 #include "gna_mock_api_initializer.hpp"
 
-#include "gna_mock_api.hpp"
 #include <gna2-common-api.h>
+
 #include <cstdint>
 #include <vector>
+
+#include "gna_mock_api.hpp"
 
 void GnaMockApiInitializer::init() {
     using ::testing::_;

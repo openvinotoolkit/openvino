@@ -13,10 +13,10 @@
 using namespace std;
 using namespace ngraph;
 
-op::SeluIE::SeluIE(const Output<Node> & input,
-                   const float alpha,
-                   const float gamma)
-        : Op({input}), gamma(gamma), alpha(alpha) {
+op::SeluIE::SeluIE(const Output<Node>& input, const float alpha, const float gamma)
+    : Op({input}),
+      gamma(gamma),
+      alpha(alpha) {
     constructor_validate_and_infer_types();
 }
 

@@ -4,18 +4,18 @@
 
 #pragma once
 
+#include <cpp/ie_cnn_network.h>
+
 #include <deque>
 #include <functional>
+#include <legacy/cnn_network_impl.hpp>
+#include <legacy/details/ie_cnn_network_iterator.hpp>
 #include <string>
 #include <tuple>
 #include <type_traits>
 #include <unordered_set>
 #include <utility>
 #include <vector>
-
-#include <cpp/ie_cnn_network.h>
-#include <legacy/details/ie_cnn_network_iterator.hpp>
-#include <legacy/cnn_network_impl.hpp>
 
 namespace InferenceEngine {
 
@@ -44,8 +44,7 @@ CNNLayerPtr clonelayer(const CNNLayer& source);
  *
  * @return Cloned network
  */
-InferenceEngine::details::CNNNetworkImplPtr
-cloneNet(const std::vector<InferenceEngine::CNNLayerPtr>& layers);
+InferenceEngine::details::CNNNetworkImplPtr cloneNet(const std::vector<InferenceEngine::CNNLayerPtr>& layers);
 
 IE_SUPPRESS_DEPRECATED_END
 
@@ -55,8 +54,7 @@ IE_SUPPRESS_DEPRECATED_END
  * @param network A network to clone
  * @return A cloned object
  */
-InferenceEngine::CNNNetwork
-cloneNetwork(const InferenceEngine::CNNNetwork& network);
+InferenceEngine::CNNNetwork cloneNetwork(const InferenceEngine::CNNNetwork& network);
 
 /**
  * @brief Clones the whole network. All layers and data objects will be cloned
@@ -64,8 +62,7 @@ cloneNetwork(const InferenceEngine::CNNNetwork& network);
  * @param network A network to clone
  * @return A cloned object
  */
-InferenceEngine::details::CNNNetworkImplPtr
-cloneNet(const InferenceEngine::CNNNetwork& network);
+InferenceEngine::details::CNNNetworkImplPtr cloneNet(const InferenceEngine::CNNNetwork& network);
 
 using ordered_properties = std::vector<std::pair<std::string, std::string>>;
 using printer_callback =
@@ -78,7 +75,6 @@ using printer_callback =
  * @param out - output stream for saving graph
  * @param layer_cb - callback function, that called on every printed layer node
  */
-void
-saveGraphToDot(const InferenceEngine::CNNNetwork& network, std::ostream& out, printer_callback layer_cb = nullptr);
+void saveGraphToDot(const InferenceEngine::CNNNetwork& network, std::ostream& out, printer_callback layer_cb = nullptr);
 
 }  // namespace InferenceEngine

@@ -2,23 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
-#include <vector>
+#include "legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp"
 
+#include <legacy/ngraph_ops/nms_ie.hpp>
+#include <memory>
 #include <ngraph/graph_util.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset5.hpp>
-#include <legacy/ngraph_ops/nms_ie.hpp>
-#include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
 #include <transformations/utils/utils.hpp>
-
-#include "legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp"
+#include <vector>
 
 ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher(bool force_i32_output_type) {
     auto nms = ngraph::pattern::wrap_type<ngraph::opset5::NonMaxSuppression>();
 
-    ngraph::matcher_pass_callback callback = [force_i32_output_type](pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [force_i32_output_type](pattern::Matcher& m) {
         auto nms_5 = std::dynamic_pointer_cast<ngraph::opset5::NonMaxSuppression>(m.get_match_root());
         if (!nms_5) {
             return false;
@@ -27,9 +26,12 @@ ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher(bool force_
         const auto new_args = nms_5->input_values();
         const std::size_t num_of_inputs = new_args.size();
 
-        const auto& arg2 = num_of_inputs > 2 ? new_args.at(2) : ngraph::opset5::Constant::create(element::i32, Shape{}, {0});
-        const auto& arg3 = num_of_inputs > 3 ? new_args.at(3) : ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
-        const auto& arg4 = num_of_inputs > 4 ? new_args.at(4) : ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
+        const auto& arg2 =
+            num_of_inputs > 2 ? new_args.at(2) : ngraph::opset5::Constant::create(element::i32, Shape{}, {0});
+        const auto& arg3 =
+            num_of_inputs > 3 ? new_args.at(3) : ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
+        const auto& arg4 =
+            num_of_inputs > 4 ? new_args.at(4) : ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
 
         // vector of new nGraph operations
         NodeVector new_ops;
@@ -57,15 +59,15 @@ ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher(bool force_
 
         int center_point_box = 0;
         switch (nms_5->get_box_encoding()) {
-            case ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CENTER:
-                center_point_box = 1;
-                break;
-            case ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER:
-                center_point_box = 0;
-                break;
-            default:
-                throw ngraph_error("NonMaxSuppression layer " + nms_5->get_friendly_name() +
-                                   " has unsupported box encoding");
+        case ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CENTER:
+            center_point_box = 1;
+            break;
+        case ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER:
+            center_point_box = 0;
+            break;
+        default:
+            throw ngraph_error("NonMaxSuppression layer " + nms_5->get_friendly_name() +
+                               " has unsupported box encoding");
         }
 
         std::shared_ptr<op::NonMaxSuppressionIE3> nms_legacy{nullptr};
@@ -74,27 +76,25 @@ ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher(bool force_
         if (num_of_inputs > 5 && !nms_5->is_soft_nms_sigma_constant_and_default()) {
             new_soft_nms_sigma = std::make_shared<opset1::Reshape>(new_args.at(5), new_shape_for_soft_nms_sigma, true);
             new_ops.emplace_back(new_soft_nms_sigma.get_node_shared_ptr());
-            nms_legacy = std::make_shared<op::NonMaxSuppressionIE3>(
-                    new_args.at(0),
-                    new_args.at(1),
-                    new_max_per_class,
-                    new_iou_threshold,
-                    new_score_threshold,
-                    new_soft_nms_sigma,
-                    center_point_box,
-                    nms_5->get_sort_result_descending(),
-                    output_type);
+            nms_legacy = std::make_shared<op::NonMaxSuppressionIE3>(new_args.at(0),
+                                                                    new_args.at(1),
+                                                                    new_max_per_class,
+                                                                    new_iou_threshold,
+                                                                    new_score_threshold,
+                                                                    new_soft_nms_sigma,
+                                                                    center_point_box,
+                                                                    nms_5->get_sort_result_descending(),
+                                                                    output_type);
             new_ops.push_back(nms_legacy);
         } else {
-            nms_legacy = std::make_shared<op::NonMaxSuppressionIE3>(
-                    new_args.at(0),
-                    new_args.at(1),
-                    new_max_per_class,
-                    new_iou_threshold,
-                    new_score_threshold,
-                    center_point_box,
-                    nms_5->get_sort_result_descending(),
-                    output_type);
+            nms_legacy = std::make_shared<op::NonMaxSuppressionIE3>(new_args.at(0),
+                                                                    new_args.at(1),
+                                                                    new_max_per_class,
+                                                                    new_iou_threshold,
+                                                                    new_score_threshold,
+                                                                    center_point_box,
+                                                                    nms_5->get_sort_result_descending(),
+                                                                    output_type);
             new_ops.push_back(nms_legacy);
         }
 

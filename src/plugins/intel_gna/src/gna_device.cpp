@@ -4,13 +4,17 @@
 
 #include "gna_device.hpp"
 
-#include <map>
-#include <string>
 #include <cstring>
-#include <mutex>
-#include <vector>
 #include <fstream>
+#include <map>
+#include <mutex>
+#include <string>
+#include <vector>
 
+#include "backend/am_intel_dnn.hpp"
+#include "backend/gna_limitations.hpp"
+#include "common/gna_target.hpp"
+#include "gna/gna_config.hpp"
 #include "gna2-capability-api.h"
 #include "gna2-device-api.h"
 #include "gna2-inference-api.h"
@@ -19,15 +23,9 @@
 #include "gna2-model-export-api.h"
 #include "gna2_model_export_helper.hpp"
 #include "gna2_model_helper.hpp"
-#include "log/dump.hpp"
-
-#include "backend/am_intel_dnn.hpp"
-#include "backend/gna_limitations.hpp"
-#include "common/gna_target.hpp"
-#include "gna/gna_config.hpp"
-#include "log/log.hpp"
-
 #include "layers/gna_convolution_layer.hpp"
+#include "log/dump.hpp"
+#include "log/log.hpp"
 #include "memory/gna_mem_requests.hpp"
 
 using namespace ov::intel_gna;
@@ -62,28 +60,28 @@ GNADeviceHelper ::~GNADeviceHelper() {
     }
 }
 
-
-uint8_t* GNADeviceHelper::alloc(uint32_t size_requested, uint32_t *size_granted) {
-    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
-    void * memPtr = nullptr;
+uint8_t* GNADeviceHelper::alloc(uint32_t size_requested, uint32_t* size_granted) {
+    std::unique_lock<std::mutex> lockGnaCalls{acrossPluginsSync};
+    void* memPtr = nullptr;
     const auto status = Gna2MemoryAlloc(size_requested, size_granted, &memPtr);
     checkGna2Status(status, "Gna2MemoryAlloc");
 
     log::debug() << "Gna2MemoryAlloc(" << size_requested << ") -> " << *size_granted << ", " << memPtr << "\n";
     allAllocations.Add(memPtr, size_requested, *size_granted);
     if (memPtr == nullptr) {
-        THROW_GNA_EXCEPTION << "GNAAlloc failed to allocate memory. Requested: " << size_requested << " Granted: " << *(size_granted);
+        THROW_GNA_EXCEPTION << "GNAAlloc failed to allocate memory. Requested: " << size_requested
+                            << " Granted: " << *(size_granted);
     }
 
     dumpXNNROPtr = memPtr;
     dumpXNNROSize = *size_granted;
-    return static_cast<uint8_t *>(memPtr);
+    return static_cast<uint8_t*>(memPtr);
 }
 
 void GNADeviceHelper::tagMemoryRegion(void* memPtr, const memory::rRegion tag) {
-    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
+    std::unique_lock<std::mutex> lockGnaCalls{acrossPluginsSync};
     using memory::rRegion;
-    static const std::map<rRegion, Gna2MemoryTag> tagMap {
+    static const std::map<rRegion, Gna2MemoryTag> tagMap{
         {rRegion::REGION_INPUTS, Gna2MemoryTagInput},
         {rRegion::REGION_OUTPUTS, Gna2MemoryTagOutput},
         {rRegion::REGION_SCRATCH, Gna2MemoryTagScratch},
@@ -132,7 +130,7 @@ std::string GNADeviceHelper::getGnaLibraryVersionPrivate() {
 }
 
 std::string GNADeviceHelper::GetGnaLibraryVersion() {
-    static std::string gnaLibraryVersion{ getGnaLibraryVersionPrivate() };
+    static std::string gnaLibraryVersion{getGnaLibraryVersionPrivate()};
     return gnaLibraryVersion;
 }
 
@@ -150,7 +148,7 @@ void GNADeviceHelper::dumpAllAllocations(const uint64_t idx, const std::string& 
 }
 
 uint32_t GNADeviceHelper::enqueueRequest(const uint32_t requestConfigID, Gna2AccelerationMode gna2AccelerationMode) {
-    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
+    std::unique_lock<std::mutex> lockGnaCalls{acrossPluginsSync};
     uint32_t reqId{};
     if ((gna2AccelerationMode == Gna2AccelerationModeHardware ||
          gna2AccelerationMode == Gna2AccelerationModeHardwareWithSoftwareFallback) &&
@@ -175,10 +173,9 @@ uint32_t GNADeviceHelper::enqueueRequest(const uint32_t requestConfigID, Gna2Acc
 }
 
 inline void enforceLegacyCnn(Gna2Operation& operation) {
-    snprintf(
-        const_cast<char*>(operation.Operands[1]->Layout),
-        sizeof(operation.Operands[1]->Layout) / sizeof(char),
-        "GNA1");
+    snprintf(const_cast<char*>(operation.Operands[1]->Layout),
+             sizeof(operation.Operands[1]->Layout) / sizeof(char),
+             "GNA1");
 }
 
 void GNADeviceHelper::enforceLegacyCnns(Gna2Model& gnaModel) {
@@ -199,7 +196,7 @@ void GNADeviceHelper::enforceLegacyCnnsWhenNeeded(Gna2Model& gnaModel) {
 }
 
 uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) const {
-    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
+    std::unique_lock<std::mutex> lockGnaCalls{acrossPluginsSync};
     uint32_t modelId = 0;
     const auto legacyExecTarget = enforceLegacyCnnNeeded();
     if (legacyExecTarget) {
@@ -228,7 +225,7 @@ uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) const {
 }
 
 void GNADeviceHelper::releaseModel(const uint32_t model_id) {
-    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
+    std::unique_lock<std::mutex> lockGnaCalls{acrossPluginsSync};
     const auto status = Gna2ModelRelease(model_id);
     checkGna2Status(status, "Gna2ModelRelease");
 }
@@ -239,7 +236,7 @@ bool GNADeviceHelper::enforceLegacyCnnNeeded() const {
 }
 
 Gna2DeviceVersion GNADeviceHelper::parseTarget(const std::string& target) {
-    static const std::map<std::string, Gna2DeviceVersion> targetMap {
+    static const std::map<std::string, Gna2DeviceVersion> targetMap{
         {common::kGnaTarget2_0, Gna2DeviceVersion2_0},
         {common::kGnaTarget3_0, Gna2DeviceVersion3_0},
         {common::kGnaTarget3_5, Gna2DeviceVersion3_5},
@@ -249,7 +246,8 @@ Gna2DeviceVersion GNADeviceHelper::parseTarget(const std::string& target) {
     if (f != targetMap.end()) {
         return f->second;
     }
-    THROW_GNA_EXCEPTION << "Unsupported " << "GNA target: \"" << target << "\"\n";
+    THROW_GNA_EXCEPTION << "Unsupported "
+                        << "GNA target: \"" << target << "\"\n";
 }
 
 Gna2DeviceVersion GNADeviceHelper::getDefaultTarget() const {
@@ -267,7 +265,7 @@ Gna2DeviceVersion GNADeviceHelper::getTargetDevice(const bool execTarget) const 
 }
 
 uint32_t GNADeviceHelper::createRequestConfig(const uint32_t modelID) const {
-    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
+    std::unique_lock<std::mutex> lockGnaCalls{acrossPluginsSync};
     uint32_t reqConfId = 0;
     auto status = Gna2RequestConfigCreate(modelID, &reqConfId);
     checkGna2Status(status, "Gna2RequestConfigCreate");
@@ -279,7 +277,7 @@ uint32_t GNADeviceHelper::createRequestConfig(const uint32_t modelID) const {
 }
 
 uint32_t GNADeviceHelper::getNumberOfGnaDevices() {
-    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
+    std::unique_lock<std::mutex> lockGnaCalls{acrossPluginsSync};
     uint32_t numberOfGnaDevices = 0;
     auto status = Gna2DeviceGetCount(&numberOfGnaDevices);
     checkGna2Status(status, "Gna2DeviceGetCount");
@@ -297,15 +295,18 @@ uint32_t GNADeviceHelper::selectGnaDevice() {
 void GNADeviceHelper::checkGna2Status(Gna2Status status, const Gna2Model& gnaModel) {
     if (!Gna2StatusIsSuccessful(status)) {
         std::vector<char> gna2StatusBuffer(1024);
-        const auto s = Gna2StatusGetMessage(status, gna2StatusBuffer.data(), static_cast<uint32_t>(gna2StatusBuffer.size()));
+        const auto s =
+            Gna2StatusGetMessage(status, gna2StatusBuffer.data(), static_cast<uint32_t>(gna2StatusBuffer.size()));
         if (!Gna2StatusIsSuccessful(s))
-            snprintf(gna2StatusBuffer.data(), gna2StatusBuffer.size(), "Gna2StatusGetMessage(%d) returned (%d)",
-                static_cast<int>(status), static_cast<int>(s));
+            snprintf(gna2StatusBuffer.data(),
+                     gna2StatusBuffer.size(),
+                     "Gna2StatusGetMessage(%d) returned (%d)",
+                     static_cast<int>(status),
+                     static_cast<int>(s));
         if (status == Gna2StatusDeviceIngoingCommunicationError ||
             status == Gna2StatusDeviceOutgoingCommunicationError) {
-            THROW_GNA_EXCEPTION << "Unsuccessful Gna2Status: (" << status << ") " <<
-                gna2StatusBuffer.data() << ", consider updating the GNA driver" <<
-                decoratedGnaLibVersion();
+            THROW_GNA_EXCEPTION << "Unsuccessful Gna2Status: (" << status << ") " << gna2StatusBuffer.data()
+                                << ", consider updating the GNA driver" << decoratedGnaLibVersion();
         }
 
         Gna2ModelError error{};
@@ -315,60 +316,58 @@ void GNADeviceHelper::checkGna2Status(Gna2Status status, const Gna2Model& gnaMod
         std::stringstream ss;
         ss << "\n GNA Library Error:\n";
         const Gna2ItemType type = error.Source.Type;
-        const std::string errorType = errorTypes.find(type) != errorTypes.end()
-                                      ? errorTypes.at(type)
-                                      : "Unknown Error Type";
+        const std::string errorType =
+            errorTypes.find(type) != errorTypes.end() ? errorTypes.at(type) : "Unknown Error Type";
 
         ss << "   Type (" << std::to_string(type) << "): " << errorType << "\n";
 
         if (error.Source.OperationIndex != GNA2_DISABLED) {
             const Gna2OperationType opTypeIndex = gnaModel.Operations[error.Source.OperationIndex].Type;
             const std::string operationType = operationTypes.find(opTypeIndex) != operationTypes.end()
-                                              ? operationTypes.at(opTypeIndex)
-                                              : "Unknown Operation Type";
-            const std::string operandType = operandTypes.find({ opTypeIndex, error.Source.OperandIndex }) != operandTypes.end()
-                                              ? operandTypes.at({ opTypeIndex, error.Source.OperandIndex })
-                                              : "Unknown Operand Type";
+                                                  ? operationTypes.at(opTypeIndex)
+                                                  : "Unknown Operation Type";
+            const std::string operandType =
+                operandTypes.find({opTypeIndex, error.Source.OperandIndex}) != operandTypes.end()
+                    ? operandTypes.at({opTypeIndex, error.Source.OperandIndex})
+                    : "Unknown Operand Type";
 
-            ss << "   OperationIndex (" << std::to_string(error.Source.OperationIndex) << "): "
-                << operationType << "\n";
-            ss << "   OperandIndex(" << std::to_string(error.Source.OperandIndex) << "): "
-                << operandType << "\n";
+            ss << "   OperationIndex (" << std::to_string(error.Source.OperationIndex) << "): " << operationType
+               << "\n";
+            ss << "   OperandIndex(" << std::to_string(error.Source.OperandIndex) << "): " << operandType << "\n";
             ss << "   ParamIndex (" << std::to_string(error.Source.ParameterIndex) << ")\n";
             ss << "   DimIndex (" << std::to_string(error.Source.ShapeDimensionIndex) << ")\n";
         }
 
         const Gna2ErrorType reason = error.Reason;
-        const std::string errorReason = errorReasons.find(reason) != errorReasons.end()
-                                        ? errorReasons.at(reason)
-                                        : "Unknown Error Reason";
+        const std::string errorReason =
+            errorReasons.find(reason) != errorReasons.end() ? errorReasons.at(reason) : "Unknown Error Reason";
         ss << "   Reason (" << std::to_string(reason) << "): " << errorReason << "\n";
         ss << "   Value (0x" << std::hex << error.Value << ")";
 
-        THROW_GNA_EXCEPTION << "\nUnsuccessful Gna2Status: (" << status << ") " <<
-            gna2StatusBuffer.data() << ss.str() <<
-            decoratedGnaLibVersion();
+        THROW_GNA_EXCEPTION << "\nUnsuccessful Gna2Status: (" << status << ") " << gna2StatusBuffer.data() << ss.str()
+                            << decoratedGnaLibVersion();
     }
 }
 
-std::string GNADeviceHelper::checkGna2Status(Gna2Status status,
-                                             const std::string& from,
-                                             bool returnInsteadThrow) {
+std::string GNADeviceHelper::checkGna2Status(Gna2Status status, const std::string& from, bool returnInsteadThrow) {
     if (!Gna2StatusIsSuccessful(status)) {
         std::vector<char> gna2StatusBuffer(1024);
         const auto prefix = "Unsuccessful " + from + " call, Gna2Status: (";
-        const auto s = Gna2StatusGetMessage(status, gna2StatusBuffer.data(), static_cast<uint32_t>(gna2StatusBuffer.size()));
+        const auto s =
+            Gna2StatusGetMessage(status, gna2StatusBuffer.data(), static_cast<uint32_t>(gna2StatusBuffer.size()));
         if (!Gna2StatusIsSuccessful(s))
-            snprintf(gna2StatusBuffer.data(), gna2StatusBuffer.size(), "Gna2StatusGetMessage(%d) returned (%d)",
-                static_cast<int>(status), static_cast<int>(s));
+            snprintf(gna2StatusBuffer.data(),
+                     gna2StatusBuffer.size(),
+                     "Gna2StatusGetMessage(%d) returned (%d)",
+                     static_cast<int>(status),
+                     static_cast<int>(s));
         std::string suffix;
         if (status == Gna2StatusDeviceIngoingCommunicationError ||
             status == Gna2StatusDeviceOutgoingCommunicationError) {
             suffix = ", consider updating the GNA driver";
         }
         std::ostringstream message;
-        message << prefix << status << ") " << gna2StatusBuffer.data() << suffix <<
-            decoratedGnaLibVersion();
+        message << prefix << status << ") " << gna2StatusBuffer.data() << suffix << decoratedGnaLibVersion();
         if (returnInsteadThrow) {
             return message.str();
         }
@@ -377,96 +376,95 @@ std::string GNADeviceHelper::checkGna2Status(Gna2Status status,
     return {};
 }
 
-const std::map <Gna2ItemType, const std::string> GNADeviceHelper::errorTypes = {
-            {Gna2ItemTypeNone, "Model context is not applicable or unnecessary"},
-            {Gna2ItemTypeModelNumberOfOperations, "Gna2Model::NumberOfOperations"},
-            {Gna2ItemTypeModelOperations, "Gna2Model::Operations array"},
-            {Gna2ItemTypeOperationType, "Gna2Model::Operations[x]->Gna2Operation::Type"},
-            {Gna2ItemTypeOperationOperands, "Gna2Model::Operations[x]->Gna2Operation::Operands array"},
-            {Gna2ItemTypeOperationNumberOfOperands, "Gna2Model::Operations[x]->Gna2Operation::NumberOfOperands"},
-            {Gna2ItemTypeOperationParameters, "Gna2Model::Operations[x]->Gna2Operation::Parameters array"},
-            {Gna2ItemTypeOperationNumberOfParameters, "Gna2Model::Operations[x]->Gna2Operation::NumberOfParameters"},
-            {Gna2ItemTypeOperandMode, "Gna2Model::Operations[x]->Gna2Operation::Operands[y]->Gna2Tensor::Mode"},
-            {Gna2ItemTypeOperandLayout, "Gna2Model::Operations[x]->Gna2Operation::Operands[y]->Gna2Tensor::Layout"},
-            {Gna2ItemTypeOperandType, "Gna2Model::Operations[x]->Gna2Operation::Operands[y]->Gna2Tensor::Type"},
-            {Gna2ItemTypeOperandData, "Gna2Model::Operations[x]->Gna2Operation::Operands[y]->Gna2Tensor::Data"},
-            {Gna2ItemTypeParameter, "Gna2Model::Operations[x]->Gna2Operation::Parameters[z]->Parameter, can be of type Gna2Shape, enumeration or integer"},
-            {Gna2ItemTypeShapeNumberOfDimensions, "Gna2Model::Operations[x]->{Gna2Tensor}, Parameter}->Gna2Shape::NumberOfDimensions"},
-            {Gna2ItemTypeShapeDimensions, "Gna2Model::Operations[x]->{Gna2Tensor}, Parameter}->Gna2Shape::Dimensions"},
-            {Gna2ItemTypeInternal, "Internal model item, that is a derivative of other model parameters"}
-};
+const std::map<Gna2ItemType, const std::string> GNADeviceHelper::errorTypes = {
+    {Gna2ItemTypeNone, "Model context is not applicable or unnecessary"},
+    {Gna2ItemTypeModelNumberOfOperations, "Gna2Model::NumberOfOperations"},
+    {Gna2ItemTypeModelOperations, "Gna2Model::Operations array"},
+    {Gna2ItemTypeOperationType, "Gna2Model::Operations[x]->Gna2Operation::Type"},
+    {Gna2ItemTypeOperationOperands, "Gna2Model::Operations[x]->Gna2Operation::Operands array"},
+    {Gna2ItemTypeOperationNumberOfOperands, "Gna2Model::Operations[x]->Gna2Operation::NumberOfOperands"},
+    {Gna2ItemTypeOperationParameters, "Gna2Model::Operations[x]->Gna2Operation::Parameters array"},
+    {Gna2ItemTypeOperationNumberOfParameters, "Gna2Model::Operations[x]->Gna2Operation::NumberOfParameters"},
+    {Gna2ItemTypeOperandMode, "Gna2Model::Operations[x]->Gna2Operation::Operands[y]->Gna2Tensor::Mode"},
+    {Gna2ItemTypeOperandLayout, "Gna2Model::Operations[x]->Gna2Operation::Operands[y]->Gna2Tensor::Layout"},
+    {Gna2ItemTypeOperandType, "Gna2Model::Operations[x]->Gna2Operation::Operands[y]->Gna2Tensor::Type"},
+    {Gna2ItemTypeOperandData, "Gna2Model::Operations[x]->Gna2Operation::Operands[y]->Gna2Tensor::Data"},
+    {Gna2ItemTypeParameter,
+     "Gna2Model::Operations[x]->Gna2Operation::Parameters[z]->Parameter, can be of type Gna2Shape, enumeration or "
+     "integer"},
+    {Gna2ItemTypeShapeNumberOfDimensions,
+     "Gna2Model::Operations[x]->{Gna2Tensor}, Parameter}->Gna2Shape::NumberOfDimensions"},
+    {Gna2ItemTypeShapeDimensions, "Gna2Model::Operations[x]->{Gna2Tensor}, Parameter}->Gna2Shape::Dimensions"},
+    {Gna2ItemTypeInternal, "Internal model item, that is a derivative of other model parameters"}};
 
-const std::map <Gna2ErrorType, const std::string> GNADeviceHelper::errorReasons = {
-            { Gna2ErrorTypeNone, "No error detected"},
-            { Gna2ErrorTypeNotTrue, "Item value was expected to be true"},
-            { Gna2ErrorTypeNotFalse, "Item value was expected to be false"},
-            { Gna2ErrorTypeNullNotAllowed, "Item value was expected to be not null"},
-            { Gna2ErrorTypeNullRequired, "Item value was expected to be null"},
-            { Gna2ErrorTypeBelowRange, "Item value was below supported range"},
-            { Gna2ErrorTypeAboveRange, "Item value was above supported range"},
-            { Gna2ErrorTypeNotEqual, "Item value was not equal supported one"},
-            { Gna2ErrorTypeNotGtZero, "Item value was below zero"},
-            { Gna2ErrorTypeNotZero, "Item value was not equal zero"},
-            { Gna2ErrorTypeNotOne, "Item value was not equal one"},
-            { Gna2ErrorTypeNotInSet, "Item value was not in supported set of values"},
-            { Gna2ErrorTypeNotMultiplicity, "Item value was not multiple of supported value"},
-            { Gna2ErrorTypeNotSuccess, "Item value was invalid, no detailed information available"},
-            { Gna2ErrorTypeNotAligned, "Item value was not aligned to supported value"},
-            { Gna2ErrorTypeArgumentMissing, "Some operation argument was not provided"},
-            { Gna2ErrorTypeArgumentInvalid, "Given operation argument was invalid or unexpected"},
-            { Gna2ErrorTypeRuntime, "Runtime error occurred during model creation"},
-            { Gna2ErrorTypeOther, "Unable to determine the root cause of the issue"}
-};
+const std::map<Gna2ErrorType, const std::string> GNADeviceHelper::errorReasons = {
+    {Gna2ErrorTypeNone, "No error detected"},
+    {Gna2ErrorTypeNotTrue, "Item value was expected to be true"},
+    {Gna2ErrorTypeNotFalse, "Item value was expected to be false"},
+    {Gna2ErrorTypeNullNotAllowed, "Item value was expected to be not null"},
+    {Gna2ErrorTypeNullRequired, "Item value was expected to be null"},
+    {Gna2ErrorTypeBelowRange, "Item value was below supported range"},
+    {Gna2ErrorTypeAboveRange, "Item value was above supported range"},
+    {Gna2ErrorTypeNotEqual, "Item value was not equal supported one"},
+    {Gna2ErrorTypeNotGtZero, "Item value was below zero"},
+    {Gna2ErrorTypeNotZero, "Item value was not equal zero"},
+    {Gna2ErrorTypeNotOne, "Item value was not equal one"},
+    {Gna2ErrorTypeNotInSet, "Item value was not in supported set of values"},
+    {Gna2ErrorTypeNotMultiplicity, "Item value was not multiple of supported value"},
+    {Gna2ErrorTypeNotSuccess, "Item value was invalid, no detailed information available"},
+    {Gna2ErrorTypeNotAligned, "Item value was not aligned to supported value"},
+    {Gna2ErrorTypeArgumentMissing, "Some operation argument was not provided"},
+    {Gna2ErrorTypeArgumentInvalid, "Given operation argument was invalid or unexpected"},
+    {Gna2ErrorTypeRuntime, "Runtime error occurred during model creation"},
+    {Gna2ErrorTypeOther, "Unable to determine the root cause of the issue"}};
 
-const std::map <Gna2OperationType, const std::string> GNADeviceHelper::operationTypes = {
-            { Gna2OperationTypeNone, "None"},
-            { Gna2OperationTypeConvolution, "Convolution"},
-            { Gna2OperationTypeCopy, "Copy"},
-            { Gna2OperationTypeFullyConnectedAffine, "FullyConnectedAffine"},
-            { Gna2OperationTypeElementWiseAffine, "ElementWiseAffine"},
-            { Gna2OperationTypeGmm, "GMM"},
-            { Gna2OperationTypeRecurrent, "Recurrent"},
-            { Gna2OperationTypeTransposition, "Transpose"},
-            { Gna2OperationTypeThreshold, "Threshold"}
-};
+const std::map<Gna2OperationType, const std::string> GNADeviceHelper::operationTypes = {
+    {Gna2OperationTypeNone, "None"},
+    {Gna2OperationTypeConvolution, "Convolution"},
+    {Gna2OperationTypeCopy, "Copy"},
+    {Gna2OperationTypeFullyConnectedAffine, "FullyConnectedAffine"},
+    {Gna2OperationTypeElementWiseAffine, "ElementWiseAffine"},
+    {Gna2OperationTypeGmm, "GMM"},
+    {Gna2OperationTypeRecurrent, "Recurrent"},
+    {Gna2OperationTypeTransposition, "Transpose"},
+    {Gna2OperationTypeThreshold, "Threshold"}};
 
-const std::map <const std::pair<Gna2OperationType, int32_t>, const std::string> GNADeviceHelper::operandTypes = {
-            {{Gna2OperationTypeConvolution, 0}, "Input"},
-            {{Gna2OperationTypeConvolution, 1}, "Output"},
-            {{Gna2OperationTypeConvolution, 2}, "Filters"},
-            {{Gna2OperationTypeConvolution, 3}, "Biases"},
-            {{Gna2OperationTypeConvolution, 4}, "Activation"},
-            {{Gna2OperationTypeCopy, 0}, "Input"},
-            {{Gna2OperationTypeCopy, 1}, "Output"},
-            {{Gna2OperationTypeFullyConnectedAffine, 0}, "Input"},
-            {{Gna2OperationTypeFullyConnectedAffine, 1}, "Output"},
-            {{Gna2OperationTypeFullyConnectedAffine, 2}, "Weights"},
-            {{Gna2OperationTypeFullyConnectedAffine, 3}, "Biases"},
-            {{Gna2OperationTypeFullyConnectedAffine, 4}, "Activation"},
-            {{Gna2OperationTypeFullyConnectedAffine, 5}, "WeightScaleFactors"},
-            {{Gna2OperationTypeElementWiseAffine, 0}, "Input"},
-            {{Gna2OperationTypeElementWiseAffine, 1}, "Output"},
-            {{Gna2OperationTypeElementWiseAffine, 2}, "Weights"},
-            {{Gna2OperationTypeElementWiseAffine, 3}, "Biases"},
-            {{Gna2OperationTypeElementWiseAffine, 4}, "Activation"},
-            {{Gna2OperationTypeGmm, 0}, "Input"},
-            {{Gna2OperationTypeGmm, 1}, "Output"},
-            {{Gna2OperationTypeGmm, 2}, "Means"},
-            {{Gna2OperationTypeGmm, 3}, "InverseCovariances"},
-            {{Gna2OperationTypeGmm, 4}, "Constants"},
-            {{Gna2OperationTypeRecurrent, 0}, "Input"},
-            {{Gna2OperationTypeRecurrent, 1}, "Output"},
-            {{Gna2OperationTypeRecurrent, 2}, "Weights"},
-            {{Gna2OperationTypeRecurrent, 3}, "Biases"},
-            {{Gna2OperationTypeRecurrent, 4}, "Activation"},
-            {{Gna2OperationTypeTransposition, 0}, "Input"},
-            {{Gna2OperationTypeTransposition, 1}, "Output"},
-            {{Gna2OperationTypeThreshold, 0}, "Input"},
-            {{Gna2OperationTypeThreshold, 1}, "Output"}
-};
+const std::map<const std::pair<Gna2OperationType, int32_t>, const std::string> GNADeviceHelper::operandTypes = {
+    {{Gna2OperationTypeConvolution, 0}, "Input"},
+    {{Gna2OperationTypeConvolution, 1}, "Output"},
+    {{Gna2OperationTypeConvolution, 2}, "Filters"},
+    {{Gna2OperationTypeConvolution, 3}, "Biases"},
+    {{Gna2OperationTypeConvolution, 4}, "Activation"},
+    {{Gna2OperationTypeCopy, 0}, "Input"},
+    {{Gna2OperationTypeCopy, 1}, "Output"},
+    {{Gna2OperationTypeFullyConnectedAffine, 0}, "Input"},
+    {{Gna2OperationTypeFullyConnectedAffine, 1}, "Output"},
+    {{Gna2OperationTypeFullyConnectedAffine, 2}, "Weights"},
+    {{Gna2OperationTypeFullyConnectedAffine, 3}, "Biases"},
+    {{Gna2OperationTypeFullyConnectedAffine, 4}, "Activation"},
+    {{Gna2OperationTypeFullyConnectedAffine, 5}, "WeightScaleFactors"},
+    {{Gna2OperationTypeElementWiseAffine, 0}, "Input"},
+    {{Gna2OperationTypeElementWiseAffine, 1}, "Output"},
+    {{Gna2OperationTypeElementWiseAffine, 2}, "Weights"},
+    {{Gna2OperationTypeElementWiseAffine, 3}, "Biases"},
+    {{Gna2OperationTypeElementWiseAffine, 4}, "Activation"},
+    {{Gna2OperationTypeGmm, 0}, "Input"},
+    {{Gna2OperationTypeGmm, 1}, "Output"},
+    {{Gna2OperationTypeGmm, 2}, "Means"},
+    {{Gna2OperationTypeGmm, 3}, "InverseCovariances"},
+    {{Gna2OperationTypeGmm, 4}, "Constants"},
+    {{Gna2OperationTypeRecurrent, 0}, "Input"},
+    {{Gna2OperationTypeRecurrent, 1}, "Output"},
+    {{Gna2OperationTypeRecurrent, 2}, "Weights"},
+    {{Gna2OperationTypeRecurrent, 3}, "Biases"},
+    {{Gna2OperationTypeRecurrent, 4}, "Activation"},
+    {{Gna2OperationTypeTransposition, 0}, "Input"},
+    {{Gna2OperationTypeTransposition, 1}, "Output"},
+    {{Gna2OperationTypeThreshold, 0}, "Input"},
+    {{Gna2OperationTypeThreshold, 1}, "Output"}};
 
 RequestStatus GNADeviceHelper::waitForRequest(uint32_t requestID, int64_t timeoutMilliseconds) {
-    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
+    std::unique_lock<std::mutex> lockGnaCalls{acrossPluginsSync};
     const auto status = Gna2RequestWait(requestID, static_cast<uint32_t>(timeoutMilliseconds));
     if (status == Gna2StatusWarningDeviceBusy) {
         return RequestStatus::kPending;
@@ -491,9 +489,7 @@ RequestStatus GNADeviceHelper::waitForRequest(uint32_t requestID, int64_t timeou
 GNADeviceHelper::DumpResult GNADeviceHelper::dumpXnn(const uint32_t modelId) {
     DumpResult r;
 
-    r.model.reset(
-        ExportSueLegacyUsingGnaApi2(modelId, nGnaDeviceIndex, &r.header),
-        gnaUserFree);
+    r.model.reset(ExportSueLegacyUsingGnaApi2(modelId, nGnaDeviceIndex, &r.header), gnaUserFree);
 
     if (r.model == nullptr) {
         THROW_GNA_EXCEPTION << "GNADumpXnn returned nullptr";
@@ -527,7 +523,7 @@ void GNADeviceHelper::updateGnaDeviceVersion() {
 }
 
 void GNADeviceHelper::open() {
-    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
+    std::unique_lock<std::mutex> lockGnaCalls{acrossPluginsSync};
     updateGnaDeviceVersion();
     const auto gnaExecTarget = parseTarget(executionTarget);
     if (useDeviceEmbeddedExport) {
@@ -540,7 +536,8 @@ void GNADeviceHelper::open() {
         createVirtualDevice(gnaExecTarget);
         updateGnaDeviceVersion();
         if (detectedGnaDevVersion != gnaExecTarget) {
-            THROW_GNA_EXCEPTION << "Wrong virtual GNA device version reported: " << detectedGnaDevVersion << " instead of: " << gnaExecTarget;
+            THROW_GNA_EXCEPTION << "Wrong virtual GNA device version reported: " << detectedGnaDevVersion
+                                << " instead of: " << gnaExecTarget;
         }
     } else {
         const auto status = Gna2DeviceOpen(nGnaDeviceIndex);
@@ -583,7 +580,8 @@ void GNADeviceHelper::updateGnaPerfCounters() {
     instrumentationResults[1] = 0;
 }
 
-void GNADeviceHelper::getGnaPerfCounters(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& retPerfCounters) {
+void GNADeviceHelper::getGnaPerfCounters(
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& retPerfCounters) {
     InferenceEngine::InferenceEngineProfileInfo info;
     info.status = InferenceEngine::InferenceEngineProfileInfo::EXECUTED;
     info.cpu_uSec = 0;

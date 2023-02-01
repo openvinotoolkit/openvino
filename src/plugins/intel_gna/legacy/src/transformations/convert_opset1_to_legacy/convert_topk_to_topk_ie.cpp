@@ -4,20 +4,18 @@
 
 #include "legacy/transformations/convert_opset1_to_legacy/convert_topk_to_topk_ie.hpp"
 
-#include <memory>
-#include <vector>
-#include <string>
-
-#include <ngraph/opsets/opset1.hpp>
-
 #include <legacy/ngraph_ops/topk_ie.hpp>
-#include <ngraph/rt_info.hpp>
+#include <memory>
+#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+#include <string>
+#include <vector>
 
 ngraph::pass::ConvertTopKToTopKIEMatcher::ConvertTopKToTopKIEMatcher() {
     auto topk = ngraph::pattern::wrap_type<opset1::TopK>();
 
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto topk = std::dynamic_pointer_cast<opset1::TopK>(m.get_match_root());
         if (!topk || topk->input(1).get_partial_shape().rank().is_dynamic()) {
             return false;
@@ -35,12 +33,17 @@ ngraph::pass::ConvertTopKToTopKIEMatcher::ConvertTopKToTopKIEMatcher() {
             auto k_value = k_const->cast_vector<int64_t>();
             unsqueezed_k = opset1::Constant::create(element::i64, Shape{1}, k_value);
         } else {
-            unsqueezed_k = std::make_shared<opset1::Unsqueeze>(topk->input_value(1), opset1::Constant::create(element::i64, Shape{1}, {0}));
+            unsqueezed_k = std::make_shared<opset1::Unsqueeze>(topk->input_value(1),
+                                                               opset1::Constant::create(element::i64, Shape{1}, {0}));
             new_ops.push_back(unsqueezed_k.get_node_shared_ptr());
         }
 
-        auto topk_ie = std::make_shared<ngraph::op::TopKIE>(topk->input_value(0), unsqueezed_k, topk->get_axis(), topk->get_mode(),
-                                                            topk->get_sort_type(), topk->get_index_element_type());
+        auto topk_ie = std::make_shared<ngraph::op::TopKIE>(topk->input_value(0),
+                                                            unsqueezed_k,
+                                                            topk->get_axis(),
+                                                            topk->get_mode(),
+                                                            topk->get_sort_type(),
+                                                            topk->get_index_element_type());
         new_ops.push_back(topk_ie);
 
         Output<Node> element_output;

@@ -42,7 +42,7 @@ target_compile_definitions(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:ngraph,I
 
 target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::itt)
 
-add_cpplint_target(${TARGET_NAME}_obj_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
+add_clang_format_target(${TARGET_NAME}_obj_clang FOR_TARGETS ${TARGET_NAME}_obj)
 
 # Create static library
 

@@ -4,43 +4,41 @@
 
 #include <gtest/gtest.h>
 
-#include "common_test_utils/test_common.hpp"
-#include <string>
-#include <sstream>
 #include <fstream>
+#include <map>
 #include <memory>
 #include <queue>
-#include <map>
+#include <sstream>
+#include <string>
 
-#include "transformations/init_node_info.hpp"
+#include "common_test_utils/test_common.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-
+#include "transformations/init_node_info.hpp"
 
 using namespace ngraph;
 using namespace opset8;
 
-
 namespace LayerTestsDefinitions {
 
-typedef std::tuple<
-    bool,                           // Normalize variance
-    float,                          // Epsilon
-    op::MVNEpsMode,                 // Epsilon mode
-    bool,                           // Across channels
-    bool                            // MVN version, true = v6, false = v1
-> mvnSpecificParams;
+typedef std::tuple<bool,            // Normalize variance
+                   float,           // Epsilon
+                   op::MVNEpsMode,  // Epsilon mode
+                   bool,            // Across channels
+                   bool             // MVN version, true = v6, false = v1
+                   >
+    mvnSpecificParams;
 
-typedef std::tuple<
-    mvnSpecificParams,                  // MVN parameters
-    InferenceEngine::Precision,         // Network Precision
-    std::string,                        // Target Device
-    std::map<std::string, std::string>, // Configuration
-    InferenceEngine::SizeVector         // Input shapes
-> decomposeMVNParams;
+typedef std::tuple<mvnSpecificParams,                   // MVN parameters
+                   InferenceEngine::Precision,          // Network Precision
+                   std::string,                         // Target Device
+                   std::map<std::string, std::string>,  // Configuration
+                   InferenceEngine::SizeVector          // Input shapes
+                   >
+    decomposeMVNParams;
 
 class DecomposeMVNTest : public testing::WithParamInterface<decomposeMVNParams>,
-    virtual public LayerTestsUtils::LayerTestsCommon {
+                         virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<decomposeMVNParams> obj) {
         mvnSpecificParams mvnParams;
@@ -102,17 +100,11 @@ TEST_P(DecomposeMVNTest, CompareWithRefs) {
     Run();
 }
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32,
-    InferenceEngine::Precision::FP16
-};
+const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
+                                                               InferenceEngine::Precision::FP16};
 
 const std::vector<std::map<std::string, std::string>> configs = {
-    {
-        {"GNA_DEVICE_MODE", "GNA_SW_FP32"},
-        {"GNA_SCALE_FACTOR_0", "1"}
-    }
-};
+    {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}, {"GNA_SCALE_FACTOR_0", "1"}}};
 
 const std::vector<std::vector<size_t>> inputs = {{1, 1, 5, 300}, {1, 6, 256}};
 const std::vector<bool> normalizeVariance = {true};
@@ -120,38 +112,34 @@ const std::vector<float> eps = {1.0e-09f};
 const std::vector<op::MVNEpsMode> epsMode = {op::MVNEpsMode::INSIDE_SQRT};
 const std::vector<bool> accrossChannels = {false};
 
-const auto mvnParams_v6 = ::testing::Combine(
-    ::testing::ValuesIn(normalizeVariance),
-    ::testing::ValuesIn(eps),
-    ::testing::ValuesIn(epsMode),
-    ::testing::Values(false),
-    ::testing::Values(true)
-);
+const auto mvnParams_v6 = ::testing::Combine(::testing::ValuesIn(normalizeVariance),
+                                             ::testing::ValuesIn(eps),
+                                             ::testing::ValuesIn(epsMode),
+                                             ::testing::Values(false),
+                                             ::testing::Values(true));
 
-const auto mvnParams_v1 = ::testing::Combine(
-    ::testing::ValuesIn(normalizeVariance),
-    ::testing::ValuesIn(eps),
-    ::testing::ValuesIn(epsMode),
-    ::testing::ValuesIn(accrossChannels),
-    ::testing::Values(false)
-);
+const auto mvnParams_v1 = ::testing::Combine(::testing::ValuesIn(normalizeVariance),
+                                             ::testing::ValuesIn(eps),
+                                             ::testing::ValuesIn(epsMode),
+                                             ::testing::ValuesIn(accrossChannels),
+                                             ::testing::Values(false));
 
-INSTANTIATE_TEST_SUITE_P(smoke_DecomposeMVN_v6, DecomposeMVNTest,
-    ::testing::Combine(
-        mvnParams_v6,
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GNA),
-        ::testing::ValuesIn(configs),
-        ::testing::ValuesIn(inputs)),
-    DecomposeMVNTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_DecomposeMVN_v6,
+                         DecomposeMVNTest,
+                         ::testing::Combine(mvnParams_v6,
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::ValuesIn(configs),
+                                            ::testing::ValuesIn(inputs)),
+                         DecomposeMVNTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_DecomposeMVN_v1, DecomposeMVNTest,
-    ::testing::Combine(
-        mvnParams_v1,
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GNA),
-        ::testing::ValuesIn(configs),
-        ::testing::ValuesIn(inputs)),
-    DecomposeMVNTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_DecomposeMVN_v1,
+                         DecomposeMVNTest,
+                         ::testing::Combine(mvnParams_v1,
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::ValuesIn(configs),
+                                            ::testing::ValuesIn(inputs)),
+                         DecomposeMVNTest::getTestCaseName);
 
-} // namespace LayerTestsDefinitions
+}  // namespace LayerTestsDefinitions

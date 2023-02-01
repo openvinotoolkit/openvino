@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include <vector>
-#include <memory>
-
 #include <ie_api.h>
 
+#include <memory>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <vector>
 
 namespace ngraph {
 namespace pass {
@@ -19,7 +18,7 @@ class ConvertMulOrAddFinally;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertMulOrAddFinally: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertMulOrAddFinally : public ngraph::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("ConvertMulOrAddFinally", "0");
     ConvertMulOrAddFinally();

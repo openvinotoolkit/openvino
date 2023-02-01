@@ -10,7 +10,7 @@ namespace ov {
 namespace intel_gna {
 namespace memory {
 
-int32_t MemoryOffset(void *ptr_target, void *ptr_base);
+int32_t MemoryOffset(void* ptr_target, void* ptr_base);
 
 }  // namespace memory
 }  // namespace intel_gna

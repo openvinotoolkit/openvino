@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "legacy/graph_tools.hpp"
+
 #include <limits>
 #include <string>
 #include <vector>
 
-#include "legacy/graph_tools.hpp"
 #include "legacy/details/ie_cnn_network_tools.h"
 
 using namespace std;

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <legacy/graph_tools.hpp>
+
 #include "gna_graph_tools.hpp"
 #include "layers/gna_layer_info.hpp"
 
@@ -16,8 +17,9 @@ namespace intel_gna {
  * @param input a pointer to data to be reshaped
  * @param maxZeroDimSize the maximum size of zero dimension
  */
-inline InferenceEngine::DataPtr Get2DReshapedData(InferenceEngine::DataPtr input, size_t minZeroDimSize,
-    size_t maxZeroDimSize) {
+inline InferenceEngine::DataPtr Get2DReshapedData(InferenceEngine::DataPtr input,
+                                                  size_t minZeroDimSize,
+                                                  size_t maxZeroDimSize) {
     IE_ASSERT(minZeroDimSize > 0);
     auto dims = input->getDims();
     uint32_t numRowsIn = static_cast<uint32_t>(InferenceEngine::details::product(begin(dims), end(dims)));
@@ -27,7 +29,8 @@ inline InferenceEngine::DataPtr Get2DReshapedData(InferenceEngine::DataPtr input
         if (dims.size() >= 2 || dims[0] >= maxZeroDimSize) {
             size_t indexDivide = maxZeroDimSize;
             while (indexDivide > minZeroDimSize) {
-                if ((numRowsIn / 8) % indexDivide == 0) break;
+                if ((numRowsIn / 8) % indexDivide == 0)
+                    break;
                 --indexDivide;
             }
             numRowsIn /= static_cast<uint32_t>(indexDivide);
@@ -40,7 +43,8 @@ inline InferenceEngine::DataPtr Get2DReshapedData(InferenceEngine::DataPtr input
     InferenceEngine::SizeVector newDims(newDimsSize, 1);
     newDims[0] = numColumnsIn;
     newDims[1] = numRowsIn;
-    return std::make_shared<InferenceEngine::Data>(input->getName(),
+    return std::make_shared<InferenceEngine::Data>(
+        input->getName(),
         InferenceEngine::TensorDesc(input->getPrecision(), newDims, new_layout));
 }
 

@@ -48,10 +48,10 @@ namespace pass {
  */
 class BroadcastAddMultiplyConst : public ngraph::pass::MatcherPass {
 public:
-  OPENVINO_RTTI("BroadcastAddMultiplyConst", "0");
-  BroadcastAddMultiplyConst();
+    OPENVINO_RTTI("BroadcastAddMultiplyConst", "0");
+    BroadcastAddMultiplyConst();
 };
 
-} // namespace pass
-} // namespace intel_gna
-} // namespace ov
+}  // namespace pass
+}  // namespace intel_gna
+}  // namespace ov
