@@ -41,8 +41,8 @@ TEST(FrontEndManagerTest, testAvailableFrontEnds) {
 }
 
 TEST(FrontEndManagerTest, testFailRegisterFEByWrongPath) {
-    ASSERT_THROW(FrontEndManager fem; fem.register_front_end("mock1", mock_fe_path() + "_wrong");
-                 , ov::frontend::GeneralFailure);
+    FrontEndManager fem;
+    ASSERT_THROW(fem.register_front_end("mock1", mock_fe_path() + "_wrong"), ov::frontend::GeneralFailure);
 }
 
 TEST(FrontEndManagerTest, testMockPluginFrontEnd) {
