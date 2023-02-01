@@ -123,11 +123,11 @@ void ParsePreProcess(pugi::xml_node& root,
             if (meanNode.attribute("size") && meanNode.attribute("offset")) {
                 auto const_size = XMLParseUtils::GetIntAttr(meanNode, "size");
                 auto const_offset = XMLParseUtils::GetIntAttr(meanNode, "offset");
-                if (shape_size(mean_shape) * input_type.size() != const_size) {
+                if (shape_size(mean_shape) * input_type.size() != (size_t)const_size) {
                     IE_THROW() << "mean blob size mismatch expected input, got: " << const_size << " expecting "
                                << mean_shape << " x " << input_type.size();
                 }
-                if (const_offset + const_size > weights->size()) {
+                if (const_offset + const_size > (int)weights->size()) {
                     IE_THROW() << "mean value offset and size are out of weights size range";
                 }
                 mean_values.insert({chanNo, {const_size, const_offset}});
@@ -140,7 +140,7 @@ void ParsePreProcess(pugi::xml_node& root,
     }
 
     if (!mean_scalar_values.empty()) {
-        if (mean_scalar_values.size() != channels) {
+        if (mean_scalar_values.size() != (size_t)channels) {
             IE_THROW() << "Number of mean values (" << mean_scalar_values.size()
                        << ") is not equal to number of channels (" << channels << ")";
         }
@@ -161,7 +161,7 @@ void ParsePreProcess(pugi::xml_node& root,
     }
 
     if (!mean_values.empty()) {
-        if (mean_values.size() != channels) {
+        if (mean_values.size() != (size_t)channels) {
             IE_THROW() << "Number of mean values (" << mean_values.size() << ") is not equal to number of channels ("
                        << channels << ")";
         }

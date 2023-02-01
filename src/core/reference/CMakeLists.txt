@@ -3,7 +3,7 @@
 #
 
 set(TARGET_NAME "ngraph_reference")
-
+ie_add_compiler_flags(-Wno-sign-compare)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd4267)
 endif()

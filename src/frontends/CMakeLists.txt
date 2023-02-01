@@ -3,7 +3,7 @@
 #
 
 add_subdirectory(common)
-
+ie_add_compiler_flags(-Wno-sign-compare)
 if(ENABLE_TESTS)
     add_subdirectory(tests)
 endif()
