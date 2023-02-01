@@ -71,7 +71,7 @@ public:
                 regPool.reset();
             }
         }
-        bool isInitialized() const { return static_cast<bool>(!regPool.expired()); }
+        bool isInitialized() const { return !regPool.expired(); }
 
     private:
         void ensureValid() const {
