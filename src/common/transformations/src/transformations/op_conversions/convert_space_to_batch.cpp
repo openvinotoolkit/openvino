@@ -142,19 +142,6 @@ void ov::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
             const auto block_index = rg.make<Constant>(i64, Shape{1}, b_idx);
             const auto block_index_next = rg.make<Constant>(i64, Shape{1}, b_idx + 1);
             const auto block_value = rg.make<Gather>(block, block_index, zero);
-            int64_t axis_idx = axes_order.size() - 1;
-
-            for (int64_t ds_idx = block_lenght; ds_idx >= 0; --ds_idx) {
-                if (ds_idx == (b_idx + 1)) {
-                    axes_order[0] = ds_idx;
-                } else if (ds_idx == b_idx) {
-                    axes_order[axis_idx] = ds_idx;
-                    axis_idx--;
-                } else {
-                    axes_order[axis_idx] = ds_idx;
-                    axis_idx--;
-                }
-            }
 
             NodeVector dispersed_shape_prep;
             dispersed_shape_prep.reserve(block_lenght + 1);
@@ -170,6 +157,18 @@ void ov::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
             constexpr auto special_zero = false;
             flat_node = rg.make<Reshape>(flat_node, dispersed_shape, special_zero);
 
+            int64_t axis_idx = axes_order.size() - 1;
+            for (int64_t ds_idx = block_lenght; ds_idx >= 0; --ds_idx) {
+                if (ds_idx == (b_idx + 1)) {
+                    axes_order[0] = ds_idx;
+                } else if (ds_idx == b_idx) {
+                    axes_order[axis_idx] = ds_idx;
+                    axis_idx--;
+                } else {
+                    axes_order[axis_idx] = ds_idx;
+                    axis_idx--;
+                }
+            }
             const auto axes_order_const = rg.make<Constant>(i64, Shape{axes_order.size()}, axes_order);
             flat_node = rg.make<Transpose>(flat_node, axes_order_const);
 

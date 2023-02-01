@@ -242,8 +242,8 @@ void op_convertion_test(const Params& params) {
     const auto block_p = make_shared<Constant>(element::i64, Shape{block.size()}, block);
     const auto input_2_p = make_shared<Constant>(element::i64, Shape{input_2.size()}, input_2);
     const auto input_3_p = make_shared<Constant>(element::i64, Shape{input_3.size()}, input_3);
-    const auto batch_to_space = make_shared<Op>(data, block_p, input_2_p, input_3_p);
-    const auto f = make_shared<Function>(NodeVector{batch_to_space}, ParameterVector{data});
+    const auto bts_or_stb = make_shared<Op>(data, block_p, input_2_p, input_3_p);
+    const auto f = make_shared<Function>(NodeVector{bts_or_stb}, ParameterVector{data});
 
     Manager m;
     m.set_per_pass_validation(false);
