@@ -98,9 +98,9 @@ Pad::Pad(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr conte
 
         const auto constNode = ov::as_type_ptr<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(type));
         if (constNode) {
-            auto pad_data = constNode->cast_vector<int>();
-            for (auto& value : pad_data) {
-                parameter.push_back(static_cast<unsigned int>(value));
+            auto pad_data = constNode->cast_vector<uint32_t>();
+            for (const auto& value : pad_data) {
+                parameter.push_back(value);
             }
             if (parameter.size() != srcDimsRank)
                 IE_THROW() << errorPrefix << "has incorrect number of input/output dimensions!";
@@ -209,6 +209,10 @@ bool Pad::needPrepareParams() const {
 }
 
 void Pad::createPrimitive() {
+    for (int i = 0; i < getOriginalInputsNumber(); i++) {
+        srcMemory[i] = getParentEdgeAt(i)->getMemoryPtr();
+    }
+    dstMemory[0] = getChildEdgeAt(0)->getMemoryPtr();
     if (inputShapesDefined() && isExecutable() && !shapeHasDataDependency) {
         prepareParams();
         updateLastInputDims();
@@ -221,10 +225,6 @@ bool Pad::isExecutable() const {
 
 void Pad::prepareParams() {
     updateLastInputDims();
-    for (int i = 0; i < getOriginalInputsNumber(); i++) {
-        srcMemory[i] = getParentEdgeAt(i)->getMemoryPtr();
-    }
-    dstMemory[0] = getChildEdgeAt(0)->getMemoryPtr();
     execPtr = std::make_shared<PadExecutor>(
         attrs,
         srcMemory,
