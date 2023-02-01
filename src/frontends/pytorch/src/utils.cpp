@@ -506,7 +506,7 @@ void align_eltwise_input_types(const NodeContext& context,
         auto rhs_dst_type = rhs_type;
         if (is_lhs_scalar) {
             if (lhs_type.is_real() && !rhs_type.is_real()) {
-                // if div we need to also align float types to highest biyness regardless of scalar
+                // if div we need to also align float types to highest bitness regardless of scalar
                 if (!is_div)
                     lhs_dst_type = element::f32;
                 rhs_dst_type = element::f32;
@@ -517,7 +517,7 @@ void align_eltwise_input_types(const NodeContext& context,
         } else if (is_rhs_scalar) {
             if (!lhs_type.is_real() && rhs_type.is_real()) {
                 lhs_dst_type = element::f32;
-                // if div we need to also align float types to highest biyness regardless of scalar
+                // if div we need to also align float types to highest bitness regardless of scalar
                 if (!is_div)
                     rhs_dst_type = element::f32;
             } else {
