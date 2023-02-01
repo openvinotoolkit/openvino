@@ -38,7 +38,6 @@ MOCK_PY_FRONTEND_NAME = "mock_py"
 fem = FrontEndManager()
 if (mock_available):
     import glob
-    from pathlib import Path
     import pybind_mock_frontend
     # Assume "mock_py" frontend is nearby to "pybind_mock_frontend"
     mock_py_fe_path_l = glob.glob(str(Path(pybind_mock_frontend.__file__).parent / f"*{MOCK_PY_FRONTEND_NAME}*"))
