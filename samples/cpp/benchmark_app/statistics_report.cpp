@@ -84,7 +84,7 @@ void StatisticsReport::dump_performance_counters_request(CsvDumper& dumper, cons
 
     for (const auto& layer : perfCounts) {
         dumper << layer.node_name;  // layer name
-        dumper << ((int)layer.status < (sizeof(status_names) / sizeof(status_names[0]))
+        dumper << ((int)layer.status < (int)(sizeof(status_names) / sizeof(status_names[0]))
                        ? status_names[(int)layer.status]
                        : "INVALID_STATUS");
         dumper << layer.node_type << layer.exec_type;
@@ -131,7 +131,7 @@ void StatisticsReport::dump_sort_performance_counters_request(CsvDumper& dumper,
     for (const auto& layer : profiling) {
         if (std::string(status_names[(int)layer.status]).compare("EXECUTED") == 0) {
             dumper << layer.node_name;  // layer name
-            dumper << ((int)layer.status < (sizeof(status_names) / sizeof(status_names[0]))
+            dumper << ((int)layer.status < (int)(sizeof(status_names) / sizeof(status_names[0]))
                            ? status_names[(int)layer.status]
                            : "INVALID_STATUS");
             dumper << layer.node_type << layer.exec_type;
@@ -160,7 +160,7 @@ StatisticsReport::PerformanceCounters StatisticsReport::get_average_performance_
         // iterate over each layer from sorted vector and add required PM data
         // to the per-layer maps
         for (const auto& pm : perfCounts[i]) {
-            int idx = 0;
+            size_t idx = 0;
             for (; idx < performanceCountersAvg.size(); idx++) {
                 if (performanceCountersAvg[idx].node_name == pm.node_name) {
                     performanceCountersAvg[idx].real_time += pm.real_time;
@@ -285,7 +285,7 @@ const nlohmann::json StatisticsReportJSON::perf_counters_to_json(
 
         item["name"] = layer.node_name;  // layer name
         item["status"] =
-            ((int)layer.status < (sizeof(status_names) / sizeof(status_names[0])) ? status_names[(int)layer.status]
+            ((int)layer.status < (int)(sizeof(status_names) / sizeof(status_names[0])) ? status_names[(int)layer.status]
                                                                                   : "INVALID_STATUS");
         item["node_type"] = layer.node_type;
         item["exec_type"] = layer.exec_type;
@@ -321,7 +321,7 @@ const nlohmann::json StatisticsReportJSON::sort_perf_counters_to_json(
         nlohmann::json item;
         item["name"] = layer.node_name;  // layer name
         item["status"] =
-            ((int)layer.status < (sizeof(status_names) / sizeof(status_names[0])) ? status_names[(int)layer.status]
+            ((int)layer.status < (size_t)(sizeof(status_names) / sizeof(status_names[0])) ? status_names[(int)layer.status]
                                                                                   : "INVALID_STATUS");
         item["node_type"] = layer.node_type;
         item["exec_type"] = layer.exec_type;

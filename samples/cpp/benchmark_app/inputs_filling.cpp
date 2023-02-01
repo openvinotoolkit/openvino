@@ -172,7 +172,7 @@ ov::Tensor create_tensor_from_binary(const std::vector<std::string>& files,
         if (inputInfo.layout != "CN") {
             binaryFile.read(&data[b * inputSize], inputSize);
         } else {
-            for (int i = 0; i < inputInfo.channels(); i++) {
+            for (size_t i = 0; i < inputInfo.channels(); i++) {
                 binaryFile.read(&data[(i * binaryBatchSize + b) * sizeof(T)], sizeof(T));
             }
         }
@@ -520,7 +520,7 @@ std::map<std::string, ov::TensorVector> get_tensors(std::map<std::string, std::v
         }
     }
 
-    for (int i = 0; i < logOutput.size(); i++) {
+    for (size_t i = 0; i < logOutput.size(); i++) {
         slog::info << "Test Config " << i << slog::endl;
         auto maxNameWidth = std::max_element(logOutput[i].begin(),
                                              logOutput[i].end(),
@@ -694,7 +694,7 @@ std::map<std::string, ov::TensorVector> get_tensors_static_case(const std::vecto
         }
     }
 
-    for (int i = 0; i < logOutput.size(); i++) {
+    for (size_t i = 0; i < logOutput.size(); i++) {
         slog::info << "Test Config " << i << slog::endl;
         auto maxNameWidth = std::max_element(logOutput[i].begin(),
                                              logOutput[i].end(),
