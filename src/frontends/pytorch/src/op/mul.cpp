@@ -12,10 +12,10 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_mul(NodeContext& context) {
-    auto x = context.get_input(0);
-    auto y = context.get_input(1);
     auto input_size = context.get_input_size();
     FRONT_END_OP_CONVERSION_CHECK(input_size >= 2, "Operation has less then 2 inputs.");
+    auto x = context.get_input(0);
+    auto y = context.get_input(1);
     for (int i = 2; i < input_size; i++) {
         FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(i), "Got more inputs than expected.");
     }
