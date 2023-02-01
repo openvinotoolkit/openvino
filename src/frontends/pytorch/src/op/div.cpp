@@ -32,7 +32,7 @@ OutputVector translate_div(NodeContext& context) {
             y = context.mark_node(std::make_shared<v0::Convert>(y, element::f32));
         }
     }
-    align_eltwise_input_types(context, &x, &y, true);
+    align_eltwise_input_types(context, x, y, true);
     auto res = context.mark_node(std::make_shared<v1::Divide>(x, y, true));
     if (rounding_mode == "floor") {
         res = context.mark_node(std::make_shared<v0::Floor>(res));

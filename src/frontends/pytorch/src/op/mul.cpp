@@ -19,7 +19,7 @@ OutputVector translate_mul(NodeContext& context) {
     for (int i = 2; i < input_size; i++) {
         FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(i), "Got more inputs than expected.");
     }
-    align_eltwise_input_types(context, &x, &y);
+    align_eltwise_input_types(context, x, y);
     return {context.mark_node(std::make_shared<ov::op::v1::Multiply>(x, y))};
 };
 

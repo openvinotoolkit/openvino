@@ -475,15 +475,15 @@ std::unordered_map<size_t, element::Type> bit_to_int{
 }  // namespace
 
 void align_eltwise_input_types(const NodeContext& context,
-                               ov::Output<ov::Node>* lhs,
-                               ov::Output<ov::Node>* rhs,
+                               ov::Output<ov::Node>& lhs,
+                               ov::Output<ov::Node>& rhs,
                                bool is_div) {
-    const auto& lhs_type = lhs->get_element_type();
-    const auto& rhs_type = rhs->get_element_type();
+    const auto& lhs_type = lhs.get_element_type();
+    const auto& rhs_type = rhs.get_element_type();
     if (lhs_type.is_dynamic() || rhs_type.is_dynamic()) {
         // if any of types is not known, align to lhs type.
         // TODO: can be fixed with special operation?
-        *rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(*rhs, *lhs));
+        rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(rhs, lhs));
     } else {
         // Both types are static, align types. If float and int types are used convert int type to f32, after that align
         // to the largest bitness, if both float or both int, just align bitness
@@ -492,14 +492,14 @@ void align_eltwise_input_types(const NodeContext& context,
 
         // if one of operands is scalar, the resulting type is taken from the other operand except when scalar is float
         // type and other operand is int, in that case BOTH operands get fp32 type
-        const auto& lhs_rank = lhs->get_partial_shape().rank();
-        const auto& rhs_rank = rhs->get_partial_shape().rank();
+        const auto& lhs_rank = lhs.get_partial_shape().rank();
+        const auto& rhs_rank = rhs.get_partial_shape().rank();
         // consider dynamic rank as non scalar
         const auto is_lhs_scalar = lhs_rank.is_static() && lhs_rank.get_length() == 0;
         const auto is_rhs_scalar = rhs_rank.is_static() && rhs_rank.get_length() == 0;
         if (is_lhs_scalar && is_rhs_scalar) {
             // if both scalar, align to lhs
-            *rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(*rhs, *lhs));
+            rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(rhs, lhs));
             return;
         }
         auto lhs_dst_type = lhs_type;
@@ -511,7 +511,7 @@ void align_eltwise_input_types(const NodeContext& context,
                     lhs_dst_type = element::f32;
                 rhs_dst_type = element::f32;
             } else {
-                *lhs = context.mark_node(std::make_shared<opset10::ConvertLike>(*lhs, *rhs));
+                lhs = context.mark_node(std::make_shared<opset10::ConvertLike>(lhs, rhs));
                 return;
             }
         } else if (is_rhs_scalar) {
@@ -521,7 +521,7 @@ void align_eltwise_input_types(const NodeContext& context,
                 if (!is_div)
                     rhs_dst_type = element::f32;
             } else {
-                *rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(*rhs, *lhs));
+                rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(rhs, lhs));
                 return;
             }
         }
@@ -551,10 +551,10 @@ void align_eltwise_input_types(const NodeContext& context,
 
         // Cast to destination types
         if (lhs_dst_type != lhs_type) {
-            *lhs = context.mark_node(std::make_shared<opset10::Convert>(*lhs, lhs_dst_type));
+            lhs = context.mark_node(std::make_shared<opset10::Convert>(lhs, lhs_dst_type));
         }
         if (rhs_dst_type != rhs_type) {
-            *rhs = context.mark_node(std::make_shared<opset10::Convert>(*rhs, rhs_dst_type));
+            rhs = context.mark_node(std::make_shared<opset10::Convert>(rhs, rhs_dst_type));
         }
     }
 }

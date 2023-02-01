@@ -56,8 +56,8 @@ std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> 
 Any simplified_type_interpret(Any type);
 
 void align_eltwise_input_types(const NodeContext& context,
-                               ov::Output<ov::Node>* lhs,
-                               ov::Output<ov::Node>* rhs,
+                               ov::Output<ov::Node>& lhs,
+                               ov::Output<ov::Node>& rhs,
                                bool is_div = false);
 
 namespace op {

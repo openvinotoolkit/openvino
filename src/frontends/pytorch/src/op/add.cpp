@@ -17,7 +17,7 @@ namespace op {
 OutputVector translate_add(NodeContext& context) {
     auto lhs = context.get_input(0);
     auto rhs = context.get_input(1);
-    align_eltwise_input_types(context, &lhs, &rhs);
+    align_eltwise_input_types(context, lhs, rhs);
     if (!context.input_is_none(2)) {
         auto converted_alpha = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(context.get_input(2), rhs));
         rhs = context.mark_node(std::make_shared<ov::op::v1::Multiply>(converted_alpha, rhs));

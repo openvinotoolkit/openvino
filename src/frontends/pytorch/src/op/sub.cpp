@@ -18,7 +18,7 @@ namespace op {
 OutputVector translate_sub(NodeContext& context) {
     auto x = context.get_input(0);
     auto y = context.get_input(1);
-    align_eltwise_input_types(context, &x, &y);
+    align_eltwise_input_types(context, x, y);
     // default alpha is 1 so no need to multiply if alpha is not provided
     if (!context.input_is_none(2)) {
         auto alpha = context.get_input(2);
