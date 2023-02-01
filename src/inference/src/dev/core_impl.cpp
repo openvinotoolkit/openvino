@@ -42,6 +42,7 @@ void allowNotImplemented(F&& f) {
     try {
         f();
     } catch (const InferenceEngine::NotImplemented&) {
+    } catch (const ov::NotImplemented&) {
     }
 }
 

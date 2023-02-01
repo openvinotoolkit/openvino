@@ -7,8 +7,10 @@
 #include <ie_common.h>
 
 #include "dev/converter_utils.hpp"
+#include "dev/preprocessing/mean_image.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/preprocess/color_format.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
@@ -17,6 +19,7 @@
 bool ov::pass::AddPreprocessing::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(AddPreprocessing);
     ov::preprocess::PrePostProcessor preproc(model);
+    ov::pass::AddMeanImage::MeanMap meanMap;
 
     for (size_t i = 0; i < model->inputs().size(); i++) {
         ov::Output<const Node> const_input(model->input(i).get_node(), model->input(i).get_index());
@@ -30,6 +33,7 @@ bool ov::pass::AddPreprocessing::run_on_model(const std::shared_ptr<ov::Model>& 
 
         preproc.input(i).tensor().set_element_type(
             InferenceEngine::details::convertPrecision(input_info->getPrecision()));
+
         std::stringstream stream;
         stream << input_info->getLayout();
         preproc.input(i).tensor().set_layout(ov::Layout{stream.str()});
@@ -48,7 +52,6 @@ bool ov::pass::AddPreprocessing::run_on_model(const std::shared_ptr<ov::Model>& 
             // nothing to do
             break;
         }
-        preproc.input(i).model().set_layout("NCHW");
 
         switch (legacy_preproc.getMeanVariant()) {
         case InferenceEngine::MEAN_IMAGE: {
@@ -56,16 +59,17 @@ bool ov::pass::AddPreprocessing::run_on_model(const std::shared_ptr<ov::Model>& 
             std::vector<float> scale;
             std::vector<float> meanImageData(ov::shape_size(shape));
             for (size_t c = 0, i = 0; c < legacy_preproc.getNumberOfChannels(); ++c) {
-                auto blob = legacy_preproc[i]->meanData;
+                auto blob = legacy_preproc[c]->meanData;
 
                 auto lm = blob->buffer();
                 const float* data = lm.as<const float*>();
 
                 std::memcpy(&meanImageData[i], data, blob->byteSize());
                 i += blob->size();
-                scale.emplace_back(legacy_preproc[i]->stdScale);
+                scale.emplace_back(legacy_preproc[c]->stdScale);
             }
-            preproc.input(i).preprocess().mean(meanImageData).scale(scale);
+            meanMap[input_info->name()] = ov::op::v0::Constant::create(ov::element::f32, shape, meanImageData);
+            preproc.input(i).preprocess().scale(scale);
             break;
         }
         case InferenceEngine::MEAN_VALUE: {
@@ -80,6 +84,30 @@ bool ov::pass::AddPreprocessing::run_on_model(const std::shared_ptr<ov::Model>& 
         default:
             break;
         }
+
+        switch (legacy_preproc.getColorFormat()) {
+        case InferenceEngine::ColorFormat::BGR:
+            preproc.input(i).tensor().set_color_format(ov::preprocess::ColorFormat::BGR);
+            preproc.input(i).preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+            break;
+        case InferenceEngine::ColorFormat::RGB:
+            preproc.input(i).tensor().set_color_format(ov::preprocess::ColorFormat::RGB);
+            preproc.input(i).preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+            break;
+        case InferenceEngine::ColorFormat::RGBX:
+            preproc.input(i).tensor().set_color_format(ov::preprocess::ColorFormat::RGBX);
+            preproc.input(i).preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+            break;
+        case InferenceEngine::ColorFormat::BGRX:
+            preproc.input(i).tensor().set_color_format(ov::preprocess::ColorFormat::BGRX);
+            preproc.input(i).preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+            break;
+        default:
+            break;
+        }
+
+        if (const_input.get_partial_shape().is_static() && const_input.get_shape().size() == 4)
+            preproc.input(i).model().set_layout("NCHW");
     }
     for (size_t i = 0; i < model->outputs().size(); i++) {
         ov::Output<const Node> const_output(model->output(i).get_node(), model->output(i).get_index());
@@ -88,11 +116,19 @@ bool ov::pass::AddPreprocessing::run_on_model(const std::shared_ptr<ov::Model>& 
         // ExecutableNetwork
         ov::legacy_convert::fill_output_info(const_output, output_info);
         OPENVINO_ASSERT(output_info);
-        preproc.output(i).tensor().set_element_type(
-            InferenceEngine::details::convertPrecision(output_info->getPrecision()));
+        auto element_type = InferenceEngine::details::convertPrecision(output_info->getPrecision());
+        if (element_type != model->output(i).get_element_type())
+            preproc.output(i).tensor().set_element_type(element_type);
     }
-    auto& non_const_ptr = const_cast<std::shared_ptr<ov::Model>&>(model);
-    non_const_ptr = preproc.build();
+
+    ov::pass::Manager manager(get_pass_config());
+    auto rewrite = manager.register_pass<ov::pass::GraphRewrite>();
+    if (!meanMap.empty()) {
+        rewrite->add_matcher<ov::pass::AddMeanImage>(meanMap);
+    }
+    manager.run_passes(model);
+
+    preproc.build();
 
     return false;
 }
