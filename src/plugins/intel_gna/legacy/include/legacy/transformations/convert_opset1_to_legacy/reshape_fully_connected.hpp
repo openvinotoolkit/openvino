@@ -4,13 +4,11 @@
 
 #pragma once
 
-#include <vector>
-#include <memory>
-
 #include <ie_api.h>
 
+#include <memory>
 #include <ngraph/pass/graph_rewrite.hpp>
-
+#include <vector>
 
 namespace ngraph {
 namespace pass {
@@ -43,7 +41,7 @@ class ReshapeFullyConnected;
  *
  */
 
-class ngraph::pass::ReshapeFullyConnected: public ngraph::pass::MatcherPass {
+class ngraph::pass::ReshapeFullyConnected : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ReshapeFullyConnected", "0");
     ReshapeFullyConnected();
