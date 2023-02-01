@@ -94,10 +94,7 @@ TEST_P(PReluTransformation, CompareFunctions) {
 }
 
 namespace testValues1 {
-const std::vector<ngraph::PartialShape> shapes = {
-    {1, 3, 16, 16},
-    {-1, -1, -1, -1},
-};
+const std::vector<ngraph::PartialShape> shapes = {{1, 3, 16, 16}, {-1, -1, -1, -1}, {1, 1, 2, 3, 4, 16}, {5}};
 
 const std::vector<PReluTransformationTestValues> testValues = {
     // U8: no subtract
