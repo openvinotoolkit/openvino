@@ -770,6 +770,9 @@ def parse_input_shapes(argv):
 def driver(argv: argparse.Namespace, non_default_params: dict):
     init_logger(argv.log_level.upper(), argv.silent)
 
+    # Log dictionary with non-default cli parameters where complex classes are excluded.
+    log.debug(str(non_default_params))
+
     start_time = datetime.datetime.now()
 
     graph, ngraph_function = prepare_ir(argv)
@@ -979,9 +982,6 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
         send_params_info(argv, cli_parser)
 
         non_default_params = get_non_default_params(argv, cli_parser)
-
-        # Log dictionary with non-default cli parameters where complex classes are excluded.
-        log.debug(str(non_default_params))
 
         if inp_model_is_object:
             argv.model_name = "model"
