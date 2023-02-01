@@ -326,7 +326,6 @@ def test_pytorch_decoder_can_convert_float_list():
 
 
 @pytest.mark.precommit
-@pytest.mark.xfail(reason="Bool list gets converted to i32 list.")
 def test_pytorch_decoder_can_convert_bool_list():
     from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
     from openvino.runtime import PartialShape, Type
@@ -417,3 +416,31 @@ def test_pytorch_decoder_can_convert_bool_tuple():
     assert len(ov_const) == 1
     assert ov_const[0].get_element_type() == Type.boolean
     assert ov_const[0].get_partial_shape() == PartialShape([2])
+
+
+@pytest.mark.precommit
+def test_pytorch_decoder_can_convert_empty_list():
+    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.runtime import PartialShape, Type
+
+    class aten_roll(torch.nn.Module):
+        def __init__(self, shifts):
+            super(aten_roll, self).__init__()
+            self.shits = shifts
+
+        def forward(self, x):
+            # roll has optional input dim, which is empty int list by default
+            return torch.roll(x, self.shits)
+
+    model = get_scripted_model(aten_roll(1))
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
+              "prim::Constant"]
+    assert len(consts) > 1
+    empty_const = consts[1]
+    print(empty_const)
+    nc_decoder = TorchScriptPythonDecoder(model, empty_const)
+    ov_const = nc_decoder.as_constant()
+    assert ov_const is not None
+    assert len(ov_const) == 1
+    assert ov_const[0].get_element_type() == Type.i32
+    assert ov_const[0].get_partial_shape() == PartialShape([0])
