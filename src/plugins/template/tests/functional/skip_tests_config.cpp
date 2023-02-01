@@ -115,6 +115,10 @@ std::vector<std::string> disabledTestPatterns() {
         // New plugin API doesn't support legacy NV12 I420 preprocessing
         R"(.*ConvertNV12WithLegacyTest.*)",
         R"(.*ConvertI420WithLegacyTest.*)",
+        // Plugin version was changed to ov::Version
+        R"(.*VersionTest.*pluginCurrentVersionIsCorrect)",
+        // New plugin doesn't support dynamic preprocessing, here we set blob with changed layout
+        R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*_iPRC=0.*_iLT=1.*)",
     };
 
 #ifdef _WIN32

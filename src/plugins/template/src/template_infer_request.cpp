@@ -270,8 +270,10 @@ void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngin
             IE_THROW(ParameterMismatch)
                 << "Failed to set Blob with precision not corresponding to user input precision";
         }
+        if (foundInput->getLayout() != userBlob->getTensorDesc().getLayout()) {
+            IE_THROW(ParameterMismatch) << "Failed to set Blob with layout not corresponding to user input layout";
+        }
 
-        auto usrDims = userBlob->getTensorDesc().getDims();
         size_t inputSize = userBlob->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
                                ? InferenceEngine::details::product(userBlob->getTensorDesc().getDims())
                                : 1;
@@ -284,7 +286,6 @@ void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngin
         if (compoundBlobPassed) {
             IE_THROW(NotImplemented) << "cannot set compound blob: supported only for input pre-processing";
         }
-        auto usrDims = userBlob->getTensorDesc().getDims();
         size_t outputSize = userBlob->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
                                 ? details::product(userBlob->getTensorDesc().getDims())
                                 : 1;
@@ -295,6 +296,9 @@ void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngin
         if (foundOutput->getPrecision() != userBlob->getTensorDesc().getPrecision()) {
             IE_THROW(ParameterMismatch)
                 << "Failed to set Blob with precision not corresponding to user output precision";
+        }
+        if (foundOutput->getLayout() != userBlob->getTensorDesc().getLayout()) {
+            IE_THROW(ParameterMismatch) << "Failed to set Blob with layout not corresponding to user input layout";
         }
         _outputs[name] = userBlob;
     }

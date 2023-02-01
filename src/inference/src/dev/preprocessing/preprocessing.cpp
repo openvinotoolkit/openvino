@@ -117,8 +117,9 @@ bool ov::pass::AddPreprocessing::run_on_model(const std::shared_ptr<ov::Model>& 
         ov::legacy_convert::fill_output_info(const_output, output_info);
         OPENVINO_ASSERT(output_info);
         auto element_type = InferenceEngine::details::convertPrecision(output_info->getPrecision());
-        if (element_type != model->output(i).get_element_type())
+        if (element_type != model->output(i).get_element_type()) {
             preproc.output(i).tensor().set_element_type(element_type);
+        }
     }
 
     ov::pass::Manager manager(get_pass_config());
