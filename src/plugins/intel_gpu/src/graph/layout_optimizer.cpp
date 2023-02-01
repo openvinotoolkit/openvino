@@ -1821,14 +1821,14 @@ format layout_optimizer::get_preferred_format(program_node& node) {
     } else if (node.is_type<reduce>()) {
         auto& reduce_node = node.as<reduce>();
         auto input_layout = reduce_node.input().get_output_layout();
-        // TODO: Under the currnet implement, dynamic shape doesn't support blocked format. Will support in future.
         if (!use_onednn_impls && input_layout.is_dynamic()) {
-            if (input_layout.format.dimension() == 6)
+            if (input_layout.format.dimension() == 6) {
                 expected = format::bfwzyx;
-            else if (input_layout.format.dimension() == 5)
+            } else if (input_layout.format.dimension() == 5) {
                 expected = format::bfzyx;
-            else if (input_layout.format.dimension() == 4)
-                expected = format::bfyx;
+            } else if (input_layout.format.dimension() == 4) {
+                expected = format::any;
+            }
         }
     } else if (node.is_type<arg_max_min>()) {
         // Set default format for issue 92967/98750
