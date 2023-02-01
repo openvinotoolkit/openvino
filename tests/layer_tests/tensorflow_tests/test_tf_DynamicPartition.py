@@ -43,6 +43,7 @@ class TestDynamicPartition(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit_tf_fe
+    @pytest.mark.nightly
     def test_dynamic_partition_basic(self, params, ie_device, precision, ir_version, temp_dir,
                                      use_new_frontend, use_old_api):
         if not use_new_frontend:

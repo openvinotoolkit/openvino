@@ -173,6 +173,7 @@ class TestNormalizeL2(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_non_fusable_precommit)
     @pytest.mark.precommit
+    @pytest.mark.nightly
     def test_NormalizeL2_non_fusable_precommit(self, params, ie_device, precision, ir_version,
                                                temp_dir, use_new_frontend, use_old_api):
         self._test(*self.create_normalize_l2_net_non_fusable(**params, ir_version=ir_version,

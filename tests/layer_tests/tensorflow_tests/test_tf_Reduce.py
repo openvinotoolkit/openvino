@@ -60,6 +60,7 @@ class TestReduceOps(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_pre_commit)
     @pytest.mark.parametrize("keep_dims", [False])
     @pytest.mark.precommit
+    @pytest.mark.nightly
     def test_reduce_precommit(self, params, keep_dims, ie_device, precision, ir_version, temp_dir,
                               use_new_frontend, use_old_api):
         self._test(*self.create_reduce_net(**params, keep_dims=keep_dims, ir_version=ir_version,
