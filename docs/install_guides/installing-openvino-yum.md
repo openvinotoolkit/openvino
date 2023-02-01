@@ -47,21 +47,21 @@ Installing OpenVINO Runtime from YUM is recommended for C++ developers. If you a
 
    .. code-block:: sh
 
-     tee > /tmp/openvino-2022.repo << EOF
-     [OpenVINO]
-     name=Intel(R) Distribution of OpenVINO 2022
-     baseurl=https://yum.repos.intel.com/openvino/2022
-     enabled=1
-     gpgcheck=1
-     repo_gpgcheck=1
-     gpgkey=https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-     EOF
+      tee > /tmp/openvino-2022.repo << EOF
+      [OpenVINO]
+      name=Intel(R) Distribution of OpenVINO 2022
+      baseurl=https://yum.repos.intel.com/openvino/2022
+      enabled=1
+      gpgcheck=1
+      repo_gpgcheck=1
+      gpgkey=https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+      EOF
 
 2.	Move the new `openvino-2022.repo` file to the YUM configuration directory `/etc/yum.repos.d`:
    
    .. code-block:: sh
 
-     sudo mv /tmp/openvino-2022.repo /etc/yum.repos.d
+      sudo mv /tmp/openvino-2022.repo /etc/yum.repos.d
 
 
 3.	Verify that the new repository is set up properly.
@@ -75,13 +75,13 @@ Installing OpenVINO Runtime from YUM is recommended for C++ developers. If you a
    .. note::
 
       If you encounter an error while running `yum repolist | grep -i openvino` on CentOS, do the following steps first:
-   
+
       .. code-block:: sh
 
          sudo yum repolist
 
       And enter `y` to the question about adding the GPG key:
-   
+
       .. code-block:: sh
 
          Is this ok [y/N]: y
@@ -112,7 +112,7 @@ To list available OpenVINO packages, use the following command:
 
       sudo yum install openvino
 
-.. tab::  A Specific Version
+.. tab:: A Specific Version
 
    Run the following command:
 
@@ -134,9 +134,9 @@ To list available OpenVINO packages, use the following command:
 
 Run the following command:
 
-   .. code-block:: sh
+.. code-block:: sh
 
-      yum list installed 'openvino*'
+   yum list installed 'openvino*'
 
 .. _intall additional components yum:
 
@@ -213,12 +213,12 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
 
 * Try the `C++ Quick Start Example <openvino_docs_get_started_get_started_demos.html>`_ for step-by-step instructions on building and running a basic image classification C++ application.
 
-   .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
-      :width: 400
+  .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
+     :width: 400
 
 * Visit the :ref:`Samples <code samples>` page for other C++ example applications to get you started with OpenVINO, such as:
-   * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README.html>`_
-   * `Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README.html>`_
+  * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README.html>`_
+  * `Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README.html>`_
 
 You can also try the following things:
 
