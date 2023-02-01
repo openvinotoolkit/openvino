@@ -22,7 +22,6 @@ ParamsKey ConvolutionKernel_yxfb_Ref::GetSupportedKey() const {
     k.EnableNonBiasTerm();
     k.EnableBatching();
     k.EnableDilation();
-    k.DisableTuning();
     k.EnableGroupedConvolution();
     return k;
 }

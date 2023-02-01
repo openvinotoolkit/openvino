@@ -12,6 +12,9 @@
 #include <vector>
 
 #include "Python.h"
+#include "openvino/frontend/decoder.hpp"
+
+using Version = ov::pass::Serialize::Version;
 
 namespace Common {
 namespace utils {
@@ -123,6 +126,15 @@ py::object from_ov_any(const ov::Any& any) {
         std::stringstream uuid_stream;
         uuid_stream << any.as<ov::device::UUID>();
         return py::cast(uuid_stream.str());
+        // Custom FrontEnd Types
+    } else if (any.is<ov::frontend::type::List>()) {
+        return py::cast(any.as<ov::frontend::type::List>());
+    } else if (any.is<ov::frontend::type::Tensor>()) {
+        return py::cast(any.as<ov::frontend::type::Tensor>());
+    } else if (any.is<ov::frontend::type::Str>()) {
+        return py::cast(any.as<ov::frontend::type::Str>());
+    } else if (any.is<ov::frontend::type::PyNone>()) {
+        return py::cast(any.as<ov::frontend::type::PyNone>());
     } else {
         PyErr_SetString(PyExc_TypeError, "Failed to convert parameter to Python representation!");
         return py::cast<py::object>((PyObject*)NULL);
@@ -153,6 +165,17 @@ std::string convert_path_to_string(const py::object& path) {
         << " does not exist. Please provide valid model's path either as a string, bytes or pathlib.Path. "
            "Examples:\n(1) '/home/user/models/model.onnx'\n(2) Path('/home/user/models/model/model.onnx')";
     throw ov::Exception(str.str());
+}
+
+Version convert_to_version(const std::string& version) {
+    if (version == "UNSPECIFIED")
+        return Version::UNSPECIFIED;
+    if (version == "IR_V10")
+        return Version::IR_V10;
+    if (version == "IR_V11")
+        return Version::IR_V11;
+    throw ov::Exception("Invoked with wrong version argument: '" + version +
+                        "'! The supported versions are: 'UNSPECIFIED'(default), 'IR_V10', 'IR_V11'.");
 }
 
 void deprecation_warning(const std::string& function_name, const std::string& version, const std::string& message) {
@@ -233,6 +256,18 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::streams::Num>(py_obj);
     } else if (py::isinstance<ov::Affinity>(py_obj)) {
         return py::cast<ov::Affinity>(py_obj);
+        // FrontEnd Decoder
+    } else if (py::isinstance<ov::frontend::IDecoder>(py_obj)) {
+        return py::cast<std::shared_ptr<ov::frontend::IDecoder>>(py_obj);
+        // Custom FrontEnd Types
+    } else if (py::isinstance<ov::frontend::type::Tensor>(py_obj)) {
+        return py::cast<ov::frontend::type::Tensor>(py_obj);
+    } else if (py::isinstance<ov::frontend::type::List>(py_obj)) {
+        return py::cast<ov::frontend::type::List>(py_obj);
+    } else if (py::isinstance<ov::frontend::type::Str>(py_obj)) {
+        return py::cast<ov::frontend::type::Str>(py_obj);
+    } else if (py::isinstance<ov::frontend::type::PyNone>(py_obj)) {
+        return py::cast<ov::frontend::type::PyNone>(py_obj);
         // If there is no match fallback to py::object
     } else if (py::isinstance<py::object>(py_obj)) {
         return py_obj;

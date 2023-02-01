@@ -60,7 +60,12 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
         python3-enchant \
         `# samples and tools` \
         libgflags-dev \
-        zlib1g-dev
+        zlib1g-dev \
+        wget
+    # TF lite frontend
+    if apt-cache search --names-only '^libflatbuffers-dev'| grep -q libflatbuffers-dev; then
+        apt-get install -y --no-install-recommends libflatbuffers-dev
+    fi
     # git-lfs is not available on debian9
     if apt-cache search --names-only '^git-lfs'| grep -q git-lfs; then
         apt-get install -y --no-install-recommends git-lfs
@@ -81,7 +86,7 @@ elif [ -f /etc/redhat-release ] || grep -q "rhel" /etc/os-release ; then
     yum install -y centos-release-scl epel-release
     yum install -y \
         file \
-        `# build tools`
+        `# build tools` \
         cmake3 \
         ccache \
         gcc \
@@ -101,8 +106,8 @@ elif [ -f /etc/redhat-release ] || grep -q "rhel" /etc/os-release ; then
         `# main openvino dependencies` \
         tbb-devel \
         pugixml-devel \
-        `# GPU plugin dependency`
-        libva-devel
+        `# GPU plugin dependency` \
+        libva-devel \
         `# python API` \
         python3-pip \
         python3-devel \
@@ -148,9 +153,10 @@ required_cmake_ver=3.20.0
 if [ ! "$(printf '%s\n' "$required_cmake_ver" "$current_cmake_ver" | sort -V | head -n1)" = "$required_cmake_ver" ]; then
     installed_cmake_ver=3.23.2
     arch=$(uname -m)
-    apt-get install -y --no-install-recommends wget
-    wget "https://github.com/Kitware/CMake/releases/download/v${installed_cmake_ver}/cmake-${installed_cmake_ver}-linux-${arch}.sh"
-    chmod +x "cmake-${installed_cmake_ver}-linux-${arch}.sh"
-    "./cmake-${installed_cmake_ver}-linux-${arch}.sh" --skip-license --prefix=/usr/local
-    rm -rf "cmake-${installed_cmake_ver}-linux-${arch}.sh"
+    cmake_install_bin="cmake-${installed_cmake_ver}-linux-${arch}.sh"
+    github_cmake_release="https://github.com/Kitware/CMake/releases/download/v${installed_cmake_ver}/${cmake_install_bin}"
+    wget "${github_cmake_release}" -O "${cmake_install_bin}"
+    chmod +x "${cmake_install_bin}"
+    "./${cmake_install_bin}" --skip-license --prefix=/usr/local
+    rm -rf "${cmake_install_bin}"
 fi

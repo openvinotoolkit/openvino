@@ -776,6 +776,34 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_with_only_indentity_in_else_branch) {
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_if_inside_if_inside_loop) {
+    /*
+        for (i = 0; i < 5; i++) {
+            if (i > 2) {
+                if (i > 3)
+                    out *= float(i * 2)
+                else
+                    out *= float(i * 3)
+            } else {
+                out += out
+            }
+        }
+    */
+
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/controlflow/if_inside_if_inside_loop.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    // out_init
+    test_case.add_input<float>({1.f});
+
+    test_case.add_expected_output<float>(Shape{1}, {576});
+    test_case.add_expected_output<float>(Shape{5, 1}, {2, 4, 8, 72, 576});
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_if_dynamic_inputs) {
     /*
        if (condition) {

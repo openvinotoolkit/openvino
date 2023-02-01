@@ -79,9 +79,3 @@ public:
     OPENVINO_RTTI("BinarizeWeights", "0");
     BinarizeWeights();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::BinarizeWeights;
-}  // namespace pass
-}  // namespace ngraph
