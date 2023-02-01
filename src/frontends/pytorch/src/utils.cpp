@@ -6,12 +6,21 @@
 
 #include "op_table.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/util/log.hpp"
 #include "pt_framework_node.hpp"
 
 namespace ov {
 namespace frontend {
 namespace pytorch {
+
+void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs) {
+    auto inputs = context.inputs();
+    FRONT_END_OP_CONVERSION_CHECK(inputs.size() > min_inputs, "Got less inputs than expected");
+    for (auto i = max_inputs; i < inputs.size(); i++) {
+        FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(i), "Got more inputs than expected.");
+    }
+}
 
 Output<Node> make_optional_bias(const Output<Node>& base_op,
                                 const NodeContext& context,
@@ -33,18 +42,18 @@ Output<Node> make_optional_bias(const Output<Node>& base_op,
     }
 }
 
-Output<ov::Node> reshape_conv_bias(NodeContext& context, Output<ov::Node> bias, Output<ov::Node> conv) {
-    auto conv_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(conv));
-    auto conv_rank = context.mark_node(std::make_shared<opset10::ShapeOf>(conv_shape));
+Output<ov::Node> reshape_channelwise(const NodeContext& context, Output<ov::Node> data, Output<ov::Node> shape_source) {
+    auto input_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(shape_source));
+    auto input_rank = context.mark_node(std::make_shared<opset10::ShapeOf>(input_shape));
     auto one_const = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {1}));
     auto two_const = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {2}));
-    auto tail_shape_rank = context.mark_node(std::make_shared<opset10::Subtract>(conv_rank, two_const));
+    auto tail_shape_rank = context.mark_node(std::make_shared<opset10::Subtract>(input_rank, two_const));
     auto tail_shape = context.mark_node(std::make_shared<opset10::Broadcast>(one_const, tail_shape_rank));
-    auto channels_dim = context.mark_node(std::make_shared<opset10::ShapeOf>(bias));
+    auto channels_dim = context.mark_node(std::make_shared<opset10::ShapeOf>(data));
     auto new_shape =
         context.mark_node(std::make_shared<opset10::Concat>(OutputVector{one_const, channels_dim, tail_shape}, 0));
 
-    return context.mark_node(std::make_shared<opset10::Reshape>(bias, new_shape, false));
+    return context.mark_node(std::make_shared<opset10::Reshape>(data, new_shape, false));
 }
 
 std::shared_ptr<Node> get_rank_node(const Output<Node>& node) {
@@ -99,7 +108,7 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context,
     return make_shared<opset10::Reshape>(kernel, new_kernel_shape, false);
 }
 
-std::shared_ptr<Node> get_axes_range(NodeContext& context, size_t input_id) {
+std::shared_ptr<Node> get_axes_range(const NodeContext& context, size_t input_id) {
     auto x = context.get_input(input_id);
     auto start = std::make_shared<opset10::Constant>(element::i32, Shape{}, 0);
     auto step = std::make_shared<opset10::Constant>(element::i32, Shape{}, 1);
@@ -109,7 +118,7 @@ std::shared_ptr<Node> get_axes_range(NodeContext& context, size_t input_id) {
     return context.mark_node(std::make_shared<opset10::Range>(start, reduced_rank, step, element::i32));
 };
 
-std::shared_ptr<Node> numel(NodeContext& context, size_t input_id) {
+std::shared_ptr<Node> numel(const NodeContext& context, size_t input_id) {
     auto x = context.get_input(input_id);
     auto input_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(x));
     auto axes = context.mark_node(opset10::Constant::create(element::i64, Shape({1}), {0}));

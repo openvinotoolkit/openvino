@@ -44,11 +44,14 @@ OP_CONVERTER(translate_full);
 OP_CONVERTER(translate_full_like);
 OP_CONVERTER(translate_gelu);
 OP_CONVERTER(translate_get_attr);
+OP_CONVERTER(translate_getitem);
 OP_CONVERTER(translate_glu);
+OP_CONVERTER(translate_grid_sampler);
 OP_CONVERTER(translate_group_norm);
 OP_CONVERTER(translate_hardtanh);
 OP_CONVERTER(translate_if);
 OP_CONVERTER(translate_im2col);
+OP_CONVERTER(translate_instance_norm);
 OP_CONVERTER(translate_int);
 OP_CONVERTER(translate_layer_norm);
 OP_CONVERTER(translate_len);
@@ -62,6 +65,7 @@ OP_CONVERTER(translate_max);
 OP_CONVERTER(translate_masked_fill);
 OP_CONVERTER(translate_mean);
 OP_CONVERTER(translate_min);
+OP_CONVERTER(translate_meshgrid);
 OP_CONVERTER(translate_neg);
 OP_CONVERTER(translate_nonzero);
 OP_CONVERTER(translate_norm);
@@ -97,6 +101,7 @@ OP_CONVERTER(translate_transpose);
 OP_CONVERTER(translate_tril);
 OP_CONVERTER(translate_triu);
 OP_CONVERTER(translate_tuple_construct);
+OP_CONVERTER(translate_unfold);
 OP_CONVERTER(translate_upsample_bicubic2d);
 OP_CONVERTER(translate_upsample_bilinear2d);
 OP_CONVERTER(translate_upsample_nearest2d);
@@ -111,7 +116,9 @@ OP_CONVERTER(translate_zeros_like);
 
 const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
+        {"aten::__and__", op::translate_1to1_match_2_inputs<opset10::LogicalAnd>},  // TODO: cover numerical cases
         {"aten::__not__", op::translate_1to1_match_1_inputs<opset10::LogicalNot>},
+        {"aten::__getitem__", op::translate_getitem},
         {"aten::_convolution", op::translate_convolution},
         {"aten::_convolution_mode", op::translate_convolution_mode},
         {"aten::abs", op::translate_1to1_match_1_inputs<opset10::Abs>},
@@ -186,6 +193,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::group_norm", op::translate_group_norm},
         {"aten::ge", op::translate_1to1_match_2_inputs<opset10::GreaterEqual>},
         {"aten::gt", op::translate_1to1_match_2_inputs<opset10::Greater>},
+        {"aten::grid_sampler", op::translate_grid_sampler},
         {"aten::hardsigmoid", op::translate_1to1_match_1_inputs<opset10::HSigmoid>},
         {"aten::hardswish", op::translate_1to1_match_1_inputs<opset10::HSwish>},
         {"aten::hardswish_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::HSwish>>},
@@ -194,6 +202,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::Int", op::translate_int},
         {"aten::IntImplicit", op::translate_int},
         {"aten::im2col", op::translate_im2col},
+        {"aten::instance_norm", op::translate_instance_norm},
         {"aten::is_grad_enabled", op::return_false_scalar},
         {"aten::layer_norm", op::translate_layer_norm},
         {"aten::leaky_relu", op::translate_1to1_match_2_inputs<opset10::PRelu>},
@@ -214,6 +223,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::max_pool3d", op::translate_max_poolnd},
         {"aten::max", op::translate_max},
         {"aten::mean", op::translate_mean},
+        {"aten::meshgrid", op::translate_meshgrid},
         {"aten::min", op::translate_min},
         {"aten::mm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::bmm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
@@ -276,6 +286,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::triu", op::translate_triu},
         {"aten::type_as",
          op::translate_1to1_match_2_inputs<opset10::ConvertLike>},  // TODO: overflow semantics is different
+        {"aten::unfold", op::translate_unfold},
         {"aten::unsqueeze", op::translate_1to1_match_2_inputs<opset10::Unsqueeze>},
         {"aten::unsqueeze_", op::inplace_op<op::translate_1to1_match_2_inputs<opset10::Unsqueeze>>},
         {"aten::upsample_bicubic2d", op::translate_upsample_bicubic2d},
