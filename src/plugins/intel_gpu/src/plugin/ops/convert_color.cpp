@@ -36,10 +36,10 @@ static void CreateCommonConvertColorOp(Program& p, const std::shared_ptr<ngraph:
     if (outShape.batch[0] > 1 && memory_type == cldnn::convert_color::memory_type::image) {
         std::vector<cldnn::input_info> convert_color_names;
         for (int b = 0; b < outShape.batch[0]; ++b) {
-            cldnn::primitive::input_info_arr batched_inputs = {
-                cldnn::input_info(inputs[0].pid + "_" + std::to_string(b), inputs[0].idx),
-                cldnn::input_info(inputs[1].pid + "_" + std::to_string(b), inputs[1].idx)
-            };
+            cldnn::primitive::input_info_arr batched_inputs;
+            for (size_t i = 0; i < inputs.size(); ++i) {
+                batched_inputs.emplace_back(cldnn::input_info(inputs[i].pid + "_" + std::to_string(b), inputs[i].idx));
+            }
             cldnn::primitive_id batched_prim_id = layerName + "_" + std::to_string(b);
             convert_color_names.emplace_back(cldnn::input_info(batched_prim_id));
             auto new_shape = outShape;
