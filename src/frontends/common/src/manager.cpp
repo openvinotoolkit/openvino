@@ -122,7 +122,8 @@ public:
         plugin.m_file_path = lib_path;
         plugin.m_file_name = ov::util::get_file_name(lib_path);
         FRONT_END_GENERAL_CHECK(plugin.load(), "Cannot load frontend ", plugin.get_name_from_file());
-        register_front_end(name, std::move(plugin.get_creator().m_creator));
+        std::lock_guard<std::mutex> guard(m_loading_mutex);
+        m_plugins.push_back(std::move(plugin));
     }
 
     static void shutdown() {
