@@ -292,6 +292,8 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params, con
                                    , MakeJitConstant("LOCAL_CLASS_NUM", dispatchData.lws[1])
                                    , MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2])
                                    , MakeJitConstant("PARTITION_STEP", GetPartitionStep(static_cast<int>(dispatchData.lws[2])))});
+        } else if (i == 2 && orgParams.reuse_internal_buffer) {
+            cldnn_jit.AddConstant({ MakeJitConstant("REUSE_INTERNAL_BUFFER", 1)});
         }
         cldnn_jit.AddConstant(MakeJitConstant("NMS_STAGE_" + std::to_string(i), "true"));
 

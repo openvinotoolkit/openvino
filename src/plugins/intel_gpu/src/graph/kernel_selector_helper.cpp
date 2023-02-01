@@ -1162,6 +1162,8 @@ void kernel_impl_params::save(BinaryOutputBuffer& ob) const {
 }
 
 void kernel_impl_params::load(BinaryInputBuffer& ib) {
+    prog = nullptr;
+    desc = nullptr;
     ib >> has_runtime_layouts;
     ib >> unique_id;
     ib >> input_layouts;

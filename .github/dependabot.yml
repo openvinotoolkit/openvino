@@ -119,6 +119,21 @@ updates:
       - "p-wysocki"
     versioning-strategy: increase-if-necessary
 
+  # TensorFlow Lite FE tests requirements
+  - package-ecosystem: pip
+    directory: "/src/frontends/tensorflow_lite/tests/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    open-pull-requests-limit: 3
+    assignees:
+      - "jane-intel"
+      - "rkazants"
+      - "jiwaszki"
+      - "p-wysocki"
+    versioning-strategy: increase-if-necessary
+
   #
   # Python Samples
   #

@@ -15,6 +15,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "openvino/itt.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/util/common_util.hpp"
 
 bool ov::CoreImpl::isNewAPI() const {
@@ -26,7 +27,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::LoadNetwork
     ov::Plugin& plugin,
     const std::map<std::string, std::string>& parsedConfig,
     const InferenceEngine::RemoteContext::Ptr& context) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::compile_model_impl");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::LoadNetworkImpl");
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> execNetwork;
     auto wrapper = std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin.m_ptr);
     OPENVINO_ASSERT(wrapper);
@@ -62,7 +63,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::LoadNetwork
         ov::RemoteContext ctx{context, {nullptr}};
         auto compiled_model =
             compile_model(ov::legacy_convert::convert_model(network, isNewAPI()), ctx, any_copy(config));
-        return {compiled_model._ptr, compiled_model._so};
+        return {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
     }
     if (context == nullptr) {
         IE_THROW() << "Remote context is null";
@@ -84,7 +85,7 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
     if (network.getFunction()) {
         auto compiled_model =
             compile_model(ov::legacy_convert::convert_model(network, isNewAPI()), deviceName, any_copy(config));
-        return {compiled_model._ptr, compiled_model._so};
+        return {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
     }
     auto parsed = parseDeviceNameIntoConfig(deviceName, config);
     auto plugin = get_plugin(parsed._deviceName);
@@ -100,7 +101,7 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
     OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::LoadNetwork::Path");
 
     auto compiled_model = compile_model(modelPath, deviceName, any_copy(config));
-    return {compiled_model._ptr, compiled_model._so};
+    return {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
 }
 
 InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
@@ -115,7 +116,7 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
                                         ov::Tensor{std::const_pointer_cast<InferenceEngine::Blob>(weights), {}},
                                         deviceName,
                                         ov::any_copy(config));
-    return {compiled_model._ptr, compiled_model._so};
+    return {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
 }
 
 InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::ImportNetwork(
@@ -123,7 +124,7 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::ImportNetwork(
     const std::string& deviceName,
     const std::map<std::string, std::string>& config) {
     auto compiled_model = import_model(networkModel, deviceName, any_copy(config));
-    return {compiled_model._ptr, compiled_model._so};
+    return {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
 }
 
 InferenceEngine::QueryNetworkResult ov::CoreImpl::QueryNetwork(const InferenceEngine::CNNNetwork& network,
@@ -137,37 +138,6 @@ InferenceEngine::QueryNetworkResult ov::CoreImpl::QueryNetwork(const InferenceEn
     }
     auto res = query_model(network.getFunction(), deviceName, any_copy(config));
     ret.supportedLayersMap = res;
-    const auto& func = network.getFunction();
-    auto specialized_function = func->clone();
-
-    std::string defDevice = ret.supportedLayersMap.begin()->second;
-    ngraph::pass::ConstantFolding().run_on_model(specialized_function);
-    std::unordered_set<std::string> opNames;
-
-    for (const auto& op : specialized_function->get_ops())
-        opNames.emplace(op->get_friendly_name());
-
-    for (const auto& op : func->get_ops()) {
-        if (opNames.find(op->get_friendly_name()) == opNames.end()) {
-            ret.supportedLayersMap[op->get_friendly_name()] = defDevice;
-        }
-    }
-
-    for (const auto& op : func->get_ops()) {
-        if (!ret.supportedLayersMap.count(op->get_friendly_name()) &&
-            std::dynamic_pointer_cast<ngraph::op::Constant>(op)) {
-            bool are_all_users_supported = true;
-            for (const auto& user : op->output(0).get_target_inputs()) {
-                if (!ret.supportedLayersMap.count(user.get_node()->get_friendly_name())) {
-                    are_all_users_supported = false;
-                    break;
-                }
-            }
-            if (are_all_users_supported) {
-                ret.supportedLayersMap[op->get_friendly_name()] = defDevice;
-            }
-        }
-    }
 
     return ret;
 }
