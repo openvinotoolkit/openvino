@@ -99,7 +99,7 @@ public:
 };
 
 TEST_P(GatherTransformation, CompareFunctions) {
-    InitNodeInfo().run_on_model(actualFunction);
+    ov::pass::InitNodeInfo().run_on_model(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(actualFunction, referenceFunction, true, true);
     ASSERT_TRUE(res.first) << res.second;
@@ -108,7 +108,7 @@ TEST_P(GatherTransformation, CompareFunctions) {
 }
 
 namespace testValues1 {
-const std::vector<int> opset_version = {7, 8};
+const std::vector<int> opset_version = {1, 7, 8};
 
 const std::vector<ngraph::PartialShape> inputShapes3D = {{3, 3, 4}, {-1, -1, -1}};
 

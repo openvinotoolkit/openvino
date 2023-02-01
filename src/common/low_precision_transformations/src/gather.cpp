@@ -46,6 +46,15 @@ std::shared_ptr<opset1::Constant> gatherDeqConstant(
 
     // Dequantization channel matches with gather axis
     if (constantShape[normalizedAxis] != 1ul) {
+        const auto gather1 = ov::as_type_ptr<ngraph::opset1::Gather>(gather);
+        if (gather1) {
+            const auto output = fold<ngraph::opset1::Gather>(
+                constant,
+                gather1->input_value(1),
+                gather1->input_value(2));
+            constant = ov::as_type_ptr<opset1::Constant>(NetworkHelper::toScalarIfPossible(output));
+        }
+
         const auto gather7 = ov::as_type_ptr<ngraph::opset7::Gather>(gather);
         if (gather7) {
             const auto output = fold<ngraph::opset7::Gather>(
@@ -71,7 +80,7 @@ std::shared_ptr<opset1::Constant> gatherDeqConstant(
 
 GatherTransformation::GatherTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(GatherTransformation);
-    auto gather = pattern::wrap_type<opset7::Gather, opset8::Gather>({ pattern::wrap_type<opset1::Multiply>(),
+    auto gather = pattern::wrap_type<opset1::Gather, opset7::Gather, opset8::Gather>({ pattern::wrap_type<opset1::Multiply>(),
                                                         pattern::any_input(),
                                                         pattern::any_input() });
 

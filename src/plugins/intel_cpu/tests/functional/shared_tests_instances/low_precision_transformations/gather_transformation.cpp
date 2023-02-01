@@ -15,7 +15,7 @@ const std::vector<ngraph::element::Type> precisions = {
 };
 
 const std::vector<int> opset_version = {
-    7, 8
+    1, 7, 8
 };
 
 const std::vector<GatherTransformationTestValues> testValues = {
