@@ -107,7 +107,7 @@ class TorchScriptPythonDecoder (Decoder):
             self.graph_element = graph_element
         self.pt_module = pt_module
 
-    def inputs(self):
+    def inputs(self) -> list:
         return [x.unique() for x in self.graph_element.inputs()]
 
     def get_input(self, index: int):
@@ -151,7 +151,7 @@ class TorchScriptPythonDecoder (Decoder):
             # Not yet recognized
             return OVAny(OVType.dynamic)
 
-    def get_shape_for_value(self, value):
+    def get_shape_for_value(self, value: torch.Value):
         if value.isCompleteTensor():
             ps = PartialShape(value.type().sizes())
             return ps
@@ -162,7 +162,7 @@ class TorchScriptPythonDecoder (Decoder):
             pass
         return PartialShape.dynamic()
 
-    def get_type_for_value(self, value):
+    def get_type_for_value(self, value: torch.Value):
         full_type = self._get_known_type_for_value(value.type())
         return full_type
 
@@ -185,46 +185,46 @@ class TorchScriptPythonDecoder (Decoder):
     def get_subgraph_size(self) -> int:
         return len(self.get_subgraphs()) if hasattr(self.graph_element, "blocks") else 1
 
-    def visit_subgraph(self, node_visitor):
+    def visit_subgraph(self, node_visitor) -> None:
         # make sure topological order is satisfied
         for node in self.graph_element.nodes():
             decoder = TorchScriptPythonDecoder(self.pt_module, node)
             self.m_decoders.append(decoder)
             node_visitor(decoder)
 
-    def get_subgraphs(self):
+    def get_subgraphs(self) -> list:
         return list(self.graph_element.blocks())
 
-    def get_subgraph_decoder(self, index):
+    def get_subgraph_decoder(self, index: int):
         decoder = TorchScriptPythonDecoder(self.pt_module, self.get_subgraphs()[index])
         self.m_decoders.append(decoder)
         return decoder
 
-    def get_op_type(self):
+    def get_op_type(self) -> str:
         return self.graph_element.kind()
 
-    def get_schema(self):
+    def get_schema(self) -> str:
         return self.graph_element.schema()
 
-    def outputs(self):
+    def outputs(self) -> list:
         return [x.unique() for x in self.graph_element.outputs()]
 
-    def _raw_outputs(self):
+    def _raw_outputs(self) -> list:
         return list(self.graph_element.outputs())
 
-    def _raw_output(self, index):
+    def _raw_output(self, index: int):
         return self._raw_outputs()[index]
 
-    def _raw_inputs(self):
+    def _raw_inputs(self) -> list:
         return list(self.graph_element.inputs())
 
-    def _raw_input(self, index):
+    def _raw_input(self, index: int):
         return self._raw_inputs()[index]
 
     def num_of_outputs(self):
         return len(self.outputs())
 
-    def output(self, index):
+    def output(self, index: int):
         return self.outputs()[index]
 
     def mark_node(self, node):
@@ -246,6 +246,8 @@ class TorchScriptPythonDecoder (Decoder):
         pt_type = pt_value.type()
         if isinstance(pt_type, torch.TensorType):
             return self._as_constant_tensor(pt_value)
+        if isinstance(pt_type, torch.ListType):
+            return self._as_constant_list(pt_value)
         return ivalue_to_constant(pt_value.toIValue())
 
     def as_string(self):
@@ -258,7 +260,7 @@ class TorchScriptPythonDecoder (Decoder):
         return None
 
     @staticmethod
-    def _as_constant_tensor(pt_value):
+    def _as_constant_tensor(pt_value: torch.Value):
         ivalue = pt_value.toIValue()
         if pt_value.isCompleteTensor():
             try:
@@ -288,7 +290,21 @@ class TorchScriptPythonDecoder (Decoder):
             return ivalue_to_constant(ivalue)
         return None
 
-    def input_is_none(self, index):
+    @staticmethod
+    def _as_constant_list(pt_value: torch.Value):
+        # For now it is treat a list as a 1D tensor; it is required by converters to avoid need to massively
+        # rewrite them in that part where constant attributes are queried
+        pt_element_type = str(pt_value.type().getElementType())
+        ivalue = pt_value.toIValue()
+        is_known_type = pt_element_type in pt_to_ov_type_map
+
+        if is_known_type:
+            ovtype = pt_to_ov_type_map[pt_element_type]
+            ovshape = PartialShape([len(ivalue)])
+            ov_const = op.Constant(ovtype, ovshape.get_shape(), ivalue)
+            return ov_const.outputs()
+
+    def input_is_none(self, index: int) -> bool:
         if index >= len(self.inputs()) or self._raw_input(index) is None:
             return True
         else:
