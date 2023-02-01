@@ -5,6 +5,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "snippets/three_inputs_eltwise.hpp"
 #include "subgraph_simple.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 
 namespace ov {
 namespace test {

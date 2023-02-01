@@ -8,12 +8,6 @@
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Roll-7 primitive.
 struct roll : primitive_base<roll> {
@@ -32,9 +26,12 @@ struct roll : primitive_base<roll> {
 
     /// @brief Tensor which specifies the number of places by which the elements are shifted.
     tensor shift;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, shift.hash());
+        return seed;
+    }
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

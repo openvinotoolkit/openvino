@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "permute_inst.h"
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
@@ -40,7 +38,13 @@ layout permute_inst::calc_output_layout(permute_node const& node, kernel_impl_pa
         input_layout.data_type = impl_param.get_fused_output_layout().data_type;
     }
 
-    return layout(input_layout.data_type, input_layout.format, output_size, op);
+    // Adjust output format for optimizing out of transpose related to acdb format.
+    auto out_fmt = input_layout.format;
+    if (node.get_preferred_output_fmt() != format::any) {
+        out_fmt = node.get_preferred_output_fmt();
+    }
+
+    return layout(input_layout.data_type, out_fmt, output_size, op);
 }
 
 template<typename ShapeType>
@@ -103,7 +107,8 @@ std::string permute_inst::to_string(permute_node const& node) {
     return primitive_description.str();
 }
 
-permute_inst::typed_primitive_inst(network& network, permute_node const& node) : parent(network, node) {
+permute_inst::typed_primitive_inst(network& network, permute_node const& node) :
+        parent(network, node, (!node.can_be_optimized() && node.get_output_layout().is_static()) ? true : false) {
     auto permute_order = argument->permute_order;
 
     auto required_order_values_size = static_cast<uint32_t>(permute_order.size());
@@ -112,5 +117,36 @@ permute_inst::typed_primitive_inst(network& network, permute_node const& node) :
         if (!(std::find(permute_order.begin(), permute_order.end(), i) != permute_order.end()))
             CLDNN_ERROR_MESSAGE(node.id(), "Permute order does not contain all of required values.");
     }
+
+    if (node.can_be_optimized()) {
+        reuse_input();
+    }
 }
+
+void permute_inst::on_execute() {
+    if (can_be_optimized())
+        reuse_input();
+}
+
+void permute_inst::reuse_input() {
+    update_output_memory();
+}
+
+void permute_inst::update_output_memory() {
+    if (!can_be_optimized())
+        return;
+
+    if (_outputs.size() > 0 && static_cast<bool>(_outputs[0])
+        && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+        return;
+
+    if (_node != nullptr)
+        build_deps();
+
+    _outputs = {_network.get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout())};
+    _mem_allocated = false;
+}
+
+
+
 }  // namespace cldnn

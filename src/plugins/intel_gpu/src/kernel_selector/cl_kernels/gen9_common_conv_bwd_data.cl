@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,15 +34,14 @@ REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE) // attr:no-format
 KERNEL(gen9_common_conv_bwd_data_kernel)(
         const  __global INPUT0_TYPE *diff_dst,
         __global OUTPUT_TYPE * restrict diff_src,
-        const __global FILTER_TYPE *wei,
+        const __global FILTER_TYPE *wei
 #if WITH_BIAS
-        const __global BIAS_TYPE *bias,
+        , const __global BIAS_TYPE *bias
 #endif
 #if HAS_FUSED_OPS_DECLS
-        FUSED_OPS_DECLS,
+        , FUSED_OPS_DECLS
 #endif
-        uint split_idx
-        )
+)
 {
     const int input_offset = (INPUT0_PAD_BEFORE_FEATURE_NUM / OC_BLOCK) * OD_FULL * OH_FULL * OW_FULL * OC_BLOCK * MB_BLOCK +
                              (INPUT0_PAD_BEFORE_SIZE_Z) * OH_FULL * OW_FULL * OC_BLOCK * MB_BLOCK +

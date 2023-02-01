@@ -1,37 +1,45 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import Tuple, Union, List
 
+import os
 import sys
-from pathlib import Path
 import numpy as np
+import pytest
+
+from pathlib import Path
+
 import openvino
 import openvino.runtime.opset8 as ops
-import pytest
-from openvino.runtime import Model, Core, Shape, Type
-from openvino.runtime.op import Parameter
+from openvino.runtime import Model, Core, Shape
 from openvino.utils import deprecated
-
-
-def get_test_model():
-    element_type = Type.f32
-    param = Parameter(element_type, Shape([1, 3, 22, 22]))
-    relu = ops.relu(param)
-    model = Model([relu], [param], "test")
-    assert model is not None
-    return model
 
 
 def test_compare_models():
     try:
         from openvino.test_utils import compare_models
-        model = get_test_model()
+        model = get_relu_model()
         status, _ = compare_models(model, model)
         assert status
     except RuntimeError:
         print("openvino.test_utils.compare_models is not available")  # noqa: T201
+
+
+def plugins_path(device, lib_path):
+    plugin_xml = f"""<ie>
+    <plugins>
+        <plugin location="{lib_path}" name="{device}">
+        </plugin>
+    </plugins>
+    </ie>"""
+
+    with open("plugin_path.xml", "w") as f:
+        f.write(plugin_xml)
+
+    plugins_paths = os.path.join(os.getcwd(), "plugin_path.xml")
+    return plugins_paths
 
 
 def generate_image(shape: Tuple = (1, 3, 32, 32), dtype: Union[str, np.dtype] = "float32") -> np.array:
@@ -39,14 +47,30 @@ def generate_image(shape: Tuple = (1, 3, 32, 32), dtype: Union[str, np.dtype] = 
     return np.random.rand(*shape).astype(dtype)
 
 
-def generate_relu_model(input_shape: List[int]) -> openvino.runtime.ie_api.CompiledModel:
-    param = ops.parameter(input_shape, np.float32, name="parameter")
+def get_relu_model(input_shape: List[int] = None) -> openvino.runtime.Model:
+    if input_shape is None:
+        input_shape = [1, 3, 32, 32]
+    param = ops.parameter(input_shape, np.float32, name="data")
     relu = ops.relu(param, name="relu")
-    model = Model([relu], [param], "test")
+    model = Model([relu], [param], "test_model")
     model.get_ordered_ops()[2].friendly_name = "friendly"
 
+    assert model is not None
+    return model
+
+
+def generate_relu_compiled_model(device, input_shape: List[int] = None) -> openvino.runtime.CompiledModel:
+    if input_shape is None:
+        input_shape = [1, 3, 32, 32]
+    model = get_relu_model(input_shape)
     core = Core()
-    return core.compile_model(model, "CPU", {})
+    return core.compile_model(model, device, {})
+
+
+def generate_model_and_image(device, input_shape: List[int] = None):
+    if input_shape is None:
+        input_shape = [1, 3, 32, 32]
+    return (generate_relu_compiled_model(device, input_shape), generate_image(input_shape))
 
 
 def generate_add_model() -> openvino._pyopenvino.Model:
@@ -83,7 +107,7 @@ def test_deprecation_decorator():
         deprecated_function4()
 
 
-def create_filename_for_test(test_name, is_xml_path=False, is_bin_path=False):
+def create_filename_for_test(test_name, tmp_path, is_xml_path=False, is_bin_path=False):
     """Return a tuple with automatically generated paths for xml and bin files.
 
     :param test_name: Name used in generating.
@@ -92,8 +116,8 @@ def create_filename_for_test(test_name, is_xml_path=False, is_bin_path=False):
     :return: Tuple with two objects representing xml and bin files.
     """
     python_version = str(sys.version_info.major) + "_" + str(sys.version_info.minor)
-    filename = "./" + test_name.replace("test_", "").replace("[", "_").replace("]", "_")
+    filename = test_name.replace("test_", "").replace("[", "_").replace("]", "_")
     filename = filename + "_" + python_version
-    _xml = Path(filename + ".xml") if is_xml_path else filename + ".xml"
-    _bin = Path(filename + ".bin") if is_bin_path else filename + ".bin"
+    _xml = tmp_path / Path(filename + ".xml") if is_xml_path else tmp_path / Path(filename + ".xml")
+    _bin = tmp_path / Path(filename + ".bin") if is_bin_path else tmp_path / Path(filename + ".bin")
     return (_xml, _bin)

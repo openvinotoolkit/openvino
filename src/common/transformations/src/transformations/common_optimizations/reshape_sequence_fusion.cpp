@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,10 +7,10 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <ngraph/validation_util.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <vector>
 
+#include "bound_evaluation_util.hpp"
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -19,10 +19,11 @@ bool has_valid_pattern(const ov::Output<ov::Node>& node_out) {
     const auto const_node = std::dynamic_pointer_cast<ov::opset8::Constant>(node_out.get_node_shared_ptr());
     if (!const_node) {
         // Lower bound of the value
-        auto lb = ngraph::evaluate_lower_bound(node_out);
+        auto lb = ov::evaluate_lower_bound(node_out);
         if (!lb)
             return false;
-        const auto lb_const_node = std::make_shared<ov::opset8::Constant>(lb);
+        const auto lb_const_node =
+            std::make_shared<ov::opset8::Constant>(lb.get_element_type(), lb.get_shape(), lb.data());
         const auto& lb_values = lb_const_node->cast_vector<int64_t>();
 
         // The pattern is valid if all lower bound values are higher than zero (not a special number)
@@ -34,11 +35,12 @@ bool has_valid_pattern(const ov::Output<ov::Node>& node_out) {
             return true;
 
         // Upper bound of the value
-        auto ub = ngraph::evaluate_upper_bound(node_out);
+        auto ub = ov::evaluate_upper_bound(node_out);
         if (!ub)
             return false;
 
-        const auto ub_const_node = std::make_shared<ov::opset8::Constant>(ub);
+        const auto ub_const_node =
+            std::make_shared<ov::opset8::Constant>(ub.get_element_type(), ub.get_shape(), ub.data());
         const auto& ub_values = ub_const_node->cast_vector<int64_t>();
         if (lb_values.size() != ub_values.size())
             return false;

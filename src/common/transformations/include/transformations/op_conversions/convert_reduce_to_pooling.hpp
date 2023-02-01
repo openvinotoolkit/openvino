@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -265,12 +265,3 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
         return true;
     };
 }
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertReduceMaxToPooling;
-using ov::pass::ConvertReduceMeanToPooling;
-using ov::pass::ConvertReduceSumToPooling;
-using ov::pass::ConvertReduceToPooling;
-}  // namespace pass
-}  // namespace ngraph

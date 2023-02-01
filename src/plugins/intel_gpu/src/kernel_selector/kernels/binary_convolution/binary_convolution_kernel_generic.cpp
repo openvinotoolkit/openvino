@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -73,7 +73,7 @@ bool BinaryConvolutionKernelGeneric::Validate(const Params& p, const optional_pa
 
     const auto& params = static_cast<const binary_convolution_params&>(p);
 
-    if (params.split > 1 || params.groups > 1 || params.depthwise_separable_opt)
+    if (params.groups > 1)
         return false;
 
     return true;

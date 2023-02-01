@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 
-class GnaConvolutionLayerTest : public ConvolutionLayerTest {
+class gna_convolution_layerTest : public ConvolutionLayerTest {
 protected:
     void Run() override {
         ConvolutionLayerTest::Run();
@@ -23,7 +23,7 @@ protected:
     }
 };
 
-TEST_P(GnaConvolutionLayerTest, CompareWithRefs) {
+TEST_P(gna_convolution_layerTest, CompareWithRefs) {
     Run();
 }
 
@@ -276,7 +276,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid_MapTo1d, ConvolutionLa
                                  ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                          ConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Kernels2D, GnaConvolutionLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Kernels2D, gna_convolution_layerTest,
                          ::testing::Combine(
                                  conv2DParams_Kernels2D,
                                  ::testing::ValuesIn(netPrecisions),
@@ -286,9 +286,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Kernels2D, GnaConvolutionLayerTest,
                                  ::testing::Values(InferenceEngine::Layout::ANY),
                                  ::testing::Values(input2DNCHW),
                                  ::testing::Values(CommonTestUtils::DEVICE_GNA)),
-                         GnaConvolutionLayerTest::getTestCaseName);
+                         gna_convolution_layerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Kernels2D_big, GnaConvolutionLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Kernels2D_big, gna_convolution_layerTest,
     ::testing::Combine(
         conv2DParams_Kernels2D_big,
         ::testing::ValuesIn(netPrecisions),
@@ -298,7 +298,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Kernels2D_big, GnaConvolutionLayerT
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(input2DNCHW),
         ::testing::Values(CommonTestUtils::DEVICE_GNA)),
-    GnaConvolutionLayerTest::getTestCaseName);
+    gna_convolution_layerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Map2D_Not_Transpose_h_w_3_3, ConvolutionLayerTest,
     ::testing::Combine(

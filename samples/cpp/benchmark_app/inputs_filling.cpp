@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -216,12 +216,12 @@ ov::Tensor get_image_tensor(const std::vector<std::string>& files,
                                                inputInfo.first,
                                                filenames_used);
     } else if (type == ov::element::f16) {
-        return create_tensor_from_image<short>(files,
-                                               inputId,
-                                               batchSize,
-                                               inputInfo.second,
-                                               inputInfo.first,
-                                               filenames_used);
+        return create_tensor_from_image<ov::float16>(files,
+                                                     inputId,
+                                                     batchSize,
+                                                     inputInfo.second,
+                                                     inputInfo.first,
+                                                     filenames_used);
     } else if (type == ov::element::f64) {
         return create_tensor_from_image<double>(files,
                                                 inputId,

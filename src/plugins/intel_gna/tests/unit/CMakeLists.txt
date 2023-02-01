@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -27,11 +27,15 @@ addIeTargetTest(
                 gmock
                 commonTestUtils_s
                 openvino_intel_gna_plugin_test_static
-                engines_test_util
+                inference_engine_legacy_s
         ADD_CPPLINT
         LABELS
             GNA
 )
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS -IGNORE:4286)
+endif()
 
 if(SUGGEST_OVERRIDE_SUPPORTED)
     set_source_files_properties(gna_model_serial_test.cpp

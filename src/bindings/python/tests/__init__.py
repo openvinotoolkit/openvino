@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -26,6 +26,7 @@ def xfail_test(reason="Mark the test as expected to fail", strict=True):
 skip_segfault = pytest.mark.skip(reason="Segmentation fault error")
 skip_devtest = pytest.mark.skip(reason="Test might depend on machine, should be run by developers"
                                        "or advanced users for debug/testing purposes.")
+skip_need_mock_op = pytest.mark.skip(reason="Test need to be rewritten with mock operation. Issue #101215")
 xfail_accuracy = xfail_test(reason="Accuracy")
 xfail_issue_69444 = xfail_test(reason="ONNX Resize - AssertionError: Mismatched elements.")
 skip_issue_67415 = pytest.mark.skip(reason="RuntimeError: Unsupported data type for when filling blob!")
@@ -134,3 +135,4 @@ xfail_issue_82039 = xfail_test(reason="Unsupported data type Optional, RuntimeEr
 xfail_issue_86911 = xfail_test(reason="LSTM_Seq_len_unpacked - AssertionError: zoo models results mismatch")
 xfail_issue_91151 = xfail_test(reason="RuntimeError: model input (shape={3,4}) and blob (shape=(1)) are incompatible")
 xfail_issue_91490 = xfail_test(reason="y has zero dimension which is not allowed")
+xfail_issue_101965 = xfail_test(reason="Mismatch with numpy-based expected results.")

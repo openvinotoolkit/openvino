@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,7 +46,7 @@ TEST(TransformationTests, InsertTransposeAfterConvOrPoolTestStartConvolution) {
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                   ngraph::ParameterVector{input_params_convolution});
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::intel_gna::pass::InsertTransposeAfterConvOrPool>();
         m.run_passes(func);
         ASSERT_NO_THROW(check_rt_info(func));
@@ -122,7 +122,7 @@ TEST(TransformationTests, InsertTransposeAfterConvOrPoolTestStartMaxPool) {
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                   ngraph::ParameterVector{input_params});
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::intel_gna::pass::InsertTransposeAfterConvOrPool>();
         m.run_passes(func);
         ASSERT_NO_THROW(check_rt_info(func));
@@ -199,7 +199,7 @@ TEST(TransformationTests, InsertTransposeAfterConvOrPoolTestInputRank3) {
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                   ngraph::ParameterVector{input_params_convolution});
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::intel_gna::pass::InsertTransposeAfterConvOrPool>();
         m.run_passes(func);
         ASSERT_NO_THROW(check_rt_info(func));
@@ -275,7 +275,7 @@ TEST(TransformationTests, InsertTransposeAfterConvOrPoolTest1dOutput) {
     func = CreatePoolConvFunction(ngraph::Shape{1, 3, 1, 8}, ngraph::Strides{1, 8});
 
     ngraph::pass::Manager m;
-    m.register_pass<ngraph::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ov::intel_gna::pass::InsertTransposeAfterConvOrPool>();
     m.run_passes(func);
     ASSERT_NO_THROW(check_rt_info(func));

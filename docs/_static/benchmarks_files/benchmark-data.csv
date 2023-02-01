@@ -1,4 +1,4 @@
-﻿Network model,Release,IE-Type,Platform name,Throughput-INT8,Throughput-FP16,Throughput-FP32,Value,Efficiency,Price,TDP,Sockets,Price/socket,TDP/socket,Latency
+Network model,Release,IE-Type,Platform name,Throughput-INT8,Throughput-FP16,Throughput-FP32,Value,Efficiency,Price,TDP,Sockets,Price/socket,TDP/socket,Latency
 begin_rec,,,,,,,,,,,,,,
 bert-base-cased ,OV-2022.3-8991,core,Intel® Core™  i9-12900K CPU-only,96.06,,35.627,0.146,0.582,$658 ,165,1,$658 ,165,17.1432
 bert-base-cased ,OV-2022.3-8991,core-iGPU,Intel® Core™  i9-12900K iGPU-only,53.093,,22.253,0.081,0.322,$658 ,165,1,$658 ,165,22.0002

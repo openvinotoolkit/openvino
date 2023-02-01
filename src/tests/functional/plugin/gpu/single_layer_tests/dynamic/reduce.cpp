@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -139,7 +139,7 @@ const ReduceInput dyn1d = {
 
 const ReduceInput dyn2d = {
     {
-        { {-1, -1}, {{4, 5}, {5, 6}} }
+        { {-1, -1}, {{100, 3}, {5, 6}} }
     },
     {1}
 };

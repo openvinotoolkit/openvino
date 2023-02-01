@@ -28,8 +28,8 @@ TEST(TransformationTests, ConvertConvertLike) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{cvtlike}, ngraph::ParameterVector{data});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertConvertLike>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertConvertLike>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -57,8 +57,8 @@ TEST(TransformationTests, ConvertConvertLike2) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{cvtlike}, ngraph::ParameterVector{data, data2});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertConvertLike>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertConvertLike>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -84,8 +84,8 @@ TEST(TransformationTests, ConvertConvertLike_Negative) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{cvtlike}, ngraph::ParameterVector{data, like});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertConvertLike>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertConvertLike>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }

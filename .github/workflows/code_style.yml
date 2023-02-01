@@ -1,10 +1,5 @@
 name: Code Style
-on:
-  pull_request:
-  push:
-    branches:
-      - 'master'
-      - 'releases/**'
+on: [pull_request]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -14,7 +9,7 @@ jobs:
   clang-format:
     runs-on: ubuntu-20.04
     permissions:
-      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v3
         with:
@@ -27,8 +22,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt update
-          sudo apt --assume-yes install libusb-1.0-0-dev
           python3 -m pip install --upgrade pip
           python3 -m pip install -r ./src/bindings/python/requirements.txt
           # Add for -DENABLE_PYTHON=ON, no cython
@@ -38,12 +31,16 @@ jobs:
       - name: CMake configure
         run: cmake -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT -B build
 
-      - name: Fix code style
+      - name: Create code style diff
         run: cmake --build build --target clang_format_fix_all -j8
 
-      - uses: stefanzweifel/git-auto-commit-action@v4
+      - name: suggester / clang-format
+        if: startsWith(github.event_name, 'pull_request')
+        uses: reviewdog/action-suggester@v1
         with:
-          commit_message: "[github actions] Apply clang-format code style fixes"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          level: warning
+          fail_on_error: true
 
   ShellCheck:
     runs-on: ubuntu-22.04
@@ -60,7 +57,7 @@ jobs:
           sudo apt --assume-yes install shellcheck
 
       - name: CMake configure
-        run: cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF -B build
+        run: cmake -B build
 
       - name: Shellcheck cmake target
         run: cmake --build build --target ie_shellcheck -j8
@@ -95,7 +92,7 @@ jobs:
         run: python3 -m pip install -r cmake/developer_package/ncc_naming_style/requirements_dev.txt
 
       - name: CMake configure
-        run: cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF -B build
+        run: cmake -B build
 
       - name: Naming convention check
         run: cmake --build build --target ncc_all -j8

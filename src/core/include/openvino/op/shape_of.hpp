@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,10 +36,9 @@ public:
     bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate_lower(const HostTensorVector& output_values) const override;
-    bool evaluate_upper(const HostTensorVector& output_values) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& output_values, const TensorVector& input_values) const override;
+    bool evaluate_lower(TensorVector& output_values) const override;
+    bool evaluate_upper(TensorVector& output_values) const override;
     bool evaluate_label(TensorLabelVector& output_labels) const override;
     bool constant_fold(OutputVector& output_values, const OutputVector& input_values) override;
 
@@ -67,10 +66,9 @@ public:
     bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate_lower(const HostTensorVector& output_values) const override;
-    bool evaluate_upper(const HostTensorVector& output_values) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& output_values, const TensorVector& input_values) const override;
+    bool evaluate_lower(TensorVector& output_values) const override;
+    bool evaluate_upper(TensorVector& output_values) const override;
     bool evaluate_label(TensorLabelVector& output_labels) const override;
     bool constant_fold(OutputVector& output_values, const OutputVector& input_values) override;
 };
