@@ -74,15 +74,15 @@ void shape_infer(const GatherND* op, const std::vector<TShape>& input_shapes, st
     // If batch_dims > 1, batch dimensions are need to be fused
     auto batch_dims = op->get_batch_dims();
     if (batch_dims > 1 && output_shapes[0].rank().is_static()) {
-        const auto& output_base_shape = output_shapes[0];
-        std::vector<DimType> output_dims{1};
-        output_dims[0] = std::accumulate(output_base_shape.begin(),
-                                         output_base_shape.begin() + batch_dims,
-                                         output_dims[0],
-                                         std::multiplies<DimType>());
-
+        auto& output_base_shape = output_shapes[0];
+        auto output_dims = std::vector<DimType>{output_base_shape[0]};
+        std::for_each(output_base_shape.begin() + 1,
+                      output_base_shape.begin() + batch_dims,
+                      [&output_dims](const DimType& dim) {
+                          output_dims[0] *= dim;
+                      });
         output_dims.insert(output_dims.begin() + 1, output_base_shape.begin() + batch_dims, output_base_shape.end());
-        output_shapes[0] = TShape(output_dims);
+        output_shapes[0] = TShape(std::move(output_dims));
     }
 }
 }  // namespace v5
