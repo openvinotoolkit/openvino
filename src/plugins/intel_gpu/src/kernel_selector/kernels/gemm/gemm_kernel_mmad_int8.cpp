@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -147,7 +147,7 @@ KernelsData GemmKernelMMADint8::GetKernelsData(const Params& params, const optio
                      kernelName,
                      jit,
                      entry_point,
-                     DEFAULT,
+                     EXE_MODE_DEFAULT,
                      false,
                      false,
                      (uint32_t)prim_params.inputs.size(),

@@ -1,19 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Permutes data in the memory, with respect to provided order.
 /// @details Permute order is set as vector with positions meaning corresponding to tensor.
@@ -38,8 +31,11 @@ struct permute : public primitive_base<permute> {
 
     /// @brief Array of permuted output order in bfyx format.
     std::vector<uint16_t> permute_order;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_range(seed, permute_order.begin(), permute_order.end());
+        return seed;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

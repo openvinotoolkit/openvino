@@ -1,19 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
+
 /// @brief Type of gemm that will be added to the input by border layer / primitive.
 
 /// @brief Adds gemm  input.
@@ -73,6 +67,15 @@ struct gemm : public primitive_base<gemm> {
     size_t input_rank;
      /// @brief Second matrix rank
     size_t weight_rank;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, transpose_input0);
+        seed = hash_combine(seed, transpose_input1);
+        seed = hash_combine(seed, alpha);
+        seed = hash_combine(seed, beta);
+        return seed;
+    }
 };
 
 }  // namespace cldnn

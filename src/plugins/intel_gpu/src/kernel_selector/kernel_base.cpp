@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,8 +75,8 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params) c
     auto unitType = GetUnitType(params);
 
     JitConstants jit{
-        MakeJitConstant("FP64_SUPPORTED", params.engineInfo.bFP64Support),
-        MakeJitConstant("FP16_SUPPORTED", params.engineInfo.bFP16Support),
+        MakeJitConstant("FP64_SUPPORTED", params.engineInfo.supports_fp64),
+        MakeJitConstant("FP16_SUPPORTED", params.engineInfo.supports_fp16),
         MakeJitConstant("FP16_UNIT_USED", IsTypeUsedIn(Datatype::F16, params)),
         MakeJitConstant("INT8_UNIT_USED", IsTypeUsedIn(Datatype::INT8, params)),
         MakeJitConstant("INT32_UNIT_USED", IsTypeUsedIn(Datatype::INT32, params)),
@@ -250,6 +250,47 @@ bool KernelBase::IsFusedPrimitiveSupported(const fused_operation_desc& fused_op)
 
 std::vector<KernelBase::FusedOpType> KernelBase::GetSupportedFusedOps() const {
     return {};
+}
+
+DeviceFeaturesKey KernelBase::get_common_subgroups_device_features_key(const Params& params, const optional_params& /*options*/) const {
+    DeviceFeaturesKey k;
+
+    bool requires_blocked_read_write_char = false;
+    bool requires_blocked_read_write_short = false;
+    bool requires_blocked_read_write = false;
+    const auto& casted_params = static_cast<const base_params&>(params);
+
+    std::vector<Datatype> tensor_types;
+    for (auto& t : casted_params.inputs) {
+        tensor_types.push_back(t.GetDType());
+    }
+    for (auto& t : casted_params.outputs) {
+        tensor_types.push_back(t.GetDType());
+    }
+
+    for (auto& type : tensor_types) {
+        if (type == Datatype::F16) {
+            requires_blocked_read_write_short = true;
+        } else if (type == Datatype::F32) {
+            requires_blocked_read_write = true;
+        } else if (type == Datatype::UINT8 || type == Datatype::INT8) {
+            requires_blocked_read_write_char = true;
+        }
+    }
+
+    if (requires_blocked_read_write)
+        k.requires_blocked_read_write();
+
+    if (requires_blocked_read_write_short)
+        k.requires_blocked_read_write_short();
+
+    if (requires_blocked_read_write_char)
+        k.requires_blocked_read_write_char();
+
+    k.requires_subgroups();
+    k.requires_reqd_subgroup_size();
+
+    return k;
 }
 
 }  // namespace kernel_selector

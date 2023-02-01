@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -28,7 +28,7 @@ class TestConvTranspose(OnnxRuntimeLayerTest):
         input = helper.make_tensor_value_info('input', TensorProto.FLOAT, input_shape)
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, output_shape)
 
-        weights = np.random.randn(*kernel_shape).astype(np.float)
+        weights = np.random.randn(*kernel_shape).astype(float)
 
         node_weights_def = onnx.helper.make_node(
             'Constant',

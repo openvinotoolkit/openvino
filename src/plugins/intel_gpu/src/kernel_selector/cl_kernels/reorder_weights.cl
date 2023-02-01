@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "include/batch_headers/fetch_weights.cl"
 #include "include/reshape_dims.cl"
-#include "include/batch_headers/data_types.cl"
 #include "include/image_data.cl"
 
 #define DECLARE_SAMPLER const sampler_t imageSampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST

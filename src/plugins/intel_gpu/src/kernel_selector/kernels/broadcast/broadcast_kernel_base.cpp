@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,26 +33,45 @@ BroadcastKernelBase::DispatchData BroadcastKernelBase::SetDefault(const broadcas
 
 static std::string GetInputBlockND(const broadcast_params& params) {
     const auto& input = params.inputs[0];
-    auto input_dims = input.LogicalDims();
-    std::reverse(input_dims.begin(), input_dims.end());
-    const int rank = static_cast<int>(input_dims.size());
-    std::vector<size_t> block_nd(rank + 1);
-    std::vector<std::string> block_nd_s(rank + 1);
-    block_nd[rank] = 1;
-    block_nd_s[rank] = "1";
-    for (int idx = (rank - 1); idx >= 0; idx--) {
-        block_nd[idx] = input_dims[idx] * block_nd[idx + 1];
-        block_nd_s[idx] = "(" + toCodeString(input.GetDims()[idx], rank - idx) + " * " + block_nd_s[idx + 1] + ")";
-    }
 
     std::stringstream s;
-    for (int i = 0; i < (rank + 1); i++) {
-        if (i < rank) {
-            s << (input.is_dynamic() ? block_nd_s[i] : std::to_string(block_nd[i])) << ",";
-        } else {
-            s << (input.is_dynamic() ? block_nd_s[i] : std::to_string(block_nd[i]));
+    auto input_dims = input.LogicalDims();
+    std::reverse(input_dims.begin(), input_dims.end());
+
+    if (input.is_dynamic()) {
+        const int rank = static_cast<int>(input_dims.size());
+        std::vector<std::string> block_nd_s(rank + 1);
+        block_nd_s[rank] = "1";
+        for (int idx = (rank - 1); idx >= 0; idx--) {
+            int shape_info_idx = idx;
+            if (idx >= 2) {
+                shape_info_idx += (6 - rank);
+            }
+            block_nd_s[idx] = "(" + toCodeString(input.GetDims()[rank - idx - 1], shape_info_idx) + " * " + block_nd_s[idx + 1] + ")";
+        }
+
+        for (int i = 0; i < (rank + 1); i++) {
+            s << block_nd_s[i];
+            if (i < rank) {
+                s << ",";
+            }
+        }
+    } else {
+        const int rank = static_cast<int>(input_dims.size());
+        std::vector<size_t> block_nd(rank + 1);
+        block_nd[rank] = 1;
+        for (int idx = (rank - 1); idx >= 0; idx--) {
+            block_nd[idx] = input_dims[idx] * block_nd[idx + 1];
+        }
+
+        for (int i = 0; i < (rank + 1); i++) {
+            s << std::to_string(block_nd[i]);
+            if (i < rank) {
+                s << ",";
+            }
         }
     }
+
     auto str_result = s.str();
     return str_result;
 }
@@ -81,7 +100,7 @@ KernelsData BroadcastKernelBase::GetCommonKernelsData(const Params& params,
 
     auto& kernel = k_data.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                     DEFAULT,
+                     EXE_MODE_DEFAULT,
                      false,
                      false,
                      1,

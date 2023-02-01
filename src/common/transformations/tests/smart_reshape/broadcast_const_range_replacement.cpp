@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,7 @@ TEST_F(TransformationTestsF, BroadcastConstRangeReplacement_dim_match) {
 
         function = std::make_shared<Function>(OutputVector{broadcast_node}, ParameterVector{});
 
-        manager.register_pass<pass::BroadcastConstRangeReplacement>();
+        manager.register_pass<ov::pass::BroadcastConstRangeReplacement>();
     }
     {
         constexpr auto elem_count = 236;
@@ -88,7 +88,7 @@ TEST_F(TransformationTestsF, BroadcastConstRangeReplacement_dim_one) {
 
         function = std::make_shared<Function>(OutputVector{broadcast_node}, ParameterVector{});
 
-        manager.register_pass<pass::BroadcastConstRangeReplacement>();
+        manager.register_pass<ov::pass::BroadcastConstRangeReplacement>();
     }
     {
         constexpr auto elem_count = 236;
@@ -133,7 +133,6 @@ TEST_F(TransformationTestsF, BroadcastConstRangeReplacement_target_shapeof) {
     {
         constexpr auto elem_count = 236;
         constexpr auto data_elem_type = element::i32;
-        constexpr auto target_shape_elem_type = element::i64;
 
         std::vector<int32_t> sequence_pattern(elem_count);
         std::iota(sequence_pattern.begin(), sequence_pattern.end(), 0);
@@ -148,7 +147,7 @@ TEST_F(TransformationTestsF, BroadcastConstRangeReplacement_target_shapeof) {
 
         function = std::make_shared<Function>(OutputVector{broadcast_node}, ParameterVector{data_param});
 
-        manager.register_pass<pass::BroadcastConstRangeReplacement>();
+        manager.register_pass<ov::pass::BroadcastConstRangeReplacement>();
     }
     {
         constexpr auto elem_count = 236;
@@ -194,7 +193,6 @@ TEST_F(TransformationTestsF, BroadcastConstRangeReplacement_target_shapeof_mixed
     {
         constexpr auto elem_count = 236;
         constexpr auto data_elem_type = element::i32;
-        constexpr auto target_shape_elem_type = element::i64;
 
         std::vector<int32_t> sequence_pattern(elem_count);
         std::iota(sequence_pattern.begin(), sequence_pattern.end(), 0);
@@ -210,7 +208,7 @@ TEST_F(TransformationTestsF, BroadcastConstRangeReplacement_target_shapeof_mixed
 
         function = std::make_shared<Function>(OutputVector{broadcast_node}, ParameterVector{data_param});
 
-        manager.register_pass<pass::BroadcastConstRangeReplacement>();
+        manager.register_pass<ov::pass::BroadcastConstRangeReplacement>();
     }
     {
         constexpr auto elem_count = 236;
@@ -269,7 +267,7 @@ TEST_F(TransformationTestsF, BroadcastConstRangeReplacementNeg_other_mode) {
 
         function = std::make_shared<Function>(OutputVector{broadcast_node}, ParameterVector{});
 
-        manager.register_pass<pass::BroadcastConstRangeReplacement>();
+        manager.register_pass<ov::pass::BroadcastConstRangeReplacement>();
     }
 }
 
@@ -289,7 +287,7 @@ TEST_F(TransformationTestsF, BroadcastConstRangeReplacementNeg_reversed_sequence
 
         function = std::make_shared<Function>(OutputVector{broadcast_node}, ParameterVector{});
 
-        manager.register_pass<pass::BroadcastConstRangeReplacement>();
+        manager.register_pass<ov::pass::BroadcastConstRangeReplacement>();
     }
 }
 
@@ -309,7 +307,7 @@ TEST_F(TransformationTestsF, BroadcastConstRangeReplacementNeg_too_small) {
 
         function = std::make_shared<Function>(OutputVector{broadcast_node}, ParameterVector{});
 
-        manager.register_pass<pass::BroadcastConstRangeReplacement>();
+        manager.register_pass<ov::pass::BroadcastConstRangeReplacement>();
     }
 }
 
@@ -329,7 +327,7 @@ TEST_F(TransformationTestsF, BroadcastConstRangeReplacementNeg_too_big) {
 
         function = std::make_shared<Function>(OutputVector{broadcast_node}, ParameterVector{});
 
-        manager.register_pass<pass::BroadcastConstRangeReplacement>();
+        manager.register_pass<ov::pass::BroadcastConstRangeReplacement>();
     }
 }
 
@@ -338,7 +336,6 @@ TEST(SmartReshapeTests, BroadcastConstRangeReplacement_reshape) {
     {
         constexpr auto elem_count = 236;
         constexpr auto data_elem_type = element::i32;
-        constexpr auto target_shape_elem_type = element::i64;
 
         std::vector<int32_t> sequence_pattern(elem_count);
         std::iota(sequence_pattern.begin(), sequence_pattern.end(), 0);

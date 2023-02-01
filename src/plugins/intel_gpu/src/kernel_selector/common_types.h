@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,6 @@ namespace kernel_selector {
 enum class KernelType {
     UNKNOWN,
     ARG_MAX_MIN,
-    AVERAGE_UNPOOLING,
     CONVOLUTION,
     DECONVOLUTION,
     DFT,
@@ -443,36 +442,6 @@ struct DimTensor {
     DimTensor() = default;
     DimTensor(T b, T f, T w, T z, T y, T x) : b(b), f(f), w(w), z(z), y(y), x(x) {}
 };
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// AutoTunerMode
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-enum class TuningMode {
-    TUNING_DISABLED,         // Tuning is disabled.
-    TUNING_USE_CACHE,        // Tuning using the cached data (no on-line tuning for non-existing data).
-    TUNING_TUNE_AND_CACHE,   // Tuning using the cached data if exist, tune and update cache otherwise.attention_params
-    TUNING_USE_AND_UPDATE,   // Tuning using the cached data and other updating tasks.
-                             // Performs updating tasks like removal of invalid caches, promoting to new formats, etc.
-                             // No tuning for non-existing data.
-    TUNING_RETUNE_AND_CACHE  // Perform tuning even if the cached data exists.
-};
-
-inline bool UseCached(const TuningMode& mode) {
-    return mode == TuningMode::TUNING_USE_CACHE
-        || mode == TuningMode::TUNING_TUNE_AND_CACHE
-        || mode == TuningMode::TUNING_USE_AND_UPDATE;
-}
-
-inline bool PerformTuning(const TuningMode& mode) {
-    return mode == TuningMode::TUNING_TUNE_AND_CACHE
-        || mode == TuningMode::TUNING_RETUNE_AND_CACHE;
-}
-
-inline bool PerformUpdates(const TuningMode& mode) {
-    return mode == TuningMode::TUNING_TUNE_AND_CACHE
-        || mode == TuningMode::TUNING_USE_AND_UPDATE
-        || mode == TuningMode::TUNING_RETUNE_AND_CACHE;
-}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Aliases:

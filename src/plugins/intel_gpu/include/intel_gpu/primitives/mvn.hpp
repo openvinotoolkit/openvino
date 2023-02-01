@@ -1,18 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Mean Variance Normalization primitive.
 /// @details Normalizes the input to have 0-mean and/or unit (1) variance.
@@ -47,8 +40,14 @@ struct mvn : public primitive_base<mvn> {
     bool eps_inside_sqrt;
     /// @brief Determines if the normalization is done across or within channels.
     bool across_channels;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, normalize_variance);
+        seed = hash_combine(seed, epsilon);
+        seed = hash_combine(seed, eps_inside_sqrt);
+        seed = hash_combine(seed, across_channels);
+        return seed;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

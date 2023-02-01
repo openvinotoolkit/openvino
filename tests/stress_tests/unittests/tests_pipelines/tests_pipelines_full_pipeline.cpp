@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,7 @@ void test_load_unload_plugin_full_pipeline(const std::string &model, const std::
         if (i == n / 2) {
             log_info("Half of the test have already passed");
         }
-        // get_versions silently register plugin in `plugins` through `GetCPPPluginByName`
+        // get_versions silently register plugin in `plugins` through `get_plugin`
         ie_api_wrapper->load_plugin(target_device);
         // Remove plugin for target_device from `plugins`
         ie_api_wrapper->unload_plugin(target_device);

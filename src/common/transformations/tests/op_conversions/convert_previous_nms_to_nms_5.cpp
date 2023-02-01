@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,7 @@ TEST_F(TransformationTestsF, ConvertNMS4FiveInputsToNMS5) {
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNMS4ToNMS5>();
+        manager.register_pass<ov::pass::ConvertNMS4ToNMS5>();
     }
 
     {
@@ -71,7 +71,7 @@ TEST_F(TransformationTestsF, ConvertNMS4TwoInputsToNMS5) {
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNMS4ToNMS5>();
+        manager.register_pass<ov::pass::ConvertNMS4ToNMS5>();
     }
 
     {
@@ -109,7 +109,7 @@ TEST_F(TransformationTestsF, ConvertNMS3FiveInputsToNMS5) {
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNMS3ToNMS5>();
+        manager.register_pass<ov::pass::ConvertNMS3ToNMS5>();
     }
 
     {
@@ -141,7 +141,7 @@ TEST_F(TransformationTestsF, ConvertNMS3TwoInputsToNMS5) {
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNMS3ToNMS5>();
+        manager.register_pass<ov::pass::ConvertNMS3ToNMS5>();
     }
 
     {
@@ -179,7 +179,7 @@ TEST_F(TransformationTestsF, ConvertNMS1FiveInputsToNMS5) {
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNMS1ToNMS5>();
+        manager.register_pass<ov::pass::ConvertNMS1ToNMS5>();
     }
 
     {
@@ -211,7 +211,7 @@ TEST_F(TransformationTestsF, ConvertNMS1TwoInputsToNMS5) {
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNMS1ToNMS5>();
+        manager.register_pass<ov::pass::ConvertNMS1ToNMS5>();
     }
 
     {

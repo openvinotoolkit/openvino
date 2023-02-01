@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ struct non_max_suppression_impl : typed_primitive_impl_ocl<non_max_suppression> 
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<non_max_suppression>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<non_max_suppression>& instance) const override {
         kernel_arguments_data args;
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
             args.inputs.push_back(instance.input_memory_ptr(i));
@@ -144,10 +144,14 @@ public:
         params.sort_result_descending = primitive->sort_result_descending;
         params.box_encoding = primitive->center_point_box ? kernel_selector::BoxEncodingType::BOX_ENCODING_CENTER
                                                           : kernel_selector::BoxEncodingType::BOX_ENCODING_CORNER;
+        if (impl_param.get_program().get_node(primitive->id).is_dynamic()) {
+            params.reuse_internal_buffer = true;
+        }
+
         auto& kernel_selector = kernel_selector::non_max_suppression_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
 
-        return make_unique<non_max_suppression_impl>(arg, best_kernel);
+        return make_unique<non_max_suppression_impl>(best_kernel);
     }
 
 private:

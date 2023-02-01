@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,8 @@
 
 using namespace ov::intel_gna;
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace memory {
 
 /**
@@ -200,7 +201,7 @@ public:
     }
 
     template<class T>
-    void iterate_binded(GNAPluginNS::memory::MemRequest & reference, const T & visitor) {
+    void iterate_binded(memory::MemRequest & reference, const T & visitor) {
         for (auto &re : _mem_requests) {
             if ((re._type & REQUEST_BIND) && (re._ptr_in == reference._ptr_out)) {
                 log::trace() << "  [binded=" << re._type << ", ptr=" << re._ptr_out <<"]\n";
@@ -284,4 +285,5 @@ public:
 };
 
 }  // namespace memory
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

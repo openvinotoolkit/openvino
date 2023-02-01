@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,8 +30,8 @@ TEST(TransformationTests, DivideFusion) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{data1, data2});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::DivideFusion>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::DivideFusion>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -63,8 +63,8 @@ TEST(TransformationTests, DivideFusionNegative) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{data1, data2});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::DivideFusion>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::DivideFusion>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }

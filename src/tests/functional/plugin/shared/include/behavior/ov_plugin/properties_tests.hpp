@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,7 +58,27 @@ public:
 
     AnyMap compileModelProperties;
 };
+
 using OVSetPropComplieModleWihtIncorrectPropTests = OVSetPropComplieModleGetPropTests;
+
+class OVPropertiesTestsWithComplieModelProps : public testing::WithParamInterface<PropertiesParams>,
+                                               public OVPropertiesBase {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<PropertiesParams> obj);
+
+    void SetUp() override;
+
+    void TearDown() override;
+
+    AnyMap compileModelProperties;
+
+    static std::vector<ov::AnyMap> getPropertiesValues();
+    static std::vector<ov::AnyMap> getModelDependcePropertiesValues();
+};
+
+using OVCheckChangePropComplieModleGetPropTests = OVPropertiesTestsWithComplieModelProps;
+using OVCheckChangePropComplieModleGetPropTests_DEVICE_ID = OVPropertiesTestsWithComplieModelProps;
+using OVCheckChangePropComplieModleGetPropTests_ModelDependceProps = OVPropertiesTestsWithComplieModelProps;
 
 using OvPropertiesParams = std::tuple<
         std::string,                          // device name
@@ -76,6 +96,7 @@ public:
     std::string expectedDeviceName;
 };
 
+using OVClassExecutableNetworkGetMetricTest_EXEC_DEVICES = OVCompileModelGetExecutionDeviceTests;
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

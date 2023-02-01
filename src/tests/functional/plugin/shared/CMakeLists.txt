@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -70,3 +70,9 @@ endif()
 ie_faster_build(${TARGET_NAME}
     PCH PRIVATE "src/precomp.hpp"
 )
+
+if (ENABLE_INTEL_CPU)
+    set_source_files_properties(
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/behavior/ov_executable_network/get_metric.cpp"
+        PROPERTIES COMPILE_DEFINITIONS ENABLE_INTEL_CPU=1)
+endif()

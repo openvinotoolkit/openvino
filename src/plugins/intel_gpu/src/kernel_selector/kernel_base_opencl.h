@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@ protected:
                                                   const std::pair<std::string, std::string>& jit,
                                                   const std::string& entry_point,
                                                   const EngineInfo& engine_info,
-                                                  const std::string& exe_mode = DEFAULT) const;
+                                                  const std::string& exe_mode = EXE_MODE_DEFAULT) const;
 
     uint32_t GetFusedPrimitiveInputsCount(const Params &params) const;
 
@@ -47,7 +47,7 @@ protected:
                           const std::string& kernel_map_name,
                           const std::pair<std::string, std::string>& jit,
                           const std::string& entry_point,
-                          const std::string& exe_mode = DEFAULT,
+                          const std::string& exe_mode = EXE_MODE_DEFAULT,
                           bool weights = false,
                           bool bias = false,
                           int number_of_inputs = 1,
