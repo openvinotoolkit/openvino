@@ -199,6 +199,10 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
             std::cerr << "[ TF FE INFO ] Trying to convert node with type " << operation_decoder->get_op_type() << " with name " << operation_decoder->get_op_name() << "\n";
             ng_outputs = (*op_fun)(node_context);
             std::cerr << "[ TF FE INFO ] Converted " << operation_decoder->get_op_type() << "\n";
+        } catch (const std::exception& e) {
+            std::cerr << "[ TF FE INFO ] Exception occured while tranlating op\nMessage: " << e.what() << "\n";
+            throw;
+        }
         } catch (...) {
             std::cerr << "[ TF FE INFO ] Conversion failed\n";
             if (fail_fast) {

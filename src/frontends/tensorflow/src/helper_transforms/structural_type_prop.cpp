@@ -310,14 +310,14 @@ using ov::pass::pattern::op::as_value_predicate;
 using ov::pass::pattern::any_input;
 using StructuralTypeProxy::BindInputs;
 
-
+/*
 using ov::opset9::Constant;
 
 template <typename T>
 shared_ptr<Constant> const_value (const T& value, size_t rank = 0, element::Type et = element::i32) {
     return make_shared<Constant>(et, Shape(rank, 1), value);
 }
-
+*/
 
 ThroughStrOpsProp::ThroughStrOpsProp() {
     //auto input = wrap_type<StructPack>();

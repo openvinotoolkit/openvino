@@ -218,23 +218,28 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         bool is_converted = false;
         auto operation_type = operation_decoder->get_op_type();
         try {
-            if (m_translator_map->count(operation_type)) {
-                auto translator = m_translator_map->at(operation_decoder->get_op_type());
-                NodeContext node_context(operation_decoder, ov_inputs, this);
-                ov_outputs = translator(node_context);
-                is_converted = true;
-            } else if (auto body_ov_model = get_body_ov_model(operation_type)) {
-                inject_body_model(body_ov_model, operation_type, ov_inputs, ov_outputs);
+            try {
+                if (m_translator_map->count(operation_type)) {
+                    auto translator = m_translator_map->at(operation_decoder->get_op_type());
+                    NodeContext node_context(operation_decoder, ov_inputs, this);
+                    ov_outputs = translator(node_context);
+                    is_converted = true;
+                } else if (auto body_ov_model = get_body_ov_model(operation_type)) {
+                    inject_body_model(body_ov_model, operation_type, ov_inputs, ov_outputs);
 
-                // set output tensor names
-                for (size_t idx = 0; idx < ov_outputs.size(); ++idx) {
-                    ov_outputs[idx].get_tensor().set_names({operation_name + ":" + std::to_string(idx)});
+                    // set output tensor names
+                    for (size_t idx = 0; idx < ov_outputs.size(); ++idx) {
+                        ov_outputs[idx].get_tensor().set_names({operation_name + ":" + std::to_string(idx)});
+                    }
+                    is_converted = true;
                 }
-                is_converted = true;
+                FRONT_END_OP_CONVERSION_CHECK(
+                    is_converted,
+                    "[TensorFlow Frontend] Internal error: No translator found for " + operation_type + " node.");
+            } catch (const std::exception& e) {
+                std::cerr << "[ TF FE INFO ] Exception occured while tranlating op\nMessage: " << e.what() << "\n";
+                throw;
             }
-            FRONT_END_OP_CONVERSION_CHECK(
-                is_converted,
-                "[TensorFlow Frontend] Internal error: No translator found for " + operation_type + " node.");
         } catch (...) {
             if (m_fail_fast) {
                 // in case of decode, unsupported operation will be converted to FrameworkNode

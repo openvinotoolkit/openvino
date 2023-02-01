@@ -10,6 +10,7 @@
 
 #include "helper_ops/internal_operation.hpp"
 #include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/core/type/non_tensor_type.hpp"
 
 namespace ov {
@@ -25,6 +26,15 @@ public:
     Any m_structural_type;
     Any m_tensor;
 };
+
+using ov::opset10::Constant;
+using std::make_shared;
+using std::shared_ptr;
+
+template <typename T>
+shared_ptr<Constant> const_value (const T& value, size_t rank = 0, element::Type et = element::i32) {
+    return make_shared<Constant>(et, Shape(rank, 1), value);
+}
 
 namespace StructuralTypeProxy {
 

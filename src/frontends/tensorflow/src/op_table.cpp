@@ -264,6 +264,41 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
             return std::make_shared<RegexSplitWithOffsets>(
                 OutputVector{node.get_input(0), node.get_input(1), node.get_input(2)}
             )->outputs(); }},
+
+        {"TensorListReserve", [](const NodeContext& node) -> OutputVector {
+            // Limitation: known rank of elements
+            // Representation consists of 4 tensors: concatenated shapes, element begin indices, element end indices, elements
+
+            auto element_shape = node.get_input(0);
+            auto num_elements = std::make_shared<opset10::Reshape>(node.get_input(1), const_value(1, 1), false);
+
+            // known rank of elements implies element_shape has static shape
+            TENSORFLOW_OP_VALIDATION(node, element_shape.get_partial_shape().is_static(), "element_shape is not static");
+            TENSORFLOW_OP_VALIDATION(node, element_shape.get_shape().size() == 1, "element_shape is not 1D tensor");
+            auto element_rank = element_shape.get_shape()[0];
+            std::cerr << "[ TF FE INFO ] Element rank = " << element_rank << "\n";
+
+            auto element_type = node.get_attribute<element::Type>("element_dtype");
+            auto shape_type = node.get_attribute<element::Type>("shape_type");
+
+            // Form concatenated shapes tensor as zeros of [num_elements, element_rank] shape
+
+            auto shape_shape = std::make_shared<opset10::Concat>(
+                OutputVector{num_elements, std::make_shared<opset10::ShapeOf>(element_shape, shape_type)}, 0);
+
+            auto shapes = std::make_shared<opset10::Tile>(const_value(0, 2, shape_type), shape_shape);
+
+            // Use one tensor with zeros for both begins and ends as there are no real element in tensors
+            auto indices = std::make_shared<opset10::Tile>(const_value(0, 1, shape_type), num_elements);
+
+            // An empty tensor
+            auto elements = opset10::Constant::create(element_type, {0}, {});
+
+            return make_shared<StructPack>(
+                OutputVector{shapes, indices, indices, elements},
+                element::StructuralType::TensorListWithRank(element_type, element_rank),
+                PartialShape::dynamic())->outputs();
+        }},
     };
 };
 }  // namespace op

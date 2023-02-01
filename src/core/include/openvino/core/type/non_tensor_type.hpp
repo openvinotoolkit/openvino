@@ -28,6 +28,13 @@ struct List {
     Any element_type;
 };
 
+struct TensorListWithRank {
+    TensorListWithRank(const Any& _element_type, size_t _rank) : element_type(_element_type), rank(_rank) {}
+
+    Any element_type;
+    size_t rank;
+};
+
 struct Ragged {
     Ragged() = default;
 
@@ -54,6 +61,11 @@ inline void print(std::ostream& out, const Any& x) {
         out << "list[";
         print(out, x.as<List>().element_type);
         out << "]";
+    } else if (x.is<TensorListWithRank>()) {
+        auto tlwr = x.as<TensorListWithRank>();
+        out << "tensor_list_with_rank[";
+        print(out, tlwr.element_type);
+        out << ", rank = " << tlwr.rank << "]";
     } else if (x.is<Ragged>()) {
         out << "ragged[";
         print(out, x.as<Ragged>().element_type);

@@ -1328,13 +1328,19 @@ std::shared_ptr<op::Constant> ngraph::get_constant_lowest_of_type(element::Type_
 }
 
 shared_ptr<op::Constant> ov::get_constant_from_source(const Output<Node>& source) {
+    try {   // FIXME: shield for all exception as a WA
     if (!has_and_set_equal_bounds(source))
         return nullptr;
     if (const auto& c = ov::as_type_ptr<op::v0::Constant>(source.get_node_shared_ptr()))
         return c;
 
     const auto t = source.get_tensor().get_upper_value();
+
     return std::make_shared<op::v0::Constant>(t.get_element_type(), t.get_shape(), t.data());
+    } catch (...) {
+        std::cerr << "[ ov::get_constant_from_source ] Workaround applied\n";
+        return nullptr;
+    }
 }
 
 bool ngraph::validate_host_tensor_vector(const HostTensorVector& tensor_vector, const size_t& size) {
