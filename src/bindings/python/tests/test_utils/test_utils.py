@@ -107,7 +107,7 @@ def test_deprecation_decorator():
         deprecated_function4()
 
 
-def create_filename_for_test(test_name, is_xml_path=False, is_bin_path=False):
+def create_filename_for_test(test_name, tmp_path, is_xml_path=False, is_bin_path=False):
     """Return a tuple with automatically generated paths for xml and bin files.
 
     :param test_name: Name used in generating.
@@ -116,8 +116,8 @@ def create_filename_for_test(test_name, is_xml_path=False, is_bin_path=False):
     :return: Tuple with two objects representing xml and bin files.
     """
     python_version = str(sys.version_info.major) + "_" + str(sys.version_info.minor)
-    filename = "./" + test_name.replace("test_", "").replace("[", "_").replace("]", "_")
+    filename = test_name.replace("test_", "").replace("[", "_").replace("]", "_")
     filename = filename + "_" + python_version
-    _xml = Path(filename + ".xml") if is_xml_path else filename + ".xml"
-    _bin = Path(filename + ".bin") if is_bin_path else filename + ".bin"
+    _xml = tmp_path / Path(filename + ".xml") if is_xml_path else tmp_path / Path(filename + ".xml")
+    _bin = tmp_path / Path(filename + ".bin") if is_bin_path else tmp_path / Path(filename + ".bin")
     return (_xml, _bin)

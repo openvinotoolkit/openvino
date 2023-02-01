@@ -28,6 +28,12 @@ struct reorg_yolo : public primitive_base<reorg_yolo> {
     /// @details
     /// Specific behaviour is determined by these parameters, as follows:
     uint32_t stride;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, stride);
+        return seed;
+    }
 };
 }  // namespace cldnn
 #pragma once

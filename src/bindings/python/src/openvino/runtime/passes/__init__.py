@@ -14,6 +14,6 @@ from openvino._pyopenvino.passes import (
     type_matches,
     type_matches_any,
 )
-from openvino._pyopenvino.passes import Serialize, ConstantFolding, VisualizeTree, MakeStateful, LowLatency2, ConvertFP32ToFP16
+from openvino._pyopenvino.passes import Serialize, ConstantFolding, VisualizeTree, MakeStateful, LowLatency2, ConvertFP32ToFP16, Version
 from openvino.runtime.passes.manager import Manager
 from openvino.runtime.passes.graph_rewrite import GraphRewrite, BackwardGraphRewrite
