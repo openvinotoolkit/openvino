@@ -101,8 +101,8 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
 
     jit.Merge(MakeTypeJitConstants(params.inputs[0].GetDType(), "ACCUMULATOR"));
     if (params.has_dynamic_tensors()) {
-        auto m_size = toCodeString(output.Y(), 16);
-        auto n_size = toCodeString(output.X(), 17);
+        auto m_size = params.transpose_input0 ? toCodeString(params.inputs[0].X(), 5) : toCodeString(params.inputs[0].Y(), 4);
+        auto n_size = params.transpose_input1 ? toCodeString(params.inputs[1].Y(), 10) : toCodeString(params.inputs[1].X(), 11);
         auto k_size = params.transpose_input0 ? toCodeString(params.inputs[0].Y(), 4) : toCodeString(params.inputs[0].X(), 5);
         const std::string leftover_m = "(" + m_size + "%" + std::to_string(tuning_data.tile_m_size) + ")";
         const std::string leftover_n = "(" + n_size + "%" + std::to_string(tuning_data.tile_n_size) + ")";
