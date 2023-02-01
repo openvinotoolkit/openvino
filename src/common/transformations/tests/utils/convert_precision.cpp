@@ -1343,7 +1343,6 @@ TEST(TransformationTests, ConvertPrecision_keep_precission_sensitive_fp32_with_e
     }
 
     {
-
         auto input_1 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
         auto input_1_decompressed = make_shared<opset10::Convert>(input_1, element::f32);
         auto exp_1 = make_shared<opset10::Exp>(input_1_decompressed);
@@ -1482,7 +1481,8 @@ TEST(TransformationTests, ConvertPrecision_MarkNormalizationOps_1) {
         auto input_1_decompressed = make_shared<opset10::Convert>(input_1, element::f32);
         auto input_2 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
         auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
-        auto mvn_1 = make_shared<opset10::MVN>(input_1_decompressed, reduction_axes, true, 1.0e-8f, op::MVNEpsMode::INSIDE_SQRT);
+        auto mvn_1 =
+            make_shared<opset10::MVN>(input_1_decompressed, reduction_axes, true, 1.0e-8f, op::MVNEpsMode::INSIDE_SQRT);
         auto mvn_compressed = make_shared<opset10::Convert>(mvn_1, element::f16);
         auto matmul_1 = make_shared<opset10::MatMul>(mvn_compressed, input_2);
 
@@ -1520,7 +1520,8 @@ TEST(TransformationTests, ConvertPrecision_MarkNormalizationOps_2) {
         auto input_1_decompressed = make_shared<opset10::Convert>(input_1, element::f32);
         auto input_2 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
         auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
-        auto normalizel2_1 = make_shared<opset10::NormalizeL2>(input_1_decompressed, reduction_axes, 1.0e-8f, ov::op::EpsMode::MAX);
+        auto normalizel2_1 =
+            make_shared<opset10::NormalizeL2>(input_1_decompressed, reduction_axes, 1.0e-8f, ov::op::EpsMode::MAX);
         auto normalizel2_compressed = make_shared<opset10::Convert>(normalizel2_1, element::f16);
         auto matmul_1 = make_shared<opset10::MatMul>(normalizel2_compressed, input_2);
 
@@ -1565,7 +1566,8 @@ TEST(TransformationTests, ConvertPrecision_keep_precission_sensitive_fp32_t2t_su
         auto reduce_sum_3 = make_shared<opset10::ReduceSum>(mul_3, reduction_axes_3, true);
 
         auto broadcast_to_shape = opset10::Constant::create(element::i64, Shape{3}, {1, 1, 1});
-        auto broadcast = make_shared<opset10::Broadcast>(reduce_sum_3, broadcast_to_shape, ov::op::BroadcastType::BIDIRECTIONAL);
+        auto broadcast =
+            make_shared<opset10::Broadcast>(reduce_sum_3, broadcast_to_shape, ov::op::BroadcastType::BIDIRECTIONAL);
         auto tile_shape = opset10::Constant::create(element::i64, Shape{3}, {1, 1, 64});
         auto tile = make_shared<opset10::Tile>(broadcast, tile_shape);
         auto eps_const = opset10::Constant::create(element::f32, Shape{1}, {1.e-10});
@@ -1624,7 +1626,8 @@ TEST(TransformationTests, ConvertPrecision_keep_precission_sensitive_fp32_t2t_su
         auto reduce_sum_3 = make_shared<opset10::ReduceSum>(mul_3, reduction_axes_3, true);
 
         auto broadcast_to_shape = opset10::Constant::create(element::i64, Shape{3}, {1, 1, 1});
-        auto broadcast = make_shared<opset10::Broadcast>(reduce_sum_3, broadcast_to_shape, ov::op::BroadcastType::BIDIRECTIONAL);
+        auto broadcast =
+            make_shared<opset10::Broadcast>(reduce_sum_3, broadcast_to_shape, ov::op::BroadcastType::BIDIRECTIONAL);
         auto tile_shape = opset10::Constant::create(element::i64, Shape{3}, {1, 1, 64});
         auto tile = make_shared<opset10::Tile>(broadcast, tile_shape);
         auto eps_const = opset10::Constant::create(element::f32, Shape{1}, {1.e-10});
@@ -1681,7 +1684,6 @@ TEST(TransformationTests, ConvertPrecision_DivisionByZeroMinimalPattern) {
         auto divide = std::make_shared<opset10::Divide>(input_1_decompressed, add);
 
         model_ref = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input_1, input_2});
-
     }
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default();
