@@ -105,7 +105,7 @@ pip install openvino-dev[extras]
 ```
 
 where the `extras` parameter specifies the source deep learning framework for the input model
-and has the following values:  `caffe`, `kaldi`, `mxnet`, `onnx`, `pytorch`, `tensorflow`, `tensorflow2`. 
+and is one or more of the following values separated with "," :  `caffe`, `kaldi`, `mxnet`, `onnx`, `pytorch`, `tensorflow`, `tensorflow2`. 
 
 For example, to install and configure dependencies required for working with TensorFlow 2.x and ONNX models, use the following command:
 
