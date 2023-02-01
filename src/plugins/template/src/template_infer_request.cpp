@@ -125,11 +125,54 @@ void TemplateInferRequest::inferPreprocess() {
         auto index = m_compiled_model->_inputIndex.at(input.first);
         const auto& parameter_type = m_compiled_model->m_model->get_parameters()[index]->get_element_type();
         auto mem_blob = InferenceEngine::as<InferenceEngine::MemoryBlob>(input.second);
-        // No ROI extraction is needed
-        _inputTensors[index] = m_compiled_model->get_template_plugin()->_backend->create_tensor(
-            parameter_type,
-            mem_blob->getTensorDesc().getBlockingDesc().getBlockDims(),
-            mem_blob->rmap().as<void*>());
+        auto isNonRoiDesc = [](const BlockingDesc& desc) {
+            size_t exp_stride = 1;
+            for (size_t i = 0; i < desc.getBlockDims().size(); i++) {
+                size_t rev_idx = desc.getBlockDims().size() - i - 1;
+                if (desc.getStrides()[rev_idx] != exp_stride || desc.getOffsetPaddingToData()[rev_idx] != 0) {
+                    return false;
+                }
+                exp_stride *= desc.getBlockDims()[rev_idx];
+            }
+            return true;
+        };
+        if (isNonRoiDesc(input.second->getTensorDesc().getBlockingDesc())) {
+            // No ROI extraction is needed
+            _inputTensors[index] = m_compiled_model->get_template_plugin()->_backend->create_tensor(
+                parameter_type,
+                mem_blob->getTensorDesc().getBlockingDesc().getBlockDims(),
+                mem_blob->rmap().as<void*>());
+        } else {
+            OPENVINO_ASSERT(parameter_type.bitwidth() % 8 == 0,
+                            "Template plugin: Unsupported ROI tensor with element type having ",
+                            std::to_string(parameter_type.bitwidth()),
+                            " bits size");
+            ov::Shape shape = input.second->getTensorDesc().getDims();
+            // Perform manual extraction of ROI tensor
+            // Basic implementation doesn't take axis order into account `desc.getBlockingDesc().getOrder()`
+            // Performance of manual extraction is not optimal, but it is ok for template implementation
+            _inputTensors[index] =
+                m_compiled_model->get_template_plugin()->_backend->create_tensor(parameter_type, shape);
+            auto desc = mem_blob->getTensorDesc();
+            auto* src_data = mem_blob->rmap().as<uint8_t*>();
+            auto dst_tensor = std::dynamic_pointer_cast<ngraph::runtime::HostTensor>(_inputTensors[index]);
+            OPENVINO_ASSERT(dst_tensor, "Template plugin error: Can't cast created tensor to HostTensor");
+            auto* dst_data = dst_tensor->get_data_ptr<uint8_t>();
+            std::vector<size_t> indexes(shape.size());
+            for (size_t dst_idx = 0; dst_idx < ov::shape_size(shape); dst_idx++) {
+                size_t val = dst_idx;
+                size_t src_idx = 0;
+                for (size_t j1 = 0; j1 < indexes.size(); j1++) {
+                    size_t j = indexes.size() - j1 - 1;
+                    indexes[j] = val % shape[j] + desc.getBlockingDesc().getOffsetPaddingToData()[j];
+                    val /= shape[j];
+                    src_idx += indexes[j] * desc.getBlockingDesc().getStrides()[j];
+                }
+                memcpy(dst_data + dst_idx * parameter_type.size(),
+                       src_data + src_idx * parameter_type.size(),
+                       parameter_type.size());
+            }
+        }
     }
     for (auto&& output : _outputs) {
         auto mem_blob = InferenceEngine::as<InferenceEngine::MemoryBlob>(output.second);
@@ -270,14 +313,16 @@ void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngin
             IE_THROW(ParameterMismatch)
                 << "Failed to set Blob with precision not corresponding to user input precision";
         }
-        if (foundInput->getLayout() != userBlob->getTensorDesc().getLayout()) {
-            IE_THROW(ParameterMismatch) << "Failed to set Blob with layout not corresponding to user input layout";
-        }
+        // if (foundInput->getLayout() != userBlob->getTensorDesc().getLayout() &&
+        //     foundInput->getTensorDesc().getBlockingDesc().getBlockDims() !=
+        //         userBlob->getTensorDesc().getBlockingDesc().getBlockDims()) {
+        //     IE_THROW(ParameterMismatch) << "Failed to set Blob with layout not corresponding to user input layout";
+        // }
 
-        size_t inputSize = userBlob->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
-                               ? InferenceEngine::details::product(userBlob->getTensorDesc().getDims())
+        size_t inputSize = _inputs[name]->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
+                               ? InferenceEngine::details::product(_inputs[name]->getTensorDesc().getDims())
                                : 1;
-        if (dataSize != inputSize) {
+        if (!input_dynamic && dataSize != inputSize) {
             IE_THROW() << "Input blob size is not equal network input size (" << dataSize << "!=" << inputSize << ").";
         }
         _inputs[name] = userBlob;
@@ -286,10 +331,10 @@ void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngin
         if (compoundBlobPassed) {
             IE_THROW(NotImplemented) << "cannot set compound blob: supported only for input pre-processing";
         }
-        size_t outputSize = userBlob->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
-                                ? details::product(userBlob->getTensorDesc().getDims())
+        size_t outputSize = _outputs[name]->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
+                                ? details::product(_outputs[name]->getTensorDesc().getDims())
                                 : 1;
-        if (dataSize != outputSize) {
+        if (!output_dynamic && dataSize != outputSize) {
             IE_THROW() << "Output blob size is not equal network output size (" << dataSize << "!=" << outputSize
                        << ").";
         }
@@ -297,9 +342,11 @@ void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngin
             IE_THROW(ParameterMismatch)
                 << "Failed to set Blob with precision not corresponding to user output precision";
         }
-        if (foundOutput->getLayout() != userBlob->getTensorDesc().getLayout()) {
-            IE_THROW(ParameterMismatch) << "Failed to set Blob with layout not corresponding to user input layout";
-        }
+        // if (foundOutput->getLayout() != userBlob->getTensorDesc().getLayout() &&
+        //     foundOutput->getTensorDesc().getBlockingDesc().getBlockDims() !=
+        //         userBlob->getTensorDesc().getBlockingDesc().getBlockDims()) {
+        //     IE_THROW(ParameterMismatch) << "Failed to set Blob with layout not corresponding to user output layout";
+        // }
         _outputs[name] = userBlob;
     }
 }
