@@ -75,7 +75,8 @@ std::vector<layout> arg_max_min_inst::calc_output_layouts(arg_max_min_node const
     auto input_layout = impl_param.get_input_layout();
 
     ov::op::v1::TopK op;
-    op.set_axis(input_layout.get<ShapeType>().rank(), desc->axis);
+    auto input_rank = input_layout.get<ShapeType>().rank();
+    op.set_axis(input_rank, desc->axis);
     op.set_mode(desc->mode);
     op.set_sort_type(desc->sort);
 
@@ -85,13 +86,24 @@ std::vector<layout> arg_max_min_inst::calc_output_layouts(arg_max_min_node const
         ShapeType{}
     };
 
-    int64_t top_k = desc->top_k;
+    auto& constant_mem = impl_param.memory_deps;
+    if (desc->top_k > 0) {
+        std::map<size_t, ngraph::HostTensorPtr> const_data;
+        auto topk = desc->top_k;
+        auto top_k_tensor = std::make_shared<ngraph::runtime::HostTensor>(ov::element::u32, ov::Shape{1}, static_cast<void*>(&topk));
+        const_data = { {1, top_k_tensor} };
 
-    auto top_k_tensor = std::make_shared<ngraph::runtime::HostTensor>(ov::element::i64, ov::Shape{1}, static_cast<void*>(&top_k));
-    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> const_data = {
-        {1, top_k_tensor}
-    };
-    ov::op::v1::shape_infer(&op, input_shapes, output_shapes, const_data);
+        ov::op::v1::shape_infer(&op, input_shapes, output_shapes, const_data);
+    } else if (constant_mem.count(1)) {
+        std::map<size_t, ngraph::HostTensorPtr> const_data;
+        auto target_shape_mem = constant_mem.at(1);
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> target_shape_lock(target_shape_mem, impl_param.prog->get_stream());
+        const_data.emplace(1, make_host_tensor(target_shape_mem->get_layout(), target_shape_lock.data()));
+
+        ov::op::v1::shape_infer(&op, input_shapes, output_shapes, const_data);
+    } else {
+        output_shapes[0] = output_shapes[1] = ShapeType::dynamic(input_layout.get<ShapeType>().size());
+    }
 
     for (size_t i = 0; i < desc->num_outputs; ++i) {
         auto dt = desc->output_data_types[i].value_or(input_layout.data_type);
