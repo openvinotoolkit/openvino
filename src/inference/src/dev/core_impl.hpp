@@ -104,21 +104,21 @@ private:
         // Return whether this config belongs to core config
         bool is_core_config(const std::string& config_name) const;
 
-        // Check whether this global config is supported by plugin, and the coresponding propertie will be removed
-        // from plugin. It is a whitelist to check.
-        bool plugin_config_is_supported(const ov::Plugin& plugin, const std::string& config_name) const;
+        // Check whether this core config is supported by plugin, and the coresponding propertie will be removed
+        // from plugin.set_property().
+        bool core_config_supported(const ov::Plugin& plugin, const std::string& config_name) const;
 
-        // Intercept global config that will be set to plugin by calling plugin.set_property().
+        // Intercept core config that will be set to plugin by calling plugin.set_property().
         // Put it into global config map if this plugin supported
-        void intercept_config(ov::Plugin& plugin, ov::AnyMap& config, bool enable = true);
+        void intercept_core_config(ov::Plugin& plugin, ov::AnyMap& config, bool enable = true);
 
         // Clean up global config for input config.
-        void cleanup_config(ov::Plugin& plugin, ov::AnyMap& config) const;
+        void cleanup_core_config(ov::Plugin& plugin, ov::AnyMap& config) const;
 
         // Update input config with the help of core_plugins_properties:
-        //  1. Remove the global properties that this plugin doesn't support
-        //  2. Don't overwritten global properties if they have been in config
-        //  3. Add whitelist global properties into config if it doesn't have.
+        //  1. Remove the core config that this plugin doesn't support
+        //  2. Don't overwritten this config if they have been in input config
+        //  3. Add default core config into input config if it doesn't have.
         template <typename T>
         void update_config(ov::Plugin& plugin, std::map<std::string, T>& config) const;
 

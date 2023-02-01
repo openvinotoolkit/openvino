@@ -27,7 +27,6 @@
 namespace AutoBatchPlugin {
 using namespace InferenceEngine;
 
-// plugin SetConfig and GetConfig and config for LoadNetwork
 std::vector<std::string> supported_configKeys = {CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG),
                                                  CONFIG_KEY(AUTO_BATCH_TIMEOUT),
                                                  CONFIG_KEY(CACHE_DIR)};
@@ -762,7 +761,7 @@ void AutoBatchInferencePlugin::CheckConfig(const std::map<std::string, std::stri
         const auto name = kvp.first;
         const auto val = kvp.second;
         if (supported_configKeys.end() == std::find(supported_configKeys.begin(), supported_configKeys.end(), name))
-            IE_THROW() << "Unsupported plugin config key: " << name;
+            IE_THROW() << "Unsupported config key: " << name;
         if (name == CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)) {
             ParseBatchDevice(val);
         } else if (name == CONFIG_KEY(AUTO_BATCH_TIMEOUT)) {
