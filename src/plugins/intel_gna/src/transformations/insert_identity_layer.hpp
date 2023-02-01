@@ -22,21 +22,23 @@ namespace pass {
  * for e mul if we have 2-2 - OK
  * for e mul if we have 1-1 in low precision mode - OK
  * for e mul if we have 2-4 - inputs we need to insert identity to put 4 bytes input into weights -- handling here
- * for e mul if we have 4-4 - inputs we need to insert 2 identities to put both 4 bytes input into weights -- handling here
-*/
+ * for e mul if we have 4-4 - inputs we need to insert 2 identities to put both 4 bytes input into weights -- handling
+ * here
+ */
 
 /**
- * @brief Transformation is looking for nodes before which Identity should be inserted and mark them with appropriate rt attribute
+ * @brief Transformation is looking for nodes before which Identity should be inserted and mark them with appropriate rt
+ * attribute
  */
 class MarkIdentityCandidates : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("MarkIdentityCandidates", "0");
     MarkIdentityCandidates(bool is_low_precision_input) : is_low_precision_input(is_low_precision_input) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& f) override;
+
 private:
     bool is_low_precision_input;
 };
-
 
 /**
  * @brief Transformation inserts Identity layer based on rt attribute
@@ -48,9 +50,9 @@ public:
 };
 
 /**
-* @brief In cases that network output layer is connected to only one layer which is activation additional identity is inserted
-* so the operation is not fused with the activation allowing to get the results from said layer
-*/
+ * @brief In cases that network output layer is connected to only one layer which is activation additional identity is
+ * inserted so the operation is not fused with the activation allowing to get the results from said layer
+ */
 class BreakFusingOfOutputLayers : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("BreakFusingOfOutputLayers", "0");
@@ -66,6 +68,6 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
-} // namespace pass
-} // namespace intel_gna
-} // namespace ov
+}  // namespace pass
+}  // namespace intel_gna
+}  // namespace ov

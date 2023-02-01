@@ -109,6 +109,15 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
             }
             return true;
         }
+        if (auto list_construct = cast_fw_node(input_node, "prim::ListConstruct")) {
+            auto input_concat = concat_list_construct(list_construct);
+            auto getitem_idx = getitem->input_value(1).get_node_shared_ptr();
+            auto zero = opset10::Constant::create(element::i32, Shape{}, {0});
+            auto gather = std::make_shared<opset10::Gather>(input_concat, getitem_idx, zero);
+            copy_runtime_info({getitem, input_node}, gather);
+            replace_node(getitem, gather);
+            return true;
+        }
 
         return false;
     };
