@@ -42,15 +42,15 @@ CNNLayer::Ptr ActivationLayerCreator::CreateLayer(pugi::xml_node& node, LayerPar
         {"elu", std::make_shared<LayerCreator<CNNLayer>>("ELU")},
         {"sigmoid", std::make_shared<LayerCreator<CNNLayer>>("Sigmoid")},
         {"tanh", std::make_shared<LayerCreator<CNNLayer>>("TanH")},
-        {"not", std::make_shared<LayerCreator<CNNLayer>>("LogicalNot")}
-    };
+        {"not", std::make_shared<LayerCreator<CNNLayer>>("LogicalNot")}};
 
     CNNLayer::Ptr activation;
 
     auto activationBuilder = activationCreators.find(type);
     if (activationBuilder == activationCreators.end()) {
         auto activationCreator = std::make_shared<LayerCreator<CNNLayer>>(type);
-        if (!activationCreator) IE_THROW() << "Cannot create activation layer with type " << type;
+        if (!activationCreator)
+            IE_THROW() << "Cannot create activation layer with type " << type;
 
         activation = activationCreator->CreateLayer(node, layerParsePrms);
         activation->type = type;
@@ -75,12 +75,12 @@ using PortMap = std::map<PortInf, DataPtr>;
 static PortSet allRequiredInputs(pugi::xml_node& ti) {
     PortSet res;  // duplicates are possible
 
-    FOREACH_CHILD(p, ti.child("port_map"), "input") {
+    FOREACH_CHILD (p, ti.child("port_map"), "input") {
         int internal_layer_id = GetIntAttr(p, "internal_layer_id");
         int internal_port_id = GetIntAttr(p, "internal_port_id");
         res.emplace(internal_layer_id, internal_port_id);
     }
-    FOREACH_CHILD(ec, ti.child("back_edges"), "edge") {
+    FOREACH_CHILD (ec, ti.child("back_edges"), "edge") {
         int to_layer_id = GetIntAttr(ec, "to-layer");
         int to_port_id = GetIntAttr(ec, "to-port");
         res.emplace(to_layer_id, to_port_id);
@@ -91,12 +91,12 @@ static PortSet allRequiredInputs(pugi::xml_node& ti) {
 static PortSet allRequiredOutputs(pugi::xml_node& ti) {
     PortSet res;  // duplicates are possible
 
-    FOREACH_CHILD(p, ti.child("port_map"), "output") {
+    FOREACH_CHILD (p, ti.child("port_map"), "output") {
         int internal_layer_id = GetIntAttr(p, "internal_layer_id");
         int internal_port_id = GetIntAttr(p, "internal_port_id");
         res.emplace(internal_layer_id, internal_port_id);
     }
-    FOREACH_CHILD(edge, ti.child("back_edges"), "edge") {
+    FOREACH_CHILD (edge, ti.child("back_edges"), "edge") {
         int to_layer_id = GetIntAttr(edge, "from-layer");
         int to_port_id = GetIntAttr(edge, "from-port");
         res.emplace(to_layer_id, to_port_id);
@@ -112,14 +112,18 @@ using WBlob = TBlob<uint8_t>::Ptr;
 class BodyParser {
 public:
     BodyParser(pugi::xml_node& net_node, size_t ir_version, Precision prec)
-        : body(net_node), parser(FormatParser(ir_version)), default_precision(prec) {}
+        : body(net_node),
+          parser(FormatParser(ir_version)),
+          default_precision(prec) {}
 
     void parse(PortSet in_request, PortSet out_request) {
         body.append_attribute("precision").set_value(default_precision.name());
         auto net = parser.Parse(body);
 
-        for (const auto& pi : in_request) inputs[pi] = parser.GetDataBy(pi.first, pi.second);
-        for (const auto& pi : out_request) outputs[pi] = parser.GetDataBy(pi.first, pi.second);
+        for (const auto& pi : in_request)
+            inputs[pi] = parser.GetDataBy(pi.first, pi.second);
+        for (const auto& pi : out_request)
+            outputs[pi] = parser.GetDataBy(pi.first, pi.second);
 
         // Mark data as network output. Just for check
         for (const auto& kvp : outputs) {
@@ -178,7 +182,8 @@ CNNLayer::Ptr TILayerCreator::CreateLayer(pugi::xml_node& node, LayerParseParame
     std::string ti_name = node.attribute("name").as_string();
 
     auto body = node.child("body");
-    if (body.empty()) IE_THROW() << "TensorIterator " << ti_name << " has no body";
+    if (body.empty())
+        IE_THROW() << "TensorIterator " << ti_name << " has no body";
 
     auto all_inputs = allRequiredInputs(node);
     auto all_outputs = allRequiredOutputs(node);
@@ -207,12 +212,12 @@ CNNLayer::Ptr TILayerCreator::CreateLayer(pugi::xml_node& node, LayerParseParame
     std::map<int, int> e2i;
     {
         int in_indx = 0;
-        FOREACH_CHILD(in, node.child("input"), "port") {
+        FOREACH_CHILD (in, node.child("input"), "port") {
             int id = GetIntAttr(in, "id");
             e2i[id] = in_indx++;
         }
         int out_indx = 0;
-        FOREACH_CHILD(in, node.child("output"), "port") {
+        FOREACH_CHILD (in, node.child("output"), "port") {
             int id = GetIntAttr(in, "id");
             e2i[id] = out_indx++;
         }
@@ -242,14 +247,10 @@ CNNLayer::Ptr TILayerCreator::CreateLayer(pugi::xml_node& node, LayerParseParame
         return res;
     };
 
-    FOREACH_CHILD(pm, node.child("port_map"), "input") {
-        in_ports_maping.push_back(parse_rule(pm));
-    }
-    FOREACH_CHILD(pm, node.child("port_map"), "output") {
-        out_ports_maping.push_back(parse_rule(pm));
-    }
+    FOREACH_CHILD (pm, node.child("port_map"), "input") { in_ports_maping.push_back(parse_rule(pm)); }
+    FOREACH_CHILD (pm, node.child("port_map"), "output") { out_ports_maping.push_back(parse_rule(pm)); }
 
-    FOREACH_CHILD(ec, node.child("back_edges"), "edge") {
+    FOREACH_CHILD (ec, node.child("back_edges"), "edge") {
         int from_l = GetIntAttr(ec, "from-layer");
         int from_p = GetIntAttr(ec, "from-port");
         int to_l = GetIntAttr(ec, "to-layer");

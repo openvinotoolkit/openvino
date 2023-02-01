@@ -6,19 +6,18 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <list>
+#include <map>
 #include <memory>
 #include <mutex>
-#include <string>
-#include <map>
 #include <set>
-#include <vector>
-#include <list>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "gna2-model-export-api.h"
-
-#include "memory/gna_mem_regions.hpp"
 #include "gna_lib_ver_selector.hpp"
+#include "memory/gna_mem_regions.hpp"
 
 using ov::intel_gna::memory::rRegion;
 
@@ -34,15 +33,15 @@ struct GnaAllocation {
         return isTagSet && in == tag;
     }
     std::string GetTagName() const {
-        static const std::map< Gna2MemoryTag, std::string > tm = {
-                { Gna2MemoryTagReadWrite, "Gna2MemoryTagReadWrite" },
-                { Gna2MemoryTagInput, "Gna2MemoryTagInput" },
-                { Gna2MemoryTagOutput, "Gna2MemoryTagOutput" },
-                { Gna2MemoryTagReadOnly, "Gna2MemoryTagReadOnly" },
-                { Gna2MemoryTagExternalBufferInput, "Gna2MemoryTagExternalBufferInput" },
-                { Gna2MemoryTagExternalBufferOutput, "Gna2MemoryTagExternalBufferOutput" },
-                { Gna2MemoryTagScratch, "Gna2MemoryTagScratch" },
-                { Gna2MemoryTagState, "Gna2MemoryTagState" },
+        static const std::map<Gna2MemoryTag, std::string> tm = {
+            {Gna2MemoryTagReadWrite, "Gna2MemoryTagReadWrite"},
+            {Gna2MemoryTagInput, "Gna2MemoryTagInput"},
+            {Gna2MemoryTagOutput, "Gna2MemoryTagOutput"},
+            {Gna2MemoryTagReadOnly, "Gna2MemoryTagReadOnly"},
+            {Gna2MemoryTagExternalBufferInput, "Gna2MemoryTagExternalBufferInput"},
+            {Gna2MemoryTagExternalBufferOutput, "Gna2MemoryTagExternalBufferOutput"},
+            {Gna2MemoryTagScratch, "Gna2MemoryTagScratch"},
+            {Gna2MemoryTagState, "Gna2MemoryTagState"},
         };
         if (!isTagSet) {
             return "Gna2MemoryTag_NotSet_";
@@ -98,9 +97,8 @@ class GnaAllocations {
 
 public:
     GnaAllocations() = default;
-    template<class T>
-    explicit GnaAllocations(T b, T e) : allocations(b, e) {
-    }
+    template <class T>
+    explicit GnaAllocations(T b, T e) : allocations(b, e) {}
 
     static uint32_t GetSizeForExport(const std::list<GnaAllocation>& allocations) {
         uint32_t total = 0;
@@ -120,9 +118,7 @@ public:
         return std::list<GnaAllocation>(temp.begin(), temp.end());
     }
 
-    static std::pair<bool, uint64_t> GetOffsetForExport(
-        const std::list<GnaAllocation>& orderedAllocations,
-        void* ptr) {
+    static std::pair<bool, uint64_t> GetOffsetForExport(const std::list<GnaAllocation>& orderedAllocations, void* ptr) {
         uint64_t curOffset = 0;
         for (auto& r : orderedAllocations) {
             auto ptrBegin = static_cast<uint8_t*>(r.ptr);
