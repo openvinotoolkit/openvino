@@ -477,7 +477,7 @@ std::unordered_map<size_t, element::Type> bit_to_int{
 void align_eltwise_input_types(const NodeContext& context,
                                ov::Output<ov::Node>& lhs,
                                ov::Output<ov::Node>& rhs,
-                               bool is_div) {
+                               bool align_scalars) {
     const auto& lhs_type = lhs.get_element_type();
     const auto& rhs_type = rhs.get_element_type();
     if (lhs_type.is_dynamic() || rhs_type.is_dynamic()) {
@@ -509,7 +509,7 @@ void align_eltwise_input_types(const NodeContext& context,
     if (is_lhs_scalar) {
         if (lhs_type.is_real() && !rhs_type.is_real()) {
             // if div we need to also align float types to highest bitness regardless of scalar
-            if (!is_div)
+            if (!align_scalars)
                 lhs_dst_type = element::f32;
             rhs_dst_type = element::f32;
         } else {
@@ -520,7 +520,7 @@ void align_eltwise_input_types(const NodeContext& context,
         if (!lhs_type.is_real() && rhs_type.is_real()) {
             lhs_dst_type = element::f32;
             // if div we need to also align float types to highest bitness regardless of scalar
-            if (!is_div)
+            if (!align_scalars)
                 rhs_dst_type = element::f32;
         } else {
             rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(rhs, lhs));

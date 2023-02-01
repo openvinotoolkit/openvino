@@ -58,7 +58,7 @@ Any simplified_type_interpret(Any type);
 void align_eltwise_input_types(const NodeContext& context,
                                ov::Output<ov::Node>& lhs,
                                ov::Output<ov::Node>& rhs,
-                               bool is_div = false);
+                               bool align_scalars = false);
 
 namespace op {
 template <OutputVector (*T)(NodeContext&), size_t idx = 0>
@@ -90,6 +90,20 @@ OutputVector translate_1to1_match_2_inputs(NodeContext& context) {
     }
     FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0) && !context.input_is_none(1), "Inputs should not be None.");
     return {context.mark_node(std::make_shared<T>(inputs[0], inputs[1]))};
+}
+
+template <typename T>
+OutputVector translate_1to1_match_2_inputs_align_types(NodeContext& context) {
+    auto inputs = context.inputs();
+    FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= 2, "Operation has less then 2 inputs.");
+    for (int i = 2; i < inputs.size(); i++) {
+        FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(i), "Got more inputs than expected.");
+    }
+    FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0) && !context.input_is_none(1), "Inputs should not be None.");
+    auto lhs = inputs[0];
+    auto rhs = inputs[1];
+    align_eltwise_input_types(context, lhs, rhs);
+    return {context.mark_node(std::make_shared<T>(lhs, rhs))};
 }
 
 inline OutputVector return_false_scalar(NodeContext& context) {
