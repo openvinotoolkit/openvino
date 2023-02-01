@@ -421,7 +421,7 @@ TEST_P(ov_core, ov_compiled_model_export_model) {
 
     char* optimization_capabilites = NULL;
     ov_core_get_property(core, device_name.c_str(), "OPTIMIZATION_CAPABILITIES", &optimization_capabilites);
-    if(std::string(optimization_capabilites).find("EXPORT_IMPORT") == std::string::npos) {
+    if (std::string(optimization_capabilites).find("EXPORT_IMPORT") == std::string::npos) {
         GTEST_SKIP() << "Skip this test, cause no EXPORT_IMPORT supported";
     }
 
@@ -445,7 +445,7 @@ TEST_P(ov_core, ov_core_import_model) {
 
     char* optimization_capabilites = NULL;
     ov_core_get_property(core, device_name.c_str(), "OPTIMIZATION_CAPABILITIES", &optimization_capabilites);
-    if(std::string(optimization_capabilites).find("EXPORT_IMPORT") == std::string::npos) {
+    if (std::string(optimization_capabilites).find("EXPORT_IMPORT") == std::string::npos) {
         GTEST_SKIP() << "Skip this test, cause no EXPORT_IMPORT supported";
     }
 
