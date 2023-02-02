@@ -1,48 +1,72 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
+
 from common.tf_layer_test_class import CommonTFLayerTest
 
+# Testing Logical operations (Initial Implementation)
+# Documentation: https://www.tensorflow.org/api_docs/python/tf/raw_ops/All
+#                https://www.tensorflow.org/api_docs/python/tf/raw_ops/Any
 
-class TestReduceLogicalOps(CommonTFLayerTest):
-    def _prepare_input(self, inputs_info):
-        assert 'input' in inputs_info, "Test error: inputs_info must contain `input`"
-        x_shape = inputs_info['input']
-        inputs_data = {}
-        inputs_data['input'] = np.random.randint(0, 2, x_shape).astype(bool)
-        return inputs_data
+class TestLogicalOps(CommonTFLayerTest):
+    # Overload inputs generation to fill dummy input
+    def _prepare_input(self, inputs_dict):
+        for input in inputs_dict.keys():
+            inputs_dict[input] = np.random.randint(0, 2, inputs_dict[input]).astype(bool)
+        return inputs_dict
 
-    def create_reduce_net(self, shape, axis, operation, keep_dims, ir_version, use_new_frontend):
+    # input_shape - should be an array
+    # axis - array which points on axis for the operation
+    # op_type - type of tested operation
+    # ir_version - common parameter
+    # use_new_frontend - common parameter
+    def create_logical_ops_placeholder_const_net(self, input_shape, axis, op_type, ir_version, use_new_frontend):
+        """
+            Tensorflow net                  IR net
+
+            Placeholder->op_type   =>       Placeholder->ReduceLogicalAnd/Or
+                         /                               /
+            Const-------/                   Const-------/
+
+        """
         import tensorflow as tf
-        ops_mapping = {
-            "All": tf.raw_ops.All,
-            "Any": tf.raw_ops.Any,
-        }
+
         tf.compat.v1.reset_default_graph()
+
+        # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            input = tf.compat.v1.placeholder(tf.bool, shape, 'input')
-            ops_mapping[operation](input=input, axis=axis, keep_dims=keep_dims, name="reduce")
+            op_type_to_tf = {
+                'All': tf.raw_ops.All,
+                'Any': tf.raw_ops.Any,
+            }
+            tf_input = tf.compat.v1.placeholder(tf.bool, input_shape, 'Input')
+            tf_axis = tf.constant(axis)
+
+            op_type_to_tf[op_type](input = tf_input, axis = tf_axis)
+
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
-        return tf_net, None
+        ref_net = None
+
+        return tf_net, ref_net
 
     test_data = [
-        dict(shape=[5], axis=0),
-        dict(shape=[2, 3, 5], axis=1),
-        dict(shape=[3, 1, 2, 4], axis=-2),
+        pytest.param(
+            dict(input_shape=[2, 3], axis=[1]),     #Simple test
+            marks=pytest.mark.precommit_tf_fe),
+        dict(input_shape=[2, 3, 3, 4], axis=[2]),   #Simple test with possible nchw/nhwc
     ]
 
     @pytest.mark.parametrize("params", test_data)
-    @pytest.mark.parametrize("operation", ["All", "Any"])
-    @pytest.mark.parametrize("keep_dims", [True, False])
+    @pytest.mark.parametrize("op_type", ['All', 'Any'])
+    @pytest.mark.precommit
     @pytest.mark.nightly
-    @pytest.mark.precommit_tf_fe
-    def test_reduce(self, params, operation, keep_dims, ie_device, precision, ir_version, temp_dir,
-                    use_new_frontend, use_old_api):
-        self._test(*self.create_reduce_net(**params, operation=operation, keep_dims=keep_dims, ir_version=ir_version,
-                                           use_new_frontend=use_new_frontend),
+    def test_logical_ops_placeholder_const(self, params, op_type, ie_device, precision, ir_version, temp_dir,
+                                      use_new_frontend, use_old_api):
+        self._test(*self.create_logical_ops_placeholder_const_net(**params, op_type=op_type, ir_version=ir_version,
+                                                          use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
