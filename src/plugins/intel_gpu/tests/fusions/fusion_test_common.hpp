@@ -111,46 +111,37 @@ public:
 
     cldnn::memory::ptr get_mem(cldnn::layout l) {
         auto prim = engine.allocate_memory(l);
-        tensor s = l.get_tensor();
         if (l.data_type == data_types::bin) {
-            VF<int32_t> rnd_vec = generate_random_1d<int32_t>(s.count() / 32, min_random, max_random);
+            VF<int32_t> rnd_vec = generate_random_1d<int32_t>(prim->size() / 32, min_random, max_random);
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::i8 || l.data_type == data_types::u8) {
-            VF<uint8_t> rnd_vec = generate_random_1d<uint8_t>(s.count(), min_random, max_random);
+            VF<uint8_t> rnd_vec = generate_random_1d<uint8_t>(prim->size(), min_random, max_random);
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::f16) {
-            VF<uint16_t> rnd_vec = generate_random_1d<uint16_t>(s.count(), -1, 1);
+            VF<FLOAT16> rnd_vec = generate_random_1d<FLOAT16>(prim->size(), -1, 1);
             set_values(prim, rnd_vec);
         } else {
-            VF<float> rnd_vec = generate_random_1d<float>(s.count(), -1, 1);
+            VF<float> rnd_vec = generate_random_1d<float>(prim->size(), -1, 1);
             set_values(prim, rnd_vec);
         }
-
         return prim;
     }
 
     cldnn::memory::ptr get_mem(cldnn::layout l, float fill_value) {
         auto prim = engine.allocate_memory(l);
-        tensor s = l.get_tensor();
         if (l.data_type == data_types::bin) {
-            VF<int32_t> rnd_vec(s.count() / 32, static_cast<int32_t>(fill_value));
+            VF<int32_t> rnd_vec(prim->size() / 32, fill_value);
+            set_values(prim, rnd_vec);
+        } else if (l.data_type == data_types::i8 || l.data_type == data_types::u8) {
+            VF<uint8_t> rnd_vec(prim->size(), fill_value);
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::f16) {
-            VF<uint16_t> rnd_vec(s.count(), float_to_half(fill_value));
-            set_values(prim, rnd_vec);
-        } else if (l.data_type == data_types::f32) {
-            VF<float> rnd_vec(s.count(), fill_value);
-            set_values(prim, rnd_vec);
-        } else if (l.data_type == data_types::u8) {
-            VF<uint8_t> rnd_vec(s.count(), static_cast<uint8_t>(fill_value));
-            set_values(prim, rnd_vec);
-        } else if (l.data_type == data_types::i8) {
-            VF<int8_t> rnd_vec(s.count(), static_cast<int8_t>(fill_value));
+            VF<FLOAT16> rnd_vec(prim->size(), fill_value);
             set_values(prim, rnd_vec);
         } else {
-            throw std::runtime_error("get_mem: Unsupported precision");
+            VF<float> rnd_vec(prim->size(), fill_value);
+            set_values(prim, rnd_vec);
         }
-
         return prim;
     }
 
