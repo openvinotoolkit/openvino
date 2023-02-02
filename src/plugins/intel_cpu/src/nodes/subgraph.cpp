@@ -17,7 +17,6 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
-#include "snippets/pass/mul_add_to_fma.hpp"
 #include <ngraph/rt_info.hpp>
 #include <ie_ngraph_utils.hpp>
 
@@ -25,6 +24,7 @@
 #include "emitters/cpu_generator.hpp"
 #include "utils/cpu_utils.hpp"
 #include "snippets_transformations/fuse_load_store_and_convert.hpp"
+#include "snippets_transformations/mul_add_to_fma.hpp"
 #include "ngraph_transformations/convert_to_swish_cpu.hpp"
 
 using namespace InferenceEngine;
@@ -504,7 +504,7 @@ void Snippet::generate(const jit_snippets_compile_args* jcp) {
     optManager.register_pass<ov::intel_cpu::pass::FuseLoadConvert>();
     optManager.register_pass<ov::intel_cpu::pass::FuseStoreConvert>();
     optManager.register_pass<ConvertToSwishCPU>();
-    optManager.register_pass<ngraph::snippets::pass::MulAddToFMA>();
+    optManager.register_pass<ov::intel_cpu::pass::MulAddToFMA>();
 
     // LoadConvert uses Load emitter that support conversion from any type to only f32
     optManager.get_pass_config()->set_callback<ov::intel_cpu::pass::FuseLoadConvert>(

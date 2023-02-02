@@ -6,9 +6,8 @@
 
 #include "ngraph/op/op.hpp"
 
-namespace ngraph {
-namespace snippets {
-namespace op {
+namespace ov {
+namespace intel_cpu {
 
 /**
  * @interface FusedMulAdd
@@ -33,6 +32,5 @@ public:
     OPENVINO_SUPPRESS_DEPRECATED_END
 };
 
-} // namespace op
-} // namespace snippets
-} // namespace ngraph
+} // namespace intel_cpu
+} // namespace ov

@@ -4,7 +4,6 @@
 
 #include "subgraph_simple.hpp"
 #include "common_test_utils/data_utils.hpp"
-#include <snippets/op/fused_mul_add.hpp>
 #include <snippets/op/subgraph.hpp>
 
 namespace ov {
@@ -308,57 +307,6 @@ std::shared_ptr<ov::Model> BroadcastSelectFunction::initOriginal() const {
 
     return std::make_shared<Model>(NodeVector{select}, ParameterVector{data0, data1, data2});
 }
-
-std::shared_ptr<ov::Model> EltwiseWithMulAddFunction::initOriginal() const {
-    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
-    auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
-    ParameterVector parameters{data0, data1};
-
-    std::shared_ptr<Node> data2;
-    if (constant_input) {
-        data2 = op::v0::Constant::create(precision, input_shapes[2].to_shape(), {2.f});
-    } else {
-        auto parameter = std::make_shared<op::v0::Parameter>(precision, input_shapes[2]);
-        parameters.push_back(parameter);
-        data2 = parameter;
-    }
-
-    auto mul = std::make_shared<op::v1::Multiply>(data0, data1);
-    const auto& fst_input = add_input_idx == 0 ? mul->output(0) : data2->output(0);
-    const auto& sec_input = add_input_idx == 0 ? data2->output(0) : mul->output(0);
-    auto add = std::make_shared<op::v1::Add>(fst_input, sec_input);
-
-    return std::make_shared<Model>(NodeVector{add}, parameters);
-}
-
-std::shared_ptr<Model> EltwiseWithMulAddFunction::initReference() const {
-    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
-    auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
-    ParameterVector parameters{data0, data1};
-
-    std::shared_ptr<Node> data2;
-    if (constant_input) {
-        data2 = op::v0::Constant::create(precision, input_shapes[2].to_shape(), {2.f});
-    } else {
-        auto parameter = std::make_shared<op::v0::Parameter>(precision, input_shapes[2]);
-        parameters.push_back(parameter);
-        data2 = parameter;
-    }
-
-    auto fma = std::make_shared<ngraph::snippets::op::FusedMulAdd>(data0, data1, data2);
-    return std::make_shared<Model>(NodeVector{fma}, parameters);
-}
-
-void EltwiseWithMulAddFunction::validate_function(const std::shared_ptr<Model> &m) const {
-    NGRAPH_CHECK(m != nullptr, "The test requires Model to be defined");
-    const auto &params = m->get_parameters();
-    NGRAPH_CHECK(params.size() == (constant_input ? input_shapes.size() - 1 : input_shapes.size()),
-                 "Passed input shapes and produced function are inconsistent.");
-    for (size_t i = 0; i < params.size(); i++)
-        NGRAPH_CHECK(std::equal(input_shapes[i].begin(), input_shapes[i].end(), params[i]->get_shape().begin()),
-                     "Passed input shapes and produced function are inconsistent.");
-}
-
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov
