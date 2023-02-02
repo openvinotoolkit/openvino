@@ -965,13 +965,14 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
                 args['onnx_opset_version'] = None
 
                 try:
-                    ov_model = _convert(cli_parser, framework, args)
+                    ov_model, argv = _convert(cli_parser, framework, args)
                 except Exception as e:
                     remove_tmp_onnx_model(out_dir)
                     raise e
 
                 remove_tmp_onnx_model(out_dir)
-                return ov_model, None
+
+                return ov_model, argv
 
         argv = pack_params_to_args_namespace(args, cli_parser)
 
