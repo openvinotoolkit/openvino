@@ -15,9 +15,10 @@ std::vector< std::tuple<Device, Config> > paramsWithIterations{ params[0] };
 
 INSTANTIATE_TEST_SUITE_P(GNA, CoreThreadingTests, testing::ValuesIn(params), CoreThreadingTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(GNA, CoreThreadingTestsWithIterations,
-    testing::Combine(testing::ValuesIn(paramsWithIterations),
-                     testing::Values(3),
-                     testing::Values(4),
-                     testing::Values(ModelClass::ConvPoolRelu)),
-    CoreThreadingTestsWithIterations::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(GNA,
+                         CoreThreadingTestsWithIterations,
+                         testing::Combine(testing::ValuesIn(paramsWithIterations),
+                                          testing::Values(3),
+                                          testing::Values(4),
+                                          testing::Values(ModelClass::ConvPoolRelu)),
+                         CoreThreadingTestsWithIterations::getTestCaseName);
