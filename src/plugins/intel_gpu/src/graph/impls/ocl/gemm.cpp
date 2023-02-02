@@ -40,9 +40,7 @@ public:
             params.inputs.push_back(convert_data_tensor(input_layouts[i]));
         }
         params.outputs[0] = convert_data_tensor(output_layout);
-        if (impl_param.get_program().get_node(primitive->id).is_dynamic()) {
-            params.is_shape_agnostic = true;
-        }
+
         params.alpha = primitive->alpha;
         params.beta = primitive->beta;
         params.transpose_input0 = primitive->transpose_input0;
