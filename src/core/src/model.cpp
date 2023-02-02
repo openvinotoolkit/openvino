@@ -479,7 +479,7 @@ inline ov::Tensor create_tmp_tensor(const ngraph::HostTensorPtr& tensor) {
         if (tensor->get_element_type().is_dynamic()) {
             return std::move(ov::Tensor());
         } else {
-            return std::move(ov::Tensor(tensor->get_element_type(), {0, std::numeric_limits<size_t>::max()}));
+            return std::move(ov::Tensor(tensor->get_element_type(), {0}));
         }
     }
 }
