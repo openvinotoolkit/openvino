@@ -6,6 +6,8 @@
 
 #include "behavior/ov_plugin/core_integration.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "intel_gpu/runtime/internal_properties.hpp"
 
 #define OV_GPU_USE_OPENCL_HPP
 
@@ -811,6 +813,40 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_Batch_OVClassLoadNetworkWithCorrectPropertie
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassHeteroExecutableNetworkGetMetricTest,
         OVClassLoadNetworkAfterCoreRecreateTest,
+        ::testing::Values("GPU"));
+
+using OVClassGetMetricTest_CACHING_PROPERTIES = OVClassBaseTestP;
+TEST_P(OVClassGetMetricTest_CACHING_PROPERTIES, GetMetricAndPrintNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    std::vector<ov::PropertyName> caching_properties = {};
+    const std::vector<ov::PropertyName> expected_properties = {
+        ov::device::architecture.name(),
+        ov::intel_gpu::execution_units_count.name(),
+        ov::intel_gpu::driver_version.name(),
+        ov::inference_precision.name(),
+        ov::hint::execution_mode.name(),
+    };
+
+    ASSERT_NO_THROW(caching_properties = ie.get_property(target_device, ov::caching_properties));
+
+    std::cout << "GPU Caching properties: " << std::endl;
+    for (auto& prop : caching_properties) {
+        std::cout << prop << std::endl;
+    }
+
+    ASSERT_EQ(caching_properties.size(), expected_properties.size());
+
+    for (const auto& property_name : expected_properties) {
+        ASSERT_TRUE(std::find(caching_properties.begin(),
+                              caching_properties.end(),
+                              property_name) != caching_properties.end());
+    }
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::caching_properties);
+}
+
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+        OVClassGetMetricTest_CACHING_PROPERTIES,
         ::testing::Values("GPU"));
 
 // GetConfig / SetConfig for specific device
