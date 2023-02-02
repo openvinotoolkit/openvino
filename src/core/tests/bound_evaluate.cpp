@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "bound_evaluate.hpp"
+
 #include <gtest/gtest.h>
 
-#include "bound_evaluate.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "type_prop.hpp"
