@@ -25,6 +25,8 @@ public:
     program_node& input() const { return get_dependency(0); }
     program_node& slope_input() const { return get_dependency(1); }
 
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+
     bool is_parameterized() const { return !typed_desc()->additional_params_input.empty(); }
 
     std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const override {
