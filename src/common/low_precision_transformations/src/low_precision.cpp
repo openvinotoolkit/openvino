@@ -69,6 +69,7 @@
 #include "low_precision/shuffle_channels.hpp"
 #include "low_precision/strided_slice.hpp"
 #include "low_precision/transpose.hpp"
+#include "low_precision/gather.hpp"
 #include "low_precision/unsqueeze.hpp"
 #include "low_precision/variadic_split.hpp"
 #include "low_precision/move_fake_quantize.hpp"
@@ -246,6 +247,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_p
     ADD_MATCHER(common, SplitTransformation, params)
     ADD_MATCHER(common, StridedSliceTransformation, params)
     ADD_MATCHER(common, TransposeTransformation, params)
+    ADD_MATCHER(common, GatherTransformation, params)
     ADD_MATCHER(common, UnsqueezeTransformation, params)
     ADD_MATCHER(common, VariadicSplitTransformation, params)
 

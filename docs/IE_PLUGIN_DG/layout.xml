@@ -44,6 +44,7 @@
                             <tab type="user" title="FakeQuantizeDecompositionTransformation" url="@ref openvino_docs_OV_UG_lpt_FakeQuantizeDecompositionTransformation"/>
                             <tab type="user" title="FakeQuantizeTransformation" url="@ref openvino_docs_OV_UG_lpt_FakeQuantizeTransformation"/>
                             <tab type="user" title="InterpolateTransformation" url="@ref openvino_docs_OV_UG_lpt_InterpolateTransformation"/>
+                            <tab type="user" title="GatherTransformation" url="@ref openvino_docs_OV_UG_lpt_GatherTransformation"/>
                             <tab type="user" title="GroupConvolutionTransformation" url="@ref openvino_docs_OV_UG_lpt_GroupConvolutionTransformation"/>
                             <tab type="user" title="MatMulTransformation" url="@ref openvino_docs_OV_UG_lpt_MatMulTransformation"/>
                             <tab type="user" title="MaxPoolTransformation" url="@ref openvino_docs_OV_UG_lpt_MaxPoolTransformation"/>
