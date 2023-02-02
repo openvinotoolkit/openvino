@@ -20,7 +20,6 @@ std::string FrontEndOpExtensionTest::getTestCaseName(const testing::TestParamInf
 }
 
 void FrontEndOpExtensionTest::SetUp() {
-    FrontEndTestUtils::setupTestEnv();
     initParamTest();
 }
 

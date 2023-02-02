@@ -4,8 +4,7 @@
 
 #include "ngraph/op/reduce_prod.hpp"
 
-#include <ngraph/validation_util.hpp>
-
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/util/evaluate_helpers.hpp"
@@ -87,22 +86,22 @@ bool op::v1::ReduceProd::has_evaluate() const {
     return false;
 }
 
-bool op::v1::ReduceProd::evaluate_lower(const HostTensorVector& output_values) const {
+bool op::v1::ReduceProd::evaluate_lower(ov::TensorVector& output_values) const {
     if (!input_value(1).get_tensor().has_and_set_bound())
         return false;
-    HostTensorPtr lb = input_value(0).get_tensor().get_lower_value(),
-                  ub = input_value(0).get_tensor().get_upper_value();
-    if (!lb || !ub || !host_tensor_is_positive(lb) || !host_tensor_is_positive(ub))
+
+    const auto &lb = input_value(0).get_tensor().get_lower_value(), ub = input_value(0).get_tensor().get_upper_value();
+    if (!lb || !ub || !tensor_is_positive(lb) || !tensor_is_positive(ub))
         return false;
     return default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v1::ReduceProd::evaluate_upper(const HostTensorVector& output_values) const {
+bool op::v1::ReduceProd::evaluate_upper(ov::TensorVector& output_values) const {
     if (!input_value(1).get_tensor().has_and_set_bound())
         return false;
-    HostTensorPtr lb = input_value(0).get_tensor().get_lower_value(),
-                  ub = input_value(0).get_tensor().get_upper_value();
-    if (!lb || !ub || !host_tensor_is_positive(lb) || !host_tensor_is_positive(ub))
+
+    const auto &lb = input_value(0).get_tensor().get_lower_value(), ub = input_value(0).get_tensor().get_upper_value();
+    if (!lb || !ub || !tensor_is_positive(lb) || !tensor_is_positive(ub))
         return false;
     return default_upper_bound_evaluator(this, output_values);
 }
