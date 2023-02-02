@@ -14,6 +14,14 @@ namespace ov {
 namespace frontend {
 namespace pytorch {
 
+void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs) {
+    auto inputs = context.inputs();
+    FRONT_END_OP_CONVERSION_CHECK(inputs.size() > min_inputs, "Got less inputs than expected");
+    for (auto i = max_inputs; i < inputs.size(); i++) {
+        FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(i), "Got more inputs than expected.");
+    }
+}
+
 Output<Node> make_optional_bias(const Output<Node>& base_op,
                                 const NodeContext& context,
                                 size_t bias_input_idx,
@@ -34,18 +42,18 @@ Output<Node> make_optional_bias(const Output<Node>& base_op,
     }
 }
 
-Output<ov::Node> reshape_conv_bias(const NodeContext& context, Output<ov::Node> bias, Output<ov::Node> conv) {
-    auto conv_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(conv));
-    auto conv_rank = context.mark_node(std::make_shared<opset10::ShapeOf>(conv_shape));
+Output<ov::Node> reshape_channelwise(const NodeContext& context, Output<ov::Node> data, Output<ov::Node> shape_source) {
+    auto input_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(shape_source));
+    auto input_rank = context.mark_node(std::make_shared<opset10::ShapeOf>(input_shape));
     auto one_const = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {1}));
     auto two_const = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {2}));
-    auto tail_shape_rank = context.mark_node(std::make_shared<opset10::Subtract>(conv_rank, two_const));
+    auto tail_shape_rank = context.mark_node(std::make_shared<opset10::Subtract>(input_rank, two_const));
     auto tail_shape = context.mark_node(std::make_shared<opset10::Broadcast>(one_const, tail_shape_rank));
-    auto channels_dim = context.mark_node(std::make_shared<opset10::ShapeOf>(bias));
+    auto channels_dim = context.mark_node(std::make_shared<opset10::ShapeOf>(data));
     auto new_shape =
         context.mark_node(std::make_shared<opset10::Concat>(OutputVector{one_const, channels_dim, tail_shape}, 0));
 
-    return context.mark_node(std::make_shared<opset10::Reshape>(bias, new_shape, false));
+    return context.mark_node(std::make_shared<opset10::Reshape>(data, new_shape, false));
 }
 
 std::shared_ptr<Node> get_rank_node(const Output<Node>& node) {
@@ -449,6 +457,107 @@ Any simplified_type_interpret(Any type) {
     }
 
     return type;
+}
+
+namespace {
+std::unordered_map<size_t, element::Type> bit_to_float{
+    {16, element::f16},
+    {32, element::f32},
+    {64, element::f64},
+};
+std::unordered_map<size_t, element::Type> bit_to_int{
+    // {4, element::i4}, torch don't have int4
+    {8, element::i8},
+    {16, element::i16},
+    {32, element::i32},
+    {64, element::i64},
+};
+}  // namespace
+
+void align_eltwise_input_types(const NodeContext& context,
+                               ov::Output<ov::Node>& lhs,
+                               ov::Output<ov::Node>& rhs,
+                               bool align_scalars) {
+    const auto& lhs_type = lhs.get_element_type();
+    const auto& rhs_type = rhs.get_element_type();
+    if (lhs_type.is_dynamic() || rhs_type.is_dynamic()) {
+        // if any of types is not known, align to lhs type.
+        // TODO: can be fixed with special operation?
+        rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(rhs, lhs));
+        return;
+    }
+
+    // Both types are static, align types. If float and int types are used convert int type to f32, after that align
+    // to the largest bitness, if both float or both int, just align bitness
+    if (lhs_type == rhs_type)
+        return;
+
+    // if one of operands is scalar, the resulting type is taken from the other operand except when scalar is float
+    // type and other operand is int, in that case BOTH operands get fp32 type
+    const auto& lhs_rank = lhs.get_partial_shape().rank();
+    const auto& rhs_rank = rhs.get_partial_shape().rank();
+    // consider dynamic rank as non scalar
+    const auto is_lhs_scalar = lhs_rank.is_static() && lhs_rank.get_length() == 0;
+    const auto is_rhs_scalar = rhs_rank.is_static() && rhs_rank.get_length() == 0;
+    if (is_lhs_scalar && is_rhs_scalar) {
+        // if both scalar, align to lhs
+        rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(rhs, lhs));
+        return;
+    }
+    auto lhs_dst_type = lhs_type;
+    auto rhs_dst_type = rhs_type;
+    if (is_lhs_scalar) {
+        if (lhs_type.is_real() && !rhs_type.is_real()) {
+            // if div we need to also align float types to highest bitness regardless of scalar
+            if (!align_scalars)
+                lhs_dst_type = element::f32;
+            rhs_dst_type = element::f32;
+        } else {
+            lhs = context.mark_node(std::make_shared<opset10::ConvertLike>(lhs, rhs));
+            return;
+        }
+    } else if (is_rhs_scalar) {
+        if (!lhs_type.is_real() && rhs_type.is_real()) {
+            lhs_dst_type = element::f32;
+            // if div we need to also align float types to highest bitness regardless of scalar
+            if (!align_scalars)
+                rhs_dst_type = element::f32;
+        } else {
+            rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(rhs, lhs));
+            return;
+        }
+    }
+
+    if (lhs_dst_type == element::boolean || rhs_dst_type == element::boolean) {
+        // Do nothing with bool
+        return;
+    }
+
+    if (!lhs_dst_type.is_real() && rhs_dst_type.is_real()) {
+        lhs_dst_type = element::f32;
+    } else if (lhs_dst_type.is_real() && !rhs_dst_type.is_real()) {
+        rhs_dst_type = element::f32;
+    }
+    // Align bitness to higher
+    if (lhs_dst_type.bitwidth() != rhs_dst_type.bitwidth()) {
+        const auto dst_bitness = std::max(lhs_dst_type.bitwidth(), rhs_dst_type.bitwidth());
+        element::Type* type_to_align = &lhs_dst_type;
+        if (rhs_dst_type.bitwidth() < dst_bitness)
+            type_to_align = &rhs_dst_type;
+        if (type_to_align->is_real()) {
+            *type_to_align = bit_to_float.at(dst_bitness);
+        } else {
+            *type_to_align = bit_to_int.at(dst_bitness);
+        }
+    }
+
+    // Cast to destination types
+    if (lhs_dst_type != lhs_type) {
+        lhs = context.mark_node(std::make_shared<opset10::Convert>(lhs, lhs_dst_type));
+    }
+    if (rhs_dst_type != rhs_type) {
+        rhs = context.mark_node(std::make_shared<opset10::Convert>(rhs, rhs_dst_type));
+    }
 }
 
 }  // namespace pytorch

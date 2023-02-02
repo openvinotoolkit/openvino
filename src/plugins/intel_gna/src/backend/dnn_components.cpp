@@ -2,16 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <algorithm>
-#include <iostream>
-#include <string>
+#include "dnn_components.hpp"
+
 #include <ie_common.h>
 #include <legacy/ie_layers.h>
-#include <iomanip>
-#include <caseless.hpp>
-#include <layers/gna_copy_layer.hpp>
 
-#include "dnn_components.hpp"
+#include <algorithm>
+#include <caseless.hpp>
+#include <iomanip>
+#include <iostream>
+#include <layers/gna_copy_layer.hpp>
+#include <string>
+
 #include "log/log.hpp"
 
 namespace ov {

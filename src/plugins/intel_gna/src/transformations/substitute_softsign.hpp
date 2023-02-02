@@ -40,11 +40,10 @@ namespace pass {
  */
 class SubstituteSoftsign : public ngraph::pass::MatcherPass {
 public:
-  OPENVINO_RTTI("SubstituteSoftsign", "0");
-  SubstituteSoftsign();
+    OPENVINO_RTTI("SubstituteSoftsign", "0");
+    SubstituteSoftsign();
 };
 
-} // namespace pass
-} // namespace intel_gna
-} // namespace ov
-
+}  // namespace pass
+}  // namespace intel_gna
+}  // namespace ov

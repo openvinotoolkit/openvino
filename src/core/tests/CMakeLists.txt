@@ -29,8 +29,7 @@ endif()
 list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_extension)
 list(APPEND UNIT_TESTS_DEPENDENCIES template_extension)
 
-list(APPEND EXCLUDE_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/frontend
-                          ${CMAKE_CURRENT_SOURCE_DIR}/dnnl.cpp)
+list(APPEND EXCLUDE_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/dnnl.cpp)
 if (ENABLE_TEMPLATE)
     list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_plugin)
 else()
@@ -73,7 +72,11 @@ target_include_directories(${TARGET_NAME} PRIVATE ${OV_CORE_SRC_DIR}/src
 target_compile_definitions(${TARGET_NAME}
     PRIVATE
         SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
-        SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
+        SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
+        FRONTEND_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}${FRONTEND_NAME_PREFIX}"
+        # Assume <lib>.so is an existed symlink to <lib><version>.so (or <lib>.so<version>
+        FRONTEND_LIB_SUFFIX="${FRONTEND_NAME_SUFFIX}${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
+        )
 
 add_dependencies(${TARGET_NAME} ${UNIT_TESTS_DEPENDENCIES})
 
