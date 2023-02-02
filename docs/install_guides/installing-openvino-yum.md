@@ -24,7 +24,7 @@ Installing OpenVINO Runtime from YUM is recommended for C++ developers. If you a
 
    .. note::
 
-      Installing OpenVINO from YUM is only supported on RHEL 8.2 and higher versions. CentOS is not supported for this installation method.
+      Installing OpenVINO from YUM is only supported on RHEL 8.2 and higher versions. CentOS 7 is not supported for this installation method.
 
 .. tab:: Processor Notes
 
