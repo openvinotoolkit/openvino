@@ -110,10 +110,18 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
             return true;
         }
         if (auto list_construct = cast_fw_node(input_node, "prim::ListConstruct")) {
-            auto input_concat = concat_list_construct(list_construct);
             auto getitem_idx = getitem->input_value(1).get_node_shared_ptr();
-            auto zero = opset10::Constant::create(element::i32, Shape{}, {0});
-            auto gather = std::make_shared<opset10::Gather>(input_concat, getitem_idx, zero);
+            auto getitem_idx_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(getitem_idx);
+            if (getitem_idx_const){
+                auto idx = getitem_idx_const->cast_vector<int64_t>();
+                auto element = list_construct->input_value(idx[0]).get_node_shared_ptr();
+                copy_runtime_info({getitem, input_node}, element);
+                replace_node(getitem, element);
+                return true;
+            }
+            auto input_concat = concat_list_construct(list_construct);
+            auto zero = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
+            auto gather = std::make_shared<ov::op::v8::Gather>(input_concat, getitem_idx, zero);
             copy_runtime_info({getitem, input_node}, gather);
             replace_node(getitem, gather);
             return true;
