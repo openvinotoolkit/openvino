@@ -37,7 +37,7 @@ OutputVector translate_bias_add_op(const NodeContext& node) {
         auto value_rank = value_shape.rank().get_length();
 
         std::vector<int64_t> axes_unsqueeze;
-        for (size_t dim_ind = 0; dim_ind < (size_t)value_rank; ++dim_ind) {
+        for (size_t dim_ind = 0; dim_ind < value_rank; ++dim_ind) {
             if (dim_ind != 1) {
                 axes_unsqueeze.push_back(dim_ind);
             }
