@@ -23,7 +23,7 @@ namespace ov {
 
 class OPENVINO_RUNTIME_API IAsyncInferRequest : public IInferRequest {
 public:
-    enum InferState { Idle, Busy, Cancelled, Stop };
+    enum InferState { IDLE, BUSY, CANCELLED, STOP };
     IAsyncInferRequest(const std::shared_ptr<IInferRequest>& request,
                        const InferenceEngine::ITaskExecutor::Ptr& task_executor,
                        const InferenceEngine::ITaskExecutor::Ptr& callback_executor);
@@ -79,8 +79,8 @@ protected:
 
 private:
     using Futures = std::vector<std::shared_future<void>>;
-    enum Stage_e : std::uint8_t { executor, task };
-    InferState m_state = InferState::Idle;
+    enum Stage_e : std::uint8_t { EXECUTOR, TASK };
+    InferState m_state = InferState::IDLE;
     Futures m_futures;
     std::promise<void> m_promise;
 
@@ -109,16 +109,16 @@ private:
     template <typename F>
     void infer_impl(const F& f) {
         check_tensors();
-        InferState state = InferState::Idle;
+        InferState state = InferState::IDLE;
         {
             std::lock_guard<std::mutex> lock{m_mutex};
             state = m_state;
             switch (m_state) {
-            case InferState::Busy:
+            case InferState::BUSY:
                 IE_THROW(RequestBusy);
-            case InferState::Cancelled:
+            case InferState::CANCELLED:
                 IE_THROW(InferCancelled);
-            case InferState::Idle: {
+            case InferState::IDLE: {
                 m_futures.erase(std::remove_if(std::begin(m_futures),
                                                std::end(m_futures),
                                                [](const std::shared_future<void>& future) {
@@ -133,18 +133,18 @@ private:
                 m_promise = {};
                 m_futures.emplace_back(m_promise.get_future().share());
             } break;
-            case InferState::Stop:
+            case InferState::STOP:
                 break;
             }
-            m_state = InferState::Busy;
+            m_state = InferState::BUSY;
         }
-        if (state != InferState::Stop) {
+        if (state != InferState::STOP) {
             try {
                 f();
             } catch (...) {
                 m_promise.set_exception(std::current_exception());
                 std::lock_guard<std::mutex> lock{m_mutex};
-                m_state = InferState::Idle;
+                m_state = InferState::IDLE;
                 throw;
             }
         }

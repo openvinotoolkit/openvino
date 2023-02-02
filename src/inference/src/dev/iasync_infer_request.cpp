@@ -90,8 +90,8 @@ bool ov::IAsyncInferRequest::wait_for(const std::chrono::milliseconds& timeout) 
 
 void ov::IAsyncInferRequest::cancel() {
     std::lock_guard<std::mutex> lock{m_mutex};
-    if (m_state == InferState::Busy) {
-        m_state = InferState::Cancelled;
+    if (m_state == InferState::BUSY) {
+        m_state = InferState::CANCELLED;
     }
 }
 
@@ -116,7 +116,7 @@ void ov::IAsyncInferRequest::start_async_thread_unsafe() {
 void ov::IAsyncInferRequest::run_first_stage(const Pipeline::iterator itBeginStage,
                                              const Pipeline::iterator itEndStage,
                                              const InferenceEngine::ITaskExecutor::Ptr callbackExecutor) {
-    auto& firstStageExecutor = std::get<Stage_e::executor>(*itBeginStage);
+    auto& firstStageExecutor = std::get<Stage_e::EXECUTOR>(*itBeginStage);
     IE_ASSERT(nullptr != firstStageExecutor);
     firstStageExecutor->run(make_next_stage_task(itBeginStage, itEndStage, std::move(callbackExecutor)));
 }
@@ -131,12 +131,12 @@ InferenceEngine::Task ov::IAsyncInferRequest::make_next_stage_task(
             auto& thisStage = *itStage;
             auto itNextStage = itStage + 1;
             try {
-                auto& stageTask = std::get<Stage_e::task>(thisStage);
+                auto& stageTask = std::get<Stage_e::TASK>(thisStage);
                 IE_ASSERT(nullptr != stageTask);
                 stageTask();
                 if (itEndStage != itNextStage) {
                     auto& nextStage = *itNextStage;
-                    auto& nextStageExecutor = std::get<Stage_e::executor>(nextStage);
+                    auto& nextStageExecutor = std::get<Stage_e::EXECUTOR>(nextStage);
                     IE_ASSERT(nullptr != nextStageExecutor);
                     nextStageExecutor->run(make_next_stage_task(itNextStage, itEndStage, std::move(callbackExecutor)));
                 }
@@ -150,7 +150,7 @@ InferenceEngine::Task ov::IAsyncInferRequest::make_next_stage_task(
                     std::function<void(std::exception_ptr)> callback;
                     {
                         std::lock_guard<std::mutex> lock{m_mutex};
-                        m_state = InferState::Idle;
+                        m_state = InferState::IDLE;
                         std::swap(callback, m_callback);
                     }
                     if (callback) {
@@ -190,9 +190,9 @@ void ov::IAsyncInferRequest::start_async() {
 void ov::IAsyncInferRequest::check_state() const {
     std::lock_guard<std::mutex> lock{m_mutex};
     switch (m_state) {
-    case InferState::Busy:
+    case InferState::BUSY:
         IE_THROW(RequestBusy);
-    case InferState::Cancelled:
+    case InferState::CANCELLED:
         IE_THROW(InferCancelled);
     default:
         break;
@@ -227,17 +227,17 @@ void ov::IAsyncInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
 
 void ov::IAsyncInferRequest::stop_and_wait() {
     Futures futures;
-    InferState state = InferState::Idle;
+    InferState state = InferState::IDLE;
     {
         std::lock_guard<std::mutex> lock{m_mutex};
         state = m_state;
-        if (state != InferState::Stop) {
+        if (state != InferState::STOP) {
             m_callback = {};
-            m_state = InferState::Stop;
+            m_state = InferState::STOP;
             futures = std::move(m_futures);
         }
     }
-    if (state != InferState::Stop) {
+    if (state != InferState::STOP) {
         for (auto&& future : futures) {
             if (future.valid()) {
                 future.wait();
