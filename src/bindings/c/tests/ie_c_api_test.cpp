@@ -24,18 +24,6 @@ const char* input_image_nv12 = input_image_nv12_std.c_str();
 std::mutex m;
 bool ready = false;
 std::condition_variable condVar;
-#ifdef _WIN32
-    #ifdef __MINGW32__
-        std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins_mingw.xml");
-    #else
-        std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins_win.xml");
-    #endif
-#elif defined __APPLE__
-        std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins_apple.xml");
-#else
-        std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins.xml");
-#endif
-const char* plugins_xml = plugins_xml_std.c_str();
 
 #define IE_EXPECT_OK(...) EXPECT_EQ(IEStatusCode::OK, __VA_ARGS__)
 #define IE_ASSERT_OK(...) ASSERT_EQ(IEStatusCode::OK, __VA_ARGS__)
@@ -93,11 +81,13 @@ static void completion_callback(void *args) {
 }
 
 TEST(ie_core_create, coreCreatewithConfig) {
+    std::string plugins_xml = TestDataHelpers::generate_test_xml_file();
     ie_core_t *core = nullptr;
-    IE_ASSERT_OK(ie_core_create(plugins_xml, &core));
+    IE_ASSERT_OK(ie_core_create(plugins_xml.c_str(), &core));
     ASSERT_NE(nullptr, core);
 
     ie_core_free(&core);
+    TestDataHelpers::delete_test_xml_file();
 }
 
 TEST(ie_core_create, coreCreateNoConfig) {
@@ -135,13 +125,15 @@ TEST(ie_core_register_plugin, registerPlugin) {
 }
 
 TEST(ie_core_register_plugins, registerPlugins) {
+    std::string plugins_xml = TestDataHelpers::generate_test_xml_file();
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
-    IE_EXPECT_OK(ie_core_register_plugins(core, plugins_xml));
+    IE_EXPECT_OK(ie_core_register_plugins(core, plugins_xml.c_str()));
 
     ie_core_free(&core);
+    TestDataHelpers::delete_test_xml_file();
 }
 
 TEST(ie_core_unload_plugin, unloadPlugin) {
@@ -1280,6 +1272,8 @@ TEST(ie_infer_request_infer_async, inferAsyncWaitTime) {
     ie_core_free(&core);
 }
 
+// For ARM plugin, no "Batch" related operations support for now, so skip related APIs
+#ifndef __aarch64__
 TEST(ie_infer_request_set_batch, setBatch) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
@@ -1366,6 +1360,7 @@ TEST(ie_infer_request_set_batch, setNegativeBatch) {
     ie_network_free(&network);
     ie_core_free(&core);
 }
+#endif
 
 TEST(ie_blob_make_memory, makeMemory) {
 
