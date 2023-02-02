@@ -13,25 +13,32 @@
 #include "description_buffer.hpp"
 
 namespace InferenceEngine {
-#define CATCH_IE_EXCEPTION_TO_STATUS(StatusCode, ExceptionType)                 \
-catch (const InferenceEngine::ExceptionType& ex) {                              \
-    return InferenceEngine::DescriptionBuffer(StatusCode, resp) << ex.what();   \
-}
+#define CATCH_IE_EXCEPTION_TO_STATUS(StatusCode, ExceptionType)                   \
+    catch (const InferenceEngine::ExceptionType& ex) {                            \
+        return InferenceEngine::DescriptionBuffer(StatusCode, resp) << ex.what(); \
+    }
 
-#define CATCH_IE_EXCEPTIONS_TO_STATUS                                         \
-        CATCH_IE_EXCEPTION_TO_STATUS(GENERAL_ERROR, GeneralError)             \
-        CATCH_IE_EXCEPTION_TO_STATUS(NOT_IMPLEMENTED, NotImplemented)         \
-        CATCH_IE_EXCEPTION_TO_STATUS(NETWORK_NOT_LOADED, NetworkNotLoaded)    \
-        CATCH_IE_EXCEPTION_TO_STATUS(PARAMETER_MISMATCH, ParameterMismatch)   \
-        CATCH_IE_EXCEPTION_TO_STATUS(NOT_FOUND, NotFound)                     \
-        CATCH_IE_EXCEPTION_TO_STATUS(OUT_OF_BOUNDS, OutOfBounds)              \
-        CATCH_IE_EXCEPTION_TO_STATUS(UNEXPECTED, Unexpected)                  \
-        CATCH_IE_EXCEPTION_TO_STATUS(REQUEST_BUSY, RequestBusy)               \
-        CATCH_IE_EXCEPTION_TO_STATUS(RESULT_NOT_READY, ResultNotReady)        \
-        CATCH_IE_EXCEPTION_TO_STATUS(NOT_ALLOCATED, NotAllocated)             \
-        CATCH_IE_EXCEPTION_TO_STATUS(INFER_NOT_STARTED, InferNotStarted)      \
-        CATCH_IE_EXCEPTION_TO_STATUS(NETWORK_NOT_READ, NetworkNotRead)        \
-        CATCH_IE_EXCEPTION_TO_STATUS(INFER_CANCELLED, InferCancelled)
+#define CATCH_OV_EXCEPTION_TO_STATUS(StatusCode, ExceptionType)                   \
+    catch (const ov::ExceptionType& ex) {                                         \
+        return InferenceEngine::DescriptionBuffer(StatusCode, resp) << ex.what(); \
+    }
+
+#define CATCH_IE_EXCEPTIONS_TO_STATUS                                   \
+    CATCH_OV_EXCEPTION_TO_STATUS(NOT_IMPLEMENTED, NotImplemented)       \
+    CATCH_OV_EXCEPTION_TO_STATUS(GENERAL_ERROR, Exception)              \
+    CATCH_IE_EXCEPTION_TO_STATUS(GENERAL_ERROR, GeneralError)           \
+    CATCH_IE_EXCEPTION_TO_STATUS(NOT_IMPLEMENTED, NotImplemented)       \
+    CATCH_IE_EXCEPTION_TO_STATUS(NETWORK_NOT_LOADED, NetworkNotLoaded)  \
+    CATCH_IE_EXCEPTION_TO_STATUS(PARAMETER_MISMATCH, ParameterMismatch) \
+    CATCH_IE_EXCEPTION_TO_STATUS(NOT_FOUND, NotFound)                   \
+    CATCH_IE_EXCEPTION_TO_STATUS(OUT_OF_BOUNDS, OutOfBounds)            \
+    CATCH_IE_EXCEPTION_TO_STATUS(UNEXPECTED, Unexpected)                \
+    CATCH_IE_EXCEPTION_TO_STATUS(REQUEST_BUSY, RequestBusy)             \
+    CATCH_IE_EXCEPTION_TO_STATUS(RESULT_NOT_READY, ResultNotReady)      \
+    CATCH_IE_EXCEPTION_TO_STATUS(NOT_ALLOCATED, NotAllocated)           \
+    CATCH_IE_EXCEPTION_TO_STATUS(INFER_NOT_STARTED, InferNotStarted)    \
+    CATCH_IE_EXCEPTION_TO_STATUS(NETWORK_NOT_READ, NetworkNotRead)      \
+    CATCH_IE_EXCEPTION_TO_STATUS(INFER_CANCELLED, InferCancelled)
 
 /**
  * @def TO_STATUS(x)

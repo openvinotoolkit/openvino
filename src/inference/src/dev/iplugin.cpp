@@ -23,8 +23,7 @@ const std::string& ov::IPlugin::get_device_name() const {
 }
 
 void ov::IPlugin::add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension) {
-    IE_THROW(NotImplemented);
-    // OPENVINO_NOT_IMPLEMENTED;
+    OPENVINO_NOT_IMPLEMENTED;
 }
 
 void ov::IPlugin::set_core(const std::weak_ptr<ov::ICore>& core) {
