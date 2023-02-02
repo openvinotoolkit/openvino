@@ -52,8 +52,10 @@ attach_shuffle_channels_impl::attach_shuffle_channels_impl() {
         {data_types::f16, data_types::f32, data_types::i8, data_types::u8};
     auto formats = {
         format::bfyx,
+        format::b_fs_yx_fsv4,
         format::b_fs_yx_fsv16,
         format::b_fs_yx_fsv32,
+        format::fs_b-yx_fsv32,
         format::bs_fs_yx_bsv16_fsv32,
         format::bs_fs_yx_bsv16_fsv16,
         format::bs_fs_yx_bsv32_fsv32,
