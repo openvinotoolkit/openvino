@@ -30,6 +30,7 @@ using namespace dnnl::impl::cpu;
 class RegistersPool {
 public:
     using Ptr = std::shared_ptr<RegistersPool>;
+    using WeakPtr = std::weak_ptr<RegistersPool>;
     static constexpr int anyIdx = -1;
 
     /**
@@ -65,12 +66,12 @@ public:
             return lhs.operator Xbyak::RegExp() + rhs;
         }
         void release() {
-            if (regPool) {
-                regPool->returnToPool(reg);
+            if (auto pool = regPool.lock()) {
+                pool->returnToPool(reg);
                 regPool.reset();
             }
         }
-        bool isInitialized() const { return static_cast<bool>(regPool); }
+        bool isInitialized() const { return !regPool.expired(); }
 
     private:
         void ensureValid() const {
@@ -91,7 +92,7 @@ public:
 
     private:
         TReg reg;
-        RegistersPool::Ptr regPool;
+        RegistersPool::WeakPtr regPool;
     };
 
     virtual ~RegistersPool() {
