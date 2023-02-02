@@ -8,18 +8,18 @@
  * @file ie_cnn_network_iterator.hpp
  */
 #pragma once
-#include <iterator>
-#include <list>
+#include <legacy/ie_layers.h>
+
 #include <deque>
+#include <iterator>
+#include <legacy/cnn_network_impl.hpp>
+#include <list>
 #include <unordered_set>
 #include <utility>
 
-#include "ie_api.h"
 #include "cpp/ie_cnn_network.h"
+#include "ie_api.h"
 #include "ie_locked_memory.hpp"
-
-#include <legacy/ie_layers.h>
-#include <legacy/cnn_network_impl.hpp>
 
 namespace InferenceEngine {
 namespace details {
@@ -31,13 +31,14 @@ namespace details {
 class CNNNetworkIterator {
     IE_SUPPRESS_DEPRECATED_START
 
-    std::list<CNNLayerPtr> nextLayersToVisit {};
+    std::list<CNNLayerPtr> nextLayersToVisit{};
     InferenceEngine::CNNLayerPtr currentLayer = nullptr;
     const ICNNNetwork* network = nullptr;
 
     void init(const ICNNNetwork* net) {
         network = net;
-        if (network == nullptr) IE_THROW() << "ICNNNetwork object is nullptr";
+        if (network == nullptr)
+            IE_THROW() << "ICNNNetwork object is nullptr";
 
         OutputsDataMap outputs;
         network->getOutputsInfo(outputs);
@@ -47,8 +48,8 @@ class CNNNetworkIterator {
 
         auto get_consumers = [](const CNNLayerPtr& node) -> std::vector<CNNLayerPtr> {
             std::vector<CNNLayerPtr> consumers;
-            for (const auto & output : node->outData) {
-                for (const auto &consumer : getInputTo(output)) {
+            for (const auto& output : node->outData) {
+                for (const auto& consumer : getInputTo(output)) {
                     consumers.push_back(consumer.second);
                 }
             }
@@ -56,7 +57,8 @@ class CNNNetworkIterator {
         };
         std::unordered_set<CNNLayer*> visited;
         auto bfs = [&](const CNNLayerPtr& start_node, bool traverse_via_outputs = false) {
-            if (!start_node || visited.count(start_node.get())) return;
+            if (!start_node || visited.count(start_node.get()))
+                return;
             std::deque<CNNLayerPtr> q;
             q.push_front(start_node);
             while (!q.empty()) {
@@ -67,7 +69,7 @@ class CNNNetworkIterator {
                 }
 
                 // Traverse via inputs
-                for (const auto & input : node->insData) {
+                for (const auto& input : node->insData) {
                     auto locked_input = input.lock();
                     if (!locked_input) {
                         IE_THROW() << "insData for " << node->name << " is not valid.";
@@ -76,8 +78,9 @@ class CNNNetworkIterator {
                         if (!visited.count(next_node.get())) {
                             // Check that all consumers were visited
                             bool all_consumers_used(true);
-                            for (const auto & consumer : get_consumers(next_node)) {
-                                if (!visited.count(consumer.get())) all_consumers_used = false;
+                            for (const auto& consumer : get_consumers(next_node)) {
+                                if (!visited.count(consumer.get()))
+                                    all_consumers_used = false;
                             }
                             if (all_consumers_used) {
                                 q.push_front(next_node);
@@ -88,7 +91,7 @@ class CNNNetworkIterator {
 
                 // Traverse via outputs
                 if (traverse_via_outputs) {
-                    for (const auto &consumer : get_consumers(node)) {
+                    for (const auto& consumer : get_consumers(node)) {
                         if (!visited.count(consumer.get())) {
                             q.push_front(consumer);
                         }
@@ -101,7 +104,7 @@ class CNNNetworkIterator {
         std::vector<CNNLayerPtr> outputLayers;
         const auto* networkImpl = dynamic_cast<const CNNNetworkImpl*>(network);
         if (networkImpl) {
-            for (const auto & node : networkImpl->allLayers()) {
+            for (const auto& node : networkImpl->allLayers()) {
                 if (get_consumers(node.second).empty())
                     outputLayers.emplace_back(node.second);
             }
@@ -112,20 +115,19 @@ class CNNNetworkIterator {
             }
         }
         // First we run bfs starting from outputs that provides deterministic graph traverse
-        for (const auto & output : outputLayers) {
+        for (const auto& output : outputLayers) {
             bfs(output);
         }
         if (!networkImpl) {
             // For cases when graph has no outputs we start bfs from inputs to ensure topological sort
-            for (const auto & input : inputs) {
+            for (const auto& input : inputs) {
                 const auto data_ptr = input.second->getInputData();
-                for (const auto & consumer : getInputTo(data_ptr))
+                for (const auto& consumer : getInputTo(data_ptr))
                     bfs(consumer.second, true);
             }
         }
         currentLayer = nextLayersToVisit.front();
     }
-
 
 public:
     /**
@@ -151,8 +153,8 @@ public:
         init(network);
     }
 
-    explicit CNNNetworkIterator(const CNNNetwork & network) {
-        const auto & inetwork = static_cast<const InferenceEngine::ICNNNetwork&>(network);
+    explicit CNNNetworkIterator(const CNNNetwork& network) {
+        const auto& inetwork = static_cast<const InferenceEngine::ICNNNetwork&>(network);
         init(&inetwork);
     }
 
@@ -208,8 +210,8 @@ public:
      */
     bool operator==(const CNNNetworkIterator& that) const {
         return currentLayer == that.currentLayer &&
-            (network == that.network ||
-             ((network == nullptr || that.network == nullptr) && currentLayer == nullptr));
+               (network == that.network ||
+                ((network == nullptr || that.network == nullptr) && currentLayer == nullptr));
     }
 
 private:
