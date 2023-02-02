@@ -11,6 +11,7 @@
 #include <string>
 
 #include "description_buffer.hpp"
+#include "openvino/core/except.hpp"
 
 namespace InferenceEngine {
 #define CATCH_IE_EXCEPTION_TO_STATUS(StatusCode, ExceptionType)                   \
@@ -45,30 +46,37 @@ namespace InferenceEngine {
  * @brief Converts C++ exceptioned function call into a c-style one
  * @ingroup ie_dev_api_error_debug
  */
-#define TO_STATUS(x)                                                                                            \
-    try {                                                                                                       \
-        x;                                                                                                      \
-        return OK;                                                                                              \
-    } CATCH_IE_EXCEPTIONS_TO_STATUS catch (const std::exception& ex) {                                          \
-        return InferenceEngine::DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();                            \
-    } catch (...) {                                                                                             \
-        return InferenceEngine::DescriptionBuffer(UNEXPECTED);                                                  \
+#define TO_STATUS(x)                                                                 \
+    try {                                                                            \
+        x;                                                                           \
+        return OK;                                                                   \
+    }                                                                                \
+    CATCH_IE_EXCEPTIONS_TO_STATUS catch (const std::exception& ex) {                 \
+        return InferenceEngine::DescriptionBuffer(GENERAL_ERROR, resp) << ex.what(); \
+    }                                                                                \
+    catch (...) {                                                                    \
+        return InferenceEngine::DescriptionBuffer(UNEXPECTED);                       \
     }
 
-#define CALL_STATUS_FNC(function, ...)                                                          \
-    if (!actual) IE_THROW() << "Wrapper used was not initialized.";                             \
-    ResponseDesc resp;                                                                          \
-    auto res = actual->function(__VA_ARGS__, &resp);                                            \
-    if (res != OK) IE_EXCEPTION_SWITCH(res, ExceptionType,                                      \
-            InferenceEngine::details::ThrowNow<ExceptionType>{}                                 \
-                <<= std::stringstream{} << IE_LOCATION << resp.msg)
+#define CALL_STATUS_FNC(function, ...)                     \
+    if (!actual)                                           \
+        IE_THROW() << "Wrapper used was not initialized."; \
+    ResponseDesc resp;                                     \
+    auto res = actual->function(__VA_ARGS__, &resp);       \
+    if (res != OK)                                         \
+    IE_EXCEPTION_SWITCH(                                   \
+        res,                                               \
+        ExceptionType,                                     \
+        InferenceEngine::details::ThrowNow<ExceptionType>{} <<= std::stringstream{} << IE_LOCATION << resp.msg)
 
-#define CALL_STATUS_FNC_NO_ARGS(function)                                                                   \
-    if (!actual)  IE_THROW() << "Wrapper used in the CALL_STATUS_FNC_NO_ARGS was not initialized.";         \
-    ResponseDesc resp;                                                                                      \
-    auto res = actual->function(&resp);                                                                     \
-    if (res != OK) IE_EXCEPTION_SWITCH(res, ExceptionType,                                                  \
-            InferenceEngine::details::ThrowNow<ExceptionType>{}                                             \
-                <<= std::stringstream{} << IE_LOCATION)
+#define CALL_STATUS_FNC_NO_ARGS(function)                                                 \
+    if (!actual)                                                                          \
+        IE_THROW() << "Wrapper used in the CALL_STATUS_FNC_NO_ARGS was not initialized."; \
+    ResponseDesc resp;                                                                    \
+    auto res = actual->function(&resp);                                                   \
+    if (res != OK)                                                                        \
+    IE_EXCEPTION_SWITCH(res,                                                              \
+                        ExceptionType,                                                    \
+                        InferenceEngine::details::ThrowNow<ExceptionType>{} <<= std::stringstream{} << IE_LOCATION)
 
 }  // namespace InferenceEngine
