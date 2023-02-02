@@ -36,6 +36,7 @@ ParamsKey SelectKernelRef::GetSupportedKey() const {
     k.EnableTensorPitches();
     k.EnableTensorOffset();
     k.EnableDifferentTypes();
+    k.EnableDynamicShapesSupport();
 
     return k;
 }
