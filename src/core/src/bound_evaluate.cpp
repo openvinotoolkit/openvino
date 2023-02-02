@@ -80,8 +80,17 @@ ov::Tensor evaluate_bound(const Output<Node>& output, bool is_upper, bool invali
             ov::TensorVector outputs;
             for (const auto& out : node->outputs()) {
                 const auto& out_shape = out.get_partial_shape();
-                auto shape = out_shape.is_static() ? out_shape.to_shape() : Shape(out_shape.rank().get_length());
-                outputs.emplace_back(out.get_element_type(), shape);
+                const auto& out_et = out.get_element_type();
+
+                if (out_et.is_dynamic()) {
+                    outputs.emplace_back();
+                } else if (out_shape.is_static()) {
+                    outputs.emplace_back(out_et, out_shape.to_shape());
+                } else if (out_shape.rank().is_static()) {
+                    outputs.emplace_back(out_et, Shape(out_shape.rank().get_length()));
+                } else {
+                    outputs.emplace_back(out_et, Shape{0, std::numeric_limits<size_t>::max()});
+                }
             }
 
             if (is_upper ? node->evaluate_upper(outputs) : node->evaluate_lower(outputs)) {
