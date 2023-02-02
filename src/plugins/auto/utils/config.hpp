@@ -11,6 +11,7 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <set>
 
 namespace MultiDevicePlugin {
 using namespace InferenceEngine;
@@ -20,6 +21,7 @@ struct PluginConfig {
                 _useProfiling(false),
                 _exclusiveAsyncRequests(false),
                 _disableAutoBatching(false),
+                _batchTimeout("1000"),
                 _devicePriority(""),
                 _modelPriority(1),
                 _deviceBindBuffer(false),
@@ -33,7 +35,6 @@ struct PluginConfig {
             res.push_back(ov::enable_profiling.name());
             res.push_back(PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS);
             res.push_back(ov::hint::model_priority.name());
-            res.push_back(ov::hint::allow_auto_batching.name());
             res.push_back(ov::log::level.name());
             res.push_back(ov::intel_auto::device_bind_buffer.name());
             return res;
@@ -58,11 +59,9 @@ struct PluginConfig {
                                                        RW_property(ov::log::level.name()),
                                                        RW_property(ov::device::priorities.name()),
                                                        RW_property(ov::enable_profiling.name()),
-                                                       RW_property(ov::hint::allow_auto_batching.name()),
                                                        RW_property(ov::hint::performance_mode.name()),
                                                        RW_property(ov::hint::num_requests.name()),
-                                                       RW_property(ov::intel_auto::device_bind_buffer.name()),
-                                                       RW_property(ov::cache_dir.name())};
+                                                       RW_property(ov::intel_auto::device_bind_buffer.name())};
             std::vector<ov::PropertyName> supportedProperties;
             supportedProperties.reserve(roProperties.size() + rwProperties.size());
             supportedProperties.insert(supportedProperties.end(), roProperties.begin(), roProperties.end());
@@ -86,7 +85,10 @@ struct PluginConfig {
         return pluginName == "AUTO" ? supported_metrics : multi_supported_metrics;
     }
 
-    void UpdateFromMap(const std::map<std::string, std::string>& config, const std::string& pluginName, bool supportHWProprety = false) {
+    void UpdateFromMap(const std::map<std::string, std::string>& config,
+                       const std::string& pluginName,
+                       const std::set<std::string>& core_config = {},
+                       bool supportHWProprety = false) {
         const auto perf_hints_configs = PerfHintsConfig::SupportedKeys();
         for (auto&& kvp : config) {
             if (kvp.first == ov::enable_profiling) {
@@ -122,25 +124,6 @@ struct PluginConfig {
                     kvp.second == CONFIG_VALUE(MODEL_PRIORITY_HIGH)) {
                     _modelPriority = 0;
                 } else {
-                    IE_THROW() << "Unsupported config value: " << kvp.second
-                        << " for key: " << kvp.first;
-                }
-            } else if (kvp.first == ov::hint::allow_auto_batching) {
-                if (kvp.second == PluginConfigParams::NO) {
-                    _disableAutoBatching = true;
-                    // temp flag, to be removed when unify this key to ie core
-                    _isBatchConfigSet = true;
-                } else if (kvp.second == PluginConfigParams::YES) {
-                    _disableAutoBatching = false;
-                    _isBatchConfigSet = true;
-                } else {
-                    IE_THROW() << "Unsupported config value: " << kvp.second
-                            << " for key: " << kvp.first;
-                }
-            } else if (kvp.first == ov::auto_batch_timeout.name()) {
-                // plugin.set_property() will not support this property
-                // LoadNetwork will ignore this property due to it will be handed in core level
-                if (!supportHWProprety) {
                     IE_THROW() << "Unsupported config value: " << kvp.second << " for key: " << kvp.first;
                 }
             } else if (kvp.first == ov::intel_auto::device_bind_buffer.name()) {
@@ -167,9 +150,32 @@ struct PluginConfig {
                 _passThroughConfig.emplace(kvp.first, kvp.second);
             } else if (kvp.first.find("AUTO_") == 0) {
                 _passThroughConfig.emplace(kvp.first, kvp.second);
-            } else if (kvp.first == ov::cache_dir.name()) {
-                _cacheDir = kvp.second;
-                _isSetCacheDir = true;
+            } else if (core_config.find(kvp.first) != core_config.end()) {
+                if (kvp.first == ov::cache_dir) {
+                    _cacheDir = kvp.second;
+                    _isSetCacheDir = true;
+                } else if (kvp.first == ov::hint::allow_auto_batching) {
+                    if (kvp.second == PluginConfigParams::NO) {
+                        _disableAutoBatching = true;
+                        // temp flag, to be removed when unify this key to ie core
+                        _isBatchConfigSet = true;
+                    } else if (kvp.second == PluginConfigParams::YES) {
+                        _disableAutoBatching = false;
+                        _isBatchConfigSet = true;
+                    } else {
+                        IE_THROW() << "Unsupported config value: " << kvp.second << " for key: " << kvp.first;
+                    }
+                } else if (kvp.first == ov::auto_batch_timeout) {
+                    try {
+                        auto batchTimeout = std::stoi(kvp.second);
+                        if (batchTimeout < 0) {
+                            IE_THROW() << "Unsupported config value: " << kvp.second << " for key: " << kvp.first;
+                        }
+                        _batchTimeout = kvp.second;
+                    } catch (...) {
+                        IE_THROW() << "Unsupported config value: " << kvp.second << " for key: " << kvp.first;
+                    }
+                }
             } else {
                 if (pluginName.find("AUTO") != std::string::npos || !supportHWProprety)
                     // AUTO and MULTI just only accept its own properites and secondary property when calling
@@ -254,6 +260,8 @@ struct PluginConfig {
         else
             _keyConfigMap[ov::intel_auto::device_bind_buffer.name()] = PluginConfigParams::NO;
 
+        _keyConfigMap[ov::auto_batch_timeout.name()] = _batchTimeout;
+
         _keyConfigMap[ov::log::level.name()] = _logLevel;
 
         _keyConfigMap[ov::cache_dir.name()] = _cacheDir;
@@ -267,6 +275,7 @@ struct PluginConfig {
     bool _useProfiling;
     bool _exclusiveAsyncRequests;
     bool _disableAutoBatching;
+    std::string _batchTimeout;
     std::string _devicePriority;
     int _modelPriority;
     bool _deviceBindBuffer;

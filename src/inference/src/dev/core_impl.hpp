@@ -110,7 +110,7 @@ private:
 
         // Intercept core config that will be set to plugin by calling plugin.set_property().
         // Put it into global config map if this plugin supported
-        void intercept_core_config(ov::Plugin& plugin, ov::AnyMap& config, bool enable = true);
+        void intercept_core_config(ov::Plugin& plugin, ov::AnyMap& config);
 
         // Clean up global config for input config.
         void cleanup_core_config(ov::Plugin& plugin, ov::AnyMap& config) const;
@@ -123,6 +123,7 @@ private:
         void update_config(ov::Plugin& plugin, std::map<std::string, T>& config) const;
 
         ov::Any get_core_config(const std::string& name) const;
+        ov::AnyMap query_core_config() const;
 
         void set_cache_dir_for_device(const std::string& dir, const std::string& name);
 
@@ -144,13 +145,15 @@ private:
         mutable std::mutex _core_property_mutex;
         // Core global properties, which will not set to any plugins.
         // It will be updated if core.set_property() without device name is called.
-        mutable ov::AnyMap _core_global_properties = {{ov::force_tbb_terminate.name(), ov::Any(false)}};
+        mutable ov::AnyMap _core_global_properties = {
+            {ov::force_tbb_terminate.name(), ov::Any(false)}};
 
         // Core plugins properties, which will set to specified or all plugins.
         // It will be updated if core.set_property() without device name is called.
-        mutable ov::AnyMap _core_plugins_properties = {{ov::cache_dir.name(), ""},
-                                               {ov::hint::allow_auto_batching.name(), ov::Any(true)},
-                                               {ov::auto_batch_timeout.name(), "1000"}};
+        mutable ov::AnyMap _core_plugins_properties = {
+            {ov::cache_dir.name(), ""},
+            {ov::hint::allow_auto_batching.name(), ov::Any(true)},
+            {ov::auto_batch_timeout.name(), "1000"}};
     };
 
     struct CacheContent {
@@ -369,6 +372,9 @@ public:
 
     std::map<std::string, std::string> GetSupportedConfig(const std::string& deviceName,
                                                           const std::map<std::string, std::string>& configs) override;
+
+
+    std::set<std::string> QueryCoreSupportedConfig() const override;
 
     /**
      * @brief Registers the extension in a Core object

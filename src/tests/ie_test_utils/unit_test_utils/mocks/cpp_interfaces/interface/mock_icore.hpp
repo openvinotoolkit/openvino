@@ -62,6 +62,7 @@ public:
     MOCK_CONST_METHOD1(DeviceSupportsImportExport, bool(const std::string&));  // NOLINT not a cast to bool
     MOCK_METHOD2(GetSupportedConfig,
                  std::map<std::string, std::string>(const std::string&, const std::map<std::string, std::string>&));
+    MOCK_CONST_METHOD0(QueryCoreSupportedConfig, std::set<std::string>());
     MOCK_CONST_METHOD0(isNewAPI, bool());
     MOCK_METHOD1(GetDefaultContext, InferenceEngine::RemoteContext::Ptr(const std::string&));
 

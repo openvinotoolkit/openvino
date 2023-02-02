@@ -799,7 +799,7 @@ void ov::CoreImpl::set_property_for_devivce(const ov::AnyMap& configMap, const s
         allowNotImplemented([&]() {
             std::lock_guard<std::mutex> lock(get_mutex(plugin.first));
             auto configCopy = config;
-            coreConfig.intercept_core_config(plugin.second, configCopy, true);
+            coreConfig.intercept_core_config(plugin.second, configCopy);
 
             // Add device specific value to support device_name.device_id cases
             std::vector<std::string> supportedConfigKeys =
@@ -1041,20 +1041,21 @@ bool ov::CoreImpl::CoreConfig::is_core_config(const std::string& config_name) co
 
 bool ov::CoreImpl::CoreConfig::core_config_supported(const ov::Plugin& plugin, const std::string& config_name) const {
     auto supported = false;
+    auto device_name = plugin.get_name();
 
-    // There will be a global properties whitelist for each plugin, such as:
-    //   ov::auto_batch_timeout         - can pass to BATCH plugins
-    //   ov::hint::allow_auto_batching  - can pass to AUTO/MULTTI plugins
-    //   ov::cache_dir                  - can pass to CPU/GPU/GNA/AUTO/MULTI/BATCH plugins
-    if (config_name == ov::auto_batch_timeout.name() || config_name == ov::hint::allow_auto_batching.name() ||
-        config_name == ov::cache_dir.name()) {
-        supported = util::contains(plugin.get_property(ov::supported_properties), config_name);
+    if (_core_plugins_properties.find(config_name) != _core_plugins_properties.end()) {
+        // Remove after all plugins can handle core properties.
+        supported = device_name.find("CPU") != std::string::npos || device_name.find("GPU") != std::string::npos ||
+                    device_name.find("GNA") != std::string::npos || device_name.find("AUTO") != std::string::npos ||
+                    device_name.find("MULTI") != std::string::npos || device_name.find("BATCH") != std::string::npos;
+        if (!supported) {
+            supported = util::contains(plugin.get_property(ov::supported_properties), config_name);
+        }
     }
-
     return supported;
 }
 
-void ov::CoreImpl::CoreConfig::intercept_core_config(ov::Plugin& plugin, ov::AnyMap& config, bool enable) {
+void ov::CoreImpl::CoreConfig::intercept_core_config(ov::Plugin& plugin, ov::AnyMap& config) {
     std::lock_guard<std::mutex> lock(_core_property_mutex);
     for (auto& it : _core_plugins_properties) {
         auto item = config.find(it.first);
@@ -1067,9 +1068,7 @@ void ov::CoreImpl::CoreConfig::intercept_core_config(ov::Plugin& plugin, ov::Any
                     std::string device_name = plugin.get_name();
                     set_cache_dir_for_device(item->second, device_name);
                 }
-                // Keep false until cache_dir is not supported by plugin.set_property().
-                if (enable)
-                    config.erase(item);
+                config.erase(item);
             }
         }
     }
@@ -1093,13 +1092,6 @@ void ov::CoreImpl::CoreConfig::update_config(ov::Plugin& plugin, std::map<std::s
         // If the property has been contained in input config, it will not be overwritten.
         auto item = config.find(it.first);
         if (item != config.end()) {
-            // ov::auto_batch_timeout will not be to AUTO plugin, it will be stored.
-            if (item->first == ov::auto_batch_timeout.name()) {
-                if (device_name.find("AUTO") != std::string::npos) {
-                    ov::Any value = item->second;
-                    _core_plugins_properties[item->first] = value.as<std::string>();
-                }
-            }
             // Erase if it cannot be set into this device.
             if (!core_config_supported(plugin, it.first)) {
                 config.erase(item);
@@ -1128,6 +1120,11 @@ ov::Any ov::CoreImpl::CoreConfig::get_core_config(const std::string& name) const
 
     // Other property will report exception.
     IE_THROW() << "Exception: ov::core get_property with unsupported core property name: '" << name << "'";
+}
+
+ov::AnyMap ov::CoreImpl::CoreConfig::query_core_config() const {
+    std::lock_guard<std::mutex> lock(_core_property_mutex);
+    return _core_plugins_properties;
 }
 
 void ov::CoreImpl::CoreConfig::set_cache_dir_for_device(const std::string& dir, const std::string& name) {

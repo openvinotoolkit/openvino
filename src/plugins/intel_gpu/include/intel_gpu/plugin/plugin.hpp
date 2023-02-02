@@ -44,7 +44,7 @@ class Plugin : public InferenceEngine::IInferencePlugin {
     uint32_t get_optimal_batch_size(const std::map<std::string, InferenceEngine::Parameter>& options) const;
     uint32_t get_max_batch_size(const std::map<std::string, InferenceEngine::Parameter>& options) const;
 
-    ov::AnyMap preprocess_config(const std::map<std::string, std::string>& orig_config) const;
+    ov::AnyMap preprocess_config(const std::map<std::string, std::string>& orig_config, const bool ignore = true) const;
 
 public:
     Plugin();

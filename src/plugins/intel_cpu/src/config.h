@@ -9,6 +9,7 @@
 #include <ie/ie_common.h>
 #include <openvino/util/common_util.hpp>
 #include "utils/debug_caps_config.h"
+#include <set>
 
 #include <bitset>
 #include <string>
@@ -63,7 +64,7 @@ struct Config {
 
     DenormalsOptMode denormalsOptMode = DenormalsOptMode::DO_Keep;
 
-    void readProperties(const std::map<std::string, std::string> &config);
+    void readProperties(const std::map<std::string, std::string>& config, const std::set<std::string>& core_config = {});
     void updateProperties();
 
     std::map<std::string, std::string> _config;

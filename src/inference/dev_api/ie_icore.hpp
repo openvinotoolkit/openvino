@@ -199,6 +199,12 @@ public:
     virtual std::map<std::string, std::string> GetSupportedConfig(const std::string& deviceName,
                                                                   const std::map<std::string, std::string>& config) = 0;
 
+    /**
+     * @brief Get configs that are supported by core
+     * @return map of configs that are supported by device
+     */
+    virtual std::set<std::string> QueryCoreSupportedConfig() const = 0;
+
     virtual bool isNewAPI() const = 0;
 
     /**

@@ -29,6 +29,13 @@ private:
             return ptr;
         }
     }
+    void remove_core_property(std::map<std::string, std::string>& configMap, const std::set<std::string>& coreConfig) {
+        for (auto it : coreConfig) {
+            auto item = configMap.find(it);
+            if (item != configMap.end())
+                configMap.erase(item);
+        }
+    }
 
 protected:
     std::string _pluginInternalName = "GNA";
@@ -39,8 +46,12 @@ public:
                                                 const std::map<std::string, std::string> &config) override {
         std::lock_guard<std::mutex> lock{ syncCallsToLoadExeNetworkImpl };
         Config updated_config(defaultConfig);
-        updated_config.UpdateFromMap(config);
-        auto plg = std::make_shared<GNAPlugin>(updated_config.keyConfigMap);
+        auto core_config = GetCore() ? GetCore()->QueryCoreSupportedConfig() : std::set<std::string>();
+        updated_config.UpdateFromMap(config, core_config);
+
+        auto _config = updated_config.keyConfigMap;
+        remove_core_property(_config, core_config);
+        auto plg = std::make_shared<GNAPlugin>(_config);
         plgPtr = plg;
         InferenceEngine::CNNNetwork clonedNetwork(InferenceEngine::cloneNetwork(network));
         return std::make_shared<GNAExecutableNetwork>(clonedNetwork, plg);
@@ -54,8 +65,12 @@ public:
                                                 const std::string &modelFileName,
                                                 const std::map<std::string, std::string> &config) override {
         Config updated_config(defaultConfig);
-        updated_config.UpdateFromMap(config);
-        auto plg = std::make_shared<GNAPlugin>(updated_config.keyConfigMap);
+        auto core_config = GetCore() ? GetCore()->QueryCoreSupportedConfig() : std::set<std::string>();
+        updated_config.UpdateFromMap(config, core_config);
+
+        auto _config = updated_config.keyConfigMap;
+        remove_core_property(_config, core_config);
+        auto plg = std::make_shared<GNAPlugin>(_config);
         plgPtr = plg;
         auto network_impl = std::make_shared<GNAExecutableNetwork>(modelFileName, plg);
         // set pointer for IInferencePlugin interface
@@ -67,8 +82,12 @@ public:
     InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel,
                                                      const std::map<std::string, std::string>& config) override {
         Config updated_config(defaultConfig);
-        updated_config.UpdateFromMap(config);
-        auto plg = std::make_shared<GNAPlugin>(updated_config.keyConfigMap);
+        auto core_config = GetCore() ? GetCore()->QueryCoreSupportedConfig() : std::set<std::string>();
+        updated_config.UpdateFromMap(config, core_config);
+
+        auto _config = updated_config.keyConfigMap;
+        remove_core_property(_config, core_config);
+        auto plg = std::make_shared<GNAPlugin>(_config);
         plgPtr = plg;
         auto network_impl = std::make_shared<GNAExecutableNetwork>(networkModel, plg);
         // set pointer for IInferencePlugin interface
@@ -101,6 +120,10 @@ public:
     }
 
     InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string, InferenceEngine::Parameter> & options) const override {
+        auto core_config = GetCore() ? GetCore()->QueryCoreSupportedConfig() : std::set<std::string>();
+        if (core_config.count(name)) {
+            THROW_GNA_EXCEPTION << "GetConfig: Unsupported GNA config key: " << name.c_str();
+        }
         return defaultConfig.GetParameter(name);
     }
 };

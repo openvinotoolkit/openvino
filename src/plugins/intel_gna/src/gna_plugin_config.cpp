@@ -51,7 +51,7 @@ static const std::set<std::string> supportedTargets = {
     common::kGnaTargetUnspecified
 };
 
-void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
+void Config::UpdateFromMap(const std::map<std::string, std::string>& config, const std::set<std::string>& core_config_keys) {
     for (auto&& item : config) {
         auto key = item.first;
         auto value = item.second;
@@ -268,8 +268,10 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 OPENVINO_SUPPRESS_DEPRECATED_END
         } else if (key == CONFIG_KEY(LOG_LEVEL) || key == ov::log::level) {
             gnaFlags.log_level = ov::util::from_string(value, ov::log::level);
-        } else if (key == ov::cache_dir) {
-            cacheDir = value;
+        } else if (core_config_keys.count(key)) {
+            if (key == ov::cache_dir) {
+                cacheDir = value;
+            }
         } else {
             IE_THROW(NotFound)
                 << "[GNAPlugin] in function " << __PRETTY_FUNCTION__<< ": "
@@ -413,7 +415,6 @@ const Parameter Config::GetSupportedProperties(bool compiled) {
         { ov::hint::performance_mode.name(), ov::PropertyMutability::RW },
         { ov::log::level.name(), ov::PropertyMutability::RW },
         { ov::execution_devices.name(), ov::PropertyMutability::RO },
-        { ov::cache_dir.name(), ov::PropertyMutability::RW },
     };
 
     const std::vector<ov::PropertyName> impacting_model_compilation_properties =

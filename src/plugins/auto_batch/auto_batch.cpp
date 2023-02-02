@@ -27,10 +27,10 @@
 namespace AutoBatchPlugin {
 using namespace InferenceEngine;
 
-std::vector<std::string> supported_configKeys = {CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG),
-                                                 CONFIG_KEY(AUTO_BATCH_TIMEOUT),
-                                                 CONFIG_KEY(CACHE_DIR)};
-
+std::vector<std::string> supported_configKeys = {CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)};
+std::vector<std::string> internal_supported_configKeys = {CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG),
+                                                          CONFIG_KEY(AUTO_BATCH_TIMEOUT),
+                                                          CONFIG_KEY(CACHE_DIR)};
 template <Precision::ePrecision precision>
 Blob::Ptr create_shared_blob_on_top_of_batched_blob(Blob::Ptr batched_blob,
                                                     std::string name,
@@ -700,7 +700,8 @@ DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(const std::string& d
         if (!deviceIDLocal.empty()) {
             tconfig[PluginConfigParams::KEY_DEVICE_ID] = deviceIDLocal;
         }
-        // passthrough the cache dir to core->loadnetwork when underlying device does not support cache dir
+        // ov::cache_dir is core property but not in the plugin supported_properties,
+        // so need pass to core->loadnetwork
         auto deviceConfig = GetCore()->GetSupportedConfig(deviceName, tconfig);
         if (tconfig.find(CONFIG_KEY(CACHE_DIR)) != tconfig.end() &&
             deviceConfig.find(CONFIG_KEY(CACHE_DIR)) == deviceConfig.end()) {
@@ -715,12 +716,15 @@ DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(const std::string& d
     metaDevice.config = getDeviceConfig(metaDevice.deviceName);
 
     auto cfg = config;
+    auto core_config = GetCore()->QueryCoreSupportedConfig();
     // check that no irrelevant config-keys left
     for (auto k : config) {
         const auto& name = k.first;
         auto found_in_supported_cfg = std::find(supported_configKeys.begin(), supported_configKeys.end(), k.first);
         auto found_in_device_cfg = metaDevice.config.find(k.first);
-        if (found_in_device_cfg == metaDevice.config.end() && found_in_supported_cfg == supported_configKeys.end()) {
+        auto found_in_core_cfg = core_config.find(k.first);
+        if (found_in_device_cfg == metaDevice.config.end() && found_in_supported_cfg == supported_configKeys.end() &&
+            found_in_core_cfg == core_config.end()) {
             IE_THROW() << "Unsupported config key: " << name;
         }
     }
@@ -955,7 +959,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     // auto-batch settings
     std::unordered_map<std::string, InferenceEngine::Parameter> networkConfig;
     for (auto c : fullConfig) {
-        if (supported_configKeys.end() != std::find(supported_configKeys.begin(), supported_configKeys.end(), c.first))
+        if (internal_supported_configKeys.end() !=
+            std::find(internal_supported_configKeys.begin(), internal_supported_configKeys.end(), c.first))
             networkConfig.insert(c);
     }
 

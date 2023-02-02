@@ -69,7 +69,7 @@ void Plugin::register_primitives() {
     #undef REGISTER_FACTORY
 }
 
-ov::AnyMap Plugin::preprocess_config(const std::map<std::string, std::string>& orig_config) const {
+ov::AnyMap Plugin::preprocess_config(const std::map<std::string, std::string>& orig_config, const bool ignore) const {
     // We can skip this conversion for new API once all meta plugins don't try to use legacy configs/metrics for new API internally
     auto config = LegacyAPIHelper::convert_legacy_properties(orig_config, IsNewAPI());
 
@@ -82,6 +82,21 @@ ov::AnyMap Plugin::preprocess_config(const std::map<std::string, std::string>& o
         config[ov::hint::performance_mode.name()] = ov::util::from_string(hint_it->second, ov::hint::performance_mode);
     }
 
+    // Core property handling: keep the core properties that this plugin used and remove unused core property
+    auto core_config = GetCore() ? GetCore()->QueryCoreSupportedConfig() : std::set<std::string>();
+    for (auto& it : core_config) {
+        auto item = config.find(it);
+        if (item == config.end())
+            continue;
+
+        if (!ignore) {
+            IE_THROW() << " Unsupported core property: " << it.c_str();
+        } else {
+            if (item->first != ov::cache_dir.name()) {
+                config.erase(item);
+            }
+        }
+    }
     return config;
 }
 
@@ -269,7 +284,7 @@ InferenceEngine::RemoteContext::Ptr Plugin::GetDefaultContext(const AnyMap& para
 
 void Plugin::SetConfig(const std::map<std::string, std::string> &config) {
     auto update_config = [this](ExecutionConfig& config, const std::map<std::string, std::string>& user_config) {
-        config.set_user_property(preprocess_config(user_config));
+        config.set_user_property(preprocess_config(user_config, false));
         // Check that custom layers config can be loaded
         if (user_config.find(ov::intel_gpu::config_file.name()) != user_config.end()) {
             CustomLayerMap custom_layers;
@@ -393,6 +408,11 @@ Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string,
     auto actual_name = name;
     if (LegacyAPIHelper::is_legacy_property({name, nullptr}, IsNewAPI())) {
         actual_name = LegacyAPIHelper::convert_legacy_property({name, nullptr}).first;
+    }
+
+    auto core_config = GetCore() ? GetCore()->QueryCoreSupportedConfig() : std::set<std::string>();
+    if (core_config.find(name) != core_config.end()) {
+        IE_THROW() << " Unsupported to get core property: " << name.c_str();
     }
 
     auto val = c.get_property(actual_name);
@@ -579,7 +599,6 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::intel_gpu::hint::queue_priority.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::hint::queue_throttle.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RW},
-        ov::PropertyName{ov::cache_dir.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::execution_mode.name(), PropertyMutability::RW},
         ov::PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RW},

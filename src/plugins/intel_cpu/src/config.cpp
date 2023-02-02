@@ -67,7 +67,7 @@ void Config::applyDebugCapsProperties() {
 }
 #endif
 
-void Config::readProperties(const std::map<std::string, std::string> &prop) {
+void Config::readProperties(const std::map<std::string, std::string>& prop, const std::set<std::string>& core_config) {
     const auto streamExecutorConfigKeys = streamExecutorConfig.SupportedKeys();
     const auto hintsConfigKeys = perfHintsConfig.SupportedKeys();
     for (const auto& kvp : prop) {
@@ -165,8 +165,6 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 IE_THROW() << "Wrong value for property key " << ov::inference_precision.name()
                     << ". Supported values: bf16, f32";
             }
-        } else if (key == PluginConfigParams::KEY_CACHE_DIR) {
-            cache_dir = val;
         } else if (PluginConfigInternalParams::KEY_CPU_RUNTIME_CACHE_CAPACITY == key) {
             int val_i = -1;
             try {
@@ -198,6 +196,10 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             else
                 IE_THROW() << "Wrong value for property key " << PluginConfigInternalParams::KEY_SNIPPETS_MODE
                             << ". Expected values: ENABLE/DISABLE/IGNORE_CALLBACK";
+        } else if (core_config.find(key) != core_config.end()) {
+            if (key == PluginConfigParams::KEY_CACHE_DIR) {
+                cache_dir = val;
+            }
         } else {
             IE_THROW(NotFound) << "Unsupported property " << key << " by CPU plugin";
         }

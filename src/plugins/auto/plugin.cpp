@@ -222,6 +222,11 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetConfig(const std::stri
         const std::map<std::string, InferenceEngine::Parameter> & options) const {
     Parameter result;
     const bool is_new_api = IsNewAPI();
+
+    auto core_config = GetCore()->QueryCoreSupportedConfig();
+    if (core_config.count(name)) {
+        IE_THROW() << "Unsupported get core config, key : " << name;
+    }
     if (_pluginConfig._keyConfigMap.find(name) != _pluginConfig._keyConfigMap.end()) {
         std::string val = _pluginConfig._keyConfigMap.find(name)->second;
         if (is_new_api) {
@@ -244,8 +249,6 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetConfig(const std::stri
                 return ov::util::from_string(val, ov::log::level);
             } else if (name == ov::device::priorities) {
                 return ov::util::from_string(val, ov::device::priorities);
-            } else if (name == ov::auto_batch_timeout) {
-                IE_THROW() << "Unsupported config key : " << name;
             } else {
                 return val;
             }
@@ -330,8 +333,9 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     // to use plugin's name as the log tag
     _LogTag = GetName();
     auto loadConfig = _pluginConfig;
+    auto core_config = GetCore()->QueryCoreSupportedConfig();
     // updateFromMap will check config valid
-    loadConfig.UpdateFromMap(config, GetName(), true);
+    loadConfig.UpdateFromMap(config, GetName(), core_config, true);
     auto fullConfig = loadConfig._keyConfigMap;
     bool workModeAuto = GetName() == "AUTO";
     // Remove the performance hint if no setting to this property from user.
@@ -629,8 +633,9 @@ QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&   
     queryResult.supportedLayersMap.clear();
 
     auto queryconfig = _pluginConfig;
+    auto core_config = GetCore()->QueryCoreSupportedConfig();
     // updateFromMap will check config valid
-    queryconfig.UpdateFromMap(config, GetName(), true);
+    queryconfig.UpdateFromMap(config, GetName(), core_config, true);
     auto fullConfig = queryconfig._keyConfigMap;
     auto priorities = fullConfig.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
     if (!priorities->second.empty()) {
