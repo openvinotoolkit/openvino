@@ -2,18 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-#include <gtest/gtest.h>
 #include "memory/gna_memory.hpp"
+
+#include <gtest/gtest.h>
+
+#include <vector>
 
 using namespace memory;
 
 class GNAMemoryTest : public ::testing::Test {
- protected:
-    GNAMemory<GNAFloatAllocator> mem{ GNAFloatAllocator{} };
+protected:
+    GNAMemory<GNAFloatAllocator> mem{GNAFloatAllocator{}};
 
-    void SetUp() override  {
-    }
+    void SetUp() override {}
 };
 
 TEST_F(GNAMemoryTest, canStoreActualBlob) {
@@ -36,8 +37,8 @@ TEST_F(GNAMemoryTest, canStore2Blobs) {
     float* pFuture = nullptr;
     float* pFuture2 = nullptr;
 
-    mem.getQueue(REGION_SCRATCH)->push_ptr(nullptr, &pFuture, input, 3*4);
-    mem.getQueue(REGION_SCRATCH)->push_ptr(nullptr, &pFuture2, input+1, 3*4);
+    mem.getQueue(REGION_SCRATCH)->push_ptr(nullptr, &pFuture, input, 3 * 4);
+    mem.getQueue(REGION_SCRATCH)->push_ptr(nullptr, &pFuture2, input + 1, 3 * 4);
     mem.commit();
 
     ASSERT_NE(pFuture, input);
@@ -67,7 +68,7 @@ TEST_F(GNAMemoryTest, canStoreBlobsALIGNED) {
     ASSERT_EQ(pFuture[0], 1);
     ASSERT_EQ(pFuture[1], 2);
     ASSERT_EQ(pFuture[2], 3);
-    //least probability for next element to be equal if not copied
+    // least probability for next element to be equal if not copied
     ASSERT_NE(pFuture[3], 4);
 }
 
@@ -80,14 +81,14 @@ TEST_F(GNAMemoryTest, canStore2BlobsALIGNED) {
     queue->push_ptr(nullptr, &pFuture2, input, 3 * 4, 16);
     mem.commit();
 
-    ASSERT_EQ(32 , queue->getSize());
+    ASSERT_EQ(32, queue->getSize());
 
     ASSERT_NE(pFuture, nullptr);
 
     ASSERT_EQ(pFuture[0], 1);
     ASSERT_EQ(pFuture[1], 2);
     ASSERT_EQ(pFuture[2], 3);
-    //least probability for next element to be equal if not copied
+    // least probability for next element to be equal if not copied
     ASSERT_EQ(pFuture[4], 1);
     ASSERT_EQ(pFuture[5], 2);
     ASSERT_EQ(pFuture[6], 3);
@@ -95,26 +96,25 @@ TEST_F(GNAMemoryTest, canStore2BlobsALIGNED) {
 
 TEST_F(GNAMemoryTest, canReserveData) {
     float* pFuture = nullptr;
-    mem.getQueue(REGION_SCRATCH)->reserve_ptr(nullptr, &pFuture, 3*4);
+    mem.getQueue(REGION_SCRATCH)->reserve_ptr(nullptr, &pFuture, 3 * 4);
     mem.commit();
 
     ASSERT_NE(pFuture, nullptr);
 }
 
 TEST_F(GNAMemoryTest, canReserveDataByVoid) {
-    mem.getQueue(REGION_SCRATCH)->reserve_ptr(nullptr, nullptr, 3*4);
+    mem.getQueue(REGION_SCRATCH)->reserve_ptr(nullptr, nullptr, 3 * 4);
     ASSERT_NO_THROW(mem.commit());
 }
 
-
 TEST_F(GNAMemoryTest, canReserveAndPushData) {
     float input[] = {1, 2, 3};
-    float *pFuture = nullptr;
+    float* pFuture = nullptr;
     float* pFuture2 = nullptr;
     size_t len = sizeof(input);
 
     mem.getQueue(REGION_SCRATCH)->push_ptr(nullptr, &pFuture, input, len);
-    mem.getQueue(REGION_SCRATCH)->reserve_ptr(nullptr, &pFuture2, 3*4);
+    mem.getQueue(REGION_SCRATCH)->reserve_ptr(nullptr, &pFuture2, 3 * 4);
     mem.commit();
 
     ASSERT_NE(pFuture, nullptr);
@@ -133,9 +133,9 @@ TEST_F(GNAMemoryTest, canReserveAndPushData) {
 
 TEST_F(GNAMemoryTest, canBindAndResolve) {
     float input[] = {1, 2, 3};
-    float *pFuture = nullptr;
-    float *pFuture2 = nullptr;
-    float *pFuture3 = nullptr;
+    float* pFuture = nullptr;
+    float* pFuture2 = nullptr;
+    float* pFuture3 = nullptr;
     size_t len = sizeof(input);
 
     mem.getQueue(REGION_AUTO)->bind_ptr(nullptr, &pFuture3, &pFuture);
@@ -156,9 +156,9 @@ TEST_F(GNAMemoryTest, canBindAndResolve) {
 
 TEST_F(GNAMemoryTest, canBindTransitevlyAndResolve) {
     float input[] = {1, 2, 3};
-    float *pFuture = nullptr;
-    float *pFuture3 = nullptr;
-    float *pFuture4 = nullptr;
+    float* pFuture = nullptr;
+    float* pFuture3 = nullptr;
+    float* pFuture4 = nullptr;
     size_t len = sizeof(input);
 
     mem.getQueue(REGION_AUTO)->bind_ptr(nullptr, &pFuture4, &pFuture3);
@@ -180,9 +180,9 @@ TEST_F(GNAMemoryTest, canBindTransitevlyAndResolve) {
 
 TEST_F(GNAMemoryTest, canBindTransitevlyWithOffsetsAndResolve) {
     float input[] = {1, 2, 3};
-    float *pFuture = nullptr;
-    float *pFuture3 = nullptr;
-    float *pFuture4 = nullptr;
+    float* pFuture = nullptr;
+    float* pFuture3 = nullptr;
+    float* pFuture4 = nullptr;
     size_t len = sizeof(input);
 
     mem.getQueue(REGION_AUTO)->bind_ptr(nullptr, &pFuture4, &pFuture3, 4);
@@ -204,9 +204,9 @@ TEST_F(GNAMemoryTest, canBindTransitevlyWithOffsetsAndResolve) {
 
 TEST_F(GNAMemoryTest, canBindWithOffsetAndResolve) {
     float input[] = {1, 2, 3};
-    float *pFuture = nullptr;
-    float *pFuture2 = nullptr;
-    float *pFuture3 = nullptr;
+    float* pFuture = nullptr;
+    float* pFuture2 = nullptr;
+    float* pFuture3 = nullptr;
     size_t len = sizeof(input);
 
     mem.getQueue(REGION_AUTO)->bind_ptr(nullptr, &pFuture3, &pFuture, 4);
@@ -227,7 +227,6 @@ TEST_F(GNAMemoryTest, canBindWithOffsetAndResolve) {
     ASSERT_EQ(pFuture3[0], 2);
 }
 
-
 TEST_F(GNAMemoryTest, canPushLocal) {
     float* pFuture = reinterpret_cast<float*>(&pFuture);
 
@@ -236,7 +235,7 @@ TEST_F(GNAMemoryTest, canPushLocal) {
         mem.getQueue(REGION_SCRATCH)->push_local_ptr(nullptr, pFuture, &*input.begin(), 4 * 4, 1);
     }
 
-    //poison stack
+    // poison stack
     mem.commit();
 
     ASSERT_FLOAT_EQ(pFuture[0], 1);
@@ -250,7 +249,7 @@ TEST_F(GNAMemoryTest, canPushValue) {
     float* pFuture2 = reinterpret_cast<float*>(&pFuture2);
 
     {
-        mem.getQueue(REGION_SCRATCH)->push_value(nullptr, pFuture, 3.f,  2);
+        mem.getQueue(REGION_SCRATCH)->push_value(nullptr, pFuture, 3.f, 2);
         mem.getQueue(REGION_SCRATCH)->push_value(nullptr, pFuture2, 13.f, 2);
     }
 
@@ -267,7 +266,7 @@ TEST_F(GNAMemoryTest, canPushReadOnlyValue) {
     float* pFuture2 = reinterpret_cast<float*>(&pFuture2);
 
     {
-        mem.getQueue(REGION_SCRATCH)->push_value(nullptr, pFuture, 3.f,  2);
+        mem.getQueue(REGION_SCRATCH)->push_value(nullptr, pFuture, 3.f, 2);
         mem.getQueue(REGION_RO)->push_value(nullptr, pFuture2, 13.f, 2);
     }
 
@@ -280,7 +279,7 @@ TEST_F(GNAMemoryTest, canPushReadOnlyValue) {
 }
 
 TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSizeEmptyReqs) {
-    mem.getQueue(REGION_SCRATCH)->push_value(nullptr, nullptr, 3.f,  2);
+    mem.getQueue(REGION_SCRATCH)->push_value(nullptr, nullptr, 3.f, 2);
     mem.getQueue(REGION_RO)->push_value(nullptr, nullptr, 13.f, 2);
     mem.commit();
 
@@ -290,14 +289,14 @@ TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSizeEmptyReqs) {
 
 TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSizeWithEmptyReqs) {
     // empty request before
-    mem.getQueue(REGION_SCRATCH)->push_value(nullptr, nullptr, 3.f,  2);
+    mem.getQueue(REGION_SCRATCH)->push_value(nullptr, nullptr, 3.f, 2);
     // not empty requests
     float* pFuture1 = reinterpret_cast<float*>(&pFuture1);
     float* pFuture2 = reinterpret_cast<float*>(&pFuture2);
-    mem.getQueue(REGION_SCRATCH)->push_value(nullptr, pFuture1, 3.f,  2);
+    mem.getQueue(REGION_SCRATCH)->push_value(nullptr, pFuture1, 3.f, 2);
     mem.getQueue(REGION_RO)->push_value(nullptr, pFuture2, 13.f, 2);
     // empty request after
-    mem.getQueue(REGION_SCRATCH)->push_value(nullptr, nullptr, 3.f,  2);
+    mem.getQueue(REGION_SCRATCH)->push_value(nullptr, nullptr, 3.f, 2);
     mem.getQueue(REGION_RO)->push_value(nullptr, nullptr, 13.f, 2);
     mem.commit();
 
@@ -308,7 +307,7 @@ TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSizeWithEmptyReqs) {
 TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSize) {
     float* pFuture1 = reinterpret_cast<float*>(&pFuture1);
     float* pFuture2 = reinterpret_cast<float*>(&pFuture2);
-    mem.getQueue(REGION_SCRATCH)->push_value(nullptr, pFuture1, 3.f,  2);
+    mem.getQueue(REGION_SCRATCH)->push_value(nullptr, pFuture1, 3.f, 2);
     mem.getQueue(REGION_RO)->push_value(nullptr, pFuture2, 13.f, 2);
     mem.commit();
 
@@ -321,7 +320,7 @@ TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSizeWithAlignment) {
     float* pFuture1 = reinterpret_cast<float*>(&pFuture1);
     float* pFuture2 = reinterpret_cast<float*>(&pFuture2);
 
-    memAligned.getQueue(REGION_SCRATCH)->push_value(nullptr, pFuture1, 3.f,  2);
+    memAligned.getQueue(REGION_SCRATCH)->push_value(nullptr, pFuture1, 3.f, 2);
     memAligned.getQueue(REGION_RO)->push_value(nullptr, pFuture2, 13.f, 2);
     memAligned.commit();
 
@@ -334,9 +333,9 @@ TEST_F(GNAMemoryTest, canSetUpReadWriteSectionPtr) {
     float* pFuture2 = reinterpret_cast<float*>(&pFuture2);
     float* pFuture3 = reinterpret_cast<float*>(&pFuture3);
 
-    mem.getQueue(REGION_RO)->push_value(nullptr, pFuture1, 3.f,  2);
+    mem.getQueue(REGION_RO)->push_value(nullptr, pFuture1, 3.f, 2);
     mem.getQueue(REGION_SCRATCH)->push_value(nullptr, pFuture2, 13.f, 3);
-    mem.getQueue(REGION_RO)->push_value(nullptr, pFuture3, 32.f,  4);
+    mem.getQueue(REGION_RO)->push_value(nullptr, pFuture3, 32.f, 4);
     mem.commit();
 
     ASSERT_EQ(mem.getRegionBytes(rRegion::REGION_RO), (2 + 4) * sizeof(float));
@@ -358,12 +357,11 @@ TEST_F(GNAMemoryTest, canSetUpReadWriteSectionPtr) {
     ASSERT_FLOAT_EQ(pFuture3[3], 32.f);
 }
 
-
 TEST_F(GNAMemoryTest, canUpdateSizeOfPushRequestWithBindRequest) {
-    float input[]  = {1, 2, 3};
-    float *pFuture = nullptr;
-    float *pFuture2 = nullptr;
-    float *pFuture3 = nullptr;
+    float input[] = {1, 2, 3};
+    float* pFuture = nullptr;
+    float* pFuture2 = nullptr;
+    float* pFuture3 = nullptr;
 
     size_t len = sizeof(input);
 
@@ -390,12 +388,12 @@ TEST_F(GNAMemoryTest, canUpdateSizeOfPushRequestWithBindRequest) {
 }
 
 TEST_F(GNAMemoryTest, canUpdateSizeOfPushRequestWithBindRequestWhenPush) {
-    float input[]  = {1, 2, 3};
-    float input2[]  = {6, 7, 8};
+    float input[] = {1, 2, 3};
+    float input2[] = {6, 7, 8};
 
-    float *pFutureInput2 = nullptr;
-    float *pFuture = nullptr;
-    float *pFuture2 = nullptr;
+    float* pFutureInput2 = nullptr;
+    float* pFuture = nullptr;
+    float* pFuture2 = nullptr;
 
     size_t len = sizeof(input);
 
@@ -422,11 +420,11 @@ TEST_F(GNAMemoryTest, canUpdateSizeOfPushRequestWithBindRequestWhenPush) {
 }
 
 TEST_F(GNAMemoryTest, canUpdateSizeOfPushRequestWithBindRequestWhenAlloc) {
-    float input[]  = {1, 2, 3};
+    float input[] = {1, 2, 3};
 
-    float *pFutureInput = nullptr;
-    float *pFuture = nullptr;
-    float *pFuture2 = nullptr;
+    float* pFutureInput = nullptr;
+    float* pFuture = nullptr;
+    float* pFuture2 = nullptr;
 
     size_t len = sizeof(input);
 

@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <cstdint>
-
 #include <legacy/ie_layers.h>
+
+#include <cstdint>
 
 namespace ov {
 namespace intel_gna {

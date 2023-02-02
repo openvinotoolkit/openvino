@@ -329,31 +329,39 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
             new_node.recalc_output_layout();
         };
 
-        auto recalculate_biases = [&](data_node& original_node, data_node& new_node) -> bool {
+        auto recalculate_biases = [&](data_node& original_node, data_node& second_node) -> bool {
             auto original_mem = original_node.get_attached_memory_ptr();
-            auto new_mem = new_node.get_attached_memory_ptr();
-            if (original_mem->count() != new_mem->count() || original_mem->get_layout().data_type != new_mem->get_layout().data_type)
+            auto second_mem = second_node.get_attached_memory_ptr();
+            if (original_mem->count() != second_mem->count() || original_mem->get_layout().data_type != second_mem->get_layout().data_type)
                 return false;
 
             switch (original_mem->get_layout().data_type) {
                 case data_types::f32: {
-                    mem_lock<float, mem_lock_type::write> original_bias_mem(original_mem, p.get_stream());
-                    mem_lock<float, mem_lock_type::read> new_bias_mem(new_mem, p.get_stream());
+                    cldnn::memory_ptr new_mem = p.get_engine().allocate_memory(original_mem->get_layout());
+                    mem_lock<float, mem_lock_type::write> new_bias_mem(new_mem, p.get_stream());
+                    mem_lock<float, mem_lock_type::read> original_bias_mem(original_mem, p.get_stream());
+                    mem_lock<float, mem_lock_type::read> second_bias_mem(second_mem, p.get_stream());
                     float* original_data = original_bias_mem.data();
-                    float* new_data = new_bias_mem.data();
+                    float* new_data = second_bias_mem.data();
                     for (size_t i = 0; i < original_bias_mem.size(); i++)
-                        original_data[i] += new_data[i];
+                        new_bias_mem[i] = original_data[i] + new_data[i];
+
+                    original_node.attach_memory(new_mem);
                     break;
                 }
                 case data_types::f16: {
-                    mem_lock<uint16_t, mem_lock_type::write> original_bias_mem(original_mem, p.get_stream());
-                    mem_lock<uint16_t, mem_lock_type::read> new_bias_mem(new_mem, p.get_stream());
+                    cldnn::memory_ptr new_mem = p.get_engine().allocate_memory(original_mem->get_layout());
+                    mem_lock<uint16_t, mem_lock_type::write> new_bias_mem(new_mem, p.get_stream());
+                    mem_lock<uint16_t, mem_lock_type::read> original_bias_mem(original_mem, p.get_stream());
+                    mem_lock<uint16_t, mem_lock_type::read> second_bias_mem(second_mem, p.get_stream());
                     uint16_t* original_data = original_bias_mem.data();
-                    uint16_t* new_data = new_bias_mem.data();
+                    uint16_t* new_data = second_bias_mem.data();
                     for (size_t i = 0; i < original_bias_mem.size(); i++) {
                         float new_val = half_to_float(original_data[i]) + half_to_float(new_data[i]);
-                        original_data[i] = float_to_half(new_val);
+                        new_bias_mem[i] = float_to_half(new_val);
                     }
+
+                    original_node.attach_memory(new_mem);
                     break;
                 }
                 default:
@@ -689,6 +697,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 return;
 
             if (_lo.get_optimization_attributes().use_onednn_impls) {
+                if (input.is_type<reshape>() || input.is_type<concatenation>())
+                    return;
                 #ifdef ENABLE_ONEDNN_FOR_GPU
                 // Activation should not fused if it isn't supported in onednn
                 try {

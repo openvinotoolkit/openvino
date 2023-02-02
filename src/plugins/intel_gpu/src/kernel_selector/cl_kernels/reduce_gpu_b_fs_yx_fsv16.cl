@@ -336,7 +336,21 @@ uint offset = batch_out * input_batch_pitch + ((feature_out + FSV - 1) / FSV) * 
         for (uint fi = feature_out; fi < feature_max_val; fi += FSV) {
             for (uint yi = y_out; yi < y_max_val; ++yi) {
                 for (uint xi = x_out; xi < x_max_val; ++xi) {
+#if HANDLE_FEATURE_REMAINDER
+                    INPUT_VEC input = (INPUT_VEC)(INPUT_INIT_VAL);
+                    #if REDUCE_FEATURE && (INPUT0_FEATURE_NUM % FSV != 0)
+                        if (fi + FSV <= INPUT0_FEATURE_NUM)
+                            input = BLOCK_READ(data, offset);
+                        else
+                            if (fi + get_sub_group_local_id() < INPUT0_FEATURE_NUM)
+                                for (int i = 0; i < READ_OFFSET; ++i)
+                                    input[i] = data[offset + get_sub_group_local_id() + i * get_max_sub_group_size()];
+                    #else
+                        input = BLOCK_READ(data, offset);
+                    #endif
+#else
                     INPUT_VEC input = BLOCK_READ(data, offset);
+#endif
                     unroll_for (int i = 0; i < READ_OFFSET; ++i)
                         acc[i] = FUNC_CALL(apply_reduce)(acc[i], input[i]);
                     offset += input_x_pitch;
