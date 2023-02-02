@@ -24,9 +24,9 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_IEClassExecutableNetworkGetMetricTest,
                          ::testing::Values("GNA" /*, "MULTI:GNA",  "HETERO:GNA" */));
 
 // TODO: this metric is not supported by the plugin
-INSTANTIATE_TEST_SUITE_P(
-        DISABLED_smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_NETWORK_NAME,
-        ::testing::Values("GNA", /* "MULTI:GNA", */ "HETERO:GNA"));
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_IEClassExecutableNetworkGetMetricTest,
+                         IEClassExecutableNetworkGetMetricTest_NETWORK_NAME,
+                         ::testing::Values("GNA", /* "MULTI:GNA", */ "HETERO:GNA"));
 
 // TODO: Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_IEClassExecutableNetworkGetMetricTest,
