@@ -211,29 +211,10 @@ public:
         return get_property(property.name(), arguments).template as<T>();
     }
 
-    // compile_model.get_property(ov::supported_properties)
-    // compile_model.get_property(ov::supported_properties, ov::subgraph::id(1))
-    // compile_model.get_property(ov::subgraph::properties, ov::supported_properties)
-    // compile_model.get_property(ov::subgraph::properties, ov::subgraph::id(1))
-    // compile_model.get_property(ov::subgraph::properties, ov::supported_properties, ov::subgraph::id(1))
-    // compile_model.get_property(ov::supported_properties, config)
-
     template <typename T, PropertyMutability M, typename... Args>
     util::EnableIfAllStringAny<T, Args...> get_property(const ov::Property<T, M>& property,
                                                         Args&&... args) const {
         return get_property(property.name(), AnyMap{std::forward<Args>(args)...}).template as<T>();
-    }
-
-    template <template<typename...> class Map, typename K, typename V, ov::PropertyMutability M1>
-    Map<K, V> get_property(const ov::Property<Map<K, V>, M1>& property1, const AnyMap& arguments) const {
-        return get_property(property1.name(), arguments).template as<Map<K, V>>();
-    }
-
-    template <template<typename...> class Map, typename K, typename V,
-             ov::PropertyMutability M1, typename T2, ov::PropertyMutability M2,
-             typename = typename ov::util::std_void<typename Map<K, V>::mapped_type>::type>
-    Map<K, V> get_property(const ov::Property<Map<K, V>, M1>& property1, const ov::Property<T2, M2>& property2) const {
-        return get_property(property1, ov::property::names(property2.name()));
     }
 
     /**

@@ -838,12 +838,13 @@ int main(int argc, char* argv[]) {
             }
 
             std::cout << "************************** SELECTED PROPERTIES" << std::endl;
-            auto subgraphs_precisions = compiledModel.get_property(ov::subgraph::properties, ov::optimal_number_of_infer_requests);
+            auto subgraphs_precisions = compiledModel.get_property(ov::subgraph::properties, ov::property::names(ov::optimal_number_of_infer_requests));
             for (auto&& item : subgraphs_precisions) {
                 for(auto&& config : item.second) {
                     std::cout << item.first << " "  << config.first << ": " << config.second.as<std::string>() << std::endl;
                 }
             }
+
             duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Compile model took " << double_to_string(duration_ms) << " ms" << slog::endl;
             if (statistics)

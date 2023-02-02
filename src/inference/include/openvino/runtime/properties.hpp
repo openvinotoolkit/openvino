@@ -82,11 +82,6 @@ struct StringAny<T> {
     constexpr static const bool value = std::is_convertible<T, std::pair<std::string, ov::Any>>::value;
 };
 
-template<class...>
-struct std_void {
-    using type = void;
-};
-
 template <typename T, typename... Args>
 using EnableIfAllStringAny = typename std::enable_if<StringAny<Args...>::value, T>::type;
 
@@ -688,19 +683,21 @@ public:
  */
 static constexpr Properties properties{"DEVICE_PROPERTIES"};
 
-struct DeviceName : public Property<std::string> {
+struct DeviceName {
 public:
-    using Property<std::string>::Property;
     /**
      * @brief Constructs property
-     * @param id subgraph id
+     * @param device_name device name
      * @return Pair of string key representation and type erased property value.
      */
     inline std::pair<std::string, Any> operator()(const std::string& device_name) const {
-        return {std::string(name()), device_name};
+        return {name(), device_name};
+    }
+    static std::string name() {
+        return std::string("DEVICE_NAME");
     }
 };
-static constexpr DeviceName name{"DEVICE_NAME"};
+static constexpr DeviceName name;
 
 /**
  * @brief Read-only property to get a std::string value representing a full device name.
@@ -836,10 +833,18 @@ constexpr static const auto EXPORT_IMPORT = "EXPORT_IMPORT";  //!< Device suppor
 
 namespace property {
 struct PropertyNames {
-    using value_type = std::pair<std::string, std::vector<ov::PropertyName>>;
     /**
      * @brief Constructs property
-     * @param property_names property names
+     * @param property property
+     * @return Pair of string key representation and type erased property value.
+     */
+    template <typename T, PropertyMutability mutability>
+    inline std::pair<std::string, Any> operator()(const ov::Property<T, mutability>& property) const {
+        return {name(), std::vector<ov::PropertyName>{property.name()}};
+    }
+    /**
+     * @brief Constructs property
+     * @param property_name property name
      * @return Pair of string key representation and type erased property value.
      */
     inline std::pair<std::string, Any> operator()(const ov::PropertyName& property_name) const {
@@ -853,7 +858,6 @@ struct PropertyNames {
     inline std::pair<std::string, Any> operator()(const std::vector<ov::PropertyName>& property_names) const {
         return {name(), property_names};
     }
-
     static std::string name() {
         return std::string("PROPERTY_NAMES");
     }
