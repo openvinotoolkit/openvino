@@ -151,7 +151,6 @@ public:
 
     cldnn::memory::ptr get_repeatless_mem(cldnn::layout l, int min, int max) {
         auto prim = engine.allocate_memory(l);
-        tensor s = l.get_tensor();
         if (l.data_type == data_types::f32) {
             VF<float> rnd_vec = generate_random_norepetitions_1d<float>(prim->size() / sizeof(float), min, max);
             set_values(prim, rnd_vec);
@@ -173,7 +172,6 @@ public:
 
     cldnn::memory::ptr get_mem(cldnn::layout l, int min, int max) {
         auto prim = engine.allocate_memory(l);
-        tensor s = l.get_tensor();
         if (l.data_type == data_types::f32) {
             VF<float> rnd_vec = generate_random_1d<float>(prim->size() / sizeof(float), min, max);
             set_values(prim, rnd_vec);
