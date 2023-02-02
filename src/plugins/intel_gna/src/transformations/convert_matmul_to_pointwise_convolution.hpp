@@ -10,7 +10,6 @@ namespace ov {
 namespace intel_gna {
 namespace pass {
 
-
 /**
  * @brief Convert a MatMul with batch size unsupported by GNA to a point-wise convolution with NHWC layout
  * with transposes around it:
@@ -25,8 +24,8 @@ namespace pass {
  */
 class ConvertMatmulToPointWiseConvolution : public ngraph::pass::MatcherPass {
 public:
-  OPENVINO_RTTI("ConvertMatmulToPointWiseConvolution", "0");
-  ConvertMatmulToPointWiseConvolution();
+    OPENVINO_RTTI("ConvertMatmulToPointWiseConvolution", "0");
+    ConvertMatmulToPointWiseConvolution();
 };
 
 /**
@@ -45,8 +44,8 @@ public:
  */
 class ConvertMatmulWithBiasToPointWiseConvolution : public ngraph::pass::MatcherPass {
 public:
-  OPENVINO_RTTI("ConvertMatmulWithBiasToPointWiseConvolution", "0");
-  ConvertMatmulWithBiasToPointWiseConvolution();
+    OPENVINO_RTTI("ConvertMatmulWithBiasToPointWiseConvolution", "0");
+    ConvertMatmulWithBiasToPointWiseConvolution();
 };
 
 /**
@@ -67,10 +66,10 @@ public:
  */
 class ConvertMatmulWithFqToPointWiseConvolution : public ngraph::pass::MatcherPass {
 public:
-  OPENVINO_RTTI("ConvertMatmulWithFqToPointWiseConvolution", "0");
-  ConvertMatmulWithFqToPointWiseConvolution();
+    OPENVINO_RTTI("ConvertMatmulWithFqToPointWiseConvolution", "0");
+    ConvertMatmulWithFqToPointWiseConvolution();
 };
 
-} // namespace pass
-} // namespace intel_gna
-} // namespace ov
+}  // namespace pass
+}  // namespace intel_gna
+}  // namespace ov

@@ -1564,6 +1564,9 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         if (!_optimization_attributes.use_onednn_impls)
             return impl_types::ocl;
 
+        if (node.get_output_layout().data_type == data_types::i32)
+            return impl_types::ocl;
+
         for (auto& dep : node.get_dependencies()) {
             if (dep.first->is_in_data_flow() && dep.first->get_preferred_impl_type() == impl_types::onednn) {
                 return impl_types::onednn;
@@ -1681,15 +1684,9 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             node.set_preferred_input_fmt(0, get_preferred_format(node.get_dependency(0)));
 
         // shape_infer_dep should be plain format because the memory is being read by ngraph shape infer as is
-        for (auto u : node.get_users()) {
-            for (auto dep_idx : u->get_shape_infer_dependencies()) {
-                if (u->get_dependencies().size() <= dep_idx)
-                    continue;
-                if (u->get_dependency(dep_idx).get_unique_id() == node.get_unique_id()) {
-                    expected = format::get_default_format(output_layout.get_rank(), false, false);
-                    return expected;
-                }
-            }
+        if (node.is_shape_infer_dep()) {
+            expected = format::get_default_format(output_layout.get_rank(), false, false);
+            return expected;
         }
     }
     if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
@@ -1821,14 +1818,14 @@ format layout_optimizer::get_preferred_format(program_node& node) {
     } else if (node.is_type<reduce>()) {
         auto& reduce_node = node.as<reduce>();
         auto input_layout = reduce_node.input().get_output_layout();
-        // TODO: Under the currnet implement, dynamic shape doesn't support blocked format. Will support in future.
         if (!use_onednn_impls && input_layout.is_dynamic()) {
-            if (input_layout.format.dimension() == 6)
+            if (input_layout.format.dimension() == 6) {
                 expected = format::bfwzyx;
-            else if (input_layout.format.dimension() == 5)
+            } else if (input_layout.format.dimension() == 5) {
                 expected = format::bfzyx;
-            else if (input_layout.format.dimension() == 4)
-                expected = format::bfyx;
+            } else if (input_layout.format.dimension() == 4) {
+                expected = format::any;
+            }
         }
     } else if (node.is_type<arg_max_min>()) {
         // Set default format for issue 92967/98750
@@ -1872,7 +1869,28 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
             // WA: shallow convolution needs to set input format by bfyx.
             //     onednn recommended byxf for input format. It will insert reorder before shallow conv.
             if (node.is_type<convolution>() && node.get_input_layouts()[0].feature() == 3) {
-                src_fmt = format::get_default_format(node.get_input_layouts()[0].get_rank(), false, false);
+                bool can_optimize_permute = false;
+                // In permute-conv pattern, check if permute can be optimized
+                // when the input memory of permute has been aligned like byxf format.
+                // ex) pattern: input (bfyx) -> permute (byxf) -> oneDNN convolution
+                //      input layout of permute: bfyx [b:1, f:416, y:416, x:3]
+                //     output layout of permute: byxf [b:1, f:3, y:416, x:416]
+                // In this case, it can be handled by changing only the shape of permute without the kernel execution.
+                if (node.get_output_layout().get_rank() == 4 && node.get_dependency(0).is_type<permute>()) {
+                    auto& pnode = node.get_dependency(0).as<permute>();
+                    can_optimize_permute = pnode.get_users().size() == 1 && pnode.get_dependencies().size() == 1
+                        && !pnode.is_output() && pnode.get_dependency(0).get_output_layout().is_static()
+                        && pnode.is_reverse_rotating_except_batch();
+                }
+                if (!can_optimize_permute) {
+                    src_fmt = format::get_default_format(node.get_input_layouts()[0].get_rank(), false, false);
+                } else {
+                    // The size of dependencies and users must each be 1.
+                    // In permute-conv pattern, the preferred format of permute should follow previous node.
+                    node.get_dependency(0).init_preferred_fmt(1, 1);
+                    node.get_dependency(0).set_preferred_input_fmt(0, format::bfyx);
+                    node.get_dependency(0).can_be_optimized(true);
+                }
             }
 
             node.set_preferred_input_fmt(idx, src_fmt);
@@ -1884,6 +1902,26 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
                 if (conv.get_input_layouts()[0].feature() <= 8 && conv.activations_zero_points_term() &&
                     conv.get_input_layouts()[0].data_type == data_types::u8 && conv.get_output_layout().data_type == data_types::u8) {
                     dst_fmt = format::b_fs_yx_fsv32;
+                }
+            }
+
+            // In conv-permute pattern, sets the output format of conv to byxf so that permute can be optimized.
+            // ex) oneDNN convolution -> (byxf) -> permute -> (bfyx) -> output
+            //     output layout of convolution: byxf [b:1, f:128, y:2, x:2]
+            //     output layout of permute:     bfyx [b:1, f:2, y:2, x:128]
+            // In this case, it can be handled by changing only the shape of permute without the kernel execution.
+            if (node.get_output_layout().get_rank() == 4
+                && node.get_users().size() == 1 && node.get_users().front()->is_type<permute>()) {
+                auto& pnode = node.get_users().front()->as<permute>();
+                auto can_optimize_permute = pnode.get_dependencies().size() == 1
+                    && !pnode.is_output() && pnode.get_dependency(0).get_output_layout().is_static()
+                    && pnode.is_rotating_except_batch();
+                if (can_optimize_permute) {
+                    dst_fmt = format::byxf;
+                    pnode.init_preferred_fmt(1, 1);
+                    pnode.set_preferred_input_fmt(0, cldnn::format::byxf);
+                    pnode.set_preferred_output_fmt(0, cldnn::format::bfyx);
+                    pnode.can_be_optimized(true);
                 }
             }
 

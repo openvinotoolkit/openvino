@@ -4,34 +4,33 @@
 
 #pragma once
 
-#include <ngraph/function.hpp>
-
+#include <ie_ngraph_utils.hpp>
+#include <legacy/cnn_network_impl.hpp>
 #include <memory>
+#include <ngraph/function.hpp>
+#include <ngraph/op/constant.hpp>
 #include <string>
 #include <vector>
 
-#include <legacy/cnn_network_impl.hpp>
-#include <ie_ngraph_utils.hpp>
 #include "blob_factory.hpp"
-#include <ngraph/op/constant.hpp>
 
 namespace InferenceEngine {
 namespace details {
 
-std::shared_ptr<CNNNetworkImpl>
-convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function>& graph,
-                             const CNNNetwork &network, bool keep_constant_inputs = false);
+std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function>& graph,
+                                                             const CNNNetwork& network,
+                                                             bool keep_constant_inputs = false);
 
-void
-convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function>& graph,
-                             const CNNNetwork &ngraphNetwork,
-                             CNNNetworkImpl* cnnNetworkImpl,
-                             bool keep_constant_inputs = false);
+void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function>& graph,
+                                  const CNNNetwork& ngraphNetwork,
+                                  CNNNetworkImpl* cnnNetworkImpl,
+                                  bool keep_constant_inputs = false);
 
-// TODO: move ConstAllocatorWrapper class, shareWeights add addBlob into CNNLayerCreator when NodeConverter class is removed
+// TODO: move ConstAllocatorWrapper class, shareWeights add addBlob into CNNLayerCreator when NodeConverter class is
+// removed
 class ConstAllocatorWrapper : public IAllocator {
 public:
-    explicit ConstAllocatorWrapper(std::shared_ptr<ngraph::op::Constant> constOp): _constOp(std::move(constOp)) {}
+    explicit ConstAllocatorWrapper(std::shared_ptr<ngraph::op::Constant> constOp) : _constOp(std::move(constOp)) {}
 
     void* lock(void* handle, LockOp) noexcept override {
         return handle;
@@ -51,13 +50,11 @@ private:
     std::shared_ptr<ngraph::op::Constant> _constOp;
 };
 
-enum BlobType {
-    weights,
-    biases
-};
+enum BlobType { weights, biases };
 
 inline Blob::Ptr shareWeights(const std::shared_ptr<ngraph::op::Constant>& constLayer) {
-    if (!constLayer) IE_THROW() << "Cannot share weights! Constant operation is empty!";
+    if (!constLayer)
+        IE_THROW() << "Cannot share weights! Constant operation is empty!";
     auto dataPrecision = convertPrecision(constLayer->get_element_type());
 
     size_t shapeSize = ngraph::shape_size(constLayer->get_shape());

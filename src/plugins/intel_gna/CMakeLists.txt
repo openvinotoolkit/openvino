@@ -55,7 +55,8 @@ find_package(libGNA REQUIRED
 
 ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "GNA"
-              SOURCES ${SOURCES} ${HEADERS})
+              SOURCES ${SOURCES} ${HEADERS}
+              ADD_CLANG_FORMAT)
 
 # Enable support of CC for the plugin
 ie_mark_target_as_cc(${TARGET_NAME})

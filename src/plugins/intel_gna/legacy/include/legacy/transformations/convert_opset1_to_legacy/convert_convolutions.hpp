@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include <vector>
-#include <memory>
-
 #include <ie_api.h>
 
+#include <memory>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <vector>
 
 namespace ngraph {
 namespace pass {
@@ -24,31 +23,31 @@ class ConvertGroupDeconvolution;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertConvolution: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertConvolution : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertConvolution", "0");
     ConvertConvolution();
 };
 
-class ngraph::pass::ConvertGroupConvolution: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertGroupConvolution : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertGroupConvolution", "0");
     ConvertGroupConvolution();
 };
 
-class ngraph::pass::ConvertDeconvolution: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertDeconvolution : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertDeconvolution", "0");
     ConvertDeconvolution();
 };
 
-class ngraph::pass::ConvertGroupDeconvolution: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertGroupDeconvolution : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertGroupDeconvolution", "0");
     ConvertGroupDeconvolution();
 };
 
-class ngraph::pass::ConvertConvolutions: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertConvolutions : public ngraph::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("ConvertConvolutions", "0");
     ConvertConvolutions() {

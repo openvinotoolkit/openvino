@@ -53,5 +53,15 @@ struct arg_max_min : public primitive_base<arg_max_min> {
     ov::op::TopKSortType sort;
     /// @brief Sets output order: if True than first output contains values and second (optional) - indices.
     bool values_first;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, mode);
+        seed = hash_combine(seed, top_k);
+        seed = hash_combine(seed, axis);
+        seed = hash_combine(seed, sort);
+        seed = hash_combine(seed, values_first);
+        return seed;
+    }
 };
 }  // namespace cldnn
