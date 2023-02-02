@@ -24,16 +24,16 @@ Installing OpenVINO Runtime from YUM is recommended for C++ developers. If you a
 
 .. tab:: Processor Notes
 
-  Processor graphics are not included in all processors.
-  See `Product Specifications`_ for information about your processor.
+   Processor graphics are not included in all processors.
+   See `Product Specifications`_ for information about your processor.
 
-  .. _Product Specifications: https://ark.intel.com/
+   .. _Product Specifications: https://ark.intel.com/
 
 .. tab:: Software
 
-  * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
-  * GCC 8.2.0
-  * `Python 3.7 - 3.10, 64-bit <https://www.python.org/downloads/>`_
+   * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
+   * GCC 8.2.0
+   * `Python 3.7 - 3.10, 64-bit <https://www.python.org/downloads/>`_
 
 @endsphinxdirective
 
@@ -57,14 +57,13 @@ Installing OpenVINO Runtime from YUM is recommended for C++ developers. If you a
       gpgkey=https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
       EOF
 
-2.	Move the new `openvino-2022.repo` file to the YUM configuration directory `/etc/yum.repos.d`:
+2. Move the new `openvino-2022.repo` file to the YUM configuration directory `/etc/yum.repos.d`:
    
    .. code-block:: sh
 
       sudo mv /tmp/openvino-2022.repo /etc/yum.repos.d
 
-
-3.	Verify that the new repository is set up properly.
+3. Verify that the new repository is set up properly.
 
    .. code-block:: sh
 
@@ -91,10 +90,9 @@ Installing OpenVINO Runtime from YUM is recommended for C++ developers. If you a
 
 To list available OpenVINO packages, use the following command:
 
-   .. code-block:: sh
+.. code-block:: sh
 
-      yum list 'openvino*'
-
+   yum list 'openvino*'
 
 @endsphinxdirective
 
@@ -158,9 +156,9 @@ To enable the toolkit components to use processor graphics (GPU) on your system,
 
 ### Step 5: Build Samples
 
-To build the C++ or C sample applications for Linux, run the `build_samples.sh` script:
-
 @sphinxdirective
+
+To build the C++ or C sample applications for Linux, run the `build_samples.sh` script:
 
 .. tab:: C++
 
@@ -217,6 +215,7 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
      :width: 400
 
 * Visit the :ref:`Samples <code samples>` page for other C++ example applications to get you started with OpenVINO, such as:
+
   * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README.html>`_
   * `Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README.html>`_
 
