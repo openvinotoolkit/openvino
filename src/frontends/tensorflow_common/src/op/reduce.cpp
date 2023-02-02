@@ -13,29 +13,15 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 
-OutputVector TranslateReduceOp(const NodeContext& node,
-                               std::function<Output<Node>(Output<Node>, Output<Node>, const bool)> create_ng_node) {
-    auto input = node.get_input(0);
-    auto reduction_axes = node.get_input(1);
-    auto tf_keep_dims = node.get_attribute<bool>("keep_dims", false);
-    auto res = create_ng_node(input, reduction_axes, tf_keep_dims);
-    set_node_name(node.get_name(), res.get_node_shared_ptr());
-    return {res};
-}
-
 template <typename T>
 OutputVector translate_direct_reduce_op(const NodeContext& node) {
-    // ensure its either an arithmetic or a logical reduction
-    if (!(std::is_base_of<ov::op::util::ArithmeticReduction, T>::value ||
-          std::is_base_of<ov::op::util::LogicalReduction, T>::value)) {
-        TENSORFLOW_OP_VALIDATION(node,
-                                 false,
-                                 "Expected node to be either a valid logical or arithmetic reduction "
-                                 "type");
-    }
-    return TranslateReduceOp(node, [](Output<Node> ng_input, Output<Node> ng_reduction_axes, const bool keep_dims) {
-        return make_shared<T>(ng_input, ng_reduction_axes, keep_dims);
-    });
+    default_op_checks(node, 1, {"Any", "All", "EuclideanNorm", "Max", "Mean", "Min", "Prod", "Sum"});
+    auto input = node.get_input(0);
+    auto axis = node.get_input(1);
+    auto keep_dims = node.get_attribute<bool>("keep_dims", false);
+    auto reduce_op = make_shared<T>(input, axis, keep_dims);
+    set_node_name(node.get_name(), reduce_op);
+    return {reduce_op};
 }
 
 template OutputVector translate_direct_reduce_op<ReduceLogicalOr>(const NodeContext& node);
