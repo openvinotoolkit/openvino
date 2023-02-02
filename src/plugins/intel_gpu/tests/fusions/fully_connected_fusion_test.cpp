@@ -177,7 +177,7 @@ class fc_fp32_activation_dynamic : public FullyConnectedFusingTest {};
 TEST_P(fc_fp32_activation_dynamic, basic) {
     auto p = GetParam();
     auto test_input_layout = get_input_layout(p);
-    auto dynamic_input_layout = layout{ov::PartialShape::dynamic(test_input_layout.get_rank()), test_input_layout.data_type, test_input_layout.format};
+    auto dynamic_input_layout = layout{ov::PartialShape::dynamic(test_input_layout.get_partial_shape().size()), test_input_layout.data_type, test_input_layout.format};
     create_topologies(
         input_layout("input", dynamic_input_layout),
         data("weights", get_mem(get_weights_layout(p))),
