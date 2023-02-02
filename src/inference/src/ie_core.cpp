@@ -298,8 +298,8 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
         }
     }
 
-    if (deviceName.empty() || _impl->getCoreConfig().is_core_config(name)) {
-        return _impl->getCoreConfig().get_core_config(name);
+    if (deviceName.empty() || _impl->get_core_config_obj().is_core_config(name)) {
+        return _impl->get_core_config_obj().get_core_config(name);
     }
 
     auto parsed = ov::parseDeviceNameIntoConfig(deviceName);

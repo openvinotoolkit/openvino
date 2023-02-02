@@ -123,11 +123,8 @@ private:
         void update_config(ov::Plugin& plugin, std::map<std::string, T>& config) const;
 
         ov::Any get_core_config(const std::string& name) const;
-        ov::Any get_device_cache_dir(const std::string& device_name) const;
 
         void set_cache_dir_for_device(const std::string& dir, const std::string& name);
-
-        std::string get_cache_dir() const;
 
         // Creating thread-safe copy of config including shared_ptr to ICacheManager
         // Passing empty or not-existing name will return global cache config
@@ -272,7 +269,7 @@ public:
     /**
      * @brief Get the reference to CoreConfig.
      */
-    CoreConfig& getCoreConfig() {
+    CoreConfig& get_core_config_obj() {
         return coreConfig;
     }
 

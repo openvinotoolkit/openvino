@@ -1130,19 +1130,9 @@ ov::Any ov::CoreImpl::CoreConfig::get_core_config(const std::string& name) const
     IE_THROW() << "Exception: ov::core get_property with unsupported core property name: '" << name << "'";
 }
 
-ov::Any ov::CoreImpl::CoreConfig::get_device_cache_dir(const std::string& device_name) const {
-    auto cache_config = get_cache_config_for_device(device_name);
-    return cache_config._cacheDir;
-}
-
 void ov::CoreImpl::CoreConfig::set_cache_dir_for_device(const std::string& dir, const std::string& name) {
     std::lock_guard<std::mutex> lock(_cacheConfigMutex);
     fill_config(_cacheConfigPerDevice[name], dir);
-}
-
-std::string ov::CoreImpl::CoreConfig::get_cache_dir() const {
-    std::lock_guard<std::mutex> lock(_cacheConfigMutex);
-    return _cacheConfig._cacheDir;
 }
 
 // Creating thread-safe copy of config including shared_ptr to ICacheManager
