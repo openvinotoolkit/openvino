@@ -10,6 +10,7 @@
 #include "openvino/util/log.hpp"
 #include "pt_framework_node.hpp"
 #include "transformations/common_optimizations/push_constant_to_subgraph.hpp"
+#include "transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
 #include "transforms.hpp"
 #include "transforms/append_list_unpack_replacer.hpp"
@@ -92,6 +93,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::ListConstructReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::PrimListConstructPadReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::DecomposeTupleResults>();
+    manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParams>();
 
     manager.run_passes(model);
 
