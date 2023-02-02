@@ -4,12 +4,6 @@
 
 #pragma once
 
-#include "gna2-model-export-api.h"
-#include "gna2-common-api.h"
-#include "gna2-model-suecreek-header.h"
-
-#include "gna_device_allocation.hpp"
-
 #include <algorithm>
 #include <cstdint>
 #include <list>
@@ -18,6 +12,11 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "gna2-common-api.h"
+#include "gna2-model-export-api.h"
+#include "gna2-model-suecreek-header.h"
+#include "gna_device_allocation.hpp"
 
 struct GnaEndpoint {
     std::string name;
@@ -66,17 +65,14 @@ std::vector<GnaEndpoint> GnaEndpoint::CreateFromDescriptorContainer(const T& con
     return result;
 }
 
-void * ExportSueLegacyUsingGnaApi2(
-    uint32_t modelId,
-    uint32_t deviceIndex,
-    Gna2ModelSueCreekHeader* modelHeader);
+void* ExportSueLegacyUsingGnaApi2(uint32_t modelId, uint32_t deviceIndex, Gna2ModelSueCreekHeader* modelHeader);
 
 Gna2DeviceVersion getEmbeddedTargetFromCompileTarget(const std::string compileTarget);
 
 void ExportTlvModel(uint32_t modelId,
-    uint32_t deviceIndex,
-    std::ostream& outStream,
-    std::string compileTarget,
-    const std::vector<GnaEndpoint>& inputs,
-    const std::vector<GnaEndpoint>& outputs,
-    const GnaAllocations& allAllocation);
+                    uint32_t deviceIndex,
+                    std::ostream& outStream,
+                    std::string compileTarget,
+                    const std::vector<GnaEndpoint>& inputs,
+                    const std::vector<GnaEndpoint>& outputs,
+                    const GnaAllocations& allAllocation);

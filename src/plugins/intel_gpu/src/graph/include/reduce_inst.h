@@ -9,7 +9,17 @@
 #include <string>
 
 namespace cldnn {
+template <>
+struct typed_program_node<reduce> : public typed_program_node_base<reduce> {
+    using parent = typed_program_node_base<reduce>;
+    typed_program_node(const std::shared_ptr<reduce> prim, program& prog) : parent(prim, prog) {}
 
+public:
+    using parent::parent;
+
+    program_node& input(size_t index = 0) const { return get_dependency(index); }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+};
 using reduce_node = typed_program_node<reduce>;
 
 template <>
