@@ -4,15 +4,15 @@
 
 /**
  * @brief A header file for CNNNetwork tools
- * 
+ *
  * @file ie_cnn_network_tools.h
  */
 #pragma once
+#include <legacy/ie_layers.h>
+
 #include <vector>
 
 #include "cpp/ie_cnn_network.h"
-
-#include <legacy/ie_layers.h>
 
 namespace InferenceEngine {
 namespace details {
