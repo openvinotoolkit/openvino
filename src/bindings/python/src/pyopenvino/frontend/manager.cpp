@@ -39,6 +39,29 @@ void regclass_frontend_FrontEndManager(py::module m) {
                 :rtype: List[str]
              )");
 
+    fem.def(
+        "register_front_end",
+        [](const std::shared_ptr<ov::frontend::FrontEndManager>& fem,
+           const std::string& name,
+           const std::string& library_path) {
+            return fem->register_front_end(name, library_path);
+        },
+        py::arg("name"),
+        py::arg("library_path"),
+        R"(
+                Register frontend with name and factory loaded from provided library.
+            
+                :param name: Name of front end.
+                :type name: str
+                
+                :param library_path: Path (absolute or relative) or name of a frontend library. If name is
+                provided, depending on platform, it will be wrapped with shared library suffix and prefix
+                to identify library full name.
+                :type library_path: str
+
+                :return: None
+             )");
+
     fem.def("load_by_framework",
             &ov::frontend::FrontEndManager::load_by_framework,
             py::arg("framework"),

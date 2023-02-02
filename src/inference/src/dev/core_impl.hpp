@@ -68,9 +68,6 @@ ov::Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std
     return {deviceName_, config_};
 }
 
-ov::util::FilePath get_plugin_path(const std::string& plugin);
-ov::util::FilePath get_plugin_path(const std::string& plugin, const std::string& xml_path, bool as_abs_only = false);
-
 #ifndef OPENVINO_STATIC_LIBRARY
 
 std::string findPluginXML(const std::string& xmlFile);
