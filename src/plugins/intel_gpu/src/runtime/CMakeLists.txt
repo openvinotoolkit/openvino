@@ -32,7 +32,15 @@ target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${INCLUDE_DIR}>)
 
 target_compile_options(${TARGET_NAME} PRIVATE
-  $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
+  $<$<CONFIG:Release>:
+    $<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os
+    >
+  >
+  $<$<CXX_COMPILER_ID:GNU>:
+    $<$<VERSION_GREATER:$<CXX_COMPILER_VERSION>,6.0>:
+      -Wno-ignored-attributes
+    >
+  >)
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
