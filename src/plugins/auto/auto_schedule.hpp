@@ -48,6 +48,7 @@ public:
 
 public:
     AutoLoadContext                           _loadContext[CONTEXTNUM];
+    bool                                      _AutoSetToMulti = {false};
 
 protected:
     void GenerateWorkers(const std::string& device, const SoExecNetwork& executableNetwork) override;

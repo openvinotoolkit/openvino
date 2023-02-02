@@ -157,6 +157,9 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
         }
         return decltype(ov::optimal_number_of_infer_requests)::value_type {real};
     } else if (name == ov::execution_devices) {
+        if (_autoSchedule->_AutoSetToMulti) {
+            return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetMetric(name);
+        }
         std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
         std::vector<std::string> exeDevices = {};
         for (int i = 0; i < CONTEXTNUM; i++) {

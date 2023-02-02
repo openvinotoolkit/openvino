@@ -136,8 +136,8 @@ IE::Parameter MultiExecutableNetwork::GetMetric(const std::string& name) const {
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (name == ov::execution_devices) {
         std::vector<std::string> exeDevices = {};
-        for (auto n : _multiSContext->_devicePriorities) {
-            exeDevices.push_back(n.deviceName);
+        for (auto&& n : _multiSContext->_networksPerDevice) {
+            exeDevices.push_back(n.first);
         }
         return decltype(ov::available_devices)::value_type {exeDevices};
     } else {
