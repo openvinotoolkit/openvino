@@ -117,11 +117,14 @@ ov::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
         NodePtr split = FindInputNode<Split>(transpose_label_node);
         auto split_axis_constant = as_type_ptr<Constant>(split->input_value(1).get_node_shared_ptr());
         auto split_axis = split_axis_constant->cast_vector<int64_t>()[0];
-        if (split_axis < 0 && split->input_value(0).get_partial_shape().rank().is_static()) {
-            const auto rank = split->input_value(0).get_partial_shape().rank().get_length();
-            split_axis += rank;
-        } else {
-            return false;
+        auto rank = split->input_value(0).get_partial_shape().rank();
+        if (split_axis < 0 && rank.is_static()) {
+            if (rank.is_static()) {
+                const auto rank_val = split->input_value(0).get_partial_shape().rank().get_length();
+                split_axis += rank_val;
+            } else {
+                return false;
+            }
         }
         OutputTranspose output_transpose = GetOutputTransposes(split);
 
@@ -177,7 +180,18 @@ ov::pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
 
         auto& main_node_output = pattern_to_output.at(main_node_label);
         auto main_node = main_node_output.get_node_shared_ptr();
-
+        auto split_node = as_type_ptr<Split>(main_node);
+        auto split_axis_constant = as_type_ptr<Constant>(split_node->input_value(1).get_node_shared_ptr());
+        auto split_axis = split_axis_constant->cast_vector<int64_t>()[0];
+        auto rank = split_node->input_value(0).get_partial_shape().rank();
+        if (split_axis < 0 && rank.is_static()) {
+            if (rank.is_static()) {
+                const auto rank_val = split_node->input_value(0).get_partial_shape().rank().get_length();
+                split_axis += rank_val;
+            } else {
+                return false;
+            }
+        }
         TransposeInputsInfo transpose_input_info = GetFirstTransposeInput(main_node);
 
         sink_forward::RemoveInputNode(main_node, /* input_idx */ 0);
@@ -187,15 +201,6 @@ ov::pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
         }
 
         const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
-        auto split_node = as_type_ptr<Split>(main_node);
-        auto split_axis_constant = as_type_ptr<Constant>(split_node->input_value(1).get_node_shared_ptr());
-        auto split_axis = split_axis_constant->cast_vector<int64_t>()[0];
-        if (split_axis < 0 && split_node->input_value(0).get_partial_shape().rank().is_static()) {
-            const auto rank = split_node->input_value(0).get_partial_shape().rank().get_length();
-            split_axis += rank;
-        } else {
-            return false;
-        }
         const size_t transposed_split_axis = transpose_axis_order[split_axis];
         auto new_split_axis_const =
             std::make_shared<Constant>(split_axis_constant->get_element_type(), Shape{}, transposed_split_axis);
