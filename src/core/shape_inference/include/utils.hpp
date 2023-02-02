@@ -66,6 +66,7 @@ namespace ov {
  */
 template <class T, class TResult = std::vector<T>, class UnaryOperation>
 TResult get_raw_data_as(const element::Type_t et, const void* const ptr, const size_t size, UnaryOperation&& func) {
+    OPENVINO_ASSERT(!!ptr, "ptr is Null");
     TResult out;
     auto out_it = std::inserter(out, out.end());
 
