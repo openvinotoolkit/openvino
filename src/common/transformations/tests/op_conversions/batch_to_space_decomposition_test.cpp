@@ -233,7 +233,7 @@ void op_convertion_type_test(const Params& params) {
     const auto by_elements = get<0>(params);
     const auto block_elem_type = get<1>(params);
 
-    const auto data = make_shared<Parameter>(element::f32, Shape{2, 2});
+    const auto data = make_shared<Parameter>(element::f32, Shape{1, 1});
     const auto block_p = Constant::create(block_elem_type, Shape{2}, {1, 1});
     const auto input_2_p = Constant::create(block_elem_type, Shape{2}, {0, 0});
     const auto input_3_p = Constant::create(block_elem_type, Shape{2}, {0, 0});
@@ -242,7 +242,9 @@ void op_convertion_type_test(const Params& params) {
 
     Manager m;
     m.register_pass<Conversion>(by_elements);
-    m.run_passes(f);
+    m.register_pass<ConstantFolding>();
+    ASSERT_NO_THROW(m.run_passes(f));
+    EXPECT_EQ(f->get_result()->get_input_shape(0), (Shape{1, 1}));
 }
 
 using ElementTypeParams = tuple<bool,          // by_elements
