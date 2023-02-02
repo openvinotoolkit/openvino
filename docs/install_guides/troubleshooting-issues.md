@@ -26,46 +26,6 @@ Users in China might encounter errors while downloading sources via PIP during O
 
 <!-- this part was from Docker installation -->
 
-## Issues with Installing from YUM
-
-### "Permission denied" error with setting up the repository
-
-@sphinxdirective
-
-.. _yum troubleshooting 1:
-
-When you try to set up the repository for installing OpenVINO on CentOS from YUM, the following error may occur:
-
-.. code-block:: sh
-
-   bash-4.2$ yum repolist | grep -i openvino
-   ovl: Error while doing RPMdb copy-up:
-   [Errno 13] Permission denied: '/var/lib/rpm/Requirename'
-
-To solve this, do the following steps:
-
-1. Run the following command:
-
-   .. code-block:: sh
-
-      sudo yum repolist
-
-2. Enter `y` to the question about adding the GPG key:
-
-   .. code-block:: sh
-
-      Is this ok [y/N]: y
-
-3. Retry the query:
-
-   .. code-block:: sh
-
-      yum repolist | grep -i openvino
-
-   You will see the available list of packages.
-
-@endsphinxdirective
-
 ## Issues with Installing OpenVINO on Linux from Docker
 
 ### <a name="proxy-issues"></a>Proxy Issues

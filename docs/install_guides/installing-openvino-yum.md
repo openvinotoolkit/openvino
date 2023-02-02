@@ -22,6 +22,10 @@ Installing OpenVINO Runtime from YUM is recommended for C++ developers. If you a
    | Full requirement listing is available in:
    | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`_
 
+   .. note::
+
+      Installing OpenVINO from YUM is only supported on RHEL 8.2 and higher versions. CentOS is not supported for this installation method.
+
 .. tab:: Processor Notes
 
    Processor graphics are not included in all processors.
@@ -70,10 +74,6 @@ Installing OpenVINO Runtime from YUM is recommended for C++ developers. If you a
       yum repolist | grep -i openvino
 
    You will see the available list of packages.
-
-   .. note::
-
-      If you encounter an error while running this command on CentOS, check the :ref:`Troubleshooting Guide <yum troubleshooting 1>` for the possible solution.
 
 
 To list available OpenVINO packages, use the following command:
