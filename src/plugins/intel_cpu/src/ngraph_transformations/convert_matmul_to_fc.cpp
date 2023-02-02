@@ -50,8 +50,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             auto shape_in = reshape->input_value(0).get_shape();
             auto shape_out = reshape->get_shape();
             if (shape_in.size() == 4 && reshape->get_shape().size() == 2) {
-                if (shape_in[0] == shape_out[0] &&
-                    std::accumulate(shape_in.begin() + 1, shape_in.end(), size_t {1}, std::multiplies<size_t>()) != shape_in[1] &&
+                if (shape_in[0] == shape_out[0] && ((shape_in[2] != 1) || (shape_in[3] != 1)) &&
                     dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
                     return false;
                 }

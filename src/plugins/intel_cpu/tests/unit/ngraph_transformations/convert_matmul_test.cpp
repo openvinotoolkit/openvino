@@ -526,7 +526,7 @@ TEST(TransformationTests, ConvertMatMulToFCTest_4D_input) {
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector {matmul}, ngraph::ParameterVector {input1});
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ConvertMatMulToFC>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
