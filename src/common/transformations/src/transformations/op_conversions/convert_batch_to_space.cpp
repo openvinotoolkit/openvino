@@ -47,7 +47,7 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space() {
         // Finally squeeze data from respective dimensions
 
         const auto zero = rg.make<Constant>(i64, Shape{1}, 0);
-        const auto shape_of_data = rg.make<ShapeOf>(data);
+        const auto shape_of_data = rg.make<ShapeOf>(data, block.get_element_type());
         const auto batch = rg.make<Gather>(shape_of_data, zero, zero);
         const auto block_prod = rg.make<ReduceProd>(block, zero);
         const auto batch_div = rg.make<Divide>(batch, block_prod);
@@ -132,8 +132,9 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
         const auto two = rg.make<Constant>(i64, Shape{1}, 2);
         const auto int_max = rg.make<Constant>(i64, Shape{1}, INT_MAX);
 
-        const auto shape_of_data = rg.make<ShapeOf>(data);
-        shared_ptr<Node> dispersed_shape = rg.make<Concat>(OutputVector{zero, shape_of_data}, 0);
+        const auto shape_of_data = rg.make<ShapeOf>(data, block.get_element_type());
+        const auto et_zero = rg.make<Constant>(block.get_element_type(), Shape{1}, 0);
+        shared_ptr<Node> dispersed_shape = rg.make<Concat>(OutputVector{et_zero, shape_of_data}, 0);
         shared_ptr<Node> squeezed_shape = shape_of_data;
 
         shared_ptr<Node> flat_node = data.get_node_shared_ptr();
@@ -149,7 +150,7 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
         };
 
         shared_ptr<Node> div;
-        for (size_t b_idx = 1; b_idx < block_lenght; ++b_idx) {
+        for (int64_t b_idx = 1; b_idx < block_lenght; ++b_idx) {
             const auto block_index = rg.make<Constant>(i64, Shape{1}, b_idx);
             const auto block_index_next = rg.make<Constant>(i64, Shape{1}, b_idx + 1);
             const auto block_value = rg.make<Gather>(block, block_index, zero);

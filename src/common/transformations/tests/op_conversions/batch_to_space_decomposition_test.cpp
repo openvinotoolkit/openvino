@@ -226,6 +226,54 @@ TEST_F(TransformationTestsF, BatchToSpaceDecomposition) {
 }
 
 template <typename Op, typename Conversion, typename Params>
+void op_convertion_type_test(const Params& params) {
+    using namespace ov::opset10;
+    using namespace ov::pass;
+
+    const auto by_elements = get<0>(params);
+    const auto block_elem_type = get<1>(params);
+
+    const auto data = make_shared<Parameter>(element::f32, Shape{2, 2});
+    const auto block_p = Constant::create(block_elem_type, Shape{2}, {1, 1});
+    const auto input_2_p = Constant::create(block_elem_type, Shape{2}, {0, 0});
+    const auto input_3_p = Constant::create(block_elem_type, Shape{2}, {0, 0});
+    const auto bts_or_stb = make_shared<Op>(data, block_p, input_2_p, input_3_p);
+    const auto f = make_shared<Function>(NodeVector{bts_or_stb}, ParameterVector{data});
+
+    Manager m;
+    m.register_pass<Conversion>(by_elements);
+    m.run_passes(f);
+}
+
+using ElementTypeParams = tuple<bool,          // by_elements
+                                element::Type  // block element type
+                                >;
+
+class BatchToSpaceDecomposition2D : public testing::WithParamInterface<ElementTypeParams>,
+                                    public TransformationTests {};
+
+TEST_P(BatchToSpaceDecomposition2D, BlockElemType) {
+    op_convertion_type_test<ov::opset10::BatchToSpace, ov::pass::ConvertBatchToSpace>(GetParam());
+}
+
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         BatchToSpaceDecomposition2D,
+                         ::testing::Combine(::testing::ValuesIn({false, true}),
+                                            ::testing::ValuesIn({element::i32, element::i64})));
+
+class SpaceToBatchDecomposition2D : public testing::WithParamInterface<ElementTypeParams>,
+                                    public TransformationTests {};
+
+TEST_P(SpaceToBatchDecomposition2D, BlockElemType) {
+    op_convertion_type_test<ov::opset10::SpaceToBatch, ov::pass::ConvertSpaceToBatch>(GetParam());
+}
+
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         SpaceToBatchDecomposition2D,
+                         ::testing::Combine(::testing::ValuesIn({false, true}),
+                                            ::testing::ValuesIn({element::i32, element::i64})));
+
+template <typename Op, typename Conversion, typename Params>
 void op_convertion_test(const Params& params) {
     using namespace ov::opset10;
     using namespace ov::pass;
@@ -239,16 +287,16 @@ void op_convertion_test(const Params& params) {
     tie(data_shape, block, input_2, input_3, expected_output_shape) = get<1>(params);
 
     const auto data = make_shared<Parameter>(element::f32, PartialShape::dynamic(data_shape.size()));
-    const auto block_p = make_shared<Constant>(element::i64, Shape{block.size()}, block);
-    const auto input_2_p = make_shared<Constant>(element::i64, Shape{input_2.size()}, input_2);
-    const auto input_3_p = make_shared<Constant>(element::i64, Shape{input_3.size()}, input_3);
+    const auto block_p = Constant::create(element::i64, Shape{block.size()}, block);
+    const auto input_2_p = Constant::create(element::i64, Shape{input_2.size()}, input_2);
+    const auto input_3_p = Constant::create(element::i64, Shape{input_3.size()}, input_3);
     const auto bts_or_stb = make_shared<Op>(data, block_p, input_2_p, input_3_p);
     const auto f = make_shared<Function>(NodeVector{bts_or_stb}, ParameterVector{data});
 
     Manager m;
     m.set_per_pass_validation(false);
     m.register_pass<Conversion>(by_elements);
-    ASSERT_NO_THROW(m.run_passes(f));
+    m.run_passes(f);
     ASSERT_EQ(count_ops_of_type<Op>(f), 0);
     EXPECT_TRUE(f->get_result()->get_input_partial_shape(0).is_dynamic());
 

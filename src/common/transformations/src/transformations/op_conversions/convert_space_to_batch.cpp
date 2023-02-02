@@ -48,7 +48,7 @@ void ov::pass::ConvertSpaceToBatch::convert_space_to_batch() {
         //      x = [batch + P_0, D_1 + P_1, D_2 + P_2, ..., D_{N - 1} + P_{N - 1}], where P_i =
         //      pads_begin[i] + pads_end[i]
         shared_ptr<Node> flat_node = rg.make<Pad>(data, pads_begin, pads_end, op::PadMode::CONSTANT);
-        const auto out_shape = rg.make<ShapeOf>(flat_node);
+        const auto out_shape = rg.make<ShapeOf>(flat_node, block.get_element_type());
 
         const auto zero = rg.make<Constant>(i64, Shape{1}, 0);
         const auto one = rg.make<Constant>(i64, Shape{1}, 1);
@@ -131,8 +131,7 @@ void ov::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
 
         shared_ptr<Node> flat_node = rg.make<Pad>(data, pads_begin, pads_end, op::PadMode::CONSTANT);
 
-        shared_ptr<Node> squeezed_shape = rg.make<ShapeOf>(flat_node);
-        vector<int64_t> axes_order(block_lenght + 1);
+        shared_ptr<Node> squeezed_shape = rg.make<ShapeOf>(flat_node, block.get_element_type());
 
         const auto zero = rg.make<Constant>(i64, Shape{1}, 0);
         const auto one = rg.make<Constant>(i64, Shape{1}, 1);
@@ -157,6 +156,7 @@ void ov::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
             constexpr auto special_zero = false;
             flat_node = rg.make<Reshape>(flat_node, dispersed_shape, special_zero);
 
+            vector<int64_t> axes_order(block_lenght + 1);
             int64_t axis_idx = axes_order.size() - 1;
             for (int64_t ds_idx = block_lenght; ds_idx >= 0; --ds_idx) {
                 if (ds_idx == (b_idx + 1)) {
