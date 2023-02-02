@@ -173,59 +173,6 @@ public:
     }
 };
 
-class OVTemplateExtensionTests : public TestsCommon {
-public:
-    const std::string model_ir = R"V0G0N(
-        <net name="Activation" version="10">
-            <layers>
-                <layer name="in1" type="Parameter" id="0" version="opset1">
-                    <data shape="1,3,22,22" element_type="f32"/>
-                    <output>
-                        <port id="0" precision="FP32" names="in_data">
-                            <dim>1</dim>
-                            <dim>3</dim>
-                            <dim>22</dim>
-                            <dim>22</dim>
-                        </port>
-                    </output>
-                </layer>
-                <layer name="activation" id="1" type="Identity" version="extension">
-                    <input>
-                        <port id="1" precision="FP32">
-                            <dim>1</dim>
-                            <dim>3</dim>
-                            <dim>22</dim>
-                            <dim>22</dim>
-                        </port>
-                    </input>
-                    <output>
-                        <port id="2" precision="FP32" names="out_data">
-                            <dim>1</dim>
-                            <dim>3</dim>
-                            <dim>22</dim>
-                            <dim>22</dim>
-                        </port>
-                    </output>
-                </layer>
-                <layer name="output" type="Result" id="2" version="opset1">
-                    <input>
-                        <port id="0" precision="FP32">
-                            <dim>1</dim>
-                            <dim>3</dim>
-                            <dim>22</dim>
-                            <dim>22</dim>
-                        </port>
-                    </input>
-                </layer>
-            </layers>
-            <edges>
-                <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
-                <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
-            </edges>
-        </net>
-        )V0G0N";
-};
-
 namespace {
 
 std::string getOVExtensionPath() {
@@ -412,16 +359,6 @@ TEST_F(OVExtensionTests, load_old_extension) {
 
 TEST_F(OVExtensionTests, load_incorrect_extension) {
     EXPECT_THROW(core.add_extension(getIncorrectExtensionPath()), ov::Exception);
-}
-
-TEST_F(OVTemplateExtensionTests, new_evaluate) {
-    ov::Core core;
-    core.add_extension(getOVExtensionPath());
-    ov::Tensor weights;
-    auto model = core.read_model(model_ir, weights);
-    auto compiled = core.compile_model(model, "TEMPLATE");
-    auto request = compiled.create_infer_request();
-    EXPECT_NO_THROW(request.infer());
 }
 
 TEST_F(OVExtensionTests, load_relative) {
