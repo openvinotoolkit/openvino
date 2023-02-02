@@ -111,14 +111,16 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
         }
         if (auto list_construct = cast_fw_node(input_node, "prim::ListConstruct")) {
             auto getitem_idx = getitem->input_value(1).get_node_shared_ptr();
+            // if input is list and index is integer constant, try to get required input elemenet from list
             auto getitem_idx_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(getitem_idx);
-            if (getitem_idx_const){
+            if (getitem_idx_const) {
                 auto idx = getitem_idx_const->cast_vector<int64_t>();
                 auto element = list_construct->input_value(idx[0]).get_node_shared_ptr();
                 copy_runtime_info({getitem, input_node}, element);
                 replace_node(getitem, element);
                 return true;
             }
+            // if index is not constant, try to concatenate list elements and perform gather
             auto input_concat = concat_list_construct(list_construct);
             auto zero = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
             auto gather = std::make_shared<ov::op::v8::Gather>(input_concat, getitem_idx, zero);
