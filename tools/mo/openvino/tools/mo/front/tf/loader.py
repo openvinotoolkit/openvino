@@ -328,7 +328,8 @@ def convert_to_pb(argv: argparse.Namespace):
     # if this is already binary frozen format .pb, there is no need to create auxiliary binary frozen protobuf
     # the main thing is to differentiate this format from text frozen format and checkpoint
     # that can utilize input_model option
-    if argv.input_model and not argv.input_model_is_text and not argv.input_checkpoint:
+    if argv.input_model and not argv.input_model_is_text and not argv.input_checkpoint and \
+            isinstance(argv.input_model, str):
         return None
 
     user_output_node_names_list = argv.output.split(',') if argv.output else None
