@@ -99,11 +99,22 @@ class PytorchLayerTest:
         output_list = list(infer_res.values())
 
         flatten_fw_res = []
-        for res_item in fw_res:
-            # if None is at output we skip it
-            if res_item is None:
-                continue
-            flatten_fw_res.append(res_item)
+
+        def flattenize_list_outputs(res):
+            results = []
+            for res_item in res:
+                # if None is at output we skip it
+                if res_item is None:
+                    continue
+                # If input is list or tuple flattenize it
+                if isinstance(res_item, (list, tuple)):
+                    decomposed_res = flattenize_list_outputs(res_item)
+                    results.extend(decomposed_res)
+                    continue
+                results.append(res_item)
+            return results 
+       
+        flatten_fw_res = flattenize_list_outputs(fw_res)
 
         assert len(flatten_fw_res) == len(
             output_list), f'number of outputs not equal, {len(flatten_fw_res)} != {len(output_list)}'

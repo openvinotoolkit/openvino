@@ -1,13 +1,13 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "prim_list_tuple_construct_replacer.hpp"
 
-#include "prim_tuple_construct_replacer.hpp"
+#include <queue>
 
-#include <openvino/frontend/pytorch/decoder.hpp>
-#include <openvino/op/util/framework_node.hpp>
-#include <openvino/opsets/opset10.hpp>
-
+#include "openvino/frontend/pytorch/decoder.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/util/framework_node.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -15,16 +15,19 @@ namespace frontend {
 namespace pytorch {
 namespace pass {
 
-bool DecomposeTupleResults::run_on_model(const std::shared_ptr<Model>& model) {
+bool DecomposeListTupleResults::run_on_model(const std::shared_ptr<Model>& model) {
     bool at_least_one_decomposed = false;
-
-    ResultVector results = model->get_results();
-
-    for (size_t i = 0; i < results.size(); ++i) {
-        auto result = results[i];
+    std::queue<std::shared_ptr<ov::op::v0::Result>> results;
+    for (auto res : model->get_results()) {
+        results.push(res);
+    }
+    while (!results.empty()) {
+        auto result = results.front();
+        results.pop();
         auto input_node = result->get_input_node_shared_ptr(0);
         auto tuple_construct = cast_fw_node(input_node, "prim::TupleConstruct");
-        if (!tuple_construct) {
+        auto list_construct = cast_fw_node(input_node, "prim::ListConstruct");
+        if (!tuple_construct && !list_construct) {
             continue;
         }
         for (const auto& input : input_node->inputs()) {
@@ -38,11 +41,12 @@ bool DecomposeTupleResults::run_on_model(const std::shared_ptr<Model>& model) {
                     continue;
                 }
             }
-            model->add_results({std::make_shared<opset10::Result>(out)});
+            auto new_result = std::make_shared<ov::op::v0::Result>(out);
+            model->add_results({new_result});
+            results.push(new_result);
+            model->remove_result(result);
+            at_least_one_decomposed = true;
         }
-
-        model->remove_result(result);
-        at_least_one_decomposed = true;
     }
 
     return at_least_one_decomposed;

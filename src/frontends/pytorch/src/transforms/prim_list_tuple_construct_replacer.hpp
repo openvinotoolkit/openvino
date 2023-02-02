@@ -12,9 +12,9 @@ namespace frontend {
 namespace pytorch {
 namespace pass {
 
-class DecomposeTupleResults : public ov::pass::ModelPass {
+class DecomposeListTupleResults : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pytorch::pass::DecomposeTupleResults");
+    OPENVINO_RTTI("ov::frontend::pytorch::pass::DecomposeListTupleResults");
     bool run_on_model(const std::shared_ptr<Model>& model) override;
 };
 
