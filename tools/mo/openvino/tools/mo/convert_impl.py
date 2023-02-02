@@ -930,7 +930,7 @@ def remove_tmp_onnx_model(out_dir):
 def _convert(cli_parser: argparse.ArgumentParser, framework, args):
     if 'help' in args and args['help']:
         show_mo_convert_help()
-        return None
+        return None, None
 
     telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=get_simplified_mo_version())
     telemetry.start_session('mo')
@@ -971,7 +971,7 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
                     raise e
 
                 remove_tmp_onnx_model(out_dir)
-                return ov_model
+                return ov_model, None
 
         argv = pack_params_to_args_namespace(args, cli_parser)
 
