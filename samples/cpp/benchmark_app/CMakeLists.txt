@@ -105,8 +105,8 @@ if(SAMPLES_ENABLE_OPENCL)
             ENV ATISTREAMSDKROOT
             ENV OCL_ROOT
         PATH_SUFFIXES
-            include
-            OpenCL/common/inc
+            "include"
+            "OpenCL/common/inc"
             "AMD APP/include")
 
     find_path(OpenCL_HPP_INCLUDE_DIR

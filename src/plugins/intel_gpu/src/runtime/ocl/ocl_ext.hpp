@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <array>
+
 #ifdef OV_GPU_USE_OPENCL_HPP
 #include <CL/opencl.hpp>
 #else
@@ -27,12 +29,22 @@ typedef cl_va_api_device_source_intel cl_device_source_intel;
 typedef cl_va_api_device_set_intel    cl_device_set_intel;
 #endif
 
-#if !defined(cl_intel_required_subgroup_size) || !cl_intel_required_subgroup_size
+#if !defined(cl_intel_required_subgroup_size)
+#define cl_intel_required_subgroup_size 1
 
 // cl_intel_required_subgroup_size
 #define CL_DEVICE_SUB_GROUP_SIZES_INTEL           0x4108
 
+namespace cl {
+namespace detail {
+CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_SUB_GROUP_SIZES_INTEL, vector<size_type>)
+}  // namespace detail
+}  // namespace cl
+
 #endif // cl_intel_required_subgroup_size
+
+#if !defined(cl_intel_device_attribute_query)
+#define cl_intel_device_attribute_query 1
 
 // cl_intel_device_attribute_query
 #define CL_DEVICE_IP_VERSION_INTEL                0x4250
@@ -43,7 +55,10 @@ typedef cl_va_api_device_set_intel    cl_device_set_intel;
 #define CL_DEVICE_NUM_THREADS_PER_EU_INTEL        0x4255
 #define CL_DEVICE_FEATURE_CAPABILITIES_INTEL      0x4256
 
-#if !defined(cl_intel_command_queue_families) || !cl_intel_command_queue_families
+#endif // cl_intel_device_attribute_query
+
+#if !defined(cl_intel_command_queue_families)
+#define cl_intel_command_queue_families 1
 
 typedef cl_bitfield         cl_command_queue_capabilities_intel;
 
@@ -68,7 +83,8 @@ typedef struct _cl_queue_family_properties_intel {
 
 #endif  // cl_intel_command_queue_families
 
-#if !defined(cl_intel_unified_shared_memory) || !cl_intel_unified_shared_memory
+#if !defined(cl_intel_unified_shared_memory)
+#define cl_intel_unified_shared_memory 1
 
 /* cl_mem_alloc_info_intel */
 #define CL_MEM_ALLOC_TYPE_INTEL         0x419A
@@ -174,11 +190,30 @@ clEnqueueMemFillINTEL_fn)(
 
 #endif // cl_intel_unified_shared_memory
 
-#if !defined(cl_khr_device_uuid) || !cl_khr_device_uuid
+
+#if !defined(CL_NV12_INTEL)
+#define CL_NV12_INTEL                                       0x410E
+#endif // CL_NV12_INTEL
+
+#if !defined(CL_MEM_ACCESS_FLAGS_UNRESTRICTED_INTEL)
+#define CL_MEM_ACCESS_FLAGS_UNRESTRICTED_INTEL              ( 1 << 25 )
+#endif // CL_MEM_ACCESS_FLAGS_UNRESTRICTED_INTEL
+
+#if !defined(cl_khr_device_uuid)
+#define cl_khr_device_uuid 1
 
 #define CL_UUID_SIZE_KHR 16
 
 #define CL_DEVICE_UUID_KHR          0x106A
+
+// for C++ wrappers
+using uuid_array = std::array<cl_uchar, CL_UUID_SIZE_KHR>;
+
+namespace cl {
+namespace detail {
+CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_UUID_KHR, uuid_array)
+}  // namespace detail
+}  // namespace cl
 
 #endif // cl_khr_device_uuid
 
@@ -197,7 +232,6 @@ typedef cl_bitfield         cl_device_feature_capabilities_intel;
 
 namespace cl {
 namespace detail {
-CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_SUB_GROUP_SIZES_INTEL, vector<size_type>)
 CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_IP_VERSION_INTEL, cl_uint)
 CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_ID_INTEL, cl_uint)
 CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_NUM_SLICES_INTEL, cl_uint)

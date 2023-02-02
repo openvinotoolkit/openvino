@@ -57,18 +57,30 @@ if(ENABLE_INTEL_GPU)
     endif()
 
     if(TARGET OpenCL::OpenCL)
-        set_target_properties(OpenCL::OpenCL PROPERTIES
-            INTERFACE_COMPILE_DEFINITIONS OV_GPU_USE_OPENCL_HPP
-            IMPORTED_GLOBAL ON)
+        set_target_properties(OpenCL::OpenCL PROPERTIES IMPORTED_GLOBAL ON)
+
+        # try to find CL/opencl.hpp
+        find_file(OpenCL_HPP
+                  NAMES opencl.hpp
+                  HINTS ${OpenCL_INCLUDE_DIRS}
+                  PATH_SUFFIXES CL
+                  DOC "Path to CL/opencl.hpp")
+
+        # add definition to select proper header and suppress warnings
+        if(OpenCL_HPP)
+            set_target_properties(OpenCL::OpenCL PROPERTIES
+                INTERFACE_COMPILE_DEFINITIONS OV_GPU_USE_OPENCL_HPP)
+        endif()
 
         # set variables for onednn_gpu
-        set(OPENCL_VERSION_2_2 ON PARENT_SCOPE)
         if(OpenCLHeaders_FOUND)
             set(OpenCL_INCLUDE_DIR "$<TARGET_PROPERTY:OpenCL::Headers,INTERFACE_INCLUDE_DIRECTORIES>" PARENT_SCOPE)
             set(OpenCL_LIBRARY "$<TARGET_PROPERTY:OpenCL::OpenCL,IMPORTED_LOCATION_RELEASE>" PARENT_SCOPE)
+        elseif(OpenCL_FOUND)
+            # find_package(OpenCL) already defines OpenCL_INCLUDE_DIR and OpenCL_LIBRARY
+            # see https://cmake.org/cmake/help/latest/module/FindOpenCL.html
         else()
-            set(OpenCL_INCLUDE_DIR "${OpenCL_INCLUDE_DIR}" PARENT_SCOPE)
-            set(OpenCL_LIBRARY "${OpenCL_LIBRARY}" PARENT_SCOPE)
+            message(FATAL_ERROR "Internal error: cannot find OpenCL headers")
         endif()
     else()
         add_subdirectory(ocl)
@@ -84,19 +96,17 @@ if(ENABLE_INTEL_GPU)
         set_target_properties(${opencl_target} PROPERTIES INTERFACE_COMPILE_OPTIONS "-Wno-suggest-override")
     endif()
 
-    # override INTERFACE_INCLUDE_DIRECTORIES with BUILD_INTERFACE
+    # used in tests
+    add_library(opencl_new_headers INTERFACE)
+    add_library(OpenCL::NewHeaders ALIAS opencl_new_headers)
     foreach(opencl_dir "${CMAKE_CURRENT_SOURCE_DIR}/ocl/clhpp_headers/include" "${CMAKE_CURRENT_SOURCE_DIR}/ocl/cl_headers")
-        if(EXISTS "${opencl_dir}" AND OFF)
-            set_property(TARGET ${opencl_target} APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+        if(EXISTS "${opencl_dir}")
+            set_property(TARGET opencl_new_headers APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES
                 $<BUILD_INTERFACE:${opencl_dir}>)
+            set_target_properties(opencl_new_headers PROPERTIES
+                INTERFACE_COMPILE_DEFINITIONS OV_GPU_USE_OPENCL_HPP)
         endif()
     endforeach()
-
-    get_target_property(opencl_target_type OpenCL::OpenCL TYPE)
-    if(NOT opencl_target_type STREQUAL "UNKNOWN_LIBRARY" OR CMAKE_VERSION VERSION_GREATER_EQUAL 3.16)
-        # use newer OpenCL.hpp instead of cl2.hpp
-        target_compile_definitions(${opencl_target} INTERFACE OV_GPU_USE_OPENCL_HPP)
-    endif()
 endif()
 
 #

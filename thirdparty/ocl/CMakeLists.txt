@@ -47,13 +47,15 @@ endif()
 add_subdirectory(icd_loader EXCLUDE_FROM_ALL)
 add_library(OpenCL::OpenCL ALIAS OpenCL)
 
+# use CL/opencl.hpp
+target_compile_definitions(OpenCL INTERFACE OV_GPU_USE_OPENCL_HPP)
+
 # The following variables are needed to make find_package(OpenCL) work
 
 get_lib_path("${OUTPUT_ROOT}/${BIN_FOLDER}" OPENCL_LIB_DIR)
 get_lib_name("OpenCL" OPENCL_LIB_NAME)
 
 # force to use / find 2.2 version
-set(OPENCL_VERSION_2_2 ON CACHE BOOL "" FORCE)
 set(OpenCL_INCLUDE_DIR "${OPENCL_ICD_LOADER_HEADERS_DIR}" CACHE PATH "OpenCL headers" FORCE)
 set(OpenCL_LIBRARY "${OPENCL_LIB_DIR}/${OPENCL_LIB_NAME}" CACHE PATH "OpenCL library" FORCE)
 
