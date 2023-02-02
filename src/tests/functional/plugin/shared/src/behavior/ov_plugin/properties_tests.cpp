@@ -137,10 +137,6 @@ TEST_P(OVCorePropertiesTest, SetPropertiesWithoutDeviceName) {
     ASSERT_NO_THROW(core->compile_model(model, target_device));
 }
 
-TEST_P(OVCorePropertiesTest, SetPropertiesWithDeviceName) {
-    ASSERT_THROW(core->set_property(target_device, properties), ov::Exception);
-}
-
 TEST_P(OVCorePropertiesTest, CompileModelWithProperties) {
     ASSERT_NO_THROW(core->compile_model(model, target_device, properties));
 }

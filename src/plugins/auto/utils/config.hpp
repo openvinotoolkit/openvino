@@ -126,7 +126,6 @@ struct PluginConfig {
                         << " for key: " << kvp.first;
                 }
             } else if (kvp.first == ov::hint::allow_auto_batching) {
-                // LoadNetwork still need this property for auto_batch_size
                 if (kvp.second == PluginConfigParams::NO) {
                     _disableAutoBatching = true;
                     // temp flag, to be removed when unify this key to ie core
@@ -139,7 +138,7 @@ struct PluginConfig {
                             << " for key: " << kvp.first;
                 }
             } else if (kvp.first == ov::auto_batch_timeout.name()) {
-                // core.set_property() will not support this property
+                // plugin.set_property() will not support this property
                 // LoadNetwork will ignore this property due to it will be handed in core level
                 if (!supportHWProprety) {
                     IE_THROW() << "Unsupported config value: " << kvp.second << " for key: " << kvp.first;

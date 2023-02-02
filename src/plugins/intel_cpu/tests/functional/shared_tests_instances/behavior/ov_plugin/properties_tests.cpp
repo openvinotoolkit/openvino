@@ -89,7 +89,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBehaviorTests, OVPropertiesDefaultTests,
 const std::vector<ov::AnyMap> core_properties = {
     {ov::auto_batch_timeout("2000")},
     {ov::hint::allow_auto_batching("NO")},
-    {ov::cache_dir("./")},
 };
 
 const std::vector<std::string> target_devices = {
