@@ -1,6 +1,6 @@
 #!/bin/bash -x
 
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # This script installs Linux kernel 4.14 required for Intel NEO OpenCL driver on Ubuntu and CentOS

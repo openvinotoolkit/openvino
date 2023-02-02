@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2023 Intel Corporation
 
 // Deliberately include .cpp file instead of header as we use non exported function (execute)
 #include <executor/gtbbexecutor.cpp>
