@@ -81,6 +81,7 @@ set(SRC
     library_extension.cpp
     load_from.cpp
     onnx_editor.cpp
+    onnx_editor_topological_sort.cpp
     onnx_import_exceptions.cpp
     onnx_import_library.cpp
     onnx_importer_test.cpp
