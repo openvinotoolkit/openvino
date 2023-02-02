@@ -43,7 +43,7 @@ Installing OpenVINO Runtime from YUM is recommended for C++ developers. If you a
 
 @sphinxdirective
 
-1. Create the YUM repository file in the `/tmp` directory as a normal user:
+1. Create a YUM repository file (`openvino-2022.repo`) in the `/tmp` directory as a normal user:
 
    .. code-block:: sh
 
@@ -57,7 +57,7 @@ Installing OpenVINO Runtime from YUM is recommended for C++ developers. If you a
       gpgkey=https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
       EOF
 
-2. Move the new `openvino-2022.repo` file to the YUM configuration directory `/etc/yum.repos.d`:
+2. Move the new `openvino-2022.repo` file to the YUM configuration directory, i.e. `/etc/yum.repos.d`:
    
    .. code-block:: sh
 
@@ -198,6 +198,7 @@ To uninstall OpenVINO Runtime via YUM, run the following command based on your n
 Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications! Learn more about how to integrate a model in OpenVINO applications by trying out the following tutorials:
 
 * Try the `C++ Quick Start Example <openvino_docs_get_started_get_started_demos.html>`_ for step-by-step instructions on building and running a basic image classification C++ application.
+
   .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
      :width: 400
 
