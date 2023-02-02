@@ -2,25 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-#include <memory>
-#include <tuple>
-#include <string>
-
 #include <ie_core.hpp>
+#include <memory>
+#include <string>
+#include <tuple>
+#include <vector>
 
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
+#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
-
-typedef std::tuple<
-        InferenceEngine::Precision,         // Network Precision
-        std::string,                        // Target Device
-        std::map<std::string, std::string>, // Configuration
-        std::vector<size_t>                 // Input Shape
-> EltwiseSplitOverChannelsPassParams;
+typedef std::tuple<InferenceEngine::Precision,          // Network Precision
+                   std::string,                         // Target Device
+                   std::map<std::string, std::string>,  // Configuration
+                   std::vector<size_t>                  // Input Shape
+                   >
+    EltwiseSplitOverChannelsPassParams;
 
 namespace LayerTestsDefinitions {
 
@@ -51,7 +49,7 @@ protected:
         std::tie(netPrecision, targetDevice, configuration, inputShape) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
+        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
         auto const_mult2 = ngraph::builder::makeConstant<float>(ngPrc, inputShape, {-1.0f});
 
         auto mul = ngraph::builder::makeEltwise(params[0], const_mult2, ngraph::helpers::EltwiseTypes::MULTIPLY);
@@ -64,38 +62,25 @@ TEST_P(EltwiseSplitOverChannelsPassTest, CompareWithRefImpl) {
 };
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16,
+    InferenceEngine::Precision::FP32,
+    InferenceEngine::Precision::FP16,
 };
 
 const std::vector<std::map<std::string, std::string>> configs = {
-        {
-                {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-                {"GNA_COMPACT_MODE", "NO"}
-        },
-        {
-                {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-                {"GNA_COMPACT_MODE", "YES"}
-        },
-        {
-                {"GNA_DEVICE_MODE", "GNA_SW_FP32"},
-        }
-};
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_COMPACT_MODE", "NO"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_COMPACT_MODE", "YES"}},
+    {
+        {"GNA_DEVICE_MODE", "GNA_SW_FP32"},
+    }};
 
-const std::vector<std::vector<size_t>> inputShape = {
-    {1, 67000},
-    {1, 500000},
-    {1, 936, 513},
-    {1, 64, 64, 64}
-};
+const std::vector<std::vector<size_t>> inputShape = {{1, 67000}, {1, 500000}, {1, 936, 513}, {1, 64, 64, 64}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_EltwiseSplitOverChennels, EltwiseSplitOverChannelsPassTest,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                ::testing::ValuesIn(configs),
-                                ::testing::ValuesIn(inputShape)),
-                        EltwiseSplitOverChannelsPassTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_EltwiseSplitOverChennels,
+                         EltwiseSplitOverChannelsPassTest,
+                         ::testing::Combine(::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::ValuesIn(configs),
+                                            ::testing::ValuesIn(inputShape)),
+                         EltwiseSplitOverChannelsPassTest::getTestCaseName);
 
-} // namespace LayerTestsDefinitions
-
+}  // namespace LayerTestsDefinitions
