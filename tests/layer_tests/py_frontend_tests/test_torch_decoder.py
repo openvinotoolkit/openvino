@@ -395,7 +395,6 @@ def test_pytorch_decoder_can_convert_float_tuple():
 
 
 @pytest.mark.precommit
-@pytest.mark.xfail(reason="Bool tuple gets converted to i32 tuple.")
 def test_pytorch_decoder_can_convert_bool_tuple():
     from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
     from openvino.runtime import PartialShape, Type

@@ -187,22 +187,19 @@ OutputVector make_framework_node(NodeContext* context) {
     }
 
     // Pay attention to subgraphs that may appear in the node
-    auto fw_node =
-        std::make_shared<PtFrameworkNode>(context->get_decoder(), context->inputs(), context->num_of_outputs());
-    fw_node->set_friendly_name(context->get_op_type());
-
     std::map<size_t, ParameterVector> inputs_map;
     std::map<size_t, ResultVector> extra_outputs_map;
     std::set<size_t> input_idxs;  // initial inputs
+    std::vector<std::shared_ptr<ov::Model>> bodies;
     // We need to remember initial inputs to be able to find extra inputs to body that were created to propagate
     // external context
-    int num_body_outs = 0;
+    size_t num_body_outs = 0;
     for (size_t i = 0; i < context->get_decoder()->get_subgraph_size(); ++i) {
         auto subgraph_decoder = context->get_decoder()->get_subgraph_decoder(i);
         auto inputs = subgraph_decoder->inputs();
         input_idxs.insert(inputs.begin(), inputs.end());
         auto body = context->convert_subgraph(i);
-        fw_node->set_function(i, body);
+        bodies.push_back(body);
         for (const auto& param : body->get_parameters()) {
             auto name = param->get_output_tensor(0).get_any_name();
             size_t input_idx = (size_t)std::stoll(name);
@@ -226,6 +223,20 @@ OutputVector make_framework_node(NodeContext* context) {
             extra_outputs_map[out_idx].push_back(body_results[i]);
         }
     }
+    // Number of body outputs can be higher then number of pt node outputs, e.g. in case of loop first body output is
+    // condition, we have to skip such outputs.
+    int num_skip_body_outputs =
+        num_body_outs > context->num_of_outputs() ? num_body_outs - context->num_of_outputs() : 0;
+
+    // We need to reduce number of outputs, because some outputs are outputs from body
+    auto fw_node = std::make_shared<PtFrameworkNode>(context->get_decoder(),
+                                                     context->inputs(),
+                                                     context->num_of_outputs() - num_body_outs + num_skip_body_outputs);
+    fw_node->set_friendly_name(context->get_op_type());
+    for (size_t i = 0; i < bodies.size(); ++i) {
+        fw_node->set_function(i, bodies[i]);
+    }
+
     // Connect inputs with external context
     for (const auto& input : inputs_map) {
         if (!input_idxs.count(input.first)) {
@@ -238,12 +249,6 @@ OutputVector make_framework_node(NodeContext* context) {
             }
         }
     }
-    // Number of body outputs can be higher then number of pt node outputs, e.g. in case of loop first body output is
-    // condition, we have to skip such outputs
-    int num_skip_body_outputs =
-        num_body_outs > context->num_of_outputs() ? num_body_outs - context->num_of_outputs() : 0;
-    // We need to reduce number of outputs, because some outputs are outputs from body
-    fw_node->set_output_size(context->num_of_outputs() - num_body_outs + num_skip_body_outputs);
     OutputVector res(context->mark_node(fw_node)->outputs());
     if (fw_node->get_internal_subgraphs_size() > 0) {
         auto first_body_results = fw_node->get_function(0)->get_results();
