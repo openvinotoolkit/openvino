@@ -35,13 +35,13 @@ typedef cl_va_api_device_set_intel    cl_device_set_intel;
 // cl_intel_required_subgroup_size
 #define CL_DEVICE_SUB_GROUP_SIZES_INTEL           0x4108
 
+#endif // cl_intel_required_subgroup_size
+
 namespace cl {
 namespace detail {
 CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_SUB_GROUP_SIZES_INTEL, vector<size_type>)
 }  // namespace detail
 }  // namespace cl
-
-#endif // cl_intel_required_subgroup_size
 
 #if !defined(cl_intel_device_attribute_query)
 #define cl_intel_device_attribute_query 1
@@ -196,7 +196,7 @@ clEnqueueMemFillINTEL_fn)(
 #endif // CL_NV12_INTEL
 
 #if !defined(CL_MEM_ACCESS_FLAGS_UNRESTRICTED_INTEL)
-#define CL_MEM_ACCESS_FLAGS_UNRESTRICTED_INTEL              ( 1 << 25 )
+#define CL_MEM_ACCESS_FLAGS_UNRESTRICTED_INTEL              (1 << 25)
 #endif // CL_MEM_ACCESS_FLAGS_UNRESTRICTED_INTEL
 
 #if !defined(cl_khr_device_uuid)
