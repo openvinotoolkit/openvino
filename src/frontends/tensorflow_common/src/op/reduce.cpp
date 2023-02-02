@@ -15,7 +15,7 @@ namespace op {
 
 template <typename T>
 OutputVector translate_direct_reduce_op(const NodeContext& node) {
-    default_op_checks(node, 1, {"Any", "All", "EuclideanNorm", "Max", "Mean", "Min", "Prod", "Sum"});
+    default_op_checks(node, 2, {"Any", "All", "EuclideanNorm", "Max", "Mean", "Min", "Prod", "Sum"});
     auto input = node.get_input(0);
     auto axis = node.get_input(1);
     auto keep_dims = node.get_attribute<bool>("keep_dims", false);
