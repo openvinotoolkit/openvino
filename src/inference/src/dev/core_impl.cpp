@@ -673,7 +673,7 @@ void ov::CoreImpl::set_property(const std::string& device_name, const AnyMap& pr
                 return device == parsed._deviceName;
             });
         OPENVINO_ASSERT(!is_secondary_config_for_hw_device,
-                        "set_property only supported ov::device::propreties for Meta device (AUTO/MULTI/HETERO). "
+                        "set_property do not support ov::device::propreties. "
                         "You can configure the devices through the compile_model()/loadNetwork() API.");
     }
     set_property_for_devivce(properties, device_name);
