@@ -49,7 +49,7 @@ OutputTranspose GetOutputTransposes(NodePtr node) {
         }
     }
 
-    return OutputTranspose();
+    return {};
 }
 
 template <typename NodeT>
@@ -116,6 +116,13 @@ ov::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
 
         NodePtr split = FindInputNode<Split>(transpose_label_node);
         auto split_axis_constant = as_type_ptr<Constant>(split->input_value(1).get_node_shared_ptr());
+        auto split_axis = split_axis_constant->cast_vector<int64_t>()[0];
+        if (split_axis < 0 && split->input_value(0).get_partial_shape().rank().is_static()) {
+            const auto rank = split->input_value(0).get_partial_shape().rank().get_length();
+            split_axis += rank;
+        } else {
+            return false;
+        }
         OutputTranspose output_transpose = GetOutputTransposes(split);
 
         const auto transpose_axis_order = output_transpose.transpose_const->get_axis_vector_val();
@@ -123,7 +130,6 @@ ov::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
 
         const auto reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
 
-        const size_t split_axis = split_axis_constant->get_axis_vector_val()[0];
         const size_t reversed_transposed_split_axis = reversed_traspose_axis_order[split_axis];
 
         // insert transpose before split
@@ -183,7 +189,13 @@ ov::pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
         const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
         auto split_node = as_type_ptr<Split>(main_node);
         auto split_axis_constant = as_type_ptr<Constant>(split_node->input_value(1).get_node_shared_ptr());
-        const size_t split_axis = split_axis_constant->get_axis_vector_val()[0];
+        auto split_axis = split_axis_constant->cast_vector<int64_t>()[0];
+        if (split_axis < 0 && split_node->input_value(0).get_partial_shape().rank().is_static()) {
+            const auto rank = split_node->input_value(0).get_partial_shape().rank().get_length();
+            split_axis += rank;
+        } else {
+            return false;
+        }
         const size_t transposed_split_axis = transpose_axis_order[split_axis];
         auto new_split_axis_const =
             std::make_shared<Constant>(split_axis_constant->get_element_type(), Shape{}, transposed_split_axis);
