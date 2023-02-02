@@ -4,23 +4,24 @@
 
 #pragma once
 
+#include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
+#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
+#include <legacy/ie_util_internal.hpp>
+#include <map>
 #include <memory>
 #include <string>
-#include <map>
-#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
-#include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
+
 #include "gna_executable_network.hpp"
 #include "gna_plugin_config.hpp"
-#include <legacy/ie_util_internal.hpp>
 
 namespace ov {
 namespace intel_gna {
 
-class GNAPluginInternal  : public InferenceEngine::IInferencePlugin {
+class GNAPluginInternal : public InferenceEngine::IInferencePlugin {
 private:
     std::mutex syncCallsToLoadExeNetworkImpl;
     Config defaultConfig;
-    std::weak_ptr <GNAPlugin> plgPtr;
+    std::weak_ptr<GNAPlugin> plgPtr;
     std::shared_ptr<GNAPlugin> GetCurrentPlugin() const {
         auto ptr = plgPtr.lock();
         if (ptr == nullptr) {
@@ -35,9 +36,9 @@ protected:
 
 public:
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
-                                                const InferenceEngine::CNNNetwork &network,
-                                                const std::map<std::string, std::string> &config) override {
-        std::lock_guard<std::mutex> lock{ syncCallsToLoadExeNetworkImpl };
+        const InferenceEngine::CNNNetwork& network,
+        const std::map<std::string, std::string>& config) override {
+        std::lock_guard<std::mutex> lock{syncCallsToLoadExeNetworkImpl};
         Config updated_config(defaultConfig);
         updated_config.UpdateFromMap(config);
         auto plg = std::make_shared<GNAPlugin>(updated_config.keyConfigMap);
@@ -46,13 +47,13 @@ public:
         return std::make_shared<GNAExecutableNetwork>(clonedNetwork, plg);
     }
 
-    void SetConfig(const std::map<std::string, std::string> &config) override {
+    void SetConfig(const std::map<std::string, std::string>& config) override {
         defaultConfig.UpdateFromMap(config);
     }
 
     InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(
-                                                const std::string &modelFileName,
-                                                const std::map<std::string, std::string> &config) override {
+        const std::string& modelFileName,
+        const std::map<std::string, std::string>& config) override {
         Config updated_config(defaultConfig);
         updated_config.UpdateFromMap(config);
         auto plg = std::make_shared<GNAPlugin>(updated_config.keyConfigMap);
@@ -64,8 +65,9 @@ public:
         return network_impl;
     }
 
-    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel,
-                                                     const std::map<std::string, std::string>& config) override {
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(
+        std::istream& networkModel,
+        const std::map<std::string, std::string>& config) override {
         Config updated_config(defaultConfig);
         updated_config.UpdateFromMap(config);
         auto plg = std::make_shared<GNAPlugin>(updated_config.keyConfigMap);
@@ -91,16 +93,20 @@ public:
         auto plg = GetCurrentPlugin();
         try {
             plg->SetConfig(config);
-        } catch (InferenceEngine::Exception&) {}
+        } catch (InferenceEngine::Exception&) {
+        }
         return plg->QueryNetwork(network, config);
     }
 
-    InferenceEngine::Parameter GetMetric(const std::string& name,
-                                         const std::map<std::string, InferenceEngine::Parameter> & options) const override {
+    InferenceEngine::Parameter GetMetric(
+        const std::string& name,
+        const std::map<std::string, InferenceEngine::Parameter>& options) const override {
         return GetCurrentPlugin()->GetMetric(name, options);
     }
 
-    InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string, InferenceEngine::Parameter> & options) const override {
+    InferenceEngine::Parameter GetConfig(
+        const std::string& name,
+        const std::map<std::string, InferenceEngine::Parameter>& options) const override {
         return defaultConfig.GetParameter(name);
     }
 };

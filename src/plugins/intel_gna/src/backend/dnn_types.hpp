@@ -39,11 +39,11 @@ struct FakeQuantizeParams {
     int8_t set;
     size_t levels;
     // if input is per-channel quantization - input pointers contains per-channel ranges
-    int8_t  inputPerChannel;
+    int8_t inputPerChannel;
     float* input_low;
     float* input_high;
     // if output is per-channel quantization - output pointers contains per-channel ranges
-    int8_t  outputPerChannel;
+    int8_t outputPerChannel;
     float* output_low;
     float* output_high;
 };
@@ -68,7 +68,7 @@ struct DnnActivation {
             float high;
         } clamp;
     } args;
-    operator DnnActivationType () const noexcept {
+    operator DnnActivationType() const noexcept {
         return type;
     }
     static DnnActivation fromType(DnnActivationType type) {
@@ -81,7 +81,7 @@ struct DnnActivation {
 
 static_assert(std::is_trivial<DnnActivation>::value, "DnnActivation is not trival type");
 
-extern const char *intel_dnn_activation_name[kActNumType];
+extern const char* intel_dnn_activation_name[kActNumType];
 
 typedef enum {
     kDnnUnknownOrientation = 100,
@@ -107,20 +107,16 @@ typedef enum {
 
 extern const char* intel_dnn_operation_name[kDnnNumOp];
 
-typedef enum {
-    kDnnFloat,
-    kDnnInt,
-    kDnnNumNumberType
-} intel_dnn_number_type_t;
+typedef enum { kDnnFloat, kDnnInt, kDnnNumNumberType } intel_dnn_number_type_t;
 
-extern const char *intel_dnn_number_type_name[kDnnNumNumberType];
+extern const char* intel_dnn_number_type_name[kDnnNumNumberType];
 
 typedef struct {
     uint32_t num_bytes_per_weight;
     uint32_t num_bytes_per_bias;
     float weight_scale_factor;
-    void *ptr_weights;
-    void *ptr_biases;
+    void* ptr_weights;
+    void* ptr_biases;
 } intel_affine_t;
 
 typedef struct {
@@ -130,15 +126,15 @@ typedef struct {
     uint32_t num_filter_coefficients;
     uint32_t convStride;
     float weight_scale_factor;
-    void *ptr_filters;     // filters stored one after the other
-    void *ptr_biases;
+    void* ptr_filters;  // filters stored one after the other
+    void* ptr_biases;
 } intel_convolutional1D_t;
 
 typedef struct {
     std::array<uint32_t, 2> convStride;
     std::array<uint32_t, 2> zeroPadding;
     float weight_scale_factor;
-    void* ptr_filters;     // filters stored one after the other
+    void* ptr_filters;  // filters stored one after the other
     void* ptr_biases;
 } intel_convolutional2D_t;
 
@@ -150,9 +146,9 @@ typedef struct {
 } intel_maxpool_t;
 
 typedef struct {
-    DnnActivation func_id;       // identifies function being approximated
+    DnnActivation func_id;  // identifies function being approximated
     uint32_t num_segments;
-    gna_pwl_segment_t *ptr_segments;
+    gna_pwl_segment_t* ptr_segments;
 } intel_piecewiselinear_t;
 
 typedef struct {
@@ -160,9 +156,9 @@ typedef struct {
     uint32_t num_bytes_per_weight;
     uint32_t num_bytes_per_bias;
     float weight_scale_factor;
-    void *ptr_feedbacks;
-    void *ptr_weights;
-    void *ptr_biases;
+    void* ptr_feedbacks;
+    void* ptr_weights;
+    void* ptr_biases;
 } intel_recurrent_t;
 
 typedef struct {
@@ -172,8 +168,8 @@ typedef struct {
 } intel_deinterleave_t;
 
 typedef struct {
-    uint32_t num_copy_columns;        // number of columns to copy
-    uint32_t num_copy_rows;            // number of rows to copy
+    uint32_t num_copy_columns;  // number of columns to copy
+    uint32_t num_copy_rows;     // number of rows to copy
 } intel_copy_t;
 
 enum OvGnaType {
@@ -185,11 +181,7 @@ enum OvGnaType {
 
 template <class T>
 OvGnaType OvGnaTypeIntFromBytes(T bytesPerElement) {
-    static const std::map<T, OvGnaType> m = {
-        {1, OvGnaTypeInt8},
-        {2, OvGnaTypeInt16},
-        {4, OvGnaTypeInt32}
-    };
+    static const std::map<T, OvGnaType> m = {{1, OvGnaTypeInt8}, {2, OvGnaTypeInt16}, {4, OvGnaTypeInt32}};
     const auto r = m.find(bytesPerElement);
     if (r == m.end()) {
         THROW_GNA_EXCEPTION << "OvGnaTypeIntFromBytes: unknown bytesPerElement == " << bytesPerElement;
@@ -197,10 +189,7 @@ OvGnaType OvGnaTypeIntFromBytes(T bytesPerElement) {
     return r->second;
 }
 
-enum OvGnaMode {
-    OvGnaModeDefault = 0,
-    OvGnaModeDisabled = -1
-};
+enum OvGnaMode { OvGnaModeDefault = 0, OvGnaModeDisabled = -1 };
 
 struct OvGnaTensor {
     std::vector<uint32_t> dimensions;
@@ -235,7 +224,7 @@ inline std::string OvGnaModeToString(OvGnaMode mode) {
 }
 
 struct intel_dnn_component_t {
-    std::vector < OvGnaTensor > tensors;
+    std::vector<OvGnaTensor> tensors;
     uint32_t num_rows_in;
     uint32_t num_columns_in;
     uint32_t num_rows_out;
@@ -256,11 +245,11 @@ struct intel_dnn_component_t {
         intel_deinterleave_t deinterleave;
         intel_copy_t copy;
     } op;
-    void *ptr_inputs;
-    void *ptr_outputs;
+    void* ptr_inputs;
+    void* ptr_outputs;
     float output_scale_factor;
     float input_scale_factor;
-    const char * original_layer_name = nullptr;
+    const char* original_layer_name = nullptr;
 };
 
 struct intel_score_error_t {
