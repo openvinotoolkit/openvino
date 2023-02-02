@@ -936,14 +936,14 @@ void program_node::init_onednn_primitive_attributes() {
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_clip, empty_mem);
             } else if (fused_desc->activation_function == cldnn::activation_func::hsigmoid) {
                 // Unsupported hsigmoid oneDNN gpu, splits hsigmoid activation min(max(val + 3, 0), 6) / 6
-                post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.f, 3.f);
-                post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, 0.f, 6.f);
-                post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1 / 6.f, 0.f);
+                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, 1.f, 3.f);
+                post_ops.append_eltwise(dnnl::algorithm::eltwise_clip, 0.f, 6.f);
+                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, 1 / 6.f, 0.f);
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_clip, empty_mem);
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
             } else if (fused_desc->activation_function == cldnn::activation_func::negative) {
-                post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, -1, 0);
+                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, -1, 0);
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
             } else {
                 dnnl::algorithm alg = onednn::convert_activation_func(fused_desc->activation_function);
