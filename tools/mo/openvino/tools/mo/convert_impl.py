@@ -999,11 +999,14 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
         if inp_model_is_object:
             model_framework = check_model_object(args)
             if model_framework == "pytorch":
-                use_pt_fe = os.environ.get('USE_PYTORCH_FRONTEND') or args["use_new_frontend"]
+                use_pt_fe = os.environ.get('USE_PYTORCH_FRONTEND') or not args.get("use_legacy_frontend", False)
                 example_inputs = None
                 if 'example_input' in args and args['example_input'] is not None:
                     example_inputs = args['example_input']
-                if not use_pt_fe:
+                if use_pt_fe:
+                     ov_model = convert_pytorch_model_pytorch_frontend(args['input_model'], parse_input_shapes(args), example_inputs)
+                     argv = None
+                else:
                     opset_version = None
                     if 'onnx_opset_version' in args and args['onnx_opset_version'] is not None:
                         opset_version = args['onnx_opset_version']
@@ -1028,19 +1031,19 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
                         remove_tmp_onnx_model(out_dir)
                         raise e
 
-                out_dir = args['output_dir'] if 'output_dir' in args else None
+                    out_dir = args['output_dir'] if 'output_dir' in args else None
 
-                model_onnx = convert_pytorch_to_onnx(args['input_model'],
-                                                     parse_input_shapes(args),
-                                                     opset_version,
-                                                     example_inputs,
-                                                     out_dir)
+                    model_onnx = convert_pytorch_to_onnx(args['input_model'],
+                                                        parse_input_shapes(args),
+                                                        opset_version,
+                                                        example_inputs,
+                                                        out_dir)
 
-                args['input_model'] = model_onnx
-                if os.environ.get('SAVE_TO_BYTES_IO_ONNX_MODEL'):
-                    args['use_legacy_frontend'] = True
-                args['example_input'] = None
-                args['onnx_opset_version'] = None
+                    args['input_model'] = model_onnx
+                    if os.environ.get('SAVE_TO_BYTES_IO_ONNX_MODEL'):
+                        args['use_legacy_frontend'] = True
+                    args['example_input'] = None
+                    args['onnx_opset_version'] = None
 
                 try:
                     ov_model, argv = _convert(cli_parser, framework, args)
