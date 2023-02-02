@@ -296,7 +296,7 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
         if (FEATURE_LIMIT > feature_num)
             WRITE_FUNC(output, OUTPUT_GET_INDEX(b, feature_block, y, (x + out_x)), out);
         else
-            output[OUTPUT_GET_INDEX(b, feature_num, y, (x + out_x))] = out[0];
+            output[OUTPUT_GET_INDEX(b, feature_num, y, (x + out_x))] = TO_OUTPUT_TYPE(out);
 #endif
     }
 }
