@@ -4,10 +4,9 @@
 
 #include "preprocessing.hpp"
 
-#include <ie_common.h>
-
 #include "dev/converter_utils.hpp"
 #include "dev/preprocessing/mean_image.hpp"
+#include "ie_common.h"
 #include "ie_ngraph_utils.hpp"
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/preprocess/color_format.hpp"

@@ -4,15 +4,14 @@
 
 #include "template_compiled_model.hpp"
 
-#include <ie_metric_helpers.hpp>
-#include <ie_plugin_config.hpp>
 #include <memory>
-#include <threading/ie_executor_manager.hpp>
 
 #include "cpp/ie_cnn_network.h"
 #include "ie_icnn_network.hpp"
 #include "ie_icore.hpp"
+#include "ie_metric_helpers.hpp"
 #include "ie_ngraph_utils.hpp"
+#include "ie_plugin_config.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
@@ -20,6 +19,7 @@
 #include "template_infer_request.hpp"
 #include "template_itt.hpp"
 #include "template_plugin.hpp"
+#include "threading/ie_executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace TemplatePlugin;
