@@ -43,7 +43,7 @@ Installing OpenVINO Runtime from YUM is recommended for C++ developers. If you a
 
 @sphinxdirective
 
-1. Create the YUM repo file in the `/tmp` directory as a normal user:
+1. Create the YUM repository file in the `/tmp` directory as a normal user:
 
    .. code-block:: sh
 
@@ -73,19 +73,7 @@ Installing OpenVINO Runtime from YUM is recommended for C++ developers. If you a
 
    .. note::
 
-      If you encounter an error while running `yum repolist | grep -i openvino` on CentOS, do the following steps first:
-
-      .. code-block:: sh
-
-         sudo yum repolist
-
-      And enter `y` to the question about adding the GPG key:
-
-      .. code-block:: sh
-
-         Is this ok [y/N]: y
-
-      Then retry running the query.
+      If you encounter an error while running this command on CentOS, check the :ref:`Troubleshooting Guide <yum troubleshooting 1>` for the possible solution.
 
 
 To list available OpenVINO packages, use the following command:
