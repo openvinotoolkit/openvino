@@ -61,9 +61,8 @@ if(ENABLE_INTEL_GPU)
 
         # try to find CL/opencl.hpp
         find_file(OpenCL_HPP
-                  NAMES opencl.hpp
+                  NAMES CL/opencl.hpp OpenCL/opencl.hpp
                   HINTS ${OpenCL_INCLUDE_DIRS}
-                  PATH_SUFFIXES CL
                   DOC "Path to CL/opencl.hpp")
 
         # add definition to select proper header and suppress warnings
@@ -79,6 +78,7 @@ if(ENABLE_INTEL_GPU)
         elseif(OpenCL_FOUND)
             # find_package(OpenCL) already defines OpenCL_INCLUDE_DIR and OpenCL_LIBRARY
             # see https://cmake.org/cmake/help/latest/module/FindOpenCL.html
+            message(STATUS "Found OpenCL (ver. ${OpenCL_VERSION_STRING}, include dirs ${OpenCL_INCLUDE_DIRS})")
         else()
             message(FATAL_ERROR "Internal error: cannot find OpenCL headers")
         endif()

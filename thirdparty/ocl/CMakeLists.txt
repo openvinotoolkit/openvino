@@ -49,6 +49,9 @@ add_library(OpenCL::OpenCL ALIAS OpenCL)
 
 # use CL/opencl.hpp
 target_compile_definitions(OpenCL INTERFACE OV_GPU_USE_OPENCL_HPP)
+target_include_directories(OpenCL INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/cl_headers>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/clhpp_headers/include>)
 
 # The following variables are needed to make find_package(OpenCL) work
 
