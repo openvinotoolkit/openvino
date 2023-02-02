@@ -33,7 +33,7 @@ ListConstructReplacer::ListConstructReplacer() {
     // Both aten::view and aten::reshape are using same translation returning Reshape operator.
     auto reshape_op = pattern::wrap_type<v1::Reshape>({pattern::any_input(), list_construct});
     auto roll_op = pattern::wrap_type<v7::Roll>({pattern::any_input(), list_construct, pattern::any_input()});
-    auto broadcast_op = pattern::wrap_type<v1::Broadcast>({pattern::any_input(), list_construct});
+    auto broadcast_op = pattern::wrap_type<v3::Broadcast>({pattern::any_input(), list_construct});
     auto adapool_op = pattern::wrap_type<v8::AdaptiveAvgPool>({pattern::any_input(), list_construct});
 
     auto lc_pattern = std::make_shared<pattern::op::Or>(OutputVector{reshape_op, roll_op, broadcast_op, adapool_op});
