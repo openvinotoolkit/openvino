@@ -102,13 +102,6 @@ operations via the InferenceEngine::QueryNetworkResult structure. The `QueryNetw
 
 @snippet template/src/template_plugin.cpp plugin:query_network
 
-### `AddExtension()`
-
-Adds an extension of the InferenceEngine::IExtensionPtr type to a plugin. If a plugin does not 
-support extensions, the method must throw an exception:
-
-@snippet template/src/template_plugin.cpp plugin:add_extension
-
 ### `SetConfig()`
 
 Sets new values for plugin configuration keys:
@@ -154,8 +147,6 @@ demonstrates the definition of a new optimization capability value specific for 
 @snippet template/template_config.hpp public_header:metrics 
 
 The snippet below provides an example of the implementation for `GetMetric`:
-
-@snippet template/src/template_plugin.cpp plugin:get_metric
 
 > **NOTE**: If an unsupported metric key is passed to the function, it must throw an exception.
 
