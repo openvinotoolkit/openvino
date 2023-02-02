@@ -36,9 +36,7 @@ void Rethrow() {
     try {
         throw;
     } catch (const ov::NotImplemented& e) {
-        throw e;
-    } catch (const ov::Exception& e) {
-        throw e;
+        IE_THROW(NotImplemented) << e.what();
     } catch (const InferenceEngine::GeneralError& e) {
         throw e;
     } catch (const InferenceEngine::NotImplemented& e) {

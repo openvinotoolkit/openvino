@@ -12,7 +12,7 @@
 
 Inference Engine Plugin API provides the helper InferenceEngine::ExecutableNetworkThreadSafeDefault class recommended to use as a base class for an executable network. Based on that, a declaration of an executable network class can look as follows: 
 
-@snippet src/template_executable_network.hpp executable_network:header
+@snippet src/template_compiled_model.hpp executable_network:header
 
 #### Class Fields
 
