@@ -201,7 +201,7 @@ public:
 
     /**
      * @brief Get configs that are supported by core
-     * @return map of configs that are supported by device
+     * @return set of configs that are supported by device
      */
     virtual std::set<std::string> QueryCoreSupportedConfig() const = 0;
 

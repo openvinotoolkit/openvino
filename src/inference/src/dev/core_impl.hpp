@@ -216,11 +216,11 @@ private:
                                                      const CacheContent& cacheContent,
                                                      bool forceDisableCache = false) const;
 
-    ov::SoPtr<ov::ICompiledModel> load_model_from_cache(const CacheContent& cacheContent,
+    static ov::SoPtr<ov::ICompiledModel> load_model_from_cache(const CacheContent& cacheContent,
                                                                ov::Plugin& plugin,
                                                                const ov::AnyMap& config,
                                                                const ov::RemoteContext& context,
-                                                               bool& networkIsImported) const;
+                                                               bool& networkIsImported);
 
     bool device_supports_import_export(const ov::Plugin& plugin) const;
 

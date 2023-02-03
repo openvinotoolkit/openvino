@@ -322,18 +322,20 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
                                                          parsed._config)
                             ._cacheManager;
     auto cacheContent = CacheContent{cacheManager};
+    auto _config = parsed._config;
+    coreConfig.update_config(plugin, _config);
     if (!forceDisableCache && cacheManager && device_supports_import_export(plugin)) {
-        cacheContent.blobId = ov::NetworkCompilationContext::compute_hash(
-            model,
-            create_compile_config(plugin, parsed._deviceName, parsed._config));
+        cacheContent.blobId =
+            ov::NetworkCompilationContext::compute_hash(model,
+                                                        create_compile_config(plugin, parsed._deviceName, _config));
         bool loadedFromCache = false;
         auto lock = cacheGuard.getHashLock(cacheContent.blobId);
-        res = load_model_from_cache(cacheContent, plugin, parsed._config, {}, loadedFromCache);
+        res = load_model_from_cache(cacheContent, plugin, _config, {}, loadedFromCache);
         if (!loadedFromCache) {
-            res = compile_model_impl(model, plugin, parsed._config, {}, cacheContent, forceDisableCache);
+            res = compile_model_impl(model, plugin, _config, {}, cacheContent, forceDisableCache);
         }
     } else {
-        res = compile_model_impl(model, plugin, parsed._config, {}, cacheContent, forceDisableCache);
+        res = compile_model_impl(model, plugin, _config, {}, cacheContent, forceDisableCache);
     }
     return {res._ptr, res._so};
 }
@@ -361,18 +363,20 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
                                                          parsed._config)
                             ._cacheManager;
     auto cacheContent = CacheContent{cacheManager};
+    auto _config = parsed._config;
+    coreConfig.update_config(plugin, _config);
     if (cacheManager && device_supports_import_export(plugin)) {
-        cacheContent.blobId = ov::NetworkCompilationContext::compute_hash(
-            model,
-            create_compile_config(plugin, parsed._deviceName, parsed._config));
+        cacheContent.blobId =
+            ov::NetworkCompilationContext::compute_hash(model,
+                                                        create_compile_config(plugin, parsed._deviceName, _config));
         bool loadedFromCache = false;
         auto lock = cacheGuard.getHashLock(cacheContent.blobId);
-        res = load_model_from_cache(cacheContent, plugin, parsed._config, context, loadedFromCache);
+        res = load_model_from_cache(cacheContent, plugin, _config, context, loadedFromCache);
         if (!loadedFromCache) {
-            res = compile_model_impl(model, plugin, parsed._config, context, cacheContent);
+            res = compile_model_impl(model, plugin, _config, context, cacheContent);
         }
     } else {
-        res = compile_model_impl(model, plugin, parsed._config, context, cacheContent);
+        res = compile_model_impl(model, plugin, _config, context, cacheContent);
     }
     return res;
 }
@@ -407,23 +411,24 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
                                                          parsed._config)
                             ._cacheManager;
     auto cacheContent = CacheContent{cacheManager, model_path};
+    auto _config = parsed._config;
+    coreConfig.update_config(plugin, _config);
     if (cacheManager && device_supports_import_export(plugin)) {
         bool loadedFromCache = false;
-        cacheContent.blobId = ov::NetworkCompilationContext::compute_hash(
-            model_path,
-            create_compile_config(plugin, parsed._deviceName, parsed._config));
+        cacheContent.blobId =
+            ov::NetworkCompilationContext::compute_hash(model_path,
+                                                        create_compile_config(plugin, parsed._deviceName, _config));
         auto lock = cacheGuard.getHashLock(cacheContent.blobId);
-        res = load_model_from_cache(cacheContent, plugin, parsed._config, {}, loadedFromCache);
+        res = load_model_from_cache(cacheContent, plugin, _config, {}, loadedFromCache);
         if (!loadedFromCache) {
             auto cnnNetwork = ReadNetwork(model_path, std::string());
-            res = compile_model_impl(cnnNetwork.getFunction(), plugin, parsed._config, {}, cacheContent);
+            res = compile_model_impl(cnnNetwork.getFunction(), plugin, _config, {}, cacheContent);
         }
     } else if (cacheManager) {
-        coreConfig.update_config(plugin, parsed._config);
-        res = plugin.compile_model(model_path, parsed._config);
+        res = plugin.compile_model(model_path, _config);
     } else {
         auto cnnNetwork = ReadNetwork(model_path, std::string());
-        res = compile_model_impl(cnnNetwork.getFunction(), plugin, parsed._config, {}, cacheContent);
+        res = compile_model_impl(cnnNetwork.getFunction(), plugin, _config, {}, cacheContent);
     }
     return {res._ptr, res._so};
 }
@@ -442,21 +447,23 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
                                                          parsed._config)
                             ._cacheManager;
     auto cacheContent = CacheContent{cacheManager};
+    auto _config = parsed._config;
+    coreConfig.update_config(plugin, _config);
     if (cacheManager && device_supports_import_export(plugin)) {
         bool loadedFromCache = false;
-        cacheContent.blobId = ov::NetworkCompilationContext::compute_hash(
-            model_str,
-            weights,
-            create_compile_config(plugin, parsed._deviceName, parsed._config));
+        cacheContent.blobId =
+            ov::NetworkCompilationContext::compute_hash(model_str,
+                                                        weights,
+                                                        create_compile_config(plugin, parsed._deviceName, _config));
         auto lock = cacheGuard.getHashLock(cacheContent.blobId);
-        res = load_model_from_cache(cacheContent, plugin, parsed._config, {}, loadedFromCache);
+        res = load_model_from_cache(cacheContent, plugin, _config, {}, loadedFromCache);
         if (!loadedFromCache) {
             auto cnnNetwork = read_model(model_str, weights);
-            res = compile_model_impl(cnnNetwork, plugin, parsed._config, {}, cacheContent);
+            res = compile_model_impl(cnnNetwork, plugin, _config, {}, cacheContent);
         }
     } else {
         auto cnnNetwork = read_model(model_str, weights);
-        res = compile_model_impl(cnnNetwork, plugin, parsed._config, {}, cacheContent);
+        res = compile_model_impl(cnnNetwork, plugin, _config, {}, cacheContent);
     }
     return {res._ptr, res._so};
 }
@@ -867,10 +874,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_impl(const std::shared
                                                                bool forceDisableCache) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::compile_model_impl");
     ov::SoPtr<ov::ICompiledModel> execNetwork;
-    auto _parsedConfig = parsedConfig;
-    coreConfig.update_config(plugin, _parsedConfig);
-    execNetwork = context._impl ? plugin.compile_model(model, context, _parsedConfig)
-                                : plugin.compile_model(model, _parsedConfig);
+    execNetwork =
+        context._impl ? plugin.compile_model(model, context, parsedConfig) : plugin.compile_model(model, parsedConfig);
     if (!forceDisableCache && cacheContent.cacheManager && device_supports_import_export(plugin)) {
         try {
             // need to export network for further import from "cache"
@@ -893,7 +898,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(const CacheCon
                                                                   ov::Plugin& plugin,
                                                                   const ov::AnyMap& config,
                                                                   const ov::RemoteContext& context,
-                                                                  bool& networkIsImported) const {
+                                                                  bool& networkIsImported) {
     ov::SoPtr<ov::ICompiledModel> execNetwork;
     struct HeaderException {};
 
@@ -918,10 +923,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(const CacheCon
             } catch (...) {
                 throw HeaderException();
             }
-            auto _config = config;
-            coreConfig.update_config(plugin, _config);
-            execNetwork = context._impl ? plugin.import_model(networkStream, context, _config)
-                                        : plugin.import_model(networkStream, _config);
+            execNetwork = context._impl ? plugin.import_model(networkStream, context, config)
+                                        : plugin.import_model(networkStream, config);
             networkIsImported = true;
             execNetwork->loaded_from_cache();
         });
