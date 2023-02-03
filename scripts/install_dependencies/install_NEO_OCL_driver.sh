@@ -371,7 +371,7 @@ _check_distro_version()
 {
     if [[ $DISTRO == redhat ]]; then
         RHEL_MINOR_VERSION_SUPPORTED="[3-7]"
-        if ! $(grep -m1 'VERSION_ID' /etc/os-release | grep -Eo "8.${RHEL_MINOR_VERSION_SUPPORTED}"); then
+        if ! eval grep -m1 'VERSION_ID' /etc/os-release | grep -Eo "8.${RHEL_MINOR_VERSION_SUPPORTED}"; then
             echo "Warning: This runtime can be installed only on RHEL 8.3 up to RHEL 8.7"
             echo "More info https://dgpu-docs.intel.com/releases/releases-20211130.html" >&2
             echo "Installation of Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver interrupted"
@@ -415,7 +415,7 @@ check_agreement()
     echo "that was used to validate this OpenVINO™ package."
     echo "In case if you already have the driver - script will try to remove it."
     while true; do
-        read -p "Want to proceed? (y/n): " yn
+        read -rp "Want to proceed? (y/n): " yn
         case $yn in
             [Yy]*) return 0  ;;
             [Nn]*) exit $EXIT_FAILURE ;;
