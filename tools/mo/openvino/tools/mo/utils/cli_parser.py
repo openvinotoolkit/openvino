@@ -1013,14 +1013,14 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'FP32 model weights and biases are compressed to FP16. '
                                    'All intermediate data is kept in original precision.',
                               choices=["FP16", "FP32", "half", "float"],
-                              default='float',
+                              default='FP16',
                               action=DeprecatedOptionCommon)
     common_group.add_argument('--compress_to_fp16',
                               help=mo_convert_params_common['compress_to_fp16'].description,
                               type=check_bool,
                               nargs="?",
                               const=True,
-                              default=False)
+                              default=True)
     common_group.add_argument('--transform',
                               help=mo_convert_params_common['transform'].description.format(
                                   mo_convert_params_common['transform'].possible_types_command_line),
