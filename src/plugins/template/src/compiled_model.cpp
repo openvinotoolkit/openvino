@@ -186,19 +186,26 @@ InferenceEngine::Parameter TemplatePlugin::CompiledModel::get_property(const std
                                                     ov::template_plugin::throughput_streams};
         return rw_properties;
     };
+    const auto& to_string_vector = [](const std::vector<ov::PropertyName>& properties) {
+        std::vector<std::string> ret;
+        for (const auto& property : properties) {
+            ret.emplace_back(property);
+        }
+        return ret;
+    };
     // TODO: return more supported values for metrics
     if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_METRICS) == name) {
         auto metrics = default_ro_properties();
         add_ro_properties(METRIC_KEY(SUPPORTED_METRICS), metrics);
         add_ro_properties(METRIC_KEY(SUPPORTED_CONFIG_KEYS), metrics);
-        return metrics;
+        return to_string_vector(metrics);
     } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         auto configs = default_rw_properties();
         auto streamExecutorConfigKeys = InferenceEngine::IStreamsExecutor::Config{}.SupportedKeys();
         for (auto&& configKey : streamExecutorConfigKeys) {
             configs.emplace_back(configKey);
         }
-        return configs;
+        return to_string_vector(configs);
     } else if (ov::model_name == name) {
         auto model_name = m_model->get_friendly_name();
         return decltype(ov::model_name)::value_type(model_name);

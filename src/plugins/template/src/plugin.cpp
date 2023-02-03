@@ -217,13 +217,20 @@ ov::Any TemplatePlugin::Plugin::get_property(const std::string& name, const ov::
                                                     ov::template_plugin::throughput_streams};
         return rw_properties;
     };
+    const auto& to_string_vector = [](const std::vector<ov::PropertyName>& properties) {
+        std::vector<std::string> ret;
+        for (const auto& property : properties) {
+            ret.emplace_back(property);
+        }
+        return ret;
+    };
     if (METRIC_KEY(SUPPORTED_METRICS) == name) {
         auto metrics = default_ro_properties();
 
         add_ro_properties(METRIC_KEY(SUPPORTED_METRICS), metrics);
         add_ro_properties(METRIC_KEY(SUPPORTED_CONFIG_KEYS), metrics);
         add_ro_properties(METRIC_KEY(IMPORT_EXPORT_SUPPORT), metrics);
-        return metrics;
+        return to_string_vector(metrics);
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         auto configs = default_rw_properties();
         auto streamExecutorConfigKeys = InferenceEngine::IStreamsExecutor::Config{}.SupportedKeys();
@@ -232,7 +239,7 @@ ov::Any TemplatePlugin::Plugin::get_property(const std::string& name, const ov::
                 configs.emplace_back(configKey);
             }
         }
-        return configs;
+        return to_string_vector(configs);
     } else if (ov::supported_properties == name) {
         auto ro_properties = default_ro_properties();
         auto rw_properties = default_rw_properties();
