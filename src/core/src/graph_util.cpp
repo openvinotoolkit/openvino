@@ -216,8 +216,8 @@ bool ngraph::is_post_dominated(Node* X, Node* Y) {
 
 namespace {
 
-void clone_nodes(const std::vector<std::shared_ptr<ov::Node>>& nodes,
-                 std::unordered_map<ov::Node*, std::shared_ptr<ov::Node>>& node_map) {
+void clone_ov_nodes(const std::vector<std::shared_ptr<ov::Node>>& nodes,
+                    std::unordered_map<ov::Node*, std::shared_ptr<ov::Node>>& node_map) {
     // for each node in topological order
     for (const auto& node : nodes) {
         if (!node_map.count(node.get())) {
@@ -261,7 +261,7 @@ namespace ov {
 
 std::shared_ptr<Model> clone_ov_model(const Model& func, std::unordered_map<Node*, std::shared_ptr<Node>>& node_map) {
     // clone model operations
-    ::clone_nodes(func.get_ordered_ops(), node_map);
+    clone_ov_nodes(func.get_ordered_ops(), node_map);
 
     // clone variables
     auto variables = func.get_variables();
