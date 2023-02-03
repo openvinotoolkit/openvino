@@ -118,6 +118,8 @@ def create_filename_for_test(test_name, tmp_path, is_xml_path=False, is_bin_path
     python_version = str(sys.version_info.major) + "_" + str(sys.version_info.minor)
     filename = test_name.replace("test_", "").replace("[", "_").replace("]", "_")
     filename = filename + "_" + python_version
-    _xml = tmp_path / Path(filename + ".xml") if is_xml_path else tmp_path / Path(filename + ".xml")
-    _bin = tmp_path / Path(filename + ".bin") if is_bin_path else tmp_path / Path(filename + ".bin")
+    path_to_xml = tmp_path / Path(filename + ".xml")
+    path_to_bin = tmp_path / Path(filename + ".bin")
+    _xml = path_to_xml if is_xml_path else str(path_to_xml)
+    _bin = path_to_bin if is_bin_path else str(path_to_bin)
     return (_xml, _bin)
