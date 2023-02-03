@@ -230,6 +230,8 @@ public:
      */
     void register_plugins_in_registry(const std::string& xml_config_file, const bool& by_abs_path = false);
 
+    void register_compile_time_plugins();
+
     void apply_auto_batching(const std::shared_ptr<const ov::Model>& model,
                              std::string& deviceName,
                              ov::AnyMap& config) const;
