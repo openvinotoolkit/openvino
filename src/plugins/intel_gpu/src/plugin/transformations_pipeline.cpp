@@ -41,7 +41,6 @@
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
-#include "transformations/common_optimizations/convert_compressed_to_mixed_precision.hpp"
 #include <transformations/common_optimizations/wrap_interpolate_into_transposes.hpp>
 #include <transformations/common_optimizations/transpose_sinking.hpp>
 
@@ -140,6 +139,63 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<EinsumDecomposition>();
+
+        precisions_array fp_convert_precision_list = {
+                {ov::element::f64, ov::element::f32}
+        };
+
+        // call conversion of float types with keep_precision_sensitive_in_fp32 = true
+        auto fp_precision_supported = [&](ov::element::Type e) -> bool {
+            switch (e) {
+                case ov::element::f16: return device_info.supports_fp16;
+                case ov::element::f32: return true; // assume that all GPUs support f32 data type
+                case ov::element::f64: return device_info.supports_fp64;
+                case ov::element::bf16: return false;
+                default: return false;
+            }
+            return false;
+        };
+
+        const auto fallback_precision = ov::element::f32;
+        std::vector<ov::element::Type> fp_element_types = {
+                ov::element::f32,
+                ov::element::f16,
+                ov::element::bf16
+        };
+
+        // Add conversion from FP data types to infer precision if it's specified
+        auto infer_precision = config.get_property(ov::hint::inference_precision);
+        if (infer_precision != ov::element::undefined) {
+            if (!fp_precision_supported(infer_precision))
+                infer_precision = fallback_precision;
+
+            for (auto& et : fp_element_types) {
+                if (et != infer_precision) {
+                    fp_convert_precision_list.push_back({et, infer_precision});
+                }
+            }
+        }
+
+        // Add conversion from unsupported FP data types to f32 if we don't have a conversion to something valid already in the list
+        for (auto& et : fp_element_types) {
+            if (!fp_precision_supported(et)) {
+                auto et_pair = std::make_pair(et, fallback_precision);
+                bool has_valid_conversion = std::find_if(fp_convert_precision_list.begin(), fp_convert_precision_list.end(),
+                    [&](std::pair<ov::element::Type, ov::element::Type> v) -> bool {
+                        return v.first == et_pair.first && fp_precision_supported(v.second);
+                }) != fp_convert_precision_list.end();
+
+                if (!has_valid_conversion) {
+                    fp_convert_precision_list.push_back(et_pair);
+                }
+            }
+        }
+
+        type_to_fuse_map empty_fuse_map = {};
+        manager.register_pass<ov::pass::Validate>();
+        //  call ConvertPrecision with keep_precision_sensitive_in_fp32 = true
+        manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_list, empty_fuse_map, true);
+
         manager.register_pass<ov::pass::CommonOptimizations>();
 
         manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
@@ -176,8 +232,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::ConvertPriorBox8To0, false>();
         manager.register_pass<ov::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
 
-        precisions_array convert_precision_list {
-                {ngraph::element::f64, ngraph::element::f32},
+        precisions_array int_convert_precision_list {
                 {ngraph::element::i64, ngraph::element::i32},
                 {ngraph::element::u64, ngraph::element::i32},
                 {ngraph::element::u16, ngraph::element::i32},
@@ -187,54 +242,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 {ngraph::element::u4, ngraph::element::u8},
         };
 
-        auto fp_precision_supported = [&](ngraph::element::Type e) -> bool {
-            switch (e) {
-                case ngraph::element::f16: return device_info.supports_fp16;
-                case ngraph::element::f32: return true; // assume that all GPUs support f32 data type
-                case ngraph::element::f64: return device_info.supports_fp64;
-                case ngraph::element::bf16: return false;
-                default: return false;
-            }
-            return false;
-        };
-
-        const auto fallback_precision = ngraph::element::f32;
-        std::vector<ov::element::Type> fp_element_types = {
-            ngraph::element::f32,
-            ngraph::element::f16,
-            ngraph::element::bf16
-        };
-
-        // Add conversion from FP data types to infer precision if it's specified
-        auto infer_precision = config.get_property(ov::inference_precision);
-        if (infer_precision != ov::element::undefined) {
-            if (!fp_precision_supported(infer_precision))
-                infer_precision = fallback_precision;
-
-            for (auto& et : fp_element_types) {
-                if (et != infer_precision) {
-                    convert_precision_list.push_back({et, infer_precision});
-                }
-            }
-        }
-
-        // Add conversion from unsupported FP data types to f32 if we don't have a conversion to something valid already in the list
-        for (auto& et : fp_element_types) {
-            if (!fp_precision_supported(et)) {
-                auto et_pair = std::make_pair(et, fallback_precision);
-                bool has_valid_conversion = std::find_if(convert_precision_list.begin(), convert_precision_list.end(),
-                    [&](std::pair<ov::element::Type, ov::element::Type> v) -> bool {
-                        return v.first == et_pair.first && fp_precision_supported(v.second);
-                }) != convert_precision_list.end();
-
-                if (!has_valid_conversion) {
-                    convert_precision_list.push_back(et_pair);
-                }
-            }
-        }
-
         manager.register_pass<ngraph::pass::Validate>();
-        manager.register_pass<ov::pass::ConvertPrecision>(convert_precision_list);
+        manager.register_pass<ov::pass::ConvertPrecision>(int_convert_precision_list);
 
         auto pass_config = manager.get_pass_config();
         pass_config->disable<ov::pass::EyeDecomposition>();
@@ -242,7 +251,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // disable conversion to legacy and use the new mixed precision
         // in which precision sensitive nodes are kept in FP32
         pass_config->disable<ov::pass::ConvertCompressedOnlyToLegacy>();
-        pass_config->enable<ov::pass::ConvertCompressedToMixedPrecision>();
 
         // SpaceToDepth/DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
         pass_config->set_callback<ov::pass::ConvertSpaceToDepth,

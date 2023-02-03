@@ -11,21 +11,10 @@
 namespace ov {
 namespace pass {
 
-class TRANSFORMATIONS_API EnableDecompressionConvertConstantFolding;
 class TRANSFORMATIONS_API ConvertCompressedOnlyToLegacy;
 
 }  // namespace pass
 }  // namespace ov
-
-/**
- * @ingroup ie_transformation_common_api
- * @brief Enables ConstantFolding for Convert operation in compressed function.
- */
-class ov::pass::EnableDecompressionConvertConstantFolding : public ov::pass::MatcherPass {
-public:
-    OPENVINO_RTTI("EnableDecompressionConvertConstantFolding", "0");
-    EnableDecompressionConvertConstantFolding();
-};
 
 /**
  * @ingroup ie_transformation_common_api
