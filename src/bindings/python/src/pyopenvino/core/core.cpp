@@ -326,13 +326,38 @@ void regclass_Core(py::module m) {
     cls.def(
         "read_model",
         [](ov::Core& self, py::object model_path, py::object weights_path) {
-            std::string model_path_cpp{py::str(model_path)};
-            std::string weights_path_cpp{py::str(weights_path)};
-            py::gil_scoped_release release;
-            return self.read_model(model_path_cpp, weights_path_cpp);
+            std::stringstream _stream;
+            if (py::isinstance(model_path, pybind11::module::import("io").attr("BytesIO"))) {
+                model_path.attr("seek")(0);  // Always rewind stream!
+                _stream << model_path
+                               .attr("read")()  // alternative: model_path.attr("get_value")()
+                               .cast<std::string>();
+                py::buffer_info info;
+                if (!py::isinstance<py::none>(weights_path)) {
+                    auto p = weights_path.cast<py::bytes>();
+                    info = py::buffer(p).request();
+                }
+                size_t bin_size = static_cast<size_t>(info.size);
+                ov::Tensor tensor(ov::element::Type_t::u8, {bin_size});
+                // if weights are not empty
+                if (bin_size) {
+                    const uint8_t* bin = reinterpret_cast<const uint8_t*>(info.ptr);
+                    std::memcpy(tensor.data(), bin, bin_size);
+                }
+                py::gil_scoped_release release;
+                return self.read_model(_stream.str(), tensor);
+            } else {
+                std::string model_path_cpp{py::str(model_path)};
+                std::string weights_path_cpp;
+                if (!py::isinstance<py::none>(weights_path)) {
+                    weights_path_cpp = py::str(weights_path);
+                }
+                py::gil_scoped_release release;
+                return self.read_model(model_path_cpp, weights_path_cpp);
+            }
         },
         py::arg("model"),
-        py::arg("weights") = "",
+        py::arg("weights") = py::none(),
         R"(
             Reads models from IR / ONNX / PDPD formats.
 
