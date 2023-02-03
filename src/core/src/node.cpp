@@ -808,7 +808,7 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
             output_tensors.push_back(std::make_shared<HostTensor>(output.get_element_type(), output.get_shape()));
         }
     }
-
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (evaluate(output_tensors, input_tensors)) {
         for (size_t i = 0; i < output_tensors.size(); ++i) {
             output_values[i] = make_shared<ngraph::op::Constant>(output_tensors[i]);
