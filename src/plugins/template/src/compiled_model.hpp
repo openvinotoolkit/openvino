@@ -28,7 +28,7 @@ public:
     // Methods from a base class ov::ICompiledModel
     void export_model(std::ostream& model) const override;
 
-    std::shared_ptr<ov::Model> get_runtime_model() const override;
+    std::shared_ptr<const ov::Model> get_runtime_model() const override;
 
     void set_property(const ov::AnyMap& properties) override;
 

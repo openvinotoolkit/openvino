@@ -5,9 +5,9 @@
 #pragma once
 
 #include "backend.hpp"
+#include "compiled_model.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
-#include "template_compiled_model.hpp"
 #include "template_config.hpp"
 
 //! [plugin:header]

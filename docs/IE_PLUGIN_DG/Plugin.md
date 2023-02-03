@@ -24,7 +24,7 @@ Plugin Class
 Inference Engine Plugin API provides the helper InferenceEngine::IInferencePlugin class recommended to use as a base class for a plugin.
 Based on that, declaration of a plugin class can look as follows:
 
-@snippet template/src/template_plugin.hpp plugin:header
+@snippet template/src/plugin.hpp plugin:header
 
 #### Class Fields
 
@@ -52,7 +52,7 @@ must be thrown from a plugin constructor.
 
 A plugin must define a device name enabled via the `_pluginName` field of a base class:
 
-@snippet template/src/template_plugin.cpp plugin:ctor
+@snippet template/src/plugin.cpp plugin:ctor
 
 ### `LoadExeNetworkImpl()`
 
@@ -62,7 +62,7 @@ of the public InferenceEngine::IInferencePlugin::LoadNetwork method that calls p
 This is the most important function of the `Plugin` class and creates an instance of compiled `ExecutableNetwork`,
 which holds a backend-dependent compiled graph in an internal representation:
 
-@snippet template/src/template_plugin.cpp plugin:load_exe_network_impl
+@snippet template/src/plugin.cpp plugin:load_exe_network_impl
 
 Before a creation of an `ExecutableNetwork` instance via a constructor, a plugin may check if a provided 
 InferenceEngine::ICNNNetwork object is supported by a device. In the example above, the plugin checks precision information.
@@ -84,7 +84,7 @@ The function accepts a const shared pointer to `ov::Model` object and performs t
     * [Intermediate Representation and Operation Sets](@ref openvino_docs_MO_DG_IR_and_opsets)
     * [Quantized networks](@ref openvino_docs_ie_plugin_dg_quantized_networks).
 
-@snippet template/src/template_plugin.cpp plugin:transform_network
+@snippet template/src/plugin.cpp plugin:transform_network
 
 > **NOTE**: After all these transformations, a `ov::Model` object contains operations which can be perfectly mapped to backend kernels. E.g. if backend has kernel computing `A + B` operations at once, the `TransformNetwork` function should contain a pass which fuses operations `A` and `B` into a single custom operation `A + B` which fits backend kernels set.
 
@@ -100,13 +100,13 @@ operations via the InferenceEngine::QueryNetworkResult structure. The `QueryNetw
 3. Construct `supported` and `unsupported` maps which contains names of original operations. Note, that since the inference is performed using OpenVINO™ reference backend, the decision whether the operation is supported or not depends on whether the latest OpenVINO opset contains such operation.
 4. `QueryNetworkResult.supportedLayersMap` contains only operations which are fully supported by `_backend`.
 
-@snippet template/src/template_plugin.cpp plugin:query_network
+@snippet template/src/plugin.cpp plugin:query_network
 
 ### `SetConfig()`
 
 Sets new values for plugin configuration keys:
 
-@snippet template/src/template_plugin.cpp plugin:set_config
+@snippet template/src/plugin.cpp plugin:set_config
 
 In the snippet above, the `Configuration` class overrides previous configuration values with the new 
 ones. All these values are used during backend specific graph compilation and execution of inference requests.
@@ -117,7 +117,7 @@ ones. All these values are used during backend specific graph compilation and ex
 
 Returns a current value for a specified configuration key:
 
-@snippet template/src/template_plugin.cpp plugin:get_config
+@snippet template/src/plugin.cpp plugin:get_config
 
 The function is implemented with the `Configuration::Get` method, which wraps an actual configuration 
 key value to the InferenceEngine::Parameter and returns it.
@@ -169,13 +169,13 @@ information must be stored and checked during the import.
 - Compiled backend specific graph itself
 - Information about precisions and shapes set by the user
 
-@snippet template/src/template_plugin.cpp plugin:import_network
+@snippet template/src/plugin.cpp plugin:import_network
 
 Create Instance of Plugin Class
 ------------------------
 
 Inference Engine plugin library must export only one function creating a plugin instance using IE_DEFINE_PLUGIN_CREATE_FUNCTION macro:
 
-@snippet template/src/template_plugin.cpp plugin:create_plugin_engine
+@snippet template/src/plugin.cpp plugin:create_plugin_engine
 
 Next step in a plugin library implementation is the [ExecutableNetwork](@ref openvino_docs_ie_plugin_dg_executable_network) class.

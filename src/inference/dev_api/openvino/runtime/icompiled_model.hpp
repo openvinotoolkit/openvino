@@ -89,7 +89,7 @@ public:
      *
      * @return OpenVINO Model which represents runtime graph
      */
-    virtual std::shared_ptr<ov::Model> get_runtime_model() const = 0;
+    virtual std::shared_ptr<const ov::Model> get_runtime_model() const = 0;
 
     /**
      * @brief Allows to set propertu

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "template_plugin.hpp"
+#include "plugin.hpp"
 
 #include <memory>
 
@@ -12,7 +12,6 @@
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/manager.hpp"
 #include "template/template_config.hpp"
-#include "template_compiled_model.hpp"
 #include "template_infer_request.hpp"
 #include "template_itt.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
@@ -23,6 +22,11 @@
 
 using namespace TemplatePlugin;
 
+namespace {
+static constexpr const char* wait_executor_name = "TemplateWaitExecutor";
+static constexpr const char* stream_executor_name = "TemplateStreamsExecutor";
+}  // namespace
+
 // ! [plugin:ctor]
 Plugin::Plugin() {
     // TODO: fill with actual device name, backend engine
@@ -32,15 +36,15 @@ Plugin::Plugin() {
     _backend = ngraph::runtime::Backend::create();
 
     // create default stream executor with a given name
-    _waitExecutor = get_executor_manager()->getIdleCPUStreamsExecutor({"TemplateWaitExecutor"});
+    _waitExecutor = get_executor_manager()->getIdleCPUStreamsExecutor({wait_executor_name});
 }
 // ! [plugin:ctor]
 
 // ! [plugin:dtor]
 Plugin::~Plugin() {
     // Plugin should remove executors from executor cache to avoid threads number growth in the whole application
-    get_executor_manager()->clear("TemplateStreamsExecutor");
-    get_executor_manager()->clear("TemplateWaitExecutor");
+    get_executor_manager()->clear(stream_executor_name);
+    get_executor_manager()->clear(wait_executor_name);
     // NOTE: Uncomment this if Inference Engine Executor cache is used to create callback executor
     // executorManager()->clear("TemplateCallbackExecutor");
 }
@@ -87,7 +91,7 @@ std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::compile_model(const 
     auto fullConfig = Configuration{properties, _cfg};
     auto streamsExecutorConfig =
         InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(fullConfig._streamsExecutorConfig);
-    streamsExecutorConfig._name = "TemplateStreamsExecutor";
+    streamsExecutorConfig._name = stream_executor_name;
     auto compiled_model =
         std::make_shared<CompiledModel>(model,
                                         shared_from_this(),
@@ -127,7 +131,7 @@ std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::import_model(std::is
     auto ov_model = get_core()->read_model(xmlString, weights);
     auto streamsExecutorConfig =
         InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(fullConfig._streamsExecutorConfig);
-    streamsExecutorConfig._name = "TemplateStreamsExecutor";
+    streamsExecutorConfig._name = stream_executor_name;
     auto compiled_model =
         std::make_shared<CompiledModel>(ov_model,
                                         shared_from_this(),
@@ -155,14 +159,14 @@ ov::SupportedOpsMap TemplatePlugin::Plugin::query_model(const std::shared_ptr<co
     auto supported = InferenceEngine::GetSupportedNodes(
         model,
         [&](std::shared_ptr<ov::Model>& model) {
-            // 1. It is needed to apply all transformations as it is done in LoadExeNetworkImpl
+            // 1. It is needed to apply all transformations as it is done in compile_model
             transform_model(model);
         },
         [&](std::shared_ptr<ngraph::Node> node) {
             // 2. Сheck whether node is supported
             ngraph::OpSet op_super_set;
 #define _OPENVINO_OP_REG(NAME, NAMESPACE) op_super_set.insert<NAMESPACE::NAME>();
-#include "openvino/opsets/opset10_tbl.hpp"
+        // clang-format off
 #include "openvino/opsets/opset1_tbl.hpp"
 #include "openvino/opsets/opset2_tbl.hpp"
 #include "openvino/opsets/opset3_tbl.hpp"
@@ -172,6 +176,8 @@ ov::SupportedOpsMap TemplatePlugin::Plugin::query_model(const std::shared_ptr<co
 #include "openvino/opsets/opset7_tbl.hpp"
 #include "openvino/opsets/opset8_tbl.hpp"
 #include "openvino/opsets/opset9_tbl.hpp"
+#include "openvino/opsets/opset10_tbl.hpp"
+        // clang-format on
 #undef _OPENVINO_OP_REG
             return op_super_set.contains_type(node->get_type_info());
         });

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "template_compiled_model.hpp"
+#include "compiled_model.hpp"
 
 #include <memory>
 
@@ -15,10 +15,10 @@
 #include "openvino/core/except.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
+#include "plugin.hpp"
 #include "template/template_config.hpp"
 #include "template_infer_request.hpp"
 #include "template_itt.hpp"
-#include "template_plugin.hpp"
 #include "threading/ie_executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -100,9 +100,9 @@ TemplatePlugin::CompiledModel::CompiledModel(const std::shared_ptr<const ov::Mod
     } catch (const InferenceEngine::Exception&) {
         throw;
     } catch (const std::exception& e) {
-        IE_THROW(Unexpected) << "Standard exception from compilation library: " << e.what();
+        OPENVINO_ASSERT(false, "Standard exception from compilation library: ", e.what());
     } catch (...) {
-        IE_THROW(Unexpected) << "Generic exception is thrown";
+        throw ov::Exception("Generic exception is thrown");
     }
 }
 // ! [executable_network:ctor_cnnnetwork]
@@ -166,8 +166,8 @@ ov::RemoteContext TemplatePlugin::CompiledModel::get_context() const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-std::shared_ptr<ov::Model> TemplatePlugin::CompiledModel::get_runtime_model() const {
-    return m_model->clone();
+std::shared_ptr<const ov::Model> TemplatePlugin::CompiledModel::get_runtime_model() const {
+    return m_model;
 }
 
 std::shared_ptr<const Plugin> TemplatePlugin::CompiledModel::get_template_plugin() const {
@@ -223,12 +223,8 @@ InferenceEngine::Parameter TemplatePlugin::CompiledModel::get_property(const std
 void TemplatePlugin::CompiledModel::export_model(std::ostream& modelStream) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "ExecutableNetwork::Export");
 
-    // Note: custom ngraph extensions are not supported
-    std::map<std::string, ngraph::OpSet> custom_opsets;
     std::stringstream xmlFile, binFile;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    ov::pass::Serialize serializer(xmlFile, binFile, custom_opsets);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    ov::pass::Serialize serializer(xmlFile, binFile);
     serializer.run_on_model(m_model);
 
     auto m_constants = binFile.str();
@@ -241,7 +237,5 @@ void TemplatePlugin::CompiledModel::export_model(std::ostream& modelStream) cons
     dataSize = static_cast<std::uint64_t>(m_constants.size());
     modelStream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
     modelStream.write(reinterpret_cast<char*>(&m_constants[0]), dataSize);
-
-    // TODO: implement network precision, layout, preprocessing info serialization
 }
 // ! [executable_network:export]
