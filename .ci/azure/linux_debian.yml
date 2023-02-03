@@ -254,10 +254,7 @@ jobs:
       # Required by python imports to load requires libraries
       # - tests install dir for mock_py
       # - OpenVINO wheel installation dir for others frontend required by mock_py (is not part of wheel pkg)
-      # For frontend manager to load frontend libraries:
-      # - tests install dir for mock_py
-      # - OpenVINO wheel installation dir for others frontend (not required if this variable is not set)
-      export OV_FRONTEND_PATH=$(PYTHON_WHEEL_INSTALL_DIR)/openvino/libs:$(INSTALL_TEST_DIR)
+      export LD_LIBRARY_PATH=$(PYTHON_WHEEL_INSTALL_DIR)/openvino/libs:$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
       # For python imports to import pybind_mock_frontend
       export PYTHONPATH=$(INSTALL_TEST_DIR):$PYTHONPATH
       # TODO (vurusovs): revert skip of test_core.py::test_register_plugin*,

@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <ostream>
 #include <iostream>
+#include <ostream>
 
 #include "openvino/runtime/properties.hpp"
 
@@ -25,7 +25,8 @@ class GnaLog {
     static GnaLog& log(ov::log::Level log_level) {
         GnaLog& obj = get_instance();
         obj.message_level_ = log_level;
-        obj << "[" << log_level << "]" << " ";
+        obj << "[" << log_level << "]"
+            << " ";
         return obj;
     }
 
@@ -40,9 +41,9 @@ class GnaLog {
         return log_obj;
     }
 
- public :
+public:
     GnaLog(const GnaLog&) = delete;
-    void operator = (const GnaLog&) = delete;
+    void operator=(const GnaLog&) = delete;
 
     static void set_log_level(ov::log::Level log_level) {
         get_instance().log_level_ = log_level;
@@ -93,7 +94,7 @@ class GnaLog {
     }
 
     template <class T>
-    GnaLog &operator << (const T &obj) {
+    GnaLog& operator<<(const T& obj) {
         if (message_level_ <= log_level_) {
             if (message_level_ == ov::log::Level::ERR) {
                 std::cerr << obj;
@@ -104,7 +105,7 @@ class GnaLog {
         return *this;
     }
 
-    GnaLog &operator << (std::ostream & (*manip)(std::ostream &)) {
+    GnaLog& operator<<(std::ostream& (*manip)(std::ostream&)) {
         if (message_level_ <= log_level_) {
             if (message_level_ == ov::log::Level::ERR) {
                 std::cerr << manip;

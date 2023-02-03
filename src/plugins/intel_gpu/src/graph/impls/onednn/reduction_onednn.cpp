@@ -101,7 +101,13 @@ public:
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::save(ob);
 
-        ob << make_data(&_desc->data, sizeof(dnnl_reduction_desc_t));
+        const dnnl::reduction::primitive_desc *typed_pd
+            = reinterpret_cast<const dnnl::reduction::primitive_desc *>(&_pd);
+
+        dnnl::algorithm alg = typed_pd->get_algorithm();
+        ob << make_data(&alg, sizeof(dnnl::algorithm));
+        ob << typed_pd->get_p();
+        ob << typed_pd->get_epsilon();
 
         std::vector<uint8_t> prim_cache;
         prim_cache = _prim.get_cache_blob();
@@ -113,13 +119,30 @@ public:
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::load(ib);
 
-        _desc = std::make_shared<dnnl::reduction::desc>();
-        ib >> make_data(&_desc->data, sizeof(dnnl_reduction_desc_t));
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernlImplParams());
+
+        dnnl::algorithm alg;
+        ib >> make_data(&alg, sizeof(dnnl::algorithm));
+
+        auto input_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(0));
+        auto output_md = onednn::layout_to_memory_desc(impl_params->get_output_layout());
+
+        float p, eps;
+        ib >> p >> eps;
+
+        auto prim_desc = std::make_shared<dnnl::reduction::primitive_desc>(
+            ib.get_engine().get_onednn_engine(),
+            alg,
+            input_md,
+            output_md,
+            p,
+            eps,
+            *_attrs.get());
+        _pd = *prim_desc;
 
         std::vector<uint8_t> prim_cache;
         ib >> prim_cache;
 
-        _pd = dnnl::primitive_desc(&_desc->data, _attrs.get(), ib.get_engine().get_onednn_engine(), nullptr);
         _prim = dnnl::primitive(_pd, prim_cache);
 #endif
     }
