@@ -12,14 +12,14 @@ using namespace ov;
 using namespace testing;
 
 TEST(type_prop, ctc_greedy_decoder_seq_len_default_ctor) {
-    PartialShape data_shape{2, 10, 1200};
+    PartialShape logits_shape{2, 10, 1200};
     PartialShape seq_len_shape{2};
 
     auto op = make_shared<op::v6::CTCGreedyDecoderSeqLen>();
 
-    auto data = make_shared<op::v0::Parameter>(element::f32, data_shape);
-    auto seq_mask = make_shared<op::v0::Parameter>(element::f32, seq_len_shape);
-    op->set_arguments(OutputVector{data, seq_mask});
+    auto logits_param = make_shared<op::v0::Parameter>(element::f32, logits_shape);
+    auto seq_len_param = make_shared<op::v0::Parameter>(element::f32, seq_len_shape);
+    op->set_arguments(OutputVector{logits_param, seq_len_param});
 
     op->set_merge_repeated(false);
     EXPECT_EQ(op->get_merge_repeated(), false);
@@ -144,15 +144,15 @@ TEST(type_prop, ctc_greedy_decoder_seq_len_dynamic_ranks2) {
 }
 
 TEST(type_prop, ctc_greedy_decoder_seq_len_interval_labeled_dims_all) {
-    PartialShape data_shape{{2, 6}, {10, 100}, {600, 1200}};
+    PartialShape logits_shape{{2, 6}, {10, 100}, {600, 1200}};
     PartialShape seq_len_shape{{4, 8}};
 
-    set_shape_labels(data_shape, 10);
+    set_shape_labels(logits_shape, 10);
     set_shape_labels(seq_len_shape, 20);
 
-    auto data = make_shared<op::v0::Parameter>(element::f32, data_shape);
-    auto seq_mask = make_shared<op::v0::Parameter>(element::f32, seq_len_shape);
-    auto op = make_shared<op::v6::CTCGreedyDecoderSeqLen>(data, seq_mask);
+    auto logits_param = make_shared<op::v0::Parameter>(element::f32, logits_shape);
+    auto seq_len_param = make_shared<op::v0::Parameter>(element::f32, seq_len_shape);
+    auto op = make_shared<op::v6::CTCGreedyDecoderSeqLen>(logits_param, seq_len_param);
 
     // Output 0
     EXPECT_EQ(op->get_output_element_type(0), element::i32);
@@ -166,14 +166,14 @@ TEST(type_prop, ctc_greedy_decoder_seq_len_interval_labeled_dims_all) {
 }
 
 TEST(type_prop, ctc_greedy_decoder_seq_len_interval_labeled_dims_in0) {
-    PartialShape data_shape{{2, 6}, {10, 100}, {600, 1200}};
+    PartialShape logits_shape{{2, 6}, {10, 100}, {600, 1200}};
     PartialShape seq_len_shape{{4, 8}};
 
-    set_shape_labels(data_shape, 10);
+    set_shape_labels(logits_shape, 10);
 
-    auto data = make_shared<op::v0::Parameter>(element::f32, data_shape);
-    auto seq_mask = make_shared<op::v0::Parameter>(element::f32, seq_len_shape);
-    auto op = make_shared<op::v6::CTCGreedyDecoderSeqLen>(data, seq_mask);
+    auto logits_param = make_shared<op::v0::Parameter>(element::f32, logits_shape);
+    auto seq_len_param = make_shared<op::v0::Parameter>(element::f32, seq_len_shape);
+    auto op = make_shared<op::v6::CTCGreedyDecoderSeqLen>(logits_param, seq_len_param);
 
     // Output 0
     EXPECT_EQ(op->get_output_element_type(0), element::i32);
@@ -187,14 +187,14 @@ TEST(type_prop, ctc_greedy_decoder_seq_len_interval_labeled_dims_in0) {
 }
 
 TEST(type_prop, ctc_greedy_decoder_seq_len_interval_labeled_dims_in1) {
-    PartialShape data_shape{{2, 6}, {10, 100}, {600, 1200}};
+    PartialShape logits_shape{{2, 6}, {10, 100}, {600, 1200}};
     PartialShape seq_len_shape{{4, 8}};
 
     set_shape_labels(seq_len_shape, 20);
 
-    auto data = make_shared<op::v0::Parameter>(element::f32, data_shape);
-    auto seq_mask = make_shared<op::v0::Parameter>(element::f32, seq_len_shape);
-    auto op = make_shared<op::v6::CTCGreedyDecoderSeqLen>(data, seq_mask);
+    auto logits_param = make_shared<op::v0::Parameter>(element::f32, logits_shape);
+    auto seq_len_param = make_shared<op::v0::Parameter>(element::f32, seq_len_shape);
+    auto op = make_shared<op::v6::CTCGreedyDecoderSeqLen>(logits_param, seq_len_param);
 
     // Output 0
     EXPECT_EQ(op->get_output_element_type(0), element::i32);
