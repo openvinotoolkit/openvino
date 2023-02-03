@@ -1020,7 +1020,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               type=check_bool,
                               nargs="?",
                               const=True,
-                              default=True)
+                              default=None)
     common_group.add_argument('--transform',
                               help=mo_convert_params_common['transform'].description.format(
                                   mo_convert_params_common['transform'].possible_types_command_line),
