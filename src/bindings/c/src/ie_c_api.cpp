@@ -175,7 +175,14 @@ std::map<IE::ColorFormat, colorformat_e> colorformat_map = {{IE::ColorFormat::RA
         return IEStatusCode::StatusCode;              \
     }
 
+#define CATCH_OV_EXCEPTION(StatusCode, ExceptionType) \
+    catch (const ov::ExceptionType&) {                \
+        return IEStatusCode::StatusCode;              \
+    }
+
 #define CATCH_IE_EXCEPTIONS                                   \
+    CATCH_OV_EXCEPTION(NOT_IMPLEMENTED, NotImplemented)       \
+    CATCH_OV_EXCEPTION(GENERAL_ERROR, Exception)              \
     CATCH_IE_EXCEPTION(GENERAL_ERROR, GeneralError)           \
     CATCH_IE_EXCEPTION(NOT_IMPLEMENTED, NotImplemented)       \
     CATCH_IE_EXCEPTION(NETWORK_NOT_LOADED, NetworkNotLoaded)  \

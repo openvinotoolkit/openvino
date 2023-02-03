@@ -71,7 +71,8 @@ function(ie_add_plugin)
         if(NOT BUILD_SHARED_LIBS)
             # to distinguish functions creating plugin objects
             target_compile_definitions(${IE_PLUGIN_NAME} PRIVATE
-                IE_CREATE_PLUGIN=CreatePluginEngine${IE_PLUGIN_DEVICE_NAME})
+                IE_CREATE_PLUGIN=CreatePluginEngine${IE_PLUGIN_DEVICE_NAME}
+                OV_CREATE_PLUGIN=CreatePluginEngine${IE_PLUGIN_DEVICE_NAME})
             if(IE_PLUGIN_AS_EXTENSION)
                 # to distinguish functions creating extensions objects
                 target_compile_definitions(${IE_PLUGIN_NAME} PRIVATE

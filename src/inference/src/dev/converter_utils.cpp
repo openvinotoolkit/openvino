@@ -165,6 +165,9 @@ std::shared_ptr<const ov::Model> ov::legacy_convert::convert_model(const Inferen
         auto& rt_info = output.get_rt_info();
         rt_info["ie_legacy_td"] = output_info->getTensorDesc();
     }
+    if (!cloned_model->has_rt_info("version")) {
+        cloned_model->set_rt_info(int64_t(10), "version");
+    }
     return cloned_model;
 }
 
@@ -327,8 +330,10 @@ public:
             _parameters.emplace_back(input.get_node_shared_ptr());
         }
         for (const auto& output : m_model->outputs()) {
+            auto out = output.get_node()->input_value(0);
             InferenceEngine::DataPtr output_info;
-            ov::legacy_convert::fill_output_info(output, output_info);
+            ov::legacy_convert::fill_output_info(ov::Output<const ov::Node>(out.get_node(), out.get_index()),
+                                                 output_info);
             _networkOutputs[output_info->getName()] = output_info;
             _results.emplace_back(output.get_node_shared_ptr());
         }
@@ -349,7 +354,7 @@ public:
     }
 
     std::shared_ptr<ngraph::Function> GetExecGraphInfo() override {
-        return m_model->get_runtime_model();
+        return m_model->get_runtime_model()->clone();
     }
 
     void SetConfig(const std::map<std::string, InferenceEngine::Parameter>& config) override {
