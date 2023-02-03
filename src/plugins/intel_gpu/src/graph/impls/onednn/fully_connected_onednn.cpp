@@ -96,7 +96,7 @@ protected:
     }
 
     static std::shared_ptr<dnnl::inner_product_forward::primitive_desc> get_fully_connected_primitive_descriptor(const kernel_impl_params& impl_params,
-                                                                                                cldnn::engine& engine, size_t input_size, bool has_bias,
+                                                                                                cldnn::engine& engine, size_t prim_input_size, bool has_bias,
                                                                                                 const dnnl::primitive_attr& attr = dnnl::primitive_attr()) {
         auto input_layout = impl_params.get_input_layout(0);
         auto weights_layout = impl_params.get_input_layout(1);
@@ -105,6 +105,7 @@ protected:
         auto input_pshape = input_layout.get_partial_shape();
         auto weights_pshape = weights_layout.get_partial_shape();
 
+        size_t input_size = (prim_input_size > input_pshape.size()) ? input_pshape.size() : prim_input_size;
         int64_t feature = input_pshape[std::min(input_size, static_cast<size_t>(4)) - 1].get_length();
         if (input_size == 3) {
             feature = std::max({input_layout.spatial(0), input_layout.spatial(1), input_layout.spatial(2)});
