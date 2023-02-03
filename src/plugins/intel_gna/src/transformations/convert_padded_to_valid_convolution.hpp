@@ -10,7 +10,6 @@ namespace ov {
 namespace intel_gna {
 namespace pass {
 
-
 /**
  * @brief Convert a padded convolution with bias, max pooling and activation function
  * wrapped with transposes, to a valid convolution with padding added before the leading transpose,
@@ -33,10 +32,10 @@ namespace pass {
  */
 class ConvertPaddedToValidConv : public ngraph::pass::MatcherPass {
 public:
-  OPENVINO_RTTI("ConvertPaddedToValidConv", "0");
-  ConvertPaddedToValidConv();
+    OPENVINO_RTTI("ConvertPaddedToValidConv", "0");
+    ConvertPaddedToValidConv();
 };
 
-} // namespace pass
-} // namespace intel_gna
-} // namespace ov
+}  // namespace pass
+}  // namespace intel_gna
+}  // namespace ov

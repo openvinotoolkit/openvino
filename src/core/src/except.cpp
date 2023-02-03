@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/check.hpp"
+#include "openvino/core/except.hpp"
 
-using namespace ngraph;
-
-std::string CheckFailure::make_what(const CheckLocInfo& check_loc_info,
-                                    const std::string& context_info,
-                                    const std::string& explanation) {
+std::string ov::AssertFailure::make_what(const CheckLocInfo& check_loc_info,
+                                         const std::string& context_info,
+                                         const std::string& explanation) {
     // Use relative path only for internal code
     auto getRelativePath = [](const std::string& path) -> std::string {
         // Path to local OpenVINO repository
@@ -31,3 +29,7 @@ std::string CheckFailure::make_what(const CheckLocInfo& check_loc_info,
     ss << std::endl;
     return ss.str();
 }
+
+ov::Exception::~Exception() = default;
+ov::AssertFailure::~AssertFailure() = default;
+ov::NotImplemented::~NotImplemented() = default;
