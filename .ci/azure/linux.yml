@@ -320,8 +320,6 @@ jobs:
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py \
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_zoo_models.py \
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_backend.py
-    env:
-      OV_FRONTEND_PATH: $(INSTALL_TEST_DIR)
     displayName: 'Python API 2.0 Tests'
 
   - script: |
