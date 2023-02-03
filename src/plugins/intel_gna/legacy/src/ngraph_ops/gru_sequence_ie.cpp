@@ -3,11 +3,12 @@
 //
 
 #include "legacy/ngraph_ops/gru_sequence_ie.hpp"
-#include "ngraph/op/util/recurrent_sequence.hpp"
 
 #include <memory>
 #include <string>
 #include <vector>
+
+#include "ngraph/op/util/recurrent_sequence.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -25,10 +26,10 @@ op::GRUSequenceIE::GRUSequenceIE(const Output<Node>& X,
                                  float clip,
                                  bool linear_before_reset,
                                  int64_t seq_axis)
-        : RNNCellBase({X, H_t, seq_lengths, WR, B}, hidden_size, clip, activations, activations_alpha, activations_beta),
-          m_direction(direction),
-          m_linear_before_reset(linear_before_reset),
-          m_seq_axis(seq_axis) {
+    : RNNCellBase({X, H_t, seq_lengths, WR, B}, hidden_size, clip, activations, activations_alpha, activations_beta),
+      m_direction(direction),
+      m_linear_before_reset(linear_before_reset),
+      m_seq_axis(seq_axis) {
     constructor_validate_and_infer_types();
 }
 
@@ -83,7 +84,17 @@ bool op::GRUSequenceIE::visit_attributes(AttributeVisitor& visitor) {
 
 shared_ptr<Node> op::GRUSequenceIE::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
-    return std::make_shared<op::GRUSequenceIE>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
-            new_args.at(4), m_hidden_size, m_direction, m_activations, m_activations_alpha, m_activations_beta, m_clip,
-            m_linear_before_reset, m_seq_axis);
+    return std::make_shared<op::GRUSequenceIE>(new_args.at(0),
+                                               new_args.at(1),
+                                               new_args.at(2),
+                                               new_args.at(3),
+                                               new_args.at(4),
+                                               m_hidden_size,
+                                               m_direction,
+                                               m_activations,
+                                               m_activations_alpha,
+                                               m_activations_beta,
+                                               m_clip,
+                                               m_linear_before_reset,
+                                               m_seq_axis);
 }
