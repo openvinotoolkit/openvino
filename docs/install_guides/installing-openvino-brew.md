@@ -101,3 +101,6 @@ Now that you've installed OpenVINO Runtime, you can try the following things:
 
 @endsphinxdirective
 
+## Additional Resources
+
+- [OpenVINO Installation Selector Tool](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html)
