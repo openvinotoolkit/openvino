@@ -1,8 +1,8 @@
-## Concat <a name="Concat"></a> {#openvino_docs_ops_movement_Concat_1}
+# Concat {#openvino_docs_ops_movement_Concat_1}
 
 **Versioned name**: *Concat-1*
 
-**Category**: data movement operation.
+**Category**: *Data movement*
 
 **Short description**: Concatenates arbitrary number of input tensors to a single output tensor along one axis.
 
@@ -13,7 +13,6 @@
   * **Description**: *axis* specifies dimension to concatenate along
   * **Range of values**: integer number. Negative value means counting dimension from the end. The range is `[-R, R-1]`, where `R` is the rank of all inputs.
   * **Type**: int
-  * **Default value**: None
   * **Required**: *yes*
 
 **Inputs**:

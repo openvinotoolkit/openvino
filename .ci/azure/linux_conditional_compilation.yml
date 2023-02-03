@@ -1,25 +1,60 @@
+trigger:
+  branches:
+    include:
+    - 'master'
+    - 'releases/*'
+  paths:
+    exclude:
+    - '*/docs/*'
+    - 'docs/*'
+    - '*/*.md'
+    - '*.md'
+    - '*/layer_tests_summary/*'
+    - '*/conformance/*'
+    - 'tools/*'
+
+pr:
+  drafts: 'false'
+  branches:
+    include:
+    - 'master'
+    - 'releases/*'
+  paths:
+    exclude:
+    - '*/docs/*'
+    - 'docs/*'
+    - '*/*.md'
+    - '*.md'
+    - '*/layer_tests_summary/*'
+    - '*/conformance/*'
+    - 'tools/*'
+
+resources:
+  repositories:
+  - repository: testdata
+    type: github
+    endpoint: openvinotoolkit
+    name: openvinotoolkit/testdata
+
 jobs:
 - job: LinCC
   # About 150% of total time
-  timeoutInMinutes: 90
+  timeoutInMinutes: '90'
 
   pool:
-    name: LIN_VMSS_VENV_F16S_WU2
+    name: LIN_VMSS_VENV_F16S_U20_WU2
 
   variables:
     system.debug: true
     VSTS_HTTP_RETRY: 5
     VSTS_HTTP_TIMEOUT: 200
-    WORKERS_NUMBER: 16
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
-    OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)/../openvino_contrib
     MODELS_PATH: $(REPO_DIR)/../testdata
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
-    BIN_DIR: $(REPO_DIR)/bin/intel64/$(BUILD_TYPE)
     INSTALL_DIR: $(WORK_DIR)/install_pkg
-    SETUPVARS: $(INSTALL_DIR)/bin/setupvars.sh
+    SETUPVARS: $(INSTALL_DIR)/setupvars.sh
 
   steps:
   - script: |
@@ -30,6 +65,7 @@ jobs:
       echo Python info ; which python ; python --version
       echo Java info ; which java ; java -version
       echo gcc info ; which gcc ; gcc --version
+      echo cmake info ; which cmake ; cmake --version
       lsb_release
       env
       cat /proc/cpuinfo
@@ -47,41 +83,85 @@ jobs:
     displayName: 'Make dir'
 
   - checkout: self
-    clean: true
-    lfs: false
-    submodules: recursive
+    clean: 'true'
+    fetchDepth: '1'
+    submodules: 'true'
     path: openvino
 
   - script: |
-      sudo apt --assume-yes install libusb-1.0-0-dev
-      python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/requirements.txt
+      set -e
+      sudo -E $(REPO_DIR)/install_build_dependencies.sh
       # Speed up build
-      wget https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-linux.zip
+      sudo apt -y --no-install-recommends install unzip
+      wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
       unzip ninja-linux.zip
       sudo cp -v ninja /usr/local/bin/
-    workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
+
+  - checkout: testdata
+    clean: 'true'
+    fetchDepth: '1'
+    lfs: 'true'
+    path: testdata
 
   - task: CMake@1
     inputs:
       cmakeArgs: >
         -GNinja
-        -DVERBOSE_BUILD=ON
+        -DENABLE_CPPLINT=OFF
+        -DCMAKE_VERBOSE_MAKEFILE=ON
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_FASTER_BUILD=ON
         -DENABLE_PROFILING_ITT=ON
         -DSELECTIVE_BUILD=COLLECT
-        $(REPO_DIR)
-      workingDirectory: $(BUILD_DIR)
+        -DENABLE_INTEL_GPU=OFF
+        -DENABLE_INTEL_GNA=OFF
+        -DENABLE_MULTI=OFF
+        -DENABLE_AUTO=OFF
+        -DENABLE_AUTO_BATCH=OFF
+        -DENABLE_HETERO=OFF
+        -DENABLE_TEMPLATE=OFF
+        -DENABLE_OV_ONNX_FRONTEND=OFF
+        -DENABLE_OV_PADDLE_FRONTEND=OFF
+        -DENABLE_OV_PYTORCH_FRONTEND=OFF
+        -DENABLE_OV_TF_FRONTEND=OFF
+        -S $(REPO_DIR)
+        -B $(BUILD_DIR)
+    displayName: 'Cmake CC COLLECT'
 
-  - script: ninja
-    workingDirectory: $(BUILD_DIR)
-    displayName: 'Build'
+  - script: |
+      cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
+      cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE) --target sea_itt_lib
+    displayName: 'Build CC COLLECT'
 
   - script: ls -alR $(REPO_DIR)/bin/
-    displayName: 'List files'
+    displayName: 'List bin files'
 
-  - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
-    workingDirectory: $(BUILD_DIR)
-    displayName: 'Install'
+  - script: |
+      python3 $(REPO_DIR)/thirdparty/itt_collector/runtool/sea_runtool.py \
+          --bindir $(REPO_DIR)/bin/intel64/Release -o $(BUILD_DIR)/itt_stat ! \
+      $(REPO_DIR)/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 \
+          -m $(MODELS_PATH)/models/test_model/test_model_fp32.xml -d CPU
+    displayName: 'Code usage analysis'
 
+  - task: CMake@1
+    inputs:
+      cmakeArgs: >
+        -GNinja
+        -DSELECTIVE_BUILD=ON
+        -DSELECTIVE_BUILD_STAT=$(BUILD_DIR)/*.csv
+        -S $(REPO_DIR)
+        -B $(BUILD_DIR)
+    displayName: 'CMake CC ON'
+
+  - script: cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
+    displayName: 'Build CC ON'
+
+  - script: ls -alR $(REPO_DIR)/bin/
+    displayName: 'List bin files ON'
+
+  - script: |
+      $(REPO_DIR)/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 \
+        -m $(MODELS_PATH)/models/test_model/test_model_fp32.xml -d CPU
+    displayName: 'Use OpenVINO after CC'

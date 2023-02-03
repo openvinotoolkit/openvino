@@ -1,4 +1,4 @@
-## Result <a name="Result"></a> {#openvino_docs_ops_infrastructure_Result_1}
+# Result {#openvino_docs_ops_infrastructure_Result_1}
 
 **Versioned name**: *Result-1*
 
@@ -6,13 +6,13 @@
 
 **Short description**: *Result* layer specifies output of the model.
 
-**Attributes**: 
+**Attributes**:
 
     No attributes available.
 
 **Inputs**
 
-* **1**: A tensor of type T. **Required.**
+* **1**: A tensor of type *T*. **Required.**
 
 **Types**
 

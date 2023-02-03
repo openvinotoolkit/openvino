@@ -1,36 +1,32 @@
-## Sinh <a name="Sinh"></a> {#openvino_docs_ops_arithmetic_Sinh_1}
+# Sinh {#openvino_docs_ops_arithmetic_Sinh_1}
 
 **Versioned name**: *Sinh-1*
 
-**Category**: Arithmetic unary operation 
+**Category**: *Arithmetic unary*
 
-**Short description**: *Sinh* performs element-wise hyperbolic sine (sinh) operation with given tensor.
+**Short description**: *Sinh* performs element-wise hyperbolic sine (sinh) operation on a given input tensor
 
-**Attributes**:
-
-    No attributes available.
-
-**Inputs**
-
-* **1**: An tensor of type T. **Required.**
-
-**Outputs**
-
-* **1**: The result of element-wise sinh operation. A tensor of type *T*.
-
-**Types**
-
-* *T*: any numeric type.
-
-*sinh* does the following with the input tensor *a*:
+**Detailed description**: *Sinh* performs element-wise hyperbolic sine (sinh) operation on a given input tensor, based on the following mathematical formula:
 
 \f[
 a_{i} = sinh(a_{i})
 \f]
 
-**Examples**
+**Attributes**: *Sinh* operation has no attributes.
 
-*Example 1*
+**Inputs**
+
+* **1**: An tensor of type *T*. **Required.**
+
+**Outputs**
+
+* **1**: The result of element-wise *Sinh* operation applied to the input tensor. A tensor of type *T* and the same shape as input tensor.
+
+**Types**
+
+* *T*: any supported numeric type.
+
+**Example**
 
 ```xml
 <layer ... type="Sinh">

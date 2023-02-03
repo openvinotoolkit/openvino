@@ -1,8 +1,8 @@
-## ShapeOf <a name="ShapeOf"></a> {#openvino_docs_ops_shape_ShapeOf_1}
+# ShapeOf {#openvino_docs_ops_shape_ShapeOf_1}
 
 **Versioned name**: *ShapeOf-1*
 
-**Category**: Shape manipulation
+**Category**: *Shape manipulation*
 
 **Short description**: *ShapeOf* produces 1D tensor with the input tensor shape.
 
@@ -10,7 +10,7 @@
 
 **Inputs**:
 
-*   **1**: Arbitrary input tensor. Required.
+*   **1**: Arbitrary input tensor. **Required.**
 
 **Outputs**:
 

@@ -1,8 +1,8 @@
-## SquaredDifference <a name="SquaredDifference"></a> {#openvino_docs_ops_arithmetic_SquaredDifference_1}
+# SquaredDifference {#openvino_docs_ops_arithmetic_SquaredDifference_1}
 
 **Versioned name**: *SquaredDifference-1*
 
-**Category**: Arithmetic binary operation
+**Category**: *Arithmetic binary*
 
 **Short description**: *SquaredDifference* performs element-wise subtract and square the result operation with two given tensors applying broadcasting rule specified in the *auto_broadcast* attribute.
 
@@ -11,7 +11,7 @@ As a first step input tensors *a* and *b* are broadcasted if their shapes differ
 
 \f[
 o_{i} = (a_{i} - b_{i})^2
-\f] 
+\f]
 
 **Attributes**:
 
@@ -27,12 +27,12 @@ o_{i} = (a_{i} - b_{i})^2
 
 **Inputs**
 
-* **1**: A tensor of type T and arbitrary shape. Required.
-* **2**: A tensor of type T and arbitrary shape. Required.
+* **1**: A tensor of type *T* and arbitrary shape. **Required.**
+* **2**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise subtract and square the result operation. A tensor of type T with shape equal to broadcasted shape of two inputs.
+* **1**: The result of element-wise subtract and square the result operation. A tensor of type *T* with shape equal to broadcasted shape of two inputs.
 
 **Types**
 

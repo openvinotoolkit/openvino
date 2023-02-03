@@ -1,3 +1,0 @@
-setuptools>=53.0.0
-wheel>=0.36.2
-python-decouple>=3.4

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #! [mri_demo:demo]
@@ -24,7 +24,7 @@ if __name__ == '__main__':
     parser.add_argument('-l', '--cpu_extension', dest='cpu_extension', help='Path to extensions library with FFT implementation.')
     parser.add_argument('-d', '--device', dest='device', default='CPU',
                         help='Optional. Specify the target device to infer on; CPU, '
-                             'GPU, HDDL or MYRIAD is acceptable. For non-CPU targets, '
+                             'GPU, GNA is acceptable. For non-CPU targets, '
                              'HETERO plugin is used with CPU fallbacks to FFT implementation. '
                              'Default value is CPU')
     args = parser.parse_args()

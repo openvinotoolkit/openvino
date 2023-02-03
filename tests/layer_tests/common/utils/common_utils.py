@@ -1,25 +1,26 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-import os
+import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 import numpy as np
-
+from openvino.tools.mo import mo
 
 logger = logging.getLogger(__name__)
 
 
 def generate_ir(coverage=False, **kwargs):
-    # Get default mo args
-    mo = os.path.join(os.environ.get("MO_ROOT"), "mo.py")
+    mo_path = Path(mo.__file__).parent
+    mo_runner = mo_path.joinpath('main.py').as_posix()
     if coverage:
-        params = [sys.executable, '-m', 'coverage', 'run', '-p', '--source={}'.format(os.environ.get("MO_ROOT")),
-                  '--omit=*_test.py', mo]
+        params = [sys.executable, '-m', 'coverage', 'run', '-p', '--source={}'.format(mo_path.parent),
+                  '--omit=*_test.py', mo_runner]
     else:
-        params = [sys.executable, mo]
+        params = [sys.executable, mo_runner]
     for key, value in kwargs.items():
         if key == "batch":
             params.extend(("-b", str(value)))
@@ -31,7 +32,7 @@ def generate_ir(coverage=False, **kwargs):
             continue
         elif (isinstance(value, tuple) and value) or (isinstance(value, str)):
             params.extend(("--{}".format(key), str('"{}"'.format(value))))
-        elif (key == "mean_values" and (' ' in value or '(' in value)):
+        elif key == "mean_values" and (' ' in value or '(' in value):
             params.extend(("--{}".format(key), str('"{}"'.format(value))))
         else:
             params.extend(("--{}".format(key), str(value)))
@@ -79,6 +80,20 @@ def allclose(cur_array, ref_array, atol, rtol):
     :param rtol: relative tolerance (threshold for relative difference)
     :return: bool value means that values of tensors are equal with tolerance or not
     """
-    abs_diff = np.absolute(cur_array - ref_array)
+    if cur_array.dtype == bool:
+        abs_diff = np.absolute(cur_array ^ ref_array)
+    else:
+        abs_diff = np.absolute(cur_array - ref_array)
     max_val = np.maximum(np.absolute(cur_array), np.absolute(ref_array))
     return ((abs_diff < atol) | (abs_diff < rtol * max_val)).all()
+
+
+def copy_files_by_pattern(directory: Path, pattern_to_find: str, pattern_to_copy: str):
+    for file in directory.glob("{}*".format(pattern_to_find)):
+        file_extension = ''.join(file.suffixes)
+        copied_file = file.parent / (pattern_to_copy + file_extension)
+        if not copied_file.exists() and file.exists():
+            logging.info('Copying file from {} to {}'.format(file, copied_file))
+            shutil.copy(str(file), str(copied_file))
+        else:
+            logging.info('File {} already exist or file {} does not exist'.format(copied_file, file))

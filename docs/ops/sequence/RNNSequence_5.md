@@ -1,4 +1,4 @@
-## RNNSequence <a name="RNNSequence"></a> {#openvino_docs_ops_sequence_RNNSequence_5}
+# RNNSequence {#openvino_docs_ops_sequence_RNNSequence_5}
 
 **Versioned name**: *RNNSequence-5*
 
@@ -18,7 +18,6 @@ A single cell in the sequence is implemented in the same way as in <a href="#RNN
   * **Description**: *hidden_size* specifies hidden state size.
   * **Range of values**: a positive integer
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *activations*
@@ -47,19 +46,18 @@ A single cell in the sequence is implemented in the same way as in <a href="#RNN
 
 * *direction*
 
-  * **Description**: Specify if the RNN is forward, reverse, or bidirectional. If it is one of *forward* or *reverse* then `num_directions = 1`, if it is *bidirectional*, then `num_directions = 2`. This `num_directions` value specifies input/output shape requirements.
+  * **Description**: Specify if the RNN is forward, reverse, or bidirectional. If it is one of *forward* or *reverse*, then `num_directions = 1`. If it is *bidirectional*, then `num_directions = 2`. This `num_directions` value specifies input/output shape requirements. When the operation is bidirectional, the input goes through forward and reverse ways. The outputs are concatenated.
   * **Range of values**: *forward*, *reverse*, *bidirectional*
   * **Type**: `string`
-  * **Default value**: None
-  * **Required**: *Yes*
+  * **Required**: *yes*
 
 **Inputs**
 
 * **1**: `X` - 3D tensor of type *T1* `[batch_size, seq_length, input_size]`, input data. It differs from RNNCell 1st input only by additional axis with size `seq_length`. **Required.**
 
-* **2**: `initial_hidden_state` - 3D tensor of type *T1* `[batch_size, num_directions, hidden_size]`, input hidden state data. **Required.**
+* **2**: `H` - 3D tensor of type *T1* `[batch_size, num_directions, hidden_size]`, input hidden state data. **Required.**
 
-* **3**: `sequence_lengths` - 1D tensor of type *T2* `[batch_size]`, specifies real sequence lengths for each batch element. **Required.**
+* **3**: `sequence_lengths` - 1D tensor of type *T2* `[batch_size]`, specifies real sequence lengths for each batch element. In case of negative values in this input, the operation behavior is undefined. **Required.**
 
 * **4**: `W` - 3D tensor of type *T1* `[num_directions, hidden_size, input_size]`, the weights for matrix multiplication. **Required.**
 
@@ -75,7 +73,7 @@ A single cell in the sequence is implemented in the same way as in <a href="#RNN
 
 **Types**
 
-* *T1*: any supported floating point type.
+* *T1*: any supported floating-point type.
 * *T2*: any supported integer type.
 
 **Example**

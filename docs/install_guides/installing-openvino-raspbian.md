@@ -1,179 +1,216 @@
-# Install OpenVINO™ toolkit for Raspbian* OS {#openvino_docs_install_guides_installing_openvino_raspbian}
+# Install OpenVINO™ Runtime for Raspbian OS {#openvino_docs_install_guides_installing_openvino_raspbian}
 
-> **NOTE**:
-> - These steps apply to 32-bit Raspbian\* OS, which is an official OS for Raspberry Pi\* boards.
-> - These steps have been validated with Raspberry Pi 3*.
-> - All steps in this guide are required unless otherwise stated.
-> - An internet connection is required to follow the steps in this guide. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.
+@sphinxdirective
 
-## Introduction
+.. note::
 
-The OpenVINO™ toolkit quickly deploys applications and solutions that emulate human vision. Based on Convolutional Neural Networks (CNN), the toolkit extends computer vision (CV) workloads across Intel® hardware, maximizing performance. The OpenVINO toolkit includes the Intel® Deep Learning Deployment Toolkit (Intel® DLDT).
+   * These steps apply to Raspbian OS (the official OS for Raspberry Pi boards).
+   * These steps have been validated with Raspberry Pi 3.
+   * There is also an open-source version of OpenVINO™ that can be compiled for arch64 (see `build instructions <https://github.com/openvinotoolkit/openvino/wiki/BuildingForRaspbianStretchOS>`_).
 
-The OpenVINO™ toolkit for Raspbian* OS includes the Inference Engine and the MYRIAD plugins. You can use it with the Intel® Neural Compute Stick 2 plugged into one of USB ports. This device is required for using the Intel® Distribution of OpenVINO™ toolkit.
-
-> **NOTE**: There is also an open-source version of OpenVINO™ that can be compiled for arch64 (see [build instructions](https://github.com/openvinotoolkit/openvino/wiki/BuildingForRaspbianStretchOS)).
-
-Because OpenVINO for Raspbian* OS doesn't include Model Optimizer, the ideal scenario is to use another machine to convert your model with Model Optimizer, then do your application development on the Raspberry Pi* for a convenient build/test cycle on the target platform.
-
-### Included in the Installation Package
-
-The OpenVINO toolkit for Raspbian OS is an archive with pre-installed header files and libraries. The following components are installed by default:
-
-| Component                                                                                           | Description                                                                                                                                                                                                                                                  |
-| :-------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Inference Engine](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)               | This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                               |
-| [OpenCV\*](https://docs.opencv.org/master/)                                                         | OpenCV\* community version compiled for Intel® hardware. |
-| [Sample Applications](../IE_DG/Samples_Overview.md)                                             | A set of simple console applications demonstrating how to use Intel's Deep Learning Inference Engine in your applications.               |
-
-> **NOTE**:
-> * The package does not include the [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md). To convert models to Intermediate Representation (IR), you need to install it separately to your host machine.
-> * The package does not include the Open Model Zoo demo applications. You can download them separately from the [Open Models Zoo repository](https://github.com/openvinotoolkit/open_model_zoo).
-
-## Development and Target Platforms
-
-**Hardware**
-
-- Raspberry Pi\* board with ARM* ARMv7-A CPU architecture. Check that `uname -m` returns `armv7l`.
-- Intel® Neural Compute Stick 2, which as one of the Intel® Movidius™ Visual Processing Units (VPUs)
-
-> **NOTE**: With OpenVINO™ 2020.4 release, Intel® Movidius™ Neural Compute Stick (1) is no longer supported.  
-
-**Operating Systems**
-
-- Raspbian\* Buster, 32-bit
-- Raspbian\* Stretch, 32-bit
-
-**Software**
-
-- CMake* 3.7.2 or higher
-- Python* 3.5, 32-bit
+@endsphinxdirective
 
 
-## Overview
+## Development and Target Systems
 
-This guide provides step-by-step instructions on how to install the OpenVINO™ toolkit for Raspbian* OS. Links are provided for each type of compatible hardware including downloads, initialization and configuration steps. The following steps will be covered:
+@sphinxdirective
 
-1. [Install the OpenVINO™ toolkit](#install-package)
-2. [Install External Software Dependencies](#install-dependencies)
-3. [Set the environment variables](#set-environment-variables)
-4. [Add USB rules](#add-usb-rules)
-5. [Run the Object Detection Sample](#run-sample) to validate Inference Engine installation
-6. [Learn About Workflow for Raspberry Pi](#workflow-for-raspberry-pi)
+.. tab:: System Requirements
 
-## <a name="install-package"></a>Install the OpenVINO™ Toolkit for Raspbian* OS Package
+   | Full requirement listing is available in:
+   | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`_
 
-The guide assumes you downloaded the OpenVINO toolkit for Raspbian* OS. If you do not have a copy of the toolkit package file `l_openvino_toolkit_runtime_raspbian_p_<version>.tgz`, download the latest version from the [OpenVINO™ Toolkit packages storage](https://storage.openvinotoolkit.org/repositories/openvino/packages/) and then return to this guide to proceed with the installation.
+.. tab:: Software Requirements
 
-> **NOTE**: The OpenVINO toolkit for Raspbian OS is distributed without an installer, so you need to perform some extra steps compared to the [Intel® Distribution of OpenVINO™ toolkit for Linux* OS](installing-openvino-linux.md).
+  * CMake 3.10 or higher
+  * Python 3.7 - 3.10
 
-1. Open the Terminal\* or your preferred console application.
-2. Go to the directory in which you downloaded the OpenVINO toolkit. This document assumes this is your `~/Downloads` directory. If not, replace `~/Downloads` with the directory where the file is located.
-   ```sh
-   cd ~/Downloads/
-   ```
-   By default, the package file is saved as `l_openvino_toolkit_runtime_raspbian_p_<version>.tgz`.
-3. Create an installation folder.
-   ```sh
-   sudo mkdir -p /opt/intel/openvino_2021
-   ```
-4. Unpack the archive:
-   ```sh
-   sudo tar -xf  l_openvino_toolkit_runtime_raspbian_p_<version>.tgz --strip 1 -C /opt/intel/openvino_2021
-   ```
 
-Now the OpenVINO toolkit components are installed. Additional configuration steps are still required. Continue to the next sections to install External Software Dependencies, configure the environment and set up USB rules.
+.. _install-openvino:
 
-## <a name="install-dependencies"></a>Install External Software Dependencies
+@endsphinxdirective
 
-CMake* version 3.7.2 or higher is required for building the Inference Engine sample application. To install, open a Terminal* window and run the following command:
-```sh
-sudo apt install cmake
-```
+
+## Step 1: Download and Install OpenVINO Runtime
+
+@sphinxdirective
+
+#. Open the Terminal or your preferred console application.
+#. Create an installation folder for OpenVINO. If the folder already exists, skip this step.
+
+   .. code-block:: sh
+
+      sudo mkdir -p /opt/intel
+
+   .. note::
+
+      The ``/opt/intel`` path is the recommended folder path for administrators or root users. If you prefer to install OpenVINO in regular userspace, the recommended path is ``/home/<USER>/intel``. You may use a different path if desired.
+
+#. Go to your ``~/Downloads`` directory and download OpenVINO Runtime archive file for Debian from `OpenVINO package repository <https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/>`_.
+
+   .. tab:: ARM 32-bit
+
+      .. code-block:: sh
+
+         cd ~/Downloads/
+         sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/l_openvino_toolkit_debian9_2022.3.0.9052.9752fafe8eb_armhf.tgz -O openvino_2022.3.0.tgz
+
+   .. tab:: ARM 64-bit
+
+      .. code-block:: sh
+
+         cd ~/Downloads/
+         sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/l_openvino_toolkit_debian9_2022.3.0.9052.9752fafe8eb_arm64.tgz -O openvino_2022.3.0.tgz
+
+#. Extract the archive file and move it to the installation folder:
+
+   .. tab:: ARM 32-bit
+
+      .. code-block:: sh
+
+         sudo tar -xf openvino_2022.3.0.tgz
+         sudo mv l_openvino_toolkit_debian9_2022.3.0.9052.9752fafe8eb_armhf /opt/intel/openvino_2022.3.0
+
+   .. tab:: ARM 64-bit
+
+      .. code-block:: sh
+
+         sudo tar -xf openvino_2022.3.0.tgz
+         sudo mv l_openvino_toolkit_debian9_2022.3.0.9052.9752fafe8eb_arm64 /opt/intel/openvino_2022.3.0
+
+#. Install required system dependencies on Linux. To do this, OpenVINO provides a script in the extracted installation directory. Run the following command:
+
+   .. code-block:: sh
+
+      sudo -E ./install_dependencies/install_openvino_dependencies.sh
+
+#. For simplicity, it is useful to create a symbolic link as below:
+
+   .. code-block:: sh
+
+      sudo ln -s openvino_2022.3.0 openvino_2022
+
+   .. note::
+
+      If you have already installed a previous release of OpenVINO 2022, a symbolic link to the ``openvino_2022`` folder may already exist. Unlink the previous link with ``sudo unlink openvino_2022``, and then re-run the command above.
+
+
+Congratulations, you finished the installation! The ``/opt/intel/openvino_2022`` folder now contains the core components for OpenVINO. If you used a different path in Step 2, for example, ``/home/<USER>/intel/``, OpenVINO is then installed in ``/home/<USER>/intel/openvino_2022``. The path to the ``openvino_2022`` directory is also referred as ``<INSTALL_DIR>`` throughout the OpenVINO documentation.
+
+.. _install-external-dependencies:
+
+@endsphinxdirective
+
+
+## Step 2: Install External Software Dependencies
+
+@sphinxdirective
+
+CMake version 3.10 or higher is required for building the OpenVINO™ toolkit sample application. To install, open a Terminal window and run the following command:
+
+.. code-block:: sh
+
+   sudo apt install cmake
+
 
 CMake is installed. Continue to the next section to set the environment variables.
 
-## <a name="set-environment-variables"></a>Set the Environment Variables
+.. _set-the-environment-variables-raspbian:
 
-You must update several environment variables before you can compile and run OpenVINO toolkit applications. Run the following script to temporarily set the environment variables:
-```sh
-source /opt/intel/openvino_2021/bin/setupvars.sh
-```
+@endsphinxdirective
 
-**(Optional)** The OpenVINO environment variables are removed when you close the shell. As an option, you can permanently set the environment variables as follows:
-```sh
-echo "source /opt/intel/openvino_2021/bin/setupvars.sh" >> ~/.bashrc
-```
 
-To test your change, open a new terminal. You will see the following:
-```
-[setupvars.sh] OpenVINO environment initialized
-```
+## Step 3: Set the Environment Variables
 
-## <a name="add-usb-rules"></a>Add USB Rules for an Intel® Neural Compute Stick 2 device
-This task applies only if you have an Intel® Neural Compute Stick 2 device.
+@sphinxdirective
 
-1. Add the current Linux user to the `users` group:
-   ```sh
-   sudo usermod -a -G users "$(whoami)"
-   ```
-   Log out and log in for it to take effect.
-2. If you didn't modify `.bashrc` to permanently set the environment variables, run `setupvars.sh` again after logging in:
-   ```sh
-   source /opt/intel/openvino_2021/bin/setupvars.sh
-   ```
-3. To perform inference on the Intel® Neural Compute Stick 2, install the USB rules running the `install_NCS_udev_rules.sh` script:
-   ```sh
-   sh /opt/intel/openvino_2021/install_dependencies/install_NCS_udev_rules.sh
-   ```
-4. Plug in your Intel® Neural Compute Stick 2.
+You must update several environment variables before you can compile and run OpenVINO applications. Open a terminal window and run the ``setupvars.sh`` script as shown below to temporarily set your environment variables. If your <INSTALL_DIR> is not ``/opt/intel/openvino_2022``, use the correct one instead.
 
-You are now ready to compile and run the Object Detection sample to verify the Inference Engine installation.
+.. code-block:: sh
 
-## <a name="run-sample"></a>Build and Run Object Detection Sample
+   source /opt/intel/openvino_2022/setupvars.sh
 
-Follow the next steps to use the pre-trained face detection model using Inference Engine samples from the OpenVINO toolkit.
 
-1. Navigate to a directory that you have write access to and create a samples build directory. This example uses a directory named `build`:
-   ```sh
-   mkdir build && cd build
-   ```
-2. Build the Object Detection Sample:
-   ```sh
-   cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=armv7-a" /opt/intel/openvino_2021/deployment_tools/inference_engine/samples/cpp
-   ```
-   ```sh
-   make -j2 object_detection_sample_ssd
-   ```
-3. Download the pre-trained Face Detection model with the Model Downloader or copy it from the host machine:
-   ```sh
-   git clone --depth 1 https://github.com/openvinotoolkit/open_model_zoo
-   cd open_model_zoo/tools/downloader
-   python3 -m pip install -r requirements.in
-   python3 downloader.py --name face-detection-adas-0001 
-   ```
-4. Run the sample specifying the model, a path to the input image, and the VPU required to run with the Raspbian* OS:
-   ```sh
-   ./armv7l/Release/object_detection_sample_ssd -m <path_to_model>/face-detection-adas-0001.xml -d MYRIAD -i <path_to_image>
-   ```
-   The application outputs an image (`out_0.bmp`) with detected faced enclosed in rectangles.
+If you have more than one OpenVINO version on your machine, you can easily switch its version by sourcing the ``setupvars.sh`` of your choice.
 
-Congratulations, you have finished the OpenVINO™ toolkit for Raspbian* OS installation. You have completed all required installation, configuration and build steps in this guide.
+.. note::
 
-Read the next topic if you want to learn more about OpenVINO workflow for Raspberry Pi.
+   The above command must be re-run every time you start a new terminal session. To set up Linux to automatically run the command every time a new terminal is opened, open ``~/.bashrc`` in your favorite editor and add ``source /opt/intel/openvino_2022/setupvars.sh`` after the last line. Next time when you open a terminal, you will see ``[setupvars.sh] OpenVINO™ environment initialized``. Changing ``.bashrc`` is not recommended when you have multiple OpenVINO versions on your machine and want to switch among them.
 
-## <a name="workflow-for-raspberry-pi"></a>Workflow for Raspberry Pi*
+The environment variables are set. Continue to the next section if you want to download any additional components.
 
-If you want to use your model for inference, the model must be converted to the .bin and .xml Intermediate Representation (IR) files that are used as input by Inference Engine. OpenVINO™ toolkit support on Raspberry Pi only includes the Inference Engine module of the Intel® Distribution of OpenVINO™ toolkit. The Model Optimizer is not supported on this platform. To get the optimized models you can use one of the following options:
+.. _model-optimizer:
 
-* Download public and Intel's pre-trained models from the [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) using [Model Downloader tool](@ref omz_tools_downloader).
+@endsphinxdirective
 
-   For more information on pre-trained models, see [Pre-Trained Models Documentation](@ref omz_models_group_intel)
 
-* Convert the model using the Model Optimizer from a full installation of Intel® Distribution of OpenVINO™ toolkit on one of the supported platforms. Installation instructions are available:
+## Step 4 (Optional): Install Additional Components
 
-   * [Installation Guide for macOS*](installing-openvino-macos.md)
-   * [Installation Guide for Windows*](installing-openvino-windows.md)
-   * [Installation Guide for Linux*](installing-openvino-linux.md)
+@sphinxdirective
 
-   For more information about how to use the Model Optimizer, see the [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+If you want to use your model for inference, the model must be converted to the ``.bin`` and ``.xml`` Intermediate Representation (IR) files that are used as input by OpenVINO Runtime. To get the optimized models, you can use one of the following options:
+
+* Download public and Intel's pre-trained models from the `Open Model Zoo <https://github.com/openvinotoolkit/open_model_zoo>`_ using :doc:`Model Downloader tool <omz_tools_downloader>`. For more information on pre-trained models, see :doc:`Pre-Trained Models Documentation <omz_models_group_intel>`.
+
+  * OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the `instructions on Github <https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO)`_.
+
+* Convert the models using the Model Optimizer. Model Optimizer is provided with OpenVINO Development Tools.
+
+  * OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. See the :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>` page for step-by-step installation instructions.
+
+@endsphinxdirective
+
+
+## What's Next?
+
+@sphinxdirective
+
+Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications! Learn more about how to integrate a model in OpenVINO applications by trying out the following tutorials.
+
+
+.. tab:: Get started with Python
+
+   Try the `Python Quick Start Example <https://docs.openvino.ai/nightly/notebooks/201-vision-monodepth-with-output.html>`_ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
+
+   .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
+      :width: 400
+
+   Visit the :ref:`Tutorials <notebook tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
+
+   * `OpenVINO Python API Tutorial <https://docs.openvino.ai/nightly/notebooks/002-openvino-api-with-output.html>`_
+   * `Basic image classification program with Hello Image Classification <https://docs.openvino.ai/nightly/notebooks/001-hello-world-with-output.html>`_
+   * `Convert a PyTorch model and use it for image background removal <https://docs.openvino.ai/nightly/notebooks/205-vision-background-removal-with-output.html>`_
+
+.. tab:: Get started with C++
+
+   Try the `C++ Quick Start Example <openvino_docs_get_started_get_started_demos.html>`_ for step-by-step instructions on building and running a basic image classification C++ application.
+
+   .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
+      :width: 400
+
+   Visit the :ref:`Samples <code samples>` page for other C++ example applications to get you started with OpenVINO, such as:
+
+   * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README.html>`_
+   * `Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README.html>`_
+
+
+To uninstall the toolkit, follow the steps on the :doc:`Uninstalling page <openvino_docs_install_guides_uninstalling_openvino>`.
+
+@endsphinxdirective
+
+
+## Additional Resources
+
+@sphinxdirective
+
+* :ref:`Troubleshooting Guide for OpenVINO Installation & Configuration <troubleshooting guide for install>`
+* Converting models for use with OpenVINO™: :ref:`Model Optimizer User Guide <deep learning model optimizer>`
+* Writing your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning openvino runtime>`
+* Sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
+* Pre-trained deep learning models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
+* IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit`_ 
+* :ref:`OpenVINO Installation Selector Tool <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`
+
+.. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
+
+@endsphinxdirective

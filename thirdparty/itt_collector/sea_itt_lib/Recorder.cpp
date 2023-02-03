@@ -25,13 +25,13 @@
 #include "IttNotifyStdSrc.h"
 
 #ifdef _WIN32
-    #include <direct.h>
-    #include <io.h>
-    #include <windows.h>
+#    include <direct.h>
+#    include <io.h>
+#    include <windows.h>
 
-    #define open  crossopen
-    #define write _write
-    #define close _close
+#    define open  crossopen
+#    define write _write
+#    define close _close
 int crossopen(_In_z_ const char* _Filename, _In_ int _Openflag, int perm) {
     int fd = 0;
     _sopen_s(&fd, _Filename, _Openflag | _O_BINARY, _SH_DENYWR, perm);
@@ -40,7 +40,7 @@ int crossopen(_In_z_ const char* _Filename, _In_ int _Openflag, int perm) {
 // FIXME: support wide char mode
 #endif
 
-CRecorder::CRecorder(): m_pCurPos(nullptr) {}
+CRecorder::CRecorder() : m_pCurPos(nullptr) {}
 
 size_t ChunkSize = 1 * 1020 * 1024;
 
@@ -80,9 +80,9 @@ size_t CRecorder::CheckCapacity(size_t size) {
     size_t nWroteBytes = (char*)m_pCurPos - (char*)m_memmap->GetPtr();
     if (nWroteBytes + size > m_memmap->GetSize()) {
         m_pCurPos = m_memmap->Remap((std::max)(ChunkSize, size), m_nWroteTotal);
-    #ifdef TURBO_MODE
+#    ifdef TURBO_MODE
         sea::GetThreadRecord()->nMemMoveCounter += 1;
-    #endif
+#    endif
         if (!m_pCurPos)
             return 0;
     }
@@ -184,7 +184,8 @@ inline CRecorder* GetFile(const SRecord& record) {
         pThreadRecord->files.clear();
     }
     // with very high probability the same thread will write into the same domain
-    if (pThreadRecord->pLastRecorder && (pThreadRecord->pLastDomain == record.domain.nameA) && (100 > pThreadRecord->nSpeedupCounter++))
+    if (pThreadRecord->pLastRecorder && (pThreadRecord->pLastDomain == record.domain.nameA) &&
+        (100 > pThreadRecord->nSpeedupCounter++))
         return reinterpret_cast<CRecorder*>(pThreadRecord->pLastRecorder);
     pThreadRecord->nSpeedupCounter = 0;  // we can't avoid checking ring size
     pThreadRecord->pLastDomain = record.domain.nameA;
@@ -218,7 +219,11 @@ inline CRecorder* GetFile(const SRecord& record) {
 
     CTraceEventFormat::SRegularFields rf = CTraceEventFormat::GetRegularFields();
     char path[1024] = {};
-    _sprintf(path, "%s%llu%s%s.sea", pDomainExtra->strDomainPath.c_str(), (unsigned long long)rf.tid, spCutName ? (std::string("!") + *spCutName).c_str() : "",
+    _sprintf(path,
+             "%s%llu%s%s.sea",
+             pDomainExtra->strDomainPath.c_str(),
+             (unsigned long long)rf.tid,
+             spCutName ? (std::string("!") + *spCutName).c_str() : "",
              (g_nRingBuffer ? ((pRecorder->GetCount() % 2) ? "-1" : "-0") : ""));
     try {
         VerbosePrint("Opening: %s\n", path);
@@ -244,12 +249,13 @@ double* WriteRecord(ERecordType type, const SRecord& record) {
 
     CRecorder& stream = *pFile;
 
-    const size_t MaxSize = sizeof(STinyRecord) + 2 * sizeof(__itt_id) + 3 * sizeof(uint64_t) + sizeof(double) + sizeof(void*);
+    const size_t MaxSize =
+        sizeof(STinyRecord) + 2 * sizeof(__itt_id) + 3 * sizeof(uint64_t) + sizeof(double) + sizeof(void*);
     size_t size = stream.CheckCapacity(MaxSize + record.length);
     if (!size)
         return nullptr;
 
-    STinyRecord* pRecord = WriteToBuff(stream, STinyRecord {record.rf.nanoseconds, type});
+    STinyRecord* pRecord = WriteToBuff(stream, STinyRecord{record.rf.nanoseconds, type});
     if (!pRecord)
         return nullptr;
 
@@ -311,7 +317,12 @@ double* WriteRecord(ERecordType type, const SRecord& record) {
 
 CMemMap::CMemMap(const std::string& path, size_t size, size_t offset) {
 #ifdef _WIN32
-    m_hFile = CreateFile(path.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_SEQUENTIAL_SCAN,
+    m_hFile = CreateFile(path.c_str(),
+                         GENERIC_READ | GENERIC_WRITE,
+                         FILE_SHARE_READ,
+                         NULL,
+                         CREATE_ALWAYS,
+                         FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_SEQUENTIAL_SCAN,
                          NULL);
     if (INVALID_HANDLE_VALUE == m_hFile) {
         m_hFile = NULL;
@@ -395,13 +406,17 @@ CMemMap::~CMemMap() {
 using namespace sea;
 const bool g_bWithStacks = !!(GetFeatureSet() & sfStack);
 
-void WriteMeta(const CTraceEventFormat::SRegularFields& main, __itt_string_handle* pKey, const char* name, double* pDelta) {
-    WriteRecord(ERecordType::Metadata, SRecord {main, *g_pIntelSEAPIDomain, __itt_null, __itt_null, pKey, pDelta, name, strlen(name)});
+void WriteMeta(const CTraceEventFormat::SRegularFields& main,
+               __itt_string_handle* pKey,
+               const char* name,
+               double* pDelta) {
+    WriteRecord(ERecordType::Metadata,
+                SRecord{main, *g_pIntelSEAPIDomain, __itt_null, __itt_null, pKey, pDelta, name, strlen(name)});
 }
 
-class CSEARecorder : public IHandler {void Init(const CTraceEventFormat::SRegularFields& main)
-                                          override {// write process name into trace
-                                                    __itt_string_handle* pKey = UNICODE_AGNOSTIC(string_handle_create)("__process__");
+class CSEARecorder : public IHandler{void Init(const CTraceEventFormat::SRegularFields& main) override{
+                         // write process name into trace
+                         __itt_string_handle* pKey = UNICODE_AGNOSTIC(string_handle_create)("__process__");
 const char* name = GetProcessName(true);
 
 double delta = -1;  // sort order - highest for processes written thru SEA
@@ -432,32 +447,40 @@ void TaskBegin(STaskDescriptor& oTask, bool bOverlapped) override {
     }
 #ifdef TURBO_MODE
     double duration = 0;
-    oTask.pDur = WriteRecord(bOverlapped ? ERecordType::BeginOverlappedTask : ERecordType::BeginTask,
-                             SRecord {oTask.rf, *oTask.pDomain, oTask.id, oTask.parent, oTask.pName, &duration, pData, length, oTask.fn});
+    oTask.pDur = WriteRecord(
+        bOverlapped ? ERecordType::BeginOverlappedTask : ERecordType::BeginTask,
+        SRecord{oTask.rf, *oTask.pDomain, oTask.id, oTask.parent, oTask.pName, &duration, pData, length, oTask.fn});
     oTask.nMemCounter = GetThreadRecord()->nMemMoveCounter;
 #else
-    WriteRecord(bOverlapped ? ERecordType::BeginOverlappedTask : ERecordType::BeginTask,
-                SRecord {oTask.rf, *oTask.pDomain, oTask.id, oTask.parent, oTask.pName, nullptr, pData, length, oTask.fn});
+    WriteRecord(
+        bOverlapped ? ERecordType::BeginOverlappedTask : ERecordType::BeginTask,
+        SRecord{oTask.rf, *oTask.pDomain, oTask.id, oTask.parent, oTask.pName, nullptr, pData, length, oTask.fn});
 #endif
 }
 
 void AddArg(STaskDescriptor& oTask, const __itt_string_handle* pKey, const char* data, size_t length) override {
-    WriteRecord(ERecordType::Metadata, SRecord {oTask.rf, *oTask.pDomain, oTask.id, __itt_null, pKey, nullptr, data, length});
+    WriteRecord(ERecordType::Metadata,
+                SRecord{oTask.rf, *oTask.pDomain, oTask.id, __itt_null, pKey, nullptr, data, length});
 #ifdef TURBO_MODE
-    oTask.pDur = nullptr;  // for now we don't support turbo tasks with arguments. But if count of arguments was saved it could work.
+    oTask.pDur = nullptr;  // for now we don't support turbo tasks with arguments. But if count of arguments was saved
+                           // it could work.
 #endif
 }
 
 void AddArg(STaskDescriptor& oTask, const __itt_string_handle* pKey, double value) override {
-    WriteRecord(ERecordType::Metadata, SRecord {oTask.rf, *oTask.pDomain, oTask.id, __itt_null, pKey, &value});
+    WriteRecord(ERecordType::Metadata, SRecord{oTask.rf, *oTask.pDomain, oTask.id, __itt_null, pKey, &value});
 #ifdef TURBO_MODE
-    oTask.pDur = nullptr;  // for now we don't support turbo tasks with arguments. But if count of arguments was saved it could work.
+    oTask.pDur = nullptr;  // for now we don't support turbo tasks with arguments. But if count of arguments was saved
+                           // it could work.
 #endif
 }
 
-void AddRelation(const CTraceEventFormat::SRegularFields& rf, const __itt_domain* pDomain, __itt_id head, __itt_string_handle* relation,
+void AddRelation(const CTraceEventFormat::SRegularFields& rf,
+                 const __itt_domain* pDomain,
+                 __itt_id head,
+                 __itt_string_handle* relation,
                  __itt_id tail) override {
-    WriteRecord(ERecordType::Relation, SRecord {rf, *pDomain, head, tail, relation});
+    WriteRecord(ERecordType::Relation, SRecord{rf, *pDomain, head, tail, relation});
 }
 
 void TaskEnd(STaskDescriptor& oTask, const CTraceEventFormat::SRegularFields& rf, bool bOverlapped) override {
@@ -466,18 +489,26 @@ void TaskEnd(STaskDescriptor& oTask, const CTraceEventFormat::SRegularFields& rf
         *oTask.pDur = double(rf.nanoseconds - oTask.rf.nanoseconds);
     else
         WriteRecord(bOverlapped ? ERecordType::EndOverlappedTask : ERecordType::EndTask,
-                    SRecord {rf, *oTask.pDomain, oTask.id, oTask.parent, oTask.pName, nullptr, nullptr, 0, oTask.fn});
+                    SRecord{rf, *oTask.pDomain, oTask.id, oTask.parent, oTask.pName, nullptr, nullptr, 0, oTask.fn});
 #else
-    WriteRecord(bOverlapped ? ERecordType::EndOverlappedTask : ERecordType::EndTask, SRecord {rf, *oTask.pDomain, oTask.id, __itt_null});
+    WriteRecord(bOverlapped ? ERecordType::EndOverlappedTask : ERecordType::EndTask,
+                SRecord{rf, *oTask.pDomain, oTask.id, __itt_null});
 #endif
 }
 
-void Marker(const CTraceEventFormat::SRegularFields& rf, const __itt_domain* pDomain, __itt_id id, __itt_string_handle* pName, __itt_scope theScope) override {
+void Marker(const CTraceEventFormat::SRegularFields& rf,
+            const __itt_domain* pDomain,
+            __itt_id id,
+            __itt_string_handle* pName,
+            __itt_scope theScope) override {
     const char* scope = GetScope(theScope);
-    WriteRecord(ERecordType::Marker, SRecord {rf, *pDomain, id, __itt_null, pName, nullptr, scope, strlen(scope)});
+    WriteRecord(ERecordType::Marker, SRecord{rf, *pDomain, id, __itt_null, pName, nullptr, scope, strlen(scope)});
 }
 
-void Counter(const CTraceEventFormat::SRegularFields& rf, const __itt_domain* pDomain, const __itt_string_handle* pName, double value) override {
+void Counter(const CTraceEventFormat::SRegularFields& rf,
+             const __itt_domain* pDomain,
+             const __itt_string_handle* pName,
+             double value) override {
     const char* pData = nullptr;
     size_t length = 0;
     if (g_bWithStacks) {
@@ -487,7 +518,7 @@ void Counter(const CTraceEventFormat::SRegularFields& rf, const __itt_domain* pD
         length = (GetStack(*pStack) - 3) * sizeof(void*);
         pData = reinterpret_cast<const char*>(&(*pStack)[3]);
     }
-    WriteRecord(ERecordType::Counter, SRecord {rf, *pDomain, __itt_null, __itt_null, pName, &value, pData, length});
+    WriteRecord(ERecordType::Counter, SRecord{rf, *pDomain, __itt_null, __itt_null, pName, &value, pData, length});
 }
 
 void SetThreadName(const CTraceEventFormat::SRegularFields& rf, const char* name) override {

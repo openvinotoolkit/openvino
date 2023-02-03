@@ -417,6 +417,12 @@ std::tuple<GOpaque<double>,GArray<int>,GArray<Point3f>> kmeans(const GArray<Poin
     return core::GKMeans3D::on(data, K, bestLabels, criteria, attempts, flags);
 }
 
+
+GMat transpose(const GMat& src)
+{
+    return core::GTranspose::on(src);
+}
+
 GOpaque<Size> streaming::size(const GMat& src)
 {
     return streaming::GSize::on(src);
@@ -425,6 +431,11 @@ GOpaque<Size> streaming::size(const GMat& src)
 GOpaque<Size> streaming::size(const GOpaque<Rect>& r)
 {
     return streaming::GSizeR::on(r);
+}
+
+GOpaque<Size> streaming::size(const GFrame& src)
+{
+    return streaming::GSizeMF::on(src);
 }
 
 } //namespace gapi

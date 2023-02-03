@@ -1,6 +1,11 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+
+set(CMAKE_SYSTEM_NAME Linux)
+set(CMAKE_SYSTEM_PROCESSOR i386)
+
+set(PKG_CONFIG_EXECUTABLE i686-linux-gnu-pkg-config CACHE PATH "Path to 32-bits pkg-config")
 
 set(CMAKE_CXX_FLAGS_INIT "-m32")
 set(CMAKE_C_FLAGS_INIT "-m32")
@@ -17,5 +22,5 @@ macro(_set_if_not_defined var val)
     endif()
 endmacro()
 
-# need libusb 32-bits version
-_set_if_not_defined(ENABLE_VPU OFF)
+# for ittapi
+_set_if_not_defined(FORCE_32 ON)

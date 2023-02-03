@@ -28,18 +28,14 @@ namespace gimpl
 {
     // Forward-declare an internal class
     class GCPUExecutable;
-
-    namespace render
-    {
-    namespace ocv
-    {
-        class GRenderExecutable;
-    }
-    }
 } // namespace gimpl
 
 namespace gapi
 {
+/**
+ * @brief This namespace contains G-API CPU backend functions,
+ * structures, and symbols.
+ */
 namespace cpu
 {
     /**
@@ -129,7 +125,6 @@ protected:
     std::unordered_map<std::size_t, GRunArgP> m_results;
 
     friend class gimpl::GCPUExecutable;
-    friend class gimpl::render::ocv::GRenderExecutable;
 };
 
 class GAPI_EXPORTS GCPUKernel
@@ -187,6 +182,11 @@ template<> struct get_in<cv::GArray<cv::GMat> >: public get_in<cv::GArray<cv::Ma
 
 //FIXME(dm): GArray<Scalar>/GArray<GScalar> conversion should be done more gracefully in the system
 template<> struct get_in<cv::GArray<cv::GScalar> >: public get_in<cv::GArray<cv::Scalar> >
+{
+};
+
+// FIXME(dm): GArray<vector<U>>/GArray<GArray<U>> conversion should be done more gracefully in the system
+template<typename U> struct get_in<cv::GArray<cv::GArray<U>> >: public get_in<cv::GArray<std::vector<U>> >
 {
 };
 
@@ -487,7 +487,7 @@ public:
 #define GAPI_OCV_KERNEL_ST(Name, API, State)                   \
     struct Name: public cv::GCPUStKernelImpl<Name, API, State> \
 
-
+/// @private
 class gapi::cpu::GOCVFunctor : public gapi::GFunctor
 {
 public:

@@ -1,4 +1,4 @@
-## Assign <a name="Assign"></a> {#openvino_docs_ops_infrastructure_Assign_3}
+# Assign {#openvino_docs_ops_infrastructure_Assign_3}
 
 **Versioned name**: *Assign-3*
 
@@ -9,22 +9,21 @@
 **Detailed description**:
 
 *Assign* operation sets an input value to the `variable_id` variable. This value will be returned by *ReadValue* operation on next infer if variable was not reset.
-The operation checks that the type and shape of the input are the same as 
+The operation checks that the type and shape of the input are the same as
 declared in `variable_id` and returns an error otherwise.
 
-**Attributes**: 
+**Attributes**:
 
 * *variable_id*
 
   * **Description**: identificator of the variable to be updated
   * **Range of values**: any non-empty string
   * **Type**: string
-  * **Default value**: None
-  * **Required**: *Yes*
+  * **Required**: *yes*
 
 **Inputs**
 
-*   **1**: `new_value` - input tensor of any supported type. **Required**.
+*   **1**: `new_value` - input tensor of any supported type. **Required.**
 
 **Outputs**
 

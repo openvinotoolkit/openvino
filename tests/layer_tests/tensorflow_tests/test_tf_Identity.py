@@ -1,15 +1,16 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-
 from common.layer_test_class import check_ir_version
 from common.tf_layer_test_class import CommonTFLayerTest
+from common.utils.tf_utils import permute_nchw_to_nhwc
+
 from unit_tests.utils.graph import build_graph
 
 
 class TestIdentity(CommonTFLayerTest):
-    def create_identity_net(self, shape, ir_version):
+    def create_identity_net(self, shape, ir_version, use_new_frontend):
         """
             Tensorflow net                 IR net
 
@@ -17,22 +18,17 @@ class TestIdentity(CommonTFLayerTest):
 
         """
 
-        #
-        #   Create Tensorflow model
-        #
-
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            x_shape = shape.copy()
-            # reshaping
-            if len(x_shape) >= 3:
-                x_shape.append(x_shape.pop(1))
+            tf_x_shape = shape.copy()
 
-            x = tf.compat.v1.placeholder(tf.float32, x_shape, 'Input')
+            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_new_frontend)
+
+            x = tf.compat.v1.placeholder(tf.float32, tf_x_shape, 'Input')
             id = tf.identity(x, name="Operation")
             tf.nn.relu(id, name='Operation')
 
@@ -47,7 +43,7 @@ class TestIdentity(CommonTFLayerTest):
 
         ref_net = None
 
-        if check_ir_version(10, None, ir_version):
+        if check_ir_version(10, None, ir_version) and not use_new_frontend:
             nodes_attributes = {
                 'inputX': {'kind': 'op', 'type': 'Parameter'},
                 'inputX_data': {'shape': shape, 'kind': 'data'},
@@ -68,18 +64,24 @@ class TestIdentity(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_identity_precommit(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_identity_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_identity_precommit(self, params, ie_device, precision, ir_version, temp_dir,
+                                use_new_frontend, use_old_api):
+        self._test(*self.create_identity_net(**params, ir_version=ir_version,
+                                             use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data = [dict(shape=[1]),
-                 dict(shape=[1, 224]),
-                 pytest.param(dict(shape=[1, 3, 224]), marks=pytest.mark.xfail(reason="*-19053")),
+                 pytest.param(dict(shape=[1, 224]), marks=pytest.mark.precommit_tf_fe),
+                 dict(shape=[1, 3, 224]),
                  dict(shape=[1, 3, 100, 224]),
                  dict(shape=[1, 3, 50, 100, 224])]
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_identity(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_identity_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_identity(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
+                      use_old_api):
+        self._test(*self.create_identity_net(**params, ir_version=ir_version,
+                                             use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)

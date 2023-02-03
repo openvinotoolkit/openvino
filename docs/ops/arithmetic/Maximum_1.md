@@ -1,8 +1,8 @@
-## Maximum <a name="Maximum"></a> {#openvino_docs_ops_arithmetic_Maximum_1}
+# Maximum  {#openvino_docs_ops_arithmetic_Maximum_1}
 
 **Versioned name**: *Maximum-1*
 
-**Category**: Arithmetic binary operation
+**Category**: *Arithmetic binary*
 
 **Short description**: *Maximum* performs element-wise maximum operation with two given tensors applying broadcasting rule specified in the *auto_broadcast* attribute.
 
@@ -12,8 +12,8 @@ As a first step input tensors *a* and *b* are broadcasted if their shapes differ
 After broadcasting *Maximum* does the following with the input tensors *a* and *b*:
 
 \f[
-o_{i} = max(a_{i}, b_{i})
-\f] 
+o_{i} = max(a_{i},\ b_{i})
+\f]
 
 **Attributes**:
 
@@ -29,12 +29,12 @@ o_{i} = max(a_{i}, b_{i})
 
 **Inputs**
 
-* **1**: A tensor of type T and arbitrary shape. Required.
-* **2**: A tensor of type T and arbitrary shape. Required.
+* **1**: A tensor of type *T* and arbitrary shape. **Required.**
+* **2**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise maximum operation. A tensor of type T with shape equal to broadcasted shape of two inputs.
+* **1**: The result of element-wise maximum operation. A tensor of type *T* with shape equal to broadcasted shape of two inputs.
 
 **Types**
 

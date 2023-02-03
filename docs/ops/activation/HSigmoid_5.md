@@ -1,4 +1,4 @@
-## HSigmoid<a name="HSigmoid"></a> {#openvino_docs_ops_activation_HSigmoid_5}
+# HSigmoid {#openvino_docs_ops_activation_HSigmoid_5}
 
 **Versioned name**: *HSigmoid-5*
 
@@ -7,10 +7,10 @@
 **Short description**: HSigmoid takes one input tensor and produces output tensor where the hard version of sigmoid function is applied to the tensor elementwise.
 
 **Detailed description**: For each element from the input tensor calculates corresponding
-element in the output tensor with the following formula: 
+element in the output tensor with the following formula:
 
 \f[
-HSigmoid(x) = \frac{min(max(x + 3, 0), 6)}{6}
+HSigmoid(x) = \frac{min(max(x + 3,\ 0),\ 6)}{6}
 \f]
 
 The HSigmoid operation is introduced in the following [article](https://arxiv.org/pdf/1905.02244.pdf).
@@ -27,7 +27,7 @@ The HSigmoid operation is introduced in the following [article](https://arxiv.or
 
 **Types**
 
-* *T*: any floating point type.
+* *T*: any floating-point type.
 
 **Examples**
 

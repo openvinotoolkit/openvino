@@ -1,8 +1,8 @@
-## Multiply <a name="Multiply"></a> {#openvino_docs_ops_arithmetic_Multiply_1}
+# Multiply {#openvino_docs_ops_arithmetic_Multiply_1}
 
 **Versioned name**: *Multiply-1*
 
-**Category**: Arithmetic binary operation
+**Category**: *Arithmetic binary*
 
 **Short description**: *Multiply* performs element-wise multiplication operation with two given tensors applying broadcasting rule specified in the *auto_broacast* attribute.
 
@@ -11,7 +11,7 @@ Before performing arithmetic operation, input tensors *a* and *b* are broadcaste
 After broadcasting *Multiply* performs multiplication operation for the input tensors *a* and *b* using the formula below:
 
 \f[
-o_{i} = a_{i} * b_{i}
+o_{i} = a_{i} \cdot b_{i}
 \f]
 
 **Attributes**:
@@ -29,12 +29,12 @@ o_{i} = a_{i} * b_{i}
 
 **Inputs**
 
-* **1**: A tensor of type T and arbitrary shape and rank. **Required.**
-* **2**: A tensor of type T and arbitrary shape and rank. **Required.**
+* **1**: A tensor of type *T* and arbitrary shape and rank. **Required.**
+* **2**: A tensor of type *T* and arbitrary shape and rank. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise multiplication operation. A tensor of type T with shape equal to broadcasted shape of the two inputs.
+* **1**: The result of element-wise multiplication operation. A tensor of type *T* with shape equal to broadcasted shape of the two inputs.
 
 **Types**
 

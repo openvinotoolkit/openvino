@@ -1,8 +1,8 @@
-## Floor <a name="Floor"></a> {#openvino_docs_ops_arithmetic_Floor_1}
+# Floor  {#openvino_docs_ops_arithmetic_Floor_1}
 
 **Versioned name**: *Floor-1*
 
-**Category**: Arithmetic unary operation
+**Category**: *Arithmetic unary*
 
 **Short description**: *Floor* performs element-wise floor operation with given tensor.
 
@@ -10,7 +10,7 @@
 element in the output tensor with the following formula:
 
 \f[
-a_{i} = floor(a_{i})
+a_{i} = \lfloor a_{i} \rfloor
 \f]
 
 **Attributes**: *Floor* operation has no attributes.

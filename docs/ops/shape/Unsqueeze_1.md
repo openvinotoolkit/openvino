@@ -1,8 +1,8 @@
-## Unsqueeze <a name="Unsqueeze"></a> {#openvino_docs_ops_shape_Unsqueeze_1}
+# Unsqueeze {#openvino_docs_ops_shape_Unsqueeze_1}
 
 **Versioned name**: *Unsqueeze-1*
 
-**Category**: Shape manipulation
+**Category**: *Shape manipulation*
 
 **Short description**: *Unsqueeze* adds dimensions of size 1 to the first input tensor. The second input value specifies a list of dimensions that will be inserted. Indices specify dimensions in the output tensor.
 
@@ -10,9 +10,9 @@
 
 **Inputs**:
 
-*   **1**: Tensor of type *T* and arbitrary shape. **Required**.
+*   **1**: Tensor of type *T* and arbitrary shape. **Required.**
 
-*   **2**: Scalar or 1D tensor of type *T_INT* with indices of dimensions to unsqueeze. Values could be negative (have to be from range `[-R, R-1]`, where `R` is the rank of the output). **Required**.
+*   **2**: Scalar or 1D tensor of type *T_INT* with indices of dimensions to unsqueeze. Values could be negative (have to be from range `[-R, R-1]`, where `R` is the rank of the output). **Required.**
 
 **Outputs**:
 

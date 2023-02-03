@@ -47,6 +47,10 @@ void validateFindingContoursMeta(const int depth, const int chan, const int mode
 
 namespace cv { namespace gapi {
 
+/**
+ * @brief This namespace contains G-API Operation Types for OpenCV
+ * ImgProc module functionality.
+ */
 namespace imgproc {
     using GMat2 = std::tuple<GMat,GMat>;
     using GMat3 = std::tuple<GMat,GMat,GMat>; // FIXME: how to avoid this?
@@ -1158,7 +1162,7 @@ if there are 2 channels, or have 2 columns if there is a single channel. Mat sho
 @param src Input gray-scale image @ref CV_8UC1; or input set of @ref CV_32S or @ref CV_32F
 2D points stored in Mat.
  */
-GAPI_EXPORTS GOpaque<Rect> boundingRect(const GMat& src);
+GAPI_EXPORTS_W GOpaque<Rect> boundingRect(const GMat& src);
 
 /** @overload
 
@@ -1168,7 +1172,7 @@ Calculates the up-right bounding rectangle of a point set.
 
 @param src Input 2D point set, stored in std::vector<cv::Point2i>.
  */
-GAPI_EXPORTS GOpaque<Rect> boundingRect(const GArray<Point2i>& src);
+GAPI_EXPORTS_W GOpaque<Rect> boundingRect(const GArray<Point2i>& src);
 
 /** @overload
 
@@ -1341,7 +1345,7 @@ Output image is 8-bit unsigned 3-channel image @ref CV_8UC3.
 @param src input image: 8-bit unsigned 3-channel image @ref CV_8UC3.
 @sa RGB2BGR
 */
-GAPI_EXPORTS GMat BGR2RGB(const GMat& src);
+GAPI_EXPORTS_W GMat BGR2RGB(const GMat& src);
 
 /** @brief Converts an image from RGB color space to gray-scaled.
 

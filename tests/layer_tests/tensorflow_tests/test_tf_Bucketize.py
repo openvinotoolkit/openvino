@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -6,11 +6,13 @@ import pytest
 import tensorflow as tf
 from common.layer_test_class import check_ir_version
 from common.tf_layer_test_class import CommonTFLayerTest
+
 from unit_tests.utils.graph import build_graph
 
 
 class TestBucketize(CommonTFLayerTest):
-    def create_bucketize_net(self, input_shape, input_type, boundaries_size, ir_version):
+    def create_bucketize_net(self, input_shape, input_type, boundaries_size, ir_version,
+                             use_new_frontend):
         """
             Tensorflow net:                     IR net:
                  Input            =>      Input        Boundaries
@@ -19,18 +21,19 @@ class TestBucketize(CommonTFLayerTest):
            {attrs: boundaries}
         """
 
-        # create Tensorflow model
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
             x = tf.compat.v1.placeholder(input_type, input_shape, 'Input')
-            constant_value = np.arange(-boundaries_size * 5, boundaries_size * 5, 10, dtype=np.float32)
+            constant_value = np.arange(-boundaries_size * 5, boundaries_size * 5, 10,
+                                       dtype=np.float32)
+            # TODO: Bucketize is not tested here. Need to re-write the test
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
         # create reference IR net
         ref_net = None
 
-        if check_ir_version(10, None, ir_version):
+        if check_ir_version(10, None, ir_version) and not use_new_frontend:
             nodes_attributes = {
                 'input': {'kind': 'op', 'type': 'Parameter'},
                 'input_data': {'shape': input_shape, 'kind': 'data'},
@@ -57,16 +60,20 @@ class TestBucketize(CommonTFLayerTest):
     test_data_float32 = [
         dict(input_shape=[5], input_type=tf.float32, boundaries_size=1),
         dict(input_shape=[5], input_type=tf.float32, boundaries_size=3),
-        dict(input_shape=[4, 8], input_type=tf.float32, boundaries_size=5),
+        pytest.param(dict(input_shape=[4, 8], input_type=tf.float32, boundaries_size=5),
+                     marks=pytest.mark.precommit_tf_fe),
         dict(input_shape=[2, 4, 7], input_type=tf.float32, boundaries_size=10),
         dict(input_shape=[2, 4, 7, 8], input_type=tf.float32, boundaries_size=12),
         dict(input_shape=[2, 4, 7, 8, 10], input_type=tf.float32, boundaries_size=14)]
 
     @pytest.mark.parametrize("params", test_data_float32)
     @pytest.mark.nightly
-    def test_bucketize_float32(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_bucketize_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_bucketize_float32(self, params, ie_device, precision, ir_version, temp_dir,
+                               use_new_frontend, use_old_api):
+        self._test(*self.create_bucketize_net(**params, ir_version=ir_version,
+                                              use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_int32 = [
         dict(input_shape=[5], input_type=tf.int32, boundaries_size=1),
@@ -78,6 +85,9 @@ class TestBucketize(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_int32)
     @pytest.mark.nightly
-    def test_bucketize_int32(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_bucketize_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_bucketize_int32(self, params, ie_device, precision, ir_version, temp_dir,
+                             use_new_frontend, use_old_api):
+        self._test(*self.create_bucketize_net(**params, ir_version=ir_version,
+                                              use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)

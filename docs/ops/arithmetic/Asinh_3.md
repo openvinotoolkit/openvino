@@ -1,36 +1,32 @@
-## Asinh <a name="Asinh"></a> {#openvino_docs_ops_arithmetic_Asinh_3}
+# Asinh {#openvino_docs_ops_arithmetic_Asinh_3}
 
 **Versioned name**: *Asinh-3*
 
-**Category**: Arithmetic unary operation 
+**Category**: *Arithmetic unary*
 
-**Short description**: *Asinh* performs element-wise hyperbolic inverse sine (arcsinh) operation with given tensor.
+**Short description**: *Asinh* performs element-wise inverse hyperbolic sine operation (arcsinh) on a given input tensor.
 
-**Attributes**:
-
-    No attributes available.
-
-**Inputs**
-
-* **1**: A tensor of type T. **Required.**
-
-**Outputs**
-
-* **1**: The result of element-wise asinh operation. A tensor of type T.
-
-**Types**
-
-* *T*: any floating point type.
-
-*Asinh* does the following with the input tensor *a*:
+**Detailed description**: *Asinh* performs element-wise inverse hyperbolic sine operation on a given input tensor, based on the following mathematical formula:
 
 \f[
 a_{i} = asinh(a_{i})
 \f]
 
-**Examples**
+**Attributes**: *Asinh* operation has no attributes.
 
-*Example 1*
+**Inputs**
+
+* **1**: A tensor of type *T* and arbitrary shape. **Required.**
+
+**Outputs**
+
+* **1**: The result of element-wise *Asinh* operation. A tensor of type *T* and the same shape as input tensor.
+
+**Types**
+
+* *T*: any numeric type.
+
+**Example**
 
 ```xml
 <layer ... type="Asinh">

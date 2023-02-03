@@ -24,11 +24,11 @@
 #include "ittnotify_config.h"
 
 #ifdef _WIN32
-    #define SEA_EXPORT __declspec(dllexport)
-    #define _sprintf   sprintf_s
+#    define SEA_EXPORT __declspec(dllexport)
+#    define _sprintf   sprintf_s
 #else
-    #define SEA_EXPORT __attribute__((visibility("default")))
-    #define _sprintf   sprintf
+#    define SEA_EXPORT __attribute__((visibility("default")))
+#    define _sprintf   sprintf
 #endif
 
 namespace sea {
@@ -36,7 +36,7 @@ bool IsVerboseMode();
 }
 
 #if defined(_WIN32)
-    #define VerbosePrint(...)                              \
+#    define VerbosePrint(...)                              \
         {                                                  \
             if (sea::IsVerboseMode()) {                    \
                 std::vector<char> buff(1024);              \
@@ -46,7 +46,7 @@ bool IsVerboseMode();
             }                                              \
         }
 #else
-    #define VerbosePrint(...)         \
+#    define VerbosePrint(...)         \
         {                             \
             if (sea::IsVerboseMode()) \
                 printf(__VA_ARGS__);  \
@@ -71,7 +71,10 @@ bool WriteFTraceTimeSyncMarkers();  // For Driver instrumentation see: http://lw
 void InitSEA();
 void FillApiList(__itt_api_info* pApiInfo);
 void FinitaLaComedia();
-void Counter(const __itt_domain* pDomain, __itt_string_handle* pName, double value, __itt_clock_domain* clock_domain = nullptr,
+void Counter(const __itt_domain* pDomain,
+             __itt_string_handle* pName,
+             double value,
+             __itt_clock_domain* clock_domain = nullptr,
              unsigned long long timestamp = 0);
 __itt_clock_domain* clock_domain_create(__itt_get_clock_info_fn fn, void* fn_data);
 void SetCutName(const std::string& path);
@@ -99,15 +102,15 @@ struct ___itt_counter : public __itt_counter_info_t {};
 #define USE_PROBES
 
 #ifdef _WIN32
-    #include "windows.h"
+#    include "windows.h"
 #elif defined(__linux__)
-    #ifndef USE_PROBES
+#    ifndef USE_PROBES
 __thread FILE* stdsrc_trace_info_t::pFile = nullptr;
-    #endif
+#    endif
 #endif
 
 #ifdef _WIN32
-    #define UNICODE_AGNOSTIC(name) name##A
+#    define UNICODE_AGNOSTIC(name) name##A
 inline std::string W2L(const wchar_t* wstr) {
     size_t len = lstrlenW(wstr);
     char* dest = (char*)alloca(len + 2);
@@ -123,9 +126,9 @@ union IdCaster {
     GUID to;
 };
 #else
-    #include <cstdio>
-    #define _strdup                strdup
-    #define UNICODE_AGNOSTIC(name) name
+#    include <cstdio>
+#    define _strdup                strdup
+#    define UNICODE_AGNOSTIC(name) name
 #endif
 
 namespace sea {
@@ -148,7 +151,8 @@ enum SEAFeature {
 };
 
 uint64_t GetFeatureSet();
-CTraceEventFormat::SRegularFields GetRegularFields(__itt_clock_domain* clock_domain = nullptr, unsigned long long timestamp = 0);
+CTraceEventFormat::SRegularFields GetRegularFields(__itt_clock_domain* clock_domain = nullptr,
+                                                   unsigned long long timestamp = 0);
 
 struct SThreadRecord;
 
@@ -199,7 +203,8 @@ protected:
                     placement_free(reinterpret_cast<T*>(ptr));
                 }
             };
-            oTask.cookies[m_cookie] = STaskDescriptor::SCookie {placement_new(T)(args...), SDeleter::Deleter};  // consider placement new here!
+            oTask.cookies[m_cookie] =
+                STaskDescriptor::SCookie{placement_new(T)(args...), SDeleter::Deleter};  // consider placement new here!
         }
         return *reinterpret_cast<T*>(oTask.cookies[m_cookie].pCookie);
     }
@@ -241,15 +246,33 @@ public:
     virtual void TaskBegin(STaskDescriptor& oTask, bool bOverlapped) {}
     virtual void AddArg(STaskDescriptor& oTask, const __itt_string_handle* pKey, const char* data, size_t length) {}
     virtual void AddArg(STaskDescriptor& oTask, const __itt_string_handle* pKey, double value) {}
-    virtual void AddRelation(const CTraceEventFormat::SRegularFields& rf, const __itt_domain* pDomain, __itt_id head, __itt_string_handle* relation,
+    virtual void AddRelation(const CTraceEventFormat::SRegularFields& rf,
+                             const __itt_domain* pDomain,
+                             __itt_id head,
+                             __itt_string_handle* relation,
                              __itt_id tail) {}
     virtual void TaskEnd(STaskDescriptor& oTask, const CTraceEventFormat::SRegularFields& rf, bool bOverlapped) {}
-    virtual void Marker(const CTraceEventFormat::SRegularFields& rf, const __itt_domain* pDomain, __itt_id id, __itt_string_handle* pName, __itt_scope scope) {}
+    virtual void Marker(const CTraceEventFormat::SRegularFields& rf,
+                        const __itt_domain* pDomain,
+                        __itt_id id,
+                        __itt_string_handle* pName,
+                        __itt_scope scope) {}
     virtual void CreateCounter(const __itt_counter& id) {}
-    virtual void Counter(const CTraceEventFormat::SRegularFields& rf, const __itt_domain* pDomain, const __itt_string_handle* pName, double value) {}
+    virtual void Counter(const CTraceEventFormat::SRegularFields& rf,
+                         const __itt_domain* pDomain,
+                         const __itt_string_handle* pName,
+                         double value) {}
     virtual void SetThreadName(const CTraceEventFormat::SRegularFields& rf, const char* name) {}
-    virtual void Alloc(const CTraceEventFormat::SRegularFields& rf, const void* addr, size_t size, const char* domain, const char* name) {}
-    virtual void Free(const CTraceEventFormat::SRegularFields& rf, const void* addr, size_t size, const char* domain, const char* name) {}
+    virtual void Alloc(const CTraceEventFormat::SRegularFields& rf,
+                       const void* addr,
+                       size_t size,
+                       const char* domain,
+                       const char* name) {}
+    virtual void Free(const CTraceEventFormat::SRegularFields& rf,
+                      const void* addr,
+                      size_t size,
+                      const char* domain,
+                      const char* name) {}
 
     virtual ~IHandler() {}
 };

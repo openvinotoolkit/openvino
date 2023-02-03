@@ -1,8 +1,8 @@
-## Add <a name="Add"></a> {#openvino_docs_ops_arithmetic_Add_1}
+# Add {#openvino_docs_ops_arithmetic_Add_1}
 
 **Versioned name**: *Add-1*
 
-**Category**: Arithmetic binary operation
+**Category**: *Arithmetic binary*
 
 **Short description**: *Add* performs element-wise addition operation with two given tensors applying broadcasting rule specified in the *auto_broacast* attribute.
 
@@ -29,12 +29,12 @@ o_{i} = a_{i} + b_{i}
 
 **Inputs**
 
-* **1**: A tensor of type T and arbitrary shape and rank. **Required.**
-* **2**: A tensor of type T and arbitrary shape and rank. **Required.**
+* **1**: A tensor of type *T* and arbitrary shape and rank. **Required.**
+* **2**: A tensor of type *T* and arbitrary shape and rank. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise addition operation. A tensor of type T with shape equal to broadcasted shape of the two inputs.
+* **1**: The result of element-wise addition operation. A tensor of type *T* with shape equal to broadcasted shape of the two inputs.
 
 **Types**
 

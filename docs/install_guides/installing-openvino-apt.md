@@ -1,158 +1,259 @@
-# Install Intel® Distribution of OpenVINO™ toolkit for Linux* Using APT Repository {#openvino_docs_install_guides_installing_openvino_apt}
+# Install Intel® Distribution of OpenVINO™ Toolkit for Linux Using APT Repository {#openvino_docs_install_guides_installing_openvino_apt}
 
-This guide provides installation steps for Intel® Distribution of OpenVINO™ toolkit for Linux* distributed through the APT repository.
+@sphinxdirective
 
-> **IMPORTANT**: By downloading and using this container and the included software, you agree to the terms and conditions of the [software license agreements](https://software.intel.com/content/dam/develop/external/us/en/documents/intel-openvino-license-agreements.pdf). Please, review the content inside the `<openvino_install_root>/licensing` folder for more details.
+With the OpenVINO™ 2022.3 release, you can install OpenVINO Runtime on Linux using the APT repository. OpenVINO™ Development Tools can be installed via PyPI only. See :ref:`Installing Additional Components <intall additional components apt>` for more information. 
 
-> **NOTE**: Intel® Graphics Compute Runtime for OpenCL™ is not a part of OpenVINO™ APT distribution. You can install it from the [Intel® Graphics Compute Runtime for OpenCL™ GitHub repo](https://github.com/intel/compute-runtime). 
+See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-2022-3-lts-relnotes.html>`_ for more information on updates in the latest release.
 
-## Included with Runtime Package
+Installing OpenVINO Runtime from APT is recommended for C++ developers. If you are working with Python, the PyPI package has everything needed for Python development and deployment on CPU and GPUs. Visit the :doc:`Install OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>` page for instructions on how to install OpenVINO Runtime for Python using PyPI.
 
-The following components are installed with the OpenVINO runtime package:
+.. warning:: 
 
-| Component | Description|
-|-----------|------------|
-| [Inference Engine](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)| The engine that runs a deep learning model. It includes a set of libraries for an easy inference integration into your applications. |
-| [OpenCV*](https://docs.opencv.org/master/) | OpenCV* community version compiled for Intel® hardware. |
-| Deep Learning Streamer (DL Streamer) | Streaming analytics framework, based on GStreamer, for constructing graphs of media analytics components. For the DL Streamer documentation, see [DL Streamer Samples](@ref gst_samples_README), [API Reference](https://openvinotoolkit.github.io/dlstreamer_gst/), [Elements](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/Elements), [Tutorial](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/DL-Streamer-Tutorial). |
+   By downloading and using this container and the included software, you agree to the terms and conditions of the `software license agreements <https://software.intel.com/content/dam/develop/external/us/en/documents/intel-openvino-license-agreements.pdf>`_.
 
-## Included with Developer Package
+@endsphinxdirective
 
-The following components are installed with the OpenVINO developer package:
 
-| Component | Description|
-|-----------|------------|
-| [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) | This tool imports, converts, and optimizes models that were trained in popular frameworks to a format usable by Intel tools, especially the Inference Engine. <br>Popular frameworks include Caffe\*, TensorFlow\*, MXNet\*, and ONNX\*. |
-| [Inference Engine](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) | The engine that runs a deep learning model. It includes a set of libraries for an easy inference integration into your applications.|
-| [OpenCV*](https://docs.opencv.org/master/) | OpenCV\* community version compiled for Intel® hardware |
-| [Sample Applications](../IE_DG/Samples_Overview.md)           | A set of simple console applications demonstrating how to use the Inference Engine in your applications. |
-| [Demo Applications](@ref omz_demos) | A set of console applications that demonstrate how you can use the Inference Engine in your applications to solve specific use cases. |
-| Additional Tools                                   | A set of tools to work with your models including [Accuracy Checker utility](@ref omz_tools_accuracy_checker), [Post-Training Optimization Tool Guide](@ref pot_README), [Model Downloader](@ref omz_tools_downloader) and other  |
-| [Documentation for Pre-Trained Models ](@ref omz_models_group_intel)                                   | Documentation for the pre-trained models available in the [Open Model Zoo repo](https://github.com/openvinotoolkit/open_model_zoo).  |
-| Deep Learning Streamer (DL Streamer)   | Streaming analytics framework, based on GStreamer\*, for constructing graphs of media analytics components. For the DL Streamer documentation, see [DL Streamer Samples](@ref gst_samples_README), [API Reference](https://openvinotoolkit.github.io/dlstreamer_gst/), [Elements](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/Elements), [Tutorial](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/DL-Streamer-Tutorial). |
+## Prerequisites
 
-## Set up the Repository
-### Install the GPG key for the repository
+@sphinxdirective
 
-1. Download the public key from [https://apt.repos.intel.com/openvino/2021/GPG-PUB-KEY-INTEL-OPENVINO-2021](https://apt.repos.intel.com/openvino/2021/GPG-PUB-KEY-INTEL-OPENVINO-2021) and save it to a file. 
-2. Add this key to the system keyring:
-```sh
-sudo apt-key add <PATH_TO_DOWNLOADED_GPG_KEY>
-```
-3. Check the list of APT keys running the following command:
-```sh
-sudo apt-key list
-```
+.. tab:: System Requirements
 
-### Add the APT Repository
+   | Full requirement listing is available in:
+   | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`_
+
+.. tab:: Processor Notes
+
+  Processor graphics are not included in all processors.
+  See `Product Specifications`_ for information about your processor.
+
+  .. _Product Specifications: https://ark.intel.com/
+
+.. tab:: Software Requirements
+
+  * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
+  * GCC 7.5.0 (for Ubuntu 18.04) or GCC 9.3.0 (for Ubuntu 20.04)
+  * `Python 3.7 - 3.10, 64-bit <https://www.python.org/downloads/>`_
+
+
+.. _install runtime apt:
+
+@endsphinxdirective
+
+
+## Installing OpenVINO Runtime
+
+### Step 1: Set Up the OpenVINO Toolkit APT Repository
+
+@sphinxdirective
+
+#. Install the GPG key for the repository
+
+   a. Download the `GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB <https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB>`_
+
+      You can also use the following command:
+
+      .. code-block:: sh
+
+         wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+
+   b. Add this key to the system keyring:
+
+      .. code-block:: sh
+
+         sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+
+      .. note::
+
+         You might need to install GnuPG:
+
+         .. code-block::
+
+            sudo apt-get install gnupg
+
+#. Add the repository via the following command:
+
+   .. tab:: Ubuntu 18
+
+      .. code-block:: sh
+
+         echo "deb https://apt.repos.intel.com/openvino/2022 bionic main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
+
+   .. tab:: Ubuntu 20
+
+      .. code-block:: sh
+
+         echo "deb https://apt.repos.intel.com/openvino/2022 focal main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
+
+
+#. Update the list of packages via the update command:
+
+   .. code-block:: sh
+
+      sudo apt update
+
+
+#. Verify that the APT repository is properly set up. Run the apt-cache command to see a list of all available OpenVINO packages and components:
+
+   .. code-block:: sh
+
+      apt-cache search openvino
+
+@endsphinxdirective
+
+
+### Step 2: Install OpenVINO Runtime Using the APT Package Manager
+
+#### Install OpenVINO Runtime
+
+@sphinxdirective
+
+.. tab:: The Latest Version
+
+   Run the following command:
+
+   .. code-block:: sh
+
+      sudo apt install openvino
+
+
+.. tab::  A Specific Version
+
+   #. Get a list of OpenVINO packages available for installation:
+
+      .. code-block:: sh
+
+         sudo apt-cache search openvino
+
+   #. Install a specific version of an OpenVINO package:
+
+      .. code-block:: sh
+
+         sudo apt install openvino-<VERSION>.<UPDATE>.<PATCH>
+
+      For example:
+
+      .. code-block:: sh
+
+         sudo apt install openvino-2022.3.0
+
+.. note::
+
+   You can use ``--no-install-recommends`` option to install only required packages. Keep in mind that the build tools must be installed **separately** if you want to compile the samples.
+
+@endsphinxdirective
+
+#### Check for Installed Packages and Versions
+
+@sphinxdirective
 
 Run the following command:
-```sh
-echo "deb https://apt.repos.intel.com/openvino/2021 all main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2021.list
-```
 
-### Update the list of packages
+.. code-block:: sh
 
-Run the `update` command:
-```sh
-sudo apt update
-```
-There are full release Runtime and Developer packages, and also some available components.
+   apt list --installed | grep openvino
 
-**Runtime Packages**
-- Ubuntu 18.04:  `intel-openvino-runtime-ubuntu18`
-- Ubuntu 20.04:  `intel-openvino-runtime-ubuntu20`
+.. _intall additional components apt:
 
-**Developer Packages**
-- Ubuntu 18.04:  `intel-openvino-dev-ubuntu18`
-- Ubuntu 20.04:  `intel-openvino-dev-ubuntu20`
-
-### Get the list of available packages
-
-Run the `apt-cache` command to see a list of all available OpenVINO packages and components:
-```sh
-apt-cache search openvino
-```
-
-#### Examples
-
-* **Runtime Packages**
-  
-  On Ubuntu 18.04:
-  ```sh
-  sudo apt-cache search intel-openvino-runtime-ubuntu18
-  ```
-  On Ubuntu 20.04:
-  ```sh
-  sudo apt-cache search intel-openvino-runtime-ubuntu20
-  ```
-* **Developer Packages**
-
-  On Ubuntu 18.04:
-  ```sh
-  sudo apt-cache search intel-openvino-dev-ubuntu18
-  ```
-  On Ubuntu 20.04:
-  ```sh
-  sudo apt-cache search intel-openvino-dev-ubuntu20
-  ```
+@endsphinxdirective
 
 
-## Install the runtime or developer packages using the APT Package Manager
-Intel® OpenVINO will be installed in: `/opt/intel/openvino_<VERSION>.<UPDATE>.<BUILD_NUM>`
+### Step 3 (Optional): Install Additional Components
 
-A symlink will be created: `/opt/intel/openvino_<VERSION>`
+@sphinxdirective
 
----
-### To Install a specific version
+OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you installed OpenVINO Runtime using APT, OpenVINO Development Tools must be installed separately.
 
-To get a list of OpenVINO packages available for installation:
+See the **For C++ Developers** section on the :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>` page for instructions.
 
-```sh
-sudo apt-cache search intel-openvino-runtime-ubuntu18
-```
+@endsphinxdirective
 
-To install a specific version of an OpenVINO package:
-```sh
-sudo apt install intel-openvino-<PACKAGE_TYPE>-ubuntu<OS_VERSION>-<VERSION>.<UPDATE>.<BUILD_NUM>
-```
+### Step 4 (Optional): Configure Inference on Non-CPU Devices
 
-#### Examples
-* **Runtime Package**
+@sphinxdirective
 
-  On Ubuntu 18.04:
-  ```sh
-  sudo apt install intel-openvino-runtime-ubuntu18-2021.1.105
-  ```
-  On Ubuntu 20.04:
-  ```sh
-  sudo apt install intel-openvino-runtime-ubuntu20-2021.1.105
-  ```
-* **Developer Package**<br>
-  On Ubuntu 18.04:
-  ```sh
-  sudo apt install intel-openvino-dev-ubuntu18-2021.1.105 
-  ```
-  On Ubuntu 20.04:
-  ```sh
-  sudo apt install intel-openvino-dev-ubuntu20-2021.1.105
-  ```
+To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :doc:`GPU Setup Guide <openvino_docs_install_guides_configurations_for_intel_gpu>`.
 
----
-### To Uninstall a specific version
+@endsphinxdirective
 
-To uninstall a specific full runtime package:
-```sh
-sudo apt autoremove intel-openvino-<PACKAGE_TYPE>-ubuntu<OS_VERSION>-<VERSION>.<UPDATE>.<BUILD_NUM>
-```
+### Step 5: Build Samples
+
+@sphinxdirective
+
+To build the C++ or C sample applications for Linux, run the ``build_samples.sh`` script:
+
+.. tab:: C++
+
+   .. code-block:: sh
+
+      /usr/share/openvino/samples/cpp/build_samples.sh
+
+.. tab:: C
+
+   .. code-block:: sh
+
+      /usr/share/openvino/samples/c/build_samples.sh
+
+For more information, refer to :ref:`Build the Sample Applications on Linux <build-samples-linux>`.
+
+@endsphinxdirective
+
+### Uninstalling OpenVINO Runtime
+
+@sphinxdirective
+
+To uninstall OpenVINO Runtime via APT, run the following command based on your needs:
+
+.. tab:: The Latest Version
+
+   .. code-block:: sh
+
+      sudo apt autoremove openvino
+
+.. tab::  A Specific Version
+
+   .. code-block:: sh
+
+      sudo apt autoremove openvino-<VERSION>.<UPDATE>.<PATCH>
+
+   For example:
+
+   .. code-block:: sh
+
+      sudo apt autoremove openvino-2022.3.0
+
+@endsphinxdirective
 
 
-**Additional Resources**
+## What's Next?
 
-- Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit).
-- OpenVINO™ toolkit online documentation: [https://docs.openvinotoolkit.org](https://docs.openvinotoolkit.org).
-- [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
-- [Inference Engine Developer Guide](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md).
-- For more information on Sample Applications, see the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md).
-- For IoT Libraries & Code Samples see the [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).
+@sphinxdirective
 
+Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications! Learn more about how to integrate a model in OpenVINO applications by trying out the following tutorials:
+
+* Try the `C++ Quick Start Example <openvino_docs_get_started_get_started_demos.html>`_ for step-by-step instructions on building and running a basic image classification C++ application.
+
+  .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
+     :width: 400
+
+* Visit the :ref:`Samples <code samples>` page for other C++ example applications to get you started with OpenVINO, such as:
+
+   * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README.html>`_
+   * `Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README.html>`_
+
+You can also try the following things:
+
+* Learn more about :doc:`OpenVINO Workflow <openvino_workflow>`.
+* To prepare your models for working with OpenVINO, see :doc:`Model Preparation <openvino_docs_model_processing_introduction>`.
+* See pre-trained deep learning models in our :doc:`Open Model Zoo <model_zoo>`.
+* Learn more about :doc:`Inference with OpenVINO Runtime <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
+* See sample applications in :doc:`OpenVINO toolkit Samples Overview <openvino_docs_OV_UG_Samples_Overview>`.
+* Take a glance at the OpenVINO product home page: https://software.intel.com/en-us/openvino-toolkit.
+
+@endsphinxdirective
+
+## Additional Resources
+
+- [OpenVINO Installation Selector Tool](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html)

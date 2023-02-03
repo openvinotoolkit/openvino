@@ -1,0 +1,62 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "region_yolo_inst.h"
+#include "primitive_base.hpp"
+#include "impls/implementation_map.hpp"
+#include "kernel_selector_helper.h"
+#include "region_yolo/region_yolo_kernel_selector.h"
+#include "region_yolo/region_yolo_kernel_ref.h"
+#include "intel_gpu/runtime/error_handler.hpp"
+
+namespace cldnn {
+namespace ocl {
+
+struct region_yolo_impl : typed_primitive_impl_ocl<region_yolo> {
+    using parent = typed_primitive_impl_ocl<region_yolo>;
+    using parent::parent;
+    using kernel_selector_t = kernel_selector::region_yolo_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::region_yolo_params, kernel_selector::region_yolo_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<region_yolo_impl>(*this);
+    }
+
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<region_yolo>();
+        auto params = get_default_params<kernel_selector::region_yolo_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::region_yolo_optional_params>(impl_param.get_program());
+
+        params.coords = primitive->coords;
+        params.classes = primitive->classes;
+        params.num = primitive->num;
+        params.do_softmax = primitive->do_softmax;
+        params.mask_size = primitive->mask_size;
+
+        return {params, optional_params};
+    }
+};
+
+namespace detail {
+
+attach_region_yolo_impl::attach_region_yolo_impl() {
+    implementation_map<region_yolo>::add(impl_types::ocl, typed_primitive_impl_ocl<region_yolo>::create<region_yolo_impl>, {
+        std::make_tuple(data_types::f32, format::bfyx),
+        std::make_tuple(data_types::f16, format::bfyx),
+        std::make_tuple(data_types::f32, format::byxf),
+        std::make_tuple(data_types::f16, format::byxf),
+        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
+    });
+}
+
+}  // namespace detail
+}  // namespace ocl
+}  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::region_yolo_impl)

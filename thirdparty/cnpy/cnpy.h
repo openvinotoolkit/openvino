@@ -155,14 +155,16 @@ namespace cnpy {
             //below, we will write the the new data at the start of the global header then append the global header and footer below it
             size_t global_header_size;
             parse_zip_footer(fp,nrecs,global_header_size,global_header_offset);
-            fseek(fp,global_header_offset,SEEK_SET);
+            if(fseek(fp,global_header_offset,SEEK_SET)!=0 )
+                throw std::runtime_error("npz_save: failed fseek");
             global_header.resize(global_header_size);
             size_t res = fread(&global_header[0],sizeof(char),global_header_size,fp);
             if(res != global_header_size){
                 fclose(fp);
                 throw std::runtime_error("npz_save: header read error while adding to existing zip");
             }
-            fseek(fp,global_header_offset,SEEK_SET);
+            if(fseek(fp,global_header_offset,SEEK_SET) != 0)
+                throw std::runtime_error("npz_save: failed fseek");
         }
         else {
             fp = fopen(zipname.c_str(),"wb");
@@ -219,11 +221,26 @@ namespace cnpy {
 
         //write everything
         if (fp) {
-            fwrite(&local_header[0], sizeof(char), local_header.size(), fp);
-            fwrite(&npy_header[0], sizeof(char), npy_header.size(), fp);
-            fwrite(data, sizeof(T), nels, fp);
-            fwrite(&global_header[0], sizeof(char), global_header.size(), fp);
-            fwrite(&footer[0], sizeof(char), footer.size(), fp);
+            if (fwrite(&local_header[0], sizeof(char), local_header.size(), fp) != local_header.size()) {
+                fclose(fp);
+                throw std::runtime_error("npz_save: failed fwrite");
+            }
+            if (fwrite(&npy_header[0], sizeof(char), npy_header.size(), fp) != npy_header.size()) {
+                fclose(fp);
+                throw std::runtime_error("npz_save: failed fwrite");
+            }
+            if (fwrite(data, sizeof(T), nels, fp) != nels) {
+                fclose(fp);
+                throw std::runtime_error("npz_save: failed fwrite");
+            }
+            if (fwrite(&global_header[0], sizeof(char), global_header.size(), fp) != global_header.size()) {
+                fclose(fp);
+                throw std::runtime_error("npz_save: failed fwrite");
+            }
+            if (fwrite(&footer[0], sizeof(char), footer.size(), fp) != footer.size()) {
+                fclose(fp);
+                throw std::runtime_error("npz_save: failed fwrite");
+            }
             fclose(fp);
         }
     }

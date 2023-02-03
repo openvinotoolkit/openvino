@@ -1,4 +1,4 @@
-## Elu<a name="Elu"></a> {#openvino_docs_ops_activation_Elu_1}
+# Elu {#openvino_docs_ops_activation_Elu_1}
 
 **Versioned name**: *Elu-1*
 
@@ -20,7 +20,7 @@ Elu(x) = \left\{\begin{array}{r}
 
 where α corresponds to *alpha* attribute.
 
-*Elu* is equivalent to *ReLU* operation when *alpha* is equal to zero. 
+*Elu* is equivalent to *ReLU* operation when *alpha* is equal to zero.
 
 **Attributes**
 
@@ -29,16 +29,15 @@ where α corresponds to *alpha* attribute.
   * **Description**: scale for the negative factor
   * **Range of values**: non-negative arbitrary floating-point number
   * **Type**: `float`
-  * **Default value**: none
   * **Required**: *yes*
 
 **Inputs**:
 
-*   **1**: A tensor of type `T` and arbitrary shape. **Required**.
+*   **1**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**:
 
-*   **1**: The result of element-wise *Elu* function applied to the input tensor. A tensor of type `T` and the same shape as input tensor.
+*   **1**: The result of element-wise *Elu* function applied to the input tensor. A tensor of type *T* and the same shape as input tensor.
 
 **Types**
 

@@ -1,4 +1,4 @@
-## ReduceSum <a name="ReduceSum"></a> {#openvino_docs_ops_reduction_ReduceSum_1}
+# ReduceSum {#openvino_docs_ops_reduction_ReduceSum_1}
 
 **Versioned name**: *ReduceSum-1*
 
@@ -17,8 +17,8 @@ where indices i0, ..., iN run through all valid indices for input `data`, and su
 
 Particular cases:
 
-1. If `axes` is an empty list, *ReduceSum* corresponds to the identity operation. 
-2. If `axes` contains all dimensions of input `data`, a single reduction value is calculated for the entire input tensor. 
+1. If `axes` is an empty list, *ReduceSum* corresponds to the identity operation.
+2. If `axes` contains all dimensions of input `data`, a single reduction value is calculated for the entire input tensor.
 
 **Attributes**
 

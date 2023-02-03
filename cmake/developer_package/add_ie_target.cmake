@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -19,11 +19,10 @@ addIeTarget(
         ${SDL_INCLUDES}
         /some/specific/path
    LINK_LIBRARIES
-        ie::important_plugin
-   EXPORT_DEPENDENCIES
-        dependency_lib_to_export
+        link_dependencies
    DEPENDENCIES
         dependencies
+        ie::important_plugin
    OBJECT_FILES
         object libraries
 )
@@ -51,7 +50,6 @@ function(addIeTarget)
         EXCLUDED_SOURCE_PATHS         # list of paths excluded from the global recursive search of source files
         LINK_LIBRARIES_WHOLE_ARCHIVE  # list of static libraries to link, each object file should be used and not discarded
         LINK_FLAGS                    # list of extra commands to linker
-        EXPORT_DEPENDENCIES           # list of the dependencies to be exported with the target through the developer package
         )
     cmake_parse_arguments(ARG "${options}" "${oneValueRequiredArgs};${oneValueOptionalArgs}" "${multiValueArgs}" ${ARGN} )
 
@@ -78,8 +76,8 @@ function(addIeTarget)
 
     # remove unnecessary directories
     foreach(excludedDir ${ARG_EXCLUDED_SOURCE_PATHS})
-        list(FILTER includes EXCLUDE REGEX "${excludedDir}*")
-        list(FILTER sources EXCLUDE REGEX "${excludedDir}*")
+        list(FILTER includes EXCLUDE REGEX "${excludedDir}.*")
+        list(FILTER sources EXCLUDE REGEX "${excludedDir}.*")
     endforeach()
 
     source_group("include" FILES ${includes})
@@ -127,12 +125,16 @@ function(addIeTarget)
     if (ARG_DEVELOPER_PACKAGE)
         # developer package
         openvino_developer_export_targets(COMPONENT ${ARG_DEVELOPER_PACKAGE}
-                                          TARGETS ${ARG_NAME} ${ARG_EXPORT_DEPENDENCIES})
+                                          TARGETS ${ARG_NAME})
     endif()
     if(WIN32)
         # Provide default compile pdb name equal to target name
         set_target_properties(${ARG_NAME} PROPERTIES COMPILE_PDB_NAME ${ARG_NAME})
     endif()
+endfunction()
+
+function(ov_add_target)
+    addIeTarget(${ARGV})
 endfunction()
 
 #[[
@@ -149,14 +151,27 @@ function(addIeTargetTest)
         NAME
         )
     set(oneValueOptionalArgs
+        COMPONENT
         )
     set(multiValueArgs
         LABELS
         )
     cmake_parse_arguments(ARG "${options}" "${oneValueRequiredArgs};${oneValueOptionalArgs}" "${multiValueArgs}" ${ARGN} )
+    if (NOT DEFINED ARG_COMPONENT)
+        set(ARG_COMPONENT tests)
+    endif()
 
     addIeTarget(TYPE EXECUTABLE NAME ${ARG_NAME} ${ARG_UNPARSED_ARGUMENTS})
 
     add_test(NAME ${ARG_NAME} COMMAND ${ARG_NAME})
     set_property(TEST ${ARG_NAME} PROPERTY LABELS ${ARG_LABELS})
+
+    install(TARGETS ${ARG_NAME}
+            RUNTIME DESTINATION tests
+            COMPONENT ${ARG_COMPONENT}
+            EXCLUDE_FROM_ALL)
+endfunction()
+
+function(ov_add_test_target)
+    addIeTargetTest(${ARGV})
 endfunction()

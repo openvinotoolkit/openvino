@@ -1,4 +1,17 @@
 # Introduction to OpenCV Graph API (G-API) {#openvino_docs_gapi_gapi_intro}
+
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   openvino_docs_gapi_kernel_api
+   openvino_docs_gapi_face_beautification
+   openvino_docs_gapi_gapi_face_analytics_pipeline
+
+@endsphinxdirective
+
 OpenCV Graph API (G-API) is an OpenCV module targeted to make regular image and video processing fast and portable. G-API is a special module in OpenCV – in contrast with the majority of other main modules, this one acts as a framework rather than some specific CV algorithm. 
 
 G-API is positioned as a next level optimization enabler for computer vision, focusing not on particular CV functions but on the whole algorithm optimization.

@@ -1,8 +1,8 @@
-## DeformableConvolution<a name="DeformableConvolution"></a> {#openvino_docs_ops_convolution_DeformableConvolution_8}
+## DeformableConvolution {#openvino_docs_ops_convolution_DeformableConvolution_8}
 
 **Versioned name**: *DeformableConvolution-8*
 
-**Category**: Convolution
+**Category**: *Convolution*
 
 **Short description**: Computes 2D deformable convolution of input and kernel tensors.
 
@@ -10,14 +10,14 @@
 
 Modification of DeformableConvolution using modulating scalars is also supported. Please refer to [Deformable ConvNets v2: More Deformable, Better Results](https://arxiv.org/pdf/1811.11168.pdf).
 
-Output is calculated using the following formula: 
+Output is calculated using the following formula:
 
   \f[
 
-  y(p) = \sum_{k = 1}^{K}w_{k}x(p + p_{k} + {\Delta}p_{k}) * {\Delta}m_{k}
-  
+  y(p) = \displaystyle{\sum_{k = 1}^{K}}w_{k}x(p + p_{k} + {\Delta}p_{k}) \cdot {\Delta}m_{k}
+
   \f]
-Where 
+Where
 * K is a number of sampling locations, e.g. for kernel 3x3 and dilation = 1, K = 9
 
 * \f$x(p)\f$ and \f$y(p)\f$ denote the features at location p from the input feature maps x and output feature maps y
@@ -38,7 +38,6 @@ Where
   * **Description**: *strides* is a distance (in pixels) to slide the filter on the feature map over the `(y,x)` axes. For example, *strides* equal `2,1` means sliding the filter 2 pixel at a time over height dimension and 1 over width dimension.
   * **Range of values**: integer values starting from `0`
   * **Type**: `int[]`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *pads_begin*
@@ -46,7 +45,6 @@ Where
   * **Description**: *pads_begin* is a number of pixels to add to the beginning along each axis. For example, *pads_begin* equal `1,2` means adding 1 pixel to the top of the input and 2 to the left of the input.
   * **Range of values**: integer values starting from `0`
   * **Type**: `int[]`
-  * **Default value**: None
   * **Required**: *yes*
   * **Note**: the attribute is ignored when *auto_pad* attribute is specified.
 
@@ -55,7 +53,6 @@ Where
   * **Description**: *pads_end* is a number of pixels to add to the ending along each axis. For example, *pads_end* equal `1,2` means adding 1 pixel to the bottom of the input and 2 to the right of the input.
   * **Range of values**: integer values starting from `0`
   * **Type**: `int[]`
-  * **Default value**: None
   * **Required**: *yes*
   * **Note**: the attribute is ignored when *auto_pad* attribute is specified.
 
@@ -64,7 +61,6 @@ Where
   * **Description**: *dilations* denotes the distance in width and height between elements (weights) in the filter. For example, *dilation* equal `1,1` means that all the elements in the filter are neighbors, so it is the same as for the usual convolution. *dilation* equal `2,2` means that all the elements in the filter are matched not to adjacent elements in the input matrix, but to those that are adjacent with distance 1.
   * **Range of values**: integer value starting from `0`
   * **Type**: `int[]`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *auto_pad*
@@ -96,14 +92,14 @@ Where
   * **Default value**: `1`
   * **Required**: *no*
 
-* *bilinear_interpolation_padding*
+* *bilinear_interpolation_pad*
 
-  * **Description**: *bilinear_interpolation_padding* is the number of pixels outside of the feature map boundary to apply bilinear interpolation.
-  * **Range of values**: non-negative integer value
-  * **Type**: `int`
-  * **Default value**: `0`
+  * **Description**: if *bilinear_interpolation_pad* is `true` and the sampling location is within one pixel outside of the feature map boundary, then bilinear interpolation is performed on the zero padded feature map. If *bilinear_interpolation_pad* is `false` and the sampling location is within one pixel outside of the feature map boundary, then the sampling location shifts to the inner boundary of the feature map.
+  * **Range of values**: `False` or `True`
+  * **Type**: `boolean`
+  * **Default value**: `False`
   * **Required**: *no*
-  
+
 **Inputs**:
 
 *   **1**: Input tensor of type *T* and rank 4. Layout is `NCYX` (number of batches, number of channels, spatial axes Y and X). **Required.**
@@ -112,7 +108,7 @@ Where
 
 *   **3**: Kernel tensor of type *T* and rank 4. Layout is `OIYX` (number of output channels, number of input channels, spatial axes Y and X). **Required.**
 
-*   **4**: ModulationScalars tensor of type *T2* and rank 4, the values are within [0, 1]. Layout is `NCYX` (number of batches, *deformable_group* \* kernel_Y \* kernel_X, spatial axes Y and X). If the input is not provided, the values are assumed to be equal to 1. **Optional.**
+*   **4**: Mask tensor of type *T* and rank 4. Layout is `NCYX` (number of batches, *deformable_group* \* kernel_Y \* kernel_X, spatial axes Y and X). If the input is not provided, the values are assumed to be equal to 1. **Optional.**
 
 
 **Outputs**:
@@ -122,8 +118,7 @@ Where
 **Types**:
 
 * *T*: Any numeric type.
-* *T2*: Any supported floating point.
- 
+
 **Example**
 
 2D DeformableConvolution (deformable_group=1)

@@ -1,8 +1,8 @@
-## Ceiling <a name="Ceiling"></a> {#openvino_docs_ops_arithmetic_Ceiling_1}
+# Ceiling  {#openvino_docs_ops_arithmetic_Ceiling_1}
 
 **Versioned name**: *Ceiling-1*
 
-**Category**: Arithmetic unary operation
+**Category**: *Arithmetic unary*
 
 **Short description**: *Ceiling* performs element-wise ceiling operation with given tensor.
 
@@ -10,7 +10,7 @@
 element in the output tensor with the following formula:
 
 \f[
-a_{i} = ceiling(a_{i})
+a_{i} = \lceil a_{i} \rceil
 \f]
 
 **Attributes**: *Ceiling* operation has no attributes.

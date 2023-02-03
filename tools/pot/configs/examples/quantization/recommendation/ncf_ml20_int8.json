@@ -1,0 +1,33 @@
+{
+    "model": {
+        "model_name": "ncf",
+        "model": "<PATH_TO_MODEL>",
+        "weights": "<PATH_TO_WEIGHTS>"
+    },
+    "engine": {
+        "config": "./configs/examples/accuracy_checker/ncf.yaml"
+    },
+    "compression": {
+        "algorithms": [
+            {
+                "name": "MinMaxQuantization",
+                "params": {
+                    "preset": "mixed",
+                    "stat_subset_size": 1000,
+                    "weights": {
+                        "bits": 8,
+                        "mode": "symmetric",
+                        "granularity": "perchannel",
+                        "level_low": -127,
+                        "level_high": 127
+                    },
+                    "activations": {
+                        "bits": 8,
+                        "mode": "symmetric",
+                        "granularity": "pertensor"
+                    }
+                }
+            }
+        ]
+    }
+}

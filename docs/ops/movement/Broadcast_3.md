@@ -1,8 +1,8 @@
-## Broadcast <a name="Broadcast"></a> {#openvino_docs_ops_movement_Broadcast_3}
+# Broadcast {#openvino_docs_ops_movement_Broadcast_3}
 
 **Versioned name**: *Broadcast-3*
 
-**Category**: Data movement
+**Category**: *Data movement*
 
 **Short description**: *Broadcast* replicates data on the first input to fit a given shape on the second input.
 
@@ -35,9 +35,9 @@ For example, `axes_mapping = [1]` enables broadcasting of a tensor with shape `[
 
 **Inputs**:
 
-*   **1**: `data` - source tensor of type *T* and shape that is being broadcasted. Required.
+*   **1**: `data` - source tensor of type *T* and shape that is being broadcasted. **Required.**
 
-*   **2**: `target_shape` - 1D tensor of type *T_SHAPE* describing output shape. Required.
+*   **2**: `target_shape` - 1D tensor of type *T_SHAPE* describing output shape. **Required.**
 
 *   **3**: `axes_mapping` - 1D tensor of type *T_SHAPE* describing a list of axis indices, each index maps an axis from the 1st input tensor `data` to axis in the output. The index values in this tensor should be sorted, that disables on-the-fly transpositions of input `data` tensor while the broadcasting. `axes_mapping` input is needed for `mode` equal to *explicit* only.
 

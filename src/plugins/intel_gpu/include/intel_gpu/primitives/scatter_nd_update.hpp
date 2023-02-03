@@ -1,0 +1,38 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+#include "primitive.hpp"
+
+namespace cldnn {
+
+/// @brief
+/// @details
+struct scatter_nd_update : public primitive_base<scatter_nd_update> {
+    CLDNN_DECLARE_PRIMITIVE(scatter_nd_update)
+
+    /// @brief Constructs scatter_nd_update primitive.
+    /// @param id This primitive id.
+    /// @param dict Input data primitive id.
+    /// @param idx Input indexes primitive id.
+    /// @param idupd Input updates primitive id.
+    /// @param indices_rank Rank of indices.
+    scatter_nd_update(const primitive_id& id,
+                      const input_info& data,
+                      const input_info& idx,
+                      const input_info& idupd,
+                      const size_t indices_rank,
+                      const padding& output_padding = padding())
+        : primitive_base(id, {data, idx, idupd}, {output_padding}), indices_rank(indices_rank) {}
+
+    /// @brief ScatterNDUpdate indices_rank
+    size_t indices_rank;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, indices_rank);
+        return seed;
+    }
+};
+}  // namespace cldnn

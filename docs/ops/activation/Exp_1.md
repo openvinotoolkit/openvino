@@ -1,4 +1,4 @@
-## Exp<a name="Exp"></a> {#openvino_docs_ops_activation_Exp_1}
+# Exp {#openvino_docs_ops_activation_Exp_1}
 
 **Versioned name**: *Exp-1*
 
@@ -18,11 +18,11 @@ exp(x) = e^{x}
 
 **Inputs**
 
-*   **1**: A tensor of type `T` and arbitrary shape. **Required**.
+*   **1**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**
 
-*   **1**: The result of element-wise *Exp* function applied to the input tensor. A tensor of type `T` and the same shape as input tensor.
+*   **1**: The result of element-wise *Exp* function applied to the input tensor. A tensor of type *T* and the same shape as input tensor.
 
 **Types**
 

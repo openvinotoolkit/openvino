@@ -1,174 +1,183 @@
 #!/bin/bash
 
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-params=$1
-
-yes_or_no() {
-    if [ "$params" == "-y" ]; then
-        return 0
-    fi
-
-    while true; do
-        read -p "Add third-party Nux Dextop repository and install FFmpeg package (y) / Skip this step (N)" yn
-        case $yn in
-            [Yy]*) return 0 ;;
-            [Nn]*) return 1 ;;
-        esac
-    done
-}
+if [ $EUID -ne 0 ]; then
+    echo "ERROR: this script must be run as root to install 3rd party packages." >&2
+    echo "Please try again with \"sudo -E $0\", or as root." >&2
+    exit 1
+fi
 
 # install dependencies
-if [ -f /etc/lsb-release ]; then
+if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
     # Ubuntu
     host_cpu=$(uname -m)
+
+    x86_64_specific_packages=()
     if [ "$host_cpu" = "x86_64" ]; then
-        x86_64_specific_packages="gcc-multilib g++-multilib"
-    else
-        x86_64_specific_packages=""
+        # to build 32-bit or ARM binaries on 64-bit host
+        x86_64_specific_packages+=(gcc-multilib g++-multilib)
     fi
 
-    sudo -E apt update
-    sudo -E apt-get install -y \
-            build-essential \
-            curl \
-            wget \
-            libssl-dev \
-            ca-certificates \
-            git \
-            git-lfs \
-            libboost-regex-dev \
-            $x86_64_specific_packages \
-            libgtk2.0-dev \
-            pkg-config \
-            unzip \
-            automake \
-            libtool \
-            autoconf \
-            shellcheck \
-            python \
-            libcairo2-dev \
-            libpango1.0-dev \
-            libglib2.0-dev \
-            libgtk2.0-dev \
-            libswscale-dev \
-            libavcodec-dev \
-            libavformat-dev \
-            libgstreamer1.0-0 \
-            gstreamer1.0-plugins-base \
-            libusb-1.0-0-dev \
-            libopenblas-dev
-    if apt-cache search --names-only '^libpng12-dev'| grep -q libpng12; then
-        sudo -E apt-get install -y libpng12-dev
-    else
-        sudo -E apt-get install -y libpng-dev
+    if ! command -v cmake &> /dev/null; then
+        cmake_packages=(cmake)
     fi
-elif [ -f /etc/redhat-release ]; then
-    # CentOS 7.x
-    sudo -E yum install -y centos-release-scl epel-release
-    sudo -E yum install -y \
-            wget \
-            tar \
-            xz \
-            p7zip \
-            unzip \
-            yum-plugin-ovl \
-            which \
-            libssl-dev \
-            ca-certificates \
-            git \
-            git-lfs \
-            boost-devel \
-            libtool \
-            gcc \
-            gcc-c++ \
-            make \
-            glibc-static \
-            glibc-devel \
-            libstdc++-static \
-            libstdc++-devel \
-            libstdc++ libgcc \
-            glibc-static.i686 \
-            glibc-devel.i686 \
-            libstdc++-static.i686 \
-            libstdc++.i686 \
-            libgcc.i686 \
-            libusbx-devel \
-            openblas-devel \
-            libusbx-devel \
-            gstreamer1 \
-            gstreamer1-plugins-base
 
-    # Python 3.6 for Model Optimizer
-    sudo -E yum install -y rh-python36
-    source scl_source enable rh-python36
-
-    echo
-    echo "FFmpeg is required for processing audio and video streams with OpenCV. Please select your preferred method for installing FFmpeg:"
-    echo
-    echo "Option 1: Allow installer script to add a third party repository, Nux Dextop (http://li.nux.ro/repos.html), which contains FFmpeg. FFmpeg rpm package will be installed from this repository. "
-    echo "WARNING: This repository is NOT PROVIDED OR SUPPORTED by CentOS."
-    echo "Once added, this repository will be enabled on your operating system and can thus receive updates to all packages installed from it. "
-    echo
-    echo "Consider the following ways to prevent unintended 'updates' from this third party repository from over-writing some core part of CentOS:"
-    echo "a) Only enable these archives from time to time, and generally leave them disabled. See: man yum"
-    echo "b) Use the exclude= and includepkgs= options on a per sub-archive basis, in the matching .conf file found in /etc/yum.repos.d/ See: man yum.conf"
-    echo "c) The yum Priorities plug-in can prevent a 3rd party repository from replacing base packages, or prevent base/updates from replacing a 3rd party package."
-    echo
-    echo "Option 2: Skip FFmpeg installation."
-    echo
-
-    if yes_or_no; then
-        sudo -E rpm -Uvh http://li.nux.ro/download/nux/dextop/el7/x86_64/nux-dextop-release-0-1.el7.nux.noarch.rpm
-        sudo -E yum install -y ffmpeg
-    else
-        echo "FFmpeg installation skipped. You may build FFmpeg from sources as described here: https://trac.ffmpeg.org/wiki/CompilationGuide/Centos"
-        echo
+    apt update
+    apt-get install -y --no-install-recommends \
+        file \
+        `# build tools` \
+        build-essential \
+        ccache \
+        "${cmake_packages[@]}" \
+        "${x86_64_specific_packages[@]}" \
+        `# to find dependencies` \
+        pkg-config \
+        `# to deternime product version via git` \
+        git \
+        `# check bash scripts for correctness` \
+        shellcheck \
+        `# to build and check pip packages` \
+        patchelf \
+        fdupes \
+        `# archive debian changelog file` \
+        gzip \
+        `# to check debian package correctness` \
+        lintian \
+        `# openvino main dependencies` \
+        libtbb-dev \
+        libpugixml-dev \
+        `# OpenCL for GPU` \
+        ocl-icd-opencl-dev \
+        opencl-headers \
+        `# GPU plugin extensions` \
+        libva-dev \
+        `# python API` \
+        python3-pip \
+        python3-venv \
+        python3-setuptools \
+        libpython3-dev \
+        libffi-dev \
+        `# spell checking for MO sources` \
+        python3-enchant \
+        `# samples and tools` \
+        libgflags-dev \
+        zlib1g-dev \
+        wget
+    # TF lite frontend
+    if apt-cache search --names-only '^libflatbuffers-dev'| grep -q libflatbuffers-dev; then
+        apt-get install -y --no-install-recommends libflatbuffers-dev
     fi
+    # git-lfs is not available on debian9
+    if apt-cache search --names-only '^git-lfs'| grep -q git-lfs; then
+        apt-get install -y --no-install-recommends git-lfs
+    fi
+    # for python3-enchant
+    if apt-cache search --names-only 'libenchant1c2a'| grep -q libenchant1c2a; then
+        apt-get install -y --no-install-recommends libenchant1c2a
+    fi
+    # samples
+    if apt-cache search --names-only '^nlohmann-json3-dev'| grep -q nlohmann-json3; then
+        apt-get install -y --no-install-recommends nlohmann-json3-dev
+    else
+        apt-get install -y --no-install-recommends nlohmann-json-dev
+    fi
+elif [ -f /etc/redhat-release ] || grep -q "rhel" /etc/os-release ; then
+    # RHEL 8 / CentOS 7
+    yum update
+    yum install -y centos-release-scl
+    yum install -y epel-release
+    yum install -y \
+        file \
+        `# build tools` \
+        cmake3 \
+        ccache \
+        gcc \
+        gcc-c++ \
+        make \
+        `# to determine openvino version via git` \
+        git \
+        git-lfs \
+        `# to build and check pip packages` \
+        patchelf \
+        fdupes \
+        `# to build and check rpm packages` \
+        rpm-build \
+        rpmlint \
+        `# check bash scripts for correctness` \
+        ShellCheck \
+        `# main openvino dependencies` \
+        tbb-devel \
+        pugixml-devel \
+        `# GPU plugin dependency` \
+        libva-devel \
+        `# OpenCL for GPU` \
+        ocl-icd-devel \
+        opencl-headers \
+        `# python API` \
+        python3-pip \
+        python3-devel \
+        `# samples and tools` \
+        zlib-devel \
+        gflags-devel
 elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
     # Raspbian
-    sudo -E apt update
-    sudo -E apt-get install -y \
-            build-essential \
-            curl \
-            wget \
-            libssl-dev \
-            ca-certificates \
-            git \
-            libboost-regex-dev \
-            libgtk2.0-dev \
-            pkg-config \
-            unzip \
-            automake \
-            libtool \
-            autoconf \
-            libcairo2-dev \
-            libpango1.0-dev \
-            libglib2.0-dev \
-            libgtk2.0-dev \
-            libswscale-dev \
-            libavcodec-dev \
-            libavformat-dev \
-            libgstreamer1.0-0 \
-            gstreamer1.0-plugins-base \
-            libusb-1.0-0-dev \
-            libopenblas-dev
-    if apt-cache search --names-only '^libpng12-dev'| grep -q libpng12; then
-        sudo -E apt-get install -y libpng12-dev
-    else
-        sudo -E apt-get install -y libpng-dev
-    fi
+    apt update
+    apt-get install -y --no-install-recommends \
+        file \
+        `# build tools` \
+        build-essential \
+        ccache \
+        `# to find dependencies` \
+        pkg-config \
+        `# to deternime product version via git` \
+        git \
+        `# to build and check pip packages` \
+        patchelf \
+        fdupes \
+        `# archive debian changelog file` \
+        gzip \
+        `# openvino main dependencies` \
+        libtbb-dev \
+        libpugixml-dev \
+        `# python API` \
+        python3-pip \
+        python3-venv \
+        python3-setuptools \
+        libpython3-dev \
+        `# samples and tools` \
+        libgflags-dev \
+        zlib1g-dev \
+        nlohmann-json-dev
 else
     echo "Unknown OS, please install build dependencies manually"
 fi
 
-# cmake 3.13 or higher is required to build OpenVINO
-current_cmake_version=$(cmake --version | sed -ne 's/[^0-9]*\(\([0-9]\.\)\{0,4\}[0-9][^.]\).*/\1/p')
-required_cmake_ver=3.13
-if [ ! "$(printf '%s\n' "$required_cmake_ver" "$current_cmake_version" | sort -V | head -n1)" = "$required_cmake_ver" ]; then
-    wget "https://github.com/Kitware/CMake/releases/download/v3.18.4/cmake-3.18.4.tar.gz"
-    tar xf cmake-3.18.4.tar.gz
-    (cd cmake-3.18.4 && ./bootstrap --parallel="$(nproc --all)" && make --jobs="$(nproc --all)" && sudo make install)
-    rm -rf cmake-3.18.4 cmake-3.18.4.tar.gz
+# cmake 3.20.0 or higher is required to build OpenVINO
+
+if command -v cmake &> /dev/null; then
+    cmake_command=cmake
+elif command -v cmake3 &> /dev/null; then
+    cmake_command=cmake3
+fi
+
+current_cmake_ver=$($cmake_command --version | sed -ne 's/[^0-9]*\(\([0-9]\.\)\{0,4\}[0-9][^.]\).*/\1/p')
+required_cmake_ver=3.20.0
+if [ ! "$(printf '%s\n' "$required_cmake_ver" "$current_cmake_ver" | sort -V | head -n1)" = "$required_cmake_ver" ]; then
+    installed_cmake_ver=3.23.2
+    arch=$(uname -m)
+
+    if command -v apt-get &> /dev/null; then
+        apt-get install -y --no-install-recommends wget
+    else
+        yum install -y wget
+    fi
+
+    cmake_install_bin="cmake-${installed_cmake_ver}-linux-${arch}.sh"
+    github_cmake_release="https://github.com/Kitware/CMake/releases/download/v${installed_cmake_ver}/${cmake_install_bin}"
+    wget "${github_cmake_release}" -O "${cmake_install_bin}"
+    chmod +x "${cmake_install_bin}"
+    "./${cmake_install_bin}" --skip-license --prefix=/usr/local
+    rm -rf "${cmake_install_bin}"
 fi

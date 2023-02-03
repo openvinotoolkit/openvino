@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 
 
 #ifndef OPENCV_GAPI_CORE_PERF_TESTS_INL_HPP
@@ -11,6 +11,8 @@
 #include <iostream>
 
 #include "gapi_core_perf_tests.hpp"
+
+#include "../../test/common/gapi_core_tests_common.hpp"
 
 namespace opencv_test
 {
@@ -59,10 +61,13 @@ PERF_TEST_P_(AddPerfTest, TestPerformance)
 
 PERF_TEST_P_(AddCPerfTest, TestPerformance)
 {
-    Size sz = get<0>(GetParam());
-    MatType type = get<1>(GetParam());
-    int dtype = get<2>(GetParam());
-    cv::GCompileArgs compile_args = get<3>(GetParam());
+    compare_f cmpF;
+    cv::Size sz;
+    MatType type = -1;
+    int dtype = -1;
+    cv::GCompileArgs compile_args;
+
+    std::tie(cmpF, sz, type, dtype, compile_args) = GetParam();
 
     initMatsRandU(type, sz, dtype, false);
 
@@ -86,8 +91,9 @@ PERF_TEST_P_(AddCPerfTest, TestPerformance)
     }
 
     // Comparison ////////////////////////////////////////////////////////////
-    // FIXIT unrealiable check: EXPECT_EQ(0, cv::countNonZero(out_mat_gapi != out_mat_ocv));
-    EXPECT_EQ(out_mat_gapi.size(), sz);
+    {
+        EXPECT_TRUE(cmpF(out_mat_gapi, out_mat_ocv));
+    }
 
     SANITY_CHECK_NOTHING();
 }
@@ -132,10 +138,13 @@ PERF_TEST_P_(SubPerfTest, TestPerformance)
 
 PERF_TEST_P_(SubCPerfTest, TestPerformance)
 {
-    Size sz = get<0>(GetParam());
-    MatType type = get<1>(GetParam());
-    int dtype = get<2>(GetParam());
-    cv::GCompileArgs compile_args = get<3>(GetParam());
+    compare_f cmpF;
+    cv::Size sz;
+    MatType type = -1;
+    int dtype = -1;
+    cv::GCompileArgs compile_args;
+
+    std::tie(cmpF, sz, type, dtype, compile_args) = GetParam();
 
     initMatsRandU(type, sz, dtype, false);
 
@@ -159,8 +168,9 @@ PERF_TEST_P_(SubCPerfTest, TestPerformance)
     }
 
     // Comparison ////////////////////////////////////////////////////////////
-    // FIXIT unrealiable check: EXPECT_EQ(0, cv::countNonZero(out_mat_gapi != out_mat_ocv));
-    EXPECT_EQ(out_mat_gapi.size(), sz);
+    {
+        EXPECT_TRUE(cmpF(out_mat_gapi, out_mat_ocv));
+    }
 
     SANITY_CHECK_NOTHING();
 }
@@ -206,19 +216,23 @@ PERF_TEST_P_(SubRCPerfTest, TestPerformance)
 
 PERF_TEST_P_(MulPerfTest, TestPerformance)
 {
-    Size sz = get<0>(GetParam());
-    MatType type = get<1>(GetParam());
-    int dtype = get<2>(GetParam());
-    cv::GCompileArgs compile_args = get<3>(GetParam());
+    compare_f cmpF;
+    cv::Size sz;
+    MatType type = -1;
+    int dtype = -1;
+    double scale = 1.0;
+    cv::GCompileArgs compile_args;
+
+    std::tie(cmpF, sz, type, dtype, scale, compile_args) = GetParam();
 
     initMatsRandU(type, sz, dtype, false);
 
     // OpenCV code ///////////////////////////////////////////////////////////
-    cv::multiply(in_mat1, in_mat2, out_mat_ocv, 1.0, dtype);
+    cv::multiply(in_mat1, in_mat2, out_mat_ocv, scale, dtype);
 
     // G-API code ////////////////////////////////////////////////////////////
     cv::GMat in1, in2, out;
-    out = cv::gapi::mul(in1, in2, 1.0, dtype);
+    out = cv::gapi::mul(in1, in2, scale, dtype);
     cv::GComputation c(GIn(in1, in2), GOut(out));
 
     // Warm-up graph engine:
@@ -232,8 +246,9 @@ PERF_TEST_P_(MulPerfTest, TestPerformance)
     }
 
     // Comparison ////////////////////////////////////////////////////////////
-    // FIXIT unrealiable check: EXPECT_EQ(0, cv::countNonZero(out_mat_gapi != out_mat_ocv));
-    EXPECT_EQ(out_mat_gapi.size(), sz);
+    {
+        EXPECT_TRUE(cmpF(out_mat_gapi, out_mat_ocv));
+    }
 
     SANITY_CHECK_NOTHING();
 }
@@ -242,17 +257,21 @@ PERF_TEST_P_(MulPerfTest, TestPerformance)
 
 PERF_TEST_P_(MulDoublePerfTest, TestPerformance)
 {
-    Size sz = get<0>(GetParam());
-    MatType type = get<1>(GetParam());
-    int dtype = get<2>(GetParam());
-    cv::GCompileArgs compile_args = get<3>(GetParam());
+    compare_f cmpF;
+    cv::Size sz;
+    MatType type = -1;
+    int dtype = -1;
+    double scale = 1.0;
+    cv::GCompileArgs compile_args;
+
+    std::tie(cmpF, sz, type, dtype, compile_args) = GetParam();
 
     auto& rng = cv::theRNG();
     double d = rng.uniform(0.0, 10.0);
     initMatrixRandU(type, sz, dtype, false);
 
     // OpenCV code ///////////////////////////////////////////////////////////
-    cv::multiply(in_mat1, d, out_mat_ocv, 1, dtype);
+    cv::multiply(in_mat1, d, out_mat_ocv, scale, dtype);
 
     // G-API code ////////////////////////////////////////////////////////////
     cv::GMat in1, out;
@@ -270,8 +289,9 @@ PERF_TEST_P_(MulDoublePerfTest, TestPerformance)
     }
 
     // Comparison ////////////////////////////////////////////////////////////
-    // FIXIT unrealiable check: EXPECT_EQ(0, cv::countNonZero(out_mat_gapi != out_mat_ocv));
-    EXPECT_EQ(out_mat_gapi.size(), sz);
+    {
+        EXPECT_TRUE(cmpF(out_mat_gapi, out_mat_ocv));
+    }
 
     SANITY_CHECK_NOTHING();
 }
@@ -280,15 +300,19 @@ PERF_TEST_P_(MulDoublePerfTest, TestPerformance)
 
 PERF_TEST_P_(MulCPerfTest, TestPerformance)
 {
-    Size sz = get<0>(GetParam());
-    MatType type = get<1>(GetParam());
-    int dtype = get<2>(GetParam());
-    cv::GCompileArgs compile_args = get<3>(GetParam());
+    compare_f cmpF;
+    cv::Size sz;
+    MatType type = -1;
+    int dtype = -1;
+    double scale = 1.0;
+    cv::GCompileArgs compile_args;
+
+    std::tie(cmpF, sz, type, dtype, compile_args) = GetParam();
 
     initMatsRandU(type, sz, dtype, false);
 
     // OpenCV code ///////////////////////////////////////////////////////////
-    cv::multiply(in_mat1, sc, out_mat_ocv, 1, dtype);
+    cv::multiply(in_mat1, sc, out_mat_ocv, scale, dtype);
 
     // G-API code ////////////////////////////////////////////////////////////
     cv::GMat in1, out;
@@ -307,8 +331,9 @@ PERF_TEST_P_(MulCPerfTest, TestPerformance)
     }
 
     // Comparison ////////////////////////////////////////////////////////////
-    // FIXIT unrealiable check: EXPECT_EQ(0, cv::countNonZero(out_mat_gapi != out_mat_ocv));
-    EXPECT_EQ(out_mat_gapi.size(), sz);
+    {
+        EXPECT_TRUE(cmpF(out_mat_gapi, out_mat_ocv));
+    }
 
     SANITY_CHECK_NOTHING();
 }
@@ -321,17 +346,23 @@ PERF_TEST_P_(DivPerfTest, TestPerformance)
     Size sz = get<1>(GetParam());
     MatType type = get<2>(GetParam());
     int dtype = get<3>(GetParam());
-    cv::GCompileArgs compile_args = get<4>(GetParam());
+    double scale = get<4>(GetParam());
+    cv::GCompileArgs compile_args = get<5>(GetParam());
 
     // FIXIT Unstable input data for divide
     initMatsRandU(type, sz, dtype, false);
 
+    //This condition need to workaround bug in OpenCV.
+    //It reinitializes divider matrix without zero values.
+    if (dtype == CV_16S && dtype != type)
+        cv::randu(in_mat2, cv::Scalar::all(1), cv::Scalar::all(255));
+
     // OpenCV code ///////////////////////////////////////////////////////////
-    cv::divide(in_mat1, in_mat2, out_mat_ocv, dtype);
+    cv::divide(in_mat1, in_mat2, out_mat_ocv, scale, dtype);
 
     // G-API code ////////////////////////////////////////////////////////////
     cv::GMat in1, in2, out;
-    out = cv::gapi::div(in1, in2, dtype);
+    out = cv::gapi::div(in1, in2, scale, dtype);
     cv::GComputation c(GIn(in1, in2), GOut(out));
 
     // Warm-up graph engine:
@@ -345,8 +376,9 @@ PERF_TEST_P_(DivPerfTest, TestPerformance)
     }
 
     // Comparison ////////////////////////////////////////////////////////////
-    // FIXIT unrealiable check: EXPECT_TRUE(cmpF(out_mat_gapi, out_mat_ocv));
-    EXPECT_EQ(out_mat_gapi.size(), sz);
+    {
+        EXPECT_TRUE(cmpF(out_mat_gapi, out_mat_ocv));
+    }
 
     SANITY_CHECK_NOTHING();
 }
@@ -1905,6 +1937,171 @@ PERF_TEST_P_(ConvertToPerfTest, TestPerformance)
 
 //------------------------------------------------------------------------------
 
+PERF_TEST_P_(KMeansNDPerfTest, TestPerformance)
+{
+    cv::Size sz;
+    CompareMats cmpF;
+    int K = -1;
+    cv::KmeansFlags flags = cv::KMEANS_RANDOM_CENTERS;
+    cv::GCompileArgs compile_args;
+    std::tie(sz, cmpF, K, flags, compile_args) = GetParam();
+
+    MatType2 type = CV_32FC1;
+    initMatrixRandU(type, sz, -1, false);
+
+    double compact_gapi = -1.;
+    cv::Mat labels_gapi, centers_gapi;
+    if (flags & cv::KMEANS_USE_INITIAL_LABELS)
+    {
+        const int amount = sz.height;
+        cv::Mat bestLabels(cv::Size{1, amount}, CV_32SC1);
+        cv::randu(bestLabels, 0, K);
+
+        cv::GComputation c(kmeansTestGAPI(in_mat1, bestLabels, K, flags, std::move(compile_args),
+                                          compact_gapi, labels_gapi, centers_gapi));
+        TEST_CYCLE()
+        {
+            c.apply(cv::gin(in_mat1, bestLabels),
+                    cv::gout(compact_gapi, labels_gapi, centers_gapi));
+        }
+        kmeansTestOpenCVCompare(in_mat1, bestLabels, K, flags, compact_gapi, labels_gapi,
+                                centers_gapi, cmpF);
+    }
+    else
+    {
+        cv::GComputation c(kmeansTestGAPI(in_mat1, K, flags, std::move(compile_args), compact_gapi,
+                                          labels_gapi, centers_gapi));
+        TEST_CYCLE()
+        {
+            c.apply(cv::gin(in_mat1), cv::gout(compact_gapi, labels_gapi, centers_gapi));
+        }
+        kmeansTestValidate(sz, type, K, compact_gapi, labels_gapi, centers_gapi);
+    }
+    SANITY_CHECK_NOTHING();
+}
+
+PERF_TEST_P_(KMeans2DPerfTest, TestPerformance)
+{
+    int amount = -1;
+    int K = -1;
+    cv::KmeansFlags flags = cv::KMEANS_RANDOM_CENTERS;
+    cv::GCompileArgs compile_args;
+    std::tie(amount, K, flags, compile_args) = GetParam();
+
+    std::vector<cv::Point2f> in_vector{};
+    initPointsVectorRandU(amount, in_vector);
+
+    double compact_gapi = -1.;
+    std::vector<int> labels_gapi{};
+    std::vector<cv::Point2f> centers_gapi{};
+    if (flags & cv::KMEANS_USE_INITIAL_LABELS)
+    {
+        std::vector<int> bestLabels(amount);
+        cv::randu(bestLabels, 0, K);
+
+        cv::GComputation c(kmeansTestGAPI(in_vector, bestLabels, K, flags, std::move(compile_args),
+                                          compact_gapi, labels_gapi, centers_gapi));
+        TEST_CYCLE()
+        {
+            c.apply(cv::gin(in_vector, bestLabels),
+                    cv::gout(compact_gapi, labels_gapi, centers_gapi));
+        }
+        kmeansTestOpenCVCompare(in_vector, bestLabels, K, flags, compact_gapi, labels_gapi,
+                                centers_gapi);
+    }
+    else
+    {
+        cv::GComputation c(kmeansTestGAPI(in_vector, K, flags, std::move(compile_args),
+                                          compact_gapi, labels_gapi, centers_gapi));
+        TEST_CYCLE()
+        {
+            c.apply(cv::gin(in_vector), cv::gout(compact_gapi, labels_gapi, centers_gapi));
+        }
+        kmeansTestValidate({-1, amount}, -1, K, compact_gapi, labels_gapi, centers_gapi);
+    }
+    SANITY_CHECK_NOTHING();
+}
+
+PERF_TEST_P_(KMeans3DPerfTest, TestPerformance)
+{
+    int amount = -1;
+    int K = -1;
+    cv::KmeansFlags flags = cv::KMEANS_RANDOM_CENTERS;
+    cv::GCompileArgs compile_args;
+    std::tie(amount, K, flags, compile_args) = GetParam();
+
+    std::vector<cv::Point3f> in_vector{};
+    initPointsVectorRandU(amount, in_vector);
+
+    double compact_gapi = -1.;
+    std::vector<int> labels_gapi;
+    std::vector<cv::Point3f> centers_gapi;
+    if (flags & cv::KMEANS_USE_INITIAL_LABELS)
+    {
+        std::vector<int> bestLabels(amount);
+        cv::randu(bestLabels, 0, K);
+
+        cv::GComputation c(kmeansTestGAPI(in_vector, bestLabels, K, flags, std::move(compile_args),
+                                          compact_gapi, labels_gapi, centers_gapi));
+        TEST_CYCLE()
+        {
+            c.apply(cv::gin(in_vector, bestLabels),
+                    cv::gout(compact_gapi, labels_gapi, centers_gapi));
+        }
+        kmeansTestOpenCVCompare(in_vector, bestLabels, K, flags, compact_gapi, labels_gapi,
+                                centers_gapi);
+    }
+    else
+    {
+        cv::GComputation c(kmeansTestGAPI(in_vector, K, flags, std::move(compile_args),
+                                          compact_gapi, labels_gapi, centers_gapi));
+        TEST_CYCLE()
+        {
+            c.apply(cv::gin(in_vector), cv::gout(compact_gapi, labels_gapi, centers_gapi));
+        }
+        kmeansTestValidate({-1, amount}, -1, K, compact_gapi, labels_gapi, centers_gapi);
+    }
+    SANITY_CHECK_NOTHING();
+}
+
+//------------------------------------------------------------------------------
+
+PERF_TEST_P_(TransposePerfTest, TestPerformance)
+{
+    compare_f cmpF;
+    cv::Size sz_in;
+    MatType type = -1;
+    cv::GCompileArgs compile_args;
+    std::tie(cmpF, sz_in, type, compile_args) = GetParam();
+
+    initMatrixRandU(type, sz_in, type, false);
+
+    // OpenCV code ///////////////////////////////////////////////////////////
+    cv::transpose(in_mat1, out_mat_ocv);
+
+    // G-API code ////////////////////////////////////////////////////////////
+    cv::GMat in;
+    auto out = cv::gapi::transpose(in);
+    cv::GComputation c(cv::GIn(in), cv::GOut(out));
+
+    // Warm-up graph engine:
+    c.apply(cv::gin(in_mat1), cv::gout(out_mat_gapi), std::move(compile_args));
+
+    TEST_CYCLE()
+    {
+        c.apply(cv::gin(in_mat1), cv::gout(out_mat_gapi));
+    }
+
+    // Comparison ////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(cmpF(out_mat_gapi, out_mat_ocv));
+    }
+
+    SANITY_CHECK_NOTHING();
+}
+
+//------------------------------------------------------------------------------
+
 PERF_TEST_P_(ResizePerfTest, TestPerformance)
 {
     compare_f cmpF = get<0>(GetParam());
@@ -1983,6 +2180,89 @@ PERF_TEST_P_(ResizeFxFyPerfTest, TestPerformance)
     TEST_CYCLE()
     {
         cc(gin(in_mat1), gout(out_mat_gapi));
+    }
+    // Comparison ////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(cmpF(out_mat_gapi, out_mat_ocv));
+    }
+
+    SANITY_CHECK_NOTHING();
+}
+
+//------------------------------------------------------------------------------
+
+// This test cases were created to control performance result of test scenario mentioned here:
+// https://stackoverflow.com/questions/60629331/opencv-gapi-performance-not-good-as-expected
+
+PERF_TEST_P_(BottleneckKernelsConstInputPerfTest, TestPerformance)
+{
+    compare_f cmpF = get<0>(GetParam());
+    std::string fileName = get<1>(GetParam());
+    cv::GCompileArgs compile_args = get<2>(GetParam());
+
+    in_mat1 = cv::imread(findDataFile(fileName));
+
+    cv::Mat cvvga;
+    cv::Mat cvgray;
+    cv::Mat cvblurred;
+
+    cv::resize(in_mat1, cvvga, cv::Size(), 0.5, 0.5);
+    cv::cvtColor(cvvga, cvgray, cv::COLOR_BGR2GRAY);
+    cv::blur(cvgray, cvblurred, cv::Size(3, 3));
+    cv::Canny(cvblurred, out_mat_ocv, 32, 128, 3);
+
+    cv::GMat in;
+    cv::GMat vga = cv::gapi::resize(in, cv::Size(), 0.5, 0.5, INTER_LINEAR);
+    cv::GMat gray = cv::gapi::BGR2Gray(vga);
+    cv::GMat blurred = cv::gapi::blur(gray, cv::Size(3, 3));
+    cv::GMat out = cv::gapi::Canny(blurred, 32, 128, 3);
+    cv::GComputation ac(in, out);
+
+    auto cc = ac.compile(descr_of(gin(in_mat1)),
+        std::move(compile_args));
+    cc(gin(in_mat1), gout(out_mat_gapi));
+
+    TEST_CYCLE()
+    {
+        cc(gin(in_mat1), gout(out_mat_gapi));
+    }
+
+    // Comparison ////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(cmpF(out_mat_gapi, out_mat_ocv));
+    }
+
+    SANITY_CHECK_NOTHING();
+}
+
+//------------------------------------------------------------------------------
+
+PERF_TEST_P_(ResizeInSimpleGraphPerfTest, TestPerformance)
+{
+    compare_f cmpF = get<0>(GetParam());
+    MatType type = get<1>(GetParam());
+    cv::Size sz_in = get<2>(GetParam());
+    cv::GCompileArgs compile_args = get<3>(GetParam());
+
+    initMatsRandU(type, sz_in, type, false);
+
+    cv::Mat add_res_ocv;
+
+    cv::add(in_mat1, in_mat2, add_res_ocv);
+    cv::resize(add_res_ocv, out_mat_ocv, cv::Size(), 0.5, 0.5);
+
+    cv::GMat in1, in2;
+    cv::GMat add_res_gapi = cv::gapi::add(in1, in2);
+    cv::GMat out = cv::gapi::resize(add_res_gapi, cv::Size(), 0.5, 0.5, INTER_LINEAR);
+    cv::GComputation ac(GIn(in1, in2), GOut(out));
+
+    auto cc = ac.compile(descr_of(gin(in_mat1, in_mat2)),
+                         std::move(compile_args));
+    cc(gin(in_mat1, in_mat2), gout(out_mat_gapi));
+
+    TEST_CYCLE()
+    {
+        cc(gin(in_mat1, in_mat2), gout(out_mat_gapi));
     }
 
     // Comparison ////////////////////////////////////////////////////////////

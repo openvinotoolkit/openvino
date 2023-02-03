@@ -1,8 +1,8 @@
-## ShapeOf <a name="ShapeOf"></a> {#openvino_docs_ops_shape_ShapeOf_3}
+# ShapeOf {#openvino_docs_ops_shape_ShapeOf_3}
 
 **Versioned name**: *ShapeOf-3*
 
-**Category**: Shape manipulation
+**Category**: *Shape manipulation*
 
 **Short description**: *ShapeOf* produces 1D tensor with the input tensor shape.
 
@@ -14,11 +14,11 @@
   * **Range of values**: "i64" or "i32"
   * **Type**: string
   * **Default value**: "i64"
-  * **Required**: *No*
+  * **Required**: *no*
 
 **Inputs**:
 
-*   **1**: Arbitrary input tensor of type *T*. Required.
+*   **1**: Arbitrary input tensor of type *T*. **Required.**
 
 **Outputs**:
 

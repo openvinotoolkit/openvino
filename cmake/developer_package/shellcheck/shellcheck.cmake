@@ -1,10 +1,21 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 include(CMakeParseArguments)
 
 find_host_program(shellcheck_PROGRAM NAMES shellcheck DOC "Path to shellcheck tool")
+
+if(shellcheck_PROGRAM)
+    execute_process(COMMAND "${shellcheck_PROGRAM}" --version
+        RESULT_VARIABLE shellcheck_EXIT_CODE
+        OUTPUT_VARIABLE shellcheck_VERSION_STRING)
+    if(shellcheck_EXIT_CODE EQUAL 0)
+        if(shellcheck_VERSION_STRING MATCHES "version: ([0-9]+)\.([0-9]+).([0-9]+)")
+            set(shellcheck_VERSION "${CMAKE_MATCH_1}.${CMAKE_MATCH_2}.${CMAKE_MATCH_3}" CACHE INTERNAL "shellcheck version")
+        endif()
+    endif()
+endif()
 
 function(ie_shellcheck_process)
     if(NOT shellcheck_PROGRAM)
@@ -33,7 +44,7 @@ function(ie_shellcheck_process)
         set(output_file "${output_file}.txt")
         get_filename_component(script_name "${script}" NAME)
 
-        add_custom_command(OUTPUT ${output_file} 
+        add_custom_command(OUTPUT ${output_file}
                            COMMAND ${CMAKE_COMMAND}
                              -D IE_SHELLCHECK_PROGRAM=${shellcheck_PROGRAM}
                              -D IE_SHELL_SCRIPT=${script}

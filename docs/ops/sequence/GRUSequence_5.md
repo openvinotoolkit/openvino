@@ -1,4 +1,4 @@
-## GRUSequence <a name="GRUSequence"></a> {#openvino_docs_ops_sequence_GRUSequence_5}
+# GRUSequence  {#openvino_docs_ops_sequence_GRUSequence_5}
 
 **Versioned name**: *GRUSequence-5*
 
@@ -18,7 +18,6 @@ A single cell in the sequence is implemented in the same way as in <a href="#GRU
   * **Description**: *hidden_size* specifies hidden state size.
   * **Range of values**: a positive integer
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *activations*
@@ -50,8 +49,7 @@ A single cell in the sequence is implemented in the same way as in <a href="#GRU
   * **Description**: Specify if the RNN is forward, reverse, or bidirectional. If it is one of *forward* or *reverse* then `num_directions = 1`, if it is *bidirectional*, then `num_directions = 2`. This `num_directions` value specifies input/output shape requirements.
   * **Range of values**: *forward*, *reverse*, *bidirectional*
   * **Type**: `string`
-  * **Default value**: None
-  * **Required**: *Yes*
+  * **Required**: *yes*
 
 * *linear_before_reset*
 
@@ -67,7 +65,7 @@ A single cell in the sequence is implemented in the same way as in <a href="#GRU
 
 * **2**: `initial_hidden_state` - 3D tensor of type *T1* `[batch_size, num_directions, hidden_size]`, input hidden state data. **Required.**
 
-* **3**: `sequence_lengths` - 1D tensor of type *T2* `[batch_size]`, specifies real sequence lengths for each batch element. **Required.**
+* **3**: `sequence_lengths` - 1D tensor of type *T2* `[batch_size]`, specifies real sequence lengths for each batch element. In case of negative values in this input, the operation behavior is undefined. **Required.**
 
 * **4**: `W` - 3D tensor of type *T1* `[num_directions, 3 * hidden_size, input_size]`, the weights for matrix multiplication, gate order: zrh. **Required.**
 
@@ -83,7 +81,7 @@ A single cell in the sequence is implemented in the same way as in <a href="#GRU
 
 **Types**
 
-* *T1*: any supported floating point type.
+* *T1*: any supported floating-point type.
 * *T2*: any supported integer type.
 
 **Example**

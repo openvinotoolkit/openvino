@@ -1,0 +1,60 @@
+{
+    "model": {
+        "model_name": "inceptionv3",
+        "model": "<MODEL_PATH>",
+        "weights": "<PATH_TO_WEIGHTS>"
+    },
+    "engine": {
+        "datasets": [
+            {
+                "name": "imagenet_1001_classes",
+                "data_source": "PATH_TO_DATASET",
+                "annotation_conversion": {
+                    "annotation_file": "PATH_TO_ANNOTATION_FILE",
+                    "has_background": true,
+                    "converter": "imagenet"
+                },
+                "preprocessing": [
+                    {
+                        "type": "crop",
+                        "central_fraction": 0.875
+                    },
+                    {
+                        "type": "resize",
+                        "size": 299
+                    }
+                ],
+                "metrics": [
+                    {
+                        "type": "accuracy",
+                        "name": "accuracy@top1",
+                        "top_k": 1
+                    },
+                    {
+                        "type": "accuracy",
+                        "name": "accuracy@top5",
+                        "top_k": 5
+                    }
+                ]
+            }
+        ],
+        "launchers": [
+            {
+                "framework": "dlsdk",
+                "device": "CPU",
+                "adapter": "classification"
+            }
+        ]
+    },
+    "compression": {
+        "algorithms": [
+            {
+                "name": "DefaultQuantization",
+                "params": {
+                    "preset": "performance",
+                    "stat_subset_size": 300
+                }
+            }
+        ]
+    }
+}
