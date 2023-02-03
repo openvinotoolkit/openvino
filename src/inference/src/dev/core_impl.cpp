@@ -1136,7 +1136,7 @@ std::string ov::findPluginXML(const std::string& xmlFile) {
         if (FileUtils::fileExist(xmlConfigFileDefault))
             return xmlConfigFile_ = ov::util::from_file_path(xmlConfigFileDefault);
 
-        throw ov::Exception("Failed to find plugins.xml file");
+        //throw ov::Exception("Failed to find plugins.xml file");
     }
     return xmlConfigFile_;
 }
