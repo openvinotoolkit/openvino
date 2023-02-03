@@ -13,6 +13,7 @@
 #include "template/config.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
+#include "transformations/control_flow/unroll_if.hpp"
 #include "transformations/disable_decompression_convert_constant_folding.hpp"
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
 #include "transformations/template_pattern_transformation.hpp"
@@ -61,6 +62,7 @@ void transform_model(const std::shared_ptr<ov::Model>& model) {
     ov::pass::Manager passManager;
     // Example: register CommonOptimizations transformation from transformations library
     passManager.register_pass<ov::pass::CommonOptimizations>();
+    passManager.get_pass_config()->disable<ov::pass::UnrollIf>();
     // This transformation changes output name
     passManager.get_pass_config()->disable<ov::pass::ConvertReduceSumToPooling>();
     // Example: register plugin specific transformation
