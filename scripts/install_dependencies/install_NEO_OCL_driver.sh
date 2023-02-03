@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -396,10 +396,10 @@ _check_distro_version()
         UBUNTU_VERSION=$(grep -m1 'VERSION_ID' /etc/os-release | grep -Eo "[0-9]{2}.[0-9]{2}") 
         if [[ $UBUNTU_VERSION == '18.04' ]]; then
             INSTALL_DRIVER_VERSION='21.38.21026'
-        elif [[ $UBUNTU_VERSION == '20.04' ]]; then
+        elif [[ $UBUNTU_VERSION == '20.04' || $UBUNTU_VERSION == '22.04' ]]; then
             INSTALL_DRIVER_VERSION='22.35.24055'
         else
-            echo "Warning: This runtime can be installed only on Ubuntu 18.04 or Ubuntu 20.04."
+            echo "Warning: This runtime can be installed only on Ubuntu 18.04, Ubuntu 20.04 or Ubuntu 22.04."
             echo "More info https://github.com/intel/compute-runtime/releases" >&2
             echo "Installation of Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver interrupted"
             exit $EXIT_FAILURE

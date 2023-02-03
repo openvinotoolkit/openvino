@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -28,9 +28,13 @@ set(PYBIND_FE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/mock_mo_python_api.cpp)
 
 source_group("src" FILES ${PYBIND_FE_SRC})
 
-add_subdirectory(${OpenVINO_SOURCE_DIR}/src/bindings/python/thirdparty/pybind11
-                 ${CMAKE_CURRENT_BINARY_DIR}/pybind11_build
-                 EXCLUDE_FROM_ALL)
+find_package(pybind11 2.8.0 QUIET)
+
+if(NOT pybind11_FOUND)
+    add_subdirectory(${OpenVINO_SOURCE_DIR}/src/bindings/python/thirdparty/pybind11
+                    ${CMAKE_CURRENT_BINARY_DIR}/pybind11_build
+                    EXCLUDE_FROM_ALL)
+endif()
 
 pybind11_add_module(${PYBIND_FE_NAME} MODULE NO_EXTRAS ${PYBIND_FE_SRC})
 

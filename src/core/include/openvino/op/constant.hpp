@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -521,13 +521,13 @@ private:
         if (!std::is_same<T, StorageDataType>::value) {
             OPENVINO_ASSERT(!std::numeric_limits<T>::is_signed ||
                             std::numeric_limits<StorageDataType>::lowest() <= value);
-            OPENVINO_ASSERT(value <= std::numeric_limits<StorageDataType>::max());
+            OPENVINO_ASSERT(std::numeric_limits<StorageDataType>::max() >= value);
         }
 #if defined(_MSC_VER)
 #    pragma warning(pop)
 #endif
 #ifdef __clang__
-#    pragma GangC diagnostic pop
+#    pragma clang diagnostic pop
 #endif
 #ifdef __GNUC__
 #    pragma GCC diagnostic pop

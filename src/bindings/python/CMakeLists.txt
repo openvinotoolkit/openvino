@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -41,7 +41,7 @@ function(ov_check_python_build_conditions)
             if(EXISTS ${pybind11_tools_dir})
                 list(APPEND CMAKE_MODULE_PATH ${pybind11_tools_dir})
             else()
-                find_package(pybind11 QUIET)
+                find_package(pybind11 2.8.0 QUIET)
                 list(APPEND CMAKE_MODULE_PATH "${pybind11_DIR}")
             endif()
             # use libraries with the same version as python itself
@@ -161,7 +161,7 @@ endif()
 # Build the code
 #
 
-find_package(pybind11 QUIET)
+find_package(pybind11 2.8.0 QUIET)
 
 if(NOT pybind11_FOUND)
     add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
