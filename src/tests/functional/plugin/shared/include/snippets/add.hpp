@@ -11,8 +11,8 @@ namespace test {
 namespace snippets {
 
 typedef std::tuple<
-        ov::Shape,                   // Input 0 Shape
-        ov::Shape,                   // Input 1 Shape
+        InputShape,                  // Input 0 Shape
+        InputShape,                  // Input 1 Shape
         ov::element::Type,           // Element type
         size_t,                      // Expected num nodes
         size_t,                      // Expected num subgraphs
@@ -20,7 +20,7 @@ typedef std::tuple<
 > AddParams;
 
 typedef std::tuple<
-        std::vector<ov::Shape>,      // Input 0, Input 1 Shape
+        std::vector<InputShape>,     // Input 0, Input 1 Shape
         ov::element::Type,           // Element type
         size_t,                      // Expected num nodes
         size_t,                      // Expected num subgraphs
@@ -28,7 +28,7 @@ typedef std::tuple<
 > AddParamsPair;
 
 typedef std::tuple<
-        ov::Shape,                   // Input 0 Shape
+        InputShape,                  // Input 0 Shape
         ov::element::Type,           // Element type
         size_t,                      // Expected num nodes
         size_t,                      // Expected num subgraphs

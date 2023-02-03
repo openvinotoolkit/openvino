@@ -14,8 +14,15 @@ namespace {
 
 namespace snippets_static_1 {
 // These  inputs are needed to test static Loop optimizations (emit the whole tile, body with increments, set WA etc)
-std::vector<ov::Shape> inShapesStatic1{{1, 16, 29,  1}, {1, 16, 29,  7}, {1, 16, 29,  8}, {1, 16, 29,  15}, {1, 16, 29,  16}, {1, 16, 29,  31}};
-std::vector<ov::Shape> inShapesStatic2{{1, 16, 29,  1}, {1, 16, 1, 1}, {1, 1, 1, 1}};
+std::vector<ov::test::InputShape> inShapesStatic1{{{}, {{1, 16, 29, 1}}},
+                                                  {{}, {{1, 16, 29, 7}}},
+                                                  {{}, {{1, 16, 29, 8}}},
+                                                  {{}, {{1, 16, 29, 15}}},
+                                                  {{}, {{1, 16, 29, 16}}},
+                                                  {{}, {{1, 16, 29, 31}}}};
+std::vector<ov::test::InputShape> inShapesStatic2{{{}, {{1, 16, 29, 1}}},
+                                                  {{}, {{1, 16, 1, 1}}},
+                                                  {{}, {{1, 1, 1, 1}}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, Add,
                          ::testing::Combine(
@@ -27,16 +34,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, Add,
                              ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          Add::getTestCaseName);
 // test cross-tile (vector vs scalar) optimizations in the absence of vector tile
-std::vector<std::vector<ov::Shape>> inShapesStatic{
-        {{1, 128, 1, 1}, {1, 128, 1, 1}},
-        {{1, 128, 1, 9}, {1, 128, 1, 9}},
-        {{1, 128, 1, 16}, {1, 128, 1, 16}},
-        {{1, 128, 1, 17}, {1, 128, 1, 17}},
-        {{1, 128, 1, 29}, {1, 128, 1, 29}},
-        {{1, 128, 1, 33}, {1, 128, 1, 33}},
-        {{1, 128, 9, 30}, {1, 128, 1, 30}},
-        {{1, 128, 9, 1}, {1, 128, 1, 30}},
-        {{1, 128, 9, 16}, {1, 128, 9, 1}},
+std::vector<std::vector<InputShape>> inShapesStatic{
+        {{{}, {{1, 128, 1, 1}}}, {{}, {{1, 128, 1, 1}}}},
+        {{{}, {{1, 128, 1, 9}}}, {{}, {{1, 128, 1, 9}}}},
+        {{{}, {{1, 128, 1, 16}}}, {{}, {{1, 128, 1, 16}}}},
+        {{{}, {{1, 128, 1, 17}}}, {{}, {{1, 128, 1, 17}}}},
+        {{{}, {{1, 128, 1, 29}}}, {{}, {{1, 128, 1, 29}}}},
+        {{{}, {{1, 128, 1, 33}}}, {{}, {{1, 128, 1, 33}}}},
+        {{{}, {{1, 128, 9, 30}}}, {{}, {{1, 128, 1, 30}}}},
+        {{{}, {{1, 128, 9, 1}}}, {{}, {{1, 128, 1, 30}}}},
+        {{{}, {{1, 128, 9, 16}}}, {{}, {{1, 128, 9, 1}}}},
 };
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, AddPair,
                          ::testing::Combine(
@@ -51,7 +58,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, AddPair,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, AddConst,
         ::testing::Combine(
-                ::testing::Values(ov::Shape {1, 42, 16, 64}),
+                ::testing::Values(InputShape {{}, {{1, 42, 16, 64}}}),
                 ::testing::Values(ov::element::f32),
                 ::testing::Values(1), // Add
                 ::testing::Values(1), // Subgraph is created, since the inputs are followed by converts
@@ -60,7 +67,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, AddConst,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, AddRollConst,
         ::testing::Combine(
-                ::testing::Values(ov::Shape {1, 42, 16, 64}),
+                ::testing::Values(InputShape {{}, {{1, 42, 16, 64}}}),
                 ::testing::Values(ov::element::f32),
                 ::testing::Values(2), // Add + roll after inputs
                 ::testing::Values(1), // Subgraph is created, since the inputs are followed by converts
@@ -69,12 +76,36 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, AddRollConst,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise_BF16, AddRollConst,
         ::testing::Combine(
-                ::testing::Values(ov::Shape {1, 2, 3, 32}),
+                ::testing::Values(InputShape {{}, {{1, 42, 16, 64}}}),
                 ::testing::Values(ov::element::bf16),
                 ::testing::Values(3), // Add + reorder + roll after inputs
                 ::testing::Values(1), // Subgraph is created, since the inputs are followed by converts
                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
         AddRollConst::getTestCaseName);
+
+// dynamic
+std::vector<InputShape> inShapesDynamic1{
+        {
+        {{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+        {{1, 128, 1, 10}, {1, 128, 1, 1}, {1, 128, 1, 10}}},
+        }
+};
+std::vector<InputShape> inShapesDynamic2{
+        {
+        {{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+        {{1, 128, 1, 10}, {1, 128, 1, 1}, {1, 128, 1, 10}}},
+        }
+};
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise_Add, Add,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(inShapesDynamic1),
+                                 ::testing::ValuesIn(inShapesDynamic2),
+                                 ::testing::Values(ov::element::f32),
+                                 ::testing::Values(1),
+                                 ::testing::Values(1), // Subgraph is created, since the inputs are followed by converts
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                         Add::getTestCaseName);
+
 }  // namespace
 } // namespace snippets
 } // namespace test
