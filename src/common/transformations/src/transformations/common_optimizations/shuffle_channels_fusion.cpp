@@ -108,15 +108,11 @@ ov::pass::ShuffleChannelsFusion::ShuffleChannelsFusion(const bool reshape_consta
             std::dynamic_pointer_cast<opset6::Reshape>(pattern_map.at(reshape_after_pattern).get_node_shared_ptr());
         auto reshape_after_constant = std::dynamic_pointer_cast<opset6::Constant>(
             pattern_map.at(reshape_after_const_pattern).get_node_shared_ptr());
-        if (!reshape_after || !transpose || !reshape_after) {
+        if (!reshape_after || !transpose || !reshape_after || !reshape_before_constant || !reshape_after_constant) {
             return false;
         }
 
         if (reshape_constants_check) {
-            if (!reshape_before_constant || !reshape_after_constant) {
-                return false;
-            }
-
             const auto& reshape_before_values = reshape_before_constant->cast_vector<int64_t>();
             const auto& reshape_after_values = reshape_after_constant->cast_vector<int64_t>();
             if (std::any_of(reshape_before_values.cbegin(),
