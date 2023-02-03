@@ -30,7 +30,8 @@ std::map<std::vector<size_t>, std::vector<std::vector<int>>> emptyAxesVectors = 
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16
+        InferenceEngine::Precision::FP16,
+        InferenceEngine::Precision::I64
 };
 
 const std::vector<ngraph::helpers::SqueezeOpType> opTypes = {

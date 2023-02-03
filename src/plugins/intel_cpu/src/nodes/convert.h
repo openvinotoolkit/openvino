@@ -16,9 +16,9 @@ namespace node {
 
 class Convert : public Node {
 public:
-    Convert(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Convert(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr& context);
     Convert(const Shape &shape, const InferenceEngine::Precision &inPrc, const InferenceEngine::Precision &outPrc,
-                      const std::string &nodeName, const GraphContext::CPtr context);
+                      const std::string &nodeName, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -54,8 +54,6 @@ private:
     ConvertParams convertParams;
     std::shared_ptr<ConvertExecutor> execPtr = nullptr;
     NodeConfig config;
-
-    std::string errorPrefix;
 };
 
 }   // namespace node

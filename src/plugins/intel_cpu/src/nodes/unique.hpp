@@ -27,6 +27,8 @@ protected:
     bool needShapeInfer() const override { return false; }
 
 private:
+    void copyOutput(size_t outIdx, const int64_t* srcPtr, size_t len);
+
     template <typename T>
     void flattenTensorExec();
     template <typename T>
@@ -37,14 +39,15 @@ private:
     template<typename T>
     struct slicedExec;
 
-    std::vector<int32_t> firstUniTmp;
-    std::vector<int32_t> inToOutTmp;
-    std::vector<int32_t> occurTmp;
+    std::vector<int64_t> firstUniTmp;
+    std::vector<int64_t> inToOutTmp;
+    std::vector<int64_t> occurTmp;
 
     bool sorted    = false;
     bool flattened = true;
     int  axis = 0;
     bool definedOutputs[4] = { false, false, false, false };
+    InferenceEngine::Precision outputsPrc[4] = { InferenceEngine::Precision::I32 };
     InferenceEngine::Precision dataPrecision;
     int64_t dataTypeSize = 1l;
     size_t uniqueLen = 1lu;

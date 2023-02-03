@@ -4,11 +4,8 @@
 
 #pragma once
 
-#include "cpu/x64/jit_generator.hpp"
-#include <dnnl_types.h>
-#include "ie_common.h"
+#include "cpu/x64/cpu_isa_traits.hpp"
 #include "utils/cpu_utils.hpp"
-#include <utility>
 
 namespace ov {
 namespace intel_cpu {

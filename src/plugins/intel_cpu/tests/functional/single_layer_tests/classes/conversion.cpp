@@ -3,22 +3,21 @@
 //
 
 #include "conversion.hpp"
-
-#include "gtest/gtest.h"
 #include "test_utils/cpu_test_utils.hpp"
+#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::helpers;
 using namespace ov::test;
 
 namespace CPULayerTestsDefinitions {
 
 std::string ConvertCPULayerTest::getTestCaseName(testing::TestParamInfo<convertLayerTestParamsSet> obj) {
     InputShape inputShape;
-    InferenceEngine::Precision inPrc, outPrc;
+    ElementType inPrc, outPrc;
     CPUSpecificParams cpuParams;
-    std::tie(inputShape, inPrc, outPrc, cpuParams) = obj.param;
+    ov::AnyMap config;
+    std::tie(inputShape, inPrc, outPrc, config, cpuParams) = obj.param;
 
     std::ostringstream result;
 
@@ -27,26 +26,34 @@ std::string ConvertCPULayerTest::getTestCaseName(testing::TestParamInfo<convertL
     for (const auto& shape : inputShape.second) {
         result << CommonTestUtils::vec2str(shape) << "_";
     }
-    result << "inputPRC=" << inPrc.name() << "_";
-    result << "targetPRC=" << outPrc.name() << "_";
+    result << "inputPRC=" << inPrc << "_";
+    result << "targetPRC=" << outPrc << "_";
     result << CPUTestsBase::getTestCaseName(cpuParams);
+
+    if (!config.empty()) {
+        result << "_PluginConf";
+        for (const auto& configItem : config) {
+            result << "_" << configItem.first << "=";
+            configItem.second.print(result);
+        }
+    }
 
     return result.str();
 }
 
-bool ConvertCPULayerTest::isInOutPrecisionSupported(InferenceEngine::Precision inPrc, InferenceEngine::Precision outPrc) {
+bool ConvertCPULayerTest::isInOutPrecisionSupported(ElementType inPrc, ElementType outPrc) {
     // WA: I32 precision support disabled in snippets => primitive has to be changed
     // TODO: remove the WA after I32 is supported in snippets (ticket: 99803)
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-    if (inPrc == InferenceEngine::Precision::I32 || outPrc == InferenceEngine::Precision::I32)
+    if (inPrc == ElementType::i32 || outPrc == ElementType::i32)
         return false;
 #endif
     // ACL does not support specific in-out precision pairs
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    if ((inPrc == InferenceEngine::Precision::I8 && outPrc == InferenceEngine::Precision::U8) ||
-        (inPrc == InferenceEngine::Precision::U8 && outPrc == InferenceEngine::Precision::I8) ||
-        (inPrc == InferenceEngine::Precision::FP32 && (outPrc == InferenceEngine::Precision::U8 ||
-                                                       outPrc == InferenceEngine::Precision::I8)))
+    if ((inPrc == ElementType::i8 && outPrc == ElementType::u8) ||
+        (inPrc == ElementType::u8 && outPrc == ElementType::i8) ||
+        (inPrc == ElementType::f32 && (outPrc == ElementType::u8 ||
+                                       outPrc == ElementType::i8)))
             return false;
 #endif
     return true;
@@ -57,36 +64,44 @@ void ConvertCPULayerTest::SetUp() {
 
     InputShape shapes;
     CPUSpecificParams cpuParams;
-    std::tie(shapes, inPrc, outPrc, cpuParams) = GetParam();
+    std::tie(shapes, inPrc, outPrc, configuration, cpuParams) = GetParam();
 
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     auto primitive = selectedType;
     if (primitive.empty())
         primitive = getPrimitiveType();
-    if (!isInOutPrecisionSupported(inPrc, outPrc))
-        primitive = "ref";
+    // WA: I32 precision support disabled in snippets => primitive has to be changed
+    // TODO: remove the WA after I32 is supported in snippets (ticket: 99803)
+    if (inPrc == ElementType::i32 || inPrc == ElementType::i64 || outPrc == ElementType::i32 || outPrc == ElementType::i64)
+        primitive = "unknown";
 
-    auto exec_type_precision = inPrc != InferenceEngine::Precision::U8
-                                    ? inPrc
-                                    : InferenceEngine::Precision(InferenceEngine::Precision::I8);
-    selectedType = makeSelectedTypeStr(primitive, InferenceEngine::details::convertPrecision(exec_type_precision));
+    if (inPrc == ElementType::i64 || inPrc == ElementType::u64) {
+        auto i64Flag = configuration.find(PluginConfigInternalParams::KEY_CPU_NATIVE_I64);
+        if (i64Flag == configuration.end() || i64Flag->second == PluginConfigParams::NO) {
+            selectedType = makeSelectedTypeStr(primitive, ElementType::i32);
+        } else {
+            selectedType = makeSelectedTypeStr(primitive, ElementType::i64);
+        }
+    } else if (inPrc == ElementType::u8) {
+        selectedType = makeSelectedTypeStr(primitive, ElementType::i8);
+    } else {
+        selectedType = makeSelectedTypeStr(primitive, inPrc);
+    }
 
     for (size_t i = 0; i < shapes.second.size(); i++) {
-        targetStaticShapes.push_back(std::vector<ngraph::Shape>{shapes.second[i]});
+        targetStaticShapes.push_back(std::vector<ov::Shape>{shapes.second[i]});
     }
 
     inputDynamicShapes.push_back(shapes.first);
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
-    auto targetPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(outPrc);
-    ParameterVector params = builder::makeDynamicParams(ngPrc, inputDynamicShapes);
-    auto conversion = ngraph::builder::makeConversion(params.front(), targetPrc, helpers::ConversionTypes::CONVERT);
+    ov::ParameterVector params = ngraph::builder::makeDynamicParams(inPrc, inputDynamicShapes);
+    auto conversion = ngraph::builder::makeConversion(params.front(), outPrc, ngraph::helpers::ConversionTypes::CONVERT);
 
-    function = makeNgraphFunction(ngPrc, params, conversion, "ConversionCPU");
+    function = makeNgraphFunction(inPrc, params, conversion, "ConversionCPU");
 }
 
-void ConvertCPULayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
-    if (outPrc != Precision::BOOL) {
+void ConvertCPULayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    if (outPrc != ElementType::boolean) {
         SubgraphBaseTest::generate_inputs(targetInputStaticShapes);
         return;
     }
@@ -104,13 +119,13 @@ void ConvertCPULayerTest::generate_inputs(const std::vector<ngraph::Shape>& targ
     size_t size = shape_size(shape);
     ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInputs[0].get_element_type(), shape, 2 * size);
 
-    if (inPrc == Precision::FP32) {
+    if (inPrc == ElementType::f32) {
         auto* rawBlobDataPtr = static_cast<float*>(tensor.data());
         for (size_t i = 0; i < size; ++i) {
             rawBlobDataPtr[i] = rawBlobDataPtr[i] / size - 1;
         }
-    } else if (inPrc == Precision::BF16) {
-        auto* rawBlobDataPtr = static_cast<ngraph::bfloat16*>(tensor.data());
+    } else if (inPrc == ElementType::bf16) {
+        auto* rawBlobDataPtr = static_cast<ov::bfloat16*>(tensor.data());
         for (size_t i = 0; i < size; ++i) {
             rawBlobDataPtr[i] = rawBlobDataPtr[i] / size - 1;
         }
@@ -162,13 +177,13 @@ const std::vector<InputShape>& inShapes_4D_dynamic() {
     return inShapes_4D_dynamic;
 }
 
-const std::vector<Precision>& precisions() {
-    static const std::vector<Precision> precisions = {
-            Precision::U8,
-            Precision::I8,
-            Precision::I32,
-            Precision::FP32,
-            Precision::BF16
+const std::vector<ElementType>& precisions() {
+    static const std::vector<ElementType> precisions = {
+        ElementType::u8,
+        ElementType::i8,
+        ElementType::i32,
+        ElementType::f32,
+        ElementType::bf16
     };
     return precisions;
 }

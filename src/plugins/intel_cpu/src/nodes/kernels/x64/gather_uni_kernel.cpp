@@ -1025,6 +1025,9 @@ void jitUniGatherKernel<x64::avx2>::fillVlenVector() {
 
 template <x64::cpu_isa_t isa>
 bool jitUniGatherKernel<isa>::isSupportedConfiguration(uint64_t afterAxisSize) {
+    if (jcp.dataTypeSize > 4 || jcp.idxPrc != InferenceEngine::Precision::I32) {
+        return false;
+    }
     if (!jcp.dynamicShapes && afterAxisSize <= idxElPerVec) {
         if (afterAxisSize > 1 && isa == x64::avx2 && (jcp.dataTypeSize == 1 || jcp.dataTypeSize == 2))
             // There are no enough registers for these cases.

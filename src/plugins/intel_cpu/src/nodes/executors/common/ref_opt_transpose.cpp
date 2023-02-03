@@ -124,7 +124,8 @@ void RefOptimizedTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, con
     OV_SWITCH(intel_cpu, TransposeOptimizedEmitter, ctx, dataSize,
               OV_CASE(1u, InferenceEngine::PrecisionTrait<InferenceEngine::Precision::U8>::value_type),
               OV_CASE(2u, InferenceEngine::PrecisionTrait<InferenceEngine::Precision::U16>::value_type),
-              OV_CASE(4u, InferenceEngine::PrecisionTrait<InferenceEngine::Precision::I32>::value_type));
+              OV_CASE(4u, InferenceEngine::PrecisionTrait<InferenceEngine::Precision::I32>::value_type),
+              OV_CASE(8u, InferenceEngine::PrecisionTrait<InferenceEngine::Precision::I64>::value_type));
 }
 
 bool RefOptimizedTransposeExecutor::init(const TransposeParams &transposeParams,

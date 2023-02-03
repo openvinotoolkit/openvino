@@ -14,7 +14,7 @@ namespace node {
 
 class Tile : public Node, public TileBroadcastCommon {
 public:
-    Tile(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    Tile(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -39,8 +39,6 @@ private:
     int tiles = 0;
     bool noTiling = false;
     VectorDims originRepeats;
-
-    std::string errorPrefix;
 };
 
 }   // namespace node

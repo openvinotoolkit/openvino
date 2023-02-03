@@ -6,7 +6,9 @@
 #include "ngraph_functions/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
+#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 
+using namespace InferenceEngine;
 using namespace CPUTestUtils;
 using namespace ov::test;
 
@@ -15,10 +17,11 @@ namespace CPULayerTestsDefinitions {
 typedef std::tuple<
         std::vector<InputShape>,           // Input shapes
         std::tuple<int, int>,              // Axis and Batch dim
-        ElementType,                       // Network precision
+        ElementType,                       // Data precision
+        ElementType,                       // Indices precision
         bool,                              // Is const Axis
         CPUSpecificParams,                 // CPU specific params
-        std::map<std::string, std::string> // Additional config
+        ov::AnyMap                         // Additional config
 > GatherLayerTestCPUParams;
 
 class GatherLayerTestCPU : public testing::WithParamInterface<GatherLayerTestCPUParams>,
@@ -27,12 +30,12 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<GatherLayerTestCPUParams> obj) {
         std::vector<InputShape> inputShapes;
         std::tuple<int, int> axisAndBatchDims;
-        ElementType netPrecision;
+        ElementType dataPrc, idxPrc;
         bool isAxisConstant;
         CPUSpecificParams cpuParams;
-        std::map<std::string, std::string> additionalConfig;
+        ov::AnyMap additionalConfig;
 
-        std::tie(inputShapes, axisAndBatchDims, netPrecision, isAxisConstant, cpuParams, additionalConfig) = obj.param;
+        std::tie(inputShapes, axisAndBatchDims, dataPrc, idxPrc, isAxisConstant, cpuParams, additionalConfig) = obj.param;
 
         std::ostringstream result;
         result << "IS=(";
@@ -49,15 +52,16 @@ public:
         }
         result << "axis=" << std::get<0>(axisAndBatchDims) << "_";
         result << "batchDims=" << std::get<1>(axisAndBatchDims) << "_";
-        result << "netPrc=" << netPrecision << "_";
+        result << "dataPrc=" << dataPrc << "_";
+        result << "idxPrc=" << idxPrc << "_";
         result << "constAx=" << (isAxisConstant ? "True" : "False") << "_";
         result << CPUTestsBase::getTestCaseName(cpuParams);
 
         if (!additionalConfig.empty()) {
             result << "_PluginConf";
             for (auto &item : additionalConfig) {
-                if (item.second == InferenceEngine::PluginConfigParams::YES)
-                    result << "_" << item.first << "=" << item.second;
+                result << "_" << item.first << "=";
+                item.second.print(result);
             }
         }
 
@@ -68,24 +72,24 @@ protected:
     void SetUp() override {
         std::vector<InputShape> inputShapes;
         std::tuple<int, int> axisAndBatchDims;
-        ElementType netPrecision;
+        ElementType dataPrc, idxPrc;
+        const ElementType axisPrc = ElementType::i64;
         bool isAxisConstant;
         CPUSpecificParams cpuParams;
-        std::map<std::string, std::string> additionalConfig;
-        const ElementType intInputsPrecision = ElementType::i64;
 
-        std::tie(inputShapes, axisAndBatchDims, netPrecision, isAxisConstant, cpuParams, additionalConfig) = this->GetParam();
+        std::tie(inputShapes, axisAndBatchDims, dataPrc, idxPrc, isAxisConstant, cpuParams, configuration) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         axis = std::get<0>(axisAndBatchDims);
         const int batchDims = std::get<1>(axisAndBatchDims);
         targetDevice = CommonTestUtils::DEVICE_CPU;
-        init_input_shapes(inputShapes);
-        configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
+        init_input_shapes(inputShapes);
+
+        auto bf16Flag = configuration.find(PluginConfigParams::KEY_ENFORCE_BF16);
+        if (bf16Flag != configuration.end() && bf16Flag->second == PluginConfigParams::YES) {
             selectedType = makeSelectedTypeStr(selectedType, ElementType::bf16);
         } else {
-            selectedType = makeSelectedTypeStr(selectedType, netPrecision);
+            selectedType = makeSelectedTypeStr(selectedType, dataPrc);
         }
 
         if (!isAxisConstant) {
@@ -95,26 +99,26 @@ protected:
             }
         }
 
-        ngraph::ParameterVector params {
-            std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0]),
-            std::make_shared<ov::op::v0::Parameter>(intInputsPrecision, inputDynamicShapes[1])
+        ov::ParameterVector params {
+            std::make_shared<ov::op::v0::Parameter>(dataPrc, inputDynamicShapes[0]),
+            std::make_shared<ov::op::v0::Parameter>(idxPrc, inputDynamicShapes[1])
         };
         params[0]->set_friendly_name("data");
         params[1]->set_friendly_name("indices");
         if (!isAxisConstant) {
-            params.push_back(std::make_shared<ov::op::v0::Parameter>(intInputsPrecision, inputDynamicShapes[2]));
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(axisPrc, inputDynamicShapes[2]));
             params[2]->set_friendly_name("axis");
         }
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
         std::shared_ptr<ov::Node> gatherNode;
         if (isAxisConstant) {
             gatherNode = std::make_shared<ov::op::v8::Gather>(paramOuts[0], paramOuts[1],
-                    ov::op::v0::Constant::create(intInputsPrecision, ov::Shape({1}), { axis }), batchDims);
+                    ov::op::v0::Constant::create(axisPrc, ov::Shape({1}), { axis }), batchDims);
         } else {
             gatherNode = std::make_shared<ov::op::v8::Gather>(paramOuts[0], paramOuts[1], paramOuts[2], batchDims);
         }
 
-        function = makeNgraphFunction(netPrecision, params, gatherNode, "GatherCPU");
+        function = makeNgraphFunction(dataPrc, params, gatherNode, "GatherCPU");
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
@@ -225,24 +229,31 @@ TEST_P(GatherInPlaceLayerTestCPU, CompareWithRefs) {
 }
 
 namespace {
-const std::vector<ElementType> netPrecisions = {
+const std::vector<ElementType> dataPrcs = {
         ElementType::f32,
         ElementType::bf16,
         ElementType::i8
 };
 
-std::vector<std::map<std::string, std::string>> additionalConfig
-    = {{{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO}},
-       {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES}}};
+const std::vector<ov::AnyMap> bf16Config = {
+        {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}},
+        {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}
+};
+
+const ov::AnyMap i64Config = {
+        {PluginConfigInternalParams::KEY_CPU_NATIVE_I64, PluginConfigParams::YES}
+};
+
+const ov::AnyMap emptyConfig = {};
 
 std::vector<bool> isAxisConst{true, false};
 const CPUSpecificParams cpuParamsRef{{}, {}, {"ref_any"}, "ref_any"};
 
 std::vector<CPUSpecificParams> getCPUInfo() {
     std::vector<CPUSpecificParams> resCPUParams;
-    if (InferenceEngine::with_cpu_x86_avx512f()) {
+    if (with_cpu_x86_avx512f()) {
         resCPUParams.push_back(CPUSpecificParams{{}, {}, {"jit_avx512"}, "jit_avx512"});
-    } else if (InferenceEngine::with_cpu_x86_avx2()) {
+    } else if (with_cpu_x86_avx2()) {
         resCPUParams.push_back(CPUSpecificParams{{}, {}, {"jit_avx2"}, "jit_avx2"});
     } else {
         resCPUParams.push_back(CPUSpecificParams{{}, {}, {"ref"}, "ref"});
@@ -284,10 +295,22 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_1D, GatherLayerTestCPU,
                 ::testing::Combine(
                     ::testing::ValuesIn(staticInputShapes1D),
                     ::testing::Values(std::tuple<int, int>{0, 0}),
-                    ::testing::ValuesIn(netPrecisions),
+                    ::testing::ValuesIn(dataPrcs),
+                    ::testing::Values(ElementType::i32),
                     ::testing::Values(true),
                     ::testing::ValuesIn(getCPUInfo()),
-                    ::testing::Values(additionalConfig[0])),
+                    ::testing::Values(emptyConfig)),
+                GatherLayerTestCPU::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_static_1D_i64, GatherLayerTestCPU,
+                ::testing::Combine(
+                    ::testing::ValuesIn(staticInputShapes1D),
+                    ::testing::Values(std::tuple<int, int>{0, 0}),
+                    ::testing::Values(ElementType::i64),
+                    ::testing::Values(ElementType::i32, ElementType::i64),
+                    ::testing::Values(true),
+                    ::testing::Values(CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"}),
+                    ::testing::Values(i64Config)),
                 GatherLayerTestCPU::getTestCaseName);
 
 const std::vector<std::vector<ov::test::InputShape>> dynamicInputShapes1D = {
@@ -301,16 +324,28 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic_1D, GatherLayerTestCPU,
                 ::testing::Combine(
                     ::testing::ValuesIn(dynamicInputShapes1D),
                     ::testing::Values(std::tuple<int, int>{0, 0}),
-                    ::testing::ValuesIn(netPrecisions),
+                    ::testing::ValuesIn(dataPrcs),
+                    ::testing::Values(ElementType::i32),
                     ::testing::Values(true, false),
                     ::testing::ValuesIn(getCPUInfo()),
-                    ::testing::Values(additionalConfig[0])),
+                    ::testing::Values(emptyConfig)),
+                GatherLayerTestCPU::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_dynamic_1D_i64, GatherLayerTestCPU,
+                ::testing::Combine(
+                    ::testing::ValuesIn(dynamicInputShapes1D),
+                    ::testing::Values(std::tuple<int, int>{0, 0}),
+                    ::testing::Values(ElementType::i64),
+                    ::testing::ValuesIn({ElementType::i32, ElementType::i64}),
+                    ::testing::Values(true, false),
+                    ::testing::Values(CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"}),
+                    ::testing::Values(i64Config)),
                 GatherLayerTestCPU::getTestCaseName);
 
 ///// 4D JIT /////
 std::vector<std::vector<ov::test::InputShape>> get4DShapesJitStat(int maxBatchDims) {
     std::vector<std::vector<ov::test::InputShape>> result = {};
-    if (InferenceEngine::with_cpu_x86_avx2()) {
+    if (with_cpu_x86_avx2()) {
         if (maxBatchDims == 2) {
             result = {
                 { { {}, { {18, 2, 2, 1} } },   // Static shapes
@@ -369,7 +404,7 @@ std::vector<std::vector<ov::test::InputShape>> get4DShapesJitStat(int maxBatchDi
             throw std::invalid_argument("Invalid test case. Not valid batch dims.");
         }
     } // AVX2
-    if (InferenceEngine::with_cpu_x86_avx512f()) {
+    if (with_cpu_x86_avx512f()) {
         std::vector<std::vector<ov::test::InputShape>> tmp;
         if (maxBatchDims == 2) {
             tmp = {
@@ -436,7 +471,7 @@ std::vector<std::vector<ov::test::InputShape>> get4DShapesJitStat(int maxBatchDi
 
 std::vector<std::tuple<int, int>> get4DAxisBatchJitStat(ov::element::Type type, int maxBatchDims) {
     std::vector<std::tuple<int, int>> result = {};
-    if (InferenceEngine::with_cpu_x86_avx512f()) {
+    if (with_cpu_x86_avx512f()) {
         if (type.size() == 4 || type.size() == 2 || type.size() == 1) {
             if (maxBatchDims == 2)
                 return std::vector<std::tuple<int, int>>{{3, 0}, {3, 1}, {3, 2}, {2, 0}, {2, 1}, {2, 2}};
@@ -445,7 +480,7 @@ std::vector<std::tuple<int, int>> get4DAxisBatchJitStat(ov::element::Type type, 
             else
                 throw std::invalid_argument("Invalid test case. Not valid batch dims.");
         }
-    } else if (InferenceEngine::with_cpu_x86_avx2()) {
+    } else if (with_cpu_x86_avx2()) {
         if (type.size() == 4) {
             if (maxBatchDims == 2)
                 return std::vector<std::tuple<int, int>>{{3, 0}, {3, 1}, {3, 2}, {2, 0}, {2, 1}, {2, 2}};
@@ -470,9 +505,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_4D_jit32, GatherLayerTestCPU,
                     ::testing::ValuesIn(get4DShapesJitStat(2)),
                     ::testing::ValuesIn(get4DAxisBatchJitStat(ElementType::f32, 2)),
                     ::testing::Values(ElementType::f32),
+                    ::testing::Values(ElementType::i32),
                     ::testing::Values(true),
                     ::testing::ValuesIn(getCPUInfo()),
-                    ::testing::ValuesIn(additionalConfig)),
+                    ::testing::ValuesIn(bf16Config)),
                 GatherLayerTestCPU::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_static_4D_jit16, GatherLayerTestCPU,
@@ -480,9 +516,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_4D_jit16, GatherLayerTestCPU,
                     ::testing::ValuesIn(get4DShapesJitStat(2)),
                     ::testing::ValuesIn(get4DAxisBatchJitStat(ElementType::bf16, 2)),
                     ::testing::Values(ElementType::bf16),
+                    ::testing::Values(ElementType::i32),
                     ::testing::Values(true),
                     ::testing::ValuesIn(getCPUInfo()),
-                    ::testing::Values(additionalConfig[0])),
+                    ::testing::Values(emptyConfig)),
                 GatherLayerTestCPU::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_static_4D_jit8, GatherLayerTestCPU,
@@ -490,9 +527,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_4D_jit8, GatherLayerTestCPU,
                     ::testing::ValuesIn(get4DShapesJitStat(2)),
                     ::testing::ValuesIn(get4DAxisBatchJitStat(ElementType::i8, 2)),
                     ::testing::Values(ElementType::i8),
+                    ::testing::Values(ElementType::i32),
                     ::testing::Values(true),
                     ::testing::ValuesIn(getCPUInfo()),
-                    ::testing::Values(additionalConfig[0])),
+                    ::testing::Values(emptyConfig)),
                 GatherLayerTestCPU::getTestCaseName);
 
 // batchDims == indicesRank
@@ -501,9 +539,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_4D_jit32_Bmax, GatherLayerTestCPU,
                     ::testing::ValuesIn(get4DShapesJitStat(3)),
                     ::testing::ValuesIn(get4DAxisBatchJitStat(ElementType::f32, 3)),
                     ::testing::Values(ElementType::f32),
+                    ::testing::Values(ElementType::i32),
                     ::testing::Values(true),
                     ::testing::ValuesIn(getCPUInfo()),
-                    ::testing::ValuesIn(additionalConfig)),
+                    ::testing::ValuesIn(bf16Config)),
                 GatherLayerTestCPU::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_static_4D_jit16_Bmax, GatherLayerTestCPU,
@@ -511,9 +550,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_4D_jit16_Bmax, GatherLayerTestCPU,
                     ::testing::ValuesIn(get4DShapesJitStat(3)),
                     ::testing::ValuesIn(get4DAxisBatchJitStat(ElementType::bf16, 3)),
                     ::testing::Values(ElementType::bf16),
+                    ::testing::Values(ElementType::i32),
                     ::testing::Values(true),
                     ::testing::ValuesIn(getCPUInfo()),
-                    ::testing::Values(additionalConfig[0])),
+                    ::testing::Values(emptyConfig)),
                 GatherLayerTestCPU::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_static_4D_jit8_Bmax, GatherLayerTestCPU,
@@ -521,15 +561,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_4D_jit8_Bmax, GatherLayerTestCPU,
                     ::testing::ValuesIn(get4DShapesJitStat(3)),
                     ::testing::ValuesIn(get4DAxisBatchJitStat(ElementType::i8, 3)),
                     ::testing::Values(ElementType::i8),
+                    ::testing::Values(ElementType::i32),
                     ::testing::Values(true),
                     ::testing::ValuesIn(getCPUInfo()),
-                    ::testing::Values(additionalConfig[0])),
+                    ::testing::Values(emptyConfig)),
                 GatherLayerTestCPU::getTestCaseName);
 
 
 std::vector<std::vector<ov::test::InputShape>> get4DShapesJitDyn(int maxBatchDims) {
     std::vector<std::vector<ov::test::InputShape>> result = {};
-    if (InferenceEngine::with_cpu_x86_avx2()) {
+    if (with_cpu_x86_avx2()) {
         if (maxBatchDims == 2) {
             result = {
                 { { { ov::Dimension(5, 15), -1, -1, -1 },                            // Dynamic shape 0
@@ -572,7 +613,7 @@ std::vector<std::vector<ov::test::InputShape>> get4DShapesJitDyn(int maxBatchDim
             throw std::invalid_argument("Invalid test case. Not valid batch dims.");
         }
     }
-    if (InferenceEngine::with_cpu_x86_avx512f()) {
+    if (with_cpu_x86_avx512f()) {
         std::vector<std::vector<ov::test::InputShape>> tmp;
         if (maxBatchDims == 2) {
             tmp = {
@@ -623,7 +664,7 @@ std::vector<std::vector<ov::test::InputShape>> get4DShapesJitDyn(int maxBatchDim
 
 std::vector<std::tuple<int, int>> get4DAxisBatchJitDyn(ov::element::Type type, int maxBatchDims) {
     std::vector<std::tuple<int, int>> result = {};
-    if (InferenceEngine::with_cpu_x86_avx512f()) {
+    if (with_cpu_x86_avx512f()) {
         if (type.size() == 4 || type.size() == 2 || type.size() == 1) {
             if (maxBatchDims == 2)
                 return std::vector<std::tuple<int, int>>{{3, 0}, {3, 1}, {3, 2}};
@@ -632,7 +673,7 @@ std::vector<std::tuple<int, int>> get4DAxisBatchJitDyn(ov::element::Type type, i
             else
                 throw std::invalid_argument("Invalid test case. Not valid batch dims.");
         }
-    } else if (InferenceEngine::with_cpu_x86_avx2()) {
+    } else if (with_cpu_x86_avx2()) {
         if (type.size() == 4 || type.size() == 2 || type.size() == 1) {
             if (maxBatchDims == 2)
                 return std::vector<std::tuple<int, int>>{{3, 0}, {3, 1}, {3, 2}};
@@ -650,9 +691,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic_4D_jit32, GatherLayerTestCPU,
                     ::testing::ValuesIn(get4DShapesJitDyn(2)),
                     ::testing::ValuesIn(get4DAxisBatchJitDyn(ElementType::f32, 2)),
                     ::testing::Values(ElementType::f32),
+                    ::testing::Values(ElementType::i32),
                     ::testing::ValuesIn(isAxisConst),
                     ::testing::ValuesIn(getCPUInfo()),
-                    ::testing::ValuesIn(additionalConfig)),
+                    ::testing::ValuesIn(bf16Config)),
                 GatherLayerTestCPU::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_4D_jit16, GatherLayerTestCPU,
@@ -660,9 +702,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic_4D_jit16, GatherLayerTestCPU,
                     ::testing::ValuesIn(get4DShapesJitDyn(2)),
                     ::testing::ValuesIn(get4DAxisBatchJitDyn(ElementType::bf16, 2)),
                     ::testing::Values(ElementType::bf16),
+                    ::testing::Values(ElementType::i32),
                     ::testing::ValuesIn(isAxisConst),
                     ::testing::ValuesIn(getCPUInfo()),
-                    ::testing::Values(additionalConfig[0])),
+                    ::testing::Values(emptyConfig)),
                 GatherLayerTestCPU::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_4D_jit8, GatherLayerTestCPU,
@@ -670,9 +713,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic_4D_jit8, GatherLayerTestCPU,
                     ::testing::ValuesIn(get4DShapesJitDyn(2)),
                     ::testing::ValuesIn(get4DAxisBatchJitDyn(ElementType::i8, 2)),
                     ::testing::Values(ElementType::i8),
+                    ::testing::Values(ElementType::i32),
                     ::testing::ValuesIn(isAxisConst),
                     ::testing::ValuesIn(getCPUInfo()),
-                    ::testing::Values(additionalConfig[0])),
+                    ::testing::Values(emptyConfig)),
                 GatherLayerTestCPU::getTestCaseName);
 
 // batchDims == indicesRank
@@ -681,9 +725,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic_4D_jit32_Bmax, GatherLayerTestCPU,
                     ::testing::ValuesIn(get4DShapesJitDyn(3)),
                     ::testing::ValuesIn(get4DAxisBatchJitDyn(ElementType::f32, 3)),
                     ::testing::Values(ElementType::f32),
+                    ::testing::Values(ElementType::i32),
                     ::testing::ValuesIn(isAxisConst),
                     ::testing::ValuesIn(getCPUInfo()),
-                    ::testing::ValuesIn(additionalConfig)),
+                    ::testing::ValuesIn(bf16Config)),
                 GatherLayerTestCPU::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_4D_jit16_Bmax, GatherLayerTestCPU,
@@ -691,9 +736,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic_4D_jit16_Bmax, GatherLayerTestCPU,
                     ::testing::ValuesIn(get4DShapesJitDyn(3)),
                     ::testing::ValuesIn(get4DAxisBatchJitDyn(ElementType::bf16, 3)),
                     ::testing::Values(ElementType::bf16),
+                    ::testing::Values(ElementType::i32),
                     ::testing::ValuesIn(isAxisConst),
                     ::testing::ValuesIn(getCPUInfo()),
-                    ::testing::Values(additionalConfig[0])),
+                    ::testing::Values(emptyConfig)),
                 GatherLayerTestCPU::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_4D_jit8_Bmax, GatherLayerTestCPU,
@@ -701,16 +747,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic_4D_jit8_Bmax, GatherLayerTestCPU,
                     ::testing::ValuesIn(get4DShapesJitDyn(3)),
                     ::testing::ValuesIn(get4DAxisBatchJitDyn(ElementType::i8, 3)),
                     ::testing::Values(ElementType::i8),
+                    ::testing::Values(ElementType::i32),
                     ::testing::ValuesIn(isAxisConst),
                     ::testing::ValuesIn(getCPUInfo()),
-                    ::testing::Values(additionalConfig[0])),
+                    ::testing::Values(emptyConfig)),
                 GatherLayerTestCPU::getTestCaseName);
 
 
 ///// 4D REFERENCE /////
 std::vector<std::vector<ov::test::InputShape>> get4DShapesRefStat(bool maxBatchDims) {
     std::vector<std::vector<ov::test::InputShape>> result = {};
-    if (InferenceEngine::with_cpu_x86_avx2()) {
+    if (with_cpu_x86_avx2()) {
         if (!maxBatchDims) {
             result = {
                 { { {}, { {10, 2, 9, 9} } },   // Static shapes
@@ -767,7 +814,7 @@ std::vector<std::vector<ov::test::InputShape>> get4DShapesRefStat(bool maxBatchD
             };
         }
     }
-    if (InferenceEngine::with_cpu_x86_avx512f()) {
+    if (with_cpu_x86_avx512f()) {
         std::vector<std::vector<ov::test::InputShape>> tmp;
         if (!maxBatchDims) {
             tmp = {
@@ -832,8 +879,8 @@ std::vector<std::vector<ov::test::InputShape>> get4DShapesRefStat(bool maxBatchD
 
 std::vector<std::tuple<int, int>> get4DAxisBatchRefStat(ov::element::Type type, bool maxBatchDims) {
     std::vector<std::tuple<int, int>> result = {};
-    if (InferenceEngine::with_cpu_x86_avx512f()) {
-        if (type.size() == 4) {
+    if (with_cpu_x86_avx512f()) {
+        if (type.size() == 4 || type.size() == 8) {
             if (!maxBatchDims)
                 return std::vector<std::tuple<int, int>>{{1, 0}, {1, 1}, {0, 0}};
             else
@@ -844,8 +891,8 @@ std::vector<std::tuple<int, int>> get4DAxisBatchRefStat(ov::element::Type type, 
             else
                 return std::vector<std::tuple<int, int>>{{2, 2}};
         }
-    } else if (InferenceEngine::with_cpu_x86_avx2()) {
-        if (type.size() == 4) {
+    } else if (with_cpu_x86_avx2()) {
+        if (type.size() == 4 || type.size() == 8) {
             if (!maxBatchDims)
                 return std::vector<std::tuple<int, int>>{{1, 0}, {1, 1}, {0, 0}};
             else
@@ -860,14 +907,26 @@ std::vector<std::tuple<int, int>> get4DAxisBatchRefStat(ov::element::Type type, 
     return {};
 }
 
+INSTANTIATE_TEST_SUITE_P(smoke_static_4D_ref64, GatherLayerTestCPU,
+                ::testing::Combine(
+                    ::testing::ValuesIn(get4DShapesRefStat(false)),
+                    ::testing::ValuesIn(get4DAxisBatchRefStat(ElementType::i64, false)),
+                    ::testing::Values(ElementType::i64),
+                    ::testing::ValuesIn({ElementType::i32, ElementType::i64}),
+                    ::testing::Values(true),
+                    ::testing::Values(cpuParamsRef),
+                    ::testing::Values(i64Config)),
+                GatherLayerTestCPU::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_static_4D_ref32, GatherLayerTestCPU,
                 ::testing::Combine(
                     ::testing::ValuesIn(get4DShapesRefStat(false)),
                     ::testing::ValuesIn(get4DAxisBatchRefStat(ElementType::f32, false)),
                     ::testing::Values(ElementType::f32),
+                    ::testing::Values(ElementType::i32),
                     ::testing::Values(true),
                     ::testing::Values(cpuParamsRef),
-                    ::testing::ValuesIn(additionalConfig)),
+                    ::testing::ValuesIn(bf16Config)),
                 GatherLayerTestCPU::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_static_4D_ref16, GatherLayerTestCPU,
@@ -875,9 +934,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_4D_ref16, GatherLayerTestCPU,
                     ::testing::ValuesIn(get4DShapesRefStat(false)),
                     ::testing::ValuesIn(get4DAxisBatchRefStat(ElementType::bf16, false)),
                     ::testing::Values(ElementType::bf16),
+                    ::testing::Values(ElementType::i32),
                     ::testing::Values(true),
                     ::testing::Values(cpuParamsRef),
-                    ::testing::Values(additionalConfig[0])),
+                    ::testing::Values(emptyConfig)),
                 GatherLayerTestCPU::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_static_4D_ref8, GatherLayerTestCPU,
@@ -885,9 +945,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_4D_ref8, GatherLayerTestCPU,
                     ::testing::ValuesIn(get4DShapesRefStat(false)),
                     ::testing::ValuesIn(get4DAxisBatchRefStat(ElementType::i8, false)),
                     ::testing::Values(ElementType::i8),
+                    ::testing::Values(ElementType::i32),
                     ::testing::Values(true),
                     ::testing::Values(cpuParamsRef),
-                    ::testing::Values(additionalConfig[0])),
+                    ::testing::Values(emptyConfig)),
                 GatherLayerTestCPU::getTestCaseName);
 
 // batchDims == indicesRank
@@ -896,9 +957,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_4D_ref32_Bmax, GatherLayerTestCPU,
                     ::testing::ValuesIn(get4DShapesRefStat(true)),
                     ::testing::ValuesIn(get4DAxisBatchRefStat(ElementType::f32, true)),
                     ::testing::Values(ElementType::f32),
+                    ::testing::Values(ElementType::i32),
                     ::testing::Values(true),
                     ::testing::Values(cpuParamsRef),
-                    ::testing::ValuesIn(additionalConfig)),
+                    ::testing::ValuesIn(bf16Config)),
                 GatherLayerTestCPU::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_static_4D_ref16_Bmax, GatherLayerTestCPU,
@@ -906,9 +968,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_4D_ref16_Bmax, GatherLayerTestCPU,
                     ::testing::ValuesIn(get4DShapesRefStat(true)),
                     ::testing::ValuesIn(get4DAxisBatchRefStat(ElementType::bf16, true)),
                     ::testing::Values(ElementType::bf16),
+                    ::testing::Values(ElementType::i32),
                     ::testing::Values(true),
                     ::testing::Values(cpuParamsRef),
-                    ::testing::Values(additionalConfig[0])),
+                    ::testing::Values(emptyConfig)),
                 GatherLayerTestCPU::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_static_4D_ref8_Bmax, GatherLayerTestCPU,
@@ -916,9 +979,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_4D_ref8_Bmax, GatherLayerTestCPU,
                     ::testing::ValuesIn(get4DShapesRefStat(true)),
                     ::testing::ValuesIn(get4DAxisBatchRefStat(ElementType::i8, true)),
                     ::testing::Values(ElementType::i8),
+                    ::testing::Values(ElementType::i32),
                     ::testing::Values(true),
                     ::testing::Values(cpuParamsRef),
-                    ::testing::Values(additionalConfig[0])),
+                    ::testing::Values(emptyConfig)),
                 GatherLayerTestCPU::getTestCaseName);
 
 // InPlace

@@ -7,6 +7,7 @@
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
+#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -32,6 +33,7 @@ typedef std::tuple<
         StridedSliceParams,
         ngraph::helpers::InputLayerType,    // Secondary input types
         ElementType,                        // Element type
+        ov::AnyMap,                         // Additional network configuration
         CPUSpecificParams> StridedSliceLayerCPUTestParamSet;
 
 class StridedSliceLayerCPUTest : public testing::WithParamInterface<StridedSliceLayerCPUTestParamSet>,
@@ -43,7 +45,8 @@ public:
         ngraph::helpers::InputLayerType secondaryInputType;
         ElementType dataType;
         CPUSpecificParams cpuParams;
-        std::tie(shapes, params, secondaryInputType, dataType, cpuParams) = obj.param;
+        ov::AnyMap additionalConfig;
+        std::tie(shapes, params, secondaryInputType, dataType, additionalConfig, cpuParams) = obj.param;
 
         std::ostringstream results;
         results << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
@@ -61,13 +64,22 @@ public:
         results << "new_axis_m=" << (params.newAxisMask.empty() ? "def" : CommonTestUtils::vec2str(params.newAxisMask)) << "_";
         results << "shrink_m=" << (params.shrinkAxisMask.empty() ? "def" : CommonTestUtils::vec2str(params.shrinkAxisMask)) << "_";
         results << "ellipsis_m=" << (params.ellipsisAxisMask.empty() ? "def" : CommonTestUtils::vec2str(params.ellipsisAxisMask)) << "_";
+
+        if (!additionalConfig.empty()) {
+            results << "_PluginConf";
+            for (auto &item : additionalConfig) {
+                results << "_" << item.first << "=";
+                item.second.print(results);
+            }
+        }
+
         results << CPUTestsBase::getTestCaseName(cpuParams);
 
         return results.str();
     }
 
 protected:
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         std::vector<void*> inputValues = {ssParams.begin.data(), ssParams.end.data(), ssParams.strides.data()};
 
         inputs.clear();
@@ -88,11 +100,22 @@ protected:
         InputShape shapes;
         ngraph::helpers::InputLayerType secondaryInputType;
         CPUSpecificParams cpuParams;
-        ov::element::Type dataType;
-        std::tie(shapes, ssParams, secondaryInputType, dataType, cpuParams) = this->GetParam();
+        ElementType dataType;
+        std::tie(shapes, ssParams, secondaryInputType, dataType, configuration, cpuParams) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-        selectedType = makeSelectedTypeStr("ref", dataType);
+        selectedType = "ref";
+        if (dataType == ElementType::i64 || dataType == ElementType::u64) {
+            auto i64It = configuration.find(PluginConfigInternalParams::KEY_CPU_NATIVE_I64);
+            if (i64It == configuration.end() || i64It->second == PluginConfigParams::NO) {
+                selectedType = makeSelectedTypeStr(selectedType, ElementType::i32);
+            } else {
+                selectedType = makeSelectedTypeStr(selectedType, ElementType::i64);
+            }
+        } else {
+            selectedType = makeSelectedTypeStr(selectedType, dataType);
+        }
+
         targetDevice = CommonTestUtils::DEVICE_CPU;
         std::vector<InputShape> input_shapes = {shapes};
 
@@ -104,17 +127,17 @@ protected:
         }
 
         auto params = ngraph::builder::makeDynamicParams(dataType, inputDynamicShapes);
-        std::shared_ptr<ngraph::Node> ss;
+        std::shared_ptr<ov::Node> ss;
         if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
             ov::Shape inShape = {ssParams.begin.size()};
 
-            auto beginNode = std::make_shared<ngraph::opset1::Parameter>(ov::element::i64, inShape);
-            auto endNode = std::make_shared<ngraph::opset1::Parameter>(ov::element::i64, inShape);
-            auto strideNode = std::make_shared<ngraph::opset1::Parameter>(ov::element::i64, inShape);
+            auto beginNode = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inShape);
+            auto endNode = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inShape);
+            auto strideNode = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inShape);
 
-            params.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(beginNode));
-            params.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(endNode));
-            params.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(strideNode));
+            params.push_back(beginNode);
+            params.push_back(std::dynamic_pointer_cast<ov::op::v0::Parameter>(endNode));
+            params.push_back(std::dynamic_pointer_cast<ov::op::v0::Parameter>(strideNode));
 
             ss = ngraph::builder::makeStridedSlice(params[0], beginNode, endNode, strideNode, inType, ssParams.beginMask,
                                                    ssParams.endMask, ssParams.newAxisMask, ssParams.shrinkAxisMask, ssParams.ellipsisAxisMask);
@@ -150,7 +173,8 @@ const auto cpuParams_ncdhw = CPUSpecificParams {{ncdhw}, {ncdhw}, {}, {}};
 const std::vector<ElementType> inputPrecisions = {
         ElementType::f32,
         ElementType::bf16,
-        ElementType::i8
+        ElementType::i8,
+        ElementType::i64
 };
 
 const std::vector<ngraph::helpers::InputLayerType> inputLayerTypes = {
@@ -178,12 +202,29 @@ const std::vector<StridedSliceParams> paramsPlain2D = {
         StridedSliceParams{ { 2 }, { 22 }, { 2 }, { 0 }, { 0 },  { },  { },  { } },
 };
 
+const ov::AnyMap additionalConfig;
+const std::vector<ov::AnyMap> i64Config = {
+        {{InferenceEngine::PluginConfigInternalParams::KEY_CPU_NATIVE_I64, InferenceEngine::PluginConfigParams::YES}},
+        {{InferenceEngine::PluginConfigInternalParams::KEY_CPU_NATIVE_I64, InferenceEngine::PluginConfigParams::NO}}
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Plain_Static_2D, StridedSliceLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(static_shapes_to_test_representation({{32, 20}})),
                                  ::testing::ValuesIn(paramsPlain2D),
                                  ::testing::ValuesIn(inputLayerTypes),
                                  ::testing::ValuesIn(inputPrecisions),
+                                 ::testing::Values(additionalConfig),
+                                 ::testing::Values(emptyCPUSpec)),
+                         StridedSliceLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Plain_Static_2D_I64, StridedSliceLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(static_shapes_to_test_representation({{32, 20}})),
+                                 ::testing::ValuesIn(paramsPlain2D),
+                                 ::testing::ValuesIn(inputLayerTypes),
+                                 ::testing::Values(ElementType::i64),
+                                 ::testing::ValuesIn(i64Config),
                                  ::testing::Values(emptyCPUSpec)),
                          StridedSliceLayerCPUTest::getTestCaseName);
 
@@ -193,6 +234,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Plain_Dynamic_2D, StridedSliceLay
                              ::testing::ValuesIn(paramsPlain2D),
                              ::testing::ValuesIn(inputLayerTypes),
                              ::testing::ValuesIn(inputPrecisions),
+                             ::testing::Values(additionalConfig),
+                             ::testing::Values(emptyCPUSpec)),
+                         StridedSliceLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Plain_Dynamic_2D_I64, StridedSliceLayerCPUTest,
+                         ::testing::Combine(
+                             ::testing::ValuesIn(inputShapesDynamic2D),
+                             ::testing::ValuesIn(paramsPlain2D),
+                             ::testing::ValuesIn(inputLayerTypes),
+                             ::testing::Values(ElementType::i64),
+                             ::testing::ValuesIn(i64Config),
                              ::testing::Values(emptyCPUSpec)),
                          StridedSliceLayerCPUTest::getTestCaseName);
 
@@ -234,6 +286,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Static_4D, StridedSliceLay
                                  ::testing::ValuesIn(testCasesCommon4D),
                                  ::testing::ValuesIn(inputLayerTypes),
                                  ::testing::ValuesIn(inputPrecisions),
+                                 ::testing::Values(additionalConfig),
                                  ::testing::ValuesIn(CPUParamsCommon4D)),
                          StridedSliceLayerCPUTest::getTestCaseName);
 
@@ -243,6 +296,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Dynamic_4D, StridedSliceLa
                              ::testing::ValuesIn(testCasesCommon4D),
                              ::testing::ValuesIn(inputLayerTypes),
                              ::testing::ValuesIn(inputPrecisions),
+                             ::testing::Values(additionalConfig),
                              ::testing::ValuesIn(CPUParamsCommon4D)),
                          StridedSliceLayerCPUTest::getTestCaseName);
 
@@ -306,6 +360,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Static_4D_Subset1, Strided
                                  ::testing::ValuesIn(testCasesBlocked4DSubset1),
                                  ::testing::ValuesIn(inputLayerTypesBlocked),
                                  ::testing::ValuesIn(inputPrecisions),
+                                 ::testing::Values(additionalConfig),
                                  ::testing::ValuesIn(CPUParamsBlocked4D)),
                          StridedSliceLayerCPUTest::getTestCaseName);
 
@@ -315,6 +370,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Dynamic_4D_Subset1, Stride
                                  ::testing::ValuesIn(testCasesBlocked4DSubset1),
                                  ::testing::ValuesIn(inputLayerTypesBlocked),
                                  ::testing::ValuesIn(inputPrecisions),
+                                 ::testing::Values(additionalConfig),
                                  ::testing::ValuesIn(CPUParamsBlocked4D)),
                          StridedSliceLayerCPUTest::getTestCaseName);
 
@@ -324,6 +380,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Static_4D_Subset2, Strided
                                  ::testing::ValuesIn(testCasesBlocked4DSubset2),
                                  ::testing::ValuesIn(inputLayerTypesBlocked),
                                  ::testing::ValuesIn(inputPrecisions),
+                                 ::testing::Values(additionalConfig),
                                  ::testing::ValuesIn(CPUParamsBlocked4D)),
                          StridedSliceLayerCPUTest::getTestCaseName);
 
@@ -333,6 +390,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Dynamic_4D_Subset2, Stride
                                  ::testing::ValuesIn(testCasesBlocked4DSubset2),
                                  ::testing::ValuesIn(inputLayerTypesBlocked),
                                  ::testing::ValuesIn(inputPrecisions),
+                                 ::testing::Values(additionalConfig),
                                  ::testing::ValuesIn(CPUParamsBlocked4D)),
                          StridedSliceLayerCPUTest::getTestCaseName);
 
@@ -373,6 +431,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Static_5D, StridedSliceLay
                                  ::testing::ValuesIn(testCasesCommon5D),
                                  ::testing::ValuesIn(inputLayerTypes),
                                  ::testing::ValuesIn(inputPrecisions),
+                                 ::testing::Values(additionalConfig),
+                                 ::testing::ValuesIn(CPUParamsCommon5D)),
+                        StridedSliceLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Static_5D_I64, StridedSliceLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesStatic5D)),
+                                 ::testing::ValuesIn(testCasesCommon5D),
+                                 ::testing::ValuesIn(inputLayerTypes),
+                                 ::testing::Values(ElementType::i64),
+                                 ::testing::ValuesIn(i64Config),
                                  ::testing::ValuesIn(CPUParamsCommon5D)),
                         StridedSliceLayerCPUTest::getTestCaseName);
 
@@ -382,6 +451,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Dynamic_5D, StridedSliceLa
                                  ::testing::ValuesIn(testCasesCommon5D),
                                  ::testing::ValuesIn(inputLayerTypes),
                                  ::testing::ValuesIn(inputPrecisions),
+                                 ::testing::Values(additionalConfig),
                                  ::testing::ValuesIn(CPUParamsCommon5D)),
                          StridedSliceLayerCPUTest::getTestCaseName);
 
@@ -444,6 +514,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Static_5D_Subset1, Strided
                                  ::testing::ValuesIn(testCasesBlocked5DSubset1),
                                  ::testing::ValuesIn(inputLayerTypesBlocked),
                                  ::testing::ValuesIn(inputPrecisions),
+                                 ::testing::Values(additionalConfig),
                                  ::testing::ValuesIn(CPUParamsBlocked5D)),
                          StridedSliceLayerCPUTest::getTestCaseName);
 
@@ -453,6 +524,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Dynamic_5D_Subset1, Stride
                                  ::testing::ValuesIn(testCasesBlocked5DSubset1),
                                  ::testing::ValuesIn(inputLayerTypesBlocked),
                                  ::testing::ValuesIn(inputPrecisions),
+                                 ::testing::Values(additionalConfig),
                                  ::testing::ValuesIn(CPUParamsBlocked5D)),
                          StridedSliceLayerCPUTest::getTestCaseName);
 
@@ -462,6 +534,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Static_5D_Subset2, Strided
                                  ::testing::ValuesIn(testCasesBlocked4DSubset2),
                                  ::testing::ValuesIn(inputLayerTypesBlocked),
                                  ::testing::ValuesIn(inputPrecisions),
+                                 ::testing::Values(additionalConfig),
                                  ::testing::ValuesIn(CPUParamsBlocked4D)),
                          StridedSliceLayerCPUTest::getTestCaseName);
 
@@ -471,6 +544,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Dynamic_5D_Subset2, Stride
                                  ::testing::ValuesIn(testCasesBlocked5DSubset2),
                                  ::testing::ValuesIn(inputLayerTypesBlocked),
                                  ::testing::ValuesIn(inputPrecisions),
+                                 ::testing::Values(additionalConfig),
                                  ::testing::ValuesIn(CPUParamsBlocked5D)),
                          StridedSliceLayerCPUTest::getTestCaseName);
 
@@ -502,6 +576,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_StridedSliceLayerDescriptorCPUTest, StridedSliceL
                                  ::testing::ValuesIn(testCasesDescriptors),
                                  ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                                  ::testing::Values(ElementType::f32),
+                                 ::testing::Values(additionalConfig),
                                  ::testing::Values(cpuParams_nChw8c)),
                          StridedSliceLayerDescriptorCPUTest::getTestCaseName);
 

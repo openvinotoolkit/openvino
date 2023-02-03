@@ -5,8 +5,8 @@
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ngraph_functions/builders.hpp"
+#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 
-using namespace ngraph;
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
 using namespace ov::test;
@@ -25,7 +25,8 @@ struct ScatterUpdateLayerParams {
 using scatterUpdateParams = std::tuple<
     ScatterUpdateLayerParams,
     ElementType,        // input precision
-    ElementType>;       // indices precision
+    ElementType,        // indices precision
+    ov::AnyMap>;        // Additional network configuration
 
 class ScatterUpdateLayerCPUTest : public testing::WithParamInterface<scatterUpdateParams>, public SubgraphBaseTest, public CPUTestsBase {
 public:
@@ -33,7 +34,8 @@ public:
         ScatterUpdateLayerParams scatterParams;
         ElementType inputPrecision;
         ElementType idxPrecision;
-        std::tie(scatterParams, inputPrecision, idxPrecision) = obj.param;
+        ov::AnyMap config;
+        std::tie(scatterParams, inputPrecision, idxPrecision, config) = obj.param;
         const auto inputShapes = scatterParams.inputShapes;
         const auto indicesDescr = scatterParams.indicesDescriprion;
         const auto axis = scatterParams.axis;
@@ -53,6 +55,12 @@ public:
         }
         result << "indices_shape=" << indicesDescr.first << "_indices_values=" << CommonTestUtils::vec2str(indicesDescr.second)
                << "axis=" << axis << "_idx_precision=" << idxPrecision;
+
+        for (auto const& configItem : config) {
+            result << "_configItem=" << configItem.first << "_";
+            configItem.second.print(result);
+        }
+
         return result.str();
     }
 
@@ -62,18 +70,28 @@ protected:
         ScatterUpdateLayerParams scatterParams;
         ElementType inputPrecision;
         ElementType idxPrecision;
-        std::tie(scatterParams, inputPrecision, idxPrecision) = this->GetParam();
+        std::tie(scatterParams, inputPrecision, idxPrecision, configuration) = this->GetParam();
         const auto inputShapes = scatterParams.inputShapes;
         const auto indicesDescr = scatterParams.indicesDescriprion;
         const auto axis = scatterParams.axis;
 
         init_input_shapes(inputShapes);
-        selectedType = makeSelectedTypeStr("unknown", inputPrecision);
+
+        if (inputPrecision == ElementType::i64 || inputPrecision == ElementType::u64) {
+            auto i64It = configuration.find(PluginConfigInternalParams::KEY_CPU_NATIVE_I64);
+            if (i64It == configuration.end() || i64It->second == PluginConfigParams::NO) {
+                selectedType = makeSelectedTypeStr("unknown", ElementType::i32);
+            } else {
+                selectedType = makeSelectedTypeStr("unknown", ElementType::i64);
+            }
+        } else {
+            selectedType = makeSelectedTypeStr("unknown", inputPrecision);
+        }
 
         auto params = ngraph::builder::makeDynamicParams(inputPrecision, inputDynamicShapes);
-        auto indicesNode = ngraph::opset1::Constant::create(idxPrecision, indicesDescr.first, indicesDescr.second);
-        auto axis_node = ngraph::opset1::Constant::create(idxPrecision, {}, { axis });
-        auto scatter = std::make_shared<ngraph::opset3::ScatterUpdate>(params[0], indicesNode, params[1], axis_node);
+        auto indicesNode = ov::op::v0::Constant::create(idxPrecision, indicesDescr.first, indicesDescr.second);
+        auto axis_node = ov::op::v0::Constant::create(idxPrecision, {}, { axis });
+        auto scatter = std::make_shared<ov::op::v3::ScatterUpdate>(params[0], indicesNode, params[1], axis_node);
 
         function = makeNgraphFunction(inputPrecision, params, scatter, "ScatterUpdateLayerCPUTest");
     }
@@ -127,9 +145,12 @@ const std::vector<ScatterUpdateLayerParams> scatterParams = {
     },
 };
 
+ov::AnyMap config = {};
+ov::AnyMap config_i64 = {{PluginConfigInternalParams::KEY_CPU_NATIVE_I64, PluginConfigParams::YES}};
+
 const std::vector<ElementType> inputPrecisions = {
     ElementType::f32,
-    ElementType::i32,
+    ElementType::i32
 };
 
 const std::vector<ElementType> constantPrecisions = {
@@ -138,9 +159,19 @@ const std::vector<ElementType> constantPrecisions = {
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, ScatterUpdateLayerCPUTest,
-    ::testing::Combine(
-        ::testing::ValuesIn(scatterParams),
-        ::testing::ValuesIn(inputPrecisions),
-        ::testing::ValuesIn(constantPrecisions)),
-    ScatterUpdateLayerCPUTest::getTestCaseName);
+        ::testing::Combine(
+                ::testing::ValuesIn(scatterParams),
+                ::testing::ValuesIn(inputPrecisions),
+                ::testing::ValuesIn(constantPrecisions),
+                ::testing::Values(config)),
+        ScatterUpdateLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_I64, ScatterUpdateLayerCPUTest,
+        ::testing::Combine(
+                ::testing::ValuesIn(scatterParams),
+                ::testing::Values(ElementType::i64),
+                ::testing::ValuesIn(constantPrecisions),
+                ::testing::Values(config_i64)),
+        ScatterUpdateLayerCPUTest::getTestCaseName);
+
 } // namespace CPULayerTestsDefinitions

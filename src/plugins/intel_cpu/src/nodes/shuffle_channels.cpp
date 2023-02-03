@@ -15,6 +15,7 @@
 #include <string>
 #include <cmath>
 #include <common/primitive_hashing_utils.hpp>
+#include <openvino/op/shuffle_channels.hpp>
 
 #define THROW_SHCH_ERROR IE_THROW() << "ShuffleChannels layer with name '" << getName() << "' "
 
@@ -54,7 +55,7 @@ bool ShuffleChannels::ShuffleChannelsAttributes::operator==(const ShuffleChannel
 
 bool ShuffleChannels::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto shuffleChannels = ov::as_type_ptr<const ngraph::op::v0::ShuffleChannels>(op);
+        auto shuffleChannels = ov::as_type_ptr<const op::v0::ShuffleChannels>(op);
         if (!shuffleChannels) {
             errorMessage = "Only opset1 ShuffleChannels operation is supported";
             return false;
@@ -75,7 +76,7 @@ ShuffleChannels::ShuffleChannels(const std::shared_ptr<ngraph::Node>& op, const 
     if (inputShapes.size() != 1 || outputShapes.size() != 1)
         THROW_SHCH_ERROR << "has incorrect number of input/output edges.";
 
-    auto shuffleChannels = ov::as_type_ptr<const ngraph::op::v0::ShuffleChannels>(op);
+    auto shuffleChannels = ov::as_type_ptr<const op::v0::ShuffleChannels>(op);
     attrs.group = shuffleChannels->get_group();
     attrs.axis = shuffleChannels->get_axis();
     attrs.dataRank = getInputShapeAtPort(0).getRank();

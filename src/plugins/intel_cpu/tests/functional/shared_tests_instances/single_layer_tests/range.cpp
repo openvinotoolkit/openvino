@@ -17,7 +17,8 @@ const std::vector<float> step = { 1.0f, 0.1f };
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16
+        InferenceEngine::Precision::FP16,
+        InferenceEngine::Precision::I64
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Basic, RangeLayerTest,

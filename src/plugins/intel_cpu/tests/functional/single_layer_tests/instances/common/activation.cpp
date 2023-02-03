@@ -14,14 +14,17 @@ using namespace ov::test;
 namespace CPULayerTestsDefinitions {
 namespace Activation {
 
+ov::AnyMap empty_config = {};
+
 /* ============= Activation (1D) ============= */
 const auto basicCases3D = ::testing::Combine(
     ::testing::ValuesIn(static_shapes_to_test_representation(basic3D())),
     ::testing::Values(activationShapes()),
     ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes())),
     ::testing::ValuesIn(netPrc()),
-    ::testing::Values(Precision::FP32),
-    ::testing::Values(Precision::FP32),
+    ::testing::Values(ElementType::f32),
+    ::testing::Values(ElementType::f32),
+    ::testing::Values(empty_config),
     ::testing::ValuesIn(filterCPUSpecificParams(cpuParams3D()))
 );
 
@@ -33,8 +36,9 @@ const auto basicCases4D = ::testing::Combine(
     ::testing::Values(activationShapes()),
     ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes())),
     ::testing::ValuesIn(netPrc()),
-    ::testing::Values(Precision::FP32),
-    ::testing::Values(Precision::FP32),
+    ::testing::Values(ElementType::f32),
+    ::testing::Values(ElementType::f32),
+    ::testing::Values(empty_config),
     ::testing::ValuesIn(filterCPUSpecificParams(cpuParams4D()))
 );
 
@@ -46,8 +50,9 @@ const auto basicCases5D = ::testing::Combine(
     ::testing::Values(activationShapes()),
     ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes())),
     ::testing::ValuesIn(netPrc()),
-    ::testing::Values(Precision::FP32),
-    ::testing::Values(Precision::FP32),
+    ::testing::Values(ElementType::f32),
+    ::testing::Values(ElementType::f32),
+    ::testing::Values(empty_config),
     ::testing::ValuesIn(filterCPUSpecificParams(cpuParams5D()))
 );
 
@@ -58,8 +63,9 @@ const auto dynamicMathBasicCases = ::testing::Combine(
     ::testing::Values(activationShapes()),
     ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypesDynamicMath())),
     ::testing::ValuesIn(netPrecisions()),
-    ::testing::Values(Precision::FP32),
-    ::testing::Values(Precision::FP32),
+    ::testing::Values(ElementType::f32),
+    ::testing::Values(ElementType::f32),
+    ::testing::Values(empty_config),
     ::testing::ValuesIn(cpuParamsDynamicMath())
 );
 

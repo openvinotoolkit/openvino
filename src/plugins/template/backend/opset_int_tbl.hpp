@@ -82,6 +82,8 @@ _OPENVINO_OP_REG(CTCLoss, op::v4)
 _OPENVINO_OP_REG(LSTMCell, op::v4)
 _OPENVINO_OP_REG(NonMaxSuppression, op::v4)
 _OPENVINO_OP_REG(Proposal, op::v4)
+_OPENVINO_OP_REG(ReduceL1, op::v4)
+_OPENVINO_OP_REG(ReduceL2, op::v4)
 
 _OPENVINO_OP_REG(BatchNormInference, op::v5)
 _OPENVINO_OP_REG(GatherND, op::v5)

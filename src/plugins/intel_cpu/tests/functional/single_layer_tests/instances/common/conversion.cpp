@@ -6,7 +6,7 @@
 #include "shared_test_classes/single_layer/conversion.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
-using namespace InferenceEngine;
+// using namespace InferenceEngine;
 using namespace CPUTestUtils;
 using namespace ngraph::helpers;
 using namespace ov::test;
@@ -29,11 +29,14 @@ std::vector<CPUSpecificParams> memForm4D_dynamic = {
     CPUSpecificParams({nhwc}, {nhwc}, {}, expectedPrimitiveType()),
 };
 
+ov::AnyMap empty_config = {};
+
 INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_Dynamic, ConvertCPULayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inShapes_4D_dynamic()),
                                 ::testing::ValuesIn(precisions()),
                                 ::testing::ValuesIn(precisions()),
+                                ::testing::Values(empty_config),
                                 ::testing::ValuesIn(memForm4D_dynamic)),
                         ConvertCPULayerTest::getTestCaseName);
 
@@ -47,6 +50,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest, ConvertCPULayerTest,
                                 ::testing::ValuesIn(inShapes_4D_static()),
                                 ::testing::ValuesIn(precisions()),
                                 ::testing::ValuesIn(precisions()),
+                                ::testing::Values(empty_config),
                                 ::testing::ValuesIn(memForm4D_static_common)),
                         ConvertCPULayerTest::getTestCaseName);
 

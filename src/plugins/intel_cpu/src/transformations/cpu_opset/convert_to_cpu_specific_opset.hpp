@@ -2,24 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/pass/constant_folding.hpp>
-#include "ngraph/op/fake_quantize.hpp"
-#include "ngraph/pass/manager.hpp"
 #include "common/pass/reshape_fc_fusion.hpp"
 #include "common/pass/align_matmul_input_ranks.hpp"
-#include "transformations/common_optimizations/reshape_prelu.hpp"
 #include "common/pass/convert_broadcast_to_tiles.hpp"
 #include "common/pass/convert_tile_to_seq_tiles.hpp"
 #include "common/pass/convert_matmul_to_fc.hpp"
 #include "common/pass/convert_to_power_static.hpp"
 #include "common/pass/convert_to_leaky_relu.hpp"
 #include "common/pass/convert_to_swish_cpu.hpp"
-#include "transformations/convert_precision.hpp"
-#include "transformations/utils/utils.hpp"
 #include "common/pass/rnn_sequences_optimization.hpp"
-#include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
 #include "common/pass/ngram_fusion.hpp"
-#include "transformations/defs.hpp"
+#include <openvino/pass/constant_folding.hpp>
+#include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
 
 #include "itt.hpp"
 
@@ -44,7 +39,6 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     // after transformation "MoveEltwiseUpThroughDataMov" there can be reshaped sequences that should be eliminated or fused
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ReshapeSequenceFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions_map {{ ngraph::element::i64, ngraph::element::i32 }});
     CPU_REGISTER_PASS_COMMON(manager, NgramFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
 

@@ -24,12 +24,14 @@
 
 #include "cpu/x64/jit_generator.hpp"
 #include <dnnl_types.h>
+#include <ie_precision.hpp>
 
 namespace ov {
 namespace intel_cpu {
 
 struct jGatherConfParams {
     uint64_t dataTypeSize = 1lu;
+    InferenceEngine::Precision idxPrc = InferenceEngine::Precision::I32;
     bool reverseIndexing = true;
     bool dynamicShapes = false;
     uint64_t batchDims = 0lu;

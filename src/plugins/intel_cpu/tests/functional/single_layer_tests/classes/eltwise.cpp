@@ -5,6 +5,7 @@
 #include "eltwise.hpp"
 #include "gtest/gtest.h"
 #include "test_utils/cpu_test_utils.hpp"
+#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -28,7 +29,7 @@ std::string EltwiseLayerCPUTest::getTestCaseName(testing::TestParamInfo<EltwiseL
         return result.str();
 }
 
-ov::Tensor EltwiseLayerCPUTest::generate_eltwise_input(const ov::element::Type& type, const ngraph::Shape& shape) {
+ov::Tensor EltwiseLayerCPUTest::generate_eltwise_input(const ov::element::Type& type, const ov::Shape& shape) {
         struct gen_params {
             uint32_t range;
             int32_t start_from;
@@ -63,7 +64,7 @@ ov::Tensor EltwiseLayerCPUTest::generate_eltwise_input(const ov::element::Type& 
         return ov::test::utils::create_and_fill_tensor(type, shape, params.range, params.start_from, params.resolution);
     }
 
-void EltwiseLayerCPUTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
+void EltwiseLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
         inputs.clear();
         const auto& funcInputs = function->inputs();
         for (size_t i = 0; i < funcInputs.size(); ++i) {
@@ -93,7 +94,16 @@ void EltwiseLayerCPUTest::SetUp() {
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
-        selectedType = makeSelectedTypeStr(getPrimitiveType(), netType);
+        if (inType == ElementType::i64 || inType == ElementType::u64) {
+            auto i64Flag = configuration.find(PluginConfigInternalParams::KEY_CPU_NATIVE_I64);
+            if (i64Flag == configuration.end() || i64Flag->second == PluginConfigParams::NO) {
+                selectedType = makeSelectedTypeStr(getPrimitiveType(), ElementType::i32);
+            } else {
+                selectedType = makeSelectedTypeStr(getPrimitiveType(), ElementType::i64);
+            }
+        } else {
+            selectedType = makeSelectedTypeStr(getPrimitiveType(), netType);
+        }
         #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
             if (eltwiseType == POWER) {
                 selectedType = std::regex_replace(selectedType, std::regex("acl"), "ref");
@@ -103,7 +113,7 @@ void EltwiseLayerCPUTest::SetUp() {
         shapes.resize(2);
         switch (opType) {
             case CommonTestUtils::OpType::SCALAR: {
-                std::vector<ngraph::Shape> identityShapes(shapes[0].second.size(), {1});
+                std::vector<ov::Shape> identityShapes(shapes[0].second.size(), {1});
                 shapes[1] = {{}, identityShapes};
                 break;
             }
@@ -120,13 +130,13 @@ void EltwiseLayerCPUTest::SetUp() {
 
         configuration.insert(additional_config.begin(), additional_config.end());
         auto parameters = ngraph::builder::makeDynamicParams(netType, {inputDynamicShapes.front()});
-        std::shared_ptr<ngraph::Node> secondaryInput;
+        std::shared_ptr<ov::Node> secondaryInput;
         if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
             secondaryInput = ngraph::builder::makeDynamicParams(netType, {inputDynamicShapes.back()}).front();
-            parameters.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
+            parameters.push_back(std::dynamic_pointer_cast<ov::op::v0::Parameter>(secondaryInput));
         } else {
             auto pShape = inputDynamicShapes.back();
-            ngraph::Shape shape;
+            ov::Shape shape;
             if (pShape.is_static()) {
                 shape = pShape.get_shape();
             } else {
@@ -138,16 +148,24 @@ void EltwiseLayerCPUTest::SetUp() {
                     }
                 }
             }
+
             if (netType == ElementType::i32) {
-                auto data_tensor = generate_eltwise_input(ElementType::i32, shape);
+                auto data_tensor = generate_eltwise_input(netType, shape);
                 auto data_ptr = reinterpret_cast<int32_t*>(data_tensor.data());
-                std::vector<int32_t> data(data_ptr, data_ptr + ngraph::shape_size(shape));
+                std::vector<int32_t> data(data_ptr, data_ptr + ov::shape_size(shape));
                 secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
-            } else {
+            } else if (netType == ElementType::i64) {
+                auto data_tensor = generate_eltwise_input(netType, shape);
+                auto data_ptr = reinterpret_cast<int64_t*>(data_tensor.data());
+                std::vector<int64_t> data(data_ptr, data_ptr + ov::shape_size(shape));
+                secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
+            } else if (netType == ElementType::f32 || netType == ElementType::bf16) {
                 auto data_tensor = generate_eltwise_input(ElementType::f32, shape);
                 auto data_ptr = reinterpret_cast<float*>(data_tensor.data());
-                std::vector<float> data(data_ptr, data_ptr + ngraph::shape_size(shape));
+                std::vector<float> data(data_ptr, data_ptr + ov::shape_size(shape));
                 secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
+            } else {
+                IE_THROW() << "Unsupported data type.";
             }
         }
         auto eltwise = ngraph::builder::makeEltwise(parameters[0], secondaryInput, eltwiseType);
@@ -270,8 +288,8 @@ const std::vector<ngraph::helpers::InputLayerType>& secondaryInputTypes() {
         return secondaryInputTypes;
 }
 
-const std::vector<std::vector<ngraph::Shape>>& inShapes_4D_1D() {
-        static const std::vector<std::vector<ngraph::Shape>> inShapes_4D_1D = {
+const std::vector<std::vector<ov::Shape>>& inShapes_4D_1D() {
+        static const std::vector<std::vector<ov::Shape>> inShapes_4D_1D = {
                 {{2, 17, 5, 4}, {4}},
                 {{1, 3, 3, 3}, {3}},
         };
@@ -293,8 +311,8 @@ const std::vector<CPUSpecificParams>& cpuParams_4D_1D_Parameter_mode() {
         return cpuParams_4D_1D_Parameter_mode;
 }
 
-const std::vector<std::vector<ngraph::Shape>>& inShapes_5D_1D() {
-        static const std::vector<std::vector<ngraph::Shape>> inShapes_5D_1D = {
+const std::vector<std::vector<ov::Shape>>& inShapes_5D_1D() {
+        static const std::vector<std::vector<ov::Shape>> inShapes_5D_1D = {
                 {{2, 17, 5, 4, 10}, {10}},
                 {{1, 3, 3, 3, 3}, {3}},
         };

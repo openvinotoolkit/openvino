@@ -11,8 +11,8 @@
 
 using namespace InferenceEngine;
 using namespace dnnl::impl::cpu;
-using namespace ov::intel_cpu;
 using namespace ov::intel_cpu::node;
+using namespace ov::intel_cpu::kernel;
 
 #define THROW_ERROR IE_THROW() << getTypeStr() << " node with name '" << getName() << "' "
 
@@ -145,7 +145,7 @@ void GridSample::createPrimitive() {
     if (!jitKernel) {
         THROW_ERROR << " could not create JIT kernel.";
     }
-    jitKernel->create_ker();
+    jitKernel->create_kernel();
 
     nthr = parallel_get_max_threads();
     execParamsPerThread.resize(nthr);

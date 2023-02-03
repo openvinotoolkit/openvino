@@ -6,11 +6,6 @@
 
 #include <node.h>
 
-#include <ie_precision.hpp>
-#include <string>
-#include <memory>
-#include <vector>
-
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -80,7 +75,7 @@ struct jit_uni_topk_kernel {
 
 class TopK : public Node {
 public:
-    TopK(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    TopK(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
     ~TopK() override = default;
 
     void getSupportedDescriptors() override;
@@ -119,14 +114,14 @@ private:
     bool stable = false;
     bool mode_max = false;
     int axis = 0;
-    static const size_t TOPK_DATA = 0;
-    static const size_t TOPK_K = 1;
-    static const size_t TOPK_INDEX = 1;
+    static constexpr size_t TOPK_DATA = 0;
+    static constexpr size_t TOPK_K = 1;
+    static constexpr size_t TOPK_INDEX = 1;
     size_t O = 0, A = 0, I = 0;
     size_t blk_size = 0;
     size_t data_size = 0;
     size_t axis_dim = 0;
-    int top_k = 0;
+    int64_t top_k = 0;
     int dim = 0, before_num = 0;
     bool bubble_inplace = false;
     bool preset_params_done = false;

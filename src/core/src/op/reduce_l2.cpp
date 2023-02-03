@@ -44,6 +44,8 @@ bool evaluate_reduce_l2(const HostTensorPtr& arg, const HostTensorPtr& out, cons
         NGRAPH_TYPE_CASE(evaluate_reduce_l2, bf16, arg, out, axes, keep_dims);
         NGRAPH_TYPE_CASE(evaluate_reduce_l2, f16, arg, out, axes, keep_dims);
         NGRAPH_TYPE_CASE(evaluate_reduce_l2, f32, arg, out, axes, keep_dims);
+        NGRAPH_TYPE_CASE(evaluate_reduce_l2, i64, arg, out, axes, keep_dims);
+        NGRAPH_TYPE_CASE(evaluate_reduce_l2, u64, arg, out, axes, keep_dims);
     default:
         rc = false;
         break;
@@ -72,6 +74,8 @@ bool op::v4::ReduceL2::has_evaluate() const {
     case ngraph::element::bf16:
     case ngraph::element::f16:
     case ngraph::element::f32:
+    case ngraph::element::i64:
+    case ngraph::element::u64:
         return true;
     default:
         break;

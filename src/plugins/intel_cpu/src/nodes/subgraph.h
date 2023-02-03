@@ -1,17 +1,12 @@
-// Copyright (C) 2020-2022 Intel Corporation
+// Copyright (C) 2020-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <ie_common.h>
-
-#include <onednn/dnnl.h>
-#include <cpu/x64/jit_generator.hpp>
-#include "emitters/x64/jit_snippets_emitters.hpp"
-
 #include <node.h>
 #include "snippets/op/subgraph.hpp"
+#include "emitters/x64/jit_snippets_emitters.hpp"
 
 #include <array>
 
@@ -24,7 +19,7 @@ namespace node {
 /// precision: fp32
 class Snippet : public Node {
 public:
-    Snippet(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Snippet(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
     ~Snippet() override = default;
 
     void getSupportedDescriptors() override {};

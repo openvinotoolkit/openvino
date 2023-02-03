@@ -4,12 +4,7 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include <node.h>
-#include <string>
-#include <vector>
-#include <memory>
-#include <caseless.hpp>
 #include "executors/eltwise_list.hpp"
 
 namespace ov {
@@ -103,7 +98,7 @@ public:
     using executorPtr = std::shared_ptr<IEltwiseExecutor>;
 
 public:
-    Eltwise(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Eltwise(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;

@@ -8,6 +8,7 @@
 #include "test_utils/fusing_test_utils.hpp"
 #include <ngraph_functions/builders.hpp>
 #include <common_test_utils/ov_tensor_utils.hpp>
+#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -24,6 +25,8 @@ const std::vector<ElementType>& netType() {
                 ElementType::bf16};
         return netType;
 }
+
+ov::AnyMap additional_config_i64 = {{PluginConfigInternalParams::KEY_CPU_NATIVE_I64, PluginConfigParams::YES}};
 
 const std::vector<InputShape>& inShapes_4D_dyn_param_fusing() {
         static const std::vector<InputShape> inShapes_4D_dyn_param_fusing = {
@@ -172,6 +175,22 @@ const auto params_4D_Blocked_Blocked = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_MemOrder_Blocked_Blocked, EltwiseLayerCPUTest, params_4D_Blocked_Blocked,
                          EltwiseLayerCPUTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_MemOrder_Blocked_I64, EltwiseLayerCPUTest,
+         ::testing::Combine(
+                 ::testing::Combine(
+                         ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_4D())),
+                         ::testing::ValuesIn(eltwiseOpTypesBinInp()),
+                         ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                         ::testing::ValuesIn(opTypes()),
+                         ::testing::Values(ElementType::i64),
+                         ::testing::Values(ov::element::undefined),
+                         ::testing::Values(ov::element::undefined),
+                         ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                         ::testing::Values(additional_config_i64)),
+                 ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_Blocked_Blocked())),
+                 ::testing::Values(emptyFusingSpec)),
+         EltwiseLayerCPUTest::getTestCaseName);
+
 const auto params_4D_fusing = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_4D_fusing())),
@@ -255,6 +274,22 @@ const auto params_5D_Blocked_Blocked = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_MemOrder_Blocked_Blocked, EltwiseLayerCPUTest, params_5D_Blocked_Blocked,
                          EltwiseLayerCPUTest::getTestCaseName);
 
+// INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_MemOrder_Blocked_Blocked_I64, EltwiseLayerCPUTest,
+//         ::testing::Combine(
+//                 ::testing::Combine(
+//                         ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_5D())),
+//                         ::testing::ValuesIn(eltwiseOpTypesBinInp()),
+//                         ::testing::ValuesIn(secondaryInputTypes()),
+//                         ::testing::ValuesIn(opTypes()),
+//                         ::testing::Values(ElementType::i64),
+//                         ::testing::Values(ov::element::undefined),
+//                         ::testing::Values(ov::element::undefined),
+//                         ::testing::Values(CommonTestUtils::DEVICE_CPU),
+//                         ::testing::Values(additional_config_i64)),
+//                 ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_Blocked_Blocked())),
+//                 ::testing::Values(emptyFusingSpec)),
+//         EltwiseLayerCPUTest::getTestCaseName);
+
 const std::vector<fusingSpecificParams> fusingParamsSet_I32{
     fusingMultiplyAddPerChannel
 };
@@ -290,6 +325,22 @@ const auto params_4D_Blocked_Planar = ::testing::Combine(
         ::testing::Values(emptyFusingSpec));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Blocked_Planar, EltwiseLayerCPUTest, params_4D_Blocked_Planar, EltwiseLayerCPUTest::getTestCaseName);
+
+// INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Blocked_Planar_I64, EltwiseLayerCPUTest,
+//         ::testing::Combine(
+//                 ::testing::Combine(
+//                         ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_4D_Blocked_Planar())),
+//                         ::testing::ValuesIn(eltwiseOpTypesBinInp()),
+//                         ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+//                         ::testing::ValuesIn(opTypes()),
+//                         ::testing::Values(ElementType::i64),
+//                         ::testing::Values(ov::element::undefined),
+//                         ::testing::Values(ov::element::undefined),
+//                         ::testing::Values(CommonTestUtils::DEVICE_CPU),
+//                         ::testing::Values(additional_config_i64)),
+//                 ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_Blocked_Planar())),
+//                 ::testing::Values(emptyFusingSpec)),
+//         EltwiseLayerCPUTest::getTestCaseName);
 
 const auto params_4D_Planar_Blocked = ::testing::Combine(
         ::testing::Combine(

@@ -9,35 +9,33 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "test_utils/cpu_test_utils.hpp"
-#include "gtest/gtest.h"
-
-using namespace InferenceEngine;
-using namespace ngraph;
-using namespace CPUTestUtils;
-using namespace ov::test;
 
 namespace CPULayerTestsDefinitions  {
-using convertLayerTestParamsSet = std::tuple<InputShape,                   // input shapes
-                                        InferenceEngine::Precision,        // input precision
-                                        InferenceEngine::Precision,        // output precision
-                                        CPUSpecificParams>;
+using convertLayerTestParamsSet = std::tuple<
+        ov::test::InputShape,        // input shapes
+        ov::test::ElementType,       // input precision
+        ov::test::ElementType,       // output precision
+        ov::AnyMap,                  // Additional plugin configuration
+        CPUTestUtils::CPUSpecificParams
+>;
 
 class ConvertCPULayerTest : public testing::WithParamInterface<convertLayerTestParamsSet>,
-                            virtual public SubgraphBaseTest, public CPUTestsBase {
+                            virtual public ov::test::SubgraphBaseTest, public CPUTestUtils::CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<convertLayerTestParamsSet> obj);
-    static bool isInOutPrecisionSupported(InferenceEngine::Precision inPrc, InferenceEngine::Precision outPrc);
+    static bool isInOutPrecisionSupported(ov::test::ElementType inPrc, ov::test::ElementType outPrc);
 protected:
     void SetUp() override;
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 
 private:
-    InferenceEngine::Precision inPrc, outPrc;
+    ov::test::ElementType inPrc, outPrc;
 };
 
 namespace Conversion {
-    const std::vector<InputShape>& inShapes_4D_static();
-    const std::vector<InputShape>& inShapes_4D_dynamic();
-    const std::vector<Precision>& precisions();
+    const std::vector<ov::test::InputShape>& inShapes_4D_static();
+    const std::vector<ov::test::InputShape>& inShapes_4D_dynamic();
+    const std::vector<ov::test::ElementType>& precisions();
+
 } // namespace Conversion
 } // namespace CPULayerTestsDefinitions

@@ -2,22 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <string>
-#include <vector>
-
-#include "ie_parallel.hpp"
 #include "gather.h"
-#include <ngraph/opsets/opset1.hpp>
+
 #include "common/cpu_memcpy.h"
-#include <utils/general_utils.h>
+#include "ie_parallel.hpp"
 #include "kernels/x64/gather_uni_kernel.hpp"
-#include "utils/shape_inference/shape_inference_cpu.hpp"
+#include <openvino/op/constant.hpp>
+#include <openvino/op/gather.hpp>
 #include <partitioned_mem_mgr.h>
 
 using namespace InferenceEngine;
 using namespace dnnl::impl::cpu;
-
-#define THROW_ERROR IE_THROW() << getTypeStr() << " node with name '" << getName() << "' "
 
 namespace ov {
 namespace intel_cpu {
@@ -26,13 +21,13 @@ namespace node {
 bool Gather::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!one_of(op->get_type_info(),
-                ov::op::v7::Gather::get_type_info_static(),
-                ov::op::v8::Gather::get_type_info_static())) {
+                op::v7::Gather::get_type_info_static(),
+                op::v8::Gather::get_type_info_static())) {
             errorMessage = "Not supported Gather operation version. CPU plug-in supports only 7 and 8 versions.";
             return false;
         }
 
-        if (!isDynamicNgraphNode(op) && !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(GATHER_AXIS))) {
+        if (!isDynamicNgraphNode(op) && !ov::is_type<op::v0::Constant>(op->get_input_node_ptr(GATHER_AXIS))) {
             errorMessage = "Only Constant operation on 'axis' input is supported for static node.";
             return false;
         }
@@ -58,11 +53,15 @@ public:
         const auto& indices_shape = m_isIndicesScalar ? VectorDims{} : input_shapes[GATHER_INDICES].get();
 
         if (!m_isAxisInputConst) {
-            if (data_dependency.at(GATHER_AXIS)->getDesc().getPrecision() != Precision::I32) {
+            auto axPrc = data_dependency.at(GATHER_AXIS)->getDesc().getPrecision();
+            if (axPrc == Precision::I32) {
+                m_axis = reinterpret_cast<const int32_t *>(data_dependency.at(GATHER_AXIS)->getData())[0];
+            } else if (axPrc == Precision::I64) {
+                m_axis = reinterpret_cast<const int64_t *>(data_dependency.at(GATHER_AXIS)->getData())[0];
+            } else {
                 IE_THROW() << "Unsupported precision " << data_dependency.at(GATHER_AXIS)->getDesc().getPrecision()
                            << " for axis tensor.";
             }
-            m_axis = reinterpret_cast<const int32_t *>(data_dependency.at(GATHER_AXIS)->getData())[0];
         }
 
         if (m_axis < 0)
@@ -85,7 +84,7 @@ public:
 private:
     bool m_isAxisInputConst = false;
     bool m_isIndicesScalar = false;
-    int m_axis = 0;
+    int64_t m_axis = 0;
     int m_batchDims = 0;
 };
 
@@ -95,15 +94,15 @@ public:
     ShapeInferPtr makeShapeInfer() const override {
         static constexpr size_t GATHER_INDICES = 1, GATHER_AXIS = 2;
 
-        bool isAxisInputConst = ov::is_type<ov::op::v0::Constant>(m_op->get_input_node_ptr(GATHER_AXIS));
+        bool isAxisInputConst = ov::is_type<op::v0::Constant>(m_op->get_input_node_ptr(GATHER_AXIS));
         const auto& indicesShape = m_op->get_input_partial_shape(GATHER_INDICES);
         if (!indicesShape.rank().is_static())
             IE_THROW() << "indicesShape do not support dynamic rank.";
         bool isIndicesScalar = indicesShape.rank().get_length() == 0;
 
-        int axis = isAxisInputConst ? ov::as_type<ov::op::v0::Constant>(m_op->get_input_node_ptr(GATHER_AXIS))->cast_vector<int>()[0] : 0;
-        int batchDims = ov::is_type<ov::op::v8::Gather>(m_op) ? static_cast<int>(ov::as_type_ptr<ov::op::v8::Gather>(m_op)->get_batch_dims()) : (
-                        ov::is_type<ov::op::v7::Gather>(m_op) ? static_cast<int>(ov::as_type_ptr<ov::op::v7::Gather>(m_op)->get_batch_dims()) : 0);
+        int axis = isAxisInputConst ? ov::as_type<op::v0::Constant>(m_op->get_input_node_ptr(GATHER_AXIS))->cast_vector<int>()[0] : 0;
+        int batchDims = ov::is_type<op::v8::Gather>(m_op) ? static_cast<int>(ov::as_type_ptr<op::v8::Gather>(m_op)->get_batch_dims()) : (
+                ov::is_type<op::v7::Gather>(m_op) ? static_cast<int>(ov::as_type_ptr<op::v7::Gather>(m_op)->get_batch_dims()) : 0);
 
         return std::make_shared<GatherShapeInfer>(isAxisInputConst, isIndicesScalar, axis, batchDims);
     }
@@ -114,15 +113,14 @@ private:
 } // namespace
 
 Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, GatherShapeInferFactory(op)),
-      batchDims(0) {
+        : Node(op, context, GatherShapeInferFactory(op)), batchDims(0) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
 
     if (op->get_input_size() != 3 || op->get_output_size() != 1)
-        THROW_ERROR << "has incorrect number of input/output edges!";
+        THROW_CPU_NODE_ERR << "has incorrect number of input/output edges!";
 
     const auto& dataShape = getInputShapeAtPort(GATHER_DATA);
     isDataShapeStat = dataShape.isStatic();
@@ -132,10 +130,10 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
     isIdxShapeStat = idxShape.isStatic();
     const auto indicesRank = idxShape.getRank();
     if (dataSrcRank == 0lu || indicesRank == 0lu)
-        THROW_ERROR << "has incorrect input parameters ranks.";
+        THROW_CPU_NODE_ERR << "has incorrect input parameters ranks.";
 
-    if (ov::is_type<ov::op::v8::Gather>(op)) {
-        batchDims = static_cast<int>(ov::as_type_ptr<ov::op::v8::Gather>(op)->get_batch_dims());
+    if (ov::is_type<op::v8::Gather>(op)) {
+        batchDims = static_cast<int>(ov::as_type_ptr<op::v8::Gather>(op)->get_batch_dims());
         // WA for NMS->Gather construction. NMS fills part of the output blob by the -1 if these values
         // must not be taken into account. There is appropriate pass that looks for such subgraphs
         // and sets the dontReverseIndices flag.
@@ -145,23 +143,23 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
             reverseIndexing = true;
         else
             reverseIndexing = false;
-    } else if (ov::is_type<ov::op::v7::Gather>(op)) {
-        batchDims = static_cast<int>(ov::as_type_ptr<ov::op::v7::Gather>(op)->get_batch_dims());
+    } else if (ov::is_type<op::v7::Gather>(op)) {
+        batchDims = static_cast<int>(ov::as_type_ptr<op::v7::Gather>(op)->get_batch_dims());
         reverseIndexing = false;
     }
 
     if (batchDims < 0)
         batchDims += indicesRank;
     if (batchDims < 0 || batchDims > std::min(static_cast<int>(dataSrcRank), static_cast<int>(indicesRank)))
-        THROW_ERROR << "has incorrect batch_dims " << batchDims << "!";
+        THROW_CPU_NODE_ERR << "has incorrect batch_dims " << batchDims << "!";
 
-    if (ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(GATHER_AXIS))) {
+    if (ov::is_type<op::v0::Constant>(op->get_input_node_ptr(GATHER_AXIS))) {
         isAxisInputConst = true;
-        axis = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(GATHER_AXIS))->cast_vector<int>()[0];
+        axis = ov::as_type<op::v0::Constant>(op->get_input_node_ptr(GATHER_AXIS))->cast_vector<int>()[0];
         if (axis < 0)
             axis += dataSrcRank;
         if (axis < 0 || axis >= dataSrcRank || batchDims > axis)
-            THROW_ERROR << "has incorrect input parameter axis value: " << axis;
+            THROW_CPU_NODE_ERR << "has incorrect input parameter axis value: " << axis;
     }
 
     if (auto indices = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(GATHER_INDICES))) {
@@ -173,7 +171,17 @@ void Gather::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    dataTypeSize = getOriginalInputPrecisionAtPort(GATHER_DATA).size();
+    const auto &dataPrecision = getOriginalInputPrecisionAtPort(GATHER_DATA);
+    dataTypeSize = dataPrecision.size();
+    idxPrecision = getOriginalInputPrecisionAtPort(GATHER_INDICES);
+    if (!one_of(idxPrecision, Precision::I32, Precision::I64)) {
+        idxPrecision = Precision::I32;
+    }
+    idxTypeSize = idxPrecision.size();
+    auto axisPrecision = getOriginalInputPrecisionAtPort(GATHER_AXIS);
+    if (!one_of(axisPrecision, Precision::I32, Precision::I64)) {
+        axisPrecision = Precision::I32;
+    }
 
     const auto& dataDims = getInputShapeAtPort(GATHER_DATA).getDims();
     if (isAxisInputConst && isDataShapeStat) {
@@ -200,10 +208,9 @@ void Gather::initSupportedPrimitiveDescriptors() {
     }
 
     // Implementation desc type will be redefined in the fn prepareParams if a kernel will be created.
-    Precision dataPrecision = getOriginalInputPrecisionAtPort(GATHER_DATA);
     addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
-                          {LayoutType::ncsp, Precision::I32},
-                          {LayoutType::ncsp, Precision::I32, isAxisInputConst}},
+                          {LayoutType::ncsp, idxPrecision},
+                          {LayoutType::ncsp, axisPrecision, isAxisInputConst}},
                          {{LayoutType::ncsp, dataPrecision}},
                          ref_any);
 
@@ -232,10 +239,10 @@ void Gather::createPrimitive() {
     uint64_t idxElPerVec = 1;
     if (!isDynamicNode()) {
         idxElPerVec = x64::mayiuse(x64::avx512_core) ? x64::cpu_isa_traits<x64::avx512_core>::vlen / idxTypeSize :
-            x64::mayiuse(x64::avx2) ? x64::cpu_isa_traits<x64::avx2>::vlen / idxTypeSize : 1;
+                      x64::mayiuse(x64::avx2) ? x64::cpu_isa_traits<x64::avx2>::vlen / idxTypeSize : 1;
     }
     // Gather instruction is not supported by SSE.
-    if ((x64::mayiuse(x64::avx512_core) || x64::mayiuse(x64::avx2)) &&
+    if ((x64::mayiuse(x64::avx512_core) || x64::mayiuse(x64::avx2)) && dataTypeSize <= 4 && idxTypeSize == 4 &&
             (isDynamicNode() || afterAxisSize == 1 || (afterAxisSize <= idxElPerVec &&
             (x64::mayiuse(x64::avx512_core) || (x64::mayiuse(x64::avx2) && dataTypeSize == 4))))) {
         jGatherConfParams jcp;
@@ -298,31 +305,44 @@ void Gather::createPrimitive() {
 }
 
 bool Gather::needPrepareParams() const {
-    if (isInPlace()) {
-        return false;
+    if (inputShapesModified()) {
+        return true;
+    } else if (!isAxisInputConst) {
+        auto mem = getParentEdgeAt(GATHER_AXIS)->getMemoryPtr();
+        int64_t newAxis = axis;
+        if (mem->getDesc().getPrecision() == Precision::I64) {
+            newAxis = (reinterpret_cast<const int64_t*>(mem->getData()))[0];
+        } else if (mem->getDesc().getPrecision() == Precision::I32) {
+            newAxis = (reinterpret_cast<const int32_t*>(mem->getData()))[0];
+        }
+        if (newAxis != axis) {
+            return true;
+        }
     }
-    bool result = inputShapesModified();
-    if (!isAxisInputConst)
-        result = result || axis != (reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHER_AXIS)->getMemoryPtr()->getData()))[0];
-    return result;
+    return false;
 }
 
 void Gather::prepareParams() {
     auto dataMemPtr = getParentEdgeAt(GATHER_DATA)->getMemoryPtr();
     if (!dataMemPtr || !dataMemPtr->isAllocated())
-        THROW_ERROR << " has not allocated input data memory.";
+        THROW_CPU_NODE_ERR << " has not allocated input data memory.";
     auto idxMemPtr = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr();
     if (!idxMemPtr || !idxMemPtr->isAllocated())
-        THROW_ERROR << " has not allocated input indices memory.";
+        THROW_CPU_NODE_ERR << " has not allocated input indices memory.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_ERROR << " has unidentified preferable primitive descriptor.";
+        THROW_CPU_NODE_ERR << " has unidentified preferable primitive descriptor.";
 
     if (!isAxisInputConst) {
-        axis = (reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHER_AXIS)->getMemoryPtr()->getData()))[0];
+        auto mem = getParentEdgeAt(GATHER_AXIS)->getMemoryPtr();
+        if (mem->getDesc().getPrecision() == Precision::I64) {
+            axis = (reinterpret_cast<const int64_t*>(mem->getData()))[0];
+        } else if (mem->getDesc().getPrecision() == Precision::I32) {
+            axis = (reinterpret_cast<const int32_t*>(mem->getData()))[0];
+        }
         if (axis < 0)
             axis += dataSrcRank;
         if (axis < 0 || axis >= dataSrcRank || batchDims > axis)
-            THROW_ERROR << "has incorrect input parameter axis value: " << axis;
+            THROW_CPU_NODE_ERR << "has incorrect input parameter axis value: " << axis;
     }
 
     if (!isDataShapeStat || !isAxisInputConst) {
@@ -358,6 +378,9 @@ void Gather::prepareParams() {
         } else if (x64::mayiuse(x64::avx2)) {
             selectedPD->setImplementationType(jit_avx2);
         }
+    } else {
+        // TODO: Add tests
+        selectedPD->setImplementationType(ref_any);
     }
 #endif
 }
@@ -415,7 +438,9 @@ void Gather::execute(dnnl::stream strm) {
         return;
     }
 #endif
-    execReference();
+    OV_SWITCH(intel_cpu, refExec, this, idxPrecision,
+              OV_CASE(Precision::I32, int32_t),
+              OV_CASE(Precision::I64, int64_t))
 }
 
 void Gather::executeDynamicImpl(dnnl::stream strm) {
@@ -477,12 +502,14 @@ void Gather::executeDynamicImpl(dnnl::stream strm) {
         return;
     }
 #endif
-    execReference();
+    OV_SWITCH(intel_cpu, refExec, this, idxPrecision,
+              OV_CASE(Precision::I32, int32_t),
+              OV_CASE(Precision::I64, int64_t))
 }
 
 void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
     if (!jitKernel)
-        THROW_ERROR << "has uninitialized kernel in function initShortParams.";
+        THROW_CPU_NODE_ERR << "has uninitialized kernel in function initShortParams.";
     const uint64_t idxElPerVec = jitKernel->getIdxElPerVec();
 
     if (afterAxisSize == 1) { // Elementwise gather.
@@ -547,8 +574,9 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
     }
 }
 
+template<typename idxType>
 void Gather::execReference() {
-    const int32_t* srcIndices = reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->getData());
+    const idxType* srcIndices = reinterpret_cast<const idxType*>(getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->getData());
     const uint8_t* srcData = reinterpret_cast<const uint8_t*>(getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->getData());
     uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
@@ -578,6 +606,13 @@ void Gather::execReference() {
         }
     });
 }
+
+template<typename idxType>
+struct Gather::refExec {
+    void operator()(Gather *node) {
+        node->execReference<idxType>();
+    }
+};
 
 bool Gather::created() const {
     return getType() == Type::Gather;

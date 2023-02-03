@@ -8,10 +8,9 @@
 #include <dnnl_extension_utils.h>
 #include "openvino/runtime/tensor.hpp"
 #include "common/blocked_desc_creator.h"
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include "common/cpu_memcpy.h"
 
-using namespace dnnl;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
@@ -19,11 +18,11 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-Reference::Reference(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context,
+Reference::Reference(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context,
                                          const std::string& errorMessage) :
         Node(op, context, NgraphShapeInferFactory(op, FULL_PORT_MASK)), ngraphOp(op), additionalErrorMessage(errorMessage) {
     if (!op->has_evaluate()) {
-        IE_THROW(NotImplemented) << "Cannot fallback on ngraph reference implementation (Ngraph::Node::evaluate() is not implemented)";
+        IE_THROW(NotImplemented) << "Cannot fallback on ngraph reference implementation (ov::Node::evaluate() is not implemented)";
     }
     setType(Type::Reference);
     setTypeStr("Reference");
@@ -31,7 +30,7 @@ Reference::Reference(const std::shared_ptr<ngraph::Node>& op, const GraphContext
     // RandomUniform should generate new sequence each run even if all inputs are constants. So that method Node::IsConstant()
     // doesn't return 'True' for RandomUniform with all constant inputs and the node generates new values for each inference,
     // we set 'NoConst' value for 'ConstantType' in ctor
-    if (ov::is_type<ngraph::op::v8::RandomUniform>(ngraphOp)) {
+    if (ov::is_type<ov::op::v8::RandomUniform>(ngraphOp)) {
         constant = ConstantType::NoConst;
     }
 }

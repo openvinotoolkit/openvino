@@ -1,19 +1,17 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "grid_sample.hpp"
 
 using namespace dnnl::impl::cpu;
-
-namespace ov {
-namespace intel_cpu {
+using namespace ov::intel_cpu::kernel;
 
 #define GET_OFF(field) offsetof(GridSamplesKernelExecArgs, field)
 
 template <x64::cpu_isa_t isa>
-GridSampleKernel<isa>::GridSampleKernel(const GridSampleKernelConfParams& jcp) :
-        GridSampleKernelBase(jit_name(), jcp) {
+GridSampleKernel<isa>::GridSampleKernel(const GridSampleKernelConfParams& jcp)
+        : GridSampleKernelBase(jit_name(), jcp, isa) {
     vlen = x64::cpu_isa_traits<isa>::vlen;
     dataTypeSize = jcp.inDataPrc.size();
     gridTypeSize = jcp.gridPrc.size();
@@ -23,14 +21,6 @@ GridSampleKernel<isa>::GridSampleKernel(const GridSampleKernelConfParams& jcp) :
         dataTypeShift = 1;
     else if (dataTypeSize == 4)
         dataTypeShift = 2;
-}
-
-template <x64::cpu_isa_t isa>
-void GridSampleKernel<isa>::create_ker() {
-    auto code = x64::jit_generator::create_kernel();
-    if (code != dnnl::impl::status::success)
-        IE_THROW() << "Could not create GridSample kernel. Error code: " << std::to_string(code);
-    ker_ = (decltype(ker_))jit_ker();
 }
 
 template <x64::cpu_isa_t isa>
@@ -2084,6 +2074,3 @@ void GridSampleKernel<isa>::hwShiftPs2dq(const Vmm& vDst, const Vmm& vHCoord, co
 template class GridSampleKernel<x64::avx512_core>;
 template class GridSampleKernel<x64::avx2>;
 template class GridSampleKernel<x64::sse41>;
-
-}   // namespace intel_cpu
-}   // namespace ov

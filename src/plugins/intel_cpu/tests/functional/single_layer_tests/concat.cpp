@@ -5,6 +5,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 
 using namespace ov::test;
 using namespace CPUTestUtils;
@@ -12,9 +13,10 @@ using namespace CPUTestUtils;
 namespace CPULayerTestsDefinitions {
 
 typedef std::tuple<
-        size_t,                   // Concat axis
+        int64_t,                  // Concat axis
         std::vector<InputShape>,  // Input shapes
         ElementType,              // Network precision
+        ov::AnyMap,               // Additional config
         CPUSpecificParams
 > concatCPUTestParams;
 
@@ -22,11 +24,12 @@ class ConcatLayerCPUTest : public testing::WithParamInterface<concatCPUTestParam
                            virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<concatCPUTestParams> obj) {
-        int axis;
+        int64_t axis;
         std::vector<InputShape> inputShapes;
         ElementType netPrecision;
+        ov::AnyMap additionalConfig;
         CPUSpecificParams cpuParams;
-        std::tie(axis, inputShapes, netPrecision, cpuParams) = obj.param;
+        std::tie(axis, inputShapes, netPrecision, additionalConfig, cpuParams) = obj.param;
 
         std::ostringstream result;
         result << "IS=";
@@ -46,6 +49,15 @@ public:
         result << "axis=" << axis << "_";
         result << "netPRC=" << netPrecision << "_";
         result << CPUTestsBase::getTestCaseName(cpuParams);
+
+        if (!additionalConfig.empty()) {
+            result << "_PluginConf";
+            for (auto &item : additionalConfig) {
+                result << "_" << item.first << "=";
+                item.second.print(result);
+            }
+        }
+
         return result.str();
     }
 
@@ -67,21 +79,30 @@ protected:
     void SetUp() override {
         targetDevice = CommonTestUtils::DEVICE_CPU;
 
-        int axis;
+        int64_t axis;
         std::vector<InputShape> inputShape;
         ElementType netPrecision;
         CPUSpecificParams cpuParams;
-        std::tie(axis, inputShape, netPrecision, cpuParams) = this->GetParam();
+        std::tie(axis, inputShape, netPrecision, configuration, cpuParams) = this->GetParam();
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        selectedType += std::string("_") + InferenceEngine::details::convertPrecision(netPrecision).name();
+        if (netPrecision == ElementType::i64 || netPrecision == ElementType::u64) {
+            auto i64Flag = configuration.find(InferenceEngine::PluginConfigInternalParams::KEY_CPU_NATIVE_I64);
+            if (i64Flag == configuration.end() || i64Flag->second == InferenceEngine::PluginConfigParams::NO) {
+                selectedType = makeSelectedTypeStr(selectedType, ElementType::i32);
+            } else {
+                selectedType = makeSelectedTypeStr(selectedType, ElementType::i64);
+            }
+        } else {
+            selectedType = makeSelectedTypeStr(selectedType, netPrecision);
+        }
 
         init_input_shapes(inputShape);
 
         auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
         auto paramOuts = ngraph::helpers::convert2OutputVector(
-                ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-        auto concat = std::make_shared<ngraph::opset1::Concat>(paramOuts, axis);
+                ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
+        auto concat = std::make_shared<ov::op::v0::Concat>(paramOuts, axis);
 
         function = makeNgraphFunction(netPrecision, params, concat, "ConcatCPU");
     }
@@ -118,8 +139,15 @@ const auto blocked16_5D_ref = CPUSpecificParams{{nCdhw16c}, {nCdhw16c}, {}, "ref
 const std::vector<ElementType> netPrecisions = {
         ElementType::i8,
         ElementType::i32,
+        ElementType::i64,
         ElementType::f32,
         ElementType::bf16
+};
+
+const ov::AnyMap emptyConfig = {};
+const std::vector<ov::AnyMap> i64Config = {
+        {{InferenceEngine::PluginConfigInternalParams::KEY_CPU_NATIVE_I64, InferenceEngine::PluginConfigParams::YES}},
+        {{InferenceEngine::PluginConfigInternalParams::KEY_CPU_NATIVE_I64, InferenceEngine::PluginConfigParams::NO}}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_Block8_static, ConcatLayerCPUTest,
@@ -127,7 +155,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_Block8_static, ConcatLayerCPUTest,
                                 ::testing::Values(1, -2, 3),
                                 ::testing::Values(static_shapes_to_test_representation({{2, 16, 3, 5}, {2, 16, 3, 5}})),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(emptyConfig),
                                 ::testing::Values(planar_4D_ref, planarChannels_4D, blocked8_4D_ref)),
+                        ConcatLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_Block8_I64_static, ConcatLayerCPUTest,
+                        ::testing::Combine(
+                             ::testing::Values(1, -2, 3),
+                             ::testing::Values(static_shapes_to_test_representation({{2, 16, 3, 5}, {2, 16, 3, 5}})),
+                             ::testing::Values(ElementType::i64),
+                             ::testing::ValuesIn(i64Config),
+                             ::testing::Values(planar_4D_ref, planarChannels_4D, blocked8_4D_ref)),
                         ConcatLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_Block16_static, ConcatLayerCPUTest,
@@ -135,6 +173,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_Block16_static, ConcatLayerCPUTest,
                                 ::testing::Values(1, 2, -1),
                                 ::testing::Values(static_shapes_to_test_representation({{3, 32, 3, 5}, {3, 32, 3, 5}})),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(emptyConfig),
                                 ::testing::Values(blocked16_4D_ref)),
                         ConcatLayerCPUTest::getTestCaseName);
 
@@ -162,7 +201,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_Block_dynamic_axis_1, ConcatLayerCPU
                                 ::testing::Values(1, -3),
                                 ::testing::ValuesIn(inputShapes4D_Block_axis1),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(emptyConfig),
                                 ::testing::Values(blocked8_4D_ref, blocked16_4D_ref)),
+                        ConcatLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_Block_dynamic_axis_1_I64, ConcatLayerCPUTest,
+                        ::testing::Combine(
+                             ::testing::Values(1, -3),
+                             ::testing::ValuesIn(inputShapes4D_Block_axis1),
+                             ::testing::Values(ElementType::i64),
+                             ::testing::ValuesIn(i64Config),
+                             ::testing::Values(blocked8_4D_ref, blocked16_4D_ref)),
                         ConcatLayerCPUTest::getTestCaseName);
 
 const std::vector<std::vector<InputShape>> inputShapes4D_axis1 = {
@@ -193,6 +242,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_dynamic_axis_1, ConcatLayerCPUTest,
                                 ::testing::Values(1),
                                 ::testing::ValuesIn(inputShapes4D_axis1),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(emptyConfig),
                                 ::testing::Values(planar_4D_ref, planarChannels_4D)),
                         ConcatLayerCPUTest::getTestCaseName);
 
@@ -219,6 +269,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_Block_dynamic_axis_2, ConcatLayerCPU
                                 ::testing::Values(2),
                                 ::testing::ValuesIn(inputShapes4D_Block_axis2),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(emptyConfig),
                                 ::testing::Values(blocked8_4D_ref, blocked16_4D_ref)),
                         ConcatLayerCPUTest::getTestCaseName);
 
@@ -240,6 +291,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_dynamic_axis_2, ConcatLayerCPUTest,
                                 ::testing::Values(2, -2),
                                 ::testing::ValuesIn(inputShapes4D_axis2),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(emptyConfig),
                                 ::testing::Values(planar_4D_ref, planarChannels_4D)),
                         ConcatLayerCPUTest::getTestCaseName);
 
@@ -261,6 +313,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_Block_dynamic_axis_3, ConcatLayerCPU
                                 ::testing::Values(3),
                                 ::testing::ValuesIn(inputShapes4D_Block_axis3),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(emptyConfig),
                                 ::testing::Values(blocked8_4D_ref, blocked16_4D_ref)),
                         ConcatLayerCPUTest::getTestCaseName);
 
@@ -287,6 +340,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_dynamic_axis_3, ConcatLayerCPUTest,
                                 ::testing::Values(3, -1),
                                 ::testing::ValuesIn(inputShapes4D_axis3),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(emptyConfig),
                                 ::testing::Values(planar_4D_ref, planarChannels_4D)),
                         ConcatLayerCPUTest::getTestCaseName);
 
@@ -295,7 +349,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat5D_CPU_Block8_static, ConcatLayerCPUTest,
                                 ::testing::Values(2, 3, -2),
                                 ::testing::Values(static_shapes_to_test_representation({{2, 16, 3, 5, 7}, {2, 16, 3, 5, 7}})),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(emptyConfig),
                                 ::testing::Values(planar_5D_ref, planarChannels_5D, blocked8_5D_ref)),
+                        ConcatLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Concat5D_CPU_Block8_I64_static, ConcatLayerCPUTest,
+                        ::testing::Combine(
+                             ::testing::Values(2, 3, -2),
+                             ::testing::Values(static_shapes_to_test_representation({{2, 16, 3, 5, 7}, {2, 16, 3, 5, 7}})),
+                             ::testing::Values(ElementType::i64),
+                             ::testing::ValuesIn(i64Config),
+                             ::testing::Values(planar_5D_ref, planarChannels_5D, blocked8_5D_ref)),
                         ConcatLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Concat5D_CPU_Block16_static, ConcatLayerCPUTest,
@@ -303,6 +367,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat5D_CPU_Block16_static, ConcatLayerCPUTest,
                                 ::testing::Values(2, 3, 4),
                                 ::testing::Values(static_shapes_to_test_representation({{2, 32, 3, 5, 7}, {2, 32, 3, 5, 7}})),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(emptyConfig),
                                 ::testing::Values(blocked16_5D_ref)),
                         ConcatLayerCPUTest::getTestCaseName);
 
@@ -324,7 +389,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat5D_CPU_Block_dynamic_axis_1, ConcatLayerCPU
                                 ::testing::Values(1),
                                 ::testing::ValuesIn(inputShapes5D_Block_axis1),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(emptyConfig),
                                 ::testing::Values(blocked8_5D_ref, blocked16_5D_ref)),
+                        ConcatLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Concat5D_CPU_Block_dynamic_axis_1_I64, ConcatLayerCPUTest,
+                        ::testing::Combine(
+                             ::testing::Values(1),
+                             ::testing::ValuesIn(inputShapes5D_Block_axis1),
+                             ::testing::Values(ElementType::i64),
+                             ::testing::ValuesIn(i64Config),
+                             ::testing::Values(blocked8_5D_ref, blocked16_5D_ref)),
                         ConcatLayerCPUTest::getTestCaseName);
 
 const std::vector<std::vector<InputShape>> inputShapes5D_axis1 = {
@@ -345,6 +420,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat5D_CPU_dynamic_axis_1, ConcatLayerCPUTest,
                                 ::testing::Values(1),
                                 ::testing::ValuesIn(inputShapes5D_axis1),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(emptyConfig),
                                 ::testing::Values(planar_5D_ref, planarChannels_5D)),
                         ConcatLayerCPUTest::getTestCaseName);
 
@@ -366,6 +442,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat5D_CPU_Block_dynamic_axis_2, ConcatLayerCPU
                                 ::testing::Values(-3),
                                 ::testing::ValuesIn(inputShapes5D_Block_axis2),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(emptyConfig),
                                 ::testing::Values(blocked8_5D_ref, blocked16_5D_ref)),
                         ConcatLayerCPUTest::getTestCaseName);
 
@@ -387,6 +464,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat5D_CPU_dynamic_axis_2, ConcatLayerCPUTest,
                                 ::testing::Values(2),
                                 ::testing::ValuesIn(inputShapes5D_axis2),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(emptyConfig),
                                 ::testing::Values(planar_5D_ref, planarChannels_5D)),
                         ConcatLayerCPUTest::getTestCaseName);
 
@@ -408,6 +486,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat5D_CPU_Block_dynamic_axis_3, ConcatLayerCPU
                                 ::testing::Values(3),
                                 ::testing::ValuesIn(inputShapes5D_Block_axis3),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(emptyConfig),
                                 ::testing::Values(blocked8_5D_ref, blocked16_5D_ref)),
                         ConcatLayerCPUTest::getTestCaseName);
 
@@ -429,6 +508,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat5D_CPU_dynamic_axis_3, ConcatLayerCPUTest,
                                 ::testing::Values(3),
                                 ::testing::ValuesIn(inputShapes5D_axis3),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(emptyConfig),
                                 ::testing::Values(planar_5D_ref, planarChannels_5D)),
                         ConcatLayerCPUTest::getTestCaseName);
 
@@ -450,6 +530,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat5D_CPU_Block_dynamic_axis_4, ConcatLayerCPU
                                 ::testing::Values(4),
                                 ::testing::ValuesIn(inputShapes5D_Block_axis4),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(emptyConfig),
                                 ::testing::Values(blocked8_5D_ref, blocked16_5D_ref)),
                         ConcatLayerCPUTest::getTestCaseName);
 
@@ -471,6 +552,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat5D_CPU_dynamic_axis_4, ConcatLayerCPUTest,
                                 ::testing::Values(4),
                                 ::testing::ValuesIn(inputShapes5D_axis4),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(emptyConfig),
                                 ::testing::Values(planar_5D_ref, planarChannels_5D)),
                         ConcatLayerCPUTest::getTestCaseName);
 
@@ -515,16 +597,27 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat_byBatch_static, ConcatLayerCPUTest,
                                  ::testing::Values(0),
                                  ::testing::ValuesIn(inputShapes_byBatch_static),
                                  ::testing::ValuesIn(netPrecisions),
+                                 ::testing::Values(emptyConfig),
                                  ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"})),
-                                 ConcatLayerCPUTest::getTestCaseName);
+                         ConcatLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Concat_byBatch_I64_static, ConcatLayerCPUTest,
+                        ::testing::Combine(
+                                 ::testing::Values(0),
+                                 ::testing::ValuesIn(inputShapes_byBatch_static),
+                                 ::testing::Values(ElementType::i64),
+                                 ::testing::ValuesIn(i64Config),
+                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"})),
+                        ConcatLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Concat_byBatch_dynamic, ConcatLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Values(0),
                                  ::testing::ValuesIn(inputShapes_byBatch_dynamic),
                                  ::testing::ValuesIn(netPrecisions),
+                                 ::testing::Values(emptyConfig),
                                  ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
-                                 ConcatLayerCPUTest::getTestCaseName);
+                         ConcatLayerCPUTest::getTestCaseName);
 
 const std::vector<std::vector<InputShape>> inputShapes3D_axis1 = {
         static_shapes_to_test_representation({{2, 4, 5}, {2, 4, 5}}),
@@ -545,6 +638,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat_3D_axis1, ConcatLayerCPUTest,
                                 ::testing::Values(1),
                                 ::testing::ValuesIn(inputShapes3D_axis1),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(emptyConfig),
                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                         ConcatLayerCPUTest::getTestCaseName);
 
@@ -567,6 +661,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat_3D_axis2, ConcatLayerCPUTest,
                                 ::testing::Values(2),
                                 ::testing::ValuesIn(inputShapes3D_axis2),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(emptyConfig),
                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                         ConcatLayerCPUTest::getTestCaseName);
 
@@ -589,6 +684,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat_2D_axis1, ConcatLayerCPUTest,
                                 ::testing::Values(1),
                                 ::testing::ValuesIn(inputShapes2D_axis1),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(emptyConfig),
                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                         ConcatLayerCPUTest::getTestCaseName);
 
@@ -617,7 +713,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat_1D_static, ConcatLayerCPUTest,
                                 ::testing::Values(0),
                                 ::testing::ValuesIn(inputShapes1D_static),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(emptyConfig),
                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"})),
+                        ConcatLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Concat_1D_I64_static, ConcatLayerCPUTest,
+                        ::testing::Combine(
+                                 ::testing::Values(0),
+                                 ::testing::ValuesIn(inputShapes1D_static),
+                                 ::testing::Values(ElementType::i64),
+                                 ::testing::ValuesIn(i64Config),
+                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"})),
                         ConcatLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Concat_1D_dynamic, ConcatLayerCPUTest,
@@ -625,6 +731,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat_1D_dynamic, ConcatLayerCPUTest,
                                 ::testing::Values(0),
                                 ::testing::ValuesIn(inputShapes1D_dynamic),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(emptyConfig),
                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                         ConcatLayerCPUTest::getTestCaseName);
 
@@ -643,6 +750,7 @@ INSTANTIATE_TEST_SUITE_P(concat_Concat4D_CPU_Block8inPlace, ConcatLayerCPUTest,
                                                       {{1, 16, -1, -1}, {{1, 16, 5, 7}, {1, 16, 16, 2}, {1, 16, 2, 8}}},
                                                   }),
                                 ::testing::Values(ElementType::f32),
+                                ::testing::Values(emptyConfig),
                                 ::testing::Values(planar_4D, blocked8_4D)),
                         ConcatLayerCPUTest::getTestCaseName);
 
@@ -660,6 +768,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_Block16inPlace_0, ConcatLayerCPUTest
                                                       {{1, 32, -1, -1}, {{1, 32, 5, 7}, {1, 32, 16, 2}, {1, 32, 2, 8}}},
                                                   }),
                                 ::testing::Values(ElementType::f32),
+                                ::testing::Values(emptyConfig),
                                 ::testing::Values(blocked16_4D)),
                         ConcatLayerCPUTest::getTestCaseName);
 
@@ -677,6 +786,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_Block16inPlace_1, ConcatLayerCPUTest
                                                       {{1, 32, -1, -1}, {{1, 32, 5, 7}, {1, 32, 16, 2}, {1, 32, 2, 8}}},
                                                   }),
                                 ::testing::Values(ElementType::f32),
+                                ::testing::Values(emptyConfig),
                                 ::testing::Values(blocked16_4D)),
                         ConcatLayerCPUTest::getTestCaseName);
 
@@ -694,6 +804,7 @@ INSTANTIATE_TEST_SUITE_P(concat_Concat5D_CPU_Block8inPlace, ConcatLayerCPUTest,
                                                       {{1, 32, -1, -1, -1}, {{1, 32, 5, 7, 3}, {1, 32, 16, 2, 3}, {1, 32, 2, 8, 3}}},
                                                   }),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(emptyConfig),
                                 ::testing::Values(planar_5D, blocked8_5D)),
                         ConcatLayerCPUTest::getTestCaseName);
 
@@ -711,6 +822,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat5D_CPU_Block16inPlace, ConcatLayerCPUTest,
                                                       {{1, 32, -1, -1, -1}, {{1, 32, 5, 7, 3}, {1, 32, 16, 2, 3}, {1, 32, 2, 8, 3}}},
                                                   }),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(emptyConfig),
                                 ::testing::Values(blocked16_5D)),
                         ConcatLayerCPUTest::getTestCaseName);
 
@@ -721,6 +833,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat_inPlace, ConcatLayerCPUTest,
                                     static_shapes_to_test_representation({{1, 1, 1, 10}, {1, 1, 1, 10}}),
                                     static_shapes_to_test_representation({{1, 1, 5}, {1, 1, 5}})}),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(emptyConfig),
                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"})),
                         ConcatLayerCPUTest::getTestCaseName);
 

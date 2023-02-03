@@ -6,6 +6,7 @@
 #include "ngraph_functions/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
+#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 
 using namespace CPUTestUtils;
 using namespace ov::test;
@@ -18,7 +19,7 @@ typedef std::tuple<
         bool,                                // Sorted
         ElementType,                         // Data precision
         CPUSpecificParams,                   // CPU specific params
-        std::map<std::string, std::string>   // Additional config
+        ov::AnyMap                           // Additional config
 > UniqueLayerTestCPUParams;
 
 class UniqueLayerTestCPU : public testing::WithParamInterface<UniqueLayerTestCPUParams>,
@@ -30,7 +31,7 @@ public:
         bool sorted;
         ElementType dataPrecision;
         CPUSpecificParams cpuParams;
-        std::map<std::string, std::string> additionalConfig;
+        ov::AnyMap additionalConfig;
 
         std::tie(inputShapes, flatOrAxis, sorted, dataPrecision, cpuParams, additionalConfig) = obj.param;
 
@@ -59,9 +60,9 @@ public:
 
         if (!additionalConfig.empty()) {
             result << "_PluginConf";
-            for (auto &item : additionalConfig) {
-                if (item.second == InferenceEngine::PluginConfigParams::YES)
-                    result << "_" << item.first << "=" << item.second;
+            for (auto& configItem : additionalConfig) {
+                result << "_" << configItem.first << "=";
+                configItem.second.print(result);
             }
         }
 
@@ -76,7 +77,7 @@ protected:
         int axis;
         ElementType dataPrecision;
         CPUSpecificParams cpuParams;
-        std::map<std::string, std::string> additionalConfig;
+        ov::AnyMap additionalConfig;
 
         std::tie(inputShapes, flatOrAxis, sorted, dataPrecision, cpuParams, additionalConfig) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
@@ -143,15 +144,18 @@ const std::vector<ElementType> dataPrecisionSmoke = {
 };
 const std::vector<ElementType> dataPrecisionNightly = {
         ElementType::bf16,
-        ElementType::i8
+        ElementType::i8,
+        ElementType::i64
 };
 
 std::vector<std::tuple<bool, int>> flatOrAxis { {true, 0}, {false, 0}, {false, 1}, {false, -1} };
 
 std::vector<bool> sorted { true, false};
 
-std::vector<std::map<std::string, std::string>> additionalConfig
-    = {{{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO}},
+ov::AnyMap empty_config = {};
+ov::AnyMap config_i64 = {{InferenceEngine::PluginConfigInternalParams::KEY_CPU_NATIVE_I64, InferenceEngine::PluginConfigParams::YES}};
+std::vector<ov::AnyMap> config_bf16 =
+      {{{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO}},
        {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES}}};
 
 std::vector<CPUSpecificParams> getCPUInfo() {
@@ -177,8 +181,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_1D, UniqueLayerTestCPU,
                      ::testing::ValuesIn(sorted),
                      ::testing::ValuesIn(dataPrecisionSmoke),
                      ::testing::ValuesIn(getCPUInfo()),
-                     ::testing::Values(additionalConfig[0])),
+                     ::testing::Values(empty_config)),
              UniqueLayerTestCPU::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_static_1D_I64, UniqueLayerTestCPU,
+            ::testing::Combine(
+                    ::testing::ValuesIn(statShapes1D),
+                    ::testing::ValuesIn(std::vector<std::tuple<bool, int>>{{true, 0}, {false, 0}}),
+                    ::testing::ValuesIn(sorted),
+                    ::testing::Values(ElementType::i64),
+                    ::testing::ValuesIn(getCPUInfo()),
+                    ::testing::Values(config_i64)),
+            UniqueLayerTestCPU::getTestCaseName);
 
 std::vector<std::vector<InputShape>> getStaticShapes() {
     std::vector<std::vector<InputShape>> result = {
@@ -226,7 +240,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_static, UniqueLayerTestCPU,
                         ::testing::ValuesIn(sorted),
                         ::testing::ValuesIn(dataPrecisionSmoke),
                         ::testing::ValuesIn(getCPUInfo()),
-                        ::testing::Values(additionalConfig[0])),
+                        ::testing::Values(empty_config)),
+                UniqueLayerTestCPU::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_static_I64, UniqueLayerTestCPU,
+                ::testing::Combine(
+                        ::testing::ValuesIn(getStaticShapes()),
+                        ::testing::ValuesIn(flatOrAxis),
+                        ::testing::ValuesIn(sorted),
+                        ::testing::Values(ElementType::i64),
+                        ::testing::ValuesIn(getCPUInfo()),
+                        ::testing::Values(config_i64)),
                 UniqueLayerTestCPU::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_static, UniqueLayerTestCPU,
@@ -236,7 +260,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_static, UniqueLayerTestCPU,
                         ::testing::ValuesIn(sorted),
                         ::testing::ValuesIn(dataPrecisionNightly),
                         ::testing::ValuesIn(getCPUInfo()),
-                        ::testing::Values(additionalConfig[0])),
+                        ::testing::ValuesIn(config_bf16)),
                 UniqueLayerTestCPU::getTestCaseName);
 
 const std::vector<std::vector<InputShape>> dynamicInSapes = {
@@ -265,7 +289,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic, UniqueLayerTestCPU,
                              ::testing::ValuesIn(sorted),
                              ::testing::ValuesIn(dataPrecisionSmoke),
                              ::testing::ValuesIn(getCPUInfo()),
-                             ::testing::Values(additionalConfig[0])),
+                             ::testing::Values(empty_config)),
                      UniqueLayerTestCPU::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_dynamic, UniqueLayerTestCPU,
@@ -275,7 +299,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_dynamic, UniqueLayerTestCPU,
                                  ::testing::ValuesIn(sorted),
                                  ::testing::ValuesIn(dataPrecisionNightly),
                                  ::testing::ValuesIn(getCPUInfo()),
-                                 ::testing::Values(additionalConfig[0])),
+                                 ::testing::ValuesIn(config_bf16)),
                          UniqueLayerTestCPU::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions

@@ -156,6 +156,7 @@ const std::vector<ScatterElementsUpdateLayerParams> scatterParams = {
 const std::vector<ElementType> inputPrecisions = {
     ElementType::f32,
     ElementType::i32,
+    ElementType::i64
 };
 
 const std::vector<ElementType> constantPrecisions = {

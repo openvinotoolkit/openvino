@@ -16,6 +16,7 @@ const std::vector<InferenceEngine::Precision> inputPrecisions = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::FP16,
         InferenceEngine::Precision::I32,
+        InferenceEngine::Precision::I64
 };
 
 const std::vector<InferenceEngine::Precision> idxPrecisions = {

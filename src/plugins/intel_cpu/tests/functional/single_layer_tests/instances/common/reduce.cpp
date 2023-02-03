@@ -55,30 +55,34 @@ std::vector<CPUSpecificParams> cpuParams_4D = {
 #endif
 };
 
+ov::AnyMap enpty_config = {};
+
 /* ================================ 1.1 No fusion - Arithmetic ================================ */
 const auto params_OneAxis = testing::Combine(
         testing::Combine(
-            testing::ValuesIn(axes()),
-            testing::ValuesIn(opTypes()),
-            testing::ValuesIn(keepDims()),
-            testing::ValuesIn(reductionTypes()),
-            testing::ValuesIn(inpOutPrc()),
-            testing::Values(ElementType::undefined),
-            testing::Values(ElementType::undefined),
-            testing::ValuesIn(inputShapes)),
+                testing::ValuesIn(axes()),
+                testing::ValuesIn(opTypes()),
+                testing::ValuesIn(keepDims()),
+                testing::ValuesIn(reductionTypes()),
+                testing::ValuesIn(inpOutPrc()),
+                testing::Values(ElementType::undefined),
+                testing::Values(ElementType::undefined),
+                testing::ValuesIn(inputShapes),
+                testing::Values(enpty_config)),
         testing::Values(emptyCPUSpec),
         testing::Values(emptyFusingSpec));
 
 const auto params_OneAxis_dynamic = testing::Combine(
         testing::Combine(
-            testing::Values(1),                                 // ACL supports reduce against static dims only
-            testing::ValuesIn(opTypes()),
-            testing::ValuesIn(keepDims()),
-            testing::ValuesIn(reductionTypes()),
-            testing::ValuesIn(inpOutPrc()),
-            testing::Values(ElementType::undefined),
-            testing::Values(ElementType::undefined),
-            testing::ValuesIn(inputShapes_dynamic_3dims)),
+                testing::Values(1),                                 // ACL supports reduce against static dims only
+                testing::ValuesIn(opTypes()),
+                testing::ValuesIn(keepDims()),
+                testing::ValuesIn(reductionTypes()),
+                testing::ValuesIn(inpOutPrc()),
+                testing::Values(ElementType::undefined),
+                testing::Values(ElementType::undefined),
+                testing::ValuesIn(inputShapes_dynamic_3dims),
+                testing::Values(enpty_config)),
         testing::Values(emptyCPUSpec),
         testing::Values(emptyFusingSpec));
 
@@ -91,7 +95,8 @@ const auto params_MultiAxis_4D = testing::Combine(
                 testing::ValuesIn(inpOutPrc()),
                 testing::Values(ElementType::undefined),
                 testing::Values(ElementType::undefined),
-                testing::ValuesIn(inputShapes)),
+                testing::ValuesIn(inputShapes),
+                testing::Values(enpty_config)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
         testing::Values(emptyFusingSpec));
 
@@ -104,20 +109,22 @@ const auto params_MultiAxis_4D_dynamic = testing::Combine(
                 testing::ValuesIn(inpOutPrc()),
                 testing::Values(ElementType::undefined),
                 testing::Values(ElementType::undefined),
-                testing::ValuesIn(inputShapes_dynamic_2dims)),
+                testing::ValuesIn(inputShapes_dynamic_2dims),
+                testing::Values(enpty_config)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
         testing::Values(emptyFusingSpec));
 
 const auto params_Int32 = testing::Combine(
         testing::Combine(
-            testing::ValuesIn(axes()),
-            testing::Values(CommonTestUtils::OpType::VECTOR),
-            testing::ValuesIn(keepDims()),
-            testing::ValuesIn(reductionTypesInt32()),
-            testing::Values(ElementType::i32),
-            testing::Values(ElementType::undefined),
-            testing::Values(ElementType::undefined),
-            testing::ValuesIn(inputShapes_Int32)),
+                testing::ValuesIn(axes()),
+                testing::Values(CommonTestUtils::OpType::VECTOR),
+                testing::ValuesIn(keepDims()),
+                testing::ValuesIn(reductionTypesInt32()),
+                testing::Values(ElementType::i32),
+                testing::Values(ElementType::undefined),
+                testing::Values(ElementType::undefined),
+                testing::ValuesIn(inputShapes_Int32),
+                testing::Values(enpty_config)),
         testing::Values(emptyCPUSpec),
         testing::Values(emptyFusingSpec));
 

@@ -6,36 +6,38 @@
 #include "ngraph_functions/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
+#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 
 using namespace CPUTestUtils;
+using namespace ov::test;
 
 namespace CPULayerTestsDefinitions {
 
 using TileLayerTestParamsSet = typename std::tuple<
-        std::vector<ov::test::InputShape>,     // Input shapes
-        std::vector<int64_t>,                  // Repeats
-        ov::element::Type_t,                   // Network precision
-        bool,                                  // Is Repeats input constant
-        std::string>;                          // Device name
+        std::vector<InputShape>,       // Input shapes
+        std::vector<int64_t>,          // Repeats
+        ElementType,                   // Network precision
+        bool,                          // Is Repeats input constant
+        ov::AnyMap>;                   // Additional network configuration
 
 typedef std::tuple<
         TileLayerTestParamsSet,
         CPUSpecificParams> TileLayerCPUTestParamsSet;
 
 class TileLayerCPUTest : public testing::WithParamInterface<TileLayerCPUTestParamsSet>,
-                         virtual public ov::test::SubgraphBaseTest, public CPUTestsBase {
+                         virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<TileLayerCPUTestParamsSet> obj) {
         TileLayerTestParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
         std::tie(basicParamsSet, cpuParams) = obj.param;
 
-        std::vector<ov::test::InputShape> inputShapes;
+        std::vector<InputShape> inputShapes;
         std::vector<int64_t> repeats;
-        ov::element::Type_t netPrecision;
+        ElementType netPrecision;
         bool isRepeatsConst;
-        std::string deviceName;
-        std::tie(inputShapes, repeats, netPrecision, isRepeatsConst, deviceName) = basicParamsSet;
+        ov::AnyMap config;
+        std::tie(inputShapes, repeats, netPrecision, isRepeatsConst, config) = basicParamsSet;
 
         std::ostringstream result;
         result << "IS=(";
@@ -51,7 +53,11 @@ public:
         result << "Repeats=" << CommonTestUtils::vec2str(repeats)  << "_";
         result << "netPrec=" << netPrecision << "_";
         result << "constRepeats=" << (isRepeatsConst ? "True" : "False") << "_";
-        result << "trgDev=" << deviceName;
+
+        for (auto const& configItem : config) {
+            result << "_configItem=" << configItem.first << "_";
+            configItem.second.print(result);
+        }
 
         result << CPUTestsBase::getTestCaseName(cpuParams);
 
@@ -60,18 +66,29 @@ public:
 
 protected:
     void SetUp() override {
+        targetDevice = CommonTestUtils::DEVICE_CPU;
+
         TileLayerTestParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
         std::tie(basicParamsSet, cpuParams) = this->GetParam();
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-        std::vector<ov::test::InputShape> inputShapes;
-        ov::element::Type_t netPrecision;
+        std::vector<InputShape> inputShapes;
+        ElementType netPrecision;
         bool isRepeatsConst;
-        std::tie(inputShapes, repeatsData, netPrecision, isRepeatsConst, targetDevice) = basicParamsSet;
+        std::tie(inputShapes, repeatsData, netPrecision, isRepeatsConst, configuration) = basicParamsSet;
 
-        selectedType += std::string("_") + InferenceEngine::details::convertPrecision(netPrecision).name();
+        if (netPrecision == ElementType::i64 || netPrecision == ElementType::u64) {
+            auto i64Flag = configuration.find(InferenceEngine::PluginConfigInternalParams::KEY_CPU_NATIVE_I64);
+            if (i64Flag == configuration.end() || i64Flag->second == InferenceEngine::PluginConfigParams::NO) {
+                selectedType = makeSelectedTypeStr(selectedType, ElementType::i32);
+            } else {
+                selectedType = makeSelectedTypeStr(selectedType, ElementType::i64);
+            }
+        } else {
+            selectedType = makeSelectedTypeStr(selectedType, netPrecision);
+        }
 
         if (inputShapes.front().first.rank() != 0) {
             inputDynamicShapes.push_back(inputShapes.front().first);
@@ -124,10 +141,10 @@ protected:
                 }
             } else {
                 if (funcInput.get_element_type().is_real()) {
-                    tensor = ov::test::utils::create_and_fill_tensor(
+                    tensor = utils::create_and_fill_tensor(
                         funcInput.get_element_type(), targetInputStaticShapes[i], 10, 0, 1000);
                 } else {
-                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+                    tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
                 }
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
@@ -159,14 +176,15 @@ const auto cpuParams_ndhwc = CPUSpecificParams{{ndhwc}, {ndhwc}, {}, "ref"};
 /* ========== */
 
 /* PARAMS */
-const std::vector<ov::element::Type_t> netPrecisions = {
+const std::vector<ElementType> netPrecisions = {
     ov::element::f32,
     ov::element::bf16,
     ov::element::i32,
-    ov::element::i8
+    ov::element::i8,
+    ov::element::i64
 };
 
-const std::vector<std::vector<ov::test::InputShape>> staticInputShapes4D = {
+const std::vector<std::vector<InputShape>> staticInputShapes4D = {
     {
         {{},
             { // Static shapes
@@ -182,7 +200,7 @@ const std::vector<std::vector<ov::test::InputShape>> staticInputShapes4D = {
         }
     }
 };
-const std::vector<std::vector<ov::test::InputShape>> dynamicInputShapes4D = {
+const std::vector<std::vector<InputShape>> dynamicInputShapes4D = {
     {
         { // Origin dynamic shapes
             {ov::Dimension(1, 20), ov::Dimension(10, 20), ov::Dimension(1, 20), ov::Dimension(1, 20)},
@@ -204,7 +222,7 @@ const std::vector<std::vector<ov::test::InputShape>> dynamicInputShapes4D = {
     }
 };
 
-const std::vector<std::vector<ov::test::InputShape>> staticInputShapes5D = {
+const std::vector<std::vector<InputShape>> staticInputShapes5D = {
     {
         {{},
             { // Static shapes
@@ -213,7 +231,7 @@ const std::vector<std::vector<ov::test::InputShape>> staticInputShapes5D = {
         }
     }
 };
-const std::vector<std::vector<ov::test::InputShape>> dynamicInputShapes5D = {
+const std::vector<std::vector<InputShape>> dynamicInputShapes5D = {
     {
         { // Origin dynamic shapes
             {ov::Dimension(1, 20), ov::Dimension(1, 20), ov::Dimension(1, 20), ov::Dimension(1, 20), ov::Dimension(1, 70)},
@@ -267,6 +285,12 @@ const std::vector<CPUSpecificParams> CPUParams5D = {
         cpuParams_nCdhw8c,
         cpuParams_ndhwc,
 };
+
+const ov::AnyMap additionalConfig = {};
+const std::vector<ov::AnyMap> i64Config = {
+        {{InferenceEngine::PluginConfigInternalParams::KEY_CPU_NATIVE_I64, InferenceEngine::PluginConfigParams::YES}},
+        {{InferenceEngine::PluginConfigInternalParams::KEY_CPU_NATIVE_I64, InferenceEngine::PluginConfigParams::NO}}
+};
 /* ============= */
 
 /* INSTANCES */
@@ -277,7 +301,18 @@ INSTANTIATE_TEST_CASE_P(smoke_StaticShape4D, TileLayerCPUTest,
                                         ::testing::ValuesIn(repeats4D),
                                         ::testing::ValuesIn(netPrecisions),
                                         ::testing::Values(true),
-                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                        ::testing::Values(additionalConfig)),
+                                ::testing::ValuesIn(CPUParams4D)),
+                        TileLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_StaticShape4D_I64, TileLayerCPUTest,
+                        ::testing::Combine(
+                                ::testing::Combine(
+                                        ::testing::ValuesIn(staticInputShapes4D),
+                                        ::testing::ValuesIn(repeats4D),
+                                        ::testing::Values(ElementType::i64),
+                                        ::testing::Values(true),
+                                        ::testing::ValuesIn(i64Config)),
                                 ::testing::ValuesIn(CPUParams4D)),
                         TileLayerCPUTest::getTestCaseName);
 
@@ -288,11 +323,22 @@ INSTANTIATE_TEST_CASE_P(smoke_DynamicShape4D, TileLayerCPUTest,
                                         ::testing::ValuesIn(repeats4D),
                                         ::testing::ValuesIn(netPrecisions),
                                         ::testing::Values(true, false),
-                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                        ::testing::Values(additionalConfig)),
                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                         TileLayerCPUTest::getTestCaseName);
 
-const std::vector<std::vector<ov::test::InputShape>> dynBatchInputShapes4D = {
+INSTANTIATE_TEST_CASE_P(smoke_DynamicShape4D_I64, TileLayerCPUTest,
+                        ::testing::Combine(
+                                ::testing::Combine(
+                                        ::testing::ValuesIn(dynamicInputShapes4D),
+                                        ::testing::ValuesIn(repeats4D),
+                                        ::testing::Values(ElementType::i64),
+                                        ::testing::Values(true, false),
+                                        ::testing::ValuesIn(i64Config)),
+                                ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
+                        TileLayerCPUTest::getTestCaseName);
+
+const std::vector<std::vector<InputShape>> dynBatchInputShapes4D = {
     { // Origin dynamic shapes
         {
             {{1, 20}, 16, 3, 4},
@@ -312,7 +358,7 @@ INSTANTIATE_TEST_CASE_P(smoke_DynBatch4D, TileLayerCPUTest,
                                     ::testing::Values(std::vector<int64_t>{1, 2, 1, 3}),
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(true),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(additionalConfig)),
                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                         TileLayerCPUTest::getTestCaseName);
 
@@ -323,7 +369,18 @@ INSTANTIATE_TEST_CASE_P(smoke_StaticShape5D, TileLayerCPUTest,
                                         ::testing::ValuesIn(repeats5D),
                                         ::testing::ValuesIn(netPrecisions),
                                         ::testing::Values(true),
-                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                        ::testing::Values(additionalConfig)),
+                                ::testing::ValuesIn(CPUParams5D)),
+                        TileLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_StaticShape5D_I64, TileLayerCPUTest,
+                        ::testing::Combine(
+                                ::testing::Combine(
+                                        ::testing::ValuesIn(staticInputShapes5D),
+                                        ::testing::ValuesIn(repeats5D),
+                                        ::testing::Values(ElementType::i64),
+                                        ::testing::Values(true),
+                                        ::testing::ValuesIn(i64Config)),
                                 ::testing::ValuesIn(CPUParams5D)),
                         TileLayerCPUTest::getTestCaseName);
 
@@ -334,7 +391,7 @@ INSTANTIATE_TEST_CASE_P(smoke_DynamicShape5D, TileLayerCPUTest,
                                         ::testing::ValuesIn(repeats5D),
                                         ::testing::ValuesIn(netPrecisions),
                                         ::testing::Values(true, false),
-                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                        ::testing::Values(additionalConfig)),
                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                         TileLayerCPUTest::getTestCaseName);
 /* ========= */

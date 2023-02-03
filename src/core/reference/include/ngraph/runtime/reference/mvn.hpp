@@ -12,7 +12,6 @@
 #include <ngraph/runtime/reference/multiply.hpp>
 #include <ngraph/runtime/reference/sqrt.hpp>
 #include <ngraph/runtime/reference/subtract.hpp>
-#include <ngraph/runtime/reference/sum.hpp>
 #include <ngraph/shape.hpp>
 
 namespace ngraph {

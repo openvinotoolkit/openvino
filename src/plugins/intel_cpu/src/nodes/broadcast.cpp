@@ -2,17 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cmath>
-#include <vector>
-#include <string>
-#include <dnnl_types.h>
-#include "ie_parallel.hpp"
-#include "utils/bfloat16.hpp"
-#include <selective_build.h>
 #include "broadcast.h"
-#include <nodes/common/blocked_desc_creator.h>
-#include <ngraph/opsets/opset1.hpp>
+
 #include "common/cpu_memcpy.h"
+#include "ie_parallel.hpp"
+#include <openvino/op/broadcast.hpp>
+#include <openvino/op/constant.hpp>
 
 using namespace InferenceEngine;
 
@@ -22,12 +17,12 @@ namespace node {
 
 bool Broadcast::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!ov::is_type<ov::op::v1::Broadcast>(op)) {
+        if (!ov::is_type<op::v1::Broadcast>(op)) {
             errorMessage = "Only Broadcast operations from opset1 are supported.";
             return false;
         }
-        if (!one_of(ov::as_type_ptr<const ov::op::v1::Broadcast>(op)->get_broadcast_spec().m_type,
-                ov::op::AutoBroadcastType::NUMPY, ov::op::AutoBroadcastType::EXPLICIT)) {
+        if (!one_of(ov::as_type_ptr<const op::v1::Broadcast>(op)->get_broadcast_spec().m_type,
+                op::AutoBroadcastType::NUMPY, op::AutoBroadcastType::EXPLICIT)) {
             errorMessage = "Only NUMPY and EXPLICIT broadcast types are supported.";
             return false;
         }
@@ -37,9 +32,9 @@ bool Broadcast::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
             return false;
         }
         if (!isDynamicNgraphNode(op) &&
-                (!ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX)) ||
+                (!ov::is_type<op::v0::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX)) ||
                  (op->get_input_size() > AXES_MAPPING_IDX &&
-                 !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(AXES_MAPPING_IDX))))) {
+                 !ov::is_type<op::v0::Constant>(op->get_input_node_ptr(AXES_MAPPING_IDX))))) {
             errorMessage = "Only constant target shapes and axis mapping inputs are supported for static shapes.";
             return false;
         }
@@ -50,7 +45,7 @@ bool Broadcast::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
 }
 
 Broadcast::Broadcast(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, NgraphShapeInferFactory(op, PortMask(TARGET_SHAPE_IDX, AXES_MAPPING_IDX))) {
+        : Node(op, context, NgraphShapeInferFactory(op, PortMask(TARGET_SHAPE_IDX, AXES_MAPPING_IDX))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -62,10 +57,10 @@ Broadcast::Broadcast(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
     if (op->get_output_size() == 0)
         IE_THROW() << errorPrefix << "has no output edges.";
 
-    auto broadcastOp = ov::as_type_ptr<const ov::op::v1::Broadcast>(op);
-    if (broadcastOp->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::NUMPY) {
+    auto broadcastOp = ov::as_type_ptr<const op::v1::Broadcast>(op);
+    if (broadcastOp->get_broadcast_spec().m_type == op::AutoBroadcastType::NUMPY) {
         broadcastType = NUMPY;
-    } else if (broadcastOp->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::EXPLICIT) {
+    } else if (broadcastOp->get_broadcast_spec().m_type == op::AutoBroadcastType::EXPLICIT) {
         if (op->get_input_size() <= AXES_MAPPING_IDX)
             IE_THROW() << errorPrefix << " and EXPLICIT mode must have tree input edges: " << getParentEdges().size();
         broadcastType = EXPLICIT;
@@ -73,14 +68,16 @@ Broadcast::Broadcast(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
         IE_THROW() << errorPrefix << "has unexpected broadcast type: " << broadcastOp->get_broadcast_spec().m_type;
     }
 
-    if (ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX))) {
+    if (auto shapeOp = ov::as_type<op::v0::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX))) {
         constMap[TARGET_SHAPE_IDX] = true;
-        targetShape = (ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX)))->get_vector<int32_t>();
+        targetShape = shapeOp->cast_vector<Dim>();
     }
-    if (broadcastType == EXPLICIT &&
-                ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(AXES_MAPPING_IDX))) {
-        constMap[AXES_MAPPING_IDX] = true;
-        axesMapping = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(AXES_MAPPING_IDX))->get_vector<int32_t>();
+
+    if (broadcastType == EXPLICIT) {
+        if (auto axesOp = ov::as_type<op::v0::Constant>(op->get_input_node_ptr(AXES_MAPPING_IDX))) {
+            constMap[AXES_MAPPING_IDX] = true;
+            axesMapping = axesOp->cast_vector<Dim>();
+        }
     }
 }
 
@@ -117,13 +114,29 @@ bool Broadcast::needPrepareParams() const {
 void Broadcast::prepareParams() {
     if (!constMap[TARGET_SHAPE_IDX]) {
         const auto& targetShapeMem = getParentEdgesAtPort(TARGET_SHAPE_IDX)[0]->getMemory();
-        const int32_t* targetShapeData = reinterpret_cast<const int32_t *>(targetShapeMem.getData());
-        targetShape.assign(targetShapeData, targetShapeData + targetShapeMem.getStaticDims()[0]);
+        if (targetShapeMem.getDataType() == dnnl::memory::data_type::s64) {
+            const auto *targetShapeData = reinterpret_cast<const int64_t *>(targetShapeMem.getData());
+            targetShape.assign(targetShapeData, targetShapeData + targetShapeMem.getStaticDims()[0]);
+        } else if (targetShapeMem.getDataType() == dnnl::memory::data_type::s32) {
+            const auto *targetShapeData = reinterpret_cast<const int32_t *>(targetShapeMem.getData());
+            targetShape.assign(targetShapeData, targetShapeData + targetShapeMem.getStaticDims()[0]);
+        } else {
+            IE_THROW() << errorPrefix << " does not support precision '" << int(targetShapeMem.getDataType())
+                       << "' for the Target shape input.";
+        }
     }
     if (broadcastType == EXPLICIT && !constMap[AXES_MAPPING_IDX]) {
         const auto& axesMapMem = getParentEdgesAtPort(AXES_MAPPING_IDX)[0]->getMemory();
-        const int32_t* axesMapData = reinterpret_cast<const int32_t *>(axesMapMem.getData());
-        axesMapping.assign(axesMapData, axesMapData + axesMapMem.getStaticDims()[0]);
+        if (axesMapMem.getDataType() == dnnl::memory::data_type::s64) {
+            const auto axesMapData = reinterpret_cast<const int64_t *>(axesMapMem.getData());
+            axesMapping.assign(axesMapData, axesMapData + axesMapMem.getStaticDims()[0]);
+        } else if (axesMapMem.getDataType() == dnnl::memory::data_type::s32) {
+            const auto axesMapData = reinterpret_cast<const int32_t *>(axesMapMem.getData());
+            axesMapping.assign(axesMapData, axesMapData + axesMapMem.getStaticDims()[0]);
+        } else {
+            IE_THROW() << errorPrefix << " does not support precision '" << int(axesMapMem.getDataType())
+                       << "' for the Axes mapping input.";
+        }
     }
 
     const auto& srcDims = getParentEdgesAtPort(INPUT_DATA_IDX)[0]->getMemory().getShape().getStaticDims();
@@ -162,22 +175,48 @@ bool Broadcast::needShapeInfer() const {
         if (targetShape.empty()) {
             return true;
         }
-        const int32_t* targetShapeData = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(TARGET_SHAPE_IDX)[0]->getMemory().getData());
-        for (size_t i = 0lu; i < targetShape.size(); i++) {
-            if (targetShape[i] != targetShapeData[i]) {
-                return true;
+        const auto& targetShapeMem = getParentEdgesAtPort(TARGET_SHAPE_IDX)[0]->getMemory();
+        if (targetShapeMem.getDataType() == dnnl::memory::data_type::s64) {
+            const auto *targetShapeData = reinterpret_cast<const int64_t *>(targetShapeMem.getData());
+            for (size_t i = 0lu; i < targetShape.size(); i++) {
+                if (targetShape[i] != targetShapeData[i]) {
+                    return true;
+                }
             }
+        } else if (targetShapeMem.getDataType() == dnnl::memory::data_type::s32) {
+            const auto *targetShapeData = reinterpret_cast<const int32_t *>(targetShapeMem.getData());
+            for (size_t i = 0lu; i < targetShape.size(); i++) {
+                if (targetShape[i] != targetShapeData[i]) {
+                    return true;
+                }
+            }
+        } else {
+            IE_THROW() << errorPrefix << " does not support precision '" << int(targetShapeMem.getDataType())
+                       << "' for the Target shape input.";
         }
     }
     if (broadcastType == EXPLICIT && !constMap[AXES_MAPPING_IDX]) {
         if (axesMapping.empty()) {
             return true;
         }
-        const int32_t* axesMappingData = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(AXES_MAPPING_IDX)[0]->getMemory().getData());
-        for (size_t i = 0lu; i < axesMapping.size(); i++) {
-            if (axesMapping[i] != axesMappingData[i]) {
-                return true;
+        const auto& axesMapMem = getParentEdgesAtPort(AXES_MAPPING_IDX)[0]->getMemory();
+        if (axesMapMem.getDataType() == dnnl::memory::data_type::s64) {
+            const auto *axesMappingData = reinterpret_cast<const int64_t *>(axesMapMem.getData());
+            for (size_t i = 0lu; i < axesMapping.size(); i++) {
+                if (axesMapping[i] != axesMappingData[i]) {
+                    return true;
+                }
             }
+        } else if (axesMapMem.getDataType() == dnnl::memory::data_type::s32) {
+            const auto *axesMappingData = reinterpret_cast<const int32_t *>(axesMapMem.getData());
+            for (size_t i = 0lu; i < axesMapping.size(); i++) {
+                if (axesMapping[i] != axesMappingData[i]) {
+                    return true;
+                }
+            }
+        } else {
+            IE_THROW() << errorPrefix << " does not support precision '" << int(axesMapMem.getDataType())
+                       << "' for the Axes mapping input.";
         }
     }
     needPrepareParamsVar = false;

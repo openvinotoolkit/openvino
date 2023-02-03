@@ -4,6 +4,8 @@
 
 #include "tile.h"
 #include "common/cpu_memcpy.h"
+#include <openvino/op/constant.hpp>
+#include <openvino/op/tile.hpp>
 
 using namespace InferenceEngine;
 
@@ -13,7 +15,7 @@ namespace node {
 
 bool Tile::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!ov::is_type<ov::op::v0::Tile>(op)) {
+        if (!ov::is_type<op::v0::Tile>(op)) {
             errorMessage = "Only opset1 Tile operation is supported.";
             return false;
         }
@@ -22,7 +24,7 @@ bool Tile::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
             return false;
         }
         if (!isDynamicNgraphNode(op) &&
-                !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(TILE_REPEATS))) {
+                !ov::is_type<op::v0::Constant>(op->get_input_node_ptr(TILE_REPEATS))) {
             errorMessage = "Only constant 'Repeats' input is supported with static shapes.";
             return false;
         }
@@ -32,18 +34,16 @@ bool Tile::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
     return true;
 }
 
-Tile::Tile(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
+Tile::Tile(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context) :
         Node(op, context, NgraphShapeInferFactory(op, PortMask(TILE_REPEATS))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    errorPrefix = "Tile node with name '" + getName() + "'";
-
-    if (ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(TILE_REPEATS))) {
+    if (auto repeatsOp = ov::as_type<op::v0::Constant>(op->get_input_node_ptr(TILE_REPEATS))) {
         constMap[TILE_REPEATS] = true;
-        repeats = originRepeats = ov::as_type<const ov::op::v0::Constant>(op->get_input_node_ptr(TILE_REPEATS))->cast_vector<size_t>();
+        repeats = originRepeats = repeatsOp->cast_vector<Dim>();
         while (repeats.size() < getInputShapeAtPort(TILE_INPUT).getRank()) {
             repeats.insert(repeats.begin(), 1lu);
         }
@@ -61,24 +61,24 @@ void Tile::getSupportedDescriptors() {
         return result;
     };
     if (getParentEdges().size() != 2)
-        IE_THROW() << errorPrefix << " has incorrect number of input edges. "
+        THROW_CPU_NODE_ERR << " has incorrect number of input edges. "
                 "Expected: 2, Actual: " << getParentEdges().size();
     if (getChildEdges().empty())
-        IE_THROW() << errorPrefix << " has no output edges.";
+        THROW_CPU_NODE_ERR << " has no output edges.";
     const auto& dstDims0 = getOutputShapeAtPort(0).getDims();
     for (size_t i = 1lu; i < outputShapes.size(); i++) {
         const auto& dstDims = getOutputShapeAtPort(i).getDims();
         if (dstDims.size() != dstDims0.size())
-            IE_THROW() << errorPrefix << " has output edges 0 and " << i << " with different ranks: " << dstDims0.size() << " and " << dstDims.size();
+            THROW_CPU_NODE_ERR << " has output edges 0 and " << i << " with different ranks: " << dstDims0.size() << " and " << dstDims.size();
         for (size_t j = 0; j < dstDims0.size(); j++) {
             if (dstDims0[j] != dstDims[j]) {
-                IE_THROW() << errorPrefix << " has output edges 0 and " << i << " with different dims: " << vec_to_string(dstDims0) << " and "
+                THROW_CPU_NODE_ERR << " has output edges 0 and " << i << " with different dims: " << vec_to_string(dstDims0) << " and "
                            << vec_to_string(dstDims);
             }
         }
     }
     if (constMap[TILE_REPEATS] && getInputShapeAtPort(TILE_INPUT).getRank() > getOutputShapeAtPort(0).getRank())
-        IE_THROW() << errorPrefix << " has incorrect input/output data shape rank. Input shape rank cannot be more than output shape rank. "
+        THROW_CPU_NODE_ERR << " has incorrect input/output data shape rank. Input shape rank cannot be more than output shape rank. "
                 "Actual input shape size: " << getInputShapeAtPort(TILE_INPUT).getRank() << ", output shape size: " << getOutputShapeAtPort(0).getRank();
 
     if (!isDynamicNode())
@@ -100,8 +100,13 @@ void Tile::prepareParams() {
     if (!constMap[TILE_REPEATS]) {
         const auto& repeatsMem = getParentEdgesAtPort(TILE_REPEATS)[0]->getMemory();
 
-        const int32_t* repeatsData = reinterpret_cast<const int32_t *>(repeatsMem.getData());
-        originRepeats.assign(repeatsData, repeatsData + repeatsMem.getStaticDims()[0]);
+        if (repeatsMem.getDesc().getPrecision() == Precision::I64) {
+            auto repeatsData = reinterpret_cast<const int64_t *>(repeatsMem.getData());
+            originRepeats.assign(repeatsData, repeatsData + repeatsMem.getStaticDims()[0]);
+        } else {
+            auto repeatsData = reinterpret_cast<const int32_t *>(repeatsMem.getData());
+            originRepeats.assign(repeatsData, repeatsData + repeatsMem.getStaticDims()[0]);
+        }
 
         repeats.assign(std::max(originRepeats.size(), getInputShapeAtPort(TILE_INPUT).getRank()), 1lu);
         const size_t offset = repeats.size() - originRepeats.size();

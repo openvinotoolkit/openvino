@@ -9,7 +9,6 @@
 
 #include "transformations/transformation_pipeline.h"
 #include "itt.h"
-#include "extension_mngr.h"
 #include "extension.h"
 #include "serialize.h"
 #include "threading/ie_executor_manager.hpp"
@@ -17,15 +16,12 @@
 #include "ie_icore.hpp"
 #include "ie_plugin_config.hpp"
 #include "ie_system_conf.h"
-#include "threading/ie_cpu_streams_info.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 
-#include <transformations/utils/utils.hpp>
 #include <ie_ngraph_utils.hpp>
 
 #include "performance_heuristics.hpp"
-#include "openvino/runtime/properties.hpp"
 #include "weights_cache.hpp"
 #include "utils/denormals.hpp"
 
@@ -36,7 +32,6 @@
 #endif
 
 #include <cpu/x64/cpu_isa_traits.hpp>
-#include <itt.h>
 
 using namespace InferenceEngine;
 
@@ -155,7 +150,7 @@ static bool streamsSet(const std::map<std::string, std::string>& config) {
            config.count(ov::num_streams.name());
 }
 
-void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, const std::shared_ptr<ngraph::Function>& ngraphFunc) const {
+void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, const std::shared_ptr<ov::Model>& ngraphFunc) const {
     auto getNumStreamsLatency = [&]() {
         return std::pair<std::string, std::string>(CONFIG_VALUE(CPU_THROUGHPUT_NUMA), ov::util::to_string(ov::streams::NUMA));
     };
@@ -272,7 +267,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
     }
 }
 
-void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ngraph::Function>& ngraphFunc) {
+void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ov::Model>& ngraphFunc) {
     const auto perf_hint_name = config.perfHintsConfig.ovPerfHint;
     // save hints parameters to model rt_info
     ov::AnyMap hints_props;
@@ -421,6 +416,19 @@ static Config::SnippetsMode getSnippetsMode(const std::map<std::string, std::str
         IE_THROW() << "Wrong value for property key SNIPPETS_MODE. Expected values: ENABLE/DISABLE/IGNORE_CALLBACK";
 }
 
+static void setI64Mode(const std::map<std::string, std::string>& modelConfig, Config& engineConfig) {
+    engineConfig.enableNativeI64 = false;
+    const auto i64prop = modelConfig.find(InferenceEngine::PluginConfigInternalParams::KEY_CPU_NATIVE_I64);
+    if (i64prop != modelConfig.end()) {
+        if (i64prop->second == PluginConfigParams::YES) {
+            engineConfig.enableNativeI64 = true;
+        } else if (i64prop->second != PluginConfigParams::NO) {
+            IE_THROW() << "Wrong value for property key " << PluginConfigInternalParams::KEY_CPU_NATIVE_I64 << ": " << i64prop->second
+                                << ". Expected only YES or NO values.";
+        }
+    }
+}
+
 InferenceEngine::IExecutableNetworkInternal::Ptr
 Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Engine::LoadExeNetworkImpl");
@@ -454,6 +462,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     const bool enableLPT = shouldEnableLPT(config, engConfig);
     ov::element::Type inferencePrecision = getInferencePrecision(config, engConfig);
     const Config::SnippetsMode snippetsMode = getSnippetsMode(config, engConfig);
+    setI64Mode(config, engConfig);
 
     auto nGraphFunc = clonedNetwork.getFunction();
 
@@ -729,6 +738,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
     const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
                         || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
     const Config::SnippetsMode snippetsMode = getSnippetsMode(config, conf);
+    setI64Mode(config, conf);
 
     auto model = network.getFunction();
     if (model == nullptr) {
@@ -744,7 +754,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
                                            transformation.UpToCpuSpecificOpSet();
                                            transformation.CpuSpecificOpSet();
                                        },
-                                       [&](const std::shared_ptr<ngraph::Node>& op) {
+                                       [&](const std::shared_ptr<ov::Node>& op) {
                                            std::unique_ptr<Node> ptr;
                                            try {
                                                ptr.reset(Node::factory().create(op, context));

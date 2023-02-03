@@ -16,6 +16,7 @@
 #include <dnnl_extension_utils.h>
 #include <cpu/x64/jit_generator.hpp>
 #include <common/dnnl_thread.hpp>
+#include <openvino/op/deformable_convolution.hpp>
 
 using namespace InferenceEngine;
 using namespace dnnl;
@@ -673,8 +674,8 @@ private:
 bool DeformableConvolution::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!one_of(op->get_type_info(),
-                ngraph::op::v1::DeformableConvolution::get_type_info_static(),
-                ngraph::op::v8::DeformableConvolution::get_type_info_static())) {
+                op::v1::DeformableConvolution::get_type_info_static(),
+                op::v8::DeformableConvolution::get_type_info_static())) {
             errorMessage = "Node is not an instance of DeformableConvolution form the operation set v1 or v8.";
             return false;
         }
@@ -749,7 +750,7 @@ DeformableConvolution::DeformableConvolution(const std::shared_ptr<ngraph::Node>
         IE_THROW(NotImplemented) << errorMessage;
     }
     errorPrefix = "Deformable convolution with name '" + op->get_friendly_name() + "'";
-    auto defConvNodeBase = std::dynamic_pointer_cast<ngraph::op::util::DeformableConvolutionBase>(op);
+    auto defConvNodeBase = std::dynamic_pointer_cast<op::util::DeformableConvolutionBase>(op);
     if (defConvNodeBase == nullptr)
         IE_THROW() << errorPrefix << " is not an instance of DeformableConvolutionBase.";
 
@@ -769,8 +770,8 @@ DeformableConvolution::DeformableConvolution(const std::shared_ptr<ngraph::Node>
 
     autoPadding = one_of(defConvNodeBase->get_auto_pad(), ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER);
 
-    if (op->get_type_info() == ngraph::op::v8::DeformableConvolution::get_type_info_static()) {
-        auto defConvNode = std::dynamic_pointer_cast<ngraph::op::v8::DeformableConvolution>(op);
+    if (op->get_type_info() == op::v8::DeformableConvolution::get_type_info_static()) {
+        auto defConvNode = std::dynamic_pointer_cast<op::v8::DeformableConvolution>(op);
         if (defConvNode == nullptr)
             IE_THROW() << errorPrefix << " is not an instance of DeformableConvolution from opset8.";
         defConvAttr.with_bilinear_pad = defConvNode->get_bilinear_interpolation_pad();

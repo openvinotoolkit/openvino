@@ -5,15 +5,14 @@
 #include "unique.hpp"
 
 #include "ie_parallel.hpp"
-#include <openvino/op/unique.hpp>
 #include "common/cpu_memcpy.h"
 #include <utils/shape_inference/shape_inference_internal_dyn.hpp>
+#include <openvino/op/constant.hpp>
+#include <openvino/op/unique.hpp>
 
 using namespace InferenceEngine;
 using namespace ov::intel_cpu;
 using namespace ov::intel_cpu::node;
-
-#define THROW_ERROR IE_THROW() << getTypeStr() << " node with name '" << getName() << "' "
 
 bool Unique::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -40,21 +39,22 @@ Unique::Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
     }
 
     if (!one_of(op->get_input_size(), 1u, 2u) || op->get_output_size() != 4)
-        THROW_ERROR << "has incorrect number of input/output edges.";
+        THROW_CPU_NODE_ERR << "has incorrect number of input/output edges.";
 
     for (int i = 0; i < 4; i++) {
         definedOutputs[i] = !op->get_output_target_inputs(i).empty();
     }
 
     sorted = ov::as_type_ptr<op::v10::Unique>(op)->get_sorted();
-    if (op->get_input_size() > AXIS) {
+    auto dataShapeRank = op->get_input_partial_shape(IN_DATA).rank().get_length();
+    if (op->get_input_size() > AXIS && dataShapeRank > 1) {
         flattened = false;
         axis = ov::as_type<op::v0::Constant>(op->get_input_node_ptr(AXIS))->cast_vector<int>()[0];
         if (axis < 0) {
-            axis += op->get_input_partial_shape(IN_DATA).rank().get_length();
+            axis += dataShapeRank;
         }
-        if (axis < 0 || axis >= op->get_input_partial_shape(IN_DATA).rank().get_length()) {
-            THROW_ERROR << "has invalid axis value: " << ov::as_type<op::v0::Constant>(op->get_input_node_ptr(AXIS))->cast_vector<int>()[0];
+        if (axis < 0 || axis >= dataShapeRank) {
+            THROW_CPU_NODE_ERR << "has invalid axis value: " << ov::as_type<op::v0::Constant>(op->get_input_node_ptr(AXIS))->cast_vector<int>()[0];
         }
     } else {
         flattened = true;
@@ -63,21 +63,23 @@ Unique::Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
 
 void Unique::initSupportedPrimitiveDescriptors() {
     dataPrecision = getOriginalInputPrecisionAtPort(IN_DATA);
-    if (dataPrecision != Precision::I32 && dataPrecision != Precision::I8 && dataPrecision != Precision::U8) {
+    if (dataPrecision != Precision::I64 && dataPrecision != Precision::I32 && dataPrecision != Precision::I8 && dataPrecision != Precision::U8) {
         dataPrecision = Precision::FP32;
     }
     dataTypeSize = dataPrecision.size();
-    const InferenceEngine::Precision axisPrecision = Precision::I32;
+    Precision axisPrecision = Precision::I64;
 
     impl_desc_type implType = ref;
 
     std::vector<PortConfigurator> inPortConfigs = { {LayoutType::ncsp, dataPrecision} };
-    if (!flattened) {
+    if (getOriginalInputsNumber() > AXIS) {
+        axisPrecision = getOriginalInputPrecisionAtPort(AXIS);
         inPortConfigs.push_back({LayoutType::ncsp, axisPrecision});
     }
     std::vector<PortConfigurator> outPortConfigs;
     for (int i = 0; i < 4; i++) {
-        outPortConfigs.push_back({LayoutType::ncsp, i == 0 ? dataPrecision : axisPrecision});
+        outputsPrc[i] = getOriginalOutputPrecisionAtPort(i);
+        outPortConfigs.push_back({LayoutType::ncsp, i == 0 ? dataPrecision : getOriginalOutputPrecisionAtPort(i)});
     }
 
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, implType);
@@ -90,18 +92,18 @@ void Unique::createPrimitive() {
 void Unique::prepareParams() {
     auto dataMemPtr = getParentEdgeAt(IN_DATA)->getMemoryPtr();
     if (!dataMemPtr || !dataMemPtr->isAllocated()) {
-        THROW_ERROR << " has not allocated input data memory.";
+        THROW_CPU_NODE_ERR << " has not allocated input data memory.";
     }
     for (int i = 0; i < 4; i++) {
         if (definedOutputs[i]) {
             auto dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
             if (!dstMemPtr || !dstMemPtr->isAllocated()) {
-                THROW_ERROR << " has not allocated output memory at port " << i;
+                THROW_CPU_NODE_ERR << " has not allocated output memory at port " << i;
             }
         }
     }
     if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_ERROR << " has unidentified preferable primitive descriptor.";
+        THROW_CPU_NODE_ERR << " has unidentified preferable primitive descriptor.";
     }
 
     size_t srcLen = 1;
@@ -111,9 +113,15 @@ void Unique::prepareParams() {
         auto dstDataShape = getParentEdgeAt(IN_DATA)->getMemoryPtr()->getStaticDims();
         srcLen = dstDataShape[axis];
     }
-    firstUniTmp.resize(srcLen, 0);
-    inToOutTmp.resize(srcLen);
-    occurTmp.resize(srcLen);
+    if (definedOutputs[FIRST_UNIQUE_IDX]) {
+        firstUniTmp.resize(srcLen, 0);
+    }
+    if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
+        inToOutTmp.resize(srcLen);
+    }
+    if (definedOutputs[OCCURRENCES_NUM]) {
+        occurTmp.resize(srcLen);
+    }
 }
 
 template<typename T>
@@ -135,12 +143,14 @@ void Unique::execute(dnnl::stream strm) {
         OV_SWITCH(intel_cpu, flattenExec, this, dataPrecision,
               OV_CASE(Precision::FP32, float),
               OV_CASE(Precision::I32, int32_t),
+              OV_CASE(Precision::I64, int64_t),
               OV_CASE(Precision::I8, int8_t),
               OV_CASE(Precision::U8, uint8_t))
     } else {
         OV_SWITCH(intel_cpu, slicedExec, this, dataPrecision,
               OV_CASE(Precision::FP32, float),
               OV_CASE(Precision::I32, int32_t),
+              OV_CASE(Precision::I64, int64_t),
               OV_CASE(Precision::I8, int8_t),
               OV_CASE(Precision::U8, uint8_t))
     }
@@ -168,7 +178,7 @@ void Unique::flattenTensorExec() {
     const size_t inputLen = getParentEdgeAt(IN_DATA)->getMemoryPtr()->getSize() / sizeof(T);
     std::vector<T> uniDataTmp(inputLen);
     auto uniDataTmpPtr = uniDataTmp.data();
-    int *firstTmpPtr = nullptr, *inToOutTmpPtr = nullptr, *occurTmpPtr = nullptr;
+    int64_t *firstTmpPtr = nullptr, *inToOutTmpPtr = nullptr, *occurTmpPtr = nullptr;
     if (definedOutputs[FIRST_UNIQUE_IDX]) {
         firstTmpPtr = firstUniTmp.data();
     }
@@ -266,16 +276,13 @@ void Unique::flattenTensorExec() {
     T* uniDataPtr = reinterpret_cast<T*>(getChildEdgesAtPort(UNIQUE_DATA)[0]->getMemoryPtr()->getData());
     cpu_parallel_memcpy(uniDataPtr, uniDataTmpPtr, uniqueLen * sizeof(T));
     if (definedOutputs[FIRST_UNIQUE_IDX]) {
-        int *firstPtr = reinterpret_cast<int*>(getChildEdgesAtPort(FIRST_UNIQUE_IDX)[0]->getMemoryPtr()->getData());
-        cpu_parallel_memcpy(firstPtr, firstUniTmp.data(), uniqueLen * sizeof(int));
+        copyOutput(FIRST_UNIQUE_IDX, firstUniTmp.data(), uniqueLen);
     }
     if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
-        auto inToOutPtr = reinterpret_cast<int*>(getChildEdgesAtPort(INPUT_TO_UNIQ_IDX)[0]->getMemoryPtr()->getData());
-        cpu_parallel_memcpy(inToOutPtr, inToOutTmp.data(), inputLen * sizeof(int));
+        copyOutput(INPUT_TO_UNIQ_IDX, inToOutTmpPtr, inputLen);
     }
     if (definedOutputs[OCCURRENCES_NUM]) {
-        auto occurPtr = reinterpret_cast<int*>(getChildEdgesAtPort(OCCURRENCES_NUM)[0]->getMemoryPtr()->getData());
-        cpu_parallel_memcpy(occurPtr, occurTmp.data(), uniqueLen * sizeof(int));
+        copyOutput(OCCURRENCES_NUM, occurTmpPtr, uniqueLen);
     }
 }
 
@@ -283,16 +290,17 @@ template <typename T>
 void Unique::slicedTensorExec() {
     auto inDataMemPtr = getParentEdgeAt(IN_DATA)->getMemoryPtr();
     auto srcDataPtr = reinterpret_cast<const T*>(inDataMemPtr->getData());
-    int *firstTmpPtr = nullptr, *inToOutTmpPtr = nullptr, *occurTmpPtr = nullptr;
-    if (definedOutputs[FIRST_UNIQUE_IDX]) {
-        firstTmpPtr = firstUniTmp.data();
-    }
-    if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
-        inToOutTmpPtr = inToOutTmp.data();
-    }
-    if (definedOutputs[OCCURRENCES_NUM]) {
-        occurTmpPtr = occurTmp.data();
-    }
+
+    uint8_t *firstTmpPtr = nullptr, *inToOutTmpPtr = nullptr, *occurTmpPtr = nullptr;
+     if (definedOutputs[FIRST_UNIQUE_IDX]) {
+         firstTmpPtr = reinterpret_cast<uint8_t*>(firstUniTmp.data());
+     }
+     if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
+         inToOutTmpPtr = reinterpret_cast<uint8_t*>(inToOutTmp.data());
+     }
+     if (definedOutputs[OCCURRENCES_NUM]) {
+         occurTmpPtr = reinterpret_cast<uint8_t*>(occurTmp.data());
+     }
 
     const auto& srcDataShape = inDataMemPtr->getStaticDims();
 
@@ -309,14 +317,27 @@ void Unique::slicedTensorExec() {
     const auto srcOuterStep = innerLen * axisDim;
 
     if (definedOutputs[FIRST_UNIQUE_IDX]) {
-        firstTmpPtr[0] = 0;
+        if (outputsPrc[FIRST_UNIQUE_IDX] == Precision::I32) {
+            reinterpret_cast<int32_t*>(firstTmpPtr)[0] = 0;
+        } else {
+            reinterpret_cast<int64_t*>(firstTmpPtr)[0] = 0;
+        }
     }
     if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
-        inToOutTmpPtr[0] = 0;
+        if (outputsPrc[INPUT_TO_UNIQ_IDX] == Precision::I32) {
+            reinterpret_cast<int32_t*>(inToOutTmpPtr)[0] = 0;
+        } else {
+            reinterpret_cast<int64_t*>(inToOutTmpPtr)[0] = 0;
+        }
     }
     if (definedOutputs[OCCURRENCES_NUM]) {
-        occurTmpPtr[0] = 1;
-        std::fill(occurTmpPtr, occurTmpPtr + axisDim, 1);
+        if (outputsPrc[OCCURRENCES_NUM] == Precision::I32) {
+            auto dstMem = reinterpret_cast<int32_t*>(occurTmpPtr);
+            std::fill(dstMem, dstMem + axisDim, 1);
+        } else {
+            auto dstMem = reinterpret_cast<int64_t*>(occurTmpPtr);
+            std::fill(dstMem, dstMem + axisDim, 1);
+        }
     }
 
     uniqueLen = 1lu;
@@ -346,17 +367,29 @@ void Unique::slicedTensorExec() {
         }
         if (!equal) {
             if (definedOutputs[FIRST_UNIQUE_IDX]) {
-                firstTmpPtr[uniqueLen] = a;
+                if (outputsPrc[FIRST_UNIQUE_IDX] == Precision::I32) {
+                    reinterpret_cast<int32_t*>(firstTmpPtr)[uniqueLen] = static_cast<int32_t>(a);
+                } else {
+                    reinterpret_cast<int64_t*>(firstTmpPtr)[uniqueLen] = static_cast<int64_t>(a);
+                }
             }
 
             uniqIdx[uniqueLen++] = a;
         } else {
             if (definedOutputs[OCCURRENCES_NUM]) {
-                occurTmpPtr[uIdx]++;
+                if (outputsPrc[OCCURRENCES_NUM] == Precision::I32) {
+                    reinterpret_cast<int32_t*>(occurTmpPtr)[uIdx]++;
+                } else {
+                    reinterpret_cast<int64_t*>(occurTmpPtr)[uIdx]++;
+                }
             }
         }
         if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
-            inToOutTmpPtr[a] = uIdx;
+            if (outputsPrc[INPUT_TO_UNIQ_IDX] == Precision::I32) {
+                reinterpret_cast<int32_t*>(inToOutTmpPtr)[a] = uIdx;
+            } else {
+                reinterpret_cast<int64_t*>(inToOutTmpPtr)[a] = uIdx;
+            }
         }
     }
 
@@ -365,15 +398,15 @@ void Unique::slicedTensorExec() {
     dstDataShape[axis] = uniqueLen;
     redefineOutputMemory({ dstDataShape, {uniqueLen}, {axisDim}, {uniqueLen}});
 
-    int *firstPtr = nullptr, *inToOutPtr = nullptr, *occurNPtr = nullptr;
+    uint8_t *firstPtr = nullptr, *inToOutPtr = nullptr, *occurNPtr = nullptr;
     if (definedOutputs[FIRST_UNIQUE_IDX]) {
-        firstPtr = reinterpret_cast<int*>(getChildEdgesAtPort(FIRST_UNIQUE_IDX)[0]->getMemoryPtr()->getData());
+        firstPtr = reinterpret_cast<uint8_t*>(getChildEdgesAtPort(FIRST_UNIQUE_IDX)[0]->getMemoryPtr()->getData());
     }
     if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
-        inToOutPtr = reinterpret_cast<int*>(getChildEdgesAtPort(INPUT_TO_UNIQ_IDX)[0]->getMemoryPtr()->getData());
+        inToOutPtr = reinterpret_cast<uint8_t*>(getChildEdgesAtPort(INPUT_TO_UNIQ_IDX)[0]->getMemoryPtr()->getData());
     }
     if (definedOutputs[OCCURRENCES_NUM]) {
-        occurNPtr = reinterpret_cast<int*>(getChildEdgesAtPort(OCCURRENCES_NUM)[0]->getMemoryPtr()->getData());
+        occurNPtr = reinterpret_cast<uint8_t*>(getChildEdgesAtPort(OCCURRENCES_NUM)[0]->getMemoryPtr()->getData());
     }
 
     T* dstDataPtr = reinterpret_cast<T*>(getChildEdgesAtPort(UNIQUE_DATA)[0]->getMemoryPtr()->getData());
@@ -391,8 +424,6 @@ void Unique::slicedTensorExec() {
         });
     }
 
-    const auto uniqueLenIB = uniqueLen * sizeof(T);
-
     if (sorted) {
         const auto dstUniDataLen = dstOuterStep * outerLen;
         std::vector<T> vDstBuff(dstUniDataLen);
@@ -405,9 +436,9 @@ void Unique::slicedTensorExec() {
 
         std::vector<OrdEl> colToSort(uniqueLen);
         T *dst1 = dstDataPtr, *dst2 = dstBuff;
-        int *first1 = firstPtr, *first2 = firstTmpPtr;
-        int *occurN1 = occurNPtr, *occurN2 = occurTmpPtr;
-        int *inToOut1 = inToOutPtr, *inToOut2 = inToOutTmpPtr;
+        uint8_t *first1 = firstPtr, *first2 = firstTmpPtr;
+        uint8_t *occurN1 = occurNPtr, *occurN2 = occurTmpPtr;
+        uint8_t *inToOut1 = inToOutPtr, *inToOut2 = inToOutTmpPtr;
 
         const bool defined3outputs = definedOutputs[FIRST_UNIQUE_IDX] || definedOutputs[OCCURRENCES_NUM] || definedOutputs[INPUT_TO_UNIQ_IDX];
 
@@ -432,15 +463,35 @@ void Unique::slicedTensorExec() {
                 if (defined3outputs) {
                     parallel_for(uniqueLen, [&](size_t u) {
                         if (definedOutputs[FIRST_UNIQUE_IDX]) {
-                            first1[u] = first2[colToSort[u].idx];
+                            if (outputsPrc[FIRST_UNIQUE_IDX] == Precision::I32) {
+                                reinterpret_cast<int32_t*>(first1)[u] = reinterpret_cast<int32_t*>(first2)[colToSort[u].idx];
+                            } else {
+                                reinterpret_cast<int64_t*>(first1)[u] = reinterpret_cast<int64_t*>(first2)[colToSort[u].idx];
+                            }
                         }
                         if (definedOutputs[OCCURRENCES_NUM]) {
-                            occurN1[u] = occurN2[colToSort[u].idx];
+                            if (outputsPrc[OCCURRENCES_NUM] == Precision::I32) {
+                                reinterpret_cast<int32_t*>(occurN1)[u] = reinterpret_cast<int32_t*>(occurN2)[colToSort[u].idx];
+                            } else {
+                                reinterpret_cast<int64_t*>(occurN1)[u] = reinterpret_cast<int64_t*>(occurN2)[colToSort[u].idx];
+                            }
                         }
                         if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
-                            for (size_t ax = 0; ax < axisDim; ax++) {
-                                if (inToOut2[ax] == colToSort[u].idx) {
-                                    inToOut1[ax] = u;
+                            if (outputsPrc[INPUT_TO_UNIQ_IDX] == Precision::I32) {
+                                auto inToOut1_i32 = reinterpret_cast<int32_t*>(inToOut1);
+                                auto inToOut2_i32 = reinterpret_cast<int32_t*>(inToOut2);
+                                for (size_t ax = 0; ax < axisDim; ax++) {
+                                    if (inToOut2_i32[ax] == colToSort[u].idx) {
+                                        inToOut1_i32[ax] = static_cast<int32_t>(u);
+                                    }
+                                }
+                            } else {
+                                auto inToOut1_i64 = reinterpret_cast<int64_t*>(inToOut1);
+                                auto inToOut2_i64 = reinterpret_cast<int64_t*>(inToOut2);
+                                for (size_t ax = 0; ax < axisDim; ax++) {
+                                    if (inToOut2_i64[ax] == colToSort[u].idx) {
+                                        inToOut1_i64[ax] = static_cast<int64_t>(u);
+                                    }
                                 }
                             }
                         }
@@ -464,23 +515,41 @@ void Unique::slicedTensorExec() {
             cpu_parallel_memcpy(dstDataPtr, dst1, dstUniDataLen * sizeof(T));
         }
         if (definedOutputs[FIRST_UNIQUE_IDX] && first2 != firstPtr) {
-            cpu_parallel_memcpy(firstPtr, first2, uniqueLenIB);
+            const auto cpyLen = uniqueLen * (outputsPrc[FIRST_UNIQUE_IDX] == Precision::I32 ? sizeof(int32_t) : sizeof(int64_t));
+            cpu_parallel_memcpy(firstPtr, first2, cpyLen);
         }
         if (definedOutputs[INPUT_TO_UNIQ_IDX] && inToOut2 != inToOutPtr) {
-            cpu_parallel_memcpy(inToOutPtr, inToOut2, axisDim * sizeof(int));
+            const auto cpyLen = axisDim * (outputsPrc[INPUT_TO_UNIQ_IDX] == Precision::I32 ? sizeof(int32_t) : sizeof(int64_t));
+            cpu_parallel_memcpy(inToOutPtr, inToOut2, cpyLen);
         }
         if (definedOutputs[OCCURRENCES_NUM] && occurN2 != occurNPtr) {
-            cpu_parallel_memcpy(occurNPtr, occurN2, uniqueLenIB);
+            const auto cpyLen = uniqueLen * (outputsPrc[OCCURRENCES_NUM] == Precision::I32 ? sizeof(int32_t) : sizeof(int64_t));
+            cpu_parallel_memcpy(occurNPtr, occurN2, cpyLen);
         }
     } else {
         if (definedOutputs[FIRST_UNIQUE_IDX]) {
-            cpu_parallel_memcpy(firstPtr, firstUniTmp.data(), uniqueLenIB);
+            const auto cpyLen = uniqueLen * (outputsPrc[FIRST_UNIQUE_IDX] == Precision::I32 ? sizeof(int32_t) : sizeof(int64_t));
+            cpu_parallel_memcpy(firstPtr, firstUniTmp.data(), cpyLen);
         }
         if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
-            cpu_parallel_memcpy(inToOutPtr, inToOutTmp.data(), axisDim * sizeof(int));
+            const auto cpyLen = axisDim * (outputsPrc[INPUT_TO_UNIQ_IDX] == Precision::I32 ? sizeof(int32_t) : sizeof(int64_t));
+            cpu_parallel_memcpy(inToOutPtr, inToOutTmp.data(), cpyLen);
         }
         if (definedOutputs[OCCURRENCES_NUM]) {
-            cpu_parallel_memcpy(occurNPtr, occurTmp.data(), uniqueLenIB);
+            const auto cpyLen = uniqueLen * (outputsPrc[OCCURRENCES_NUM] == Precision::I32 ? sizeof(int32_t) : sizeof(int64_t));
+            cpu_parallel_memcpy(occurNPtr, occurTmp.data(), cpyLen);
         }
+    }
+}
+
+void Unique::copyOutput(size_t outIdx, const int64_t* srcPtr, size_t len) {
+    const auto outMem = getChildEdgesAtPort(outIdx)[0]->getMemoryPtr();
+    if (outMem->getDataType() == dnnl::memory::data_type::s64) {
+        cpu_parallel_memcpy(outMem->getData(), srcPtr, len * sizeof(int64_t));
+    } else if (outMem->getDataType() == dnnl::memory::data_type::s32) {
+        auto outPtr = reinterpret_cast<int32_t *>(outMem->getData());
+        parallel_for(len, [&](size_t i) {
+            outPtr[i] = static_cast<int32_t>(srcPtr[i]);
+        });
     }
 }
