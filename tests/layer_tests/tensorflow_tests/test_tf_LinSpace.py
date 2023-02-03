@@ -1,0 +1,35 @@
+# Copyright (C) 2018-2023 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+import pytest
+import tensorflow as tf
+from common.tf_layer_test_class import CommonTFLayerTest
+
+
+class TestLinSpace(CommonTFLayerTest):
+    def create_lin_space_net(self, start_shape, num_value):
+        tf.compat.v1.reset_default_graph()
+        # Create the graph and model
+        with tf.compat.v1.Session() as sess:
+            start = tf.compat.v1.placeholder(tf.float32, start_shape, 'start')
+            stop = tf.compat.v1.placeholder(tf.float32, start_shape, 'stop')
+            tf.raw_ops.LinSpace(start=start, stop=stop, num=num_value)
+            tf.compat.v1.global_variables_initializer()
+
+            tf_net = sess.graph_def
+
+        return tf_net, None
+
+    test_data_basic = [
+        dict(start_shape=[], num_value=2),
+        dict(start_shape=[], num_value=10),
+    ]
+
+    @pytest.mark.parametrize("params", test_data_basic)
+    @pytest.mark.precommit_tf_fe
+    @pytest.mark.nightly
+    def test_lin_space_basic(self, params, ie_device, precision, ir_version, temp_dir,
+                             use_new_frontend, use_old_api):
+        self._test(*self.create_lin_space_net(**params),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
