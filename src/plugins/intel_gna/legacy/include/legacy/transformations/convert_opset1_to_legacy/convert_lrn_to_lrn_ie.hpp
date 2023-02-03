@@ -4,13 +4,12 @@
 
 #pragma once
 
-#include <vector>
-#include <memory>
-#include <string>
-
 #include <ie_api.h>
 
+#include <memory>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <string>
+#include <vector>
 
 namespace ngraph {
 namespace pass {
@@ -20,7 +19,7 @@ class ConvertLRNToLegacyMatcher;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertLRNToLegacyMatcher: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertLRNToLegacyMatcher : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertLRNToLegacyMatcher", "0");
     ConvertLRNToLegacyMatcher();

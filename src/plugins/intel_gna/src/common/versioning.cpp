@@ -18,6 +18,6 @@ std::string get_openvino_version_string() {
     s << ov::get_openvino_version();
     return s.str();
 }
-} // namespace common
-} // namespace intel_gna
-} // namespace ov
+}  // namespace common
+}  // namespace intel_gna
+}  // namespace ov
