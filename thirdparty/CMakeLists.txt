@@ -73,8 +73,8 @@ if(ENABLE_INTEL_GPU)
 
         # set variables for onednn_gpu
         if(OpenCLHeaders_FOUND)
-            set(OpenCL_INCLUDE_DIR "$<TARGET_PROPERTY:OpenCL::Headers,INTERFACE_INCLUDE_DIRECTORIES>" CACHE PATH "OpenCL headers" FORCE)
-            set(OpenCL_LIBRARY "$<TARGET_PROPERTY:OpenCL::OpenCL,IMPORTED_LOCATION_RELEASE>" CACHE PATH "OpenCL Library" FORCE)
+            set(OpenCL_INCLUDE_DIR "$<TARGET_PROPERTY:OpenCL::Headers,INTERFACE_INCLUDE_DIRECTORIES>" PARENT_SCOPE)
+            set(OpenCL_LIBRARY "$<TARGET_PROPERTY:OpenCL::OpenCL,IMPORTED_LOCATION_RELEASE>" PARENT_SCOPE)
         elseif(OpenCL_FOUND)
             # find_package(OpenCL) already defines OpenCL_INCLUDE_DIR and OpenCL_LIBRARY
             # see https://cmake.org/cmake/help/latest/module/FindOpenCL.html
@@ -84,6 +84,9 @@ if(ENABLE_INTEL_GPU)
         endif()
     else()
         add_subdirectory(ocl)
+
+        set(OpenCL_INCLUDE_DIR "${OpenCL_INCLUDE_DIR}" PARENT_SCOPE)
+        set(OpenCL_LIBRARY "${OpenCL_LIBRARY}" PARENT_SCOPE)
     endif()
 
     # cmake cannot set properties for imported targets

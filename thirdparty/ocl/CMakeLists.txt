@@ -58,9 +58,8 @@ target_include_directories(OpenCL INTERFACE
 get_lib_path("${OUTPUT_ROOT}/${BIN_FOLDER}" OPENCL_LIB_DIR)
 get_lib_name("OpenCL" OPENCL_LIB_NAME)
 
-# force to use / find 2.2 version
-set(OpenCL_INCLUDE_DIR "${OPENCL_ICD_LOADER_HEADERS_DIR}" CACHE PATH "OpenCL headers" FORCE)
-set(OpenCL_LIBRARY "${OPENCL_LIB_DIR}/${OPENCL_LIB_NAME}" CACHE PATH "OpenCL library" FORCE)
+set(OpenCL_INCLUDE_DIR "${OPENCL_ICD_LOADER_HEADERS_DIR}" PARENT_SCOPE)
+set(OpenCL_LIBRARY "${OPENCL_LIB_DIR}/${OPENCL_LIB_NAME}" PARENT_SCOPE)
 
 # installation
 
