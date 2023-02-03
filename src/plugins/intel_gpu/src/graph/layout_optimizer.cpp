@@ -865,33 +865,11 @@ static bool is_node_for_onednn(deconvolution_node const& node) {
 
 
 static bool is_node_for_onednn(fully_connected_node const& node) {
-    bool is_suitable_for_onednn = true;
-    auto out_layout = node.get_output_layout();
-    for (auto& fo : node.get_fused_primitives()) {
-        if (fo.is_type<eltwise>()) {
-            // FC checkings
-            auto in_layout = node.get_dependency(fo.dep_start_idx).get_output_layout();
-            auto in_dt = in_layout.data_type;
-            auto out_dt = out_layout.data_type;
-            // if it is not eltwise sum and input is full tensor
-            if ((out_layout.count() == in_layout.count()) && in_dt != out_dt
-                && (data_type_traits::is_floating_point(in_dt) || data_type_traits::is_floating_point(out_dt))
-                && onednn_add_fusing_helpers::is_full_tensor(in_layout)) {
-                return false;
-            }
-
-            // WA: onednn sum/binary_add post-op are not supported due to perf drop.
-            auto add_type = onednn_add_fusing_helpers::get_add_fusing_type(node, fo);
-            if (add_type == add_fusing_type::sum || add_type == add_fusing_type::binary_per_tensor || add_type == add_fusing_type::binary_per_oc) {
-                return false;
-            }
-        }
-    }
-
     auto fc_prim = node.get_primitive();
-    auto ps = out_layout.get_partial_shape();
-    int rank = ps.size();
+    auto ps = node.get_output_layout().get_partial_shape();
     int non_spatial_count = 2 + (fc_prim->input_size == 3 ? 1 : 0);
+    int rank = ps.size();
+
     // OneDnn doesn't support spatial dimensions for output
     for (int i = non_spatial_count; i < rank; i++) {
         if (ps[i].is_dynamic() || ps[i] != 1) {
@@ -899,7 +877,7 @@ static bool is_node_for_onednn(fully_connected_node const& node) {
         }
     }
 
-    return is_suitable_for_onednn;
+    return true;
 }
 
 // This function is needed to avoid performance regressions for the convolutions with byxf layout
@@ -1325,48 +1303,53 @@ bool layout_optimizer::are_layouts_suitable_for_onednn(program_node& node) {
 impl_types layout_optimizer::get_forced_impl_type_by_config(program_node& node) {
 #ifdef GPU_DEBUG_CONFIG
     GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(!debug_config->forced_impl_type.empty()) {
+    GPU_DEBUG_IF(!debug_config->forced_impl_types.empty()) {
         // Forcing impl type of one primitive
-        std::string forced_impl_type = debug_config->forced_impl_type;
-        if (node.is_type<fully_connected>()) {
-            if (forced_impl_type == "fc:ocl")
-                return impl_types::ocl;
-            else if (forced_impl_type == "fc:onednn")
-                return impl_types::onednn;
-        } else if (node.is_type<detection_output>()) {
-            if (forced_impl_type == "do:cpu")
-                return impl_types::cpu;
-            else if (forced_impl_type == "do:ocl")
-                return impl_types::ocl;
-        } else if (node.is_type<reduce>()) {
-            if (forced_impl_type == "reduce:ocl")
-                return impl_types::ocl;
-            else if (forced_impl_type == "reduce:onednn")
-                return impl_types::onednn;
-        } else if (node.is_type<concatenation>()) {
-            if (forced_impl_type == "concat:ocl")
-                return impl_types::ocl;
-            else if (forced_impl_type == "concat:onednn")
-                return impl_types::onednn;
-         }
+        for (const auto& forced_impl_type : debug_config->forced_impl_types) {
+            if (node.is_type<fully_connected>()) {
+                if (forced_impl_type == "fc:ocl")
+                    return impl_types::ocl;
+                else if (forced_impl_type == "fc:onednn")
+                    return impl_types::onednn;
+            } else if (node.is_type<gemm>()) {
+                if (forced_impl_type == "gemm:ocl")
+                    return impl_types::ocl;
+                else if (forced_impl_type == "gemm:onednn")
+                    return impl_types::onednn;
+            } else if (node.is_type<detection_output>()) {
+                if (forced_impl_type == "do:cpu")
+                    return impl_types::cpu;
+                else if (forced_impl_type == "do:ocl")
+                    return impl_types::ocl;
+            } else if (node.is_type<reduce>()) {
+                if (forced_impl_type == "reduce:ocl")
+                    return impl_types::ocl;
+                else if (forced_impl_type == "reduce:onednn")
+                    return impl_types::onednn;
+            } else if (node.is_type<concatenation>()) {
+                if (forced_impl_type == "concat:ocl")
+                    return impl_types::ocl;
+                else if (forced_impl_type == "concat:onednn")
+                    return impl_types::onednn;
+            }
 
+            // Forcing one layer
+            size_t found_type = forced_impl_type.rfind(":");
+            if (found_type != std::string::npos) {
+                impl_types preferred_type = impl_types::any;
+                auto impl_type = forced_impl_type.substr(found_type + 1);
+                if (impl_type == "ocl")
+                    preferred_type = impl_types::ocl;
+                else if (impl_type == "onednn")
+                    preferred_type = impl_types::onednn;
+                else if (impl_type == "cpu")
+                    preferred_type = impl_types::cpu;
 
-        // Forcing one layer
-        size_t found_type = forced_impl_type.rfind(":");
-        if (found_type != std::string::npos) {
-            impl_types preferred_type = impl_types::any;
-            auto impl_type = forced_impl_type.substr(found_type + 1);
-            if (impl_type == "ocl")
-                preferred_type = impl_types::ocl;
-            else if (impl_type == "onednn")
-                preferred_type = impl_types::onednn;
-            else if (impl_type == "cpu")
-                preferred_type = impl_types::cpu;
-
-            if (node.id() == forced_impl_type.substr(0, found_type)) {
-                GPU_DEBUG_LOG << " Forced implementation type : " << forced_impl_type.substr(0, found_type) << " : "
-                              << forced_impl_type.substr(found_type + 1) << std::endl;
-                return preferred_type;
+                if (node.id() == forced_impl_type.substr(0, found_type)) {
+                    GPU_DEBUG_LOG << " Forced implementation type : " << forced_impl_type.substr(0, found_type) << " : "
+                                << forced_impl_type.substr(found_type + 1) << std::endl;
+                    return preferred_type;
+                }
             }
         }
     }
@@ -1589,70 +1572,9 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         if (node.is_type<fully_connected>()) {
             if (!is_node_for_onednn(node.as<fully_connected>()))
                 impl_candidate = impl_types::ocl;
-
-            // WA : Use cldnn FC due to perf drop of small batch size until onednn FC improve perf
-            if (node.get_output_layout().is_static() && node.get_output_layout().batch() < 32)
-                impl_candidate = impl_types::ocl;
         } else {
-            for (auto& fo : node.get_fused_primitives()) {
-                if (fo.is_type<eltwise>()) {
-                    // Gemm checkings
-                    // TODO: investigate why currently onednn gemm has some "sum" post-op restrictions
-                    // which don't correlate with fc checkings in the code above
-                    // Temprorary WA: disable onednn gemm with sum post-op inside
-                    if (fo.typed_desc<eltwise>()->mode == eltwise_mode::sum) {
-                        impl_candidate = impl_types::ocl;
-                        break;
-                    }
-                }
-            }
-
-            auto gemm_prim = node.as<gemm>().get_primitive();
             if (node.is_dynamic()) {
                 impl_candidate = impl_types::ocl;
-            } else {
-                auto has_input2 = gemm_prim->dependencies().size() == 3;
-                std::vector<layout> in_layouts { node.get_dependency(0).get_output_layout(), node.get_dependency(1).get_output_layout() };
-                if (has_input2) {
-                    in_layouts.emplace_back(node.get_dependency(2).get_output_layout());
-                }
-                auto out_l = node.get_output_layout();
-
-                in_layouts = gemm_inst::transform_input_layouts(gemm_prim, in_layouts, out_l);
-                out_l = gemm_inst::transform_output_layout(gemm_prim, in_layouts, out_l);
-
-                auto in0_l = in_layouts[0];
-                auto in1_l = in_layouts[1];
-
-                size_t in2_batched_size = 0;
-                if (has_input2) {
-                    auto in2_l = in_layouts[2];
-                    in2_batched_size = in2_l.count() / (in2_l.spatial(0) * in2_l.spatial(1));
-                }
-                size_t size_k = gemm_prim->transpose_input0 ? in0_l.spatial(1) : in0_l.spatial(0);
-
-                size_t in0_batched_size = in0_l.count() / (in0_l.spatial(0) * in0_l.spatial(1));
-                size_t in1_batched_size = in1_l.count() / (in1_l.spatial(0) * in1_l.spatial(1));
-                size_t out_batched_size = out_l.count() / (out_l.spatial(0) * out_l.spatial(1));
-
-                auto valid_input_batch = in0_batched_size != 1 && (in1_batched_size == in0_batched_size || in1_batched_size == 1);
-                auto valid_output_batch = in0_batched_size > in1_batched_size ? out_batched_size == in0_batched_size :
-                                                                                out_batched_size == in1_batched_size;
-                auto valid_extra_input_batch = has_input2 ? in2_batched_size == 1 || in2_batched_size == out_batched_size : true;
-                auto valid_scale_factor = gemm_prim->alpha == 1.f && (has_input2 ? gemm_prim->beta == 1.f : true);
-                auto unsupported_onednn_gemm = !valid_input_batch ||
-                                               !valid_output_batch ||
-                                               !valid_extra_input_batch ||
-                                               !valid_scale_factor;
-
-                bool is_u8_i8 = data_type_traits::is_i8_u8(in0_l.data_type) && data_type_traits::is_i8_u8(in1_l.data_type);
-                bool use_ops_cldnn_kernel = is_u8_i8 || (in0_l.spatial(0) % 16 == 0 && in0_l.spatial(1) % 16 == 0 &&
-                                                        in1_l.spatial(0) % 16 == 0 && in1_l.spatial(1) % 16 == 0);
-
-                // Gemm with k < 64 may be faster in cldnn unless ref impl is used
-                if ((size_k < 64 && use_ops_cldnn_kernel) || unsupported_onednn_gemm) {
-                    impl_candidate = impl_types::ocl;
-                }
             }
         }
 
