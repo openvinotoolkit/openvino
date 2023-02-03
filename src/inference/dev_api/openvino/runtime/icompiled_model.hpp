@@ -89,7 +89,7 @@ public:
      *
      * @return OpenVINO Model which represents runtime graph
      */
-    virtual std::shared_ptr<ov::Model> get_runtime_model() const = 0;
+    virtual std::shared_ptr<const ov::Model> get_runtime_model() const = 0;
 
     /**
      * @brief Allows to set propertu
@@ -131,6 +131,10 @@ private:
      */
     void loaded_from_cache();
 
+    // FIXME: Remove after removing IE API
+    std::vector<std::shared_ptr<const ov::Node>> _parameters;
+    std::vector<std::shared_ptr<const ov::Node>> _results;
+
 protected:
     /**
      * @brief Method creates infer request implementation
@@ -158,7 +162,9 @@ protected:
      *
      * @return OpenVINO Plugin interface
      */
-    std::shared_ptr<const ov::IPlugin> get_plugin() const;
+    const std::shared_ptr<const ov::IPlugin>& get_plugin() const;
+    const InferenceEngine::ITaskExecutor::Ptr get_task_executor() const;
+    const InferenceEngine::ITaskExecutor::Ptr get_callback_executor() const;
 };
 
 }  // namespace ov
