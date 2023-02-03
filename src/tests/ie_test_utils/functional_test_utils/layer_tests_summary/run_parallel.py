@@ -65,13 +65,13 @@ class TestStructure:
 class TaskManager:
     process_timeout = -1
 
-    def __init__(self, command_list:list, working_dir: os.path, prev_run_lenght = 0):
+    def __init__(self, command_list:list, working_dir: os.path, prev_run_cmd_length = 0):
         self._command_list = command_list
         self._process_list = list()
         self._workers = list()
         self._timers = list()
         self._log_filename = os.path.join(working_dir, f"log_{LOG_NAME_REPLACE_STR}.log")
-        self._prev_run_lenght = prev_run_lenght
+        self._prev_run_cmd_length = prev_run_cmd_length
         self._idx = 0
 
     def __create_thread(self, func):
@@ -84,7 +84,7 @@ class TaskManager:
         if len(self._command_list) <= self._idx:
             logger.warning(f"Skip worker initialiazation. Command list lenght <= worker index")
             return
-        log_file_name = self._log_filename.replace(LOG_NAME_REPLACE_STR, str(self._idx + self._prev_run_lenght))
+        log_file_name = self._log_filename.replace(LOG_NAME_REPLACE_STR, str(self._idx + self._prev_run_cmd_length))
         with open(log_file_name, "w") as log_file:
             worker = self.__create_thread(
                 self._process_list.append(Popen(self._command_list[self._idx], shell=True, stdout=log_file, stderr=log_file)))
@@ -115,7 +115,7 @@ class TaskManager:
         if self._idx >= len(self._command_list):
             return False
         pid = self.__find_free_process()
-        log_file_name = self._log_filename.replace(LOG_NAME_REPLACE_STR, str(self._idx + self._prev_run_lenght))
+        log_file_name = self._log_filename.replace(LOG_NAME_REPLACE_STR, str(self._idx + self._prev_run_cmd_length))
         with open(log_file_name, "w") as log_file:
             self._workers[pid] = self.__create_thread(self.__update_process(pid, log_file))
             self._workers[pid].join()
@@ -229,7 +229,7 @@ class TestParallelRunner:
         return test_list_cache
 
 
-    def __generate_proved_test_list(self, test_list_cache: list, test_list_runtime:list):
+    def __generate_test_lists(self, test_list_cache: list, test_list_runtime:list):
         cached_test_list = list()
         runtime_test_test = list()
         cached_test_list_names = list()
@@ -314,7 +314,7 @@ class TestParallelRunner:
         test_list_runtime = self.__get_test_list_by_runtime()
         test_list_cache = self.__get_test_list_by_cache()
         
-        cached_test_list, runtime_test_list = self.__generate_proved_test_list(test_list_cache, test_list_runtime)
+        cached_test_list, runtime_test_list = self.__generate_test_lists(test_list_cache, test_list_runtime)
 
         if len(cached_test_list) > 0:
             self._is_save_cache = False
@@ -327,9 +327,9 @@ class TestParallelRunner:
         logger.info(f"Total test counter is {self._total_test_cnt}")
         return cached_test_list, runtime_test_list
         
-    def execute_tests(self, filters: list(), worker_cnt = 0):
+    def __execute_tests(self, filters: list(), prev_worker_cnt = 0):
         commands = [f'{self._command} --gtest_filter={filter}' for filter in filters]
-        task_manager = TaskManager(commands, self._working_dir, worker_cnt)
+        task_manager = TaskManager(commands, self._working_dir, prev_worker_cnt)
         for _ in progressbar(range(self._worker_num), "Worker initialization: ", 40):
             task_manager.init_worker()
         for _ in progressbar(range(len(commands) - self._worker_num), "Worker execution: ", 40):
@@ -349,13 +349,18 @@ class TestParallelRunner:
         worker_cnt = 0
         if len(filters_runtime):
             logger.info(f"Execute jobs taken from runtime")
-            worker_cnt = self.execute_tests(filters_runtime, worker_cnt)
+            worker_cnt = self.__execute_tests(filters_runtime, worker_cnt)
         if len(filters_cache):
             logger.info(f"Execute jobs taken from cache")
-            self.execute_tests(filters_cache, worker_cnt)
+            self.__execute_tests(filters_cache, worker_cnt)
+
 
         t_end = datetime.datetime.now()
-        logger.info(f"Run test parallel is finished successfully. Total time is {(t_end - t_start).total_seconds()}s")
+        total_seconds = (t_end - t_start).total_seconds()
+        sec = round(total_seconds % 60, 2)
+        min = int(total_seconds / 60) % 60
+        h = int(total_seconds / 360) % 60
+        logger.info(f"Run test parallel is finished successfully. Total time is {h}h:{min}m:{sec}s")
 
 
     def postprocess_logs(self):
