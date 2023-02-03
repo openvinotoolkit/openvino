@@ -51,9 +51,15 @@ Core::Core(const std::string& xml_config_file) {
 #ifdef OPENVINO_STATIC_LIBRARY
     OV_CORE_CALL_STATEMENT(_impl->register_plugins_in_registry(::getStaticPluginsRegistry());)
 #else
-    OV_CORE_CALL_STATEMENT(
-        // If XML is default, load default plugins by absolute paths
-        _impl->register_plugins_in_registry(findPluginXML(xml_config_file), xml_config_file.empty());)
+    std::string xmlConfigFile = ov::findPluginXML(xml_config_file);
+    if (xmlConfigFile.empty())
+        OV_CORE_CALL_STATEMENT(
+            // XML not found? use compile-time configuration
+            _impl->register_compile_time_plugins();)
+    else
+        OV_CORE_CALL_STATEMENT(
+            // If XML is default, load default plugins by absolute paths
+            _impl->register_plugins_in_registry(xmlConfigFile, xml_config_file.empty());)
 #endif
 }
 
