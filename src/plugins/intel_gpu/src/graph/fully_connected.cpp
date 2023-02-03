@@ -38,7 +38,10 @@ bool is_batch_after_spatial(const std::string order) {
     return false;
 }
 
-format::type get_preferred_format(const kernel_impl_params& impl_param) {
+format::type get_preferred_format(fully_connected_node const& node, const kernel_impl_params& impl_param) {
+    if (node.get_preferred_impl_type() == impl_types::onednn)
+        return format::bfyx;
+
     auto input_layout = impl_param.get_input_layout();
 
     // for 3d output we have to chose bfyx format
@@ -125,13 +128,13 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
     if (desc->input_size == 3) {
         output_size = tensor(input_layout.batch(), input_layout.feature(), 1, weights_layout.batch());
     }
-    format output_format = get_preferred_format(impl_param);
+    format output_format = get_preferred_format(node, impl_param);
 
     return layout(output_type, output_format, output_size);
 }
 
 template<typename ShapeType>
-std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_node const& /*node*/, const kernel_impl_params& impl_param) {
+std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_node const& node, const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<fully_connected>();
     auto input_layout = impl_param.get_input_layout();
     auto weights_layout = *impl_param.weights_layout;
@@ -155,7 +158,7 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
 
     bool is_static = input_layout.is_static() && weights_layout.is_static();
 
-    format::type output_format = is_static ? get_preferred_format(impl_param) :
+    format::type output_format = is_static ? get_preferred_format(node, impl_param) :
                                              input_layout.format.value;
 
     return { layout{output_shapes[0], output_type, output_format} };
