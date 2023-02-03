@@ -229,26 +229,24 @@ class TestParallelRunner:
         return test_list_cache
 
 
-    def __generate_proved_test_list(self, test_list: list, test_list_runtime:list):
-        proved_test_list = list()
-        proved_test_list_names = list()
-        extra_cache_test = list()
-        if len(test_list) == len(test_list_runtime):
-            proved_test_list = test_list
-        else:
-            for test in test_list:
-                if test._name in test_list_runtime:
-                    proved_test_list.append(test)
-                    proved_test_list_names.append(test._name)
-            for test in test_list_runtime:
-                if not test in proved_test_list_names:
-                    extra_cache_test.append(test)
+    def __generate_proved_test_list(self, test_list_cache: list, test_list_runtime:list):
+        cached_test_list = list()
+        runtime_test_test = list()
+        cached_test_list_names = list()
+        it = 0
+        for test in test_list_cache:
+            if test._name in test_list_runtime:
+                cached_test_list.append(test)
+                cached_test_list_names.append(test._name)
+        for test in test_list_runtime:
+            if not test in cached_test_list_names:
+                runtime_test_test.append(test)
 
-        if len(extra_cache_test) > 0:
+        if len(runtime_test_test) > 0:
             logger.warning(f'Cache file is not relevant the run. The will works in hybrid mode.')
-            logger.info(f'Test count from cache: {len(proved_test_list)}')
-            logger.info(f'Test count from runtime: {len(extra_cache_test)}')
-        return proved_test_list, extra_cache_test
+            logger.info(f'Test count from cache: {len(cached_test_list)}')
+            logger.info(f'Test count from runtime: {len(runtime_test_test)}')
+        return cached_test_list, runtime_test_test
 
 
     def __prepare_smart_filters(self, proved_test_list:list):
@@ -348,10 +346,13 @@ class TestParallelRunner:
         
         filters_cache, filters_runtime = self.__get_filters()
 
-        logger.info(f"Execute jobs taken from runtime")
-        worker_cnt = self.execute_tests(filters_runtime)
-        logger.info(f"Execute jobs taken from cache")
-        self.execute_tests(filters_cache, worker_cnt)
+        worker_cnt = 0
+        if len(filters_runtime):
+            logger.info(f"Execute jobs taken from runtime")
+            worker_cnt = self.execute_tests(filters_runtime, worker_cnt)
+        if len(filters_cache):
+            logger.info(f"Execute jobs taken from cache")
+            self.execute_tests(filters_cache, worker_cnt)
 
         t_end = datetime.datetime.now()
         logger.info(f"Run test parallel is finished successfully. Total time is {(t_end - t_start).total_seconds()}s")
