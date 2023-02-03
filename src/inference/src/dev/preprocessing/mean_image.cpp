@@ -2,20 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/preprocessing/mean_image_or_value.hpp"
+#include "mean_image.hpp"
 
-#include <ngraph/opsets/opset3.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
-using namespace ngraph;
+ov::pass::AddMeanImage::AddMeanImage(const MeanMap& inputInfoMap) {
+    MATCHER_SCOPE(AddMeanImage);
+    auto label = ov::pass::pattern::wrap_type<ov::op::v0::Parameter>();
 
-ngraph::pass::AddMeanSubtract::AddMeanSubtract(const MeanMap& inputInfoMap) {
-    // RUN_ON_FUNCTION_SCOPE(AddMeanSubtract);
-    auto label = ngraph::pattern::wrap_type<ngraph::opset3::Parameter>();
-
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto param = std::dynamic_pointer_cast<ngraph::opset3::Parameter>(m.get_match_root());
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(m.get_match_root());
         if (!param) {
             return false;
         }
@@ -32,7 +31,7 @@ ngraph::pass::AddMeanSubtract::AddMeanSubtract(const MeanMap& inputInfoMap) {
                      " must have f32 type");
 
         auto copy_param = param->clone_with_new_inputs({});
-        auto sub = std::make_shared<ngraph::opset3::Subtract>(copy_param, mean_const);
+        auto sub = std::make_shared<ov::op::v1::Subtract>(copy_param, mean_const);
 
         ngraph::replace_node(param, sub);
         sub->set_argument(0, param);
@@ -42,7 +41,7 @@ ngraph::pass::AddMeanSubtract::AddMeanSubtract(const MeanMap& inputInfoMap) {
     };
 
     // Register pattern with Parameter operation as a pattern root node
-    auto m = std::make_shared<ngraph::pattern::Matcher>(label, "AddMeanSubtract");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(label, matcher_name);
     // Register Matcher
     register_matcher(m, callback);
 }
