@@ -7,8 +7,6 @@
 #include "behavior/ov_plugin/core_integration.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 
-#define OV_GPU_USE_OPENCL_HPP
-
 #ifdef _WIN32
 #    include "gpu/gpu_context_api_dx.hpp"
 #elif defined ENABLE_LIBVA

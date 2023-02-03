@@ -4,7 +4,7 @@
 
 # TODO: fix in tests
 if(SUGGEST_OVERRIDE_SUPPORTED)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
@@ -57,7 +57,7 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_graph
                                              inference_engine
-                                             OpenCL
+                                             OpenCL::OpenCL
                                              gtest
                                              gtest_main
                                              gflags

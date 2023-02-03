@@ -4,8 +4,6 @@
 
 #include "behavior/plugin/core_integration.hpp"
 
-#define OV_GPU_USE_OPENCL_HPP
-
 #ifdef _WIN32
 # include "gpu/gpu_context_api_dx.hpp"
 #elif defined ENABLE_LIBVA
