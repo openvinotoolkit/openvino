@@ -31,7 +31,7 @@ void InferenceEngine::ICompiledModelWrapper::export_model(std::ostream& model) c
     m_model->Export(model);
 }
 
-std::shared_ptr<ov::Model> InferenceEngine::ICompiledModelWrapper::get_runtime_model() const {
+std::shared_ptr<const ov::Model> InferenceEngine::ICompiledModelWrapper::get_runtime_model() const {
     return m_model->GetExecGraphInfo();
 }
 

@@ -109,7 +109,14 @@ void InferRequest::SetCompletionCallbackImpl(std::function<void()> callbackToSet
         return StatusCode;                                   \
     }
 
+#define CATCH_OV_EXCEPTION_RETURN(StatusCode, ExceptionType) \
+    catch (const ::ov::ExceptionType&) {                     \
+        return StatusCode;                                   \
+    }
+
 #define CATCH_IE_EXCEPTIONS_RETURN                                   \
+    CATCH_OV_EXCEPTION_RETURN(NOT_IMPLEMENTED, NotImplemented)       \
+    CATCH_OV_EXCEPTION_RETURN(GENERAL_ERROR, Exception)              \
     CATCH_IE_EXCEPTION_RETURN(GENERAL_ERROR, GeneralError)           \
     CATCH_IE_EXCEPTION_RETURN(NOT_IMPLEMENTED, NotImplemented)       \
     CATCH_IE_EXCEPTION_RETURN(NETWORK_NOT_LOADED, NetworkNotLoaded)  \

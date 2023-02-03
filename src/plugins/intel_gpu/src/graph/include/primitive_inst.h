@@ -413,7 +413,7 @@ public:
     }
 
     static std::vector<size_t> extend_input_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t input_idx) {
-        ov::PartialShape ps =  orig_impl_param.get_input_layout(input_idx).get_partial_shape();
+        ov::PartialShape ps = orig_impl_param.get_input_layout(input_idx).get_partial_shape();
 
         if (ps.size() < 4) {
             ps.insert(ps.end(), 4 - ps.size(), ov::Dimension(1));
