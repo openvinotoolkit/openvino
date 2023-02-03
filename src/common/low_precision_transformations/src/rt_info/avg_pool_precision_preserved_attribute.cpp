@@ -12,7 +12,7 @@ using namespace ngraph;
 using namespace ov;
 
 
-void AvgPoolPrecisionPreservedAttribute::merge(std::vector<ov::Any>& attributes) {
+void AvgPoolPrecisionPreservedAttribute::merge_attributes(std::vector<ov::Any>& attributes) {
 }
 
 bool AvgPoolPrecisionPreservedAttribute::is_skipped() const {
