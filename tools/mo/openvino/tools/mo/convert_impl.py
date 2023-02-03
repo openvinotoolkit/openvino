@@ -216,7 +216,13 @@ def arguments_post_parsing(argv: argparse.Namespace):
         log.error(e)
         raise_ie_not_found()
 
-    if ('compress_to_fp16' not in argv) or (argv.compress_to_fp16 is None):
+    if 'compress_to_fp16' in argv and argv.compress_to_fp16 and \
+            'data_type' in argv and argv.data_type in ['FP32', 'float']:
+        raise Error(f"Both --compress_to_fp16 and --data_type={argv.data_type} are defined. "
+                    f"Specify either compress_to_fp16 or data_type={argv.data_type}")
+
+    if ('compress_to_fp16' not in argv or argv.compress_to_fp16 is None) \
+            and ('data_type' not in argv or argv.data_type is None):
         argv.compress_to_fp16 = True
         log.error("Be aware that --compress_to_fp16 argument was not specified. "
                   "Generated IR will be compressed to fp16 by default. "
