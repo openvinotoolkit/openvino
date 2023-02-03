@@ -794,17 +794,19 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
     for (const auto& input : input_values) {
         nodes.push_back(input.get_node_shared_ptr());
 
-        auto constant = ov::as_type_ptr<ngraph::op::v0::Constant>(input.get_node_shared_ptr());
+        auto constant = ov::as_type_ptr<ov::op::v0::Constant>(input.get_node_shared_ptr());
         void* data_ptr = (void*)constant->get_data_ptr<uint8_t>();
-        auto tmp_tensor =
-            std::make_shared<ngraph::runtime::HostTensor>(input.get_element_type(), input.get_shape(), data_ptr);
+        auto tmp_tensor = std::make_shared<HostTensor>(input.get_element_type(), input.get_shape(), data_ptr);
         input_tensors.push_back(tmp_tensor);
     }
 
     HostTensorVector output_tensors;
     for (const auto& output : outputs()) {
-        auto tmp_tensor = std::make_shared<ngraph::runtime::HostTensor>(output.get_element_type(), output.get_shape());
-        output_tensors.push_back(tmp_tensor);
+        if (output.get_partial_shape().is_dynamic()) {
+            output_tensors.push_back(std::make_shared<DynamicTensor>(output.get_element_type()));
+        } else {
+            output_tensors.push_back(std::make_shared<HostTensor>(output.get_element_type(), output.get_shape()));
+        }
     }
 
     if (evaluate(output_tensors, input_tensors)) {
