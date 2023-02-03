@@ -4,11 +4,13 @@
 
 #pragma once
 
-#include "dnn_types.hpp"
-#include <cstdint>
 #include <cpp/ie_cnn_network.h>
-#include <ie_algorithm.hpp>
 #include <legacy/ie_layers.h>
+
+#include <cstdint>
+#include <ie_algorithm.hpp>
+
+#include "dnn_types.hpp"
 #include "gna_lib_ver_selector.hpp"
 
 namespace ov {
@@ -49,16 +51,19 @@ constexpr uint32_t bytesPerSplitElement = 2;
 constexpr uint32_t bytesPerCropElement = 2;
 
 inline bool isCropAffinedOffset(size_t numberOfElements) {
-    const auto cropOffset = numberOfElements*bytesPerCropElement;
+    const auto cropOffset = numberOfElements * bytesPerCropElement;
     return (ALIGN64(cropOffset) != cropOffset);
 }
 
 inline bool IsTranspose2d(const std::vector<size_t>& shape) {
-    return std::count_if(std::begin(shape), std::end(shape), [](size_t dim) { return dim != 1; }) == 2;
+    return std::count_if(std::begin(shape), std::end(shape), [](size_t dim) {
+               return dim != 1;
+           }) == 2;
 }
 
 inline bool IsTransposeSupported(const std::vector<size_t>& shape) {
-    if (!IsTranspose2d(shape)) return false;
+    if (!IsTranspose2d(shape))
+        return false;
     auto shape_no_1 = shape;
     shape_no_1.erase(std::remove(shape_no_1.begin(), shape_no_1.end(), 1), shape_no_1.end());
     size_t min, max;
