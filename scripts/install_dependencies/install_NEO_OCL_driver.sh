@@ -103,7 +103,7 @@ _install_prerequisites_ubuntu()
     
     for cmd in "${CMDS[@]}"; do
         echo "$cmd"
-        if eval "$cmd"; then
+        if ! eval "$cmd"; then
             echo "ERROR: failed to run $cmd" >&2
             echo "Problem (or disk space)?" >&2
             echo "                sudo -E $0" >&2
@@ -152,7 +152,7 @@ _install_user_mode_redhat()
 
     for cmd in "${CMDS[@]}"; do
         echo "$cmd"
-        if eval "$cmd"; then
+        if ! eval "$cmd"; then
             echo "ERROR: failed to run $cmd" >&2
             echo "Problem (or disk space)?" >&2
             echo "                sudo -E $0" >&2
