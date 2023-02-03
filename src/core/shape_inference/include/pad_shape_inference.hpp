@@ -12,12 +12,12 @@ namespace ov {
 namespace op {
 namespace v1 {
 
-template <class T>
+template <class TShape>
 void shape_infer(const Pad* op,
-                 const std::vector<T>& input_shapes,
-                 std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    constexpr bool is_dynamic_shape = std::is_base_of<ov::PartialShape, T>::value;
+                 const std::vector<TShape>& input_shapes,
+                 std::vector<TShape>& output_shapes,
+                 const std::map<size_t, HostTensorPtr>& constant_data = {}) {
+    constexpr bool is_dynamic_shape = std::is_base_of<ov::PartialShape, TShape>::value;
 
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 3 || input_shapes.size() == 4) && output_shapes.size() == 1);
 
@@ -75,8 +75,8 @@ void shape_infer(const Pad* op,
         std::vector<int64_t> pads_begin_coord;
         std::vector<int64_t> pads_end_coord;
 
-        get_data_as_int64<T>(1, op, pads_begin_coord, constant_data);
-        get_data_as_int64<T>(2, op, pads_end_coord, constant_data);
+        get_data_as_int64<TShape>(1, op, pads_begin_coord, constant_data);
+        get_data_as_int64<TShape>(2, op, pads_end_coord, constant_data);
 
         // special check for static shape inference
         NODE_VALIDATION_CHECK(op,
@@ -108,16 +108,15 @@ void shape_infer(const Pad* op,
 
                 if (arg_shape[i].is_static()) {
                     const auto& dim = arg_shape[i].get_length();
-                    output_shape[i] = static_cast<size_t>(begin + dim + end);
 
                     if (begin > 0 || end > 0) {
                         NODE_VALIDATION_CHECK(op,
-                                              pad_mode != op::PadMode::EDGE || arg_shape[i].get_length() >= 1,
+                                              pad_mode != op::PadMode::EDGE || dim >= 1,
                                               "EDGE padding mode requires an input of dimension of "
                                               "at least 1 at each "
                                               "spatial axis.");
                         NODE_VALIDATION_CHECK(op,
-                                              pad_mode != op::PadMode::REFLECT || arg_shape[i].get_length() >= 2,
+                                              pad_mode != op::PadMode::REFLECT || dim >= 2,
                                               "REFLECT padding mode requires an input of dimension "
                                               "of at least 2 at each "
                                               "spatial axis.");
@@ -130,9 +129,9 @@ void shape_infer(const Pad* op,
                                           pad_mode != op::PadMode::SYMMETRIC || (begin <= dim && end <= dim),
                                           "SYMMETRIC padding mode requires that 'pads_begin[D]' and 'pads_end[D]' "
                                           "must be not greater than 'data_shape[D]'.");
-                } else {
-                    output_shape[i] = arg_shape[i] + (begin + end);
                 }
+
+                output_shape[i] = arg_shape[i] + begin + end;
             }
         } else {
             output_shape = ov::PartialShape::dynamic(arg_shape_rank);

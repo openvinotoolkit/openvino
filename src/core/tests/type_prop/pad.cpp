@@ -10,6 +10,7 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
+using namespace testing;
 
 TEST(type_prop, pad_v1_arg_pad_value_type_mismatch) {
     auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
@@ -215,21 +216,27 @@ TEST(type_prop, pad_v1_dynamic_output_with_static_rank) {
 }
 
 TEST(type_prop, pad_v1_any_dim_for_padding_reflect) {
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 48, 48, 1});
+    auto arg_shape = PartialShape{1, {23, 48}, {23, 48}, 1};
+    set_shape_labels(arg_shape, 10);
+    auto arg = make_shared<op::Parameter>(element::f32, arg_shape);
     auto pads_begin = make_shared<op::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 1, 1, 0});
     auto pads_end = make_shared<op::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 1, 1, 0});
 
     auto pad = make_shared<op::v1::Pad>(arg, pads_begin, pads_end, op::PadMode::REFLECT);
-    ASSERT_TRUE(pad->get_output_partial_shape(0).same_scheme(PartialShape{1, 50, 50, 1}));
+    EXPECT_EQ(pad->get_output_partial_shape(0), PartialShape({1, {25, 50}, {25, 50}, 1}));
+    EXPECT_THAT(get_shape_labels(pad->get_output_partial_shape(0)), ElementsAre(10, ov::no_label, ov::no_label, 13));
 }
 
 TEST(type_prop, pad_v1_any_dim_for_padding_edge) {
-    auto arg = make_shared<op::Parameter>(element::f32, PartialShape{1, 48, Dimension::dynamic(), 1});
+    auto arg_shape = PartialShape{1, 48, Dimension::dynamic(), 1};
+    set_shape_labels(arg_shape, 10);
+    auto arg = make_shared<op::Parameter>(element::f32, arg_shape);
     auto pads_begin = make_shared<op::Constant>(element::i64, Shape{4}, std::vector<int64_t>{1, 2, 0, 0});
     auto pads_end = make_shared<op::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 0, 0});
 
     auto pad = make_shared<op::v1::Pad>(arg, pads_begin, pads_end, op::PadMode::EDGE);
-    ASSERT_TRUE(pad->get_output_partial_shape(0).same_scheme(PartialShape{2, 53, Dimension::dynamic(), 1}));
+    EXPECT_EQ(pad->get_output_partial_shape(0), PartialShape({2, 53, -1, 1}));
+    EXPECT_THAT(get_shape_labels(pad->get_output_partial_shape(0)), ElementsAre(ov::no_label, ov::no_label, 12, 13));
 }
 
 TEST(type_prop, pad_v1_dynamic_input_type_with_static_value) {
@@ -239,5 +246,21 @@ TEST(type_prop, pad_v1_dynamic_input_type_with_static_value) {
     auto arg_pad_value = op::Constant::create(element::f32, Shape{}, {0});
 
     auto pad = make_shared<op::v1::Pad>(arg, pads_begin, pads_end, arg_pad_value, op::PadMode::CONSTANT);
-    ASSERT_EQ(pad->get_output_element_type(0), element::f32);
+    EXPECT_EQ(pad->get_output_element_type(0), element::f32);
+    EXPECT_EQ(pad->get_output_partial_shape(0), PartialShape::dynamic(3));
+}
+
+TEST(type_prop, pad_v1_default_ctor) {
+    auto arg_shape = PartialShape{{1, 2}, {4, 10}, {3, 8}, {1, 2}};
+    auto arg = make_shared<op::Parameter>(element::f32, arg_shape);
+    auto pads_begin = make_shared<op::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 2, 1, -1});
+    auto pads_end = make_shared<op::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 1, 1, 0});
+
+    auto pad = make_shared<op::v1::Pad>();
+    pad->set_arguments(OutputVector{arg, pads_begin, pads_end});
+    pad->set_pad_mode(op::PadMode::REFLECT);
+    pad->validate_and_infer_types();
+
+    EXPECT_EQ(pad->get_output_element_type(0), element::f32);
+    EXPECT_EQ(pad->get_output_partial_shape(0), PartialShape({{1, 2}, {7, 13}, {5, 10}, {1, 2}}));
 }
