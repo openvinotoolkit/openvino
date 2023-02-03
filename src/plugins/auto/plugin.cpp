@@ -433,6 +433,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
             // carry on batch configs only if user explicitly sets
             if (config.find(CONFIG_KEY(ALLOW_AUTO_BATCHING)) != config.end() || loadConfig._isBatchConfigSet)
                 insertPropToConfig(CONFIG_KEY(ALLOW_AUTO_BATCHING), iter->deviceName, configs);
+            if (config.find(CONFIG_KEY(AUTO_BATCH_TIMEOUT)) != config.end())
+                insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), iter->deviceName, configs);
             insertPropToConfig(CONFIG_KEY(CACHE_DIR), iter->deviceName, configs);
             strDevices += iter->deviceName;
             strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
@@ -493,6 +495,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
             if (config.find(CONFIG_KEY(ALLOW_AUTO_BATCHING)) != config.end() || loadConfig._isBatchConfigSet)
                 p.config.insert({tmpiter->first, tmpiter->second});
         }
+        if (config.find(CONFIG_KEY(AUTO_BATCH_TIMEOUT)) != config.end())
+            insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), p.deviceName, p.config);
         insertPropToConfig(CONFIG_KEY(CACHE_DIR), p.deviceName, p.config);
         const auto& deviceName = p.deviceName;
         const auto& deviceConfig = p.config;

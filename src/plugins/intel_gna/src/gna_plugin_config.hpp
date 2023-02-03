@@ -49,7 +49,8 @@ struct Config {
         keyConfigMap = r.keyConfigMap;
         cacheDir = r.cacheDir;
     }
-    void UpdateFromMap(const std::map<std::string, std::string>& configMap, const std::set<std::string>& coreConfig = {});
+    void UpdateFromMap(const std::map<std::string, std::string>& configMap,
+                       const std::set<std::string>& coreConfig = {});
     void AdjustKeyMapValues();
     InferenceEngine::Parameter GetParameter(const std::string& name) const;
     std::vector<std::string> GetSupportedKeys() const;

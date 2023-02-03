@@ -14,7 +14,6 @@ using namespace InferenceEngine;
 using namespace ov::intel_gna;
 
 IE_SUPPRESS_DEPRECATED_START
-
 const std::map<std::string, std::string> supportedConfigKeysWithDefaults = {
     {CONFIG_KEY(CACHE_DIR), ""},
     {GNA_CONFIG_KEY(SCALE_FACTOR), "1.000000"},

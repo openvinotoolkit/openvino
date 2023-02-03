@@ -51,7 +51,8 @@ static const std::set<std::string> supportedTargets = {common::kGnaTarget2_0,
                                                        common::kGnaTarget3_5,
                                                        common::kGnaTargetUnspecified};
 
-void Config::UpdateFromMap(const std::map<std::string, std::string>& config, const std::set<std::string>& core_config_keys) {
+void Config::UpdateFromMap(const std::map<std::string, std::string>& config,
+                           const std::set<std::string>& core_config_keys) {
     for (auto&& item : config) {
         auto key = item.first;
         auto value = item.second;
