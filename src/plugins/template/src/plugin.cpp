@@ -7,13 +7,10 @@
 #include <memory>
 
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
-#include "ie_metric_helpers.hpp"
-#include "openvino/core/except.hpp"
-#include "openvino/op/ops.hpp"
+#include "ie_plugin_config.hpp"
 #include "openvino/pass/manager.hpp"
-#include "template/template_config.hpp"
-#include "template_infer_request.hpp"
-#include "template_itt.hpp"
+#include "openvino/runtime/properties.hpp"
+#include "template/config.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 #include "transformations/disable_decompression_convert_constant_folding.hpp"
@@ -64,6 +61,7 @@ void transform_model(const std::shared_ptr<ov::Model>& model) {
     ov::pass::Manager passManager;
     // Example: register CommonOptimizations transformation from transformations library
     passManager.register_pass<ov::pass::CommonOptimizations>();
+    // This transformation changes output name
     passManager.get_pass_config()->disable<ov::pass::ConvertReduceSumToPooling>();
     // Example: register plugin specific transformation
     passManager.register_pass<ov::pass::DecomposeDivideMatcher>();
@@ -200,49 +198,71 @@ void TemplatePlugin::Plugin::set_property(const ov::AnyMap& properties) {
 
 // ! [plugin:get_config]
 ov::Any TemplatePlugin::Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
+    const auto& add_ro_properties = [](const std::string& name, std::vector<ov::PropertyName>& properties) {
+        properties.emplace_back(ov::PropertyName{name, ov::PropertyMutability::RO});
+    };
+    const auto& default_ro_properties = []() {
+        std::vector<ov::PropertyName> ro_properties{ov::available_devices,
+                                                    ov::supported_properties,
+                                                    ov::device::full_name,
+                                                    ov::device::architecture,
+                                                    ov::device::capabilities,
+                                                    ov::range_for_async_infer_requests};
+        return ro_properties;
+    };
+    const auto& default_rw_properties = []() {
+        std::vector<ov::PropertyName> rw_properties{ov::device::id,
+                                                    ov::enable_profiling,
+                                                    ov::hint::performance_mode,
+                                                    ov::template_plugin::throughput_streams};
+        return rw_properties;
+    };
     if (METRIC_KEY(SUPPORTED_METRICS) == name) {
-        std::vector<std::string> supportedMetrics = {METRIC_KEY(AVAILABLE_DEVICES),
-                                                     METRIC_KEY(SUPPORTED_METRICS),
-                                                     METRIC_KEY(SUPPORTED_CONFIG_KEYS),
-                                                     METRIC_KEY(FULL_DEVICE_NAME),
-                                                     METRIC_KEY(IMPORT_EXPORT_SUPPORT),
-                                                     METRIC_KEY(DEVICE_ARCHITECTURE),
-                                                     METRIC_KEY(OPTIMIZATION_CAPABILITIES),
-                                                     METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)};
-        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, supportedMetrics);
+        auto metrics = default_ro_properties();
+
+        add_ro_properties(METRIC_KEY(SUPPORTED_METRICS), metrics);
+        add_ro_properties(METRIC_KEY(SUPPORTED_CONFIG_KEYS), metrics);
+        add_ro_properties(METRIC_KEY(IMPORT_EXPORT_SUPPORT), metrics);
+        return metrics;
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        std::vector<std::string> configKeys = {CONFIG_KEY(DEVICE_ID),
-                                               CONFIG_KEY(PERF_COUNT),
-                                               ov::hint::performance_mode.name(),
-                                               TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS)};
+        auto configs = default_rw_properties();
         auto streamExecutorConfigKeys = InferenceEngine::IStreamsExecutor::Config{}.SupportedKeys();
         for (auto&& configKey : streamExecutorConfigKeys) {
             if (configKey != InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) {
-                configKeys.emplace_back(configKey);
+                configs.emplace_back(configKey);
             }
         }
-        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
-    } else if (METRIC_KEY(AVAILABLE_DEVICES) == name) {
+        return configs;
+    } else if (ov::supported_properties == name) {
+        auto ro_properties = default_ro_properties();
+        auto rw_properties = default_rw_properties();
+
+        std::vector<ov::PropertyName> supported_properties;
+        supported_properties.reserve(ro_properties.size() + rw_properties.size());
+        supported_properties.insert(supported_properties.end(), ro_properties.begin(), ro_properties.end());
+        supported_properties.insert(supported_properties.end(), rw_properties.begin(), rw_properties.end());
+        return decltype(ov::supported_properties)::value_type(supported_properties);
+    } else if (ov::available_devices == name) {
         // TODO: fill list of available devices
-        std::vector<std::string> availableDevices = {""};
-        IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, availableDevices);
-    } else if (METRIC_KEY(FULL_DEVICE_NAME) == name) {
-        std::string name = "Template Device Full Name";
-        IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, name);
+        std::vector<std::string> available_devices = {""};
+        return decltype(ov::available_devices)::value_type(available_devices);
+    } else if (ov::device::full_name == name) {
+        std::string device_name = "Template Device Full Name";
+        return decltype(ov::device::full_name)::value_type(device_name);
     } else if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
-        IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
-    } else if (METRIC_KEY(DEVICE_ARCHITECTURE) == name) {
+        return true;
+    } else if (ov::device::architecture == name) {
         // TODO: return device architecture for device specified by DEVICE_ID config
         std::string arch = "TEMPLATE";
-        IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, arch);
-    } else if (METRIC_KEY(OPTIMIZATION_CAPABILITIES) == name) {
+        return decltype(ov::device::architecture)::value_type(arch);
+    } else if (ov::device::capabilities == name) {
         // TODO: fill actual list of supported capabilities: e.g. Template device supports only FP32
-        std::vector<std::string> capabilities = {METRIC_VALUE(FP32) /*, TEMPLATE_METRIC_VALUE(HARDWARE_CONVOLUTION)*/};
-        IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, capabilities);
-    } else if (METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS) == name) {
+        std::vector<std::string> capabilities = {ov::device::capability::FP32};
+        return decltype(ov::device::capabilities)::value_type(capabilities);
+    } else if (ov::range_for_async_infer_requests == name) {
         // TODO: fill with actual values
         using uint = unsigned int;
-        IE_SET_METRIC_RETURN(RANGE_FOR_ASYNC_INFER_REQUESTS, std::make_tuple(uint{1}, uint{1}, uint{1}));
+        return decltype(ov::range_for_async_infer_requests)::value_type(std::make_tuple(uint{1}, uint{1}, uint{1}));
     } else {
         return _cfg.Get(name);
     }

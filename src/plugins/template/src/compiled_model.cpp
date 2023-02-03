@@ -6,20 +6,11 @@
 
 #include <memory>
 
-#include "cpp/ie_cnn_network.h"
-#include "ie_icnn_network.hpp"
-#include "ie_icore.hpp"
-#include "ie_metric_helpers.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
-#include "openvino/core/except.hpp"
-#include "openvino/pass/serialize.hpp"
-#include "openvino/runtime/icompiled_model.hpp"
 #include "plugin.hpp"
-#include "template/template_config.hpp"
-#include "template_infer_request.hpp"
-#include "template_itt.hpp"
-#include "threading/ie_executor_manager.hpp"
+#include "template/config.hpp"
+#include "template_async_infer_request.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace TemplatePlugin;
@@ -180,39 +171,51 @@ std::shared_ptr<const Plugin> TemplatePlugin::CompiledModel::get_template_plugin
 
 // ! [executable_network:get_config]
 InferenceEngine::Parameter TemplatePlugin::CompiledModel::get_property(const std::string& name) const {
+    const auto& add_ro_properties = [](const std::string& name, std::vector<ov::PropertyName>& properties) {
+        properties.emplace_back(ov::PropertyName{name, ov::PropertyMutability::RO});
+    };
+    const auto& default_ro_properties = []() {
+        std::vector<ov::PropertyName> ro_properties{ov::model_name,
+                                                    ov::supported_properties,
+                                                    ov::optimal_number_of_infer_requests};
+        return ro_properties;
+    };
+    const auto& default_rw_properties = []() {
+        std::vector<ov::PropertyName> rw_properties{ov::device::id,
+                                                    ov::enable_profiling,
+                                                    ov::template_plugin::throughput_streams};
+        return rw_properties;
+    };
     // TODO: return more supported values for metrics
     if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_METRICS) == name) {
-        IE_SET_METRIC_RETURN(SUPPORTED_METRICS,
-                             std::vector<std::string>{METRIC_KEY(NETWORK_NAME),
-                                                      METRIC_KEY(SUPPORTED_METRICS),
-                                                      METRIC_KEY(SUPPORTED_CONFIG_KEYS),
-                                                      METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)});
+        auto metrics = default_ro_properties();
+        add_ro_properties(METRIC_KEY(SUPPORTED_METRICS), metrics);
+        add_ro_properties(METRIC_KEY(SUPPORTED_CONFIG_KEYS), metrics);
+        return metrics;
     } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        std::vector<std::string> configKeys = {CONFIG_KEY(DEVICE_ID),
-                                               CONFIG_KEY(PERF_COUNT),
-                                               TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS)};
+        auto configs = default_rw_properties();
         auto streamExecutorConfigKeys = InferenceEngine::IStreamsExecutor::Config{}.SupportedKeys();
         for (auto&& configKey : streamExecutorConfigKeys) {
-            configKeys.emplace_back(configKey);
+            configs.emplace_back(configKey);
         }
-        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
-    } else if (EXEC_NETWORK_METRIC_KEY(NETWORK_NAME) == name) {
-        auto networkName = m_model->get_friendly_name();
-        IE_SET_METRIC_RETURN(NETWORK_NAME, networkName);
-    } else if (EXEC_NETWORK_METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS) == name) {
+        return configs;
+    } else if (ov::model_name == name) {
+        auto model_name = m_model->get_friendly_name();
+        return decltype(ov::model_name)::value_type(model_name);
+    } else if (ov::optimal_number_of_infer_requests == name) {
         unsigned int value = _cfg._streamsExecutorConfig._streams;
-        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, value);
+        return decltype(ov::optimal_number_of_infer_requests)::value_type(value);
     }
 
     if (ov::supported_properties == name) {
-        std::vector<ov::PropertyName> supported_properties{METRIC_KEY(NETWORK_NAME),
-                                                           METRIC_KEY(SUPPORTED_METRICS),
-                                                           METRIC_KEY(SUPPORTED_CONFIG_KEYS),
-                                                           METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS),
-                                                           CONFIG_KEY(DEVICE_ID),
-                                                           CONFIG_KEY(PERF_COUNT),
-                                                           TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS)};
-        return supported_properties;
+        auto ro_properties = default_ro_properties();
+        auto rw_properties = default_rw_properties();
+
+        std::vector<ov::PropertyName> supported_properties;
+        supported_properties.reserve(ro_properties.size() + rw_properties.size());
+        supported_properties.insert(supported_properties.end(), ro_properties.begin(), ro_properties.end());
+        supported_properties.insert(supported_properties.end(), rw_properties.begin(), rw_properties.end());
+        return decltype(ov::supported_properties)::value_type(supported_properties);
     }
 
     return _cfg.Get(name);

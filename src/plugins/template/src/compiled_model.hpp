@@ -5,7 +5,6 @@
 #pragma once
 
 #include "openvino/runtime/icompiled_model.hpp"
-#include "template_async_infer_request.hpp"
 #include "template_config.hpp"
 #include "template_infer_request.hpp"
 

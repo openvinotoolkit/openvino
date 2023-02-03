@@ -75,7 +75,7 @@ Returns a metric value for a metric with the name `name`.  A metric is a static 
 
 - EXEC_NETWORK_METRIC_KEY(NETWORK_NAME) - name of an executable network
 - EXEC_NETWORK_METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS) - heuristic to denote an optimal (or at least sub-optimal) number of inference requests needed to run asynchronously to use the current device fully
-- Any other executable network metric specific for a particular device. Such metrics and possible values must be declared in a plugin configuration public header, for example, `template/template_config.hpp`
+- Any other executable network metric specific for a particular device. Such metrics and possible values must be declared in a plugin configuration public header, for example, `template/config.hpp`
 
 The IE_SET_METRIC_RETURN helper macro sets metric value and checks that the actual metric type matches a type of the specified value.
 

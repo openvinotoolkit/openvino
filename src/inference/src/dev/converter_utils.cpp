@@ -354,7 +354,7 @@ public:
     }
 
     std::shared_ptr<ngraph::Function> GetExecGraphInfo() override {
-        return m_model->get_runtime_model();
+        return m_model->get_runtime_model()->clone();
     }
 
     void SetConfig(const std::map<std::string, InferenceEngine::Parameter>& config) override {

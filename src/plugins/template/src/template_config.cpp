@@ -7,7 +7,7 @@
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 #include <ie_plugin_config.hpp>
 
-#include "template/template_config.hpp"
+#include "template/config.hpp"
 
 using namespace TemplatePlugin;
 
@@ -21,7 +21,7 @@ Configuration::Configuration(const ConfigMap& config, const Configuration& defau
         const auto& key = c.first;
         const auto& value = c.second;
 
-        if (TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS) == key) {
+        if (ov::template_plugin::throughput_streams == key) {
             _streamsExecutorConfig.SetConfig(CONFIG_KEY(CPU_THROUGHPUT_STREAMS), value.as<std::string>());
         } else if (streamExecutorConfigKeys.end() !=
                    std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
@@ -51,7 +51,7 @@ InferenceEngine::Parameter Configuration::Get(const std::string& name) const {
         return {std::to_string(deviceId)};
     } else if (name == CONFIG_KEY(PERF_COUNT)) {
         return {perfCount};
-    } else if (name == TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS) || name == CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) {
+    } else if (name == ov::template_plugin::throughput_streams || name == CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) {
         return {std::to_string(_streamsExecutorConfig._streams)};
     } else if (name == CONFIG_KEY(CPU_BIND_THREAD)) {
         return const_cast<InferenceEngine::IStreamsExecutor::Config&>(_streamsExecutorConfig).GetConfig(name);
