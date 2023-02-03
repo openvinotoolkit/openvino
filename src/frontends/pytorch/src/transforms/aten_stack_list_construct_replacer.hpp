@@ -12,10 +12,10 @@ namespace frontend {
 namespace pytorch {
 namespace pass {
 
-class MaxPrimListConstructReplacer : public ov::pass::MatcherPass {
+class AtenStackListConstructReplacer : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pytorch::pass::MaxPrimListConstructReplacer");
-    MaxPrimListConstructReplacer();
+    OPENVINO_RTTI("ov::frontend::pytorch::pass::AtenStackListConstructReplacer");
+    AtenStackListConstructReplacer();
 };
 
 }  // namespace pass

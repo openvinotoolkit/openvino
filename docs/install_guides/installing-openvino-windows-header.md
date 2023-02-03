@@ -17,3 +17,5 @@ If you want to install OpenVINO™ Runtime on Windows, you have the following op
 * [Install OpenVINO Runtime from an Archive File](installing-openvino-from-archive-windows.md)
 * [Install OpenVINO from PyPI](installing-openvino-pip.md)
 * [Install OpenVINO with Docker](installing-openvino-docker-windows.md)
+
+For a full selection of distribution channels, see the [OpenVINO Installation Selector Tool](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html)
