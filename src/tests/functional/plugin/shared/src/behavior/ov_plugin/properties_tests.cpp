@@ -197,7 +197,7 @@ TEST_P(OVSetPropComplieModleWihtIncorrectPropTests, CanNotCompileModelWithIncorr
     ASSERT_THROW(core->compile_model(model, target_device, properties), ov::Exception);
 }
 
-TEST_P(OVSetSupportPropComplieModleWithoutConfigTests, SetPropertyComplieModelWithCorrectProperty) {
+TEST_P(OVSetSupportPropComplieModleWithoutConfigTests, SetPropertyCompiledModelWithCorrectProperty) {
     ASSERT_NO_THROW(core->compile_model(model, target_device, properties));
 }
 
