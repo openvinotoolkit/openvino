@@ -122,6 +122,20 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
     }
 }
 
+void ov::CoreImpl::register_compile_time_plugins() {
+    std::lock_guard<std::mutex> lock(get_mutex());
+
+    // TODO: replace { "CPU", "openvino_intel_cpu_plugin" } by the set of compiled plugins
+    //      (requires accordingly generated source code using CMake)
+
+    std::string deviceName = "CPU";
+    ov::util::FilePath pluginPath = ov::util::get_plugin_path("openvino_intel_cpu_plugin");
+
+    PluginDescriptor desc{pluginPath};
+    pluginRegistry[deviceName] = desc;
+    add_mutex(deviceName);
+}
+
 ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, InferenceEngine::itt::domains::IE_LT, "CoreImpl::get_plugin");
 
