@@ -29,9 +29,9 @@ std::shared_ptr<::InferenceEngine::IExecutableNetworkInternal> convert_compiled_
 std::shared_ptr<::ov::ICompiledModel> convert_compiled_model(
     const std::shared_ptr<::InferenceEngine::IExecutableNetworkInternal>& model);
 
-std::shared_ptr<::InferenceEngine::IInferRequestInternal> convert_infer_request(
+OPENVINO_RUNTIME_API std::shared_ptr<::InferenceEngine::IInferRequestInternal> convert_infer_request(
     const std::shared_ptr<::ov::IAsyncInferRequest>& request);
-std::shared_ptr<::ov::IAsyncInferRequest> convert_infer_request(
+OPENVINO_RUNTIME_API std::shared_ptr<::ov::IAsyncInferRequest> convert_infer_request(
     const std::shared_ptr<::InferenceEngine::IInferRequestInternal>& request);
 
 }  // namespace legacy_convert
