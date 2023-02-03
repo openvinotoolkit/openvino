@@ -118,9 +118,6 @@ public:
             params.quantization = kernel_selector::QuantizationType::NONE;
         }
 
-        if (impl_param.get_program().get_node(primitive->id).is_dynamic())
-            params.is_dynamic = true;
-
         return {params, optional_params};
     }
 

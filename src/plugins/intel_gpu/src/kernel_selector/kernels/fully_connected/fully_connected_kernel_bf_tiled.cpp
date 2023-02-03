@@ -73,15 +73,15 @@ bool FullyConnected_bf_tiled::Validate(const Params& params, const optional_para
     // Block reads must be aligned to 4 bytes, for fp16 we can correct for offset misalignment,
     // but we need to ensure that batch pitch preserves alignment.
     if (input.GetDType() == Datatype::F16) {
-        if (input.Batch().pitch % 2 != 0 && (input.Batch().v > 1 || fc_params.is_dynamic))
+        if (input.Batch().pitch % 2 != 0 && (input.Batch().v > 1 || fc_params.is_shape_agnostic))
             return false;
         // for 3d case we have to check feature alignment as well
-        if (output.GetLayout() == DataLayout::bfyx && input.Feature().pitch % 2 != 0 && (input.Feature().v > 1 || fc_params.is_dynamic))
+        if (output.GetLayout() == DataLayout::bfyx && input.Feature().pitch % 2 != 0 && (input.Feature().v > 1 || fc_params.is_shape_agnostic))
             return false;
     }
 
     // Dynamic kernel doesn't support dynamic weights yet
-    if (fc_params.is_dynamic && input.is_dynamic()) {
+    if (fc_params.is_shape_agnostic && input.is_dynamic()) {
         if ((output.GetLayout() == DataLayout::bfyx && input.Y().v == 0) ||
             (output.GetLayout() == DataLayout::bf && input.Feature().v == 0))
             return false;
@@ -149,7 +149,7 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
         output_f = params.outputs[0].Y().v;
     }
 
-    auto batch_size = params.is_dynamic ? Align(output_b, tparams.tile_b) : output_b;
+    auto batch_size = params.is_shape_agnostic ? Align(output_b, tparams.tile_b) : output_b;
     if (batch_size % (tparams.tile_b * tparams.dispatch_bsv) != 0)
         return false;
     if (CeilDiv(output_f, tparams.tile_ofm * simd) % tparams.dispatch_fsv != 0)
@@ -200,7 +200,7 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
     while (max_tile_ofm * 2 * simd <= output_f && max_tile_ofm < 4)
         max_tile_ofm *= 2;
 
-    if (params.is_dynamic) {
+    if (params.is_shape_agnostic) {
         if (dtype == Datatype::F16) {
             // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, dispatch_bsv, dispatch_fsv, exec_options)
             selector.Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 1,  1, EXE_MODE_AGE_BASED));
