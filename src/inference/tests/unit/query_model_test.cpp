@@ -419,3 +419,45 @@ TEST_F(GetSupportedNodesTest, ShapeOfNonConstantNode) {
         },
         {"input", "slope_compressed", "slope", "prelu"});  // keep dummy only since it has no unsupported consumers
 }
+
+TEST_F(GetSupportedNodesTest, ShuffleChannelFusion) {
+    {
+        ov::Shape input_shape = {1, 112, 56, 56};
+        auto input = std::make_shared<ov::opset9::Parameter>(ov::element::f32, input_shape);
+        input->set_friendly_name("input");
+
+        ov::Shape reshape_before_shape = {1, 4, 28, 56, 56};
+        auto shape_reshape_before = ov::opset9::Constant::create(ov::element::i64,
+                                                                 ov::Shape{reshape_before_shape.size()},
+                                                                 reshape_before_shape);
+        shape_reshape_before->set_friendly_name("shape_reshape_before");
+        auto reshape_before = std::make_shared<ov::opset9::Reshape>(input, shape_reshape_before, true);
+        reshape_before->set_friendly_name("reshape_before");
+
+        ov::Shape permute_order = {0, 2, 1, 3, 4};
+        auto permutation =
+            ov::opset9::Constant::create(ov::element::i64, ov::Shape{permute_order.size()}, permute_order);
+        permutation->set_friendly_name("permutation");
+        auto permute = std::make_shared<ov::opset9::Transpose>(reshape_before, permutation);
+        permute->set_friendly_name("permute");
+
+        auto shape_reshape_after =
+            ov::opset9::Constant::create(ov::element::i64, ov::Shape{input_shape.size()}, input_shape);
+        shape_reshape_after->set_friendly_name("shape_reshape_after");
+        auto reshape_after = std::make_shared<ov::opset9::Reshape>(permute, shape_reshape_after, true);
+        reshape_after->set_friendly_name("reshape_after");
+
+        m_function = std::make_shared<ov::Model>(ov::NodeVector{reshape_after}, ov::ParameterVector{input});
+    }
+    Run(
+        [&](std::shared_ptr<ov::Model>& model) {
+            ov::pass::Manager m;
+            m.register_pass<ov::pass::InitNodeInfo>();
+            m.register_pass<ov::pass::CommonOptimizations>();
+            m.run_passes(model);
+        },
+        [&](const std::shared_ptr<ov::Node>& op) {
+            return ov::op::util::is_parameter(op) || ov::op::util::is_output(op) || ov::op::util::is_constant(op);
+        },
+        {});  // Nothing is supported due to unsupported ShuffleChannels
+}

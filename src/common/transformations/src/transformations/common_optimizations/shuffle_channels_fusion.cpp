@@ -98,26 +98,21 @@ ov::pass::ShuffleChannelsFusion::ShuffleChannelsFusion(const bool reshape_consta
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto data = pattern_map.at(input);
+        auto reshape_before_constant = std::dynamic_pointer_cast<opset6::Constant>(
+            pattern_map.at(reshape_before_const_pattern).get_node_shared_ptr());
         auto reshape_before =
             std::dynamic_pointer_cast<opset6::Reshape>(pattern_map.at(reshape_before_pattern).get_node_shared_ptr());
         auto transpose =
             std::dynamic_pointer_cast<opset6::Transpose>(pattern_map.at(transpose_pattern).get_node_shared_ptr());
         auto reshape_after =
             std::dynamic_pointer_cast<opset6::Reshape>(pattern_map.at(reshape_after_pattern).get_node_shared_ptr());
-        if (!reshape_after || !transpose || !reshape_after) {
+        auto reshape_after_constant = std::dynamic_pointer_cast<opset6::Constant>(
+            pattern_map.at(reshape_after_const_pattern).get_node_shared_ptr());
+        if (!reshape_after || !transpose || !reshape_after || !reshape_before_constant || !reshape_after_constant) {
             return false;
         }
 
         if (reshape_constants_check) {
-            auto reshape_before_constant = std::dynamic_pointer_cast<opset6::Constant>(
-                pattern_map.at(reshape_before_const_pattern).get_node_shared_ptr());
-            auto reshape_after_constant = std::dynamic_pointer_cast<opset6::Constant>(
-                pattern_map.at(reshape_after_const_pattern).get_node_shared_ptr());
-
-            if (!reshape_before_constant || !reshape_after_constant) {
-                return false;
-            }
-
             const auto& reshape_before_values = reshape_before_constant->cast_vector<int64_t>();
             const auto& reshape_after_values = reshape_after_constant->cast_vector<int64_t>();
             if (std::any_of(reshape_before_values.cbegin(),
@@ -148,7 +143,13 @@ ov::pass::ShuffleChannelsFusion::ShuffleChannelsFusion(const bool reshape_consta
 
         auto shuffle_shannels = std::make_shared<opset6::ShuffleChannels>(data, axis, group);
         shuffle_shannels->set_friendly_name(reshape_after->get_friendly_name());
-        ngraph::copy_runtime_info({reshape_before, transpose, reshape_after}, shuffle_shannels);
+        ngraph::copy_runtime_info({reshape_before,
+                                   reshape_before_constant,
+                                   transpose,
+                                   transpose_constant,
+                                   reshape_after,
+                                   reshape_after_constant},
+                                  shuffle_shannels);
         ngraph::replace_node(reshape_after, shuffle_shannels);
         return true;
     };
