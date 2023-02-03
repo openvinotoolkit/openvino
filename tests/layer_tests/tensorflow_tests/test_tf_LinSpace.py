@@ -7,12 +7,12 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 
 class TestLinSpace(CommonTFLayerTest):
-    def create_lin_space_net(self, start_shape, num_value):
+    def create_lin_space_net(self, num_value):
         tf.compat.v1.reset_default_graph()
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            start = tf.compat.v1.placeholder(tf.float32, start_shape, 'start')
-            stop = tf.compat.v1.placeholder(tf.float32, start_shape, 'stop')
+            start = tf.compat.v1.placeholder(tf.float32, [], 'start')
+            stop = tf.compat.v1.placeholder(tf.float32, [], 'stop')
             tf.raw_ops.LinSpace(start=start, stop=stop, num=num_value)
             tf.compat.v1.global_variables_initializer()
 
@@ -21,8 +21,8 @@ class TestLinSpace(CommonTFLayerTest):
         return tf_net, None
 
     test_data_basic = [
-        dict(start_shape=[], num_value=2),
-        dict(start_shape=[], num_value=10),
+        dict(num_value=2),
+        dict(num_value=10),
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
