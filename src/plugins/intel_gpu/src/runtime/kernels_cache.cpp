@@ -240,7 +240,7 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
             cl::Program program(cl_build_engine.get_cl_context(), batch.source);
             {
                 OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildProgram::RunCompilation");
-                if (program.build(cl_build_engine.get_cl_device(), batch.options.c_str()) != CL_SUCCESS)
+                if (program.build({cl_build_engine.get_cl_device()}, batch.options.c_str()) != CL_SUCCESS)
                     throw std::runtime_error("Failed in building program.");
             }
 
@@ -264,7 +264,7 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
             }
         } else {
             cl::Program program(cl_build_engine.get_cl_context(), {cl_build_engine.get_cl_device()}, precompiled_kernels);
-            if (program.build(cl_build_engine.get_cl_device(), batch.options.c_str()) != CL_SUCCESS)
+            if (program.build({cl_build_engine.get_cl_device()}, batch.options.c_str()) != CL_SUCCESS)
                 throw std::runtime_error("Failed in building program with a precompiled kernel.");
 
             program.createKernels(&kernels);
@@ -518,7 +518,7 @@ void kernels_cache::save(BinaryOutputBuffer& ob) const {
             try {
                 cl::vector<cl::Kernel> kernels;
                 cl::Program programs(build_engine->get_cl_context(), {build_engine->get_cl_device()}, binary_kernels);
-                programs.build(build_engine->get_cl_device());
+                programs.build({build_engine->get_cl_device()});
                 programs.createKernels(&kernels);
 
                 for (auto& k : kernels) {
@@ -557,7 +557,7 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
         for (auto& binary_kernels : precompiled_kernels) {
             cl::vector<cl::Kernel> kernels;
             cl::Program program(build_engine->get_cl_context(), {build_engine->get_cl_device()}, {binary_kernels});
-            program.build(build_engine->get_cl_device());
+            program.build({build_engine->get_cl_device()});
             program.createKernels(&kernels);
 
             for (auto& k : kernels) {
