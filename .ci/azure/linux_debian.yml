@@ -254,7 +254,6 @@ jobs:
       # Required by python imports to load requires libraries
       # - tests install dir for mock_py
       # - OpenVINO wheel installation dir for others frontend required by mock_py (is not part of wheel pkg)
-      # export LD_LIBRARY_PATH=$(PYTHON_WHEEL_INSTALL_DIR)/openvino/libs:$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
       # For frontend manager to load frontend libraries:
       # - tests install dir for mock_py
       # - OpenVINO wheel installation dir for others frontend (not required if this variable is not set)
@@ -321,8 +320,6 @@ jobs:
 
   - script: |
       $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-NGraphUT.xml
-    env:
-      LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
     displayName: 'OV Core UT'
 
   - script: |
