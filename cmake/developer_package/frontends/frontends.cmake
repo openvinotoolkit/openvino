@@ -139,6 +139,7 @@ macro(ov_add_frontend)
     file(GLOB proto_files ${frontend_root_dir}/src/proto/*.proto)
 
     foreach(INFILE IN LISTS proto_files)
+        set(GOOGLE_DIR ${PROJECT_SOURCE_DIR}/thirdparty/protobuf/protobuf/src)
         get_filename_component(FILE_DIR ${INFILE} DIRECTORY)
         get_filename_component(FILE_WE ${INFILE} NAME_WE)
         set(OUTPUT_PB_SRC ${CMAKE_CURRENT_BINARY_DIR}/${FILE_WE}.pb.cc)
@@ -146,7 +147,7 @@ macro(ov_add_frontend)
         set(GENERATED_PROTO ${INFILE})
         add_custom_command(
                 OUTPUT "${OUTPUT_PB_SRC}" "${OUTPUT_PB_HEADER}"
-                COMMAND ${PROTOC_EXECUTABLE} ARGS --cpp_out ${CMAKE_CURRENT_BINARY_DIR} -I ${FILE_DIR} ${FILE_WE}.proto
+                COMMAND ${PROTOC_EXECUTABLE} ARGS --cpp_out ${CMAKE_CURRENT_BINARY_DIR} -I ${FILE_DIR} -I ${GOOGLE_DIR} ${FILE_WE}.proto
                 DEPENDS ${PROTOC_DEPENDENCY} ${GENERATED_PROTO}
                 COMMENT "Running C++ protocol buffer compiler (${PROTOC_EXECUTABLE}) on ${GENERATED_PROTO}"
                 VERBATIM
