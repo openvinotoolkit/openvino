@@ -44,9 +44,8 @@
 #include "utils/verbose.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 
-#include <ngraph/node.hpp>
-#include <ngraph/function.hpp>
-#include <ngraph/ops.hpp>
+#include <openvino/core/model.hpp>
+#include <openvino/op/ops.hpp>
 #include <transformations/utils/utils.hpp>
 #include <low_precision/low_precision.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
@@ -114,7 +113,7 @@ void Graph::CreateGraph(const std::vector<NodePtr> &graphNodes,
     CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
 
-template void Graph::CreateGraph(const std::shared_ptr<const ngraph::Function>&, const GraphContext::CPtr);
+template void Graph::CreateGraph(const std::shared_ptr<const ov::Model>&, const GraphContext::CPtr);
 template void Graph::CreateGraph(const CNNNetwork&, const GraphContext::CPtr);
 
 void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
@@ -126,9 +125,9 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
 
     // nodes which has no consumers (output or just unused). But doesn't marked as graph output.
     // Will be stored as fake output separately.
-    std::deque<ngraph::Output<ngraph::Node>> unusedOutputs;
+    std::deque<ov::Output<ov::Node>> unusedOutputs;
 
-    auto getParentOutputPort = [](const std::shared_ptr<ngraph::Node> childOp, const std::shared_ptr<ngraph::Node> parentOp,
+    auto getParentOutputPort = [](const std::shared_ptr<ov::Node> childOp, const std::shared_ptr<ov::Node> parentOp,
                                   const size_t childInputPort) -> int {
         for (size_t parentPort = 0; parentPort < parentOp->get_output_size(); parentPort++) {
             if (childOp->input(childInputPort).get_tensor_ptr() == parentOp->output(parentPort).get_tensor_ptr()) {
@@ -144,11 +143,11 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
 
         graphNodes.push_back(node);
 
-        if (op->get_type_info() == ngraph::op::v0::Parameter::get_type_info_static()) {
+        if (op->get_type_info() == ov::op::v0::Parameter::get_type_info_static()) {
             inputNodesMap[node->getName()] = node;
         }
 
-        if (op->get_type_info() == ngraph::op::v0::Result::get_type_info_static()) {
+        if (op->get_type_info() == ov::op::v0::Result::get_type_info_static()) {
             const auto prev = op->input_value(0);
             const std::string inputID = ov::op::util::get_ie_output_name(prev);
 
@@ -167,9 +166,9 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
         }
 
         if (!one_of(op->get_type_info(),
-                ngraph::op::v0::Result::get_type_info_static(),
-                ngraph::op::v3::Assign::get_type_info_static(),
-                ngraph::op::v6::Assign::get_type_info_static())) {
+                ov::op::v0::Result::get_type_info_static(),
+                ov::op::v3::Assign::get_type_info_static(),
+                ov::op::v6::Assign::get_type_info_static())) {
             for (int oi = 0; oi < op->get_output_size(); oi++) {
                 if (op->get_output_target_inputs(oi).empty()) {
                     unusedOutputs.push_back(op->output(oi));
@@ -229,11 +228,11 @@ void Graph::Replicate(const CNNNetwork &network) {
 
     auto orderedOps = func->get_ordered_ops();
 
-    // TODO [NM]: unordered_map is preferred from performance perspective. Needs hash for ngraph::Node
-    std::map<std::shared_ptr<ngraph::Node>, NodePtr> op2node;
-    std::deque<ngraph::Output<ngraph::Node>> unusedOutputs;  // nodes which has no consumers (output or just unused)
+    // TODO [NM]: unordered_map is preferred from performance perspective. Needs hash for ov::Node
+    std::map<std::shared_ptr<ov::Node>, NodePtr> op2node;
+    std::deque<ov::Output<ov::Node>> unusedOutputs;  // nodes which has no consumers (output or just unused)
 
-    auto getParentOutputPort = [](const std::shared_ptr<ngraph::Node> childOp, const std::shared_ptr<ngraph::Node> parentOp,
+    auto getParentOutputPort = [](const std::shared_ptr<ov::Node> childOp, const std::shared_ptr<ov::Node> parentOp,
                                   const size_t childInputPort) -> int {
         for (size_t parentPort = 0; parentPort < parentOp->get_output_size(); parentPort++) {
             if (childOp->input(childInputPort).get_tensor_ptr() == parentOp->output(parentPort).get_tensor_ptr()) {
@@ -252,7 +251,7 @@ void Graph::Replicate(const CNNNetwork &network) {
 
         graphNodes.push_back(node);
 
-        if (op->get_type_info() == ngraph::op::v0::Parameter::get_type_info_static()) {
+        if (op->get_type_info() == ov::op::v0::Parameter::get_type_info_static()) {
             const auto inInfo = inputsInfo.find(node->getName());
             if (inInfo != inputsInfo.end()) {
                 inputNodesMap[node->getName()] = node;
@@ -262,7 +261,7 @@ void Graph::Replicate(const CNNNetwork &network) {
             }
         }
 
-        if (op->get_type_info() == ngraph::op::v0::Result::get_type_info_static()) {
+        if (op->get_type_info() == ov::op::v0::Result::get_type_info_static()) {
             const auto &input = op->input_value(0);
             const auto name = ov::op::util::get_ie_output_name(input);
 
@@ -283,9 +282,9 @@ void Graph::Replicate(const CNNNetwork &network) {
         }
 
         if (!one_of(op->get_type_info(),
-                ngraph::op::v0::Result::get_type_info_static(),
-                ngraph::op::v3::Assign::get_type_info_static(),
-                ngraph::op::v6::Assign::get_type_info_static())) {
+                ov::op::v0::Result::get_type_info_static(),
+                ov::op::v3::Assign::get_type_info_static(),
+                ov::op::v6::Assign::get_type_info_static())) {
             for (int oi = 0; oi < op->get_output_size(); oi++) {
                 if (op->get_output_target_inputs(oi).empty()) {
                     unusedOutputs.push_back(op->output(oi));
@@ -325,7 +324,10 @@ void Graph::Replicate(const CNNNetwork &network) {
     // change precision for input/output nodes to avoid extra data conversion when set input/output blobs
     // also we need to change input/output precisions for consumers/producers to avoid inserting reorder
     for (auto &input : inputNodesMap) {
-        const auto precToSet = normalizeToSupportedPrecision(inputsInfo.at(input.first)->getPrecision());
+        auto precToSet = normalizeToSupportedPrecision(inputsInfo.at(input.first)->getPrecision());
+        if (!getConfig().enableNativeI64 && precToSet == Precision::I64) {
+            precToSet = Precision::I32;
+        }
         input.second->setOriginalOutputPrecisionAtPort(0, precToSet);
         const auto childEdges = input.second->getChildEdgesAtPort(0);
         for (size_t i = 0; i < childEdges.size(); i++) {
@@ -338,7 +340,10 @@ void Graph::Replicate(const CNNNetwork &network) {
     }
 
     for (auto &output : outputNodesMap) {
-        const auto precToSet = normalizeToSupportedPrecision(outputsInfo.at(output.first)->getPrecision());
+        auto precToSet = normalizeToSupportedPrecision(outputsInfo.at(output.first)->getPrecision());
+        if (!getConfig().enableNativeI64 && precToSet == Precision::I64) {
+            precToSet = Precision::I32;
+        }
         output.second->setOriginalInputPrecisionAtPort(0, precToSet);
         const auto parentEdges = output.second->getParentEdgesAtPort(0);
         for (size_t i = 0; i < parentEdges.size(); i++) {
@@ -773,7 +778,7 @@ void Graph::AllocateWithReuse() {
     size_t total_size = static_cast<size_t>(staticMemSolver.solve()) * alignment;
 
     memWorkspace = std::make_shared<Memory>(getEngine());
-    memWorkspace->Create(DnnlBlockedMemoryDesc(InferenceEngine::Precision::I8, Shape(InferenceEngine::SizeVector{total_size})));
+    memWorkspace->Create(DnnlBlockedMemoryDesc(Precision::I8, Shape(SizeVector{total_size})));
 
     if (edge_clusters.empty())
         return;
@@ -894,7 +899,7 @@ void Graph::CreatePrimitives() {
     }
 }
 
-void Graph::PushInputData(const std::string& name, const InferenceEngine::Blob::Ptr &in) {
+void Graph::PushInputData(const std::string& name, const Blob::Ptr &in) {
     if (!IsReady()) IE_THROW()<< "Wrong state. Topology not ready.";
 
     auto input = inputNodesMap.find(name);
@@ -930,7 +935,7 @@ void Graph::PushInputData(const std::string& name, const InferenceEngine::Blob::
 
         // todo: make sure 'name' exists in this map...
         if (_normalizePreprocMap.find(name) != _normalizePreprocMap.end()) {
-            if (inTensorDesc.getPrecision() == InferenceEngine::Precision::FP32) {
+            if (inTensorDesc.getPrecision() == Precision::FP32) {
                 _normalizePreprocMap[name].NormalizeImage(outDims, reinterpret_cast<float *>(inter_data_ptr),
                                                           inTensorDesc.getLayout());
             } else {
@@ -1262,16 +1267,16 @@ void Graph::SortTopologically() {
     }
 }
 
-void Graph::GetPerfData(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const {
+void Graph::GetPerfData(std::map<std::string, InferenceEngineProfileInfo> &perfMap) const {
     unsigned i = 0;
-    std::function<void(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &, const NodePtr&)>
-            getPerfMapFor = [&](std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap, const NodePtr& node) {
-        InferenceEngine::InferenceEngineProfileInfo &pc = perfMap[node->getName()];
+    std::function<void(std::map<std::string, InferenceEngineProfileInfo> &, const NodePtr&)>
+            getPerfMapFor = [&](std::map<std::string, InferenceEngineProfileInfo> &perfMap, const NodePtr& node) {
+        InferenceEngineProfileInfo &pc = perfMap[node->getName()];
         pc.execution_index = i++;
         // TODO: Why time counter is signed?
         pc.cpu_uSec = pc.realTime_uSec = (long long) node->PerfCounter().avg();
-        pc.status = pc.cpu_uSec > 0 ? InferenceEngine::InferenceEngineProfileInfo::EXECUTED
-                                    : InferenceEngine::InferenceEngineProfileInfo::NOT_RUN;
+        pc.status = pc.cpu_uSec > 0 ? InferenceEngineProfileInfo::EXECUTED
+                                    : InferenceEngineProfileInfo::NOT_RUN;
         std::string pdType = node->getPrimitiveDescriptorType();
         size_t typeLen = sizeof(pc.exec_type) / sizeof(pc.exec_type[0]);
         pdType.copy(pc.exec_type, typeLen, 0);
@@ -1572,7 +1577,7 @@ void Graph::EnforceBF16() {
     }
 }
 
-std::shared_ptr<ngraph::Function> Graph::dump() const {
+std::shared_ptr<ov::Model> Graph::dump() const {
     return dump_graph_as_ie_ngraph_net(*this);
 }
 

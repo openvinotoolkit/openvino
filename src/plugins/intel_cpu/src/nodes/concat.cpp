@@ -3,25 +3,13 @@
 //
 
 #include "concat.h"
+#include <onednn/dnnl.h>
+#include "ie_parallel.hpp"
+#include "common/cpu_memcpy.h"
 
 #include <map>
-#include <utility>
 #include <vector>
-#include <dnnl_extension_utils.h>
 
-#include <onednn/dnnl.h>
-#include <onednn/iml_type_mapper.h>
-#include <edge.h>
-#include <cpu_memory.h>
-#include "ie_parallel.hpp"
-#include "conv.h"
-#include "fake_quantize.h"
-#include "pooling.h"
-#include "eltwise.h"
-#include <limits>
-#include "common/cpu_memcpy.h"
-#include "common/blocked_desc_creator.h"
-#include <memory_desc/cpu_memory_desc_utils.h>
 using namespace dnnl;
 using namespace InferenceEngine;
 
@@ -36,10 +24,9 @@ bool Concat::isExecutable() const {
     return !hasEmptyOutputTensors() && !isOptimized();
 }
 
-bool Concat::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool Concat::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto concatOp = ngraph::as_type_ptr<const ngraph::op::v0::Concat>(op);
-        if (!concatOp) {
+        if (op->get_type_info() != ov::op::v0::Concat::get_type_info_static()) {
             errorMessage = "Node is not an instance of the Concat operation.";
             return false;
         }
@@ -49,7 +36,7 @@ bool Concat::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
     return true;
 }
 
-Concat::Concat(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+Concat::Concat(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
         : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -57,13 +44,13 @@ Concat::Concat(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr
     }
 
     const auto inRank = getInputShapeAtPort(0).getRank();
-    auto concatOp = ngraph::as_type_ptr<ngraph::op::v0::Concat>(op);
+    auto concatOp = ov::as_type_ptr<ov::op::v0::Concat>(op);
     auto axis = concatOp->get_axis();
     if (axis < 0) {
         axis += inRank;
     }
     if (axis >= static_cast<int64_t>(inRank) || axis < 0) {
-        IE_THROW() << "Concat node with name '" << getName() << "' has invalid value of axis parameter: " << axis;
+        THROW_CPU_NODE_ERR << "has invalid value of axis parameter: " << axis;
     }
     this->axis = axis;
 }
@@ -82,7 +69,7 @@ void Concat::getSupportedDescriptors() {
             }
         }
         if (incorrectDims || firstParentDims.size() == 0) {
-            IE_THROW() << "Incorrect input dimensions for concat node " << getName();
+            THROW_CPU_NODE_ERR << " has incorrect input dimensions.";
         }
     }
 
@@ -232,8 +219,14 @@ void Concat::selectOptimalPrimitiveDescriptor() {
     // be replicated. Inplace approach is not applicable
     // for that case.
     for (int i = 0; i < getParentEdges().size(); i++) {
+        if (!canBeInPlace) {
+            break;
+        }
         for (int j = i + 1; j < getParentEdges().size(); j++) {
-            if (getParentEdgeAt(i) == getParentEdgeAt(j)) canBeInPlace = false;
+            if (getParentEdgeAt(i) == getParentEdgeAt(j)) {
+                canBeInPlace = false;
+                break;
+            }
         }
     }
 
@@ -250,7 +243,7 @@ void Concat::selectOptimalPrimitiveDescriptor() {
         const auto &parent_config = parent_pdesc->getConfig();
         int outputIndex = parentEdge->getInputNum();
         if (outputIndex < 0 || outputIndex >= parent_config.outConfs.size())
-            IE_THROW() << "Cannot find index of output node";
+            THROW_CPU_NODE_ERR << "cannot find index of output node.";
         const auto &port_desc = parent_config.outConfs[outputIndex].getMemDesc();
         for (auto& item : supportedLayouts) {
             if (port_desc->hasLayoutType(item)) {
@@ -268,7 +261,7 @@ void Concat::selectOptimalPrimitiveDescriptor() {
         const auto &config = prim_desc->getConfig();
         int inputIndex = childEdge->getOutputNum();
         if (inputIndex < 0 || inputIndex >= config.inConfs.size())
-            IE_THROW() << "Cannot find index of output node";
+            THROW_CPU_NODE_ERR << "cannot find index of output node.";
         const auto &port_desc = config.inConfs[inputIndex].getMemDesc();
         for (auto& item : supportedLayouts) {
             if (port_desc->hasLayoutType(item)) {
@@ -363,9 +356,9 @@ void Concat::prepareParams() {
     const auto& dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
     auto dstMemDesc = dstMemPtr->GetDescWithType<BlockedMemoryDesc>();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        IE_THROW() << "Destination memory didn't allocate.";
+        THROW_CPU_NODE_ERR << "has output with not allocated memory.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
+        THROW_CPU_NODE_ERR << "does not have preferable primitive descriptor.";
 
     const auto& outputStrides = dstMemDesc->getStrides();
     size_t curConcatOffset = 0;
@@ -389,8 +382,7 @@ void Concat::prepareParams() {
         const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
         if (!srcMemPtr || !srcMemPtr->isAllocated()) {
             auto parent = getParentEdgeAt(i)->getParent();
-            IE_THROW() << "Source memory from " << parent->getName() << " didn't allocate for node "
-                       << getName() << ".";
+            THROW_CPU_NODE_ERR << "has input '" << parent->getName() << "' with not allocated memory.";
         }
 
         if (canExecRef) {
@@ -454,7 +446,7 @@ size_t Concat::inverseOrder(const SizeVector& order, size_t axis) {
 void Concat::initOptimalPrimitiveDescriptor() {
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
+        THROW_CPU_NODE_ERR << "does not have preferable primitive descriptor.";
 
    if (!isOptimized()) {
        Node::initOptimalPrimitiveDescriptor();

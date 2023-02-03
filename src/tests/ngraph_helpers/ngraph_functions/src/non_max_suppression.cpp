@@ -19,8 +19,12 @@ std::shared_ptr<ngraph::Node> makeNms(const ngraph::Output<Node>& boxes,
                                       const bool& isCenter,
                                       const bool& sortResDescend,
                                       const ngraph::element::Type& outType) {
-    auto maxOutBoxesPerClassNode =
-        makeConstant(maxBoxesPrec, ngraph::Shape{}, std::vector<int32_t>{maxOutBoxesPerClass})->output(0);
+    std::shared_ptr<ov::Node> maxOutBoxesPerClassNode;
+    if (maxBoxesPrec == element::i64) {
+        maxOutBoxesPerClassNode = makeConstant(maxBoxesPrec, ngraph::Shape{}, std::vector<int64_t>{maxOutBoxesPerClass});
+    } else {
+        maxOutBoxesPerClassNode = makeConstant(maxBoxesPrec, ngraph::Shape{}, std::vector<int32_t>{maxOutBoxesPerClass});
+    }
     auto iouThrNode = makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{iouThr})->output(0);
     auto scoreThrNode = makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{scoreThr})->output(0);
     auto softNmsSigmaNode = makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{softNmsSigma})->output(0);
@@ -30,7 +34,7 @@ std::shared_ptr<ngraph::Node> makeNms(const ngraph::Output<Node>& boxes,
 
     return std::make_shared<NmsOperation>(boxes,
                                           scores,
-                                          maxOutBoxesPerClassNode,
+                                          maxOutBoxesPerClassNode->output(0),
                                           iouThrNode,
                                           scoreThrNode,
                                           softNmsSigmaNode,

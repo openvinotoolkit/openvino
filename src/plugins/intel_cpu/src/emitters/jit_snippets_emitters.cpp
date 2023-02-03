@@ -492,6 +492,10 @@ ScalarEmitter::ScalarEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
             value = ov::as_type_ptr<ov::op::v0::Constant>(n)->cast_vector<int32_t>()[0];
             break;
         }
+        case element::i64: {
+            value = ov::as_type_ptr<ov::op::v0::Constant>(n)->cast_vector<int64_t>()[0];
+            break;
+        }
         case element::f32: {
             value = dnnl::impl::cpu::x64::float2int(ov::as_type_ptr<ov::op::v0::Constant>(n)->cast_vector<float>()[0]);
             break;

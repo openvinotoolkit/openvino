@@ -71,6 +71,8 @@
 #include <ngraph/runtime/reference/proposal.hpp>
 #include <ngraph/runtime/reference/psroi_pooling.hpp>
 #include <ngraph/runtime/reference/rdft.hpp>
+#include <ngraph/runtime/reference/reduce_l1.hpp>
+#include <ngraph/runtime/reference/reduce_l2.hpp>
 #include <ngraph/runtime/reference/region_yolo.hpp>
 #include <ngraph/runtime/reference/reorg_yolo.hpp>
 #include <ngraph/runtime/reference/reverse_sequence.hpp>
@@ -2650,6 +2652,36 @@ bool evaluate(const shared_ptr<op::v4::Proposal>& op, const HostTensorVector& ou
                                        outputs[0]->get_shape(),
                                        outputs[1]->get_shape(),
                                        op.get()->get_attrs());
+    return true;
+}
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v4::ReduceL1>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    using T = typename element_type_traits<ET>::value_type;
+
+    const auto axes_vector = host_tensor_2_vector<int64_t>(inputs[1]);
+    const auto normalized_axes = ov::normalize_axes(op->get_friendly_name(), axes_vector, inputs[0]->get_partial_shape().rank());
+    const auto reduction_axes = ov::AxisSet{normalized_axes};
+
+    runtime::reference::reduce_l1<T>(inputs[0]->get_data_ptr<T>(),
+                                     outputs[0]->get_data_ptr<T>(),
+                                     inputs[0]->get_shape(),
+                                     reduction_axes);
+    return true;
+}
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v4::ReduceL2>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    using T = typename element_type_traits<ET>::value_type;
+
+    const auto axes_vector = host_tensor_2_vector<int64_t>(inputs[1]);
+    const auto normalized_axes = ov::normalize_axes(op->get_friendly_name(), axes_vector, inputs[0]->get_partial_shape().rank());
+    const auto reduction_axes = ov::AxisSet{normalized_axes};
+
+    runtime::reference::reduce_l2<T>(inputs[0]->get_data_ptr<T>(),
+                                     outputs[0]->get_data_ptr<T>(),
+                                     inputs[0]->get_shape(),
+                                     reduction_axes);
     return true;
 }
 

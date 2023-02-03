@@ -10,6 +10,7 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace kernel {
 
 enum class GridSampleInterpolationMode { BILINEAR, BICUBIC, NEAREST };
 enum class GridSamplePaddingMode { ZEROS, BORDER, REFLECTION };
@@ -173,5 +174,6 @@ private:
     void hwShiftPs2dq(const Vmm& vDst, const Vmm& vHCoord, const Vmm& vWCoord, const Vmm& vWidth);
 };
 
+}   // namespace kernel
 }   // namespace intel_cpu
 }   // namespace ov

@@ -75,6 +75,7 @@ protected:
 
     // we accept only 32bit hexadecimal table values to avoid any rounding
     using table_entry_val_t = uint32_t;
+    using table_entry_val_t_64 = uint64_t;
     using table_entry_offset_t = size_t; // offsets are in bytes wrt p_table
     using table_entry_bcast_t = bool; // true => bcast value
 
@@ -82,9 +83,18 @@ protected:
         table_entry_val_t val;
         table_entry_bcast_t bcast;
     };
+    struct table_entry_t_64 {
+        table_entry_val_t_64 val;
+        table_entry_bcast_t bcast;
+    };
     struct mapped_table_entry_t {
         table_entry_offset_t off;
         table_entry_val_t val;
+        table_entry_bcast_t bcast;
+    };
+    struct mapped_table_entry_t_64 {
+        table_entry_offset_t off;
+        table_entry_val_t_64 val;
         table_entry_bcast_t bcast;
     };
 
@@ -118,14 +128,27 @@ protected:
         return h->ptr[p_table + off];
     }
 
+    Xbyak::Address table_val_64(std::string key, size_t key_off_val_shift = 0) const {
+        auto off = table_off_64(key, key_off_val_shift);
+        return h->ptr[p_table + off];
+    }
+
     using table_t = std::multimap<std::string, table_entry_t>;
+    using table_t_64 = std::multimap<std::string, table_entry_t_64>;
     using mapped_table_t = std::multimap<std::string, mapped_table_entry_t>;
+    using mapped_table_t_64 = std::multimap<std::string, mapped_table_entry_t_64>;
 
     mapped_table_t entry_map_;
+    mapped_table_t_64 entry_map_64;
 
     void push_arg_entry_of(const std::string key, const table_entry_val_t val, const bool broadcast) {
         mapped_table_entry_t te {0, val, broadcast};
         entry_map_.insert(std::make_pair(key, te));
+    }
+
+    void push_arg_entry_of_64(const std::string key, const table_entry_val_t_64 val, const bool broadcast) {
+        mapped_table_entry_t_64 te {0, val, broadcast};
+        entry_map_64.insert(std::make_pair(key, te));
     }
 
     void push_entries_of(const table_t &t) {
@@ -133,6 +156,14 @@ protected:
             auto key = (*it).first;
             auto te = (*it).second; // copy values from table
             push_arg_entry_of(key, te.val, te.bcast);
+        }
+    }
+
+    void push_entries_of(const table_t_64 &t) {
+        for (auto it = t.begin(); it != t.end(); it++) {
+            auto key = (*it).first;
+            auto te = (*it).second; // copy values from table
+            push_arg_entry_of_64(key, te.val, te.bcast);
         }
     }
 
@@ -153,6 +184,18 @@ private:
         const auto scale = te.bcast ? get_vec_length() : sizeof(table_entry_val_t);
         return te.off + key_off_val_shift * scale;
     }
+
+    size_t table_off_64(std::string& key, size_t key_off_val_shift = 0) const {
+        // assumption: all table entries sharing the same key also
+        // share their broadcast property
+        // TODO: enforce through data structure
+        const auto it = entry_map_64.find(key); // search an entry for a key
+        assert(it != entry_map_64.end());
+        const auto &te = (*it).second;
+        const auto scale = te.bcast ? get_vec_length() : sizeof(table_entry_val_t_64);
+        return te.off + key_off_val_shift * scale;
+    }
+
     virtual void validate_arguments(const std::vector<size_t>&, const std::vector<size_t>&) const {}
 };
 

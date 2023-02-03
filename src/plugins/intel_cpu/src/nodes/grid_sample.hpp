@@ -58,8 +58,8 @@ protected:
 
 private:
     bool alignCorners = false;
-    GridSampleInterpolationMode interpolationMode = GridSampleInterpolationMode::BILINEAR;
-    GridSamplePaddingMode paddingMode = GridSamplePaddingMode::ZEROS;
+    kernel::GridSampleInterpolationMode interpolationMode = kernel::GridSampleInterpolationMode::BILINEAR;
+    kernel::GridSamplePaddingMode paddingMode = kernel::GridSamplePaddingMode::ZEROS;
 
     uint64_t dataTypeSize = 1lu;
     uint64_t gridTypeSize = 1lu;
@@ -72,7 +72,7 @@ private:
     static constexpr size_t IN_DATA = 0;
     static constexpr size_t IN_GRID = 1;
 
-    std::shared_ptr<GridSampleKernelBase> jitKernel;
+    std::shared_ptr<kernel::GridSampleKernelBase> jitKernel;
 };
 
 }   // namespace node

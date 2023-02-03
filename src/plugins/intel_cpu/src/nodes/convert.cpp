@@ -6,7 +6,7 @@
 #include "convert.h"
 #include "common/cpu_convert.h"
 #include "common/blocked_desc_creator.h"
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <ie_ngraph_utils.hpp>
 #include <utils/ngraph_utils.hpp>
 #include <utils/shape_inference/shape_inference_pass_through.hpp>
@@ -18,10 +18,9 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool Convert::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool Convert::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto convert = std::dynamic_pointer_cast<const ngraph::opset1::Convert>(op);
-        if (!convert) {
+        if (op->get_type_info() != ov::opset1::Convert::get_type_info_static()) {
             errorMessage = "Only opset1 Convert operation is supported";
             return false;
         }
@@ -31,21 +30,19 @@ bool Convert::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-Convert::Convert(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+Convert::Convert(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
         : Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
-    if (isSupportedOperation(op, errorMessage)) {
-        errorPrefix = "Convert node with name '" + getName() + "'";
-    } else {
+    if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    auto convert = ov::as_type_ptr<const ngraph::opset1::Convert>(op);
+    auto convert = ov::as_type_ptr<const ov::opset1::Convert>(op);
     origPrc = details::convertPrecision(convert->get_destination_type());
 }
 
 Convert::Convert(const Shape &shape, const InferenceEngine::Precision &inPrc, const InferenceEngine::Precision &outPrc,
-                 const std::string &nodeName, const GraphContext::CPtr context)
+                 const std::string &nodeName, const GraphContext::CPtr& context)
         : Node("Convert", nodeName, context)
         , origPrc(outPrc) {
     inputShapes.push_back(shape);
@@ -57,8 +54,6 @@ Convert::Convert(const Shape &shape, const InferenceEngine::Precision &inPrc, co
     if (isDynamicNode()) {
         shapeInference = std::make_shared<ShapeInferPassThrough>();
     }
-
-    errorPrefix = "Convert node with name '" + getName() + "'";
 }
 
 void Convert::getSupportedDescriptors() {
@@ -69,9 +64,9 @@ void Convert::getSupportedDescriptors() {
     if (inputShapes.empty())
         inputShapes.push_back(input->getShape());
     if (getParentEdges().size() != 1)
-        IE_THROW() << errorPrefix << " has incorrect number of input edges";
+        THROW_CPU_NODE_ERR << " has incorrect number of input edges";
     if (getChildEdges().empty())
-        IE_THROW() << errorPrefix << " has incorrect number of output edges";
+        THROW_CPU_NODE_ERR << " has incorrect number of output edges";
 }
 
 bool Convert::isSupportedDesc(const MemoryDesc &desc) {
@@ -111,9 +106,9 @@ void Convert::initSupportedPrimitiveDescriptors() {
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
     } else if (inputShapes.size() == 1 && outputShapes.size() == 1) {
         const Shape& insShape = getInputShapeAtPort(0);
-        auto insPrecision = getOriginalInputPrecisionAtPort(0);
+        const auto &insPrecision = getOriginalInputPrecisionAtPort(0);
         const Shape& outputShape = getOutputShapeAtPort(0);
-        auto outPrecision = getOriginalOutputPrecisionAtPort(0);
+        const auto &outPrecision = getOriginalOutputPrecisionAtPort(0);
 
         config.inConfs.push_back(dataIn);
         config.outConfs.push_back(dataConfigOut);
@@ -128,7 +123,7 @@ void Convert::initSupportedPrimitiveDescriptors() {
             supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
         }
     } else {
-        IE_THROW() << errorPrefix << " has incorrect number of input/output edges";
+        THROW_CPU_NODE_ERR << " has incorrect number of input/output edges";
     }
 }
 
@@ -144,7 +139,7 @@ void Convert::execute(dnnl::stream strm) {
     const auto childPaddElemCount = childMem.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
 
     if (parentPaddElemCount != childPaddElemCount)
-        IE_THROW() << errorPrefix << " has different elements number in input and output buffers";
+        THROW_CPU_NODE_ERR << " has different elements number in input and output buffers";
 
     void* srcPtr = parentMem.GetPtr();
     void* dstPtr = childMem.GetPtr();

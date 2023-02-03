@@ -17,9 +17,9 @@ namespace node {
 
 class Transpose : public Node {
 public:
-    Transpose(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Transpose(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
@@ -65,7 +65,6 @@ private:
     template<typename T> void optimizedExecute(const int MB, const MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr);
 
     InferenceEngine::SizeVector order;
-    InferenceEngine::Precision prec;
     bool isOptimized = false;
 
     const std::vector<std::vector<size_t>> optimizedOrders = {

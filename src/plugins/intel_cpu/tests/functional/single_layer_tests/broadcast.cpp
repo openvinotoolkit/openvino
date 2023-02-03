@@ -209,6 +209,7 @@ const std::vector<ov::element::Type_t> inputPrecisions = {
     ov::element::f32,
     ov::element::bf16,
     ov::element::i32,
+    ov::element::i64,
     ov::element::i8
 };
 /* ============= */

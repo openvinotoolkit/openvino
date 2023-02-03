@@ -16,8 +16,8 @@ using namespace ov::test;
 namespace CPULayerTestsDefinitions {
 
 using convertLayerTestParamsSet = std::tuple<InputShape,  // input shapes
-                                        InferenceEngine::Precision,        // input precision
-                                        InferenceEngine::Precision,        // output precision
+                                        Precision,        // input precision
+                                        Precision,        // output precision
                                         CPUSpecificParams>;
 
 class ConvertCPULayerTest : public testing::WithParamInterface<convertLayerTestParamsSet>,
@@ -25,7 +25,7 @@ class ConvertCPULayerTest : public testing::WithParamInterface<convertLayerTestP
 public:
     static std::string getTestCaseName(testing::TestParamInfo<convertLayerTestParamsSet> obj) {
         InputShape inputShape;
-        InferenceEngine::Precision inPrc, outPrc;
+        Precision inPrc, outPrc;
         CPUSpecificParams cpuParams;
         std::tie(inputShape, inPrc, outPrc, cpuParams) = obj.param;
 
@@ -57,13 +57,13 @@ protected:
             primitive = getPrimitiveType();
         // WA: I32 precision support disabled in snippets => primitive has to be changed
         // TODO: remove the WA after I32 is supported in snippets (ticket: 99803)
-        if (inPrc == InferenceEngine::Precision::I32 || outPrc == InferenceEngine::Precision::I32)
+        if (inPrc == Precision::I32 || inPrc == Precision::I64 || outPrc == Precision::I32 || outPrc == Precision::I64)
             primitive = "unknown";
 
-        auto exec_type_precision = inPrc != InferenceEngine::Precision::U8
+        auto exec_type_precision = inPrc != Precision::U8
                                        ? inPrc
-                                       : InferenceEngine::Precision(InferenceEngine::Precision::I8);
-        selectedType = makeSelectedTypeStr(primitive, InferenceEngine::details::convertPrecision(exec_type_precision));
+                                       : Precision(Precision::I8);
+        selectedType = makeSelectedTypeStr(primitive, details::convertPrecision(exec_type_precision));
 
         for (size_t i = 0; i < shapes.second.size(); i++) {
             targetStaticShapes.push_back(std::vector<ngraph::Shape>{shapes.second[i]});
@@ -116,7 +116,7 @@ protected:
     }
 
 private:
-    InferenceEngine::Precision inPrc, outPrc;
+    Precision inPrc, outPrc;
 };
 
 TEST_P(ConvertCPULayerTest, CompareWithRefs) {
@@ -153,6 +153,7 @@ const std::vector<Precision> precisions = {
         Precision::U8,
         Precision::I8,
         Precision::I32,
+        Precision::I64,
         Precision::FP32,
         Precision::BF16
 };

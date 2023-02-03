@@ -39,4 +39,19 @@ const auto nmsParams = ::testing::Combine(::testing::ValuesIn(inShapeParams),
                                           ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
+const auto nmsParams_i64 = ::testing::Combine(::testing::ValuesIn(inShapeParams),
+                                          ::testing::Combine(::testing::Values(Precision::FP32),
+                                                             ::testing::Values(Precision::I64),
+                                                             ::testing::Values(Precision::FP32)),
+                                          ::testing::ValuesIn(maxOutBoxPerClass),
+                                          ::testing::ValuesIn(threshold),
+                                          ::testing::ValuesIn(threshold),
+                                          ::testing::ValuesIn(sigmaThreshold),
+                                          ::testing::ValuesIn(encodType),
+                                          ::testing::ValuesIn(sortResDesc),
+                                          ::testing::ValuesIn(outType),
+                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)
+);
+
 INSTANTIATE_TEST_SUITE_P(smoke_NmsLayerTest, NmsLayerTest, nmsParams, NmsLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_NmsLayerTest_i64, NmsLayerTest, nmsParams_i64, NmsLayerTest::getTestCaseName);

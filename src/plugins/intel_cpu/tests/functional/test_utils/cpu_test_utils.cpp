@@ -149,14 +149,14 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
             IE_ASSERT(rtInfo.end() != it);
             return it->second.as<std::string>();
         };
-        auto getExecValueOutputsLayout = [] (const std::shared_ptr<ngraph::Node>& node) -> std::string {
+        auto getExecValueOutputsLayout = [] (const std::shared_ptr<ov::Node>& node) -> std::string {
             auto rtInfo = node->get_rt_info();
             auto it = rtInfo.find(ExecGraphInfoSerialization::OUTPUT_LAYOUTS);
             IE_ASSERT(rtInfo.end() != it);
             return it->second.as<std::string>();
         };
         // skip policy
-        auto should_be_skipped = [] (const ngraph::PartialShape &partialShape, cpu_memory_format_t fmt) {
+        auto should_be_skipped = [] (const ov::PartialShape &partialShape, cpu_memory_format_t fmt) {
             if (partialShape.is_dynamic()) {
                 return false;
             }
@@ -311,43 +311,74 @@ CPUTestsBase::makeCPUInfo(const std::vector<cpu_memory_format_t>& inFmts,
     return cpuInfo;
 }
 
-std::shared_ptr<ngraph::Function>
-CPUTestsBase::makeNgraphFunction(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params,
-                                 const std::shared_ptr<ngraph::Node> &lastNode, std::string name) {
+std::shared_ptr<ov::Model>
+CPUTestsBase::makeNgraphFunction(const ov::element::Type &ngPrc, ov::ParameterVector &params,
+                                 const std::shared_ptr<ov::Node> &lastNode, std::string name) {
    auto newLastNode = modifyGraph(ngPrc, params, lastNode);
-   ngraph::ResultVector results;
+   ov::ResultVector results;
 
    for (int i = 0; i < newLastNode->get_output_size(); i++)
-        results.push_back(std::make_shared<ngraph::opset1::Result>(newLastNode->output(i)));
+        results.push_back(std::make_shared<ov::op::v0::Result>(newLastNode->output(i)));
 
-   return std::make_shared<ngraph::Function>(results, params, name);
+   return std::make_shared<ov::Model>(results, params, name);
 }
 
-std::shared_ptr<ngraph::Node>
-CPUTestsBase::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) {
+std::shared_ptr<ov::Node>
+CPUTestsBase::modifyGraph(const ov::element::Type &ngPrc, ov::ParameterVector &params, const std::shared_ptr<ov::Node> &lastNode) {
     lastNode->get_rt_info() = getCPUInfo();
     return lastNode;
 }
 
-std::string CPUTestsBase::makeSelectedTypeStr(std::string implString, ngraph::element::Type_t elType) {
+std::string CPUTestsBase::makeSelectedTypeStr(std::string implString, ov::element::Type_t elType) {
     implString.push_back('_');
     implString += InferenceEngine::details::convertPrecision(elType).name();
     return implString;
 }
 
-std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams> &paramsVector) {
-    auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
-        for (int i = 0; i < formats.size(); i++) {
-            if (formats[i] == nCw16c)
-                formats[i] = nCw8c;
-            if (formats[i] == nChw16c)
-                formats[i] = nChw8c;
-            if (formats[i] == nCdhw16c)
-                formats[i] = nCdhw8c;
+std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams> &paramsVector, const ov::element::Type &prc) {
+    auto adjustBlockedFormatAvx512 = [&](std::vector<cpu_memory_format_t>& formats) {
+        if (prc.size() == 8) {
+            for (int i = 0; i < formats.size(); i++) {
+                if (formats[i] == nCw16c) {
+                    formats[i] = nCw8c;
+                } else if (formats[i] == nChw16c) {
+                    formats[i] = nChw8c;
+                } else if (formats[i] == nCdhw16c) {
+                    formats[i] = nCdhw8c;
+                }
+            }
+        }
+    };
+    auto adjustBlockedFormatByIsa = [&](std::vector<cpu_memory_format_t>& formats) {
+        if (prc.size() == 8) {
+            for (int i = 0; i < formats.size(); i++) {
+                if (formats[i] == nCw16c || formats[i] == nCw8c) {
+                    formats[i] = ncw;
+                } else if (formats[i] == nChw16c || formats[i] == nChw8c) {
+                    formats[i] = nchw;
+                } else if (formats[i] == nCdhw16c || formats[i] == nCdhw8c) {
+                    formats[i] = ncdhw;
+                }
+            }
+        } else {
+            for (int i = 0; i < formats.size(); i++) {
+                if (formats[i] == nCw16c) {
+                    formats[i] = nCw8c;
+                } else if (formats[i] == nChw16c) {
+                    formats[i] = nChw8c;
+                } else if (formats[i] == nCdhw16c) {
+                    formats[i] = nCdhw8c;
+                }
+            }
         }
     };
 
-    if (!InferenceEngine::with_cpu_x86_avx512f()) {
+    if (InferenceEngine::with_cpu_x86_avx512f()) {
+        for (auto& param : paramsVector) {
+            adjustBlockedFormatAvx512(std::get<0>(param));
+            adjustBlockedFormatAvx512(std::get<1>(param));
+        }
+    } else {
         for (auto& param : paramsVector) {
             adjustBlockedFormatByIsa(std::get<0>(param));
             adjustBlockedFormatByIsa(std::get<1>(param));
@@ -357,9 +388,9 @@ std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificPa
     return paramsVector;
 }
 
-inline void CheckNumberOfNodesWithTypeImpl(std::shared_ptr<const ov::Model> function,
-                                           std::string nodeType,
-                                           size_t expectedCount) {
+inline void CheckNumberOfNodesWithTypeImpl(const std::shared_ptr<const ov::Model> &function,
+                                           const std::string &nodeType,
+                                           const size_t expectedCount) {
     ASSERT_NE(nullptr, function);
     size_t actualNodeCount = 0;
     for (const auto &node : function->get_ops()) {

@@ -31,7 +31,12 @@ void reduce_l1(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduc
         const size_t out_idx =
             std::inner_product(output_coord.begin(), output_coord.end(), out_strides.begin(), uint64_t(0));
 
-        out[out_idx] = out[out_idx] + std::abs(arg[in_idx]);
+        // WA for abs function, due to it's not defined for some data types.
+        auto val = arg[in_idx];
+        if (val < T(0)) {
+            val *= T(-1);
+        }
+        out[out_idx] = out[out_idx] + val;
     }
 }
 }  // namespace reference

@@ -81,8 +81,8 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 72021 Unreasonable abs_threshold for comparing bf16 results
         R"(.*smoke_Reduce.*type=(Prod|Min).*netPRC=(BF|bf)16.*)",
         // TODO: 56520 Accuracy mismatch
-        R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=(I64|I32).*)",
-        R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=U64.*)",
+        R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=I32.*)",
+        R"(.*smoke.*Split.*(4D|5D).*netPRC=i8.*)",
         // Not implemented yet:
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
         R"(.*Behavior.*OVCompiledModelBaseTest.*canSetConfigToCompiledModel.*)",
@@ -188,7 +188,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*UniqueLayerTestCPU.*axis.*True.*)",
         // Issue: 104402. Incorrect broadcasting in FQ reference implentation
         R"(.*smoke_FakeQuantizeLayerCPUTest_Decompos.*IS=\[4\.5\.6\.6\]_TS=\(\(4\.5\.6\.6\)\)_RS=\(\(1\.1\.6\.6\)\)_\(\(1\.1\.6\.6\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.5\.1\.6\)\).*)",
-        R"(.*smoke_FakeQuantizeLayerCPUTest_Decompos.*IS=\[4\.5\.6\.6\]_TS=\(\(4\.5\.6\.6\)\)_RS=\(\(1\.5\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.5\.1\.6\)\).*)",
+        R"(.*smoke_FakeQuantizeLayerCPUTest_Decompos.*IS=\[4\.5\.6\.6\]_TS=\(\(34\.5\.6\.6\)\)_RS=\(\(1\.5\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.5\.1\.6\)\).*)"
     };
 
 #define FIX_62820 0

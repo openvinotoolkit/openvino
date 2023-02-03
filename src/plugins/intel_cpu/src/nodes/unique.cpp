@@ -63,21 +63,22 @@ Unique::Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
 
 void Unique::initSupportedPrimitiveDescriptors() {
     dataPrecision = getOriginalInputPrecisionAtPort(IN_DATA);
-    if (dataPrecision != Precision::I32 && dataPrecision != Precision::I8 && dataPrecision != Precision::U8) {
+    if (dataPrecision != Precision::I64 && dataPrecision != Precision::I32 && dataPrecision != Precision::I8 && dataPrecision != Precision::U8) {
         dataPrecision = Precision::FP32;
     }
     dataTypeSize = dataPrecision.size();
-    const InferenceEngine::Precision axisPrecision = Precision::I32;
+    Precision axisPrecision = Precision::I64;
 
     impl_desc_type implType = ref;
 
     std::vector<PortConfigurator> inPortConfigs = { {LayoutType::ncsp, dataPrecision} };
     if (!flattened) {
+        axisPrecision = getOriginalInputPrecisionAtPort(AXIS);
         inPortConfigs.push_back({LayoutType::ncsp, axisPrecision});
     }
     std::vector<PortConfigurator> outPortConfigs;
     for (int i = 0; i < 4; i++) {
-        outPortConfigs.push_back({LayoutType::ncsp, i == 0 ? dataPrecision : axisPrecision});
+        outPortConfigs.push_back({LayoutType::ncsp, i == 0 ? dataPrecision : getOriginalOutputPrecisionAtPort(i)});
     }
 
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, implType, isDynamicNode());
@@ -135,12 +136,14 @@ void Unique::execute(dnnl::stream strm) {
         OV_SWITCH(intel_cpu, flattenExec, this, dataPrecision,
               OV_CASE(Precision::FP32, float),
               OV_CASE(Precision::I32, int32_t),
+              OV_CASE(Precision::I64, int64_t),
               OV_CASE(Precision::I8, int8_t),
               OV_CASE(Precision::U8, uint8_t))
     } else {
         OV_SWITCH(intel_cpu, slicedExec, this, dataPrecision,
               OV_CASE(Precision::FP32, float),
               OV_CASE(Precision::I32, int32_t),
+              OV_CASE(Precision::I64, int64_t),
               OV_CASE(Precision::I8, int8_t),
               OV_CASE(Precision::U8, uint8_t))
     }
@@ -168,7 +171,7 @@ void Unique::flattenTensorExec() {
     const size_t inputLen = getParentEdgeAt(IN_DATA)->getMemoryPtr()->GetSize() / sizeof(T);
     std::vector<T> uniDataTmp(inputLen);
     auto uniDataTmpPtr = uniDataTmp.data();
-    int *firstTmpPtr = nullptr, *inToOutTmpPtr = nullptr, *occurTmpPtr = nullptr;
+    int64_t *firstTmpPtr = nullptr, *inToOutTmpPtr = nullptr, *occurTmpPtr = nullptr;
     if (definedOutputs[FIRST_UNIQUE_IDX]) {
         firstTmpPtr = firstUniTmp.data();
     }
@@ -266,16 +269,37 @@ void Unique::flattenTensorExec() {
     T* uniDataPtr = reinterpret_cast<T*>(getChildEdgesAtPort(UNIQUE_DATA)[0]->getMemoryPtr()->GetPtr());
     memcpy(uniDataPtr, uniDataTmpPtr, uniqueLen * sizeof(T));
     if (definedOutputs[FIRST_UNIQUE_IDX]) {
-        int *firstPtr = reinterpret_cast<int*>(getChildEdgesAtPort(FIRST_UNIQUE_IDX)[0]->getMemoryPtr()->GetPtr());
-        memcpy(firstPtr, firstUniTmp.data(), uniqueLen * sizeof(int));
+        const auto outMem = getChildEdgesAtPort(FIRST_UNIQUE_IDX)[0]->getMemoryPtr();
+        if (outMem->GetDataType() == dnnl::memory::data_type::s64) {
+            memcpy(outMem->GetPtr(), firstUniTmp.data(), uniqueLen * sizeof(int64_t));
+        } else if (outMem->GetDataType() == dnnl::memory::data_type::s32) {
+            auto firstPtr = reinterpret_cast<int32_t *>(outMem->GetPtr());
+            for (int i = 0; i < uniqueLen; i++) {
+                firstPtr[i] = firstUniTmp[i];
+            }
+        }
     }
     if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
-        auto inToOutPtr = reinterpret_cast<int*>(getChildEdgesAtPort(INPUT_TO_UNIQ_IDX)[0]->getMemoryPtr()->GetPtr());
-        memcpy(inToOutPtr, inToOutTmp.data(), inputLen * sizeof(int));
+        const auto outMem = getChildEdgesAtPort(INPUT_TO_UNIQ_IDX)[0]->getMemoryPtr();
+        if (outMem->GetDataType() == dnnl::memory::data_type::s64) {
+            memcpy(outMem->GetPtr(), inToOutTmp.data(), inputLen * sizeof(int64_t));
+        } else if (outMem->GetDataType() == dnnl::memory::data_type::s32) {
+            auto inToOutPtr = reinterpret_cast<int32_t *>(outMem->GetPtr());
+            for (int i = 0; i < inputLen; i++) {
+                inToOutPtr[i] = inToOutTmp[i];
+            }
+        }
     }
     if (definedOutputs[OCCURRENCES_NUM]) {
-        auto occurPtr = reinterpret_cast<int*>(getChildEdgesAtPort(OCCURRENCES_NUM)[0]->getMemoryPtr()->GetPtr());
-        memcpy(occurPtr, occurTmp.data(), uniqueLen * sizeof(int));
+        const auto outMem = getChildEdgesAtPort(OCCURRENCES_NUM)[0]->getMemoryPtr();
+        if (outMem->GetDataType() == dnnl::memory::data_type::s64) {
+            memcpy(outMem->GetPtr(), occurTmp.data(), uniqueLen * sizeof(int64_t));
+        } else if (outMem->GetDataType() == dnnl::memory::data_type::s32) {
+            auto occurPtr = reinterpret_cast<int32_t *>(outMem->GetPtr());
+            for (int i = 0; i < uniqueLen; i++) {
+                occurPtr[i] = occurTmp[i];
+            }
+        }
     }
 }
 
@@ -285,7 +309,7 @@ void Unique::slicedTensorExec() {
     const size_t inputLen = getParentEdgeAt(IN_DATA)->getMemoryPtr()->GetSize() / sizeof(T);
     std::vector<T> uniDataTmp(inputLen);
     auto uniDataTmpPtr = uniDataTmp.data();
-    int *firstTmpPtr = nullptr, *inToOutTmpPtr = nullptr, *occurTmpPtr = nullptr;
+    int64_t *firstTmpPtr = nullptr, *inToOutTmpPtr = nullptr, *occurTmpPtr = nullptr;
     if (definedOutputs[FIRST_UNIQUE_IDX]) {
         firstTmpPtr = firstUniTmp.data();
     }
@@ -481,15 +505,36 @@ void Unique::slicedTensorExec() {
     T* uniDataPtr = reinterpret_cast<T*>(getChildEdgesAtPort(UNIQUE_DATA)[0]->getMemoryPtr()->GetPtr());
     memcpy(uniDataPtr, uniDataTmpPtr, getChildEdgesAtPort(UNIQUE_DATA)[0]->getMemoryPtr()->GetSize());
     if (definedOutputs[FIRST_UNIQUE_IDX]) {
-        int *firstPtr = reinterpret_cast<int*>(getChildEdgesAtPort(FIRST_UNIQUE_IDX)[0]->getMemoryPtr()->GetPtr());
-        memcpy(firstPtr, firstUniTmp.data(), uniqueLen * sizeof(int));
+        const auto outMem = getChildEdgesAtPort(FIRST_UNIQUE_IDX)[0]->getMemoryPtr();
+        if (outMem->GetDataType() == dnnl::memory::data_type::s64) {
+            memcpy(outMem->GetPtr(), firstUniTmp.data(), uniqueLen * sizeof(int64_t));
+        } else if (outMem->GetDataType() == dnnl::memory::data_type::s32) {
+            auto firstPtr = reinterpret_cast<int32_t *>(outMem->GetPtr());
+            for (int i = 0; i < uniqueLen; i++) {
+                firstPtr[i] = firstUniTmp[i];
+            }
+        }
     }
     if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
-        auto inToOutPtr = reinterpret_cast<int*>(getChildEdgesAtPort(INPUT_TO_UNIQ_IDX)[0]->getMemoryPtr()->GetPtr());
-        memcpy(inToOutPtr, inToOutTmp.data(), cmpBlNum * sizeof(int));
+        const auto outMem = getChildEdgesAtPort(INPUT_TO_UNIQ_IDX)[0]->getMemoryPtr();
+        if (outMem->GetDataType() == dnnl::memory::data_type::s64) {
+            memcpy(outMem->GetPtr(), inToOutTmp.data(), cmpBlNum * sizeof(int64_t));
+        } else if (outMem->GetDataType() == dnnl::memory::data_type::s32) {
+            auto inToOutPtr = reinterpret_cast<int32_t *>(outMem->GetPtr());
+            for (int i = 0; i < cmpBlNum; i++) {
+                inToOutPtr[i] = inToOutTmp[i];
+            }
+        }
     }
     if (definedOutputs[OCCURRENCES_NUM]) {
-        auto occurPtr = reinterpret_cast<int*>(getChildEdgesAtPort(OCCURRENCES_NUM)[0]->getMemoryPtr()->GetPtr());
-        memcpy(occurPtr, occurTmp.data(), uniqueLen * sizeof(int));
+        const auto outMem = getChildEdgesAtPort(OCCURRENCES_NUM)[0]->getMemoryPtr();
+        if (outMem->GetDataType() == dnnl::memory::data_type::s64) {
+            memcpy(outMem->GetPtr(), occurTmp.data(), uniqueLen * sizeof(int64_t));
+        } else if (outMem->GetDataType() == dnnl::memory::data_type::s32) {
+            auto occurPtr = reinterpret_cast<int32_t *>(outMem->GetPtr());
+            for (int i = 0; i < uniqueLen; i++) {
+                occurPtr[i] = occurTmp[i];
+            }
+        }
     }
 }

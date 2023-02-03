@@ -41,9 +41,9 @@ private:
     template<typename T>
     struct slicedExec;
 
-    std::vector<int32_t> firstUniTmp;
-    std::vector<int32_t> inToOutTmp;
-    std::vector<int32_t> occurTmp;
+    std::vector<int64_t> firstUniTmp;
+    std::vector<int64_t> inToOutTmp;
+    std::vector<int64_t> occurTmp;
 
     bool sorted    = false;
     bool flattened = true;

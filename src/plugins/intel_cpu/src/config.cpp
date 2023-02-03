@@ -243,6 +243,13 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 IE_THROW() << "Wrong value for property key " << ov::hint::execution_mode.name()
                     << ". Supported values: PERFORMANCE, ACCURACY";
             }
+        } else if (key == CPUConfigParams::KEY_CPU_ENABLE_NATIVE_I64) {
+            try {
+                enableNativeI64 = std::stoi(val);
+            } catch (const std::exception&) {
+                IE_THROW() << "Wrong value for property key " << CPUConfigParams::KEY_CPU_ENABLE_NATIVE_I64
+                                    << ". Expected only 0 or 1 values.";
+            }
         } else {
             IE_THROW(NotFound) << "Unsupported property " << key << " by CPU plugin";
         }
@@ -322,4 +329,4 @@ void Config::updateProperties() {
 }
 
 }  // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov

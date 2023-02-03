@@ -37,7 +37,6 @@
 #include "nodes/memory.hpp"
 #include "nodes/mvn.h"
 #include "nodes/normalize.h"
-#include "nodes/reduce.h"
 #include "nodes/tensoriterator.h"
 #include "nodes/scatter_update.h"
 #include "nodes/interpolate.h"
@@ -51,7 +50,7 @@
 
 #include "nodes/common/cpu_memcpy.h"
 #include "utils/rt_info/memory_formats_attribute.hpp"
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 
 #include <dnnl_types.h>
 #include <dnnl_debug.h>
@@ -79,8 +78,8 @@ Node::NodesFactory & Node::factory() {
     return factoryInstance;
 }
 
-Node::Node(const std::shared_ptr<ngraph::Node>& op,
-           const GraphContext::CPtr ctx,
+Node::Node(const std::shared_ptr<ov::Node>& op,
+           const GraphContext::CPtr& ctx,
            const ShapeInferFactory& shapeInferFactory)
     : selectedPrimitiveDescriptorIndex(-1),
       permanent(false),
@@ -94,7 +93,6 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op,
       profiling(op->get_friendly_name()) {
     algorithm = Algorithm::Default;
     fusingPort = -1;
-    const std::string errorPrefix = "Ngraph operation " + std::string(op->get_type_name()) + " with name " + op->get_friendly_name();
 
     for (size_t i = 0; i < op->get_input_size(); i++) {
         const auto &shape = op->get_input_partial_shape(i);
@@ -103,11 +101,11 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op,
         }
 
         bool isScalar = shape.rank().get_length() == 0;
-        inputShapes.emplace_back(isScalar ? ngraph::PartialShape{1} : shape);
+        inputShapes.emplace_back(isScalar ? ov::PartialShape{1} : shape);
         originalInputPrecisions.emplace_back(details::convertPrecision(op->get_input_element_type(i)));
     }
 
-    if (typeStr != "Result" && typeStr != "Assign") {
+    if (type != Type::Output && type != Type::MemoryOutput) {
         if (op->get_output_size() == 0) {
             IE_THROW() << "Node with type '" << typeStr << "' and name '" << name << "' does not have any outputs.";
         }
@@ -118,11 +116,10 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op,
             }
 
             bool isScalar = shape.rank().get_length() == 0;
-            outputShapes.emplace_back(isScalar ? ngraph::PartialShape{1} : shape);
+            outputShapes.emplace_back(isScalar ? ov::PartialShape{1} : shape);
             originalOutputPrecisions.emplace_back(details::convertPrecision(op->get_output_element_type(i)));
         }
     }
-
     isDynamic = std::any_of(inputShapes.begin(), inputShapes.end(), [](const Shape& shape){ return shape.isDynamic(); }) ||
                 std::any_of(outputShapes.begin(), outputShapes.end(), [](const Shape& shape){ return shape.isDynamic(); });
 
@@ -181,7 +178,7 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op,
     }
 }
 
-Node::Node(const std::string& type, const std::string& name, const GraphContext::CPtr ctx)
+Node::Node(const std::string& type, const std::string& name, const GraphContext::CPtr& ctx)
     : selectedPrimitiveDescriptorIndex(-1),
       permanent(false),
       temporary(false),
@@ -1271,7 +1268,7 @@ InferenceEngine::Precision Node::getRuntimePrecision() const {
     return runtimePrecision;
 }
 
-Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) {
+Node* Node::NodesFactory::create(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context) {
     // getExceptionDescWithoutStatus removes redundant information from the exception message. For instance, the NotImplemented
     // exception is generated in the form: full_path_to_src_file:line_number [ NOT_IMPLEMENTED ] reason.
     // An example for gather node:

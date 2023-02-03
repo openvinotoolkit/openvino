@@ -5,9 +5,7 @@
 #include "grid_sample.hpp"
 
 using namespace dnnl::impl::cpu;
-
-namespace ov {
-namespace intel_cpu {
+using namespace ov::intel_cpu::kernel;
 
 #define GET_OFF(field) offsetof(GridSamplesKernelExecArgs, field)
 
@@ -2084,6 +2082,3 @@ void GridSampleKernel<isa>::hwShiftPs2dq(const Vmm& vDst, const Vmm& vHCoord, co
 template class GridSampleKernel<x64::avx512_core>;
 template class GridSampleKernel<x64::avx2>;
 template class GridSampleKernel<x64::sse41>;
-
-}   // namespace intel_cpu
-}   // namespace ov

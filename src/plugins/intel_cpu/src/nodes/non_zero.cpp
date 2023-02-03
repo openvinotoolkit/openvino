@@ -20,9 +20,9 @@ namespace node {
 static constexpr int blockSize = dnnl::impl::cpu::platform::get_cache_line_size() * 2;
 static constexpr int elementsStride = blockSize / sizeof(int);
 
-bool NonZero::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool NonZero::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (op->get_type_info() != ngraph::op::v3::NonZero::get_type_info_static()) {
+        if (op->get_type_info() != ov::op::v3::NonZero::get_type_info_static()) {
             errorMessage = "Node is not an instance of NonZero from the operation set v3.";
             return false;
         }
@@ -32,16 +32,11 @@ bool NonZero::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-NonZero::NonZero(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, InternalDynShapeInferFactory()) {
+NonZero::NonZero(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
+        : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
-    if (isSupportedOperation(op, errorMessage)) {
-        errorPrefix = "NonZero layer with name '" + getName() + "' ";
-    } else {
+    if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
-    }
-    if (op->get_output_element_type(0) != ngraph::element::i32) {
-        IE_THROW() << errorPrefix << "doesn't support demanded output precision";
     }
 }
 
@@ -49,23 +44,24 @@ void NonZero::getSupportedDescriptors() {
     if (!descs.empty())
         return;
     if (getParentEdges().size() != 1)
-        IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
+        THROW_CPU_NODE_ERR << "has incorrect number of input edges: " << getParentEdges().size();
     if (!getChildEdges().size())
-        IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
+        THROW_CPU_NODE_ERR << "has incorrect number of output edges: " << getChildEdges().size();
 }
 
 void NonZero::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
-        return;
-
-    const auto &inPrc = getOriginalInputPrecisionAtPort(0);
-    if (!one_of(inPrc, Precision::FP32, Precision::BF16, Precision::I32, Precision::U32, Precision::I8,  Precision::U8)) {
+    const auto inPrc = getOriginalInputPrecisionAtPort(0);
+    if (!one_of(inPrc, Precision::FP32, Precision::BF16, Precision::I64, Precision::I32, Precision::U32, Precision::I8,  Precision::U8)) {
         IE_THROW() << "Can't create primitive descriptor for NonZero layer with name: " << getName() << " doesn't support "
                    << inPrc.name() << " precision on 0 port";
     }
+    auto outPrc = getOriginalOutputPrecisionAtPort(0);
+    if (!one_of(outPrc, /*Precision::I64,*/ Precision::I32)) {
+        outPrc = Precision::I32;
+    }
 
     addSupportedPrimDesc({{LayoutType::ncsp}},
-                         {{LayoutType::ncsp, Precision::I32}},
+                         {{LayoutType::ncsp, outPrc}},
                          impl_desc_type::ref);
 }
 
@@ -125,7 +121,8 @@ void NonZero::execute(dnnl::stream strm) {
     OV_SWITCH(intel_cpu, NonZeroExecute, ctx, inputPrec,
               OV_CASE(Precision::FP32, float),
               OV_CASE(Precision::BF16, bfloat16_t),
-              OV_CASE(Precision::I32, int),
+              OV_CASE(Precision::I64, int64_t),
+              OV_CASE(Precision::I32, int32_t),
               OV_CASE(Precision::U32, uint32_t),
               OV_CASE(Precision::I8, int8_t),
               OV_CASE(Precision::U8, uint8_t))

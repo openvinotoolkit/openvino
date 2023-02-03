@@ -144,6 +144,7 @@ void GatherND::GatherNDExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPt
 
     GatherNDContext ctx { this, srcMemPtr, idxMemPtr, dstMemPtr };
     OV_SWITCH(intel_cpu, GatherNDEmitter, ctx, dataSize,
+              OV_CASE(sizeof(PrecisionTrait<Precision::I64>::value_type), PrecisionTrait<Precision::I64>::value_type),
               OV_CASE(sizeof(PrecisionTrait<Precision::I32>::value_type), PrecisionTrait<Precision::I32>::value_type),
               OV_CASE(sizeof(PrecisionTrait<Precision::I16>::value_type), PrecisionTrait<Precision::I16>::value_type),
               OV_CASE(sizeof(PrecisionTrait<Precision::I8>::value_type), PrecisionTrait<Precision::I8>::value_type));

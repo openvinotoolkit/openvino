@@ -17,7 +17,7 @@ namespace node {
 
 class Gather : public Node {
 public:
-    Gather(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Gather(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -51,7 +51,12 @@ protected:
     void prepareParams() override;
 
 private:
+    template<typename idxType>
+    struct refExec;
+
     void initShortParams(threadExecParams& p, uint64_t start);
+
+    template<typename idxType>
     void execReference();
 
     bool isDataShapeStat = false;
@@ -61,7 +66,8 @@ private:
     bool reverseIndexing = false;
 
     uint64_t dataTypeSize = 1lu;
-    static constexpr uint64_t idxTypeSize = sizeof(int);
+    uint64_t idxTypeSize = sizeof(int32_t);
+    InferenceEngine::Precision idxPrecision;
 
     int axis = 0;
     int axisDim = 0;

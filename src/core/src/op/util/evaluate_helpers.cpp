@@ -3,9 +3,11 @@
 //
 
 #include "ngraph/op/util/evaluate_helpers.hpp"
+#include "ngraph/util.hpp"
+#include "ngraph/validation_util.hpp"
 
 namespace ngraph {
-AxisSet get_normalized_axes_from_tensor(const HostTensorPtr tensor,
+AxisSet get_normalized_axes_from_tensor(const HostTensorPtr& tensor,
                                         const ngraph::Rank& rank,
                                         const std::string& node_description) {
     const auto axes_vector = host_tensor_2_vector<int64_t>(tensor);

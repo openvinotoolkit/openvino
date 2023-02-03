@@ -163,7 +163,8 @@ const std::vector<ov::element::Type_t> netPrecisions = {
     ov::element::f32,
     ov::element::bf16,
     ov::element::i32,
-    ov::element::i8
+    ov::element::i8,
+    ov::element::i64
 };
 
 const std::vector<std::vector<ov::test::InputShape>> staticInputShapes4D = {

@@ -75,12 +75,34 @@ Broadcast::Broadcast(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
 
     if (ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX))) {
         constMap[TARGET_SHAPE_IDX] = true;
-        targetShape = (ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX)))->get_vector<int32_t>();
+        if (op->get_input_element_type(TARGET_SHAPE_IDX) == ov::element::i64) {
+            auto idxShape = (ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX)))->get_vector<int64_t>();
+            targetShape.reserve(idxShape.size());
+            targetShape.assign(idxShape.begin(), idxShape.end());
+        } else if (op->get_input_element_type(TARGET_SHAPE_IDX) == ov::element::i32) {
+            auto idxShape = (ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX)))->get_vector<int32_t>();
+            targetShape.reserve(idxShape.size());
+            targetShape.assign(idxShape.begin(), idxShape.end());
+        } else {
+            IE_THROW() << errorPrefix << " does not support precision '" << op->get_input_element_type(TARGET_SHAPE_IDX)
+                << "' for the Target shape input.";
+        }
     }
     if (broadcastType == EXPLICIT &&
                 ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(AXES_MAPPING_IDX))) {
         constMap[AXES_MAPPING_IDX] = true;
-        axesMapping = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(AXES_MAPPING_IDX))->get_vector<int32_t>();
+        if (op->get_input_element_type(AXES_MAPPING_IDX) == ov::element::i64) {
+            auto mapping = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(AXES_MAPPING_IDX))->get_vector<int64_t>();
+            axesMapping.reserve(mapping.size());
+            axesMapping.assign(mapping.begin(), mapping.end());
+        } else if (op->get_input_element_type(AXES_MAPPING_IDX) == ov::element::i32) {
+            auto mapping = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(AXES_MAPPING_IDX))->get_vector<int32_t>();
+            axesMapping.reserve(mapping.size());
+            axesMapping.assign(mapping.begin(), mapping.end());
+        } else {
+            IE_THROW() << errorPrefix << " does not support precision '" << op->get_input_element_type(TARGET_SHAPE_IDX)
+                       << "' for the Axes mapping input.";
+        }
     }
 }
 
@@ -117,13 +139,29 @@ bool Broadcast::needPrepareParams() const {
 void Broadcast::prepareParams() {
     if (!constMap[TARGET_SHAPE_IDX]) {
         const auto& targetShapeMem = getParentEdgesAtPort(TARGET_SHAPE_IDX)[0]->getMemory();
-        const int32_t* targetShapeData = reinterpret_cast<const int32_t *>(targetShapeMem.GetPtr());
-        targetShape.assign(targetShapeData, targetShapeData + targetShapeMem.getStaticDims()[0]);
+        if (targetShapeMem.GetDataType() == dnnl::memory::data_type::s64) {
+            const auto *targetShapeData = reinterpret_cast<const int64_t *>(targetShapeMem.GetPtr());
+            targetShape.assign(targetShapeData, targetShapeData + targetShapeMem.getStaticDims()[0]);
+        } else if (targetShapeMem.GetDataType() == dnnl::memory::data_type::s32) {
+            const auto *targetShapeData = reinterpret_cast<const int32_t *>(targetShapeMem.GetPtr());
+            targetShape.assign(targetShapeData, targetShapeData + targetShapeMem.getStaticDims()[0]);
+        } else {
+            IE_THROW() << errorPrefix << " does not support precision '" << int(targetShapeMem.GetDataType())
+                       << "' for the Target shape input.";
+        }
     }
     if (broadcastType == EXPLICIT && !constMap[AXES_MAPPING_IDX]) {
         const auto& axesMapMem = getParentEdgesAtPort(AXES_MAPPING_IDX)[0]->getMemory();
-        const int32_t* axesMapData = reinterpret_cast<const int32_t *>(axesMapMem.GetPtr());
-        axesMapping.assign(axesMapData, axesMapData + axesMapMem.getStaticDims()[0]);
+        if (axesMapMem.GetDataType() == dnnl::memory::data_type::s64) {
+            const auto axesMapData = reinterpret_cast<const int64_t *>(axesMapMem.GetPtr());
+            axesMapping.assign(axesMapData, axesMapData + axesMapMem.getStaticDims()[0]);
+        } else if (axesMapMem.GetDataType() == dnnl::memory::data_type::s32) {
+            const auto axesMapData = reinterpret_cast<const int32_t *>(axesMapMem.GetPtr());
+            axesMapping.assign(axesMapData, axesMapData + axesMapMem.getStaticDims()[0]);
+        } else {
+            IE_THROW() << errorPrefix << " does not support precision '" << int(axesMapMem.GetDataType())
+                       << "' for the Axes mapping input.";
+        }
     }
 
     const auto& srcDims = getParentEdgesAtPort(INPUT_DATA_IDX)[0]->getMemory().GetShape().getStaticDims();
@@ -162,22 +200,48 @@ bool Broadcast::needShapeInfer() const {
         if (targetShape.empty()) {
             return true;
         }
-        const int32_t* targetShapeData = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(TARGET_SHAPE_IDX)[0]->getMemory().GetPtr());
-        for (size_t i = 0lu; i < targetShape.size(); i++) {
-            if (targetShape[i] != targetShapeData[i]) {
-                return true;
+        const auto& targetShapeMem = getParentEdgesAtPort(TARGET_SHAPE_IDX)[0]->getMemory();
+        if (targetShapeMem.GetDataType() == dnnl::memory::data_type::s64) {
+            const auto *targetShapeData = reinterpret_cast<const int64_t *>(targetShapeMem.GetPtr());
+            for (size_t i = 0lu; i < targetShape.size(); i++) {
+                if (targetShape[i] != targetShapeData[i]) {
+                    return true;
+                }
             }
+        } else if (targetShapeMem.GetDataType() == dnnl::memory::data_type::s32) {
+            const auto *targetShapeData = reinterpret_cast<const int32_t *>(targetShapeMem.GetPtr());
+            for (size_t i = 0lu; i < targetShape.size(); i++) {
+                if (targetShape[i] != targetShapeData[i]) {
+                    return true;
+                }
+            }
+        } else {
+            IE_THROW() << errorPrefix << " does not support precision '" << int(targetShapeMem.GetDataType())
+                       << "' for the Target shape input.";
         }
     }
     if (broadcastType == EXPLICIT && !constMap[AXES_MAPPING_IDX]) {
         if (axesMapping.empty()) {
             return true;
         }
-        const int32_t* axesMappingData = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(AXES_MAPPING_IDX)[0]->getMemory().GetPtr());
-        for (size_t i = 0lu; i < axesMapping.size(); i++) {
-            if (axesMapping[i] != axesMappingData[i]) {
-                return true;
+        const auto& axesMapMem = getParentEdgesAtPort(AXES_MAPPING_IDX)[0]->getMemory();
+        if (axesMapMem.GetDataType() == dnnl::memory::data_type::s64) {
+            const auto *axesMappingData = reinterpret_cast<const int64_t *>(axesMapMem.GetPtr());
+            for (size_t i = 0lu; i < axesMapping.size(); i++) {
+                if (axesMapping[i] != axesMappingData[i]) {
+                    return true;
+                }
             }
+        } else if (axesMapMem.GetDataType() == dnnl::memory::data_type::s32) {
+            const auto *axesMappingData = reinterpret_cast<const int32_t *>(axesMapMem.GetPtr());
+            for (size_t i = 0lu; i < axesMapping.size(); i++) {
+                if (axesMapping[i] != axesMappingData[i]) {
+                    return true;
+                }
+            }
+        } else {
+            IE_THROW() << errorPrefix << " does not support precision '" << int(axesMapMem.GetDataType())
+                       << "' for the Axes mapping input.";
         }
     }
     needPrepareParamsVar = false;

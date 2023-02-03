@@ -22,13 +22,13 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool Split::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool Split::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(), ngraph::op::v1::Split::get_type_info_static(), ngraph::op::v1::VariadicSplit::get_type_info_static())) {
+        if (!one_of(op->get_type_info(), ov::op::v1::Split::get_type_info_static(), ov::op::v1::VariadicSplit::get_type_info_static())) {
             errorMessage = "Only opset1 Split and VariadicSplit operations are supported";
             return false;
         }
-        auto axisOp = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+        auto axisOp = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
         if (!axisOp) {
             errorMessage = "Constant expected as the axis input.";
             return false;
@@ -43,16 +43,16 @@ bool Split::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, 
     return true;
 }
 
-Split::Split(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+Split::Split(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context) :
         Node(op, context, NgraphShapeInferFactory(op, PortMask(1, 2))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    if (ngraph::as_type_ptr<const ngraph::op::v1::Split>(op)) {
+    if (ov::as_type_ptr<const ov::op::v1::Split>(op)) {
         INPUTS_NUM = 2;
-    } else if (ngraph::as_type_ptr<const ngraph::op::v1::VariadicSplit>(op)) {
+    } else if (ov::as_type_ptr<const ov::op::v1::VariadicSplit>(op)) {
         INPUTS_NUM = 3;
         if (!ngraph::is_type<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2))) {
             this->splitLengths.resize(op->get_input_shape(2)[0]);
@@ -61,8 +61,13 @@ Split::Split(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr c
     }
 
     const auto inRank = getInputShapeAtPort(0).getRank();
-    auto axisOp = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
-    auto axis = axisOp->cast_vector<int64_t>()[0];
+    auto axisOp = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+    int64_t axis;
+    if (axisOp->get_element_type() == ov::element::i64) {
+        axis = axisOp->get_data_ptr<int64_t>()[0];
+    } else {
+        axis = axisOp->cast_vector<int64_t>()[0];
+    }
     if (axis < 0) {
         axis += inRank;
     }
@@ -97,9 +102,9 @@ void Split::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    InferenceEngine::Precision inpPrecision = getOriginalInputPrecisionAtPort(0);
-    const auto axisPrecision = Precision::I32;
-    auto outPrecision = inpPrecision; // the split layer doesn't convert precisions
+    const auto &inpPrecision = getOriginalInputPrecisionAtPort(0);
+    const auto &axisPrecision = getOriginalInputPrecisionAtPort(1);
+    const auto &outPrecision = inpPrecision; // the split layer doesn't convert precisions
 
     bool dynBatchSupport = true;
     if (axis < 1) {

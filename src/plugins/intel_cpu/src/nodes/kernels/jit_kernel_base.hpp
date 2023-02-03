@@ -6,9 +6,11 @@
 
 #include "cpu/x64/jit_generator.hpp"
 #include "registers_pool.hpp"
+#include "emitters/jit_bf16_emitters.hpp"
 
 namespace ov {
 namespace intel_cpu {
+namespace kernel {
 
 #define getReg64() RegistersPool::Reg<Xbyak::Reg64>(registersPool)
 #define getReg32() RegistersPool::Reg<Xbyak::Reg32>(registersPool)
@@ -17,7 +19,7 @@ namespace intel_cpu {
 
 class JitKernelBase: public dnnl::impl::cpu::x64::jit_generator {
 public:
-    JitKernelBase(const char* name) : dnnl::impl::cpu::x64::jit_generator(name) {}
+    JitKernelBase(const char* name);
 
     void uni_vfmsub132ps(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrc, const Xbyak::Operand& op);
 
@@ -31,17 +33,35 @@ public:
 
     void uni_vpaddd(const Xbyak::Ymm& vDst, const Xbyak::Ymm& vSrc, const Xbyak::Operand& op);
 
+    void uni_vaddpd(const Xbyak::Xmm &vDst, const Xbyak::Operand &op1, const Xbyak::Operand &op2);
+
     void uni_vpsubd(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrc, const Xbyak::Operand& op) {
         jit_generator::uni_vpsubd(vDst, vSrc, op);
     }
 
     void uni_vpsubd(const Xbyak::Ymm& vDst, const Xbyak::Ymm& vSrc, const Xbyak::Operand& op);
 
+    void uni_vmulpd(const Xbyak::Xmm& vDst, const Xbyak::Operand& op1, const Xbyak::Operand& op2);
+
     void uni_vdivps(const Xbyak::Xmm& vDst, const Xbyak::Operand& op1, const Xbyak::Operand& op2);
+
+    void uni_vdivpd(const Xbyak::Xmm& vDst, const Xbyak::Operand& op1, const Xbyak::Operand& op2);
+
+    void uni_vsqrtpd(const Xbyak::Xmm &vDst, const Xbyak::Operand &op);
 
     void uni_vandps(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrs, const Xbyak::Operand &op);
 
+    void uni_vandpd(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrs, const Xbyak::Operand &op);
+
     void uni_vandnps(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrs, const Xbyak::Operand &op);
+
+    void uni_vorpd(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrs, const Xbyak::Operand &op);
+
+    void uni_vcmppd(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrs, const Xbyak::Operand &op, const uint8_t imm);
+
+    void uni_vmaxpd(const Xbyak::Xmm &vDst, const Xbyak::Operand &op1, const Xbyak::Operand &op2);
+
+    void uni_vminpd(const Xbyak::Xmm &vDst, const Xbyak::Operand &op1, const Xbyak::Operand &op2);
 
     void uni_kmovd(const Xbyak::Opmask& kDst, const Xbyak::Opmask& kSrc) {
         kmovd(kDst, kSrc);
@@ -62,6 +82,10 @@ public:
     void uni_vpbroadcastd(const Xbyak::Xmm &x, const Xbyak::Operand &op);
 
     void uni_vpbroadcastd(const Xbyak::Ymm &x, const Xbyak::Operand &op);
+
+    void uni_vcvtpd2dq(const Xbyak::Xmm &vDst, const Xbyak::Operand &op);
+
+    void uni_vcvtpd2ps(const Xbyak::Xmm &vDst, const Xbyak::Operand &op);
 
     void gatherdd(const Xbyak::Xmm&    vDst,
                   const Xbyak::Reg64&  rSrcPtr,
@@ -135,12 +159,40 @@ public:
                   const bool useMask  = true,
                   const bool zeroFill = false);
 
+
+    void loadVector(const Xbyak::Xmm &vDst,
+                    const Xbyak::Address &srcAdr,
+                    const InferenceEngine::Precision &dstPrc,
+                    const InferenceEngine::Precision &srcPrc);
+
+    void loadScalar(const Xbyak::Xmm &vDst,
+                    const Xbyak::Address &srcAdr,
+                    const InferenceEngine::Precision &dstPrc,
+                    const InferenceEngine::Precision &srcPrc);
+
+    void loadWithBcst(const Xbyak::Xmm &vDst,
+                      const Xbyak::Address &srcAdr,
+                      const InferenceEngine::Precision &dstPrc,
+                      const InferenceEngine::Precision &srcPrc);
+
+    void storeVector(const Xbyak::Address &dstAdr,
+                     const Xbyak::Xmm &vSrc,
+                     const InferenceEngine::Precision &dstPrc,
+                     const InferenceEngine::Precision &srcPrc);
+
+    void storeScalar(const Xbyak::Address &dstAdr,
+                     const Xbyak::Xmm &vSrc,
+                     const InferenceEngine::Precision &dstPrc,
+                     const InferenceEngine::Precision &srcPrc);
+
 protected:
     inline bool isValidIsa(dnnl::impl::cpu::x64::cpu_isa_t isa) {
         return dnnl::impl::cpu::x64::mayiuse(isa);
     }
 
     RegistersPool::Ptr registersPool;
+
+    std::shared_ptr<jit_uni_vcvtneps2bf16> vcvtneps2bf16;
 
     enum {
         // Comparison predicate operand (immediate byte) for single-precision floating-point values.
@@ -155,5 +207,6 @@ protected:
     };
 };
 
+} // namespace kernel
 } // namespace intel_cpu
 } // namespace ov

@@ -80,7 +80,7 @@ struct jit_uni_topk_kernel {
 
 class TopK : public Node {
 public:
-    TopK(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    TopK(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr& context);
     ~TopK() override = default;
 
     void getSupportedDescriptors() override;
@@ -119,14 +119,14 @@ private:
     bool stable;
     bool mode_max;
     int axis;
-    static const size_t TOPK_DATA = 0;
-    static const size_t TOPK_K = 1;
-    static const size_t TOPK_INDEX = 1;
+    static constexpr size_t TOPK_DATA = 0;
+    static constexpr size_t TOPK_K = 1;
+    static constexpr size_t TOPK_INDEX = 1;
     size_t O, A, I;
     size_t blk_size;
     size_t data_size;
     size_t axis_dim;
-    int top_k;
+    int64_t top_k;
     int dim, before_num;
     bool bubble_inplace;
     bool preset_params_done;
@@ -145,8 +145,6 @@ private:
     std::vector<uint8_t> vec_process_idx_ptr;
 
     std::shared_ptr<jit_uni_topk_kernel> topk_kernel;
-
-    std::string errorPrefix;
 };
 
 }   // namespace node

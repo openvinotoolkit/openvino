@@ -143,7 +143,8 @@ const std::vector<ElementType> dataPrecisionSmoke = {
 };
 const std::vector<ElementType> dataPrecisionNightly = {
         ElementType::bf16,
-        ElementType::i8
+        ElementType::i8,
+        ElementType::i64
 };
 
 std::vector<std::tuple<bool, int>> flatOrAxis { {true, 0}, {false, 0}, {false, 1}, {false, -1} };

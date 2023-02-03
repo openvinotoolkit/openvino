@@ -34,7 +34,7 @@ void reduce_l2(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduc
         out[out_idx] = out[out_idx] + arg[in_idx] * arg[in_idx];
     }
     std::transform(out, out + shape_size(out_shape), out, [](T elem) {
-        return sqrt(elem);
+        return static_cast<T>(std::sqrt(static_cast<double>(elem)));
     });
 }
 }  // namespace reference

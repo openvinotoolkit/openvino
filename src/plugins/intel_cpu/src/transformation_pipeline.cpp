@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,7 @@
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
+#include "transformations/common_optimizations/reshape_prelu.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 #include "transformations/common_optimizations/augru_cell_fusion.hpp"
@@ -77,6 +78,7 @@
 #include "transformations/opset_conversions/convert_opset3_to_opset2.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
 #include "transformations/init_node_info.hpp"
+#include "transformations/convert_precision.hpp"
 #include "utils/ngraph_transformation.hpp"
 
 // LPT transformations
@@ -91,9 +93,11 @@
 #include "ngraph_transformations/convert_to_cpu_specific_opset.hpp"
 #include "ngraph_transformations/snippets_mark_skipped.hpp"
 #include "ngraph_transformations/mha_fusion.hpp"
+#include "ngraph_transformations/convert_precision_i64_i32.hpp"
 #include "ngraph_transformations/convert_to_interaction.hpp"
 #include "ngraph_transformations/convert_fq_rnn_to_quantized_rnn.hpp"
 #include "ngraph_transformations/move_eltwise_up_data_movement.hpp"
+#include "ngraph_transformations/ref_convert_i64_i32.hpp"
 #include "ngraph_transformations/swap_convert_transpose.hpp"
 
 // Snippets
@@ -114,7 +118,7 @@ namespace intel_cpu {
 
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
-bool Transformations::fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, const precisions_map& precisions) {
+bool Transformations::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
     const auto& from = node->get_output_element_type(0);
     auto it = precisions.find(from);
     if (it == precisions.end())
@@ -126,7 +130,7 @@ bool Transformations::fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& 
         // is converted to be 1 for boolean, but 0 for u8. Thus an Abs and Ceil node should be added before the
         // Convert node for this scenario.
         if (convert->input(0).get_element_type().is_real() &&
-            convert->get_convert_element_type() == ngraph::element::boolean && to.is_integral_number()) {
+            convert->get_convert_element_type() == ov::element::boolean && to.is_integral_number()) {
             auto abs = std::make_shared<ov::opset10::Abs>(convert->input_value(0).get_node_shared_ptr());
             auto ceil = std::make_shared<ov::opset10::Ceiling>(abs);
             auto new_convert = std::make_shared<ov::opset10::Convert>(ceil, to);
@@ -192,11 +196,10 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     if (useLpt) {
         manager.register_pass<ov::pass::MarkDequantizationSubgraph>(defaultPrecisions);
     }
+    bool supportI64 = config.enableNativeI64;
 
-    auto get_convert_precisions = []() {
+    auto get_convert_precisions = [&]() {
         precisions_map map = {
-            {ov::element::i64,     ov::element::i32},
-            {ov::element::u64,     ov::element::i32},
             {ov::element::i16,     ov::element::i32},
             {ov::element::u16,     ov::element::i32},
             {ov::element::u32,     ov::element::i32},
@@ -207,12 +210,21 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             {ov::element::u4,      ov::element::u8}
         };
 
-        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
+        if (supportI64) {
+            map.insert({ov::element::u64, ov::element::i64});
+        } else {
+            map.insert({ov::element::u64, ov::element::i32});
+            map.insert({ov::element::i64, ov::element::i32});
+        }
+
+        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
             map.insert({ov::element::bf16, ov::element::f32});
+        }
 
         return map;
     };
-    static const auto precisions = get_convert_precisions();
+
+    const auto precisions = get_convert_precisions();
     type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
 
     manager.register_pass<ov::pass::AUGRUCellFusion>();
@@ -243,7 +255,13 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         manager.register_pass<ngraph::pass::low_precision::ConvertSubtractConstant>(defaultPrecisions);
     }
     manager.register_pass<ov::pass::Validate>();
+    if (!supportI64) {
+        manager.register_pass<RefConvertI64ToI32>();
+    }
     manager.register_pass<ov::pass::ConvertPrecision>(precisions, type_to_fuse);
+    if (supportI64) {
+        manager.register_pass<ConvertPrecisionI64ToI32>();
+    }
     manager.register_pass<ov::pass::EliminateConvert>();
     manager.register_pass<SwapConvertTranspose>();
     manager.register_pass<ConvertToInteraction>();

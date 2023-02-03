@@ -216,7 +216,12 @@ const std::tuple<U, U> & Range<T, U>::fit(const Precision & prec) {
                 IE_THROW() << "Unsupported precision";
         }
         std::get<0>(_range) = static_cast<U>(std::max(static_cast<double>(std::get<0>(_range)), lbound));
-        std::get<1>(_range) = static_cast<U>(std::min(static_cast<double>(std::get<1>(_range)), ubound));
+
+        auto v1 = static_cast<U>(std::min(static_cast<double>(std::get<1>(_range)), ubound));
+        if (v1 < U(0)) { // WA for convertion double->int64:  9.2233720368547758e+18 -> -9223372036854775808
+            v1 -= U(1);
+        }
+        std::get<1>(_range) = v1;
     } else {
         int64_t lbound;
         uint64_t ubound;

@@ -45,8 +45,8 @@ private:
     static constexpr size_t TARGET_SHAPE_IDX = 1;
     static constexpr size_t AXES_MAPPING_IDX = 2;
 
-    std::vector<int32_t> targetShape;
-    std::vector<int32_t> axesMapping;
+    VectorDims targetShape;
+    VectorDims axesMapping;
 
     std::string errorPrefix;
 };

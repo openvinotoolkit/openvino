@@ -127,13 +127,13 @@ public:
                                const std::vector<cpu_memory_format_t>& outFmts,
                                const std::vector<std::string>& priority);
    //TODO: change to setter method
-    static std::string makeSelectedTypeStr(std::string implString, ngraph::element::Type_t elType);
+    static std::string makeSelectedTypeStr(std::string implString, ov::element::Type_t elType);
 
     CPUInfo getCPUInfo() const;
-    std::shared_ptr<ngraph::Function> makeNgraphFunction(const ngraph::element::Type &ngPrc,
-                                                         ngraph::ParameterVector &params,
-                                                         const std::shared_ptr<ngraph::Node> &lastNode,
-                                                         std::string name);
+    std::shared_ptr<ov::Model> makeNgraphFunction(const ov::element::Type &ngPrc,
+                                                  ov::ParameterVector &params,
+                                                  const std::shared_ptr<ov::Node> &lastNode,
+                                                  std::string name);
 
     void CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, const std::set<std::string>& nodeType) const;
     void CheckPluginRelatedResults(const ov::CompiledModel &execNet, const std::set<std::string>& nodeType) const;
@@ -151,9 +151,9 @@ protected:
      * @param lastNode The last node of the initial graph.
      * @return The last node of the modified graph.
      */
-    virtual std::shared_ptr<ngraph::Node> modifyGraph(const ngraph::element::Type &ngPrc,
-                                                      ngraph::ParameterVector &params,
-                                                      const std::shared_ptr<ngraph::Node> &lastNode);
+    virtual std::shared_ptr<ov::Node> modifyGraph(const ov::element::Type &ngPrc,
+                                                  ov::ParameterVector &params,
+                                                  const std::shared_ptr<ov::Node> &lastNode);
 
     virtual bool primTypeCheck(std::string primType) const;
 
@@ -175,7 +175,7 @@ const std::map<std::string, std::string> cpuBF16PluginConfig =
 
 
 // utility functions
-std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams>& paramsVector);
+std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams>& paramsVector, const ov::element::Type &prc = ov::element::Type_t::f32);
 std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::vector<CPUSpecificParams> CPUParams);
 void CheckNumberOfNodesWithType(ov::CompiledModel &compiledModel, std::string nodeType, size_t expectedCount);
 void CheckNumberOfNodesWithType(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType, size_t expectedCount);

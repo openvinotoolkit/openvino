@@ -72,7 +72,7 @@ protected:
         bool isAxisConstant;
         CPUSpecificParams cpuParams;
         std::map<std::string, std::string> additionalConfig;
-        const ElementType intInputsPrecision = ElementType::i64;
+        const ElementType idxPrc = ElementType::i32, axisPrc = ElementType::i64;
 
         std::tie(inputShapes, axisAndBatchDims, netPrecision, isAxisConstant, cpuParams, additionalConfig) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
@@ -95,21 +95,21 @@ protected:
             }
         }
 
-        ngraph::ParameterVector params {
+        ov::ParameterVector params {
             std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0]),
-            std::make_shared<ov::op::v0::Parameter>(intInputsPrecision, inputDynamicShapes[1])
+            std::make_shared<ov::op::v0::Parameter>(idxPrc, inputDynamicShapes[1])
         };
         params[0]->set_friendly_name("data");
         params[1]->set_friendly_name("indices");
         if (!isAxisConstant) {
-            params.push_back(std::make_shared<ov::op::v0::Parameter>(intInputsPrecision, inputDynamicShapes[2]));
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(axisPrc, inputDynamicShapes[2]));
             params[2]->set_friendly_name("axis");
         }
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
         std::shared_ptr<ov::Node> gatherNode;
         if (isAxisConstant) {
             gatherNode = std::make_shared<ov::op::v8::Gather>(paramOuts[0], paramOuts[1],
-                    ov::op::v0::Constant::create(intInputsPrecision, ov::Shape({1}), { axis }), batchDims);
+                    ov::op::v0::Constant::create(axisPrc, ov::Shape({1}), { axis }), batchDims);
         } else {
             gatherNode = std::make_shared<ov::op::v8::Gather>(paramOuts[0], paramOuts[1], paramOuts[2], batchDims);
         }
@@ -217,6 +217,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_1D, GatherLayerTestCPU,
                     ::testing::Values(additionalConfig[0])),
                 GatherLayerTestCPU::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_static_1D_i64, GatherLayerTestCPU,
+                ::testing::Combine(
+                    ::testing::ValuesIn(staticInputShapes1D),
+                    ::testing::Values(std::tuple<int, int>{0, 0}),
+                    ::testing::Values(ElementType::i64),
+                    ::testing::Values(true),
+                    ::testing::Values(CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"}),
+                    ::testing::Values(additionalConfig[0])),
+                GatherLayerTestCPU::getTestCaseName);
+
 const std::vector<std::vector<ov::test::InputShape>> dynamicInputShapes1D = {
     { { { ov::Dimension{1, 70} },                                                             // Dynamic shape 0
         { {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {11}, {13}, {15}, {16}, {17}, {19}, {23}, {24}, {32}, {55}, {63}, {64}, {65} } }, // Target shapes
@@ -231,6 +241,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic_1D, GatherLayerTestCPU,
                     ::testing::ValuesIn(netPrecisions),
                     ::testing::Values(true, false),
                     ::testing::ValuesIn(getCPUInfo()),
+                    ::testing::Values(additionalConfig[0])),
+                GatherLayerTestCPU::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_dynamic_1D_i64, GatherLayerTestCPU,
+                ::testing::Combine(
+                    ::testing::ValuesIn(dynamicInputShapes1D),
+                    ::testing::Values(std::tuple<int, int>{0, 0}),
+                    ::testing::Values(ElementType::i64),
+                    ::testing::Values(true, false),
+                    ::testing::Values(CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"}),
                     ::testing::Values(additionalConfig[0])),
                 GatherLayerTestCPU::getTestCaseName);
 

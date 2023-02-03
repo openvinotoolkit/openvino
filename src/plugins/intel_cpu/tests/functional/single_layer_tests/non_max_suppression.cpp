@@ -10,6 +10,7 @@
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/utils/ranges.hpp"
+#include <openvino/opsets/opset1.hpp>
 
 using namespace ov::test;
 using namespace ngraph;
@@ -43,9 +44,9 @@ using NmsParams = std::tuple<InputShapeParams,                                  
                              int32_t,                                            // Max output boxes per class
                              ThresholdValues,                                    // IOU, Score, Soft NMS sigma
                              ngraph::helpers::InputLayerType,                    // max_output_boxes_per_class input type
-                             ngraph::op::v9::NonMaxSuppression::BoxEncodingType, // Box encoding
+                             ov::op::v9::NonMaxSuppression::BoxEncodingType,     // Box encoding
                              bool,                                               // Sort result descending
-                             ngraph::element::Type,                              // Output type
+                             ov::element::Type,                                  // Output type
                              std::string>;                                       // Device name
 
 class NmsLayerCPUTest : public testing::WithParamInterface<NmsParams>, virtual public SubgraphBaseTest, public CPUTestsBase {
@@ -129,41 +130,49 @@ protected:
         std::tie(bounds, targetInDims) = inShapeParams;
 
         if (!bounds.empty()) {
-            inputDynamicShapes = std::vector<ngraph::PartialShape>{{bounds[BATCHES], bounds[BOXES], 4}, {bounds[BATCHES], bounds[CLASSES], bounds[BOXES]}};
+            inputDynamicShapes = std::vector<ov::PartialShape>{{bounds[BATCHES], bounds[BOXES], 4}, {bounds[BATCHES], bounds[CLASSES], bounds[BOXES]}};
         } else {
             size_t batches, boxes, classes;
             std::tie(batches, boxes, classes) = targetInDims.front();
             ov::Dimension numBatches(batches), numBoxes(boxes), numClasses(classes);
-            inputDynamicShapes = std::vector<ngraph::PartialShape>{{numBatches, numBoxes, 4}, {numBatches, numClasses, numBoxes}};
+            inputDynamicShapes = std::vector<ov::PartialShape>{{numBatches, numBoxes, 4}, {numBatches, numClasses, numBoxes}};
         }
 
         for (const auto &ts : targetInDims) {
             size_t numBatches, numBoxes, numClasses;
             std::tie(numBatches, numBoxes, numClasses) = ts;
-            targetStaticShapes.push_back(std::vector<ngraph::Shape>{{numBatches, numBoxes, 4}, {numBatches, numClasses, numBoxes}});
+            targetStaticShapes.push_back(std::vector<ov::Shape>{{numBatches, numBoxes, 4}, {numBatches, numClasses, numBoxes}});
             if (maxOutBoxesType == ngraph::helpers::InputLayerType::PARAMETER) {
-                targetStaticShapes.back().push_back(ngraph::Shape{1});
+                targetStaticShapes.back().push_back(ov::Shape{1});
             }
         }
 
-        std::shared_ptr<ngraph::Node> maxOutBoxesPerClassNode;
+        std::shared_ptr<ov::Node> maxOutBoxesPerClassNode;
         auto params = ngraph::builder::makeDynamicParams(paramsPrec, inputDynamicShapes);
         params[0]->set_friendly_name("param_1");
         params[1]->set_friendly_name("param_2");
 
         if (maxOutBoxesType == ngraph::helpers::InputLayerType::PARAMETER) {
-            inputDynamicShapes.push_back(ngraph::PartialShape{1});
-            params.push_back(std::make_shared<ngraph::opset1::Parameter>(element::Type_t::i32, inputDynamicShapes.back()));
+            inputDynamicShapes.push_back(ov::PartialShape{1});
+            if (maxBoxPrec == ElementType::i64) {
+                params.push_back(std::make_shared<ov::opset1::Parameter>(element::Type_t::i64, inputDynamicShapes.back()));
+            } else {
+                params.push_back(std::make_shared<ov::opset1::Parameter>(element::Type_t::i32, inputDynamicShapes.back()));
+            }
             params[1]->set_friendly_name("param_3");
             maxOutBoxesPerClassNode = params.back();
         } else {
-            maxOutBoxesPerClassNode = builder::makeConstant(maxBoxPrec, ngraph::Shape{}, std::vector<int32_t>{maxOutBoxesPerClass});
+            if (maxBoxPrec == ElementType::i64) {
+                maxOutBoxesPerClassNode = builder::makeConstant(maxBoxPrec, ov::Shape{}, std::vector<int64_t>{maxOutBoxesPerClass});
+            } else {
+                maxOutBoxesPerClassNode = builder::makeConstant(maxBoxPrec, ov::Shape{}, std::vector<int32_t>{maxOutBoxesPerClass});
+            }
         }
 
-        auto iouThrNode = builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{iouThr})->output(0);
-        auto scoreThrNode = builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{scoreThr})->output(0);
-        auto softNmsSigmaNode = builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{softNmsSigma})->output(0);
-        auto nms = std::make_shared<ngraph::op::v9::NonMaxSuppression>(params[0], params[1], maxOutBoxesPerClassNode, iouThrNode, scoreThrNode,
+        auto iouThrNode = builder::makeConstant(thrPrec, ov::Shape{}, std::vector<float>{iouThr})->output(0);
+        auto scoreThrNode = builder::makeConstant(thrPrec, ov::Shape{}, std::vector<float>{scoreThr})->output(0);
+        auto softNmsSigmaNode = builder::makeConstant(thrPrec, ov::Shape{}, std::vector<float>{softNmsSigma})->output(0);
+        auto nms = std::make_shared<ov::op::v9::NonMaxSuppression>(params[0], params[1], maxOutBoxesPerClassNode, iouThrNode, scoreThrNode,
                                                                        softNmsSigmaNode, boxEncoding, sortResDescend, outType);
 
         function = makeNgraphFunction(paramsPrec, params, nms, "NMS");
@@ -433,6 +442,22 @@ const auto nmsParams = ::testing::Combine(::testing::ValuesIn(inShapeParams),
                                           ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
+const auto nmsParams_i64 = ::testing::Combine(::testing::ValuesIn(inShapeParams),
+                                          ::testing::Combine(::testing::Values(ElementType::f32),
+                                                             ::testing::Values(ElementType::i64),
+                                                             ::testing::Values(ElementType::f32)),
+                                          ::testing::ValuesIn(maxOutBoxPerClass),
+                                          ::testing::Combine(::testing::ValuesIn(threshold),
+                                                             ::testing::ValuesIn(threshold),
+                                                             ::testing::ValuesIn(sigmaThreshold)),
+                                          ::testing::ValuesIn(maxBoxInputTypes),
+                                          ::testing::ValuesIn(encodType),
+                                          ::testing::ValuesIn(sortResDesc),
+                                          ::testing::ValuesIn(outType),
+                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)
+);
+
 INSTANTIATE_TEST_SUITE_P(smoke_NmsLayerCPUTest, NmsLayerCPUTest, nmsParams, NmsLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_NmsLayerCPUTest_i64, NmsLayerCPUTest, nmsParams_i64, NmsLayerCPUTest::getTestCaseName);
 
 } // namespace CPULayerTestsDefinitions

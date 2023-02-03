@@ -102,22 +102,22 @@ inline InferenceEngine::Precision normalizeToSupportedPrecision(InferenceEngine:
         case InferenceEngine::Precision::I8:
         case InferenceEngine::Precision::I32:
         case InferenceEngine::Precision::BF16:
-        case InferenceEngine::Precision::FP32: {
-            break;
-        }
+        case InferenceEngine::Precision::FP32:
+        case InferenceEngine::Precision::I64:
         case InferenceEngine::Precision::FP64: {
-            precision = InferenceEngine::Precision::FP32;
             break;
         }
         case InferenceEngine::Precision::BOOL: {
             precision = InferenceEngine::Precision::U8;
             break;
         }
+        case InferenceEngine::Precision::U64: {
+            precision = InferenceEngine::Precision::I64;
+            break;
+        }
         case InferenceEngine::Precision::U16:
         case InferenceEngine::Precision::I16:
-        case InferenceEngine::Precision::U32:
-        case InferenceEngine::Precision::I64:
-        case InferenceEngine::Precision::U64: {
+        case InferenceEngine::Precision::U32: {
             precision = InferenceEngine::Precision::I32;
             break;
         }

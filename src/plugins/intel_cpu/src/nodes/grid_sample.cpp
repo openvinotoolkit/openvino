@@ -11,8 +11,8 @@
 
 using namespace InferenceEngine;
 using namespace dnnl::impl::cpu;
-using namespace ov::intel_cpu;
 using namespace ov::intel_cpu::node;
+using namespace ov::intel_cpu::kernel;
 
 #define THROW_ERROR IE_THROW() << getTypeStr() << " node with name '" << getName() << "' "
 

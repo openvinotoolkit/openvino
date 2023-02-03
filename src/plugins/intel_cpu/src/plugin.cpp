@@ -19,6 +19,7 @@
 #include "ie_system_conf.h"
 #include "threading/ie_cpu_streams_info.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "cpu/cpu_config.hpp"
 
 #include <transformations/utils/utils.hpp>
 #include <ie_ngraph_utils.hpp>
@@ -479,6 +480,17 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     auto nGraphFunc = clonedNetwork.getFunction();
 
     DEBUG_LOG(PrintableModel(*nGraphFunc, "org_"));
+
+    // TODO: Can we call 'engConfig.readProperties(config)' instead of below code?
+    auto i64prop = config.find(CPUConfigParams::KEY_CPU_ENABLE_NATIVE_I64);
+    if (i64prop != config.end()) {
+        try {
+            engConfig.enableNativeI64 = std::stoi(i64prop->second);
+        } catch (const std::exception&) {
+            IE_THROW() << "Wrong value for property key " << CPUConfigParams::KEY_CPU_ENABLE_NATIVE_I64
+                                << ". Expected only 0 or 1 values.";
+        }
+    }
 
     Transformations transformations(nGraphFunc, enableLPT, enableBF16, isLegacyAPI(), snippetsMode, engConfig);
     transformations.UpToCpuSpecificOpSet();

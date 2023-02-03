@@ -36,9 +36,9 @@ InferenceEngine::Precision get_arithmetic_binary_exec_precision(const std::share
 
 /// ADD ///
 jit_add_emitter::jit_add_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node)
-: jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {}
-jit_add_emitter::jit_add_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
-: jit_emitter(host, host_isa, exec_prc) {}
+    : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {}
+jit_add_emitter::jit_add_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const Precision &exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_add_emitter::get_inputs_num() const { return 2; }
 
@@ -50,7 +50,7 @@ void jit_add_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const st
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        assert(!"unsupported isa");
+        IE_THROW() << "jit_add_emitter doesn't support ISA '" << host_isa_ << "'";
     }
 }
 
@@ -61,31 +61,23 @@ void jit_add_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
     Vmm vmm_dst = Vmm(out_vec_idxs[0]);
 
-    auto uni_vadd = [this](Vmm vmm_dst, Vmm vmm_src0, Vmm vmm_src1) {
-        switch (exec_prc_) {
-            case Precision::FP32: h->uni_vaddps(vmm_dst, vmm_src0, vmm_src1); break;
-            case Precision::I32:  h->uni_vpaddd(vmm_dst, vmm_src0, vmm_src1); break;
-            default: assert(!"unsupported precision");
-        }
-    };
-
-    if (isa == x64::sse41) {
-        h->uni_vmovups(vmm_dst, vmm_src0);
-        uni_vadd(vmm_dst, vmm_dst, vmm_src1);
-    } else {
-        uni_vadd(vmm_dst, vmm_src0, vmm_src1);
+    switch (exec_prc_) {
+        case Precision::FP32: h->uni_vaddps(vmm_dst, vmm_src0, vmm_src1); break;
+        case Precision::I32:  h->uni_vpaddd(vmm_dst, vmm_src0, vmm_src1); break;
+        case Precision::I64:  h->uni_vpaddq(vmm_dst, vmm_src0, vmm_src1); break;
+        default: IE_THROW() << "jit_add_emitter doesn't support precision '" << exec_prc_ << "'";
     }
 }
 
-std::set<std::vector<element::Type>> jit_add_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
-    return {{element::f32, element::f32}, {element::i32, element::i32}};
+std::set<std::vector<element::Type>> jit_add_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32, element::f32}, {element::i32, element::i32}, {element::i64, element::i64}};
 }
 
 /// MUL_ADD ///
 jit_mul_add_emitter::jit_mul_add_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node)
-: jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {}
-jit_mul_add_emitter::jit_mul_add_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
-: jit_emitter(host, host_isa, exec_prc) {}
+    : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {}
+jit_mul_add_emitter::jit_mul_add_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const Precision &exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_mul_add_emitter::get_inputs_num() const { return 3; }
 
@@ -107,76 +99,129 @@ void jit_mul_add_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
     Vmm vmm_src2 = Vmm(in_vec_idxs[2]);
-    Vmm vmm_aux0 = Vmm(aux_vec_idxs[0]);
     Vmm vmm_dst = Vmm(out_vec_idxs[0]);
 
-    auto uni_vfmadd231_xmm = [this](Xmm vmm_dst, Xmm vmm_src0, Xmm vmm_src1, Xmm vmm_src2) {
-        h->uni_vmovups(vmm_dst, vmm_src0);
+    auto uni_madd_xmm = [this](const Xmm &vmm_dst, const Xmm &vmm_src0, const Xmm &vmm_src1, const Xmm &vmm_src2) {
         switch (exec_prc_) {
             case Precision::FP32: {
-                h->uni_vmulps(vmm_dst, vmm_dst, vmm_src1);
-                h->uni_vaddps(vmm_dst, vmm_dst, vmm_src2);
+                if (vmm_dst.getIdx() == vmm_src1.getIdx()) {
+                    h->uni_vmulps(vmm_dst, vmm_src1, vmm_src0);
+                    h->uni_vaddps(vmm_dst, vmm_dst, vmm_src2);
+                } else if (vmm_dst.getIdx() == vmm_src2.getIdx()) {
+                    Vmm vmm_aux0 = Vmm(aux_vec_idxs[0]);
+                    h->uni_vmulps(vmm_aux0, vmm_src0, vmm_src1);
+                    h->uni_vaddps(vmm_dst, vmm_dst, vmm_aux0);
+                } else {
+                    h->uni_vmulps(vmm_dst, vmm_src0, vmm_src1);
+                    h->uni_vaddps(vmm_dst, vmm_dst, vmm_src2);
+                }
             } break;
             case Precision::I32: {
-                h->uni_vpmulld(vmm_dst, vmm_dst, vmm_src1);
-                h->uni_vpaddd(vmm_dst, vmm_dst, vmm_src2);
+                if (vmm_dst.getIdx() == vmm_src1.getIdx()) {
+                    h->uni_vpmulld(vmm_dst, vmm_src1, vmm_src0);
+                    h->uni_vpaddd(vmm_dst, vmm_dst, vmm_src2);
+                } else if (vmm_dst.getIdx() == vmm_src2.getIdx()) {
+                    Vmm vmm_aux0 = Vmm(aux_vec_idxs[0]);
+                    h->uni_vpmulld(vmm_aux0, vmm_src0, vmm_src1);
+                    h->uni_vpaddd(vmm_dst, vmm_dst, vmm_aux0);
+                } else {
+                    h->uni_vpmulld(vmm_dst, vmm_src0, vmm_src1);
+                    h->uni_vpaddd(vmm_dst, vmm_dst, vmm_src2);
+                }
             } break;
-            default: assert(!"unsupported precision");
+            case Precision::I64: {
+                Vmm vmm_aux0 = Vmm(aux_vec_idxs[0]);
+                Vmm vmm_aux1 = Vmm(aux_vec_idxs[1]);
+                // There is no multiply int64 instruction on AVX2 and SSE41, thus the WA is used.
+                // vmm_src0 = ab; vmm_src1 = cd;
+                h->uni_vpsrlq(vmm_aux0, vmm_src0, 32);
+                h->uni_vpmuludq(vmm_aux0, vmm_aux0, vmm_src1); // a * d
+                h->uni_vpsrlq(vmm_aux1, vmm_src1, 32);
+                h->uni_vpmuludq(vmm_aux1, vmm_aux1, vmm_src0); // b * c
+                h->uni_vpaddq(vmm_aux1, vmm_aux1, vmm_aux0);   // a * d + b * c
+                h->uni_vpsllq(vmm_aux1, vmm_aux1, 32);
+                h->uni_vpmuludq(vmm_aux0, vmm_src0, vmm_src1); // b * d
+                h->uni_vpaddq(vmm_aux0, vmm_aux0, vmm_aux1);   // (a * d + b * c) << 32 + b * d
+
+                h->uni_vpaddq(vmm_dst, vmm_src2, vmm_aux0);
+            } break;
+            default: IE_THROW() << "jit_mul_add_emitter doesn't support precision '" << exec_prc_ << "'";
         }
     };
 
-    auto uni_vfmadd231_vmm = [this, vmm_aux0](Vmm vmm_dst, Vmm vmm_src0, Vmm vmm_src1, Vmm vmm_src2) {
+    auto uni_madd_vmm = [this](const Vmm &vmm_dst, const Vmm &vmm_src0, const Vmm &vmm_src1, const Vmm &vmm_src2) {
         switch (exec_prc_) {
             case Precision::FP32: {
-                Vmm vmm_mul0;
                 if (vmm_dst.getIdx() == vmm_src0.getIdx()) {
-                    h->uni_vmovups(vmm_aux0, vmm_src0);
-                    vmm_mul0 = vmm_aux0;
+                    h->uni_vfmadd132ps(vmm_src0, vmm_src2, vmm_src1);
+                } else if (vmm_dst.getIdx() == vmm_src1.getIdx()) {
+                    h->uni_vfmadd132ps(vmm_src1, vmm_src2, vmm_src0);
+                } else if (vmm_dst.getIdx() == vmm_src2.getIdx()) {
+                    h->uni_vfmadd231ps(vmm_src2, vmm_src0, vmm_src1);
                 } else {
-                    vmm_mul0 = vmm_src0;
-                }
-
-                Vmm vmm_mul1;
-                if (vmm_dst.getIdx() == vmm_src1.getIdx()) {
-                    h->uni_vmovups(vmm_aux0, vmm_src1);
-                    vmm_mul1 = vmm_aux0;
-                } else {
-                    vmm_mul1 = vmm_src1;
-                }
-
-                if (vmm_dst.getIdx() != vmm_src2.getIdx())
                     h->uni_vmovups(vmm_dst, vmm_src2);
-
-                h->uni_vfmadd231ps(vmm_dst, vmm_mul0, vmm_mul1);
+                    h->uni_vfmadd231ps(vmm_dst, vmm_src0, vmm_src1);
+                }
             } break;
             case Precision::I32: {
-                h->uni_vpmulld(vmm_dst, vmm_src0, vmm_src1);
-                h->uni_vpaddd(vmm_dst, vmm_dst, vmm_src2);
+                if (vmm_dst.getIdx() == vmm_src2.getIdx()) {
+                    Vmm vmm_aux0 = Vmm(aux_vec_idxs[0]);
+                    h->uni_vpmulld(vmm_aux0, vmm_src0, vmm_src1);
+                    h->uni_vpaddd(vmm_dst, vmm_dst, vmm_aux0);
+                } else {
+                    h->uni_vpmulld(vmm_dst, vmm_src0, vmm_src1);
+                    h->uni_vpaddd(vmm_dst, vmm_dst, vmm_src2);
+                }
             } break;
-            default: assert(!"unsupported precision");
+            case Precision::I64: {
+                if (isa == x64::avx512_core) {
+                    h->vpmullq(vmm_dst, vmm_src0, vmm_src1);
+                    h->uni_vpaddq(vmm_dst, vmm_dst, vmm_src2);
+                } else {
+                    Vmm vmm_aux0 = Vmm(aux_vec_idxs[0]);
+                    Vmm vmm_aux1 = Vmm(aux_vec_idxs[1]);
+                    // There is no multiply int64 instruction on AVX2 and SSE41, thus the WA is used.
+                    // vmm_src0 = ab; vmm_src1 = cd;
+                    h->uni_vpsrlq(vmm_aux0, vmm_src0, 32);
+                    h->uni_vpmuludq(vmm_aux0, vmm_aux0, vmm_src1); // a * d
+                    h->uni_vpsrlq(vmm_aux1, vmm_src1, 32);
+                    h->uni_vpmuludq(vmm_aux1, vmm_aux1, vmm_src0); // b * c
+                    h->uni_vpaddq(vmm_aux1, vmm_aux1, vmm_aux0);   // a * d + b * c
+                    h->uni_vpsllq(vmm_aux1, vmm_aux1, 32);
+                    h->uni_vpmuludq(vmm_aux0, vmm_src0, vmm_src1); // b * d
+                    h->uni_vpaddq(vmm_aux0, vmm_aux0, vmm_aux1);   // (a * d + b * c) << 32 + b * d
+
+                    h->uni_vpaddq(vmm_dst, vmm_aux0, vmm_src2);
+                }
+            } break;
+            default: IE_THROW() << "jit_mul_add_emitter doesn't support precision '" << exec_prc_ << "'";
         }
     };
 
     if (isa == x64::sse41) {
-        uni_vfmadd231_xmm(vmm_dst, vmm_src0, vmm_src1, vmm_src2);
+        uni_madd_xmm(vmm_dst, vmm_src0, vmm_src1, vmm_src2);
     } else {
-        uni_vfmadd231_vmm(vmm_dst, vmm_src0, vmm_src1, vmm_src2);
+        uni_madd_vmm(vmm_dst, vmm_src0, vmm_src1, vmm_src2);
     }
 }
 
-size_t jit_mul_add_emitter::aux_vecs_count() const {
-    return 1;
+std::set<std::vector<element::Type>> jit_mul_add_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32, element::f32, element::f32}, {element::i32, element::i32, element::i32}, {element::i64, element::i64, element::i64}};
 }
 
-std::set<std::vector<element::Type>> jit_mul_add_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
-    return {{element::f32, element::f32, element::f32}, {element::i32, element::i32, element::i32}};
+size_t jit_mul_add_emitter::aux_vecs_count() const {
+    if (!x64::mayiuse(x64::avx512_core) && exec_prc_ == Precision::I64) {
+        return 2;
+    } else {
+        return 0;
+    }
 }
 
 /// SUB ///
 jit_subtract_emitter::jit_subtract_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node)
-: jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {}
-jit_subtract_emitter::jit_subtract_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
-: jit_emitter(host, host_isa, exec_prc) {}
+    : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {}
+jit_subtract_emitter::jit_subtract_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const Precision &exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_subtract_emitter::get_inputs_num() const { return 2; }
 
@@ -188,7 +233,7 @@ void jit_subtract_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, con
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        assert(!"unsupported isa");
+        IE_THROW() << "jit_subtract_emitter doesn't support ISA '" << host_isa_ << "'";
     }
 }
 
@@ -199,31 +244,23 @@ void jit_subtract_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, cons
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
     Vmm vmm_dst = Vmm(out_vec_idxs[0]);
 
-    auto uni_vsub = [this](Vmm vmm_dst, Vmm vmm_src0, Vmm vmm_src1) {
-        switch (exec_prc_) {
-            case Precision::FP32: h->uni_vsubps(vmm_dst, vmm_src0, vmm_src1); break;
-            case Precision::I32:  h->uni_vpsubd(vmm_dst, vmm_src0, vmm_src1); break;
-            default: assert(!"unsupported precision");
-        }
-    };
-
-    if (isa == x64::sse41) {
-        h->uni_vmovups(vmm_dst, vmm_src0);
-        uni_vsub(vmm_dst, vmm_dst, vmm_src1);
-    } else {
-        uni_vsub(vmm_dst, vmm_src0, vmm_src1);
+    switch (exec_prc_) {
+        case Precision::FP32: h->uni_vsubps(vmm_dst, vmm_src0, vmm_src1); break;
+        case Precision::I32:  h->uni_vpsubd(vmm_dst, vmm_src0, vmm_src1); break;
+        case Precision::I64:  h->uni_vpsubq(vmm_dst, vmm_src0, vmm_src1); break;
+        default: IE_THROW() << "jit_subtract_emitter doesn't support precision '" << exec_prc_ << "'";
     }
 }
 
-std::set<std::vector<element::Type>> jit_subtract_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
-    return {{element::f32, element::f32}, {element::i32, element::i32}};
+std::set<std::vector<element::Type>> jit_subtract_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32, element::f32}, {element::i32, element::i32}, {element::i64, element::i64}};
 }
 
 /// MULTIPLY ///
 jit_multiply_emitter::jit_multiply_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node)
-: jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {}
-jit_multiply_emitter::jit_multiply_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
-: jit_emitter(host, host_isa, exec_prc) {}
+    : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {}
+jit_multiply_emitter::jit_multiply_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const Precision &exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_multiply_emitter::get_inputs_num() const { return 2; }
 
@@ -235,7 +272,7 @@ void jit_multiply_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, con
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        assert(!"unsupported isa");
+        IE_THROW() << "jit_multiply_emitter doesn't support ISA '" << host_isa_ << "'";
     }
 }
 
@@ -246,33 +283,56 @@ void jit_multiply_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, cons
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
     Vmm vmm_dst = Vmm(out_vec_idxs[0]);
 
-    auto uni_vmul = [this](Vmm vmm_dst, Vmm vmm_src0, Vmm vmm_src1) {
-        switch (exec_prc_) {
-            case Precision::FP32: h->uni_vmulps(vmm_dst, vmm_src0, vmm_src1); break;
-            case Precision::I32:  h->uni_vpmulld(vmm_dst, vmm_src0, vmm_src1); break;
-            default: assert(!"unsupported precision");
-        }
-    };
-
-    if (isa == x64::sse41) {
-        h->uni_vmovups(vmm_dst, vmm_src0);
-        uni_vmul(vmm_dst, vmm_dst, vmm_src1);
-    } else {
-        uni_vmul(vmm_dst, vmm_src0, vmm_src1);
+    switch (exec_prc_) {
+        case Precision::FP32: h->uni_vmulps(vmm_dst, vmm_src0, vmm_src1); break;
+        case Precision::I32:  h->uni_vpmulld(vmm_dst, vmm_src0, vmm_src1); break;
+        case Precision::I64: {
+            if (isa == x64::avx512_core) {
+                h->vpmullq(vmm_dst, vmm_src0, vmm_src1);
+            } else {
+                Vmm vmm_aux0 = Vmm(aux_vec_idxs[0]);
+                Vmm vmm_aux1 = Vmm(aux_vec_idxs[1]);
+                // There is no multiply int64 instruction on AVX2 and SSE41, thus the WA is used.
+                // vmm_src0 = ab; vmm_src1 = cd;
+                h->uni_vpsrlq(vmm_aux0, vmm_src0, 32);
+                h->uni_vpmuludq(vmm_aux0, vmm_aux0, vmm_src1); // a * d
+                h->uni_vpsrlq(vmm_aux1, vmm_src1, 32);
+                h->uni_vpmuludq(vmm_aux1, vmm_aux1, vmm_src0); // b * c
+                h->uni_vpaddq(vmm_aux1, vmm_aux1, vmm_aux0);   // a * d + b * c
+                h->uni_vpsllq(vmm_aux1, vmm_aux1, 32);
+                h->uni_vpmuludq(vmm_aux0, vmm_src0, vmm_src1); // b * d
+                h->uni_vpaddq(vmm_dst, vmm_aux0, vmm_aux1);    // (a * d + b * c) << 32 + b * d
+            }
+        } break;
+        default: IE_THROW() << "jit_multiply_emitter doesn't support precision '" << exec_prc_ << "'";
     }
 }
 
-std::set<std::vector<element::Type>> jit_multiply_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
-    return {{element::f32, element::f32}, {element::i32, element::i32}};
+std::set<std::vector<element::Type>> jit_multiply_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32, element::f32}, {element::i32, element::i32}, {element::i64, element::i64}};
+}
+
+size_t jit_multiply_emitter::aux_vecs_count() const {
+    if (x64::mayiuse(x64::avx512_core)) {
+        return 0;
+    } else {
+        return 2;
+    }
 }
 
 /// DIVIDE ///
-jit_divide_emitter::jit_divide_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {}
-jit_divide_emitter::jit_divide_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
-: jit_emitter(host, host_isa, exec_prc) {}
+jit_divide_emitter::jit_divide_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node)
+        : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
+    prepare_table();
+}
+jit_divide_emitter::jit_divide_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const Precision &exec_prc)
+        : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
 
-size_t jit_divide_emitter::get_inputs_num() const { return 2; }
+size_t jit_divide_emitter::get_inputs_num() const {
+    return 2;
+}
 
 void jit_divide_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     if (host_isa_ == x64::sse41) {
@@ -282,7 +342,7 @@ void jit_divide_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        assert(!"unsupported isa");
+        IE_THROW() << "jit_divide_emitter doesn't support ISA '" << host_isa_ << "'";
     }
 }
 
@@ -293,53 +353,81 @@ void jit_divide_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const 
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
     Vmm vmm_dst = Vmm(out_vec_idxs[0]);
 
-    auto uni_vdiv = [this](Vmm vmm_dst, Vmm vmm_src0, Vmm vmm_src1) {
-        switch (exec_prc_) {
-            case Precision::FP32: {
-                h->uni_vdivps(vmm_dst, vmm_src0, vmm_src1);
-                break;
-            }
-            case Precision::I32: {
+    // The opset doesn't contain vector instruction for integer divide operation
+    // As WA we emulate its behavior via fp divide followed by rounding to zero
+    switch (exec_prc_) {
+        case Precision::FP32: {
+            h->uni_vdivps(vmm_dst, vmm_src0, vmm_src1);
+            break;
+        }
+        case Precision::I32: {
+            Vmm vmm_aux0 = Vmm(aux_vec_idxs[0]);
+
+            h->uni_vcvtdq2ps(vmm_dst, vmm_src0);
+            h->uni_vcvtdq2ps(vmm_aux0, vmm_src1);
+            h->uni_vdivps(vmm_dst, vmm_dst, vmm_aux0);
+            h->uni_vroundps(vmm_dst, vmm_dst, 3); // rounding to zero
+            h->uni_vcvtps2dq(vmm_dst, vmm_dst);
+            break;
+        }
+        case Precision::I64: {
+            if (isa == x64::avx512_core) {
                 Vmm vmm_aux0 = Vmm(aux_vec_idxs[0]);
 
-                // The opset doesn't contain vector instruction for integer divide operation
-                // As WA we emulate its behavior via fp divide followed by rounding to zero
-                h->uni_vcvtdq2ps(vmm_dst, vmm_src0);
-                h->uni_vcvtdq2ps(vmm_aux0, vmm_src1);
-                h->uni_vdivps(vmm_dst, vmm_dst, vmm_aux0);
-                h->uni_vroundps(vmm_dst, vmm_dst, 3); // rounding to zero
-                h->uni_vcvtps2dq(vmm_dst, vmm_dst);
-                break;
-            }
-            default: assert(!"unsupported precision");
-        }
-    };
+                h->vcvtqq2pd(vmm_dst, vmm_src0);
+                h->vcvtqq2pd(vmm_aux0, vmm_src1);
+                h->uni_vdivpd(vmm_dst, vmm_dst, vmm_aux0);
+                h->uni_vroundpd(vmm_dst, vmm_dst, 3); // rounding to zero
+                h->vcvtpd2qq(vmm_dst, vmm_dst);
+            } else {
+                Vmm vmm_aux0 = Vmm(aux_vec_idxs[0]);
+                Vmm vmm_aux1 = Vmm(aux_vec_idxs[1]);
+                h->uni_vmovups(vmm_aux1, table_val_64("dMask"));
 
-    if (isa == x64::sse41) {
-        h->uni_vmovups(vmm_dst, vmm_src0);
-        uni_vdiv(vmm_dst, vmm_dst, vmm_src1);
-    } else {
-        uni_vdiv(vmm_dst, vmm_src0, vmm_src1);
+                h->uni_vpaddq(vmm_dst,  vmm_src0, vmm_aux1);
+                h->uni_vsubpd(vmm_dst,  vmm_dst,  vmm_aux1);
+                h->uni_vpaddq(vmm_aux0, vmm_src1, vmm_aux1);
+                h->uni_vsubpd(vmm_aux0, vmm_aux0, vmm_aux1);
+
+                h->uni_vdivpd(vmm_dst, vmm_dst, vmm_aux0);
+                h->uni_vroundpd(vmm_dst, vmm_dst, 3); // rounding to zero
+
+                h->uni_vaddpd(vmm_dst, vmm_dst, vmm_aux1);
+                h->uni_vpsubq(vmm_dst, vmm_dst, vmm_aux1);
+            }
+            break;
+        }
+        default: IE_THROW() << "jit_divide_emitter doesn't support precision '" << exec_prc_ << "'";
     }
 }
 
-std::set<std::vector<element::Type>> jit_divide_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
-    return {{element::f32, element::f32}, {element::i32, element::i32}};
+std::set<std::vector<element::Type>> jit_divide_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32, element::f32}, {element::i32, element::i32}, {element::i64, element::i64}};
 }
 
 size_t jit_divide_emitter::aux_vecs_count() const {
-    return exec_prc_ == Precision::I32 ? 1 : 0;
+    if (x64::mayiuse(x64::avx512_core)) {
+        return (exec_prc_ == Precision::I32 || exec_prc_ == Precision::I64) ? 1 : 0;
+    } else {
+        return exec_prc_ == Precision::I32 ? 1 : exec_prc_ == Precision::I64 ? 2 : 0;
+    }
+}
+
+void jit_divide_emitter::register_table_entries() {
+    if (host_isa_ != x64::avx512_core) {
+        push_arg_entry_of_64("dMask",  0x433800002150d000, true);
+    }
 }
 
 /// FLOOR ///
-jit_floor_emitter::jit_floor_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
-jit_floor_emitter::jit_floor_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
-: jit_emitter(host, host_isa, exec_prc) {}
+jit_floor_emitter::jit_floor_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, const Precision &exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {}
+jit_floor_emitter::jit_floor_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const Precision &exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_floor_emitter::get_inputs_num() const { return 1; }
 
-std::set<std::vector<element::Type>> jit_floor_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+std::set<std::vector<element::Type>> jit_floor_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -364,14 +452,14 @@ void jit_floor_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const s
 }
 
 /// CEILING ///
-jit_ceiling_emitter::jit_ceiling_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, Precision exec_prc)
+jit_ceiling_emitter::jit_ceiling_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, const Precision &exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {}
-jit_ceiling_emitter::jit_ceiling_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
+jit_ceiling_emitter::jit_ceiling_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const Precision &exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_ceiling_emitter::get_inputs_num() const { return 1; }
 
-std::set<std::vector<element::Type>> jit_ceiling_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+std::set<std::vector<element::Type>> jit_ceiling_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -397,15 +485,23 @@ void jit_ceiling_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const
 }
 
 /// FLOOR_MOD ///
-jit_floor_mod_emitter::jit_floor_mod_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
-jit_floor_mod_emitter::jit_floor_mod_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
-: jit_emitter(host, host_isa, exec_prc) {}
+jit_floor_mod_emitter::jit_floor_mod_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node,
+        const Precision &exec_prc) : jit_emitter(host, host_isa, node, exec_prc) {
+    prepare_table();
+}
+jit_floor_mod_emitter::jit_floor_mod_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const Precision &exec_prc)
+        : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
 
 size_t jit_floor_mod_emitter::get_inputs_num() const { return 2; }
 
-std::set<std::vector<element::Type>> jit_floor_mod_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
-    return {{element::f32, element::f32}};
+std::set<std::vector<element::Type>> jit_floor_mod_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    if (x64::mayiuse(x64::avx512_core)) {
+        return {{element::f32, element::f32}, {element::f64, element::f64}};
+    } else {
+        return {{element::f32, element::f32}, {element::i64, element::i64}};
+    }
 }
 
 void jit_floor_mod_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
@@ -416,7 +512,7 @@ void jit_floor_mod_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, co
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        assert(!"unsupported isa");
+        IE_THROW() << "jit_floor_mod_emitter doesn't support ISA '" << host_isa_ << "'";
     }
 }
 
@@ -428,37 +524,108 @@ void jit_floor_mod_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, con
     Vmm vmm_dst = Vmm(out_vec_idxs[0]);
     Vmm vmm_aux0 = Vmm(aux_vec_idxs[0]);
 
-    if (isa == x64::sse41) {
-        if (vmm_dst.getIdx() != vmm_src0.getIdx())
-            h->uni_vmovups(vmm_dst, vmm_src0);
-        h->uni_vmovups(vmm_aux0, vmm_src0);
-        h->uni_vdivps(vmm_aux0, vmm_aux0, vmm_src1);
-        h->uni_vroundps(vmm_aux0, vmm_aux0, 1); // rounding down
-        h->uni_vmulps(vmm_aux0, vmm_aux0, vmm_src1);
-        h->uni_vsubps(vmm_dst, vmm_dst, vmm_aux0);
-    } else {
-        if (vmm_dst.getIdx() != vmm_src0.getIdx())
-            h->uni_vmovups(vmm_dst, vmm_src0);
-        h->uni_vdivps(vmm_aux0, vmm_src0, vmm_src1);
-        h->uni_vroundps(vmm_aux0, vmm_aux0, 1); // rounding down
-        h->uni_vmulps(vmm_aux0, vmm_aux0, vmm_src1);
-        h->uni_vsubps(vmm_dst, vmm_dst, vmm_aux0);
+    switch (exec_prc_) {
+        case Precision::FP32: {
+            if (isa == x64::sse41) {
+                if (vmm_dst.getIdx() != vmm_src0.getIdx()) {
+                    h->uni_vmovups(vmm_dst, vmm_src0);
+                }
+                h->uni_vdivps(vmm_aux0, vmm_src0, vmm_src1);
+                h->uni_vroundps(vmm_aux0, vmm_aux0, 1); // rounding down
+                h->uni_vmulps(vmm_aux0, vmm_aux0, vmm_src1);
+                h->uni_vsubps(vmm_dst, vmm_dst, vmm_aux0);
+            } else {
+                if (vmm_dst.getIdx() != vmm_src0.getIdx()) {
+                    h->uni_vdivps(vmm_dst, vmm_src0, vmm_src1);
+                    h->uni_vroundps(vmm_dst, vmm_dst, 1); // rounding down
+                    h->vfnmadd132ps(vmm_dst, vmm_src0, vmm_src1);
+                } else {
+                    h->uni_vdivps(vmm_aux0, vmm_src0, vmm_src1);
+                    h->uni_vroundps(vmm_aux0, vmm_aux0, 1); // rounding down
+                    h->vfnmadd231ps(vmm_dst, vmm_aux0, vmm_src1);
+                }
+            }
+        } break;
+        case Precision::I64: {
+            Vmm vmm_aux1 = Vmm(aux_vec_idxs[1]);
+
+            if (isa == x64::avx512_core) {
+                h->vcvtqq2pd(vmm_aux0, vmm_src0);
+                h->vcvtqq2pd(vmm_aux1, vmm_src1);
+
+                h->uni_vdivpd(vmm_dst, vmm_aux0, vmm_aux1);
+                h->uni_vroundpd(vmm_dst, vmm_dst, 1); // rounding down
+                h->vfnmadd132pd(vmm_dst, vmm_aux0, vmm_aux1);
+
+                h->vcvtpd2qq(vmm_dst, vmm_dst);
+            } else {
+                Vmm vmm_aux2 = Vmm(aux_vec_idxs[2]);
+                h->uni_vmovups(vmm_aux2, table_val_64("dMask"));
+
+                h->uni_vpaddq(vmm_aux0, vmm_src0, vmm_aux2);
+                h->uni_vsubpd(vmm_aux0, vmm_aux0, vmm_aux2);
+                h->uni_vpaddq(vmm_aux1, vmm_src1, vmm_aux2);
+                h->uni_vsubpd(vmm_aux1, vmm_aux1, vmm_aux2);
+
+                if (isa == x64::sse41) {
+                    h->uni_vdivpd(vmm_dst, vmm_aux0, vmm_aux1);
+                    h->uni_vroundpd(vmm_dst, vmm_dst, 1); // rounding down
+                    h->uni_vmulpd(vmm_aux1, vmm_aux1, vmm_dst);
+                    h->uni_vsubpd(vmm_dst, vmm_aux0, vmm_aux1);
+                } else {
+                    h->uni_vdivpd(vmm_dst, vmm_aux0, vmm_aux1);
+                    h->uni_vroundpd(vmm_dst, vmm_dst, 1); // rounding down
+                    h->vfnmadd132pd(vmm_dst, vmm_aux0, vmm_aux1);
+                }
+
+                h->uni_vaddpd(vmm_dst, vmm_dst, vmm_aux2);
+                h->uni_vpsubq(vmm_dst, vmm_dst, vmm_aux2);
+            }
+        } break;
+        case Precision::FP64: {
+            if (isa == x64::sse41) {
+                if (vmm_dst.getIdx() != vmm_src0.getIdx()) {
+                    h->uni_vmovups(vmm_dst, vmm_src0);
+                }
+                h->uni_vdivpd(vmm_aux0, vmm_src0, vmm_src1);
+                h->uni_vroundpd(vmm_aux0, vmm_aux0, 1); // rounding down
+                h->uni_vmulpd(vmm_aux0, vmm_aux0, vmm_src1);
+                h->uni_vsubpd(vmm_dst, vmm_dst, vmm_aux0);
+            } else {
+                if (vmm_dst.getIdx() != vmm_src0.getIdx()) {
+                    h->uni_vdivpd(vmm_dst, vmm_src0, vmm_src1);
+                    h->uni_vroundpd(vmm_dst, vmm_dst, 1); // rounding down
+                    h->vfnmadd132pd(vmm_dst, vmm_src0, vmm_src1);
+                } else {
+                    h->uni_vdivpd(vmm_aux0, vmm_src0, vmm_src1);
+                    h->uni_vroundpd(vmm_aux0, vmm_aux0, 1); // rounding down
+                    h->vfnmadd231pd(vmm_dst, vmm_aux0, vmm_src1);
+                }
+            }
+        } break;
+        default: IE_THROW() << "jit_floor_mod_emitter doesn't support precision '" << exec_prc_ << "'";
     }
 }
 
 size_t jit_floor_mod_emitter::aux_vecs_count() const {
-    return 1;
+    return (host_isa_ != x64::avx512_core && exec_prc_ == Precision::I64) ? 3 : 1;
+}
+
+void jit_floor_mod_emitter::register_table_entries() {
+    if (host_isa_ != x64::avx512_core && exec_prc_ == Precision::I64) {
+        push_arg_entry_of_64("dMask",  0x433800002150d000, true);
+    }
 }
 
 /// MOD ///
-jit_mod_emitter::jit_mod_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
-jit_mod_emitter::jit_mod_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
-: jit_emitter(host, host_isa, exec_prc) {}
+jit_mod_emitter::jit_mod_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, const Precision &exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {}
+jit_mod_emitter::jit_mod_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const Precision &exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_mod_emitter::get_inputs_num() const { return 2; }
 
-std::set<std::vector<element::Type>> jit_mod_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+std::set<std::vector<element::Type>> jit_mod_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -506,9 +673,9 @@ size_t jit_mod_emitter::aux_vecs_count() const {
 
 /// MAXIMUM ///
 jit_maximum_emitter::jit_maximum_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node)
-: jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {}
-jit_maximum_emitter::jit_maximum_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
-: jit_emitter(host, host_isa, exec_prc) {}
+    : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {}
+jit_maximum_emitter::jit_maximum_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const Precision &exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_maximum_emitter::get_inputs_num() const { return 2; }
 
@@ -548,15 +715,15 @@ void jit_maximum_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const
     }
 }
 
-std::set<std::vector<element::Type>> jit_maximum_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+std::set<std::vector<element::Type>> jit_maximum_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
 
 /// MINIMUM ///
 jit_minimum_emitter::jit_minimum_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node)
-: jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {}
-jit_minimum_emitter::jit_minimum_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
-: jit_emitter(host, host_isa, exec_prc) {}
+    : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {}
+jit_minimum_emitter::jit_minimum_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const Precision &exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_minimum_emitter::get_inputs_num() const { return 2; }
 
@@ -596,16 +763,19 @@ void jit_minimum_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const
     }
 }
 
-std::set<std::vector<element::Type>> jit_minimum_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+std::set<std::vector<element::Type>> jit_minimum_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
 
 /// SQUARED_DIFFERENCE ///
-jit_squared_difference_emitter::jit_squared_difference_emitter(
-    x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
-jit_squared_difference_emitter::jit_squared_difference_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
-: jit_emitter(host, host_isa, exec_prc) {}
+jit_squared_difference_emitter::jit_squared_difference_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node,
+        const Precision &exec_prc) : jit_emitter(host, host_isa, node, exec_prc) {
+    prepare_table();
+}
+jit_squared_difference_emitter::jit_squared_difference_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const Precision &exec_prc)
+        : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
 
 size_t jit_squared_difference_emitter::get_inputs_num() const { return 2; }
 
@@ -617,7 +787,7 @@ void jit_squared_difference_emitter::emit_impl(const std::vector<size_t> &in_vec
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        assert(!"unsupported isa");
+        IE_THROW() << "jit_squared_difference_emitter doesn't support ISA '" << host_isa_ << "'";
     }
 }
 
@@ -628,43 +798,55 @@ void jit_squared_difference_emitter::emit_isa(const std::vector<size_t> &in_vec_
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
     Vmm vmm_dst = Vmm(out_vec_idxs[0]);
 
-    auto uni_vsqdiff = [this](Vmm vmm_dst, Vmm vmm_src0, Vmm vmm_src1) {
-        switch (exec_prc_) {
-            case Precision::FP32: {
-                h->uni_vsubps(vmm_dst, vmm_src0, vmm_src1);
-                h->uni_vmulps(vmm_dst, vmm_dst, vmm_dst);
-            } break;
-            case Precision::I32: {
-                h->uni_vpsubd(vmm_dst, vmm_src0, vmm_src1);
-                h->uni_vpmulld(vmm_dst, vmm_dst, vmm_dst);
-            } break;
-            default: assert(!"unsupported precision");
-        }
-    };
+    switch (exec_prc_) {
+        case Precision::FP32: {
+            h->uni_vsubps(vmm_dst, vmm_src0, vmm_src1);
+            h->uni_vmulps(vmm_dst, vmm_dst, vmm_dst);
+        } break;
+        case Precision::I32: {
+            h->uni_vpsubd(vmm_dst, vmm_src0, vmm_src1);
+            h->uni_vpmulld(vmm_dst, vmm_dst, vmm_dst);
+        } break;
+        case Precision::I64: {
+            if (isa == x64::avx512_core) {
+                h->uni_vpsubq(vmm_dst, vmm_src0, vmm_src1);
+                h->vpmullq(vmm_dst, vmm_dst, vmm_dst);
+            } else {
+                h->uni_vpsubq(vmm_dst, vmm_src0, vmm_src1);
 
-    if (isa == x64::sse41) {
-        if (vmm_src0.getIdx() != vmm_dst.getIdx())
-            h->uni_vmovups(vmm_dst, vmm_src0);
-        uni_vsqdiff(vmm_dst, vmm_dst, vmm_src1);
-    } else {
-        uni_vsqdiff(vmm_dst, vmm_src0, vmm_src1);
+                Vmm vmm_aux0 = Vmm(aux_vec_idxs[0]);
+                // There is no multiply int64 instruction on AVX2 and SSE41, thus the WA is used.
+                // vmm_src0 = ab; vmm_src1 = cd;
+                h->uni_vpsrlq(vmm_aux0, vmm_dst, 32);
+                h->uni_vpmuludq(vmm_aux0, vmm_aux0, vmm_dst); // a * d
+                h->uni_vpaddq(vmm_aux0, vmm_aux0, vmm_aux0);  // a * d + b * c
+                h->uni_vpsllq(vmm_aux0, vmm_aux0, 32);
+                h->uni_vpmuludq(vmm_dst, vmm_dst, vmm_dst);   // b * d
+                h->uni_vpaddq(vmm_dst, vmm_dst, vmm_aux0);    // (a * d + b * c) << 32 + b * d
+            }
+        } break;
+        default: IE_THROW() << "jit_squared_difference_emitter doesn't support precision '" << exec_prc_ << "'";
     }
 }
 
-std::set<std::vector<element::Type>> jit_squared_difference_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
-    return {{element::f32, element::f32}, {element::i32, element::i32}};
+std::set<std::vector<element::Type>> jit_squared_difference_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32, element::f32}, {element::i32, element::i32}, {element::i64, element::i64}};
+}
+
+size_t jit_squared_difference_emitter::aux_vecs_count() const {
+    return (!x64::mayiuse(x64::avx512_core) && exec_prc_ == Precision::I64) ? 1 : 0;
 }
 
 /// POWER_DYNAMIC ///
 jit_power_dynamic_emitter::jit_power_dynamic_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node,
-                                                     Precision exec_prc)
+                                                     const Precision &exec_prc)
     : jit_emitter(host, host_isa, node, exec_prc) {}
-jit_power_dynamic_emitter::jit_power_dynamic_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
+jit_power_dynamic_emitter::jit_power_dynamic_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const Precision &exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_power_dynamic_emitter::get_inputs_num() const { return 2; }
 
-std::set<std::vector<element::Type>> jit_power_dynamic_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+std::set<std::vector<element::Type>> jit_power_dynamic_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -691,8 +873,8 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs,
 
     // caller obligation to save gprs as callee may use them
     size_t gpr_size = 8;
-    Xbyak::Operand gprs_to_save[] = {h->r8, h->r9, h->r10, h->r11, h->rax,
-                                     h->rcx, h->rdx, h->rdi, h->rsi, h->rbp, h->rbx};
+    Operand gprs_to_save[] = {h->r8, h->r9, h->r10, h->r11, h->rax,
+                              h->rcx, h->rdx, h->rdi, h->rsi, h->rbp, h->rbx};
     size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
 
     h->sub(h->rsp, n_gprs_to_save * gpr_size);
@@ -768,19 +950,19 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs,
 
 
 /// EQUAL ///
-jit_equal_emitter::jit_equal_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_equal_emitter::jit_equal_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, const Precision &exec_prc)
+        : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_equal_emitter::jit_equal_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
-: jit_emitter(host, host_isa, exec_prc) {
+jit_equal_emitter::jit_equal_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const Precision &exec_prc)
+        : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
 
 size_t jit_equal_emitter::get_inputs_num() const { return 2; }
 
-std::set<std::vector<element::Type>> jit_equal_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
-    return {{element::f32, element::f32}};
+std::set<std::vector<element::Type>> jit_equal_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32, element::f32}, {element::i32, element::i32}, {element::i64, element::i64}};
 }
 
 void jit_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
@@ -801,48 +983,70 @@ void jit_equal_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const s
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
     Vmm vmm_dst = Vmm(out_vec_idxs[0]);
-    Vmm vmm_aux0 = Vmm(aux_vec_idxs[0]);
-    Vmm vmm_aux1 = Vmm(aux_vec_idxs[1]);
 
-    if (isa == x64::sse41) {
-        h->movups(vmm_aux0, vmm_src0);
-        h->cmpps(vmm_aux0, vmm_src1, _cmp_eq_oq);
-        h->movups(vmm_aux1, table_val("one"));
-        h->pxor(vmm_dst, vmm_dst);
-        h->blendvps(vmm_dst, vmm_aux1);
-    } else if (isa == x64::avx2) {
-        h->vcmpeqps(vmm_aux0, vmm_src0, vmm_src1);
-        h->uni_vmovups(vmm_dst, table_val("zero"));
-        h->uni_vblendvps(vmm_dst, vmm_dst, table_val("one"), vmm_aux0);
+    // TODO: Actually the Result is bool in U8 representation. 0x01 or 0xFF - is there a difference for real models?
+    // Remove all vpsrld instructions if there is no difference.
+    if (isa == x64::sse41 || isa == x64::avx2) {
+        Vmm vmm_src0_t = vmm_src0;
+        if (isa == x64::sse41 && vmm_dst.getIdx() != vmm_src0.getIdx()) {
+            h->uni_vmovups(vmm_dst, vmm_src0);
+            vmm_src0_t = vmm_dst;
+        }
+        switch (exec_prc_) {
+            case Precision::FP32:
+                h->uni_vcmpps(vmm_dst, vmm_src0_t, vmm_src1, _cmp_eq_oq);
+                h->uni_vandps(vmm_dst, vmm_dst, table_val("oneF"));
+                break;
+            case Precision::I32:
+                h->uni_vpcmpeqd(vmm_dst, vmm_src0_t, vmm_src1);
+                h->uni_vpsrld(vmm_dst, vmm_dst, 31);
+                break;
+            case Precision::I64:
+                h->uni_vpcmpeqq(vmm_dst, vmm_src0_t, vmm_src1);
+                h->uni_vpsrlq(vmm_dst, vmm_dst, 63);
+                break;
+            default: IE_THROW() << "jit_equal_emitter doesn't support precision '" << exec_prc_ << "'";
+        }
     } else {
-        h->vcmpps(k_mask, vmm_src0, vmm_src1, _cmp_eq_oq);
-        h->uni_vmovups(vmm_dst, table_val("zero"));
-        h->vblendmps(vmm_dst | k_mask, vmm_dst, table_val("one"));
+        switch (exec_prc_) {
+            case Precision::FP32:
+                h->vcmpps(k_mask, vmm_src0, vmm_src1, _cmp_eq_oq);
+                h->uni_vmovups(vmm_dst | k_mask | h->T_z, table_val("oneF"));
+                break;
+            case Precision::I32:
+                h->vpcmpeqd(k_mask, vmm_src0, vmm_src1);
+                h->vpmovm2d(vmm_dst, k_mask);
+                h->uni_vpsrld(vmm_dst, vmm_dst, 31);
+                break;
+            case Precision::I64:
+                h->vpcmpeqq(k_mask, vmm_src0, vmm_src1);
+                h->vpmovm2q(vmm_dst, k_mask);
+                h->vpsrlq(vmm_dst, vmm_dst, 63);
+                break;
+            default: IE_THROW() << "jit_equal_emitter doesn't support precision '" << exec_prc_ << "'";
+        }
     }
 }
 
 void jit_equal_emitter::register_table_entries() {
-    push_arg_entry_of("zero", 0x00000000, true);
-    push_arg_entry_of("one", CONST_1_F, true);
-}
-
-size_t jit_equal_emitter::aux_vecs_count() const {
-    return 2;
+    if (exec_prc_ == Precision::FP32) {
+        push_arg_entry_of("oneF", CONST_1_F, true);
+    }
 }
 
 /// NOT_EQUAL ///
-jit_not_equal_emitter::jit_not_equal_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_not_equal_emitter::jit_not_equal_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node,
+        const Precision &exec_prc) : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_not_equal_emitter::jit_not_equal_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
+jit_not_equal_emitter::jit_not_equal_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const Precision &exec_prc)
 : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
 
 size_t jit_not_equal_emitter::get_inputs_num() const { return 2; }
 
-std::set<std::vector<element::Type>> jit_not_equal_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+std::set<std::vector<element::Type>> jit_not_equal_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -894,19 +1098,19 @@ size_t jit_not_equal_emitter::aux_vecs_count() const {
 }
 
 /// GREATER ///
-jit_greater_emitter::jit_greater_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_greater_emitter::jit_greater_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, const Precision &exec_prc)
+        : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_greater_emitter::jit_greater_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
-: jit_emitter(host, host_isa, exec_prc) {
+jit_greater_emitter::jit_greater_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const Precision &exec_prc)
+        : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
 
 size_t jit_greater_emitter::get_inputs_num() const { return 2; }
 
-std::set<std::vector<element::Type>> jit_greater_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
-    return {{element::f32, element::f32}};
+std::set<std::vector<element::Type>> jit_greater_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32, element::f32}, {element::i32, element::i32}, {element::i64, element::i64}};
 }
 
 void jit_greater_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
@@ -917,7 +1121,7 @@ void jit_greater_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, cons
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        assert(!"unsupported isa");
+        IE_THROW() << "jit_greater_emitter doesn't support ISA '" << host_isa_ << "'";
     }
 }
 
@@ -927,49 +1131,69 @@ void jit_greater_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
     Vmm vmm_dst = Vmm(out_vec_idxs[0]);
-    Vmm vmm_aux0 = Vmm(aux_vec_idxs[0]);
-    Vmm vmm_aux1 = Vmm(aux_vec_idxs[1]);
 
-    if (isa == x64::sse41) {
-        h->movups(vmm_aux0, vmm_src0);
-        h->cmpps(vmm_aux0, vmm_src1, _cmp_gt_os);
-        h->movups(vmm_aux1, table_val("one"));
-        h->pxor(vmm_dst, vmm_dst);
-        h->blendvps(vmm_dst, vmm_aux1);
-    } else if (isa == x64::avx2) {
-        h->vcmpgtps(vmm_aux0, vmm_src0, vmm_src1);
-        h->uni_vmovups(vmm_dst, table_val("zero"));
-        h->vblendvps(vmm_dst, vmm_dst, table_val("one"), vmm_aux0);
+    if (isa == x64::sse41 || isa == x64::avx2) {
+        Vmm vmm_src0_t = vmm_src0;
+        if (isa == x64::sse41 && vmm_dst.getIdx() != vmm_src0.getIdx()) {
+            h->uni_vmovups(vmm_dst, vmm_src0);
+            vmm_src0_t = vmm_dst;
+        }
+        switch (exec_prc_) {
+            case Precision::FP32:
+                h->uni_vcmpps(vmm_dst, vmm_src0_t, vmm_src1, _cmp_gt_os);
+                h->uni_vandps(vmm_dst, vmm_dst, table_val("oneF"));
+                break;
+            case Precision::I32:
+                h->uni_vpcmpgtd(vmm_dst, vmm_src0_t, vmm_src1);
+                h->uni_vpsrld(vmm_dst, vmm_dst, 31);
+                break;
+            case Precision::I64:
+                h->uni_vpcmpgtq(vmm_dst, vmm_src0_t, vmm_src1);
+                h->uni_vpsrlq(vmm_dst, vmm_dst, 63);
+                break;
+            default: IE_THROW() << "jit_greater_emitter doesn't support precision '" << exec_prc_ << "'";
+        }
     } else {
-        h->vcmpps(k_mask, vmm_src0, vmm_src1, _cmp_gt_os);
-        h->uni_vmovups(vmm_dst, table_val("zero"));
-        h->vblendmps(vmm_dst | k_mask, vmm_dst, table_val("one"));
+        switch (exec_prc_) {
+            case Precision::FP32:
+                h->vcmpps(k_mask, vmm_src0, vmm_src1, _cmp_gt_os);
+                h->uni_vmovups(vmm_dst | k_mask | h->T_z, table_val("oneF"));
+                break;
+            case Precision::I32:
+                h->vpcmpgtd(k_mask, vmm_src0, vmm_src1);
+                h->vpmovm2d(vmm_dst, k_mask);
+                h->uni_vpsrld(vmm_dst, vmm_dst, 31);
+                break;
+            case Precision::I64:
+                h->vpcmpgtq(k_mask, vmm_src0, vmm_src1);
+                h->vpmovm2q(vmm_dst, k_mask);
+                h->vpsrlq(vmm_dst, vmm_dst, 63);
+                break;
+            default: IE_THROW() << "jit_greater_emitter doesn't support precision '" << exec_prc_ << "'";
+        }
     }
 }
 
 void jit_greater_emitter::register_table_entries() {
-    push_arg_entry_of("zero", 0x00000000, true);
-    push_arg_entry_of("one", CONST_1_F, true);
-}
-
-size_t jit_greater_emitter::aux_vecs_count() const {
-    return 2;
+    if (exec_prc_ == Precision::FP32) {
+        push_arg_entry_of("oneF", CONST_1_F, true);
+    }
 }
 
 /// GREATER_EQUAL ///
 jit_greater_equal_emitter::jit_greater_equal_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node,
-                                                     Precision exec_prc)
+                                                     const Precision &exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_greater_equal_emitter::jit_greater_equal_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
+jit_greater_equal_emitter::jit_greater_equal_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const Precision &exec_prc)
 : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
 
 size_t jit_greater_equal_emitter::get_inputs_num() const { return 2; }
 
-std::set<std::vector<element::Type>> jit_greater_equal_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+std::set<std::vector<element::Type>> jit_greater_equal_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -1021,19 +1245,19 @@ size_t jit_greater_equal_emitter::aux_vecs_count() const {
 }
 
 /// LESS ///
-jit_less_emitter::jit_less_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_less_emitter::jit_less_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, const Precision &exec_prc)
+        : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_less_emitter::jit_less_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
-: jit_emitter(host, host_isa, exec_prc) {
+jit_less_emitter::jit_less_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const Precision &exec_prc)
+        : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
 
 size_t jit_less_emitter::get_inputs_num() const { return 2; }
 
-std::set<std::vector<element::Type>> jit_less_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
-    return {{element::f32, element::f32}};
+std::set<std::vector<element::Type>> jit_less_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32, element::f32}, {element::i32, element::i32}, {element::i64, element::i64}};
 }
 
 void jit_less_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
@@ -1044,7 +1268,7 @@ void jit_less_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const s
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        assert(!"unsupported isa");
+        IE_THROW() << "jit_less_emitter doesn't support ISA '" << host_isa_ << "'";
     }
 }
 
@@ -1054,48 +1278,68 @@ void jit_less_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const st
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
     Vmm vmm_dst = Vmm(out_vec_idxs[0]);
-    Vmm vmm_aux0 = Vmm(aux_vec_idxs[0]);
-    Vmm vmm_aux1 = Vmm(aux_vec_idxs[1]);
 
-    if (isa == x64::sse41) {
-        h->movups(vmm_aux0, vmm_src0);
-        h->cmpps(vmm_aux0, vmm_src1, _cmp_lt_os);
-        h->movups(vmm_aux1, table_val("one"));
-        h->pxor(vmm_dst, vmm_dst);
-        h->blendvps(vmm_dst, vmm_aux1);
-    } else if (isa == x64::avx2) {
-        h->vcmpltps(vmm_aux0, vmm_src0, vmm_src1);
-        h->uni_vmovups(vmm_dst, table_val("zero"));
-        h->vblendvps(vmm_dst, vmm_dst, table_val("one"), vmm_aux0);
+    if (isa == x64::sse41 || isa == x64::avx2) {
+        Vmm vmm_src0_t = vmm_src0;
+        if (isa == x64::sse41 && vmm_dst.getIdx() != vmm_src0.getIdx()) {
+            h->uni_vmovups(vmm_dst, vmm_src0);
+            vmm_src0_t = vmm_dst;
+        }
+        switch (exec_prc_) {
+            case Precision::FP32:
+                h->uni_vcmpps(vmm_dst, vmm_src0_t, vmm_src1, _cmp_lt_os);
+                h->uni_vandps(vmm_dst, vmm_dst, table_val("oneF"));
+                break;
+            case Precision::I32:
+                h->uni_vpcmpgtd(vmm_dst, vmm_src1, vmm_src0_t);
+                h->uni_vpsrld(vmm_dst, vmm_dst, 31);
+                break;
+            case Precision::I64:
+                h->uni_vpcmpgtq(vmm_dst, vmm_src1, vmm_src0_t);
+                h->uni_vpsrlq(vmm_dst, vmm_dst, 63);
+                break;
+            default: IE_THROW() << "jit_less_emitter doesn't support precision '" << exec_prc_ << "'";
+        }
     } else {
-        h->vcmpps(k_mask, vmm_src0, vmm_src1, _cmp_lt_os);
-        h->uni_vmovups(vmm_dst, table_val("zero"));
-        h->vblendmps(vmm_dst | k_mask, vmm_dst, table_val("one"));
+        switch (exec_prc_) {
+            case Precision::FP32:
+                h->vcmpps(k_mask, vmm_src0, vmm_src1, _cmp_lt_os);
+                h->uni_vmovups(vmm_dst | k_mask | h->T_z, table_val("oneF"));
+                break;
+            case Precision::I32:
+                h->vpcmpgtd(k_mask, vmm_src1, vmm_src0);
+                h->vpmovm2d(vmm_dst, k_mask);
+                h->uni_vpsrld(vmm_dst, vmm_dst, 31);
+                break;
+            case Precision::I64:
+                h->vpcmpgtq(k_mask, vmm_src1, vmm_src0);
+                h->vpmovm2q(vmm_dst, k_mask);
+                h->vpsrlq(vmm_dst, vmm_dst, 63);
+                break;
+            default: IE_THROW() << "jit_less_emitter doesn't support precision '" << exec_prc_ << "'";
+        }
     }
 }
 
 void jit_less_emitter::register_table_entries() {
-    push_arg_entry_of("zero", 0x00000000, true);
-    push_arg_entry_of("one", CONST_1_F, true);
-}
-
-size_t jit_less_emitter::aux_vecs_count() const {
-    return 2;
+    if (exec_prc_ == Precision::FP32) {
+        push_arg_entry_of("oneF", CONST_1_F, true);
+    }
 }
 
 /// LESS_EQUAL ///
-jit_less_equal_emitter::jit_less_equal_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_less_equal_emitter::jit_less_equal_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node,
+        const Precision &exec_prc) : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_less_equal_emitter::jit_less_equal_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
+jit_less_equal_emitter::jit_less_equal_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const Precision &exec_prc)
 : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
 
 size_t jit_less_equal_emitter::get_inputs_num() const { return 2; }
 
-std::set<std::vector<element::Type>> jit_less_equal_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+std::set<std::vector<element::Type>> jit_less_equal_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -1148,18 +1392,18 @@ size_t jit_less_equal_emitter::aux_vecs_count() const {
 }
 
 /// LOGICAL_AND ///
-jit_logical_and_emitter::jit_logical_and_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_logical_and_emitter::jit_logical_and_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node,
+        const Precision &exec_prc) : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_logical_and_emitter::jit_logical_and_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
+jit_logical_and_emitter::jit_logical_and_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const Precision &exec_prc)
 : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
 
 size_t jit_logical_and_emitter::get_inputs_num() const { return 2; }
 
-std::set<std::vector<element::Type>> jit_logical_and_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+std::set<std::vector<element::Type>> jit_logical_and_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -1232,18 +1476,18 @@ size_t jit_logical_and_emitter::aux_vecs_count() const {
 
 
 /// LOGICAL_OR ///
-jit_logical_or_emitter::jit_logical_or_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_logical_or_emitter::jit_logical_or_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node,
+        const Precision &exec_prc) : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_logical_or_emitter::jit_logical_or_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
+jit_logical_or_emitter::jit_logical_or_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const Precision &exec_prc)
 : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
 
 size_t jit_logical_or_emitter::get_inputs_num() const { return 2; }
 
-std::set<std::vector<element::Type>> jit_logical_or_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+std::set<std::vector<element::Type>> jit_logical_or_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -1315,18 +1559,18 @@ size_t jit_logical_or_emitter::aux_vecs_count() const {
 }
 
 /// LOGICAL_XOR ///
-jit_logical_xor_emitter::jit_logical_xor_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_logical_xor_emitter::jit_logical_xor_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node,
+        const Precision &exec_prc) : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_logical_xor_emitter::jit_logical_xor_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
+jit_logical_xor_emitter::jit_logical_xor_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const Precision &exec_prc)
 : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
 
 size_t jit_logical_xor_emitter::get_inputs_num() const { return 2; }
 
-std::set<std::vector<element::Type>> jit_logical_xor_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+std::set<std::vector<element::Type>> jit_logical_xor_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -1398,18 +1642,18 @@ size_t jit_logical_xor_emitter::aux_vecs_count() const {
 }
 
 /// LOGICAL_NOT ///
-jit_logical_not_emitter::jit_logical_not_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_logical_not_emitter::jit_logical_not_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node,
+        const Precision &exec_prc) : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_logical_not_emitter::jit_logical_not_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
+jit_logical_not_emitter::jit_logical_not_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const Precision &exec_prc)
 : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
 
 size_t jit_logical_not_emitter::get_inputs_num() const { return 1; }
 
-std::set<std::vector<element::Type>> jit_logical_not_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+std::set<std::vector<element::Type>> jit_logical_not_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -1460,8 +1704,8 @@ size_t jit_logical_not_emitter::aux_vecs_count() const {
 }
 
 /// POWER_STATIC ///
-jit_power_static_emitter::jit_power_static_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_power_static_emitter::jit_power_static_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node,
+        const Precision &exec_prc) : jit_emitter(host, host_isa, node, exec_prc) {
     auto powerStaticNode = ov::as_type_ptr<ngraph::snippets::op::PowerStatic>(node);
     if (powerStaticNode == nullptr) {
         IE_THROW() << "Can't cast to snippets::op::PowerStatic";
@@ -1476,14 +1720,14 @@ jit_power_static_emitter::jit_power_static_emitter(x64::jit_generator *host, x64
 
 jit_power_static_emitter::jit_power_static_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa,
                                                    float inpPower, float inpScale, float inpShift,
-                                                   Precision exec_prc)
+                                                   const Precision &exec_prc)
 : jit_emitter(host, host_isa, exec_prc), power(inpPower), scale(inpScale), shift(inpShift) {
     prepare_table();
 }
 
 size_t jit_power_static_emitter::get_inputs_num() const { return 1; }
 
-std::set<std::vector<element::Type>> jit_power_static_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+std::set<std::vector<element::Type>> jit_power_static_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -1563,8 +1807,8 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, 
 
         // caller obligation to save gprs as callee may use them
         size_t gpr_size = 8;
-        Xbyak::Operand gprs_to_save[] = {h->r8, h->r9, h->r10, h->r11, h->rax,
-                                         h->rcx, h->rdx, h->rdi, h->rsi, h->rbp, h->rbx};
+        Operand gprs_to_save[] = {h->r8, h->r9, h->r10, h->r11, h->rax,
+                                  h->rcx, h->rdx, h->rdi, h->rsi, h->rbp, h->rbx};
         size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
 
         h->sub(h->rsp, n_gprs_to_save * gpr_size);
@@ -1651,17 +1895,17 @@ size_t jit_power_static_emitter::aux_vecs_count() const {
 }
 
 /// PRELU ///
-jit_prelu_emitter::jit_prelu_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, Precision exec_prc)
+jit_prelu_emitter::jit_prelu_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, const Precision &exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_prelu_emitter::jit_prelu_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
+jit_prelu_emitter::jit_prelu_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const Precision &exec_prc)
 : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
 size_t jit_prelu_emitter::get_inputs_num() const { return 2; }
 
-std::set<std::vector<element::Type>> jit_prelu_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+std::set<std::vector<element::Type>> jit_prelu_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -1713,14 +1957,14 @@ size_t jit_prelu_emitter::aux_vecs_count() const {
 }
 
 /// SQRT ///
-jit_sqrt_emitter::jit_sqrt_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, Precision exec_prc)
+jit_sqrt_emitter::jit_sqrt_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, const Precision &exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {}
-jit_sqrt_emitter::jit_sqrt_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
+jit_sqrt_emitter::jit_sqrt_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const Precision &exec_prc)
 : jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_sqrt_emitter::get_inputs_num() const { return 1; }
 
-std::set<std::vector<element::Type>> jit_sqrt_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+std::set<std::vector<element::Type>> jit_sqrt_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -1746,12 +1990,12 @@ void jit_sqrt_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const st
 }
 
 /// Negate ///
-jit_negative_emitter::jit_negative_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, Precision exec_prc)
+jit_negative_emitter::jit_negative_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, const Precision &exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {}
 
 size_t jit_negative_emitter::get_inputs_num() const { return 1; }
 
-std::set<std::vector<element::Type>> jit_negative_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+std::set<std::vector<element::Type>> jit_negative_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -1777,19 +2021,19 @@ void jit_negative_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, cons
 }
 
 /// ERF ///
-jit_erf_emitter::jit_erf_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
+jit_erf_emitter::jit_erf_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const Precision &exec_prc)
 : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
 
-jit_erf_emitter::jit_erf_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, Precision exec_prc)
+jit_erf_emitter::jit_erf_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, const Precision &exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
 
 size_t jit_erf_emitter::get_inputs_num() const { return 1; }
 
-std::set<std::vector<element::Type>> jit_erf_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+std::set<std::vector<element::Type>> jit_erf_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -1820,8 +2064,7 @@ void jit_erf_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std
     Vmm vmm_aux3 = Vmm(aux_vec_idxs[3]);
     Vmm vmm_aux4 = Vmm(aux_vec_idxs[4]);
 
-    auto compute_cmp_mask = [&](const Vmm &vmm_src,
-        const Xbyak::Operand &compare_operand, int cmp_predicate) {
+    auto compute_cmp_mask = [&](const Vmm &vmm_src, const Operand &compare_operand, int cmp_predicate) {
         if (host_isa_ == x64::avx512_core) {
             h->vcmpps(k_mask, vmm_src, compare_operand, cmp_predicate);
         } else {
@@ -1829,7 +2072,7 @@ void jit_erf_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std
         }
     };
 
-    auto blend_with_mask = [&](const Vmm &vmm_dst, const Xbyak::Operand &src) {
+    auto blend_with_mask = [&](const Vmm &vmm_dst, const Operand &src) {
         if (host_isa_ == x64::avx512_core) {
             h->vblendmps(vmm_dst | k_mask, vmm_dst, src);
         } else {
@@ -1962,18 +2205,18 @@ size_t jit_erf_emitter::aux_vecs_count() const {
 }
 
 /// SOFT SIGN ///
-jit_soft_sign_emitter::jit_soft_sign_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_soft_sign_emitter::jit_soft_sign_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node,
+        const Precision &exec_prc) : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_soft_sign_emitter::jit_soft_sign_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
+jit_soft_sign_emitter::jit_soft_sign_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const Precision &exec_prc)
 : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
 
 size_t jit_soft_sign_emitter::get_inputs_num() const { return 1; }
 
-std::set<std::vector<element::Type>> jit_soft_sign_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+std::set<std::vector<element::Type>> jit_soft_sign_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -2181,14 +2424,14 @@ void jit_is_nan_emitter::register_table_entries() {
 }
 
 /// SELECT ///
-jit_select_emitter::jit_select_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
+jit_select_emitter::jit_select_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, const Precision &exec_prc)
         : jit_emitter(host, host_isa, node, exec_prc) {}
-jit_select_emitter::jit_select_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
+jit_select_emitter::jit_select_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const Precision &exec_prc)
         : jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_select_emitter::get_inputs_num() const { return 3; }
 
-std::set<std::vector<element::Type>> jit_select_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+std::set<std::vector<element::Type>> jit_select_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32, element::f32}};
 }
 
@@ -2213,7 +2456,7 @@ void jit_select_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const
     }
 }
 
-template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+template <x64::cpu_isa_t isa>
 void jit_select_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_cond = Vmm(in_vec_idxs[0]);

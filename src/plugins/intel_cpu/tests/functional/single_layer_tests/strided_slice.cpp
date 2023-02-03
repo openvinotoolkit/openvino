@@ -150,7 +150,8 @@ const auto cpuParams_ncdhw = CPUSpecificParams {{ncdhw}, {ncdhw}, {}, {}};
 const std::vector<ElementType> inputPrecisions = {
         ElementType::f32,
         ElementType::bf16,
-        ElementType::i8
+        ElementType::i8,
+        ElementType::i64
 };
 
 const std::vector<ngraph::helpers::InputLayerType> inputLayerTypes = {

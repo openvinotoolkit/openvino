@@ -12,7 +12,7 @@ using namespace CPUTestUtils;
 namespace CPULayerTestsDefinitions {
 
 typedef std::tuple<
-        size_t,                   // Concat axis
+        int64_t,                  // Concat axis
         std::vector<InputShape>,  // Input shapes
         ElementType,              // Network precision
         CPUSpecificParams
@@ -22,7 +22,7 @@ class ConcatLayerCPUTest : public testing::WithParamInterface<concatCPUTestParam
                            virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<concatCPUTestParams> obj) {
-        int axis;
+        int64_t axis;
         std::vector<InputShape> inputShapes;
         ElementType netPrecision;
         CPUSpecificParams cpuParams;
@@ -67,21 +67,21 @@ protected:
     void SetUp() override {
         targetDevice = CommonTestUtils::DEVICE_CPU;
 
-        int axis;
+        int64_t axis;
         std::vector<InputShape> inputShape;
         ElementType netPrecision;
         CPUSpecificParams cpuParams;
         std::tie(axis, inputShape, netPrecision, cpuParams) = this->GetParam();
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        selectedType += std::string("_") + InferenceEngine::details::convertPrecision(netPrecision).name();
+        selectedType = makeSelectedTypeStr(selectedType, netPrecision);
 
         init_input_shapes(inputShape);
 
         auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
         auto paramOuts = ngraph::helpers::convert2OutputVector(
-                ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-        auto concat = std::make_shared<ngraph::opset1::Concat>(paramOuts, axis);
+                ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
+        auto concat = std::make_shared<ov::op::v0::Concat>(paramOuts, axis);
 
         function = makeNgraphFunction(netPrecision, params, concat, "ConcatCPU");
     }
@@ -118,6 +118,7 @@ const auto blocked16_5D_ref = CPUSpecificParams{{nCdhw16c}, {nCdhw16c}, {}, "ref
 const std::vector<ElementType> netPrecisions = {
         ElementType::i8,
         ElementType::i32,
+        ElementType::i64,
         ElementType::f32,
         ElementType::bf16
 };
