@@ -197,7 +197,6 @@ bool is_topologically_sorted(const GraphProto& graph) {
                 continue;
             }
             if (known_tensors.count(input) == 0) {
-                std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
                 return false;
             }
         }
@@ -210,8 +209,8 @@ bool is_topologically_sorted(const GraphProto& graph) {
 
 void graph_topological_sort(GraphProto* graph) {
     if (!is_topologically_sorted(*graph)) {
-        std::stack<const NodeProto*, std::vector<const NodeProto*>> nodes_to_do;
-        std::unordered_set<const NodeProto*> nodes_done;
+        std::stack<const NodeProto*, std::vector<const NodeProto*>> nodes_to_process;
+        std::unordered_set<const NodeProto*> processed_nodes;
         std::multimap<std::string, const NodeProto*> output_name_to_node;
         GraphProto result;
 
@@ -228,31 +227,31 @@ void graph_topological_sort(GraphProto* graph) {
             return nullptr;
         };
         for (const auto& node : graph->node()) {
-            nodes_to_do.push(&node);
+            nodes_to_process.push(&node);
         }
 
-        while (nodes_to_do.size() > 0) {
-            auto* node = nodes_to_do.top();
-            if (nodes_done.count(node) == 0) {
+        while (nodes_to_process.size() > 0) {
+            auto* node = nodes_to_process.top();
+            if (processed_nodes.count(node) == 0) {
                 bool can_add = true;
                 for (const auto& in_name : node->input()) {
                     const auto* in_node = get_node_by_out_name(in_name);
                     if (in_node == nullptr) {  // can be an initializer or an model's input
                         continue;
                     }
-                    if (nodes_done.count(in_node) == 0) {
+                    if (processed_nodes.count(in_node) == 0) {
                         can_add = false;
-                        nodes_to_do.push(in_node);
+                        nodes_to_process.push(in_node);
                     }
                 }
                 if (can_add) {
                     auto* new_node = result.add_node();
                     new_node->MergeFrom(*node);
-                    nodes_to_do.pop();
-                    nodes_done.insert(node);
+                    nodes_to_process.pop();
+                    processed_nodes.insert(node);
                 }
             } else {
-                nodes_to_do.pop();
+                nodes_to_process.pop();
             }
         }
         graph->mutable_node()->Clear();
