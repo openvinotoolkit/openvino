@@ -2010,6 +2010,14 @@ ov::Output<ov::Node> NetworkHelper::getSingleConsumerConstant(const ov::Output<o
         ? output
         : node->clone_with_new_inputs(node->input_values())->output(0);
 }
+
+bool NetworkHelper::checkConstantOnInf(const std::shared_ptr<Node> constant_node) {
+    const auto constant = ov::as_type_ptr<opset1::Constant>(constant_node);
+    if (constant == nullptr)
+        return false;
+    const auto values = constant->cast_vector<float>();
+    return std::all_of(values.begin(), values.end(), [](const float x) { return !std::isinf(x); });
+}
 } // namespace low_precision
 } // namespace pass
 } // namespace ngraph
