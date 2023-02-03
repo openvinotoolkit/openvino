@@ -144,7 +144,7 @@ For example, supported data types and special optimizations for them.
 a plugin-specific public header file, for example, `template/config.hpp`. The example below 
 demonstrates the definition of a new optimization capability value specific for a device:
 
-@snippet template/config.hpp public_header:metrics 
+@snippet template/config.hpp public_header:properties 
 
 The snippet below provides an example of the implementation for `GetMetric`:
 
