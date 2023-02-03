@@ -32,7 +32,7 @@ OV_ITT_DOMAIN(intel_cpu_LT);
 #    define CPU_LPT_SCOPE(region)                                          \
         if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(intel_cpu, _, region)) == 0) \
         throw ov::Exception(std::string(OV_PP_TOSTRING(OV_PP_CAT3(ov_op, _, region))) + " is disabled!")
-#    define CPU_GRAPH_OPTIMIZER_SCOPE(region)                                          \
+#    define CPU_GRAPH_OPTIMIZER_SCOPE(region)                              \
         if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(intel_cpu, _, region)) == 0) \
         throw ov::Exception(std::string(OV_PP_TOSTRING(OV_PP_CAT3(intel_cpu, _, region))) + " is disabled!")
 #else
