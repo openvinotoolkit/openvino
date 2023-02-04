@@ -355,6 +355,7 @@ else()
 
     if(OV_COMPILER_IS_APPLECLANG)
         ie_add_compiler_flags(-Wswitch)
+        set(CMAKE_CXX_FLAGS "-Woverloaded-virtual ${CMAKE_CXX_FLAGS}")
     else()
         ie_add_compiler_flags(-Wuninitialized -Winit-self)
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
