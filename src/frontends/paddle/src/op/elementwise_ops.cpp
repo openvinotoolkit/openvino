@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,6 +44,29 @@ NamedOutputs elementwise_equal(const NodeContext& node_context) {
 
 NamedOutputs elementwise_greater_equal(const NodeContext& node_context) {
     return elementwise_ops<default_opset::GreaterEqual>(node_context);
+}
+
+NamedOutputs elementwise_not_equal(const NodeContext& node_context) {
+    return elementwise_ops<default_opset::NotEqual>(node_context);
+}
+
+NamedOutputs elementwise_floordiv(const NodeContext& node_context) {
+    auto x = node_context.get_input("X");
+    auto y = node_context.get_input("Y");
+    auto axis = -1;
+    if (node_context.has_attribute("axis")) {
+        axis = node_context.get_attribute<int>("axis");
+    }
+    return node_context.default_single_output_mapping(
+        {std::make_shared<default_opset::Divide>(x,
+                                                 y,
+                                                 false,
+                                                 ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::PDPD, axis))},
+        {"Out"});
+}
+
+NamedOutputs elementwise_mod(const NodeContext& node_context) {
+    return elementwise_ops<default_opset::FloorMod>(node_context);
 }
 
 }  // namespace op

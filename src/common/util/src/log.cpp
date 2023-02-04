@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,8 +47,10 @@ ov::util::LogHelper::LogHelper(LOG_TYPE type,
 }
 
 ov::util::LogHelper::~LogHelper() {
+#ifdef ENABLE_OPENVINO_DEBUG
     if (m_handler_func) {
         m_handler_func(m_stream.str());
     }
     // Logger::log_item(m_stream.str());
+#endif
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,6 +60,9 @@ public:
     size_t getPaddedElementsCount() const override;
 
     MemoryDescPtr cloneWithNewPrecision(const InferenceEngine::Precision prec) const override;
+
+    using DnnlMemoryDesc::setPrecision;
+    using DnnlMemoryDesc::getPrecision;
 
 private:
     DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const VectorDims& blockedDims,

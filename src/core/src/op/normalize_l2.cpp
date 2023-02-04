@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,14 +8,13 @@
 #include <iterator>
 #include <ngraph/validation_util.hpp>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/util/op_types.hpp"
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v0::NormalizeL2);
 
 op::v0::NormalizeL2::NormalizeL2(const Output<Node>& data, const Output<Node>& axes, float eps, EpsMode eps_mode)
     : Op({data, axes}),
@@ -25,14 +24,14 @@ op::v0::NormalizeL2::NormalizeL2(const Output<Node>& data, const Output<Node>& a
 }
 
 bool op::v0::NormalizeL2::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_NormalizeL2_visit_attributes);
+    OV_OP_SCOPE(v0_NormalizeL2_visit_attributes);
     visitor.on_attribute("eps", m_eps);
     visitor.on_attribute("eps_mode", m_eps_mode);
     return true;
 }
 
 void op::v0::NormalizeL2::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_NormalizeL2_validate_and_infer_types);
+    OV_OP_SCOPE(v0_NormalizeL2_validate_and_infer_types);
     auto axes_node = input_value(1).get_node_shared_ptr();
     const auto& input_pshape = get_input_partial_shape(0);
     const auto& axes_pshape = get_input_partial_shape(1);
@@ -74,7 +73,7 @@ AxisSet op::v0::NormalizeL2::get_reduction_axes() const {
 }
 
 shared_ptr<Node> op::v0::NormalizeL2::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_NormalizeL2_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_NormalizeL2_clone_with_new_inputs);
     if (new_args.size() != 2) {
         throw ngraph_error("Incorrect number of new arguments");
     }

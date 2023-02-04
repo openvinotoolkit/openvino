@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 #include "op/abs.hpp"
 #include "op/acos.hpp"
 #include "op/acosh.hpp"
+#include "op/adaptive_avg_pooling2d.hpp"
 #include "op/add.hpp"
 #include "op/affine.hpp"
 #include "op/and.hpp"
@@ -35,6 +36,7 @@
 #include "op/com.microsoft/attention.hpp"
 #include "op/com.microsoft/bias_gelu.hpp"
 #include "op/com.microsoft/embed_layer_normalization.hpp"
+#include "op/com.microsoft/fused_conv.hpp"
 #include "op/com.microsoft/fusedgemm.hpp"
 #include "op/com.microsoft/skip_layer_normalization.hpp"
 #include "op/compress.hpp"
@@ -51,6 +53,7 @@
 #include "op/cum_sum.hpp"
 #include "op/depth_to_space.hpp"
 #include "op/dequantize_linear.hpp"
+#include "op/dft.hpp"
 #include "op/div.hpp"
 #include "op/dropout.hpp"
 #include "op/dynamic_quantize_linear.hpp"
@@ -79,6 +82,9 @@
 #include "op/if.hpp"
 #include "op/image_scaler.hpp"
 #include "op/instance_norm.hpp"
+#include "op/is_finite.hpp"
+#include "op/is_inf.hpp"
+#include "op/is_nan.hpp"
 #include "op/leaky_relu.hpp"
 #include "op/less.hpp"
 #include "op/log.hpp"
@@ -111,6 +117,7 @@
 #include "op/org.openvinotoolkit/experimental_detectron/roi_feature_extractor.hpp"
 #include "op/org.openvinotoolkit/experimental_detectron/topk_rios.hpp"
 #include "op/org.openvinotoolkit/fake_quantize.hpp"
+#include "op/org.openvinotoolkit/generate_proposals.hpp"
 #include "op/org.openvinotoolkit/group_norm.hpp"
 #include "op/org.openvinotoolkit/normalize.hpp"
 #include "op/org.openvinotoolkit/prior_box.hpp"
@@ -162,6 +169,8 @@
 #include "op/tile.hpp"
 #include "op/topk.hpp"
 #include "op/transpose.hpp"
+#include "op/trilu.hpp"
+#include "op/unique.hpp"
 #include "op/unsqueeze.hpp"
 #include "op/upsample.hpp"
 #include "op/where.hpp"
@@ -275,6 +284,7 @@ void OperatorsBridge::overwrite_operator(const std::string& name, const std::str
 }
 
 static const char* const MICROSOFT_DOMAIN = "com.microsoft";
+static const char* const PYTORCH_ATEN_DOMAIN = "org.pytorch.aten";
 
 #define REGISTER_OPERATOR(name_, ver_, fn_) \
     m_map[""][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1));
@@ -324,6 +334,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("DequantizeLinear", 13, dequantize_linear);
     REGISTER_OPERATOR("Div", 1, div);
     REGISTER_OPERATOR("Div", 7, div);
+    REGISTER_OPERATOR("DFT", 1, dft);
     REGISTER_OPERATOR("Dropout", 1, dropout);
     REGISTER_OPERATOR("Dropout", 7, dropout);
     REGISTER_OPERATOR("Dropout", 12, dropout);
@@ -356,6 +367,9 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("If", 1, if_op);
     REGISTER_OPERATOR("ImageScaler", 1, image_scaler);
     REGISTER_OPERATOR("InstanceNormalization", 1, instance_norm);
+    REGISTER_OPERATOR("IsFinite", 1, is_finite);
+    REGISTER_OPERATOR("IsInf", 1, is_inf);
+    REGISTER_OPERATOR("IsNaN", 1, is_nan)
     REGISTER_OPERATOR("LeakyRelu", 1, leaky_relu);
     REGISTER_OPERATOR("Less", 1, less);
     REGISTER_OPERATOR("Log", 1, log);
@@ -456,6 +470,8 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("TopK", 10, topk);
     REGISTER_OPERATOR("TopK", 11, topk);
     REGISTER_OPERATOR("Transpose", 1, transpose);
+    REGISTER_OPERATOR("Trilu", 1, trilu);
+    REGISTER_OPERATOR("Unique", 1, unique);
     REGISTER_OPERATOR("Unsqueeze", 1, unsqueeze);
     REGISTER_OPERATOR("Unsqueeze", 13, unsqueeze);
     REGISTER_OPERATOR("Where", 1, where);
@@ -494,6 +510,7 @@ OperatorsBridge::OperatorsBridge() {
                                   1,
                                   experimental_detectron_topk_rois);
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "FakeQuantize", 1, fake_quantize);
+    REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "GenerateProposals", 1, generate_proposals);
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "GroupNorm", 1, group_norm);
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "Normalize", 1, normalize);
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "PriorBox", 1, prior_box);
@@ -502,9 +519,13 @@ OperatorsBridge::OperatorsBridge() {
 
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Attention", 1, attention);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "BiasGelu", 1, bias_gelu);
+    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "FusedConv", 1, fused_conv);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "FusedGemm", 1, fusedgemm);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "EmbedLayerNormalization", 1, embed_layer_normalization);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "SkipLayerNormalization", 1, skip_layer_normalization);
+    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Trilu", 1, trilu);
+
+    REGISTER_OPERATOR_WITH_DOMAIN(PYTORCH_ATEN_DOMAIN, "adaptive_avg_pool2d", 1, adaptive_avg_pooling2d);
 }
 
 #undef REGISTER_OPERATOR

@@ -6,6 +6,7 @@
 #include "ocl_event.hpp"
 #include "ocl_user_event.hpp"
 #include "ocl_command_queues_builder.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "ocl_kernel.hpp"
 #include "ocl_common.hpp"
 
@@ -49,6 +50,27 @@ inline cl::NDRange toNDRange(const std::vector<size_t>& v) {
     }
 }
 
+cl_int set_kernel_arg(ocl_kernel_type& kernel, uint32_t idx, cldnn::memory::cptr mem) {
+    if (!mem)
+        return CL_INVALID_ARG_VALUE;
+
+    if (mem->get_layout().format.is_image_2d()) {
+        auto buf = std::dynamic_pointer_cast<const ocl::gpu_image2d>(mem)->get_buffer();
+        GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set arg (image) " << idx << " mem: " << buf.get() << " size: " << mem->size() << std::endl;
+        return kernel.setArg(idx, buf);
+    } else if (memory_capabilities::is_usm_type(mem->get_allocation_type())) {
+        auto buf = std::dynamic_pointer_cast<const ocl::gpu_usm>(mem)->get_buffer();
+        GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set arg (usm) " << idx << " mem: " << buf.get() << " size: " << mem->size() << std::endl;
+        return kernel.setArgUsm(idx, buf);
+    } else {
+        auto buf = std::dynamic_pointer_cast<const ocl::gpu_buffer>(mem)->get_buffer();
+        GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set arg (buffer) " << idx << " mem: " << buf.get() << " size: " << mem->size() << std::endl;
+        return kernel.setArg(idx, buf);
+    }
+
+    return CL_INVALID_ARG_VALUE;
+}
+
 void set_arguments_impl(ocl_kernel_type& kernel,
                         const arguments_desc& args,
                         const kernel_arguments_data& data) {
@@ -59,124 +81,44 @@ void set_arguments_impl(ocl_kernel_type& kernel,
         switch (args[i].t) {
             case args_t::INPUT:
                 if (args[i].index < data.inputs.size() && data.inputs[args[i].index]) {
-                    const auto& input_mem = data.inputs[args[i].index];
-                    if (input_mem) {
-                        if (input_mem->get_layout().format.is_image_2d())
-                            status = kernel.setArg(i, std::dynamic_pointer_cast<const ocl::gpu_image2d>(input_mem)->get_buffer());
-                        else if (memory_capabilities::is_usm_type(input_mem->get_allocation_type()))
-                            status = kernel.setArgUsm(i, std::dynamic_pointer_cast<const ocl::gpu_usm>(input_mem)->get_buffer());
-                        else
-                            status = kernel.setArg(i, std::dynamic_pointer_cast<const ocl::gpu_buffer>(input_mem)->get_buffer());
-                    }
+                    status = set_kernel_arg(kernel, i, data.inputs[args[i].index]);
                 }
                 break;
             case args_t::INPUT_OF_FUSED_PRIMITIVE:
                 if (args[i].index < data.fused_op_inputs.size() && data.fused_op_inputs[args[i].index]) {
-                    const auto& input_mem = data.fused_op_inputs[args[i].index];
-                    if (input_mem) {
-                        if (memory_capabilities::is_usm_type(input_mem->get_allocation_type()))
-                            status = kernel.setArgUsm(i, std::dynamic_pointer_cast<const ocl::gpu_usm>(input_mem)->get_buffer());
-                        else
-                            status = kernel.setArg(i, std::dynamic_pointer_cast<const ocl::gpu_buffer>(input_mem)->get_buffer());
-                    }
+                    status = set_kernel_arg(kernel, i, data.fused_op_inputs[args[i].index]);
                 }
                 break;
             case args_t::INTERNAL_BUFFER:
                 if (args[i].index < data.intermediates.size() && data.intermediates[args[i].index]) {
-                    const auto& input_mem = data.intermediates[args[i].index];
-                    if (input_mem) {
-                        if (memory_capabilities::is_usm_type(input_mem->get_allocation_type()))
-                            status = kernel.setArgUsm(i, std::dynamic_pointer_cast<const ocl::gpu_usm>(input_mem)->get_buffer());
-                        else
-                            status = kernel.setArg(i, std::dynamic_pointer_cast<const ocl::gpu_buffer>(input_mem)->get_buffer());
-                    }
+                    status = set_kernel_arg(kernel, i, data.intermediates[args[i].index]);
                 }
                 break;
             case args_t::OUTPUT:
                 if (args[i].index < data.outputs.size() && data.outputs[args[i].index]) {
-                    const auto& output_mem = data.outputs[args[i].index];
-                    if (output_mem) {
-                         if (output_mem->get_layout().format.is_image_2d())
-                            status = kernel.setArg(i, std::dynamic_pointer_cast<const ocl::gpu_image2d>(output_mem)->get_buffer());
-                         else if (memory_capabilities::is_usm_type(output_mem->get_allocation_type()))
-                             status = kernel.setArgUsm(i, std::dynamic_pointer_cast<const ocl::gpu_usm>(output_mem)->get_buffer());
-                         else
-                            status = kernel.setArg(i, std::dynamic_pointer_cast<const ocl::gpu_buffer>(output_mem)->get_buffer());
-                    }
+                    status = set_kernel_arg(kernel, i, data.outputs[args[i].index]);
                 }
                 break;
             case args_t::WEIGHTS:
-                if (data.weights) {
-                    if (data.weights->get_layout().format.is_image_2d())
-                        status = kernel.setArg(i, std::dynamic_pointer_cast<const ocl::gpu_image2d>(data.weights)->get_buffer());
-                    else if (memory_capabilities::is_usm_type(data.weights->get_allocation_type()))
-                        status = kernel.setArgUsm(i, std::dynamic_pointer_cast<const ocl::gpu_usm>(data.weights)->get_buffer());
-                    else
-                        status = kernel.setArg(i, std::dynamic_pointer_cast<const ocl::gpu_buffer>(data.weights)->get_buffer());
-                }
+                status = set_kernel_arg(kernel, i, data.weights);
                 break;
             case args_t::BIAS:
-                if (data.bias) {
-                    if (memory_capabilities::is_usm_type(data.bias->get_allocation_type()))
-                        status = kernel.setArgUsm(i, std::dynamic_pointer_cast<const ocl::gpu_usm>(data.bias)->get_buffer());
-                    else
-                        status = kernel.setArg(i, std::dynamic_pointer_cast<const ocl::gpu_buffer>(data.bias)->get_buffer());
-                }
+                status = set_kernel_arg(kernel, i, data.bias);
                 break;
             case args_t::WEIGHTS_ZERO_POINTS:
-                if (data.weights_zero_points) {
-                    if (memory_capabilities::is_usm_type(data.weights_zero_points->get_allocation_type()))
-                        status = kernel.setArgUsm(
-                            i,
-                            std::dynamic_pointer_cast<const ocl::gpu_usm>(data.weights_zero_points)->get_buffer());
-                    else
-                        status = kernel.setArg(
-                            i,
-                            std::dynamic_pointer_cast<const ocl::gpu_buffer>(data.weights_zero_points)->get_buffer());
-                }
+                status = set_kernel_arg(kernel, i, data.weights_zero_points);
                 break;
             case args_t::ACTIVATIONS_ZERO_POINTS:
-                if (data.activations_zero_points) {
-                    if (memory_capabilities::is_usm_type(data.activations_zero_points->get_allocation_type()))
-                        status = kernel.setArgUsm(
-                            i,
-                            std::dynamic_pointer_cast<const ocl::gpu_usm>(data.activations_zero_points)->get_buffer());
-                    else
-                        status = kernel.setArg(
-                            i,
-                            std::dynamic_pointer_cast<const ocl::gpu_buffer>(data.activations_zero_points)->get_buffer());
-                }
+                status = set_kernel_arg(kernel, i, data.activations_zero_points);
                 break;
             case args_t::COMPENSATION:
-                if (data.compensation) {
-                    if (memory_capabilities::is_usm_type(data.compensation->get_allocation_type()))
-                        status = kernel.setArgUsm(
-                                i,
-                                std::dynamic_pointer_cast<const ocl::gpu_usm>(data.compensation)->get_buffer());
-                    else
-                        status = kernel.setArg(
-                                 i,
-                                 std::dynamic_pointer_cast<const ocl::gpu_buffer>(data.compensation)->get_buffer());
-                }
+                status = set_kernel_arg(kernel, i, data.compensation);
                 break;
             case args_t::SCALE_TABLE:
-                if (data.scale_table) {
-                    if (memory_capabilities::is_usm_type(data.scale_table->get_allocation_type()))
-                        status = kernel.setArgUsm(i, std::dynamic_pointer_cast<const ocl::gpu_usm>(data.scale_table)->get_buffer());
-                    else
-                        status = kernel.setArg(i, std::dynamic_pointer_cast<const ocl::gpu_buffer>(data.scale_table)->get_buffer());
-                }
+                status = set_kernel_arg(kernel, i, data.scale_table);
                 break;
             case args_t::SLOPE:
-                if (data.slope) {
-                    if (memory_capabilities::is_usm_type(data.slope->get_allocation_type()))
-                        status = kernel.setArgUsm(i, std::dynamic_pointer_cast<const ocl::gpu_usm>(data.slope)->get_buffer());
-                    else
-                        status = kernel.setArg(i, std::dynamic_pointer_cast<const ocl::gpu_buffer>(data.slope)->get_buffer());
-                }
-                break;
-            case args_t::SPLIT:
-                status = kernel.setArg(i, data.split);
+                status = set_kernel_arg(kernel, i, data.slope);
                 break;
             case args_t::SCALAR:
                 if (data.scalars && args[i].index < data.scalars->size()) {
@@ -217,35 +159,17 @@ void set_arguments_impl(ocl_kernel_type& kernel,
                     }
                 }
                 break;
-            case args_t::RECURRENT:  // RNN/LSTM/GRU layers
-                if (data.recurrent) {
-                    if (data.recurrent->get_layout().format.is_image_2d())
-                        status = kernel.setArg(i, dynamic_cast<const ocl::gpu_image2d&>(*data.recurrent).get_buffer());
-                    else if (memory_capabilities::is_usm_type(data.recurrent->get_allocation_type()))
-                        status = kernel.setArgUsm(i, dynamic_cast<const ocl::gpu_usm&>(*data.recurrent).get_buffer());
-                    else
-                        status = kernel.setArg(i, dynamic_cast<const ocl::gpu_buffer&>(*data.recurrent).get_buffer());
-                }
+            case args_t::RECURRENT:
+                status = set_kernel_arg(kernel, i, data.recurrent);
                 break;
-            case args_t::HIDDEN:  // RNN/LSTM/GRU layers
-                if (data.hidden) {
-                    if (data.hidden->get_layout().format.is_image_2d())
-                        status = kernel.setArg(i, dynamic_cast<const ocl::gpu_image2d&>(*data.hidden).get_buffer());
-                    else if (memory_capabilities::is_usm_type(data.hidden->get_allocation_type()))
-                        status = kernel.setArgUsm(i, dynamic_cast<const ocl::gpu_usm&>(*data.hidden).get_buffer());
-                    else
-                        status = kernel.setArg(i, dynamic_cast<const ocl::gpu_buffer&>(*data.hidden).get_buffer());
-                }
+            case args_t::HIDDEN:
+                status = set_kernel_arg(kernel, i, data.hidden);
                 break;
-            case args_t::CELL:  // LSTMlayers
-                if (data.cell) {
-                    if (data.cell->get_layout().format.is_image_2d())
-                        status = kernel.setArg(i, dynamic_cast<const ocl::gpu_image2d&>(*data.cell).get_buffer());
-                    else if (memory_capabilities::is_usm_type(data.cell->get_allocation_type()))
-                        status = kernel.setArgUsm(i, dynamic_cast<const ocl::gpu_usm&>(*data.cell).get_buffer());
-                    else
-                        status = kernel.setArg(i, dynamic_cast<const ocl::gpu_buffer&>(*data.cell).get_buffer());
-                }
+            case args_t::CELL:
+                status = set_kernel_arg(kernel, i, data.cell);
+                break;
+            case args_t::SHAPE_INFO:
+                status = set_kernel_arg(kernel, i, data.shape_info);
                 break;
             default:
                 break;
@@ -257,76 +181,62 @@ void set_arguments_impl(ocl_kernel_type& kernel,
     }
 }
 
-sync_methods get_expected_sync_method(const engine_configuration &config) {
-    return config.enable_profiling ? sync_methods::events : config.queue_type == queue_types::out_of_order ? sync_methods::barriers
-                                                                                                           : sync_methods::none;
+sync_methods get_expected_sync_method(const ExecutionConfig& config) {
+    auto profiling = config.get_property(ov::enable_profiling);
+    auto queue_type = config.get_property(ov::intel_gpu::queue_type);
+    return profiling ? sync_methods::events : queue_type == QueueTypes::out_of_order ? sync_methods::barriers
+                                                                                     : sync_methods::none;
 }
 
 }  // namespace
 
-ocl_stream::ocl_stream(const ocl_engine &engine)
-    : stream(engine.configuration().queue_type)
+ocl_stream::ocl_stream(const ocl_engine &engine, const ExecutionConfig& config)
+    : stream(config.get_property(ov::intel_gpu::queue_type))
     , _engine(engine)
-    , sync_method(get_expected_sync_method(engine.configuration())) {
+    , sync_method(get_expected_sync_method(config)) {
     auto context = engine.get_cl_context();
     auto device = engine.get_cl_device();
-    auto config = engine.configuration();
     ocl::command_queues_builder queue_builder;
-    queue_builder.set_profiling(config.enable_profiling);
-    queue_builder.set_out_of_order((config.queue_type == queue_types::out_of_order));
+    queue_builder.set_profiling(config.get_property(ov::enable_profiling));
+    queue_builder.set_out_of_order(queue_type == QueueTypes::out_of_order);
 
-    if (sync_method == sync_methods::none && config.queue_type == queue_types::out_of_order) {
+    if (sync_method == sync_methods::none && queue_type == QueueTypes::out_of_order) {
         throw std::runtime_error("[CLDNN] Unexpected sync method (none) is specified for out_of_order queue");
     }
 
     bool priorty_extensions = engine.extension_supported("cl_khr_priority_hints") && engine.extension_supported("cl_khr_create_command_queue");
-    queue_builder.set_priority_mode(config.priority_mode, priorty_extensions);
+    queue_builder.set_priority_mode(config.get_property(ov::intel_gpu::hint::queue_priority), priorty_extensions);
 
     bool throttle_extensions = engine.extension_supported("cl_khr_throttle_hints") && engine.extension_supported("cl_khr_create_command_queue");
-    queue_builder.set_throttle_mode(config.throttle_mode, throttle_extensions);
+    queue_builder.set_throttle_mode(config.get_property(ov::intel_gpu::hint::queue_throttle), throttle_extensions);
 
     bool queue_families_extension = engine.get_device_info().supports_queue_families;
     queue_builder.set_supports_queue_families(queue_families_extension);
 
     _command_queue = queue_builder.build(context, device);
-
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    if (config.queue_type == queue_types::in_order) {
-        auto onednn_engine = engine.get_onednn_engine();
-        _onednn_stream = std::make_shared<dnnl::stream>(dnnl::ocl_interop::make_stream(engine.get_onednn_engine(), _command_queue.get()));
-    }
-#endif
 }
 
-ocl_stream::ocl_stream(const ocl_engine &engine, void *handle)
-    : stream(engine.configuration().queue_type)
+ocl_stream::ocl_stream(const ocl_engine &engine, const ExecutionConfig& config, void *handle)
+    : stream(ocl_stream::detect_queue_type(handle))
     , _engine(engine)
-    , sync_method(get_expected_sync_method(engine.configuration())) {
+    , sync_method(get_expected_sync_method(config)) {
     auto casted_handle = static_cast<cl_command_queue>(handle);
     _command_queue = ocl_queue_type(casted_handle, true);
-
-    if (ocl_stream::detect_queue_type(handle) != engine.configuration().queue_type)
-        throw std::runtime_error("Inconsistent engine config and external user queue are passed to ocl_stream");
-
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    auto config = engine.configuration();
-    if (config.queue_type == queue_types::in_order) {
-        auto onednn_engine = engine.get_onednn_engine();
-        _onednn_stream = std::make_shared<dnnl::stream>(dnnl::ocl_interop::make_stream(engine.get_onednn_engine(), _command_queue.get()));
-    }
-#endif
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-dnnl::stream& ocl_stream::get_onednn_stream() const {
-    if (!_onednn_stream)
-        throw std::runtime_error("[GPU] onednn stream is nullptr");
+dnnl::stream& ocl_stream::get_onednn_stream() {
+    OPENVINO_ASSERT(queue_type == QueueTypes::in_order, "[GPU] Can't create onednn stream handle as onednn doesn't support out-of-order queue");
+    OPENVINO_ASSERT(_engine.get_device_info().vendor_id == INTEL_VENDOR_ID, "[GPU] Can't create onednn stream handle as for non-Intel devices");
+    if (!_onednn_stream) {
+        _onednn_stream = std::make_shared<dnnl::stream>(dnnl::ocl_interop::make_stream(_engine.get_onednn_engine(), _command_queue.get()));
+    }
 
     return *_onednn_stream;
 }
 #endif
 
-queue_types ocl_stream::detect_queue_type(void *queue_handle) {
+QueueTypes ocl_stream::detect_queue_type(void *queue_handle) {
     cl_command_queue queue = static_cast<cl_command_queue>(queue_handle);
     cl_command_queue_properties properties;
     auto status = clGetCommandQueueInfo(queue, CL_QUEUE_PROPERTIES, sizeof(cl_command_queue_properties), &properties, nullptr);
@@ -334,7 +244,7 @@ queue_types ocl_stream::detect_queue_type(void *queue_handle) {
         throw std::runtime_error("Can't get queue properties for user handle\n");
     }
 
-    return (properties & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE) ? queue_types::out_of_order : queue_types::in_order;
+    return (properties & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE) ? QueueTypes::out_of_order : QueueTypes::in_order;
 }
 
 void ocl_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args_desc, const kernel_arguments_data& args) {
@@ -346,6 +256,7 @@ void ocl_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args
     auto& kern = ocl_kernel.get_handle();
 
     try {
+        GPU_DEBUG_TRACE_DETAIL << "Set arguments for primitive: " << args_desc.layerID << " (" << kern.get() << ")\n";
         set_arguments_impl(kern, args_desc.arguments, args);
     } catch (cl::Error const& err) {
         throw ocl_error(err);
@@ -444,10 +355,26 @@ void ocl_stream::wait_for_events(const std::vector<event::ptr>& events) {
     if (events.empty())
         return;
 
+    bool needs_barrier = false;
     std::vector<cl::Event> clevents;
     for (auto& ev : events) {
-        if (auto ocl_base_ev = downcast<ocl_base_event>(ev.get()))
-            clevents.push_back(ocl_base_ev->get());
+        if (auto ocl_base_ev = downcast<ocl_base_event>(ev.get())) {
+            if (ocl_base_ev->get().get() != nullptr) {
+                clevents.push_back(ocl_base_ev->get());
+            } else {
+                needs_barrier = true;
+            }
+        }
+    }
+
+    if (needs_barrier) {
+        try {
+            cl::Event barrier_ev;
+            _command_queue.enqueueBarrierWithWaitList(nullptr, &barrier_ev);
+            clevents.push_back(barrier_ev);
+        } catch (cl::Error const& err) {
+            throw ocl_error(err);
+        }
     }
 
     try {

@@ -1,14 +1,14 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
 from common.layer_test_class import check_ir_version
-from common.onnx_layer_test_class import Caffe2OnnxLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest
 
 from unit_tests.utils.graph import build_graph
 
 
-class TestNeg(Caffe2OnnxLayerTest):
+class TestNeg(OnnxRuntimeLayerTest):
     def create_neg(self, shape, ir_version):
         """
             ONNX net                   IR net
@@ -80,14 +80,14 @@ class TestNeg(Caffe2OnnxLayerTest):
 
     @pytest.mark.parametrize('params', test_data_precommit)
     @pytest.mark.precommit
-    def test_neg_precommit(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_neg_precommit(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_neg(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize('params', test_data)
     @pytest.mark.nightly
-    def test_neg(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_neg(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_neg(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)

@@ -15,9 +15,9 @@ namespace intel_gpu {
 namespace {
 
 void CreateRollOp(Program& p, const std::shared_ptr<ngraph::op::v7::Roll>& op) {
-    p.ValidateInputs(op, {3});
+    validate_inputs_count(op, {3});
 
-    const auto inputs = p.GetInputPrimitiveIDs(op);
+    const auto inputs = p.GetInputInfo(op);
     const auto layer_name = layer_type_name_ID(op);
     const auto& op_friendly_name = op->get_friendly_name();
     const auto& input_pshape = op->get_input_partial_shape(0);
@@ -62,9 +62,8 @@ void CreateRollOp(Program& p, const std::shared_ptr<ngraph::op::v7::Roll>& op) {
         }
     }
 
-    const cldnn::roll roll_prim(layer_name, inputs.front(), {format, shift}, op_friendly_name);
-    p.AddPrimitive(roll_prim);
-    p.AddPrimitiveToProfiler(op);
+    const cldnn::roll roll_prim(layer_name, inputs.front(), {format, shift});
+    p.add_primitive(*op, roll_prim);
 }
 
 }  // namespace

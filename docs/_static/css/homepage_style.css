@@ -8,261 +8,95 @@
 img {
 	cursor: default;
 }
+/* === OPENVINO INTRO ================================================= */
 
+.openvino-intro-text {
 
-/* === SEPARATOR HEADERS ================================================= */
-.HP_separator-header { 
-	font-weight: bold;
-	text-align: center;
-	width: 100%;
-	height: 2em;
-	line-height: 2em;
-	margin: 40px auto;
-}
-
-.HP_separator-header p { 
-	display: inline-block;
-	line-height: 1em;
-	margin: 0 auto;
-	color: #0068B5;
-	background-color: #fff;
-	padding: 0 15px;
-}
-
-.HP_separator-header::before { 
-    display: block;
-	content: "";
-	position: relative;
-	top: 1em;
-	margin: 0;
-    border-top: 1px solid #0068B5;
-    width: 100%;
-	z-index: -1;
-}
-
-/* === HEADER BANNER ===================================================== */
-/*#HP_head_banner {
-	width: 100%;
-	height: auto;
-	background: left / cover no-repeat url("../images/head_banner.jpg");
-	overflow: hidden;
-	padding: 3% 5% 5% 5%;
-	margin-bottom: 20px;
-	margin-top: -15px;
-}
-#HP_head_banner > p {
-float: right;
-    font-size: 1.5em;
-    font-weight: bold;
-    color: #fff;
-    width: 100%;
-    text-align: right;
-    background-color: #0008;
-    margin-bottom: 40px;
-    margin-top: 10px;
-}
-#HP_head_banner > div {
-	float: left;
-	width: 350px;
-}
-#HP_head_banner > div > a {
-	height: 2em;
-	width: 2em;
-	float: left;
-	margin-right: 5px;
-	text-align: center;
-	background-color: #fff;
-	padding: 3px;
-	
-	transition: all 0.5s;
-	-webkit-transition: all 0.5s;
-	-moz-transition: all 0.5s;
-	-o-transition: all 0.5s;
-	-ms-transition: all 0.5s;
-}
-#HP_head_banner > div > a img{
-	vertical-align: inherit;
-	transition: all 0.5s;
-	-webkit-transition: all 0.5s;
-	-moz-transition: all 0.5s;
-	-o-transition: all 0.5s;
-	-ms-transition: all 0.5s;
-}
-
-#HP_head_banner > div > a:nth-of-type(1) {
-	width: 9em;
-	padding: 4px;
-	font-weight: bold;
-	color: #0068B5;
-	text-decoration: none;
-}
-
-#HP_head_banner > div > a:hover {
-	color: #fff;
-	background-color: #0068B5;
-}
-#HP_head_banner > div > a:hover img{
-	filter: brightness(0%) invert(100%);
-}
-
-#HP_head_banner ~ div ~ p {
-	text-align: left;
-}
-*/
-/* === OV workflow chart ===================================================== */	
-
-#HP_flow-container {
-	margin: 0 auto;
-	width: 650px;
-}
-
-#HP_flow-a, #HP_flow-b, #HP_flow-c, .HP_flow-arrow {
-	float: left;
-	margin: 0;
-}
-
-#HP_flow-a div {
-	background-image: url("../images/OV_flow_model.svg");
-}    
-#HP_flow-b div {
-	background: url("../images/OV_flow_optimization.svg");
-} 
-#HP_flow-c div {
-	background: url("../images/OV_flow_deployment.svg");	
-} 
-
-
-#HP_flow-a div, #HP_flow-b div, #HP_flow-c div {
-	width: 170px;
-	height: 330px;
-	background-repeat: no-repeat;
-	background-size: 340px auto;
-	background-position: 0 0;
-}
-
-	
-
-#HP_flow-a:hover div, #HP_flow-b:hover div, #HP_flow-c:hover div {
-	background-position: -170px 0;
-}
-
-.HP_flow-arrow {
-	width: 60px;
-	height: 330px;
-	background: no-repeat url("../images/OV_flow_arrow.svg");	
-	background-position: center 55px;
-	background-size: 28px;
-}
-
-
-
-
-
-.HP_img_chart {
-	display: block;
-	margin: 40px auto 60px auto;
-	width:80%;
-	cursor: default !important;
-}
-img.HP_img_chart ~ p {
-	margin-top: -40px;
-	font-size: 0.7em;
-}
-
-
-
-
-
-/* === INFORMATION BOXES ================================================= */
-.HP_infoboxes {
-	width: 100%;
-	height: auto;
-	margin: 0; 
-	margin-bottom: 10px;
-}
-.HP_infoboxes a {
-	background-color: #0068B5;
-	height: 150px;
-	padding: 5px 2%;
-	float: left;
-	margin: 0 1% 10px 1%;
-	width: 32%;
-}
-
-.HP_infoboxes a p,
-.HP_infoboxes a h3 {
-	color: #fff;
-	margin: 0;
-	text-align: left;
-	
-	transition: all 0.5s;
-	-webkit-transition: all 0.5s;
-	-moz-transition: all 0.5s;
-	-o-transition: all 0.5s;
-	-ms-transition: all 0.5s;
-}
-.HP_infoboxes a h3 {
-	display: table-cell;
-	width: 300px;
-	vertical-align: middle;
-	height: 35px;
-	border-bottom: solid 1px #fff;
-	font-weight: bold;
 	font-size: 1em;
-	margin-bottom: 5px;
+
 }
-.HP_infoboxes a p {
-	font-size: 0.9em;
-	line-height: 1.5em;
-	    margin-top: 5px;
+/* === OPENVINO DIAGRAM ================================================= */
+
+@media only screen and (min-width: 1100px) {
+	.openvino-diagram {
+		width: 70%;
+	}
+	}
+
+@media only screen and (max-width: 1099px) {
+	.openvino-diagram {
+		width: 100%;
+	}
+	}
+
+
+
+/* === PANELS ================================================= */
+
+.homepage-panels {
+	background: #0068B5;
+	border: none!important;
+	border-radius: 0!important;
+}
+.homepage-panels p.card-text  {
+	color:white;
+}
+.homepage-panels p:first-of-type {
+	border-bottom: 1px solid white;
 }
 
-.HP_infoboxes a:hover h3 {
-	font-size: 1.1em;
-	text-decoration:none !important;
+/* === OV workflow chart ===================================================== */
+#hp-flow-container {
+	margin: 0 auto;
+	width: 90%;
 }
-/*.HP_infoboxes a:hover p {
-	margin-top: 10px;
-	text-decoration:none !important;
-}*/
 
-/* === screen wide =================================================== */
+#hp-flow-container div {
+	margin: 0;
+	float: left;
+}
+
+div.hp-flow-arrow {
+	width: 5%;
+	padding: 40px 5px;
+}
+
+div.hp-flow-btn {
+	width: 30%;
+	background-repeat: no-repeat;
+}
+
+#hp-flow-container div.hp-flow-btn:nth-of-type(1) {
+	background-image: url("../images/OV_flow_model.svg");
+}
+#hp-flow-container div.hp-flow-btn:nth-of-type(3) {
+	background-image: url("../images/OV_flow_optimization.svg");
+}
+#hp-flow-container div.hp-flow-btn:nth-of-type(5) {
+	background-image: url("../images/OV_flow_deployment.svg");
+}
+
+div.hp-flow-btn a img {
+	width: 100%;
+	visibility: hidden;
+}
+
+div.hp-flow-btn:hover a img {
+	visibility: visible;
+}
+
 /* =================================================================== */
-@media only screen and (min-width: 901px) {
-	.HP_infoboxes a {
-		width: 32%;
-	}	
-	.HP_infoboxes a:nth-of-type(1), 
-	.HP_infoboxes a:nth-of-type(4), 
-	.HP_infoboxes a:nth-of-type(7) {
-		margin-left: 0;
+@media only screen and (max-width: 500px) {
+	#hp-flow-container div {
+		float: none;
+		margin: 0 auto;
 	}
-	.HP_infoboxes a:nth-of-type(3), 
-	.HP_infoboxes a:nth-of-type(6), 
-	.HP_infoboxes a:nth-of-type(9) {
-		margin-right: 0;
-	}	
-}
-/* === screen narrow =================================================== */
-/* =================================================================== */
-@media only screen and (max-width: 900px) {
-	.HP_infoboxes a {
-		width: 48%;
-		margin-left: 0;
-		margin-right: 2%;
-	}	
-	.HP_infoboxes a:nth-of-type(2n) {
-		margin-left: 2%;
-		margin-right: 0;
-	}	
-	
-	#HP_flow-container {
-		width: 580px;
+
+	div.hp-flow-arrow {
+		display: none;
 	}
-	.HP_flow-arrow {
-		width: 20px;
-		background-position: -10px 55px;
+
+	div.hp-flow-btn {
+		width: 50%;
 	}
 }
-
-

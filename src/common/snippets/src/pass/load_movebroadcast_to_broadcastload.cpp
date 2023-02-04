@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@
 ngraph::snippets::pass::LoadMoveBroadcastToBroadcastLoad::LoadMoveBroadcastToBroadcastLoad() {
     MATCHER_SCOPE(LoadMoveBroadcastToBroadcastLoad);
     auto param_pattern = ngraph::pattern::wrap_type<ngraph::opset1::Parameter>();
-    auto load_pattern = std::make_shared<ngraph::snippets::op::Load>(param_pattern);
+    auto load_pattern = ngraph::pattern::wrap_type<ngraph::snippets::op::Load>({param_pattern});
     auto fbn = std::make_shared<ngraph::snippets::op::BroadcastMove>(load_pattern, Shape{1});
 
     register_matcher(std::make_shared<ngraph::pattern::Matcher>(fbn, matcher_name),
@@ -27,32 +27,20 @@ ngraph::snippets::pass::LoadMoveBroadcastToBroadcastLoad::LoadMoveBroadcastToBro
             const auto input = pm.at(load_pattern).get_node_shared_ptr();
             const auto param = pm.at(param_pattern).get_node_shared_ptr();
 
-            // check if load has more than 1 user to avoid load+broadcast load on the same parameter
-            if (input->output(0).get_target_inputs().size() != 1) {
+            // Cannot rewrite Broadcast + Load if load has more than 1 user
+            // or more than one input, or if Broadcast has several inputs
+            if (input->output(0).get_target_inputs().size() != 1 ||
+                root->inputs().size() != 1 || input->inputs().size() != 1) {
                 return false;
             }
 
-            if (root->inputs().size() != 1 || input->inputs().size() != 1) {
-                throw ngraph_error("cannot rewrite Broadcast load with more than one input");
-            }
+            auto inshape = root->input(0).get_partial_shape();
+            auto outshape = root->output(0).get_partial_shape();
 
-            auto inshape = root->input(0).get_shape();
-            auto outshape = root->output(0).get_shape();
-            auto broadcastload = std::make_shared<snippets::op::BroadcastLoad>(param, outshape);
-            Shape bct(inshape.size(), 0);
-            for (size_t k = 0; k < inshape.size(); k++) {
-                if (inshape[k] != outshape[k] && inshape[k] == 1) {
-                    bct[k] = 1;
-                }
-            }
-            // Todo: consider refactoring BroadcastLoad, it seems we don't need broadcast_info at this point.
-            broadcastload->set_broadcast_info(bct);
-            if (inshape.back() == 1 && outshape.back() != 1) {
-                ngraph::copy_runtime_info(root, broadcastload);
-                ngraph::replace_node(root, broadcastload);
-                return true;
-            } else {
-                return false;
-            }
+            auto broadcastload = std::make_shared<snippets::op::BroadcastLoad>(param, outshape, ov::as_type_ptr<snippets::op::Load>(input)->get_offset());
+            ngraph::copy_runtime_info(root, broadcastload);
+            ngraph::replace_node(root, broadcastload);
+
+            return true;
         });
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v6::ExperimentalDetectronGenerateProposalsSingleImage);
-
 op::v6::ExperimentalDetectronGenerateProposalsSingleImage::ExperimentalDetectronGenerateProposalsSingleImage(
     const Output<Node>& im_info,
     const Output<Node>& anchors,
@@ -29,7 +27,7 @@ op::v6::ExperimentalDetectronGenerateProposalsSingleImage::ExperimentalDetectron
 
 shared_ptr<Node> op::v6::ExperimentalDetectronGenerateProposalsSingleImage::clone_with_new_inputs(
     const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v6_ExperimentalDetectronGenerateProposalsSingleImage_clone_with_new_inputs);
+    OV_OP_SCOPE(v6_ExperimentalDetectronGenerateProposalsSingleImage_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(new_args.at(0),
                                                                                   new_args.at(1),
@@ -39,7 +37,7 @@ shared_ptr<Node> op::v6::ExperimentalDetectronGenerateProposalsSingleImage::clon
 }
 
 bool op::v6::ExperimentalDetectronGenerateProposalsSingleImage::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v6_ExperimentalDetectronGenerateProposalsSingleImage_visit_attributes);
+    OV_OP_SCOPE(v6_ExperimentalDetectronGenerateProposalsSingleImage_visit_attributes);
     visitor.on_attribute("min_size", m_attrs.min_size);
     visitor.on_attribute("nms_threshold", m_attrs.nms_threshold);
     visitor.on_attribute("post_nms_count", m_attrs.post_nms_count);
@@ -48,7 +46,7 @@ bool op::v6::ExperimentalDetectronGenerateProposalsSingleImage::visit_attributes
 }
 
 void op::v6::ExperimentalDetectronGenerateProposalsSingleImage::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v6_ExperimentalDetectronGenerateProposalsSingleImage_validate_and_infer_types);
+    OV_OP_SCOPE(v6_ExperimentalDetectronGenerateProposalsSingleImage_validate_and_infer_types);
 
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}, ov::PartialShape{}};
     std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),

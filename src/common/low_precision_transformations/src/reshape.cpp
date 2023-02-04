@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -118,7 +118,7 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
         const std::shared_ptr<Node> broadcastedConstant = getBCastedConst(originalConstant, dimensionsToBroadcast);
 
         std::vector<int> newReshapeConstValues(reshapeOutputRank.get_length(), 1ul);
-        newReshapeConstValues[1] = reshapeOutputPShape[1].get_length();
+        newReshapeConstValues[1] = static_cast<int>(reshapeOutputPShape[1].get_length());
         const std::shared_ptr<opset1::Constant> newReshapeConstant = std::make_shared<opset1::Constant>(
             element::i32,
             Shape({ newReshapeConstValues.size() }),
@@ -211,7 +211,7 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
     }
 
     const PartialShape outputPShape = op->get_output_partial_shape(0);
-    if (outputPShape[1].is_dynamic()) {
+    if (outputPShape.size() < 2 || outputPShape[1].is_dynamic()) {
         return false;
     }
 

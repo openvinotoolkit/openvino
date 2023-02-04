@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,8 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::Proposal>& op) {
-    p.ValidateInputs(op, {3});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    validate_inputs_count(op, {3});
+    auto inputs = p.GetInputInfo(op);
 
     auto attrs = op->get_attrs();
     float nms_thresh = attrs.nms_thresh;
@@ -60,31 +60,26 @@ static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
             mutable_precision = ngraph::element::i32;
         }
 
-        cldnn::layout mutableLayout = cldnn::layout(DataTypeFromPrecision(mutable_precision),
+        cldnn::layout mutableLayout = cldnn::layout(cldnn::element_type_to_data_type(mutable_precision),
                                                     cldnn::format::get_default_format(op->get_output_shape(1).size()),
                                                     tensor_from_dims(op->get_output_shape(1)));
 
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(debug_config->verbose >= 2) {
-            GPU_DEBUG_COUT << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;
-        }
-        auto shared_memory = p.GetEngine().allocate_memory(mutableLayout);
+        GPU_DEBUG_LOG << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;
+        auto shared_memory = p.get_engine().allocate_memory(mutableLayout);
 
         cldnn::primitive_id proposal_mutable_id_w = layer_type_name_ID(op) + "_md_write";
         auto argmax_mutable_prim = cldnn::mutable_data(proposal_mutable_id_w,
-                                                       shared_memory,
-                                                       op->get_friendly_name());
-        p.primitiveIDs[proposal_mutable_id_w] = proposal_mutable_id_w;
-        p.AddPrimitive(argmax_mutable_prim);
-        inputPrimitives.push_back(proposal_mutable_id_w);
+                                                       shared_memory);
+        p.add_primitive(*op, argmax_mutable_prim);
+        inputs.push_back(cldnn::input_info(proposal_mutable_id_w));
 
-        std::string proposalLayerName = layer_type_name_ID(op) + ".0";
+        std::string proposalLayerName = layer_type_name_ID(op) + ".out0";
         auto proposalPrim = cldnn::proposal(proposalLayerName,
-                                            inputPrimitives[0],  // cls_score
-                                            inputPrimitives[1],  // bbox_pred
-                                            inputPrimitives[2],  // im_info
-                                            inputPrimitives[3],  // second_output
-                                            0,                   // max_num_proposals is unused
+                                            inputs[0],  // cls_score
+                                            inputs[1],  // bbox_pred
+                                            inputs[2],  // im_info
+                                            inputs[3],  // second_output
+                                            0,          // max_num_proposals is unused
                                             nms_thresh,
                                             base_size,
                                             min_size,
@@ -103,29 +98,24 @@ static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
                                             clip_after_nms,
                                             round_ratios,
                                             shift_anchors,
-                                            normalize,
-                                            op->get_friendly_name());
+                                            normalize);
 
-        p.AddPrimitive(proposalPrim);
+        p.add_primitive(*op, proposalPrim);
 
-        cldnn::primitive_id proposal_mutable_id_r = layer_type_name_ID(op) + ".1";
+        cldnn::primitive_id proposal_mutable_id_r = layer_type_name_ID(op) + ".out1";
         auto argmax_mutable_prim_r = cldnn::mutable_data(proposal_mutable_id_r,
-                                                         { proposalLayerName },
-                                                         shared_memory,
-                                                         op->get_friendly_name());
-        p.primitiveIDs[proposal_mutable_id_r] = proposal_mutable_id_r;
-        p.AddPrimitive(argmax_mutable_prim_r);
-
-        p.AddPrimitiveToProfiler(proposalLayerName, op);
+                                                         { cldnn::input_info(proposalLayerName) },
+                                                         shared_memory);
+        p.add_primitive(*op, argmax_mutable_prim_r);
         return;
     }
 
     std::string proposalLayerName = layer_type_name_ID(op);
     auto proposalPrim = cldnn::proposal(proposalLayerName,
-                                        inputPrimitives[0],  // cls_score
-                                        inputPrimitives[1],  // bbox_pred
-                                        inputPrimitives[2],  // im_info
-                                        0,                   // max_num_proposals is unused
+                                        inputs[0],  // cls_score
+                                        inputs[1],  // bbox_pred
+                                        inputs[2],  // im_info
+                                        0,          // max_num_proposals is unused
                                         nms_thresh,
                                         base_size,
                                         min_size,
@@ -144,11 +134,9 @@ static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
                                         clip_after_nms,
                                         round_ratios,
                                         shift_anchors,
-                                        normalize,
-                                        op->get_friendly_name());
+                                        normalize);
 
-    p.AddPrimitive(proposalPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, proposalPrim);
 }
 
 REGISTER_FACTORY_IMPL(v0, Proposal);

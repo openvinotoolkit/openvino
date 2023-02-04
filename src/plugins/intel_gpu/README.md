@@ -41,7 +41,7 @@ The software dependencies are:
 
 > Intel® CPU intrinsics header (`<immintrin.h>`) must be available during compilation.
 
-- [python™](https://www.python.org/downloads/) 2.7 or later (scripts are both compatible with python™ 2.7.x and python™ 3.x)
+- [python™](https://www.python.org/downloads/) 3.7 or later.
 
 # Trademark Information
 

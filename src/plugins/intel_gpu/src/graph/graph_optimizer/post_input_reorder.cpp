@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "pass_manager.h"
 #include "impls/ocl/primitive_base.hpp"
@@ -26,7 +24,10 @@ program_node& post_input_reorder::add_reorder(program& p,
     auto& new_reorder_node = p.get_or_create(new_reorder);
 
     // ToDo: add a method to program class which adds an intermediate node given a node and its user
-    auto it = std::find(usr->get_dependencies().begin(), usr->get_dependencies().end(), node);
+    auto it = std::find_if(usr->get_dependencies().begin(), usr->get_dependencies().end(),
+    [&](const std::pair<program_node*, int32_t>& dep) {
+        return node == dep.first;
+    });
     if (it == usr->get_dependencies().end()) {
         throw std::runtime_error("Inconcistency in topology description: user of a node is not present among its dependecies.");
     }
@@ -52,20 +53,24 @@ void post_input_reorder::run(program& p) {
                 *static_cast<kernel_selector::fully_connected_params*>(fc_impl->_kernel_data.params.get());
 
             auto layout_format = from_data_layout(fc_params.inputs[0].GetLayout());
-            auto& input = node->get_dependencies()[0];
+            auto& input = node->get_dependencies()[0].first;
             auto input_layout = input->get_output_layout();
 
             if (input_layout.format != layout_format) {
                 auto previous_layout = node->get_output_layout();
-                layout current_layout(input_layout.data_type,
+                layout current_layout(input_layout.get_partial_shape(),
+                                      input_layout.data_type,
                                       layout_format,
-                                      input_layout.get_tensor(),
                                       input_layout.data_padding);
                 auto& reorder = add_reorder(p, input, node, current_layout);
                 reorder.set_unique_id();
                 reorder.get_output_layout(false);
                 node->set_output_layout(previous_layout, false);
                 reorder.set_selected_impl(reorder.type()->choose_impl(reorder));
+                if (auto impl = reorder.get_selected_impl()) {
+                    auto kernel_ids = p.get_kernels_cache().add_kernels_source(impl->get_kernels_source());
+                    impl->set_kernel_ids(kernel_ids);
+                }
             }
         }
     }

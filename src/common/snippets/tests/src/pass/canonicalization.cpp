@@ -23,12 +23,12 @@ std::string CanonicalizationTests::getTestCaseName(testing::TestParamInfo<canoni
         // input shape
         result << "IS[" << i << "]=" << CommonTestUtils::vec2str(std::get<0>(inputs[i])) << "_";
         // input blocked shape
-        result << "IBS[" << i << "]=" << CommonTestUtils::vec2str(std::get<0>(blockedshape)) << "_";
+        result << "IBS[" << i << "]=" << CommonTestUtils::partialShape2str({std::get<0>(blockedshape)}) << "_";
         // input blocked order
         result << "IBO[" << i << "]=" << CommonTestUtils::vec2str(std::get<1>(blockedshape)) << "_";
     }
     // output blocked shape
-    result << "OBS[0]=" << CommonTestUtils::vec2str(std::get<0>(output)) << "_";
+    result << "OBS[0]=" << CommonTestUtils::partialShape2str({std::get<0>(output)}) << "_";
     // output blocked order
     result << "OBO[0]=" << CommonTestUtils::vec2str(std::get<1>(output)) << "_";
     result << "ExpOS[0]=" << CommonTestUtils::vec2str(expectedOutput) << "_";
@@ -42,15 +42,17 @@ void CanonicalizationTests::SetUp() {
     std::tie(inputs[0], inputs[1], output_blocked_shapes[0], expected_output_shape) = this->GetParam();
 
     input_blocked_shapes = {std::get<1>(inputs[0]), std::get<1>(inputs[1])};
-    snippets_function = std::make_shared<AddFunction>(std::vector<Shape>{std::get<0>(inputs[0]), std::get<0>(inputs[1])});
+    snippets_function = std::make_shared<AddFunction>(std::vector<PartialShape>{std::get<0>(inputs[0]), std::get<0>(inputs[1])});
 }
 
 TEST_P(CanonicalizationTests, Add) {
     function = snippets_function->getOriginal();
     function_ref = snippets_function->getReference();
     auto subgraph =  getTokenizedSubgraph(function);
-    Shape canonical_output_shape = subgraph->canonicalize(output_blocked_shapes, input_blocked_shapes);
-    ASSERT_DIMS_EQ(canonical_output_shape, expected_output_shape);
+    subgraph->set_generator(std::make_shared<DummyGenerator>());
+    auto canonical_output_shape = subgraph->canonicalize(output_blocked_shapes, input_blocked_shapes);
+    ASSERT_TRUE(canonical_output_shape.is_static());
+    ASSERT_DIMS_EQ(canonical_output_shape.get_shape(), expected_output_shape);
 }
 
 namespace CanonicalizationTestsInstantiation {

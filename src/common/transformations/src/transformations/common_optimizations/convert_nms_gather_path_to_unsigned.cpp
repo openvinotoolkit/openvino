@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp"
@@ -6,13 +6,13 @@
 #include <memory>
 #include <ngraph/op/util/broadcast_base.hpp>
 #include <ngraph/op/util/gather_base.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset3.hpp>
-#include <ngraph/opsets/opset5.hpp>
-#include <ngraph/opsets/opset8.hpp>
-#include <ngraph/opsets/opset9.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset3.hpp>
+#include <openvino/opsets/opset5.hpp>
+#include <openvino/opsets/opset8.hpp>
+#include <openvino/opsets/opset9.hpp>
 #include <transformations/rt_info/nms_selected_indices.hpp>
 
 #include "itt.hpp"
@@ -20,7 +20,7 @@
 
 using namespace std;
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 class InitNMSPath : public pass::MatcherPass {
 public:
@@ -100,10 +100,10 @@ public:
     }
 };
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-ngraph::pass::ConvertNmsGatherPathToUnsigned::ConvertNmsGatherPathToUnsigned() {
-    add_matcher<InitNMSPath>();
-    add_matcher<PropagateNMSPath>();
-    add_matcher<UpdateConvertGather>();
+ov::pass::ConvertNmsGatherPathToUnsigned::ConvertNmsGatherPathToUnsigned() {
+    ADD_MATCHER_FOR_THIS(InitNMSPath)
+    ADD_MATCHER_FOR_THIS(PropagateNMSPath)
+    ADD_MATCHER_FOR_THIS(UpdateConvertGather)
 }

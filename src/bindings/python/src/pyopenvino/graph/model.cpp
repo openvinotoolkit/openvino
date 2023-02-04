@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,10 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <utility>
+#include <vector>
+
+#include "openvino/core/except.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"  // ov::Model
 #include "openvino/core/partial_shape.hpp"
@@ -17,6 +21,7 @@
 #include "pyopenvino/graph/ops/result.hpp"
 #include "pyopenvino/graph/ops/util/variable.hpp"
 #include "pyopenvino/graph/rt_map.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -24,7 +29,7 @@ using PyRTMap = ov::RTMap;
 
 PYBIND11_MAKE_OPAQUE(PyRTMap);
 
-void set_tensor_names(const ov::ParameterVector& parameters) {
+static void set_tensor_names(const ov::ParameterVector& parameters) {
     for (const auto& param : parameters) {
         ov::Output<ov::Node> p = param;
         if (p.get_node()->output(0).get_names().empty()) {
@@ -34,7 +39,7 @@ void set_tensor_names(const ov::ParameterVector& parameters) {
     }
 }
 
-ov::SinkVector cast_to_sink_vector(const std::vector<std::shared_ptr<ov::Node>>& nodes) {
+static ov::SinkVector cast_to_sink_vector(const std::vector<std::shared_ptr<ov::Node>>& nodes) {
     ov::SinkVector sinks;
     for (const auto& node : nodes) {
         auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node);
@@ -314,7 +319,7 @@ void regclass_graph_Model(py::module m) {
     model.def(
         "reshape",
         [](ov::Model& self, const std::string& partial_shape) {
-            self.reshape(Common::partial_shape_from_str(partial_shape));
+            self.reshape(ov::PartialShape(partial_shape));
         },
         py::call_guard<py::gil_scoped_release>(),
         py::arg("partial_shape"),
@@ -351,7 +356,7 @@ void regclass_graph_Model(py::module m) {
                 } else if (py::isinstance<py::list>(item.second) || py::isinstance<py::tuple>(item.second)) {
                     new_shape.second = Common::partial_shape_from_list(item.second.cast<py::list>());
                 } else if (py::isinstance<py::str>(item.second)) {
-                    new_shape.second = Common::partial_shape_from_str(item.second.cast<std::string>());
+                    new_shape.second = ov::PartialShape(item.second.cast<std::string>());
                 } else {
                     throw py::type_error(
                         "Incorrect value type " + std::string(item.second.get_type().str()) +
@@ -702,8 +707,148 @@ void regclass_graph_Model(py::module m) {
                outputs_str + "\n]>";
     });
 
+    model.def("__copy__", [](ov::Model& self) {
+        auto error_message =
+            py::detail::c_str(std::string("cannot copy 'openvino.runtime.Model. Please, use deepcopy instead."));
+        PyErr_SetString(PyExc_TypeError, error_message);
+        throw py::error_already_set();
+    });
+
+    model.def(
+        "__deepcopy__",
+        [](ov::Model& self, py::dict) {
+            return self.clone();
+        },
+        R"(
+        Returns a deepcopy of Model.
+
+        :return: A copy of Model.
+        :rtype: openvino.runtime.Model
+    )");
+
+    model.def("get_rt_info",
+              (PyRTMap & (ov::Model::*)()) & ov::Model::get_rt_info,
+              py::return_value_policy::reference_internal,
+              R"(
+                Returns PyRTMap which is a dictionary of user defined runtime info.
+
+                :return: A dictionary of user defined data.
+                :rtype: openvino.runtime.RTMap
+             )");
+    model.def(
+        "get_rt_info",
+        [](const ov::Model& self, const py::list& path) -> py::object {
+            std::vector<std::string> cpp_args(path.size());
+            for (size_t i = 0; i < path.size(); i++) {
+                cpp_args[i] = path[i].cast<std::string>();
+            }
+            return Common::utils::from_ov_any(self.get_rt_info<ov::Any>(cpp_args));
+        },
+        py::arg("path"),
+        R"(
+                Returns runtime attribute.
+
+                :param path: List of strings which defines a path to runtime info.
+                :type path: List[str]
+
+                :return: A runtime attribute.
+                :rtype: Any
+             )");
+    model.def(
+        "get_rt_info",
+        [](const ov::Model& self, const py::str& path) -> py::object {
+            return Common::utils::from_ov_any(self.get_rt_info<ov::Any>(path.cast<std::string>()));
+        },
+        py::arg("path"),
+        R"(
+                Returns runtime attribute.
+
+                :param path: List of strings which defines a path to runtime info.
+                :type path: str
+
+                :return: A runtime attribute.
+                :rtype: Any
+             )");
+    model.def(
+        "has_rt_info",
+        [](const ov::Model& self, const py::list& path) -> bool {
+            // FIXME: understand why has_rt_info causes Python crash
+            try {
+                std::vector<std::string> cpp_args(path.size());
+                for (size_t i = 0; i < path.size(); i++) {
+                    cpp_args[i] = path[i].cast<std::string>();
+                }
+                self.get_rt_info<ov::Any>(cpp_args);
+                return true;
+            } catch (ov::Exception&) {
+                return false;
+            }
+        },
+        py::arg("path"),
+        R"(
+                Checks if given path exists in runtime info of the model.
+
+                :param path: List of strings which defines a path to runtime info.
+                :type path: List[str]
+
+                :return: `True` if path exists, otherwise `False`.
+                :rtype: bool
+             )");
+    model.def(
+        "has_rt_info",
+        [](const ov::Model& self, const py::str& path) -> bool {
+            return self.has_rt_info(path.cast<std::string>());
+        },
+        py::arg("path"),
+        R"(
+                Checks if given path exists in runtime info of the model.
+
+                :param path: List of strings which defines a path to runtime info.
+                :type path: str
+
+                :return: `True` if path exists, otherwise `False`.
+                :rtype: bool
+             )");
+    model.def(
+        "set_rt_info",
+        [](ov::Model& self, const py::object& obj, const py::list& path) -> void {
+            std::vector<std::string> cpp_args(path.size());
+            for (size_t i = 0; i < path.size(); i++) {
+                cpp_args[i] = path[i].cast<std::string>();
+            }
+            self.set_rt_info<ov::Any>(Common::utils::py_object_to_any(obj), cpp_args);
+        },
+        py::arg("obj"),
+        py::arg("path"),
+        R"(
+                Add value inside runtime info
+
+                :param obj: value for the runtime info
+                :type obj: py:object
+                :param path: List of strings which defines a path to runtime info.
+                :type path: List[str]
+             )");
+    model.def(
+        "set_rt_info",
+        [](ov::Model& self, const py::object& obj, const py::str& path) -> void {
+            self.set_rt_info<ov::Any>(Common::utils::py_object_to_any(obj), path.cast<std::string>());
+        },
+        py::arg("obj"),
+        py::arg("path"),
+        R"(
+                Add value inside runtime info
+
+                :param obj: value for the runtime info
+                :type obj: Any
+                :param path: String which defines a path to runtime info.
+                :type path: str
+             )");
+
     model.def_property_readonly("inputs", (std::vector<ov::Output<ov::Node>>(ov::Model::*)()) & ov::Model::inputs);
     model.def_property_readonly("outputs", (std::vector<ov::Output<ov::Node>>(ov::Model::*)()) & ov::Model::outputs);
     model.def_property_readonly("name", &ov::Model::get_name);
+    model.def_property_readonly("rt_info",
+                                (PyRTMap & (ov::Model::*)()) & ov::Model::get_rt_info,
+                                py::return_value_policy::reference_internal);
     model.def_property("friendly_name", &ov::Model::get_friendly_name, &ov::Model::set_friendly_name);
 }

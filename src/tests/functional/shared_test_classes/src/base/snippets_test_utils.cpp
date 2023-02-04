@@ -3,11 +3,16 @@
 //
 
 #include "shared_test_classes/base/snippets_test_utils.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "exec_graph_info.hpp"
 
 namespace ov {
 namespace test {
 void SnippetsTestsCommon::validateNumSubgraphs() {
+    bool isCurrentTestDisabled = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled();
+    if (isCurrentTestDisabled)
+        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+
     const auto& compiled_model = compiledModel.get_runtime_model();
     size_t num_subgraphs = 0;
     size_t num_nodes = 0;
@@ -29,6 +34,27 @@ void SnippetsTestsCommon::validateNumSubgraphs() {
     }
     ASSERT_EQ(ref_num_nodes, num_nodes) << "Compiled model contains invalid number of nodes.";
     ASSERT_EQ(ref_num_subgraphs, num_subgraphs) << "Compiled model contains invalid number of subgraphs.";
+}
+
+void SnippetsTestsCommon::validateOriginalLayersNamesByType(const std::string& layerType, const std::string& originalLayersNames) {
+    const auto& compiled_model = compiledModel.get_runtime_model();
+    for (const auto& op : compiled_model->get_ops()) {
+        const auto& rtInfo = op->get_rt_info();
+
+        const auto& typeIt = rtInfo.find("layerType");
+        const auto type = typeIt->second.as<std::string>();
+        if (type == layerType) {
+            const auto& nameIt = rtInfo.find("originalLayersNames");
+            const auto name = nameIt->second.as<std::string>();
+            ASSERT_EQ(originalLayersNames, name);
+            return;
+        }
+    }
+
+    ASSERT_TRUE(false) << "Layer type '" << layerType << "' was not found in compiled model";
+}
+void SnippetsTestsCommon::setInferenceType(ov::element::Type type) {
+    configuration.emplace(ov::inference_precision(type));
 }
 
 }  // namespace test

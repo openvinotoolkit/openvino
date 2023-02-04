@@ -1,18 +1,20 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
+
+/// @brief Select original ngraph op mode for the @ref crop layer.
+enum class crop_ngraph_op_mode : int32_t {
+    none,
+    /// @brief ngraph split op.
+    split,
+    /// @brief ngraph variadic split op.
+    variadic_split
+};
 
 /// @brief Marker type indicating that instead of reference input size left, top,
 ///        right and bottom borders (to cut out) should be specified.
@@ -48,12 +50,12 @@ struct crop : public primitive_base<crop> {
     /// @param reference_input Reference input tensor with the required dimensions.
     /// @param offsets Input offsets.
     crop(const primitive_id& id,
-         const primitive_id& input,
+         const input_info& input,
          const tensor& reference_input,
          const tensor& offsets,
-         const primitive_id& ext_prim_id = "",
          const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding), reference_input(reference_input), offsets(offsets) {}
+        : primitive_base(id, {input}, {output_padding}), reference_input(reference_input),
+            offsets(offsets), op_mode(crop_ngraph_op_mode::none) {}
 
     /// @brief Constructs crop primitive (borders variant).
     ///
@@ -68,13 +70,13 @@ struct crop : public primitive_base<crop> {
     /// @param rb_borders Border sizes (spatial dimensions define right (X) and bottom (Y)
     ///                   borders, non-spatial dimensions - upper borders)
     crop(const primitive_id& id,
-         const primitive_id& input,
+         const input_info& input,
          const tensor& lt_borders,
          const tensor& rb_borders,
          const crop_borders_t,
-         const primitive_id& ext_prim_id = "",
          const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding), reference_input(rb_borders.negate()), offsets(lt_borders) {}
+        : primitive_base(id, {input}, {output_padding}), reference_input(rb_borders.negate()),
+            offsets(lt_borders), op_mode(crop_ngraph_op_mode::none) {}
 
     /// @brief Constructs crop primitive (symmetric borders variant).
     ///
@@ -87,19 +89,50 @@ struct crop : public primitive_base<crop> {
     /// @param xy_borders Border sizes (symmetric; spatial dimensions define left/right (X)
     ///                   and top/bottom (Y) borders, non-spatial dimensions - lower/upper borders).
     crop(const primitive_id& id,
-         const primitive_id& input,
+         const input_info& input,
          const tensor& xy_borders,
          const crop_borders_t,
-         const primitive_id& ext_prim_id = "",
          const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding), reference_input(xy_borders.negate()), offsets(xy_borders) {}
+        : primitive_base(id, {input}, {output_padding}), reference_input(xy_borders.negate()),
+            offsets(xy_borders), op_mode(crop_ngraph_op_mode::none) {}
+
+    /// @brief Constructs crop primitive.
+    /// @param id This primitive id.
+    /// @param inputs Input primitive id vector.
+    /// @param reference_input Reference input tensor with the required dimensions.
+    /// @param offsets Input offsets.
+    /// @param output_idx Output data index of splited output.
+    /// @param num_splits The number of pieces that the data tensor should be split into.
+    crop(const primitive_id& id,
+         const std::vector<input_info>& inputs,
+         const tensor& reference_input,
+         const tensor& offsets,
+         const crop_ngraph_op_mode op_mode,
+         const int output_idx,
+         const size_t num_splits = 1,
+         const padding& output_padding = padding())
+        : primitive_base(id, inputs, {output_padding}), reference_input(reference_input),
+            offsets(offsets), output_idx(output_idx), num_splits(num_splits), op_mode(op_mode) {}
 
     /// @brief Reference input tensor with the required dimensions.
     tensor reference_input;
     /// @brief Input offsets.
     tensor offsets;
+    /// @brief data index of splited output.
+    int output_idx = 0;
+    /// @brief num_splits which Split has number of split as property
+    size_t num_splits = 1;
+    /// @brief original ngraph operation type
+    crop_ngraph_op_mode op_mode;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, reference_input.hash());
+        seed = hash_combine(seed, offsets.hash());
+        seed = hash_combine(seed, output_idx);
+        seed = hash_combine(seed, num_splits);
+        seed = hash_combine(seed, op_mode);
+        return seed;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

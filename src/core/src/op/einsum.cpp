@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,24 +6,15 @@
 
 #include <algorithm>
 #include <cctype>
-#include <ngraph/validation_util.hpp>
 #include <string>
 #include <unordered_map>
 
 #include "einsum_shape_inference.hpp"
 #include "itt.hpp"
+#include "ngraph/validation_util.hpp"
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v7::Einsum);
-
-op::v7::Einsum::Einsum(const OutputVector& inputs, const std::string& equation) : Op(inputs), m_equation(equation) {
-    // normalize input equation by removing extra white-spaces from the equation
-    m_equation.erase(std::remove_if(m_equation.begin(), m_equation.end(), ::isspace), m_equation.end());
-
-    constructor_validate_and_infer_types();
-}
 
 namespace {
 
@@ -79,12 +70,30 @@ bool is_label_elsewhere(const std::vector<std::string>& input_subscripts,
     return false;
 }
 
+/// \brief Remove all whitespaces from given string
+///
+/// \param[in,out] s  String to process.
+///
+void remove_whitespaces(std::string& s) {
+    s.erase(std::remove_if(s.begin(),
+                           s.end(),
+                           [](unsigned char c) {
+                               return std::isspace(c);
+                           }),
+            s.end());
+}
+
 }  // namespace
+
+op::v7::Einsum::Einsum(const OutputVector& inputs, const std::string& equation) : Op(inputs), m_equation(equation) {
+    remove_whitespaces(m_equation);
+    constructor_validate_and_infer_types();
+}
 
 void op::v7::Einsum::parse_equation(const std::string& equation,
                                     std::vector<std::string>& input_subscripts,
                                     std::string& output_subscript) {
-    NGRAPH_OP_SCOPE(v7_Einsum_parse_equation);
+    OV_OP_SCOPE(v7_Einsum_parse_equation);
     constexpr char ellipsis[] = "...";
 
     // split equation to input subscripts and an output subscript
@@ -142,7 +151,7 @@ void op::v7::Einsum::parse_equation(const std::string& equation,
 }
 
 std::vector<std::string> op::v7::Einsum::extract_labels(const std::string& subscript) {
-    NGRAPH_OP_SCOPE(v7_Einsum_extract_labels);
+    OV_OP_SCOPE(v7_Einsum_extract_labels);
 
     std::vector<std::string> labels;
     labels.clear();
@@ -163,10 +172,10 @@ std::vector<std::string> op::v7::Einsum::extract_labels(const std::string& subsc
 }
 
 void op::v7::Einsum::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v7_Einsum_validate_and_infer_types);
+    OV_OP_SCOPE(v7_Einsum_validate_and_infer_types);
 
     // check that Einsum operation has at least one input
-    auto num_inputs = get_input_size();
+    const auto num_inputs = get_input_size();
     NODE_VALIDATION_CHECK(this, num_inputs > 0, "Einsum must have at least one input.");
 
     // check that all inputs have the same type and the type is numeric
@@ -181,11 +190,8 @@ void op::v7::Einsum::validate_and_infer_types() {
                               "Inputs to Einsum operation must have the same type.");
     }
 
-    std::vector<ov::PartialShape> input_shapes;
+    const auto input_shapes = get_node_input_partial_shapes(*this);
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
-    for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx) {
-        input_shapes.push_back(get_input_partial_shape(input_idx));
-    }
 
     shape_infer(this, input_shapes, output_shapes);
 
@@ -193,13 +199,18 @@ void op::v7::Einsum::validate_and_infer_types() {
 }
 
 bool op::v7::Einsum::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v7_Einsum_visit_attributes);
+    OV_OP_SCOPE(v7_Einsum_visit_attributes);
     visitor.on_attribute("equation", m_equation);
     return true;
 }
 
 shared_ptr<Node> op::v7::Einsum::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v7_Einsum_clone_with_new_inputs);
+    OV_OP_SCOPE(v7_Einsum_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v7::Einsum>(new_args, m_equation);
+}
+
+void op::v7::Einsum::set_equation(std::string equation) {
+    remove_whitespaces(equation);
+    m_equation = std::move(equation);
 }

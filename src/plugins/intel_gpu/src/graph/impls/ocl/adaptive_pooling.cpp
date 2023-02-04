@@ -3,27 +3,30 @@
 //
 
 #include "intel_gpu/primitives/adaptive_pooling.hpp"
+
+#include "adaptive_pooling/adaptive_pooling_kernel_ref.h"
+#include "adaptive_pooling/adaptive_pooling_kernel_selector.h"
 #include "adaptive_pooling_inst.h"
-#include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
 #include "kernel_selector_helper.h"
-
-#include "adaptive_pooling/adaptive_pooling_kernel_selector.h"
-#include "adaptive_pooling/adaptive_pooling_kernel_ref.h"
-
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
 struct adaptive_pooling_impl : public typed_primitive_impl_ocl<adaptive_pooling> {
     using parent = typed_primitive_impl_ocl<adaptive_pooling>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::adaptive_pooling_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::adaptive_pooling_params, kernel_selector::adaptive_pooling_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<adaptive_pooling_impl>(*this);
     }
 
 protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<adaptive_pooling>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<adaptive_pooling>& instance) const override {
         kernel_arguments_data args;
         const auto num_inputs = instance.inputs_memory_count();
         for (size_t i = 0; i < num_inputs; ++i) {
@@ -35,11 +38,11 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const adaptive_pooling_node& arg, const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<adaptive_pooling>();
         auto params = get_default_params<kernel_selector::adaptive_pooling_params>(impl_param);
-        auto optional_params = get_default_optional_params<kernel_selector::adaptive_pooling_optional_params>(arg.get_program());
+        auto optional_params = get_default_optional_params<kernel_selector::adaptive_pooling_optional_params>(impl_param.get_program());
 
-        const auto& primitive = arg.get_primitive();
         if (primitive->mode == adaptive_pooling_mode::average) {
             params.mode = kernel_selector::PoolType::AVG;
         } else {
@@ -54,38 +57,39 @@ public:
                     params.poolIndexElementType = kernel_selector::Datatype::INT64;
                     break;
                 }
-                default:
-                    throw std::runtime_error{"Not supported index element type"};
+                default: OPENVINO_ASSERT(false, "[GPU] Not supported index element type");
             }
 
-            params.inputs.push_back(convert_data_tensor(arg.output_indices().get_output_layout()));
+            params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));
         }
 
-        const auto& kernel_selector = kernel_selector::adaptive_pooling_kernel_selector::Instance();
-        const auto best_kernels = kernel_selector.GetBestKernels(params, optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "best_kernels.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        return new adaptive_pooling_impl(arg, best_kernels[0]);
+        return {params, optional_params};
     }
 };
 
 namespace detail {
 attach_adaptive_pooling_impl::attach_adaptive_pooling_impl() {
-    implementation_map<adaptive_pooling>::add(impl_types::ocl, adaptive_pooling_impl::create, {
-            std::make_tuple(data_types::f16, format::bfyx),
-            std::make_tuple(data_types::f16, format::bfzyx),
-            std::make_tuple(data_types::f32, format::bfyx),
-            std::make_tuple(data_types::f32, format::bfzyx),
-            std::make_tuple(data_types::i32, format::bfyx),
-            std::make_tuple(data_types::i32, format::bfzyx),
-            std::make_tuple(data_types::i64, format::bfyx),
-            std::make_tuple(data_types::i64, format::bfzyx),
-    });
+    auto types = {data_types::f16, data_types::f32, data_types::i32, data_types::i64};
+    auto formats = {
+        format::bfyx,
+        format::bfzyx,
+        format::b_fs_zyx_fsv16,
+        format::b_fs_zyx_fsv32,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv32_fsv16,
+        format::bs_fs_yx_bsv32_fsv32,
+        format::bs_fs_zyx_bsv16_fsv32,
+        format::bs_fs_zyx_bsv16_fsv16,
+        format::bs_fs_zyx_bsv32_fsv32,
+        format::bs_fs_zyx_bsv32_fsv16
+    };
+
+    implementation_map<adaptive_pooling>::add(impl_types::ocl, typed_primitive_impl_ocl<adaptive_pooling>::create<adaptive_pooling_impl>, types, formats);
 }
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::adaptive_pooling_impl)

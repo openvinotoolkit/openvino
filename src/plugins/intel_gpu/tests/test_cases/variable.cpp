@@ -31,11 +31,11 @@ struct variable_test : public ::testing::TestWithParam<VariableParams<T>> {
 
         topology topology;
         topology.add(input_layout("input", input_data->get_layout()));
-        topology.add(read_value{"read_value", {"input"}, "v0", variable_layout});
-        topology.add(eltwise{"sum", {"input", "read_value"}, eltwise_mode::sum, {}, variable_layout.data_type});
-        topology.add(assign{"assign", {"sum"}, "v0", variable_layout});
+        topology.add(read_value{"read_value", { input_info("input") }, "v0", variable_layout});
+        topology.add(eltwise{"sum", { input_info("input"), input_info("read_value") }, eltwise_mode::sum, {}, variable_layout.data_type});
+        topology.add(assign{"assign", { input_info("sum") }, "v0", variable_layout});
 
-        network network(engine, topology, build_options{}, false);
+        network network(engine, topology, ExecutionConfig{}, false);
         network.assign_variables_memories({ { "v0", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) } });
         network.set_input_data("input", input_data);
 
@@ -115,15 +115,15 @@ TEST(variable_test_common, exception_on_wrong_layout) {
     auto wrong_layout = variable_layout;
     wrong_layout.data_type = data_types::f32;
     const auto wrong_input_data = engine.allocate_memory(wrong_layout);
-    set_values(input_data, {333.666});
+    set_values(input_data, {333.666f});
 
     topology topology;
     topology.add(input_layout("input", input_data->get_layout()));
-    topology.add(read_value{"read_value", {"input"}, "v0", variable_layout});
+    topology.add(read_value{"read_value", { input_info("input") }, "v0", variable_layout});
     topology.add(input_layout("wrong_input", wrong_input_data->get_layout()));
-    topology.add(assign{"assign", {"wrong_input"}, "v0", wrong_layout});
+    topology.add(assign{"assign", { input_info("wrong_input") }, "v0", wrong_layout});
 
-    network network(engine, topology, build_options{}, false);
+    network network(engine, topology, ExecutionConfig{}, false);
     network.assign_variables_memories({ { "v0", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) } });
     network.set_input_data("input", input_data);
     network.set_input_data("wrong_input", wrong_input_data);
@@ -159,22 +159,22 @@ TEST(variable_test_common, variables_are_preserved_across_inferences) {
 
     topology topology;
     topology.add(input_layout("input_1", input_1->get_layout()));
-    topology.add(assign{"assign_1", {"input_1"}, "v1", variable_layout});
+    topology.add(assign{"assign_1", { input_info("input_1") }, "v1", variable_layout});
 
     topology.add(input_layout("input_2", input_2->get_layout()));
-    topology.add(assign{"assign_2", {"input_2"}, "v2", variable_layout});
+    topology.add(assign{"assign_2", { input_info("input_2") }, "v2", variable_layout});
 
     topology.add(data("dummy1", dummy1));
-    topology.add(read_value{"read_value_1", {"dummy1"}, "v1", variable_layout});
-    topology.add(read_value{"read_value_2", {"dummy1"}, "v2", variable_layout});
+    topology.add(read_value{"read_value_1", { input_info("dummy1") }, "v1", variable_layout});
+    topology.add(read_value{"read_value_2", { input_info("dummy1") }, "v2", variable_layout});
 
-    topology.add(eltwise{"sum", {"read_value_1", "read_value_2"}, eltwise_mode::sum, {}, variable_layout.data_type});
-    topology.add(assign{"assign_result", {"sum"}, "v_result", variable_layout});
+    topology.add(eltwise{"sum", { input_info("read_value_1"), input_info("read_value_2") }, eltwise_mode::sum, {}, variable_layout.data_type});
+    topology.add(assign{"assign_result", { input_info("sum") }, "v_result", variable_layout});
 
     topology.add(data("dummy2", dummy2));
-    topology.add(read_value{"read_result", {"dummy2"}, "v_result", variable_layout});
+    topology.add(read_value{"read_result", { input_info("dummy2") }, "v_result", variable_layout});
 
-    network network{engine, topology, build_options{}, true};
+    network network{engine, topology, ExecutionConfig{}, true};
     network.assign_variables_memories({
         { "v1", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) },
         { "v2", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) },

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,9 +15,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v1::MaxPool);
-BWDCMP_RTTI_DEFINITION(op::v8::MaxPool);
-
 op::v1::MaxPool::MaxPool(const Output<Node>& arg,
                          const Strides& strides,
                          const ov::Shape& pads_begin,
@@ -30,7 +27,7 @@ op::v1::MaxPool::MaxPool(const Output<Node>& arg,
 }
 
 bool ngraph::op::v1::MaxPool::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_MaxPool_visit_attributes);
+    OV_OP_SCOPE(v1_MaxPool_visit_attributes);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("pads_begin", m_pads_begin);
     visitor.on_attribute("pads_end", m_pads_end);
@@ -41,7 +38,7 @@ bool ngraph::op::v1::MaxPool::visit_attributes(AttributeVisitor& visitor) {
 }
 
 void op::v1::MaxPool::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_MaxPool_validate_and_infer_types);
+    OV_OP_SCOPE(v1_MaxPool_validate_and_infer_types);
 
     MaxPoolBase::validate_and_infer_types();
 
@@ -51,7 +48,7 @@ void op::v1::MaxPool::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v1::MaxPool::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_MaxPool_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_MaxPool_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::MaxPool>(new_args.at(0),
                                     m_strides,
@@ -141,12 +138,12 @@ bool op::v1::MaxPool::evaluate_maxpool(const HostTensorVector& outputs, const Ho
                                      get_pads_end());
 }
 bool op::v1::MaxPool::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v1_MaxPool_evaluate);
+    OV_OP_SCOPE(v1_MaxPool_evaluate);
     return evaluate_maxpool(outputs, inputs);
 }
 
 bool op::v1::MaxPool::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_MaxPool_has_evaluate);
+    OV_OP_SCOPE(v1_MaxPool_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
@@ -277,7 +274,7 @@ op::v8::MaxPool::MaxPool(const Output<Node>& arg,
 }
 
 bool ngraph::op::v8::MaxPool::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v8_MaxPool_visit_attributes);
+    OV_OP_SCOPE(v8_MaxPool_visit_attributes);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("dilations", m_dilations);
     visitor.on_attribute("pads_begin", m_pads_begin);
@@ -291,7 +288,7 @@ bool ngraph::op::v8::MaxPool::visit_attributes(AttributeVisitor& visitor) {
 }
 
 void op::v8::MaxPool::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v8_MaxPool_validate_and_infer_types);
+    OV_OP_SCOPE(v8_MaxPool_validate_and_infer_types);
 
     MaxPoolBase::validate_and_infer_types();
 
@@ -307,7 +304,7 @@ void op::v8::MaxPool::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v8::MaxPool::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v8_MaxPool_clone_with_new_inputs);
+    OV_OP_SCOPE(v8_MaxPool_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v8::MaxPool>(new_args.at(0),
                                     m_strides,
@@ -322,7 +319,7 @@ shared_ptr<Node> op::v8::MaxPool::clone_with_new_inputs(const OutputVector& new_
 }
 
 bool op::v8::MaxPool::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v8_MaxPool_has_evaluate);
+    OV_OP_SCOPE(v8_MaxPool_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i8:
     case ngraph::element::i32:
@@ -340,7 +337,7 @@ bool op::v8::MaxPool::has_evaluate() const {
 }
 
 bool op::v8::MaxPool::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v8_MaxPool_evaluate);
+    OV_OP_SCOPE(v8_MaxPool_evaluate);
 
     const auto arg_shape = inputs[0]->get_partial_shape();
     auto pads_begin_s = get_pads_begin();

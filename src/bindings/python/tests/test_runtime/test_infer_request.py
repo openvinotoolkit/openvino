@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from collections.abc import Iterable
 from copy import deepcopy
 import numpy as np
 import os
@@ -10,16 +11,15 @@ import datetime
 import time
 
 import openvino.runtime.opset8 as ops
-from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model
+from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model, InferRequest
 from openvino.runtime import Type, PartialShape, Shape, Layout
 from openvino.preprocess import PrePostProcessor
 
-# TODO: reformat into absolute paths
-from ..conftest import model_path
-from ..test_utils.test_utils import generate_image
+from tests import skip_need_mock_op
+from tests.conftest import model_path
+from tests.test_utils.test_utils import generate_image, get_relu_model
 
-is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
-test_net_xml, test_net_bin = model_path(is_myriad)
+test_net_xml, test_net_bin = model_path()
 
 
 def create_model_with_memory(input_shape, data_type):
@@ -49,6 +49,11 @@ def create_simple_request_and_inputs(device):
 
 
 def concat_model_with_data(device, ov_type, numpy_dtype):
+    core = Core()
+    # todo: remove as 101726 will be fixed.
+    if ov_type == Type.boolean and device == "CPU" and "Intel" not in core.get_property(device, "FULL_DEVICE_NAME"):
+        pytest.skip("This test runs only on openvino intel cpu plugin")
+
     input_shape = [5]
 
     params = []
@@ -59,7 +64,6 @@ def concat_model_with_data(device, ov_type, numpy_dtype):
         params += [ops.parameter(input_shape, numpy_dtype)]
 
     model = Model(ops.concat(params, 0), params)
-    core = Core()
     compiled_model = core.compile_model(model, device)
     request = compiled_model.create_infer_request()
     tensor1 = Tensor(ov_type, input_shape)
@@ -98,7 +102,7 @@ def test_get_profiling_info(device):
     assert request.latency > 0
     prof_info = request.get_profiling_info()
     soft_max_node = next(node for node in prof_info if node.node_name == "fc_out")
-    assert soft_max_node.node_type == "Softmax"
+    assert "Softmax" in soft_max_node.node_type
     assert soft_max_node.status == ProfilingInfo.Status.EXECUTED
     assert isinstance(soft_max_node.real_time, datetime.timedelta)
     assert isinstance(soft_max_node.cpu_time, datetime.timedelta)
@@ -107,7 +111,8 @@ def test_get_profiling_info(device):
 
 def test_tensor_setter(device):
     core = Core()
-    model = core.read_model(test_net_xml, test_net_bin)
+    model = get_relu_model()
+
     compiled_1 = core.compile_model(model=model, device_name=device)
     compiled_2 = core.compile_model(model=model, device_name=device)
     compiled_3 = core.compile_model(model=model, device_name=device)
@@ -124,12 +129,12 @@ def test_tensor_setter(device):
     res = request1.infer({0: tensor})
     key = list(res)[0]
     res_1 = np.sort(res[key])
-    t2 = request1.get_tensor("fc_out")
+    t2 = request1.get_output_tensor()
     assert np.allclose(t2.data, res[key].data, atol=1e-2, rtol=1e-2)
 
     request = compiled_2.create_infer_request()
     res = request.infer({"data": tensor})
-    res_2 = np.sort(request.get_tensor("fc_out").data)
+    res_2 = np.sort(request.get_output_tensor().data)
     assert np.allclose(res_1, res_2, atol=1e-2, rtol=1e-2)
 
     request.set_tensor("data", tensor)
@@ -204,6 +209,9 @@ def test_set_tensors(device):
 
 def test_batched_tensors(device):
     core = Core()
+    if device == "CPU":
+        if "Intel" not in core.get_property(device, "FULL_DEVICE_NAME"):
+            pytest.skip("Can't run on ARM plugin")
 
     batch = 4
     one_shape = [1, 2, 2, 2]
@@ -275,6 +283,7 @@ def test_inputs_outputs_property(device):
         assert np.array_equal(input_data, input_tensor.data)
 
 
+@pytest.mark.skip(reason="Sporadically failed. Need further investigation. Ticket - 95967")
 def test_cancel(device):
     core = Core()
     model = core.read_model(test_net_xml, test_net_bin)
@@ -348,9 +357,8 @@ def test_infer_list_as_inputs(device):
 
 def test_infer_mixed_keys(device):
     core = Core()
-    model = core.read_model(test_net_xml, test_net_bin)
-    core.set_property(device, {"PERF_COUNT": "YES"})
-    model = core.compile_model(model, device)
+    model = get_relu_model()
+    compiled_model = core.compile_model(model, device)
 
     img = generate_image()
     tensor = Tensor(img)
@@ -358,9 +366,9 @@ def test_infer_mixed_keys(device):
     data2 = np.ones(shape=img.shape, dtype=np.float32)
     tensor2 = Tensor(data2)
 
-    request = model.create_infer_request()
+    request = compiled_model.create_infer_request()
     res = request.infer({0: tensor2, "data": tensor})
-    assert np.argmax(res[model.output()]) == 9
+    assert np.argmax(res[compiled_model.output()]) == 531
 
 
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
@@ -376,7 +384,7 @@ def test_infer_mixed_keys(device):
     (Type.u16, np.uint16),
     (Type.i64, np.int64),
     (Type.u64, np.uint64),
-    (Type.boolean, np.bool),
+    (Type.boolean, bool),
 ])
 def test_infer_mixed_values(device, ov_type, numpy_dtype):
     request, tensor1, array1 = concat_model_with_data(device, ov_type, numpy_dtype)
@@ -399,7 +407,7 @@ def test_infer_mixed_values(device, ov_type, numpy_dtype):
     (Type.u16, np.uint16),
     (Type.i64, np.int64),
     (Type.u64, np.uint64),
-    (Type.boolean, np.bool),
+    (Type.boolean, bool),
 ])
 def test_async_mixed_values(device, ov_type, numpy_dtype):
     request, tensor1, array1 = concat_model_with_data(device, ov_type, numpy_dtype)
@@ -469,6 +477,8 @@ def test_infer_queue(device):
 
     img = generate_image()
     infer_queue.set_callback(callback)
+    assert infer_queue.is_ready()
+
     for i in range(jobs):
         infer_queue.start_async({"data": img}, i)
     infer_queue.wait_all()
@@ -476,21 +486,39 @@ def test_infer_queue(device):
     assert all(job["latency"] > 0 for job in jobs_done)
 
 
-def test_infer_queue_is_ready(device):
+def test_infer_queue_iteration(device):
     core = Core()
     param = ops.parameter([10])
     model = Model(ops.relu(param), [param])
     compiled_model = core.compile_model(model, device)
     infer_queue = AsyncInferQueue(compiled_model, 1)
+    assert isinstance(infer_queue, Iterable)
+    for infer_req in infer_queue:
+        assert isinstance(infer_req, InferRequest)
 
-    def callback(request, _):
-        time.sleep(0.001)
+    it = iter(infer_queue)
+    infer_request = next(it)
+    assert isinstance(infer_request, InferRequest)
+    with pytest.raises(StopIteration):
+        next(it)
 
-    infer_queue.set_callback(callback)
-    assert infer_queue.is_ready()
-    infer_queue.start_async()
-    assert not infer_queue.is_ready()
-    infer_queue.wait_all()
+
+def test_infer_queue_userdata_is_empty(device):
+    core = Core()
+    param = ops.parameter([10])
+    model = Model(ops.relu(param), [param])
+    compiled_model = core.compile_model(model, device)
+    infer_queue = AsyncInferQueue(compiled_model, 1)
+    assert infer_queue.userdata == [None]
+
+
+def test_infer_queue_userdata_is_empty_more_jobs(device):
+    core = Core()
+    param = ops.parameter([10])
+    model = Model(ops.relu(param), [param])
+    compiled_model = core.compile_model(model, device)
+    infer_queue = AsyncInferQueue(compiled_model, 5)
+    assert infer_queue.userdata == [None, None, None, None, None]
 
 
 def test_infer_queue_fail_on_cpp_model(device):
@@ -535,6 +563,36 @@ def test_infer_queue_fail_on_py_model(device):
         infer_queue.wait_all()
 
     assert "unsupported operand type(s) for +" in str(e.value)
+
+
+@skip_need_mock_op
+@pytest.mark.parametrize("with_callback", [False, True])
+def test_infer_queue_fail_in_inference(device, with_callback):
+    jobs = 6
+    num_request = 4
+    core = Core()
+    data = ops.parameter([10], dtype=np.float32, name="data")
+    k_op = ops.parameter(Shape([]), dtype=np.int32, name="k")
+    emb = ops.topk(data, k_op, axis=0, mode="max", sort="value")
+    model = Model(emb, [data, k_op])
+    compiled_model = core.compile_model(model, device)
+    infer_queue = AsyncInferQueue(compiled_model, num_request)
+
+    def callback(request, _):
+        pytest.fail("Callback should not be called")
+
+    if with_callback:
+        infer_queue.set_callback(callback)
+
+    data_tensor = Tensor(np.arange(10).astype(np.float32))
+    k_tensor = Tensor(np.array(11, dtype=np.int32))
+
+    with pytest.raises(RuntimeError) as e:
+        for _ in range(jobs):
+            infer_queue.start_async({"data": data_tensor, "k": k_tensor})
+        infer_queue.wait_all()
+
+    assert "Can not clone with new dims" in str(e.value)
 
 
 def test_infer_queue_get_idle_handle(device):
@@ -628,7 +686,7 @@ def test_results_async_infer(device):
     jobs = 8
     num_request = 4
     core = Core()
-    model = core.read_model(test_net_xml, test_net_bin)
+    model = get_relu_model()
     compiled_model = core.compile_model(model, device)
     infer_queue = AsyncInferQueue(compiled_model, num_request)
     jobs_done = [{"finished": False, "latency": 0} for _ in range(jobs)]
@@ -651,8 +709,8 @@ def test_results_async_infer(device):
 
 
 @pytest.mark.skipif(
-    os.environ.get("TEST_DEVICE") not in ["GPU, FPGA", "MYRIAD"],
-    reason="Device independent test",
+    os.environ.get("TEST_DEVICE") not in ["GPU"],
+    reason="Device dependent test",
 )
 def test_infer_float16(device):
     model = bytes(
@@ -805,6 +863,9 @@ def test_invalid_inputs(device):
 
 def test_infer_dynamic_model(device):
     core = Core()
+    if device == "CPU" and "Intel" not in core.get_property(device, "FULL_DEVICE_NAME"):
+        pytest.skip("This test fails on ARM plugin because it doesn't support dynamic shapes.")
+
     param = ops.parameter(PartialShape([-1, -1]))
     model = Model(ops.relu(param), [param])
     compiled_model = core.compile_model(model, device)
@@ -906,3 +967,13 @@ def test_array_like_input_async_infer_queue(device):
     infer_queue_list.wait_all()
     for i in range(jobs):
         assert np.array_equal(infer_queue_list[i].get_output_tensor().data, np.abs(input_data))
+
+
+def test_convert_infer_request(device):
+    request, arr_1, arr_2 = create_simple_request_and_inputs(device)
+    inputs = [arr_1, arr_2]
+
+    res = request.infer(inputs)
+    with pytest.raises(TypeError) as e:
+        deepcopy(res)
+    assert "cannot deepcopy 'openvino.runtime.ConstOutput' object." in str(e)

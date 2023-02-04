@@ -1,20 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include <vector>
 #include <utility>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Performs split operation on input.
 /// @details splits the input data into n parts, for each user provides name and offsets.
@@ -44,11 +37,10 @@ struct split : public primitive_base<split> {
     /// @param input Input primitive id.
     /// @param output_ids_offsets Pairs of output_ids and offsets
     split(const primitive_id& id,
-          const primitive_id& input,
+          const input_info& input,
           const std::vector<std::pair<primitive_id, tensor> >& output_ids_offsets,
-          const primitive_id& ext_prim_id = "",
           const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           output_offsets(extract_tensor_vector(output_ids_offsets)),
           output_ids(extract_primitive_vector(output_ids_offsets)) {}
 
@@ -56,6 +48,14 @@ struct split : public primitive_base<split> {
     std::vector<tensor> output_offsets;
     /// @brief List of output_ids.
     const primitive_id_arr output_ids;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        for (auto& offset : output_offsets) {
+            seed = hash_combine(seed, offset.hash());
+        }
+        return seed;
+    }
 
 protected:
     static std::vector<primitive_id> extract_primitive_vector(
@@ -73,7 +73,4 @@ protected:
         return res;
     }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

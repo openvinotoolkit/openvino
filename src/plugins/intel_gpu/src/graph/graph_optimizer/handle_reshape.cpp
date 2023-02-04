@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "pass_manager.h"
 #include "program_helpers.h"
@@ -33,7 +31,6 @@ void handle_reshape::run(program& p) {
             auto output_lay = node.get_output_layout();
 
             if (!node.is_in_place() ||
-                !node.get_fused_activations_funcs().empty() ||
                 node.has_fused_primitives())
                 return;
 
@@ -57,7 +54,7 @@ void handle_reshape::run(program& p) {
     while (node_itr != p.get_processing_order().end()) {
         auto& node = (*node_itr++);
         program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node) {
-            if (node.is_output() || node.get_users().size() > 1 || !node.get_fused_activations_funcs().empty())
+            if (node.is_output() || node.get_users().size() > 1 || node.has_fused_primitives())
                 return;
 
             auto& out_node = node.get_users().front();
@@ -93,15 +90,15 @@ void handle_reshape::run(program& p) {
                 // vector for storing reshape nodes to connect to new reorder nodes (if needed)
                 std::vector<program_node*> reorder_reshape_nodes;
 
-                bool skip_first_user = false;
+                bool found_one = false;
                 auto reshape_users = node->get_users();
                 for (const auto& user : reshape_users) {
                     // reshape node for first user will be the orginal reshape from the graph
-                    if (!skip_first_user) {
-                        if (std::find(reorder_node_to_split.begin(), reorder_node_to_split.end(), user) !=
-                            reorder_node_to_split.end())
+                    if (!found_one) {
+                        if ((std::find(reorder_node_to_split.begin(), reorder_node_to_split.end(), user) !=
+                            reorder_node_to_split.end()) && (user->get_output_layout().get_rank() == node->get_output_layout().get_rank()))
                             reorder_reshape_nodes.push_back(node);
-                        skip_first_user = true;
+                        found_one = true;
                         continue;
                     }
 
@@ -117,6 +114,9 @@ void handle_reshape::run(program& p) {
                         reorder_reshape_nodes.push_back(&new_reshape_node);
                     }
                 }
+
+                if (reorder_reshape_nodes.size() == 0)
+                    continue;
 
                 // add new reorder nodes to proper reshape node
                 auto reshape_reorder_id = 0;
@@ -145,14 +145,16 @@ void handle_reshape::run(program& p) {
             }
 
             auto reshape_layout = node->get_output_layout();
-            if (!(node->is_output()) && (reshape_layout.format != cldnn::format::bfyx)) {
-                auto bfyx_layout = layout({reshape_layout.get_partial_shape(), reshape_layout.data_type, cldnn::format::bfyx});
+            auto target_format = format::get_default_format(reshape_layout.get_rank());
+
+            if (!(node->is_output()) && (reshape_layout.format != target_format)) {
+                auto target_layout = layout({reshape_layout.get_partial_shape(), reshape_layout.data_type, target_format});
                 // when some primitive does an implicit reorder to some other format then we lose the info about pitches
                 // in reshape stage we assume user provides the input vector in bfyx
-                if (!reshape_layout.compatible(bfyx_layout)) {
+                if (!reshape_layout.compatible(target_layout)) {
                     auto reshape_input = std::make_shared<reorder>("reorder:_reshape_input_" + node->id(),
                                                                    input_node.id(),
-                                                                   cldnn::format::bfyx,
+                                                                   target_format,
                                                                    reshape_layout.data_type);
                     auto& reshape_input_node = p.get_or_create(reshape_input);
                     p.add_intermediate(reshape_input_node, *node, 0, reshape_input_node.get_dependencies().empty());

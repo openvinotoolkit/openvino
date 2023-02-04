@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -12,9 +12,9 @@ from tests.test_onnx.utils import run_node
 @pytest.mark.parametrize(
     ("onnx_op", "numpy_func", "data_type"),
     [
-        pytest.param("And", np.logical_and, np.bool),
-        pytest.param("Or", np.logical_or, np.bool),
-        pytest.param("Xor", np.logical_xor, np.bool),
+        pytest.param("And", np.logical_and, bool),
+        pytest.param("Or", np.logical_or, bool),
+        pytest.param("Xor", np.logical_xor, bool),
         pytest.param("Equal", np.equal, np.int32),
         pytest.param("Greater", np.greater, np.int32),
         pytest.param("Less", np.less, np.int32),

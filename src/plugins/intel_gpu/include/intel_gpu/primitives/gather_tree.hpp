@@ -1,22 +1,15 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-    /// @addtogroup cpp_api C++ API
-    /// @{
-    /// @addtogroup cpp_topology Network Topology
-    /// @{
-    /// @addtogroup cpp_primitives Primitives
-    /// @{
 
-    /// @brief Performs gather tree
-    ///
-    /// @details Performs gather tree
+/// @brief Performs gather tree
+///
+/// @details Performs gather tree
 struct gather_tree : public primitive_base<gather_tree> {
     CLDNN_DECLARE_PRIMITIVE(gather_tree)
 
@@ -31,15 +24,11 @@ struct gather_tree : public primitive_base<gather_tree> {
         ///                                a value of the end_token
         /// @param output_padding          Optional padding for output from primitive
         gather_tree(const primitive_id& id,
-                    const primitive_id& step_input,
-                    const primitive_id& parent_input,
-                    const primitive_id& max_seq_len_input,
-                    const primitive_id& end_token,
-                    const primitive_id& ext_prim_id = "",
+                    const input_info& step_input,
+                    const input_info& parent_input,
+                    const input_info& max_seq_len_input,
+                    const input_info& end_token,
                     const padding& output_padding = padding())
-            : primitive_base(id, { step_input, parent_input, max_seq_len_input, end_token }, ext_prim_id, output_padding) {}
+            : primitive_base(id, { step_input, parent_input, max_seq_len_input, end_token }, {output_padding}) {}
 };
-    /// @}
-    /// @}
-    /// @}
 }  // namespace cldnn

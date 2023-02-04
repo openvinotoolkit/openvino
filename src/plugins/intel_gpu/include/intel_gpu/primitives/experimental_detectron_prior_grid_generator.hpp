@@ -8,12 +8,7 @@
 
 namespace cldnn {
 
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
+
 
 /// @brief Constructs experimental_detectron_prior_grid_generator primitive.
 struct experimental_detectron_prior_grid_generator
@@ -21,7 +16,7 @@ struct experimental_detectron_prior_grid_generator
     CLDNN_DECLARE_PRIMITIVE(experimental_detectron_prior_grid_generator)
 
     experimental_detectron_prior_grid_generator(const primitive_id& id,
-                                                const std::vector<primitive_id>& input,
+                                                const std::vector<input_info>& inputs,
                                                 bool flatten,
                                                 uint64_t h,
                                                 uint64_t w,
@@ -30,9 +25,8 @@ struct experimental_detectron_prior_grid_generator
                                                 uint64_t featmap_height,
                                                 uint64_t featmap_width,
                                                 uint64_t image_height,
-                                                uint64_t image_width,
-                                                const primitive_id& ext_prim_id = {})
-        : primitive_base{id, input, ext_prim_id},
+                                                uint64_t image_width)
+        : primitive_base{id, inputs},
           flatten{flatten},
           h{h},
           w{w},
@@ -52,6 +46,20 @@ struct experimental_detectron_prior_grid_generator
     uint64_t featmap_width;
     uint64_t image_height;
     uint64_t image_width;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, flatten);
+        seed = hash_combine(seed, h);
+        seed = hash_combine(seed, w);
+        seed = hash_combine(seed, stride_x);
+        seed = hash_combine(seed, stride_y);
+        seed = hash_combine(seed, featmap_height);
+        seed = hash_combine(seed, featmap_width);
+        seed = hash_combine(seed, image_height);
+        seed = hash_combine(seed, image_width);
+        return seed;
+    }
 };
 
 }  // namespace cldnn

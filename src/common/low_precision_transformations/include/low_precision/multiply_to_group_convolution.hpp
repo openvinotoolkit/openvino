@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ public:
     OPENVINO_RTTI("MultiplyToGroupConvolutionTransformation", "0");
     MultiplyToGroupConvolutionTransformation(
         const Params& params = Params(),
-        const PrecisionsRestriction::PrecisionsByPort& restrictions = {});
+        const PrecisionsRestriction::PrecisionsByPorts& restrictions = {});
     ~MultiplyToGroupConvolutionTransformation() override {}
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
@@ -39,7 +39,7 @@ public:
     void setGroupSize(const size_t groupSize);
     size_t getGroupSize() const;
 private:
-    PrecisionsRestriction::PrecisionsByPort restrictions;
+    PrecisionsRestriction::PrecisionsByPorts restrictions;
     size_t groupSize;
 };
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,6 +54,12 @@ bool ngraph::pass::low_precision::MarkupQuantizationGranularity::run_on_model(co
 
     for (const std::shared_ptr<Node>& node : f->get_ordered_ops()) {
         if (node->get_input_size() == 0) {
+            continue;
+        }
+
+        if (const auto multiSubGraph = ov::as_type_ptr<ngraph::op::util::MultiSubGraphOp>(node)) {
+            for (size_t i = 0; i < multiSubGraph->get_internal_subgraphs_size(); i++)
+                run_on_model(multiSubGraph->get_function(i));
             continue;
         }
 

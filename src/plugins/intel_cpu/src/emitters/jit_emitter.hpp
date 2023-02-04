@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,11 @@ enum emitter_in_out_map {
     vec_to_gpr,
     gpr_to_vec,
     gpr_to_gpr,
+};
+
+// structure for storage of emitter parameters to hash in map
+struct emitter_params {
+    virtual size_t hash() const = 0;
 };
 
 struct emitter_context {
@@ -50,6 +55,7 @@ public:
                       const std::vector<size_t> &pool_vec_idxs = {}, const std::vector<size_t> &pool_gpr_idxs = {});
     virtual size_t get_inputs_num() const = 0;
     virtual size_t aux_vecs_count() const;
+    emitter_in_out_map get_in_out_type() const;
     static std::set<InferenceEngine::Precision> get_supported_precisions();
 
 protected:

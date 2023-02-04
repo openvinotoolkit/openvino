@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -10,20 +10,19 @@ file(GLOB SRCS
 
 add_executable(${TARGET_NAME} ${SRCS})
 
-target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    ${OpenVINO_SOURCE_DIR}/src/plugins/intel_myriad/graph_transformer/include
-    ${OpenVINO_SOURCE_DIR}/src/plugins/intel_myriad/common/include
-)
-
 if (CMAKE_COMPILER_IS_GNUCXX)
     target_compile_options(${TARGET_NAME} PRIVATE -Wall)
 endif()
+
+# for cross-compilation with gflags
+find_package(Threads REQUIRED)
 
 target_link_libraries(${TARGET_NAME} PRIVATE
     inference_engine
     inference_engine_plugin_api
     gflags
     ie_samples_utils
+    Threads::Threads
 )
 
 set_target_properties(${TARGET_NAME} PROPERTIES
@@ -39,7 +38,7 @@ ie_cpack_add_component(${OV_CPACK_COMP_CORE_TOOLS}
                        HIDDEN
                        DEPENDS ${OV_CPACK_COMP_CORE})
 
-if(CPACK_GENERATOR MATCHES "DEB")
+if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$")
     install(TARGETS compile_tool
             RUNTIME DESTINATION ${OV_CPACK_TOOLSDIR}
             COMPONENT ${OV_CPACK_COMP_CORE_TOOLS})

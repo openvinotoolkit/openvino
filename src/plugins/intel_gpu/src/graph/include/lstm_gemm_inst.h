@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/lstm.hpp"
 #include "primitive_inst.h"
@@ -32,6 +31,7 @@ using lstm_gemm_node = typed_program_node<lstm_gemm>;
 template <>
 class typed_primitive_inst<lstm_gemm> : public typed_primitive_inst_base<lstm_gemm> {
     using parent = typed_primitive_inst_base<lstm_gemm>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(lstm_gemm_node const& node, kernel_impl_params const& impl_param);
@@ -44,9 +44,9 @@ public:
     memory::ptr recurrent_memory() const { return dep_memory_ptr(2); }
     memory::ptr bias_memory() const { return dep_memory_ptr(3); }
     memory::ptr hidden_memory() const { return bias_term() ? dep_memory_ptr(4) : dep_memory_ptr(3); }
-    bool bias_term() const { return !argument.bias.empty(); }
-    bool hidden_term() const { return !argument.hidden.empty(); }
-    uint32_t direction() const { return argument.direction; }
+    bool bias_term() const { return !argument->bias.empty(); }
+    bool hidden_term() const { return !argument->hidden.empty(); }
+    uint32_t direction() const { return argument->direction; }
 };
 
 using lstm_gemm_inst = typed_primitive_inst<lstm_gemm>;

@@ -2,10 +2,10 @@
 
 This guide provides steps for creating a Docker image with Intel® Distribution of OpenVINO™ toolkit for Windows and using the Docker image on different devices.
 
-## <a name="system-requirments"></a>System Requirements
+## <a name="system-requirements-docker-windows"></a>System Requirements
 
 @sphinxdirective
-.. tab:: Target Operating System with Python Version
+.. tab:: Target Operating System with Python Versions
 
   +------------------------------------+--------------------------+
   | Operating System                   | Supported Python Version |
@@ -40,25 +40,25 @@ To use GPU Acceleration in Windows containers, make sure that the following requ
 
 There are two ways to install OpenVINO with Docker. You can choose either of them according to your needs:
 * Use a prebuilt image. Do the following steps:
-  1. <a href="#get-prebuilt-image">Get a prebuilt image from provided sources</a>.
-  2. <a href="#run-image">Run the image on different devices</a>.
+  1. <a href="#get-prebuilt-image-docker-windows">Get a prebuilt image from provided sources</a>.
+  2. <a href="#run-image-docker-windows">Run the image on different devices</a>.
 * If you want to customize your image, you can also build a Docker image manually by using the following steps:
-  1. <a href="#prepare-dockerfile">Prepare a Dockerfile</a>.
-  2. <a href="#configure-image">Configure the Docker image</a>.
-  3. <a href="#run-image">Run the image on different devices</a>.
+  1. <a href="#prepare-dockerfile-windows">Prepare a Dockerfile</a>.
+  2. <a href="#configure-image-docker-windows">Configure the Docker image</a>.
+  3. <a href="#run-image-docker-windows">Run the image on different devices</a>.
 
-## <a name="get-prebuilt-image"></a>Getting a Prebuilt Image from Provided Sources
+## <a name="get-prebuilt-image-docker-windows"></a>Getting a Prebuilt Image from Provided Sources
 
 You can find prebuilt images on:
 
 - [Docker Hub](https://hub.docker.com/u/openvino)
 - [Azure Marketplace](https://azuremarketplace.microsoft.com/en-us/marketplace/apps/intel_corporation.openvino)
 
-## <a name="prepare-dockerfile"></a>Preparing a Dockerfile
+## <a name="prepare-dockerfile-windows"></a>Preparing a Dockerfile
 
 You can use the [available Dockerfiles on GitHub](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your settings via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) which can generate a Dockerfile, build, test and deploy an image with the Intel® Distribution of OpenVINO™ toolkit.
 
-## <a name="configure-image"></a>Configuring the Docker Image for Different Devices
+## <a name="configure-image-docker-windows"></a>Configuring the Docker Image for Different Devices
 
 ### Installing Additional Dependencies for CPU
 
@@ -107,7 +107,7 @@ You can use the [available Dockerfiles on GitHub](https://github.com/openvinotoo
 
 ### <a name="config-image-for-gpu"></a>Configuring the Image for GPU
 
-> **NOTE**: Since GPU is not supported in <a href="#get-prebuilt-image">prebuilt images</a> or [default Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles), you must make sure the Additional Requirements for GPU in <a href="#system-requirements">System Requirements</a> are met, and do the following steps to build the image manually.
+> **NOTE**: Since GPU is not supported in <a href="#get-prebuilt-image-docker-windows">prebuilt images</a> or [default Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles), you must make sure the Additional Requirements for GPU in <a href="#system-requirements">System Requirements</a> are met, and do the following steps to build the image manually.
 
 1. Reuse one of [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles). You can also use your own Dockerfile. 
 2. Check your [Windows host and container isolation process compatibility](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/version-compatibility).
@@ -130,7 +130,7 @@ You can use the [available Dockerfiles on GitHub](https://github.com/openvinotoo
    copy C:\Windows\System32\OpenCL.dll C:\tmp
    ```
 
-## <a name="run-image"></a>Running the Docker Image on Different Devices
+## <a name="run-image-docker-windows"></a>Running the Docker Image on Different Devices
 
 ### Running the Image on CPU
 
@@ -147,7 +147,7 @@ cmd /S /C "omz_downloader --name googlenet-v1 --precisions FP16 && omz_converter
 
 ### Running the Image on GPU
 
-> **NOTE**: Since GPU is not supported in <a href="#get-prebuilt-image">prebuilt images</a> or [default Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles), you must make sure the Additional Requirements for GPU in <a href="#system-requirements">System Requirements</a> are met, and <a href="#config-image-for-gpu">configure and build the image manually</a> before you can run inferences on a GPU.
+> **NOTE**: Since GPU is not supported in <a href="#get-prebuilt-image-docker-windows">prebuilt images</a> or [default Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles), you must make sure the Additional Requirements for GPU in <a href="#system-requirements">System Requirements</a> are met, and <a href="#config-image-for-gpu">configure and build the image manually</a> before you can run inferences on a GPU.
 
 
 1. To try inference on a GPU, run the image with the following command:
@@ -172,3 +172,4 @@ cmd /S /C "omz_downloader --name googlenet-v1 --precisions FP16 && omz_converter
 
 - [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) for Intel® Distribution of OpenVINO™ toolkit. The Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit. You can reuse available Dockerfiles, add your layer and customize the image of OpenVINO™ for your needs.
 - Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)
+- [OpenVINO Installation Selector Tool](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html)

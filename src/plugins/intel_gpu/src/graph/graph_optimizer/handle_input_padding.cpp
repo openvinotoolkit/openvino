@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "pass_manager.h"
 #include "border_inst.h"
@@ -21,6 +19,9 @@ void handle_input_padding::run(program& p) {
     for (auto& node : p.get_processing_order()) {
         if (!node->is_type<convolution>()) {
             continue;
+        }
+        if (node->get_input_layouts().front().is_dynamic() || (node->is_valid_output_layout() && node->get_output_layout().is_dynamic())) {
+            continue; // do nothing for dynamic shape. Use pad_above/ pad_below as is
         }
         convolution_node& convolution_node = node->as<convolution>();
         auto convolution_prim = const_cast<convolution*>(&(*convolution_node.get_primitive()));
@@ -85,25 +86,21 @@ void handle_input_padding::run(program& p) {
                 convolution_prim->padding_below = ov::CoordinateDiff(spatial_rank, 0);
 
                 // create border primitive
-                primitive_id input_id = convolution_prim->input[0];
+                primitive_id input_id = convolution_prim->input[0].pid;
                 primitive_id border_id = input_id + "_border_" + convolution_prim->id;
 
-                tensor padding_above = tensor(0);
-                tensor padding_below = tensor(0);
-
-                padding_above.spatial[0] = pa_x;
-                padding_above.spatial[1] = pa_y;
-                padding_above.spatial[2] = pa_z;
-
-                padding_below.spatial[0] = pb_x;
-                padding_below.spatial[1] = pb_y;
-                padding_below.spatial[2] = pb_z;
+                size_t rank = node->get_input_layouts().front().get_rank();
+                if (pad_above.size() < rank) {
+                    size_t zeros_to_add = rank - pad_above.size();
+                    pad_above.insert(pad_above.begin(), zeros_to_add, 0);
+                    pad_below.insert(pad_below.begin(), zeros_to_add, 0);
+                }
 
                 auto b_prim = std::make_shared<border>(border_id,
                                                        input_id,
-                                                       padding_above,
-                                                       padding_below,
-                                                       border_type::constant,
+                                                       pad_above,
+                                                       pad_below,
+                                                       ov::op::PadMode::CONSTANT,
                                                        0.0f);
 
                 auto& b_prim_node = p.get_or_create(b_prim);

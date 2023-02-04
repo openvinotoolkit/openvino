@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <functional_test_utils/layer_test_utils/summary.hpp>
+#include <functional_test_utils/summary/op_summary.hpp>
 #include <ngraph_functions/subgraph_builders.hpp>
 
 namespace ov {
@@ -16,7 +16,7 @@ OpGenerator getOpGeneratorMap();
 
 static const std::vector<std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Model>>> createFunctions() {
     std::vector<std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Model>>> res;
-    auto opsets = LayerTestsUtils::Summary::getInstance().getOpSets();
+    auto opsets = ov::test::utils::OpSummary::getInstance().getOpSets();
     auto opGenerator = getOpGeneratorMap();
     std::set<ngraph::NodeTypeInfo> opsInfo;
     for (const auto& opset : opsets) {

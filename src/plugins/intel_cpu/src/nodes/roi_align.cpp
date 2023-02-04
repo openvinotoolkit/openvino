@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,7 +38,7 @@ template <cpu_isa_t isa>
 struct jit_uni_roi_align_kernel_f32 : public jit_uni_roi_align_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_roi_align_kernel_f32);
 
-    explicit jit_uni_roi_align_kernel_f32(jit_roi_align_params jcp) : jit_uni_roi_align_kernel(jcp), jit_generator() {}
+    explicit jit_uni_roi_align_kernel_f32(jit_roi_align_params jcp) : jit_uni_roi_align_kernel(jcp), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -46,9 +46,6 @@ struct jit_uni_roi_align_kernel_f32 : public jit_uni_roi_align_kernel, public ji
     };
 
     void generate() override {
-        load_emitter.reset(new jit_load_emitter(this, isa));
-        store_emitter.reset(new jit_store_emitter(this, isa));
-
         this->preamble();
 
         uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
@@ -65,8 +62,7 @@ struct jit_uni_roi_align_kernel_f32 : public jit_uni_roi_align_kernel, public ji
 
         this->postamble();
 
-        load_emitter->emit_data();
-        store_emitter->emit_data();
+        emit_emitters_data();
     }
 
 private:
@@ -107,10 +103,9 @@ private:
     // [1] for reg_dst
     Xmm xmm_args_pool = Xmm(15);
 
-    std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
-    std::vector<size_t> load_pool_gpr_idxs;
+    std::unordered_map<size_t, std::unique_ptr<jit_emitter>> emitters;
 
-    std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
+    std::vector<size_t> load_pool_gpr_idxs;
     std::vector<size_t> store_pool_gpr_idxs;
     std::vector<size_t> store_pool_vec_idxs;
 
@@ -157,6 +152,57 @@ private:
 
     reg64_t reg_params = abi_param1;
 
+    void emit_emitters_data() {
+        for (const auto& emitter : emitters) {
+            emitter.second->emit_data();
+        }
+    }
+
+    inline void load(Xbyak::Reg64 reg_src, Vmm vmm_src, const int elt_num, const int offset = 0) {
+        emit_load(reg_src, vmm_src, jcp_.data_prc, Precision::FP32, elt_num, offset);
+    }
+
+    inline void load_buffer(Xbyak::Reg64 reg_src, Vmm vmm_src, const int elt_num, const int offset = 0) {
+        emit_load(reg_src, vmm_src, Precision::FP32, Precision::FP32, elt_num, offset);
+    }
+
+    inline void load_idx(Xbyak::Reg64 reg_src, Vmm vmm_src, const int elt_num, const int offset = 0) {
+        emit_load(reg_src, vmm_src, Precision::I32, Precision::I32, elt_num, offset);
+    }
+
+    inline void store(Vmm vmm_dst, Xbyak::Reg64 reg_dst, const int elt_num, const int offset = 0) {
+        emit_store(vmm_dst, reg_dst, Precision::FP32, jcp_.data_prc, elt_num, offset);
+    }
+
+    inline void store_buffer(Vmm vmm_dst, Xbyak::Reg64 reg_dst, const int elt_num, const int offset = 0) {
+        emit_store(vmm_dst, reg_dst, Precision::FP32, Precision::FP32, elt_num, offset);
+    }
+
+    inline void emit_load(Xbyak::Reg64 reg_src, Vmm vmm_src, Precision src_prc, Precision dst_prc, const int elt_num, const int offset = 0) {
+        const auto seed = load_emitter_params(src_prc, dst_prc, elt_num).hash();
+        if (!emitters[seed]) {
+            emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, dst_prc, elt_num));
+        }
+
+        emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), static_cast<size_t>(offset)},
+                                  {static_cast<size_t>(vmm_src.getIdx())}, {}, {load_pool_gpr_idxs});
+    }
+
+    inline void emit_store(Vmm vmm_dst, Xbyak::Reg64 reg_dst, Precision src_prc, Precision dst_prc, const int elt_num, const int offset = 0) {
+        const auto seed = store_emitter_params(src_prc, dst_prc, elt_num).hash();
+        if (!emitters[seed]) {
+            emitters[seed].reset(new jit_store_emitter(this, isa, src_prc, dst_prc, elt_num));
+        }
+
+        // for cases when Store emitter need 2 aux vmm we can use vmm_dst as second aux vmm
+        std::vector<size_t> local_store_pool_vec_idxs = { static_cast<size_t>(vmm_dst.getIdx()) };
+        local_store_pool_vec_idxs.insert(local_store_pool_vec_idxs.begin(), store_pool_vec_idxs.begin(), store_pool_vec_idxs.end());
+
+        emitters[seed]->emit_code({static_cast<size_t>(vmm_dst.getIdx()), static_cast<size_t>(offset)},
+                                  {static_cast<size_t>(reg_dst.getIdx())},
+                                  {local_store_pool_vec_idxs}, {store_pool_gpr_idxs});
+    }
+
     void roi_align_cgather() {
         mov(reg_src_address, ptr[reg_params + GET_OFF(src)]);
         mov(reg_weights, ptr[reg_params + GET_OFF(weights)]);
@@ -179,23 +225,6 @@ private:
             mov(reg_src_stride, ptr[reg_params + GET_OFF(src_stride)]);
             imul(reg_src_stride, reg_src_stride, jcp_.data_size);
         }
-
-        auto store = [&](Vmm vmm_dst, Xbyak::Reg64 reg_dst, int elt_num) {
-                    store_emitter->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
-                    std::make_shared<store_emitter_context>(Precision::FP32, jcp_.data_prc, elt_num),
-                    {store_pool_vec_idxs}, {store_pool_gpr_idxs});
-        };
-
-        auto load_buf = [&](Xbyak::Reg64 reg_src, Vmm vmm_src, int elt_num) {
-                    load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_src.getIdx())},
-                    std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, elt_num),
-                    {}, {load_pool_gpr_idxs});
-        };
-        auto store_buf = [&](Vmm vmm_dst, Xbyak::Reg64 reg_dst, int elt_num) {
-                    store_emitter->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
-                    std::make_shared<store_emitter_context>(Precision::FP32, Precision::FP32, elt_num),
-                    {store_pool_vec_idxs}, {store_pool_gpr_idxs});
-        };
 
         // out loop for samples in bin
         Xbyak::Label out_loop_label;
@@ -228,13 +257,13 @@ private:
                 generate_samples(v_step);
                 // now this sample value across channel reside in vmm_sample
                 // compute with other samples in vmm_buf
-                load_buf(reg_buf, vmm_buf, v_step);
+                load_buffer(reg_buf, vmm_buf, v_step);
                 if (jcp_.alg == Algorithm::ROIAlignAvg) {
                     uni_vaddps(vmm_buf, vmm_buf, vmm_sample);
                 } else {
                     uni_vmaxps(vmm_buf, vmm_buf, vmm_sample);
                 }
-                store_buf(vmm_buf, reg_buf, v_step);
+                store_buffer(vmm_buf, reg_buf, v_step);
 
                 if ((isa == cpu::x64::sse41) && (jcp_.layout == ROIAlignLayoutType::blk)) {
                     add(reg_src0, x_step * jcp_.data_size);
@@ -244,13 +273,13 @@ private:
                     add(reg_buf, x_step * sizeof(float));
 
                     generate_samples(x_step);
-                    load_buf(reg_buf, vmm_buf, x_step);
+                    load_buffer(reg_buf, vmm_buf, x_step);
                     if (jcp_.alg == Algorithm::ROIAlignAvg) {
                         uni_vaddps(vmm_buf, vmm_buf, vmm_sample);
                     } else {
                         uni_vmaxps(vmm_buf, vmm_buf, vmm_sample);
                     }
-                    store_buf(vmm_buf, reg_buf, x_step);
+                    store_buffer(vmm_buf, reg_buf, x_step);
 
                     sub(reg_src0, x_step * jcp_.data_size);
                     sub(reg_src1, x_step * jcp_.data_size);
@@ -280,13 +309,13 @@ private:
                 jl(in_loop_tail_end_label, T_NEAR);
 
                 generate_samples(tail_step);
-                load_buf(reg_buf, vmm_buf, tail_step);
+                load_buffer(reg_buf, vmm_buf, tail_step);
                 if (jcp_.alg == Algorithm::ROIAlignAvg) {
                     uni_vaddps(vmm_buf, vmm_buf, vmm_sample);
                 } else {
                     uni_vmaxps(vmm_buf, vmm_buf, vmm_sample);
                 }
-                store_buf(vmm_buf, reg_buf, tail_step);
+                store_buffer(vmm_buf, reg_buf, tail_step);
 
                 int tail_src_stride = tail_step * jcp_.data_size;
                 add(reg_src0, tail_src_stride);
@@ -333,7 +362,7 @@ private:
             cmp(reg_work_amount, v_step);
             jl(store_loop_main_end_label, T_NEAR);
 
-            load_buf(reg_buf, vmm_buf, v_step);
+            load_buffer(reg_buf, vmm_buf, v_step);
             if (jcp_.alg == Algorithm::ROIAlignAvg) {
                 uni_vmulps(vmm_buf, vmm_buf, vmm_scale);
             }
@@ -343,7 +372,7 @@ private:
                 add(reg_buf, x_step * sizeof(float));
                 add(reg_dst, x_step * jcp_.data_size);
 
-                load_buf(reg_buf, vmm_buf, x_step);
+                load_buffer(reg_buf, vmm_buf, x_step);
                 if (jcp_.alg == Algorithm::ROIAlignAvg) {
                     uni_vmulps(vmm_buf, vmm_buf, vmm_scale);
                 }
@@ -369,7 +398,7 @@ private:
             cmp(reg_work_amount, tail_step);
             jl(store_loop_tail_end_label, T_NEAR);
 
-            load_buf(reg_buf, vmm_buf, tail_step);
+            load_buffer(reg_buf, vmm_buf, tail_step);
             if (jcp_.alg == Algorithm::ROIAlignAvg) {
                 uni_vmulps(vmm_buf, vmm_buf, vmm_scale);
             }
@@ -402,12 +431,6 @@ private:
     }
 
     void generate_samples(int num) {
-        auto load = [&](Xbyak::Reg64 reg_src, Vmm vmm_src, int elt_num) {
-                    load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_src.getIdx())},
-                    std::make_shared<load_emitter_context>(jcp_.data_prc, Precision::FP32, elt_num),
-                    {}, {load_pool_gpr_idxs});
-        };
-
         uni_vpxor(vmm_sample, vmm_sample, vmm_sample);
         load(reg_src0, vmm_src0, num);
         uni_vfmadd231ps(vmm_sample, vmm_src0, vmm_weights0);
@@ -431,12 +454,6 @@ private:
             mov(reg_tmp_64, ptr[reg_params + GET_OFF(scale)]);
             uni_vbroadcastss(vmm_scale, ptr[reg_tmp_64]);
         }
-
-        auto load_idx = [&](Xbyak::Reg64 reg_idx, Vmm vmm_idx, int elt_num) {
-                    load_emitter->emit_code({static_cast<size_t>(reg_idx.getIdx())}, {static_cast<size_t>(vmm_idx.getIdx())},
-                    std::make_shared<load_emitter_context>(Precision::I32, Precision::I32, elt_num),
-                    {}, {load_pool_gpr_idxs});
-        };
 
         Xbyak::Label main_loop_label;
         Xbyak::Label main_loop_end_label;
@@ -657,8 +674,8 @@ bool ROIAlign::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& o
     return true;
 }
 
-ROIAlign::ROIAlign(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-                                       WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+ROIAlign::ROIAlign(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "ROIPooling layer with name '" + getName() + "' ";

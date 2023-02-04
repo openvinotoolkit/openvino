@@ -1,13 +1,13 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 
-from common.onnx_layer_test_class import Caffe2OnnxLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest
 
 
-class TestBatchNormalization(Caffe2OnnxLayerTest):
+class TestBatchNormalization(OnnxRuntimeLayerTest):
     def create_net(self, shape, epsilon, precision, ir_version, opset=None):
         """
             ONNX net                                  IR net
@@ -116,18 +116,18 @@ class TestBatchNormalization(Caffe2OnnxLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_bn(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_bn(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_bn_opset6(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_bn_opset6(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, precision=precision, opset=6, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_bn_opset7(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_bn_opset7(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, precision=precision, opset=7, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)

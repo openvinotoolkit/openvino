@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,12 +39,12 @@ public:
     class Restriction {
     public:
         explicit Restriction(const bool versionIsRequired) : versionIsRequired(versionIsRequired) {}
-        void add(const uint64_t version, const std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>>& precisions) {
+        void add(const uint64_t version, const ngraph::pass::low_precision::PrecisionsRestriction::PrecisionsByPorts& precisions) {
             precisionsByVersion.emplace(version, precisions);
         }
 
         bool versionIsRequired;
-        std::unordered_map<uint64_t, std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>>> precisionsByVersion;
+        std::unordered_map<uint64_t, ngraph::pass::low_precision::PrecisionsRestriction::PrecisionsByPorts> precisionsByVersion;
     };
 
     OPENVINO_RTTI("MarkupPrecisions", "0");

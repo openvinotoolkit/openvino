@@ -1,16 +1,20 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "intel_gpu/graph/network.hpp"
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
+#include "intel_gpu/graph/serialization/map_serializer.hpp"
+#include "intel_gpu/graph/serialization/layout_serializer.hpp"
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
+#include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/runtime/profiling.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/simple_math.hpp"
-#include <cldnn/cldnn_config.hpp>
 #include "intel_gpu/plugin/infer_request.hpp"
-#include "intel_gpu/plugin/itt.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 
 #include <description_buffer.hpp>
 #include <threading/ie_executor_manager.hpp>
@@ -41,16 +45,42 @@ using namespace InferenceEngine::details;
 namespace ov {
 namespace intel_gpu {
 
-Graph::Graph(InferenceEngine::CNNNetwork& network, gpu::ClContext::Ptr context, Config config, uint16_t stream_id)
+Graph::Graph(InferenceEngine::CNNNetwork& network, RemoteContextImpl::Ptr context, const ExecutionConfig& config, uint16_t stream_id)
     : m_context(context)
     , m_networkName(network.getName())
     , m_config(config)
     , m_stream_id(stream_id)
     , m_state(0) {
-    m_program = std::make_shared<Program>(network, GetEngine(), m_config);
+    m_program = std::make_shared<Program>(network, get_engine(), config);
     if (m_program->m_max_batch > 1)
-        m_config.max_dynamic_batch = m_program->m_max_batch;
+        m_config.set_property(ov::intel_gpu::max_dynamic_batch(m_program->m_max_batch));
     Build();
+}
+
+Graph::Graph(cldnn::BinaryInputBuffer &ib, RemoteContextImpl::Ptr context, const ExecutionConfig& config, uint16_t stream_id)
+    : m_context(context)
+    , m_config(config)
+    , m_stream_id(stream_id)
+    , m_state(0) {
+    m_program = std::make_shared<Program>(get_engine(), config);
+    if (m_program->m_max_batch > 1)
+        m_config.set_property(ov::intel_gpu::max_dynamic_batch(m_program->m_max_batch));
+
+    bool need_onednn_engine = false;
+    ib >> need_onednn_engine;
+    if (need_onednn_engine) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        get_engine().create_onednn_engine(config);
+#else
+        IE_THROW() << "[GPU] Current model cache requires OneDNN, but cannot use it.";
+#endif  // ENABLE_ONEDNN_FOR_GPU
+    }
+
+    ib >> m_program->inputLayouts;
+    ib >> primitiveIDs;
+    ib >> outputDims;
+
+    m_networks.emplace_back(std::make_shared<cldnn::network>(ib, get_engine().create_stream(config), get_engine(), m_stream_id));
 }
 
 Graph::Graph(std::shared_ptr<Graph> graph, uint16_t stream_id)
@@ -65,9 +95,9 @@ Graph::Graph(std::shared_ptr<Graph> graph, uint16_t stream_id)
 
 void Graph::UpdateLayersMaps() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::UpdateLayersMaps");
-    primitiveIDs = m_program->primitiveIDs;
+    primitiveIDs = m_program->primitive_ids;
     prevPrimitiveIDs = m_program->prevPrimitiveIDs;
-    profilingIDs = m_program->profilingIDs;
+    profilingIDs = m_program->profiling_ids;
     perfMap = m_program->perfMap;
     outputDims = m_program->outputDims;
 }
@@ -93,40 +123,38 @@ void Graph::Build() {
         net.serialize(debug_config->dry_run_path);
         exit(0);
     }
+
+
+    GPU_DEBUG_IF(!debug_config->dump_graphs.empty() && m_stream_id == 0) {
+        static int net_id = 0;
+        auto steps_info = GetNetwork()->get_optimizer_passes_info();
+        size_t step_idx = 0;
+        for (auto& step : steps_info) {
+            CNNNetwork net(GetExecGraphInfoByPrimitivesInfo(step.second, true));
+            net.serialize(debug_config->dump_graphs + std::to_string(net_id) + "_" +
+                          std::to_string(step_idx) + "_" + step.first + "_graph.xml");
+            step_idx++;
+        }
+        net_id++;
+    }
 }
 
 bool Graph::use_external_queue() const {
-    auto impl = getContextImpl(m_context);
-    return impl->GetExternalQueue() != nullptr;
+    return m_context->get_external_queue() != nullptr;
 }
 
 std::shared_ptr<cldnn::network> Graph::BuildNetwork(std::shared_ptr<cldnn::program> program) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::BuildNetwork");
     std::shared_ptr<cldnn::network> network = nullptr;
 
-    auto impl = getContextImpl(m_context);
-    auto externalQueue = impl->GetExternalQueue();
+    auto externalQueue = m_context->get_external_queue();
     if (externalQueue) {
-        if (m_config.throughput_streams != 1)
+        if (m_config.get_property(ov::num_streams) != 1)
             IE_THROW(ParameterMismatch) << "Throughput streams can't be used with shared queue!\n";
-        auto &engine = m_program->GetEngine();
-        network = std::make_shared<cldnn::network>(program, engine.create_stream(externalQueue), m_stream_id);
+        auto &engine = m_program->get_engine();
+        network = std::make_shared<cldnn::network>(program, engine.create_stream(m_config, externalQueue), m_stream_id);
     } else {
         network = std::make_shared<cldnn::network>(program, m_stream_id);
-    }
-
-
-    if (!m_config.graph_dumps_dir.empty() && m_stream_id == 0) {
-        static int net_id = 0;
-        auto steps_info = network->get_optimizer_passes_info();
-        size_t step_idx = 0;
-        for (auto& step : steps_info) {
-            CNNNetwork net(GetExecGraphInfoByPrimitivesInfo(step.second, true));
-            net.serialize(m_config.graph_dumps_dir + std::to_string(net_id) + "_" +
-                          std::to_string(step_idx) + "_" + step.first + "_graph.xml");
-            step_idx++;
-        }
-        net_id++;
     }
 
     return network;
@@ -135,6 +163,7 @@ std::shared_ptr<cldnn::network> Graph::BuildNetwork(std::shared_ptr<cldnn::progr
 Graph::variable_states_map Graph::AllocateVariablesMemories() {
     Graph::variable_states_map states {};
     const auto& memStatesInfo = m_program->GetVariablesStatesInfo();
+    OPENVINO_ASSERT(memStatesInfo.empty() || !GetNetwork()->is_dynamic(), "[GPU] Dynamic shapes are not supported yet for stateful models");
     for (const auto& memStateInfo : memStatesInfo) {
         std::vector<cldnn::layout> orderedLayouts {memStateInfo.second.begin(), memStateInfo.second.end()};
         std::sort(orderedLayouts.begin(), orderedLayouts.end(), [](cldnn::layout& first, cldnn::layout& second) {
@@ -143,7 +172,7 @@ Graph::variable_states_map Graph::AllocateVariablesMemories() {
         std::vector<cldnn::network::VariableState::Ptr> memoryStates;
         memoryStates.reserve(orderedLayouts.size());
         for (const auto& layout : orderedLayouts)
-            memoryStates.push_back(std::make_shared<cldnn::network::VariableState>(GetEngine()->allocate_memory(layout, false)));
+            memoryStates.push_back(std::make_shared<cldnn::network::VariableState>(get_engine().allocate_memory(layout, false)));
         states.insert({memStateInfo.first, memoryStates });
     }
     return states;
@@ -152,7 +181,7 @@ Graph::variable_states_map Graph::AllocateVariablesMemories() {
 std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& primitives_info,
                                                                           bool filter_const_primitives) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::GetExecGraphInfoByPrimitivesInfo");
-    if (m_config.useProfiling) {
+    if (m_config.get_property(ov::enable_profiling)) {
         try {
             // Update may throw an exception for step-by-step runtime graph dump,
             // since network->get_executed_primitives() method can't be called before network execution
@@ -185,7 +214,6 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
         static std::map<std::string, std::string> type_n2l {
                 { "activation", "Activation" },
                 { "arg_max_min", "ArgMax" },
-                { "average_unpooling", "AverageUnpooling" },
                 { "batch_norm", "BatchNormalization" },
                 { "binary_convolution", "BinaryConvolution" },
                 { "border", "Pad" },
@@ -306,60 +334,25 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
         return inputs;
     };
 
-    auto desc_from_layout = [&](cldnn::layout layout) -> TensorDesc {
-        Precision precision = data_type_to_precision(layout.data_type);
-        SizeVector dims;
-        auto l = InferenceEngine::Layout::NCHW;
-        auto size = layout.get_tensor();
-        if (layout.format.dimension() == 4) {
-            dims = {static_cast<size_t>(size.batch[0]),
-                    static_cast<size_t>(size.feature[0]),
-                    static_cast<size_t>(size.spatial[1]),
-                    static_cast<size_t>(size.spatial[0])};
-        } else if (layout.format.dimension() == 5) {
-            dims = {static_cast<size_t>(size.batch[0]),
-                    static_cast<size_t>(size.feature[0]),
-                    static_cast<size_t>(size.spatial[2]),
-                    static_cast<size_t>(size.spatial[1]),
-                    static_cast<size_t>(size.spatial[0])};
-            l = InferenceEngine::Layout::NCDHW;
-        } else if (layout.format.dimension() == 6) {
-            dims = {static_cast<size_t>(size.batch[0]),
-                    static_cast<size_t>(size.feature[0]),
-                    static_cast<size_t>(size.spatial[3]),
-                    static_cast<size_t>(size.spatial[2]),
-                    static_cast<size_t>(size.spatial[1]),
-                    static_cast<size_t>(size.spatial[0])};
-            // Should be NC?DHW but there is no such layout yet
-            l = InferenceEngine::Layout::BLOCKED;
-        }
-        TensorDesc dst{precision, dims, l};
-        return dst;
-    };
-
     auto create_ngraph_node = [&](const cldnn::primitive_info& prim_info) {
         const auto& user_ids = prim_info.c_users;
         size_t output_size = user_ids.size();
         bool is_output = user_ids.empty();
-        auto desc = desc_from_layout(prim_info.output_layout);
+        auto out_et = cldnn::data_type_to_element_type(prim_info.output_layout.data_type);
+        auto out_pshape = prim_info.output_layout.get_partial_shape();
         std::shared_ptr<ngraph::Node> return_node;
 
         if (prim_info.type_id == "input_layout") {
-            auto param = std::make_shared<ngraph::op::Parameter>(
-                details::convertPrecision(desc.getPrecision()),
-                ngraph::PartialShape(desc.getDims()));
+            auto param = std::make_shared<ngraph::op::Parameter>(out_et, out_pshape);
             params.push_back(param);
             return_node = param;
         } else {
-            return_node = std::make_shared<ExecGraphInfoSerialization::ExecutionNode>(
-                get_inputs(prim_info), output_size);
+            return_node = std::make_shared<ExecGraphInfoSerialization::ExecutionNode>(get_inputs(prim_info), output_size);
 
             if (is_output) {    // create additional result node
                 nodes.push_back(return_node);
                 node2layer[prim_info.original_id] = return_node;
-                return_node->set_output_type(0,
-                    details::convertPrecision(desc.getPrecision()),
-                    ngraph::PartialShape(desc.getDims()));
+                return_node->set_output_type(0, out_et, out_pshape);
                 results.emplace_back(std::make_shared<ngraph::op::Result>(return_node->get_default_output()));
             } else {
                 size_t port = 0;
@@ -370,9 +363,7 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
                     if (usr_it == primitives_info.end())
                         continue;
 
-                    return_node->set_output_type(port,
-                                                details::convertPrecision(desc.getPrecision()),
-                                                ngraph::PartialShape(desc.getDims()));
+                    return_node->set_output_type(port, out_et, out_pshape);
                     port++;
                 }
             }
@@ -483,6 +474,32 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
     return std::make_shared<ngraph::Function>(results, params, "runtime_gpu_graph");
 }
 
+// Cache blob format:
+//     [ ov::intel_gpu::Program::inputLayouts ]
+//     [ ov::intel_gpu::Graph::primitiveIDs ]
+//     [ ov::intel_gpu::Graph::outputDims ]
+//     [ cldnn::network ]
+void Graph::Export(cldnn::BinaryOutputBuffer &ob) {
+    bool need_onednn_engine = false;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    try {
+        get_engine().get_onednn_engine();
+        need_onednn_engine = true;
+    } catch (ov::AssertFailure &) {
+        need_onednn_engine = false;
+    }
+#endif  // ENABLE_ONEDNN_FOR_GPU
+    ob << need_onednn_engine;
+
+    ob << m_program->inputLayouts;
+    ob << primitiveIDs;
+    ob << outputDims;
+
+    auto m_network = m_networks.back();
+
+    m_network->save(ob);
+}
+
 std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfo() {
     auto primitives_info = GetNetwork()->get_primitives_info();
     return GetExecGraphInfoByPrimitivesInfo(primitives_info, true);
@@ -572,9 +589,19 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> Graph::GetPer
     auto extIdMap = GetNetwork()->get_ext_id_mapping();
 
     auto getUpperCaseName = [](std::string name) {
-        if (name.length() > 0)
-            name[0] = toupper(name[0]);
-        return name;
+        std::vector<char> res;
+        bool convert_next_to_upper = true;
+        for (size_t i = 0; i < name.length(); i++) {
+            char c = convert_next_to_upper ? toupper(name[i]) : name[i];
+            if (c == '_') {
+                convert_next_to_upper = true;
+            } else {
+                convert_next_to_upper = false;
+                res.push_back(c);
+            }
+        }
+
+        return std::string(res.begin(), res.end());
     };
 
     auto getClearName = [](std::string name) {
@@ -587,11 +614,10 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> Graph::GetPer
     auto getFromProfiling = [&](std::string primId) -> bool {
         auto perfIter = perfMap.find(primId);
 
-        if (perfIter == perfMap.end())  return false;
-
-        const auto& layerName = perfIter->second.first;
-        if (layerName.length() == 0)  // no layer directly associated
+        if (perfIter == perfMap.end())
             return false;
+
+        auto layerName = getClearName(perfIter->second.first);
 
         const auto& perfCounter = perfIter->second.second;
 

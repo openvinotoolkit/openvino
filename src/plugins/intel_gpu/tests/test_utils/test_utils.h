@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,6 @@
 #include <intel_gpu/primitives/concatenation.hpp>
 #include <intel_gpu/primitives/lrn.hpp>
 #include <intel_gpu/primitives/roi_pooling.hpp>
-#include <intel_gpu/primitives/scale.hpp>
 #include <intel_gpu/primitives/softmax.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/normalize.hpp>
@@ -33,6 +32,7 @@
 #include "random_gen.h"
 #include "uniform_quantized_real_distribution.hpp"
 #include "to_string_utils.h"
+#include "program_node.h"
 
 #include <iostream>
 #include <limits>
@@ -52,12 +52,29 @@ struct type_to_data_type<FLOAT16> {
 
 namespace tests {
 
-std::shared_ptr<cldnn::engine> create_test_engine(cldnn::queue_types queue_type = cldnn::queue_types::out_of_order);
+std::shared_ptr<cldnn::engine> create_test_engine();
 cldnn::engine& get_test_engine();
-#ifdef ENABLE_ONEDNN_FOR_GPU
-cldnn::engine& get_onednn_test_engine();
-#endif
+cldnn::stream_ptr get_test_stream_ptr();
 cldnn::stream& get_test_stream();
+
+template<typename T>
+bool has_node_with_type(cldnn::program& prog) {
+    for (auto node : prog.get_processing_order()) {
+        if (node->is_type<T>())
+            return true;
+    }
+
+    return false;
+}
+
+inline bool has_node(cldnn::program& prog, primitive_id id) {
+    for (auto node : prog.get_processing_order()) {
+        if (node->id() == id)
+            return true;
+    }
+
+    return false;
+}
 
 #define USE_RANDOM_SEED 0
 #if USE_RANDOM_SEED
@@ -391,10 +408,10 @@ public:
 
     test_params() : fmt(cldnn::format::bfyx) { }
 
-    test_params(cldnn::data_types dt, cldnn::format input_format, int32_t batch_size, int32_t feature_size, cldnn::tensor input_size, cldnn::build_options const& options = cldnn::build_options()) :
+    test_params(cldnn::data_types dt, cldnn::format input_format, int32_t batch_size, int32_t feature_size, cldnn::tensor input_size, ExecutionConfig config = {}) :
         data_type(dt),
         fmt(input_format),
-        network_build_options(options) {
+        network_config(config) {
         cldnn::tensor t = cldnn::tensor(batch_size, feature_size, input_size.spatial[0],  input_size.spatial[1] );
         input_layouts.push_back( cldnn::layout(dt, fmt, t) );
     }
@@ -405,7 +422,7 @@ public:
 
     void * opaque_custom_param = nullptr;
 
-    cldnn::build_options network_build_options;
+    ExecutionConfig network_config;
 
     std::string print();
     static std::string print_tensor(cldnn::tensor tensor);
@@ -446,8 +463,6 @@ public:
 
     static std::vector<std::shared_ptr<test_params>> generate_generic_test_params(std::vector<std::shared_ptr<test_params>>& all_generic_params);
 
-    static void dump_graph(const std::string test_name, cldnn::build_options& bo);
-
     virtual bool is_format_supported(cldnn::format format) = 0;
 
     virtual cldnn::tensor get_expected_output_tensor();
@@ -458,6 +473,8 @@ public:
             }
     };
 
+    static cldnn::format get_plain_format_for(const cldnn::format);
+
 protected:
     cldnn::engine& engine = get_test_engine();
     std::shared_ptr<test_params> generic_params;
@@ -465,7 +482,6 @@ protected:
     std::shared_ptr<cldnn::primitive> layer_params;
     int max_ulps_diff_allowed; //Max number of ulps allowed between 2 values when comparing the output buffer and the reference buffer.
     bool random_values; // if set memory buffers will be filled with random values
-    bool dump_graphs; // if set tests will dump graphs to file
     bool dump_memory; // if set memory buffers will be dumped to file
     virtual cldnn::memory::ptr generate_reference(const std::vector<cldnn::memory::ptr>& inputs) = 0;
     // Allows the test to override the random input data that the framework generates
@@ -492,8 +508,8 @@ inline void PrintTupleTo(const std::tuple<std::shared_ptr<test_params>, std::sha
     str << std::endl << "Test params: " << test_param->print();
 
     str << "Layer params:\n"
-        << "Output padding lower size: " << test_param->print_tensor(primitive->output_padding.lower_size())
-        << " upper size: " << test_param->print_tensor(primitive->output_padding.upper_size()) << '\n';
+        << "Output padding lower size: " << test_param->print_tensor(primitive->output_paddings[0].lower_size())
+        << " upper size: " << test_param->print_tensor(primitive->output_paddings[0].upper_size()) << '\n';
 
     //TODO: do layers not have param dumping? we could consider adding it
 
@@ -517,15 +533,12 @@ inline void PrintTupleTo(const std::tuple<std::shared_ptr<test_params>, std::sha
             << " Spatial bins x: " << p->spatial_bins_x
             << " Spatial bins y: " << p->spatial_bins_y
             << " Output dim: " << p->output_dim;
-    } else if(primitive->type == cldnn::scale::type_id()) {
-        auto s = std::static_pointer_cast<cldnn::scale >(primitive);
-        (void)s;
     } else if(primitive->type == cldnn::softmax::type_id()) {
-        auto sm = std::static_pointer_cast<cldnn::softmax >(primitive);
+        auto sm = std::static_pointer_cast<cldnn::softmax>(primitive);
         (void)sm;
     } else if (primitive->type == cldnn::reorder::type_id()) {
         auto reorder = std::static_pointer_cast<cldnn::reorder>(primitive);
-        str << "Output data type: " << cldnn::data_type_traits::name(*reorder->output_data_type) << " Mean: " << reorder->mean << "Subtract per feature: " << "TODO" /*std::vector<float> subtract_per_feature*/;
+        str << "Output data type: " << cldnn::data_type_traits::name(*reorder->output_data_types[0]) << " Mean: " << reorder->mean << "Subtract per feature: " << "TODO" /*std::vector<float> subtract_per_feature*/;
     } else if (primitive->type == cldnn::normalize::type_id()) {
         auto normalize = std::static_pointer_cast<cldnn::normalize>(primitive);
         std::string norm_region = normalize->across_spatial ? "across_spatial" : "within_spatial";
@@ -542,7 +555,8 @@ inline void PrintTupleTo(const std::tuple<std::shared_ptr<test_params>, std::sha
         auto pooling = std::static_pointer_cast<cldnn::pooling>(primitive);
         std::string pooling_mode = (pooling->mode == cldnn::pooling_mode::max) ? "max" : "average";
         str << "Pooling mode: " << pooling_mode
-            << " Pad x: " << pooling->pad[1] << " Pad y: " << pooling->pad[0]
+            << " Pads_begin x: " << pooling->pads_begin[1] << " Pads_begin y: " << pooling->pads_begin[0]
+            << " Pads_end x: " << pooling->pads_end[1] << " Pads_end y: " << pooling->pads_end[0]
             << " Stride x: " << pooling->stride[1] << " Stride y: " << pooling->stride[0]
             << " Size x: " << pooling->size[1] << " Size y: " << pooling->size[0];
     } else {
@@ -558,6 +572,42 @@ T div_up(const T a, const U b) {
     return (a + b - 1) / b;
 }
 
+template <class T>
+std::vector<float> get_output_values_to_float(network& net, const primitive_id& output_id, size_t max_cnt = std::numeric_limits<size_t>::max()) {
+    std::vector<float> ret;
+    auto ptr = net.get_output_memory(output_id);
+    auto out_ids = net.get_output_ids();
+    if (find(out_ids.begin(), out_ids.end(), output_id) == out_ids.end())
+        IE_THROW() << "Non output node's memory may have been reused. "
+                      "Make target node to output by using ov::intel_gpu::custom_outputs in ExecutionConfig.";
+    mem_lock<T, mem_lock_type::read> mem(ptr, net.get_stream());
+    if (ptr->get_layout().data_type != type_to_data_type<T>::value)
+        IE_THROW() << "target type " << data_type_traits::name(type_to_data_type<T>::value)
+                    << " mismatched with actual type " << data_type_traits::name(ptr->get_layout().data_type);
+    for (size_t i = 0; i < std::min(max_cnt, ptr->get_layout().count()); i++)
+        ret.push_back(mem[i]);
+    return ret;
+}
+double default_tolerance(data_types dt);
+class membuf : public std::streambuf
+{
+public:
+    membuf() : _pos(0) { }
+
+protected:
+    virtual int_type overflow (int_type c) {
+        _buf.emplace_back(c);
+        return c;
+    }
+
+    virtual int_type uflow() {
+        return (_pos < _buf.size()) ? _buf[_pos++] : EOF;
+    }
+
+private:
+    std::vector<int_type> _buf;
+    size_t _pos;
+};
 // inline void print_bin_blob(cldnn::memory& mem, std::string name)
 // {
 //     auto&& size = mem.get_layout().get_tensor();

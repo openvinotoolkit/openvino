@@ -24,22 +24,29 @@ std::string InsertMoveBroadcastTests::getTestCaseName(testing::TestParamInfo<ins
 }
 
 void InsertMoveBroadcastTests::SetUp() {
-    TransformationTestsF::SetUp();
+    LoweringTests::SetUp();
     std::vector<Shape> inputShapes(2);
     std::vector<Shape> broadcastShapes(2);
     std::tie(inputShapes[0], inputShapes[1], broadcastShapes[0], broadcastShapes[1]) = this->GetParam();
-    snippets_function = std::make_shared<AddFunctionLoweredBroadcast>(inputShapes, broadcastShapes);
+    snippets_function = std::make_shared<AddFunctionLoweredBroadcast>(std::vector<PartialShape> {inputShapes[0], inputShapes[1]}, broadcastShapes);
+    if (inputShapes[0].size() != inputShapes[1].size())
+        IE_THROW() << "Expected input shapes of the same size";
+    master_shape = {};
+    for (int i = 0; i < inputShapes[0].size(); i++)
+        master_shape.push_back(static_cast<int64_t>(std::max(inputShapes[0][i], inputShapes[1][i])));
 }
 
 TEST_P(InsertMoveBroadcastTests, AddBroadcast) {
-    auto subgraph = getLoweredSubgraph(snippets_function->getOriginal());
-    function = subgraph->get_body();
+    PartialShape scheduler_shape({master_shape[master_shape.size() - 2],
+                                  master_shape[master_shape.size() - 1]});
+    auto subgraph = getLoweredSubgraph(snippets_function->getOriginal(), scheduler_shape);
+    function = subgraph->body_ptr();
     function_ref = snippets_function->getLowered();
 }
 
 namespace InsertMoveBroadcastTestsInstantiation {
 using ov::Shape;
-std::vector<Shape> inputShapes0 {{1, 1, 1, 3}, {1, 1, 2, 3}, {1, 8, 1, 3}};
+std::vector<Shape> inputShapes0 {{1, 8, 2, 1}};
 std::vector<Shape> inputShapes1 {{1, 8, 2, 3}};
 Shape broadcastShape {1, 8, 2, 3};
 Shape emptyShape {};
@@ -59,12 +66,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BroadcastOn1, InsertMoveBroadcastTests,
                                  ::testing::Values(broadcastShape)),
                          InsertMoveBroadcastTests::getTestCaseName);
 
-std::vector<Shape> inputShapesBoth0 {{4, 1, 2, 3}, {1, 8, 1, 3}, {1, 1, 2, 3}};
-std::vector<Shape> inputShapesBoth1 {{1, 8, 1, 3}, {4, 1, 2, 3}, {4, 8, 1, 3}};
-Shape broadcastShapeBoth{4, 8, 2, 3};
-std::vector<insertMoveBroadcastParams> params = {std::make_tuple(inputShapesBoth0[0], inputShapesBoth1[0], broadcastShapeBoth, broadcastShapeBoth),
-                                        std::make_tuple(inputShapesBoth0[1], inputShapesBoth1[1], broadcastShapeBoth, broadcastShapeBoth),
-                                        std::make_tuple(inputShapesBoth0[2], inputShapesBoth1[2], broadcastShapeBoth, broadcastShapeBoth)};
+std::vector<Shape> inputShapesBoth0 {{4, 1, 2, 1}, {1, 8, 1, 1}, {1, 1, 2, 3}};
+std::vector<Shape> inputShapesBoth1 {{4, 8, 2, 3}, {4, 1, 2, 3}, {4, 8, 1, 1}};
+std::vector<Shape> broadcastShapeBoth{{4, 1, 2, 3}, {1, 8, 1, 3}, {4, 8, 1, 3}};
+std::vector<insertMoveBroadcastParams> params = {std::make_tuple(inputShapesBoth0[0], inputShapesBoth1[0], broadcastShapeBoth[0], emptyShape),
+                                        std::make_tuple(inputShapesBoth0[1], inputShapesBoth1[1], broadcastShapeBoth[1], emptyShape),
+                                        std::make_tuple(inputShapesBoth0[2], inputShapesBoth1[2], emptyShape, broadcastShapeBoth[2])};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BroadcastOnBoth, InsertMoveBroadcastTests,
                          ::testing::ValuesIn(params),

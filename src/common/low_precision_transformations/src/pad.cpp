@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -181,7 +181,7 @@ bool PadTransformation::canBeTransformed(const TransformationContext& context, s
                 }
 
                 if (padsBegin[i] != 0) {
-                    beginNonZeroIdx = i;
+                    beginNonZeroIdx = static_cast<int>(i);
                 }
             }
 
@@ -193,7 +193,7 @@ bool PadTransformation::canBeTransformed(const TransformationContext& context, s
                 }
 
                 if (padsEnd[i] != 0) {
-                    endNonZeroIdx = i;
+                    endNonZeroIdx = static_cast<int>(i);
                 }
             }
 

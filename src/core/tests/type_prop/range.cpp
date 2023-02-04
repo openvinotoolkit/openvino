@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -432,9 +432,9 @@ TEST(type_prop, range_v4_some_const_shape_inference) {
 
 TEST(type_prop, range_v4_trunc_inputs_shape_inference) {
     element::Type_t et = element::f32;
-    auto start = make_shared<op::Constant>(et, Shape{}, std::vector<float>{0.9});
-    auto stop = make_shared<op::Constant>(et, Shape{}, std::vector<float>{10.3});
-    auto step = make_shared<op::Constant>(et, Shape{}, std::vector<float>{1.7});
+    auto start = make_shared<op::Constant>(et, Shape{}, std::vector<float>{0.9f});
+    auto stop = make_shared<op::Constant>(et, Shape{}, std::vector<float>{10.3f});
+    auto step = make_shared<op::Constant>(et, Shape{}, std::vector<float>{1.7f});
     auto range = make_shared<op::v4::Range>(start, stop, step, element::i32);
     auto pshape_out = range->get_output_partial_shape(0);
     ASSERT_TRUE(pshape_out.rank().is_static() && pshape_out.rank() == Dimension{1});

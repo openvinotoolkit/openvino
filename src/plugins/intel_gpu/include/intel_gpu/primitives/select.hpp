@@ -1,18 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Performs elementwise select operation on two input primitives with selector primitive (mask)
 /// @notes
@@ -32,24 +25,20 @@ struct select : public primitive_base<select> {
     /// @param mask Input primitive id with values needed for select computation.
     /// @param input Input primitive id.
     /// @param input2 Second input primitive id.
+    /// @param spec Auto broadcast rule specification
     /// @param output_padding Output data padding information.
-    /// @param broadcast_type String which determines broadcasting type:
     /// "numpy" means that numpy-tyle (ONNX) broadcasting is allowed,
     /// "none" means that all inputs need to have the same shape.
     select(const primitive_id& id,
-           const primitive_id& mask,
-           const primitive_id& input,
-           const primitive_id& input2,
-           const primitive_id& ext_prim_id = "",
-           const padding& output_padding = padding(),
-           const std::string& broadcast_type = "numpy")
-        : primitive_base(id, {mask, input, input2}, ext_prim_id, output_padding),
-          broadcast_type(broadcast_type) {}
+           const input_info& mask,
+           const input_info& input,
+           const input_info& input2,
+           const ov::op::AutoBroadcastSpec& spec = ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY),
+           const padding& output_padding = padding())
+        : primitive_base(id, {mask, input, input2}, {output_padding}),
+          broadcast_spec(spec.m_type, spec.m_axis) {}
 
-    /// @brief String which determines broadcast type.
-    std::string broadcast_type;
+    /// @brief Define auto broadcast rule specification.
+    ov::op::AutoBroadcastSpec broadcast_spec;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

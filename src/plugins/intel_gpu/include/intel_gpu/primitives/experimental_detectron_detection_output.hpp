@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <utility>
 #include <vector>
@@ -10,12 +9,6 @@
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief experimental detectron detection output
 struct experimental_detectron_detection_output : public primitive_base<experimental_detectron_detection_output> {
@@ -38,12 +31,12 @@ struct experimental_detectron_detection_output : public primitive_base<experimen
     /// @param max_delta_log_wh the maximum delta of logarithms for width and height
     /// @param deltas_weights the weights for bounding boxes sizes deltas
     experimental_detectron_detection_output(const primitive_id& id,
-                                            const primitive_id& input_rois,
-                                            const primitive_id& input_deltas,
-                                            const primitive_id& input_scores,
-                                            const primitive_id& input_im_info,
-                                            const primitive_id& output_classes,
-                                            const primitive_id& output_scores,
+                                            const input_info& input_rois,
+                                            const input_info& input_deltas,
+                                            const input_info& input_scores,
+                                            const input_info& input_im_info,
+                                            const input_info& output_classes,
+                                            const input_info& output_scores,
                                             float score_threshold,
                                             float nms_threshold,
                                             int num_classes,
@@ -52,14 +45,12 @@ struct experimental_detectron_detection_output : public primitive_base<experimen
                                             bool class_agnostic_box_regression,
                                             float max_delta_log_wh,
                                             std::vector<float> deltas_weights,
-                                            const primitive_id& ext_prim_id = "",
                                             const padding& output_padding = {})
         : primitive_base{id,
                          {input_rois, input_deltas, input_scores, input_im_info, output_classes, output_scores},
-                         ext_prim_id,
-                         output_padding},
-          output_classes{output_classes},
-          output_scores{output_scores},
+                         {output_padding}},
+          output_classes{output_classes.pid},
+          output_scores{output_scores.pid},
           score_threshold{score_threshold},
           nms_threshold{nms_threshold},
           num_classes{num_classes},
@@ -80,6 +71,21 @@ struct experimental_detectron_detection_output : public primitive_base<experimen
     float max_delta_log_wh;
     std::vector<float> deltas_weights;
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, score_threshold);
+        seed = hash_combine(seed, nms_threshold);
+        seed = hash_combine(seed, num_classes);
+        seed = hash_combine(seed, post_nms_count);
+        seed = hash_combine(seed, max_detections_per_image);
+        seed = hash_combine(seed, class_agnostic_box_regression);
+        seed = hash_combine(seed, max_delta_log_wh);
+        seed = hash_range(seed, deltas_weights.begin(), deltas_weights.end());
+        seed = hash_combine(seed, output_classes.empty());
+        seed = hash_combine(seed, output_scores.empty());
+        return seed;
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
@@ -92,7 +98,4 @@ protected:
         return ret;
     }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

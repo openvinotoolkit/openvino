@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include "low_precision/fake_quantize.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "low_precision/rt_info/skip_cleanup_attribute.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -67,7 +68,7 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
     NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(3), outputLowConst_f32);
     NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(4), outputHighConst_f32);
 
-    auto newFakeQuantize = std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
+    auto newFakeQuantize = std::make_shared<ov::op::TypeRelaxed<opset1::FakeQuantize>>(
         opset1::FakeQuantize(
             fakeQuantize->input_value(0),
             inputLow,
@@ -95,6 +96,10 @@ bool FuseMultiplyToFakeQuantizeTransformation::canBeTransformed(const Transforma
     }
 
     if (!FakeQuantizeTransformation::checkElementwise(operation)) {
+        return false;
+    }
+
+    if (!getAttribute<SkipCleanupAttribute>(operation).empty()) {
         return false;
     }
 

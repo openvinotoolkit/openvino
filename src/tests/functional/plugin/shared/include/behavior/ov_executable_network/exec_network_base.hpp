@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifcorer: Apache-2.0
 //
 
 #include <exec_graph_info.hpp>
 #include <fstream>
-#include <transformations/serialize.hpp>
+#include <openvino/pass/serialize.hpp>
 
 #include "base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
@@ -17,12 +17,14 @@ namespace test {
 namespace behavior {
 
 class OVExecutableNetworkBaseTest : public testing::WithParamInterface<InferRequestParams>,
-                                    public CommonTestUtils::TestsCommon {
+                                    public OVCompiledNetworkTestBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
         std::string targetDevice;
         ov::AnyMap configuration;
         std::tie(targetDevice, configuration) = obj.param;
+        std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
+
         std::ostringstream result;
         result << "targetDevice=" << targetDevice << "_";
         if (!configuration.empty()) {
@@ -36,16 +38,18 @@ public:
     }
 
     void SetUp() override {
+        std::tie(target_device, configuration) = this->GetParam();
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
-        std::tie(targetDevice, configuration) = this->GetParam();
-        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(targetDevice);
+        APIBaseTest::SetUp();
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
     }
 
     void TearDown() override {
         if (!configuration.empty()) {
             utils::PluginCache::get().reset();
         }
+        APIBaseTest::TearDown();
     }
 
     bool compareTensors(const ov::Tensor& t1, const ov::Tensor& t2) {
@@ -70,13 +74,68 @@ public:
 
 protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
-    std::string targetDevice;
     ov::AnyMap configuration;
     std::shared_ptr<ov::Model> function;
+
+    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_compiled_model; }
 };
 
 TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutable) {
-    EXPECT_NO_THROW(auto execNet = core->compile_model(function, targetDevice, configuration));
+    EXPECT_NO_THROW(auto execNet = core->compile_model(function, target_device, configuration));
+}
+
+TEST_P(OVExecutableNetworkBaseTest, canLoadNetworkFromMemory) {
+    std::string model = R"V0G0N(
+        <net name="Network" version="10">
+            <layers>
+                <layer name="in1" type="Parameter" id="0" version="opset8">
+                    <data element_type="f16" shape="1,3,22,22"/>
+                    <output>
+                        <port id="0" precision="FP16" names="data">
+                            <dim>1</dim>
+                            <dim>3</dim>
+                            <dim>22</dim>
+                            <dim>22</dim>
+                        </port>
+                    </output>
+                </layer>
+                <layer name="round" id="1" type="Round" version="opset8">
+                    <data mode="half_to_even"/>
+                    <input>
+                        <port id="1" precision="FP16">
+                            <dim>1</dim>
+                            <dim>3</dim>
+                            <dim>22</dim>
+                            <dim>22</dim>
+                        </port>
+                    </input>
+                    <output>
+                        <port id="2" precision="FP16" names="r">
+                            <dim>1</dim>
+                            <dim>3</dim>
+                            <dim>22</dim>
+                            <dim>22</dim>
+                        </port>
+                    </output>
+                </layer>
+                <layer name="output" type="Result" id="2" version="opset8">
+                    <input>
+                        <port id="0" precision="FP16">
+                            <dim>1</dim>
+                            <dim>3</dim>
+                            <dim>22</dim>
+                            <dim>22</dim>
+                        </port>
+                    </input>
+                </layer>
+            </layers>
+            <edges>
+                <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+                <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+            </edges>
+        </net>
+        )V0G0N";
+    EXPECT_NO_THROW(auto execNet = core->compile_model(model, ov::Tensor(), target_device, configuration));
 }
 
 TEST(OVExecutableNetworkBaseTest, smoke_LoadNetworkToDefaultDeviceNoThrow) {
@@ -88,27 +147,27 @@ TEST(OVExecutableNetworkBaseTest, smoke_LoadNetworkToDefaultDeviceNoThrow) {
 
 TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableWithIncorrectConfig) {
     ov::AnyMap incorrectConfig = {{"abc", "def"}};
-    EXPECT_ANY_THROW(auto execNet = core->compile_model(function, targetDevice, incorrectConfig));
+    EXPECT_ANY_THROW(auto execNet = core->compile_model(function, target_device, incorrectConfig));
 }
 
 TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCreateInferRequest) {
-    auto execNet = core->compile_model(function, targetDevice, configuration);
+    auto execNet = core->compile_model(function, target_device, configuration);
     EXPECT_NO_THROW(auto req = execNet.create_infer_request());
 }
 
 TEST_P(OVExecutableNetworkBaseTest, checkGetExecGraphInfoIsNotNullptr) {
-    auto execNet = core->compile_model(function, targetDevice, configuration);
+    auto execNet = core->compile_model(function, target_device, configuration);
     auto execGraph = execNet.get_runtime_model();
     EXPECT_NE(execGraph, nullptr);
 }
 
 TEST_P(OVExecutableNetworkBaseTest, checkGetMetric) {
-    auto execNet = core->compile_model(function, targetDevice, configuration);
+    auto execNet = core->compile_model(function, target_device, configuration);
     EXPECT_NO_THROW(execNet.get_property(ov::supported_properties));
 }
 
 TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCheckConfig) {
-    auto execNet = core->compile_model(function, targetDevice, configuration);
+    auto execNet = core->compile_model(function, target_device, configuration);
     for (const auto& configItem : configuration) {
         ov::Any param;
         EXPECT_NO_THROW(param = execNet.get_property(configItem.first));
@@ -118,7 +177,7 @@ TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCheck
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNet) {
-    auto execNet = core->compile_model(function, targetDevice);
+    auto execNet = core->compile_model(function, target_device);
     std::map<std::string, ov::Any> config;
     for (const auto& confItem : configuration) {
         config.emplace(confItem.first, confItem.second);
@@ -127,7 +186,7 @@ TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNet) {
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNetWithIncorrectConfig) {
-    auto execNet = core->compile_model(function, targetDevice);
+    auto execNet = core->compile_model(function, target_device);
     std::map<std::string, std::string> incorrectConfig = {{"abc", "def"}};
     std::map<std::string, ov::Any> config;
     for (const auto& confItem : incorrectConfig) {
@@ -137,7 +196,7 @@ TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNetWithIncorrectConfig) {
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNetAndCheckConfigAndCheck) {
-    auto execNet = core->compile_model(function, targetDevice);
+    auto execNet = core->compile_model(function, target_device);
     std::map<std::string, ov::Any> config;
     for (const auto& confItem : configuration) {
         config.emplace(confItem.first, confItem.second);
@@ -154,7 +213,7 @@ TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNetAndCheckConfigAndCheck)
 TEST_P(OVExecutableNetworkBaseTest, CanCreateTwoExeNetworks) {
     std::vector<ov::CompiledModel> vec;
     for (auto i = 0; i < 2; i++) {
-        EXPECT_NO_THROW(vec.push_back(core->compile_model(function, targetDevice, configuration)));
+        EXPECT_NO_THROW(vec.push_back(core->compile_model(function, target_device, configuration)));
         EXPECT_NE(nullptr, function);
     }
 }
@@ -162,24 +221,24 @@ TEST_P(OVExecutableNetworkBaseTest, CanCreateTwoExeNetworks) {
 TEST_P(OVExecutableNetworkBaseTest, CanCreateTwoExeNetworksAndCheckFunction) {
     std::vector<ov::CompiledModel> vec;
     for (auto i = 0; i < 2; i++) {
-        EXPECT_NO_THROW(vec.push_back(core->compile_model(function, targetDevice, configuration)));
+        EXPECT_NO_THROW(vec.push_back(core->compile_model(function, target_device, configuration)));
         EXPECT_NE(nullptr, vec[i].get_runtime_model());
         EXPECT_NE(vec.begin()->get_runtime_model(), vec[i].get_runtime_model());
     }
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CanGetInputsInfo) {
-    auto execNet = core->compile_model(function, targetDevice, configuration);
+    auto execNet = core->compile_model(function, target_device, configuration);
     EXPECT_NO_THROW(auto inInfo = execNet.inputs());
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CanGetOutputsInfo) {
-    auto execNet = core->compile_model(function, targetDevice, configuration);
+    auto execNet = core->compile_model(function, target_device, configuration);
     EXPECT_NO_THROW(auto outInfo = execNet.outputs());
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CanGetInputsInfoAndCheck) {
-    auto execNet = core->compile_model(function, targetDevice, configuration);
+    auto execNet = core->compile_model(function, target_device, configuration);
     auto inputs = execNet.inputs();
     std::vector<std::string> paramVec;
     for (const auto& input : inputs) {
@@ -193,7 +252,7 @@ TEST_P(OVExecutableNetworkBaseTest, CanGetInputsInfoAndCheck) {
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CanGetOutputsInfoAndCheck) {
-    auto execNet = core->compile_model(function, targetDevice, configuration);
+    auto execNet = core->compile_model(function, target_device, configuration);
     auto outputs = execNet.outputs();
     std::vector<std::string> resVec;
     for (const auto& out : outputs) {
@@ -209,7 +268,7 @@ TEST_P(OVExecutableNetworkBaseTest, CanGetOutputsInfoAndCheck) {
 TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoBeforeExecution) {
     std::shared_ptr<const ov::Model> execGraph;
     // Load CNNNetwork to target plugins
-    auto execNet = core->compile_model(function, targetDevice, configuration);
+    auto execNet = core->compile_model(function, target_device, configuration);
     EXPECT_NO_THROW(execGraph = execNet.get_runtime_model());
     std::map<std::string, int> originalLayersMap;
     for (const auto& layer : function->get_ops()) {
@@ -259,7 +318,7 @@ TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoBeforeExecution) {
 TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoAfterExecution) {
     std::shared_ptr<const ov::Model> execGraph;
     // Load CNNNetwork to target plugins
-    auto execNet = core->compile_model(function, targetDevice, configuration);
+    auto execNet = core->compile_model(function, target_device, configuration);
     EXPECT_NO_THROW(execGraph = execNet.get_runtime_model());
     std::map<std::string, int> originalLayersMap;
     for (const auto& layer : function->get_ops()) {
@@ -319,13 +378,12 @@ TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoAfterExecution) {
 TEST_P(OVExecutableNetworkBaseTest, canExport) {
     auto ts = CommonTestUtils::GetTimestamp();
     std::string modelName = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + ts;
-    auto execNet = core->compile_model(function, targetDevice, configuration);
+    auto execNet = core->compile_model(function, target_device, configuration);
     std::ofstream out(modelName, std::ios::out);
     EXPECT_NO_THROW(execNet.export_model(out));
     out.close();
-    EXPECT_TRUE(CommonTestUtils::fileExists(modelName + ".xml"));
-    EXPECT_TRUE(CommonTestUtils::fileExists(modelName + ".bin"));
-    CommonTestUtils::removeIRFiles(modelName + ".xml", modelName + ".bin");
+    EXPECT_TRUE(CommonTestUtils::fileExists(modelName));
+    CommonTestUtils::removeFile(modelName);
 }
 
 TEST_P(OVExecutableNetworkBaseTest, pluginDoesNotChangeOriginalNetwork) {
@@ -339,7 +397,7 @@ TEST_P(OVExecutableNetworkBaseTest, getInputFromFunctionWithSingleInput) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel execNet;
 
-    execNet = core->compile_model(function, targetDevice, configuration);
+    execNet = core->compile_model(function, target_device, configuration);
     EXPECT_EQ(function->inputs().size(), 1);
     EXPECT_EQ(function->inputs().size(), execNet.inputs().size());
     EXPECT_NO_THROW(execNet.input());
@@ -366,7 +424,7 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputFromFunctionWithSingleInput) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel execNet;
 
-    execNet = core->compile_model(function, targetDevice, configuration);
+    execNet = core->compile_model(function, target_device, configuration);
     EXPECT_EQ(function->outputs().size(), 1);
     EXPECT_EQ(function->outputs().size(), execNet.outputs().size());
     EXPECT_NO_THROW(execNet.output());
@@ -414,7 +472,7 @@ TEST_P(OVExecutableNetworkBaseTest, getInputsFromFunctionWithSeveralInputs) {
                                                       ngraph::ParameterVector{param1, param2});
         function->set_friendly_name("SimpleReLU");
     }
-    execNet = core->compile_model(function, targetDevice, configuration);
+    execNet = core->compile_model(function, target_device, configuration);
     EXPECT_EQ(function->inputs().size(), 2);
     EXPECT_EQ(function->inputs().size(), execNet.inputs().size());
     EXPECT_THROW(execNet.input(), ov::Exception);
@@ -485,7 +543,7 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputsFromFunctionWithSeveralOutputs) {
                                                       ngraph::ParameterVector{param1, param2});
         function->set_friendly_name("SimpleReLU");
     }
-    execNet = core->compile_model(function, targetDevice, configuration);
+    execNet = core->compile_model(function, target_device, configuration);
     EXPECT_EQ(function->outputs().size(), 2);
     EXPECT_EQ(function->outputs().size(), execNet.outputs().size());
     EXPECT_THROW(execNet.output(), ov::Exception);
@@ -552,7 +610,7 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputsFromSplitFunctionWithSeveralOutput
             std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2}, ngraph::ParameterVector{param1});
         function->set_friendly_name("SingleSplit");
     }
-    execNet = core->compile_model(function, targetDevice, configuration);
+    execNet = core->compile_model(function, target_device, configuration);
     EXPECT_EQ(function->outputs().size(), 2);
     EXPECT_EQ(function->outputs().size(), execNet.outputs().size());
     EXPECT_THROW(execNet.output(), ov::Exception);
@@ -599,7 +657,7 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputsFromSplitFunctionWithSeveralOutput
 // Load correct network to Plugin to get executable network
 TEST_P(OVExecutableNetworkBaseTest, precisionsAsInOriginalFunction) {
     ov::CompiledModel execNet;
-    EXPECT_NO_THROW(execNet = core->compile_model(function, targetDevice, configuration));
+    EXPECT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
 
     EXPECT_EQ(function->get_parameters().size(), execNet.inputs().size());
     auto ref_parameter = function->get_parameters().back();
@@ -618,12 +676,13 @@ TEST_P(OVExecutableNetworkBaseTest, precisionsAsInOriginalFunction) {
 
 // Load correct network to Plugin to get executable network
 TEST_P(OVExecutableNetworkBaseTest, precisionsAsInOriginalIR) {
-    const std::string m_out_xml_path_1 = "precisionsAsInOriginalIR.xml";
-    const std::string m_out_bin_path_1 = "precisionsAsInOriginalIR.bin";
+    auto filePrefix = CommonTestUtils::generateTestFilePrefix();
+    const std::string m_out_xml_path_1 = filePrefix + "precisionsAsInOriginalIR.xml";
+    const std::string m_out_bin_path_1 = filePrefix + "precisionsAsInOriginalIR.bin";
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(function);
 
     ov::CompiledModel execNet;
-    EXPECT_NO_THROW(execNet = core->compile_model(m_out_xml_path_1, targetDevice, configuration));
+    EXPECT_NO_THROW(execNet = core->compile_model(m_out_xml_path_1, target_device, configuration));
     CommonTestUtils::removeIRFiles(m_out_xml_path_1, m_out_bin_path_1);
 
     EXPECT_EQ(function->get_parameters().size(), execNet.inputs().size());
@@ -645,7 +704,7 @@ TEST_P(OVExecutableNetworkBaseTest, getCompiledModelFromInferRequest) {
     ov::InferRequest req;
     {
         ov::CompiledModel compiled_model;
-        ASSERT_NO_THROW(compiled_model = core->compile_model(function, targetDevice, configuration));
+        ASSERT_NO_THROW(compiled_model = core->compile_model(function, target_device, configuration));
         ASSERT_NO_THROW(req = compiled_model.create_infer_request());
         ASSERT_NO_THROW(req.infer());
     }
@@ -677,7 +736,7 @@ TEST_P(OVExecutableNetworkBaseTest, loadIncorrectV10Model) {
         function->get_rt_info()["version"] = int64_t(10);
         function->set_friendly_name("SimpleReLU");
     }
-    EXPECT_THROW(core->compile_model(function, targetDevice, configuration), ov::Exception);
+    EXPECT_THROW(core->compile_model(function, target_device, configuration), ov::Exception);
 }
 
 TEST_P(OVExecutableNetworkBaseTest, loadIncorrectV11Model) {
@@ -699,7 +758,7 @@ TEST_P(OVExecutableNetworkBaseTest, loadIncorrectV11Model) {
         function->get_rt_info()["version"] = int64_t(11);
         function->set_friendly_name("SimpleReLU");
     }
-    EXPECT_NO_THROW(core->compile_model(function, targetDevice, configuration));
+    EXPECT_NO_THROW(core->compile_model(function, target_device, configuration));
 }
 
 }  // namespace behavior

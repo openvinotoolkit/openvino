@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,6 @@ namespace util {
 class OPENVINO_API FFTBase : public Op {
 public:
     OPENVINO_OP("FFTBase", "util");
-    BWDCMP_RTTI_DECLARATION;
     FFTBase() = default;
 
     void validate_and_infer_types() override;

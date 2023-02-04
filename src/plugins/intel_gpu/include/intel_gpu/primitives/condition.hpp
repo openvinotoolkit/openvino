@@ -1,20 +1,14 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include "intel_gpu/graph/topology.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
+
 /// @brief Function, which will be used during comparison.
 enum cond_functions : int32_t { EQUAL, GREATER, LESS };
 
@@ -41,15 +35,14 @@ struct condition : public primitive_base<condition> {
     /// @param offset             Offset for compare data.
     /// @param output_padding     Optional padding for output from primitive.
     condition(const primitive_id& id,
-              const primitive_id& input,
+              const input_info& input,
               const topology& topology_true,
               const topology& topology_false,
               const primitive_id& compare_data,
               const cond_functions& func,
               const tensor& offset = {0, 0, 0, 0, 0},
-              const primitive_id& ext_prim_id = "",
               const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           topology_true(topology_true),
           topology_false(topology_false),
           compare_data(compare_data),

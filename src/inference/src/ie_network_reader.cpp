@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,7 @@
 #endif
 #include "ie_itt.hpp"
 #include "legacy/ie_reader.hpp"
+#include "legacy_op_extension.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/variant.hpp"
@@ -41,7 +42,7 @@ namespace ov {
 /*
  * @brief Wrapper for old IE extensions to new API
  */
-class ExtensionWrapper : public ov::BaseOpExtension {
+class ExtensionWrapper : public ov::LegacyOpExtension {
 public:
     ExtensionWrapper(const InferenceEngine::IExtensionPtr& ext, const std::string& opset, const std::string& name)
         : m_ext(ext),
@@ -254,15 +255,14 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                                  bool newAPI,
                                  bool frontendMode = false) {
     auto& rt_info = function->get_rt_info();
-    const auto it = rt_info.find("version");
-    const bool is_ir = it != rt_info.end();
+    const bool is_ir = function->has_rt_info("version");
 
     // only for IR cases we need preprocessing or postprocessing steps
     if (is_ir) {
         using namespace ov::preprocess;
         PrePostProcessor prepost(function);
 
-        const int64_t ir_version = it->second.as<int64_t>();
+        const int64_t ir_version = function->get_rt_info<int64_t>("version");
 
         if (ir_version == 10 && newAPI) {
             std::unordered_map<std::string, std::shared_ptr<ov::descriptor::Tensor>> leaf_names;
@@ -306,7 +306,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             // we need to add operation names as tensor names for inputs and outputs
             {
                 for (const auto& result : function->get_results()) {
-                    auto res_name = ngraph::op::util::create_ie_output_name(result->input_value(0));
+                    auto res_name = ov::op::util::create_ie_output_name(result->input_value(0));
                     OPENVINO_ASSERT(
                         leaf_names.find(res_name) == leaf_names.end() ||
                             result->output(0).get_names().find(res_name) != result->output(0).get_names().end(),

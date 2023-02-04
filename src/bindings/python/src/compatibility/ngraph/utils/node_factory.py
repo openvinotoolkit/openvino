@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -12,7 +12,7 @@ from ngraph.impl import Node, Output
 
 from ngraph.exceptions import UserInputError
 
-DEFAULT_OPSET = "opset9"
+DEFAULT_OPSET = "opset10"
 
 
 class NodeFactory(object):
@@ -48,11 +48,7 @@ class NodeFactory(object):
             return node
 
         if arguments is None and attributes is not None:
-            raise UserInputError(
-                'Error: cannot create "{}" op without arguments.'.format(
-                    op_type_name
-                )
-            )
+            raise UserInputError('Error: cannot create "{}" op without arguments.'.format(op_type_name))
 
         if attributes is None:
             attributes = {}
@@ -101,9 +97,11 @@ class NodeFactory(object):
             if issubclass(type(argument), Output):
                 outputs.append(argument)
             else:
-                log.warning("Op arguments were passed as Node, please avoid passing arguments in "
-                            "this manner, and pass Output(s) instead, because accepting Nodes will "
-                            "be deprecated in a future release.")
+                log.warning(
+                    "Op arguments were passed as Node, please avoid passing arguments in "
+                    "this manner, and pass Output(s) instead, because accepting Nodes will "
+                    "be deprecated in a future release."
+                )
                 outputs.extend(argument.outputs())
         return outputs
 

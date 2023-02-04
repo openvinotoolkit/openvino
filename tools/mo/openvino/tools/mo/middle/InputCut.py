@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.front.extractor import add_input_ops
@@ -16,8 +16,8 @@ class MiddleInputCut(MiddleReplacementPattern):
         return [PreMiddleStart]
 
     def run_before(self):
-        from openvino.tools.mo.middle.ScaleInput import ScaleInput
-        return [ScaleInput]
+        from openvino.tools.mo.middle.pass_separator import MiddleStart
+        return [MiddleStart]
 
     def find_and_replace_pattern(self, graph: Graph):
         add_input_ops(graph, graph.graph['user_shapes'], False)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -20,7 +20,7 @@ from compare_memcheck_2_runs import compare_memcheck_2_runs, get_memcheck_record
 # Database arguments
 from memcheck_upload import DATABASE, DB_COLLECTIONS
 from memcheck_upload import create_memcheck_records, upload_memcheck_records, create_memcheck_report, \
-    metadata_from_manifest, info_from_test_config
+    metadata_from_manifest, info_from_test_config, push_to_db_facade, modify_data_for_push_to_new_db
 
 
 def run(args, log=None, verbose=True):
@@ -113,6 +113,10 @@ def main():
                         required=args.timeline_report or args.upload,
                         help=f'use collection name in {DATABASE} database',
                         choices=DB_COLLECTIONS)
+    parser.add_argument('--db_api_handler',
+                        help='API handler url for push data to database',
+                        default='',
+                        )
     parser.add_argument('--manifest',
                         help=f'extract commit information from build manifest')
     parser.add_argument('--metadata',
@@ -186,6 +190,9 @@ def main():
             if records:
                 upload_memcheck_records(records, args.db_url, args.db_collection)
                 logging.info('Uploaded to %s/%s.%s', args.db_url, DATABASE, args.db_collection)
+                if args.db_api_handler:
+                    new_format_records = modify_data_for_push_to_new_db(records)
+                    push_to_db_facade(new_format_records, args.db_api_handler)
             else:
                 logging.warning('No records to upload')
 

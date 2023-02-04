@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -7,13 +7,13 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_OLD ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY})
 set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY_OLD ${CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY})
 set(CMAKE_PDB_OUTPUT_DIRECTORY_OLD ${CMAKE_PDB_OUTPUT_DIRECTORY})
 
-set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-message(STATUS "Python version=${PYTHON_VERSION}")
+set(pyversion python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
+message(STATUS "Python version=${pyversion}")
 
 if(WIN32)
-    set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${PYTHON_VERSION}/)
+    set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${pyversion}/)
 else()
-    set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${PYTHON_VERSION}/)
+    set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${pyversion}/)
 endif()
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
@@ -28,11 +28,15 @@ set(PYBIND_FE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/mock_mo_python_api.cpp)
 
 source_group("src" FILES ${PYBIND_FE_SRC})
 
-add_subdirectory(${OpenVINO_SOURCE_DIR}/src/bindings/python/thirdparty/pybind11
-                 ${CMAKE_CURRENT_BINARY_DIR}/pybind11_build
-                 EXCLUDE_FROM_ALL)
+find_package(pybind11 2.8.0 QUIET)
 
-pybind11_add_module(${PYBIND_FE_NAME} MODULE ${PYBIND_FE_SRC})
+if(NOT pybind11_FOUND)
+    add_subdirectory(${OpenVINO_SOURCE_DIR}/src/bindings/python/thirdparty/pybind11
+                    ${CMAKE_CURRENT_BINARY_DIR}/pybind11_build
+                    EXCLUDE_FROM_ALL)
+endif()
+
+pybind11_add_module(${PYBIND_FE_NAME} MODULE NO_EXTRAS ${PYBIND_FE_SRC})
 
 target_link_libraries(${PYBIND_FE_NAME} PRIVATE openvino::runtime)
 target_link_libraries(${PYBIND_FE_NAME} PRIVATE ${TARGET_FE_NAME})
@@ -47,5 +51,5 @@ set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY_OLD}
 set(CMAKE_PDB_OUTPUT_DIRECTORY ${CMAKE_PDB_OUTPUT_DIRECTORY_OLD})
 
 install(TARGETS ${PYBIND_FE_NAME}
-        DESTINATION ${OV_CPACK_PYTHONDIR}/${PYTHON_VERSION}
+        DESTINATION ${OV_CPACK_PYTHONDIR}/${pyversion}
         COMPONENT tests EXCLUDE_FROM_ALL)

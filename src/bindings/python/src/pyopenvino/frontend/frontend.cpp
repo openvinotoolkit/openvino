@@ -1,6 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include "pyopenvino/frontend/frontend.hpp"
 
 #include <pybind11/functional.h>
 #include <pybind11/pybind11.h>
@@ -23,16 +25,21 @@ void regclass_frontend_FrontEnd(py::module m) {
 
     fem.def(
         "load",
-        [](FrontEnd& self, const py::object& path) {
-            std::string model_path = Common::utils::convert_path_to_string(path);
-            return self.load(model_path);
+        [](FrontEnd& self, const py::object& py_obj) {
+            try {
+                std::string model_path = Common::utils::convert_path_to_string(py_obj);
+                return self.load(model_path);
+            } catch (...) {
+                // Extended for one argument only for this time
+                return self.load({Common::utils::py_object_to_any(py_obj)});
+            }
         },
         py::arg("path"),
         R"(
-                Loads an input model by specified model file path.
+                Loads an input model.
 
-                :param path: Main model file path.
-                :type path: Union[str, pathlib.Path]
+                :param path: Object describing the model. It can be path to model file.
+                :type path: Any
                 :return: Loaded input model.
                 :rtype: openvino.frontend.InputModel
              )");

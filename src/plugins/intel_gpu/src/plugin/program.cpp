@@ -1,14 +1,24 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#if defined(__unix__) && !defined(__ANDROID__)
+#include <malloc.h>
+#endif
+
 #include "intel_gpu/plugin/program.hpp"
 #include "ngraph/ops.hpp"
-#include "ngraph_ops/nms_ie_internal.hpp"
+#include "ov_ops/nms_ie_internal.hpp"
 #include "openvino/core/graph_util.hpp"
-#include "intel_gpu/plugin/itt.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/primitives/mutable_data.hpp"
+#include "intel_gpu/primitives/data.hpp"
+
+#ifdef __linux__
+# include <dlfcn.h>
+#endif
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -45,18 +55,6 @@ void Program::ChangeInputBatch(int batch) {
     m_curBatch = batch;
 }
 
-void Program::ValidateInputs(const std::shared_ptr<ngraph::Node>& op, std::vector<size_t> validInputsCount) {
-    for (auto ic : validInputsCount) {
-        if (op->get_input_size() == ic) {
-            return;
-        }
-    }
-
-    IE_THROW() << "Invalid inputs count (" << op->get_input_size() << ") in "
-                       << op->get_friendly_name() << " (" << op->get_type_name()
-                       << " op::v" << op->get_type_info().version << ")";
-}
-
 auto getParamName = [](const std::shared_ptr<ov::Node>& param) -> std::string {
     const auto& names = param->get_output_tensor(0).get_names();
     if (!names.empty())
@@ -77,57 +75,51 @@ bool Program::IsDynBatchModel(const std::shared_ptr<ov::Model>& model,
             return false;
         }
         ov::PartialShape pshape = param->get_output_partial_shape(0);
-        int dynCount = 0;
-        int64_t batch_idx = -1;
-        for (size_t i = 0; i < pshape.size(); i++) {
+        bool only_batch_dynamic = pshape.size() && pshape[0].is_dynamic();
+        for (size_t i = 1; i < pshape.size(); i++) {
             if (pshape[i].is_dynamic()) {
-                dynCount++;
-                if (batch_idx < 0) {
-                    batch_idx = i;
-                }
+                // only support 0th dimension for legacy dynamic batch
+                return false;
             }
         }
-        switch (dynCount) {
-            case 1:
-                // exactly one dynamic dim
-                {
-                    int64_t max_b = pshape[batch_idx].get_max_length();
-                    if (max_b > 1) {
-                        batch_dim[pname].first = batch_idx;
-                        batch_dim[pname].second = max_b;
-                        pshape[batch_idx] = 1;
-                    }
-                }
-            case 0:
-                // no dynamic dims - possible legacy case
-                shapes[pname] = pshape;
-                break;
-            default:
-                break;
+        if (only_batch_dynamic) {
+            int64_t max_b = pshape[0].get_max_length();
+            if (max_b > 1) {
+                batch_dim[pname].first = 0;
+                batch_dim[pname].second = max_b;
+                pshape[0] = 1;
+            } else {
+                // unbounded dynamic shape should be handled with new dynamic shape path
+                return false;
+            }
         }
+        shapes[pname] = pshape;
     }
     if (batch_dim.empty())
         return false;
+
     bool dyn_shape_batch_found = false;
     // detect 1st dyn dim, mark it and continue
     auto bitr = batch_dim.begin();
-    dyn_shape_batch_found = bitr->second.first >= 0;
+    dyn_shape_batch_found = (bitr->second.first == 0);
     auto batch_val_1st = bitr->second.second;
     bitr++;
     for (; bitr != batch_dim.end(); bitr++) {
-        if (bitr->second.first >= 0) {
+        if (bitr->second.first == 0) {
             if (bitr->second.second != batch_val_1st) {
                 dyn_shape_batch_found = false;
                 break;
             } else {
                 dyn_shape_batch_found = true;
             }
+        } else {
+            return false;
         }
     }
     return dyn_shape_batch_found;
 }
 
-Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::engine> engine, const Config& config,
+Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, const ExecutionConfig& config,
     bool createTopologyOnly, bool partialBuild)
     : m_curBatch(-1)
     , m_config(config)
@@ -142,40 +134,65 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::en
         IE_THROW() << "Function pointer inside CNNNetwork is nullptr";
     }
 
+    // locate global custom kernel config
+    // and auto-load kernels from it
+#ifdef _WIN32
+    CHAR mpath[MAX_PATH + 1];
+    HMODULE nModule;
+    GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+        (LPCSTR)CustomLayer::LoadFromFile,
+        &nModule);
+    GetModuleFileName(nModule, mpath, sizeof(mpath));
+#elif __linux__
+    Dl_info dl_info;
+    dladdr(reinterpret_cast<void *>(CustomLayer::LoadFromFile), &dl_info);
+    const char* mpath = dl_info.dli_fname;
+#endif
+    std::string configFile(mpath);
+    std::size_t dir_split_pos = configFile.find_last_of("/\\");
+    std::string config_path;
+
+    if (dir_split_pos != std::string::npos) {
+        // path contains directory
+        config_path = configFile.substr(0, dir_split_pos);
+    }
+    config_path += "/cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml";
+
+    CustomLayer::LoadFromFile(config_path, m_custom_layers, true);
+    auto custom_layers_config = m_config.get_property(ov::intel_gpu::config_file);
+    CustomLayer::LoadFromFile(custom_layers_config, m_custom_layers, custom_layers_config.empty());
+
     auto ops = func->get_ordered_ops();
 
     bool dyn_shape_batch_found = false;
     std::map<std::string, ngraph::PartialShape> shapes;
     std::map<std::string, std::pair<int64_t, int64_t>> batch_dim;
-    if (m_config.enableDynamicBatch) {
+    auto enable_dynamic_batch = m_config.get_property(ov::intel_gpu::enable_dynamic_batch);
+    if (enable_dynamic_batch) {
+        m_config.set_property(ov::intel_gpu::max_dynamic_batch(network.getBatchSize()));
         // in case of legacy dynamic batch,
         // we assume 4D input with 0 batch dim
         auto param = func->get_parameters().front();
         auto pname = getParamName(param);
         shapes[pname] = param->get_output_partial_shape(0);
         batch_dim[pname].first = 0;
-        batch_dim[pname].second = m_config.max_dynamic_batch;
+        batch_dim[pname].second = m_config.get_property(ov::intel_gpu::max_dynamic_batch);
     } else {
         dyn_shape_batch_found = IsDynBatchModel(func, shapes, batch_dim);
         if (dyn_shape_batch_found) {
-            m_config.max_dynamic_batch = batch_dim.begin()->second.second;
-        } else {
-            if (!batch_dim.empty() && shapes.empty()) {
-                // more than on dynamic dim or dynamic rank
-                IE_THROW() << "Only dynamic batch is supported!";
-            }
+            m_config.set_property(ov::intel_gpu::max_dynamic_batch(batch_dim.begin()->second.second));
         }
     }
 
     int m_bv_sz = GetMaxBatchSizeForSingleProgram();
-    m_max_batch = m_config.max_dynamic_batch;
+    m_max_batch = m_config.get_property(ov::intel_gpu::max_dynamic_batch);
 
-    if (dyn_shape_batch_found || config.max_dynamic_batch > 1) {
+    if (dyn_shape_batch_found || m_max_batch > 1) {
         // compile log2 networks to serve dynamic batch requests
         for (int b = m_bv_sz - 1; b >= 0; b--) {
             inputLayouts.clear();
             outputDims.clear();
-            primitiveIDs.clear();
+            primitive_ids.clear();
             blobMemCache.clear();
 
             auto new_batch = 1U << static_cast<unsigned>(b);
@@ -199,8 +216,8 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::en
             }
             new_func->reshape(new_shapes);
             {
-                auto deviceInfo = engine->get_device_info();
-                TransformationsPipeline transformations(config, deviceInfo);
+                auto deviceInfo = engine.get_device_info();
+                TransformationsPipeline transformations(m_config, deviceInfo);
                 transformations.apply(new_func);
             }
 
@@ -286,9 +303,10 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::en
 }
 
 int Program::GetMaxBatchSizeForSingleProgram() {
-    if (m_config.max_dynamic_batch > 1) {
+    auto max_dynamic_batch = m_config.get_property(ov::intel_gpu::max_dynamic_batch);
+    if (max_dynamic_batch > 1) {
         // calculate number of networks necessary based on binary log
-        unsigned int tmp = m_config.max_dynamic_batch;
+        unsigned int tmp = max_dynamic_batch;
         unsigned int mask = 1U << 31;
         unsigned int ldigit = 31;
 
@@ -320,6 +338,14 @@ void Program::CleanupBuild() {
     m_topology.reset();
     m_networkInputs.clear();
     m_networkOutputs.clear();
+    #if defined(__unix__) && !defined(__ANDROID__)
+    //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system thought they are freed.
+    //  (It is at least 500 MB when we perform parallel compilation)
+    //  It is observed that freeing the memory manually with malloc_trim saves significant amount of the memory.
+    //  Also, this is not happening in Windows.
+    //  So, added malloc_trim for linux build until we figure out a better solution.
+    malloc_trim(0);
+    #endif
 }
 
 std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::shared_ptr<ngraph::Node>>& ops,
@@ -327,20 +353,24 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
                                                       InferenceEngine::OutputsDataMap networkOutputs,
                                                       bool createTopologyOnly, bool partialBuild) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Program::BuildProgram");
-    cldnn::build_options options;
 
-    if (!m_config.graph_dumps_dir.empty()) {
-        options.set_option(cldnn::build_option::graph_dumps_dir(m_config.graph_dumps_dir));
-    }
-
-    options.set_option(cldnn::build_option::optimize_data(true));
-    options.set_option(cldnn::build_option::tuning_config(m_config.tuningConfig));
-    if (partialBuild) {
-        options.set_option(cldnn::build_option::partial_build_program(true));
-    }
-    PrepareBuild(networkInputs, networkOutputs);
     for (const auto& op : ops) {
-        CreateSingleLayerPrimitive(*m_topology, op);
+        if (op->is_dynamic()) {
+            allow_new_shape_infer = true;
+            break;
+        }
+    }
+
+    m_config.set_property(ov::intel_gpu::partial_build_program(partialBuild));
+    m_config.set_property(ov::intel_gpu::optimize_data(true));
+    m_config.set_property(ov::intel_gpu::allow_new_shape_infer(allow_new_shape_infer));
+
+    PrepareBuild(networkInputs, networkOutputs);
+    {
+        GPU_DEBUG_DEFINE_MEM_LOGGER("CreateSingleLayerPrimitives");
+        for (const auto& op : ops) {
+            CreateSingleLayerPrimitive(*m_topology, op);
+        }
     }
     if (createTopologyOnly) {
         return {};
@@ -348,7 +378,7 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Program::CreateProgram");
         cldnn::program::ptr program;
         try {
-            program = cldnn::program::build_program(*m_engine, *m_topology, options);
+            program = cldnn::program::build_program(m_engine, *m_topology, m_config);
         } catch (std::exception& e) {
             IE_THROW() << "cldnn program build failed! " << e.what();
         }
@@ -387,19 +417,14 @@ bool Program::IsOpSupported(const InferenceEngine::CNNNetwork& network, const st
 
 void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, const std::shared_ptr<ngraph::Node>& op) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Program::CreateSingleLayerPrimitive");
-    InitProfileInfo(op->get_friendly_name(), op->get_type_name());
-
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->verbose >= 2) {
-        GPU_DEBUG_COUT << "Process " << "op::v" << op->get_type_info().version << "::" << op->get_type_name() << " operation "
-                       << "(friendly_name=" << op->get_friendly_name() << ")" << std::endl;
-    }
+    GPU_DEBUG_LOG << "Process " << "op::v" << op->get_type_info().version << "::" << op->get_type_name() << " operation "
+                  << "(friendly_name=" << op->get_friendly_name() << ")" << std::endl;
 
     bool is_created = false;
     const ngraph::NodeTypeInfo* op_type_info = &op->get_type_info();
     while (op_type_info != nullptr) {
-        auto customLayer = m_config.customLayers.find(op->get_type_name());
-        if (customLayer != m_config.customLayers.end()) {
+        auto customLayer = m_custom_layers.find(op->get_type_name());
+        if (customLayer != m_custom_layers.end()) {
             CreateCustomOp(*this, op, customLayer->second);
             return;
         }
@@ -420,71 +445,45 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, const std::s
     }
 }
 
-std::vector<cldnn::primitive_id> Program::GetInputPrimitiveIDs(const std::shared_ptr<ngraph::Node>& op) const {
+std::vector<cldnn::input_info> Program::GetInputInfo(const std::shared_ptr<ngraph::Node>& op) const {
     if (!op) {
         return {};
     }
 
-    std::vector<cldnn::primitive_id> inputPrimitives;
+    // Currently multiple outputs are supported only in the dynamic shape case,
+    // So the output index of the dependency is not processed
+    std::vector<cldnn::input_info> inputInfo;
     for (size_t i = 0; i < op->get_input_size(); i++) {
         auto prevOp = op->get_input_node_ptr(i);
         std::string prevName = layer_type_name_ID(prevOp);
-        if (prevOp->get_output_size() > 1) {
-            prevName += "." + std::to_string(op->get_input_source_output(i).get_index());
+        bool is_legacy_multiple_outputs = !allow_new_shape_infer
+                                          // Note:: Currently Split/Variadic Split are divided to multiple crops
+                                          || ngraph::is_type<ngraph::op::v1::Split>(prevOp)
+                                          || ngraph::is_type<ngraph::op::v1::VariadicSplit>(prevOp);
+        if (prevOp->get_output_size() > 1 && is_legacy_multiple_outputs) {
+            prevName += ".out" + std::to_string(op->get_input_source_output(i).get_index());
         }
 
         if (!queryMode) {
-            if (primitiveIDs.find(prevName) == primitiveIDs.end()) {
-                IE_THROW() << "Input " << prevName << " hasn't been found in primitiveIDs map";
+            if (primitive_ids.find(prevName) == primitive_ids.end()) {
+                IE_THROW() << "Input " << prevName << " hasn't been found in primitive_ids map";
             }
-            inputPrimitives.push_back(primitiveIDs.at(prevName));
+            inputInfo.push_back(cldnn::input_info(primitive_ids.at(prevName), is_legacy_multiple_outputs ? 0: op->get_input_source_output(i).get_index()));
         } else {
-            inputPrimitives.push_back(prevName);
+            inputInfo.push_back(cldnn::input_info(prevName, is_legacy_multiple_outputs ? 0 : op->get_input_source_output(i).get_index()));
         }
     }
-    return inputPrimitives;
+    return inputInfo;
 }
 
-void Program::AddPrimitiveToProfiler(const std::shared_ptr<ngraph::Node>& op,
-                                     cldnn::primitive_id customOutputId) {
-    auto id = layer_type_name_ID(op);
-    primitiveIDs[id] = customOutputId.empty() ? id : customOutputId;
-    profilingIDs.push_back(id);
-}
-
-void Program::AddPrimitiveToProfiler(cldnn::primitive_id id, const std::shared_ptr<ngraph::Node>& op,
-                                     cldnn::primitive_id customOutputId) {
-    primitiveIDs[id] = customOutputId.empty() ? id : customOutputId;
-    profilingIDs.push_back(id);
-}
-
-void Program::AddInnerPrimitiveToProfiler(cldnn::primitive_id id, cldnn::primitive_id parentId,
-                                          const std::shared_ptr<ngraph::Node>& op) {
-    InitProfileInfo(id, layer_type_lower(op), false, InferenceEngine::InferenceEngineProfileInfo::EXECUTED, parentId);
-    primitiveIDs[id] = id;
-    profilingIDs.push_back(id);
-}
-
-void Program::InitProfileInfo(const std::string& layerName,
-                              const std::string& layerType,
-                              bool isCPU,
-                              InferenceEngine::InferenceEngineProfileInfo::LayerStatus status, std::string parentId) {
-    std::string layer_type_lower = layerType;
-    for (auto& c : layer_type_lower)
-        c = tolower(c);
-
-    std::string name = layerName;
-    if (name.find(layer_type_lower + ":") != std::string::npos) {
-        name = layerName.substr(layerName.find(":") + 1, layerName.length());
-    }
-
-    perfMap[layer_type_lower + ":" + name].first = name;
-    auto& perfEntry = perfMap[layer_type_lower + ":" + name].second;
-    perfEntry.layerType = layerType;
-    perfEntry.status = status;
+void Program::init_profile_info(const cldnn::primitive& prim) {
+    perfMap[prim.id].first = prim.id;
+    auto& perfEntry = perfMap[prim.id].second;
+    perfEntry.layerType = prim.origin_op_type_name;
+    perfEntry.status = InferenceEngine::InferenceEngineProfileInfo::LayerStatus::EXECUTED;
     perfEntry.cpu_uSec = perfEntry.realTime_uSec = 0;
-    perfEntry.isCPU = isCPU;
-    perfEntry.parentPrimitive = parentId;
+    perfEntry.isCPU = false;
+    perfEntry.parentPrimitive = prim.origin_op_name;
 }
 
 void Program::AddVariableStateInfo(const std::string& variable_id, const cldnn::layout& layout) {
@@ -493,6 +492,39 @@ void Program::AddVariableStateInfo(const std::string& variable_id, const cldnn::
         it->second.insert(layout);
     else
         m_variablesStateInfo.insert({variable_id, { layout }});
+}
+
+void Program::add_primitive(const ngraph::Node& op, std::shared_ptr<cldnn::primitive> prim, std::vector<std::string> aliases) {
+    OPENVINO_ASSERT(m_topology != nullptr, "[GPU] Invalid Program builder state: topology is nullptr");
+
+    prim->origin_op_name = op.get_friendly_name();
+    prim->origin_op_type_name = op.get_type_name();
+
+    bool should_profile = prim->type != cldnn::mutable_data::type_id() &&
+                          prim->type != cldnn::data::type_id();
+
+    auto prim_id = prim->id;
+    auto id = layer_type_name_ID(&op);
+    primitive_ids[id] = prim_id;
+
+    bool multi_output_case = ends_with(prim_id, ".out0") && prim_id.length() > 5 && prim_id.substr(0, prim_id.length() - 5) == id;
+    if (id != prim_id) {
+        primitive_ids[prim_id] = prim_id;
+
+        if (!multi_output_case)
+            prim->origin_op_type_name = prim->type_string();
+    }
+
+    if (this->m_config.get_property(ov::enable_profiling) && should_profile) {
+        profiling_ids.push_back(prim_id);
+        init_profile_info(*prim);
+    }
+
+    for (auto& alias : aliases) {
+        primitive_ids[alias] = prim_id;
+    }
+
+    m_topology->add_primitive(prim);
 }
 
 // TODO: Does it make sense to add such method to ngraph core?
@@ -515,6 +547,18 @@ bool IsNodeOnConstPath(const std::shared_ptr<ngraph::Node>& node) {
         return true;
     };
     return is_const_node(node);
+}
+
+void validate_inputs_count(const std::shared_ptr<ngraph::Node>& op, std::vector<size_t> valid_inputs_count) {
+    for (auto ic : valid_inputs_count) {
+        if (op->get_input_size() == ic) {
+            return;
+        }
+    }
+
+    IE_THROW() << "Invalid inputs count (" << op->get_input_size() << ") in "
+               << op->get_friendly_name() << " (" << op->get_type_name()
+               << " op::v" << op->get_type_info().version << ")";
 }
 
 }  // namespace intel_gpu

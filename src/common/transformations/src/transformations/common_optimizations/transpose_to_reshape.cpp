@@ -1,27 +1,28 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/common_optimizations/transpose_to_reshape.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <numeric>
+#include <openvino/opsets/opset3.hpp>
+#include <openvino/opsets/opset6.hpp>
 #include <vector>
 
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
-ngraph::pass::TransposeToReshape::TransposeToReshape() {
+ov::pass::TransposeToReshape::TransposeToReshape() {
     MATCHER_SCOPE(TransposeToReshape);
 
     auto transpose_label = pattern::wrap_type<opset6::Transpose>(
         {pattern::any_input(pattern::has_static_rank()), pattern::wrap_type<opset6::Constant>()});
-    ngraph::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
         auto transpose = m.get_match_root();
         auto data = transpose->input_value(0);
         const auto input_shape = transpose->input(0).get_partial_shape();

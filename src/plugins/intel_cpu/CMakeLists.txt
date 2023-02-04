@@ -1,11 +1,28 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+
+if (NOT ENABLE_INTEL_CPU)
+    return()
+endif()
 
 set(TARGET_NAME "openvino_intel_cpu_plugin")
 
 if(CMAKE_COMPILER_IS_GNUCC)
     ie_add_compiler_flags(-Wno-all)
+endif()
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # C4267, 4244 issues from mkl-dnn headers conversion from 'XXX' to 'YYY', possible loss of data
+    ie_add_compiler_flags(/wd4267)
+    ie_add_compiler_flags(/wd4244)
+    # mkldnn headers: '<<': result of 32-bit shift implicitly converted to 64 bits
+    ie_add_compiler_flags(/wd4334)
+    # plugin: inherits 'XXX' via dominance
+    ie_add_compiler_flags(/wd4250)
+    # '<': signed/unsigned mismatch
+    ie_add_compiler_flags(/wd4018)
+    ie_add_compiler_flags(/wd4309)
 endif()
 
 if (WIN32)
@@ -22,17 +39,13 @@ file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
 
 addVersionDefines(${CMAKE_CURRENT_SOURCE_DIR}/src/plugin.cpp CI_BUILD_NUMBER)
 
-# WA for old TBBConfig.cmake like tbb2019_20180718oss
-# they don't check that imported target is already created
-if(TBB_FOUND AND TBB_VERSION VERSION_GREATER_EQUAL 2018 AND TBB_VERSION VERSION_LESS_EQUAL 2019.4)
-    set(Threading_cmake_included ON)
-    set(DNNL_CPU_THREADING_RUNTIME "${THREADING}")
-    function(find_package_tbb)
-        # dummy
-    endfunction()
-endif()
-
 add_subdirectory(thirdparty)
+if(ENABLE_TESTS)
+    add_subdirectory(tests/unit)
+endif()
+if(ENABLE_FUNCTIONAL_TESTS)
+    add_subdirectory(tests/functional)
+endif()
 
 # create plugin
 
@@ -83,7 +96,6 @@ if(BUILD_SHARED_LIBS)
 
     target_include_directories(${TARGET_NAME}_obj
         PRIVATE
-            $<TARGET_PROPERTY:openvino_gapi_preproc_s,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:ov_shape_inference,INTERFACE_INCLUDE_DIRECTORIES>

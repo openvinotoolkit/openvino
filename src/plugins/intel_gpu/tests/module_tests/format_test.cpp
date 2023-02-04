@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,9 +25,9 @@ TEST(format, traits) {
 }
 
 struct format_adjust_test_params {
-    format in_format;
+    cldnn::format in_format;
     size_t new_rank;
-    format expected_format;
+    cldnn::format expected_format;
 };
 
 class format_adjust_test : public testing::TestWithParam<format_adjust_test_params> {
@@ -44,7 +44,7 @@ public:
 TEST_P(format_adjust_test, shape_infer) {
     auto p = GetParam();
 
-    if (p.expected_format == format::any) {
+    if (p.expected_format == cldnn::format::any) {
         cldnn::format fmt = cldnn::format::any;
         ASSERT_ANY_THROW(fmt = format::adjust_to_rank(p.in_format, p.new_rank)) << fmt.to_string();
     } else {
@@ -54,17 +54,93 @@ TEST_P(format_adjust_test, shape_infer) {
 
 INSTANTIATE_TEST_SUITE_P(smoke, format_adjust_test,
     testing::ValuesIn(std::vector<format_adjust_test_params>{
-        {format::bfyx, 3, format::bfyx},
-        {format::bfyx, 4, format::bfyx},
-        {format::bfyx, 5, format::bfzyx},
-        {format::bfyx, 6, format::bfwzyx},
-        {format::bfzyx, 4, format::bfyx},
-        {format::bfzyx, 6, format::bfwzyx},
-        {format::bfwzyx, 3, format::bfyx},
-        {format::b_fs_yx_fsv16, 5, format::b_fs_zyx_fsv16},
-        {format::b_fs_zyx_fsv16, 4, format::b_fs_yx_fsv16},
-        {format::fs_b_yx_fsv32, 5, format::any},
-        {format::nv12, 5, format::any},
-        {format::oiyx, 5, format::any},
+        {cldnn::format::bfyx,           3, cldnn::format::bfyx},
+        {cldnn::format::bfyx,           4, cldnn::format::bfyx},
+        {cldnn::format::bfyx,           5, cldnn::format::bfzyx},
+        {cldnn::format::bfyx,           6, cldnn::format::bfwzyx},
+        {cldnn::format::bfzyx,          4, cldnn::format::bfyx},
+        {cldnn::format::bfzyx,          6, cldnn::format::bfwzyx},
+        {cldnn::format::bfwzyx,         3, cldnn::format::bfyx},
+        {cldnn::format::b_fs_yx_fsv16,  5, cldnn::format::b_fs_zyx_fsv16},
+        {cldnn::format::b_fs_zyx_fsv16, 4, cldnn::format::b_fs_yx_fsv16},
+        {cldnn::format::fs_b_yx_fsv32,  5, cldnn::format::any},
+        {cldnn::format::nv12,           5, cldnn::format::any},
+        {cldnn::format::oiyx,           5, cldnn::format::any},
     }),
     format_adjust_test::PrintToString);
+
+struct axes_test_format_params {
+    cldnn::format in_format;
+    // First : block_idx, Second : block_size
+    std::vector<std::pair<size_t, int>> inner_block;
+    std::vector<std::pair<size_t, int>> per_axis_block;
+};
+
+class axes_test_format : public testing::TestWithParam<axes_test_format_params> {
+public:
+    static std::string PrintToString(testing::TestParamInfo<axes_test_format_params> param_info) {
+        auto input_fmt = param_info.param.in_format.to_string();
+        auto blocks = param_info.param.inner_block;
+        auto per_axis_blocks = param_info.param.per_axis_block;
+        std::string res = "in_fmt = " + input_fmt + " : ";
+        for (auto block : blocks) {
+            res += " { " + std::to_string(block.first) + ", " + std::to_string(block.second) + "}";
+        }
+
+        res += " > ";
+        for (auto block : per_axis_blocks) {
+            res += " { " + std::to_string(block.first) + ", " + std::to_string(block.second) + "}";
+        }
+
+        return res;
+    }
+ };
+
+ TEST_P(axes_test_format, simple_test) {
+    auto param = GetParam();
+
+    auto per_axis_blocks = format::per_axis_block_size(param.in_format);
+    ASSERT_EQ(per_axis_blocks.size(), param.per_axis_block.size());
+    for (size_t idx = 0; idx < per_axis_blocks.size(); idx++) {
+        ASSERT_EQ(per_axis_blocks.at(idx).first, param.per_axis_block.at(idx).first);
+        ASSERT_EQ(per_axis_blocks.at(idx).second, param.per_axis_block.at(idx).second);
+    }
+
+    auto blocks = format::block_sizes(param.in_format);
+    ASSERT_EQ(blocks.size(), param.inner_block.size());
+    for (size_t idx = 0; idx < blocks.size(); idx++) {
+        ASSERT_EQ(blocks.at(idx).first, param.inner_block.at(idx).first);
+        ASSERT_EQ(blocks.at(idx).second, param.inner_block.at(idx).second);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke, axes_test_format,
+    testing::ValuesIn(std::vector<axes_test_format_params>{
+        {format::os_is_yx_isa8_osv8_isv4,       {{1, 8}, {0, 8}, {1, 4}}, {{1, 32}, {0, 8}}},
+        {format::os_is_yx_isa8_osv16_isv4,      {{1, 8}, {0, 16}, {1, 4}}, {{1, 32}, {0, 16}}},
+        {format::os_is_yx_osa4_isa8_osv8_isv2,  {{0, 4}, {1, 8}, {0, 8}, {1, 2}}, {{0, 32}, {1, 16}}},
+        {format::os_is_yx_osa4_isa8_osv8_isv4,  {{0, 4}, {1, 8}, {0, 8}, {1, 4}}, {{0, 32}, {1, 32}}},
+        {format::os_is_zyx_osa4_isa8_osv8_isv2, {{0, 4}, {1, 8}, {0, 8}, {1, 2}}, {{0, 32}, {1, 16}}},
+        {format::os_is_zyx_osa4_isa8_osv8_isv4, {{0, 4}, {1, 8}, {0, 8}, {1, 4}}, {{0, 32}, {1, 32}}},
+        {format::os_is_yx_osa2_isa8_osv16_isv2, {{0, 2}, {1, 8}, {0, 16}, {1, 2}}, {{0, 32}, {1, 16}}},
+        {format::os_is_yx_osa2_isa8_osv16_isv4, {{0, 2}, {1, 8}, {0, 16}, {1, 4}}, {{0, 32}, {1, 32}}},
+        {format::os_is_yx_osa2_isa8_osv8_isv2,  {{0, 2}, {1, 8}, {0, 8}, {1, 2}}, {{0, 16}, {1, 16}}},
+        {format::os_is_zyx_osa2_isa8_osv8_isv2, {{0, 2}, {1, 8}, {0, 8}, {1, 2}}, {{0, 16}, {1, 16}}},
+        {format::os_is_zyx_isa8_osv8_isv4,      {{1, 8}, {0, 8}, {1, 4}}, {{1, 32}, {0, 8}}},
+        {format::os_is_zyx_isa8_osv16_isv4,     {{1, 8}, {0, 16}, {1, 4}}, {{1, 32}, {0, 16}}},
+        {format::is_os_yx_osa4_isa8_osv8_isv4,  {{0, 4}, {1, 8}, {0, 8}, {1, 4}}, {{0, 32}, {1, 32}}},
+        {format::is_os_yx_isa2_osa8_isv8_osv2,  {{1, 2}, {0, 8}, {1, 8}, {0, 2}}, {{1, 16}, {0, 16}}},
+        {format::is_os_yx_isa4_osa8_isv8_osv4,  {{1, 4}, {0, 8}, {1, 8}, {0, 4}}, {{1, 32}, {0, 32}}},
+        {format::os_is_yx_osv8_isv4,            {{0, 8}, {1, 4}}, {{0, 8}, {1, 4}}},
+        {format::os_is_zyx_osv8_isv4,           {{0, 8}, {1, 4}}, {{0, 8}, {1, 4}}},
+        {format::os_is_yx_osv8_isv2,            {{0, 8}, {1, 2}}, {{0, 8}, {1, 2}}},
+        {format::os_is_zyx_osv8_isv2,           {{0, 8}, {1, 2}}, {{0, 8}, {1, 2}}},
+        {format::g_os_is_yx_osa2_isa8_osv8_isv2,  {{0, 2}, {1, 8}, {0, 8}, {1, 2}}, {{0, 16}, {1, 16}}},
+        {format::g_os_is_yx_osa4_isa8_osv8_isv4,  {{0, 4}, {1, 8}, {0, 8}, {1, 4}}, {{0, 32}, {1, 32}}},
+        {format::g_os_is_zyx_osa4_isa8_osv8_isv4, {{0, 4}, {1, 8}, {0, 8}, {1, 4}}, {{0, 32}, {1, 32}}},
+        {format::g_os_is_yx_osa4_isa8_osv8_isv2,  {{0, 4}, {1, 8}, {0, 8}, {1, 2}}, {{0, 32}, {1, 16}}},
+        {format::g_os_is_zyx_osa4_isa8_osv8_isv2, {{0, 4}, {1, 8}, {0, 8}, {1, 2}}, {{0, 32}, {1, 16}}},
+        {format::g_os_is_yx_osa2_isa8_osv16_isv4, {{0, 2}, {1, 8}, {0, 16}, {1, 4}}, {{0, 32}, {1, 32}}},
+        {format::g_os_is_yx_osa2_isa8_osv16_isv2, {{0, 2}, {1, 8}, {0, 16}, {1, 2}}, {{0, 32}, {1, 16}}},
+    }),
+    axes_test_format::PrintToString);

@@ -1,3 +1,6 @@
+@sphinxdirective
+:orphan:
+@endsphinxdirective
 # OpenVINO™ Model Server Benchmark Results {#openvino_docs_performance_benchmarks_ovms}
 
 OpenVINO™ Model Server is an open-source, production-grade inference platform that exposes a set of models via a convenient inference API over gRPC or HTTP/REST. It employs the OpenVINO™ Runtime libraries from the Intel® Distribution of OpenVINO™ toolkit to extend workloads across Intel® hardware including CPU, GPU and others.
@@ -6,492 +9,228 @@ OpenVINO™ Model Server is an open-source, production-grade inference platform 
 
 ## Measurement Methodology
 
-OpenVINO™ Model Server is measured in a multiple-client-single-server configuration using two hardware platforms connected by an ethernet network. The network bandwidth depends on the platforms as well as models under investigation, and it is set not to be a bottleneck for workload intensity. This connection is dedicated only to the performance measurements. The benchmark setup consists of four main parts:
+OpenVINO™ Model Server is measured in multiple-client-single-server configuration using two hardware platforms connected by ethernet network. The network bandwidth depends on the platforms as well as models under investigation and it is set to not be a bottleneck for workload intensity. This connection is dedicated only to the performance measurements. The benchmark setup is consists of four main parts:
 
 ![OVMS Benchmark Setup Diagram](../img/performance_benchmarks_ovms_02.png)
 
-- **OpenVINO™ Model Server** -- It is launched as a docker container on the server platform and it listens, and answers to, requests from clients. It is run on the same system as the OpenVINO™ toolkit benchmark application in corresponding benchmarking. Models served by it are placed in a local file system mounted into the docker container. The OpenVINO™ Model Server instance communicates with other components via ports over a dedicated docker network.
+* **OpenVINO™ Model Server** is launched as a docker container on the server platform and it listens (and answers on) requests from clients. OpenVINO™ Model Server is run on the same machine as the OpenVINO™ toolkit benchmark application in corresponding benchmarking. Models served by OpenVINO™ Model Server are located in a local file system mounted into the docker container. The OpenVINO™ Model Server instance communicates with other components via ports over a dedicated docker network.
 
-- **Clients** - They are run in a separated physical system referred to as a client platform. Clients are implemented in the Python3 programming language based on the TensorFlow API and they work as parallel processes. Each client waits for a response from OpenVINO™ Model Server before it sends a new request. Clients also play a role in verification of responses.
+* **Clients** are run in separated physical machine referred to as client platform. Clients are implemented in Python3 programming language based on TensorFlow* API and they work as parallel processes. Each client waits for a response from OpenVINO™ Model Server before it will send a new next request. The role played by the clients is also verification of responses.
 
-- **Load Balancer** -- It works on the client platform in a docker container by using a HAProxy. It is mainly responsible for counting requests forwarded from clients to OpenVINO™ Model Server, estimating its latency, and sharing this information by Prometheus service. The reason for locating this part on the client site is to simulate a real life scenario that includes an impact of a physical network on reported metrics.
+* **Load balancer** works on the client platform in a docker container. HAProxy is used for this purpose. Its main role is counting of requests forwarded from clients to OpenVINO™ Model Server, estimating its latency, and sharing this information by Prometheus service. The reason of locating the load balancer on the client site is to simulate real life scenario that includes impact of physical network on reported metrics.
 
-- **Execution Controller** -- It is launched on the client platform. It is responsible for synchronization of the whole measurement process, downloading metrics from Load Balancer and presenting the final report of the execution.
+* **Execution Controller** is launched on the client platform. It is responsible for synchronization of the whole measurement process, downloading metrics from the load balancer, and presenting the final report of the execution.
 
-## resnet-50-TF (INT8)
-![](../img/throughput_ovms_resnet50_int8.png)
-## resnet-50-TF (FP32)
-![](../img/throughput_ovms_resnet50_fp32_bs_1.png)
-## googlenet-v4-TF (FP32)
-![](../img/throughput_ovms_googlenet4_fp32.png)
-## yolo-v3-tf (FP32)
-![](../img/throughput_ovms_yolo3_fp32.png)
-## yolo-v4-tf (FP32)
-![](../img/throughput_ovms_yolo4_fp32.png)
-## brain-tumor-segmentation-0002
-![](../img/throughput_ovms_braintumorsegmentation.png)
-## alexnet
-![](../img/throughput_ovms_alexnet.png)
-## mobilenet-v3-large-1.0-224-TF (FP32)
-![](../img/throughput_ovms_mobilenet3large_fp32.png)
-## deeplabv3 (FP32)
-![](../img/throughput_ovms_deeplabv3_fp32.png)
-## bert-small-uncased-whole-word-masking-squad-int8-0002 (INT8)
-![](../img/throughput_ovms_bertsmall_int8.png)
-## bert-small-uncased-whole-word-masking-squad-0002 (FP32)
-![](../img/throughput_ovms_bertsmall_fp32.png)
-## 3D U-Net (FP32)
-![](../img/throughput_ovms_3dunet.png)
+## bert-small-uncased-whole-word-masking-squad-002 (INT8)
+![](../_static/benchmarks_files/ovms/bert-small-uncased-whole-word-masking-squad-002-int8.png)
+## bert-small-uncased-whole-word-masking-squad-002 (FP32)
+![](../_static/benchmarks_files/ovms/bert-small-uncased-whole-word-masking-squad-002-fp32.png)
+## densenet-121 (INT8)
+![](../_static/benchmarks_files/ovms/densenet-121-int8.png)
+## densenet-121 (FP32)
+![](../_static/benchmarks_files/ovms/densenet-121-fp32.png)
+## efficientdet-d0 (INT8)
+![](../_static/benchmarks_files/ovms/efficientdet-d0-int8.png)
+## efficientdet-d0 (FP32)
+![](../_static/benchmarks_files/ovms/efficientdet-d0-fp32.png)
+## inception-v4 (INT8)
+![](../_static/benchmarks_files/ovms/inception-v4-int8.png)
+## inception-v4 (FP32)
+![](../_static/benchmarks_files/ovms/inception-v4-fp32.png)
+## mobilenet-ssd (INT8)
+![](../_static/benchmarks_files/ovms/mobilenet-ssd-int8.png)
+## mobilenet-ssd (FP32)
+![](../_static/benchmarks_files/ovms/mobilenet-ssd-fp32.png)
+## mobilenet-v2 (INT8)
+![](../_static/benchmarks_files/ovms/mobilenet-v2-int8.png)
+## mobilenet-v2 (FP32)
+![](../_static/benchmarks_files/ovms/mobilenet-v2-fp32.png)
+## resnet-18 (INT8)
+![](../_static/benchmarks_files/ovms/resnet-18-int8.png)
+## resnet-18 (FP32)
+![](../_static/benchmarks_files/ovms/resnet-18-fp32.png)
+## resnet-50 (INT8)
+![](../_static/benchmarks_files/ovms/resnet-50-int8.png)
+## resnet-50 (FP32)
+![](../_static/benchmarks_files/ovms/resnet-50-fp32.png)
+## ssd-resnt34-1200 (INT8)
+![](../_static/benchmarks_files/ovms/ssd-resnt34-1200-int8.png)
+## ssd-resnt34-1200 (FP32)
+![](../_static/benchmarks_files/ovms/ssd-resnt34-1200-fp32.png)
+## unet-camvid-onnx-001 (INT8)
+![](../_static/benchmarks_files/ovms/unet-camvid-onnx-001-int8.png)
+## unet-camvid-onnx-001 (FP32)
+![](../_static/benchmarks_files/ovms/unet-camvid-onnx-001-fp32.png)
+## yolo-v3-tiny (INT8)
+![](../_static/benchmarks_files/ovms/yolo-v3-tiny-int8.png)
+## yolo-v3-tiny (FP32)
+![](../_static/benchmarks_files/ovms/yolo-v3-tiny-fp32.png)
+## yolo-v4 (INT8)
+![](../_static/benchmarks_files/ovms/yolo-v4-int8.png)
+## yolo-v4 (FP32)
+![](../_static/benchmarks_files/ovms/yolo-v4-fp32.png)
 
-## Image Compression for Improved Throughput
-OpenVINO™ Model Server supports compressed binary input data (images in JPEG and PNG formats) for vision processing models. This
-feature improves overall performance on networks where the bandwidth constitutes a system bottleneck. Some examples of such a use case are: wireless 5G communication, a typical 1 Gbit/sec Ethernet network, and a scenario of multiple client machines issuing a high rate of inference requests to a single, central OpenVINO model server. Generally, performance improvement grows with increased compressibility of data/image. Decompression on the server side is performed by the OpenCV library.
-
-### Supported Image Formats for OVMS Compression
-
-- Always supported:
-  - Portable image format - `*.pbm`, `*.pgm`, `*.ppm`, `*.pxm`, `*.pnm`.
-  - Radiance HDR - `*.hdr`, `*.pic`.
-  - Sun rasters - `*.sr`, `*.ras`.
-  - Windows bitmaps - `*.bmp`, `*.dib`.
-
-- Limited support (refer to OpenCV documentation):
-  - Raster and Vector geospatial data supported by GDAL.
-  - JPEG files - `*.jpeg`, `*.jpg`, `*.jpe`.
-  - Portable Network Graphics - `*.png`.
-  - TIFF files - `*.tiff`, `*.tif`.
-  - OpenEXR Image files - `*.exr`.
-  - JPEG 2000 files - `*.jp2`.
-  - WebP - `*.webp`.
-
-### googlenet-v4-tf (FP32)
-![](../img/throughput_ovms_1gbps_googlenet4_fp32.png)
-
-### resnet-50-tf (INT8)
-![](../img/throughput_ovms_1gbps_resnet50_int8.png)
-
-### resnet-50-tf (FP32)
-![](../img/throughput_ovms_1gbps_resnet50_fp32.png)
 
 ## Platform Configurations
 
-OpenVINO™ Model Server performance benchmark numbers are based on release 2021.4. Performance results are based on testing as of June 17, 2021 and may not reflect all publicly available updates.
+OpenVINO™ Model Server performance benchmark numbers are based on release 2022.2. Performance results are based on testing as of November 16, 2022 and may not reflect all publicly available updates.
 
-### Platform with Intel® Xeon® Platinum 8260M
-
-@sphinxdirective
-.. raw:: html
-
-    <table class="table">
-      <tr>
-        <th></th>
-        <th><strong>Server Platform</strong></th>
-        <th><strong>Client Platform</strong></th>
-      </tr>
-      <tr>
-        <td><strong>Motherboard</strong></td>
-        <td>Inspur YZMB-00882-104 NF5280M5</td>
-        <td>Intel® Server Board S2600WF H48104-872</td>
-      </tr>
-      <tr>
-        <td><strong>Memory</strong></td>
-        <td>Samsung 16 x 16GB @ 2666 MT/s DDR4</td>
-        <td>Hynix 16 x 16GB @ 2666 MT/s DDR4</td>
-      </tr>
-      <tr>
-        <td><strong>CPU</strong></td>
-        <td>Intel® Xeon® Platinum 8260M CPU @ 2.40GHz</td>
-        <td>Intel® Xeon® Gold 6252 CPU @ 2.10GHz</td>
-      </tr>
-      <tr>
-        <td><strong>Selected CPU Flags</strong></td>
-        <td>Hyper Threading, Turbo Boost, DL Boost</td>
-        <td>Hyper Threading, Turbo Boost, DL Boost</td>
-      </tr>
-      <tr>
-        <td><strong>CPU Thermal Design Power</strong></td>
-        <td>162 W</td>
-        <td>150 W</td>
-      </tr>
-      <tr>
-        <td><strong>Operating System</strong></td>
-        <td>Ubuntu 20.04.2 LTS</td>
-        <td>Ubuntu 20.04.2 LTS</td>
-      </tr>
-      <tr>
-        <td><strong>Kernel Version</strong></td>
-        <td>5.4.0-54-generic</td>
-        <td>5.4.0-65-generic</td>
-      </tr>
-      <tr>
-        <td><strong>BIOS Vendor</strong></td>
-        <td>American Megatrends Inc.</td>
-        <td>Intel® Corporation</td>
-      </tr>
-      <tr>
-        <td><strong>BIOS Version & Release</strong></td>
-        <td>4.1.16, date: 06/23/2020</td>
-        <td>SE5C620.86B.02.01, date: 03/26/2020</td>
-      </tr>
-      <tr>
-        <td><strong>Docker Version</strong></td>
-        <td>20.10.3</td>
-        <td>20.10.3</td>
-      </tr>
-      <tr>
-        <td><strong>Network Speed</strong></td>
-        <td colspan="2">40 Gb/s</td>
-      </tr>
-    </table>
-
-@endsphinxdirective
-
-### Platform with Intel® Xeon® Gold 6252
 
 @sphinxdirective
-.. raw:: html
+.. dropdown:: Platform with Intel® Xeon® Platinum 8260M
 
-    <table class="table">
-      <tr>
-        <th></th>
-        <th><strong>Server Platform</strong></th>
-        <th><strong>Client Platform</strong></th>
-      </tr>
-      <tr>
-        <td><strong>Motherboard</strong></td>
-        <td>Intel® Server Board S2600WF H48104-872</td>
-        <td>Inspur YZMB-00882-104 NF5280M5</td>
-      </tr>
-      <tr>
-        <td><strong>Memory</strong></td>
-        <td>Hynix 16 x 16GB @ 2666 MT/s DDR4</td>
-        <td>Samsung 16 x 16GB @ 2666 MT/s DDR4</td>
-      </tr>
-      <tr>
-        <td><strong>CPU</strong></td>
-        <td>Intel® Xeon® Gold 6252 CPU @ 2.10GHz</td>
-        <td>Intel® Xeon® Platinum 8260M CPU @ 2.40GHz</td>
-      </tr>
-      <tr>
-        <td><strong>Selected CPU Flags</strong></td>
-        <td>Hyper Threading, Turbo Boost, DL Boost</td>
-        <td>Hyper Threading, Turbo Boost, DL Boost</td>
-      </tr>
-      <tr>
-        <td><strong>CPU Thermal Design Power</strong></td>
-        <td>150 W</td>
-        <td>162 W</td>
-    </tr>
-      <tr>
-        <td><strong>Operating System</strong></td>
-        <td>Ubuntu 20.04.2 LTS</td>
-        <td>Ubuntu 20.04.2 LTS</td>
-      </tr>
-      <tr>
-        <td><strong>Kernel Version</strong></td>
-        <td>5.4.0-65-generic</td>
-        <td>5.4.0-54-generic</td>
-      </tr>
-      <tr>
-        <td><strong>BIOS Vendor</strong></td>
-        <td>Intel® Corporation</td>
-        <td>American Megatrends Inc.</td>
-      </tr>
-      <tr>
-        <td><strong>BIOS Version and Release Date</strong></td>
-        <td>SE5C620.86B.02.01, date: 03/26/2020</td>
-        <td>4.1.16, date: 06/23/2020</td>
-      </tr>
-      <tr>
-        <td><strong>Docker Version</strong></td>
-        <td>20.10.3</td>
-        <td>20.10.3</td>
-      </tr>
-      <tr>
-        <td><strong>Network Speed</strong></td>
-        <td colspan="2" align="center">40 Gb/s</td>
-      </tr>
-    </table>
+   .. table:: 
+      :widths: 25 25 50
 
-@endsphinxdirective
+      +--------------------------+-------------------------------------------+----------------------------------------+
+      |                          | Server Platform                           | Client Platform                        |
+      +==========================+===========================================+========================================+
+      | Motherboard              | Inspur YZMB-00882-104 NF5280M5            | Inspur YZMB-00882-104 NF5280M5         |
+      +--------------------------+-------------------------------------------+----------------------------------------+
+      | Memory                   | Samsung 16 x 16GB @ 2666 MT/s DDR4        | Kingston 16 x 16GB @ 2666 MT/s DDR4    |
+      +--------------------------+-------------------------------------------+----------------------------------------+
+      | CPU                      | Intel® Xeon® Platinum 8260M CPU @ 2.40GHz | Intel® Xeon® Gold 6238M CPU @ 2.10GHz  |
+      +--------------------------+-------------------------------------------+----------------------------------------+
+      | Selected CPU Flags       | Hyper Threading, Turbo Boost, DL Boost    | Hyper Threading, Turbo Boost, DL Boost |
+      +--------------------------+-------------------------------------------+----------------------------------------+
+      | CPU Thermal Design Power | 162W                                      | 150W                                   |
+      +--------------------------+-------------------------------------------+----------------------------------------+
+      | Operating System         | Ubuntu 20.04.4 LTS                        | Ubuntu 20.04.4 LTS                     |
+      +--------------------------+-------------------------------------------+----------------------------------------+
+      | Kernel Version           | 5.4.0-107-generic                         | 5.4.0-107-generic                      |
+      +--------------------------+-------------------------------------------+----------------------------------------+
+      | BIOS Vendor              | American Megatrends Inc.                  | AMI                                    |
+      +--------------------------+-------------------------------------------+----------------------------------------+
+      | BIOS Version & Release   | 4.1.16; date: 06/23/2020                  | 4.1.16; date: 06/23/2020               |
+      +--------------------------+-------------------------------------------+----------------------------------------+
+      | Docker Version           | 20.10.3                                   | 20.10.3                                |
+      +--------------------------+-------------------------------------------+----------------------------------------+
+      | Network Speed            | 40 Gb/s                                   | 40 Gb/s                                |
+      +--------------------------+-------------------------------------------+----------------------------------------+
 
-### Platform with Intel® Core™ i9-10920X
+.. dropdown:: Platform with 6238M
 
-@sphinxdirective
-.. raw:: html
+      .. table:: 
+         :widths: 25 25 50
 
-    <table class="table">
-    <tr>
-      <th></th>
-      <th><strong>Server Platform</strong></th>
-      <th><strong>Client Platform</strong></th>
-    </tr>
-    <tr>
-      <td><strong>Motherboard</strong></td>
-      <td>ASUSTeK COMPUTER INC. PRIME X299-A II</td>
-      <td>ASUSTeK COMPUTER INC. PRIME Z370-P</td>
-    </tr>
-    <tr>
-      <td><strong>Memory</strong></td>
-      <td>Corsair 4 x 16GB @ 2666 MT/s DDR4</td>
-      <td>Corsair 4 x 16GB @ 2133 MT/s DDR4</td>
-    </tr>
-    <tr>
-      <td><strong>CPU</strong></td>
-      <td>Intel® Core™ i9-10920X CPU @ 3.50GHz</td>
-      <td>Intel® Core™ i7-8700T CPU @ 2.40GHz</td>
-    </tr>
-    <tr>
-      <td><strong>Selected CPU Flags</strong></td>
-      <td>Hyper Threading, Turbo Boost, DL Boost</td>
-      <td>Hyper Threading, Turbo Boost</td>
-    </tr>
-    <tr>
-      <td><strong>CPU Thermal Design Power</strong></td>
-      <td>165 W</td>
-      <td>35 W</td>
-    </tr>
-    <tr>
-      <td><strong>Operating System</strong></td>
-      <td>Ubuntu 20.04.1 LTS</td>
-      <td>Ubuntu 20.04.1 LTS</td>
-    </tr>
-    <tr>
-      <td><strong>Kernel Version</strong></td>
-      <td>5.4.0-52-generic</td>
-      <td>5.4.0-56-generic</td>
-    </tr>
-    <tr>
-      <td><strong>BIOS Vendor</strong></td>
-      <td>American Megatrends Inc.</td>
-      <td>American Megatrends Inc.</td>
-    </tr>
-    <tr>
-      <td><strong>BIOS Version and Release Date</strong></td>
-      <td>0603, date: 03/05/2020</td>
-      <td>2401, date: 07/15/2019</td>
-    </tr>
-    <tr>
-      <td><strong>Docker Version</strong></td>
-      <td>19.03.13</td>
-      <td>19.03.14</td>
-    </tr>
-    </tr>
-    <tr>
-      <td><strong>Network Speed</strong></td>
-      <td colspan="2" align="center">10 Gb/s</td>
-    </tr>
-    </table>
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         |                          | Server Platform                           | Client Platform                            |
+         +==========================+===========================================+============================================+
+         | Motherboard              | Inspur YZMB-00882-104 NF5280M5            | Inspur YZMB-00882-104 NF5280M5             |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | Memory                   | Kingston 16 x 16GB @ 2666 MT/s DDR4       | Samsung 16 x 16GB @ 2666 MT/s DDR4         |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | CPU                      | Intel® Xeon® Gold 6238M CPU @ 2.10GHz     | Intel® Xeon® Platinum 8260M CPU @ 2.40GHz  |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | Selected CPU Flags       | Hyper Threading, Turbo Boost, DL Boost    | Hyper Threading, Turbo Boost, DL Boost     |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | CPU Thermal Design Power | 150W                                      | 162W                                       |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | Operating System         | Ubuntu 20.04.4 LTS                        | Ubuntu 20.04.4 LTS                         |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | Kernel Version           | 5.4.0-107-generic                         | 5.4.0-107-generic                          |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | BIOS Vendor              | AMI                                       | American Megatrends Inc.                   |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | BIOS Version & Release   | 4.1.16; date: 06/23/2020                  | 4.1.16; date: 06/23/2020                   |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | Docker Version           | 20.10.3                                   | 20.10.3                                    |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | Network Speed            | 40 Gb/s                                   | 40 Gb/s                                    |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
 
-@endsphinxdirective
+.. dropdown:: Platform with Intel® Core™ i9-10920X
 
-### Platform with Intel® Core™ i7-8700T
+      .. table:: 
+         :widths: 25 25 50
 
-@sphinxdirective
-.. raw:: html
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         |                          | Server Platform                           | Client Platform                            |
+         +==========================+===========================================+============================================+
+         | Motherboard              | ASUSTeK COMPUTER INC. PRIME X299-A II     | ASUSTeK COMPUTER INC. PRIME Z370-P         |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | Memory                   | Corsair 4 x 16GB @ 2666 MT/s DDR4         | Corsair 4 x 16GB @ 2133 MT/s DDR4          |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | CPU                      | Intel® Core™ i9-10920X CPU @ 3.50GHz      | Intel® Core™ i7-8700T CPU @ 2.40GHz        |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | Selected CPU Flags       | Hyper Threading, Turbo Boost, DL Boost    | Hyper Threading, Turbo Boost, DL Boost     |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | CPU Thermal Design Power | 165W                                      | 35 W                                       |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | Operating System         | Ubuntu 20.04.4 LTS                        | Ubuntu 20.04.4 LTS                         |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | Kernel Version           | 5.4.0-107-generic                         | 5.4.0-107-generic                          |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | BIOS Vendor              | American Megatrends Inc.                  | American Megatrends Inc.                   |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | BIOS Version & Release   | 0702; date: 06/10/2020                    | 2401; date: 07/15/2019                     |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | Docker Version           | 19.03.13                                  | 19.03.14                                   |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | Network Speed            | 10 Gb/s                                   | 10 Gb/s                                    |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+  
 
-    <table class="table">
-    <tr>
-      <th></th>
-      <th><strong>Server Platform</strong></th>
-      <th><strong>Client Platform</strong></th>
-    </tr>
-    <tr>
-      <td><strong>Motherboard</strong></td>
-      <td>ASUSTeK COMPUTER INC. PRIME Z370-P</td>
-      <td>ASUSTeK COMPUTER INC. PRIME X299-A II</td>
-    </tr>
-    <tr>
-      <td><strong>Memory</strong></td>
-      <td>Corsair 4 x 16GB @ 2133 MT/s DDR4</td>
-      <td>Corsair 4 x 16GB @ 2666 MT/s DDR4</td>
-    </tr>
-    <tr>
-      <td><strong>CPU</strong></td>
-      <td>Intel® Core™ i7-8700T CPU @ 2.40GHz</td>
-      <td>Intel® Core™ i9-10920X CPU @ 3.50GHz</td>
-    </tr>
-    <tr>
-      <td><strong>Selected CPU Flags</strong></td>
-      <td>Hyper Threading, Turbo Boost</td>
-      <td>Hyper Threading, Turbo Boost, DL Boost</td>
-    </tr>
-    <tr>
-      <td><strong>CPU Thermal Design Power</strong></td>
-      <td>35 W</td>
-      <td>165 W</td>
-    </tr>
-    <tr>
-      <td><strong>Operating System</strong></td>
-      <td>Ubuntu 20.04.1 LTS</td>
-      <td>Ubuntu 20.04.1 LTS</td>
-    </tr>
-    <tr>
-      <td><strong>Kernel Version</strong></td>
-      <td>5.4.0-56-generic</td>
-      <td>5.4.0-52-generic</td>
-    </tr>
-    <tr>
-      <td><strong>BIOS Vendor</strong></td>
-      <td>American Megatrends Inc.</td>
-      <td>American Megatrends Inc.</td>
-    </tr>
-    <tr>
-      <td><strong>BIOS Version and Release Date</strong></td>
-      <td>2401, date: 07/15/2019</td>
-      <td>0603, date: 03/05/2020</td>
-    </tr>
-    <tr>
-      <td><strong>Docker Version</strong></td>
-      <td>19.03.14</td>
-      <td>19.03.13</td>
-    </tr>
-    </tr>
-    <tr>
-      <td><strong>Network Speed</strong></td>
-      <td colspan="2" align="center">10 Gb/s</td>
-    </tr>
-    </table>
+.. dropdown:: Platform with Intel® Core™ i7-8700T
+
+      .. table:: 
+         :widths: 25 25 50
+
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         |                          | Server Platform                           | Client Platform                            |
+         +==========================+===========================================+============================================+
+         | Motherboard              | ASUSTeK COMPUTER INC. PRIME Z370-P        | ASUSTeK COMPUTER INC. PRIME X299-A II      |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | Memory                   | Corsair 4 x 16GB @ 2133 MT/s DDR4         | Corsair 4 x 16GB @ 2666 MT/s DDR4          |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | CPU                      | Intel® Core™ i7-8700T CPU @ 2.40GHz       | Intel® Core™ i9-10920X CPU @ 3.50GHz       |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | Selected CPU Flags       | Hyper Threading, Turbo Boost              | Hyper Threading, Turbo Boost               |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | CPU Thermal Design Power | 35W                                       | 165 W                                      |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | Operating System         | Ubuntu 20.04.4 LTS                        | Ubuntu 20.04.4 LTS                         |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | Kernel Version           | 5.4.0-107-generic                         | 5.4.0-107-generic                          |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | BIOS Vendor              | American Megatrends Inc.                  | American Megatrends Inc.                   |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | BIOS Version & Release   | 2401; date: 07/15/2019                    | 0702; date: 06/10/2020                     |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | Docker Version           | 19.03.14                                  | 19.03.13                                   |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | Network Speed            | 10 Gb/s                                   | 10 Gb/s                                    |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+
+.. dropdown:: Platform with Intel® Core™ i5-8500
+
+      .. table:: 
+         :widths: 25 25 50
+
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         |                          | Server Platform                           | Client Platform                            |
+         +==========================+===========================================+============================================+
+         | Motherboard              | ASUSTeK COMPUTER INC. PRIME Z370-A        | Gigabyte Technology Co., Ltd. Z390 UD      |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | Memory                   | Corsair 2 x 16GB @ 2133 MT/s DDR4         | 029E 4 x 8GB @ 2400 MT/s DDR4              |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | CPU                      | Intel® Core™ i5-8500 CPU @ 3.00GHz        | Intel® Core™ i3-8100 CPU @ 3.60GHz         |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | Selected CPU Flags       | Turbo Boost                               |                                            |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | CPU Thermal Design Power | 65W                                       | 65 W                                       |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | Operating System         | Ubuntu 20.04.4 LTS                        | Ubuntu 20.04.1 LTS                         |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | Kernel Version           | 5.4.0-113-generic                         | 5.4.0-52-generic                           |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | BIOS Vendor              | American Megatrends Inc.                  | American Megatrends Inc.                   |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | BIOS Version & Release   | 3004; date: 07/12/2021                    | F10j; date: 09/16/2020                     |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | Docker Version           | 19.03.13                                  | 20.10.0                                    |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
+         | Network Speed            | 40 Gb/s                                   | 40 Gb/s                                    |
+         +--------------------------+-------------------------------------------+--------------------------------------------+
 
 @endsphinxdirective
-
-### Platform with Intel® Core™ i5-8500
-
-@sphinxdirective
-.. raw:: html
-
-    <table class="table">
-    <tr>
-      <th></th>
-      <th><strong>Server Platform</strong></th>
-      <th><strong>Client Platform</strong></th>
-    </tr>
-    <tr>
-      <td><strong>Motherboard</strong></td>
-      <td>ASUSTeK COMPUTER INC. PRIME Z370-A</td>
-      <td>Gigabyte Technology Co., Ltd. Z390 UD</td>
-    </tr>
-    <tr>
-      <td><strong>Memory</strong></td>
-      <td>Corsair 2 x 16GB @ 2133 MT/s DDR4</td>
-      <td>029E 4 x 8GB @ 2400 MT/s DDR4</td>
-    </tr>
-    <tr>
-      <td><strong>CPU</strong></td>
-      <td>Intel® Core™ i5-8500 CPU @ 3.00GHz</td>
-      <td>Intel® Core™ i3-8100 CPU @ 3.60GHz</td>
-    </tr>
-    <tr>
-      <td><strong>Selected CPU Flags</strong></td>
-      <td>Turbo Boost</td>
-      <td>-</td>
-    </tr>
-    <tr>
-      <td><strong>CPU Thermal Design Power</strong></td>
-      <td>65 W</td>
-      <td>65 W</td>
-    </tr>
-    <tr>
-      <td><strong>Operating System</strong></td>
-      <td>Ubuntu 20.04.1 LTS</td>
-      <td>Ubuntu 20.04.1 LTS</td>
-    </tr>
-    <tr>
-      <td><strong>Kernel Version</strong></td>
-      <td>5.4.0-52-generic</td>
-      <td>5.4.0-52-generic</td>
-    </tr>
-    <tr>
-      <td><strong>BIOS Vendor</strong></td>
-      <td>American Megatrends Inc.</td>
-      <td>American Megatrends Inc.</td>
-    </tr>
-    <tr>
-      <td><strong>BIOS Version and Release Date</strong></td>
-      <td>2401, date: 07/12/2019</td>
-      <td>F10j, date: 09/16/2020</td>
-    </tr>
-    <tr>
-      <td><strong>Docker Version</strong></td>
-      <td>19.03.13</td>
-      <td>20.10.0</td>
-    </tr>
-    </tr>
-    <tr>
-      <td><strong>Network Speed</strong></td>
-      <td colspan="2" align="center">40 Gb/s</td>
-    </tr>
-    </table>
-
-@endsphinxdirective
-
-### Platform with Intel® Core™ i3-8100
-
-@sphinxdirective
-.. raw:: html
-
-    <table class="table">
-    <tr>
-      <th></th>
-      <th><strong>Server Platform</strong></th>
-      <th><strong>Client Platform</strong></th>
-    </tr>
-    <tr>
-      <td><strong>Motherboard</strong></td>
-      <td>Gigabyte Technology Co., Ltd. Z390 UD</td>
-      <td>ASUSTeK COMPUTER INC. PRIME Z370-A</td>
-    </tr>
-    <tr>
-      <td><strong>Memory</strong></td>
-      <td>029E 4 x 8GB @ 2400 MT/s DDR4</td>
-      <td>Corsair 2 x 16GB @ 2133 MT/s DDR4</td>
-    </tr>
-    <tr>
-      <td><strong>CPU</strong></td>
-      <td>Intel® Core™ i3-8100 CPU @ 3.60GHz</td>
-      <td>Intel® Core™ i5-8500 CPU @ 3.00GHz</td>
-    </tr>
-    <tr>
-      <td><strong>Selected CPU Flags</strong></td>
-      <td>-</td>
-      <td>Turbo Boost</td>
-    </tr>
-    <tr>
-      <td><strong>CPU Thermal Design Power</strong></td>
-      <td>65 W</td>
-      <td>65 W</td>
-    </tr>
-    <tr>
-      <td><strong>Operating System</strong></td>
-      <td>Ubuntu 20.04.1 LTS</td>
-      <td>Ubuntu 20.04.1 LTS</td>
-    </tr>
-    <tr>
-      <td><strong>Kernel Version</strong></td>
-      <td>5.4.0-52-generic</td>
-      <td>5.4.0-52-generic</td>
-    </tr>
-    <tr>
-      <td><strong>BIOS Vendor</strong></td>
-      <td>American Megatrends Inc.</td>
-      <td>American Megatrends Inc.</td>
-    </tr>
-    <tr>
-      <td><strong>BIOS Version and Release Date</strong></td>
-      <td>F10j, date: 09/16/2020</td>
-      <td>2401, date: 07/12/2019</td>
-    </tr>
-    <tr>
-      <td><strong>Docker Version</strong></td>
-      <td>20.10.0</td>
-      <td>19.03.13</td>
-    </tr>
-    </tr>
-    <tr>
-      <td><strong>Network Speed</strong></td>
-      <td colspan="2" align="center">40 Gb/s</td>
-    </tr>
-    </table>
-
-@endsphinxdirective
-

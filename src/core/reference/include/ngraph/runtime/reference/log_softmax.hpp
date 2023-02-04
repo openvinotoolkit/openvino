@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,15 +29,16 @@ void log_softmax(const T* arg, T* out, const Shape& shape, const AxisSet& axes) 
     for (const Coordinate& coord : transform) {
         Coordinate temp_coord = reduce(coord, axes, true);
         out[transform.index(coord)] =
-            std::exp(arg[transform.index(coord)] - temp_max[temp_transform.index(temp_coord)]);
+            static_cast<T>(std::exp(arg[transform.index(coord)] - temp_max[temp_transform.index(temp_coord)]));
     }
 
     sum(out, temp_sum.data(), shape, axes);
 
     for (const Coordinate& coord : transform) {
         Coordinate temp_coord = reduce(coord, axes, true);
-        out[transform.index(coord)] = (arg[transform.index(coord)] - temp_max[temp_transform.index(temp_coord)]) -
-                                      std::log(temp_sum[temp_transform.index(temp_coord)]);
+        out[transform.index(coord)] =
+            static_cast<T>((arg[transform.index(coord)] - temp_max[temp_transform.index(temp_coord)]) -
+                           std::log(temp_sum[temp_transform.index(temp_coord)]));
     }
     NGRAPH_SUPPRESS_DEPRECATED_END
 }

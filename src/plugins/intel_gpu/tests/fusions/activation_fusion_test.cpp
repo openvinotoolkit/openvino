@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,12 +32,12 @@ public:
     void execute(activation_test_params& p) {
         auto input_prim = get_mem(get_input_layout(p));
 
-        build_options options;
-        implementation_desc activation_impl = { p.input_format, p.kernel_name };
-        options.set_option(build_option::optimize_data(true));
-        options.set_option(build_option::force_implementations({ { "act", activation_impl } }));
-        network network_fused(this->engine, this->topology_fused, options);
-        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
+        ExecutionConfig cfg;
+        ov::intel_gpu::ImplementationDesc activation_impl = { p.input_format, p.kernel_name };
+        cfg.set_property(ov::intel_gpu::optimize_data(true));
+        cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "act", activation_impl } }));
+        network network_fused(this->engine, this->topology_fused, cfg);
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
 
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
@@ -103,13 +103,14 @@ TEST_P(activation_quantize_i8, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        activation("act", "input", activation_func::relu),
+        activation("act", input_info("input"), activation_func::relu),
         data("in_low", get_mem(get_single_element_layout(p), min_random, 0)),
         data("in_high", get_mem(get_single_element_layout(p), 1, max_random)),
         data("out_low", get_mem(get_single_element_layout(p), -127, 0)),
         data("out_high", get_mem(get_single_element_layout(p), 0, 127)),
-        quantize("quant", "act", "in_low", "in_high", "out_low", "out_high", 255, data_types::i8),
-        reorder("reorder_bfyx", "quant", p.default_format, data_types::f32)
+        quantize("quant", input_info("act"), input_info("in_low"), input_info("in_high"),
+                 input_info("out_low"), input_info("out_high"), 255, data_types::i8),
+        reorder("reorder_bfyx", input_info("quant"), p.default_format, data_types::f32)
     );
 
     tolerance = 1.0f;
@@ -120,13 +121,14 @@ TEST_P(activation_quantize_i8, per_channel) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        activation("act", "input", activation_func::relu),
+        activation("act", input_info("input"), activation_func::relu),
         data("in_low", get_mem(get_per_channel_layout(p), min_random, 0)),
         data("in_high", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_low", get_mem(get_single_element_layout(p), -127, 0)),
         data("out_high", get_mem(get_single_element_layout(p), 0, 127)),
-        quantize("quant", "act", "in_low", "in_high", "out_low", "out_high", 255, data_types::i8),
-        reorder("reorder_bfyx", "quant", p.default_format, data_types::f32)
+        quantize("quant", input_info("act"), input_info("in_low"), input_info("in_high"),
+                 input_info("out_low"), input_info("out_high"), 255, data_types::i8),
+        reorder("reorder_bfyx", input_info("quant"), p.default_format, data_types::f32)
     );
 
     tolerance = 1.0f;
@@ -163,17 +165,21 @@ TEST_P(activation_eltwise_activation_quantize_u8, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        activation("act", "input", activation_func::relu),
+        activation("act", input_info("input"), activation_func::relu),
         data("eltwise_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
         data("in_low", get_mem(get_single_element_layout(p), 0)),
         data("in_high", get_mem(get_single_element_layout(p), 1, max_random)),
         data("out_low", get_mem(get_single_element_layout(p), -127)),
         data("out_high", get_mem(get_single_element_layout(p), 127)),
-        eltwise("eltwise", { "act", "eltwise_data" }, eltwise_mode::prod, p.default_type),
-        activation("act2", "eltwise", activation_func::softsign),
-        quantize("quant", "act2", "in_low", "in_high", "out_low", "out_high", 256, data_types::u8),
-        reorder("reorder_bfyx", "quant", p.default_format, data_types::f32)
+        eltwise("eltwise", { input_info("act"), input_info("eltwise_data") }, eltwise_mode::prod, p.default_type),
+        activation("act2", input_info("eltwise"), activation_func::softsign),
+        quantize("quant", input_info("act2"), input_info("in_low"), input_info("in_high"),
+                 input_info("out_low"), input_info("out_high"), 256, data_types::u8),
+        reorder("reorder_bfyx", input_info("quant"), p.default_format, data_types::f32)
     );
+    // Activation won't be fused because onednn doesn't support softsign activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives++;
 
     tolerance = 1.f;
     execute(p);
@@ -183,17 +189,21 @@ TEST_P(activation_eltwise_activation_quantize_u8, per_channel) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        activation("act", "input", activation_func::relu),
+        activation("act", input_info("input"), activation_func::relu),
         data("eltwise_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
         data("in_low", get_mem(get_per_channel_layout(p), 0)),
         data("in_high", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_low", get_mem(get_single_element_layout(p), -127)),
         data("out_high", get_mem(get_single_element_layout(p), 127)),
-        eltwise("eltwise", { "act", "eltwise_data" }, eltwise_mode::prod, p.default_type),
-        activation("act2", "eltwise", activation_func::softsign),
-        quantize("quant", "act2", "in_low", "in_high", "out_low", "out_high", 256, data_types::u8),
-        reorder("reorder_bfyx", "quant", p.default_format, data_types::f32)
+        eltwise("eltwise", { input_info("act"), input_info("eltwise_data") }, eltwise_mode::prod, p.default_type),
+        activation("act2", input_info("eltwise"), activation_func::softsign),
+        quantize("quant", input_info("act2"), input_info("in_low"), input_info("in_high"),
+                 input_info("out_low"), input_info("out_high"), 256, data_types::u8),
+        reorder("reorder_bfyx", input_info("quant"), p.default_format, data_types::f32)
     );
+    // Activation won't be fused because onednn doesn't support softsign activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives++;
 
     tolerance = 1.f;
     execute(p);
@@ -228,11 +238,11 @@ TEST_P(activation_eltwise_activation, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        activation("act", "input", activation_func::relu),
+        activation("act", input_info("input"), activation_func::relu),
         data("eltwise_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
-        eltwise("eltwise", { "act", "eltwise_data" }, eltwise_mode::prod, p.default_type),
-        activation("act2", "eltwise", activation_func::exp),
-        reorder("reorder_bfyx", "act2", p.default_format, data_types::f32)
+        eltwise("eltwise", { input_info("act"), input_info("eltwise_data") }, eltwise_mode::prod, p.default_type),
+        activation("act2", input_info("eltwise"), activation_func::exp),
+        reorder("reorder_bfyx", input_info("act2"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-05f;

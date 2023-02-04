@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace node {
 
 class Concat : public Node {
 public:
-    Concat(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    Concat(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
@@ -36,14 +36,21 @@ public:
 
 private:
     size_t axis = 0;
+    size_t reorderedAxis = 0;
     bool canBeInPlace = false;
     bool canOptimizeNspc = false;
-
+    void execRef();
     size_t inverseOrder(const InferenceEngine::SizeVector& order, size_t axis);
     void execNspcSpecCase();
-
+    std::vector<VectorDims> inputStrides;
+    std::vector<size_t> nelemToCopy; // byte moved in each iter
+    std::vector<size_t> dstOffset; // dst offset for each input
+    std::vector<const uint8_t*> srcPtrs;
+    bool hasOuterLoop = false;
     InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP32;
     InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
+    bool canExecRef = false;
+    static constexpr size_t MAX_RANK_REF = 6;
 };
 
 }   // namespace node

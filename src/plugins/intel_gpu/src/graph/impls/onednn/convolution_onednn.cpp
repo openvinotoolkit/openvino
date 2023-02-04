@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,106 +18,89 @@
 
 #include <algorithm>
 #include <memory>
+#include "convolution_onednn.hpp"
 namespace cldnn {
 namespace onednn {
 
-struct convolution_onednn : typed_primitive_onednn_impl<convolution, dnnl::convolution_forward::desc> {
-    using parent = typed_primitive_onednn_impl<convolution, dnnl::convolution_forward::desc>;
+struct convolution_onednn : typed_primitive_onednn_impl<convolution> {
+    using parent = typed_primitive_onednn_impl<convolution>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<convolution_onednn>(*this);
     }
 
-    bool validate_impl(const typed_primitive_inst<convolution>& instance) const override {
-        bool res = true;
-
-        auto outer_id = _outer.id();
-        auto data_type = instance.node.input().get_output_layout().data_type;
-
-        // Integer signed/unsigned is ok for convoluiton
-        CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(outer_id,
-                                                    "Input memory",
-                                                    data_type,
-                                                    "filter memory",
-                                                    instance.weights_memory(0)->get_layout().data_type,
-                                                    "");
-
-        return res;
-    }
-
     std::unordered_map<int, dnnl::memory> get_arguments(convolution_inst& instance) const override {
         std::unordered_map<int, dnnl::memory> args = parent::get_arguments(instance);
-        auto attrs = instance.get_node().get_onednn_primitive_attributes();
 
         {
-            auto weights = instance.weights_memory(0);
+            auto weights = instance.weights_memory();
             args.insert({DNNL_ARG_WEIGHTS, weights->get_onednn_memory(_pd.weights_desc(0))});
         }
 
         if (instance.bias_term()) {
-            auto bias = instance.bias_memory(0);
+            auto bias = instance.bias_memory();
             args.insert({DNNL_ARG_BIAS, bias->get_onednn_memory(_pd.weights_desc(1))});
         }
 
-        if (has_zero_points(DNNL_ARG_SRC, attrs)) {
-            auto a_zp = instance.activations_zero_points_memory(0);
+        if (instance.activations_zero_points_term()) {
+            auto a_zp = instance.activations_zero_points_memory();
             dnnl::memory::desc desc = onednn::layout_to_memory_desc(a_zp->get_layout(), dnnl::memory::format_tag::a, true);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC, a_zp->get_onednn_memory(desc)});
 
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(debug_config->verbose >= 3) {
-                auto dnnl_mem = a_zp->get_onednn_memory(desc);
-                void *mapped_ptr = dnnl_mem.map_data();
-                if (mapped_ptr) {
-                    GPU_DEBUG_COUT << instance.get_node().id() << " activations_zero_points: ";
-                    for (size_t i = 0; i < desc.get_size(); ++i) {
-                        std::cout << static_cast<int32_t*>(mapped_ptr)[i] << " ";
-                    }
-                    std::cout << std::endl;
-                    dnnl_mem.unmap_data(mapped_ptr);
+            auto dnnl_mem = a_zp->get_onednn_memory(desc);
+            void *mapped_ptr = dnnl_mem.map_data();
+            if (mapped_ptr) {
+                GPU_DEBUG_TRACE_DETAIL << instance.id() << " activations_zero_points: ";
+                for (size_t i = 0; i < desc.get_size(); ++i) {
+                    GPU_DEBUG_TRACE_DETAIL << static_cast<int32_t*>(mapped_ptr)[i] << " ";
                 }
+                GPU_DEBUG_TRACE_DETAIL << std::endl;
+                dnnl_mem.unmap_data(mapped_ptr);
             }
         }
 
-        if (has_zero_points(DNNL_ARG_WEIGHTS, attrs)) {
-            auto w_zp = instance.weights_zero_points_memory(0);
+        if (instance.weights_zero_points_term()) {
+            auto w_zp = instance.weights_zero_points_memory();
             dnnl::memory::desc desc = onednn::layout_to_memory_desc(w_zp->get_layout(), dnnl::memory::format_tag::a, true);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, w_zp->get_onednn_memory(desc)});
 
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(debug_config->verbose >= 3) {
-                auto dnnl_mem = w_zp->get_onednn_memory(desc);
-                void *mapped_ptr = dnnl_mem.map_data();
-                if (mapped_ptr) {
-                    GPU_DEBUG_COUT << instance.get_node().id() << " weights_zero_points: ";
-                    for (size_t i = 0; i < desc.get_size(); ++i) {
-                        std::cout << static_cast<int32_t*>(mapped_ptr)[i] << " ";
-                    }
-                    std::cout << std::endl;
-                    dnnl_mem.unmap_data(mapped_ptr);
+            auto dnnl_mem = w_zp->get_onednn_memory(desc);
+            void *mapped_ptr = dnnl_mem.map_data();
+            if (mapped_ptr) {
+                GPU_DEBUG_TRACE_DETAIL << instance.id() << " weights_zero_points: ";
+                for (size_t i = 0; i < desc.get_size(); ++i) {
+                    GPU_DEBUG_TRACE_DETAIL << static_cast<int32_t*>(mapped_ptr)[i] << " ";
                 }
+                GPU_DEBUG_TRACE_DETAIL << std::endl;
+                dnnl_mem.unmap_data(mapped_ptr);
             }
         }
 
         return args;
     }
 
-    template <typename T>
-    static void set_activation_zero_points_attr(const std::shared_ptr<dnnl::primitive_attr>& attrs, cldnn::data_node& node) {
-        int32_t zp_val = DNNL_RUNTIME_S32_VAL;
-        bool is_per_tensor = onednn::is_per_tensor<T>(node, zp_val);
-        if (is_per_tensor) {
-            attrs->set_zero_points(DNNL_ARG_SRC, 0, {zp_val});
-        } else {
-            memory::ptr s32_mem = onednn::convert_zp_data_to_s32<T>(node.get_attached_memory_ptr());
-            node.attach_memory(s32_mem, false);
-            attrs->set_zero_points(DNNL_ARG_SRC, 2, {DNNL_RUNTIME_S32_VAL});
-        }
+    int _zero_point_mask;
+    void set_zero_point_mask(int zero_point_mask) {
+        _zero_point_mask = zero_point_mask;
     }
 
-    static std::shared_ptr<dnnl::primitive_attr> get_primitive_attributes(const typed_program_node<convolution>& arg) {
+    template <typename T>
+    static void set_activation_zero_points_attr(const std::shared_ptr<dnnl::primitive_attr>& attrs,
+                                                cldnn::data_node& node, int& zero_point_mask) {
+        int32_t zp_val = DNNL_RUNTIME_S32_VAL;
+        bool is_per_tensor = onednn::is_per_tensor<T>(node, zp_val);
+        memory::ptr s32_mem = onednn::convert_zp_data_to_s32<T>(node.get_attached_memory_ptr());
+        node.attach_memory(s32_mem, false);
+        zero_point_mask = is_per_tensor ? 0 : 2;
+        attrs->set_zero_points_mask(DNNL_ARG_SRC, zero_point_mask);
+    }
+
+    static std::shared_ptr<dnnl::primitive_attr> get_primitive_attributes(const typed_program_node<convolution>& arg,
+                                                                          int& zero_point_mask) {
         auto attrs = arg.get_onednn_primitive_attributes();
 
         if (arg.activations_zero_points_term()) {
@@ -129,9 +112,9 @@ protected:
             }
 
             if (a_zp_dtype == data_types::i8) {
-                set_activation_zero_points_attr<data_type_to_type<data_types::i8>::type>(attrs, a_zp.as<data>());
+                set_activation_zero_points_attr<data_type_to_type<data_types::i8>::type>(attrs, a_zp.as<data>(), zero_point_mask);
             } else { // if (a_zp_dtype == data_types::u8)
-                set_activation_zero_points_attr<data_type_to_type<data_types::u8>::type>(attrs, a_zp.as<data>());
+                set_activation_zero_points_attr<data_type_to_type<data_types::u8>::type>(attrs, a_zp.as<data>(), zero_point_mask);
             }
         }
 
@@ -147,35 +130,22 @@ protected:
         return attrs;
     }
 
-    static kernel_selector::WeightsReorderParams get_weights_reorder(const convolution_node& arg, const dnnl::primitive_desc& pd) {
+    static kernel_selector::WeightsReorderParams get_weights_reorder(const kernel_impl_params& impl_params, const dnnl::primitive_desc& pd, bool rotate) {
         kernel_selector::WeightsReorderParams weights_reorder_params;
         auto& reorderKS = kernel_selector::ReorderWeightsKernelSelctor::Instance();
         kernel_selector::reorder_weights_params r_params;
 
-        auto cldnn_prim = arg.get_primitive();
-        auto weights_layout = arg.get_dependency(1).get_output_layout();
-        auto grouped_weights = format::is_grouped(weights_layout.format) || arg.get_primitive()->grouped_weights_shape;
+        auto cldnn_prim = impl_params.typed_desc<convolution>();
+        auto weights_layout = impl_params.get_input_layout(1);
+        auto grouped_weights = format::is_grouped(weights_layout.format) || cldnn_prim->grouped_weights_shape;
         cldnn::format out_fmt = onednn::find_format(pd.weights_desc(0), grouped_weights);
         kernel_selector::WeightsLayout reqLayout = to_weights_layout(out_fmt, cldnn_prim->grouped_weights_shape);
 
-        const auto& param_info = kernel_impl_params(arg.get_program(), cldnn_prim, arg.get_unique_id(),
-                                                    arg.get_input_layouts(), arg.get_output_layout(),
-                                                    arg.get_fused_primitives(),
-                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params(),
-                                                    optional_layout(weights_layout),
-                                                    arg.bias_term() ? optional_layout(arg.bias().get_output_layout()) : optional_layout(),
-                                                    arg.weights_zero_points_term() ? optional_layout(arg.weights_zero_points().get_output_layout())
-                                                        : optional_layout(),
-                                                    arg.activations_zero_points_term() ? optional_layout(arg.activations_zero_points().get_output_layout())
-                                                        : optional_layout(),
-                                                    arg.compensation_term() ? optional_layout(arg.compensation().get_output_layout())
-                                                        : optional_layout());
-
-        set_params(param_info, r_params);
-        r_params.layerID = arg.id() + "_reorder_";
+        set_params(impl_params, r_params);
+        r_params.layerID = cldnn_prim->id + "_reorder_";
         r_params.input = convert_weights_tensor(weights_layout, cldnn_prim->grouped_weights_shape);
-        r_params.output = r_params.input.TransformIgnorePadding(reqLayout, r_params.input.GetDType(), arg.get_groups(), false);
-        r_params.rotate_180 = false;
+        r_params.output = r_params.input.TransformIgnorePadding(reqLayout, r_params.input.GetDType(), cldnn_prim->groups, false);
+        r_params.rotate_180 = rotate;
 
         kernel_selector::reorder_optional_params op;
         kernel_selector::KernelsData kernels_data = reorderKS.GetBestKernels(r_params, op);
@@ -193,186 +163,144 @@ protected:
         return weights_reorder_params;
     }
 
-    static std::shared_ptr<dnnl::convolution_forward::desc> get_convolution_descriptor(const convolution_node& arg) {
-        auto prim = arg.get_primitive();
 
-        auto& input = arg.get_dependency(0);
-        auto& weights = arg.get_dependency(1);
-
-        dnnl::memory::dims stride(prim->stride.begin(), prim->stride.end());
-        dnnl::memory::dims dilation(prim->dilation.begin(), prim->dilation.end());
-        dnnl::memory::dims pad_l(prim->pad.begin(), prim->pad.end());
-        dnnl::memory::dims pad_r(prim->pad.begin(), prim->pad.end());
-
-        auto input_md = onednn::layout_to_memory_desc(input.get_output_layout());
-        auto weights_md = onednn::layout_to_memory_desc(weights.get_output_layout(), dnnl::memory::format_tag::any);
-        auto output_md = onednn::layout_to_memory_desc(arg.get_output_layout());
-        auto grouped_weights = format::is_grouped(weights.get_output_layout().format) || prim->grouped_weights_shape;
-
-        for (size_t i = 0; i < dilation.size(); i++) {
-            dilation[i]--;
-            int weights_offset = (grouped_weights ? 3 : 2) + static_cast<int>(i);
-            auto os = output_md.dims()[2 + i];
-            auto is = input_md.dims()[2 + i];
-            auto ks = weights_md.dims()[weights_offset];
-            auto kernel_range = 1 + (ks - 1) * (dilation[i] + 1);
-            pad_r[i] = (os - 1) * stride[i] - is + kernel_range - pad_l[i];
-        }
-
-        if (arg.bias_term()) {
-            auto bias_md = onednn::layout_to_memory_desc(arg.get_dependency(2).get_output_layout(), dnnl::memory::format_tag::any, true);
-            return std::make_shared<dnnl::convolution_forward::desc>(
-                dnnl::prop_kind::forward_inference,
-                dnnl::algorithm::convolution_direct,
-                input_md,
-                weights_md,
-                bias_md,
-                output_md,
-                stride,
-                dilation,
-                pad_l,
-                pad_r);
-        } else {
-            return std::make_shared<dnnl::convolution_forward::desc>(
-                dnnl::prop_kind::forward_inference,
-                dnnl::algorithm::convolution_direct,
-                input_md,
-                weights_md,
-                output_md,
-                stride,
-                dilation,
-                pad_l,
-                pad_r);
-        }
-    }
 
 public:
-    static primitive_impl* create(const convolution_node& arg, const kernel_impl_params&) {
-        auto& engine = arg.get_program().get_engine();
-        auto desc = get_convolution_descriptor(arg);
-        auto attr = get_primitive_attributes(arg);
-        dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
+    void save(BinaryOutputBuffer& ob) const override {
+#ifdef ONEDNN_PRIMITIVE_SERIALIZATION
+        parent::save(ob);
 
-        return new convolution_onednn(arg, desc, attr, prim_desc, get_weights_reorder(arg, prim_desc));
+        ob << _zero_point_mask;
+
+        const dnnl::convolution_forward::primitive_desc *typed_pd
+            = reinterpret_cast<const dnnl::convolution_forward::primitive_desc *>(&_pd);
+
+        ob << typed_pd->get_strides();
+        ob << typed_pd->get_dilations();
+        ob << typed_pd->get_padding_l();
+        ob << typed_pd->get_padding_r();
+        ob << typed_pd->bias_desc().is_zero();
+
+        std::vector<uint8_t> prim_cache;
+        prim_cache = _prim.get_cache_blob();
+        ob << prim_cache;
+#endif
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+#ifdef ONEDNN_PRIMITIVE_SERIALIZATION
+        parent::load(ib);
+
+        ib >> _zero_point_mask;
+        if (_zero_point_mask != -1) {
+            _attrs->set_zero_points_mask(DNNL_ARG_SRC, _zero_point_mask);
+        }
+
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernlImplParams());
+
+        auto input_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(0), dnnl::memory::format_tag::undef);
+        auto weights_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(1), dnnl::memory::format_tag::any);
+        auto output_md = onednn::layout_to_memory_desc(impl_params->get_output_layout(), dnnl::memory::format_tag::undef);
+
+        dnnl::memory::dims strides;
+        dnnl::memory::dims dilates;
+        dnnl::memory::dims padding_l;
+        dnnl::memory::dims padding_r;
+        ib >> strides;
+        ib >> dilates;
+        ib >> padding_l;
+        ib >> padding_r;
+
+        bool zero_bias;
+        ib >> zero_bias;
+
+        if (zero_bias) {
+            auto prim_desc = std::make_shared<dnnl::convolution_forward::primitive_desc>(
+                                    ib.get_engine().get_onednn_engine(),
+                                    dnnl::prop_kind::forward_inference, dnnl::algorithm::convolution_direct,
+                                    input_md, weights_md, output_md,
+                                    strides, dilates, padding_l, padding_r,
+                                    *_attrs.get());
+            _pd = *prim_desc;
+        } else {
+            auto bias_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(2), dnnl::memory::format_tag::any, true);
+            auto prim_desc = std::make_shared<dnnl::convolution_forward::primitive_desc>(
+                                    ib.get_engine().get_onednn_engine(),
+                                    dnnl::prop_kind::forward_inference, dnnl::algorithm::convolution_direct,
+                                    input_md, weights_md, bias_md, output_md,
+                                    strides, dilates, padding_l, padding_r,
+                                    *_attrs.get());
+            _pd = *prim_desc;
+        }
+
+        std::vector<uint8_t> prim_cache;
+        ib >> prim_cache;
+
+        _prim = dnnl::primitive(_pd, prim_cache);
+#endif
+    }
+
+    static std::unique_ptr<primitive_impl> create(const convolution_node& arg, const kernel_impl_params& impl_params) {
+        auto& engine = impl_params.prog->get_engine();
+        auto& config = impl_params.prog->get_config();
+        int zero_point_mask = -1;
+        auto attr = get_primitive_attributes(arg, zero_point_mask);
+
+        auto prim_desc = get_convolution_primitive_descriptor(impl_params, *attr);
+
+        auto conv_onednn_impl = cldnn::make_unique<convolution_onednn>(engine, config, attr, *prim_desc,
+                                                get_weights_reorder(impl_params, *prim_desc, arg.get_transposed()));
+        conv_onednn_impl->set_zero_point_mask(zero_point_mask);
+        return conv_onednn_impl;
     }
 };
 
 namespace detail {
 
 attach_convolution_onednn::attach_convolution_onednn() {
-    implementation_map<convolution>::add(impl_types::onednn, convolution_onednn::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::u8, format::bfzyx),
-        std::make_tuple(data_types::i8, format::bfzyx),
-
-        std::make_tuple(data_types::f32, format::byxf),
-        std::make_tuple(data_types::f16, format::byxf),
-        std::make_tuple(data_types::u8, format::byxf),
-        std::make_tuple(data_types::i8, format::byxf),
-
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv2),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv2),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv2),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv2),
-
-        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv2),
-        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv2),
-        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv2),
-        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv2),
-
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv4),
-
-        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv4),
-        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv4),
-        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv4),
-        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv4),
-
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
-
-        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv16),
-
-        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv32),
-        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv32),
-        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv32),
-        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv32),
-
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv16),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv16),
-
-        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv32_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv32_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv32_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv32_fsv16),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv32),
-
-        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv32_fsv32),
-        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv32_fsv32),
-        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv32_fsv32),
-        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv32_fsv32),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv4_fsv4),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv4_fsv4),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv4_fsv4),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv4_fsv4),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv8_fsv4),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv8_fsv4),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv8_fsv4),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv8_fsv4),
-
-        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv8_fsv4),
-        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv8_fsv4),
-        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv8_fsv4),
-        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv8_fsv4),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv8_fsv2),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv8_fsv2),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv8_fsv2),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv8_fsv2),
-
-        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv8_fsv2),
-        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv8_fsv2),
-        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv8_fsv2),
-        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv8_fsv2),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv4_fsv2),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv4_fsv2),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv4_fsv2),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv4_fsv2),
-    });
+    std::vector<data_types> dt = {
+        data_types::f32,
+        data_types::f16,
+        data_types::u8,
+        data_types::i8,
+    };
+    std::vector<format::type> fmt = {
+        format::bfyx,
+        format::bfzyx,
+        format::byxf,
+        format::bzyxf,
+        format::b_fs_yx_fsv2,
+        format::b_fs_zyx_fsv2,
+        format::b_fs_yx_fsv4,
+        format::b_fs_zyx_fsv4,
+        format::b_fs_yx_fsv16,
+        format::b_fs_zyx_fsv16,
+        format::b_fs_zyx_fsv32,
+        format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_zyx_bsv16_fsv16,
+        format::bs_fs_yx_bsv16_fsv32,
+        format::bs_fs_zyx_bsv16_fsv32,
+        format::bs_fs_yx_bsv32_fsv16,
+        format::bs_fs_zyx_bsv32_fsv16,
+        format::bs_fs_yx_bsv32_fsv32,
+        format::bs_fs_zyx_bsv32_fsv32,
+        format::bs_fs_yx_bsv4_fsv4,
+        format::bs_fs_yx_bsv8_fsv4,
+        format::bs_fs_yx_bsv16_fsv4,
+        format::bs_fs_yx_bsv16_fsv2,
+        format::bs_fs_zyx_bsv8_fsv4,
+        format::bs_fs_zyx_bsv16_fsv4,
+        format::bs_fs_zyx_bsv16_fsv2,
+        format::bs_fs_yx_bsv8_fsv2,
+        format::bs_fs_zyx_bsv8_fsv2,
+        format::bs_fs_yx_bsv4_fsv2,
+    };
+    implementation_map<convolution>::add(impl_types::onednn, convolution_onednn::create, dt, fmt);
 }
 
 }  // namespace detail
 }  // namespace onednn
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::convolution_onednn)

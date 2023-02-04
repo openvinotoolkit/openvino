@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,8 +16,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v4::ReduceL1);
-
 op::v4::ReduceL1::ReduceL1(const Output<Node>& arg, const Output<Node>& reduction_axes, bool keep_dims)
     : ArithmeticReductionKeepDims(arg, reduction_axes, keep_dims) {
     constructor_validate_and_infer_types();
@@ -30,7 +28,7 @@ shared_ptr<Node> op::v4::ReduceL1::get_default_value() const {
 NGRAPH_SUPPRESS_DEPRECATED_END
 
 shared_ptr<Node> op::v4::ReduceL1::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v4_ReduceL1_clone_with_new_inputs);
+    OV_OP_SCOPE(v4_ReduceL1_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v4::ReduceL1>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
@@ -62,7 +60,7 @@ bool evaluate_sum(const HostTensorPtr& arg, const HostTensorPtr& out, const Axis
 }  // namespace reduce_l1
 
 bool op::v4::ReduceL1::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v4_ReduceL1_evaluate);
+    OV_OP_SCOPE(v4_ReduceL1_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
 
@@ -73,7 +71,7 @@ bool op::v4::ReduceL1::evaluate(const HostTensorVector& outputs, const HostTenso
 }
 
 bool op::v4::ReduceL1::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v4_ReduceL1_has_evaluate);
+    OV_OP_SCOPE(v4_ReduceL1_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:

@@ -13,6 +13,12 @@
 #include "jit_eltwise_emitters.hpp"
 #include "jit_dnnl_emitters.hpp"
 #include "jit_dnnl_ext_emitters.hpp"
+#include "jit_conversion_emitters.hpp"
+
+#include "snippets_transformations/op/load_convert.hpp"
+#include "snippets_transformations/op/store_convert.hpp"
+#include "snippets/op/brgemm.hpp"
+#include "ngraph_transformations/op/swish_cpu.hpp"
 
 #include <ngraph/opsets/opset5.hpp>
 
@@ -28,7 +34,7 @@ public:
 
     ~jit_snippet() = default;
 
-    jit_snippet() : jit_generator() {
+    jit_snippet() : jit_generator(jit_name()) {
     }
 
     void generate() override {
@@ -39,26 +45,32 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
     : TargetMachine(), h(new jit_snippet()), isa(host_isa) {
     // data movement
     jitters[ngraph::opset1::Parameter::get_type_info_static()] = CREATE_EMITTER(NopEmitter);
-    jitters[ngraph::snippets::op::BlockedParameter::get_type_info_static()] = CREATE_EMITTER(NopEmitter);
     jitters[ngraph::opset1::Result::get_type_info_static()] = CREATE_EMITTER(NopEmitter);
+    jitters[ngraph::snippets::op::Buffer::get_type_info_static()] = CREATE_EMITTER(NopEmitter);
+    jitters[ngraph::snippets::op::VectorBuffer::get_type_info_static()] = CREATE_EMITTER(VectorBufferEmitter);
     // jitters[ngraph::opset1::Constant::get_type_info_static()] = CREATE_EMITTER(); // Not supported
 
     jitters[ngraph::snippets::op::Load::get_type_info_static()] = CREATE_EMITTER(LoadEmitter);
-    jitters[ngraph::snippets::op::VectorLoad::get_type_info_static()] = CREATE_EMITTER(LoadEmitter);
-    jitters[ngraph::snippets::op::ScalarLoad::get_type_info_static()] = CREATE_EMITTER(ScalarLoadEmitter);
+    jitters[ngraph::snippets::op::LoadReshape::get_type_info_static()] = CREATE_EMITTER(LoadEmitter);
     jitters[ngraph::snippets::op::BroadcastLoad::get_type_info_static()] = CREATE_EMITTER(BroadcastLoadEmitter);
+    jitters[ov::intel_cpu::LoadConvertSaturation::get_type_info_static()] = CREATE_EMITTER(LoadConvertEmitter);
+    jitters[ov::intel_cpu::LoadConvertTruncation::get_type_info_static()] = CREATE_EMITTER(LoadConvertEmitter);
 
     jitters[ngraph::snippets::op::Store::get_type_info_static()] = CREATE_EMITTER(StoreEmitter);
-    jitters[ngraph::snippets::op::VectorStore::get_type_info_static()] = CREATE_EMITTER(StoreEmitter);
-    jitters[ngraph::snippets::op::ScalarStore::get_type_info_static()] = CREATE_EMITTER(ScalarStoreEmitter);
+    jitters[ov::intel_cpu::StoreConvertSaturation::get_type_info_static()] = CREATE_EMITTER(StoreConvertEmitter);
+    jitters[ov::intel_cpu::StoreConvertTruncation::get_type_info_static()] = CREATE_EMITTER(StoreConvertEmitter);
 
     jitters[ngraph::snippets::op::Scalar::get_type_info_static()] = CREATE_EMITTER(ScalarEmitter);
-    jitters[ngraph::snippets::op::BroadcastMove::get_type_info_static()] = CREATE_EMITTER(FakeBroadcastEmitter);
+    jitters[ngraph::snippets::op::BroadcastMove::get_type_info_static()] = CREATE_EMITTER(BroadcastMoveEmitter);
     // jitters[ngraph::snippets::op::Nop::get_type_info_static()] = CREATE_EMITTER(NopEmitter); // Not supported
     // jitters[ngraph::opset1::Broadcast::get_type_info_static()] = CREATE_EMITTER(); // Not supported
 
-    // jitters[ngraph::opset1::Convert::get_type_info_static()] = CREATE_EMITTER(); // Not supported
+    jitters[ngraph::snippets::op::ConvertTruncation::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_convert_truncation_emitter);
+    jitters[ngraph::snippets::op::ConvertSaturation::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_convert_saturation_emitter);
     // jitters[ngraph::opset1::FakeQuantize::get_type_info_static()] = CREATE_EMITTER(); // not supported
+
+    // ternary
+    jitters[ngraph::opset1::Select::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_select_emitter);
 
     // binary
     jitters[ngraph::opset1::Add::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_add_emitter);
@@ -110,14 +122,21 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
     // jitters[ngraph::opset1::Tan::get_type_info_static()] = CREATE_EMITTER(); // not supported
     jitters[ngraph::opset1::Tanh::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_tanh_emitter);
 
+    jitters[ov::intel_cpu::SwishNode::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_swish_emitter);
     jitters[ngraph::op::v4::HSwish::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_hswish_emitter);
     // jitters[ngraph::opset1::HardSigmoid::get_type_info_static()] = CREATE_EMITTER(); // not supported
     // jitters[ngraph::opset1::Selu::get_type_info_static()] = CREATE_EMITTER(); // not supported
     jitters[ngraph::op::v0::Gelu::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_gelu_v0_emitter);
     jitters[ngraph::op::v7::Gelu::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_gelu_v7_emitter);
+    jitters[ngraph::snippets::op::Fill::get_type_info_static()] = CREATE_EMITTER(FillEmitter);
+
+    jitters[ngraph::snippets::op::HorizonMax::get_type_info_static()] = CREATE_EMITTER(HorizonMaxEmitter);
+    jitters[ngraph::snippets::op::HorizonSum::get_type_info_static()] = CREATE_EMITTER(HorizonSumEmitter);
 
     jitters[ngraph::snippets::op::Kernel::get_type_info_static()] = CREATE_EMITTER(KernelEmitter);
-    jitters[ngraph::snippets::op::Tile::get_type_info_static()] = CREATE_EMITTER(TileEmitter);
+    jitters[ngraph::snippets::op::LoopBegin::get_type_info_static()] = CREATE_EMITTER(LoopBeginEmitter);
+    jitters[ngraph::snippets::op::LoopEnd::get_type_info_static()] = CREATE_EMITTER(LoopEndEmitter);
+    jitters[ngraph::snippets::op::Brgemm::get_type_info_static()] = CREATE_EMITTER(BrgemmEmitter);
 }
 
 size_t ov::intel_cpu::CPUTargetMachine::get_lanes() const {
@@ -134,7 +153,9 @@ bool ov::intel_cpu::CPUTargetMachine::is_supported() const {
 }
 
 code ov::intel_cpu::CPUTargetMachine::get_snippet() const {
-    h->create_kernel();
+    if (h->create_kernel() != status::success) {
+        IE_THROW() << "Failed to create jit_kernel in get_snippet()";
+    }
     return h->jit_ker();
 }
 

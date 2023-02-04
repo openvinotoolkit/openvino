@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,8 +24,8 @@ static cldnn::depth_to_space_mode GetDepthMode(ngraph::op::v0::DepthToSpace::Dep
 }
 
 static void CreateDepthToSpaceOp(Program& p, const std::shared_ptr<ngraph::op::v0::DepthToSpace>& op) {
-    p.ValidateInputs(op, {1});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    validate_inputs_count(op, {1});
+    auto inputPrimitives = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     size_t blockSize = op->get_block_size();
@@ -34,11 +34,9 @@ static void CreateDepthToSpaceOp(Program& p, const std::shared_ptr<ngraph::op::v
     auto depthToSpacePrim = cldnn::depth_to_space(layerName,
                                                   inputPrimitives[0],
                                                   blockSize,
-                                                  mode,
-                                                  op->get_friendly_name());
+                                                  mode);
 
-    p.AddPrimitive(depthToSpacePrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, depthToSpacePrim);
 }
 
 REGISTER_FACTORY_IMPL(v0, DepthToSpace);

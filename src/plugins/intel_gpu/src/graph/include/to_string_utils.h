@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,24 +40,7 @@ inline std::string get_extr_type(const std::string& str) {
 }
 
 inline std::string dt_to_str(data_types dt) {
-    switch (dt) {
-        case data_types::bin:
-            return "bin";
-        case data_types::i8:
-            return "i8";
-        case data_types::u8:
-            return "u8";
-        case data_types::i32:
-            return "i32";
-        case data_types::i64:
-            return "i64";
-        case data_types::f16:
-            return "f16";
-        case data_types::f32:
-            return "f32";
-        default:
-            return "unknown (" + std::to_string(typename std::underlying_type<data_types>::type(dt)) + ")";
-    }
+    return data_type_traits::name(dt);
 }
 
 inline std::string fmt_to_str(format fmt) {
@@ -137,6 +120,7 @@ inline std::string onednn_post_op_type_to_str(onednn_post_op_type type) {
     case onednn_post_op_type::eltwise_round: return "eltwise_round";
     case onednn_post_op_type::binary_mul: return "binary_mul";
     case onednn_post_op_type::binary_add: return "binary_add";
+    case onednn_post_op_type::binary_sub: return "binary_add";
     case onednn_post_op_type::binary_max: return "binary_max";
     case onednn_post_op_type::binary_min: return "binary_min";
     case onednn_post_op_type::binary_relu: return "binary_relu";

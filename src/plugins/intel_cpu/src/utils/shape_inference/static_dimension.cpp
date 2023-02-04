@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,12 @@ std::ostream& operator<<(std::ostream& str, const StaticDimension& dimension) {
 
 StaticDimension::StaticDimension(value_type dimension)
         : m_dimension(dimension) {}
+
+StaticDimension::StaticDimension(value_type ldimension, value_type udimension)
+        : m_dimension(ldimension) {
+    OPENVINO_ASSERT(ldimension == udimension,
+                    "Can not create StaticDimension out of [", ldimension, ", ", udimension, "]");
+}
 
 bool StaticDimension::operator==(const StaticDimension& dim) const {
     return m_dimension == dim.m_dimension;

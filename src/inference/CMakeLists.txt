@@ -1,30 +1,37 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set (TARGET_NAME "inference_engine")
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # TODO: Add IMPLEMENT_OPENVINO_API to inference_engine_obj
+    ie_add_compiler_flags(/wd4273)
+endif()
+
 file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dev/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dev/preprocessing/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/threading/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp_interfaces/interface/*.cpp
       )
 
 # TODO: WA for OneHot pass usage in reshape
-set(LEGACY_SRC_ROOT "${OpenVINO_SOURCE_DIR}/src/common/legacy/src")
+set(LEGACY_ROOT "${OpenVINO_SOURCE_DIR}/src/plugins/intel_gna/legacy")
 set(LEGACY_LIBRARY_SHARED_SRCS
-    "${LEGACY_SRC_ROOT}/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.cpp"
-    "${LEGACY_SRC_ROOT}/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.cpp"
-    "${LEGACY_SRC_ROOT}/ngraph_ops/nms_ie.cpp"
-    "${LEGACY_SRC_ROOT}/ngraph_ops/onehot_ie.cpp")
+    "${LEGACY_ROOT}/src/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.cpp"
+    "${LEGACY_ROOT}/src/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.cpp"
+    "${LEGACY_ROOT}/src/ngraph_ops/nms_ie.cpp"
+    "${LEGACY_ROOT}/src/ngraph_ops/onehot_ie.cpp")
 
 set_source_files_properties(${LEGACY_LIBRARY_SHARED_SRCS} PROPERTIES
     COMPILE_DEFINITIONS "USE_STATIC_IE"
-    INCLUDE_DIRECTORIES $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
+    INCLUDE_DIRECTORIES "${LEGACY_ROOT}/include")
 set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/cnn_network_ngraph_impl.cpp" PROPERTIES
-    INCLUDE_DIRECTORIES $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
+    INCLUDE_DIRECTORIES "${LEGACY_ROOT}/include")
 
 set(IE_STATIC_DEPENDENT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/file_utils.cpp)
 list(REMOVE_ITEM LIBRARY_SRC ${IE_STATIC_DEPENDENT_FILES})
@@ -39,22 +46,20 @@ file (GLOB LIBRARY_HEADERS
        ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp
       )
 
-if (LINUX)
-    file (GLOB LIBRARY_SRC
-          ${LIBRARY_SRC}
-          ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.cpp)
-    file (GLOB LIBRARY_HEADERS
-         ${LIBRARY_HEADERS}
-         ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.hpp)
-endif()
-
-if (WIN32)
+if(WIN32)
     file (GLOB LIBRARY_SRC
          ${LIBRARY_SRC}
          ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.cpp)
     file (GLOB LIBRARY_HEADERS
          ${LIBRARY_HEADERS}
          ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.hpp)
+elseif(NOT (APPLE OR EMSCRIPTEN))
+    file (GLOB LIBRARY_SRC
+          ${LIBRARY_SRC}
+          ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.cpp)
+    file (GLOB LIBRARY_HEADERS
+         ${LIBRARY_HEADERS}
+         ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.hpp)
 endif()
 
 if(ENABLE_SSE42)
@@ -110,6 +115,10 @@ file(GLOB_RECURSE plugin_api_src "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/*.hpp"
 
 add_clang_format_target(${TARGET_NAME}_plugin_api_clang FOR_SOURCES ${plugin_api_src})
 
+ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_plugin_api
+                    SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/openvino"
+                    ADDITIONAL_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
+
 # Create object library
 
 add_library(${TARGET_NAME}_obj OBJECT
@@ -118,6 +127,10 @@ add_library(${TARGET_NAME}_obj OBJECT
             ${LIBRARY_SRC}
             ${LIBRARY_HEADERS}
             ${PUBLIC_HEADERS})
+
+if(NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(${TARGET_NAME}_obj PUBLIC OPENVINO_STATIC_LIBRARY)
+endif()
 
 ie_faster_build(${TARGET_NAME}_obj
     UNITY PCH PRIVATE "src/precomp.hpp"
@@ -141,11 +154,12 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
     "${CMAKE_CURRENT_BINARY_DIR}"
     # for ie_ir_version.hpp
     $<$<TARGET_EXISTS:inference_engine_ir_v7_reader>:$<TARGET_PROPERTY:inference_engine_ir_v7_reader,SOURCE_DIR>>
-    $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>
+    "${LEGACY_ROOT}/include"
     $<TARGET_PROPERTY:${TARGET_NAME}_transformations,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::itt openvino::util openvino::core::dev)
+ie_mark_target_as_cc(${TARGET_NAME}_obj)
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
 if (TBBBIND_2_5_FOUND)
@@ -167,14 +181,7 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
 
 # Static library used for unit tests which are always built
 
-file(GLOB_RECURSE legacy_src "${LEGACY_SRC_ROOT}/*.cpp"
-                             "${LEGACY_SRC_ROOT}/*.hpp")
-
-set_source_files_properties(${legacy_src} PROPERTIES
-    INCLUDE_DIRECTORIES $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
-
 add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
-            ${legacy_src}
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
 set_ie_threading_interface_for(${TARGET_NAME}_s)
@@ -184,15 +191,14 @@ endif()
 
 target_include_directories(${TARGET_NAME}_s PUBLIC
     $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-    $<BUILD_INTERFACE:$<TARGET_PROPERTY:${TARGET_NAME}_legacy,SOURCE_DIR>/src>)
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>)
 
 if(WIN32)
     set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
 endif()
 
 target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ngraph
-    frontend_common::static openvino_gapi_preproc_s inference_engine_transformations openvino::pugixml)
+    frontend_common::static inference_engine_transformations openvino::pugixml)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
 
@@ -216,3 +222,7 @@ ov_install_static_lib(${TARGET_NAME}_plugin_api ${OV_CPACK_COMP_CORE})
 install(DIRECTORY "${PUBLIC_HEADERS_DIR}/"
         DESTINATION ${OV_CPACK_INCLUDEDIR}
         COMPONENT ${OV_CPACK_COMP_CORE_DEV})
+
+if(ENABLE_TESTS)
+    add_subdirectory(tests)
+endif()

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,6 +43,8 @@ public:
     void enable_soft_names_comparison();
 
     std::shared_ptr<ov::Model> function, function_ref;
+    // Aliases to function and function_ref pointers to be more corresponding with ov namespace.
+    std::shared_ptr<ov::Model>&model, &model_ref;
     ngraph::pass::Manager manager;
     FunctionsComparator comparator;
 
@@ -67,3 +69,11 @@ size_t count_ops_of_type(const std::shared_ptr<ngraph::Function>& f) {
 
     return count;
 }
+
+template<class T>
+std::shared_ptr<ov::opset8::Constant> create_constant(const std::vector<T>& data, const ov::element::Type_t et = ov::element::i64, bool scalar = false) {
+    ov::Shape shape = scalar ? ov::Shape{} : ov::Shape{data.size()};
+    return ov::opset8::Constant::create(et, shape, data);
+}
+
+std::shared_ptr<ov::opset8::Constant> create_zero_constant(const ov::element::Type_t& et, const ov::Shape& shape);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@ namespace cldnn {
 // Fetches all available gpu devices with specific runtime and engine types and (optionally) user context/device handles
 struct device_query {
 public:
+    static int device_id;
     explicit device_query(engine_types engine_type,
                           runtime_types runtime_type,
                           void* user_context = nullptr,

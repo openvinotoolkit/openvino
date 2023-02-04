@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,8 +34,8 @@ public:
     void execute(scatter_elements_update_test_params& p) {
 
         auto input_prim = get_mem(get_input_layout(p), -5, 5);
-        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-        network network_fused(this->engine, this->topology_fused, bo_fused);
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
         compare(network_not_fused, network_fused, p);
@@ -87,9 +87,11 @@ public:
 class scatter_elements_update_quantize : public ScatterElementsUpdatePrimitiveFusingTest {};
 TEST_P(scatter_elements_update_quantize, basic) {
     auto p = GetParam();
-    const auto &seu = scatter_elements_update("scatter_elements_update_prim", "input", "scatter_elements_update_indices", "scatter_elements_update_updates", p.axis);
-    const auto &q = quantize("quantize", "scatter_elements_update_prim", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8);
-    const auto &r = reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32);
+    const auto &seu = scatter_elements_update("scatter_elements_update_prim", input_info("input"), input_info("scatter_elements_update_indices"),
+                                              input_info("scatter_elements_update_updates"), p.axis);
+    const auto &q = quantize("quantize", input_info("scatter_elements_update_prim"), input_info("in_lo"), input_info("in_hi"),
+                             input_info("out_lo"), input_info("out_hi"), 255, data_types::i8);
+    const auto &r = reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32);
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("scatter_elements_update_indices", get_repeatless_mem(get_indices_layout(p), 0, static_cast<int>(get_axis_dim(p)) - 1)),
@@ -132,11 +134,12 @@ TEST_P(scatter_elements_update_scale_activation_eltwise, basic) {
         data("scatter_elements_update_updates", get_mem(get_updates_layout(p), 0, 5)),
         data("scale_data", get_mem(get_per_channel_layout(p), -1, 1)),
         data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, p.input_shape })),
-        scatter_elements_update("scatter_elements_update_prim", "input", "scatter_elements_update_indices", "scatter_elements_update_updates", p.axis),
-        activation("activation", "scatter_elements_update_prim", activation_func::abs),
-        scale("scale", "activation", "scale_data"),
-        eltwise("eltwise", { "scale", "eltwise_data" }, eltwise_mode::sum, p.data_type),
-        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
+        scatter_elements_update("scatter_elements_update_prim", input_info("input"), input_info("scatter_elements_update_indices"),
+                                input_info("scatter_elements_update_updates"), p.axis),
+        activation("activation", input_info("scatter_elements_update_prim"), activation_func::abs),
+        eltwise("scale", { input_info("activation"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
+        eltwise("eltwise", { input_info("scale"), input_info("eltwise_data") }, eltwise_mode::sum, p.data_type),
+        reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-2f;

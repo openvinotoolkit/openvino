@@ -1,27 +1,25 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from functools import singledispatch
-from typing import Any, Union, Dict
+from typing import Any, Iterable, Union, Dict, Optional
 from pathlib import Path
 
 import numpy as np
 
-from openvino.pyopenvino import Model
-from openvino.pyopenvino import Core as CoreBase
-from openvino.pyopenvino import CompiledModel as CompiledModelBase
-from openvino.pyopenvino import InferRequest as InferRequestBase
-from openvino.pyopenvino import AsyncInferQueue as AsyncInferQueueBase
-from openvino.pyopenvino import ConstOutput
-from openvino.pyopenvino import Tensor
-from openvino.pyopenvino import Type
-from openvino.pyopenvino import Shape
+from openvino._pyopenvino import Model
+from openvino._pyopenvino import Core as CoreBase
+from openvino._pyopenvino import CompiledModel as CompiledModelBase
+from openvino._pyopenvino import InferRequest as InferRequestBase
+from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase
+from openvino._pyopenvino import ConstOutput
+from openvino._pyopenvino import Tensor
 
 
 def tensor_from_file(path: str) -> Tensor:
     """Create Tensor from file. Data will be read with dtype of unit8."""
-    return Tensor(np.fromfile(path, dtype=np.uint8))
+    return Tensor(np.fromfile(path, dtype=np.uint8))  # type: ignore
 
 
 def set_scalar_tensor(request: InferRequestBase, tensor: Tensor, key: Union[str, int, ConstOutput] = None) -> None:
@@ -69,7 +67,7 @@ def _(
         tensor.data[:] = inputs[:]
 
 
-@update_tensor.register(np.number)
+@update_tensor.register(np.number)  # type: ignore
 @update_tensor.register(float)
 @update_tensor.register(int)
 def _(
@@ -78,7 +76,9 @@ def _(
     key: Union[str, int, ConstOutput] = None,
 ) -> None:
     set_scalar_tensor(
-        request, Tensor(np.ndarray([], type(inputs), np.array(inputs))), key,
+        request,
+        Tensor(np.ndarray([], type(inputs), np.array(inputs))),
+        key,
     )
 
 
@@ -149,8 +149,7 @@ class InferRequest(InferRequestBase):
         # If inputs are list or tuple, enumarate inputs and save them as dictionary.
         # It is an extension of above branch with dict inputs.
         elif isinstance(inputs, (list, tuple)):
-            return super().infer(
-                normalize_inputs(self, {index: input for index, input in enumerate(inputs)}))
+            return super().infer(normalize_inputs(self, {index: input for index, input in enumerate(inputs)}))
         # If inputs are Tensor, call infer method directly.
         elif isinstance(inputs, Tensor):
             return super().infer(inputs)
@@ -203,8 +202,7 @@ class InferRequest(InferRequestBase):
         elif isinstance(inputs, dict):
             super().start_async(normalize_inputs(self, inputs), userdata)
         elif isinstance(inputs, (list, tuple)):
-            super().start_async(
-                normalize_inputs(self, {index: input for index, input in enumerate(inputs)}), userdata)
+            super().start_async(normalize_inputs(self, {index: input for index, input in enumerate(inputs)}), userdata)
         elif isinstance(inputs, Tensor):
             super().start_async(inputs, userdata)
         elif isinstance(inputs, (np.ndarray, np.number, int, float)):
@@ -267,7 +265,7 @@ class CompiledModel(CompiledModelBase):
         # overloaded functions of InferRequest class
         return self.create_infer_request().infer(inputs)
 
-    def __call__(self, inputs: Union[dict, list] = None) -> dict:
+    def __call__(self, inputs: Optional[Union[dict, list]] = None) -> dict:
         """Callable infer wrapper for CompiledModel.
 
         Take a look at `infer_new_request` for reference.
@@ -276,12 +274,21 @@ class CompiledModel(CompiledModelBase):
 
 
 class AsyncInferQueue(AsyncInferQueueBase):
-    """AsyncInferQueue with pool of asynchronous requests.
+    """AsyncInferQueue with a pool of asynchronous requests.
 
-    AsyncInferQueue represents helper that creates a pool of asynchronous
+    AsyncInferQueue represents a helper that creates a pool of asynchronous
     InferRequests and provides synchronization functions to control flow of
     a simple pipeline.
     """
+
+    def __iter__(self) -> Iterable[InferRequest]:
+        """Allows to iterate over AsyncInferQueue.
+
+        :return: a generator that yields InferRequests.
+        :rtype: Iterable[openvino.runtime.InferRequest]
+        """
+        return (InferRequest(x) for x in super().__iter__())
+
     def __getitem__(self, i: int) -> InferRequest:
         """Gets InferRequest from the pool with given i id.
 
@@ -324,7 +331,8 @@ class AsyncInferQueue(AsyncInferQueueBase):
             super().start_async({}, userdata)
         elif isinstance(inputs, dict):
             super().start_async(
-                normalize_inputs(self[self.get_idle_request_id()], inputs), userdata,
+                normalize_inputs(self[self.get_idle_request_id()], inputs),
+                userdata,
             )
         elif isinstance(inputs, (list, tuple)):
             super().start_async(
@@ -356,7 +364,10 @@ class Core(CoreBase):
     """
 
     def compile_model(
-        self, model: Union[Model, str, Path], device_name: str = None, config: dict = None,
+        self,
+        model: Union[Model, str, Path],
+        device_name: Optional[str] = None,
+        config: Optional[dict] = None,
     ) -> CompiledModel:
         """Creates a compiled model.
 
@@ -389,7 +400,10 @@ class Core(CoreBase):
         )
 
     def import_model(
-        self, model_stream: bytes, device_name: str, config: dict = None,
+        self,
+        model_stream: bytes,
+        device_name: str,
+        config: Optional[dict] = None,
     ) -> CompiledModel:
         """Imports a compiled model from a previously exported one.
 
@@ -432,7 +446,9 @@ class Core(CoreBase):
         """
         return CompiledModel(
             super().import_model(
-                model_stream, device_name, {} if config is None else config,
+                model_stream,
+                device_name,
+                {} if config is None else config,
             ),
         )
 

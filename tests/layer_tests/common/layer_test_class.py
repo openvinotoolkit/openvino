@@ -1,19 +1,16 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import itertools
-import numpy as np
 import os
 import re
 import warnings
-import xml.etree.ElementTree as ET
-from openvino.tools.mo.utils.ir_engine.ir_engine import IREngine
+import defusedxml.ElementTree as ET
 from pathlib import Path
 
 import numpy as np
 from common.constants import test_device, test_precision
 from common.layer_utils import IEInfer, InferAPI20
-from openvino.tools.mo.utils.ir_engine.ir_engine import IREngine
 from common.utils.common_utils import generate_ir
 from common.utils.parsers import mapping_parser
 
@@ -29,7 +26,7 @@ class CommonLayerTest:
         raise RuntimeError("This is base class, please implement get_framework_results function for"
                            " the specific framework")
 
-    def _test(self, framework_model, ref_net, ie_device, precision, ir_version, temp_dir, api_2,
+    def _test(self, framework_model, ref_net, ie_device, precision, ir_version, temp_dir, use_old_api,
               use_new_frontend=True, infer_timeout=60, enabled_transforms='',
               disabled_transforms='', **kwargs):
         """
@@ -37,9 +34,8 @@ class CommonLayerTest:
                                                        Example: "transform_1,transform_2"
         """
         model_path = self.produce_model_path(framework_model=framework_model, save_path=temp_dir)
-
         self.use_new_frontend = use_new_frontend
-        self.api_2 = api_2
+        self.use_old_api = use_old_api
         # TODO Pass environment variables via subprocess environment
         os.environ['MO_ENABLED_TRANSFORMS'] = enabled_transforms
         os.environ['MO_DISABLED_TRANSFORMS'] = disabled_transforms
@@ -79,15 +75,21 @@ class CommonLayerTest:
         #     (flag, resp) = ir.compare(ref_net)
         #     assert flag, '\n'.join(resp)
 
-        if api_2:
-            ie_engine = InferAPI20(model=path_to_xml,
-                                   weights=path_to_bin,
-                                   device=ie_device)
-        else:
+        config = None
+        # GPU default execution precision is FP16, so if we want to check FP32 inference
+        # we need to set explicit precision hint
+        if ie_device == 'GPU' and precision == 'FP32':
+            config = {'INFERENCE_PRECISION_HINT': 'f32'}
+
+        if self.use_old_api:
             ie_engine = IEInfer(model=path_to_xml,
                                 weights=path_to_bin,
                                 device=ie_device)
-
+        else:
+            ie_engine = InferAPI20(model=path_to_xml,
+                                   weights=path_to_bin,
+                                   device=ie_device,
+                                   use_new_frontend=use_new_frontend)
         # Prepare feed dict
         if 'kwargs_to_prepare_input' in kwargs and kwargs['kwargs_to_prepare_input']:
             inputs_dict = self._prepare_input(ie_engine.get_inputs_info(precision),
@@ -96,7 +98,7 @@ class CommonLayerTest:
             inputs_dict = self._prepare_input(ie_engine.get_inputs_info(precision))
 
         # IE infer:
-        infer_res = ie_engine.infer(input_data=inputs_dict, infer_timeout=infer_timeout)
+        infer_res = ie_engine.infer(input_data=inputs_dict, infer_timeout=infer_timeout, config=config)
 
         if hasattr(self, 'skip_framework') and self.skip_framework:
             warnings.warn('Framework is skipped')
@@ -115,13 +117,14 @@ class CommonLayerTest:
         if 'custom_eps' in kwargs and kwargs['custom_eps'] is not None:
             custom_eps = kwargs['custom_eps']
         else:
-            custom_eps = 1e-4
-
+            if precision == 'FP32':
+                custom_eps = 1e-4
+            else:
+                custom_eps = 5e-2
         # Compare Ie results with Framework results
-        fw_eps = custom_eps if precision == 'FP32' else 5e-2
         assert self.compare_ie_results_with_framework(infer_res=infer_res, framework_res=fw_res,
                                                       mapping_dict=mapping_dict,
-                                                      framework_eps=fw_eps), \
+                                                      framework_eps=custom_eps), \
             "Comparing with Framework failed: ie_res={}; framework_res={}.".format(infer_res,
                                                                                    fw_res)
 

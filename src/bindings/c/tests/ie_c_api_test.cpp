@@ -1,7 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// clang-format off
 #include <gtest/gtest.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,30 +24,18 @@ const char* input_image_nv12 = input_image_nv12_std.c_str();
 std::mutex m;
 bool ready = false;
 std::condition_variable condVar;
-#ifdef _WIN32
-    #ifdef __MINGW32__
-        std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins_mingw.xml");
-    #else
-        std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins_win.xml");
-    #endif
-#elif defined __APPLE__
-        std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins_apple.xml");
-#else
-        std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins.xml");
-#endif
-const char* plugins_xml = plugins_xml_std.c_str();
 
 #define IE_EXPECT_OK(...) EXPECT_EQ(IEStatusCode::OK, __VA_ARGS__)
 #define IE_ASSERT_OK(...) ASSERT_EQ(IEStatusCode::OK, __VA_ARGS__)
 #define IE_EXPECT_NOT_OK(...) EXPECT_NE(IEStatusCode::OK, __VA_ARGS__)
 
-size_t read_image_from_file(const char* img_path, unsigned char *img_data, size_t size) {
+inline size_t read_image_from_file(const char* img_path, unsigned char *img_data, size_t size) {
     FILE *fp = fopen(img_path, "rb+");
     size_t read_size = 0;
 
     if (fp) {
         fseek(fp, 0, SEEK_END);
-        if (ftell(fp) >= size) {
+        if (ftell(fp) >= static_cast<long int>(size)) {
             fseek(fp, 0, SEEK_SET);
             read_size = fread(img_data, 1, size, fp);
         }
@@ -55,7 +44,7 @@ size_t read_image_from_file(const char* img_path, unsigned char *img_data, size_
     return read_size;
 }
 
-size_t find_device(ie_available_devices_t avai_devices, const char *device_name) {
+inline size_t find_device(ie_available_devices_t avai_devices, const char *device_name) {
     for (size_t i = 0; i < avai_devices.num_devices; ++i) {
         if (strstr(avai_devices.devices[i], device_name))
             return i;
@@ -73,11 +62,10 @@ TEST(ie_c_api_version, apiVersion) {
     ie_version_free(&version);
 }
 
-void completion_callback(void *args) {
+static void completion_callback(void *args) {
     ie_infer_request_t *infer_request = (ie_infer_request_t *)args;
     ie_blob_t *output_blob = nullptr;
 
-    printf("async infer callback...\n");
     IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, "fc_out", &output_blob));
 
     ie_blob_buffer_t buffer;
@@ -93,11 +81,13 @@ void completion_callback(void *args) {
 }
 
 TEST(ie_core_create, coreCreatewithConfig) {
+    std::string plugins_xml = TestDataHelpers::generate_test_xml_file();
     ie_core_t *core = nullptr;
-    IE_ASSERT_OK(ie_core_create(plugins_xml, &core));
+    IE_ASSERT_OK(ie_core_create(plugins_xml.c_str(), &core));
     ASSERT_NE(nullptr, core);
 
     ie_core_free(&core);
+    TestDataHelpers::delete_test_xml_file();
 }
 
 TEST(ie_core_create, coreCreateNoConfig) {
@@ -127,66 +117,38 @@ TEST(ie_core_register_plugin, registerPlugin) {
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
-    ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
-    EXPECT_NE(nullptr, network);
-
-    const char *plugin_name = "openvino_intel_cpu_plugin";
+    const char *plugin_name = "test_plugin";
     const char *device_name = "BLA";
     IE_EXPECT_OK(ie_core_register_plugin(core, plugin_name, device_name));
 
-    ie_config_t config = {nullptr, nullptr, nullptr};
-    ie_executable_network_t *exe_network = nullptr;
-    IE_EXPECT_OK(ie_core_load_network(core, network, device_name, &config, &exe_network));
-    EXPECT_NE(nullptr, exe_network);
-
-    ie_exec_network_free(&exe_network);
-    ie_network_free(&network);
     ie_core_free(&core);
 }
 
 TEST(ie_core_register_plugins, registerPlugins) {
+    std::string plugins_xml = TestDataHelpers::generate_test_xml_file();
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
-    ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
-    EXPECT_NE(nullptr, network);
+    IE_EXPECT_OK(ie_core_register_plugins(core, plugins_xml.c_str()));
 
-    IE_EXPECT_OK(ie_core_register_plugins(core, plugins_xml));
-
-    ie_config_t config = {nullptr, nullptr, nullptr};
-    const char *device_name = "CUSTOM";
-    ie_executable_network_t *exe_network = nullptr;
-    IE_EXPECT_OK(ie_core_load_network(core, network, device_name, &config, &exe_network));
-    EXPECT_NE(nullptr, exe_network);
-
-    ie_exec_network_free(&exe_network);
-    ie_network_free(&network);
     ie_core_free(&core);
+    TestDataHelpers::delete_test_xml_file();
 }
 
-TEST(ie_core_unregister_plugin, unregisterPlugin) {
+TEST(ie_core_unload_plugin, unloadPlugin) {
     ie_core_t *core = nullptr;
-    IE_ASSERT_OK(ie_core_create(plugins_xml, &core));
+    IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
-    ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
-    EXPECT_NE(nullptr, network);
-
-    ie_config_t config = {nullptr, nullptr, nullptr};
-    const char *device_name = "CUSTOM";
-    ie_executable_network_t *exe_network = nullptr;
-    IE_EXPECT_OK(ie_core_load_network(core, network, device_name, &config, &exe_network));
-    EXPECT_NE(nullptr, exe_network);
-
-    ie_exec_network_free(&exe_network);
-    ie_network_free(&network);
-
+    const char *device_name = "CPU";
+    ie_core_versions_t versions = {0};
+    // Trigger plugin loading
+    IE_EXPECT_OK(ie_core_get_versions(core, device_name, &versions));
+    // Unload plugin
     IE_EXPECT_OK(ie_core_unregister_plugin(core, device_name));
 
+    ie_core_versions_free(&versions);
     ie_core_free(&core);
 }
 
@@ -1310,6 +1272,8 @@ TEST(ie_infer_request_infer_async, inferAsyncWaitTime) {
     ie_core_free(&core);
 }
 
+// For ARM plugin, no "Batch" related operations support for now, so skip related APIs
+#ifndef __aarch64__
 TEST(ie_infer_request_set_batch, setBatch) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
@@ -1396,6 +1360,7 @@ TEST(ie_infer_request_set_batch, setNegativeBatch) {
     ie_network_free(&network);
     ie_core_free(&core);
 }
+#endif
 
 TEST(ie_blob_make_memory, makeMemory) {
 
@@ -2243,3 +2208,4 @@ TEST(ie_blob_make_memory_i420, inferRequestWithI420) {
 }
 
 #endif // ENABLE_GAPI_PREPROCESSING
+// clang-format on

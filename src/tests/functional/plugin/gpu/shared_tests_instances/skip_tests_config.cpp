@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,11 +50,15 @@ std::vector<std::string> disabledTestPatterns() {
             // Not allowed dynamic loop tests on GPU
             R"(.*smoke_StaticShapeLoop_dynamic_exit.*)",
             // Not expected behavior
-            R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
+            R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(SCALAR|OIHW).*)",
             R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetInBlobWithDifferentLayouts.*layout=NHWC.*)",
             R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetOutBlobWithDifferentLayouts.*layout=(CN|HW).*)",
             R"(.*Behavior.*(Multi|Auto).*InferRequestSetBlobByType.*Batched.*)",
             R"(.*(Multi|Auto).*Behavior.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
+            // TODO Issue 100145
+            R"(.*Behavior.*InferRequestIOBBlobTest.*canReallocateExternalBlobViaGet.*)",
+            R"(.*Behavior.*OVInferRequestIOTensorTest.*canInferAfterIOBlobReallocation.*)",
+            R"(.*Behavior.*OVInferRequestDynamicTests.*InferUpperBoundNetworkAfterIOTensorsReshaping.*)",
             R"(.*(Auto|Multi).*Behavior.*IncorrectConfigTests.*CanNotLoadNetworkWithIncorrectConfig.*)",
             // TODO: until issue is xxx-59670 is resolved
             R"(.*Gather8LayerTest.*)",
@@ -80,13 +84,21 @@ std::vector<std::string> disabledTestPatterns() {
             // Issue: CVS-66778
             R"(.*smoke_Auto_BehaviorTests.*DynamicOutputToDynamicInput.*)",
             R"(.*smoke_Auto_BehaviorTests.*DynamicInputToDynamicOutput.*)",
-            R"(.*smoke_Auto_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
+            // Dynamic batch allocates output using upper bound
+            R"(.*smoke_BehaviorTests.*InferUpperBoundNetworkWithGetTensor.*)",
             // need dynamic shapes
             R"(.*RangeLayerTest.*)",
+            // need dynamic rank
+            R"(.*smoke.*BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
+            R"(.*smoke.*BehaviorTests.*DynamicOutputToDynamicInput.*)",
+            R"(.*smoke.*BehaviorTests.*DynamicInputToDynamicOutput.*)",
             // Issue: 76197
             R"(.*registerPluginsXMLUnicodePath.*)",
             // Not supported yet
-            R"(.*CompileModelCacheTestBase.*)",
+            R"(.*CompileModelCacheTestBase.*ConvBias.*)",
+            R"(.*CompileModelCacheTestBase.*KSOFunction.*)",
+            R"(.*CompileModelCacheTestBase.*ReadConcatSplitAssign.*)",
+            R"(.*LoadNetworkCacheTestBase.*)",
             // Issue: 83014
             R"(.*smoke_RemoteBlob.*canInferOnUserQueue.*)",
             // Issue: CVS-76980
@@ -95,5 +107,30 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_VirtualPlugin_BehaviorTests.*LoadedRemoteContext.*)",
             // Issue: CVS-88667 - Need to verify hetero interoperability
             R"(.*nightly_OVClassHeteroExecutableNetworlGetMetricTest.*SUPPORTED_(CONFIG_KEYS|METRICS).*)",
+            R"(.*VirtualPlugin.*BehaviorTests.*OVHoldersTest.*LoadedTensor.*target_device=AUTO.*)",
+            // TODO: Issue: 89555
+            R"(.*CoreThreadingTests.*smoke.*Network.*)",
+            // Assign-3/ReadValue-3 does not have evaluate() methods; ref implementation does not save the value across the inferences.
+            R"(smoke_MemoryTestV3.*)",
+            // Unsupported 8d tensors
+            R"(smoke_Basic/SqueezeUnsqueezeLayerTest.CompareWithRefs/OpType=Unsqueeze_IS=\(1.1.1.1\)_Axes=\((0.1.2|0.2.3|1.2.3|0.1.2.3|)\)_.*)",
+            // Issue: 90539
+            R"(smoke_AutoBatch_BehaviorTests/OVInferRequestIOTensorTest.InferStaticNetworkSetInputTensor/targetDevice=BATCH.*)",
+            // TODO: range input with one element should NOT be regarded as dynamic batch model in Program::IsDynBatchModel().
+            R"(.*smoke_select_CompareWithRefsNumpy_dynamic_range.*)",
+            // Issue: 90183
+            R"(.*VirtualPlugin.*BehaviorTests.*OVHoldersTestWithConfig.*LoadedTensor.*target_device=MULTI.*)",
+            R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*CompareWithRefImpl.*)",
+#if defined(_WIN32) || defined(_WIN64)
+            R"(.*Auto_KernelCachingSupportCase.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)",
+#endif
+            R"(.*CachingSupportCase.*GPU.*CompileModelCacheTestBase.*CompareWithRefImpl.*)",
+            // Currently 1D convolution has an issue
+            R"(.*smoke_GroupConvolution1D_ExplicitPadding_Disabled.*)",
+            R"(.*smoke_GroupConvolutionLayerGPUTest_dynamic1DSymPad_Disabled.*)",
+            R"(.*smoke_ConvolutionLayerGPUTest_dynamic1DSymPad.*)",
+
+            // Looks like the test is targeting CPU plugin and doesn't respect that execution graph may vary from plugin to plugin
+            R"(.*ExecGraphSerializationTest.*)",
     };
 }

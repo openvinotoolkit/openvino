@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,13 +9,14 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/pass/manager.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
 template <typename... Args>
 using overload_cast_ = pybind11::detail::overload_cast_impl<Args...>;
 
-void* numpy_to_c(py::array a) {
+inline void* numpy_to_c(py::array a) {
     py::buffer_info info = a.request();
     return info.ptr;
 }
@@ -70,4 +71,20 @@ void regmodule_graph_util(py::module m) {
             py::arg("target"),
             py::arg("replacement"),
             py::arg("outputs_order"));
+
+    mod.def(
+        "deprecation_warning",
+        [](const std::string& function_name, const std::string& version, const std::string& message) {
+            Common::utils::deprecation_warning(function_name, version, message);
+        },
+        py::arg("function_name"),
+        py::arg("version") = "",
+        py::arg("message") = "",
+        R"(
+            Prints deprecation warning "{function_name} is deprecated and will be removed in version {version}. {message}".
+
+            :param function_name: The name of the deprecated function.
+            :param version: The version in which the code will be removed.
+            :param message: A message explaining why the function is deprecated.
+        )");
 }

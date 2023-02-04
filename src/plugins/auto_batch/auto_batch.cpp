@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,9 @@
 namespace AutoBatchPlugin {
 using namespace InferenceEngine;
 
-std::vector<std::string> supported_configKeys = {CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), CONFIG_KEY(AUTO_BATCH_TIMEOUT)};
+std::vector<std::string> supported_configKeys = {CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG),
+                                                 CONFIG_KEY(AUTO_BATCH_TIMEOUT),
+                                                 CONFIG_KEY(CACHE_DIR)};
 
 template <Precision::ePrecision precision>
 Blob::Ptr create_shared_blob_on_top_of_batched_blob(Blob::Ptr batched_blob,
@@ -386,7 +388,7 @@ AutoBatchAsyncInferRequest::AutoBatchAsyncInferRequest(
             t.second = std::move(task);
             workerInferRequest._tasks.push(t);
             // it is ok to call size() here as the queue only grows (and the bulk removal happens under the mutex)
-            const int sz = workerInferRequest._tasks.size();
+            const int sz = static_cast<int>(workerInferRequest._tasks.size());
             if (sz == workerInferRequest._batchSize) {
                 workerInferRequest._cond.notify_one();
             }
@@ -527,7 +529,7 @@ std::pair<AutoBatchExecutableNetwork::WorkerInferRequest&, int> AutoBatchExecuta
                 } else {
                     // as we pop the tasks from the queue only here
                     // it is ok to call size() (as the _tasks can only grow in parallel)
-                    const int sz = workerRequestPtr->_tasks.size();
+                    const int sz = static_cast<int>(workerRequestPtr->_tasks.size());
                     if (sz == workerRequestPtr->_batchSize) {
                         std::pair<AutoBatchAsyncInferRequest*, InferenceEngine::Task> t;
                         for (int n = 0; n < sz; n++) {
@@ -567,7 +569,7 @@ std::pair<AutoBatchExecutableNetwork::WorkerInferRequest&, int> AutoBatchExecuta
             }
         });
     }
-    return {*_workerRequests.back(), batch_id};
+    return {*_workerRequests.back(), static_cast<int>(batch_id)};
 }
 
 InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateInferRequest() {
@@ -632,7 +634,7 @@ InferenceEngine::Parameter AutoBatchExecutableNetwork::GetMetric(const std::stri
                 // (multiplied by the devices capabilities to run multiple <batched> requests for further perf)
                 reqs = _device.batchForDevice *
                        _networkWithoutBatch->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
-        } catch (const InferenceEngine::Exception& iie) {
+        } catch (const InferenceEngine::Exception&) {
         }
         reqs = std::max(reqs, _device.batchForDevice);  // round up to the possible  user's value
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, reqs);
@@ -643,10 +645,13 @@ InferenceEngine::Parameter AutoBatchExecutableNetwork::GetMetric(const std::stri
                              {METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS),
                               METRIC_KEY(SUPPORTED_METRICS),
                               METRIC_KEY(NETWORK_NAME),
-                              METRIC_KEY(SUPPORTED_CONFIG_KEYS)});
+                              METRIC_KEY(SUPPORTED_CONFIG_KEYS),
+                              ov::execution_devices.name()});
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS,
                              {CONFIG_KEY(AUTO_BATCH_TIMEOUT)});  // only timeout can be changed on the fly
+    } else if (name == ov::execution_devices) {
+        return _networkWithoutBatch->GetMetric(name);
     } else {
         IE_THROW() << "Unsupported Network metric: " << name;
     }
@@ -695,8 +700,15 @@ DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(const std::string& d
         if (!deviceIDLocal.empty()) {
             tconfig[PluginConfigParams::KEY_DEVICE_ID] = deviceIDLocal;
         }
-
-        return GetCore()->GetSupportedConfig(deviceName, tconfig);
+        // passthrough the cache dir to core->loadnetwork when underlying device does not support cache dir
+        auto deviceConfig = GetCore()->GetSupportedConfig(deviceName, tconfig);
+        if (tconfig.find(CONFIG_KEY(CACHE_DIR)) != tconfig.end() &&
+            deviceConfig.find(CONFIG_KEY(CACHE_DIR)) == deviceConfig.end()) {
+            auto tmpiter = tconfig.find(CONFIG_KEY(CACHE_DIR));
+            if (tmpiter != tconfig.end())
+                deviceConfig.insert({tmpiter->first, tmpiter->second});
+        }
+        return deviceConfig;
     };
 
     auto metaDevice = ParseBatchDevice(devicesBatchCfg);
@@ -757,7 +769,7 @@ void AutoBatchInferencePlugin::CheckConfig(const std::map<std::string, std::stri
                 auto t = std::stoi(val);
                 if (t < 0)
                     IE_THROW(ParameterMismatch);
-            } catch (const std::exception& e) {
+            } catch (const std::exception&) {
                 IE_THROW(ParameterMismatch)
                     << " Expecting unsigned int value for " << CONFIG_KEY(AUTO_BATCH_TIMEOUT) << " got " << val;
             }
@@ -839,7 +851,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         auto function = clonedNetwork.getFunction();
         // find the batch dim
         ov::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::FindBatch>(false, check_dims);
         m.run_passes(function);
         // do not reshape/re-batch originally batched networks and when there are no inputs with the N* layouts
@@ -857,7 +869,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
                 if (static_shape[0] != 1)
                     IE_THROW(NotImplemented) << "Auto-batching does not reshape/re-batch originally batched networks!";
                 batched_inputs.insert(
-                    ngraph::op::util::get_ie_output_name(params[input_id]->output(0)));  // batched dim for the input
+                    ov::op::util::get_ie_output_name(params[input_id]->output(0)));  // batched dim for the input
             } else {
                 // if the 0-th dim is not for the batch, then we support only the case when NONE dimension is batch
                 for (size_t s = 1; s < shape.size(); s++)
@@ -877,8 +889,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
                 if (shape[0] != 1)
                     IE_THROW(NotImplemented) << "Auto-batching does not reshape/re-batch originally batched networks!";
                 const auto& node = output->input_value(0);
-                batched_outputs.insert(ngraph::op::util::get_ie_output_name(
-                    ov::Output<const ov::Node>(node.get_node(), node.get_index())));
+                batched_outputs.insert(
+                    ov::op::util::get_ie_output_name(ov::Output<const ov::Node>(node.get_node(), node.get_index())));
             } else {
                 // if the 0-th dim is not for the batch, then we support only the case when NONE dimension is batch
                 for (size_t s = 1; s < shape.size(); s++)
@@ -934,8 +946,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         if (batch1_footprint) {
             const auto total_mem =
                 GetCore()->GetMetric(deviceName, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE)).as<uint64_t>();
-            const int estimated_batch = (total_mem - batch1_footprint) / batch1_footprint;
-            int closest = pow(2, floor(log(estimated_batch) / log(2)));
+            const int estimated_batch = static_cast<int>((total_mem - batch1_footprint) / batch1_footprint);
+            int closest = static_cast<int>(pow(2, floor(log(estimated_batch) / log(2))));
             closest = std::max(1, closest);
             metaDevice.batchForDevice = std::min(metaDevice.batchForDevice, closest);
         }

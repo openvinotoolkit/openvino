@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,23 +10,18 @@
  */
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <vector>
 
-/**
- * @brief ngraph namespace
- */
-namespace ngraph {
+#include "transformations_visibility.hpp"
 
-/**
- * @brief ngraph::pass namespace
- */
+namespace ov {
 namespace pass {
 
-class NGRAPH_API InitNodeInfo;
+class TRANSFORMATIONS_API InitNodeInfo;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -38,8 +33,8 @@ class NGRAPH_API InitNodeInfo;
  * This transformations should be called first in transformation pipeline. If attribute was
  * already set initialization will be skipped for this node.
  */
-class ngraph::pass::InitNodeInfo : public ngraph::pass::FunctionPass {
+class ov::pass::InitNodeInfo : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("InitNodeInfo", "0");
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };

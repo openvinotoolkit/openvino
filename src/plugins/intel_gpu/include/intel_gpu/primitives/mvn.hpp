@@ -1,18 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Mean Variance Normalization primitive.
 /// @details Normalizes the input to have 0-mean and/or unit (1) variance.
@@ -27,14 +20,13 @@ struct mvn : public primitive_base<mvn> {
     /// @param epsilon Epsilon for not dividing by zero while normalizing.
     /// @param eps_inside_sqrt The mode of applying epsilon.
     mvn(const primitive_id& id,
-        const primitive_id& input,
+        const input_info& input,
         const bool normalize_variance,
         const float epsilon,
         const bool eps_inside_sqrt,
         const bool across_channels = false,
-        const primitive_id& ext_prim_id = "",
         const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           normalize_variance(normalize_variance),
           epsilon(epsilon),
           eps_inside_sqrt(eps_inside_sqrt),
@@ -48,8 +40,14 @@ struct mvn : public primitive_base<mvn> {
     bool eps_inside_sqrt;
     /// @brief Determines if the normalization is done across or within channels.
     bool across_channels;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, normalize_variance);
+        seed = hash_combine(seed, epsilon);
+        seed = hash_combine(seed, eps_inside_sqrt);
+        seed = hash_combine(seed, across_channels);
+        return seed;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

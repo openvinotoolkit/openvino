@@ -1,32 +1,29 @@
-# Contributing to OpenVINO:tm: Python API
+# Contributing to OpenVINO™ Python API
 
 #### Prerequisites
-*To be added...*
 
 ##### Enviroment
-<!-- TODO: Link to enviroment setup -->
-*To be added...*
+In case the Python version you have is not supported by OpenVINO, you can refer to [openvino/src/bindings/python/docs/python_version_upgrade.md](https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/python/docs/python_version_upgrade.md) for instructions on how to download and build a newer, supported Python version.
+
+The environment setup is described as part of the pyenv example in [the build.md page](./build.md#Example:_using_pyenv_with_OpenVINO™_on_Linux_based_system).
 
 ##### Building
-<!-- TODO: Link to building instructions -->
-*To be added...*
+Building instructions can be found in [build.md](./build.md#_Building_the_OpenVINO™_Python_API).
 
 ## Contribution guidelines and best practices
 
 #### How to contribute to Python API?
-It is nothing special... :) First, make sure that all prerequisites are met and focus on writing the code itself. A good starting point is to have some knowledge of the Python language. C++ is also a vital language for OpenVINO:tm:, so it is not a surprise that it is used in this part of the project as well.
+It is nothing special... :) First, make sure that all prerequisites are met and focus on writing the code itself. A good starting point is to have some knowledge of the Python language. C++ is also a vital language for OpenVINO™, so it is not a surprise that it is used in this part of the project as well.
 
 Code snippets and detailed explanations can be found here:
-<!-- Link to EXAMPLES -->
-    openvino/src/bindings/python/docs/code_example.md
+
+[Examples of OpenVINO™ Python API code](./code_example.md)
 
 ##### Always test out our code! Don't forget about it before pushing and triggering CIs.
 
-Please refer to Test Guide available here:
+To learn how to test your code, refer to the guide on [how to test OpenVINO™ Python API?](./test_examples.md#Running_OpenVINO™_Python_API_tests)
 
-    openvino/src/bindings/python/docs/test_examples.md
-
-Moreover, the project utilizes *flake8* and *mypy* packages to run codestyle checks. Additionally OpenVINO:tm: uses the custom configuration file to exclude some strict rules. To run codestyle checks, navigate to the main Python API folder first and use following commands:
+Moreover, the project utilizes *flake8* and *mypy* packages to run codestyle checks. Additionally OpenVINO™ uses the custom configuration file to exclude some strict rules. To run codestyle checks, navigate to the main Python API folder first and use following commands:
 ```shell
 cd .../openvino/src/bindings/python/
 

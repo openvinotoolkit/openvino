@@ -1,18 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief
 /// @details
@@ -27,14 +20,20 @@ struct gather_elements : public primitive_base<gather_elements> {
     /// @param output_shape Output shape.
     /// @param axis Gathering axis.
     gather_elements(const primitive_id& id,
-                    const primitive_id& data,
-                    const primitive_id& indices,
+                    const input_info& data,
+                    const input_info& indices,
                     const format& output_format,
                     const tensor& output_shape,
                     const int64_t axis,
-                    const primitive_id& ext_prim_id = "",
                     const padding& output_padding = padding())
-        : primitive_base(id, {data, indices}, ext_prim_id, output_padding), output_format(output_format), output_shape(output_shape), axis(axis) {}
+        : primitive_base(id, {data, indices}, {output_padding}), output_format(output_format), output_shape(output_shape), axis(axis) {}
+
+    gather_elements(const primitive_id& id,
+                    const input_info& data,
+                    const input_info& indices,
+                    const int64_t axis,
+                    const padding& output_padding = padding())
+        : primitive_base(id, {data, indices}, {output_padding}), output_format({}), output_shape({}), axis(axis) {}
 
     /// @brief Gather Elements output format
     format output_format;
@@ -43,8 +42,12 @@ struct gather_elements : public primitive_base<gather_elements> {
 
     /// @brief Which axis to gather on.
     int64_t axis;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, output_format.value);
+        seed = hash_combine(seed, axis);
+        return seed;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

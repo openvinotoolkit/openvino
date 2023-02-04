@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,12 +9,7 @@
 #include "mock_py_frontend/mock_py_frontend.hpp"
 
 namespace py = pybind11;
-using namespace ngraph;
 using namespace ov::frontend;
-
-FeStat FrontEndMockPy::m_stat = {};
-ModelStat InputModelMockPy::m_stat = {};
-PlaceStat PlaceMockPy::m_stat = {};
 
 static void register_mock_frontend_stat(py::module m) {
     m.def("get_fe_stat", &FrontEndMockPy::get_stat);
@@ -132,7 +127,7 @@ static void register_frontend_wrappers(py::module m) {
 }
 
 PYBIND11_MODULE(pybind_mock_frontend, m) {
-    m.doc() = "Mock frontend call counters for testing Pyngraph frontend bindings";
+    m.doc() = "Mock frontend call counters for testing ov frontend bindings";
     register_mock_frontend_stat(m);
     register_mock_model_stat(m);
     register_mock_place_stat(m);

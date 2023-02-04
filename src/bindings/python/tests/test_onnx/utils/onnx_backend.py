@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """ONNX Backend implementation.
@@ -113,7 +113,7 @@ class OpenVinoOnnxBackend(Backend):
 
         In particular it's used in the testing suite.
         """
-        return device != "CUDA"
+        return device != "CUDA" and device != "NVIDIA"
 
 
 class OpenVinoTestBackend(OpenVinoOnnxBackend):

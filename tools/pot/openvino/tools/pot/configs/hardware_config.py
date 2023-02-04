@@ -33,12 +33,15 @@ class HardwareConfig(list):
         return config
 
     @classmethod
-    def from_json(cls, path):
+    def from_json(cls, path, target_device=None):
         with open(path) as f:
             json_config = json.load(f, object_pairs_hook=OrderedDict)
+            if target_device is None:
+                target_device = json_config['target_device']
             hw_config = cls()
-            hw_config.append(Dict(('target_device', json_config['target_device'])))
-            hw_config.append(Dict(('primary_bitwidth', json_config.get('primary_bitwidth', 8))))
+            hw_config.append(Dict(('target_device', target_device)))
+            hw_config.append(Dict(('primary_bitwidth', json_config.get('primary_bitwidth', 8)),
+                                  ('input_priority_types', json_config.get('input_priority_types', []))))
 
             configs = {}
             for algorithm_name, algorithm_config in json_config.get('config', {}).items():

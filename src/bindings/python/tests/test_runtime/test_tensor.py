@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -14,7 +14,7 @@ from openvino.helpers import pack_data, unpack_data
 
 import pytest
 
-from ..test_utils.test_utils import generate_image  # TODO: reformat into an absolute path
+from tests.test_utils.test_utils import generate_image
 
 
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
@@ -30,7 +30,7 @@ from ..test_utils.test_utils import generate_image  # TODO: reformat into an abs
     (ov.Type.u16, np.uint16),
     (ov.Type.i64, np.int64),
     (ov.Type.u64, np.uint64),
-    (ov.Type.boolean, np.bool),
+    (ov.Type.boolean, bool),
     (ov.Type.u1, np.uint8),
     (ov.Type.u4, np.uint8),
     (ov.Type.i4, np.int8),
@@ -64,7 +64,7 @@ def test_subprocess():
     (ov.Type.u16, np.uint16),
     (ov.Type.i64, np.int64),
     (ov.Type.u64, np.uint64),
-    (ov.Type.boolean, np.bool),
+    (ov.Type.boolean, bool),
 ])
 def test_init_with_numpy_dtype(ov_type, numpy_dtype):
     shape = (1, 3, 127, 127)
@@ -94,7 +94,7 @@ def test_init_with_numpy_dtype(ov_type, numpy_dtype):
     (ov.Type.u16, np.uint16),
     (ov.Type.i64, np.int64),
     (ov.Type.u64, np.uint64),
-    (ov.Type.boolean, np.bool),
+    (ov.Type.boolean, bool),
 ])
 def test_init_with_numpy_shared_memory(ov_type, numpy_dtype):
     arr = generate_image().astype(numpy_dtype)
@@ -131,7 +131,7 @@ def test_init_with_numpy_shared_memory(ov_type, numpy_dtype):
     (ov.Type.u16, np.uint16),
     (ov.Type.i64, np.int64),
     (ov.Type.u64, np.uint64),
-    (ov.Type.boolean, np.bool),
+    (ov.Type.boolean, bool),
 ])
 def test_init_with_numpy_copy_memory(ov_type, numpy_dtype):
     arr = generate_image().astype(numpy_dtype)
@@ -178,7 +178,7 @@ def test_init_with_roi_tensor():
     (ov.Type.u16, np.uint16),
     (ov.Type.i64, np.int64),
     (ov.Type.u64, np.uint64),
-    (ov.Type.boolean, np.bool),
+    (ov.Type.boolean, bool),
 ])
 def test_write_to_buffer(ov_type, numpy_dtype):
     ov_tensor = Tensor(ov_type, ov.Shape([1, 3, 32, 32]))
@@ -200,7 +200,7 @@ def test_write_to_buffer(ov_type, numpy_dtype):
     (ov.Type.u16, np.uint16),
     (ov.Type.i64, np.int64),
     (ov.Type.u64, np.uint64),
-    (ov.Type.boolean, np.bool),
+    (ov.Type.boolean, bool),
 ])
 def test_set_shape(ov_type, numpy_dtype):
     shape = ov.Shape([1, 3, 32, 32])

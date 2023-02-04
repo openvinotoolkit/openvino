@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Main entry-point to run timetests tests.
@@ -70,14 +70,15 @@ def test_timetest(instance, executable, niter, cl_cache_dir, model_cache, model_
         "model_cache": model_cache,
     }
     logging.info("Run timetest once to generate any cache")
-    retcode, msg, _, _ = run_timetest({**exe_args, "niter": 1}, log=logging)
+    retcode, msg, _, _, _ = run_timetest({**exe_args, "niter": 1}, log=logging)
     assert retcode == 0, f"Run of executable for warm up failed: {msg}"
     if cl_cache_dir:
         assert os.listdir(cl_cache_dir), "cl_cache isn't generated"
     if model_cache_dir:
         assert os.listdir(model_cache_dir), "model_cache isn't generated"
 
-    retcode, msg, aggr_stats, raw_stats = run_timetest(exe_args, log=logging)
+    retcode, msg, aggr_stats, raw_stats, logs = run_timetest(exe_args, log=logging)
+    test_info["logs"] = "\n".join(logs)
     assert retcode == 0, f"Run of executable failed: {msg}"
 
     # Add timetest results to submit to database and save in new test conf as references

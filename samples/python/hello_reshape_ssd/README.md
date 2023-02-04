@@ -33,9 +33,9 @@ each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/integrate_wi
 python hello_reshape_ssd.py <path_to_model> <path_to_image> <device_name>
 ```
 
-To run the sample, you need specify a model and image:
-- you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
-- you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
+To run the sample, you need to specify a model and image:
+- You can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
+- You can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
 
 > **NOTES**:
 >
@@ -48,27 +48,24 @@ To run the sample, you need specify a model and image:
 ### Example
 
 1. Install the `openvino-dev` Python package to use Open Model Zoo Tools:
-
-```
-python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
-```
+   ```
+   python -m pip install openvino-dev[caffe]
+   ```
 
 2. Download a pre-trained model:
-```
-omz_downloader --name ssdlite_mobilenet_v2
-```
+   ```
+   omz_downloader --name mobilenet-ssd
+   ```
 
 3. If a model is not in the IR or ONNX format, it must be converted. You can do this using the model converter:
-
-```
-omz_converter --name ssdlite_mobilenet_v2
-```
+   ```
+   omz_converter --name mobilenet-ssd
+   ```
 
 4. Perform inference of `banana.jpg` using `ssdlite_mobilenet_v2` model on a `GPU`, for example:
-
-```
-python hello_reshape_ssd.py ssdlite_mobilenet_v2.xml banana.jpg GPU
-```
+   ```
+   python hello_reshape_ssd.py mobilenet-ssd.xml banana.jpg GPU
+   ```
 
 ## Sample Output
 
@@ -76,7 +73,7 @@ The sample application logs each step in a standard output stream and creates an
 
 ```
 [ INFO ] Creating OpenVINO Runtime Core
-[ INFO ] Reading the model: C:/test_data/models/ssdlite_mobilenet_v2.xml
+[ INFO ] Reading the model: C:/test_data/models/mobilenet-ssd.xml
 [ INFO ] Reshaping the model to the height and width of the input image
 [ INFO ] Loading the model to the plugin
 [ INFO ] Starting inference in synchronous mode
@@ -92,7 +89,7 @@ The sample application logs each step in a standard output stream and creates an
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 
-<!-- [openvino.runtime.Model.reshape]:
-[openvino.runtime.Model.input]:
-[openvino.runtime.Output.get_any_name]:
-[openvino.runtime.PartialShape]: -->
+[openvino.runtime.Model.reshape]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.reshape
+[openvino.runtime.Model.input]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.input
+[openvino.runtime.Output.get_any_name]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Output.html#openvino.runtime.Output.get_any_name
+[openvino.runtime.PartialShape]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.PartialShape.html

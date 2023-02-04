@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,8 +72,8 @@ Pipeline BinderMultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, Wor
                 if (_multiSContext->_needPerfCounters) {
                     auto multiSyncInferRequest = std::dynamic_pointer_cast<MultiDeviceInferRequest>
                         (syncInferRequest);
-                    multiSyncInferRequest->_perfMap =
-                        (*workerInferRequest)->_inferRequest->GetPerformanceCounts();
+                    multiSyncInferRequest->_scheduledRequest =
+                        (*workerInferRequest)->_inferRequest;
                 }
                 INFO_RUN([workerInferRequest]() {
                    (*workerInferRequest)->_endTimes.push_back(std::move(std::chrono::steady_clock::now()));
@@ -192,25 +192,6 @@ IInferPtr BinderMultiSchedule::CreateInferRequestImpl(IE::InputsDataMap networkI
     }
     auto syncImpl = std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with);
     return syncImpl;
-}
-
-IInferPtr BinderMultiSchedule::CreateInferRequest() {
-    auto execNetwork = std::dynamic_pointer_cast<MultiExecutableNetwork>(
-            _multiSContext->_executableNetwork.lock());
-    if (_passthroughExeNet) {
-        auto res = _passthroughExeNet->CreateInferRequest();
-        res->setPointerToExecutableNetworkInternal(execNetwork);
-        return res;
-    }
-    IInferPtr syncRequestImpl;
-    if (_multiSContext->_core && _multiSContext->_core->isNewAPI())
-        syncRequestImpl = CreateInferRequestImpl(execNetwork->_parameters, execNetwork->_results);
-    if (!syncRequestImpl)
-        syncRequestImpl = CreateInferRequestImpl(execNetwork->_networkInputs, execNetwork->_networkOutputs);
-    syncRequestImpl->setPointerToExecutableNetworkInternal(execNetwork);
-    return std::make_shared<AsyncInferRequest>(shared_from_this(),
-                                               syncRequestImpl,
-                                               execNetwork->_callbackExecutor);
 }
 
 }  // namespace MultiDevicePlugin

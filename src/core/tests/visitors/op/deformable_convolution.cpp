@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ TEST(attributes, deformable_convolution_default_attributes) {
     auto dilations = Strides{1, 1};
     auto convolution =
         make_shared<opset1::DeformableConvolution>(data, offsets, filters, strides, pads_begin, pads_end, dilations);
-    NodeBuilder builder(convolution);
+    NodeBuilder builder(convolution, {data, offsets, filters});
     auto g_convolution = ov::as_type_ptr<opset1::DeformableConvolution>(builder.create());
 
     // attribute count
@@ -62,7 +62,7 @@ TEST(attributes, deformable_convolution_attributes) {
                                                                   op::PadType::SAME_LOWER,
                                                                   2,
                                                                   2);
-    NodeBuilder builder(convolution);
+    NodeBuilder builder(convolution, {data, offsets, filters});
     auto g_convolution = ov::as_type_ptr<opset1::DeformableConvolution>(builder.create());
 
     // attribute count
@@ -90,7 +90,7 @@ TEST(attributes, deformable_convolution_v8_default_attributes) {
     auto dilations = Strides{1, 1};
     auto convolution =
         make_shared<opset8::DeformableConvolution>(data, offsets, filters, strides, pads_begin, pads_end, dilations);
-    NodeBuilder builder(convolution);
+    NodeBuilder builder(convolution, {data, offsets, filters});
     auto g_convolution = ov::as_type_ptr<opset8::DeformableConvolution>(builder.create());
 
     // attribute count
@@ -130,7 +130,7 @@ TEST(attributes, deformable_convolution_v8_attributes) {
                                                                   2,
                                                                   2,
                                                                   true);
-    NodeBuilder builder(convolution);
+    NodeBuilder builder(convolution, {data, offsets, filters, mask});
     auto g_convolution = ov::as_type_ptr<opset8::DeformableConvolution>(builder.create());
 
     // attribute count

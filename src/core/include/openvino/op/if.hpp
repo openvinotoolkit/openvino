@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,6 @@ namespace v8 {
 class OPENVINO_API If : public util::MultiSubGraphOp {
 public:
     OPENVINO_OP("If", "opset8", util::MultiSubGraphOp);
-    BWDCMP_RTTI_DECLARATION;
 
     enum BodyIndexes { THEN_BODY_INDEX = 0, ELSE_BODY_INDEX = 1 };
 
@@ -80,14 +79,6 @@ public:
                             const std::shared_ptr<v0::Result>& else_result);
 
     void validate_and_infer_types() override;
-
-private:
-    using OutputMap = std::map<int64_t, std::shared_ptr<MultiSubGraphOp::OutputDescription>>;
-
-    void validate_and_infer_type_body(const std::shared_ptr<Model>& body,
-                                      const MultiSubgraphInputDescriptionVector& input_descriptors);
-
-    OutputMap get_mapping_outputs_on_body_description(const MultiSubgraphOutputDescriptionVector& output_descriptors);
 };
 }  // namespace v8
 }  // namespace op

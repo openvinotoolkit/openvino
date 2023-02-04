@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "reorder_inst.h"
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
@@ -14,26 +12,22 @@
 #include <string>
 
 namespace cldnn {
-
-primitive_type_id reorder::type_id() {
-    static primitive_type_base<reorder> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(reorder)
 
 layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_params const& impl_param) {
     auto input_layout = impl_param.get_input_layout();
     auto ifmt = input_layout.format;
 
     auto desc = impl_param.typed_desc<reorder>();
-    auto odt = *desc->output_data_type;
+    auto odt = *desc->output_data_types[0];
     auto ofmt = desc->output_format;
-    auto op = desc->output_padding;
+    auto op = desc->output_paddings[0];
 
     if (ofmt == format::any) {
         ofmt = ifmt;
     }
 
-    if (ifmt.is_nv12()) {
+    if (ifmt.is_nv12() && !desc->has_surface_input()) {
         auto data_size = tensor{ input_layout.batch(), input_layout.feature() * 3,
                                  input_layout.spatial(0), input_layout.spatial(1) };
         if (ofmt != ifmt)
@@ -152,12 +146,12 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
                             "Conversion of weights from winograd to standard domain is currently unsupported");
     }
 
-    if (ofmt == format::bs_xs_xsv8_bsv8 || ofmt == format::os_i_osv8__ai8 || ofmt == format::os_i_osv16__ai8 || ofmt == format::bs_x_bsv16 ||
+    if ((ofmt == format::bs_xs_xsv8_bsv8 || ofmt == format::os_i_osv8__ai8 || ofmt == format::os_i_osv16__ai8 || ofmt == format::bs_x_bsv16 ||
         ofmt == format::bfzyx || ifmt == format::bfzyx || ofmt == format::b_fs_zyx_fsv16 || ifmt == format::b_fs_zyx_fsv16 ||
         ofmt == format::bs_fs_zyx_bsv16_fsv16 || ifmt == format::bs_fs_zyx_bsv16_fsv16 ||
         ofmt == format::bs_fs_zyx_bsv16_fsv32 || ifmt == format::bs_fs_zyx_bsv16_fsv32 ||
         ofmt == format::b_fs_zyx_fsv32 || ifmt == format::b_fs_zyx_fsv32 ||
-        ofmt == format::bs_fs_yx_bsv16_fsv16 || ifmt == format::bs_fs_yx_bsv16_fsv16) {
+        ofmt == format::bs_fs_yx_bsv16_fsv16 || ifmt == format::bs_fs_yx_bsv16_fsv16) && input_layout.is_static()) {
         return layout(odt, ofmt, input_layout.get_tensor().transform(ofmt, 1), op);
     } else if (ofmt != ifmt && (ofmt == format::bfwzyx || ifmt == format::bfwzyx)) {
         // TODO Shouldn't transform be called every time ifmt != ofmt?
@@ -165,6 +159,17 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
     } else {
         return layout(odt, ofmt, input_layout.get_tensor(), op);
     }
+}
+
+template<typename ShapeType>
+std::vector<layout> reorder_inst::calc_output_layouts(reorder_node const& /*node*/, const kernel_impl_params& impl_param) {
+    auto desc = impl_param.typed_desc<reorder>();
+    auto input_layout = impl_param.get_input_layout();
+
+    auto ifmt = input_layout.format;
+    auto ofmt = desc->output_format == format::any ? ifmt : desc->output_format;
+
+    return { layout(input_layout.get<ShapeType>(), desc->output_data_types[0].value(), ofmt, desc->output_paddings[0]) };
 }
 
 std::string reorder_inst::to_string(reorder_node const& node) {
@@ -175,9 +180,13 @@ std::string reorder_inst::to_string(reorder_node const& node) {
 
     std::stringstream primitive_description;
 
+    auto input_mem_type = desc->input_mem_type ==
+        reorder::memory_type::buffer ? "buffer" : "surface";
+
     json_composite reorder_info;
     reorder_info.add("input id", input.id());
     reorder_info.add("mean", mean);
+    reorder_info.add("input mem type", input_mem_type);
     if (desc->subtract_per_feature.size() > 0) {
         reorder_info.add("subtract per feature", desc->subtract_per_feature);
     }
@@ -189,22 +198,26 @@ std::string reorder_inst::to_string(reorder_node const& node) {
 }
 
 reorder_inst::typed_primitive_inst(network& network, reorder_node const& node)
-    : parent(network, node, !node.can_be_optimized()) {
+    : parent(network, node, (!node.can_be_optimized() && node.get_output_layout().is_static()) ? true : false)
+    , _req_reinterpr(node.requires_reinterpret()) {
     if (node.can_be_optimized())
         reuse_input();
 
+    if (is_dynamic())
+        return;
+
     auto input_layout = node.input().get_output_layout();
     auto output_layout = node.get_output_layout();
-
-    CLDNN_ERROR_LESS_THAN(node.id(),
-                          "Input dimension size",
-                          input_layout.get_tensor().raw.size(),
-                          "ouput dimension size",
-                          output_layout.get_tensor().raw.size(),
-                          "Input dimension < output dimension. Reorder primitive woks only with same dimension sizes "
-                          "(reorder) or when input > output (flatten).");
-
-    if (!argument.subtract_per_feature.empty()) {
+    if (input_layout.is_static() && output_layout.is_static()) {
+        CLDNN_ERROR_LESS_THAN(node.id(),
+                              "Input dimension size",
+                              input_layout.get_tensor().raw.size(),
+                              "ouput dimension size",
+                              output_layout.get_tensor().raw.size(),
+                              "Input dimension < output dimension. Reorder primitive woks only with same dimension sizes "
+                              "(reorder) or when input > output (flatten).");
+    }
+    if (!argument->subtract_per_feature.empty()) {
         CLDNN_ERROR_GREATER_THAN(node.id(),
                                  "Input feature dimension size",
                                  input_layout.get_tensor().feature.size(),
@@ -216,7 +229,7 @@ reorder_inst::typed_primitive_inst(network& network, reorder_node const& node)
                 "Input feature size[0]",
                 static_cast<size_t>(input_layout.feature()),
                 "argument subtract per feature size",
-                argument.subtract_per_feature.size(),
+                argument->subtract_per_feature.size(),
                 "Number of features/channels in input does not match the number of features/channels in "
                 "values to subtract");
         }
@@ -224,21 +237,39 @@ reorder_inst::typed_primitive_inst(network& network, reorder_node const& node)
 }
 
 void reorder_inst::on_execute() {
-    if (node.can_be_optimized())
+    if (can_be_optimized())
         reuse_input();
 }
 
 void reorder_inst::reuse_input() {
-    if (static_cast<bool>(_output) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
-        return;
-
-    build_deps();
-
-    if (node.requires_reinterpret()) {
-        _output = _network.get_engine().reinterpret_buffer(input_memory(), node.get_output_layout());
-    } else {
-        _output = input_memory_ptr();
-    }
+    update_output_memory();
 }
 
+void reorder_inst::update_output_memory() {
+    if (!can_be_optimized())
+        return;
+
+    if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+        return;
+
+    if (_node != nullptr)
+        build_deps();
+
+    if (requires_reinterpret()) {
+        _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), get_output_layout());
+    } else {
+        _outputs[0] = input_memory_ptr();
+    }
+    _mem_allocated = false;
+}
+
+void reorder_inst::save(cldnn::BinaryOutputBuffer& ob) const {
+    parent::save(ob);
+    ob << _req_reinterpr;
+}
+
+void reorder_inst::load(cldnn::BinaryInputBuffer& ib) {
+    parent::load(ib);
+    ib >> _req_reinterpr;
+}
 }  // namespace cldnn

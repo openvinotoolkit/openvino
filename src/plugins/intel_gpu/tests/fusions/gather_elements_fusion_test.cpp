@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,8 +42,8 @@ class GatherElementsPrimitiveFusingTest : public ::BaseFusingTest<gather_element
 public:
     void execute(gather_elements_test_params& p) {
         auto input_prim = get_mem(get_input_layout(p));
-        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-        network network_fused(this->engine, this->topology_fused, bo_fused);
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
         compare(network_not_fused, network_fused, p);
@@ -110,9 +110,10 @@ TEST_P(gather_elements_quantize, basic) {
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
-        gather_elements("gather_elements_prim", "input", "gather_elements_indices", p.output_format, p.output_shape, p.axis),
-        quantize("quantize", "gather_elements_prim", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
-        reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
+        gather_elements("gather_elements_prim", input_info("input"), input_info("gather_elements_indices"), p.output_format, p.output_shape, p.axis),
+        quantize("quantize", input_info("gather_elements_prim"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
+        reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
     );
 
     tolerance = 1.f;
@@ -151,10 +152,10 @@ TEST_P(gather_elements_scale_activation, basic) {
         input_layout("input", get_input_layout(p)),
         data("gather_elements_indices", get_mem(get_indices_layout(p), 0, static_cast<int>(get_axis_dim(p))-1)),
         data("scale_data", get_mem(get_per_channel_layout(p), -10, 10)),
-        gather_elements("gather_elements_prim", "input", "gather_elements_indices", p.output_format, p.output_shape, p.axis),
-        activation("activation", "gather_elements_prim", activation_func::abs),
-        scale("scale", "activation", "scale_data"),
-        reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
+        gather_elements("gather_elements_prim", input_info("input"), input_info("gather_elements_indices"), p.output_format, p.output_shape, p.axis),
+        activation("activation", input_info("gather_elements_prim"), activation_func::abs),
+        eltwise("scale", { input_info("activation"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
+        reorder("reorder_bfyx", input_info("scale"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
@@ -195,11 +196,11 @@ TEST_P(gather_elements_activation_scale_eltwise, basic) {
         data("gather_elements_indices", get_mem(get_indices_layout(p), 0, static_cast<int>(get_axis_dim(p))-1)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / 255)),
         data("eltwise_data", get_mem(get_output_layout(p))),
-        gather_elements("gather_elements_prim", "input", "gather_elements_indices", p.output_format, p.output_shape, p.axis),
-        activation("activation", "gather_elements_prim", activation_func::abs),
-        scale("scale", "activation", "scale_data"),
-        eltwise("eltwise", { "scale", "eltwise_data" }, eltwise_mode::sum, p.data_type),
-        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
+        gather_elements("gather_elements_prim", input_info("input"), input_info("gather_elements_indices"), p.output_format, p.output_shape, p.axis),
+        activation("activation", input_info("gather_elements_prim"), activation_func::abs),
+        eltwise("scale", { input_info("activation"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
+        eltwise("eltwise", { input_info("scale"), input_info("eltwise_data") }, eltwise_mode::sum, p.data_type),
+        reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;

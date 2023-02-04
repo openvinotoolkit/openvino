@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ TEST(attributes, non_max_suppression_op_custom_attributes) {
     bool sort_result_descending = false;
 
     auto nms = make_shared<opset1::NonMaxSuppression>(boxes, scores, box_encoding, sort_result_descending);
-    NodeBuilder builder(nms);
+    NodeBuilder builder(nms, {boxes, scores});
     auto g_nms = ov::as_type_ptr<opset1::NonMaxSuppression>(builder.create());
 
     EXPECT_EQ(g_nms->get_box_encoding(), nms->get_box_encoding());
@@ -38,7 +38,7 @@ TEST(attributes, non_max_suppression_op_default_attributes) {
     auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1});
 
     auto nms = make_shared<opset1::NonMaxSuppression>(boxes, scores);
-    NodeBuilder builder(nms);
+    NodeBuilder builder(nms, {boxes, scores});
     auto g_nms = ov::as_type_ptr<opset1::NonMaxSuppression>(builder.create());
 
     EXPECT_EQ(g_nms->get_box_encoding(), nms->get_box_encoding());
@@ -55,7 +55,7 @@ TEST(attributes, non_max_suppression_v3_op_custom_attributes) {
     element::Type output_type = element::i32;
 
     auto nms = make_shared<opset3::NonMaxSuppression>(boxes, scores, box_encoding, sort_result_descending, output_type);
-    NodeBuilder builder(nms);
+    NodeBuilder builder(nms, {boxes, scores});
     auto g_nms = ov::as_type_ptr<opset3::NonMaxSuppression>(builder.create());
 
     EXPECT_EQ(g_nms->get_box_encoding(), nms->get_box_encoding());
@@ -69,7 +69,7 @@ TEST(attributes, non_max_suppression_v3_op_default_attributes) {
     auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1});
 
     auto nms = make_shared<opset3::NonMaxSuppression>(boxes, scores);
-    NodeBuilder builder(nms);
+    NodeBuilder builder(nms, {boxes, scores});
     auto g_nms = ov::as_type_ptr<opset3::NonMaxSuppression>(builder.create());
 
     EXPECT_EQ(g_nms->get_box_encoding(), nms->get_box_encoding());

@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "gather_elements_inst.h"
+#include "gather_elements_shape_inference.hpp"
 
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
@@ -10,10 +11,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id gather_elements::type_id() {
-    static primitive_type_base<gather_elements> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(gather_elements)
 
 layout gather_elements_inst::calc_output_layout(gather_elements_node const& node, kernel_impl_params const& impl_param) {
     auto op = impl_param.typed_desc<gather_elements>();
@@ -31,6 +29,34 @@ layout gather_elements_inst::calc_output_layout(gather_elements_node const& node
     // calculate initial output shape
     return layout(output_type, output_format, output_shape);
 }
+
+template<typename ShapeType>
+std::vector<layout> gather_elements_inst::calc_output_layouts(gather_elements_node const& /*node*/, const kernel_impl_params& impl_param) {
+    auto desc = impl_param.typed_desc<gather_elements>();
+    auto input_layout = impl_param.get_input_layout(0);
+
+    auto output_type = input_layout.data_type;
+    if (impl_param.has_fused_primitives()) {
+        output_type = impl_param.get_fused_output_layout().data_type;
+    }
+
+    ov::op::v6::GatherElements op;
+    op.set_axis(desc->axis);
+
+    std::vector<ShapeType> output_shapes = {ShapeType()};
+    std::vector<ShapeType> input_shapes = {
+        impl_param.get_input_layout(0).get<ShapeType>(),
+        impl_param.get_input_layout(1).get<ShapeType>()
+    };
+    ov::op::v6::shape_infer(&op, input_shapes, output_shapes);
+
+    format output_format = format::adjust_to_rank(input_layout.format, output_shapes[0].size());
+
+    return { layout{output_shapes[0], output_type, output_format} };
+}
+
+template std::vector<layout> gather_elements_inst::calc_output_layouts<ov::PartialShape>(gather_elements_node const& node,
+                                                                                         const kernel_impl_params& impl_param);
 
 std::string gather_elements_inst::to_string(gather_elements_node const& node) {
     auto desc = node.get_primitive();

@@ -76,7 +76,7 @@
             "type": "Multiply",
             "quantization": {
                 "activations": "q16_a",
-                "weights": ["q8_w", "q16_w"],
+                "weights": ["q16_w"],
                 "outputs": "q32_o"
             }
         },
@@ -163,6 +163,13 @@
         },
         {
             "type": "Sign",
+            "quantization": {
+                "activations": "q32_a",
+                "outputs": "q16_o"
+            }
+        },
+        {
+            "type": "SoftSign",
             "quantization": {
                 "activations": "q32_a",
                 "outputs": "q16_o"

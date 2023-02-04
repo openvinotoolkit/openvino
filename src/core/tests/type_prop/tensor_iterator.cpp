@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -231,4 +231,33 @@ TEST(type_prop, tensor_iterator_with_dynamic_reshape) {
     f->validate_nodes_and_infer_types();
 
     ASSERT_EQ(tensor_iterator->get_num_iterations(), -1);
+}
+
+TEST(type_prop, tensor_iterator_dyn_slice) {
+    const size_t N = 32;  // Batch size
+    const size_t I = 8;   // Input size
+
+    ov::PartialShape ps = {N, ov::Dimension::dynamic(), I};
+    auto SENT = make_shared<op::Parameter>(element::f32, ps);
+
+    // Body
+    auto X = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto Res = make_shared<op::Result>(X);
+    auto body = make_shared<ov::Model>(Res, ParameterVector{X});
+    auto tensor_iterator = make_shared<op::TensorIterator>();
+    tensor_iterator->set_body(body);
+
+    // start=0, stride=1, part_size=1, end=39, axis=1
+    const size_t part_size = 1;
+    tensor_iterator->set_sliced_input(X, SENT, 0, 1, part_size, -1, 1);
+
+    // Output 0 is last Ho, result 0 of body
+    auto out0 = tensor_iterator->get_iter_value(Res, -1);
+
+    auto results = ResultVector{make_shared<op::Result>(out0)};
+    auto model = make_shared<ov::Model>(results, ParameterVector{SENT});
+
+    EXPECT_EQ(tensor_iterator->get_num_iterations(), -1);
+    PartialShape ref_ps = {N, part_size, I};
+    EXPECT_EQ(X->get_partial_shape(), ref_ps);
 }

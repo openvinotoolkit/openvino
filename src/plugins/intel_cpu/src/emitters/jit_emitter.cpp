@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,6 +44,10 @@ void jit_emitter::pop_vec(size_t vec_idx, const Xbyak::Address &addr) const {
 
 size_t jit_emitter::aux_vecs_count() const {
     return 0;
+}
+
+emitter_in_out_map jit_emitter::get_in_out_type() const {
+    return in_out_type_;
 }
 
 size_t jit_emitter::aux_gprs_count() const {

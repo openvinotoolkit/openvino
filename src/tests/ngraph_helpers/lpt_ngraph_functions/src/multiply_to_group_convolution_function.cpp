@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "lpt_ngraph_functions/common/builders.hpp"
-#include "ngraph_ops/type_relaxed.hpp"
+#include "ov_ops/type_relaxed.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -78,11 +78,11 @@ std::shared_ptr<ngraph::Function> MultiplyToGroupConvolutionFunction::getReferen
     ngraph::CoordinateDiff pads(spatialDimsSize, 0ul);
     ngraph::Strides dilations(spatialDimsSize, 1ul);
 
-    const auto gconv = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::GroupConvolution>>(
+    const auto gconv = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::GroupConvolution>>(
         std::vector<element::Type>{ element::f32, element::f32 },
         std::vector<element::Type>{ element::f32 },
-        ngraph::op::TemporaryReplaceOutputType(input, element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(weights, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(input, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(weights, element::f32).get(),
         strides,
         pads,
         pads,

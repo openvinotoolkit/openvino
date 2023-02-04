@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,25 +19,23 @@ using namespace cldnn;
 
 void CreateExperimentalDetectronTopKROIsOp(Program &p,
                                            const std::shared_ptr<ngraph::op::v6::ExperimentalDetectronTopKROIs> &op) {
-    p.ValidateInputs(op, {2});
-    auto input_primitives = p.GetInputPrimitiveIDs(op);
+    validate_inputs_count(op, {2});
+    auto inputs = p.GetInputInfo(op);
     auto max_rois = op->get_max_rois();
     auto layer_name = layer_type_name_ID(op);
     auto argmax_layer_name = layer_name + "_topk";
     auto top_k_indices = arg_max_min(argmax_layer_name,
-                                     {input_primitives[1]}, ov::op::TopKMode::MAX, max_rois, 0,
-                                     ov::op::TopKSortType::SORT_VALUES, false, "", cldnn::padding(), cldnn::data_types::i32);
+                                     {inputs[1]}, ov::op::TopKMode::MAX, max_rois, 0,
+                                     ov::op::TopKSortType::SORT_VALUES, false, cldnn::padding(), cldnn::data_types::i32);
 
 
-    p.AddPrimitive(top_k_indices);
-    p.AddInnerPrimitiveToProfiler(top_k_indices, argmax_layer_name, op);
+    p.add_primitive(*op, top_k_indices);
 
     auto experimental_detectron_topk_layer = cldnn::experimental_detectron_topk_rois(layer_name,
-                                                                                     {input_primitives[0],
-                                                                                      argmax_layer_name}, max_rois);
+                                                                                     {inputs[0], cldnn::input_info(argmax_layer_name)},
+                                                                                      max_rois);
 
-    p.AddPrimitive(experimental_detectron_topk_layer);
-    p.AddPrimitiveToProfiler(experimental_detectron_topk_layer, op);
+    p.add_primitive(*op, experimental_detectron_topk_layer);
 }
 
 } // namespace

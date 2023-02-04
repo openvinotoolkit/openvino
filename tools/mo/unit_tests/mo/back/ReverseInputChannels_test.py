@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
@@ -6,8 +6,7 @@ from argparse import Namespace
 
 import numpy as np
 
-from openvino.tools.mo.back.ReverseInputChannels import ReverseChannelsPropagationUp, ReverseChannelsPropagationDown, \
-    InsertReverseChannels
+from openvino.tools.mo.back.ReverseInputChannels import ReverseChannelsPropagationUp, ReverseChannelsPropagationDown
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, float32_array
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
@@ -258,54 +257,3 @@ class ReverseInputChannelsTest(unittest.TestCase):
         reverse_channels = Node(graph, 'reverse_channels_down')
         self.assertTrue(reverse_channels.axis == 1)
         self.assertTrue(type(reverse_channels.axis) == np.ndarray)
-
-    def test_insert(self):
-        graph = build_graph(get_nodes([1, 3, 10, 10]),
-                            [*connect('placeholder1', '0:mul'), *connect('placeholder2', '1:mul'),
-                             *connect('mul', 'result')], nodes_with_edges_only=True,
-                            cli=Namespace(reverse_input_channels=True))
-
-        InsertReverseChannels().find_and_replace_pattern(graph)
-        graph_ref = build_graph(get_nodes([1, 3, 10, 10]),
-                                [*connect('placeholder1', 'reverse_channels'), *connect('reverse_channels', '0:mul'),
-                                 *connect('placeholder2', '1:mul'), *connect('mul', 'result')])
-        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(flag, resp)
-
-    def test_insert_old_api_map(self):
-        graph = build_graph(get_nodes([1, 10, 10, 3]),
-                            [*connect('placeholder1', '0:mul'), *connect('placeholder2', '1:mul'),
-                             *connect('mul', 'result')], nodes_with_edges_only=True,
-                            cli=Namespace(reverse_input_channels=True))
-
-        node = Node(graph, 'placeholder1')
-        old_api_map = OldAPIMapOrder(version=0)
-        node.rt_info.info[('old_api_map_order', old_api_map.get_version())] = old_api_map
-        node.rt_info.info[('old_api_map_order', old_api_map.get_version())].old_api_transpose_parameter([0, 2, 3, 1])
-
-        InsertReverseChannels().find_and_replace_pattern(graph)
-        graph_ref = build_graph(get_nodes([1, 10, 10, 3], 3),
-                                [*connect('placeholder1', 'reverse_channels'), *connect('reverse_channels', '0:mul'),
-                                 *connect('placeholder2', '1:mul'), *connect('mul', 'result')])
-
-        node2 = Node(graph_ref, 'placeholder1')
-        node2.rt_info = node.rt_info
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(flag, resp)
-
-    def test_insert_layout(self):
-        graph = build_graph(get_nodes([1, 10, 10, 3]),
-                            [*connect('placeholder1', '0:mul'), *connect('placeholder2', '1:mul'),
-                             *connect('mul', 'result')], nodes_with_edges_only=True,
-                            cli=Namespace(reverse_input_channels=True,
-                                          layout_values={
-                                              'placeholder1': {'source_layout': 'nhwc', 'target_layout': None}}))
-
-        InsertReverseChannels().find_and_replace_pattern(graph)
-        graph_ref = build_graph(get_nodes([1, 10, 10, 3], 3),
-                                [*connect('placeholder1', 'reverse_channels'), *connect('reverse_channels', '0:mul'),
-                                 *connect('placeholder2', '1:mul'), *connect('mul', 'result')])
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(flag, resp)

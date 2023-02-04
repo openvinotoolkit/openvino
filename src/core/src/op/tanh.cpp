@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,19 +13,17 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::Tanh);
-
 op::Tanh::Tanh(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }
 
 bool ngraph::op::v0::Tanh::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_Tanh_visit_attributes);
+    OV_OP_SCOPE(v0_Tanh_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::Tanh::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Tanh_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_Tanh_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Tanh>(new_args.at(0));
 }
@@ -60,12 +58,12 @@ bool evaluate_tanh(const HostTensorPtr& arg0, const HostTensorPtr& out, const si
 }  // namespace tanhop
 
 bool op::Tanh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v0_Tanh_evaluate);
+    OV_OP_SCOPE(v0_Tanh_evaluate);
     return tanhop::evaluate_tanh(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 
 bool op::Tanh::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v0_Tanh_has_evaluate);
+    OV_OP_SCOPE(v0_Tanh_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:

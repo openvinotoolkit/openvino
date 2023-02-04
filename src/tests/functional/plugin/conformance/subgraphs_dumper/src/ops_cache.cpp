@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,17 +26,20 @@ void OPCache::update_ops_cache(const std::shared_ptr<ov::Node> &op,
     }();
 
     auto saveOpToCash = [&] {
-        const auto &clone_fn = SubgraphsDumper::ClonersMap::cloners.at(op->get_type_info());
-        LayerTestsUtils::OPInfo meta(source_model);
         try {
+            const auto& clone_fn = SubgraphsDumper::ClonersMap::cloners.at(op->get_type_info());
+            LayerTestsUtils::OPInfo meta(source_model);
             const std::shared_ptr<ov::Node> op_clone = clone_fn(op, meta);
             if (!op_clone) {
                 return;
             }
             op_clone->set_friendly_name(op_clone->get_friendly_name() + "_cached");
             m_ops_cache.insert({op_clone, meta});
-        } catch (std::exception &e) {
-            std::cout << e.what() << std::endl;
+        } catch (std::out_of_range& e) {
+            std::cout << "WARNING: Cloner for " << op->get_type_name() << " (" << op->get_type_info().get_version()
+                      << ") isn't found: " << e.what() << std::endl;
+        } catch (std::exception& e) {
+            std::cout << "ERROR: " << e.what() << std::endl;
         }
     };
 
@@ -45,10 +48,11 @@ void OPCache::update_ops_cache(const std::shared_ptr<ov::Node> &op,
     } else {
         for (int i = 0; i < op->get_input_size(); i++) {
             auto shape = op->get_input_shape(i);
-            unsigned long shapeSize = ov::shape_size(shape) * op->get_element_type().size();
+            unsigned long shapeSize = ov::shape_size(shape) * op->get_output_element_type(0).size();
 
             auto cachedOpShape = cachedOp->get_input_shape(i);
-            unsigned long cachedOpShapeSize = ov::shape_size(cachedOpShape) * cachedOp->get_element_type().size();
+            unsigned long cachedOpShapeSize =
+                ov::shape_size(cachedOpShape) * cachedOp->get_output_element_type(0).size();
 
             if (shapeSize < cachedOpShapeSize) {
                 m_ops_cache.erase(cachedOp);
@@ -122,12 +126,12 @@ void OPCache::serialize_meta_info(const LayerTestsUtils::OPInfo &info, const std
     for (const auto &model : info.found_in_models) {
         pugi::xml_node model_node = models.append_child("model");
         model_node.append_attribute("name").set_value(model.first.c_str());
-        model_node.append_attribute("count").set_value(model.second);
+        model_node.append_attribute("count").set_value(static_cast<unsigned long long>(model.second));
     }
     auto ports_info = root.append_child("ports_info");
     for (const auto &port : info.ports_info) {
         auto port_node = ports_info.append_child("port");
-        port_node.append_attribute("id").set_value(port.first);
+        port_node.append_attribute("id").set_value(static_cast<unsigned long long>(port.first));
         if (port.second.min == std::numeric_limits<double>::min()) {
             port_node.append_attribute("max").set_value("undefined");
             port_node.append_attribute("min").set_value("undefined");
@@ -148,7 +152,7 @@ float OPCache::get_size_of_cached_ops() {
                     op.first->get_input_node_shared_ptr(i));
             if (constant != nullptr) {
                 size += static_cast<float>(ov::shape_size(constant->get_shape()) *
-                                           constant->get_element_type().size()) / (1024 * 1024);
+                                           constant->get_output_element_type(0).size()) / (1024 * 1024);
             }
         }
     }
@@ -159,17 +163,18 @@ OPCache::SerializationStatus
 OPCache::serialize_function(const std::pair<std::shared_ptr<ov::Node>, LayerTestsUtils::OPInfo> &op,
                             const std::string &serialization_dir) {
     try {
-        if (op.first->get_friendly_name() == "Relu_8793_cached") {
-            std::cout << std::endl;
-        }
         std::cout << "Serializing function wrapping op " << op.first << std::endl;
         std::cout << "Taken from model: " << op.second.source_model << std::endl;
 
         ov::ParameterVector params;
+        bool is_dynamic = false;
         for (size_t i = 0; i < op.first->get_input_size(); ++i) {
             if (ov::op::util::is_parameter(op.first->get_input_node_ptr(i))) {
                 auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(
                         op.first->get_input_node_shared_ptr(i));
+                if (param->get_partial_shape().is_dynamic()) {
+                    is_dynamic = true;
+                }
                 params.push_back(param);
             }
         }
@@ -182,15 +187,15 @@ OPCache::serialize_function(const std::pair<std::shared_ptr<ov::Node>, LayerTest
         // TODO: How to define element type for multi-output ops
         auto op_el_type = op.first->get_output_element_type(0).get_type_name();
         auto current_op_folder = serialization_dir + CommonTestUtils::FileSeparator +
+                                 (is_dynamic ? "dynamic" : "static") + CommonTestUtils::FileSeparator +
                                  op.first->get_type_info().name + CommonTestUtils::FileSeparator + op_el_type;
-        std::cout << current_op_folder << std::endl;
+        auto op_name = op.first->get_name();
+        std::cout << op_name << " will be serialized to " << current_op_folder << std::endl;
         if (!CommonTestUtils::directoryExists(current_op_folder)) {
             CommonTestUtils::createDirectoryRecursive(current_op_folder);
         }
-        auto op_name = op.first->get_name();
         std::replace(op_name.begin(), op_name.end(), '/', '_');
         std::replace(op_name.begin(), op_name.end(), '\\', '_');
-        // TODO: Possible names collision
         auto xml_path = current_op_folder + CommonTestUtils::FileSeparator + op_name + ".xml";
         auto bin_path = current_op_folder + CommonTestUtils::FileSeparator + op_name + ".bin";
         auto meta_info = current_op_folder + CommonTestUtils::FileSeparator + op_name + ".meta";

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,23 @@ NamedOutputs reduce_ops(const NodeContext& node) {
         dims = node.get_attribute<std::vector<int32_t>>("dim");
     }
     auto axesNode = default_opset::Constant::create(ngraph::element::i32, {dims.size()}, dims);
-    return node.default_single_output_mapping({std::make_shared<T>(x, axesNode, keep_dim)}, {"Out"});
+    bool scalar_output = !keep_dim;
+    if (scalar_output) {
+        for (int32_t i = 0; i < input_rank; i++) {
+            if (std::find(dims.begin(), dims.end(), i) == dims.end()) {
+                scalar_output = false;
+                break;
+            }
+        }
+    }
+
+    auto reduceNode = std::make_shared<T>(x, axesNode, keep_dim);
+    std::shared_ptr<Node> result = reduceNode;
+    if (scalar_output) {
+        auto unsqueeze_scalar = default_opset::Constant::create(ov::element::i64, {}, {0});
+        result = std::make_shared<default_opset::Unsqueeze>(reduceNode, unsqueeze_scalar);
+    }
+    return node.default_single_output_mapping({result}, {"Out"});
 }
 
 }  // namespace op

@@ -1,121 +1,96 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <c_api/ie_c_api.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "openvino/c/openvino.h"
+
 /**
- * @brief Struct to store classification results
+ * @brief Struct to store infer results
  */
-struct classify_res {
+struct infer_result {
     size_t class_id;
     float probability;
 };
 
 /**
- * @brief Sort result of image classification by probability
- * @param struct with classification results to sort
- * @param size of the struct
+ * @brief Sort result by probability
+ * @param struct with infer results to sort
+ * @param result_size of the struct
  * @return none
  */
-void classify_res_sort(struct classify_res* res, size_t n) {
-    size_t i, j;
-    for (i = 0; i < n; ++i) {
-        for (j = i + 1; j < n; ++j) {
-            if (res[i].probability < res[j].probability) {
-                struct classify_res temp = res[i];
-                res[i] = res[j];
-                res[j] = temp;
-            } else if (res[i].probability == res[j].probability && res[i].class_id > res[j].class_id) {
-                struct classify_res temp = res[i];
-                res[i] = res[j];
-                res[j] = temp;
-            }
-        }
+int compare(const void* a, const void* b) {
+    const struct infer_result* sa = (const struct infer_result*)a;
+    const struct infer_result* sb = (const struct infer_result*)b;
+    if (sa->probability < sb->probability) {
+        return 1;
+    } else if ((sa->probability == sb->probability) && (sa->class_id > sb->class_id)) {
+        return 1;
+    } else if (sa->probability > sb->probability) {
+        return -1;
     }
+    return 0;
+}
+void infer_result_sort(struct infer_result* results, size_t result_size) {
+    qsort(results, result_size, sizeof(struct infer_result), compare);
 }
 
 /**
- * @brief Convert output blob to classify struct for processing results
- * @param blob of output data
- * @param size of the blob
- * @return struct classify_res
+ * @brief Convert output tensor to infer result struct for processing results
+ * @param tensor of output tensor
+ * @param result_size of the infer result
+ * @return struct infer_result
  */
-struct classify_res* output_blob_to_classify_res(ie_blob_t* blob, size_t* n) {
-    dimensions_t output_dim;
-    IEStatusCode status = ie_blob_get_dims(blob, &output_dim);
+struct infer_result* tensor_to_infer_result(ov_tensor_t* tensor, size_t* result_size) {
+    ov_status_e status = ov_tensor_get_size(tensor, result_size);
     if (status != OK)
         return NULL;
 
-    *n = output_dim.dims[1];
-
-    struct classify_res* cls = (struct classify_res*)malloc(sizeof(struct classify_res) * (*n));
-    if (!cls) {
+    struct infer_result* results = (struct infer_result*)malloc(sizeof(struct infer_result) * (*result_size));
+    if (!results)
         return NULL;
-    }
 
-    ie_blob_buffer_t blob_cbuffer;
-    status = ie_blob_get_cbuffer(blob, &blob_cbuffer);
+    void* data = NULL;
+    status = ov_tensor_data(tensor, &data);
     if (status != OK) {
-        free(cls);
+        free(results);
         return NULL;
     }
-    float* blob_data = (float*)(blob_cbuffer.cbuffer);
 
-    size_t i;
-    for (i = 0; i < *n; ++i) {
-        cls[i].class_id = i;
-        cls[i].probability = blob_data[i];
+    float* float_data = (float*)(data);
+    for (size_t i = 0; i < *result_size; ++i) {
+        results[i].class_id = i;
+        results[i].probability = float_data[i];
     }
 
-    return cls;
+    return results;
 }
 
 /**
- * @brief Print results of classification
- * @param struct of the classification results
- * @param size of the struct of classification results
- * @param string image path
+ * @brief Print results of infer
+ * @param results of the infer results
+ * @param result_size of the struct of classification results
+ * @param img_path image path
  * @return none
  */
-void print_classify_res(struct classify_res* cls, size_t n, const char* img_path) {
+void print_infer_result(struct infer_result* results, size_t result_size, const char* img_path) {
     printf("\nImage %s\n", img_path);
     printf("\nclassid probability\n");
     printf("------- -----------\n");
-    size_t i;
-    for (i = 0; i < n; ++i) {
-        printf("%zu       %f\n", cls[i].class_id, cls[i].probability);
+    for (size_t i = 0; i < result_size; ++i) {
+        printf("%zu       %f\n", results[i].class_id, results[i].probability);
     }
-    printf("\nThis sample is an API example,"
-           " for any performance measurements please use the dedicated benchmark_"
-           "app tool\n");
 }
 
-/**
- * @brief Read image data
- * @param string image path
- * @param pointer to store image data
- * @param size bytes of image
- * @return total number of elements successfully read, in case of error it
- * doesn't equal to size param
- */
-size_t read_image_from_file(const char* img_path, unsigned char* img_data, size_t size) {
-    FILE* fp = fopen(img_path, "rb");
-    size_t read_size = 0;
-
-    if (fp) {
-        fseek(fp, 0, SEEK_END);
-        if (ftell(fp) >= size) {
-            fseek(fp, 0, SEEK_SET);
-            read_size = fread(img_data, 1, size, fp);
-        }
-        fclose(fp);
-    }
-    return read_size;
+void print_model_input_output_info(ov_model_t* model) {
+    char* friendly_name = NULL;
+    ov_model_get_friendly_name(model, &friendly_name);
+    printf("[INFO] model name: %s \n", friendly_name);
+    ov_free(friendly_name);
 }
 
 /**
@@ -125,6 +100,7 @@ size_t read_image_from_file(const char* img_path, unsigned char* img_data, size_
  * @param pointer to image height
  * @return bool status True(success) or False(fail)
  */
+
 bool is_supported_image_size(const char* size_str, size_t* width, size_t* height) {
     const char* _size = size_str;
     size_t _width = 0, _height = 0;
@@ -168,12 +144,33 @@ err:
     return false;
 }
 
+size_t read_image_from_file(const char* img_path, unsigned char* img_data, size_t size) {
+    FILE* fp = fopen(img_path, "rb");
+    size_t read_size = 0;
+
+    if (fp) {
+        fseek(fp, 0, SEEK_END);
+        if (ftell(fp) >= size) {
+            fseek(fp, 0, SEEK_SET);
+            read_size = fread(img_data, 1, size, fp);
+        }
+        fclose(fp);
+    }
+
+    return read_size;
+}
+
+#define CHECK_STATUS(return_status)                                                      \
+    if (return_status != OK) {                                                           \
+        fprintf(stderr, "[ERROR] return status %d, line %d\n", return_status, __LINE__); \
+        goto err;                                                                        \
+    }
+
 int main(int argc, char** argv) {
-    // ------------------------------ Parsing and validation of input args
-    // ---------------------------------
+    // -------- Check input parameters --------
     if (argc != 5) {
-        printf("Usage : ./hello_classification <path_to_model> <path_to_image> "
-               "<image_size> <device_name>\n");
+        printf("Usage : ./hello_nv12_input_classification_c <path_to_model> <path_to_image> "
+               "<WIDTHxHEIGHT> <device_name>\n");
         return EXIT_FAILURE;
     }
 
@@ -182,203 +179,175 @@ int main(int argc, char** argv) {
         fprintf(stderr, "ERROR is_supported_image_size, line %d\n", __LINE__);
         return EXIT_FAILURE;
     }
+    unsigned char* img_data = NULL;
+    ov_core_t* core = NULL;
+    ov_model_t* model = NULL;
+    ov_tensor_t* tensor = NULL;
+    ov_preprocess_prepostprocessor_t* preprocess = NULL;
+    ov_preprocess_input_info_t* input_info = NULL;
+    ov_model_t* new_model = NULL;
+    ov_preprocess_input_tensor_info_t* input_tensor_info = NULL;
+    ov_preprocess_preprocess_steps_t* input_process = NULL;
+    ov_preprocess_input_model_info_t* p_input_model = NULL;
+    ov_compiled_model_t* compiled_model = NULL;
+    ov_infer_request_t* infer_request = NULL;
+    ov_tensor_t* output_tensor = NULL;
+    struct infer_result* results = NULL;
+    char* input_tensor_name = NULL;
+    char* output_tensor_name = NULL;
+    ov_output_const_port_t* input_port = NULL;
+    ov_output_const_port_t* output_port = NULL;
+    ov_layout_t* model_layout = NULL;
+    ov_shape_t input_shape;
 
+    // -------- Get OpenVINO runtime version --------
+    ov_version_t version = {.description = NULL, .buildNumber = NULL};
+    CHECK_STATUS(ov_get_openvino_version(&version));
+    printf("---- OpenVINO INFO----\n");
+    printf("description : %s \n", version.description);
+    printf("build number: %s \n", version.buildNumber);
+    ov_version_free(&version);
+
+    // -------- Parsing and validation of input arguments --------
     const char* input_model = argv[1];
     const char* input_image_path = argv[2];
     const char* device_name = argv[4];
-    unsigned char* img_data = NULL;
-    ie_core_t* core = NULL;
-    ie_network_t* network = NULL;
-    ie_executable_network_t* exe_network = NULL;
-    ie_infer_request_t* infer_request = NULL;
-    char *input_name = NULL, *output_name = NULL;
-    ie_blob_t *y_blob = NULL, *uv_blob = NULL, *nv12_blob = NULL, *output_blob = NULL;
-    // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- Step 1. Initialize inference engine core
-    // -------------------------------------
-    IEStatusCode status = ie_core_create("", &core);
-    if (status != OK) {
-        fprintf(stderr, "ERROR ie_core_create status %d, line %d\n", status, __LINE__);
-        goto err;
-    }
-    // -----------------------------------------------------------------------------------------------------
+    // -------- Step 1. Initialize OpenVINO Runtime Core --------
+    CHECK_STATUS(ov_core_create(&core));
 
-    // Step 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin
-    // files) or ONNX (.onnx file) format
-    status = ie_core_read_network(core, input_model, NULL, &network);
-    if (status != OK) {
-        fprintf(stderr, "ERROR ie_core_read_network status %d, line %d\n", status, __LINE__);
-        goto err;
-    }
-    // -----------------------------------------------------------------------------------------------------
+    // -------- Step 2. Read a model --------
+    printf("[INFO] Loading model files: %s\n", input_model);
+    CHECK_STATUS(ov_core_read_model(core, input_model, NULL, &model));
+    print_model_input_output_info(model);
 
-    // --------------------------- Step 3. Configure input & output
-    // ---------------------------------------------
-    // --------------------------- Prepare input blobs
-    // -----------------------------------------------------
-    status = ie_network_get_input_name(network, 0, &input_name);
-    if (status != OK) {
-        fprintf(stderr, "ERROR ie_network_get_input_name status %d, line %d\n", status, __LINE__);
-        goto err;
-    }
+    CHECK_STATUS(ov_model_const_output(model, &output_port));
 
-    /* Mark input as resizable by setting of a resize algorithm.
-     * In this case we will be able to set an input blob of any shape to an infer
-     * request. Resize and layout conversions are executed automatically during
-     * inference */
-    status |= ie_network_set_input_resize_algorithm(network, input_name, RESIZE_BILINEAR);
-    status |= ie_network_set_input_layout(network, input_name, NCHW);
-    status |= ie_network_set_input_precision(network, input_name, U8);
-    // set input color format to NV12 to enable automatic input color format
-    // pre-processing
-    status |= ie_network_set_color_format(network, input_name, NV12);
+    CHECK_STATUS(ov_model_const_input(model, &input_port));
 
-    if (status != OK) {
-        fprintf(stderr, "ERROR ie_network_set_input_* status %d, line %d\n", status, __LINE__);
-        goto err;
-    }
+    CHECK_STATUS(ov_port_get_any_name(input_port, &input_tensor_name));
+    CHECK_STATUS(ov_port_get_any_name(output_port, &output_tensor_name));
 
-    // --------------------------- Prepare output blobs
-    // ----------------------------------------------------
-    status |= ie_network_get_output_name(network, 0, &output_name);
-    status |= ie_network_set_output_precision(network, output_name, FP32);
-    if (status != OK) {
-        fprintf(stderr, "ERROR ie_network_set_output_* status %d, line %d\n", status, __LINE__);
-        goto err;
-    }
+    // -------- Step 3. Configure preprocessing  --------
+    CHECK_STATUS(ov_preprocess_prepostprocessor_create(model, &preprocess));
 
-    // -----------------------------------------------------------------------------------------------------
+    // 1) Select input with 'input_tensor_name' tensor name
+    CHECK_STATUS(ov_preprocess_prepostprocessor_get_input_info_by_name(preprocess, input_tensor_name, &input_info));
 
-    // --------------------------- Step 4. Loading model to the device
-    // ------------------------------------------
-    ie_config_t config = {NULL, NULL, NULL};
-    status = ie_core_load_network(core, network, device_name, &config, &exe_network);
-    if (status != OK) {
-        fprintf(stderr, "ERROR ie_core_load_network status %d, line %d\n", status, __LINE__);
-        goto err;
-    }
-    // -----------------------------------------------------------------------------------------------------
+    // 2) Set input type
+    // - as 'u8' precision
+    // - set color format to NV12 (single plane)
+    // - static spatial dimensions for resize preprocessing operation
+    CHECK_STATUS(ov_preprocess_input_info_get_tensor_info(input_info, &input_tensor_info));
+    CHECK_STATUS(ov_preprocess_input_tensor_info_set_element_type(input_tensor_info, U8));
+    CHECK_STATUS(ov_preprocess_input_tensor_info_set_color_format(input_tensor_info, NV12_SINGLE_PLANE));
+    CHECK_STATUS(
+        ov_preprocess_input_tensor_info_set_spatial_static_shape(input_tensor_info, input_height, input_width));
 
-    // --------------------------- Step 5. Create infer request
-    // -------------------------------------------------
-    status = ie_exec_network_create_infer_request(exe_network, &infer_request);
-    if (status != OK) {
-        fprintf(stderr, "ERROR ie_exec_network_create_infer_request status %d, line %d\n", status, __LINE__);
-        goto err;
-    }
-    // -----------------------------------------------------------------------------------------------------
+    // 3) Pre-processing steps:
+    //    a) Convert to 'float'. This is to have color conversion more accurate
+    //    b) Convert to BGR: Assumes that model accepts images in BGR format. For RGB, change it manually
+    //    c) Resize image from tensor's dimensions to model ones
+    CHECK_STATUS(ov_preprocess_input_info_get_preprocess_steps(input_info, &input_process));
+    CHECK_STATUS(ov_preprocess_preprocess_steps_convert_element_type(input_process, F32));
+    CHECK_STATUS(ov_preprocess_preprocess_steps_convert_color(input_process, BGR));
+    CHECK_STATUS(ov_preprocess_preprocess_steps_resize(input_process, RESIZE_LINEAR));
 
-    // --------------------------- Step 6. Prepare input
-    // -------------------------------------------------------- read image with
-    // size converted to NV12 data size: height(NV12) = 3 / 2 * logical height
+    // 4) Set model data layout (Assuming model accepts images in NCHW layout)
+    CHECK_STATUS(ov_preprocess_input_info_get_model_info(input_info, &p_input_model));
+
+    const char* model_layout_desc = "NCHW";
+    CHECK_STATUS(ov_layout_create(model_layout_desc, &model_layout));
+    CHECK_STATUS(ov_preprocess_input_model_info_set_layout(p_input_model, model_layout));
+
+    // 5) Apply preprocessing to an input with 'input_tensor_name' name of loaded model
+    CHECK_STATUS(ov_preprocess_prepostprocessor_build(preprocess, &new_model));
+
+    // -------- Step 4. Loading a model to the device --------
+    CHECK_STATUS(ov_core_compile_model(core, new_model, device_name, 0, &compiled_model));
+
+    // -------- Step 5. Create an infer request --------
+    CHECK_STATUS(ov_compiled_model_create_infer_request(compiled_model, &infer_request));
+
+    // -------- Step 6. Prepare input data  --------
     img_size = input_width * (input_height * 3 / 2);
+    if (!img_size) {
+        fprintf(stderr, "[ERROR] Invalid Image size, line %d\n", __LINE__);
+        goto err;
+    }
     img_data = (unsigned char*)calloc(img_size, sizeof(unsigned char));
-    if (NULL == img_data) {
-        fprintf(stderr, "ERROR calloc returned NULL, line %d\n", __LINE__);
+    if (!img_data) {
+        fprintf(stderr, "[ERROR] calloc returned NULL, line %d\n", __LINE__);
         goto err;
     }
     if (img_size != read_image_from_file(input_image_path, img_data, img_size)) {
-        fprintf(stderr, "ERROR ie_exec_network_create_infer_request `img_size` missmatch, line %d\n", __LINE__);
+        fprintf(stderr, "[ERROR] Image dimensions not match with NV12 file size, line %d\n", __LINE__);
         goto err;
     }
+    ov_element_type_e input_type = U8;
+    size_t batch = 1;
+    int64_t dims[4] = {batch, input_height * 3 / 2, input_width, 1};
+    ov_shape_create(4, dims, &input_shape);
+    CHECK_STATUS(ov_tensor_create_from_host_ptr(input_type, input_shape, img_data, &tensor));
 
-    // --------------------------- Create a blob to hold the NV12 input data
-    // ------------------------------- Create tensor descriptors for Y and UV
-    // blobs
-    dimensions_t y_dimens = {4, {1, 1, input_height, input_width}};
-    dimensions_t uv_dimens = {4, {1, 2, input_height / 2, input_width / 2}};
-    tensor_desc_t y_tensor = {NHWC, y_dimens, U8};
-    tensor_desc_t uv_tensor = {NHWC, uv_dimens, U8};
-    size_t y_plane_size = input_height * input_width;
-    size_t uv_plane_size = input_width * (input_height / 2);
+    // -------- Step 6. Set input tensor  --------
+    // Set the input tensor by tensor name to the InferRequest
+    CHECK_STATUS(ov_infer_request_set_tensor(infer_request, input_tensor_name, tensor));
 
-    // Create blob for Y plane from raw data
-    status |= ie_blob_make_memory_from_preallocated(&y_tensor, img_data, y_plane_size, &y_blob);
-    // Create blob for UV plane from raw data
-    status |= ie_blob_make_memory_from_preallocated(&uv_tensor, img_data + y_plane_size, uv_plane_size, &uv_blob);
-    // Create NV12Blob from Y and UV blobs
-    status |= ie_blob_make_memory_nv12(y_blob, uv_blob, &nv12_blob);
-    if (status != OK) {
-        fprintf(stderr, "ERROR ie_blob_make_memory_* status %d, line %d\n", status, __LINE__);
-        goto err;
-    }
+    // -------- Step 7. Do inference --------
+    // Running the request synchronously
+    CHECK_STATUS(ov_infer_request_infer(infer_request));
 
-    status = ie_infer_request_set_blob(infer_request, input_name, nv12_blob);
-    if (status != OK) {
-        fprintf(stderr, "ERROR ie_infer_request_set_blob status %d, line %d\n", status, __LINE__);
-        goto err;
-    }
-    // -----------------------------------------------------------------------------------------------------
-
-    // --------------------------- Step 7. Do inference
-    // --------------------------------------------------------
-    /* Running the request synchronously */
-    status = ie_infer_request_infer(infer_request);
-    if (status != OK) {
-        fprintf(stderr, "ERROR ie_infer_request_infer status %d, line %d\n", status, __LINE__);
-        goto err;
-    }
-    // -----------------------------------------------------------------------------------------------------
-
-    // --------------------------- Step 8. Process output
-    // ------------------------------------------------------
-    status = ie_infer_request_get_blob(infer_request, output_name, &output_blob);
-    if (status != OK) {
-        fprintf(stderr, "ERROR ie_infer_request_get_blob status %d, line %d\n", status, __LINE__);
-        goto err;
-    }
-
-    size_t class_num;
-    struct classify_res* cls = output_blob_to_classify_res(output_blob, &class_num);
-
-    classify_res_sort(cls, class_num);
-
+    // -------- Step 8. Process output --------
+    CHECK_STATUS(ov_infer_request_get_output_tensor_by_index(infer_request, 0, &output_tensor));
     // Print classification results
+    size_t results_num = 0;
+    results = tensor_to_infer_result(output_tensor, &results_num);
+    if (!results) {
+        goto err;
+    }
+    infer_result_sort(results, results_num);
     size_t top = 10;
-    if (top > class_num) {
-        top = class_num;
+    if (top > results_num) {
+        top = results_num;
     }
     printf("\nTop %zu results:\n", top);
-    print_classify_res(cls, top, input_image_path);
-    // -----------------------------------------------------------------------------------------------------
+    print_infer_result(results, top, input_image_path);
 
-    free(cls);
-    ie_blob_free(&output_blob);
-    ie_blob_free(&nv12_blob);
-    ie_blob_free(&uv_blob);
-    ie_blob_free(&y_blob);
-    ie_infer_request_free(&infer_request);
-    ie_exec_network_free(&exe_network);
-    ie_network_name_free(&input_name);
-    ie_network_name_free(&output_name);
-    ie_network_free(&network);
-    ie_core_free(&core);
-    free(img_data);
-
-    return EXIT_SUCCESS;
+    // -------- free allocated resources --------
 err:
-    if (core)
-        ie_core_free(&core);
-    if (network)
-        ie_network_free(&network);
-    if (input_name)
-        ie_network_name_free(&input_name);
-    if (output_name)
-        ie_network_name_free(&output_name);
-    if (exe_network)
-        ie_exec_network_free(&exe_network);
+    free(results);
+    free(img_data);
+    ov_shape_free(&input_shape);
+    ov_free(input_tensor_name);
+    ov_free(output_tensor_name);
+    ov_output_const_port_free(output_port);
+    ov_output_const_port_free(input_port);
+    if (output_tensor)
+        ov_tensor_free(output_tensor);
     if (infer_request)
-        ie_infer_request_free(&infer_request);
-    if (nv12_blob)
-        ie_blob_free(&nv12_blob);
-    if (uv_blob)
-        ie_blob_free(&uv_blob);
-    if (y_blob)
-        ie_blob_free(&y_blob);
-    if (output_blob)
-        ie_blob_free(&output_blob);
-    if (img_data)
-        free(img_data);
-    return EXIT_FAILURE;
+        ov_infer_request_free(infer_request);
+    if (compiled_model)
+        ov_compiled_model_free(compiled_model);
+    if (p_input_model)
+        ov_preprocess_input_model_info_free(p_input_model);
+    if (input_process)
+        ov_preprocess_preprocess_steps_free(input_process);
+    if (model_layout)
+        ov_layout_free(model_layout);
+    if (input_tensor_info)
+        ov_preprocess_input_tensor_info_free(input_tensor_info);
+    if (input_info)
+        ov_preprocess_input_info_free(input_info);
+    if (preprocess)
+        ov_preprocess_prepostprocessor_free(preprocess);
+    if (new_model)
+        ov_model_free(new_model);
+    if (tensor)
+        ov_tensor_free(tensor);
+    if (model)
+        ov_model_free(model);
+    if (core)
+        ov_core_free(core);
+    return EXIT_SUCCESS;
 }

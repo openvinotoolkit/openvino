@@ -1,20 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "primitive.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Select mode for the @ref reduce layer
 enum class reduce_mode : uint16_t {
@@ -49,36 +42,31 @@ enum class reduce_mode : uint16_t {
 struct reduce : public primitive_base<reduce> {
     CLDNN_DECLARE_PRIMITIVE(reduce)
 
-    enum reduce_axis {
-        along_b,
-        along_f,
-        along_x,
-        along_y,
-        along_z,
-        along_w
-    };
-
     /// @brief Constructs reduce primitive
     /// @param id This primitive id
     /// @param input Input primitive id
     /// @param keep_dims The axes which reduced
     reduce(const primitive_id& id,
-           const primitive_id& input,
+           const input_info& input,
            const reduce_mode mode,
-           const std::vector<uint16_t> axes,
-           const int32_t keep_dims,
-           const primitive_id& ext_prim_id = "",
+           const std::vector<int64_t> axes,
+           const bool keep_dims,
            const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding), mode(mode), axes(axes), keep_dims(keep_dims) {}
+        : primitive_base(id, {input}, {output_padding}), mode(mode), axes(axes), keep_dims(keep_dims) {}
 
     /// @brief Reduce operation type
     reduce_mode mode;
     /// @brief List of axes to reduce
-    std::vector<uint16_t> axes;
+    std::vector<int64_t> axes;
     /// @brief Keep the reduced dimension or not, 1 mean keep reduced dimension
-    int32_t keep_dims;
+    bool keep_dims;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, mode);
+        seed = hash_range(seed, axes.begin(), axes.end());
+        seed = hash_combine(seed, keep_dims);
+        return seed;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

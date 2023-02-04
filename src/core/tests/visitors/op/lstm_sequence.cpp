@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,7 +54,7 @@ TEST(attributes, lstm_sequence_op) {
                                                                  activations_beta,
                                                                  activations,
                                                                  clip_threshold);
-    NodeBuilder builder(lstm_sequence);
+    NodeBuilder builder(lstm_sequence, {X, initial_hidden_state, initial_cell_state, sequence_lengths, W, R, B});
     auto g_lstm_sequence = ov::as_type_ptr<opset5::LSTMSequence>(builder.create());
 
     EXPECT_EQ(g_lstm_sequence->get_hidden_size(), lstm_sequence->get_hidden_size());
@@ -109,7 +109,7 @@ TEST(attributes, lstm_sequence_v1_op) {
                                                                  activations,
                                                                  clip_threshold,
                                                                  input_forget);
-    NodeBuilder builder(lstm_sequence);
+    NodeBuilder builder(lstm_sequence, {X, initial_hidden_state, initial_cell_state, sequence_lengths, W, R, B, P});
     auto g_lstm_sequence = ov::as_type_ptr<opset1::LSTMSequence>(builder.create());
 
     EXPECT_EQ(g_lstm_sequence->get_hidden_size(), lstm_sequence->get_hidden_size());

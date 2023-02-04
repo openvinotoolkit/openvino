@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -8,8 +8,6 @@ add_custom_target(time_tests)
 # Build test from every source file.
 # Test target name is source file name without extension.
 FILE(GLOB tests "*.cpp")
-
-add_subdirectory("${OpenVINO_SOURCE_DIR}/tests/lib" tests_shared_lib)
 
 foreach(test_source ${tests})
     get_filename_component(test_name ${test_source} NAME_WE)

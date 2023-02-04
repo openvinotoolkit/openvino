@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,11 +10,10 @@
 #include <string>
 #include <vector>
 
+#include "one_hot_shape_inference.hpp"
+
 namespace cldnn {
-primitive_type_id one_hot::type_id() {
-    static primitive_type_base<one_hot> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(one_hot)
 
 static bool is_output_bfzyx(const layout& input, int32_t axis) {
     if (input.format == format::bfzyx)
@@ -31,7 +30,7 @@ layout one_hot_inst::calc_output_layout(one_hot_node const& node, kernel_impl_pa
     auto input_layout = impl_param.get_input_layout();
     auto desc = impl_param.typed_desc<one_hot>();
 
-    auto dt = desc->output_data_type ? *desc->output_data_type : input_layout.data_type;
+    auto dt = desc->output_data_types[0].value_or(input_layout.data_type);
     auto format = input_layout.format;
 
     if (desc->one_hot_axis > 4) {
@@ -44,6 +43,40 @@ layout one_hot_inst::calc_output_layout(one_hot_node const& node, kernel_impl_pa
 
     return {dt, format, desc->shape};
 }
+
+template<typename ShapeType>
+std::vector<layout> one_hot_inst::calc_output_layouts(const one_hot_node& /*node*/, const kernel_impl_params& impl_param) {
+    auto desc = impl_param.typed_desc<one_hot>();
+    auto input_layout = impl_param.get_input_layout(0);
+    auto dt = desc->output_data_types[0].value_or(input_layout.data_type);
+
+    ov::op::v1::OneHot op;
+    try {
+        // set_axis also calls resolve_axis method which tries to get input0 partial shape
+        // thus wrap this call with try/catch.
+        // it's safe as shape_infer method calls normalize_axis internally
+        op.set_axis(desc->one_hot_axis);
+    } catch (...) {}
+
+    std::vector<ShapeType> output_shapes = { ShapeType{} };
+    std::vector<ShapeType> input_shapes = {
+        input_layout.get_partial_shape(),
+        ShapeType{},
+        ShapeType{},
+        ShapeType{}
+    };
+
+    int64_t depth = desc->depth;
+
+    auto depth_tensor = std::make_shared<ngraph::runtime::HostTensor>(ov::element::i64, ov::Shape{1}, static_cast<void*>(&depth));
+    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> const_data = {
+        {1, depth_tensor}
+    };
+    ov::op::v1::shape_infer(&op, input_shapes, output_shapes, const_data);
+    return {{output_shapes[0], dt, format::get_default_format(output_shapes[0].size())}};
+}
+
+template std::vector<layout> one_hot_inst::calc_output_layouts<ov::PartialShape>(one_hot_node const& node, const kernel_impl_params& impl_param);
 
 std::string one_hot_inst::to_string(one_hot_node const& node) {
     auto desc = node.get_primitive();
@@ -68,8 +101,11 @@ std::string one_hot_inst::to_string(one_hot_node const& node) {
 one_hot_inst::typed_primitive_inst(network& network, one_hot_node const& node) : parent(network, node) {
     auto input_layout = node.input().get_output_layout();
 
+    if (input_layout.is_dynamic())
+        return;
+
     const auto& input_sizes = input_layout.get_tensor();
-    const auto& output_sizes = argument.shape;
+    const auto& output_sizes = argument->shape;
 
     std::vector<tensor::value_type> input_dims = {input_sizes.batch[0],
                                                   input_sizes.feature[0],

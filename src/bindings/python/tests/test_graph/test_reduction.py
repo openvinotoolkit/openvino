@@ -1,63 +1,59 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
-from openvino.runtime import PartialShape, Dimension
 
-import openvino.runtime.opset9 as ov
-from openvino.runtime.utils.types import make_constant_node
-from tests.runtime import get_runtime
-from tests.test_graph.util import run_op_node
+import openvino.runtime.opset10 as ov
 
 
 @pytest.mark.parametrize(
-    ("graph_api_helper", "numpy_function", "reduction_axes"),
+    ("graph_api_helper", "reduction_axes", "expected_shape"),
     [
-        (ov.reduce_max, np.max, np.array([0, 1, 2, 3])),
-        (ov.reduce_min, np.min, np.array([0, 1, 2, 3])),
-        (ov.reduce_sum, np.sum, np.array([0, 1, 2, 3])),
-        (ov.reduce_prod, np.prod, np.array([0, 1, 2, 3])),
-        (ov.reduce_max, np.max, np.array([0])),
-        (ov.reduce_min, np.min, np.array([0])),
-        (ov.reduce_sum, np.sum, np.array([0])),
-        (ov.reduce_prod, np.prod, np.array([0])),
-        (ov.reduce_max, np.max, np.array([0, 2])),
-        (ov.reduce_min, np.min, np.array([0, 2])),
-        (ov.reduce_sum, np.sum, np.array([0, 2])),
-        (ov.reduce_prod, np.prod, np.array([0, 2])),
+        (ov.reduce_max, np.array([0, 1, 2, 3]), []),
+        (ov.reduce_min, np.array([0, 1, 2, 3]), []),
+        (ov.reduce_sum, np.array([0, 1, 2, 3]), []),
+        (ov.reduce_prod, np.array([0, 1, 2, 3]), []),
+        (ov.reduce_max, np.array([0]), [4, 3, 2]),
+        (ov.reduce_min, np.array([0]), [4, 3, 2]),
+        (ov.reduce_sum, np.array([0]), [4, 3, 2]),
+        (ov.reduce_prod, np.array([0]), [4, 3, 2]),
+        (ov.reduce_max, np.array([0, 2]), [4, 2]),
+        (ov.reduce_min, np.array([0, 2]), [4, 2]),
+        (ov.reduce_sum, np.array([0, 2]), [4, 2]),
+        (ov.reduce_prod, np.array([0, 2]), [4, 2]),
     ],
 )
-def test_reduction_ops(graph_api_helper, numpy_function, reduction_axes):
+def test_reduction_ops(graph_api_helper, reduction_axes, expected_shape):
     shape = [2, 4, 3, 2]
     np.random.seed(133391)
     input_data = np.random.randn(*shape).astype(np.float32)
 
-    expected = numpy_function(input_data, axis=tuple(reduction_axes))
-    result = run_op_node([input_data], graph_api_helper, reduction_axes)
-    assert np.allclose(result, expected)
+    node = graph_api_helper(input_data, reduction_axes)
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == expected_shape
 
 
 @pytest.mark.parametrize(
-    ("graph_api_helper", "numpy_function", "reduction_axes"),
+    ("graph_api_helper", "reduction_axes", "expected_shape"),
     [
-        (ov.reduce_logical_and, np.logical_and.reduce, np.array([0])),
-        (ov.reduce_logical_or, np.logical_or.reduce, np.array([0])),
-        (ov.reduce_logical_and, np.logical_and.reduce, np.array([0, 2])),
-        (ov.reduce_logical_or, np.logical_or.reduce, np.array([0, 2])),
-        (ov.reduce_logical_and, np.logical_and.reduce, np.array([0, 1, 2, 3])),
-        (ov.reduce_logical_or, np.logical_or.reduce, np.array([0, 1, 2, 3])),
+        (ov.reduce_logical_and, np.array([0]), [4, 3, 2]),
+        (ov.reduce_logical_or, np.array([0]), [4, 3, 2]),
+        (ov.reduce_logical_and, np.array([0, 2]), [4, 2]),
+        (ov.reduce_logical_or, np.array([0, 2]), [4, 2]),
+        (ov.reduce_logical_and, np.array([0, 1, 2, 3]), []),
+        (ov.reduce_logical_or, np.array([0, 1, 2, 3]), []),
     ],
 )
-def test_reduction_logical_ops(graph_api_helper, numpy_function, reduction_axes):
+def test_reduction_logical_ops(graph_api_helper, reduction_axes, expected_shape):
     shape = [2, 4, 3, 2]
     np.random.seed(133391)
-    input_data = np.random.randn(*shape).astype(np.bool)
+    input_data = np.random.randn(*shape).astype(bool)
 
-    expected = numpy_function(input_data, axis=tuple(reduction_axes))
-    result = run_op_node([input_data], graph_api_helper, reduction_axes)
-    assert np.allclose(result, expected)
+    node = graph_api_helper(input_data, reduction_axes)
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == expected_shape
 
 
 def test_topk():
@@ -73,21 +69,21 @@ def test_topk():
 
 
 @pytest.mark.parametrize(
-    ("graph_api_helper", "numpy_function", "reduction_axes"),
+    ("graph_api_helper", "reduction_axes", "expected_shape"),
     [
-        (ov.reduce_mean, np.mean, np.array([0, 1, 2, 3])),
-        (ov.reduce_mean, np.mean, np.array([0])),
-        (ov.reduce_mean, np.mean, np.array([0, 2])),
+        (ov.reduce_mean, np.array([0, 1, 2, 3]), []),
+        (ov.reduce_mean, np.array([0]), [4, 3, 2]),
+        (ov.reduce_mean, np.array([0, 2]), [4, 2]),
     ],
 )
-def test_reduce_mean_op(graph_api_helper, numpy_function, reduction_axes):
+def test_reduce_mean_op(graph_api_helper, reduction_axes, expected_shape):
     shape = [2, 4, 3, 2]
     np.random.seed(133391)
     input_data = np.random.randn(*shape).astype(np.float32)
 
-    expected = numpy_function(input_data, axis=tuple(reduction_axes))
-    result = run_op_node([input_data], graph_api_helper, reduction_axes)
-    assert np.allclose(result, expected)
+    node = graph_api_helper(input_data, reduction_axes)
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == expected_shape
 
 
 def test_non_zero():
@@ -107,7 +103,6 @@ def test_roi_align():
     data_shape = [7, 256, 200, 200]
     rois = [1000, 4]
     batch_indices = [1000]
-    expected_shape = [1000, 256, 6, 6]
 
     data_parameter = ov.parameter(data_shape, name="Data", dtype=np.float32)
     rois_parameter = ov.parameter(rois, name="Rois", dtype=np.float32)
@@ -131,7 +126,7 @@ def test_roi_align():
 
     assert node.get_type_name() == "ROIAlign"
     assert node.get_output_size() == 1
-    assert list(node.get_output_shape(0)) == expected_shape
+    assert list(node.get_output_shape(0)) == [1000, 256, 6, 6]
 
 
 @pytest.mark.parametrize(
@@ -141,16 +136,10 @@ def test_roi_align():
 def test_cum_sum(input_shape, cumsum_axis, reverse):
     input_data = np.arange(np.prod(input_shape)).reshape(input_shape)
 
-    if reverse:
-        expected = np.cumsum(input_data[::-1], axis=cumsum_axis)[::-1]
-    else:
-        expected = np.cumsum(input_data, axis=cumsum_axis)
-
-    runtime = get_runtime()
     node = ov.cum_sum(input_data, cumsum_axis, reverse=reverse)
-    computation = runtime.computation(node)
-    result = computation()
-    assert np.allclose(result, expected)
+    assert node.get_output_size() == 1
+    assert node.get_type_name() == "CumSum"
+    assert list(node.get_output_shape(0)) == input_shape
 
 
 def test_normalize_l2():
@@ -161,38 +150,7 @@ def test_normalize_l2():
     eps = 1e-6
     eps_mode = "add"
 
-    runtime = get_runtime()
     node = ov.normalize_l2(input_data, axes, eps, eps_mode)
-    computation = runtime.computation(node)
-    result = computation()
-
-    expected = np.array(
-        [
-            0.01428571,
-            0.02857143,
-            0.04285714,
-            0.05714286,
-            0.07142857,
-            0.08571429,
-            0.1,
-            0.11428571,
-            0.12857144,
-            0.14285715,
-            0.15714286,
-            0.17142858,
-            0.18571429,
-            0.2,
-            0.21428572,
-            0.22857143,
-            0.24285714,
-            0.25714287,
-            0.27142859,
-            0.2857143,
-            0.30000001,
-            0.31428573,
-            0.32857144,
-            0.34285715,
-        ],
-    ).reshape(input_shape)
-
-    assert np.allclose(result, expected)
+    assert node.get_output_size() == 1
+    assert node.get_type_name() == "NormalizeL2"
+    assert list(node.get_output_shape(0)) == input_shape

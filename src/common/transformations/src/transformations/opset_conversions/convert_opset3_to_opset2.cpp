@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,16 +15,16 @@
 #include "transformations/op_conversions/convert_topk3.hpp"
 #include "transformations/op_conversions/softplus_decomposition.hpp"
 
-bool ngraph::pass::ConvertOpSet3ToOpSet2::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+bool ov::pass::ConvertOpSet3ToOpSet2::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(ConvertOpSet3ToOpSet2);
     ngraph::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
 
-    manager.register_pass<ngraph::pass::ConvertBroadcast3>();
-    manager.register_pass<ngraph::pass::ConvertShapeOf3>();
-    manager.register_pass<ngraph::pass::ConvertShuffleChannels3>();
-    manager.register_pass<ngraph::pass::ConvertTopK3>();
-    manager.register_pass<ngraph::pass::SoftPlusDecomposition>();
+    manager.register_pass<ov::pass::ConvertBroadcast3>();
+    manager.register_pass<ov::pass::ConvertShapeOf3>();
+    manager.register_pass<ov::pass::ConvertShuffleChannels3>();
+    manager.register_pass<ov::pass::ConvertTopK3>();
+    manager.register_pass<ov::pass::SoftPlusDecomposition>();
 
     manager.run_passes(f);
 

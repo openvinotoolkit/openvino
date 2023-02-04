@@ -25,7 +25,7 @@ std::string vec2str(const std::vector<vecElementType>& vec) {
 }
 
 template <class T>
-struct roll_test_params {
+struct roll_test_input {
     std::vector<int32_t> input_shape;
     std::vector<T> input_values;
     std::vector<int32_t> shift;
@@ -33,48 +33,53 @@ struct roll_test_params {
 };
 
 template <class T>
+using roll_test_params = std::tuple<roll_test_input<T>, format::type>;
+
+template <class T>
 struct roll_test : testing::TestWithParam<roll_test_params<T>> {
     void test() {
-        auto p = testing::TestWithParam<roll_test_params<T>>::GetParam();
+        roll_test_input<T> p;
+        format::type input_format;
+        std::tie(p, input_format) = testing::TestWithParam<roll_test_params<T>>::GetParam();
         auto& engine = get_test_engine();
 
-        const auto input_format = format::get_default_format(p.input_shape.size());
-        const layout data_layout(type_to_data_type<T>::value, input_format, tensor(input_format, p.input_shape));
+        format::type plane_format = format::get_default_format(p.input_shape.size());
+        const layout data_layout(type_to_data_type<T>::value, plane_format, tensor(input_format, p.input_shape));
         auto input = engine.allocate_memory(data_layout);
         set_values(input, p.input_values);
 
         topology topology;
         topology.add(input_layout("input", input->get_layout()));
-        topology.add(roll("roll", "input", tensor(input_format, p.shift)));
+        topology.add(reorder("reordered_input", input_info("input"), input_format, type_to_data_type<T>::value));
+        topology.add(roll("roll", input_info("reordered_input"), tensor(input_format, p.shift)));
+        topology.add(reorder("reordered_roll", input_info("roll"), plane_format, type_to_data_type<T>::value));
 
         network network(engine, topology);
         network.set_input_data("input", input);
         const auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "roll");
-
-        auto output = outputs.at("roll").get_memory();
+        auto output = outputs.at("reordered_roll").get_memory();
         cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), p.expected_values.size());
         for (size_t i = 0; i < output_ptr.size(); ++i) {
-            EXPECT_NEAR(p.expected_values[i], output_ptr[i], 1e-5f);
+            ASSERT_NEAR(p.expected_values[i], output_ptr[i], 1e-5f);
         }
     }
 
     static std::string PrintToStringParamName(const testing::TestParamInfo<roll_test_params<T>>& info) {
-        auto& p = info.param;
+        auto& p = std::get<0>(info.param);
         std::ostringstream result;
         result << "InputShape=" << vec2str(p.input_shape) << "_";
         result << "Precision=" << data_type_traits::name(type_to_data_type<T>::value) << "_";
-        result << "Shift=" << vec2str(p.shift);
+        result << "Shift=" << vec2str(p.shift) << "_";
+        result << "Format=" << std::get<1>(info.param);
         return result.str();
     }
 };
 
 template <class T>
-std::vector<roll_test_params<T>> getRollParams() {
+std::vector<roll_test_input<T>> getRollParamsToCheckLogic() {
     return {
         // from reference tests
         {{4, 3, 1, 1},                                                                              // Input shape
@@ -90,17 +95,35 @@ std::vector<roll_test_params<T>> getRollParams() {
          {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12},   // Input values
          {1, 0, 0, 0},                              // Shift
          {10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9}},  // Expected values
+    };
+}
+
+template <class T>
+std::vector<roll_test_input<T>> getRollParamsToCheckLayouts() {
+    return {
         // custom tests
         // 4d
         {{2, 3, 1, 2},                              // Input shape
          {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12},   // Input values
          {1, 2, 0, 5},                              // Shift
          {10, 9, 12, 11, 8, 7, 4, 3, 6, 5, 2, 1}},  // Expected values
+    };
+}
+
+template <class T>
+std::vector<roll_test_input<T>> getRollParams5D() {
+    return {
         // 5d
         {{1, 1, 3, 3, 2},                                                   // Input shape
          {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18},   // Input values
          {1, 2, 10, 23, 6},                                                 // Shift
          {15, 16, 17, 18, 13, 14, 3, 4, 5, 6, 1, 2, 9, 10, 11, 12, 7, 8}},  // Expected values
+    };
+}
+
+template <class T>
+std::vector<roll_test_input<T>> getRollParams6D() {
+    return {
         // 6d
         {{2, 1, 1, 3, 2, 3},                                                       // Input shape
          {1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16, 17, 18,  //
@@ -112,7 +135,7 @@ std::vector<roll_test_params<T>> getRollParams() {
 }
 
 template <class T>
-std::vector<roll_test_params<T>> getRollFloatingPointParams() {
+std::vector<roll_test_input<T>> getRollFloatingPointParams() {
     return {
         // from reference tests
         {{4, 3, 1, 1},  // Input shape
@@ -141,7 +164,13 @@ std::vector<roll_test_params<T>> getRollFloatingPointParams() {
            40.5383f,
            -15.3859f,
            -4.5881f}}},  // Expected values
-        {{4, 3, 1, 1},   // Input shape
+    };
+}
+
+template <class T>
+std::vector<roll_test_input<T>> getRollFloatingPointAdditionalLogic() {
+    return {
+        {{4, 3, 1, 1},  // Input shape
          {50.2907f,
           70.8054f,
           -68.3403f,
@@ -178,22 +207,53 @@ std::vector<roll_test_params<T>> getRollFloatingPointParams() {
     };
 }
 
-#define INSTANTIATE_ROLL_TEST_SUITE(type, func)               \
-    using roll_test_##type = roll_test<type>;                 \
-    TEST_P(roll_test_##type, roll_##type) {                   \
-        test();                                               \
-    }                                                         \
-    INSTANTIATE_TEST_SUITE_P(roll_smoke_##type,               \
-                             roll_test_##type,                \
-                             testing::ValuesIn(func<type>()), \
-                             roll_test_##type::PrintToStringParamName);
+std::vector<format::type> formats4d = {format::bfyx,
+                                       format::bs_fs_yx_bsv32_fsv32,
+                                       format::bs_fs_yx_bsv32_fsv16,
+                                       format::b_fs_yx_fsv32,
+                                       format::b_fs_yx_fsv16,
+                                       format::bs_fs_yx_bsv16_fsv16};
 
-INSTANTIATE_ROLL_TEST_SUITE(int8_t, getRollParams)
-INSTANTIATE_ROLL_TEST_SUITE(uint8_t, getRollParams)
-INSTANTIATE_ROLL_TEST_SUITE(int32_t, getRollParams)
-INSTANTIATE_ROLL_TEST_SUITE(int64_t, getRollParams)
-INSTANTIATE_ROLL_TEST_SUITE(FLOAT16, getRollFloatingPointParams)
-INSTANTIATE_ROLL_TEST_SUITE(float, getRollFloatingPointParams)
+std::vector<format::type> formats5d = {format::bfzyx,
+                                       format::bs_fs_zyx_bsv32_fsv32,
+                                       format::bs_fs_zyx_bsv32_fsv16,
+                                       format::b_fs_zyx_fsv32,
+                                       format::b_fs_zyx_fsv16,
+                                       format::bs_fs_zyx_bsv16_fsv16};
+
+std::vector<format::type> formats6d = {format::bfwzyx};
+
+#define INSTANTIATE_ROLL_TEST_SUITE(type, func, formats)                                                    \
+    class roll_test_##type##func : public roll_test<type> {};                                               \
+    TEST_P(roll_test_##type##func, roll_##type##func) {                                                     \
+        test();                                                                                             \
+    }                                                                                                       \
+    INSTANTIATE_TEST_SUITE_P(roll_smoke_##type##func,                                                       \
+                             roll_test_##type##func,                                                        \
+                             testing::Combine(testing::ValuesIn(func<type>()), testing::ValuesIn(formats)), \
+                             roll_test_##type##func::PrintToStringParamName);
+
+INSTANTIATE_ROLL_TEST_SUITE(int8_t, getRollParamsToCheckLogic, {format::bfyx})
+INSTANTIATE_ROLL_TEST_SUITE(uint8_t, getRollParamsToCheckLogic, {format::bfyx})
+INSTANTIATE_ROLL_TEST_SUITE(int32_t, getRollParamsToCheckLogic, {format::bfyx})
+INSTANTIATE_ROLL_TEST_SUITE(int64_t, getRollParamsToCheckLogic, {format::bfyx})
+INSTANTIATE_ROLL_TEST_SUITE(int8_t, getRollParamsToCheckLayouts, formats4d)
+INSTANTIATE_ROLL_TEST_SUITE(uint8_t, getRollParamsToCheckLayouts, formats4d)
+INSTANTIATE_ROLL_TEST_SUITE(int32_t, getRollParamsToCheckLayouts, formats4d)
+INSTANTIATE_ROLL_TEST_SUITE(int64_t, getRollParamsToCheckLayouts, formats4d)
+INSTANTIATE_ROLL_TEST_SUITE(int8_t, getRollParams5D, formats5d)
+INSTANTIATE_ROLL_TEST_SUITE(uint8_t, getRollParams5D, formats5d)
+INSTANTIATE_ROLL_TEST_SUITE(int32_t, getRollParams5D, formats5d)
+INSTANTIATE_ROLL_TEST_SUITE(int64_t, getRollParams5D, formats5d)
+INSTANTIATE_ROLL_TEST_SUITE(int8_t, getRollParams6D, formats6d)
+INSTANTIATE_ROLL_TEST_SUITE(uint8_t, getRollParams6D, formats6d)
+INSTANTIATE_ROLL_TEST_SUITE(int32_t, getRollParams6D, formats6d)
+INSTANTIATE_ROLL_TEST_SUITE(int64_t, getRollParams6D, formats6d)
+
+INSTANTIATE_ROLL_TEST_SUITE(FLOAT16, getRollFloatingPointParams, formats4d)
+INSTANTIATE_ROLL_TEST_SUITE(float, getRollFloatingPointParams, formats4d)
+INSTANTIATE_ROLL_TEST_SUITE(FLOAT16, getRollFloatingPointAdditionalLogic, {format::bfyx})
+INSTANTIATE_ROLL_TEST_SUITE(float, getRollFloatingPointAdditionalLogic, {format::bfyx})
 
 #undef INSTANTIATE_ROLL_TEST_SUITE
 

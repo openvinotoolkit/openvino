@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,8 +47,8 @@ class NormalizeFusingTest : public ::BaseFusingTest<normalize_test_params> {
 public:
     void execute(normalize_test_params& p) {
         auto input_prim = get_mem(get_input_layout(p));
-        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-        network network_fused(this->engine, this->topology_fused, bo_fused);
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
 
@@ -83,9 +83,10 @@ TEST_P(normalize_i8_quantize, basic) {
         data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), 0)),
         data("out_hi", get_mem(get_single_element_layout(p), 255)),
-        normalize("normalizel2", "input", "weights", p.across_spatial),
-        quantize("quantize", "normalizel2", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::u8),
-        reorder("output_reorder", "quantize", p.default_format, data_types::f32)
+        normalize("normalizel2", input_info("input"), "weights", p.across_spatial),
+        quantize("quantize", input_info("normalizel2"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::u8),
+        reorder("output_reorder", input_info("quantize"), p.default_format, data_types::f32)
     );
 
     tolerance = 1;
@@ -104,10 +105,10 @@ TEST_P(normalize_i8_float, basic) {
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/255)),
-        normalize("normalizel2", "input", "weights", p.across_spatial),
-        scale("scale", "normalizel2", "scale_data"),
-        activation("activation", "scale", activation_func::abs),
-        reorder("output_reorder", "activation", p.default_format, data_types::f32)
+        normalize("normalizel2", input_info("input"), "weights", p.across_spatial),
+        eltwise("scale", { input_info("normalizel2"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
+        activation("activation", input_info("scale"), activation_func::abs),
+        reorder("output_reorder", input_info("activation"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-05f;
@@ -115,6 +116,6 @@ TEST_P(normalize_i8_float, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, normalize_i8_float, ::testing::ValuesIn(std::vector<normalize_test_params>{
-    normalize_test_params{ CASE_NORMALIZE_I8_1, false, 2, 4 },
-    normalize_test_params{ CASE_NORMALIZE_I8_1, true, 2, 4 },
+    normalize_test_params{ CASE_NORMALIZE_I8_1, false, 3, 4 },
+    normalize_test_params{ CASE_NORMALIZE_I8_1, true, 3, 4 },
 }));

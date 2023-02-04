@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include "ngraph/log.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
+#include "pyopenvino/graph/ops/if.hpp"
 #include "pyopenvino/graph/ops/util/multisubgraph.hpp"
 
 namespace py = pybind11;

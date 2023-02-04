@@ -1,15 +1,18 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "gtest/gtest.h"
+#include "utils.hpp"
 
 using namespace std;
 
 namespace FrontEndTestUtils {
-int run_tests(int argc, char** argv) {
+int run_tests(int argc, char** argv, const std::string& manifest) {
     ::testing::InitGoogleTest(&argc, argv);
-    int rc = RUN_ALL_TESTS();
-    return rc;
+    if (!manifest.empty()) {
+        ::testing::GTEST_FLAG(filter) += FrontEndTestUtils::get_disabled_tests(manifest);
+    }
+    return RUN_ALL_TESTS();
 }
 }  // namespace FrontEndTestUtils

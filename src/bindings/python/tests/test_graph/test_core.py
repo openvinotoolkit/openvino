@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
+import copy
 
 import numpy as np
 import pytest
@@ -111,7 +113,7 @@ def test_partial_shape():
     assert ps.is_static
     assert not ps.is_dynamic
     assert ps.rank == 4
-    assert repr(ps) == "<PartialShape: {1,2,3,4}>"
+    assert repr(ps) == "<PartialShape: [1,2,3,4]>"
     assert ps.get_dimension(0) == Dimension(1)
     assert ps.get_dimension(1) == Dimension(2)
     assert ps.get_dimension(2) == Dimension(3)
@@ -127,8 +129,8 @@ def test_partial_shape():
     assert list(ps.get_max_shape()) == [1, 2, 3]
     assert list(ps.get_min_shape()) == [1, 2, 3]
     assert list(ps.to_shape()) == [1, 2, 3]
-    assert repr(shape) == "<Shape: {1, 2, 3}>"
-    assert repr(ps) == "<PartialShape: {1,2,3}>"
+    assert repr(shape) == "<Shape: [1,2,3]>"
+    assert repr(ps) == "<PartialShape: [1,2,3]>"
 
     ps = PartialShape([Dimension(1), Dimension(2), Dimension(3), Dimension.dynamic()])
     assert not ps.is_static
@@ -137,7 +139,7 @@ def test_partial_shape():
     assert ps.rank == 4
     assert list(ps.get_min_shape()) == [1, 2, 3, 0]
     assert list(ps.get_max_shape())[3] > 1000000000
-    assert repr(ps) == "<PartialShape: {1,2,3,?}>"
+    assert repr(ps) == "<PartialShape: [1,2,3,?]>"
     assert ps.get_dimension(0) == Dimension(1)
     assert ps.get_dimension(1) == Dimension(2)
     assert ps.get_dimension(2) == Dimension(3)
@@ -150,7 +152,7 @@ def test_partial_shape():
     assert ps.rank == 4
     assert list(ps.get_min_shape()) == [1, 2, 3, 0]
     assert list(ps.get_max_shape())[3] > 1000000000
-    assert repr(ps) == "<PartialShape: {1,2,3,?}>"
+    assert repr(ps) == "<PartialShape: [1,2,3,?]>"
 
     ps = PartialShape.dynamic()
     assert not ps.is_static
@@ -158,7 +160,7 @@ def test_partial_shape():
     assert ps.rank == Dimension.dynamic()
     assert list(ps.get_min_shape()) == []
     assert list(ps.get_max_shape()) == []
-    assert repr(ps) == "<PartialShape: ...>"
+    assert repr(ps) == "<PartialShape: [...]>"
 
     ps = PartialShape.dynamic(rank=Dimension(2))
     assert not ps.is_static
@@ -167,7 +169,7 @@ def test_partial_shape():
     assert 2 == ps.rank
     assert list(ps.get_min_shape()) == [0, 0]
     assert list(ps.get_max_shape())[0] > 1000000000
-    assert repr(ps) == "<PartialShape: {?,?}>"
+    assert repr(ps) == "<PartialShape: [?,?]>"
 
     shape_list = [(1, 10), [2, 5], 4, Dimension(2), "..10"]
     ref_ps = PartialShape(
@@ -204,18 +206,42 @@ def test_partial_shape():
         "and upper values for dynamic dimension." in str(e.value)
     )
 
-    ps = PartialShape("...")
+    ps = PartialShape("[...]")
     assert ps == PartialShape.dynamic()
 
-    ps = PartialShape("?, 3, ..224, 28..224")
+    ps = PartialShape("[?, 3, ..224, 28..224]")
     assert ps == PartialShape([Dimension(-1), Dimension(3), Dimension(-1, 224), Dimension(28, 224)])
 
     with pytest.raises(RuntimeError) as e:
-        ps = PartialShape("?,,3")
-    assert 'Cannot get vector of dimensions! "?,,3" is incorrect' in str(e.value)
+        ps = PartialShape("[?,,3]")
+    assert 'Cannot get vector of dimensions! "[?,,3]" is incorrect' in str(e.value)
 
     shape = Shape()
     assert len(shape) == 0
+
+    shape = PartialShape("[?, 3, ..224, 28..224, 25..]")
+    copied_shape = copy.copy(shape)
+    assert shape == copied_shape, "Copied shape {0} is not equal to original shape {1}.".format(copied_shape, shape)
+
+    shape = PartialShape("[...]")
+    copied_shape = copy.copy(shape)
+    assert shape == copied_shape, "Copied shape {0} is not equal to original shape {1}.".format(copied_shape, shape)
+
+    shape = PartialShape([Dimension(-1, 100), 25, -1])
+    copied_shape = copy.copy(shape)
+    assert shape == copied_shape, "Copied shape {0} is not equal to original shape {1}.".format(copied_shape, shape)
+
+    shape = PartialShape("[?, 3, ..224, 28..224, 25..]")
+    copied_shape = copy.deepcopy(shape)
+    assert shape == copied_shape, "Copied shape {0} is not equal to original shape {1}.".format(copied_shape, shape)
+
+    shape = PartialShape("[...]")
+    copied_shape = copy.deepcopy(shape)
+    assert shape == copied_shape, "Copied shape {0} is not equal to original shape {1}.".format(copied_shape, shape)
+
+    shape = PartialShape([Dimension(-1, 100), 25, -1])
+    copied_shape = copy.deepcopy(shape)
+    assert shape == copied_shape, "Copied shape {0} is not equal to original shape {1}.".format(copied_shape, shape)
 
 
 def test_partial_shape_compatible():
@@ -319,14 +345,14 @@ def test_repr_dynamic_shape():
     assert (
         repr(function)
         == "<Model: 'simple_dyn_shapes_graph'\ninputs["
-        + "\n<ConstOutput: names[A] shape{?,2} type: f32>,"
-        + "\n<ConstOutput: names[B] shape{?,2} type: f32>\n]"
-        + "\noutputs[\n<ConstOutput: names[] shape{?,2} type: f32>\n]>"
+        + "\n<ConstOutput: names[A] shape[?,2] type: f32>,"
+        + "\n<ConstOutput: names[B] shape[?,2] type: f32>\n]"
+        + "\noutputs[\n<ConstOutput: names[] shape[?,2] type: f32>\n]>"
     )
 
     ops = function.get_ordered_ops()
     for op in ops:
-        assert "{?,2}" in repr(op)
+        assert "[?,2]" in repr(op)
 
 
 def test_discrete_type_info():

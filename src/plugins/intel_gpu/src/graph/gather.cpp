@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,11 +9,10 @@
 #include "json_object.h"
 #include <string>
 
+#include "gather_shape_inference.hpp"
+
 namespace cldnn {
-primitive_type_id gather::type_id() {
-    static primitive_type_base<gather> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(gather)
 
 layout gather_inst::calc_output_layout(gather_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<gather>();
@@ -46,6 +45,8 @@ layout gather_inst::calc_output_layout(gather_node const& node, kernel_impl_para
         switch (input_layout.format) {
         case format::bfyx:
         case format::bfzyx:
+        case format::b_fs_zyx_fsv16:
+        case format::b_fs_zyx_fsv32:
             output_format = format::get_default_format(dims_converted.size());
             break;
         default:
@@ -61,6 +62,40 @@ layout gather_inst::calc_output_layout(gather_node const& node, kernel_impl_para
                   output_format,
                   tensor(format::get_default_format(dims_converted.size()), dims_converted)};
 }
+
+template<typename ShapeType>
+std::vector<layout> gather_inst::calc_output_layouts(gather_node const& /*node*/, const kernel_impl_params& impl_param) {
+    auto desc = impl_param.typed_desc<gather>();
+
+    auto input0_layout = impl_param.get_input_layout(0);
+    auto input1_layout = impl_param.get_input_layout(1);
+
+    auto output_type = input0_layout.data_type;
+    if (impl_param.has_fused_primitives()) {
+        output_type = impl_param.get_fused_output_layout().data_type;
+    }
+
+    ov::op::v8::Gather op;
+    op.set_batch_dims(desc->batch_dim);
+    std::vector<ShapeType> output_shapes = {ShapeType()};
+    std::vector<ShapeType> input_shapes = {
+        input0_layout.get<ShapeType>(),
+        input1_layout.get<ShapeType>(),
+        ShapeType{1} // axis input is removed on gather primitive creation, so we can't use get_dependency(2)
+    };
+
+    int64_t axis = desc->axis;
+
+    auto axis_tensor = std::make_shared<ngraph::runtime::HostTensor>(ov::element::i64, ov::Shape{1}, static_cast<void*>(&axis));
+    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> const_data = {{2, axis_tensor}};
+    ov::op::util::shape_infer(&op, input_shapes, output_shapes, const_data);
+
+    format output_format = format::adjust_to_rank(input0_layout.format, output_shapes[0].size());
+
+    return { layout{output_shapes[0], output_type, output_format} };
+}
+
+template std::vector<layout> gather_inst::calc_output_layouts<ov::PartialShape>(gather_node const& node, const kernel_impl_params& impl_param);
 
 std::string gather_inst::to_string(gather_node const& node) {
     auto desc = node.get_primitive();

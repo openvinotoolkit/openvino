@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,6 @@ namespace ov {
 namespace test {
 namespace behavior {
 struct OVInferRequestWaitTests : public OVInferRequestTests {
-    static std::string getTestCaseName(const testing::TestParamInfo<InferRequestParams>& obj);
     void SetUp() override;
     void TearDown() override;
     ov::InferRequest req;

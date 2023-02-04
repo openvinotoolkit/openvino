@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,7 +55,7 @@ template <cpu_isa_t isa>
 struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_softmax_kernel_f32)
 
-    jit_uni_softmax_kernel_f32(jit_softmax_config_params jcp) : jcp_(jcp), jit_uni_softmax_kernel(), jit_generator() {}
+    jit_uni_softmax_kernel_f32(jit_softmax_config_params jcp) : jcp_(jcp), jit_uni_softmax_kernel(), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -65,8 +65,8 @@ struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_ge
     void generate() override {
         exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.0f));
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa));
+        if (mayiuse(avx512_core))
+            uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(this, isa));
 
         this->preamble();
 
@@ -164,8 +164,8 @@ struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_ge
 
         this->postamble();
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            emu_vcvtneps2bf16->emit_data();
+        if (uni_vcvtneps2bf16)
+            uni_vcvtneps2bf16->emit_data();
 
         exp_injector->prepare_table();
     }
@@ -191,7 +191,7 @@ private:
 
     const Xbyak::Opmask k_mask = Xbyak::Opmask(1);
 
-    std::unique_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
+    std::unique_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16;
 
     std::shared_ptr<jit_uni_eltwise_injector_f32<isa>> exp_injector;
 
@@ -218,10 +218,7 @@ private:
                 uni_vmovups(op, vmm_dst);
                 break;
             case Precision::BF16:
-                if (mayiuse(avx512_core_bf16))
-                    vcvtneps2bf16(ymm_dst, vmm_dst);
-                else
-                    emu_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
+                uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
                 vmovdqu16(op, ymm_dst);
                 break;
             default:

@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "generic_layer.hpp"
 #include "primitive_inst.h"
@@ -28,6 +27,7 @@ using generic_layer_node = typed_program_node<generic_layer>;
 template <>
 class typed_primitive_inst<generic_layer> : public typed_primitive_inst_base<generic_layer> {
     using parent = typed_primitive_inst_base<generic_layer>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(generic_layer_node const& node, kernel_impl_params const& impl_param) {
@@ -36,7 +36,6 @@ public:
 
     static std::string to_string(generic_layer_node const& node);
 
-public:
     typed_primitive_inst(network& network, generic_layer_node const& node);
 };
 

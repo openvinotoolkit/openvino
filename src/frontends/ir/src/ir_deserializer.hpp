@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <cctype>
 #include <istream>
 #include <memory>
 #include <pugixml.hpp>
@@ -61,7 +62,7 @@ class XmlDeserializer : public ov::AttributeVisitor {
 public:
     explicit XmlDeserializer(const pugi::xml_node& node,
                              const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
-                             const std::unordered_map<std::string, ngraph::OpSet>& opsets,
+                             const std::unordered_map<std::string, ov::OpSet>& opsets,
                              const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
                              std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
                              size_t version)
@@ -179,10 +180,16 @@ private:
                                          const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
                                          const GenericLayerParams& params);
 
+    void read_meta_data(const std::shared_ptr<ov::Model>& model, const pugi::xml_node& meta_section);
+
+    void read_legacy_meta_data(const std::shared_ptr<ov::Model>& model,
+                               const std::unordered_set<std::string>& names,
+                               const pugi::xml_node& root_section);
+
     // -- DATA --
     const pugi::xml_node m_node;
     const std::shared_ptr<ngraph::runtime::AlignedBuffer>& m_weights;
-    const std::unordered_map<std::string, ngraph::OpSet>& m_opsets;
+    const std::unordered_map<std::string, ov::OpSet>& m_opsets;
     const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& m_extensions;
     std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& m_variables;
 

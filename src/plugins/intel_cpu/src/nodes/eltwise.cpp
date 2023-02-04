@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -94,6 +94,67 @@ struct EltwiseEmitter<jit_power_static_emitter> {
     }
 };
 
+template<>
+struct EltwiseEmitter<jit_is_inf_emitter> {
+    void operator()(EltwiseEmitterContext & ctx) {
+        ctx.emitter = std::make_shared<jit_is_inf_emitter>(ctx.host, ctx.host_isa, ctx.exec_prc, ctx.opData.alpha, ctx.opData.beta);
+    }
+};
+
+/**
+ * Implements Eltwise shape inference algorithm. The algorithm is based on broadcasting all the input shapes
+ * according to the NUMPY broadcast rule. This implementation is more lightweight than the ngraph one.
+ * 
+ */
+class EltwiseShapeInfer : public ShapeInferEmptyPads {
+public:
+    std::vector<VectorDims> infer(
+        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        size_t max_rank = 0;
+        size_t max_rank_idx = 0;
+        for (size_t i = 0; i < input_shapes.size(); ++i) {
+            auto item_rank = input_shapes[i].get().size();
+            if (item_rank > max_rank) {
+                max_rank = item_rank;
+                max_rank_idx = i;
+            }
+        }
+        auto output_shape = input_shapes[max_rank_idx].get();
+        // use NUMPY broadcast rule
+        for (size_t i = 0; i < input_shapes.size(); i++) {
+            if (i == max_rank_idx)
+                continue;
+
+            auto& input_shape = input_shapes[i].get();
+            if (input_shape.size() > output_shape.size()) {
+                IE_THROW() << "Eltwise shape infer input and output shapes rank mismatch";
+            }
+            size_t offset = output_shape.size() - input_shape.size();
+            for (size_t j = 0; j < input_shape.size(); ++j) {
+                if (input_shape[j] != output_shape[offset + j]) {
+                    if (output_shape[offset + j] == 1) {
+                        output_shape[offset + j] = input_shape[j];
+                    } else {
+                        if (input_shape[j] != 1) IE_THROW() << "Eltwise shape infer input shapes dim index: " << j << " mismatch";
+                    }
+                }
+            }
+        }
+        return { output_shape };
+    }
+    port_mask_t get_port_mask() const override {
+        return EMPTY_PORT_MASK;
+    }
+};
+
+class EltwiseShapeInferFactory : public ShapeInferFactory {
+public:
+    ShapeInferPtr makeShapeInfer() const override {
+        return std::make_shared<EltwiseShapeInfer>();
+    }
+};
+
 }   // namespace
 
 template <cpu_isa_t isa>
@@ -104,7 +165,7 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
                                      const std::vector<Eltwise::EltwiseData>& eltwise_data,
                                      const std::vector<ov::intel_cpu::Type>& ops_list,
                                      const dnnl::post_ops& post_ops)
-    : jit_uni_eltwise_kernel(jep), jit_generator(), eltwise_data_(eltwise_data), ops_list_(ops_list), post_ops_(post_ops) {}
+    : jit_uni_eltwise_kernel(jep), jit_generator(jit_name()), eltwise_data_(eltwise_data), ops_list_(ops_list), post_ops_(post_ops) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -167,8 +228,8 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
                     this, p->entry_[i], vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias));
         }
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa));
+        if (mayiuse(avx512_core))
+            uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(this, isa));
 
         const auto &jep = jep_;
 
@@ -359,8 +420,8 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
 
         this->postamble();
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            emu_vcvtneps2bf16->emit_data();
+        if (uni_vcvtneps2bf16)
+            uni_vcvtneps2bf16->emit_data();
 
         eltwise_emitter->emit_data();
         for (int i = 0; i < post_op_emitters.size(); i++) {
@@ -409,7 +470,7 @@ private:
     Vmm vmm_d_bias = Vmm(13);
     Vmm vmm_zero = Vmm(15);
 
-    std::shared_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
+    std::shared_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16;
 
     std::shared_ptr<jit_emitter> eltwise_emitter = nullptr;
     std::vector<std::shared_ptr<jit_emitter>> post_op_emitters = {};
@@ -464,7 +525,10 @@ private:
         OV_CASE(Algorithm::EltwisePowerStatic, jit_power_static_emitter),
         OV_CASE(Algorithm::EltwisePrelu, jit_prelu_emitter),
         OV_CASE(Algorithm::EltwiseErf, jit_erf_emitter),
-        OV_CASE(Algorithm::EltwiseSoftSign, jit_soft_sign_emitter));
+        OV_CASE(Algorithm::EltwiseSoftSign, jit_soft_sign_emitter),
+        OV_CASE(Algorithm::EltwiseIsFinite, jit_is_finite_emitter),
+        OV_CASE(Algorithm::EltwiseIsInf, jit_is_inf_emitter),
+        OV_CASE(Algorithm::EltwiseIsNaN, jit_is_nan_emitter));
 
         if (precisions.empty())
             IE_THROW() << "Unsupported operation type for Eltwise emitter";
@@ -522,7 +586,10 @@ private:
         OV_CASE(Algorithm::EltwisePowerStatic, jit_power_static_emitter),
         OV_CASE(Algorithm::EltwisePrelu, jit_prelu_emitter),
         OV_CASE(Algorithm::EltwiseErf, jit_erf_emitter),
-        OV_CASE(Algorithm::EltwiseSoftSign, jit_soft_sign_emitter));
+        OV_CASE(Algorithm::EltwiseSoftSign, jit_soft_sign_emitter),
+        OV_CASE(Algorithm::EltwiseIsFinite, jit_is_finite_emitter),
+        OV_CASE(Algorithm::EltwiseIsInf, jit_is_inf_emitter),
+        OV_CASE(Algorithm::EltwiseIsNaN, jit_is_nan_emitter));
 
         if (!ctx.emitter)
             IE_THROW() << "Unsupported operation type for Eltwise emitter";
@@ -703,10 +770,7 @@ private:
                 uni_vmovups(op, vmm_dst);
                 break;
             case Precision::BF16:
-                if (mayiuse(avx512_core_bf16))
-                    vcvtneps2bf16(ymm_dst, vmm_dst);
-                else
-                    emu_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
+                uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
                 vmovdqu16(op, ymm_dst);
                 break;
             case Precision::I16:
@@ -888,6 +952,18 @@ const std::map<const ngraph::DiscreteTypeInfo, Eltwise::Initializer> Eltwise::in
     }},
     {ngraph::op::v1::NotEqual::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseNotEqual;
+    }},
+    {ov::op::v10::IsFinite::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+        node.algorithm = Algorithm::EltwiseIsFinite;
+    }},
+    {ov::op::v10::IsInf::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+        node.algorithm = Algorithm::EltwiseIsInf;
+        const auto& attributes = ov::as_type_ptr<ov::op::v10::IsInf>(op)->get_attributes();
+        node.alpha = attributes.detect_negative;
+        node.beta  = attributes.detect_positive;
+    }},
+    {ov::op::v10::IsNaN::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+        node.algorithm = Algorithm::EltwiseIsNaN;
     }},
     {ngraph::op::v1::Greater::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseGreater;
@@ -1511,6 +1587,12 @@ public:
                     case Algorithm::EltwisePrelu:             *dst_ptr_f = src_f[0] > 0 ? src_f[0] : src_f[0] * src_f[1]; break;
                     case Algorithm::EltwiseErf:               *dst_ptr_f = std::erf(src_f[0]); break;
                     case Algorithm::EltwiseSoftSign:          *dst_ptr_f = src_f[0] / (1 + std::fabs(src_f[0])); break;
+                    case Algorithm::EltwiseIsFinite:          *dst_ptr_f = std::isfinite(src_f[0]); break;
+                    case Algorithm::EltwiseIsInf:
+                        *dst_ptr_f = _opData.alpha && (src_f[0] == -std::numeric_limits<float>::infinity()) ||
+                                     _opData.beta  && (src_f[0] == std::numeric_limits<float>::infinity());
+                        break;
+                    case Algorithm::EltwiseIsNaN:             *dst_ptr_f = std::isnan(src_f[0]); break;
                     default: IE_THROW() << "Unsupported operation type for Eltwise executor";
                 }
             }
@@ -1584,8 +1666,8 @@ bool Eltwise::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-Eltwise::Eltwise(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-    Node(op, eng, cache), broadcastingPolicy(Undefined) {
+Eltwise::Eltwise(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+    Node(op, context, EltwiseShapeInferFactory()), broadcastingPolicy(Undefined) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -1595,6 +1677,9 @@ Eltwise::Eltwise(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& en
 
 size_t Eltwise::getOpInputsNum() const {
     switch (getAlgorithm()) {
+        case Algorithm::EltwiseIsFinite:
+        case Algorithm::EltwiseIsInf:
+        case Algorithm::EltwiseIsNaN:
         case Algorithm::EltwiseRelu:
         case Algorithm::EltwiseGelu:
         case Algorithm::EltwiseElu:
@@ -1888,27 +1973,6 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     currentInBlkDims.resize(inputNum);
 }
 
-std::vector<VectorDims> Eltwise::shapeInfer() const {
-    ov::PartialShape outShape = getParentEdgesAtPort(0)[0]->getMemory().GetShape().toPartialShape();
-    for (size_t i = 1; i < getParentEdges().size(); i++) {
-        ov::PartialShape::broadcast_merge_into(outShape, getParentEdgesAtPort(i)[0]->getMemory().GetShape().toPartialShape(),
-        ov::op::AutoBroadcastType::NUMPY);
-    }
-
-    if (outShape.is_dynamic()) {
-        std::ostringstream errorMessage;
-        errorMessage << "Can't compute static output shape for Eltwise node with name: " << getName();
-        errorMessage << ". Input shapes = ( ";
-        for (size_t i = 0; i < getParentEdges().size(); i++) {
-            errorMessage << i << " port = " << getParentEdgesAtPort(i)[0]->getMemory().GetShape().toString() << ", ";
-        }
-        errorMessage << "). Output shape = ( " << outShape << " )";
-        OPENVINO_ASSERT(false, errorMessage.str());
-    }
-
-    return {outShape.get_shape()};
-}
-
 void Eltwise::prepareParams() {
     if (memPtrs.empty()) {
         for (auto i = 0; i < inputNum; i++)
@@ -1986,7 +2050,7 @@ void Eltwise::prepareParams() {
         }
     }
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, buildExecutor);
     execPtr = result.first;
 }
@@ -2135,6 +2199,16 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDim
         default: IE_THROW() << errorPrefix << "as post operation is not supported";
         }
     } else {
+        // per-tensor EltwisePowerStatic can be implemented with more well-supported eltwise postOps
+        if (getAlgorithm() == Algorithm::EltwisePowerStatic) {
+            // d = s*beta + gamma
+            ops.append_eltwise(1.0, dnnl::algorithm::eltwise_linear, getBeta(), getGamma());
+            if (getAlpha() != 1.0f) {
+                // d = 1 * s^alpha
+                ops.append_eltwise(1.0, dnnl::algorithm::eltwise_pow, 1.0f, getAlpha());
+            }
+            return;
+        }
         int channelSize = 1;
         if (channelAxis >= 0) {
             const auto chIdx = postOpDims.size() > 1 ? channelAxis : 0;
@@ -2197,74 +2271,98 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDim
     }
 }
 
-void Eltwise::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem, const int channelAxis) {
-    appendPostOpsImpl(ops, postOpDims, postOpsMem, channelAxis);
+void Eltwise::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::unordered_map<int, MemoryPtr>& postOpsMem, const int channelAxis) {
+    std::vector<MemoryPtr> postOpsMemPtrs;
+    appendPostOpsImpl(ops, postOpDims, postOpsMemPtrs, channelAxis);
+
+    IE_ASSERT(postOpsMemPtrs.size() <= 1) << "at most 1 post ops memory args can be appended.";
+
+    if (!postOpsMemPtrs.empty()) {
+        postOpsMem[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = postOpsMemPtrs[0];
+    }
 }
 
 void Eltwise::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis) {
     appendPostOpsImpl(ops, postOpDims, postOpsMem, channelAxis);
 }
 
-void Eltwise::appendBinPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem) {
+bool Eltwise::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp, dnnl::memory::data_type outDataType, bool allowBinary) {
     const std::string errorPrefix = "Appending Eltwise node with name '" + getName() + "' as binary post op ";
-    VectorDims broadcastBinaryShape(postOpDims.size(), 1);
 
-    auto appendBinary = [&](const dnnl::algorithm alg, MemoryPtr &memPtr, const std::vector<float> &data) {
-        if (data.empty())
-            IE_THROW() << errorPrefix << "cannot be performed since buffers are not allocated";
-        if (broadcastingPolicy == Undefined)
-            IE_THROW() << errorPrefix << "cannot be performed since policy is Undefined";
-
-        DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, broadcastingPolicy == PerTensor ? Shape(broadcastBinaryShape) : Shape(postOpDims));
-
-        ops.append_binary(alg, memoryDesc.getDnnlDesc());
-
-        if (!memPtr) {
-            memPtr.reset(new Memory(getEngine()));
-            memPtr->Create(memoryDesc, &data[0]);
-
-            binaryPostOpsMem.push_back(memPtr);
+    if (getOneDnnAlgorithm() != dnnl::algorithm::undef) {
+        switch (getOneDnnAlgorithm()) {
+        case dnnl::algorithm::eltwise_relu:
+        case dnnl::algorithm::eltwise_tanh:
+        case dnnl::algorithm::eltwise_elu:
+        case dnnl::algorithm::eltwise_square:
+        case dnnl::algorithm::eltwise_abs:
+        case dnnl::algorithm::eltwise_sqrt:
+        case dnnl::algorithm::eltwise_bounded_relu:
+        case dnnl::algorithm::eltwise_soft_relu:
+        case dnnl::algorithm::eltwise_logistic:
+        case dnnl::algorithm::eltwise_exp:
+        case dnnl::algorithm::eltwise_gelu_erf:
+        case dnnl::algorithm::eltwise_gelu_tanh:
+        case dnnl::algorithm::eltwise_clip:
+        case dnnl::algorithm::eltwise_swish:
+        case dnnl::algorithm::eltwise_hardswish:
+        case dnnl::algorithm::eltwise_mish:
+        case dnnl::algorithm::eltwise_hsigmoid:
+        case dnnl::algorithm::eltwise_round_half_to_even:
+        case dnnl::algorithm::eltwise_round_half_away_from_zero:
+            dnnlpoc.appendEltwise(1.0, getOneDnnAlgorithm(), getAlpha(), getBeta());
+            break;
+        case dnnl::algorithm::eltwise_linear:
+            // call dnnlpoc's specialized API to generate optimized postOps sequence
+            dnnlpoc.appendLinear({getAlpha()}, {getBeta()});
+            break;
+        default: IE_THROW() << errorPrefix << "as post operation is not supported";
         }
-    };
-
-    switch (getAlgorithm()) {
-    case Algorithm::EltwiseAdd:
-    case Algorithm::EltwiseSubtract:
-        appendBinary(dnnl::algorithm::binary_add, shiftsMemory, shifts);
-        break;
-    case Algorithm::EltwiseDivide:
-    case Algorithm::EltwiseMultiply:
-        appendBinary(dnnl::algorithm::binary_mul, scalesMemory, scales);
-        break;
-    case Algorithm::EltwiseMulAdd:
-        appendBinary(dnnl::algorithm::binary_mul, scalesMemory, scales);
-        appendBinary(dnnl::algorithm::binary_add, shiftsMemory, shifts);
-        break;
-    case Algorithm::EltwisePowerStatic:
-        if (beta != 1.0f) // Multiply if has scales
-            appendBinary(dnnl::algorithm::binary_mul, scalesMemory, scales);
-        if (gamma != 0.0f) // Add only if has shifts
-            appendBinary(dnnl::algorithm::binary_add, shiftsMemory, shifts);
-        break;
-    case Algorithm::EltwisePrelu:
-        appendBinary(dnnl::algorithm::binary_prelu, scalesMemory, scales);
-        break;
-    default:
-        IE_THROW() << errorPrefix << "as post operation is not supported";
+    } else {
+        switch (getAlgorithm()) {
+        case Algorithm::EltwiseAdd:
+        case Algorithm::EltwiseSubtract:
+            return dnnlpoc.appendShift(shifts, allowBinary);
+        case Algorithm::EltwiseDivide:
+        case Algorithm::EltwiseMultiply:
+            return dnnlpoc.appendScale(scales, allowBinary);
+        case Algorithm::EltwiseMulAdd:
+            return dnnlpoc.appendLinear(scales, shifts, allowBinary);
+        case Algorithm::EltwisePowerStatic:
+            if (beta != 1.0f && gamma != 0.0f) {
+                return dnnlpoc.appendLinear(scales, shifts, allowBinary);
+            } else if (beta != 1.0f) {// Multiply if has scales
+                return dnnlpoc.appendScale(scales, allowBinary);
+            } else if (gamma != 0.0f) {// Add only if has shifts
+                return dnnlpoc.appendShift(shifts, allowBinary);
+            }
+            break;
+        case Algorithm::EltwisePrelu:
+            if (!allowBinary)
+                return false;
+            dnnlpoc.appendBinary(dnnl::algorithm::binary_prelu, scales);
+            break;
+        default:
+            IE_THROW() << errorPrefix << "as post operation is not supported";
+        }
     }
+    return true;
 }
 
 bool Eltwise::canFuse(const NodePtr& node) const {
-    auto isSuitableNode = [this](const Eltwise* node) {
-        // [WA] Since execution precision change from I32 to FP32 for Divide operation may lead to incorrect results
-        // we disable its fusing otherwise there is no guarantee it will be executed it I32
-        // [TODO] We need to rewrite support for different precisions at all to avoid implicit conversions to FP32
-        // (all should be handled via explicit convert operations)
-        if (node->getAlgorithm() == Algorithm::EltwiseDivide) {
-            for (const auto &originalInputPrecision : getOriginalInputPrecisions()) {
-                if (originalInputPrecision == Precision::I32) {
-                    return false;
-                }
+    auto isIntegerComputeSupported = [this](const Node* node) {
+        if (!one_of(node->getAlgorithm(), Algorithm::EltwiseAdd,
+                                          Algorithm::EltwiseMultiply,
+                                          Algorithm::EltwiseMulAdd,
+                                          Algorithm::EltwiseSubtract,
+                                          Algorithm::EltwiseDivide,
+                                          Algorithm::EltwiseSquaredDifference)) {
+            return false;
+        }
+
+        for (const auto &originalInputPrecision : node->getOriginalInputPrecisions()) {
+            if (originalInputPrecision != Precision::I32) {
+                return false;
             }
         }
 
@@ -2274,9 +2372,10 @@ bool Eltwise::canFuse(const NodePtr& node) const {
     if (!mayiuse(x64::sse41) || getInputShapeAtPort(0).getRank() > MAX_ELTWISE_DIM_RANK)
         return false;
 
-    if (!isSuitableNode(this)) {
+
+    bool isIntegerNode = isIntegerComputeSupported(this);
+    if (isIntegerNode && node->getType() != Type::Eltwise)
         return false;
-    }
 
     // FQ inputs with quantization parameters will be hided inside post_op object, so will not increase inputs number
     size_t addedInputEdgesNum = node->getType() != Type::FakeQuantize ? (node->getParentEdges().size() - 1) : 0;
@@ -2284,6 +2383,16 @@ bool Eltwise::canFuse(const NodePtr& node) const {
         return false;
 
     if (node->getType() == Type::Eltwise) {
+        // [WA] Since execution precision change from I32 to FP32 for arithmetic operations may lead to incorrect results
+        // we disable fusing cases which may lead to invalid precision conversions inside the kernel
+        // [TODO] We need to rewrite support for different precisions at all to avoid implicit conversions to FP32
+        // (all should be handled via explicit convert operations)
+        bool isIntegerFusingNode = isIntegerComputeSupported(node.get());
+        if (isIntegerNode && !isIntegerFusingNode ||
+                !isIntegerNode && isIntegerFusingNode) {
+            return false;
+        }
+
         if (node->getParentEdgesAtPort(0)[0]->getParent().get() != this) {
             // Eltwise jitter doesn't respect commutative property, so fusing is disabled in case it applied not for 0-th port.
             if (one_of(node->getAlgorithm(), Algorithm::EltwiseSubtract,

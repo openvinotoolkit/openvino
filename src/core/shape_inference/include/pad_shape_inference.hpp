@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,6 @@ void shape_infer(const Pad* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
                  const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     constexpr bool is_dynamic_shape = std::is_base_of<ov::PartialShape, T>::value;
 
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 3 || input_shapes.size() == 4) && output_shapes.size() == 1);
@@ -111,7 +110,7 @@ void shape_infer(const Pad* op,
                     const auto& dim = arg_shape[i].get_length();
                     output_shape[i] = static_cast<size_t>(begin + dim + end);
 
-                    if (i > 1) {
+                    if (begin > 0 || end > 0) {
                         NODE_VALIDATION_CHECK(op,
                                               pad_mode != op::PadMode::EDGE || arg_shape[i].get_length() >= 1,
                                               "EDGE padding mode requires an input of dimension of "

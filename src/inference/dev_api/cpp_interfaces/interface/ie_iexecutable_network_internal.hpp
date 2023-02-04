@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,7 @@ class IInferencePlugin;
 class IInferRequestInternal;
 class RemoteContext;
 class IVariableStateInternal;
+class ICompiledModelWrapper;
 
 /**
  * @interface IExecutableNetworkInternal
@@ -155,6 +156,18 @@ public:
      */
     virtual std::shared_ptr<RemoteContext> GetContext() const;
 
+    /**
+     * @brief Raises the flag that model was loaded from cache
+     */
+    void loadedFromCache();
+
+    /**
+     * @brief Provides an information how model was loaded
+     *
+     * @return true if model was loaded from cache
+     */
+    bool isLoadedFromCache() const;
+
 protected:
     virtual ~IExecutableNetworkInternal() = default;
 
@@ -196,6 +209,13 @@ protected:
      * @note Needed to correctly handle ownership between objects.
      */
     std::shared_ptr<void> _so;
+
+    /**
+     * @brief If true, it means that model was loaded from cache
+     */
+    bool _loadedFromCache = false;
+
+    friend InferenceEngine::ICompiledModelWrapper;
 };
 
 /**

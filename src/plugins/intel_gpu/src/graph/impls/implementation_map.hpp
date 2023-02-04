@@ -1,18 +1,19 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <map>
 #include <functional>
-#include <typeinfo>
-#include <tuple>
-#include <string>
+#include <map>
 #include <sstream>
+#include <string>
+#include <tuple>
+#include <typeinfo>
+
+#include "intel_gpu/primitives/implementation_desc.hpp"
 #include "to_string_utils.h"
 #include "kernel_selector_helper.h"
-#include "activation_inst.h"
 
 namespace cldnn {
 
@@ -50,90 +51,9 @@ struct typed_program_node;
 template <typename primitive_kind>
 struct implementation_key {
     typedef std::tuple<data_types, format::type> type;
-    type operator()(const typed_program_node<primitive_kind>& primitive) {
-        return std::make_tuple(primitive.get_dependency(0).get_output_layout().data_type,
-                               primitive.get_dependency(0).get_output_layout().format);
-    }
     type operator()(const layout& proposed_layout) {
         return std::make_tuple(proposed_layout.data_type, proposed_layout.format);
     }
-};
-
-template <>
-struct implementation_key<permute> {
-    typedef int32_t type;
-    type operator()(const typed_program_node<permute>&) { return -1; }
-    type operator()(const layout&) { return -1; }
-};
-
-template <>
-struct implementation_key<shape_of> {
-    typedef int32_t type;
-    type operator()(const typed_program_node<shape_of>&) { return -1; }
-    type operator()(const layout&) { return -1; }
-};
-
-template <>
-struct implementation_key<reorder> {
-    typedef int32_t type;
-    type operator()(const typed_program_node<reorder>&) { return -1; }
-    type operator()(const layout&) { return -1; }
-};
-
-template <>
-struct implementation_key<generic_layer> {
-    typedef int32_t type;
-    type operator()(const typed_program_node<generic_layer>&) { return -1; }
-    type operator()(const layout&) { return -1; }
-};
-
-template <>
-struct implementation_key<custom_gpu_primitive> {
-    typedef int32_t type;
-    type operator()(const typed_program_node<custom_gpu_primitive>&) { return -1; }
-    type operator()(const layout&) { return -1; }
-};
-
-template <>
-struct implementation_key<reshape> {
-    typedef int32_t type;
-    type operator()(const typed_program_node<reshape>&) { return -1; }
-    type operator()(const layout&) { return -1; }
-};
-
-template <>
-struct implementation_key<data> {
-    typedef int32_t type;
-    type operator()(const typed_program_node<data>&) { return -1; }
-    type operator()(const layout&) { return -1; }
-};
-
-template <>
-struct implementation_key<mutable_data> {
-    typedef int32_t type;
-    type operator()(const typed_program_node<mutable_data>&) { return -1; }
-    type operator()(const layout&) { return -1; }
-};
-
-template <>
-struct implementation_key<input_layout> {
-    typedef int32_t type;
-    type operator()(const typed_program_node<input_layout>&) { return -1; }
-    type operator()(const layout&) { return -1; }
-};
-
-template <>
-struct implementation_key<prior_box> {
-    typedef int32_t type;
-    type operator()(const typed_program_node<prior_box>&) { return -1; }
-    type operator()(const layout&) { return -1; }
-};
-
-template <>
-struct implementation_key<loop> {
-    typedef int32_t type;
-    type operator()(const typed_program_node<loop>&) { return -1; }
-    type operator()(const layout&) { return -1; }
 };
 
 namespace {
@@ -147,14 +67,18 @@ class implementation_map {
 public:
     using key_builder = implementation_key<primitive_kind>;
     using key_type = typename key_builder::type;
-    using factory_type = std::function<primitive_impl*(const typed_program_node<primitive_kind>&, const kernel_impl_params&)>;
-    using map_type = singleton_map<impl_types, std::pair<std::set<key_type>, factory_type>>;
+    using factory_type = std::function<std::unique_ptr<primitive_impl>(const typed_program_node<primitive_kind>&, const kernel_impl_params&)>;
+    using map_type = singleton_map<std::pair<impl_types, shape_types>, std::pair<std::set<key_type>, factory_type>>;
 
-    static factory_type get(const kernel_impl_params& impl_params, impl_types preferred_impl_type) {
-        auto key = key_builder()(impl_params.input_layouts[0]);
+    static factory_type get(const kernel_impl_params& impl_params, impl_types preferred_impl_type, shape_types target_shape_type) {
+        auto input_layout = !impl_params.input_layouts.empty() ? impl_params.input_layouts[0] : layout{ov::PartialShape{}, data_types::f32, format::any};
+        auto key = key_builder()(input_layout);
         for (auto& kv : map_type::instance()) {
-            impl_types impl_type = kv.first;
+            impl_types impl_type = kv.first.first;
+            shape_types supported_shape_type = kv.first.second;
             if ((preferred_impl_type & impl_type) != impl_type)
+                continue;
+            if ((target_shape_type & supported_shape_type) != target_shape_type)
                 continue;
             std::set<key_type>& keys_set = kv.second.first;
             auto& factory = kv.second.second;
@@ -162,31 +86,32 @@ public:
                 return factory;
             }
         }
-        std::stringstream target_impl_type_ss;
-        target_impl_type_ss << preferred_impl_type;
-        throw std::runtime_error(std::string("implementation_map for ") + typeid(primitive_kind).name() +
-                                    " could not find any implementation to match key: " +
-                                    get_key_name(key) + ", impl_type: " + target_impl_type_ss.str() + ", node_id: " + impl_params.desc->id);
+        OPENVINO_ASSERT(false, "[GPU] implementation_map for ", typeid(primitive_kind).name(),
+                               " could not find any implementation to match key: ", get_key_name(key),
+                               ", impl_type: ", preferred_impl_type, ", shape_type: ", target_shape_type, ", node_id: ",  impl_params.desc->id);
     }
 
     // check if for a given engine and type there exist an implementation
-    static bool check(const typed_program_node<primitive_kind>& primitive, const kernel_impl_params& impl_params) {
-        impl_types target_impl_type = primitive.get_preferred_impl_type();
-        auto key = key_builder()(impl_params.input_layouts[0]);
-        return check_key(target_impl_type, key);
+    static bool check(const kernel_impl_params& impl_params, impl_types target_impl_type, shape_types shape_type) {
+        auto input_layout = !impl_params.input_layouts.empty() ? impl_params.input_layouts[0] : layout{ov::PartialShape{}, data_types::f32, format::any};
+        auto key = key_builder()(input_layout);
+        return check_key(target_impl_type, key, shape_type);
     }
 
     // check if there exists a kernel implementation of a primitive with output set it primitive's output layout
-    static bool check_io_eq(const typed_program_node<primitive_kind>& primitive, const kernel_impl_params& impl_params) {
-        impl_types target_impl_type = primitive.get_preferred_impl_type();
-        auto key = key_builder()(impl_params.output_layout);
-        return check_key(target_impl_type, key);
+    static bool check_io_eq(const kernel_impl_params& impl_params, impl_types target_impl_type, shape_types shape_type) {
+        auto output_layout = !impl_params.output_layouts.empty() ? impl_params.get_output_layout() : layout{ov::PartialShape{}, data_types::f32, format::any};
+        auto key = key_builder()(output_layout);
+        return check_key(target_impl_type, key, shape_type);
     }
 
-    static bool check_key(impl_types target_impl_type, key_type key) {
+    static bool check_key(impl_types target_impl_type, key_type key, shape_types target_shape_type) {
         for (auto& kv : map_type::instance()) {
-            impl_types impl_type = kv.first;
+            impl_types impl_type = kv.first.first;
+            shape_types supported_shape_type = kv.first.second;
             if ((target_impl_type & impl_type) != impl_type)
+                continue;
+            if ((target_shape_type & supported_shape_type) != target_shape_type)
                 continue;
             std::set<key_type>& keys_set = kv.second.first;
             if (keys_set.empty())
@@ -196,16 +121,24 @@ public:
         return false;
     }
 
+    static void add(impl_types impl_type, shape_types shape_type, factory_type factory,
+                    const std::vector<data_types>& types, const std::vector<format::type>& formats) {
+        add(impl_type, shape_type, factory, combine(types, formats));
+    }
+
     static void add(impl_types impl_type, factory_type factory,
                     const std::vector<data_types>& types, const std::vector<format::type>& formats) {
         add(impl_type, factory, combine(types, formats));
     }
 
     static void add(impl_types impl_type, factory_type factory, std::set<key_type> keys) {
-        if (impl_type == impl_types::any) {
-            throw std::runtime_error("[CLDNN] Can't register impl with type any");
-        }
-        map_type::instance().insert({impl_type, {keys, factory}});
+        OPENVINO_ASSERT(impl_type != impl_types::any, "[GPU] Can't register impl with type any");
+        add(impl_type, shape_types::static_shape, factory, keys);
+    }
+
+    static void add(impl_types impl_type, shape_types shape_type, factory_type factory, std::set<key_type> keys) {
+        OPENVINO_ASSERT(impl_type != impl_types::any, "[GPU] Can't register impl with type any");
+        map_type::instance().insert({{impl_type, shape_type}, {keys, factory}});
     }
 
 private:

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -107,8 +107,8 @@ Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInf
                     if (_multiSContext->_needPerfCounters) {
                         auto multiSyncInferRequest = std::dynamic_pointer_cast<MultiDeviceInferRequest>
                             (syncInferRequest);
-                        multiSyncInferRequest->_perfMap =
-                            (*workerInferRequest)->_inferRequest->GetPerformanceCounts();
+                        multiSyncInferRequest->_scheduledRequest =
+                            (*workerInferRequest)->_inferRequest;
                     }
                     INFO_RUN([workerInferRequest]() {
                     (*workerInferRequest)->_endTimes.push_back(std::move(std::chrono::steady_clock::now()));
@@ -237,7 +237,7 @@ MultiSchedule::~MultiSchedule() {
                 reqAllStartTimes.splice(reqAllStartTimes.end(), request._startTimes);
                 reqAllEndTimes.splice(reqAllEndTimes.end(), request._endTimes);
             }
-            unsigned int count = reqAllStartTimes.size();
+            size_t count = reqAllStartTimes.size();
             IE_ASSERT(count == reqAllEndTimes.size());
             reqAllStartTimes.sort(std::less<Time>());
             reqAllEndTimes.sort(std::less<Time>());
@@ -311,10 +311,21 @@ IInferPtr MultiSchedule::CreateInferRequest() {
         } catch(...) {
             LOG_INFO("query perf hint from passthrough network failed");
         }
-        if (_multiSContext->_batchingDisabled || perfmode != CONFIG_VALUE(THROUGHPUT))
+        if (_multiSContext->_batchingDisabled || perfmode != CONFIG_VALUE(THROUGHPUT)) {
             syncRequestImpl->setPointerToSo(_passthroughExeNet._so);
+        } else {
+            auto so = _passthroughExeNet._ptr->GetPointerToSo();
+            // Get the _so from passthrough executable network when batch plugin is disable.
+            if (!so)
+                so = _passthroughExeNet._so;
+            syncRequestImpl->setPointerToSo(so);
+        }
+    } else if (_multiSContext->_bindBuffer) {
+        auto sharedRequest = std::static_pointer_cast<MultiDeviceInferRequest>(syncRequestImpl)->GetSharedRequest();
+        if (sharedRequest._ptr->getPointerToSo())
+             syncRequestImpl->setPointerToSo(sharedRequest._ptr->getPointerToSo());
         else
-            syncRequestImpl->setPointerToSo(_passthroughExeNet._ptr->GetPointerToSo());
+            syncRequestImpl->setPointerToSo(sharedRequest._so);
     }
     return std::make_shared<AsyncInferRequest>(shared_from_this(),
                                                syncRequestImpl,

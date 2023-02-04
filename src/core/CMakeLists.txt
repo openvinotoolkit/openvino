@@ -1,10 +1,9 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(ENABLE_LTO)
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
-endif()
+# enable LTO globally for all libraries below
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 add_definitions(-DIN_OV_CORE_LIBRARY)
 
@@ -31,6 +30,10 @@ set_property(SOURCE ${MIXED_SRC}
         $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src
         $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    ie_add_compiler_flags(/wd4244)
+endif()
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
 
@@ -44,7 +47,13 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 add_library(ov_core_dev INTERFACE)
 add_library(openvino::core::dev ALIAS ov_core_dev)
 
-target_include_directories(ov_core_dev INTERFACE $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/dev_api>)
+target_include_directories(ov_core_dev INTERFACE
+    $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/dev_api>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/common/include>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/transformations/include>)
+
+target_link_libraries(ov_core_dev INTERFACE openvino::itt openvino::util)
 
 set_target_properties(ov_core_dev PROPERTIES EXPORT_NAME core::dev)
 openvino_developer_export_targets(COMPONENT core TARGETS openvino::core::dev)
@@ -102,6 +111,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     endif()
 
     target_link_options(ngraph_obj ${link_type} "/IGNORE:4217,4286")
+    ie_add_compiler_flags(/wd4267)
 endif()
 
 # some sources are located in ngraph, while headers are in inference_engine_transformations

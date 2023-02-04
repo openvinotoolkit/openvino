@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2022 Intel Corporation
+ Copyright (C) 2018-2023 Intel Corporation
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -15,15 +15,15 @@ import pytest
 import re
 import sys
 import logging as log
-from common.samples_common_test_clas import get_tests
-from common.samples_common_test_clas import SamplesCommonTestClass
+from common.samples_common_test_class import get_tests
+from common.samples_common_test_class import SamplesCommonTestClass
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
 test_data_fp32 = get_tests(cmd_params={'i': [os.path.join('224x224', 'dog6.yuv')],
                                        'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
                                        'size': ['224x224'],
-				       'sample_type': ['C++', 'C', 'C2.0'],
+				       'sample_type': ['C++', 'C'],
                                        'd': ['CPU']},
                            use_device=['d']
                            )

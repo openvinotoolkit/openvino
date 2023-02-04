@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ TEST(attributes, adaptive_max_pool_op) {
     const auto out_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, {4, 3});
 
     const auto adaptive_pool = make_shared<opset8::AdaptiveMaxPool>(A, out_shape);
-    NodeBuilder builder(adaptive_pool);
+    NodeBuilder builder(adaptive_pool, {A, out_shape});
     auto g_adaptive_pool = ov::as_type_ptr<opset8::AdaptiveMaxPool>(builder.create());
 
     const auto expected_attr_count = 1;

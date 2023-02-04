@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -39,7 +39,7 @@ class TestUnaryOps(CommonTFLayerTest):
 
         for input in inputs_dict.keys():
             if self.current_op_type in logical_type:
-                inputs_dict[input] = np.random.randint(0, 1, inputs_dict[input]).astype(np.bool)
+                inputs_dict[input] = np.random.randint(0, 1, inputs_dict[input]).astype(bool)
             else:
                 inputs_dict[input] = np.random.uniform(lower, upper, inputs_dict[input]).astype(
                     np.float32)
@@ -67,6 +67,7 @@ class TestUnaryOps(CommonTFLayerTest):
             'Cos': tf.math.cos,
             'Cosh': tf.math.cosh,
             'Elu': tf.nn.elu,
+            'Erf': tf.math.erf,
             'Exp': tf.math.exp,
             'Floor': tf.math.floor,
             'Log': tf.math.log,
@@ -77,14 +78,11 @@ class TestUnaryOps(CommonTFLayerTest):
             'Sin': tf.math.sin,
             'Sinh': tf.math.sinh,
             'SoftPlus': tf.nn.softplus,
+            'Square': tf.math.square,
             'Tan': tf.math.tan,
             'Tanh': tf.math.tanh,
             'ReLU': tf.nn.relu,
         }
-
-        #
-        #   Create Tensorflow model
-        #
 
         tf.compat.v1.reset_default_graph()
 
@@ -155,18 +153,20 @@ class TestUnaryOps(CommonTFLayerTest):
                                          'Acosh',
                                          'Asinh',
                                          'LogicalNot',
+                                         'Square',
+                                         'Erf',
                                          ])
     @pytest.mark.precommit
     def test_unary_op_precommit(self, params, ie_device, precision, ir_version, temp_dir, op_type,
-                                use_new_frontend, api_2):
+                                use_new_frontend, use_old_api):
         if ie_device == 'GPU':
             pytest.skip("5D tensors is not supported on GPU")
         self._test(*self.create_net_with_unary_op(**params, ir_version=ir_version, op_type=op_type,
                                                   use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
-    test_data = [dict(shape=[10, 12]),
+    test_data = [pytest.param(dict(shape=[10, 12]), marks=pytest.mark.precommit_tf_fe),
                  dict(shape=[8, 10, 12]),
                  dict(shape=[6, 8, 10, 12]),
                  dict(shape=[4, 6, 8, 10, 12])]
@@ -195,13 +195,16 @@ class TestUnaryOps(CommonTFLayerTest):
                                          'SoftPlus',
                                          'Atanh',
                                          'Acosh',
-                                         'Asinh'])
+                                         'Asinh',
+                                         'Square',
+                                         'Erf',
+                                         ])
     @pytest.mark.nightly
     def test_unary_op(self, params, ie_device, precision, ir_version, temp_dir, op_type,
-                      use_new_frontend, api_2):
+                      use_new_frontend, use_old_api):
         if ie_device == 'GPU':
             pytest.skip("5D tensors is not supported on GPU")
         self._test(*self.create_net_with_unary_op(**params, ir_version=ir_version, op_type=op_type,
                                                   use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)

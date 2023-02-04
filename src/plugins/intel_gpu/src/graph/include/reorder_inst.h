@@ -1,14 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "intel_gpu/primitives/reorder.hpp"
 #include "primitive_inst.h"
-#include "kernel_selector/core/actual_kernels/reorder/reorder_kernel_base.h"
-#include "kernel_selector/common/tensor_type.h"
+#include "kernel_selector/kernels/reorder/reorder_kernel_base.h"
+#include "kernel_selector/tensor_type.h"
 
 #include <string>
 #include <memory>
@@ -41,6 +40,7 @@ public:
         kernel_selector::DataLayout ks_output_layout = convert_data_tensor(get_output_layout()).GetLayout();
         return std::make_shared<kernel_selector::reorder_fuse_params>(ks_input_layout, ks_output_layout);
     }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 
 private:
     bool req_reinterpr = false;
@@ -52,8 +52,11 @@ using reorder_node = typed_program_node<reorder>;
 template <>
 class typed_primitive_inst<reorder> : public typed_primitive_inst_base<reorder> {
     using parent = typed_primitive_inst_base<reorder>;
+    using parent::parent;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(reorder_node const& /*node*/, const kernel_impl_params& impl_param);
     static layout calc_output_layout(reorder_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(reorder_node const& node);
 
@@ -62,11 +65,19 @@ public:
     memory::ptr mean_nv12_memory() const { return dep_memory_ptr(2); }
     memory::ptr mean_memory() const { return dep_memory_ptr(1); }
 
-    bool has_mean() const { return !argument.mean.empty(); }
+    bool has_mean() const { return !argument->mean.empty(); }
+
+    void update_output_memory() override;
+    bool requires_reinterpret() const { return _req_reinterpr; }
+
+    void save(cldnn::BinaryOutputBuffer& ob) const override;
+    void load(cldnn::BinaryInputBuffer& ib) override;
 
 private:
     void on_execute() override;
     void reuse_input();
+
+    bool _req_reinterpr = false;
 };
 
 using reorder_inst = typed_primitive_inst<reorder>;

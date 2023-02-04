@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pattern/matcher.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include "ngraph_ops/type_relaxed.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include <ngraph/rt_info.hpp>
 
 #include "rt_info/shared_value_attribute.hpp"
@@ -128,6 +128,10 @@ public:
         const element::Type deqPrecision = element::f32,
         std::shared_ptr<ngraph::Node> input = nullptr);
 
+    static std::shared_ptr<ngraph::Node> makeDequantizationSubtract(
+        const ngraph::Output<ngraph::Node>& parent,
+        const ngraph::Output<ngraph::Node>& subtract_constant);
+
     static FakeQuantizeDequantization createDequantizationFromFakeQuantize(
         std::shared_ptr<opset1::FakeQuantize> fq,
         element::Type precision,
@@ -156,7 +160,7 @@ public:
 
     static std::shared_ptr<opset1::Constant> normalizeDequantizationShape(
             const std::shared_ptr<Node>& eltwise,
-            const bool convertIsExpected = false);
+            const bool convertIsExpected = true);
 
     // 1. remove Convert if possible
     // 2. optimize Constant if possible
@@ -253,6 +257,8 @@ public:
         float& updatedOutputLowValue,
         float& updatedOutputHighValue);
 
+    static ov::Output<ov::Node> getSingleConsumerConstant(const ov::Output<ov::Node>& output);
+
 private:
     static std::shared_ptr<Node> foldFakeQuantize(
             const std::shared_ptr<opset1::FakeQuantize>& fq,
@@ -269,7 +275,7 @@ private:
 template <typename OperationType>
 std::shared_ptr<Node> NetworkHelper::setOutDataPrecisionForTypeRelaxed(std::shared_ptr<OperationType> layer, const element::Type& precision) {
     // check if it already exteded operation node
-    if (auto relaxed_layer = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(layer)) {
+    if (auto relaxed_layer = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(layer)) {
         relaxed_layer->set_overridden_output_type(precision);
         std::dynamic_pointer_cast<ngraph::Node>(layer)->validate_and_infer_types();
         return layer;
@@ -281,7 +287,7 @@ std::shared_ptr<Node> NetworkHelper::setOutDataPrecisionForTypeRelaxed(std::shar
 template <typename OperationType>
 std::shared_ptr<Node> NetworkHelper::setOutDataPrecision(std::shared_ptr<OperationType> layer, const element::Type& precision) {
     // check if it already exteded operation node
-    if (auto relaxed_layer = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(layer)) {
+    if (auto relaxed_layer = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(layer)) {
         relaxed_layer->set_overridden_output_type(precision);
         std::dynamic_pointer_cast<ngraph::Node>(layer)->validate_and_infer_types();
         return layer;
@@ -289,7 +295,7 @@ std::shared_ptr<Node> NetworkHelper::setOutDataPrecision(std::shared_ptr<Operati
         // Make such replacements in advance for all supported polymorphic layer types
         // extend a node with new semantics: overriden output data_type
         // OperationType should be a real type of an object, otherwise it will lead to undefined behavior
-        auto replacement = std::make_shared<ngraph::op::TypeRelaxed<OperationType>>(*layer, precision);
+        auto replacement = std::make_shared<ov::op::TypeRelaxed<OperationType>>(*layer, precision);
         copy_runtime_info(layer, replacement);
         replace_node(layer, replacement);
         return replacement;

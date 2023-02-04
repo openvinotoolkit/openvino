@@ -2,16 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// We have problem with includes when ENABLE_ONEDNN_FOR_GPU is OFF,
-// "impl_types" enum is not accessible if "implementation_map.hpp" is included first
-// so, a "fix" for now is to turn off clang-format for these include
-// clang-format off
-#include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-// clang-format on
 #include "bucketize/bucketize_kernel_ref.hpp"
 #include "bucketize/bucketize_kernel_selector.hpp"
 #include "bucketize_inst.hpp"
+#include "impls/implementation_map.hpp"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -19,59 +14,60 @@ namespace ocl {
 struct bucketize_impl : typed_primitive_impl_ocl<bucketize> {
     using parent = typed_primitive_impl_ocl<bucketize>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::bucketize_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::bucketize_params, kernel_selector::bucketize_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<bucketize_impl>(*this);
     }
 
-    static primitive_impl* create(const bucketize_node& arg, const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<bucketize>();
         auto params = get_default_params<kernel_selector::bucketize_params>(impl_param);
-        auto optional_params =
-            get_default_optional_params<kernel_selector::bucketize_optional_params>(arg.get_program());
+        auto optional_params = get_default_optional_params<kernel_selector::bucketize_optional_params>(impl_param.get_program());
 
-        auto primitive = arg.get_primitive();
         params.with_right_bound = primitive->with_right_bound;
-        params.inputs.push_back(convert_data_tensor(arg.buckets().get_output_layout()));
+        params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
 
-        const auto& kernel_selector = kernel_selector::bucketize_kernel_selector::Instance();
-        const auto best_kernels = kernel_selector.GetBestKernels(params, optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        return new bucketize_impl(arg, best_kernels.front());
+        return {params, optional_params};
     }
 };
 
 namespace detail {
 
 attach_bucketize_impl::attach_bucketize_impl() {
-    implementation_map<bucketize>::add(impl_types::ocl,
-                                       bucketize_impl::create,
-                                       {
-                                           std::make_tuple(data_types::u8, format::bfyx),
-                                           std::make_tuple(data_types::u8, format::bfzyx),
-                                           std::make_tuple(data_types::u8, format::bfwzyx),
-                                           std::make_tuple(data_types::i8, format::bfyx),
-                                           std::make_tuple(data_types::i8, format::bfzyx),
-                                           std::make_tuple(data_types::i8, format::bfwzyx),
-                                           std::make_tuple(data_types::f16, format::bfyx),
-                                           std::make_tuple(data_types::f16, format::bfzyx),
-                                           std::make_tuple(data_types::f16, format::bfwzyx),
-                                           std::make_tuple(data_types::f32, format::bfyx),
-                                           std::make_tuple(data_types::f32, format::bfzyx),
-                                           std::make_tuple(data_types::f32, format::bfwzyx),
-                                           std::make_tuple(data_types::i32, format::bfyx),
-                                           std::make_tuple(data_types::i32, format::bfzyx),
-                                           std::make_tuple(data_types::i32, format::bfwzyx),
-                                           std::make_tuple(data_types::i64, format::bfyx),
-                                           std::make_tuple(data_types::i64, format::bfzyx),
-                                           std::make_tuple(data_types::i64, format::bfwzyx),
-                                       });
+    auto types = {data_types::f16, data_types::f32, data_types::i8, data_types::u8, data_types::i32, data_types::i64};
+    auto formats = {
+        format::bfyx,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv32_fsv32,
+        format::bs_fs_yx_bsv32_fsv16,
+
+        format::bfzyx,
+        format::b_fs_zyx_fsv16,
+        format::b_fs_zyx_fsv32,
+        format::bs_fs_zyx_bsv16_fsv32,
+        format::bs_fs_zyx_bsv16_fsv16,
+        format::bs_fs_zyx_bsv32_fsv32,
+        format::bs_fs_zyx_bsv32_fsv16,
+
+        format::bfwzyx
+    };
+    std::set<std::tuple<data_types, format::type>> keys;
+    for (const auto& t : types) {
+        for (const auto& f : formats) {
+            keys.emplace(t, f);
+        }
+    }
+    implementation_map<bucketize>::add(impl_types::ocl, typed_primitive_impl_ocl<bucketize>::create<bucketize_impl>, keys);
 }
 }  // namespace detail
 
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::bucketize_impl)

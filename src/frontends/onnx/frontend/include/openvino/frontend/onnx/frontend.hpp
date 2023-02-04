@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,6 +34,7 @@ protected:
     std::vector<Extension::Ptr> m_other_extensions;
     std::vector<DecoderTransformationExtension::Ptr> m_transformation_extensions;
     ExtensionHolder m_extensions;
+    std::once_flag has_legacy_extension;
 };
 
 }  // namespace onnx

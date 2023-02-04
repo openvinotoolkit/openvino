@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,9 +25,10 @@ std::string InferRequestVariableStateTest::getTestCaseName(const testing::TestPa
 }
 
 void InferRequestVariableStateTest::SetUp() {
+    std::tie(net, statesToQuery, deviceName, configuration) = GetParam();
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    std::tie(net, statesToQuery, deviceName, configuration) = GetParam();
+    IEInferRequestTestBase::SetUp();
 }
 
 InferenceEngine::ExecutableNetwork InferRequestVariableStateTest::PrepareNetwork() {

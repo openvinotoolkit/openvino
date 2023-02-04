@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,6 @@
 #include "ngraph/op/constant.hpp"
 
 using namespace std;
-
-BWDCMP_RTTI_DEFINITION(ov::op::util::EmbeddingBagPackedBase);
 
 ov::op::util::EmbeddingBagPackedBase::EmbeddingBagPackedBase(const Output<Node>& emb_table,
                                                              const Output<Node>& indices,
@@ -24,7 +22,7 @@ ov::op::util::EmbeddingBagPackedBase::EmbeddingBagPackedBase(const Output<Node>&
 }
 
 void ov::op::util::EmbeddingBagPackedBase::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(util_EmbeddingBagPackedBase_validate_and_infer_types);
+    OV_OP_SCOPE(util_EmbeddingBagPackedBase_validate_and_infer_types);
     NODE_VALIDATION_CHECK(
         this,
         get_input_element_type(INDICES) == element::i64 || get_input_element_type(INDICES) == element::i32,
@@ -71,6 +69,6 @@ void ov::op::util::EmbeddingBagPackedBase::validate_and_infer_types() {
 }
 
 bool ov::op::util::EmbeddingBagPackedBase::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(util_EmbeddingBagPackedBase_visit_attributes);
+    OV_OP_SCOPE(util_EmbeddingBagPackedBase_visit_attributes);
     return true;
 }

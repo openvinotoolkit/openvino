@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,6 +58,9 @@ void unregister_operator(const std::string& name, std::int64_t version, const st
     legacy_conversion_extension->unregister_operator(name, version, domain);
 }
 
+const LegacyConversionExtension::Ptr detail::get_legacy_conversion_extension() {
+    return legacy_conversion_extension;
+}
 }  // namespace onnx_import
 
 }  // namespace ngraph

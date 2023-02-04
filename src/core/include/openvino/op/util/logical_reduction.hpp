@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,17 +30,7 @@ protected:
 
 public:
     OPENVINO_OP("LogicalReduction", "util");
-    BWDCMP_RTTI_DECLARATION;
     void validate_and_infer_types() override;
-
-    /// \return true if reduction axes are constant else false.
-    bool reduction_axes_constant() const;
-
-    /// \return The axis positions (0-based) to be eliminated through reduction.
-    /// \throws CheckFailure if the reduction axes are not constant. (Use
-    ///           reduction_axes_constant to check.)
-    const AxisSet get_reduction_axes() const;
-    void set_reduction_axes(const AxisSet& reduction_axes);
 };
 }  // namespace util
 }  // namespace op

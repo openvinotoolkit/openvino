@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -38,7 +38,11 @@ void rdft_shape_infer(const ov::op::v9::RDFT* op,
     std::vector<int64_t> axes;
     bool axes_are_known = get_data_as_int64<T>(1, op, axes, constant_data);
 
-    rfft_common_validation::shape_validation(op, input_shapes, axes, axes_are_known, rfft_common_validation::RFFTKind::Forward);
+    rfft_common_validation::shape_validation(op,
+                                             input_shapes,
+                                             axes,
+                                             axes_are_known,
+                                             rfft_common_validation::RFFTKind::Forward);
 
     if (input_shape.rank().is_dynamic()) {
         output_shape = ov::PartialShape::dynamic();
@@ -51,7 +55,7 @@ void rdft_shape_infer(const ov::op::v9::RDFT* op,
     const auto input_rank = input_shape.size();
 
     if (axes_shape.rank().is_dynamic() || !axes_are_known) {
-        for (int64_t i = 0; i < input_rank; ++i) {
+        for (size_t i = 0; i < input_rank; ++i) {
             output_shape[i] = ov::Dimension::dynamic();
         }
         return;

@@ -1,14 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset4.hpp>
-#include <ngraph/opsets/opset5.hpp>
 #include <ngraph/pattern/matcher.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset4.hpp>
+#include <openvino/opsets/opset5.hpp>
 #include <transformations/smart_reshape/proposal_scales_stridedslice.hpp>
 
 #include "itt.hpp"
@@ -21,13 +21,13 @@ bool crop_scales_for_proposal(const ngraph::pattern::PatternValueMap& pattern_to
     const auto& parameter = pattern_to_output.at(parameter_label);
     const auto& proposal = pattern_to_output.at(proposal_label).get_node_shared_ptr();
 
-    auto cropped_scales = std::make_shared<ngraph::opset5::StridedSlice>(
+    auto cropped_scales = std::make_shared<ov::opset5::StridedSlice>(
         proposal->input_value(2),
-        ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}),
-        ngraph::opset5::Constant::create(ngraph::element::i64,
-                                         ngraph::Shape{1},
-                                         {parameter.get_partial_shape()[1].get_length()}),
-        ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1}),
+        ov::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}),
+        ov::opset5::Constant::create(ngraph::element::i64,
+                                     ngraph::Shape{1},
+                                     {parameter.get_partial_shape()[1].get_length()}),
+        ov::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1}),
         std::vector<int64_t>{0},
         std::vector<int64_t>{0});
 
@@ -37,7 +37,7 @@ bool crop_scales_for_proposal(const ngraph::pattern::PatternValueMap& pattern_to
 
 }  // namespace
 
-ngraph::pass::Proposal1Scales::Proposal1Scales() {
+ov::pass::Proposal1Scales::Proposal1Scales() {
     // TODO: enable conditional compile
     // MATCHER_SCOPE(Proposal1Scales);
     auto parameter_label = ngraph::pattern::wrap_type<opset5::Parameter>([](const Output<Node>& output) {
@@ -63,7 +63,7 @@ ngraph::pass::Proposal1Scales::Proposal1Scales() {
     register_matcher(m, callback);
 }
 
-ngraph::pass::Proposal4Scales::Proposal4Scales() {
+ov::pass::Proposal4Scales::Proposal4Scales() {
     // TODO: enable conditional compile
     // MATCHER_SCOPE(Proposal4Scales);
     auto parameter_label = ngraph::pattern::wrap_type<opset5::Parameter>([](const Output<Node>& output) {

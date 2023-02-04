@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,8 +17,8 @@ using namespace ::tests;
 //This situation should be handled properly by propagate constants optimization phase
 TEST(propagate_constants, copy_dependecies_from_nodes) {
     auto& engine = get_test_engine();
-    build_options build_opt;
-    build_opt.set_option(build_option::optimize_data(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
     auto input = engine.allocate_memory({ data_types::f16, format::yxfb,{ 1, 1, 2, 2 } });
     auto weights1 = engine.allocate_memory({ data_types::f16, format::yxfb,{ 1, 1, 2, 1 } });
@@ -32,12 +32,12 @@ TEST(propagate_constants, copy_dependecies_from_nodes) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights1", weights1));
     topology.add(data("weights2", weights2));
-    topology.add(reshape("reshape1", "weights1", tensor(spatial(1, 2))));
-    topology.add(reorder("reorder2", "input", layout(data_types::f32, format::byxf, tensor(4))));
-    topology.add(reorder("reorder1", "reshape1", layout(data_types::f32, format::byxf, tensor(4))));
-    topology.add(concatenation("concat", { "reorder1", "weights2" }, 3));
-    topology.add(convolution("conv2", { "reorder2" }, { "concat" }));
-    network network(engine, topology, build_opt);
+    topology.add(reshape("reshape1", input_info("weights1"), tensor(spatial(1, 2))));
+    topology.add(reorder("reorder2", input_info("input"), layout(data_types::f32, format::byxf, tensor(4))));
+    topology.add(reorder("reorder1", input_info("reshape1"), layout(data_types::f32, format::byxf, tensor(4))));
+    topology.add(concatenation("concat", { input_info("reorder1"), input_info("weights2") }, 3));
+    topology.add(convolution("conv2", { input_info("reorder2") }, { "concat" }));
+    network network(engine, topology, config);
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -45,6 +45,6 @@ TEST(propagate_constants, copy_dependecies_from_nodes) {
     float epsilon = 1e-2f;
     for (auto& it : outputs) {
         cldnn::mem_lock<float> output(it.second.get_memory(), get_test_stream());
-        EXPECT_NEAR(7.8f, output[0], epsilon);
+        ASSERT_NEAR(7.8f, output[0], epsilon);
     }
 }

@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "test_utils.h"
 #include "opencl_helper_instance.hpp"
+#include "ocl/ocl_device.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/data.hpp>
@@ -77,7 +78,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_buffer_fp32) {
     topology topology;
     topology.add(input_layout("input_y", input_y->get_layout()));
     topology.add(input_layout("input_uv", input_uv->get_layout()));
-    topology.add(convert_color("convert_color", { "input_y", "input_uv" }, cldnn::convert_color::color_format::NV12, cldnn::convert_color::color_format::RGB,
+    topology.add(convert_color("convert_color", { input_info("input_y"), input_info("input_uv") }, cldnn::convert_color::color_format::NV12, cldnn::convert_color::color_format::RGB,
                                cldnn::convert_color::memory_type::buffer, output_layout));
 
     network network(engine, topology);
@@ -93,7 +94,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_buffer_fp32) {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_res.size(); ++i) {
-        EXPECT_NEAR(ref_res[i], output_ptr[i], 1.001f);
+        ASSERT_NEAR(ref_res[i], output_ptr[i], 1.001f);
     }
 }
 
@@ -116,7 +117,7 @@ TEST(convert_color, nv12_to_bgr_two_planes_buffer_fp32) {
     topology topology;
     topology.add(input_layout("input_y", input_y->get_layout()));
     topology.add(input_layout("input_uv", input_uv->get_layout()));
-    topology.add(convert_color("convert_color", { "input_y", "input_uv" }, cldnn::convert_color::color_format::NV12, cldnn::convert_color::color_format::BGR,
+    topology.add(convert_color("convert_color", { input_info("input_y"), input_info("input_uv") }, cldnn::convert_color::color_format::NV12, cldnn::convert_color::color_format::BGR,
                                cldnn::convert_color::memory_type::buffer, output_layout));
 
     network network(engine, topology);
@@ -133,7 +134,7 @@ TEST(convert_color, nv12_to_bgr_two_planes_buffer_fp32) {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_res.size(); ++i) {
-        EXPECT_NEAR(ref_res[i], output_ptr[i], 1.001f);
+        ASSERT_NEAR(ref_res[i], output_ptr[i], 1.001f);
     }
 }
 
@@ -156,7 +157,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_buffer_u8) {
     topology topology;
     topology.add(input_layout("input_y", input_y->get_layout()));
     topology.add(input_layout("input_uv", input_uv->get_layout()));
-    topology.add(convert_color("convert_color", { "input_y", "input_uv" }, cldnn::convert_color::color_format::NV12, cldnn::convert_color::color_format::RGB,
+    topology.add(convert_color("convert_color", { input_info("input_y"), input_info("input_uv") }, cldnn::convert_color::color_format::NV12, cldnn::convert_color::color_format::RGB,
                                cldnn::convert_color::memory_type::buffer, output_layout));
 
     network network(engine, topology);
@@ -173,7 +174,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_buffer_u8) {
     cldnn::mem_lock<uint8_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_res.size(); ++i) {
-        EXPECT_NEAR(ref_res[i], static_cast<float>(output_ptr[i]), 1.001f);
+        ASSERT_NEAR(ref_res[i], static_cast<float>(output_ptr[i]), 1.001f);
     }
 }
 
@@ -196,7 +197,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_buffer_fp16) {
     topology topology;
     topology.add(input_layout("input_y", input_y->get_layout()));
     topology.add(input_layout("input_uv", input_uv->get_layout()));
-    topology.add(convert_color("convert_color", { "input_y", "input_uv" }, cldnn::convert_color::color_format::NV12, cldnn::convert_color::color_format::RGB,
+    topology.add(convert_color("convert_color", { input_info("input_y"), input_info("input_uv") }, cldnn::convert_color::color_format::NV12, cldnn::convert_color::color_format::RGB,
                                cldnn::convert_color::memory_type::buffer, output_layout));
 
     network network(engine, topology);
@@ -213,7 +214,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_buffer_fp16) {
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
      for (size_t i = 0; i < ref_res.size(); ++i) {
-        EXPECT_NEAR(ref_res[i], float16_to_float32(output_ptr[i]), 1.001f);
+        ASSERT_NEAR(ref_res[i], half_to_float(output_ptr[i]), 1.001f);
     }
 }
 
@@ -234,7 +235,7 @@ TEST(convert_color, nv12_to_rgb_single_plane_buffer_fp32) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(convert_color("convert_color", { "input" }, cldnn::convert_color::color_format::NV12, cldnn::convert_color::color_format::RGB,
+    topology.add(convert_color("convert_color", { input_info("input") }, cldnn::convert_color::color_format::NV12, cldnn::convert_color::color_format::RGB,
                                cldnn::convert_color::memory_type::buffer, output_layout));
 
     network network(engine, topology);
@@ -249,7 +250,7 @@ TEST(convert_color, nv12_to_rgb_single_plane_buffer_fp32) {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_res.size(); ++i) {
-        EXPECT_NEAR(ref_res[i], output_ptr[i], 1.001f);
+        ASSERT_NEAR(ref_res[i], output_ptr[i], 1.001f);
     }
 }
 
@@ -270,7 +271,7 @@ TEST(convert_color, nv12_to_rgb_single_plane_buffer_u8) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(convert_color("convert_color", { "input" }, cldnn::convert_color::color_format::NV12, cldnn::convert_color::color_format::RGB,
+    topology.add(convert_color("convert_color", { input_info("input") }, cldnn::convert_color::color_format::NV12, cldnn::convert_color::color_format::RGB,
                                cldnn::convert_color::memory_type::buffer, output_layout));
 
     network network(engine, topology);
@@ -285,7 +286,7 @@ TEST(convert_color, nv12_to_rgb_single_plane_buffer_u8) {
     cldnn::mem_lock<uint8_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_res.size(); ++i) {
-        EXPECT_NEAR(ref_res[i], static_cast<float>(output_ptr[i]), 1.001f);
+        ASSERT_NEAR(ref_res[i], static_cast<float>(output_ptr[i]), 1.001f);
     }
 }
 
@@ -293,12 +294,12 @@ TEST(convert_color, nv12_to_rgb_two_planes_surface_u8) {
     int width = 224;
     int height = 448;
 
-    auto ocl_instance = std::make_shared<OpenCL>();
-    device_query query(engine_types::ocl, runtime_types::ocl, static_cast<void*>(ocl_instance->_context.get()));
+    device_query query(engine_types::ocl, runtime_types::ocl);
     auto devices = query.get_available_devices();
-
-    auto engine_config = cldnn::engine_configuration();
-    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, devices.begin()->second, engine_config);
+    auto iter = devices.find(std::to_string(device_query::device_id));
+    auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
+    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
+    auto ocl_instance = std::make_shared<OpenCL>(std::dynamic_pointer_cast<ocl::ocl_device>(device)->get_device());
 
     if (!engine->get_device_info().supports_image) {
         GTEST_SKIP() << "Device doesn't support images";
@@ -346,7 +347,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_surface_u8) {
     topology topology;
     topology.add(input);
     topology.add(input2);
-    topology.add(convert_color("convert_color", { "input", "input2" }, cldnn::convert_color::color_format::NV12, cldnn::convert_color::color_format::RGB,
+    topology.add(convert_color("convert_color", { input_info("input"), input_info("input2") }, cldnn::convert_color::color_format::NV12, cldnn::convert_color::color_format::RGB,
                                cldnn::convert_color::memory_type::image, output_layout));
 
     network network(*engine, topology);
@@ -362,7 +363,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_surface_u8) {
     auto output_prim = outputs.begin()->second.get_memory();
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
     for (size_t i = 0; i < reference_results.size(); i++) {
-        EXPECT_NEAR(reference_results[i], output_ptr[i], 1.001f);
+        ASSERT_NEAR(reference_results[i], output_ptr[i], 1.001f);
     }
     checkStatus(clReleaseMemObject(nv12_image_plane_uv), "clReleaseMemObject");
     checkStatus(clReleaseMemObject(nv12_image_plane_y), "clReleaseMemObject");
@@ -373,12 +374,12 @@ TEST(convert_color, nv12_to_rgb_single_plane_surface_u8) {
     int height = 448;
     int input_height = height + height / 2;
 
-    auto ocl_instance = std::make_shared<OpenCL>();
-    device_query query(engine_types::ocl, runtime_types::ocl, static_cast<void*>(ocl_instance->_context.get()));
+    device_query query(engine_types::ocl, runtime_types::ocl);
     auto devices = query.get_available_devices();
-
-    auto engine_config = cldnn::engine_configuration();
-    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, devices.begin()->second, engine_config);
+    auto iter = devices.find(std::to_string(device_query::device_id));
+    auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
+    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
+    auto ocl_instance = std::make_shared<OpenCL>(std::dynamic_pointer_cast<ocl::ocl_device>(device)->get_device());
 
     if (!engine->get_device_info().supports_image) {
         GTEST_SKIP() << "Device doesn't support images";
@@ -410,7 +411,7 @@ TEST(convert_color, nv12_to_rgb_single_plane_surface_u8) {
 
     topology topology;
     topology.add(input);
-    topology.add(convert_color("convert_color", { "input" }, cldnn::convert_color::color_format::NV12, cldnn::convert_color::color_format::RGB,
+    topology.add(convert_color("convert_color", { input_info("input") }, cldnn::convert_color::color_format::NV12, cldnn::convert_color::color_format::RGB,
                                cldnn::convert_color::memory_type::image, output_layout));
 
     network network(*engine, topology);
@@ -425,7 +426,7 @@ TEST(convert_color, nv12_to_rgb_single_plane_surface_u8) {
     auto output_prim = outputs.begin()->second.get_memory();
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
     for (size_t i = 0; i < reference_results.size(); i++) {
-        EXPECT_NEAR(reference_results[i], output_ptr[i], 1.001f);
+        ASSERT_NEAR(reference_results[i], output_ptr[i], 1.001f);
     }
     checkStatus(clReleaseMemObject(nv12_image), "clReleaseMemObject");
 }
@@ -503,7 +504,7 @@ TEST(convert_color, i420_to_rgb_three_planes_buffer_fp32) {
     topology.add(input_layout("input_y", input_y->get_layout()));
     topology.add(input_layout("input_u", input_u->get_layout()));
     topology.add(input_layout("input_v", input_v->get_layout()));
-    topology.add(convert_color("convert_color", { "input_y", "input_u", "input_v" }, cldnn::convert_color::color_format::I420, cldnn::convert_color::color_format::RGB,
+    topology.add(convert_color("convert_color", { input_info("input_y"), input_info("input_u"), input_info("input_v") }, cldnn::convert_color::color_format::I420, cldnn::convert_color::color_format::RGB,
                                cldnn::convert_color::memory_type::buffer, output_layout));
 
     network network(engine, topology);
@@ -520,20 +521,21 @@ TEST(convert_color, i420_to_rgb_three_planes_buffer_fp32) {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_res.size(); ++i) {
-        EXPECT_NEAR(ref_res[i], output_ptr[i], 1.001f);
+        ASSERT_NEAR(ref_res[i], output_ptr[i], 1.001f);
     }
 }
 
-TEST(convert_color, i420_to_rgb_three_planes_surface_u8) {
+template <typename T>
+void test_convert_color_i420_to_rgb_three_planes_surface_u8(bool is_caching_test) {
     int width = 224;
     int height = 448;
 
-    auto ocl_instance = std::make_shared<OpenCL>();
-    device_query query(engine_types::ocl, runtime_types::ocl, static_cast<void*>(ocl_instance->_context.get()));
+    device_query query(engine_types::ocl, runtime_types::ocl);
     auto devices = query.get_available_devices();
-
-    auto engine_config = cldnn::engine_configuration();
-    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, devices.begin()->second, engine_config);
+    auto iter = devices.find(std::to_string(device_query::device_id));
+    auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
+    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
+    auto ocl_instance = std::make_shared<OpenCL>(std::dynamic_pointer_cast<ocl::ocl_device>(device)->get_device());
 
     if (!engine->get_device_info().supports_image) {
         GTEST_SKIP() << "Device doesn't support images";
@@ -588,26 +590,52 @@ TEST(convert_color, i420_to_rgb_three_planes_surface_u8) {
     topology.add(input);
     topology.add(input2);
     topology.add(input3);
-    topology.add(convert_color("convert_color", { "input", "input2", "input3" }, cldnn::convert_color::color_format::I420, cldnn::convert_color::color_format::RGB,
+    topology.add(convert_color("convert_color", { input_info("input"), input_info("input2"), input_info("input3") }, cldnn::convert_color::color_format::I420, cldnn::convert_color::color_format::RGB,
                                cldnn::convert_color::memory_type::image, output_layout));
 
-    network network(*engine, topology);
-    network.set_input_data("input", input_memory);
-    network.set_input_data("input2", input_memory2);
-    network.set_input_data("input3", input_memory3);
+    cldnn::network::ptr network;
 
-    auto outputs = network.execute();
+    if (is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(*engine, topology);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, *engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), *engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(*engine, topology);
+    }
+
+    network->set_input_data("input", input_memory);
+    network->set_input_data("input2", input_memory2);
+    network->set_input_data("input3", input_memory3);
+
+    auto outputs = network->execute();
 
     std::vector<float> reference_results(width * height * 3);
-    createReferenceDataI420<uint8_t, float>(data.data(), data.data() + height * width, data.data() + width * (height + height / 4), reference_results.data(),
+    createReferenceDataI420<T, float>(data.data(), data.data() + height * width, data.data() + width * (height + height / 4), reference_results.data(),
                                             1, height, width, height * width, height * width / 2, true);
 
     auto output_prim = outputs.begin()->second.get_memory();
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
     for (size_t i = 0; i < reference_results.size(); i++) {
-        EXPECT_NEAR(reference_results[i], output_ptr[i], 1.001f);
+        ASSERT_NEAR(reference_results[i], output_ptr[i], 1.001f);
     }
     checkStatus(clReleaseMemObject(i420_image_plane_y), "clReleaseMemObject");
     checkStatus(clReleaseMemObject(i420_image_plane_u), "clReleaseMemObject");
     checkStatus(clReleaseMemObject(i420_image_plane_v), "clReleaseMemObject");
+}
+
+TEST(convert_color, i420_to_rgb_three_planes_surface_u8) {
+    test_convert_color_i420_to_rgb_three_planes_surface_u8<uint8_t>(false);
+}
+
+TEST(export_import_convert_color, i420_to_rgb_three_planes_surface_u8) {
+    test_convert_color_i420_to_rgb_three_planes_surface_u8<uint8_t>(true);
 }

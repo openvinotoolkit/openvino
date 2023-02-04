@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -15,10 +15,6 @@ class TestSpaceToBatch(CommonTFLayerTest):
             Input->SpaceToBatch        =>      Input->SpaceToBatch
 
         """
-
-        #
-        #   Create Tensorflow model
-        #
 
         import tensorflow as tf
 
@@ -49,8 +45,8 @@ class TestSpaceToBatch(CommonTFLayerTest):
              out_shape=[4, 1, 1, 3]),
         dict(in_shape=[1, 2, 2, 1], block_shape_value=[2, 2], pads_value=[[0, 0], [0, 0]],
              out_shape=[4, 1, 1, 3]),
-        dict(in_shape=[1, 2, 2, 3], block_shape_value=[2, 2], pads_value=[[0, 0], [0, 0]],
-             out_shape=[4, 1, 1, 3]),
+        pytest.param(dict(in_shape=[1, 2, 2, 3], block_shape_value=[2, 2], pads_value=[[0, 0], [0, 0]],
+                          out_shape=[4, 1, 1, 3]), marks=pytest.mark.precommit_tf_fe),
         dict(in_shape=[1, 2, 9, 1], block_shape_value=[4, 3], pads_value=[[1, 1], [2, 4]],
              out_shape=[12, 1, 1, 3]),
         # todo: enable these tests after supporting the general case on CPU
@@ -63,11 +59,11 @@ class TestSpaceToBatch(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
     def test_space_to_batch_4D(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend, api_2):
+                               use_new_frontend, use_old_api):
         self._test(*self.create_space_to_batch_net(**params, ir_version=ir_version,
                                                    use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_5D = [
         dict(in_shape=[3, 3, 4, 5, 2], block_shape_value=[3, 4, 2],
@@ -81,8 +77,8 @@ class TestSpaceToBatch(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
     def test_space_to_batch_5D(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend, api_2):
+                               use_new_frontend, use_old_api):
         self._test(*self.create_space_to_batch_net(**params, ir_version=ir_version,
                                                    use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)

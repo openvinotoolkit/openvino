@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,10 +44,6 @@ void eltwise_shrinking::run(program& p) {
                     }
 
                     const auto conv = std::static_pointer_cast<const convolution>(user->get_primitive());
-                    if (conv->weights.size() != 1) {
-                        can_shrink = false;
-                        break;
-                    }
 
                     // Check that eltwise is not an input of operation fused to convolution
                     if (user->get_dependency(0).id() != eltw->id) {
@@ -55,8 +51,7 @@ void eltwise_shrinking::run(program& p) {
                         break;
                     }
 
-                    auto weights_node_ptr = p.get_node_ptr(conv->weights[0]);
-                    auto filter_size = weights_node_ptr->get_output_layout().get_tensor();
+                    auto filter_size = user->as<convolution>().weights().get_output_layout().get_tensor();
                     // make sure this is conv 1x1
                     if (filter_size.spatial[0] != 1 || filter_size.spatial[1] != 1 || conv->stride.size() != 2) {
                         can_shrink = false;

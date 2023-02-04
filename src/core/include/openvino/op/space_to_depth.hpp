@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,6 @@ namespace v0 {
 class OPENVINO_API SpaceToDepth : public Op {
 public:
     OPENVINO_OP("SpaceToDepth", "opset1");
-    BWDCMP_RTTI_DECLARATION;
 
     enum class SpaceToDepthMode {
         // The output depth is gathered from [block_size, ..., block_size, C]
@@ -73,7 +72,6 @@ public:
         : EnumAttributeAdapterBase<op::v0::SpaceToDepth::SpaceToDepthMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v0::SpaceToDepth::SpaceToDepthMode>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

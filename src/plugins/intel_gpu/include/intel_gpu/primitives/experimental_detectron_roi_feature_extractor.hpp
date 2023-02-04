@@ -1,19 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief experimental detectron ROI feature extractor
 struct experimental_detectron_roi_feature_extractor : public primitive_base<experimental_detectron_roi_feature_extractor> {
@@ -27,14 +20,13 @@ struct experimental_detectron_roi_feature_extractor : public primitive_base<expe
     /// @param sampling_ratio Attribute specifies the number of sampling points per the output value
     /// @param aligned Attribute specifies add offset (-0.5) to ROIs sizes or not
     experimental_detectron_roi_feature_extractor(const primitive_id& id,
-                                                 const std::vector<primitive_id>& inputs,
+                                                 const std::vector<input_info>& inputs,
                                                  int output_dim,
                                                  const std::vector<int64_t>& pyramid_scales,
                                                  int sampling_ratio,
                                                  bool aligned,
-                                                 const primitive_id& ext_prim_id = "",
                                                  const padding& output_padding = padding()) :
-            primitive_base(id, inputs, ext_prim_id, output_padding),
+            primitive_base(id, inputs, {output_padding}),
             output_dim(output_dim),
             pooled_height(output_dim),
             pooled_width(output_dim),
@@ -48,9 +40,17 @@ struct experimental_detectron_roi_feature_extractor : public primitive_base<expe
     std::vector<int64_t> pyramid_scales;
     int sampling_ratio = 0;
     bool aligned = false;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, output_dim);
+        seed = hash_combine(seed, pooled_height);
+        seed = hash_combine(seed, pooled_width);
+        seed = hash_range(seed, pyramid_scales.begin(), pyramid_scales.end());
+        seed = hash_combine(seed, sampling_ratio);
+        seed = hash_combine(seed, aligned);
+        return seed;
+    }
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

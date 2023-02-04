@@ -39,10 +39,9 @@ To build the sample, please use instructions available at [Build the Sample Appl
 hello_reshape_ssd <path_to_model> <path_to_image> <device>
 ```
 
-To run the sample, you need specify a model and image:
-
-- you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
-- you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
+To run the sample, you need to specify a model and image:
+- You can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
+- You can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
 
 > **NOTES**:
 >
@@ -55,28 +54,24 @@ To run the sample, you need specify a model and image:
 ### Example
 
 1. Install openvino-dev python package if you don't have it to use Open Model Zoo Tools:
-
-```
-python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
-```
+   ```
+   python -m pip install openvino-dev
+   ```
 
 2. Download a pre-trained model using:
-
-```
-omz_downloader --name person-detection-retail-0013
-```
+   ```
+   omz_downloader --name person-detection-retail-0013
+   ```
 
 3. `person-detection-retail-0013` does not need to be converted, because it is already in necessary format, so you can skip this step. If you want to use another model that is not in the IR or ONNX format, you can convert it using the model converter script:
-
-```
-omz_converter --name <model_name>
-```
+   ```
+   omz_converter --name <model_name>
+   ```
 
 4. Perform inference of `person_detection.bmp` using `person-detection-retail-0013` model on a `GPU`, for example:
-
-```
-hello_reshape_ssd person-detection-retail-0013.xml person_detection.bmp GPU
-```
+   ```
+   hello_reshape_ssd person-detection-retail-0013.xml person_detection.bmp GPU
+   ```
 
 ## Sample Output
 

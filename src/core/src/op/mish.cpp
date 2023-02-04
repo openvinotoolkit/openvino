@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,19 +14,17 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v4::Mish);
-
-op::v4::Mish::Mish(const Output<Node>& arg) : Op({arg}) {
+op::v4::Mish::Mish(const Output<Node>& arg) : util::UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }
 
 bool op::v4::Mish::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v4_Mish_visit_attributes);
+    OV_OP_SCOPE(v4_Mish_visit_attributes);
     return true;
 }
 
 void op::v4::Mish::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v4_Mish_validate_and_infer_types);
+    OV_OP_SCOPE(v4_Mish_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this, get_input_size() == 1, "Only accepts one argument. Got: ", get_input_size());
 
@@ -36,12 +34,11 @@ void op::v4::Mish::validate_and_infer_types() {
                           "Element must be of floating point type, Got: ",
                           data_batch_et);
 
-    set_output_size(1);
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
 shared_ptr<Node> op::v4::Mish::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v4_Mish_clone_with_new_inputs);
+    OV_OP_SCOPE(v4_Mish_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Mish>(new_args.at(0));
 }
@@ -73,13 +70,13 @@ bool evaluate_mish(const HostTensorPtr& arg0, const HostTensorPtr& out) {
 }  // namespace mish
 
 bool op::v4::Mish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v4_Mish_evaluate);
+    OV_OP_SCOPE(v4_Mish_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     return mish::evaluate_mish(inputs[0], outputs[0]);
 }
 
 bool op::v4::Mish::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v4_Mish_has_evaluate);
+    OV_OP_SCOPE(v4_Mish_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::f16:
     case ngraph::element::f32:

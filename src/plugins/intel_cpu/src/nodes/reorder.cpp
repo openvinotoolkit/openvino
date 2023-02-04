@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 #include "nodes/common/cpu_convert.h"
 #include "convert.h"
 #include <common/primitive_hashing_utils.hpp>
+#include <utils/shape_inference/shape_inference_pass_through.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -54,13 +55,13 @@ bool Reorder::isExecutable() const {
     return Node::isExecutable() && !isOptimized;
 }
 
-Reorder::Reorder(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache) :
-        Node(op, eng, w_cache) {
+Reorder::Reorder(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+        Node(op, context, PassThroughShapeInferFactory()) {
     IE_THROW() << "Can't create reorder node from ngraph node";
 }
 
-Reorder::Reorder(const std::string& name, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache) :
-        Node("Reorder", name, eng, w_cache) {}
+Reorder::Reorder(const std::string& name, const GraphContext::CPtr context) :
+        Node("Reorder", name, context) {}
 
 void Reorder::getSupportedDescriptors() {
     if (getParentEdges().size() != 1)
@@ -103,6 +104,9 @@ void Reorder::initSupportedPrimitiveDescriptors() {
 
     // must be to initialize here since shapes are unknown at the time of Reorder node creation
     isDynamic = !(config.inConfs[0].getMemDesc()->isDefined() && config.outConfs[0].getMemDesc()->isDefined());
+    if (isDynamicNode() && !shapeInference) {
+        shapeInference = std::make_shared<ShapeInferPassThrough>();
+    }
 
     if (isDynamic && (config.inConfs[0].getMemDesc()->getShape().getRank() != config.outConfs[0].getMemDesc()->getShape().getRank()))
         IE_THROW() << "Reorder node with name: " << getName() << " doesn't support case when input and output shapes have different rank and dynamic";
@@ -128,7 +132,7 @@ void Reorder::initSupportedPrimitiveDescriptors() {
 }
 
 void Reorder::createPrimitive() {
-    if (inputShapesDefined()) {
+    if (shapesDefined()) {
         if (needPrepareParams())
             prepareParams();
         updateLastInputDims();
@@ -243,7 +247,7 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
         return std::make_shared<dnnl::reorder>(pd);
     };
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     std::pair<std::shared_ptr<dnnl::primitive>, CacheEntryBase::LookUpStatus> result{
         nullptr,
         CacheEntryBase::LookUpStatus::Miss};
@@ -412,7 +416,7 @@ std::string Reorder::getReorderArgs(const MemoryDesc &parentDesc, const MemoryDe
     return inArgs + "_" + outArgs;
 }
 
-void Reorder::reorderData(const Memory &input, const Memory &output) {
+void Reorder::reorderData(const Memory &input, const Memory &output, MultiCachePtr cache) {
     if (!input.getDesc().isDefined() || !output.getDesc().isDefined())
         IE_THROW() << "Can't reorder data with dynamic shapes";
 
@@ -427,17 +431,44 @@ void Reorder::reorderData(const Memory &input, const Memory &output) {
         auto copySize = output.GetSize();
         cpu_memcpy(dstPtr, srcPtr, copySize);
     } else {
-        std::unique_ptr<dnnl::reorder> pReorder;
-        dnnl::memory srcMemory;
+        auto getReorder = [] (MultiCachePtr& cache, const dnnl::memory& srcMemory, const dnnl::memory& dstMemory)
+            -> std::shared_ptr<dnnl::reorder> {
+            const auto& engine = dstMemory.get_engine();
+
+            auto builder = [&engine](const ReorderKey& key) -> std::shared_ptr<dnnl::reorder> {
+                dnnl::primitive_attr attr;
+                reorder::primitive_desc pd = dnnl::reorder::primitive_desc(engine, key.src, engine, key.dest, attr, true);
+                DEBUG_LOG(key.src, "->", key.dest);
+                if (!pd)
+                    return nullptr;
+                return std::make_shared<dnnl::reorder>(pd);
+            };
+
+            std::shared_ptr<dnnl::reorder> reorder;
+            auto src_desc = srcMemory.get_desc();
+            auto dst_desc = dstMemory.get_desc();
+            ReorderKey key = {src_desc, dst_desc};
+            if (!cache) {
+                reorder = builder(key);
+            } else {
+                auto result = cache->getOrCreate(key, builder);
+                reorder = std::move(result.first);
+            }
+            return reorder;
+        };
+
+        std::shared_ptr<dnnl::reorder> pReorder;
         std::vector<uint8_t> tmpBuff;
 
-        try {
-            pReorder = std::unique_ptr<dnnl::reorder>(new dnnl::reorder(input.GetPrimitive(), output.GetPrimitive()));
-            srcMemory = input.GetPrimitive();
-        }
-        catch (const dnnl::error& err) {
-            if (dnnl_unimplemented == err.status && output.GetDataType() != input.GetDataType() && Convert::isSupportedDesc(input.getDesc()) &&
-                    Convert::isSupportedDesc(output.getDesc())) {
+        auto srcMemory = input.GetPrimitive();
+        auto dstMemory = output.GetPrimitive();
+        auto engine = output.getEngine();
+        // try directly reorder
+        pReorder = getReorder(cache, srcMemory, dstMemory);
+        if (!pReorder) {
+            // try precision conversion then do the reorder
+            if (output.GetDataType() != input.GetDataType() && Convert::isSupportedDesc(input.getDesc()) &&
+                Convert::isSupportedDesc(output.getDesc())) {
                 //we probably could not make the reorder because there is no one supporting this precision conversion
                 //lets try to convert data first using cpu_convert
                 auto data = static_cast<const uint8_t *>(input.GetPtr());
@@ -447,28 +478,25 @@ void Reorder::reorderData(const Memory &input, const Memory &output) {
                 cpu_convert(data, tmpBuff.data(), DnnlExtensionUtils::DataTypeToIEPrecision(input.GetDataType()),
                             outPrc, input.GetSize() / input.getDesc().getPrecision().size());
 
-                Memory tmpMem(output.getEngine());
+                Memory tmpMem(engine);
                 auto tmpDesc = input.getDesc().cloneWithNewPrecision(outPrc);
                 tmpMem.Create(std::move(tmpDesc), tmpBuff.data());
 
-                pReorder = std::unique_ptr<dnnl::reorder>(new dnnl::reorder(tmpMem.GetPrimitive(), output.GetPrimitive()));
                 srcMemory = tmpMem.GetPrimitive();
-            } else {
-                throw;
+                pReorder = getReorder(cache, srcMemory, dstMemory);
+            }
+            if (!pReorder) {
+                IE_THROW() << "No reorder available for the following tensor descriptors: "
+                    << input.getDesc().serializeFormat() << " and " << output.getDesc().serializeFormat();
             }
         }
         if (pReorder) {
-            dnnl::stream loc_stream(output.getEngine(), dnnl::stream::flags::in_order);
-            auto dstMemory = output.GetPrimitive();
+            dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
             pReorder->execute(loc_stream, srcMemory, dstMemory);
         } else {
             IE_THROW() << "Could not make onednn reorder.";
         }
     }
-}
-
-std::vector<VectorDims> Reorder::shapeInfer() const {
-    return {getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()};
 }
 
 }   // namespace node

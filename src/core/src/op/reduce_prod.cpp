@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/reduce_prod.hpp"
 
-#include <ngraph/validation_util.hpp>
-
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/util/evaluate_helpers.hpp"
@@ -15,8 +14,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v1::ReduceProd);
 
 op::v1::ReduceProd::ReduceProd(const Output<Node>& arg, const Output<Node>& reduction_axes, bool keep_dims)
     : ArithmeticReductionKeepDims(arg, reduction_axes, keep_dims) {
@@ -30,7 +27,7 @@ shared_ptr<Node> op::v1::ReduceProd::get_default_value() const {
 NGRAPH_SUPPRESS_DEPRECATED_END
 
 shared_ptr<Node> op::v1::ReduceProd::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_ReduceProd_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_ReduceProd_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<ReduceProd>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
@@ -63,7 +60,7 @@ bool evaluate_product(const HostTensorPtr& arg, const HostTensorPtr& out, const 
 }  // namespace reduce_prod
 
 bool op::v1::ReduceProd::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v1_ReduceProd_evaluate);
+    OV_OP_SCOPE(v1_ReduceProd_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
 
@@ -74,7 +71,7 @@ bool op::v1::ReduceProd::evaluate(const HostTensorVector& outputs, const HostTen
 }
 
 bool op::v1::ReduceProd::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_ReduceProd_has_evaluate);
+    OV_OP_SCOPE(v1_ReduceProd_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
@@ -89,22 +86,22 @@ bool op::v1::ReduceProd::has_evaluate() const {
     return false;
 }
 
-bool op::v1::ReduceProd::evaluate_lower(const HostTensorVector& output_values) const {
+bool op::v1::ReduceProd::evaluate_lower(ov::TensorVector& output_values) const {
     if (!input_value(1).get_tensor().has_and_set_bound())
         return false;
-    HostTensorPtr lb = input_value(0).get_tensor().get_lower_value(),
-                  ub = input_value(0).get_tensor().get_upper_value();
-    if (!lb || !ub || !host_tensor_is_positive(lb) || !host_tensor_is_positive(ub))
+
+    const auto &lb = input_value(0).get_tensor().get_lower_value(), ub = input_value(0).get_tensor().get_upper_value();
+    if (!lb || !ub || !tensor_is_positive(lb) || !tensor_is_positive(ub))
         return false;
     return default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v1::ReduceProd::evaluate_upper(const HostTensorVector& output_values) const {
+bool op::v1::ReduceProd::evaluate_upper(ov::TensorVector& output_values) const {
     if (!input_value(1).get_tensor().has_and_set_bound())
         return false;
-    HostTensorPtr lb = input_value(0).get_tensor().get_lower_value(),
-                  ub = input_value(0).get_tensor().get_upper_value();
-    if (!lb || !ub || !host_tensor_is_positive(lb) || !host_tensor_is_positive(ub))
+
+    const auto &lb = input_value(0).get_tensor().get_lower_value(), ub = input_value(0).get_tensor().get_upper_value();
+    if (!lb || !ub || !tensor_is_positive(lb) || !tensor_is_positive(ub))
         return false;
     return default_upper_bound_evaluator(this, output_values);
 }

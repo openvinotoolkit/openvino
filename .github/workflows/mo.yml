@@ -2,64 +2,56 @@ name: MO
 on:
   push:
     paths:
-      - 'openvino/tools/mo/**'
+      - 'tools/mo/**'
+      - '.github/workflows/mo.yml'
+    branches:
+      - 'master'
+      - 'releases/**'
   pull_request:
     paths:
-      - 'openvino/tools/mo/**'
+      - 'tools/mo/**'
+      - '.github/workflows/mo.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   Pylint-UT:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: recursive
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v1
+      - name: Setup Python
+        uses: actions/setup-python@v4
         with:
-          python-version: 3.6
+          python-version: '3.10'
 
       - name: Cache pip
         uses: actions/cache@v1
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('openvino/tools/mo/requirements*.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('tools/mo/requirements*.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
             ${{ runner.os }}-
 
-        # tensorflow 1.15 causes modules import
-        # errors, most likely due to https://github.com/PyCQA/pylint/issues/2603
-        # for tensorflow.core.framework and tensorflow.contrib
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools
           # For UT
           pip install unittest-xml-reporting==3.0.2
           # MO requirements
-          pip install -r requirements.txt
+          pip install -r requirements_mxnet.txt
+          pip install -r requirements_caffe.txt
+          pip install -r requirements_kaldi.txt
+          pip install -r requirements_onnx.txt
+          pip install -r requirements_tf2.txt
           pip install -r requirements_dev.txt
-          # requrements for CMake
-          sudo apt update
-          sudo apt --assume-yes install libusb-1.0-0-dev
-        working-directory: openvino/tools/mo
+        working-directory: tools/mo
 
       - name: Pylint
-        run: pylint -d C,R,W openvino/tools/mo/ openvino/tools/mo/mo.py
-        working-directory: openvino/tools/mo
-
-      - name: CMake
-        run: |
-          mkdir build
-          cd build
-          cmake ..
-
-      - name: UT
-        run: |
-          export PYTHONPATH=$PYTHONPATH:`pwd`
-          export MO_ROOT=`pwd`
-          env
-          mkdir ../mo-ut-logs
-          python3 -m xmlrunner discover -p *_test.py --output=../mo-ut-logs
-        working-directory: openvino/tools/mo
+        run: pylint -d C,R,W openvino/tools/mo
+        working-directory: tools/mo

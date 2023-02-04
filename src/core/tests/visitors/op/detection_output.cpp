@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,7 +66,7 @@ TEST(attributes, detection_output_op) {
 
     auto detection_output =
         make_shared<op::v0::DetectionOutput>(box_logits, class_preds, proposals, aux_class_preds, aux_box_pred, attrs);
-    NodeBuilder builder(detection_output);
+    NodeBuilder builder(detection_output, {box_logits, class_preds, proposals, aux_class_preds, aux_box_pred});
     auto g_detection_output = ov::as_type_ptr<op::v0::DetectionOutput>(builder.create());
 
     const auto do_attrs = detection_output->get_attrs();
@@ -90,7 +90,7 @@ TEST(attributes, detection_output_v8) {
 
     auto detection_output =
         make_shared<v8::DetectionOutput>(box_logits, class_preds, proposals, aux_class_preds, aux_box_pred, attrs);
-    NodeBuilder builder(detection_output);
+    NodeBuilder builder(detection_output, {box_logits, class_preds, proposals, aux_class_preds, aux_box_pred});
     auto g_detection_output = ov::as_type_ptr<v8::DetectionOutput>(builder.create());
 
     const auto do_attrs = detection_output->get_attrs();

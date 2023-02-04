@@ -1,18 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief The BatchToSpace operation reshapes the "batch" dimension 0 into N - 1, N ∈ {4,5,6} dimensions of shape block_shape + [batch]
 /// and interleaves these blocks back into the grid defined by the spatial dimensions [1, ..., N - 1], N ∈ {4,5,6}
@@ -54,14 +47,13 @@ struct batch_to_space : public primitive_base<batch_to_space> {
     /// @param crops_begin Amount to crop from the beginning along each axis of data input
     /// @param crops_end Amount to crop from the ending along each axis of data input
     batch_to_space(const primitive_id& id,
-                   const primitive_id& input,
+                   const input_info& input,
                    const tensor& block_shape,
                    const tensor& crops_begin,
                    const tensor& crops_end,
                    const tensor& out_size,
-                   const primitive_id& ext_prim_id = "",
                    const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           block_shape(block_shape),
           crops_begin(crops_begin),
           crops_end(crops_end),
@@ -71,8 +63,13 @@ struct batch_to_space : public primitive_base<batch_to_space> {
     tensor crops_begin;
     tensor crops_end;
     tensor out_size;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, block_shape.hash());
+        seed = hash_combine(seed, crops_begin.hash());
+        seed = hash_combine(seed, crops_end.hash());
+        return seed;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

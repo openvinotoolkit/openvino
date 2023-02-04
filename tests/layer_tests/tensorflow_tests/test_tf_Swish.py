@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -17,10 +17,6 @@ class TestSwish(CommonTFLayerTest):
             Input->Swish       =>       Input->Swish
 
         """
-
-        #
-        #   Create Tensorflow model
-        #
 
         import tensorflow as tf
 
@@ -71,12 +67,13 @@ class TestSwish(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
+    @pytest.mark.nightly
     def test_swish_precommit(self, params, ie_device, precision, ir_version, temp_dir,
-                             use_new_frontend, api_2):
+                             use_new_frontend, use_old_api):
         self._test(*self.create_swish_net(**params, ir_version=ir_version,
                                           use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data = [dict(shape=[1]),
                  dict(shape=[1, 224]),
@@ -87,8 +84,8 @@ class TestSwish(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_swish(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                   api_2):
+                   use_old_api):
         self._test(*self.create_swish_net(**params, ir_version=ir_version,
                                           use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)

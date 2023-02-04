@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@ extern "C" {
 
 int image_read(const char* img_path, c_mat_t* img) {
     BitMap bmp;
+    bmp.data = NULL;
     int retCode = readBmpImage(img_path, &bmp);
 
     img->mat_data = bmp.data;

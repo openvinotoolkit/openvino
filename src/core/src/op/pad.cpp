@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v1::Pad);
 
 op::v1::Pad::Pad(const Output<Node>& arg,
                  const Output<Node>& pads_begin,
@@ -61,23 +59,31 @@ CoordinateDiff op::v1::Pad::get_pads_end() const {
 }
 
 bool ngraph::op::v1::Pad::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_Pad_visit_attributes);
+    OV_OP_SCOPE(v1_Pad_visit_attributes);
     visitor.on_attribute("pad_mode", m_pad_mode);
     return true;
 }
 
 void op::v1::Pad::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_Pad_validate_and_infer_types);
-    element::Type result_et;
+    OV_OP_SCOPE(v1_Pad_validate_and_infer_types);
+    element::Type result_et = element::dynamic;
 
     const auto& arg_element_type = get_input_element_type(0);
     const auto& pads_begin_element_type = get_input_element_type(1);
     const auto& pads_end_element_type = get_input_element_type(2);
 
+    NODE_VALIDATION_CHECK(this,
+                          element::Type::merge(result_et, result_et, arg_element_type),
+                          "Cannot merge element types (input arg element type: ",
+                          arg_element_type,
+                          ", with: ",
+                          result_et,
+                          ").");
+
     if (m_pad_mode == PadMode::CONSTANT && get_input_size() == 4) {
         const auto& arg_pad_element_type = get_input_element_type(3);
         NODE_VALIDATION_CHECK(this,
-                              element::Type::merge(result_et, arg_element_type, arg_pad_element_type),
+                              element::Type::merge(result_et, result_et, arg_pad_element_type),
                               "Argument element types do not match (input arg element type: ",
                               arg_element_type,
                               ", arg_pad element type: ",
@@ -102,11 +108,11 @@ void op::v1::Pad::validate_and_infer_types() {
     for (size_t i = 0; i < get_input_size(); i++)
         input_shapes.push_back(get_input_partial_shape(i));
     shape_infer(this, input_shapes, output_shapes);
-    set_output_type(0, get_input_element_type(0), output_shapes[0]);
+    set_output_type(0, result_et, output_shapes[0]);
 }
 
 shared_ptr<Node> op::v1::Pad::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_Pad_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_Pad_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (get_input_size() == 4) {
         return make_shared<v1::Pad>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_pad_mode);
@@ -159,11 +165,11 @@ bool op::v1::Pad::evaluate_pad(const HostTensorVector& outputs, const HostTensor
 }
 
 bool op::v1::Pad::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v1_Pad_evaluate);
+    OV_OP_SCOPE(v1_Pad_evaluate);
     return evaluate_pad(outputs, inputs);
 }
 
 bool op::v1::Pad::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_Pad_has_evaluate);
+    OV_OP_SCOPE(v1_Pad_has_evaluate);
     return true;
 }

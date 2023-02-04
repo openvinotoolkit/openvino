@@ -1,8 +1,20 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 include(CPackComponent)
+
+#
+# ov_get_pyversion()
+#
+function(ov_get_pyversion pyversion)
+    find_package(PythonInterp 3 QUIET)
+    if(PYTHONINTERP_FOUND)
+        set(${pyversion} "python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}" PARENT_SCOPE)
+    else()
+        set(${pyversion} "NOT-FOUND" PARENT_SCOPE)
+    endif()
+endfunction()
 
 #
 # ov_cpack_set_dirs()
@@ -18,23 +30,30 @@ macro(ov_cpack_set_dirs)
     set(OV_CPACK_OPENVINO_CMAKEDIR runtime/cmake)
     set(OV_CPACK_DOCDIR docs)
     set(OV_CPACK_SAMPLESDIR samples)
-    set(OV_CPACK_PYTHONDIR python)
     set(OV_CPACK_WHEELSDIR tools)
     set(OV_CPACK_TOOLSDIR tools)
     set(OV_CPACK_DEVREQDIR tools)
+
+    ov_get_pyversion(pyversion)
+    if(pyversion)
+        set(OV_CPACK_PYTHONDIR python/${pyversion})
+    endif()
 
     if(WIN32)
         set(OV_CPACK_LIBRARYDIR runtime/lib/${ARCH_FOLDER}/$<CONFIG>)
         set(OV_CPACK_RUNTIMEDIR runtime/bin/${ARCH_FOLDER}/$<CONFIG>)
         set(OV_CPACK_ARCHIVEDIR runtime/lib/${ARCH_FOLDER}/$<CONFIG>)
+        set(OV_WHEEL_RUNTIMEDIR runtime/bin/${ARCH_FOLDER}/Release)
     elseif(APPLE)
         set(OV_CPACK_LIBRARYDIR runtime/lib/${ARCH_FOLDER}/$<CONFIG>)
         set(OV_CPACK_RUNTIMEDIR runtime/lib/${ARCH_FOLDER}/$<CONFIG>)
         set(OV_CPACK_ARCHIVEDIR runtime/lib/${ARCH_FOLDER}/$<CONFIG>)
+        set(OV_WHEEL_RUNTIMEDIR runtime/lib/${ARCH_FOLDER}/Release)
     else()
         set(OV_CPACK_LIBRARYDIR runtime/lib/${ARCH_FOLDER})
         set(OV_CPACK_RUNTIMEDIR runtime/lib/${ARCH_FOLDER})
         set(OV_CPACK_ARCHIVEDIR runtime/lib/${ARCH_FOLDER})
+        set(OV_WHEEL_RUNTIMEDIR ${OV_CPACK_RUNTIMEDIR})
     endif()
     set(OV_CPACK_PLUGINSDIR ${OV_CPACK_RUNTIMEDIR})
 
@@ -57,10 +76,10 @@ function(ie_cpack_add_component name)
 
         # need to store informarion about cpack_add_component arguments in CMakeCache.txt
         # to restore it later
-        set(_${name}_cpack_component_args "${ARGN}" CACHE STRING "Argument for cpack_add_component for ${name} cpack component" FORCE)
+        set(_${name}_cpack_component_args "${ARGN}" CACHE INTERNAL "Argument for cpack_add_component for ${name} cpack component" FORCE)
 
         list(APPEND IE_CPACK_COMPONENTS_ALL ${name})
-        set(IE_CPACK_COMPONENTS_ALL "${IE_CPACK_COMPONENTS_ALL}" CACHE STRING "" FORCE)
+        set(IE_CPACK_COMPONENTS_ALL "${IE_CPACK_COMPONENTS_ALL}" CACHE INTERNAL "" FORCE)
     endif()
 endfunction()
 
@@ -73,6 +92,30 @@ unset(IE_CPACK_COMPONENTS_ALL CACHE)
 if(ENABLE_TESTS)
     cpack_add_component(tests HIDDEN)
 endif()
+
+#
+#  ov_install_with_name(<FILE> <COMPONENT>)
+#
+# if <FILE> is a symlink, we resolve it, but install file with a name of symlink
+#
+function(ov_install_with_name file component)
+    if((APPLE AND file MATCHES "^[^\.]+\.[0-9]+${CMAKE_SHARED_LIBRARY_SUFFIX}$") OR
+                (file MATCHES "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}\.[0-9]+$"))
+        if(IS_SYMLINK "${file}")
+            get_filename_component(actual_name "${file}" NAME)
+            get_filename_component(file "${file}" REALPATH)
+            set(install_rename RENAME "${actual_name}")
+        endif()
+
+        install(FILES "${file}"
+                DESTINATION runtime/3rdparty/${component}/lib
+                COMPONENT ${component}
+                EXCLUDE_FROM_ALL
+                ${install_rename})
+
+        set("${component}_INSTALLED" ON PARENT_SCOPE)
+    endif()
+endfunction()
 
 #
 # List of public OpenVINO components
@@ -114,11 +157,13 @@ ov_define_component_names()
 #  - ov_add_lintian_suppression()
 #  - ov_add_latest_component()
 if(CPACK_GENERATOR STREQUAL "DEB")
-    include(packaging/debian)
-endif()
-
-if(CPACK_GENERATOR STREQUAL "NSIS")
+    include(packaging/debian/debian)
+elseif(CPACK_GENERATOR STREQUAL "RPM")
+    include(packaging/rpm/rpm)
+elseif(CPACK_GENERATOR STREQUAL "NSIS")
     include(packaging/nsis)
+elseif(CPACK_GENERATOR MATCHES "^(CONDA-FORGE|BREW)$")
+    include(packaging/common-libraries)
 endif()
 
 macro(ie_cpack)
@@ -173,19 +218,19 @@ macro(ie_cpack)
         set(CPACK_SYSTEM_NAME "${OS_FOLDER}")
     endif()
 
+    # include GENERATOR dedicated per-component configuration file
+    # NOTE: private modules need to define ov_cpack_settings macro
+    # for custom  packages configuration
+    if(COMMAND ov_cpack_settings)
+        ov_cpack_settings()
+    endif()
+
     # generator specific variables
     if(CPACK_GENERATOR MATCHES "^(7Z|TBZ2|TGZ|TXZ|TZ|ZIP)$")
         # New in version 3.18
         set(CPACK_ARCHIVE_THREADS 8)
         # multiple packages are generated
         set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
-    endif()
-    
-    # include GENERATOR dedicated per-component configuration file
-    # NOTE: private modules need to define ov_cpack_settings macro
-    # for custom  packages configuration
-    if(COMMAND ov_cpack_settings)
-        ov_cpack_settings()
     endif()
 
     include(CPack)

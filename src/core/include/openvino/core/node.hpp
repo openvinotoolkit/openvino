@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,7 +65,6 @@ class Matcher;
 using HostTensor = ngraph::runtime::HostTensor;
 using HostTensorPtr = std::shared_ptr<HostTensor>;
 using HostTensorVector = std::vector<HostTensorPtr>;
-using TensorLabelVector = std::vector<TensorLabel>;
 
 template <typename NodeType>
 class Input;
@@ -137,7 +136,7 @@ protected:
     descriptor::Output& get_output_descriptor(size_t position);
 
     /// \brief Construct an uninitialized Node
-    Node() = default;
+    Node();
     /// \brief Copying a node
     Node(const Node&);
     /// \brief Assignment operator
@@ -194,9 +193,7 @@ public:
 
     virtual ~Node();
 
-    virtual bool visit_attributes(AttributeVisitor&) {
-        return false;
-    }
+    virtual bool visit_attributes(AttributeVisitor&);
     /// \returns the autobroadcasr spec
     virtual const ov::op::AutoBroadcastSpec& get_autob() const;
 
@@ -224,12 +221,6 @@ public:
     virtual bool evaluate(const ov::HostTensorVector& output_values,
                           const ov::HostTensorVector& input_values,
                           const EvaluationContext& evaluationContext) const;
-    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon. Please use evaluate_lower with "
-                        "ov::Tensor instead.")
-    virtual bool evaluate_lower(const ov::HostTensorVector& output_values) const;
-    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon. Please use evaluate_upper with "
-                        "ov::Tensor instead.")
-    virtual bool evaluate_upper(const ov::HostTensorVector& output_values) const;
 
     /// \brief Evaluates the op on input_values putting results in output_values
     /// \param output_values Tensors for the outputs to compute. One for each result
@@ -375,10 +366,6 @@ public:
     descriptor::Tensor& get_output_tensor(size_t i) const;
     descriptor::Tensor& get_input_tensor(size_t i) const;
 
-    /// Returns the tensor name for output i
-    OPENVINO_DEPRECATED("The tensor name was deprecated. Use get_output_tensor(i).get_names() instead.")
-    const std::string& get_output_tensor_name(size_t i) const;
-
     std::set<Input<Node>> get_output_target_inputs(size_t i) const;
 
     /// Returns the number of inputs for the op
@@ -395,10 +382,6 @@ public:
     /// Returns the partial shape of input i
     // TODO: deprecate in favor of node->get_input_partial_shape(i)
     const PartialShape& get_input_partial_shape(size_t i) const;
-
-    /// Returns the tensor name for input i
-    OPENVINO_DEPRECATED("The tensor name was deprecated. Use get_input_tensor(i).get_names() instead.")
-    const std::string& get_input_tensor_name(size_t i) const;
 
     Node* get_input_node_ptr(size_t index) const;
     std::shared_ptr<Node> get_input_node_shared_ptr(size_t index) const;
@@ -603,7 +586,6 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<Node>>");
-    BWDCMP_RTTI_DECLARATION;
 
 protected:
     std::shared_ptr<ov::Node>& m_ref;
@@ -617,7 +599,6 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     OPENVINO_RTTI("AttributeAdapter<NodeVector>");
-    BWDCMP_RTTI_DECLARATION;
 
 protected:
     ov::NodeVector& m_ref;

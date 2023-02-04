@@ -1,19 +1,20 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/common_optimizations/reduce_merge.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset9.hpp>
 #include <ngraph/pattern/op/or.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
+#include <openvino/opsets/opset9.hpp>
+#include <openvino/pass/pattern/op/wrap_type.hpp>
 
 #include "itt.hpp"
 
-using namespace ngraph;
+using namespace ov;
+using namespace ov::pass;
 
 template <typename T>
 std::shared_ptr<Node> create_pattern() {
@@ -92,7 +93,7 @@ pass::ReduceMerge::ReduceMerge() {
                                                                   reduce_prod_pattern,
                                                                   reduce_sum_pattern});
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         const auto node = m.get_match_root();
         if (ov::is_type<op::util::ArithmeticReductionKeepDims>(node)) {
             return fuse_reduce_operations<op::util::ArithmeticReductionKeepDims>(node);

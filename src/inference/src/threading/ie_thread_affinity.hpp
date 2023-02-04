@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,12 +9,12 @@
 
 #include "ie_api.h"
 
-#if !(defined(__APPLE__) || defined(_WIN32))
+#if !(defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
 #    include <sched.h>
 #endif
 
 namespace InferenceEngine {
-#if (defined(__APPLE__) || defined(_WIN32))
+#if (defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
 using cpu_set_t = void;
 #endif  // (defined(__APPLE__) || defined(_WIN32))
 
@@ -64,7 +64,7 @@ std::tuple<CpuSet, int> GetProcessMask();
  * @param[in]  processMask   The process mask
  * @return     `True` in case of success, `false` otherwise
  */
-bool PinThreadToVacantCore(int thrIdx, int hyperThreads, int ncores, const CpuSet& processMask);
+bool PinThreadToVacantCore(int thrIdx, int hyperThreads, int ncores, const CpuSet& processMask, int cpuIdxOffset = 0);
 
 /**
  * @brief      Pins thread to a spare core in the round-robin scheme, while respecting the given process mask.

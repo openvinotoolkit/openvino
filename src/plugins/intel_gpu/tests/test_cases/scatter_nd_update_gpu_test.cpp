@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -137,11 +137,11 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
             input_layout("InputData", input1->get_layout()),
             input_layout("InputIndices", input2->get_layout()),
             input_layout("InputUpdates", input3->get_layout()),
-            reorder("reorder1", "InputData", params.input_result_format, params.input_type),
-            reorder("reorder2", "InputIndices", params.indices_result_format, params.indices_type),
-            reorder("reorder3", "InputUpdates", params.updates_result_format, params.updates_type),
-            scatter_nd_update("scatter_nd_update", "reorder1", "reorder2", "reorder3", params.indices_rank),
-            reorder("out", "scatter_nd_update", params.input_format, params.input_type)
+            reorder("reorder1", input_info("InputData"), params.input_result_format, params.input_type),
+            reorder("reorder2", input_info("InputIndices"), params.indices_result_format, params.indices_type),
+            reorder("reorder3", input_info("InputUpdates"), params.updates_result_format, params.updates_type),
+            scatter_nd_update("scatter_nd_update", input_info("reorder1"), input_info("reorder2"), input_info("reorder3"), params.indices_rank),
+            reorder("out", input_info("scatter_nd_update"), params.input_format, params.input_type)
         );
 
         network network(engine, topology);
@@ -164,7 +164,7 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
                                                                   ov::Shape(updates_vec.begin(), updates_vec.end()));
 
         for (size_t i = 0; i < outputs_ref.size(); ++i) {
-            EXPECT_EQ(outputs_ref[i], float16_to_float32(outputs_ptr[i]));
+            ASSERT_EQ(outputs_ref[i], half_to_float(outputs_ptr[i]));
         }
     }
 
@@ -207,11 +207,11 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
             input_layout("InputData", input1->get_layout()),
             input_layout("InputIndices", input2->get_layout()),
             input_layout("InputUpdates", input3->get_layout()),
-            reorder("reorder1", "InputData", params.input_result_format, params.input_type),
-            reorder("reorder2", "InputIndices", params.indices_result_format, params.indices_type),
-            reorder("reorder3", "InputUpdates", params.updates_result_format, params.updates_type),
-            scatter_nd_update("scatter_nd_update", "reorder1", "reorder2", "reorder3", params.indices_rank),
-            reorder("out", "scatter_nd_update", params.input_format, params.input_type)
+            reorder("reorder1", input_info("InputData"), params.input_result_format, params.input_type),
+            reorder("reorder2", input_info("InputIndices"), params.indices_result_format, params.indices_type),
+            reorder("reorder3", input_info("InputUpdates"), params.updates_result_format, params.updates_type),
+            scatter_nd_update("scatter_nd_update", input_info("reorder1"), input_info("reorder2"), input_info("reorder3"), params.indices_rank),
+            reorder("out", input_info("scatter_nd_update"), params.input_format, params.input_type)
         );
 
         network network(engine, topology);
@@ -234,7 +234,7 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
                                                           ov::Shape(updates_vec.begin(), updates_vec.end()));
 
         for (size_t i = 0; i < outputs_ref.size(); ++i) {
-            EXPECT_EQ(outputs_ref[i], outputs_ptr[i]);
+            ASSERT_EQ(outputs_ref[i], outputs_ptr[i]);
         }
     }
 };
@@ -565,7 +565,7 @@ TEST(scatter_nd_update_gpu_fp16_test15, data5_indice3_update5) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 3)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 3)
     );
 
     network network(engine, topology);
@@ -581,7 +581,7 @@ TEST(scatter_nd_update_gpu_fp16_test15, data5_indice3_update5) {
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -649,7 +649,7 @@ TEST(scatter_nd_update_gpu_fp16_test14, data5_indice2_update3) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -665,7 +665,7 @@ TEST(scatter_nd_update_gpu_fp16_test14, data5_indice2_update3) {
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -713,7 +713,7 @@ TEST(scatter_nd_update_gpu_fp16_test13, data4_indice2_update2) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -729,7 +729,7 @@ TEST(scatter_nd_update_gpu_fp16_test13, data4_indice2_update2) {
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -784,7 +784,7 @@ TEST(scatter_nd_update_gpu_fp16_test12, data3_indice3_update1) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -800,7 +800,7 @@ TEST(scatter_nd_update_gpu_fp16_test12, data3_indice3_update1) {
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -914,7 +914,7 @@ TEST(scatter_nd_update_gpu_fp16_test11, data6_indice1_update6) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -930,7 +930,7 @@ TEST(scatter_nd_update_gpu_fp16_test11, data6_indice1_update6) {
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -1010,7 +1010,7 @@ TEST(scatter_nd_update_gpu_fp16_test10, data5_indice1_update5) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -1026,7 +1026,7 @@ TEST(scatter_nd_update_gpu_fp16_test10, data5_indice1_update5) {
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -1088,7 +1088,7 @@ TEST(scatter_nd_update_gpu_fp16_test9, data4_indice1_update4) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -1104,7 +1104,7 @@ TEST(scatter_nd_update_gpu_fp16_test9, data4_indice1_update4) {
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -1186,7 +1186,7 @@ TEST(scatter_nd_update_gpu_fp16_test8, data6_indice2_update5) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -1202,7 +1202,7 @@ TEST(scatter_nd_update_gpu_fp16_test8, data6_indice2_update5) {
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -1254,7 +1254,7 @@ TEST(scatter_nd_update_gpu_fp16_test7, data5_indice2_update4) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -1270,7 +1270,7 @@ TEST(scatter_nd_update_gpu_fp16_test7, data5_indice2_update4) {
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -1320,7 +1320,7 @@ TEST(scatter_nd_update_gpu_fp16_test6, data4_indice2_update3) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -1336,7 +1336,7 @@ TEST(scatter_nd_update_gpu_fp16_test6, data4_indice2_update3) {
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -1385,7 +1385,7 @@ TEST(scatter_nd_update_gpu_fp16_test5, data3_indice2_update2) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -1401,7 +1401,7 @@ TEST(scatter_nd_update_gpu_fp16_test5, data3_indice2_update2) {
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -1440,7 +1440,7 @@ TEST(scatter_nd_update_gpu_fp16_test4, data2_indice2_update1) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -1456,7 +1456,7 @@ TEST(scatter_nd_update_gpu_fp16_test4, data2_indice2_update1) {
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -1515,7 +1515,7 @@ TEST(scatter_nd_update_gpu_fp16_test3, data3_indice1_update3) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -1531,7 +1531,7 @@ TEST(scatter_nd_update_gpu_fp16_test3, data3_indice1_update3) {
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -1570,7 +1570,7 @@ TEST(scatter_nd_update_gpu_fp16_test2, data2_indice1_update2) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -1586,7 +1586,7 @@ TEST(scatter_nd_update_gpu_fp16_test2, data2_indice1_update2) {
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -1619,7 +1619,7 @@ TEST(scatter_nd_update_gpu_fp16_test1, data1_indice1_update1) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -1635,7 +1635,7 @@ TEST(scatter_nd_update_gpu_fp16_test1, data1_indice1_update1) {
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -1714,7 +1714,7 @@ TEST(scatter_nd_update_gpu_fp16, d6661_i2311) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -1775,7 +1775,7 @@ TEST(scatter_nd_update_gpu_fp16, d6661_i2311) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -1853,7 +1853,7 @@ TEST(scatter_nd_update_gpu_fp16, d6661_i2211) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -1914,7 +1914,7 @@ TEST(scatter_nd_update_gpu_fp16, d6661_i2211) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -2003,7 +2003,7 @@ TEST(scatter_nd_update_gpu_fp16, d6661_i2111) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -2064,7 +2064,7 @@ TEST(scatter_nd_update_gpu_fp16, d6661_i2111) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -2124,7 +2124,7 @@ TEST(scatter_nd_update_gpu_fp16, d3232_i2411) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -2167,7 +2167,7 @@ TEST(scatter_nd_update_gpu_fp16, d3232_i2411) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -2227,7 +2227,7 @@ TEST(scatter_nd_update_gpu_fp16, d3232_i2311) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -2270,7 +2270,7 @@ TEST(scatter_nd_update_gpu_fp16, d3232_i2311) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -2336,7 +2336,7 @@ TEST(scatter_nd_update_gpu_fp16, d3232_i2211) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -2379,7 +2379,7 @@ TEST(scatter_nd_update_gpu_fp16, d3232_i2211) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -2453,7 +2453,7 @@ TEST(scatter_nd_update_gpu_fp16, d3232_i2111) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -2496,7 +2496,7 @@ TEST(scatter_nd_update_gpu_fp16, d3232_i2111) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -2587,7 +2587,7 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i25111) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -2662,7 +2662,7 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i25111) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -2755,7 +2755,7 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i24111) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -2830,7 +2830,7 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i24111) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -2926,7 +2926,7 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i23111) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -3001,7 +3001,7 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i23111) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -3109,7 +3109,7 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i22111) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -3184,7 +3184,7 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i22111) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -3310,7 +3310,7 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i21111) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -3385,7 +3385,7 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i21111) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -3470,7 +3470,7 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i261111) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -3537,7 +3537,7 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i261111) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -3623,7 +3623,7 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i251111) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -3690,7 +3690,7 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i251111) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -3779,7 +3779,7 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i241111) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -3846,7 +3846,7 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i241111) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -3942,7 +3942,7 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i231111) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -4009,7 +4009,7 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i231111) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -4116,7 +4116,7 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i221111) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -4183,7 +4183,7 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i221111) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -4313,7 +4313,7 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i211111) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
     network network(engine, topology);
@@ -4380,6 +4380,6 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i211111) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }

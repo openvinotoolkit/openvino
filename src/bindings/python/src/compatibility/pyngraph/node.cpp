@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,7 @@ public:
 };
 
 namespace impl {
+namespace {
 py::dict get_attributes(const std::shared_ptr<ngraph::Node>& node) {
     util::DictAttributeSerializer dict_serializer(node);
     return dict_serializer.get_attributes();
@@ -42,6 +43,7 @@ void set_attribute(std::shared_ptr<ngraph::Node>& node, const std::string& atr_n
     util::DictAttributeDeserializer dict_deserializer(attr_dict, variables);
     node->visit_attributes(dict_deserializer);
 }
+}  // namespace
 }  // namespace impl
 
 namespace py = pybind11;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,19 +25,36 @@ namespace BehaviorTestsDefinitions {
 #define ASSERT_METRIC_SUPPORTED_IE(metricName)                       \
 {                                                                    \
     std::vector<std::string> metrics =                               \
-        ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS));     \
+        ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_METRICS));  \
     auto it = std::find(metrics.begin(), metrics.end(), metricName); \
     ASSERT_NE(metrics.end(), it);                                    \
 }
 
-class IEClassBasicTestP : public ::testing::Test, public ::testing::WithParamInterface<std::pair<std::string, std::string> > {
+inline bool supportsAvaliableDevices(InferenceEngine::Core& ie, const std::string& target_device) {
+    auto supportedMetricKeys =
+        ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
+    return supportedMetricKeys.end() !=
+           std::find(std::begin(supportedMetricKeys), std::end(supportedMetricKeys), METRIC_KEY(AVAILABLE_DEVICES));
+}
+
+inline bool supportsDeviceID(InferenceEngine::Core &ie, const std::string &target_device) {
+    auto supportedConfigKeys = ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
+    return supportedConfigKeys.end() != std::find(std::begin(supportedConfigKeys),
+                                                  std::end(supportedConfigKeys),
+                                                  CONFIG_KEY(DEVICE_ID));
+}
+
+class IEClassBasicTestP : public BehaviorTestsUtils::IEPluginTestBase,
+                          public ::testing::WithParamInterface<std::pair<std::string, std::string> > {
 protected:
     std::string deviceName;
     std::string pluginName;
+
 public:
     void SetUp() override {
+        std::tie(pluginName, target_device) = GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
-        std::tie(pluginName, deviceName) = GetParam();
+        ov::test::behavior::APIBaseTest::SetUp();
         pluginName += IE_BUILD_POSTFIX;
         if (pluginName == (std::string("openvino_template_plugin") + IE_BUILD_POSTFIX)) {
             pluginName = ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(), pluginName);
@@ -45,14 +62,15 @@ public:
     }
 };
 
-class IEClassSetDefaultDeviceIDTest : public ::testing::Test,
+class IEClassSetDefaultDeviceIDTest : public BehaviorTestsUtils::IEPluginTestBase,
                                       public ::testing::WithParamInterface<std::pair<std::string, std::string>> {
 protected:
-    std::string deviceName;
     std::string deviceID;
+
 public:
     void SetUp() override {
-        std::tie(deviceName, deviceID) = GetParam();
+        std::tie(target_device, deviceID) = GetParam();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
     }
 };
 
@@ -78,35 +96,25 @@ using IEClassGetMetricTest_RANGE_FOR_STREAMS = BehaviorTestsUtils::IEClassBaseTe
 using IEClassSetGlobalConfigTest = BehaviorTestsUtils::IEClassBaseTestP;
 using IEClassSpecificDeviceTestSetConfig = BehaviorTestsUtils::IEClassBaseTestP;
 using IEClassSpecificDeviceTestGetConfig = BehaviorTestsUtils::IEClassBaseTestP;
-
 using IEClassLoadNetworkAfterCoreRecreateTest = BehaviorTestsUtils::IEClassBaseTestP;
 
-class IEClassSeveralDevicesTest : public BehaviorTestsUtils::IEClassNetworkTest,
+class IEClassSeveralDevicesTest : public BehaviorTestsUtils::IEPluginTestBase,
+                                  public BehaviorTestsUtils::IEClassNetworkTest,
                                   public ::testing::WithParamInterface<std::vector<std::string>> {
 public:
-    std::vector<std::string> deviceNames;
+    std::vector<std::string> target_devices;
     void SetUp() override {
+        target_device = CommonTestUtils::DEVICE_MULTI;
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        ov::test::behavior::APIBaseTest::SetUp();
         IEClassNetworkTest::SetUp();
-        deviceNames = GetParam();
+        target_devices = GetParam();
     }
 };
+
 using IEClassSeveralDevicesTestLoadNetwork = IEClassSeveralDevicesTest;
 using IEClassSeveralDevicesTestQueryNetwork = IEClassSeveralDevicesTest;
 using IEClassSeveralDevicesTestDefaultCore = IEClassSeveralDevicesTest;
-
-bool supportsAvaliableDevices(InferenceEngine::Core &ie, const std::string &deviceName) {
-    auto supportedMetricKeys = ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
-    return supportedMetricKeys.end() != std::find(std::begin(supportedMetricKeys),
-                                                  std::end(supportedMetricKeys),
-                                                  METRIC_KEY(AVAILABLE_DEVICES));
-}
-
-bool supportsDeviceID(InferenceEngine::Core &ie, const std::string &deviceName) {
-    auto supportedConfigKeys = ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
-    return supportedConfigKeys.end() != std::find(std::begin(supportedConfigKeys),
-                                                  std::end(supportedConfigKeys),
-                                                  CONFIG_KEY(DEVICE_ID));
-}
 
 TEST(IEClassBasicTest, smoke_createDefault) {
     ASSERT_NO_THROW(InferenceEngine::Core  ie);
@@ -117,7 +125,7 @@ TEST(IEClassBasicTest, smoke_createDefault) {
 
 TEST_P(IEClassBasicTestP, registerExistingPluginThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    ASSERT_THROW(ie.RegisterPlugin(pluginName, deviceName), InferenceEngine::Exception);
+    ASSERT_THROW(ie.RegisterPlugin(pluginName, target_device), InferenceEngine::Exception);
 }
 
 TEST_P(IEClassBasicTestP, registerNewPluginNoThrows) {
@@ -136,7 +144,8 @@ TEST(IEClassBasicTest, smoke_createNonExistingConfigThrows) {
 }
 
 inline std::string getPluginFile() {
-    std::string filename{"mock_engine_valid.xml"};
+    std::string filePostfix{"mock_engine_valid.xml"};
+    std::string filename = CommonTestUtils::generateTestFilePrefix() + "_" + filePostfix;
     std::ostringstream stream;
     stream << "<ie><plugins><plugin name=\"mock\" location=\"";
     stream << ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
@@ -153,13 +162,12 @@ TEST(IEClassBasicTest, smoke_createMockEngineConfigNoThrows) {
 }
 
 TEST(IEClassBasicTest, smoke_createMockEngineConfigThrows) {
-    std::string filename{"mock_engine.xml"};
+    std::string filename = CommonTestUtils::generateTestFilePrefix() + "_mock_engine.xml";
     std::string content{"<ie><plugins><plugin location=\"libmock_engine.so\"></plugin></plugins></ie>"};
     CommonTestUtils::createFile(filename, content);
     ASSERT_THROW(InferenceEngine::Core  ie(filename), InferenceEngine::Exception);
     CommonTestUtils::removeFile(filename.c_str());
 }
-
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
@@ -184,7 +192,7 @@ TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
             ASSERT_NO_THROW(ie.RegisterPlugins(ov::util::wstring_to_string(pluginsXmlW)));
             CommonTestUtils::removeFile(pluginsXmlW);
             ASSERT_NO_THROW(ie.GetVersions("mock")); // from pluginXM
-            ASSERT_NO_THROW(ie.GetVersions(deviceName));
+            ASSERT_NO_THROW(ie.GetVersions(target_device));
             GTEST_COUT << "Plugin created " << testIndex << std::endl;
 
             ASSERT_NO_THROW(ie.RegisterPlugin(pluginName, "TEST_DEVICE"));
@@ -211,17 +219,17 @@ TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
 
 TEST_P(IEClassBasicTestP, getVersionsByExactDeviceNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    ASSERT_NO_THROW(ie.GetVersions(deviceName + ".0"));
+    ASSERT_NO_THROW(ie.GetVersions(target_device + ".0"));
 }
 
 TEST_P(IEClassBasicTestP, getVersionsByDeviceClassNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    ASSERT_NO_THROW(ie.GetVersions(deviceName));
+    ASSERT_NO_THROW(ie.GetVersions(target_device));
 }
 
 TEST_P(IEClassBasicTestP, getVersionsNonEmpty) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    ASSERT_EQ(2, ie.GetVersions(CommonTestUtils::DEVICE_HETERO + std::string(":") + deviceName).size());
+    ASSERT_EQ(2, ie.GetVersions(CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device).size());
 }
 
 //
@@ -231,22 +239,22 @@ TEST_P(IEClassBasicTestP, getVersionsNonEmpty) {
 TEST_P(IEClassBasicTestP, unregisterExistingPluginNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     // device instance is not created yet
-    ASSERT_THROW(ie.UnregisterPlugin(deviceName), InferenceEngine::Exception);
+    ASSERT_THROW(ie.UnregisterPlugin(target_device), InferenceEngine::Exception);
 
     // make the first call to IE which created device instance
-    ie.GetVersions(deviceName);
+    ie.GetVersions(target_device);
     // now, we can unregister device
-    ASSERT_NO_THROW(ie.UnregisterPlugin(deviceName));
+    ASSERT_NO_THROW(ie.UnregisterPlugin(target_device));
 }
 
 TEST_P(IEClassBasicTestP, accessToUnregisteredPluginThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    ASSERT_THROW(ie.UnregisterPlugin(deviceName), InferenceEngine::Exception);
-    ASSERT_NO_THROW(ie.GetVersions(deviceName));
-    ASSERT_NO_THROW(ie.UnregisterPlugin(deviceName));
-    ASSERT_NO_THROW(ie.SetConfig({}, deviceName));
-    ASSERT_NO_THROW(ie.GetVersions(deviceName));
-    ASSERT_NO_THROW(ie.UnregisterPlugin(deviceName));
+    ASSERT_THROW(ie.UnregisterPlugin(target_device), InferenceEngine::Exception);
+    ASSERT_NO_THROW(ie.GetVersions(target_device));
+    ASSERT_NO_THROW(ie.UnregisterPlugin(target_device));
+    ASSERT_NO_THROW(ie.SetConfig({}, target_device));
+    ASSERT_NO_THROW(ie.GetVersions(target_device));
+    ASSERT_NO_THROW(ie.UnregisterPlugin(target_device));
 }
 
 TEST(IEClassBasicTest, smoke_unregisterNonExistingPluginThrows) {
@@ -261,7 +269,7 @@ TEST(IEClassBasicTest, smoke_unregisterNonExistingPluginThrows) {
 TEST_P(IEClassBasicTestP, SetConfigAllThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     ASSERT_NO_THROW(ie.SetConfig({{"unsupported_key", "4"}}));
-    ASSERT_ANY_THROW(ie.GetVersions(deviceName));
+    ASSERT_ANY_THROW(ie.GetVersions(target_device));
 }
 
 TEST_P(IEClassBasicTestP, SetConfigForUnRegisteredDeviceThrows) {
@@ -272,13 +280,13 @@ TEST_P(IEClassBasicTestP, SetConfigForUnRegisteredDeviceThrows) {
 TEST_P(IEClassBasicTestP, SetConfigNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     ASSERT_NO_THROW(ie.SetConfig({{InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES}},
-                                 deviceName));
+                                 target_device));
 }
 
 TEST_P(IEClassBasicTestP, SetConfigAllNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     ASSERT_NO_THROW(ie.SetConfig({{InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES}}));
-    ASSERT_NO_THROW(ie.GetVersions(deviceName));
+    ASSERT_NO_THROW(ie.GetVersions(target_device));
 }
 
 TEST(IEClassBasicTest, smoke_SetConfigHeteroThrows) {
@@ -291,17 +299,17 @@ TEST_P(IEClassBasicTestP, SetGetConfigForTbbTerminateThrows) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
     bool value = false;
     ASSERT_NO_THROW(ie.SetConfig({{CONFIG_KEY(FORCE_TBB_TERMINATE), CONFIG_VALUE(YES)}}));
-    ASSERT_NO_THROW(value = ie.GetConfig(deviceName, CONFIG_KEY(FORCE_TBB_TERMINATE)).as<bool>());
+    ASSERT_NO_THROW(value = ie.GetConfig(target_device, CONFIG_KEY(FORCE_TBB_TERMINATE)).as<bool>());
     ASSERT_TRUE(value);
 
     ASSERT_NO_THROW(ie.SetConfig({{CONFIG_KEY(FORCE_TBB_TERMINATE), CONFIG_VALUE(NO)}}));
-    ASSERT_NO_THROW(value = ie.GetConfig(deviceName, CONFIG_KEY(FORCE_TBB_TERMINATE)).as<bool>());
+    ASSERT_NO_THROW(value = ie.GetConfig(target_device, CONFIG_KEY(FORCE_TBB_TERMINATE)).as<bool>());
     ASSERT_FALSE(value);
 }
 
 TEST_P(IEClassBasicTestP, SetConfigHeteroTargetFallbackThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    ASSERT_NO_THROW(ie.SetConfig({{"TARGET_FALLBACK", deviceName}}, CommonTestUtils::DEVICE_HETERO));
+    ASSERT_NO_THROW(ie.SetConfig({{"TARGET_FALLBACK", target_device}}, CommonTestUtils::DEVICE_HETERO));
 }
 
 TEST(IEClassBasicTest, smoke_SetConfigHeteroNoThrow) {
@@ -322,46 +330,32 @@ TEST(IEClassBasicTest, smoke_SetConfigHeteroNoThrow) {
 TEST_P(IEClassSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
-    std::string deviceID, clearDeviceName;
-    auto pos = deviceName.find('.');
+    std::string deviceID, cleartarget_device;
+    auto pos = target_device.find('.');
     if (pos != std::string::npos) {
-        clearDeviceName = deviceName.substr(0, pos);
-        deviceID =  deviceName.substr(pos + 1,  deviceName.size());
+        cleartarget_device = target_device.substr(0, pos);
+        deviceID =  target_device.substr(pos + 1,  target_device.size());
     }
-    if (!supportsDeviceID(ie, clearDeviceName) || !supportsAvaliableDevices(ie, clearDeviceName)) {
-        GTEST_SKIP();
+    if (!supportsDeviceID(ie, cleartarget_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
     }
-    std::vector<std::string> deviceIDs = ie.GetMetric(clearDeviceName, METRIC_KEY(AVAILABLE_DEVICES));
+    if (!supportsAvaliableDevices(ie, cleartarget_device)) {
+        GTEST_FAIL() << "Device does not support AvailableDevices" << std::endl;
+    }
+    std::vector<std::string> deviceIDs = ie.GetMetric(cleartarget_device, METRIC_KEY(AVAILABLE_DEVICES));
     if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
         GTEST_SKIP();
     }
 
-    ASSERT_NO_THROW(ie.SetConfig({{InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES}}, deviceName));
+    ASSERT_NO_THROW(ie.SetConfig({{InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES}}, target_device));
     std::string value;
-    ASSERT_NO_THROW(value = ie.GetConfig(deviceName, InferenceEngine::PluginConfigParams::KEY_PERF_COUNT).as<std::string>());
+    ASSERT_NO_THROW(value = ie.GetConfig(target_device, InferenceEngine::PluginConfigParams::KEY_PERF_COUNT).as<std::string>());
     ASSERT_EQ(value, InferenceEngine::PluginConfigParams::YES);
 }
 
 //
 // ImportNetwork
 //
-
-TEST_P(IEClassBasicTestP, ImportNetworkThrows) {
-    InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-
-    if (deviceName == CommonTestUtils::DEVICE_GPU) {
-        ASSERT_THROW(ie.ImportNetwork("model", deviceName), InferenceEngine::NetworkNotRead);
-
-        const std::string modelName = "compiled_blob.blob";
-        {
-            std::ofstream file(modelName);
-            file << "content";
-        }
-
-        EXPECT_THROW(ie.ImportNetwork(modelName, deviceName), InferenceEngine::NotImplemented);
-        ASSERT_EQ(0, std::remove(modelName.c_str()));
-    }
-}
 
 TEST(IEClassBasicTest, smoke_ImportNetworkHeteroThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
@@ -387,14 +381,14 @@ TEST_P(IEClassBasicTestP, ImportNetworkWithNullContextThrows) {
 
 TEST_P(IEClassNetworkTestP, QueryNetworkActualThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    ASSERT_NO_THROW(ie.QueryNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO + std::string(":") + deviceName));
+    ASSERT_NO_THROW(ie.QueryNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device));
 }
 
 TEST_P(IEClassNetworkTestP, QueryNetworkActualNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
     try {
-        ie.QueryNetwork(actualCnnNetwork, deviceName);
+        ie.QueryNetwork(actualCnnNetwork, target_device);
     } catch (const InferenceEngine::Exception& ex) {
         std::string message = ex.what();
         ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ngraph::Function is not supported natively");
@@ -405,12 +399,12 @@ TEST_P(IEClassNetworkTestP, QueryNetworkWithKSO) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
     try {
-        auto rres = ie.QueryNetwork(ksoCnnNetwork, deviceName);
+        auto rres = ie.QueryNetwork(ksoCnnNetwork, target_device);
         auto rl_map = rres.supportedLayersMap;
         auto func = ksoCnnNetwork.getFunction();
         for (const auto & op : func->get_ops()) {
             if (!rl_map.count(op->get_friendly_name())) {
-                FAIL() << "Op " << op->get_friendly_name() << " is not supported by " << deviceName;
+                FAIL() << "Op " << op->get_friendly_name() << " is not supported by " << target_device;
             }
         }
     } catch (const InferenceEngine::Exception& ex) {
@@ -422,26 +416,29 @@ TEST_P(IEClassNetworkTestP, QueryNetworkWithKSO) {
 TEST_P(IEClassSeveralDevicesTestQueryNetwork, QueryNetworkActualSeveralDevicesNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
-    std::string clearDeviceName;
-    auto pos = deviceNames.begin()->find('.');
+    std::string cleartarget_device;
+    auto pos = target_devices.begin()->find('.');
     if (pos != std::string::npos) {
-        clearDeviceName = deviceNames.begin()->substr(0, pos);
+        cleartarget_device = target_devices.begin()->substr(0, pos);
     }
-    if (!supportsDeviceID(ie, clearDeviceName) || !supportsAvaliableDevices(ie, clearDeviceName)) {
-        GTEST_SKIP();
+    if (!supportsDeviceID(ie, cleartarget_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
     }
-    std::vector<std::string> deviceIDs = ie.GetMetric(clearDeviceName, METRIC_KEY(AVAILABLE_DEVICES));
-    if (deviceIDs.size() < deviceNames.size())
-        GTEST_SKIP();
+    if (!supportsAvaliableDevices(ie, cleartarget_device)) {
+        GTEST_FAIL() << "Device does not support AvailableDevices" << std::endl;
+    }
+    std::vector<std::string> deviceIDs = ie.GetMetric(cleartarget_device, METRIC_KEY(AVAILABLE_DEVICES));
+    if (deviceIDs.size() < target_devices.size())
+        GTEST_FAIL() << "Incorrect DeviceID number" << std::endl;
 
-    std::string multiDeviceName = CommonTestUtils::DEVICE_MULTI + std::string(":");
-    for (auto& dev_name : deviceNames) {
-        multiDeviceName += dev_name;
-        if (&dev_name != &(deviceNames.back())) {
-            multiDeviceName += ",";
+    std::string multitarget_device = CommonTestUtils::DEVICE_MULTI + std::string(":");
+    for (auto& dev_name : target_devices) {
+        multitarget_device += dev_name;
+        if (&dev_name != &(target_devices.back())) {
+            multitarget_device += ",";
         }
     }
-    ASSERT_NO_THROW(ie.QueryNetwork(actualCnnNetwork, multiDeviceName));
+    ASSERT_NO_THROW(ie.QueryNetwork(actualCnnNetwork, multitarget_device));
 }
 
 TEST_P(IEClassNetworkTestP, SetAffinityWithConstantBranches) {
@@ -477,18 +474,18 @@ TEST_P(IEClassNetworkTestP, SetAffinityWithConstantBranches) {
         }
         InferenceEngine::CNNNetwork net(func);
 
-        auto rres = ie.QueryNetwork(net, deviceName);
+        auto rres = ie.QueryNetwork(net,  target_device);
         auto rl_map = rres.supportedLayersMap;
         for (const auto & op : func->get_ops()) {
             if (!rl_map.count(op->get_friendly_name())) {
-                FAIL() << "Op " << op->get_friendly_name() << " is not supported by " << deviceName;
+                FAIL() << "Op " << op->get_friendly_name() << " is not supported by " <<  target_device;
             }
         }
         for (const auto & op : net.getFunction()->get_ops()) {
             std::string affinity = rl_map[op->get_friendly_name()];
             op->get_rt_info()["affinity"] = affinity;
         }
-        InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(ksoCnnNetwork, deviceName);
+        InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(ksoCnnNetwork,  target_device);
     } catch (const InferenceEngine::NotImplemented & ex) {
         std::string message = ex.what();
         ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ngraph::Function is not supported natively");
@@ -499,19 +496,19 @@ TEST_P(IEClassNetworkTestP, SetAffinityWithKSO) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
     try {
-        auto rres = ie.QueryNetwork(ksoCnnNetwork, deviceName);
+        auto rres = ie.QueryNetwork(ksoCnnNetwork,  target_device);
         auto rl_map = rres.supportedLayersMap;
         auto func = ksoCnnNetwork.getFunction();
         for (const auto & op : func->get_ops()) {
             if (!rl_map.count(op->get_friendly_name())) {
-                FAIL() << "Op " << op->get_friendly_name() << " is not supported by " << deviceName;
+                FAIL() << "Op " << op->get_friendly_name() << " is not supported by " <<  target_device;
             }
         }
         for (const auto & op : ksoCnnNetwork.getFunction()->get_ops()) {
             std::string affinity = rl_map[op->get_friendly_name()];
             op->get_rt_info()["affinity"] = affinity;
         }
-        InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(ksoCnnNetwork, deviceName);
+        InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(ksoCnnNetwork,  target_device);
     } catch (const InferenceEngine::Exception& ex) {
         std::string message = ex.what();
         ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ngraph::Function is not supported natively");
@@ -521,21 +518,29 @@ TEST_P(IEClassNetworkTestP, SetAffinityWithKSO) {
 TEST_P(IEClassNetworkTestP, QueryNetworkHeteroActualNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::QueryNetworkResult res;
-    ASSERT_NO_THROW(res = ie.QueryNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO, {{"TARGET_FALLBACK", deviceName}}));
+    ASSERT_NO_THROW(res = ie.QueryNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO, {{"TARGET_FALLBACK",  target_device}}));
     ASSERT_LT(0, res.supportedLayersMap.size());
 }
 
-TEST_P(IEClassNetworkTestP, QueryNetworkMultiThrows) {
+TEST_P(IEClassNetworkTestP, DISABLED_QueryNetworkMultiThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    ASSERT_THROW(ie.QueryNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_MULTI), InferenceEngine::Exception);
+    try {
+        ie.QueryNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_MULTI);
+    } catch (InferenceEngine::Exception& error) {
+        EXPECT_PRED_FORMAT2(testing::IsSubstring,
+                            std::string("KEY_MULTI_DEVICE_PRIORITIES key is not set for"),
+                            error.what());
+    } catch (...) {
+        FAIL() << "QueryNetwork failed for unexpected reson.";
+    }
 }
 
 TEST(IEClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
-    std::string deviceName = CommonTestUtils::DEVICE_HETERO;
+    std::string  target_device = CommonTestUtils::DEVICE_HETERO;
 
-    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS)));
+    ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_METRICS)));
     std::vector<std::string> t = p;
 
     std::cout << "Supported HETERO metrics: " << std::endl;
@@ -549,9 +554,9 @@ TEST(IEClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
 TEST(IEClassBasicTest, smoke_GetMetricSupportedConfigKeysHeteroNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
-    std::string deviceName = CommonTestUtils::DEVICE_HETERO;
+    std::string  target_device = CommonTestUtils::DEVICE_HETERO;
 
-    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
+    ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     std::vector<std::string> t = p;
 
     std::cout << "Supported HETERO config keys: " << std::endl;
@@ -573,7 +578,7 @@ TEST_P(IEClassGetMetricTest_SUPPORTED_METRICS, GetMetricAndPrintNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS)));
+    ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_METRICS)));
     std::vector<std::string> t = p;
 
     std::cout << "Supported metrics: " << std::endl;
@@ -588,7 +593,7 @@ TEST_P(IEClassGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricAndPrintNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
+    ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     std::vector<std::string> t = p;
 
     std::cout << "Supported config values: " << std::endl;
@@ -603,7 +608,7 @@ TEST_P(IEClassGetMetricTest_AVAILABLE_DEVICES, GetMetricAndPrintNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)));
+    ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(AVAILABLE_DEVICES)));
     std::vector<std::string> t = p;
 
     std::cout << "Available devices: " << std::endl;
@@ -618,7 +623,7 @@ TEST_P(IEClassGetMetricTest_FULL_DEVICE_NAME, GetMetricAndPrintNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(FULL_DEVICE_NAME)));
+    ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(FULL_DEVICE_NAME)));
     std::string t = p;
     std::cout << "Full device name: " << std::endl << t << std::endl;
 
@@ -629,7 +634,7 @@ TEST_P(IEClassGetMetricTest_OPTIMIZATION_CAPABILITIES, GetMetricAndPrintNoThrow)
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES)));
+    ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(OPTIMIZATION_CAPABILITIES)));
     std::vector<std::string> t = p;
 
     std::cout << "Optimization capabilities: " << std::endl;
@@ -644,7 +649,7 @@ TEST_P(IEClassGetMetricTest_DEVICE_GOPS, GetMetricAndPrintNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(DEVICE_GOPS)));
+    ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(DEVICE_GOPS)));
     std::map<InferenceEngine::Precision, float> t = p;
 
     std::cout << "Device GOPS: " << std::endl;
@@ -659,7 +664,7 @@ TEST_P(IEClassGetMetricTest_DEVICE_TYPE, GetMetricAndPrintNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(DEVICE_TYPE)));
+    ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(DEVICE_TYPE)));
     InferenceEngine::Metrics::DeviceType t = p;
 
     std::cout << "Device Type: " << t << std::endl;
@@ -671,7 +676,7 @@ TEST_P(IEClassGetMetricTest_NUMBER_OF_WAITING_INFER_REQUESTS, GetMetricAndPrintN
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(NUMBER_OF_WAITING_INFER_REQUESTS)));
+    ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(NUMBER_OF_WAITING_INFER_REQUESTS)));
     unsigned int t = p;
 
     std::cout << "Number of waiting infer requests: " << std::endl << t << std::endl;
@@ -683,7 +688,7 @@ TEST_P(IEClassGetMetricTest_NUMBER_OF_EXEC_INFER_REQUESTS, GetMetricAndPrintNoTh
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(NUMBER_OF_EXEC_INFER_REQUESTS)));
+    ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(NUMBER_OF_EXEC_INFER_REQUESTS)));
     unsigned int t = p;
 
     std::cout << "Number of executing infer requests: " << std::endl << t << std::endl;
@@ -695,7 +700,7 @@ TEST_P(IEClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS, GetMetricAndPrintNoT
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)));
+    ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)));
     std::tuple<unsigned int, unsigned int, unsigned int> t = p;
 
     unsigned int start = std::get<0>(t);
@@ -717,7 +722,7 @@ TEST_P(IEClassGetMetricTest_RANGE_FOR_STREAMS, GetMetricAndPrintNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(RANGE_FOR_STREAMS)));
+    ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(RANGE_FOR_STREAMS)));
     std::tuple<unsigned int, unsigned int> t = p;
 
     unsigned int start = std::get<0>(t);
@@ -736,19 +741,19 @@ TEST_P(IEClassGetMetricTest_ThrowUnsupported, GetMetricThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    ASSERT_THROW(p = ie.GetMetric(deviceName, "unsupported_metric"), InferenceEngine::Exception);
+    ASSERT_THROW(p = ie.GetMetric(target_device, "unsupported_metric"), InferenceEngine::Exception);
 }
 
 TEST_P(IEClassGetConfigTest, GetConfigNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
+    ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     std::vector<std::string> configValues = p;
 
     for (auto &&confKey : configValues) {
         InferenceEngine::Parameter defaultValue;
-        ASSERT_NO_THROW(defaultValue = ie.GetConfig(deviceName, confKey));
+        ASSERT_NO_THROW(defaultValue = ie.GetConfig(target_device, confKey));
         ASSERT_FALSE(defaultValue.empty());
     }
 }
@@ -757,11 +762,11 @@ TEST_P(IEClassGetConfigTest, GetConfigHeteroNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
+    ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     std::vector<std::string> configValues = p;
 
     for (auto &&confKey : configValues) {
-        ASSERT_NO_THROW(ie.GetConfig(deviceName, confKey));
+        ASSERT_NO_THROW(ie.GetConfig(target_device, confKey));
     }
 }
 
@@ -776,7 +781,7 @@ TEST_P(IEClassGetConfigTest_ThrowUnsupported, GetConfigHeteroWithDeviceThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    ASSERT_THROW(p = ie.GetConfig(CommonTestUtils::DEVICE_HETERO + std::string(":") + deviceName, HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)),
+    ASSERT_THROW(p = ie.GetConfig(CommonTestUtils::DEVICE_HETERO + std::string(":") +  target_device, HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)),
                  InferenceEngine::Exception);
 }
 
@@ -784,33 +789,36 @@ TEST_P(IEClassGetConfigTest_ThrowUnsupported, GetConfigThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    ASSERT_THROW(p = ie.GetConfig(deviceName, "unsupported_config"), InferenceEngine::Exception);
+    ASSERT_THROW(p = ie.GetConfig(target_device, "unsupported_config"), InferenceEngine::Exception);
 }
 
 TEST_P(IEClassSpecificDeviceTestGetConfig, GetConfigSpecificDeviceNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    std::string deviceID, clearDeviceName;
-    auto pos = deviceName.find('.');
+    std::string deviceID, cleartarget_device;
+    auto pos =  target_device.find('.');
     if (pos != std::string::npos) {
-        clearDeviceName = deviceName.substr(0, pos);
-        deviceID =  deviceName.substr(pos + 1,  deviceName.size());
+        cleartarget_device =  target_device.substr(0, pos);
+        deviceID =   target_device.substr(pos + 1,   target_device.size());
     }
-    if (!supportsDeviceID(ie, clearDeviceName) || !supportsAvaliableDevices(ie, clearDeviceName)) {
-        GTEST_SKIP();
+    if (!supportsDeviceID(ie, cleartarget_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
     }
-    std::vector<std::string> deviceIDs = ie.GetMetric(clearDeviceName, METRIC_KEY(AVAILABLE_DEVICES));
+    if (!supportsAvaliableDevices(ie, cleartarget_device)) {
+        GTEST_FAIL() << "Device does not support AvailableDevices" << std::endl;
+    }
+    std::vector<std::string> deviceIDs = ie.GetMetric(cleartarget_device, METRIC_KEY(AVAILABLE_DEVICES));
     if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
-        GTEST_SKIP();
+        GTEST_FAIL() << "Incorrect DeviceID number!" << std::endl;
     }
 
-    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
+    ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     std::vector<std::string> configValues = p;
 
     for (auto &&confKey : configValues) {
         InferenceEngine::Parameter defaultValue;
-        ASSERT_NO_THROW(defaultValue = ie.GetConfig(deviceName, confKey));
+        ASSERT_NO_THROW(defaultValue = ie.GetConfig(target_device, confKey));
         ASSERT_FALSE(defaultValue.empty());
     }
 }
@@ -824,7 +832,7 @@ TEST_P(IEClassGetAvailableDevices, GetAvailableDevicesNoThrow) {
     bool deviceFound = false;
     std::cout << "Available devices: " << std::endl;
     for (auto &&device : devices) {
-        if (device.find(deviceName) != std::string::npos) {
+        if (device.find(target_device) != std::string::npos) {
             deviceFound = true;
         }
 
@@ -842,61 +850,51 @@ TEST_P(IEClassGetAvailableDevices, GetAvailableDevicesNoThrow) {
 TEST_P(IEClassQueryNetworkTest, QueryNetworkHETEROWithDeviceIDNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
-    if (supportsDeviceID(ie, deviceName)) {
-        auto deviceIDs = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
-        if (deviceIDs.empty())
-            GTEST_SKIP();
-        ASSERT_NO_THROW(ie.QueryNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO,
-                                        {{"TARGET_FALLBACK", deviceName + "." + deviceIDs[0] + "," + deviceName}}));
-    } else {
-        GTEST_SKIP();
+    if (!supportsDeviceID(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
     }
+    auto deviceIDs = ie.GetMetric(target_device, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
+    if (deviceIDs.empty())
+       GTEST_FAIL() << "Incorrect DeviceID number" << std::endl;
+    ASSERT_NO_THROW(ie.QueryNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO,
+                                    {{"TARGET_FALLBACK",  target_device + "." + deviceIDs[0] + "," +  target_device}}));
 }
 
 TEST_P(IEClassQueryNetworkTest, QueryNetworkWithDeviceID) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
-    if (supportsDeviceID(ie, deviceName)) {
-        try {
-            ie.QueryNetwork(simpleCnnNetwork, deviceName + ".0");
-        } catch (const InferenceEngine::Exception& ex) {
-            std::string message = ex.what();
-            ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ngraph::Function is not supported natively");
-        }
-    } else {
-        GTEST_SKIP();
+    if (!supportsDeviceID(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
     }
+    ASSERT_NO_THROW(ie.QueryNetwork(simpleCnnNetwork,  target_device + ".0"));
 }
 
 TEST_P(IEClassQueryNetworkTest, QueryNetworkWithBigDeviceIDThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
-    if (supportsDeviceID(ie, deviceName)) {
-        ASSERT_THROW(ie.QueryNetwork(actualCnnNetwork, deviceName + ".110"), InferenceEngine::Exception);
-    } else {
-        GTEST_SKIP();
+    if (!supportsDeviceID(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
     }
+    ASSERT_THROW(ie.QueryNetwork(actualCnnNetwork,  target_device + ".110"), InferenceEngine::Exception);
 }
 
 TEST_P(IEClassQueryNetworkTest, QueryNetworkWithInvalidDeviceIDThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
-    if (supportsDeviceID(ie, deviceName)) {
-        ASSERT_THROW(ie.QueryNetwork(actualCnnNetwork, deviceName + ".l0"), InferenceEngine::Exception);
-    } else {
-        GTEST_SKIP();
+    if (!supportsDeviceID(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
     }
+    ASSERT_THROW(ie.QueryNetwork(actualCnnNetwork,  target_device + ".l0"), InferenceEngine::Exception);
 }
 
 TEST_P(IEClassQueryNetworkTest, QueryNetworkHETEROWithBigDeviceIDThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
-    if (supportsDeviceID(ie, deviceName)) {
-        ASSERT_THROW(ie.QueryNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO,
-                                     {{"TARGET_FALLBACK", deviceName + ".100," + deviceName}}), InferenceEngine::Exception);
-    } else {
-        GTEST_SKIP();
+    if (!supportsDeviceID(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
     }
+    ASSERT_THROW(ie.QueryNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO,
+                                 {{"TARGET_FALLBACK",  target_device + ".100," +  target_device}}), InferenceEngine::Exception);
 }
 
 //
@@ -904,7 +902,6 @@ TEST_P(IEClassQueryNetworkTest, QueryNetworkHETEROWithBigDeviceIDThrows) {
 //
 
 TEST(IEClassBasicTest, smoke_LoadNetworkToDefaultDeviceNoThrow) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     InferenceEngine::CNNNetwork actualCnnNetwork;
     std::shared_ptr<ngraph::Function> actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
     ASSERT_NO_THROW(actualCnnNetwork = InferenceEngine::CNNNetwork(actualNetwork));
@@ -913,24 +910,36 @@ TEST(IEClassBasicTest, smoke_LoadNetworkToDefaultDeviceNoThrow) {
 }
 
 TEST_P(IEClassNetworkTestP, LoadNetworkActualNoThrow) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, deviceName));
+    ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork,  target_device));
+}
+
+TEST_P(IEClassNetworkTestP, LoadNetworkMultiWithoutSettingDevicePrioritiesThrows) {
+    InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
+    try {
+        ie.LoadNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_MULTI);
+    } catch (InferenceEngine::Exception& error) {
+        EXPECT_PRED_FORMAT2(testing::IsSubstring,
+                            std::string("KEY_MULTI_DEVICE_PRIORITIES key is not set for"),
+                            error.what());
+    } catch (...) {
+        FAIL() << "LoadNetowrk failed for unexpected reson.";
+    }
 }
 
 TEST_P(IEClassNetworkTestP, LoadNetworkActualHeteroDeviceNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO + std::string(":") + deviceName));
+    ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO + std::string(":") +  target_device));
 }
 
 TEST_P(IEClassNetworkTestP, LoadNetworkActualHeteroDevice2NoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO, {{"TARGET_FALLBACK", deviceName}}));
+    ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO, {{"TARGET_FALLBACK",  target_device}}));
 }
 
 TEST_P(IEClassNetworkTestP, LoadNetworkCreateDefaultExecGraphResult) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    auto net = ie.LoadNetwork(actualCnnNetwork, deviceName);
+    auto net = ie.LoadNetwork(actualCnnNetwork,  target_device);
     auto exec_function = net.GetExecGraphInfo().getFunction();
     ASSERT_NE(nullptr, exec_function);
     auto actual_parameters = exec_function->get_parameters();
@@ -958,34 +967,36 @@ TEST_P(IEClassNetworkTestP, LoadNetworkCreateDefaultExecGraphResult) {
 }
 
 TEST_P(IEClassLoadNetworkTestWithThrow, LoadNetworkActualWithThrow) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    ASSERT_THROW(ie.LoadNetwork(actualCnnNetwork, deviceName), InferenceEngine::Exception);
+    ASSERT_THROW(ie.LoadNetwork(actualCnnNetwork,  target_device), InferenceEngine::Exception);
 }
 
 TEST_P(IEClassSeveralDevicesTestLoadNetwork, LoadNetworkActualSeveralDevicesNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
-    std::string clearDeviceName;
-    auto pos = deviceNames.begin()->find('.');
+    std::string cleartarget_device;
+    auto pos = target_devices.begin()->find('.');
     if (pos != std::string::npos) {
-        clearDeviceName = deviceNames.begin()->substr(0, pos);
+        cleartarget_device = target_devices.begin()->substr(0, pos);
     }
-    if (!supportsDeviceID(ie, clearDeviceName) || !supportsAvaliableDevices(ie, clearDeviceName)) {
-        GTEST_SKIP();
+    if (!supportsDeviceID(ie, cleartarget_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
     }
-    std::vector<std::string> deviceIDs = ie.GetMetric(clearDeviceName, METRIC_KEY(AVAILABLE_DEVICES));
-    if (deviceIDs.size() < deviceNames.size())
-        GTEST_SKIP();
+    if (!supportsAvaliableDevices(ie, cleartarget_device)) {
+        GTEST_FAIL() << "Device does not support AvailableDevices" << std::endl;
+    }
+    std::vector<std::string> deviceIDs = ie.GetMetric(cleartarget_device, METRIC_KEY(AVAILABLE_DEVICES));
+    if (deviceIDs.size() < target_devices.size())
+        GTEST_FAIL() << "Incorrect DeviceID num" << std::endl;
 
-    std::string multiDeviceName = CommonTestUtils::DEVICE_MULTI + std::string(":");
-    for (auto& dev_name : deviceNames) {
-        multiDeviceName += dev_name;
-        if (&dev_name != &(deviceNames.back())) {
-            multiDeviceName += ",";
+    std::string multitarget_device = CommonTestUtils::DEVICE_MULTI + std::string(":");
+    for (auto& dev_name : target_devices) {
+        multitarget_device += dev_name;
+        if (&dev_name != &(target_devices.back())) {
+            multitarget_device += ",";
         }
     }
-    ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, multiDeviceName));
+    ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, multitarget_device));
 }
 
 using IEClassLoadNetworkTest = IEClassQueryNetworkTest;
@@ -995,35 +1006,32 @@ using IEClassLoadNetworkTest = IEClassQueryNetworkTest;
 TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROWithDeviceIDNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
-    if (supportsDeviceID(ie, deviceName)) {
-        auto deviceIDs = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
-        if (deviceIDs.empty())
-            GTEST_SKIP();
-        std::string heteroDevice = CommonTestUtils::DEVICE_HETERO + std::string(":") + deviceName + "." + deviceIDs[0] + "," + deviceName;
-        ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, heteroDevice));
-    } else {
-        GTEST_SKIP();
+    if (!supportsDeviceID(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
     }
+    auto deviceIDs = ie.GetMetric(target_device, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
+    if (deviceIDs.empty())
+        GTEST_SKIP();
+    std::string heteroDevice = CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device + "." + deviceIDs[0] + "," + target_device;
+    ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, heteroDevice));
 }
 
 TEST_P(IEClassLoadNetworkTest, LoadNetworkWithDeviceIDNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-
-    if (supportsDeviceID(ie, deviceName)) {
-        auto deviceIDs = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
-        if (deviceIDs.empty())
-            GTEST_SKIP();
-        ASSERT_NO_THROW(ie.LoadNetwork(simpleCnnNetwork, deviceName + "." + deviceIDs[0]));
-    } else {
-        GTEST_SKIP();
+    if (!supportsDeviceID(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
     }
+    auto deviceIDs = ie.GetMetric(target_device, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
+    if (deviceIDs.empty())
+        GTEST_FAIL() << "Incorrect deviceID" << std::endl;
+    ASSERT_NO_THROW(ie.LoadNetwork(simpleCnnNetwork, target_device + "." + deviceIDs[0]));
 }
 
 TEST_P(IEClassLoadNetworkTest, LoadNetworkWithBigDeviceIDThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
-    if (supportsDeviceID(ie, deviceName)) {
-        ASSERT_THROW(ie.LoadNetwork(actualCnnNetwork, deviceName + ".10"), InferenceEngine::Exception);
+    if (supportsDeviceID(ie, target_device)) {
+        ASSERT_THROW(ie.LoadNetwork(actualCnnNetwork, target_device + ".10"), InferenceEngine::Exception);
     } else {
         GTEST_SKIP();
     }
@@ -1032,34 +1040,31 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkWithBigDeviceIDThrows) {
 TEST_P(IEClassLoadNetworkTest, LoadNetworkWithInvalidDeviceIDThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
-    if (supportsDeviceID(ie, deviceName)) {
-        ASSERT_THROW(ie.LoadNetwork(actualCnnNetwork, deviceName + ".l0"), InferenceEngine::Exception);
-    } else {
-        GTEST_SKIP();
+    if (!supportsDeviceID(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
     }
+    ASSERT_THROW(ie.LoadNetwork(actualCnnNetwork, target_device + ".l0"), InferenceEngine::Exception);
 }
 
 TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROWithBigDeviceIDThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
-    if (supportsDeviceID(ie, deviceName)) {
-        ASSERT_THROW(ie.LoadNetwork(actualCnnNetwork, "HETERO",
-                                    {{"TARGET_FALLBACK", deviceName + ".100," + CommonTestUtils::DEVICE_CPU}}), InferenceEngine::Exception);
-    } else {
-        GTEST_SKIP();
+    if (!supportsDeviceID(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
     }
+    ASSERT_THROW(ie.LoadNetwork(actualCnnNetwork, "HETERO",
+                                {{"TARGET_FALLBACK", target_device + ".100," + CommonTestUtils::DEVICE_CPU}}), InferenceEngine::Exception);
 }
 
 TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROAndDeviceIDThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
-    if (supportsDeviceID(ie, deviceName)) {
-        ASSERT_THROW(ie.LoadNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO,
-                                    {{"TARGET_FALLBACK",     deviceName + "," + CommonTestUtils::DEVICE_CPU},
-                                     {CONFIG_KEY(DEVICE_ID), "110"}}), InferenceEngine::Exception);
-    } else {
-        GTEST_SKIP();
+    if (!supportsDeviceID(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
     }
+    ASSERT_THROW(ie.LoadNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO,
+                                {{"TARGET_FALLBACK",     target_device + "," + CommonTestUtils::DEVICE_CPU},
+                                    {CONFIG_KEY(DEVICE_ID), "110"}}), InferenceEngine::Exception);
 }
 
 //
@@ -1068,42 +1073,46 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROAndDeviceIDThrows) {
 
 TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROwithMULTINoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    if (supportsDeviceID(ie, deviceName) && supportsAvaliableDevices(ie, deviceName)) {
-        std::string devices;
-        auto availableDevices = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
-        for (auto &&device : availableDevices) {
-            devices += deviceName + '.' + device;
-            if (&device != &(availableDevices.back())) {
-                devices += ',';
-            }
-        }
-        std::string targetFallback(CommonTestUtils::DEVICE_MULTI + std::string(",") + deviceName);
-        ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO, {
-                {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
-                {"TARGET_FALLBACK",                   targetFallback}}));
-    } else {
-        GTEST_SKIP();
+    if (!supportsDeviceID(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
     }
+    if (!supportsAvaliableDevices(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support AvailableDevices" << std::endl;
+    }
+    std::string devices;
+    auto availableDevices = ie.GetMetric(target_device, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
+    for (auto &&device : availableDevices) {
+        devices += target_device + '.' + device;
+        if (&device != &(availableDevices.back())) {
+            devices += ',';
+        }
+    }
+    std::string targetFallback(CommonTestUtils::DEVICE_MULTI + std::string(",") + target_device);
+    ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO, {
+            {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
+            {"TARGET_FALLBACK",                   targetFallback}}));
 }
 
 TEST_P(IEClassLoadNetworkTest, LoadNetworkMULTIwithHETERONoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
-    if (supportsDeviceID(ie, deviceName) && supportsAvaliableDevices(ie, deviceName)) {
-        std::string devices;
-        auto availableDevices = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
-        for (auto &&device : availableDevices) {
-            devices += CommonTestUtils::DEVICE_HETERO + std::string(".") + device;
-            if (&device != &(availableDevices.back())) {
-                devices += ',';
-            }
-        }
-        ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_MULTI, {
-                {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
-                {"TARGET_FALLBACK",                   deviceName + "," + deviceName}}));
-    } else {
-        GTEST_SKIP();
+    if (!supportsDeviceID(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
     }
+    if (!supportsAvaliableDevices(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support AvailableDevices" << std::endl;
+    }
+    std::string devices;
+    auto availableDevices = ie.GetMetric(target_device, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
+    for (auto &&device : availableDevices) {
+        devices += CommonTestUtils::DEVICE_HETERO + std::string(".") + device;
+        if (&device != &(availableDevices.back())) {
+            devices += ',';
+        }
+    }
+    ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_MULTI, {
+            {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
+            {"TARGET_FALLBACK",                   target_device + "," + target_device}}));
 }
 
 //
@@ -1113,117 +1122,121 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkMULTIwithHETERONoThrow) {
 TEST_P(IEClassLoadNetworkTest, QueryNetworkHETEROWithMULTINoThrow_V10) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
-    if (supportsDeviceID(ie, deviceName) && supportsAvaliableDevices(ie, deviceName)) {
-        std::string devices;
-        auto availableDevices = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
-        for (auto &&device : availableDevices) {
-            devices += deviceName + '.' + device;
-            if (&device != &(availableDevices.back())) {
-                devices += ',';
-            }
-        }
-        auto function = multinputCnnNetwork.getFunction();
-        ASSERT_NE(nullptr, function);
-        std::unordered_set<std::string> expectedLayers;
-        for (auto &&node : function->get_ops()) {
-            expectedLayers.emplace(node->get_friendly_name());
-        }
-        InferenceEngine::QueryNetworkResult result;
-        std::string targetFallback(CommonTestUtils::DEVICE_MULTI + std::string(",") + deviceName);
-        ASSERT_NO_THROW(result = ie.QueryNetwork(multinputCnnNetwork, CommonTestUtils::DEVICE_HETERO, {
-                {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
-                {"TARGET_FALLBACK",                   targetFallback}}));
-
-        std::unordered_set<std::string> actualLayers;
-        for (auto &&layer : result.supportedLayersMap) {
-            actualLayers.emplace(layer.first);
-        }
-        ASSERT_EQ(expectedLayers, actualLayers);
-    } else {
-        GTEST_SKIP();
+    if (!supportsDeviceID(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
     }
+    if (!supportsAvaliableDevices(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support AvailableDevices" << std::endl;
+    }
+    std::string devices;
+    auto availableDevices = ie.GetMetric(target_device, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
+    for (auto &&device : availableDevices) {
+        devices += target_device + '.' + device;
+        if (&device != &(availableDevices.back())) {
+            devices += ',';
+        }
+    }
+    auto function = multinputCnnNetwork.getFunction();
+    ASSERT_NE(nullptr, function);
+    std::unordered_set<std::string> expectedLayers;
+    for (auto &&node : function->get_ops()) {
+        expectedLayers.emplace(node->get_friendly_name());
+    }
+    InferenceEngine::QueryNetworkResult result;
+    std::string targetFallback(CommonTestUtils::DEVICE_MULTI + std::string(",") + target_device);
+    ASSERT_NO_THROW(result = ie.QueryNetwork(multinputCnnNetwork, CommonTestUtils::DEVICE_HETERO, {
+            {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
+            {"TARGET_FALLBACK",                   targetFallback}}));
+
+    std::unordered_set<std::string> actualLayers;
+    for (auto &&layer : result.supportedLayersMap) {
+        actualLayers.emplace(layer.first);
+    }
+    ASSERT_EQ(expectedLayers, actualLayers);
 }
 
 TEST_P(IEClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
-    if (supportsDeviceID(ie, deviceName) && supportsAvaliableDevices(ie, deviceName)) {
-        std::string devices;
-        auto availableDevices = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
-        for (auto &&device : availableDevices) {
-            devices += "HETERO." + device;
-            if (&device != &(availableDevices.back())) {
-                devices += ',';
-            }
-        }
-        auto function = multinputCnnNetwork.getFunction();
-        ASSERT_NE(nullptr, function);
-        std::unordered_set<std::string> expectedLayers;
-        for (auto &&node : function->get_ops()) {
-            expectedLayers.emplace(node->get_friendly_name());
-        }
-        InferenceEngine::QueryNetworkResult result;
-        ASSERT_NO_THROW(result = ie.QueryNetwork(multinputCnnNetwork, CommonTestUtils::DEVICE_MULTI, {
-                {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
-                {"TARGET_FALLBACK",                   deviceName + "," + deviceName}}));
-
-        std::unordered_set<std::string> actualLayers;
-        for (auto &&layer : result.supportedLayersMap) {
-            actualLayers.emplace(layer.first);
-        }
-        ASSERT_EQ(expectedLayers, actualLayers);
-    } else {
-        GTEST_SKIP();
+    if (!supportsDeviceID(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
     }
+    if (!supportsAvaliableDevices(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support AvailableDevices" << std::endl;
+    }
+    std::string devices;
+    auto availableDevices = ie.GetMetric(target_device, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
+    for (auto &&device : availableDevices) {
+        devices += "HETERO." + device;
+        if (&device != &(availableDevices.back())) {
+            devices += ',';
+        }
+    }
+    auto function = multinputCnnNetwork.getFunction();
+    ASSERT_NE(nullptr, function);
+    std::unordered_set<std::string> expectedLayers;
+    for (auto &&node : function->get_ops()) {
+        expectedLayers.emplace(node->get_friendly_name());
+    }
+    InferenceEngine::QueryNetworkResult result;
+    ASSERT_NO_THROW(result = ie.QueryNetwork(multinputCnnNetwork, CommonTestUtils::DEVICE_MULTI, {
+            {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
+            {"TARGET_FALLBACK",                   target_device + "," + target_device}}));
+
+    std::unordered_set<std::string> actualLayers;
+    for (auto &&layer : result.supportedLayersMap) {
+        actualLayers.emplace(layer.first);
+    }
+    ASSERT_EQ(expectedLayers, actualLayers);
 }
 
 TEST_P(IEClassLoadNetworkAfterCoreRecreateTest, LoadAfterRecreateCoresAndPlugins) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     {
-        auto versions = ie.GetVersions(std::string(CommonTestUtils::DEVICE_MULTI) + ":" + deviceName + "," + CommonTestUtils::DEVICE_CPU);
+        auto versions = ie.GetVersions(std::string(CommonTestUtils::DEVICE_MULTI) + ":" + target_device + "," + CommonTestUtils::DEVICE_CPU);
         ASSERT_EQ(3, versions.size());
     }
     std::map<std::string, std::string> config;
-    if (deviceName == CommonTestUtils::DEVICE_CPU) {
+    if (target_device == CommonTestUtils::DEVICE_CPU) {
         config.insert({"CPU_THREADS_NUM", "3"});
     }
     ASSERT_NO_THROW({
                         InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
                         std::string name = actualCnnNetwork.getInputsInfo().begin()->first;
                         actualCnnNetwork.getInputsInfo().at(name)->setPrecision(InferenceEngine::Precision::U8);
-                        auto executableNetwork = ie.LoadNetwork(actualCnnNetwork, deviceName, config);
+                        auto executableNetwork = ie.LoadNetwork(actualCnnNetwork, target_device, config);
                     });
 };
 
 TEST_P(IEClassSetDefaultDeviceIDTest, SetDefaultDeviceIDNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
-    std::vector<std::string> deviceIDs = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES));
+    std::vector<std::string> deviceIDs = ie.GetMetric(target_device, METRIC_KEY(AVAILABLE_DEVICES));
     if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
-        GTEST_SKIP();
+        GTEST_FAIL() << "Incorrect DeviceID" << std::endl;
     }
     std::string value;
     ASSERT_NO_THROW(ie.SetConfig({{ InferenceEngine::PluginConfigParams::KEY_DEVICE_ID, deviceID },
                                   { InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES }},
-                                 deviceName));
-    ASSERT_NO_THROW(value = ie.GetConfig(deviceName, InferenceEngine::PluginConfigParams::KEY_PERF_COUNT).as<std::string>());
+                                 target_device));
+    ASSERT_NO_THROW(value = ie.GetConfig(target_device, InferenceEngine::PluginConfigParams::KEY_PERF_COUNT).as<std::string>());
     ASSERT_EQ(value, InferenceEngine::PluginConfigParams::YES);
 }
 
 TEST_P(IEClassSetGlobalConfigTest, SetGlobalConfigNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
-    std::vector<std::string> deviceIDs = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES));
+    std::vector<std::string> deviceIDs = ie.GetMetric(target_device, METRIC_KEY(AVAILABLE_DEVICES));
     InferenceEngine::Parameter ref, src;
     for (auto& dev_id : deviceIDs) {
         ASSERT_NO_THROW(ie.SetConfig({{ InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::NO }},
-                                     deviceName + "." + dev_id));
+                                     target_device + "." + dev_id));
     }
-    ASSERT_NO_THROW(ie.SetConfig({{ InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES }}, deviceName));
-    ASSERT_NO_THROW(ref = ie.GetConfig(deviceName, InferenceEngine::PluginConfigParams::KEY_PERF_COUNT));
+    ASSERT_NO_THROW(ie.SetConfig({{ InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES }}, target_device));
+    ASSERT_NO_THROW(ref = ie.GetConfig(target_device, InferenceEngine::PluginConfigParams::KEY_PERF_COUNT));
 
     for (auto& dev_id : deviceIDs) {
-        ASSERT_NO_THROW(src = ie.GetConfig(deviceName + "." + dev_id, InferenceEngine::PluginConfigParams::KEY_PERF_COUNT));
+        ASSERT_NO_THROW(src = ie.GetConfig(target_device + "." + dev_id, InferenceEngine::PluginConfigParams::KEY_PERF_COUNT));
         ASSERT_EQ(src, ref);
     }
 }
@@ -1231,24 +1244,27 @@ TEST_P(IEClassSetGlobalConfigTest, SetGlobalConfigNoThrow) {
 TEST_P(IEClassSeveralDevicesTestDefaultCore, DefaultCoreSeveralDevicesNoThrow) {
     InferenceEngine::Core ie;
 
-    std::string clearDeviceName;
-    auto pos = deviceNames.begin()->find('.');
+    std::string cleartarget_device;
+    auto pos = target_devices.begin()->find('.');
     if (pos != std::string::npos) {
-        clearDeviceName = deviceNames.begin()->substr(0, pos);
+        cleartarget_device = target_devices.begin()->substr(0, pos);
     }
-    if (!supportsDeviceID(ie, clearDeviceName) || !supportsAvaliableDevices(ie, clearDeviceName)) {
-        GTEST_SKIP();
+    if (!supportsDeviceID(ie, cleartarget_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
     }
-    std::vector<std::string> deviceIDs = ie.GetMetric(clearDeviceName, METRIC_KEY(AVAILABLE_DEVICES));
-    if (deviceIDs.size() < deviceNames.size())
-        GTEST_SKIP();
+    if (!supportsAvaliableDevices(ie, cleartarget_device)) {
+        GTEST_FAIL() << "Device does not support AvailableDevices" << std::endl;
+    }
+    std::vector<std::string> deviceIDs = ie.GetMetric(cleartarget_device, METRIC_KEY(AVAILABLE_DEVICES));
+    if (deviceIDs.size() < target_devices.size())
+        GTEST_FAIL() << "Incorrect DeviceID" << std::endl;
 
-    for (size_t i = 0; i < deviceNames.size(); ++i) {
-        ASSERT_NO_THROW(ie.SetConfig({{ InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, std::to_string(i + 2) }}, deviceNames[i]));
+    for (size_t i = 0; i < target_devices.size(); ++i) {
+        ASSERT_NO_THROW(ie.SetConfig({{ InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, std::to_string(i + 2) }}, target_devices[i]));
     }
     std::string res;
-    for (size_t i = 0; i < deviceNames.size(); ++i) {
-        ASSERT_NO_THROW(res = ie.GetConfig(deviceNames[i], InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS).as<std::string>());
+    for (size_t i = 0; i < target_devices.size(); ++i) {
+        ASSERT_NO_THROW(res = ie.GetConfig(target_devices[i], InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS).as<std::string>());
         ASSERT_EQ(res, std::to_string(i + 2));
     }
 }

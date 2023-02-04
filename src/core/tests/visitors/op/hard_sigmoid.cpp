@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,8 @@ TEST(attributes, hardsigmoid_op) {
     const auto beta = make_shared<op::Parameter>(element::f32, Shape{});
 
     const auto hardsigmoid = make_shared<opset1::HardSigmoid>(data, alpha, beta);
-    NodeBuilder builder(hardsigmoid);
+    NodeBuilder builder(hardsigmoid, {data, alpha, beta});
+    EXPECT_NO_THROW(auto g_hardsigmoid = ov::as_type_ptr<opset1::HardSigmoid>(builder.create()));
 
     const auto expected_attr_count = 0;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

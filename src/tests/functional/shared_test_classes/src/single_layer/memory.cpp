@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,20 +58,20 @@ namespace LayerTestsDefinitions {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         using namespace LayerTestsUtils;
         auto crashHandler = [](int errCode) {
-            auto &s = Summary::getInstance();
+            auto &s = ov::test::utils::OpSummary::getInstance();
             s.saveReport();
             std::cout << "Unexpected application crash!" << std::endl;
             std::abort();
         };
         signal(SIGSEGV, crashHandler);
 
-        auto &s = LayerTestsUtils::Summary::getInstance();
+        auto &s = ov::test::utils::OpSummary::getInstance();
         s.setDeviceName(targetDevice);
         if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
-            s.updateOPsStats(function, PassRate::Statuses::SKIPPED);
+            s.updateOPsStats(function, ov::test::utils::PassRate::Statuses::SKIPPED);
             GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
         } else {
-            s.updateOPsStats(function, PassRate::Statuses::CRASHED);
+            s.updateOPsStats(function, ov::test::utils::PassRate::Statuses::CRASHED);
         }
 
         try {
@@ -88,16 +88,16 @@ namespace LayerTestsDefinitions {
                 Infer();
                 Validate();
             }
-            s.updateOPsStats(functionRefs, PassRate::Statuses::PASSED);
+            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::PASSED);
         }
         catch (const std::runtime_error &re) {
-            s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
+            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_(re.what());
         } catch (const std::exception &ex) {
-            s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
+            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_(ex.what());
         } catch (...) {
-            s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
+            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_("Unknown failure occurred.");
         }
     }
@@ -131,7 +131,7 @@ namespace LayerTestsDefinitions {
 
         // evaluate method is not implemented for TI op.
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(function);
 
         const auto &outInfo = executableNetwork.GetOutputsInfo();
@@ -186,9 +186,9 @@ namespace LayerTestsDefinitions {
         const auto variable_info = targetDevice == CommonTestUtils::DEVICE_GPU ?
             VariableInfo{Shape{inputShape}, ngPrc, "v0"} : VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"};
         auto variable = std::make_shared<Variable>(variable_info);
-        auto read_value = std::make_shared<ReadValue>(param.at(0), variable);
+        auto read_value = CreateReadValueOp(param.at(0), variable);
         auto add = std::make_shared<Add>(read_value, param.at(0));
-        auto assign = std::make_shared<Assign>(add, variable);
+        auto assign = CreateAssignOp(add, variable);
         auto res = std::make_shared<Result>(add);
         function = std::make_shared<Function>(ResultVector{res}, SinkVector{assign}, param, "TestMemory");
     }

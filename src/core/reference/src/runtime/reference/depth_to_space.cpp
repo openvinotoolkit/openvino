@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ void depth_to_space(const char* const in,
     const size_t c_dim = in_shape.at(1);
     const size_t spatial_dim_index = 2;
     const size_t spatial_dims = in_shape.size() - spatial_dim_index;
-    const size_t c_dim_divider = std::pow(block_size, spatial_dims);
+    const size_t c_dim_divider = static_cast<size_t>(std::pow(block_size, spatial_dims));
 
     NGRAPH_CHECK(block_size > 0 && c_dim % c_dim_divider == 0,
                  "DepthToSpace: The input data's 'channels' axis size: ",

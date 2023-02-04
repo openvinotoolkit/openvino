@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,24 +21,42 @@ inline void DoTest(engine& engine,
     const cldnn::memory::ptr& input1, // indices
     const std::vector<float>& expected_results,
     const tensor& output_tensor,
-    const int64_t axis) {
+    const int64_t axis,
+    bool is_caching_test=false) {
     topology topology;
     topology.add(input_layout("InputData", input0->get_layout()));
     topology.add(input_layout("InputIndices", input1->get_layout()));
     topology.add(
-        gather_elements("gather_elements", "InputData", "InputIndices", input1->get_layout().format, output_tensor, axis)
+        gather_elements("gather_elements", input_info("InputData"), input_info("InputIndices"), input1->get_layout().format, output_tensor, axis)
     );
 
-    network network(engine, topology);
+    cldnn::network::ptr network;
 
-    network.set_input_data("InputData", input0);
-    network.set_input_data("InputIndices", input1);
-    auto outputs = network.execute();
+    if (is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, topology);
+    }
+
+    network->set_input_data("InputData", input0);
+    network->set_input_data("InputIndices", input1);
+    auto outputs = network->execute();
     auto output = outputs.at("gather_elements").get_memory();
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -1137,5 +1155,102 @@ TEST(gather_elements_gpu_fp16, d233113_i233115_a2) {
         FLOAT16(5), FLOAT16(6), FLOAT16(3),
     };
 
-    DoTest(engine, input0, input1, expected_results, tensor(2, 3, 3, 1, 1, 5), axis);
+    DoTest(engine, input0, input1, expected_results, tensor(2, 3, 3, 1, 1, 5), axis, false);
+}
+
+TEST(gather_elements_gpu_fp16, export_import) {
+    auto& engine = get_test_engine();
+
+    auto axis = 2;
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 3, 3, 1, 1, 3 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 3, 3, 1, 1, 5 } }); // indices
+
+    set_values(input0, {
+        FLOAT16(0), FLOAT16(1), FLOAT16(8),
+        FLOAT16(5), FLOAT16(5), FLOAT16(2),
+        FLOAT16(0), FLOAT16(7), FLOAT16(7),
+        FLOAT16(10), FLOAT16(4), FLOAT16(5),
+        FLOAT16(9), FLOAT16(0), FLOAT16(0),
+        FLOAT16(5), FLOAT16(7), FLOAT16(0),
+        FLOAT16(4), FLOAT16(0), FLOAT16(4),
+        FLOAT16(7), FLOAT16(6), FLOAT16(10),
+        FLOAT16(9), FLOAT16(5), FLOAT16(1),
+        FLOAT16(7), FLOAT16(4), FLOAT16(7),
+        FLOAT16(10), FLOAT16(8), FLOAT16(2),
+        FLOAT16(0), FLOAT16(8), FLOAT16(3),
+        FLOAT16(6), FLOAT16(8), FLOAT16(10),
+        FLOAT16(4), FLOAT16(2), FLOAT16(10),
+        FLOAT16(7), FLOAT16(8), FLOAT16(7),
+        FLOAT16(0), FLOAT16(6), FLOAT16(9),
+        FLOAT16(2), FLOAT16(4), FLOAT16(8),
+        FLOAT16(5), FLOAT16(2), FLOAT16(3),
+    });
+
+    set_values(input1, {
+        FLOAT16(0), FLOAT16(1), FLOAT16(2),
+        FLOAT16(2), FLOAT16(2), FLOAT16(0),
+        FLOAT16(0), FLOAT16(0), FLOAT16(2),
+        FLOAT16(0), FLOAT16(0), FLOAT16(0),
+        FLOAT16(1), FLOAT16(0), FLOAT16(1),
+        FLOAT16(1), FLOAT16(2), FLOAT16(1),
+        FLOAT16(2), FLOAT16(1), FLOAT16(2),
+        FLOAT16(1), FLOAT16(0), FLOAT16(2),
+        FLOAT16(1), FLOAT16(0), FLOAT16(1),
+        FLOAT16(2), FLOAT16(0), FLOAT16(0),
+        FLOAT16(1), FLOAT16(2), FLOAT16(2),
+        FLOAT16(1), FLOAT16(1), FLOAT16(1),
+        FLOAT16(1), FLOAT16(0), FLOAT16(2),
+        FLOAT16(0), FLOAT16(2), FLOAT16(2),
+        FLOAT16(2), FLOAT16(2), FLOAT16(2),
+        FLOAT16(0), FLOAT16(0), FLOAT16(2),
+        FLOAT16(1), FLOAT16(2), FLOAT16(2),
+        FLOAT16(2), FLOAT16(2), FLOAT16(0),
+        FLOAT16(2), FLOAT16(0), FLOAT16(0),
+        FLOAT16(0), FLOAT16(0), FLOAT16(2),
+        FLOAT16(2), FLOAT16(0), FLOAT16(1),
+        FLOAT16(1), FLOAT16(2), FLOAT16(2),
+        FLOAT16(1), FLOAT16(1), FLOAT16(0),
+        FLOAT16(2), FLOAT16(0), FLOAT16(0),
+        FLOAT16(0), FLOAT16(2), FLOAT16(2),
+        FLOAT16(2), FLOAT16(1), FLOAT16(0),
+        FLOAT16(0), FLOAT16(2), FLOAT16(1),
+        FLOAT16(2), FLOAT16(1), FLOAT16(2),
+        FLOAT16(0), FLOAT16(0), FLOAT16(1),
+        FLOAT16(2), FLOAT16(0), FLOAT16(2),
+    });
+
+    std::vector<float> expected_results = {
+        FLOAT16(0), FLOAT16(5), FLOAT16(7),
+        FLOAT16(0), FLOAT16(7), FLOAT16(8),
+        FLOAT16(0), FLOAT16(1), FLOAT16(7),
+        FLOAT16(0), FLOAT16(1), FLOAT16(8),
+        FLOAT16(5), FLOAT16(1), FLOAT16(2),
+        FLOAT16(9), FLOAT16(7), FLOAT16(0),
+        FLOAT16(5), FLOAT16(0), FLOAT16(0),
+        FLOAT16(9), FLOAT16(4), FLOAT16(0),
+        FLOAT16(9), FLOAT16(4), FLOAT16(0),
+        FLOAT16(5), FLOAT16(4), FLOAT16(5),
+        FLOAT16(7), FLOAT16(5), FLOAT16(1),
+        FLOAT16(7), FLOAT16(6), FLOAT16(10),
+        FLOAT16(7), FLOAT16(0), FLOAT16(1),
+        FLOAT16(4), FLOAT16(5), FLOAT16(1),
+        FLOAT16(9), FLOAT16(5), FLOAT16(1),
+        FLOAT16(7), FLOAT16(4), FLOAT16(3),
+        FLOAT16(10), FLOAT16(8), FLOAT16(3),
+        FLOAT16(0), FLOAT16(8), FLOAT16(7),
+        FLOAT16(0), FLOAT16(4), FLOAT16(7),
+        FLOAT16(7), FLOAT16(4), FLOAT16(3),
+        FLOAT16(7), FLOAT16(8), FLOAT16(10),
+        FLOAT16(4), FLOAT16(8), FLOAT16(7),
+        FLOAT16(4), FLOAT16(2), FLOAT16(10),
+        FLOAT16(7), FLOAT16(8), FLOAT16(10),
+        FLOAT16(6), FLOAT16(8), FLOAT16(7),
+        FLOAT16(5), FLOAT16(4), FLOAT16(9),
+        FLOAT16(0), FLOAT16(2), FLOAT16(8),
+        FLOAT16(5), FLOAT16(4), FLOAT16(3),
+        FLOAT16(0), FLOAT16(6), FLOAT16(8),
+        FLOAT16(5), FLOAT16(6), FLOAT16(3),
+    };
+
+    DoTest(engine, input0, input1, expected_results, tensor(2, 3, 3, 1, 1, 5), axis, true);
 }

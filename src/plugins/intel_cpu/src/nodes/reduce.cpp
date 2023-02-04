@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -112,7 +112,7 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_reduce_kernel_f32)
 
     explicit jit_uni_reduce_kernel_f32(jit_reduce_config_params jcp)
-    : jit_uni_reduce_kernel(jcp), jit_generator() {}
+    : jit_uni_reduce_kernel(jcp), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -121,11 +121,11 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
 
     void generate() override {
         if (jcp_.reduce_mode == Algorithm::ReduceLogSumExp) {
-            exp_injector = std::make_shared<jit_uni_eltwise_injector_f32<isa>>(this, alg_kind::eltwise_exp, 0.f, 0.f, 1);
+            exp_injector = std::make_shared<jit_uni_eltwise_injector_f32<isa>>(this, alg_kind::eltwise_exp, 0.f, 0.f, 1.f);
         }
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            emu_vcvtneps2bf16 = std::make_shared<jit_emu_vcvtneps2bf16>(this, isa);
+        if (mayiuse(avx512_core))
+            uni_vcvtneps2bf16 = std::make_shared<jit_uni_vcvtneps2bf16>(this, isa);
 
         this->preamble();
 
@@ -155,8 +155,8 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
 
         this->postamble();
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            emu_vcvtneps2bf16->emit_data();
+        if (mayiuse(avx512_core))
+            uni_vcvtneps2bf16->emit_data();
 
         if (jcp_.reduce_mode == Algorithm::ReduceAnd || jcp_.reduce_mode == Algorithm::ReduceL1 || jcp_.reduce_mode == Algorithm::ReduceMax ||
             jcp_.reduce_mode == Algorithm::ReduceMin || jcp_.reduce_mode == Algorithm::ReduceProd || jcp_.reduce_mode == Algorithm::ReduceOr) {
@@ -210,7 +210,7 @@ private:
 
     Xbyak::Label l_table;
 
-    std::shared_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
+    std::shared_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16;
     std::shared_ptr<jit_uni_eltwise_injector_f32<isa>> exp_injector;
 
     inline void reduce_main() {
@@ -549,10 +549,20 @@ private:
             case memory::data_type::s32:
                 if (isa == cpu::x64::avx512_core) {
                     kxnord(k_mask, k_mask, k_mask);
-                    vgatherdps(vmm_src | k_mask, ptr[reg_src + offset + vmm_idx]);
+                    if (jcp_.src_dt == memory::data_type::f32) {
+                        vgatherdps(vmm_src | k_mask, ptr[reg_src + offset + vmm_idx]);
+                    } else {
+                        vpgatherdd(vmm_src | k_mask, ptr[reg_src + offset + vmm_idx]);
+                        uni_vcvtdq2ps(vmm_src, vmm_src);
+                    }
                 } else if (isa == cpu::x64::avx2) {
                     uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
-                    vgatherdps(vmm_src, ptr[reg_src + offset + vmm_idx], vmm_mask);
+                    if (jcp_.src_dt == memory::data_type::f32) {
+                        vgatherdps(vmm_src, ptr[reg_src + offset + vmm_idx], vmm_mask);
+                    } else {
+                        vpgatherdd(vmm_src, ptr[reg_src + offset + vmm_idx], vmm_mask);
+                        uni_vcvtdq2ps(vmm_src, vmm_src);
+                    }
                 } else {
                     pack_gathered_vector(vmm_src, vmm_idx, offset, jcp_.src_dt);
                 }
@@ -913,10 +923,7 @@ private:
                 uni_vmovups(op, vmm_dst);
                 break;
             case memory::data_type::bf16:
-                if (mayiuse(avx512_core_bf16))
-                    vcvtneps2bf16(ymm_dst, vmm_dst);
-                else
-                    emu_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
+                uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
                 vmovdqu16(op, ymm_dst);
                 break;
             case memory::data_type::s8:
@@ -1082,7 +1089,7 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_reduce_post_kernel_f32)
 
     explicit jit_uni_reduce_post_kernel_f32(jit_reduce_config_params jcp, const dnnl_primitive_attr &attr)
-    : jit_uni_reduce_post_kernel(jcp, attr), jit_generator() {}
+    : jit_uni_reduce_post_kernel(jcp, attr), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -1109,8 +1116,8 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
             log_injector = std::make_shared<jit_uni_eltwise_injector_f32<isa>>(this, alg_kind::eltwise_log, 0.f, 0.f, 1.f);
         }
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            emu_vcvtneps2bf16 = std::make_shared<jit_emu_vcvtneps2bf16>(this, isa);
+        if (mayiuse(avx512_core))
+            uni_vcvtneps2bf16 = std::make_shared<jit_uni_vcvtneps2bf16>(this, isa);
 
         this->preamble();
 
@@ -1158,8 +1165,8 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
 
         this->postamble();
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            emu_vcvtneps2bf16->emit_data();
+        if (mayiuse(avx512_core))
+            uni_vcvtneps2bf16->emit_data();
 
         if (jcp_.reduce_mode == Algorithm::ReduceLogSum || jcp_.reduce_mode == Algorithm::ReduceLogSumExp) {
             log_injector->prepare_table();
@@ -1205,7 +1212,7 @@ private:
     Vmm vmm_d_weights = Vmm(7);
     Vmm vmm_d_bias = Vmm(8);
 
-    std::shared_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
+    std::shared_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16;
     std::shared_ptr<jit_uni_eltwise_injector_f32<isa>> log_injector;
 
     std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
@@ -1532,10 +1539,7 @@ private:
                 uni_vmovups(op, vmm_dst);
                 break;
             case memory::data_type::bf16:
-                if (mayiuse(avx512_core_bf16))
-                    vcvtneps2bf16(ymm_dst, vmm_dst);
-                else
-                    emu_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
+                uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
                 vmovdqu16(op, ymm_dst);
                 break;
             case memory::data_type::s8:
@@ -1734,8 +1738,8 @@ bool Reduce::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
     return true;
 }
 
-Reduce::Reduce(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+Reduce::Reduce(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+        : Node(op, context, NgraphShapeInferFactory(op, PortMask(REDUCE_INDEXES))) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Reduce node with name '" + getName() + "'";
@@ -1753,6 +1757,7 @@ Reduce::Reduce(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
                 IE_THROW() << errorPrefix << " second tensor is not constant!";
             raw_axes = reduceConst->cast_vector<int>();
         }
+        vec_reduceDH_prc.clear();
         setJITBeyond5D();
     } else {
         IE_THROW(NotImplemented) << errorMessage;
@@ -1809,6 +1814,9 @@ void Reduce::initSupportedPrimitiveDescriptors() {
             }
         }
     }
+
+    support_split = algorithm != Algorithm::ReduceL2 && algorithm != Algorithm::ReduceLogSumExp &&
+                    algorithm != Algorithm::ReduceSumSquare && input_prec == output_prec;
 
     src_data_size = input_prec.size();
     dst_data_size = output_prec.size();
@@ -1873,10 +1881,6 @@ bool Reduce::isExecutable() const {
     return !isInputTensorAtPortEmpty(REDUCE_DATA);
 }
 
-std::vector<VectorDims> Reduce::shapeInfer() const {
-    return Node::shapeInferGeneric(PortMask(REDUCE_INDEXES));
-}
-
 void Reduce::prepareParams() {
     src_dims = getParentEdgesAtPort(REDUCE_DATA)[0]->getMemory().getDesc().getShape().getDims();
     std::vector<int> reduce_axes;
@@ -1914,7 +1918,7 @@ void Reduce::prepareParams() {
         setPostOps(attr, dst_dims, true);
 
         ReduceKey key = {jcp, attr.get_post_ops()};
-        auto cache = getRuntimeCache();
+        auto cache = context->getParamsCache();
         auto result = cache->getOrCreate(key, builder);
         if (!result.first) {
             IE_THROW() << errorPrefix << " has not found jit_uni_reduce_post_kernel_f32.";
@@ -1967,6 +1971,12 @@ void Reduce::createPrimitive() {
 
     compile_post_kernel = true;
 
+    if (mayiuse(cpu::x64::avx512_core)) {
+        blk_size = 16;
+    } else {
+        blk_size = 8;
+    }
+
     if (inputShapesDefined()) {
         if (needPrepareParams())
             prepareParams();
@@ -1975,13 +1985,10 @@ void Reduce::createPrimitive() {
 
     if (mayiuse(cpu::x64::avx512_core)) {
         reduce_kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::avx512_core>(jcp));
-        blk_size = 16;
     } else if (mayiuse(cpu::x64::avx2)) {
         reduce_kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::avx2>(jcp));
-        blk_size = 8;
     } else if (mayiuse(cpu::x64::sse41)) {
         reduce_kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::sse41>(jcp));
-        blk_size = 8;
     }
     if (reduce_kernel)
         reduce_kernel->create_ker();
@@ -2138,17 +2145,46 @@ void Reduce::reduce_PLN(const uint8_t *in_ptr, uint8_t *out_ptr) {
                                           IW - tail_start, 0, IH);
                 });
             } else if (!ReduceC && ReduceD && ReduceH && !ReduceW) {
-                parallel_for(IC, [&](size_t ic) {
-                    size_t oc = ic; GET_PTR_NC_PLN;
-                    parallel_for(IW / blk_size, [&](size_t ibw){
-                        size_t obw = ibw;
-                        reduce_kernel_process(in_ptr_nc + ibw * blk_size * src_data_size, out_ptr_nc + obw * blk_size * dst_data_size,
-                                              blk_size, 0, ID * IH);
+                size_t IWB = IW / blk_size;
+                if (ReduceDH_opt) {
+                    // reduce parallelly in D dimension
+                    // step1: !ReduceD && ReduceH && !ReduceW
+                    uint8_t *prc_ptr_n = &vec_reduceDH_prc[0];
+                    init_dst_data(prc_ptr_n, prc_size);
+                    parallel_for2d(ID, IWB, [&](size_t id, size_t iwb){
+                        size_t pd = id, pwb = iwb;
+                        reduce_kernel_process(in_ptr_n + (id * IH * IW + iwb * blk_size) * src_data_size,
+                                              prc_ptr_n + (pd * PW + pwb * blk_size) * prc_data_size, blk_size, 0, IH);
                     });
-                    size_t tail_start = IW / blk_size * blk_size;
-                    reduce_kernel_process(in_ptr_nc + tail_start * src_data_size, out_ptr_nc + tail_start * dst_data_size,
-                                          IW - tail_start, 0, ID * IH);
-                });
+                    // step2: ReduceD
+                    reduce_stride = PW;
+                    parallel_for(IWB, [&](size_t iwb){
+                        size_t pwb = iwb, owb = iwb;
+                        reduce_kernel_process(prc_ptr_n + pwb * blk_size * prc_data_size,
+                                              out_ptr_n + owb * blk_size * dst_data_size, blk_size, 0, ID);
+                    });
+                    // reduce tail
+                    reduce_stride = IW;
+                    size_t tail_start = IWB * blk_size;
+                    parallel_for(IW - tail_start, [&](size_t i_tail) {
+                        reduce_kernel_process(in_ptr_n + (tail_start + i_tail) * src_data_size, out_ptr_n + (tail_start + i_tail) * dst_data_size,
+                                            1, 0, ID * IH);
+                    });
+                } else {
+                    parallel_for(IC, [&](size_t ic) {
+                        size_t oc = ic; GET_PTR_NC_PLN;
+                        parallel_for(IWB, [&](size_t iwb){
+                            size_t owb = iwb;
+                            reduce_kernel_process(in_ptr_nc + iwb * blk_size * src_data_size, out_ptr_nc + owb * blk_size * dst_data_size,
+                                                blk_size, 0, ID * IH);
+                        });
+                        size_t tail_start = IWB * blk_size;
+                        parallel_for(IW - tail_start, [&](size_t i_tail) {
+                            reduce_kernel_process(in_ptr_nc + (tail_start + i_tail) * src_data_size, out_ptr_nc + (tail_start + i_tail) * dst_data_size,
+                                                1, 0, ID * IH);
+                        });
+                    });
+                }
             } else if (ReduceC && ReduceD && ReduceH && !ReduceW) {
                 parallel_for(IW / blk_size, [&](size_t ibw){
                     size_t obw = ibw;
@@ -2207,8 +2243,7 @@ void Reduce::reduce_BLK(const uint8_t *in_ptr, uint8_t *out_ptr) {
                 reduce_kernel_process(in_ptr_ncd, out_ptr_ncd, IH * IW * blk_size);
             });
         } else if (ReduceC && ReduceD && ReduceH && ReduceW) {
-            if (input_prec != output_prec || getAlgorithm() == Algorithm::ReduceL2 ||
-                 algorithm == Algorithm::ReduceLogSumExp || algorithm == Algorithm::ReduceSumSquare) {
+            if (!support_split) {
                 reduce_kernel_process(in_ptr_n, out_ptr_n, ICB * ID * IH * IW * blk_size);
             } else {
                 // reduce parallelly
@@ -2608,6 +2643,20 @@ inline void Reduce::create_working_memory() {
     dst_size = desc.get_size();
 }
 
+inline void Reduce::create_DH_working_memory() {
+    ReduceDH_opt = layout == ReduceLayoutType::reduce_nspc && !isDynamicNode() && support_split &&
+                   !ReduceC && ReduceD && ReduceH && !ReduceW && IC == 1 && ID > 1;
+    if (ReduceDH_opt) {
+        PD = ID;
+        PW = IW / blk_size * blk_size;
+        prc_data_size = src_data_size;
+        prc_size = PD * PW * src_data_size;
+        if (prc_size > vec_reduceDH_prc.size()) {
+            vec_reduceDH_prc.resize(prc_size);
+        }
+    }
+}
+
 inline void Reduce::calc_process_dst_dims(std::vector<int> &reduce_axes, const SizeVector &dst_dims) {
     std::set<size_t> axes;
     SizeVector out_dims;
@@ -2638,8 +2687,8 @@ inline void Reduce::calc_process_dst_dims(std::vector<int> &reduce_axes, const S
         }
     }
     if (jit_mode && jit_beyond_5D) {
-        if (std::accumulate(out_dims.begin(), out_dims.end(), 1, std::multiplies<double>()) !=
-            std::accumulate(dst_dims.begin(), dst_dims.end(), 1, std::multiplies<double>()))
+        if (std::accumulate(out_dims.begin(), out_dims.end(), size_t(1), std::multiplies<size_t>()) !=
+            std::accumulate(dst_dims.begin(), dst_dims.end(), size_t(1), std::multiplies<size_t>()))
             IE_THROW() << errorPrefix << "gets incorrect number of output dimensions!";
     } else {
         for (size_t i = 0; i < std::min(out_dims.size(), dst_dims.size()); i++) {
@@ -2690,6 +2739,9 @@ inline void Reduce::set_reduce_dim_flags() {
     ReduceD = ID != OD && OD == 1;
     ReduceH = IH != OH && OH == 1;
     ReduceW = IW != OW && OW == 1;
+
+    // must be done before the above dimension change
+    create_DH_working_memory();
 
     // suit for parallel
     if (ReduceH && IW == 1) {

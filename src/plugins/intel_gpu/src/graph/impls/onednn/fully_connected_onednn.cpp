@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,30 +15,23 @@
 namespace cldnn {
 namespace onednn {
 
-struct fully_connected_onednn : typed_primitive_onednn_impl<fully_connected, dnnl::inner_product_forward::desc> {
-    using parent = typed_primitive_onednn_impl<fully_connected, dnnl::inner_product_forward::desc>;
+struct fully_connected_onednn : typed_primitive_onednn_impl<fully_connected> {
+    using parent = typed_primitive_onednn_impl<fully_connected>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
+private:
+    static std::vector<int64_t> reshape_to_2d(const ov::PartialShape& shape, int64_t feature) {
+        auto staticShape = shape.to_shape();
+        size_t total = std::accumulate(staticShape.begin(), staticShape.end(), 1, std::multiplies<size_t>());
+        std::vector<int64_t> reshapeSize = { static_cast<int64_t>(total) / feature, feature };
+        return reshapeSize;
+    }
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<fully_connected_onednn>(*this);
-    }
-
-    bool validate_impl(const typed_primitive_inst<fully_connected>& instance) const override {
-        bool res = true;
-
-        auto outer_id = _outer.id();
-        auto data_type = instance.node.input().get_output_layout().data_type;
-
-        // Integer signed/unsigned is ok for fully connected
-        CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(outer_id,
-                                                    "Input memory",
-                                                    data_type,
-                                                    "filter memory",
-                                                    instance.weights_memory()->get_layout().data_type,
-                                                    "");
-
-        return res;
     }
 
     std::unordered_map<int, dnnl::memory> get_arguments(fully_connected_inst& instance) const override {
@@ -57,15 +50,20 @@ protected:
         return args;
     }
 
-    static kernel_selector::WeightsReorderParams get_weights_reorder(const fully_connected_node& arg, const dnnl::primitive_desc& pd) {
-        auto weights_layout = arg.get_dependency(1).get_output_layout();
-        auto cldnn_prim = arg.get_primitive();
-        const auto& param_info = kernel_impl_params(arg.get_program(), cldnn_prim, arg.get_unique_id(),
-                                                    arg.get_input_layouts(), arg.get_output_layout(),
-                                                    arg.get_fused_primitives(),
-                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params(),
-                                                    optional_layout(weights_layout),
-                                                    arg.bias_term() ? optional_layout(arg.bias().get_output_layout()) : optional_layout());
+    static kernel_selector::WeightsReorderParams get_weights_reorder(const kernel_impl_params& impl_params, const dnnl::primitive_desc& pd) {
+        auto input_layout = impl_params.get_input_layout(0);
+        auto weights_layout = impl_params.get_input_layout(1);
+        auto cldnn_prim = impl_params.typed_desc<fully_connected>();
+
+        auto input_pshape = input_layout.get_partial_shape();
+        auto weights_pshape = weights_layout.get_partial_shape();
+        int64_t feature = input_pshape[std::min(cldnn_prim->input_size, static_cast<size_t>(4)) - 1].get_length();
+        if (cldnn_prim->input_size == 3) {
+            feature = std::max({input_layout.spatial(0), input_layout.spatial(1), input_layout.spatial(2)});
+        }
+        if (weights_pshape.size() != 2) {
+            weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
+        }
 
         kernel_selector::WeightsReorderParams weights_reorder_params;
         auto& reorderKS = kernel_selector::ReorderWeightsKernelSelctor::Instance();
@@ -75,8 +73,8 @@ protected:
         kernel_selector::WeightsLayout req_layout = to_weights_layout(out_fmt, false);
 
         // set engine info & forcing
-        set_params(param_info, r_params);
-        r_params.layerID = arg.id() + "_reorder_";
+        set_params(impl_params, r_params);
+        r_params.layerID = cldnn_prim->id + "_reorder_";
         r_params.input = convert_weights_tensor(weights_layout, false);
         r_params.output = r_params.input.TransformIgnorePadding(req_layout, r_params.input.GetDType(), 1, false);
         r_params.rotate_180 = false;
@@ -97,67 +95,131 @@ protected:
         return weights_reorder_params;
     }
 
-    static std::shared_ptr<dnnl::inner_product_forward::desc> get_fully_connected_descriptor(const fully_connected_node& arg) {
-        auto prim = arg.get_primitive();
+    static std::shared_ptr<dnnl::inner_product_forward::primitive_desc> get_fully_connected_primitive_descriptor(const kernel_impl_params& impl_params,
+                                                                                                cldnn::engine& engine, size_t prim_input_size, bool has_bias,
+                                                                                                const dnnl::primitive_attr& attr = dnnl::primitive_attr()) {
+        auto input_layout = impl_params.get_input_layout(0);
+        auto weights_layout = impl_params.get_input_layout(1);
+        auto output_layout = impl_params.get_output_layout();
 
-        auto& input = arg.get_dependency(0);
-        auto& weights = arg.get_dependency(1);
-        auto input_layout = input.get_output_layout();
-        auto output_layout = arg.get_output_layout();
+        auto input_pshape = input_layout.get_partial_shape();
+        auto weights_pshape = weights_layout.get_partial_shape();
 
-        if (prim->input_size == 3) {
+        size_t input_size = (prim_input_size > input_pshape.size()) ? input_pshape.size() : prim_input_size;
+        int64_t feature = input_pshape[std::min(input_size, static_cast<size_t>(4)) - 1].get_length();
+        if (input_size == 3) {
+            feature = std::max({input_layout.spatial(0), input_layout.spatial(1), input_layout.spatial(2)});
+        }
+
+        if (input_size > 3) {
+           input_layout.set_partial_shape(reshape_to_2d(input_pshape, feature));
+        }
+        if (weights_pshape.size() != 2) {
+            weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
+        }
+        if (input_size == 3) {
+            output_layout.set_partial_shape({ input_layout.batch(), input_layout.feature(), weights_layout.batch(), 1 });
+        } else {
+            output_layout.set_partial_shape({ input_layout.batch(), weights_layout.batch() });
+        }
+
+        if (input_size == 3) {
             combine_bf_with_first_spatial_dim(input_layout);
             combine_bf_with_first_spatial_dim(output_layout);
         }
 
         auto input_md = onednn::layout_to_memory_desc(input_layout, dnnl::memory::format_tag::undef, false);
-        auto weights_md = onednn::layout_to_memory_desc(weights.get_output_layout(), dnnl::memory::format_tag::any);
+        auto weights_md = onednn::layout_to_memory_desc(weights_layout, dnnl::memory::format_tag::any);
         auto output_md = onednn::layout_to_memory_desc(output_layout, dnnl::memory::format_tag::ab, false);
 
-        if (arg.bias_term()) {
-            auto bias_md = onednn::layout_to_memory_desc(arg.get_dependency(2).get_output_layout(), dnnl::memory::format_tag::any, true);
-            return std::make_shared<dnnl::inner_product_forward::desc>(
+        if (has_bias) {
+            auto bias_md = onednn::layout_to_memory_desc(impl_params.get_input_layout(2), dnnl::memory::format_tag::any, true);
+            return std::make_shared<dnnl::inner_product_forward::primitive_desc>(
+                engine.get_onednn_engine(),
                 dnnl::prop_kind::forward_inference,
                 input_md,
                 weights_md,
                 bias_md,
-                output_md);
+                output_md,
+                attr);
         } else {
-            return std::make_shared<dnnl::inner_product_forward::desc>(
+            return std::make_shared<dnnl::inner_product_forward::primitive_desc>(
+                engine.get_onednn_engine(),
                 dnnl::prop_kind::forward_inference,
                 input_md,
                 weights_md,
-                output_md);
+                output_md,
+                attr);
         }
     }
 
 public:
-    static primitive_impl* create(const fully_connected_node& arg, const kernel_impl_params&) {
-        auto& engine = arg.get_program().get_engine();
-        auto desc = get_fully_connected_descriptor(arg);
-        auto attr = arg.get_onednn_primitive_attributes();
-        dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
+    void save(BinaryOutputBuffer& ob) const override {
+#ifdef ONEDNN_PRIMITIVE_SERIALIZATION
+        parent::save(ob);
 
-        return new fully_connected_onednn(arg, desc, attr, prim_desc, get_weights_reorder(arg, prim_desc));
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ob.getKernlImplParams());
+        auto prim = impl_params->typed_desc<fully_connected>();
+        size_t input_size = prim->input_size;
+        bool has_bias = !prim->bias.empty();
+        ob << input_size;
+        ob << has_bias;
+
+        std::vector<uint8_t> prim_cache;
+        prim_cache = _prim.get_cache_blob();
+        ob << prim_cache;
+#endif
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+#ifdef ONEDNN_PRIMITIVE_SERIALIZATION
+        parent::load(ib);
+
+        size_t input_size = 2;
+        bool has_bias = false;
+        ib >> input_size;
+        ib >> has_bias;
+
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernlImplParams());
+        auto prim_desc = get_fully_connected_primitive_descriptor(*impl_params, ib.get_engine(), input_size, has_bias, *_attrs);
+        _pd = *prim_desc;
+
+        std::vector<uint8_t> prim_cache;
+        ib >> prim_cache;
+
+        _prim = dnnl::primitive(_pd, prim_cache);
+#endif
+    }
+
+    static std::unique_ptr<primitive_impl> create(const fully_connected_node& arg, const kernel_impl_params& impl_params) {
+        auto& engine = impl_params.prog->get_engine();
+        auto& config = impl_params.prog->get_config();
+        auto attr = arg.get_onednn_primitive_attributes();
+        auto prim = impl_params.typed_desc<fully_connected>();
+        auto prim_desc = get_fully_connected_primitive_descriptor(impl_params, impl_params.prog->get_engine(),
+                                                                  prim->input_size, !prim->bias.empty(), *attr);
+
+        return cldnn::make_unique<fully_connected_onednn>(engine, config, attr, *prim_desc, get_weights_reorder(impl_params, *prim_desc));
     }
 };
 
 namespace detail {
 
 attach_fully_connected_onednn::attach_fully_connected_onednn() {
-    implementation_map<fully_connected>::add(impl_types::onednn, fully_connected_onednn::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::u8, format::bfzyx),
-        std::make_tuple(data_types::i8, format::bfzyx),
-    });
+    std::vector<data_types> dt = {
+        data_types::f32,
+        data_types::f16,
+        data_types::u8,
+        data_types::i8,
+    };
+    std::vector<format::type> fmt = {
+        format::bfyx,
+    };
+    implementation_map<fully_connected>::add(impl_types::onednn, fully_connected_onednn::create, dt, fmt);
 }
 
 }  // namespace detail
 }  // namespace onednn
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::fully_connected_onednn)

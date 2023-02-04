@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,8 +36,8 @@ bool Select::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
     return true;
 }
 
-Select::Select(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+Select::Select(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -179,7 +179,7 @@ void Select::execute_impl() {
     auto *dstData = reinterpret_cast<DATA_T *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
     if (broadcastType == SelectBroadcastType::NONE) {
-        size_t dstDataSize = std::accumulate(begin(resDims), end(resDims), 1, std::multiplies<size_t>());
+        size_t dstDataSize = std::accumulate(begin(resDims), end(resDims), size_t(1), std::multiplies<size_t>());
         parallel_for(dstDataSize, [&](size_t i) {
             dstData[i] = conditionData[i] ? thenData[i] : elseData[i];
         });

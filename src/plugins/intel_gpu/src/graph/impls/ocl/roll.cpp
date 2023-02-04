@@ -1,14 +1,8 @@
 // Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-// We have problem with includes when ENABLE_ONEDNN_FOR_GPU is OFF,
-// "impl_types" enum is not accessible if "implementation_map.hpp" is included first
-// so, a "fix" for now is to turn off clang-format for these include
-// clang-format off
-#include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
-// clang-format on
+#include "primitive_base.hpp"
 #include "roll/roll_kernel_ref.hpp"
 #include "roll/roll_kernel_selector.hpp"
 #include "roll_inst.hpp"
@@ -19,59 +13,60 @@ namespace ocl {
 struct roll_impl : typed_primitive_impl_ocl<roll> {
     using parent = typed_primitive_impl_ocl<roll>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::roll_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::roll_params, kernel_selector::roll_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<roll_impl>(*this);
     }
 
-    static primitive_impl* create(const roll_node& arg, const kernel_impl_params& impl_param) {
-        auto roll_params = get_default_params<kernel_selector::roll_params>(impl_param);
-        auto roll_optional_params =
-            get_default_optional_params<kernel_selector::roll_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<roll>();
+        auto params = get_default_params<kernel_selector::roll_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::roll_optional_params>(impl_param.get_program());
 
-        auto primitive = arg.get_primitive();
-        roll_params.shift = convert_dim_vector(primitive->shift);
+        params.shift = convert_dim_vector(primitive->shift);
 
-        const auto& kernel_selector = kernel_selector::roll_kernel_selector::Instance();
-        const auto best_kernels = kernel_selector.GetBestKernels(roll_params, roll_optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        return new roll_impl(arg, best_kernels.front());
+        return {params, optional_params};
     }
 };
 
 namespace detail {
 
 attach_roll_impl::attach_roll_impl() {
-    implementation_map<roll>::add(impl_types::ocl,
-                                  roll_impl::create,
-                                  {
-                                      std::make_tuple(data_types::u8, format::bfyx),
-                                      std::make_tuple(data_types::u8, format::bfzyx),
-                                      std::make_tuple(data_types::u8, format::bfwzyx),
-                                      std::make_tuple(data_types::i8, format::bfyx),
-                                      std::make_tuple(data_types::i8, format::bfzyx),
-                                      std::make_tuple(data_types::i8, format::bfwzyx),
-                                      std::make_tuple(data_types::f16, format::bfyx),
-                                      std::make_tuple(data_types::f16, format::bfzyx),
-                                      std::make_tuple(data_types::f16, format::bfwzyx),
-                                      std::make_tuple(data_types::f32, format::bfyx),
-                                      std::make_tuple(data_types::f32, format::bfzyx),
-                                      std::make_tuple(data_types::f32, format::bfwzyx),
-                                      std::make_tuple(data_types::i32, format::bfyx),
-                                      std::make_tuple(data_types::i32, format::bfzyx),
-                                      std::make_tuple(data_types::i32, format::bfwzyx),
-                                      std::make_tuple(data_types::i64, format::bfyx),
-                                      std::make_tuple(data_types::i64, format::bfzyx),
-                                      std::make_tuple(data_types::i64, format::bfwzyx),
-                                  });
+    auto types = {data_types::f16, data_types::f32, data_types::i8, data_types::u8, data_types::i32, data_types::i64};
+    auto formats = {
+        format::bfyx,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv32_fsv32,
+        format::bs_fs_yx_bsv32_fsv16,
+
+        format::bfzyx,
+        format::b_fs_zyx_fsv16,
+        format::b_fs_zyx_fsv32,
+        format::bs_fs_zyx_bsv16_fsv32,
+        format::bs_fs_zyx_bsv16_fsv16,
+        format::bs_fs_zyx_bsv32_fsv32,
+        format::bs_fs_zyx_bsv32_fsv16,
+
+        format::bfwzyx
+    };
+    std::set<std::tuple<data_types, format::type>> keys;
+    for (const auto& t : types) {
+        for (const auto& f : formats) {
+            keys.emplace(t, f);
+        }
+    }
+    implementation_map<roll>::add(impl_types::ocl, typed_primitive_impl_ocl<roll>::create<roll_impl>, keys);
 }
 
 }  // namespace detail
 
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::roll_impl)

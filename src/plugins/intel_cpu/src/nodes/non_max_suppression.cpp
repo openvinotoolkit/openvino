@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,12 +12,13 @@
 #include "non_max_suppression.h"
 #include "ie_parallel.hpp"
 #include <ngraph/opsets/opset5.hpp>
-#include <ngraph_ops/nms_ie_internal.hpp>
+#include <ov_ops/nms_ie_internal.hpp>
 #include "utils/general_utils.h"
 
 #include "cpu/x64/jit_generator.hpp"
 #include "emitters/jit_load_store_emitters.hpp"
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
+#include <utils/shape_inference/shape_inference_internal_dyn.hpp>
 
 using namespace InferenceEngine;
 using namespace dnnl;
@@ -36,7 +37,7 @@ template <cpu_isa_t isa>
 struct jit_uni_nms_kernel_f32 : public jit_uni_nms_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_nms_kernel_f32)
 
-    explicit jit_uni_nms_kernel_f32(jit_nms_config_params jcp_) : jit_uni_nms_kernel(jcp_), jit_generator() {}
+    explicit jit_uni_nms_kernel_f32(jit_nms_config_params jcp_) : jit_uni_nms_kernel(jcp_), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -44,8 +45,9 @@ struct jit_uni_nms_kernel_f32 : public jit_uni_nms_kernel, public jit_generator 
     }
 
     void generate() override {
-        load_emitter.reset(new jit_load_emitter(this, isa));
-        store_emitter.reset(new jit_store_emitter(this, isa));
+        load_vector_emitter.reset(new jit_load_emitter(this, isa, Precision::FP32, Precision::FP32, vector_step));
+        load_scalar_emitter.reset(new jit_load_emitter(this, isa, Precision::FP32, Precision::FP32, scalar_step));
+
         exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.0f));
 
         this->preamble();
@@ -137,8 +139,8 @@ struct jit_uni_nms_kernel_f32 : public jit_uni_nms_kernel, public jit_generator 
 
         this->postamble();
 
-        load_emitter->emit_data();
-        store_emitter->emit_data();
+        load_vector_emitter->emit_data();
+        load_scalar_emitter->emit_data();
 
         prepare_table();
         exp_injector->prepare_table();
@@ -147,6 +149,8 @@ struct jit_uni_nms_kernel_f32 : public jit_uni_nms_kernel, public jit_generator 
 private:
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     uint32_t vlen = cpu_isa_traits<isa>::vlen;
+    const int vector_step = vlen / sizeof(float);
+    const int scalar_step = 1;
 
     Xbyak::Reg64 reg_boxes_coord0 = r8;
     Xbyak::Reg64 reg_boxes_coord1 = r9;
@@ -172,8 +176,8 @@ private:
 
     Xbyak::Reg64 reg_params = abi_param1;
 
-    std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
-    std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
+    std::unique_ptr<jit_load_emitter> load_vector_emitter = nullptr;
+    std::unique_ptr<jit_load_emitter> load_scalar_emitter = nullptr;
 
     std::vector<size_t> store_pool_gpr_idxs;
     std::vector<size_t> store_pool_vec_idxs;
@@ -205,25 +209,24 @@ private:
     std::shared_ptr<jit_uni_eltwise_injector_f32<isa>> exp_injector;
 
     inline void hard_nms() {
-        int step = vlen / sizeof(float);
         Xbyak::Label main_loop_label_hard;
         Xbyak::Label main_loop_end_label_hard;
         Xbyak::Label tail_loop_label_hard;
         Xbyak::Label terminate_label_hard;
         L(main_loop_label_hard);
         {
-            cmp(reg_boxes_num, step);
+            cmp(reg_boxes_num, vector_step);
             jl(main_loop_end_label_hard, T_NEAR);
 
-            sub(reg_boxes_coord0, step * sizeof(float));
-            sub(reg_boxes_coord1, step * sizeof(float));
-            sub(reg_boxes_coord2, step * sizeof(float));
-            sub(reg_boxes_coord3, step * sizeof(float));
+            sub(reg_boxes_coord0, vector_step * sizeof(float));
+            sub(reg_boxes_coord1, vector_step * sizeof(float));
+            sub(reg_boxes_coord2, vector_step * sizeof(float));
+            sub(reg_boxes_coord3, vector_step * sizeof(float));
 
             // iou result is in vmm_temp3
-            iou(step);
+            iou(vector_step);
 
-            sub(reg_boxes_num, step);
+            sub(reg_boxes_num, vector_step);
 
             suppressed_by_iou(false);
 
@@ -236,21 +239,20 @@ private:
         }
         L(main_loop_end_label_hard);
 
-        step = 1;
         L(tail_loop_label_hard);
         {
             cmp(reg_boxes_num, 1);
             jl(terminate_label_hard, T_NEAR);
 
-            sub(reg_boxes_coord0, step * sizeof(float));
-            sub(reg_boxes_coord1, step * sizeof(float));
-            sub(reg_boxes_coord2, step * sizeof(float));
-            sub(reg_boxes_coord3, step * sizeof(float));
+            sub(reg_boxes_coord0, scalar_step * sizeof(float));
+            sub(reg_boxes_coord1, scalar_step * sizeof(float));
+            sub(reg_boxes_coord2, scalar_step * sizeof(float));
+            sub(reg_boxes_coord3, scalar_step * sizeof(float));
 
             // iou result is in vmm_temp3
-            iou(step);
+            iou(scalar_step);
 
-            sub(reg_boxes_num, step);
+            sub(reg_boxes_num, scalar_step);
 
             suppressed_by_iou(true);
 
@@ -267,7 +269,6 @@ private:
     inline void soft_nms() {
         uni_vbroadcastss(vmm_scale, ptr[reg_scale]);
 
-        int step = vlen / sizeof(float);
         Xbyak::Label main_loop_label;
         Xbyak::Label main_loop_end_label;
         Xbyak::Label tail_loop_label;
@@ -277,17 +278,17 @@ private:
         Xbyak::Label tail_loop_label_soft;
         L(main_loop_label);
         {
-            cmp(reg_boxes_num, step);
+            cmp(reg_boxes_num, vector_step);
             jl(main_loop_end_label, T_NEAR);
 
-            sub(reg_boxes_coord0, step * sizeof(float));
-            sub(reg_boxes_coord1, step * sizeof(float));
-            sub(reg_boxes_coord2, step * sizeof(float));
-            sub(reg_boxes_coord3, step * sizeof(float));
+            sub(reg_boxes_coord0, vector_step * sizeof(float));
+            sub(reg_boxes_coord1, vector_step * sizeof(float));
+            sub(reg_boxes_coord2, vector_step * sizeof(float));
+            sub(reg_boxes_coord3, vector_step * sizeof(float));
 
             // result(iou and weight) is in vmm_temp3
-            iou(step);
-            sub(reg_boxes_num, step);
+            iou(vector_step);
+            sub(reg_boxes_num, vector_step);
 
             // soft suppressed by iou_threshold
             if (jcp.is_soft_suppressed_by_iou) {
@@ -327,19 +328,18 @@ private:
         }
         L(main_loop_end_label);
 
-        step = 1;
         L(tail_loop_label);
         {
             cmp(reg_boxes_num, 1);
             jl(terminate_label, T_NEAR);
 
-            sub(reg_boxes_coord0, step * sizeof(float));
-            sub(reg_boxes_coord1, step * sizeof(float));
-            sub(reg_boxes_coord2, step * sizeof(float));
-            sub(reg_boxes_coord3, step * sizeof(float));
+            sub(reg_boxes_coord0, scalar_step * sizeof(float));
+            sub(reg_boxes_coord1, scalar_step * sizeof(float));
+            sub(reg_boxes_coord2, scalar_step * sizeof(float));
+            sub(reg_boxes_coord3, scalar_step * sizeof(float));
 
-            iou(step);
-            sub(reg_boxes_num, step);
+            iou(scalar_step);
+            sub(reg_boxes_num, scalar_step);
 
             // soft suppressed by iou_threshold
             if (jcp.is_soft_suppressed_by_iou) {
@@ -427,8 +427,11 @@ private:
 
     inline void iou(int ele_num) {
         auto load = [&](Xbyak::Reg64 reg_src, Vmm vmm_dst) {
+            if (ele_num != scalar_step && ele_num != vector_step)
+                IE_THROW() << "NMS JIT implementation supports load emitter with only element count scalar_step or vector_step! Get: " << ele_num;
+
+            const auto& load_emitter = ele_num == 1 ? load_scalar_emitter : load_vector_emitter;
             load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_dst.getIdx())},
-                std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, ele_num),
                 {}, {load_pool_gpr_idxs});
         };
         load(reg_boxes_coord0, vmm_boxes_coord0);
@@ -554,7 +557,7 @@ bool NonMaxSuppression::isSupportedOperation(const std::shared_ptr<const ngraph:
         // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
         using NonMaxSuppressionV9 = ngraph::op::v9::NonMaxSuppression;
         if (!one_of(op->get_type_info(), NonMaxSuppressionV9::get_type_info_static(),
-                    ngraph::op::internal::NonMaxSuppressionIEInternal::get_type_info_static())) {
+                    ov::op::internal::NonMaxSuppressionIEInternal::get_type_info_static())) {
             errorMessage = "Only NonMaxSuppression v9 and NonMaxSuppressionIEInternal are supported";
             return false;
         }
@@ -572,26 +575,27 @@ bool NonMaxSuppression::isSupportedOperation(const std::shared_ptr<const ngraph:
     return true;
 }
 
-NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache), isSoftSuppressedByIOU(false) {
-        std::string errorMessage;
-        if (!isSupportedOperation(op, errorMessage)) {
-            IE_THROW(NotImplemented) << errorMessage;
-        }
+NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, InternalDynShapeInferFactory()),
+      isSoftSuppressedByIOU(false) {
+    std::string errorMessage;
+    if (!isSupportedOperation(op, errorMessage)) {
+        IE_THROW(NotImplemented) << errorMessage;
+    }
 
-        errorPrefix = "NMS layer with name '" + op->get_friendly_name() + "' ";
+    errorPrefix = "NMS layer with name '" + op->get_friendly_name() + "' ";
 
-        if (getOriginalInputsNumber() < 2 || getOriginalInputsNumber() > 6)
-            IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getOriginalInputsNumber();
+    if (getOriginalInputsNumber() < 2 || getOriginalInputsNumber() > 6)
+        IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getOriginalInputsNumber();
 
-        if (getOriginalOutputsNumber() != 3)
-            IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getOriginalOutputsNumber();
+    if (getOriginalOutputsNumber() != 3)
+        IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getOriginalOutputsNumber();
 
-        if (const auto nms9 = std::dynamic_pointer_cast<const ngraph::op::v9::NonMaxSuppression>(op)) {
-            boxEncodingType = static_cast<NMSBoxEncodeType>(nms9->get_box_encoding());
-            sortResultDescending = nms9->get_sort_result_descending();
+    if (const auto nms9 = std::dynamic_pointer_cast<const ngraph::op::v9::NonMaxSuppression>(op)) {
+        boxEncodingType = static_cast<NMSBoxEncodeType>(nms9->get_box_encoding());
+        sortResultDescending = nms9->get_sort_result_descending();
         // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
-        } else if (const auto nmsIe = std::dynamic_pointer_cast<const ngraph::op::internal::NonMaxSuppressionIEInternal>(op)) {
+        } else if (const auto nmsIe = std::dynamic_pointer_cast<const ov::op::internal::NonMaxSuppressionIEInternal>(op)) {
             boxEncodingType = nmsIe->m_center_point_box ? NMSBoxEncodeType::CENTER : NMSBoxEncodeType::CORNER;
             sortResultDescending = nmsIe->m_sort_result_descending;
         } else {

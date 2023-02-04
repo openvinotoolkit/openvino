@@ -6,10 +6,13 @@ resources:
     name: openvinotoolkit/openvino_contrib
     ref: master
 
+variables:
+  - group: github
+
 jobs:
 - job: Lin
   # About 150% of total time
-  timeoutInMinutes: 90
+  timeoutInMinutes: '90'
 
   pool:
     name: LIN_VMSS_VENV_F16S_U20_WU2
@@ -26,8 +29,21 @@ jobs:
     BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
     INSTALL_DIR: $(WORK_DIR)/install_pkg
     SETUPVARS: $(INSTALL_DIR)/setupvars.sh
+    TMP_DIR: /mnt/tmp
+    SHARE_DIR: /mount/cinfsshare/onnxtestdata
+    CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux_coverity
 
   steps:
+
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.10'
+      addToPath: true
+      architecture: 'x64'
+      githubToken: $(auth_token)
+    displayName: Setup Python 3.10
+    name: setupPython
+
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
@@ -52,30 +68,35 @@ jobs:
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
       rm -rf $(BUILD_SAMPLES_DIR) ; mkdir $(BUILD_SAMPLES_DIR)
+      sudo rm -rf $(TMP_DIR) ; sudo mkdir $(TMP_DIR) ; sudo chmod 777 -R $(TMP_DIR)
+      sudo mkdir -p $(SHARE_DIR)
+      sudo apt --assume-yes update && sudo apt --assume-yes install nfs-common
+      sudo mount -vvv -t nfs cinfsshare.file.core.windows.net:/cinfsshare/onnxtestdata $(SHARE_DIR) -o vers=4,minorversion=1,sec=sys
+      mkdir -p $(CCACHE_DIR)
     displayName: 'Make dir'
 
   - checkout: self
-    clean: true
-    lfs: false
-    submodules: recursive
+    clean: 'true'
+    fetchDepth: '1'
+    submodules: 'true'
     path: openvino
 
   - checkout: openvino_contrib
-    clean: true
-    lfs: false
-    submodules: recursive
+    clean: 'true'
+    fetchDepth: '1'
+    submodules: 'true'
     path: openvino_contrib
 
   - script: |
       set -e
-      $(REPO_DIR)/install_build_dependencies.sh
+      sudo -E $(REPO_DIR)/install_build_dependencies.sh
       # Move jdk into contrib
       sudo apt --assume-yes install openjdk-11-jdk
       # Speed up build
+      sudo apt -y --no-install-recommends install unzip
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
       unzip ninja-linux.zip
       sudo cp -v ninja /usr/local/bin/
-    workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
 
   - task: CMake@1
@@ -83,17 +104,24 @@ jobs:
       # Coverity has too many PARSE_ERROR errors with ENABLE_FASTER_BUILD=ON. Disabling FASTER_BUILD.
       cmakeArgs: >
         -GNinja
-        -DVERBOSE_BUILD=ON
+        -DENABLE_CPPLINT=OFF
+        -DCMAKE_VERBOSE_MAKEFILE=ON
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_FASTER_BUILD=OFF
         -DENABLE_STRICT_DEPENDENCIES=OFF
-        -DENABLE_REQUIREMENTS_INSTALL=OFF
-        -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
-        $(REPO_DIR)
-      workingDirectory: $(BUILD_DIR)
+        -DBUILD_nvidia_plugin=OFF
+        -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
+        -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+        -DCMAKE_C_COMPILER_LAUNCHER=ccache
+        -S $(REPO_DIR)
+        -B $(BUILD_DIR)
+    displayName: "Cmake configure"
 
   - script: ls -alR $(REPO_DIR)/temp/
     displayName: 'List temp SDKs'
+
+  - script: ccache --zero-stats --max-size=50G --show-config
+    displayName: 'Clean ccache stats'
 
   - script: |
         set -e
@@ -103,9 +131,18 @@ jobs:
     workingDirectory: $(WORK_DIR)
     displayName: 'Install coverity tool'
 
-  - script: $(WORK_DIR)/cov-analysis*/bin/cov-build --dir $(BUILD_DIR)/cov-int ninja
-    workingDirectory: $(BUILD_DIR)
+  - script: |
+      $(WORK_DIR)/cov-analysis*/bin/cov-build --dir $(BUILD_DIR)/cov-int \
+        cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
+    env:
+      CCACHE_DIR: $(CCACHE_DIR)
+      CCACHE_TEMPDIR: $(TMP_DIR)/ccache
+      CCACHE_BASEDIR: $(Pipeline.Workspace)
+      CCACHE_MAXSIZE: 50G
     displayName: 'Build Lin with Coverity'
+
+  - script: ccache --show-stats
+    displayName: 'Show ccache stats'
 
   - script: ls -alR $(REPO_DIR)/bin/
     displayName: 'List bin files'

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,10 +33,6 @@ ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const o
 ov::Tensor tensor_from_numpy(py::array& array, bool shared_memory);
 
 ov::PartialShape partial_shape_from_list(const py::list& shape);
-
-ov::PartialShape partial_shape_from_str(const std::string& value);
-
-ov::Dimension dimension_from_str(const std::string& value);
 
 py::array as_contiguous(py::array& array, ov::element::Type type);
 

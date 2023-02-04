@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -125,8 +125,9 @@ bool TransposeTransformation::canBeTransformed(const TransformationContext& cont
         return true;
     }();
 
-    const auto values = constant->cast_vector<float>();
+    // TODO: remove legacy limitation
     if (!isPerTensor) {
+        const auto values = constant->cast_vector<float>();
         if ((values.size() < 2ul) || (values[0] != 0) || (values[1] != 1)) {
             return false;
         }

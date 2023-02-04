@@ -24,15 +24,23 @@ namespace node {
 /// precision: fp32
 class Snippet : public Node {
 public:
-    Snippet(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    Snippet(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
     ~Snippet() override = default;
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
+    InferenceEngine::Precision getRuntimePrecision() const override;
+
+    // to avoid collisions in throughput mode with copy of TypeRelaxed nodes
+    // we should have common shared mutex between streams
+    void setSharedMutex(const std::shared_ptr<std::mutex>& mutex);
 
     // Here we convert to canonical for & jit everything
     void createPrimitive() override;
+    void prepareParams() override;
+    std::vector<VectorDims> shapeInfer() const override;
+    bool needPrepareParams() const override;
 
     bool canBeInPlace() const override;
     bool created() const override;
@@ -45,14 +53,23 @@ private:
 
     typedef void (*kernel)(const void *, const void *);
 
-    void define_schedule();
+    // Create a deep local copy of the input snippet to perform canonicalization & code generation
+    // TODO: Probably better to implement a proper copy constructor
+    // NOTE: Before call mutex should be initialized
+    void copy_snippet();
 
-    void generate();
+    ov::PartialShape canonicalizeBody();
+    // returns true if exec domain was modified
+    bool optimizeExecDomain(std::vector<VectorDims>&, std::vector<VectorDims>&, VectorDims&, size_t&) const;
 
+    void generate(const jit_snippets_compile_args*);
+    inline void update_ptrs(jit_snippets_call_args&);
     // Evaluates generated snippet using parallel backend
-    void schedule_6d(const jit_snippets_call_args& const_args) const;
-    void schedule_nt(const jit_snippets_call_args& const_args) const;
+    void schedule_6d();
+    void schedule_nt();
 
+    // Original subgraph node
+    std::shared_ptr<ngraph::snippets::op::Subgraph> original_snippet;
     // Local copy of subgraph node for canonization & code generation
     std::shared_ptr<ngraph::snippets::op::Subgraph> snippet;
 
@@ -61,34 +78,39 @@ private:
 
     // Holds ISA version used is codeGeneration target
     dnnl::impl::cpu::x64::cpu_isa_t host_isa;
+    size_t isa_num_lanes; // number of elements that fit in vector size
 
     // Holds index of output used as in execution domain
     // it should be compatible with a schedule's work size
     std::vector<size_t> exec_domain = {};
 
     /// scheduling info
-    size_t batchDimIdx = 0;
     size_t tensorRank = 0;
     size_t tileRank = 1;
     size_t fullWorkAmount = 0;
-    size_t schedulerWorkAmount = 0;
+    size_t harnessWorkAmount = 0;
     const size_t maxTileRank = 2;
 
     std::vector<MemoryPtr> srcMemPtrs = {};
     std::vector<MemoryPtr> dstMemPtrs = {};
+    std::vector<size_t> dataSize = {};
 
-    std::vector<std::vector<size_t>> dims_in = {};
-    std::vector<std::vector<size_t>> offsets_in = {};
+    // this is needed for fast shape inference of blocking-invariant prepended shapes
+    std::vector<bool> inputShapeIsBlocked = {}; // we need this info to shape-infer mixed layouts
+    std::vector<bool> outputShapeIsBlocked = {}; // we need this info to shape-infer mixed layouts
+    bool masterShapeIsBlocked = false;
+
+    // master shape is mutable since we need to modify it inside const shapeInfer method
+    mutable VectorDims masterShape = {};
+    mutable std::vector<VectorDims> normInputShapes = {};
+    mutable std::vector<VectorDims> normOutputShapes = {};
+
     std::vector<ptrdiff_t> start_offset_in = {};
     std::vector<ptrdiff_t> start_offset_out = {};
 
-    std::vector<std::vector<size_t>> dims_out = {};
-    std::vector<std::vector<size_t>> offsets_out = {};
-
-    std::vector<int64_t> sch_dims = {};
-    std::vector<int64_t> sch_offsets_in = {};
-    std::vector<int64_t> sch_offsets_out = {};
-    bool canUseOptimizedImpl = true;
+    // Buffer scratchpad
+    std::vector<uint8_t> buffer_scratchpad = {};
+    size_t buffer_scratchpad_size = 0;
 };
 
 }   // namespace node

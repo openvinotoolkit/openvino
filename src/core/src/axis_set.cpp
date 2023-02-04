@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,5 +55,3 @@ void ov::AttributeAdapter<ov::AxisSet>::set(const std::vector<int64_t>& value) {
     }
     m_buffer_valid = false;
 }
-
-BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::AxisSet>);

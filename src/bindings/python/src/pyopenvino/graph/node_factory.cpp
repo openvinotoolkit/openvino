@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,28 +72,16 @@ private:
             return std::tolower(c, loc);
         });
 
-        using OpsetFunction = std::function<const ov::OpSet&()>;
-
-        static const std::map<std::string, OpsetFunction> s_opsets{
-            {"opset1", OpsetFunction(ov::get_opset1)},
-            {"opset2", OpsetFunction(ov::get_opset2)},
-            {"opset3", OpsetFunction(ov::get_opset3)},
-            {"opset4", OpsetFunction(ov::get_opset4)},
-            {"opset5", OpsetFunction(ov::get_opset5)},
-            {"opset6", OpsetFunction(ov::get_opset6)},
-            {"opset7", OpsetFunction(ov::get_opset7)},
-            {"opset8", OpsetFunction(ov::get_opset8)},
-            {"opset9", OpsetFunction(ov::get_opset9)},
-        };
+        const auto& s_opsets = ov::get_available_opsets();
 
         auto it = s_opsets.find(opset_ver);
         if (it == s_opsets.end()) {
-            throw ngraph::ngraph_error("Unsupported opset version requested.");
+            throw ov::Exception("Unsupported opset version requested.");
         }
         return it->second();
     }
 
-    const ov::OpSet& m_opset = ov::get_opset9();
+    const ov::OpSet& m_opset = ov::get_opset10();
     std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>> m_variables;
 };
 }  // namespace

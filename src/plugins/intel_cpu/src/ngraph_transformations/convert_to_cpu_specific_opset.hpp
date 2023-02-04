@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 #include "ngraph/pass/manager.hpp"
 #include "reshape_fc_fusion.hpp"
 #include "align_matmul_input_ranks.hpp"
-#include "reshape_prelu.hpp"
+#include "transformations/common_optimizations/reshape_prelu.hpp"
 #include "convert_broadcast_to_tiles.hpp"
 #include "convert_tile_to_seq_tiles.hpp"
 #include "convert_matmul_to_fc.hpp"
@@ -27,6 +27,7 @@ namespace intel_cpu {
 
 inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphFunc) {
     RUN_ON_FUNCTION_SCOPE(ConvertToCPUSpecificOpset);
+
     ngraph::pass::Manager manager;
     manager.register_pass<ConvertMatMulToFC>();
     manager.register_pass<AlignMatMulInputRanks>();
@@ -36,13 +37,14 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     manager.register_pass<ConvertToLeakyRelu>();
     manager.register_pass<ConvertToSwishCPU>();
     manager.register_pass<OptimizeSequenceTransposes>();
-    if (!ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc)) {
+    if (!ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc)) {
         manager.register_pass<ReshapeFullyConnectedFusion>();
     }
     // after transformation "MoveEltwiseUpThroughDataMov" there can be Reshape sequences that should be eliminated or fused
-    manager.register_pass<ngraph::pass::ReshapeSequenceFusion>();
+    manager.register_pass<ov::pass::ReshapeSequenceFusion>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
-    manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::i64, ngraph::element::i32 }});
+    manager.register_pass<ov::pass::ConvertPrecision>(precisions_array {{ ngraph::element::i64, ngraph::element::i32 }});
+
 
     manager.run_passes(nGraphFunc);
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 #include <pugixml.hpp>
 
 #include "openvino/core/validation_util.hpp"
+#include "openvino/opsets/opset.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -109,7 +110,7 @@ void ParsePreProcess(pugi::xml_node& root,
 
     auto input_type = input_node->get_output_element_type(0);
     FOREACH_CHILD (chan, ppNode, "channel") {
-        int chanNo = XMLParseUtils::GetIntAttr(chan, "id", next_channel_id++);
+        int chanNo = XMLParseUtils::GetIntAttr(chan, "id", static_cast<int>(next_channel_id++));
 
         auto meanNode = chan.child("mean");
         if (!meanNode.empty()) {
@@ -191,7 +192,7 @@ namespace ir {
 class InputModel::InputModelIRImpl {
     std::shared_ptr<ngraph::runtime::AlignedBuffer> m_weights;
     std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> m_extensions;
-    std::unordered_map<std::string, ngraph::OpSet> m_opsets;
+    std::unordered_map<std::string, ov::OpSet> m_opsets;
     pugi::xml_node m_root;
     pugi::xml_document m_xml_doc;
 
@@ -206,15 +207,9 @@ public:
             IE_THROW() << res.description() << " at offset " << res.offset;
         }
         m_root = m_xml_doc.document_element();
-        m_opsets["opset1"] = ngraph::get_opset1();
-        m_opsets["opset2"] = ngraph::get_opset2();
-        m_opsets["opset3"] = ngraph::get_opset3();
-        m_opsets["opset4"] = ngraph::get_opset4();
-        m_opsets["opset5"] = ngraph::get_opset5();
-        m_opsets["opset6"] = ngraph::get_opset6();
-        m_opsets["opset7"] = ngraph::get_opset7();
-        m_opsets["opset8"] = ngraph::get_opset8();
-        m_opsets["opset9"] = ngraph::get_opset9();
+        for (const auto& it : ov::get_available_opsets()) {
+            m_opsets[it.first] = it.second();
+        }
     }
 
     std::shared_ptr<Function> convert();

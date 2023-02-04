@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <fstream>
+#include <openvino/cc/pass/itt.hpp>
 
 #include "ngraph/env_util.hpp"
 #include "ngraph/file_util.hpp"
@@ -177,6 +178,7 @@ static std::string get_attribute_values(const std::map<std::string, ov::Any>& at
 }
 
 bool pass::VisualizeTree::run_on_model(const std::shared_ptr<ov::Model>& f) {
+    RUN_ON_MODEL_SCOPE(VisualizeTree);
     unordered_map<Node*, HeightMap> height_maps;
 
     for (auto& node : f->get_ops()) {

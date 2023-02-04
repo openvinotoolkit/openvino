@@ -1,13 +1,13 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 
-from common.onnx_layer_test_class import Caffe2OnnxLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest
 
 
-class TestImageScaler(Caffe2OnnxLayerTest):
+class TestImageScaler(OnnxRuntimeLayerTest):
     def create_net(self, shape, scale, ir_version):
         """
             ONNX net                           IR net
@@ -27,7 +27,7 @@ class TestImageScaler(Caffe2OnnxLayerTest):
         input = helper.make_tensor_value_info('input', TensorProto.FLOAT, shape)
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, shape)
 
-        bias = np.random.randint(-10, 10, shape[1]).astype(np.float)
+        bias = np.random.randint(-10, 10, shape[1]).astype(float)
 
         node_def = onnx.helper.make_node(
             'ImageScaler',
@@ -79,8 +79,8 @@ class TestImageScaler(Caffe2OnnxLayerTest):
         input = helper.make_tensor_value_info('input', TensorProto.FLOAT, shape)
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, output_shape)
 
-        constant = np.random.randint(-127, 127, shape).astype(np.float)
-        bias = np.random.randint(-10, 10, shape[1]).astype(np.float)
+        constant = np.random.randint(-127, 127, shape).astype(float)
+        bias = np.random.randint(-10, 10, shape[1]).astype(float)
 
         node_const_def = onnx.helper.make_node(
             'Constant',
@@ -140,26 +140,26 @@ class TestImageScaler(Caffe2OnnxLayerTest):
 
     @pytest.mark.parametrize("params", test_data_precommit)
     def test_image_scaler_precommit(self, params, ie_device, precision, ir_version, temp_dir,
-                                    api_2):
+                                    use_old_api):
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_image_scaler(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_image_scaler(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_precommit)
     def test_image_scaler_const_precommit(self, params, ie_device, precision, ir_version, temp_dir,
-                                          api_2):
+                                          use_old_api):
         self._test(*self.create_net_const(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_image_scaler_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_image_scaler_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net_const(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)

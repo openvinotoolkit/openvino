@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -114,7 +114,7 @@ std::shared_ptr<ngraph::Node> make_fake_quantize(const Output<ngraph::Node>& y_s
     std::tie(input_low, input_high) =
         detail::get_input_bands(y_scale, y_zero_point, output_low, output_high, data_type);
 
-    const std::size_t levels = 1 << destination_type.bitwidth();
+    const std::size_t levels = static_cast<size_t>(1) << destination_type.bitwidth();
 
     return std::make_shared<default_opset::Convert>(
         std::make_shared<default_opset::FakeQuantize>(data, input_low, input_high, output_low, output_high, levels),
@@ -199,9 +199,15 @@ OutputVector quantize_linear(const Node& node) {
                  "input. Got: ",
                  inputs.size());
 
-    const auto x = inputs[0];
-    auto scale = inputs[1];
-    auto zero_point = op::detail::get_zero_point(inputs);
+    const auto& x = inputs[0];
+    const auto& scale = inputs[1];
+    const auto zero_point = op::detail::get_zero_point(inputs);
+
+    // per-tensor quantization, axis attribute ignored
+    if (scale.get_partial_shape().rank().is_static() && scale.get_partial_shape().rank().get_length() == 0 &&
+        zero_point.get_partial_shape().rank().is_static() && zero_point.get_partial_shape().rank().get_length() == 0) {
+        return set_1::quantize_linear(node);
+    }
 
     return quantize_linear(x, scale, zero_point, node.get_attribute_value<int64_t>("axis", 1), node);
 }

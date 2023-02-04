@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -25,32 +25,20 @@ set(protobuf_VERBOSE ON)
 set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests" FORCE)
 set(protobuf_BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libs" FORCE)
 set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support" FORCE)
-set(protobuf_BUILD_CONFORMANCE OFF CACHE BOOL "" FORCE)
 
-# When we build dll libraries. These flags make sure onnx and protobuf build with /MD, not /MT.
-# These two options can't be mixed, because they requires link two imcompatiable runtime.
-if(NOT DEFINED protobuf_MSVC_STATIC_RUNTIME)
-    set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "Link protobuf to static runtime libraries" FORCE)
+# note: HOST_AARCH64 AND X86_64 are not handled for Apple explicitly, because it can work via Rosetta
+if(CMAKE_CROSSCOMPILING OR
+    (APPLE AND (HOST_X86_64 AND AARCH64)) OR
+    (MSVC AND (HOST_X86_64 AND (AARCH64 OR ARM))))
+    set(protobuf_BUILD_PROTOC_BINARIES OFF CACHE BOOL "Build protoc binaries" FORCE)
+else()
+    set(protobuf_BUILD_PROTOC_BINARIES ON CACHE BOOL "Build protoc binaries" FORCE)
 endif()
 
-if(CMAKE_CROSSCOMPILING)
-    find_host_program(SYSTEM_PROTOC protoc PATHS ENV PATH)
-
-    if(SYSTEM_PROTOC)
-        execute_process(
-            COMMAND ${SYSTEM_PROTOC} --version
-            OUTPUT_VARIABLE PROTOC_VERSION
-            OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-        string(REPLACE " " ";" PROTOC_VERSION ${PROTOC_VERSION})
-        list(GET PROTOC_VERSION -1 PROTOC_VERSION)
-
-        message("Detected system protoc version: ${PROTOC_VERSION}")
-    else()
-        message(FATAL_ERROR "System Protobuf is needed while cross-compiling")
-    endif()
-
-    set(protobuf_BUILD_PROTOC_BINARIES OFF CACHE BOOL "Build libprotoc and protoc compiler" FORCE)
+# When we build dll libraries. These flags make sure onnx and protobuf build with /MD, not /MT.
+# These two options can't be mixed, because they requires link two incompatible runtime.
+if(NOT DEFINED protobuf_MSVC_STATIC_RUNTIME)
+    set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "Link protobuf to static runtime libraries" FORCE)
 endif()
 
 add_subdirectory(protobuf/cmake EXCLUDE_FROM_ALL)
@@ -80,18 +68,39 @@ if(protobuf_VERSION VERSION_LESS "3.9")
     message(FATAL_ERROR "Minimum supported version of protobuf-lite library is 3.9.0 (provided ${protobuf_VERSION})")
 endif()
 
-if(CMAKE_CROSSCOMPILING AND NOT PROTOC_VERSION VERSION_EQUAL protobuf_VERSION)
-    message(WARNING "system protobuf version does not match with the compiled one, please update system protobuf or submodule")
+# build protoc separatelly for build system processor
+
+if(NOT protobuf_BUILD_PROTOC_BINARIES)
+    set(HOST_PROTOC_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/install")
+
+    ov_native_compile_external_project(
+        TARGET_NAME host_protoc
+        NATIVE_INSTALL_DIR "${HOST_PROTOC_INSTALL_DIR}"
+        CMAKE_ARGS "-Dprotobuf_VERBOSE=${protobuf_VERBOSE}"
+                   "-Dprotobuf_BUILD_TESTS=${protobuf_BUILD_TESTS}"
+                   "-Dprotobuf_WITH_ZLIB=${protobuf_WITH_ZLIB}"
+        NATIVE_SOURCE_SUBDIR "protobuf/cmake"
+        NATIVE_TARGETS protoc libprotobuf-lite)
+
+    set(PROTOC_EXECUTABLE "${HOST_PROTOC_INSTALL_DIR}/bin/protoc")
+    add_executable(protobuf::protoc IMPORTED GLOBAL)
+    set_property(TARGET protobuf::protoc APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
+    set_target_properties(protobuf::protoc PROPERTIES
+        IMPORTED_LOCATION_RELEASE "${PROTOC_EXECUTABLE}")
+    set_target_properties(protobuf::protoc PROPERTIES
+        MAP_IMPORTED_CONFIG_DEBUG Release
+        MAP_IMPORTED_CONFIG_MINSIZEREL Release
+        MAP_IMPORTED_CONFIG_RELWITHDEBINFO Release)
+    add_dependencies(protobuf::protoc host_protoc)
+
+    set(PROTOC_DEPENDENCY host_protoc PARENT_SCOPE)
+    set(PROTOC_EXECUTABLE "${PROTOC_EXECUTABLE}" PARENT_SCOPE)
+else()
+    set(PROTOC_EXECUTABLE $<TARGET_FILE:protoc> PARENT_SCOPE)
+    set(PROTOC_DEPENDENCY protoc PARENT_SCOPE)
 endif()
 
 # set to parent scope
-
-if(SYSTEM_PROTOC)
-    set(SYSTEM_PROTOC ${SYSTEM_PROTOC} PARENT_SCOPE)
-    set(PROTOC_EXECUTABLE ${SYSTEM_PROTOC} PARENT_SCOPE)
-else()
-    set(PROTOC_EXECUTABLE $<TARGET_FILE:protoc> PARENT_SCOPE)
-endif()
 
 set(protobuf_VERSION ${protobuf_VERSION} PARENT_SCOPE)
 set(Protobuf_LITE_LIBRARIES libprotobuf-lite PARENT_SCOPE)

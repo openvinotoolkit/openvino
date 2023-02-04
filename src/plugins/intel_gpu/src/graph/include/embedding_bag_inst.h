@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/embedding_bag.hpp"
 #include "primitive_inst.h"
@@ -26,6 +25,7 @@ using embedding_bag_node = typed_program_node<embedding_bag>;
 template <>
 class typed_primitive_inst<embedding_bag> : public typed_primitive_inst_base<embedding_bag> {
     using parent = typed_primitive_inst_base<embedding_bag>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(embedding_bag_node const& node, kernel_impl_params const& impl_param);

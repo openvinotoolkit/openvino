@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,21 +7,23 @@
 #include "ngraph/ops.hpp"
 #include <ngraph/opsets/opset1.hpp>
 
-#include "op/blockedload.hpp"
-#include "op/blockedparameter.hpp"
 #include "op/broadcastload.hpp"
 #include "op/broadcastmove.hpp"
+#include "op/buffer.hpp"
+#include "op/convert_saturation.hpp"
+#include "op/convert_truncation.hpp"
+#include "op/horizon_max.hpp"
+#include "op/horizon_sum.hpp"
+#include "op/fill.hpp"
 #include "op/kernel.hpp"
 #include "op/load.hpp"
 #include "op/nop.hpp"
 #include "op/scalar.hpp"
-#include "op/scalarload.hpp"
-#include "op/scalarstore.hpp"
 #include "op/powerstatic.hpp"
 #include "op/store.hpp"
-#include "op/tile.hpp"
-#include "op/vectorload.hpp"
-#include "op/vectorstore.hpp"
+#include "op/loop.hpp"
+#include "op/brgemm.hpp"
+#include "op/vector_buffer.hpp"
 
 namespace ngraph {
 namespace snippets {

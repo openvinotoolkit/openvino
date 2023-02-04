@@ -1,6 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include "pyopenvino/frontend/input_model.hpp"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -290,6 +292,18 @@ void regclass_frontend_InputModel(py::module m) {
                 :type place: openvino.frontend.Place
                 :param type: New element type.
                 :type type: openvino.runtime.Type
+            )");
+
+    im.def("get_element_type",
+           &ov::frontend::InputModel::get_element_type,
+           py::arg("place"),
+           R"(
+                Returns current element type used for this place.
+
+                :param place: Model place.
+                :type place: openvino.frontend.Place
+                :return: Element type for this place.
+                :rtype: openvino.runtime.Type
             )");
 
     im.def(

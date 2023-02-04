@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all ngraph ops."""
@@ -54,11 +54,7 @@ def assign(new_value: NodeInput, variable_id: str, name: Optional[str] = None) -
     :param name:         Optional name for output node.
     :return: Assign node
     """
-    return _get_node_factory_opset3().create(
-        "Assign",
-        [as_node(new_value)],
-        {"variable_id": variable_id}
-    )
+    return _get_node_factory_opset3().create("Assign", [as_node(new_value)], {"variable_id": variable_id})
 
 
 @nameable_op
@@ -83,9 +79,7 @@ def broadcast(
     inputs = as_nodes(data, target_shape)
     if broadcast_spec.upper() == "EXPLICIT":
         inputs.append(as_node(axes_mapping))
-    return _get_node_factory_opset3().create(
-        "Broadcast", inputs, {"mode": broadcast_spec.upper()}
-    )
+    return _get_node_factory_opset3().create("Broadcast", inputs, {"mode": broadcast_spec.upper()})
 
 
 @nameable_op
@@ -129,9 +123,7 @@ def cum_sum(
     :param reverse: if set to true, will perform the sums in reverse direction
     :return: New node performing the operation
     """
-    return _get_node_factory_opset3().create(
-        "CumSum", as_nodes(arg, axis), {"exclusive": exclusive, "reverse": reverse}
-    )
+    return _get_node_factory_opset3().create("CumSum", as_nodes(arg, axis), {"exclusive": exclusive, "reverse": reverse})
 
 
 @nameable_op
@@ -260,9 +252,9 @@ def gru_cell(
     R: NodeInput,
     B: NodeInput,
     hidden_size: int,
-    activations: List[str] = None,
-    activations_alpha: List[float] = None,
-    activations_beta: List[float] = None,
+    activations: Optional[List[str]] = None,
+    activations_alpha: Optional[List[float]] = None,
+    activations_beta: Optional[List[float]] = None,
     clip: float = 0.0,
     linear_before_reset: bool = False,
     name: Optional[str] = None,
@@ -361,7 +353,11 @@ def non_max_suppression(
 
 
 @nameable_op
-def non_zero(data: NodeInput, output_type: str = "i64", name: Optional[str] = None,) -> Node:
+def non_zero(
+    data: NodeInput,
+    output_type: str = "i64",
+    name: Optional[str] = None,
+) -> Node:
     """Return the indices of the elements that are non-zero.
 
     :param data: Input data.
@@ -369,11 +365,7 @@ def non_zero(data: NodeInput, output_type: str = "i64", name: Optional[str] = No
 
     :return: The new node which performs NonZero
     """
-    return _get_node_factory_opset3().create(
-        "NonZero",
-        [as_node(data)],
-        {"output_type": output_type}
-    )
+    return _get_node_factory_opset3().create("NonZero", [as_node(data)], {"output_type": output_type})
 
 
 @nameable_op
@@ -385,11 +377,7 @@ def read_value(init_value: NodeInput, variable_id: str, name: Optional[str] = No
     :param name:         Optional name for output node.
     :return: ReadValue node
     """
-    return _get_node_factory_opset3().create(
-        "ReadValue",
-        [as_node(init_value)],
-        {"variable_id": variable_id}
-    )
+    return _get_node_factory_opset3().create("ReadValue", [as_node(init_value)], {"variable_id": variable_id})
 
 
 @nameable_op
@@ -514,15 +502,11 @@ def scatter_elements_update(
     to `axis` is obtained from the index of the entry itself.
 
     """
-    return _get_node_factory_opset3().create(
-        "ScatterElementsUpdate", as_nodes(data, indices, updates, axis)
-    )
+    return _get_node_factory_opset3().create("ScatterElementsUpdate", as_nodes(data, indices, updates, axis))
 
 
 @nameable_op
-def scatter_update(
-    data: Node, indices: NodeInput, updates: NodeInput, axis: NodeInput, name: Optional[str] = None
-) -> Node:
+def scatter_update(data: Node, indices: NodeInput, updates: NodeInput, axis: NodeInput, name: Optional[str] = None) -> Node:
     """Return a node which produces a ScatterUpdate operation.
 
     ScatterUpdate sets new values to slices from data addressed by indices.
@@ -533,10 +517,7 @@ def scatter_update(
     :param axis:    The axis at which elements will be updated.
     :return: ScatterUpdate node
     """
-    return _get_node_factory_opset3().create(
-        "ScatterUpdate",
-        as_nodes(data, indices, updates, axis)
-    )
+    return _get_node_factory_opset3().create("ScatterUpdate", as_nodes(data, indices, updates, axis))
 
 
 @nameable_op
@@ -547,11 +528,7 @@ def shape_of(data: NodeInput, output_type: str = "i64", name: Optional[str] = No
     :param output_type: Output element type.
     :return: ShapeOf node
     """
-    return _get_node_factory_opset3().create(
-        "ShapeOf",
-        [as_node(data)],
-        {"output_type": output_type}
-    )
+    return _get_node_factory_opset3().create("ShapeOf", [as_node(data)], {"output_type": output_type})
 
 
 @nameable_op
@@ -602,9 +579,7 @@ def shuffle_channels(data: Node, axis: int, group: int, name: Optional[str] = No
                            [[12., 13.], [14., 15.]],
                            [[20., 21.], [22., 23.]]]]
     """
-    return _get_node_factory_opset3().create(
-        "ShuffleChannels", [as_node(data)], {"axis": axis, "group": group}
-    )
+    return _get_node_factory_opset3().create("ShuffleChannels", [as_node(data)], {"axis": axis, "group": group})
 
 
 @nameable_op

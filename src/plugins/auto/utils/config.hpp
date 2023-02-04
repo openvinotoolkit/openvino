@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,13 +22,74 @@ struct PluginConfig {
                 _disableAutoBatching(false),
                 _batchTimeout("1000"),
                 _devicePriority(""),
-                _modelPriority(0),
+                _modelPriority(1),
                 _deviceBindBuffer(false),
                 _logLevel("LOG_NONE") {
         adjustKeyMapValues();
     }
+    std::vector<std::string> supportedConfigKeys(const std::string& pluginName = "AUTO") const {
+        std::vector<std::string> supported_configKeys = []() -> decltype(PerfHintsConfig::SupportedKeys()) {
+            auto res = PerfHintsConfig::SupportedKeys();
+            res.push_back(ov::device::priorities.name());
+            res.push_back(ov::enable_profiling.name());
+            res.push_back(PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS);
+            res.push_back(ov::hint::model_priority.name());
+            res.push_back(ov::hint::allow_auto_batching.name());
+            res.push_back(ov::log::level.name());
+            res.push_back(ov::intel_auto::device_bind_buffer.name());
+            res.push_back(ov::auto_batch_timeout.name());
+            return res;
+        }();
+        auto multi_supported_configKeys = supported_configKeys;
+        return pluginName == "AUTO" ? supported_configKeys : multi_supported_configKeys;
+    }
 
-    void UpdateFromMap(const std::map<std::string, std::string>& config, const std::string& pluginName, bool checkValid = false) {
+    std::vector<ov::PropertyName> supportedProperties(const std::string& pluginName = "AUTO") const {
+        std::vector<ov::PropertyName> supported_properties = []() -> std::vector<ov::PropertyName> {
+            auto RO_property = [](const std::string& propertyName) {
+                return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
+            };
+            auto RW_property = [](const std::string& propertyName) {
+                return ov::PropertyName(propertyName, ov::PropertyMutability::RW);
+            };
+            std::vector<ov::PropertyName> roProperties{RO_property(ov::supported_properties.name()),
+                                                       RO_property(ov::device::full_name.name()),
+                                                       RO_property(ov::device::capabilities.name())};
+            // the whole config is RW before network is loaded.
+            std::vector<ov::PropertyName> rwProperties{RW_property(ov::hint::model_priority.name()),
+                                                       RW_property(ov::log::level.name()),
+                                                       RW_property(ov::device::priorities.name()),
+                                                       RW_property(ov::enable_profiling.name()),
+                                                       RW_property(ov::hint::allow_auto_batching.name()),
+                                                       RW_property(ov::auto_batch_timeout.name()),
+                                                       RW_property(ov::hint::performance_mode.name()),
+                                                       RW_property(ov::hint::num_requests.name()),
+                                                       RW_property(ov::intel_auto::device_bind_buffer.name()),
+                                                       RW_property(ov::cache_dir.name())};
+            std::vector<ov::PropertyName> supportedProperties;
+            supportedProperties.reserve(roProperties.size() + rwProperties.size());
+            supportedProperties.insert(supportedProperties.end(), roProperties.begin(), roProperties.end());
+            supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
+            return supportedProperties;
+        }();
+        auto multi_supported_properties = supported_properties;
+        return pluginName == "AUTO" ? supported_properties : multi_supported_properties;
+    }
+
+    std::vector<std::string> supportedMetrics(const std::string& pluginName = "AUTO") const {
+        std::vector<std::string> supported_metrics = []() -> std::vector<std::string> {
+            std::vector<std::string> metrics;
+            metrics.push_back(METRIC_KEY(SUPPORTED_METRICS));
+            metrics.push_back(METRIC_KEY(FULL_DEVICE_NAME));
+            metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+            metrics.push_back(METRIC_KEY(OPTIMIZATION_CAPABILITIES));
+            return metrics;
+        }();
+        auto multi_supported_metrics = supported_metrics;
+        return pluginName == "AUTO" ? supported_metrics : multi_supported_metrics;
+    }
+
+    void UpdateFromMap(const std::map<std::string, std::string>& config, const std::string& pluginName, bool supportHWProprety = false) {
         const auto perf_hints_configs = PerfHintsConfig::SupportedKeys();
         for (auto&& kvp : config) {
             if (kvp.first == ov::enable_profiling) {
@@ -68,11 +129,17 @@ struct PluginConfig {
                         << " for key: " << kvp.first;
                 }
             } else if (kvp.first == ov::hint::allow_auto_batching) {
-                if (kvp.second == PluginConfigParams::NO) _disableAutoBatching = true;
-                else if (kvp.second == PluginConfigParams::YES) _disableAutoBatching = false;
-                else
+                if (kvp.second == PluginConfigParams::NO) {
+                    _disableAutoBatching = true;
+                    // temp flag, to be removed when unify this key to ie core
+                    _isBatchConfigSet = true;
+                } else if (kvp.second == PluginConfigParams::YES) {
+                    _disableAutoBatching = false;
+                    _isBatchConfigSet = true;
+                } else {
                     IE_THROW() << "Unsupported config value: " << kvp.second
                             << " for key: " << kvp.first;
+                }
             } else if (kvp.first == ov::auto_batch_timeout) {
                 try {
                     auto batchTimeout = std::stoi(kvp.second);
@@ -92,24 +159,74 @@ struct PluginConfig {
                     IE_THROW() << "Unsupported config value: " << kvp.second
                             << " for key: " << kvp.first;
             } else if (kvp.first == ov::device::priorities.name()) {
+                if (!kvp.second.empty())
+                    ParsePrioritiesDevices(kvp.second);
                 _devicePriority = kvp.second;
             } else if (std::find(perf_hints_configs.begin(), perf_hints_configs.end(), kvp.first) != perf_hints_configs.end()) {
                 _perfHintsConfig.SetConfig(kvp.first, kvp.second);
-            } else if (_availableDevices.end() !=
-                   std::find(_availableDevices.begin(), _availableDevices.end(), kvp.first)) {
+                // if first level property has perf_hint setting
+                if (kvp.first == ov::hint::performance_mode.name())
+                    _isSetPerHint = true;
+            } else if (_availableDevices.end() != std::find(_availableDevices.begin(),
+                                                            _availableDevices.end(),
+                                                            DeviceIDParser(kvp.first).getDeviceName())) {
+                // AUTO and MULTI can accept secondary properites on calling both core::comile_model() and
+                // core::set_property().
                 _passThroughConfig.emplace(kvp.first, kvp.second);
             } else if (kvp.first.find("AUTO_") == 0) {
                 _passThroughConfig.emplace(kvp.first, kvp.second);
+            } else if (kvp.first == ov::cache_dir.name()) {
+                _cacheDir = kvp.second;
+                _isSetCacheDir = true;
             } else {
-                if (pluginName.find("AUTO") != std::string::npos || checkValid)
+                if (pluginName.find("AUTO") != std::string::npos || !supportHWProprety)
+                    // AUTO and MULTI just only accept its own properites and secondary property when calling
+                    // core::set_property().
                     IE_THROW(NotFound) << "Unsupported property " << kvp.first;
-                else
-                    _passThroughConfig.emplace(kvp.first, kvp.second);
+
+                // MULTI could accept the HW primary property like {"NUM_STREAMS", "4"}
+                _passThroughConfig.emplace(kvp.first, kvp.second);
             }
         }
         if (!config.empty())
             _keyConfigMap.clear();
         adjustKeyMapValues();
+    }
+    std::vector<std::string> ParsePrioritiesDevices(const std::string& priorities, const char separator = ',') const {
+        std::vector<std::string> devices;
+        std::string::size_type pos = 0;
+        std::string::size_type endpos = 0;
+        auto isAvailableDevice = [&](std::string& deviceName) -> bool {
+            if (deviceName.empty())
+                return false;
+            auto realDevName = deviceName[0] != '-' ? deviceName : deviceName.substr(1);
+            if (realDevName.empty()) {
+                return false;
+            }
+            realDevName = DeviceIDParser(realDevName).getDeviceName();
+            std::string::size_type realEndPos = 0;
+            if ((realEndPos = realDevName.find('(')) != std::string::npos) {
+                realDevName = realDevName.substr(0, realEndPos);
+            }
+            if (_availableDevices.end() == std::find(_availableDevices.begin(), _availableDevices.end(), realDevName)) {
+                return false;
+            }
+            return true;
+        };
+        while ((endpos = priorities.find(separator, pos)) != std::string::npos) {
+            auto subStr = priorities.substr(pos, endpos - pos);
+            if (!isAvailableDevice(subStr)) {
+                IE_THROW() << "Unavailable device name: " << subStr;
+            }
+            devices.push_back(subStr);
+            pos = endpos + 1;
+        }
+        auto subStr = priorities.substr(pos, priorities.length() - pos);
+        if (!isAvailableDevice(subStr)) {
+            IE_THROW() << "Unavailable device name: " << subStr;
+        }
+        devices.push_back(subStr);
+        return devices;
     }
     void adjustKeyMapValues() {
         if (_useProfiling) {
@@ -149,11 +266,14 @@ struct PluginConfig {
 
         _keyConfigMap[ov::log::level.name()] = _logLevel;
 
+        _keyConfigMap[ov::cache_dir.name()] = _cacheDir;
+
         // for 2nd properties or independent configs from multi
         for (auto && kvp : _passThroughConfig) {
             _keyConfigMap[kvp.first] = kvp.second;
         }
     }
+    std::string _cacheDir{};
     bool _useProfiling;
     bool _exclusiveAsyncRequests;
     bool _disableAutoBatching;
@@ -163,8 +283,23 @@ struct PluginConfig {
     bool _deviceBindBuffer;
     std::string _logLevel;
     PerfHintsConfig  _perfHintsConfig;
+    // Add this flag to check if user app sets hint with none value that is equal to the default value of hint.
+    bool _isSetPerHint = false;
+    bool _isSetCacheDir = false;
+    bool _isBatchConfigSet = false;
     std::map<std::string, std::string> _passThroughConfig;
     std::map<std::string, std::string> _keyConfigMap;
-    const std::set<std::string> _availableDevices = {"CPU", "GPU", "GNA", "TEMPLATE", "MYRAID", "HDDL", "VPUX", "MULTI", "HETERO", "CUDA", "HPU_GOYA"};
+    const std::set<std::string> _availableDevices = {"AUTO",
+                                                     "CPU",
+                                                     "GPU",
+                                                     "GNA",
+                                                     "TEMPLATE",
+                                                     "VPUX",
+                                                     "MULTI",
+                                                     "HETERO",
+                                                     "CUDA",
+                                                     "NVIDIA",
+                                                     "HPU_GOYA",
+                                                     "mock"};
 };
 } // namespace MultiDevicePlugin

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -83,7 +83,6 @@ TestRunnerProposal<Dtype, ImInfoType>::TestRunnerProposal(cldnn::tensor image_in
                                         post_nms_topn,
                                         ratios,
                                         scales,
-                                        "",
                                         padding())
 {
     _topology.add(input_layout(cls_scores_name, _cls_scores_layout));
@@ -130,7 +129,7 @@ TEST(proposal, basic) {
     cldnn::mem_lock<float> f(output, get_test_stream());
 
     for (size_t i = 0; i < proposal_ref_size; i++) {
-        EXPECT_NEAR(f[i], proposal_ref[i], epsilon);
+        ASSERT_NEAR(f[i], proposal_ref[i], epsilon);
     }
 }
 
@@ -147,7 +146,7 @@ TEST(proposal, fp16) {
 
     for (size_t i = 0; i < proposal_ref_size; i++) {
         FLOAT16 ref(proposal_ref[i]);
-        EXPECT_NEAR((float)d[i], (float)ref, epsilon_fp16);
+        ASSERT_NEAR((float)d[i], (float)ref, epsilon_fp16);
     }
 }
 
@@ -164,7 +163,7 @@ TEST(proposal, scores_fp16_im_info_fp32) {
 
     for (size_t i = 0; i < proposal_ref_size; i++) {
         FLOAT16 ref(proposal_ref[i]);
-        EXPECT_NEAR((float)d[i], (float)ref, epsilon_fp16);
+        ASSERT_NEAR((float)d[i], (float)ref, epsilon_fp16);
     }
 }
 
@@ -181,7 +180,7 @@ TEST(proposal, scores_fp32_im_info_fp16) {
 
     for (size_t i = 0; i < proposal_ref_size; i++) {
         float ref(proposal_ref[i]);
-        EXPECT_NEAR((float)d[i], (float)ref, epsilon);
+        ASSERT_NEAR((float)d[i], (float)ref, epsilon);
     }
 }
 
@@ -197,7 +196,7 @@ TEST(proposal, img_info_batched) {
     cldnn::mem_lock<float> f(output, get_test_stream());
 
     for (size_t i = 0; i < proposal_ref_size; i++) {
-        EXPECT_NEAR(f[i], proposal_ref[i], epsilon);
+        ASSERT_NEAR(f[i], proposal_ref[i], epsilon);
     }
 }
 
@@ -213,6 +212,6 @@ TEST(proposal, img_info_batch_only) {
     cldnn::mem_lock<float> f(output, get_test_stream());
 
     for (size_t i = 0; i < proposal_ref_size; i++) {
-        EXPECT_NEAR(f[i], proposal_ref[i], epsilon);
+        ASSERT_NEAR(f[i], proposal_ref[i], epsilon);
     }
 }

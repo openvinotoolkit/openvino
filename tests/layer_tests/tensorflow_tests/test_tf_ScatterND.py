@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -61,7 +61,8 @@ class TestTFScatterND(CommonTFLayerTest):
             [[5.0, 5.0, 5.0, 5.0], [6.0, 6.0, 6.0, 6.0], [7.0, 7.0, 7.0, 7.0],
              [8.0, 8.0, 8.0, 8.0]]]),
         dict(x_shape=[2, 2, 2], indices=[[1, 1, 1], [0, 1, 0]], updates=[9.0, 6.3]),
-        dict(x_shape=[2, 2, 2], indices=[[0, 0], [0, 1]], updates=[[6.7, 9.0], [45.0, 8.3]]),
+        pytest.param(dict(x_shape=[2, 2, 2], indices=[[0, 0], [0, 1]], updates=[[6.7, 9.0], [45.0, 8.3]]),
+                     marks=pytest.mark.precommit_tf_fe),
         dict(x_shape=[2, 2, 2], indices=[[1]], updates=[[[6.7, 9.0], [45.0, 8.3]]]),
 
     ]
@@ -69,8 +70,8 @@ class TestTFScatterND(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_tf_scatter_nd(self, params, ie_device, precision, ir_version, temp_dir,
-                           use_new_frontend, api_2):
+                           use_new_frontend, use_old_api):
         self._test(*self.create_tf_scatternd_placeholder_const_net(**params, ir_version=ir_version,
                                                                    use_new_frontend=use_new_frontend),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_new_frontend=use_new_frontend, api_2=api_2, **params)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api, **params)

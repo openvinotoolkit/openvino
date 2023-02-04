@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,8 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateOneHotOp(Program& p, const std::shared_ptr<ngraph::op::v1::OneHot>& op) {
-    p.ValidateInputs(op, {4});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    validate_inputs_count(op, {4});
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     int64_t axis = op->get_axis();
@@ -29,8 +29,8 @@ static void CreateOneHotOp(Program& p, const std::shared_ptr<ngraph::op::v1::One
     float on_value;
     float off_value;
 
-    if (!ngraph::op::util::get_single_value(on_value_node, on_value) ||
-        !ngraph::op::util::get_single_value(off_value_node, off_value)) {
+    if (!ov::op::util::get_single_value(on_value_node, on_value) ||
+        !ov::op::util::get_single_value(off_value_node, off_value)) {
         IE_THROW() << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
     }
 
@@ -52,23 +52,18 @@ static void CreateOneHotOp(Program& p, const std::shared_ptr<ngraph::op::v1::One
     int64_t depth = depth_value_node->cast_vector<int64_t>()[0];
 
     auto out_pshape = op->get_output_partial_shape(0);
-    if (out_pshape.is_dynamic()) {
-        IE_THROW() << "OneHot doesn't support dynamic shapes yet";
-    }
-    auto out_tensor = tensor_from_dims(out_pshape.to_shape());
+    cldnn::tensor out_tensor = out_pshape.is_static() ? tensor_from_dims(out_pshape.to_shape()) : cldnn::tensor{};
 
     auto oneHotPrim = cldnn::one_hot(layerName,
-                                     inputPrimitives[0],
+                                     inputs[0],
                                      out_tensor,
-                                     DataTypeFromPrecision(op->get_output_element_type(0)),
+                                     cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                      axis,
                                      depth,
                                      on_value,
-                                     off_value,
-                                     op->get_friendly_name());
+                                     off_value);
 
-    p.AddPrimitive(oneHotPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, oneHotPrim);
 }
 
 REGISTER_FACTORY_IMPL(v1, OneHot);

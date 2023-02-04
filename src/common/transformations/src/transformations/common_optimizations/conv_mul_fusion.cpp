@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,19 +6,19 @@
 
 #include <memory>
 #include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset4.hpp>
 #include <ngraph/pattern/matcher.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset4.hpp>
 #include <transformations/utils/utils.hpp>
 #include <vector>
 
 #include "itt.hpp"
 
-ngraph::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
+ov::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
     MATCHER_SCOPE(ConvolutionMultiplyFusion);
     auto input = pattern::any_input();
-    auto weights = ngraph::pattern::any_input(pattern::has_static_dim(0) /* has OIYX layout */);
+    auto weights = pass::pattern::any_input(pattern::has_static_dim(0) /* has OIYX layout */);
     auto conv = ngraph::pattern::wrap_type<opset4::Convolution>({input, weights}, pattern::consumers_count(1));
     auto mul_const = ngraph::pattern::wrap_type<opset4::Constant>(pattern::has_static_shape());
     auto mul = ngraph::pattern::wrap_type<opset4::Multiply>({conv, mul_const});
@@ -80,10 +80,10 @@ ngraph::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
     register_matcher(m, callback);
 }
 
-ngraph::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
+ov::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
     MATCHER_SCOPE(GroupConvolutionMultiplyFusion);
     auto input = pattern::any_input();
-    auto weights = ngraph::pattern::any_input(pattern::has_static_dims({0, 1}) /* has GOIYX layout */);
+    auto weights = pass::pattern::any_input(pattern::has_static_dims({0, 1}) /* has GOIYX layout */);
     auto conv = ngraph::pattern::wrap_type<opset4::GroupConvolution>({input, weights}, pattern::consumers_count(1));
     auto mul_const = ngraph::pattern::wrap_type<opset4::Constant>();  // pattern::has_static_shape());
     auto mul = ngraph::pattern::wrap_type<opset4::Multiply>({conv, mul_const});
@@ -168,10 +168,10 @@ ngraph::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
     register_matcher(m, callback);
 }
 
-ngraph::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMultiplyFusion() {
+ov::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMultiplyFusion() {
     MATCHER_SCOPE(ConvolutionBackpropDataMultiplyFusion);
     auto input = pattern::any_input();
-    auto weights = ngraph::pattern::any_input(pattern::has_static_dim(1) /* has IOYX layout */);
+    auto weights = pass::pattern::any_input(pattern::has_static_dim(1) /* has IOYX layout */);
     auto conv =
         ngraph::pattern::wrap_type<opset4::ConvolutionBackpropData>({input, weights}, pattern::consumers_count(1));
     auto mul_const = ngraph::pattern::wrap_type<opset4::Constant>(pattern::has_static_shape());
@@ -234,10 +234,10 @@ ngraph::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMult
     register_matcher(m, callback);
 }
 
-ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion::GroupConvolutionBackpropDataMultiplyFusion() {
+ov::pass::GroupConvolutionBackpropDataMultiplyFusion::GroupConvolutionBackpropDataMultiplyFusion() {
     MATCHER_SCOPE(GroupConvolutionBackpropDataMultiplyFusion);
     auto input = pattern::any_input();
-    auto weights = ngraph::pattern::any_input(pattern::has_static_dims({0, 2}) /* has GIOYX layout */);
+    auto weights = pass::pattern::any_input(pattern::has_static_dims({0, 2}) /* has GIOYX layout */);
     auto conv =
         ngraph::pattern::wrap_type<opset4::GroupConvolutionBackpropData>({input, weights}, pattern::consumers_count(1));
     auto mul_const = ngraph::pattern::wrap_type<opset4::Constant>(pattern::has_static_shape());

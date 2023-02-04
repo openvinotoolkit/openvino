@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "lpt_ngraph_functions/normalize_l2_function.hpp"
 
-#include <ngraph_ops/type_relaxed.hpp>
+#include <ov_ops/type_relaxed.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "lpt_ngraph_functions/common/builders.hpp"
@@ -105,10 +105,10 @@ std::shared_ptr<ngraph::Function> NormalizeL2Function::getReference(
     const auto deqBefore = makeDequantization(input, deqBeforeStructure);
 
     const auto axesNode = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{ axes.size() }, axes);
-    const auto normalizeL2 = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::NormalizeL2>>(
+    const auto normalizeL2 = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::NormalizeL2>>(
         std::vector<ngraph::element::Type>{ element::f32, axesNode->output(0).get_element_type() },
         std::vector<ngraph::element::Type>{dequantizationAfter.empty() ? precision : element::f32},
-        ngraph::op::TemporaryReplaceOutputType(deqBefore, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(deqBefore, element::f32).get(),
         axesNode,
         1e-6,
         epsMode);

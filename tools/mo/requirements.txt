@@ -1,13 +1,6 @@
-numpy>=1.16.6,<=1.23.1
-tensorflow>=1.15.5,<=2.9.1
-mxnet~=1.2.0; sys_platform == 'win32'
-mxnet~=1.7.0.post2; sys_platform != 'win32'
+numpy>=1.16.6
 networkx~=2.5; python_version <= "3.6"
-networkx<2.8.1; python_version > "3.6"
-protobuf>=3.15.6
-onnx>=1.8.1,<1.12
+networkx<=2.8.8; python_version > "3.6"
 defusedxml>=0.7.1
-urllib3>=1.26.4
-requests>=2.25.1
-fastjsonschema~=2.15.1
+importlib-metadata; python_version < "3.8" and sys_platform == 'win32'
 openvino-telemetry>=2022.1.0

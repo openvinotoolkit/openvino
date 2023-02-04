@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,12 +10,6 @@
 #include <utility>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Performs RoI Align using image pyramid.
 /// @details Applies RoI Align to layer from the image pyramid.
@@ -41,21 +35,19 @@ struct pyramid_roi_align : public primitive_base<pyramid_roi_align> {
     /// @param pyramid_scales Scales of each level of pyramid in relation to original image.
     /// @param pyramid_starting_level Starting level of the pyramid that should be used for region of whole image.
     pyramid_roi_align(const primitive_id& id,
-                      const primitive_id& rois,
-                      const primitive_id& P2,
-                      const primitive_id& P3,
-                      const primitive_id& P4,
-                      const primitive_id& P5,
+                      const input_info& rois,
+                      const input_info& P2,
+                      const input_info& P3,
+                      const input_info& P4,
+                      const input_info& P5,
                       int output_size,
                       int sampling_ratio,
                       std::vector<int> pyramid_scales,
                       int pyramid_starting_level,
-                      const primitive_id& ext_prim_id = "",
                       const padding &output_padding = padding())
         : primitive_base(id,
                          { rois, P2, P3, P4, P5 },
-                         ext_prim_id,
-                         output_padding)
+                         {output_padding})
         , output_size(output_size)
         , sampling_ratio(sampling_ratio)
         , pyramid_scales(std::move(pyramid_scales))
@@ -66,8 +58,13 @@ struct pyramid_roi_align : public primitive_base<pyramid_roi_align> {
     int sampling_ratio;
     std::vector<int> pyramid_scales;
     int pyramid_starting_level;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, sampling_ratio);
+        seed = hash_range(seed, pyramid_scales.begin(), pyramid_scales.end());
+        seed = hash_combine(seed, pyramid_starting_level);
+        return seed;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

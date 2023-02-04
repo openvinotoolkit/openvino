@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+
+import numpy as np
 import onnx
 import pytest
 from onnx.helper import make_graph, make_model, make_tensor_value_info
-import numpy as np
-from openvino.runtime import Dimension, PartialShape
+
 from openvino.frontend import FrontEndManager, GeneralFailure
+from openvino.runtime import Dimension, PartialShape, Type
 
 
 # ------Test input model 1------
@@ -344,6 +346,24 @@ def create_test_onnx_models():
     models["test_place_names.onnx"] = make_model(graph, producer_name="ONNX Importer",
                                                  opset_imports=[onnx.helper.make_opsetid("", 13)])
 
+    # Input model with integer types
+    add = onnx.helper.make_node("Add", inputs=["x", "y"], outputs=["z"])
+    const_tensor = onnx.helper.make_tensor("const_tensor",
+                                           onnx.TensorProto.INT32,
+                                           (2, 2),
+                                           [5, 1, 4, 20])
+    const_node = onnx.helper.make_node("Constant", [], outputs=["const_node"],
+                                       value=const_tensor, name="const_node")
+    mul = onnx.helper.make_node("Mul", inputs=["z", "const_node"], outputs=["out"])
+    input_tensors = [
+        make_tensor_value_info("x", onnx.TensorProto.INT32, (2, 2)),
+        make_tensor_value_info("y", onnx.TensorProto.INT32, (2, 2)),
+    ]
+    output_tensors = [make_tensor_value_info("out", onnx.TensorProto.FLOAT, (2, 2))]
+    graph = make_graph([add, const_node, mul], "graph", input_tensors, output_tensors)
+    models["input_model_int32.onnx"] = make_model(graph, producer_name="ONNX Importer",
+                                                  opset_imports=[onnx.helper.make_opsetid("", 13)])
+
     return models
 
 
@@ -411,7 +431,7 @@ def compare_models(current, expected):  # noqa: C901 the function is too complex
                 msg += f"expected: {expected_ops[i].get_output_element_type(idx)}. "
 
     if not result:
-        print(msg)
+        print(msg)  # noqa: T201
 
     return result
 
@@ -1748,3 +1768,32 @@ def test_override_cut_outputs():
     with pytest.raises(GeneralFailure) as e:
         model.override_all_outputs(outputs=[place_to_cut])
     assert "The place OutputEdge{1, 0} is outdated" in str(e.value)
+
+
+def test_get_element_type():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model_2.onnx")
+
+    in1 = model.get_place_by_tensor_name(tensor_name="in1")
+    assert model.get_element_type(in1) == Type.f32
+
+    in1_output_edge = in1.get_consuming_ports()[0]
+    assert model.get_element_type(in1_output_edge) == Type.f32
+
+
+def test_get_element_type_int32():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model_int32.onnx")
+
+    x_input = model.get_place_by_tensor_name(tensor_name="x")
+    assert model.get_element_type(x_input) == Type.i32
+
+    x_output_edge = x_input.get_consuming_ports()[0]
+    assert model.get_element_type(x_output_edge) == Type.i32
+
+    # get_element_type can return the concrete element type only for model inputs
+    # for other places, it returns undefined type
+    const_node = model.get_place_by_tensor_name(tensor_name="const_node")
+    assert model.get_element_type(const_node) == Type.undefined

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,6 @@ using namespace InferenceEngine::details;
 using namespace InferenceEngine;
 using namespace ::testing;
 using namespace std::placeholders;
-
-#define GTEST_COUT std::cout << "[          ] [ INFO ] "
 
 namespace LayerTestsDefinitions {
 
@@ -58,18 +56,15 @@ static std::shared_ptr<ngraph::Function> simple_function_relu(ngraph::element::T
     return func;
 }
 
-std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getStandardFunctions() {
-    // Wrapper of most part of available builder functions
-    using ngraphFunctionIS = std::function<std::shared_ptr<ngraph::Function>(std::vector<size_t> inputShape,
-                                                                             ngraph::element::Type_t type)>;
-    auto inputShapeWrapper = [](ngraphFunctionIS fun, std::vector<size_t> inputShape) {
-        return [fun, inputShape](ngraph::element::Type type, std::size_t batchSize) {
-            auto shape = inputShape;
-            shape[0] = batchSize;
-            return fun(shape, type);
-        };
+ngraphFunctionGenerator LoadNetworkCacheTestBase::inputShapeWrapper(ngraphFunctionIS fun, std::vector<size_t> inputShape) {
+    return [fun, inputShape](ngraph::element::Type type, std::size_t batchSize) {
+        auto shape = inputShape;
+        shape[0] = batchSize;
+        return fun(shape, type);
     };
+}
 
+std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getNumericTypeOnlyFunctions() {
     std::vector<nGraphFunctionWithName> res;
     res.push_back(nGraphFunctionWithName { simple_function_multiply, "SimpleFunctionMultiply"});
     res.push_back(nGraphFunctionWithName { simple_function_relu, "SimpleFunctionRelu"});
@@ -82,9 +77,6 @@ std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getStandardFunctio
     res.push_back(nGraphFunctionWithName {
         inputShapeWrapper(ngraph::builder::subgraph::makeKSOFunction, {1, 4, 20, 20}),
         "KSOFunction"});
-    res.push_back(nGraphFunctionWithName { [](ngraph::element::Type type, size_t batchSize) {
-        return ngraph::builder::subgraph::makeTIwithLSTMcell(type, batchSize);
-    }, "TIwithLSTMcell1"});
     res.push_back(nGraphFunctionWithName {
         inputShapeWrapper(ngraph::builder::subgraph::makeSingleConv, {1, 3, 24, 24}),
         "SingleConv"});
@@ -106,14 +98,42 @@ std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getStandardFunctio
     res.push_back(nGraphFunctionWithName {
         inputShapeWrapper(ngraph::builder::subgraph::makeConvBias, {1, 3, 24, 24}),
         "ConvBias"});
-    res.push_back(nGraphFunctionWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeReadConcatSplitAssign, {1, 1, 2, 4}),
-        "ReadConcatSplitAssign"});
     res.push_back(nGraphFunctionWithName{
         inputShapeWrapper(ngraph::builder::subgraph::makeMatMulBias, {1, 3, 24, 24}),
         "MatMulBias" });
+    return res;
+}
+
+std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getAnyTypeOnlyFunctions() {
+    std::vector<nGraphFunctionWithName> res;
 
     return res;
+}
+
+std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getFloatingPointOnlyFunctions() {
+    std::vector<nGraphFunctionWithName> res;
+    res.push_back(nGraphFunctionWithName { [](ngraph::element::Type type, size_t batchSize) {
+        return ngraph::builder::subgraph::makeTIwithLSTMcell(type, batchSize);
+    }, "TIwithLSTMcell1"});
+    return res;
+}
+
+std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getNumericAnyTypeFunctions() {
+    std::vector<nGraphFunctionWithName> funcs = LoadNetworkCacheTestBase::getAnyTypeOnlyFunctions();
+    std::vector<nGraphFunctionWithName> numericType = LoadNetworkCacheTestBase::getNumericTypeOnlyFunctions();
+    funcs.insert(funcs.end(), numericType.begin(), numericType.end());
+
+    return funcs;
+}
+
+std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getStandardFunctions() {
+    std::vector<nGraphFunctionWithName> funcs = LoadNetworkCacheTestBase::getAnyTypeOnlyFunctions();
+    std::vector<nGraphFunctionWithName> numericType = LoadNetworkCacheTestBase::getNumericTypeOnlyFunctions();
+    funcs.insert(funcs.end(), numericType.begin(), numericType.end());
+    std::vector<nGraphFunctionWithName> floatType = LoadNetworkCacheTestBase::getFloatingPointOnlyFunctions();
+    funcs.insert(funcs.end(), floatType.begin(), floatType.end());
+
+    return funcs;
 }
 
 bool LoadNetworkCacheTestBase::importExportSupported(InferenceEngine::Core& ie) const {
@@ -131,22 +151,21 @@ std::string LoadNetworkCacheTestBase::getTestCaseName(testing::TestParamInfo<loa
     auto precision = std::get<1>(param);
     auto batchSize = std::get<2>(param);
     auto deviceName = std::get<3>(param);
+    std::replace(deviceName.begin(), deviceName.end(), ':', '.');
     return funcName + "_" + ngraph::element::Type(precision).get_type_name() + "_batch" + std::to_string(batchSize) + "_" + deviceName;
 }
 
 void LoadNetworkCacheTestBase::SetUp() {
     nGraphFunctionWithName funcPair;
     std::tie(funcPair, m_precision, m_batchSize, targetDevice) = GetParam();
+    target_device  = targetDevice;
+    APIBaseTest::SetUp();
     auto fGen = std::get<0>(funcPair);
     m_functionName = std::get<1>(funcPair);
-    try {
-        function = fGen(m_precision, m_batchSize);
-    } catch (...) {
-        GTEST_SKIP();
-    }
+    function = fGen(m_precision, m_batchSize);
 
     std::stringstream ss;
-    auto hash = std::hash<std::string>()(GetTestName());
+    auto hash = std::hash<std::string>()(LayerTestsUtils::LayerTestsCommon::GetTestName());
     ss << "testCache_" << std::to_string(hash) << "_" << std::this_thread::get_id() << "_" << GetTimestamp();
     for (auto& iter : configuration) {
         ss << "_" << iter.first << "_" << iter.second << "_";
@@ -157,8 +176,9 @@ void LoadNetworkCacheTestBase::SetUp() {
 
 void LoadNetworkCacheTestBase::TearDown() {
     CommonTestUtils::removeFilesWithExt(m_cacheFolderName, "blob");
-    std::remove(m_cacheFolderName.c_str());
+    CommonTestUtils::removeDir(m_cacheFolderName);
     core->SetConfig({{CONFIG_KEY(CACHE_DIR), {}}});
+    APIBaseTest::TearDown();
 }
 
 void LoadNetworkCacheTestBase::Run() {
@@ -173,12 +193,10 @@ void LoadNetworkCacheTestBase::Run() {
         }
     };
     if (!function) {
-        GTEST_COUT << "Can't create function " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
-        GTEST_SKIP();
+        GTEST_FAIL() << "Can't create function " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
     }
-    if ((targetDevice.find("AUTO") == std::string::npos) && !importExportSupported(*core)) {
-        GTEST_COUT << "Plugin doesn't support import and export - skipping test" << std::endl;
-        GTEST_SKIP();
+    if (!importExportSupported(*core)) {
+        GTEST_FAIL() << "Plugin doesn't support import and export - skipping test" << std::endl;
     }
     cnnNetwork = CNNNetwork{function};
     ConfigureNetwork();
@@ -187,12 +205,10 @@ void LoadNetworkCacheTestBase::Run() {
         GenerateInputs();
         Infer();
     } catch (const Exception &ex) {
-        GTEST_COUT << "Can't loadNetwork without cache for " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
-        GTEST_COUT << "Exception [" << ex.what() << "]" << std::endl;
-        GTEST_SKIP();
+        GTEST_FAIL() << "Can't loadNetwork without cache for " << m_functionName << " with precision " << m_precision.get_type_name()  << "\n"
+            << "Exception [" << ex.what() << "]" << std::endl;
     } catch (...) {
-        GTEST_COUT << "Can't loadNetwork without cache for " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
-        GTEST_SKIP(); // skip caching test if such network is not supported by device at all
+        GTEST_FAIL() << "Can't loadNetwork without cache for " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
     }
     auto originalOutputs = GetOutputs();
 
@@ -221,6 +237,7 @@ std::string LoadNetworkCompiledKernelsCacheTest::getTestCaseName(testing::TestPa
     std::string deviceName;
     std::pair<std::map<std::string, std::string>, std::string> userConfig;
     std::tie(deviceName, userConfig) = obj.param;
+    std::replace(deviceName.begin(), deviceName.end(), ':', '.');
     std::map<std::string, std::string> confstr = userConfig.first;
     std::ostringstream result;
     result << "device_name=" << deviceName << "_";
@@ -311,48 +328,43 @@ TEST_P(LoadNetworkCompiledKernelsCacheTest, TwoNetworksWithSameModelCreatesSameC
 
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-
 TEST_P(LoadNetworkCompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinariesUnicodePath) {
-    #if defined(_WIN32) || defined(_WIN64)
-        GTEST_SKIP();
-    #else
-        std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
-        // Create CNNNetwork from ngraph::Function
-        InferenceEngine::CNNNetwork cnnNet(function);
-        for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
-            std::wstring postfix  = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
-            std::wstring cache_path_w = CommonTestUtils::stringToWString(cache_path) + postfix;
+    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
+    // Create CNNNetwork from ngraph::Function
+    InferenceEngine::CNNNetwork cnnNet(function);
+    for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
+        std::wstring postfix  = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
+        std::wstring cache_path_w = CommonTestUtils::stringToWString(cache_path) + postfix;
 
-            try {
-                auto cache_path_mb = ov::util::wstring_to_string(cache_path_w);
-                ie->SetConfig({{ CONFIG_KEY(CACHE_DIR), cache_path_mb }});
-                // Load CNNNetwork to target plugins
-                auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-                execNet = {};
-                // Check that directory with cached kernels exists after loading network
-                ASSERT_TRUE(CommonTestUtils::directoryExists(cache_path_w)) << "Directory with cached kernels doesn't exist";
+        try {
+            auto cache_path_mb = ov::util::wstring_to_string(cache_path_w);
+            ie->SetConfig({{ CONFIG_KEY(CACHE_DIR), cache_path_mb }});
+            // Load CNNNetwork to target plugins
+            auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+            execNet = {};
+            // Check that directory with cached kernels exists after loading network
+            ASSERT_TRUE(CommonTestUtils::directoryExists(cache_path_w)) << "Directory with cached kernels doesn't exist";
+            // Check that folder contains cache files and remove them
+            for (auto& ext : m_extList) {
                 // Check that folder contains cache files and remove them
+                ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path_w, CommonTestUtils::stringToWString(ext)), 0);
+            }
+            //ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path_w, L"cl_cache"), 0);
+            // Remove directory and check that it doesn't exist anymore
+            ASSERT_EQ(CommonTestUtils::removeDir(cache_path_w), 0);
+            ASSERT_FALSE(CommonTestUtils::directoryExists(cache_path_w));
+        } catch (std::exception& ex) {
+            // Cleanup in case of any exception
+            if (CommonTestUtils::directoryExists(cache_path_w)) {
                 for (auto& ext : m_extList) {
                     // Check that folder contains cache files and remove them
-                    ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path_w, CommonTestUtils::stringToWString(ext)), 0);
+                    ASSERT_GE(CommonTestUtils::removeFilesWithExt(cache_path_w, CommonTestUtils::stringToWString(ext)), 0);
                 }
-                //ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path_w, L"cl_cache"), 0);
-                // Remove directory and check that it doesn't exist anymore
                 ASSERT_EQ(CommonTestUtils::removeDir(cache_path_w), 0);
-                ASSERT_FALSE(CommonTestUtils::directoryExists(cache_path_w));
-            } catch (std::exception& ex) {
-                // Cleanup in case of any exception
-                if (CommonTestUtils::directoryExists(cache_path_w)) {
-                    for (auto& ext : m_extList) {
-                        // Check that folder contains cache files and remove them
-                        ASSERT_GE(CommonTestUtils::removeFilesWithExt(cache_path_w, CommonTestUtils::stringToWString(ext)), 0);
-                    }
-                    ASSERT_EQ(CommonTestUtils::removeDir(cache_path_w), 0);
-                }
-                FAIL() << ex.what() << std::endl;
             }
+            FAIL() << ex.what() << std::endl;
         }
-    #endif
+    }
 }
 #endif
 } // namespace LayerTestsDefinitions

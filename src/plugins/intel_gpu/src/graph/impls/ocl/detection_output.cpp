@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,15 +17,28 @@ namespace ocl {
 struct detection_output_impl : typed_primitive_impl_ocl<detection_output> {
     using parent = typed_primitive_impl_ocl<detection_output>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::detection_output_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::detection_output_params, kernel_selector::detection_output_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<detection_output_impl>(*this);
     }
 
-private:
-    static void set_detection_output_specific_params(kernel_selector::detection_output_params::DedicatedParams& detectOutParams,
-                                                     const detection_output_node& arg) {
-        auto primitive = arg.get_primitive();
+public:
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<detection_output>();
+        auto params = get_default_params<kernel_selector::detection_output_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::detection_output_optional_params>(impl_param.get_program());
+
+        const auto confidence_idx = 1;
+        const auto prior_box_idx = 2;
+        params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[confidence_idx]));
+        params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[prior_box_idx]));
+
+        auto confidence_layout = impl_param.get_input_layout(1);
+        auto& detectOutParams = params.detectOutParams;
         detectOutParams.keep_top_k = primitive->keep_top_k;
         detectOutParams.num_classes = primitive->num_classes;
         detectOutParams.top_k = primitive->top_k;
@@ -44,47 +57,32 @@ private:
         detectOutParams.decrease_label_id = primitive->decrease_label_id;
         detectOutParams.clip_before_nms = primitive->clip_before_nms;
         detectOutParams.clip_after_nms = primitive->clip_after_nms;
-        detectOutParams.conf_size_x = arg.confidence().get_output_layout().get_padded_dims()[2];
-        detectOutParams.conf_size_y = arg.confidence().get_output_layout().get_padded_dims()[3];
-        detectOutParams.conf_padding_x = arg.confidence().get_output_layout().data_padding.lower_size().spatial[0];
-        detectOutParams.conf_padding_y = arg.confidence().get_output_layout().data_padding.lower_size().spatial[1];
-    }
+        detectOutParams.conf_size_x = confidence_layout.get_padded_dims()[2];
+        detectOutParams.conf_size_y = confidence_layout.get_padded_dims()[3];
+        detectOutParams.conf_padding_x = confidence_layout.data_padding.lower_size().spatial[0];
+        detectOutParams.conf_padding_y = confidence_layout.data_padding.lower_size().spatial[1];
 
-public:
-    static primitive_impl* create(const detection_output_node& arg, const kernel_impl_params& impl_param) {
-        auto detect_out_params = get_default_params<kernel_selector::detection_output_params>(impl_param);
-        auto detect_out_optional_params =
-            get_default_optional_params<kernel_selector::detection_output_optional_params>(arg.get_program());
-
-        const auto confidence_idx = 1;
-        const auto prior_box_idx = 2;
-        detect_out_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[confidence_idx]));
-        detect_out_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[prior_box_idx]));
-        set_detection_output_specific_params(detect_out_params.detectOutParams, arg);
-
-        auto& kernel_selector = kernel_selector::detection_output_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(detect_out_params, detect_out_optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto detection_output = new detection_output_impl(arg, best_kernels[0]);
-
-        return detection_output;
+        return {params, optional_params};
     }
 };
 
 namespace detail {
 
 attach_detection_output_impl::attach_detection_output_impl() {
-    implementation_map<detection_output>::add(impl_types::ocl, detection_output_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx)
-    });
+    std::vector<data_types> dt = {
+        data_types::f32,
+        data_types::f16,
+    };
+    std::vector<format::type> fmt = {
+        format::bfyx,
+        format::bs_fs_yx_bsv16_fsv32,
+        format::bs_fs_zyx_bsv16_fsv32,
+    };
+    implementation_map<detection_output>::add(impl_types::ocl, typed_primitive_impl_ocl<detection_output>::create<detection_output_impl>, dt, fmt);
 }
 
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::detection_output_impl)

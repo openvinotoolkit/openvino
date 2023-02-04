@@ -1,51 +1,152 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
+function(_ov_get_tbb_location tbb_target _tbb_lib_location_var)
+    if(NOT TBB_FOUND)
+        return()
+    endif()
+
+    foreach(property INTERFACE_LINK_LIBRARIES
+                     IMPORTED_LOCATION_RELEASE
+                     IMPORTED_LOCATION_RELWITHDEBINFO
+                     IMPORTED_LOCATION_NONE
+                     IMPORTED_LOCATION)
+        get_target_property(_tbb_lib_location ${tbb_target} ${property})
+        if(_tbb_lib_location)
+            if(property STREQUAL INTERFACE_LINK_LIBRARIES)
+                # pkg-config can set multiple libraries as interface, need to filter out
+                foreach(tbb_lib IN LISTS _tbb_lib_location)
+                    if(tbb_lib MATCHES "${CMAKE_SHARED_LIBRARY_PREFIX}tbb${CMAKE_SHARED_LIBRARY_SUFFIX}")
+                        set(${_tbb_lib_location_var} "${tbb_lib}" PARENT_SCOPE)
+                        return()
+                    endif()
+                endforeach()
+            else()
+                set(${_tbb_lib_location_var} "${_tbb_lib_location}" PARENT_SCOPE)
+                return()
+            endif()
+        endif()
+    endforeach()
+
+   message(FATAL_ERROR "Failed to detect TBB library location")
+endfunction()
+
 macro(ov_find_package_tbb)
     if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
+        set(_ov_minimal_tbb_version 2017.0)
 
         if(NOT ENABLE_SYSTEM_TBB)
-            set(_find_package_no_args NO_SYSTEM_ENVIRONMENT_PATH
-                                      NO_CMAKE_SYSTEM_PATH)
+            if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
+                set(_no_cmake_install_prefix NO_CMAKE_INSTALL_PREFIX)
+            endif()
+
+            # Note, we explicitly:
+            # don't set NO_CMAKE_PATH to allow -DTBB_DIR=XXX
+            # don't set NO_CMAKE_ENVIRONMENT_PATH to allow env TBB_DIR=XXX
+            set(_find_package_no_args NO_PACKAGE_ROOT_PATH
+                                      NO_SYSTEM_ENVIRONMENT_PATH
+                                      NO_CMAKE_PACKAGE_REGISTRY
+                                      NO_CMAKE_SYSTEM_PATH
+                                      ${_no_cmake_install_prefix}
+                                      NO_CMAKE_SYSTEM_PACKAGE_REGISTRY)
+
+            unset(_no_cmake_install_prefix)
         endif()
 
-        find_package(TBB QUIET COMPONENTS tbb tbbmalloc
+        find_package(TBB ${_ov_minimal_tbb_version} QUIET COMPONENTS tbb tbbmalloc
                      ${_find_package_no_args})
 
         if(NOT TBB_FOUND)
-            # system TBB failed to be found
-            set(ENABLE_SYSTEM_TBB OFF)
-
             # remove invalid TBB_DIR=TBB_DIR-NOTFOUND from cache
             unset(TBB_DIR CACHE)
             unset(TBB_DIR)
 
-            # TBB on system is not found, download prebuilt one
-            # if TBBROOT env variable is not defined
-            ov_download_tbb()
+            # try tbb.pc from system
+            if(NOT ANDROID AND ENABLE_SYSTEM_TBB)
+                find_package(PkgConfig QUIET)
+                if(PkgConfig_FOUND)
+                    macro(_ov_pkg_config_tbb_unset)
+                        # unset since it affects OpenVINOConfig.cmake.in
+                        unset(tbb_FOUND)
+                        unset(tbb_FOUND CACHE)
+                    endmacro()
+                    pkg_search_module(tbb QUIET
+                                      IMPORTED_TARGET GLOBAL
+                                      tbb)
+                    if(tbb_FOUND)
+                        # parse version
+                        string(REGEX REPLACE "~.*" "" tbb_VERSION_PATCHED "${tbb_VERSION}")
+                        if(tbb_VERSION_PATCHED AND tbb_VERSION_PATCHED VERSION_LESS _ov_minimal_tbb_version)
+                            _ov_pkg_config_tbb_unset()
+                            message(WARNING "Found TBB ${tbb_VERSION} via ${PKG_CONFIG_EXECUTABLE} while OpenVINO requies ${_ov_minimal_tbb_version} at least")
+                        elseif(TARGET PkgConfig::tbb)
+                            add_library(TBB::tbb ALIAS PkgConfig::tbb)
+                            set(TBB_VERSION ${tbb_VERSION})
+                            set(TBB_FOUND ${tbb_FOUND})
 
-            # try to find one more time
-            find_package(TBB QUIET COMPONENTS tbb tbbmalloc
-                         # can be provided by ov_download_tbb
-                         HINTS ${TBB_DIR}
-                         # fallback variant for TBB 2018 and older
-                         PATHS ${IEDevScripts_DIR}
-                         ${_find_package_no_args})
+                            # note: for python wheels we need to find and install tbbmalloc as well
+                            _ov_get_tbb_location(PkgConfig::tbb tbb_loc)
+                            string(REPLACE "tbb" "tbbmalloc" tbbmalloc_loc "${tbb_loc}")
+                            if(EXISTS "${tbbmalloc_loc}")
+                                add_library(TBB::tbbmalloc SHARED IMPORTED)
+                                set_target_properties(TBB::tbbmalloc PROPERTIES IMPORTED_LOCATION ${tbbmalloc_loc})
+                            endif()
+
+                            message(STATUS "${PKG_CONFIG_EXECUTABLE}: tbb (${tbb_VERSION}) is found at ${tbb_PREFIX}")
+                        else()
+                            _ov_pkg_config_tbb_unset()
+
+                            if(CPACK_GENERATOR STREQUAL "^(DEB|RPM|CONDA-FORGE|BREW)$")
+                                # package managers require system TBB
+                                set(message_type FATAL_ERROR)
+                            else()
+                                set(message_type WARNING)
+                            endif()
+                            message(${message_type} "cmake v${CMAKE_VERSION} contains bug in function 'pkg_search_module', need to update to at least v3.16.0 version")
+                        endif()
+                    endif()
+                endif()
+            endif()
+
+            if(NOT TBB_FOUND)
+                # system TBB failed to be found
+                set(ENABLE_SYSTEM_TBB OFF CACHE BOOL "" FORCE)
+
+                # TBB on system is not found, download prebuilt one
+                # if TBBROOT env variable is not defined
+                ov_download_tbb()
+
+                # fallback variant for TBB 2018 and older where TBB have not had cmake interface
+                if(DEFINED TBBROOT OR DEFINED ENV{TBBROOT})
+                    # note: if TBB older than 2017.0 is passed, cmake will skip it and THREADING=SEQ will be used
+                    set(_tbb_paths PATHS "${IEDevScripts_DIR}/tbb")
+                endif()
+
+                # try to find one more time
+                find_package(TBB QUIET COMPONENTS tbb tbbmalloc
+                             # TBB_DIR can be provided by ov_download_tbb
+                             HINTS ${TBB_DIR}
+                             ${_tbb_paths}
+                             ${_find_package_no_args}
+                             NO_CMAKE_PATH
+                             NO_CMAKE_ENVIRONMENT_PATH)
+            endif()
         endif()
 
         # WA for oneTBB: it does not define TBB_IMPORTED_TARGETS
         if(TBB_FOUND AND NOT TBB_IMPORTED_TARGETS)
-            foreach(target TBB::tbb TBB::tbbmalloc)
+            foreach(target TBB::tbb TBB::tbbmalloc TBB::tbbbind_2_5)
                 if(TARGET ${target})
                     list(APPEND TBB_IMPORTED_TARGETS ${target})
                 endif()
             endforeach()
         endif()
 
-        if (NOT TBB_FOUND)
-            set(THREADING "SEQ" PARENT_SCOPE)
-            message(WARNING "TBB was not found by the configured TBB_DIR/TBBROOT path.\
+        if(NOT TBB_FOUND)
+            set(THREADING "SEQ")
+            set(ENABLE_TBBBIND_2_5 OFF)
+            message(WARNING "TBB was not found by the configured TBB_DIR / TBBROOT path.\
                              SEQ method will be used.")
         else()
             message(STATUS "TBB (${TBB_VERSION}) is found at ${TBB_DIR}")
@@ -62,11 +163,13 @@ function(set_ie_threading_interface_for TARGET_NAME)
 
         # set variables to parent scope to prevent multiple invocations of find_package(TBB)
         # at the same CMakeLists.txt; invocations in different directories are allowed
+        set(THREADING ${THREADING} PARENT_SCOPE)
         set(TBB_FOUND ${TBB_FOUND} PARENT_SCOPE)
         set(TBB_IMPORTED_TARGETS ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
         set(TBB_VERSION ${TBB_VERSION} PARENT_SCOPE)
         set(TBB_DIR ${TBB_DIR} PARENT_SCOPE)
         set(ENABLE_SYSTEM_TBB ${ENABLE_SYSTEM_TBB} PARENT_SCOPE)
+        set(ENABLE_TBBBIND_2_5 ${ENABLE_TBBBIND_2_5} PARENT_SCOPE)
     endif()
 
     get_target_property(target_type ${TARGET_NAME} TYPE)
@@ -121,11 +224,13 @@ function(set_ie_threading_interface_for TARGET_NAME)
     endfunction()
 
     set(IE_THREAD_DEFINE "IE_THREAD_SEQ")
+    set(OV_THREAD_DEFINE "OV_THREAD_SEQ")
 
     if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
         if (TBB_FOUND)
             set(IE_THREAD_DEFINE "IE_THREAD_TBB")
-            ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${TBB_IMPORTED_TARGETS})
+            set(OV_THREAD_DEFINE "OV_THREAD_TBB")
+            ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} TBB::tbb)
             target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} TBB_PREVIEW_WAITING_FOR_WORKERS=1)
         else ()
             set(THREADING "SEQ" PARENT_SCOPE)
@@ -170,6 +275,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
             set(THREADING "SEQ" PARENT_SCOPE)
         else ()
             set(IE_THREAD_DEFINE "IE_THREAD_OMP")
+            set(OV_THREAD_DEFINE "OV_THREAD_OMP")
 
             if (WIN32)
                 target_compile_options(${TARGET_NAME} ${LINK_TYPE} ${OpenMP_CXX_FLAGS} /openmp)
@@ -197,7 +303,8 @@ function(set_ie_threading_interface_for TARGET_NAME)
         endif ()
     endif ()
 
-    target_compile_definitions(${TARGET_NAME} ${LINK_TYPE} -DIE_THREAD=${IE_THREAD_DEFINE})
+    target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} -DIE_THREAD=${IE_THREAD_DEFINE})
+    target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} -DOV_THREAD=${OV_THREAD_DEFINE})
 
     if (NOT THREADING STREQUAL "SEQ")
         find_package(Threads REQUIRED)

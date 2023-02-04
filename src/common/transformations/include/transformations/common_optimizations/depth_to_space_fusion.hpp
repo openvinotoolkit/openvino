@@ -1,21 +1,21 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 #include <vector>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API DepthToSpaceFusion;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -29,17 +29,17 @@ class TRANSFORMATIONS_API DepthToSpaceFusion;
  * Callback example:
  *
  *     // This callback enables DepthToSpaceFusion transformation
- *     auto callback = [](const std::shared_ptr<const ngraph::Node> & node) -> bool {
- *         return std::dynamic_pointer_cast<const ngraph::opset3::DepthToSpace>(node) != nullptr;
+ *     auto callback = [](const std::shared_ptr<const ov::Node> & node) -> bool {
+ *         return std::dynamic_pointer_cast<const ov::opset3::DepthToSpace>(node) != nullptr;
  *     };
  *
- *     auto p = ngraph::pass::DepthToSpaceFusion();
+ *     auto p = ov::pass::DepthToSpaceFusion();
  *     p.setCallback(callback);
  *     p.run_on_function(f);
  *
  */
 
-class ngraph::pass::DepthToSpaceFusion : public ngraph::pass::MatcherPass {
+class ov::pass::DepthToSpaceFusion : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("DepthToSpaceFusion", "0");
     DepthToSpaceFusion();

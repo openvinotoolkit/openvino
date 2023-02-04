@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 #include "ngraph/log.hpp"
 #include "onnx_common/parser.hpp"
 #include "onnx_common/utils.hpp"
+#include "openvino/util/file_util.hpp"
 #include "utils/common.hpp"
 #include "utils/onnx_internal.hpp"
 
@@ -241,7 +242,7 @@ onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::string& model_path, fro
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::wstring& model_path, frontend::ExtensionHolder extensions)
-    : m_model_path{ngraph::file_util::wstring_to_string(model_path)},
+    : m_model_path{ov::util::wstring_to_string(model_path)},
       m_extensions{std::move(extensions)},
       m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) {
                   delete impl;
@@ -496,12 +497,12 @@ void onnx_editor::ONNXModelEditor::set_tensor_name(const std::string& current_na
         *value_info->mutable_name() = new_name;
 
     for (size_t i = 0; i < graph->node().size(); ++i) {
-        const auto node = graph->mutable_node(i);
+        const auto node = graph->mutable_node(static_cast<int>(i));
 
         bool output_found = false;
         for (size_t j = 0; j < node->output().size(); ++j)
-            if (node->output(j) == current_name) {
-                *node->mutable_output(j) = new_name;
+            if (node->output(static_cast<int>(j)) == current_name) {
+                *node->mutable_output(static_cast<int>(j)) = new_name;
                 output_found = true;
                 break;
             }
@@ -509,8 +510,8 @@ void onnx_editor::ONNXModelEditor::set_tensor_name(const std::string& current_na
             continue;
 
         for (size_t j = 0; j < node->input().size(); ++j)
-            if (node->input(j) == current_name)
-                *node->mutable_input(j) = new_name;
+            if (node->input(static_cast<int>(j)) == current_name)
+                *node->mutable_input(static_cast<int>(j)) = new_name;
     }
 }
 
@@ -541,7 +542,7 @@ void onnx_editor::ONNXModelEditor::clear_nodes_name(const std::string& name) {
     m_pimpl->m_is_mapper_updated = false;
 
     for (size_t i = 0; i < graph->node().size(); ++i) {
-        const auto node = graph->mutable_node(i);
+        const auto node = graph->mutable_node(static_cast<int>(i));
         if (node->has_name() && node->name() == name)
             node->clear_name();
     }
@@ -569,7 +570,7 @@ void onnx_editor::ONNXModelEditor::set_name_for_dimension(const std::string& nod
         for (; shape_dim_size <= shape_dim_index; ++shape_dim_size)
             add_dim_to_onnx_shape(Dimension::dynamic(), *shape);
 
-        shape->mutable_dim(shape_dim_index)->set_dim_param(dim_name.c_str());
+        shape->mutable_dim(static_cast<int>(shape_dim_index))->set_dim_param(dim_name.c_str());
     };
 
     m_pimpl->m_is_mapper_updated = false;

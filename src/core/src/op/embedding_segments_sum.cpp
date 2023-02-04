@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v3::EmbeddingSegmentsSum);
 
 op::v3::EmbeddingSegmentsSum::EmbeddingSegmentsSum(const Output<Node>& emb_table,
                                                    const Output<Node>& indices,
@@ -44,7 +42,7 @@ op::v3::EmbeddingSegmentsSum::EmbeddingSegmentsSum(const Output<Node>& emb_table
 }
 
 void op::v3::EmbeddingSegmentsSum::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v3_EmbeddingSegmentsSum_validate_and_infer_types);
+    OV_OP_SCOPE(v3_EmbeddingSegmentsSum_validate_and_infer_types);
     NODE_VALIDATION_CHECK(
         this,
         get_input_element_type(SEGMENT_IDS) == element::i64 || get_input_element_type(SEGMENT_IDS) == element::i32,
@@ -117,7 +115,7 @@ void op::v3::EmbeddingSegmentsSum::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v3::EmbeddingSegmentsSum::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v3_EmbeddingSegmentsSum_clone_with_new_inputs);
+    OV_OP_SCOPE(v3_EmbeddingSegmentsSum_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 4) {
         return make_shared<op::v3::EmbeddingSegmentsSum>(new_args.at(0),

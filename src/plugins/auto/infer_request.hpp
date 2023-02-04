@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,7 +48,7 @@ public:
     // Multi-Device impl specific: sets the data (blobs from the device-less requests to the specific device request)
     void SetBlobsToAnotherRequest(const InferenceEngine::SoIInferRequestInternal& req);
     InferenceEngine::SoIInferRequestInternal& GetSharedRequest() { return _sharedRequest; }
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>  _perfMap;
+    InferenceEngine::SoIInferRequestInternal _scheduledRequest;
 
 private:
     void CreateInferRequest(const InferenceEngine::SoIInferRequestInternal& request_to_share_blobs_with,

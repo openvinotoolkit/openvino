@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -129,8 +129,23 @@ InferenceEngine::Precision type2precision<float>() {
 }
 
 template<>
+InferenceEngine::Precision type2precision<int32_t>() {
+    return InferenceEngine::Precision::I32;
+}
+
+template<>
+InferenceEngine::Precision type2precision<bfloat16_t>() {
+    return InferenceEngine::Precision::BF16;
+}
+
+template<>
 InferenceEngine::Precision type2precision<uint8_t>() {
     return InferenceEngine::Precision::U8;
+}
+
+template<>
+InferenceEngine::Precision type2precision<int8_t>() {
+    return InferenceEngine::Precision::I8;
 }
 
 cpu_isa_t get_current_isa() {
@@ -211,10 +226,8 @@ const void * consts_table::store(const void *data, size_t size) {
 
 }   // namespace internal
 
-jit_kernel::jit_kernel()
-    : jit_generator()
-    , _load_emitter(this, internal::get_current_isa())
-    , _store_emitter(this, internal::get_current_isa()) {
+jit_kernel::jit_kernel(const char* name)
+    : jit_generator(name) {
     _free_rmmregs.reserve(16);
     _free_rmmregs.reserve(16);
 
@@ -297,10 +310,10 @@ void jit_kernel::free<Zmm>(const Zmm & reg) {
 
 void jit_kernel::postamble() {
     jit_generator::postamble();
-    if (_is_load_emitter_used)
-        _load_emitter.emit_data();
-    if (_is_store_emitter_used)
-        _store_emitter.emit_data();
+    for (const auto& emitter : _emitters) {
+        if (emitter.second)
+            emitter.second->emit_data();
+    }
 }
 
 const AddressFrame & jit_kernel::address_frame(size_t size) const {

@@ -221,11 +221,26 @@ namespace cnpy {
 
         //write everything
         if (fp) {
-            fwrite(&local_header[0], sizeof(char), local_header.size(), fp);
-            fwrite(&npy_header[0], sizeof(char), npy_header.size(), fp);
-            fwrite(data, sizeof(T), nels, fp);
-            fwrite(&global_header[0], sizeof(char), global_header.size(), fp);
-            fwrite(&footer[0], sizeof(char), footer.size(), fp);
+            if (fwrite(&local_header[0], sizeof(char), local_header.size(), fp) != local_header.size()) {
+                fclose(fp);
+                throw std::runtime_error("npz_save: failed fwrite");
+            }
+            if (fwrite(&npy_header[0], sizeof(char), npy_header.size(), fp) != npy_header.size()) {
+                fclose(fp);
+                throw std::runtime_error("npz_save: failed fwrite");
+            }
+            if (fwrite(data, sizeof(T), nels, fp) != nels) {
+                fclose(fp);
+                throw std::runtime_error("npz_save: failed fwrite");
+            }
+            if (fwrite(&global_header[0], sizeof(char), global_header.size(), fp) != global_header.size()) {
+                fclose(fp);
+                throw std::runtime_error("npz_save: failed fwrite");
+            }
+            if (fwrite(&footer[0], sizeof(char), footer.size(), fp) != footer.size()) {
+                fclose(fp);
+                throw std::runtime_error("npz_save: failed fwrite");
+            }
             fclose(fp);
         }
     }

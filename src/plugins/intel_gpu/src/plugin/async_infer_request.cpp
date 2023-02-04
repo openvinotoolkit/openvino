@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "intel_gpu/plugin/async_infer_request.hpp"
-#include "intel_gpu/plugin/itt.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include <memory>
 
 namespace ov {
@@ -21,7 +21,6 @@ AsyncInferRequest::AsyncInferRequest(const InferRequest::Ptr &inferRequest,
                     [this] {
                         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "AsyncInferRequest::PreprocessingAndStartPipeline");
                         _inferRequest->setup_stream_graph();
-                        _inferRequest->preprocess();
                         _inferRequest->enqueue();
                         _inferRequest->wait();
         } });
@@ -34,19 +33,9 @@ AsyncInferRequest::AsyncInferRequest(const InferRequest::Ptr &inferRequest,
     }
 }
 
-void AsyncInferRequest::Infer_ThreadUnsafe() {
-    if (_inferRequest->use_external_queue()) {
-        _inferRequest->setup_stream_graph();
-        _inferRequest->preprocess_notify();
-        _inferRequest->enqueue_notify();
-    }
-    Parent::Infer_ThreadUnsafe();
-}
-
 void AsyncInferRequest::StartAsync_ThreadUnsafe() {
     if (_inferRequest->use_external_queue()) {
         _inferRequest->setup_stream_graph();
-        _inferRequest->preprocess_notify();
         _inferRequest->enqueue_notify();
     }
     Parent::StartAsync_ThreadUnsafe();

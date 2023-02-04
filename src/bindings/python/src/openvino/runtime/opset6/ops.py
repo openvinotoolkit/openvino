@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
@@ -40,13 +40,13 @@ _get_node_factory_opset6 = partial(_get_node_factory, "opset6")
 
 @nameable_op
 def ctc_greedy_decoder_seq_len(
-        data: NodeInput,
-        sequence_length: NodeInput,
-        blank_index: Optional[NodeInput] = None,
-        merge_repeated: bool = True,
-        classes_index_type: str = "i32",
-        sequence_length_type: str = "i32",
-        name: Optional[str] = None,
+    data: NodeInput,
+    sequence_length: NodeInput,
+    blank_index: Optional[NodeInput] = None,
+    merge_repeated: bool = True,
+    classes_index_type: str = "i32",
+    sequence_length_type: str = "i32",
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs CTCGreedyDecoderSeqLen.
 

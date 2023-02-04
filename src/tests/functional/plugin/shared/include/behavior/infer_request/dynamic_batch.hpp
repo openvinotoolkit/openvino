@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ typedef std::tuple<
 > dynamicBatchTestParams;
 
 class DynamicBatchTest : virtual public LayerTestsUtils::LayerTestsCommon,
-    public testing::WithParamInterface<dynamicBatchTestParams> {
+                         public testing::WithParamInterface<dynamicBatchTestParams> {
 private:
     bool run_async = false;
     size_t max_batch_size = 0;

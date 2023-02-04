@@ -6,9 +6,7 @@ The Arm® CPU plugin is developed in order to enable deep neural networks infere
 
 > **NOTE**: This is a community-level add-on to OpenVINO™. Intel® welcomes community participation in the OpenVINO™ ecosystem, technical questions and code contributions on community forums. However, this component has not undergone full release validation or qualification from Intel®, hence no official support is offered. 
 
-The Arm® CPU plugin is not a part of the Intel® Distribution of OpenVINO™ toolkit and is not distributed in the pre-built form. The plugin should be built from the source code for use. Plugin build procedure is described in [How to build Arm® CPU plugin](https://github.com/openvinotoolkit/openvino_contrib/wiki/How-to-build-ARM-CPU-plugin) guide. 
-
-The set of supported layers is defined on the [Op-set specification page](https://github.com/openvinotoolkit/openvino_contrib/wiki/ARM-plugin-operation-set-specification).
+The set of supported layers and its limitations are defined on the [Op-set specification page](https://github.com/openvinotoolkit/openvino_contrib/wiki/ARM-plugin-operation-set-specification).
 
 
 ## Supported Inference Data Types
@@ -61,28 +59,7 @@ In order to take effect, all parameters must be set before calling `ov::Core::co
 - ov::device::capabilities
 
 
-## Known Layers Limitation
-* `AvgPool` layer is supported via arm_compute library for 4D input tensor and via reference implementation for other cases.
-* `BatchToSpace` layer is supported for 4D tensors only and constant nodes: `block_shape` with `N` = 1 and `C`= 1, `crops_begin` with zero values and `crops_end` with zero values.
-* `ConvertLike` layer is supported for configuration like `Convert`.
-* `DepthToSpace` layer is supported for 4D tensors only and for `BLOCKS_FIRST` of `mode` attribute.
-* `Equal` does not support `broadcast` for inputs.
-* `Gather` layer is supported for constant scalar or 1D indices axes only. Layer is supported via arm_compute library for non negative indices and via reference implementation otherwise.
-* `Less` does not support `broadcast` for inputs.
-* `LessEqual` does not support `broadcast` for inputs.
-* `LRN` layer is supported for `axes = {1}` or `axes = {2, 3}` only.
-* `MaxPool-1` layer is supported via arm_compute library for 4D input tensor and via reference implementation for other cases.
-* `Mod` layer is supported for f32 only.
-* `MVN` layer is supported via arm_compute library for 2D inputs and `false` value of `normalize_variance` and `false` value of `across_channels`, for other cases layer is implemented via runtime reference.
-* `Normalize` layer is supported via arm_compute library with `MAX` value of `eps_mode` and `axes = {2 | 3}`, and for `ADD` value of `eps_mode` layer uses `DecomposeNormalizeL2Add`. For other cases layer is implemented via runtime reference.
-* `NotEqual` does not support `broadcast` for inputs.
-* `Pad` layer works with `pad_mode = {REFLECT | CONSTANT | SYMMETRIC}` parameters only.
-* `Round` layer is supported via arm_compute library with `RoundMode::HALF_AWAY_FROM_ZERO` value of `mode`, for other cases layer is implemented via runtime reference.
-* `SpaceToBatch` layer is supported for 4D tensors only and constant nodes: `shapes`, `pads_begin` or `pads_end` with zero paddings for batch or channels and one values `shapes` for batch and channels.
-* `SpaceToDepth` layer is supported for 4D tensors only and for `BLOCKS_FIRST` of `mode` attribute.
-* `StridedSlice` layer is supported via arm_compute library for tensors with dims < 5 and zero values of `ellipsis_mask` or zero values of `new_axis_mask` and `shrink_axis_mask`. For other cases, layer is implemented via runtime reference.
-* `FakeQuantize` layer is supported via arm_compute library, in Low Precision evaluation mode for suitable models, and via runtime reference otherwise.
-
 ## Additional Resources
+* [Arm® plugin developer documentation](https://github.com/openvinotoolkit/openvino_contrib/blob/master/modules/arm_plugin/README.md).
 * [How to run YOLOv4 model inference using OpenVINO™ and OpenCV on Arm®](https://opencv.org/how-to-run-yolov4-using-openvino-and-opencv-on-arm/).
 * [Face recognition on Android™ using OpenVINO™ toolkit with Arm® plugin](https://opencv.org/face-recognition-on-android-using-openvino-toolkit-with-arm-plugin/).

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,15 +9,13 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::Selu);
-
 op::v0::Selu::Selu(const Output<Node>& data, const Output<Node>& alpha, const Output<Node>& lambda)
     : Op({data, alpha, lambda}) {
     constructor_validate_and_infer_types();
 }
 
 void op::v0::Selu::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_Selu_validate_and_infer_types);
+    OV_OP_SCOPE(v0_Selu_validate_and_infer_types);
     auto data_et = get_input_element_type(0);
     auto alpha_et = get_input_element_type(1);
     auto lambda_et = get_input_element_type(2);
@@ -43,12 +41,12 @@ void op::v0::Selu::validate_and_infer_types() {
 }
 
 bool op::v0::Selu::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_Selu_visit_attributes);
+    OV_OP_SCOPE(v0_Selu_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::v0::Selu::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Selu_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_Selu_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v0::Selu>(new_args.at(0), new_args.at(1), new_args.at(2));
 }

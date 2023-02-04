@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,6 @@ namespace v1 {
 class OPENVINO_API BinaryConvolution : public Op {
 public:
     OPENVINO_OP("BinaryConvolution", "opset1", op::Op, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     enum class BinaryConvolutionMode {
         // Interpret input data and kernel values: 0 as -1, 1 as 1
@@ -138,7 +137,6 @@ public:
         : EnumAttributeAdapterBase<op::v1::BinaryConvolution::BinaryConvolutionMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v1::BinaryConvolution::BinaryConvolutionMode>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

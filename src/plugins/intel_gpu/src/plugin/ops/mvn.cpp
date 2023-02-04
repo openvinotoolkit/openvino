@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,23 +17,21 @@ namespace intel_gpu {
 
 static void CreateCommonMVNOp(Program& p, const std::shared_ptr<ngraph::Node>& op,
                               bool across_channels, bool normalize_variance, float eps, bool eps_inside_sqrt = true) {
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     auto mvnPrim = cldnn::mvn(layerName,
-                              inputPrimitives[0],
+                              inputs[0],
                               normalize_variance,
                               eps,
                               eps_inside_sqrt,
-                              across_channels,
-                              op->get_friendly_name());
+                              across_channels);
 
-    p.AddPrimitive(mvnPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, mvnPrim);
 }
 
 static void CreateMVNOp(Program& p, const std::shared_ptr<ngraph::op::v0::MVN>& op) {
-    p.ValidateInputs(op, {1});
+    validate_inputs_count(op, {1});
 
     bool across_channels = op->get_across_channels();
     bool normalize_variance = op->get_normalize_variance();
@@ -43,7 +41,7 @@ static void CreateMVNOp(Program& p, const std::shared_ptr<ngraph::op::v0::MVN>& 
 }
 
 static void CreateMVNOp(Program& p, const std::shared_ptr<ngraph::op::v6::MVN>& op) {
-    p.ValidateInputs(op, {2});
+    validate_inputs_count(op, {2});
 
     auto inConst = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));
     if (!inConst)

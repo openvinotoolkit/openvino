@@ -13,46 +13,70 @@
 
 @endsphinxdirective
 
-Intel® Distribution of OpenVINO™ toolkit is a comprehensive toolkit for developing applications and solutions based on deep learning tasks, such as: emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, etc. It provides high-performance and rich deployment options, from edge to cloud. Some of its advantages are:
+Intel® Distribution of OpenVINO™ toolkit is a comprehensive toolkit for developing applications and solutions based on deep learning tasks, such as computer vision, automatic speech recognition, natural language processing, recommendation systems, and more. It provides high-performance and rich deployment options, from edge to cloud. Some of its advantages are:
 
-* Enabling CNN-based deep learning inference on the edge.
-* Supporting various execution modes across Intel® technologies: Intel® CPU, Intel® Integrated Graphics, Intel® Neural Compute Stick 2, and Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
-* Speeding time-to-market via an easy-to-use library of computer vision functions and pre-optimized kernels.
-
-## Installation Options
-
-Since the 2022.1 release, the OpenVINO installation package has been distributed in two parts: OpenVINO Runtime and OpenVINO Development Tools. See the following instructions to choose your installation process.
-
-### Decide What to Install
-
-**If you have already finished developing your models and converting them to the OpenVINO model format, you can [install OpenVINO Runtime](installing-openvino-runtime.md) to deploy your applications on various devices**. OpenVINO Runtime contains a set of libraries for easy inference integration with your products.
-
-**If you want to download models from [Open Model Zoo](../model_zoo.md), [convert your own models to OpenVINO IR](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md), or [optimize and tune pre-trained deep learning models](../optimization_guide/model_optimization_guide.md)**, [install OpenVINO Development Tools](installing-model-dev-tools.md), which provides the following tools:
-
-  * Model Optimizer
-  * Post-Training Optimization Tool
-  * Benchmark Tool
-  * Accuracy Checker and Annotation Converter
-  * Model Downloader and other Open Model Zoo tools
+* Enables CNN-based and transformer-based deep learning inference on the edge or cloud.
+* Supports various execution modes across Intel® technologies: Intel® CPU, Intel® Integrated Graphics, Intel® Discrete Graphics, and more.
+* Speeds time-to-market via an easy-to-use library of computer vision functions and pre-optimized kernels.
+* Compatible with models from a wide variety of frameworks, including TensorFlow, PyTorch, PaddlePaddle, ONNX, and more.
 
 
-### Choose Your Installation Method
+## Install OpenVINO
 
-For Python developers, the easiest way is to [install OpenVINO Development Tools](installing-model-dev-tools.md), which will install both OpenVINO Runtime and OpenVINO Development Tools with a few steps. If you want to install OpenVINO Runtime only, see [Install OpenVINO Runtime from PyPI](installing-openvino-pip.md).
+@sphinxdirective
 
-For C++ developers, you may choose one of the following installation options for OpenVINO Runtime on your specific operating system:
+.. button-link:: https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html
+   :color: primary
+   :outline:
 
-* Linux: You can install OpenVINO Runtime using an [Installer](installing-openvino-linux.md), [APT](installing-openvino-apt.md), [YUM](installing-openvino-yum.md), [Anaconda Cloud](installing-openvino-conda.md), or [Docker](installing-openvino-docker-linux.md).
-* Windows: You can install OpenVINO Runtime using an [Installer](installing-openvino-windows.md), [Anaconda Cloud](installing-openvino-conda.md), or [Docker](installing-openvino-docker-windows.md).
-* macOS: You can install OpenVINO Runtime using an [Installer](installing-openvino-macos.md) or [Anaconda Cloud](installing-openvino-conda.md).
-* [Raspbian OS](installing-openvino-raspbian.md).
+   Check out the OpenVINO Download Page :fas:`fa-external-link-alt`
 
-> **NOTE**: With the introduction of the 2022.1 release, the OpenVINO Development Tools can be installed **only** via PyPI. See [Install OpenVINO Development Tools](installing-model-dev-tools.md) for detailed steps.
-Source files are also available in the [OpenVINO toolkit GitHub repository](https://github.com/openvinotoolkit/openvino/), so you can build your own package for the supported platforms, as described in [OpenVINO Build Instructions](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
+@endsphinxdirective
+
+OpenVINO installation package is distributed in two parts: OpenVINO Runtime and OpenVINO Development Tools.
+
+* **OpenVINO Runtime** contains the core set of libraries for running machine learning model inference on processor devices.
+* **OpenVINO Development Tools** is a set of utilities for working with OpenVINO and OpenVINO models. It includes the following tools:
+  - Model Optimizer
+  - Post-Training Optimization Tool
+  - Benchmark Tool
+  - Accuracy Checker and Annotation Converter
+  - Model Downloader and other Open Model Zoo tools
+
+### Option 1. Install OpenVINO Runtime and OpenVINO Development Tools (recommended)
+
+The best way to get started with OpenVINO is to install OpenVINO Development Tools, which will also install the OpenVINO Runtime Python package as a dependency. Follow the instructions on the [Install OpenVINO Development Tools](installing-model-dev-tools.md) page to install it.
+
+**Python**
+
+For developers working in Python, OpenVINO Development Tools can easily be installed using PyPI. See the <a href="openvino_docs_install_guides_install_dev_tools.html#python-developers">For Python Developers</a> section of the Install OpenVINO Development Tools page for instructions.
+
+**C++**
+
+For developers working in C++, the core OpenVINO Runtime libraries must be installed separately. Then, OpenVINO Development Tools can be installed using requirements files or PyPI. See the <a href="openvino_docs_install_guides_install_dev_tools.html#cpp-developers">For C++ Developers</a> section of the Install OpenVINO Development Tools page for instructions.
+
+### Option 2. Install OpenVINO Runtime only
+
+OpenVINO Runtime may also be installed on its own without OpenVINO Development Tools. This is recommended for users who already have an optimized model and want to deploy it in an application that uses OpenVINO for inference on their device. To install OpenVINO Runtime only, follow the instructions on the [Install OpenVINO Runtime](installing-openvino-runtime.md) page.
+
+The following methods are available to install OpenVINO Runtime:
+
+* Linux: You can install OpenVINO Runtime using APT, YUM, archive files or Docker. See [Install OpenVINO on Linux](installing-openvino-linux-header.md).
+* Windows: You can install OpenVINO Runtime using archive files or Docker. See [Install OpenVINO on Windows](installing-openvino-windows-header.md).
+* macOS: You can install OpenVINO Runtime using archive files or Docker. See [Install OpenVINO on macOS](installing-openvino-macos-header.md).
+* [Raspbian OS](installing-openvino-raspbian.md)
+
+### Option 3. Build OpenVINO from source
+
+Source files are also available in the OpenVINO Toolkit GitHub repository. If you want to build OpenVINO from source for your platform, follow the [OpenVINO Build Instructions](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
 
 ## Next Steps
+Still unsure if you want to install OpenVINO toolkit? Check out the [OpenVINO tutorials](../tutorials.md) to run example applications directly in your web browser without installing it locally. Here are some exciting demos you can explore:
+- [Monodepth Estimation with OpenVINO](https://docs.openvino.ai/latest/notebooks/201-vision-monodepth-with-output.html)
+- [Style Transfer on ONNX Models with OpenVINO](https://docs.openvino.ai/latest/notebooks/212-onnx-style-transfer-with-output.html)
+- [OpenVINO API Tutorial](https://docs.openvino.ai/latest/notebooks/002-openvino-api-with-output.html)
 
-- [Install OpenVINO Runtime](installing-openvino-runtime.md)
+Follow these links to install OpenVINO:
 - [Install OpenVINO Development Tools](installing-model-dev-tools.md)
+- [Install OpenVINO Runtime](installing-openvino-runtime.md)
 - [Build from Source](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode)
-- [Create a Yocto Image](installing-openvino-yocto.md)

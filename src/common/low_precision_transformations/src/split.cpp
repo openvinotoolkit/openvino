@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,12 +90,12 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
         }
 
         if (dequantization.subtract) {
-            const auto subtract = std::make_shared<opset1::Subtract>(parent, splitedSub[i]);
+            const auto subtract = NetworkHelper::makeDequantizationSubtract(parent, splitedSub[i]);
             copy_runtime_info({ newSplit, subtract }, subtract);
             parent = subtract;
         }
 
-        const auto multiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(parent, splitedMul[i]);
+        const auto multiply = std::make_shared<ov::op::TypeRelaxed<opset1::Multiply>>(parent, splitedMul[i]);
         NetworkHelper::setOutDataPrecisionForTypeRelaxed(multiply, dequantization.multiply->get_output_element_type(0));
         copy_runtime_info({ newSplit, multiply }, multiply);
 
@@ -153,20 +153,7 @@ bool SplitTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) cons
 }
 
 bool SplitTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    if (!LayerTransformation::canBeTransformed(context, layer) || NetworkHelper::getDequantization(layer, defaultPrecisions).empty()) {
-        return false;
-    }
-
-    const auto consumers = NetworkHelper::consumers(layer);
-    const auto concat = ov::as_type_ptr<opset1::Concat>(consumers[0]);
-
-    // WA to avoid propagation of dequantization if after Split all consumers are the same unsupported Concat
-    if (concat && concat->get_axis() != 1ul) {
-        const size_t id = consumers[0]->get_instance_id();
-        return std::any_of(consumers.begin(), consumers.end(), [&](const std::shared_ptr<Node>& node) { return node->get_instance_id() != id; });
-    }
-
-    return true;
+    return !NetworkHelper::getDequantization(layer, defaultPrecisions).empty() && layer->get_input_partial_shape(0).rank().is_static();
 }
 
 } // namespace low_precision

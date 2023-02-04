@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 #include <vector>
 
 #include <ngraph/pattern/op/wrap_type.hpp>
-#include "ngraph_ops/type_relaxed.hpp"
+#include "ov_ops/type_relaxed.hpp"
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
@@ -54,11 +54,11 @@ std::shared_ptr<opset1::Subtract> replaceToSubtract(const std::shared_ptr<Node>&
     auto constant = fold<opset1::Negative>(add->input_value(constBranchIndex));
     auto constOutput = constant->output(0);
 
-    const auto subtract = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(
+    const auto subtract = std::make_shared<ov::op::TypeRelaxed<opset1::Subtract>>(
         std::vector<element::Type>{element::f32, element::f32},
         std::vector<element::Type>{ op->get_output_element_type(0) },
-        ngraph::op::TemporaryReplaceOutputType(add->input_value(dataBranchIndex), element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(constOutput, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(add->input_value(dataBranchIndex), element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(constOutput, element::f32).get(),
         add->get_autob());
 
     NetworkHelper::copyInfo(add, subtract);
@@ -80,11 +80,11 @@ std::shared_ptr<opset1::Subtract> fuseWithSubtract(const std::shared_ptr<Node>& 
         add->get_input_node_shared_ptr(0)->input_value(1),
         add->input_value(1));
 
-    const auto newSubtract = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(
+    const auto newSubtract = std::make_shared<ov::op::TypeRelaxed<opset1::Subtract>>(
         std::vector<element::Type>{element::f32, element::f32},
         std::vector<element::Type>{ op->get_output_element_type(0) },
-        ngraph::op::TemporaryReplaceOutputType(add->get_input_node_shared_ptr(0)->input_value(0), element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(newSubConst, element::f32).get());
+        ov::op::TemporaryReplaceOutputType(add->get_input_node_shared_ptr(0)->input_value(0), element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(newSubConst, element::f32).get());
     NetworkHelper::copyInfo(add, newSubtract);
 
     replace_node(add, newSubtract);
@@ -218,14 +218,14 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
                     newSubtractFullPathValues),
             newMultiplyFullPathValues);
 
-        newAddOrSubtract = std::make_shared<op::TypeRelaxed<opset1::Add>>(
+        newAddOrSubtract = std::make_shared<ov::op::TypeRelaxed<opset1::Add>>(
             std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ element::f32 },
-            ngraph::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
-        newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
+            ov::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
+        newMultiply = std::make_shared<ov::op::TypeRelaxed<opset1::Multiply>>(
             std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ add->get_output_element_type(0) },
-            ngraph::op::TemporaryReplaceOutputType(newAddOrSubtract, element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(multiplyEmptyPathValues, element::f32).get());
+            ov::op::TemporaryReplaceOutputType(newAddOrSubtract, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(multiplyEmptyPathValues, element::f32).get());
 
         NetworkHelper::insertDequantizationAfter(add, newMultiply, newAddOrSubtract);
         NetworkHelper::copyInfo(add, newAddOrSubtract);

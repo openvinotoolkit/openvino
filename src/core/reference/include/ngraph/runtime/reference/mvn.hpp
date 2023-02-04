@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,7 @@ void mvn(const T* arg,
         mean(tmp_buffer.data(), mean_value.data(), in_shape, reduction_axes);
 
         add(mean_value.data(),
-            std::vector<T>(shape_size(reduced_shape), eps).data(),
+            std::vector<T>(shape_size(reduced_shape), static_cast<T>(eps)).data(),
             tmp_buffer.data(),
             reduced_shape,
             reduced_shape,
@@ -67,7 +67,7 @@ void mvn_6(const T* arg,
 
         if (eps_mode == op::MVNEpsMode::INSIDE_SQRT) {
             add(mean_value.data(),
-                std::vector<T>(shape_size(reduced_shape), eps).data(),
+                std::vector<T>(shape_size(reduced_shape), static_cast<T>(eps)).data(),
                 tmp_buffer.data(),
                 reduced_shape,
                 reduced_shape,
@@ -76,7 +76,7 @@ void mvn_6(const T* arg,
         } else {
             sqrt(mean_value.data(), tmp_buffer.data(), shape_size(reduced_shape));
             add(tmp_buffer.data(),
-                std::vector<T>(shape_size(reduced_shape), eps).data(),
+                std::vector<T>(shape_size(reduced_shape), static_cast<T>(eps)).data(),
                 tmp_buffer.data(),
                 reduced_shape,
                 reduced_shape,
@@ -86,6 +86,25 @@ void mvn_6(const T* arg,
         divide(out, tmp_buffer.data(), out, in_shape, reduced_shape, op::AutoBroadcastType::NUMPY, true);
     }
 }
+
+template <typename T>
+AxisSet mvn_6_reduction_axes(const ov::Tensor& axes_input, size_t rank) {
+    T* a = axes_input.data<T>();
+    auto v = std::vector<T>(a, a + axes_input.get_shape()[0]);
+    std::vector<size_t> axes(v.size(), 0);
+    for (size_t i = 0; i < v.size(); i++) {
+        if (v[i] < 0) {
+            if (rank + v[i] < 0) {
+                throw ov::Exception("Unexpected axis");
+            }
+            axes[i] = (size_t)(rank + v[i]);
+        } else {
+            axes[i] = (size_t)(v[i]);
+        }
+    }
+    return AxisSet(axes);
+}
+
 }  // namespace reference
 }  // namespace runtime
 }  // namespace ngraph

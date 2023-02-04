@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -36,8 +36,8 @@ class TestConv(OnnxRuntimeLayerTest):
         _pads = np.array(pads).reshape([2, -1])
         kernel_extent = np.array(dilations) * (np.array(weights_shape[2:]) - 1) + 1
         spatial_val_wo_stride = shape[2:] + np.add(_pads[0, :], _pads[1, :]) - kernel_extent
-        output_shape[2:] = (spatial_val_wo_stride.astype(np.float) / strides + 1).astype(np.int64)
-        output_shape = output_shape.astype(np.int).tolist()
+        output_shape[2:] = (spatial_val_wo_stride.astype(float) / strides + 1).astype(np.int64)
+        output_shape = output_shape.astype(int).tolist()
         input = helper.make_tensor_value_info('input', TensorProto.FLOAT, shape)
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, output_shape)
 
@@ -414,11 +414,11 @@ class TestConv(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("bias", [False, True])
     @pytest.mark.nightly
     def test_conv_3D(self, params, dilations, pads, strides, bias, ie_device, precision, ir_version,
-                     temp_dir, api_2):
+                     temp_dir, use_old_api):
         self._test(*self.create_net(**params, shape=[2, 3, 25], dilations=dilations, pads=pads,
                                     strides=strides,
                                     bias=bias, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_3D_autopad[:-1])
     @pytest.mark.parametrize("auto_pad", ['SAME_UPPER', 'SAME_LOWER'])
@@ -426,10 +426,10 @@ class TestConv(OnnxRuntimeLayerTest):
     @pytest.mark.nightly
     @pytest.mark.xfail(reason='autopad dimetions do not agree with framework')
     def test_conv_3D_autopad(self, params, auto_pad, bias, ie_device, precision, ir_version,
-                             temp_dir, api_2):
+                             temp_dir, use_old_api):
         self._test(*self.create_net(**params, shape=[2, 3, 25], bias=bias, auto_pad=auto_pad,
                                     ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_4D_precommit)
     @pytest.mark.parametrize("dilations", [[3, 5]])
@@ -438,11 +438,11 @@ class TestConv(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("bias", [False, True])
     @pytest.mark.precommit
     def test_conv_4D_precommit(self, params, dilations, pads, strides, bias, ie_device, precision,
-                               ir_version, temp_dir, api_2):
+                               ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, shape=[2, 3, 25, 25], dilations=dilations, pads=pads,
                                     strides=strides,
                                     bias=bias, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.parametrize("dilations", [[1, 1], [2, 2], [3, 5]])
@@ -451,12 +451,12 @@ class TestConv(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("bias", [False, True])
     @pytest.mark.nightly
     def test_conv_4D(self, params, dilations, pads, strides, bias, ie_device, precision, ir_version,
-                     temp_dir, api_2):
+                     temp_dir, use_old_api):
         self._test(
             *self.create_net(**params, shape=[2, 3, 25, 25], dilations=dilations, pads=pads,
                              strides=strides, bias=bias,
                              ir_version=ir_version), ie_device, precision, ir_version,
-            temp_dir=temp_dir, api_2=api_2)
+            temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_4D_autopad[:-1])
     @pytest.mark.parametrize("auto_pad", ['SAME_UPPER', 'SAME_LOWER'])
@@ -464,10 +464,10 @@ class TestConv(OnnxRuntimeLayerTest):
     @pytest.mark.nightly
     @pytest.mark.xfail(reason='autopad dimetions do not agree with framework')
     def test_conv_4D_autopad(self, params, auto_pad, bias, ie_device, precision, ir_version,
-                             temp_dir, api_2):
+                             temp_dir, use_old_api):
         self._test(*self.create_net(**params, shape=[2, 3, 25, 25], bias=bias, auto_pad=auto_pad,
                                     ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_5D_precommit)
     @pytest.mark.parametrize("dilations", [[3, 4, 5]])
@@ -476,12 +476,13 @@ class TestConv(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("bias", [False, True])
     @pytest.mark.precommit
     def test_conv_5D_precommit(self, params, dilations, pads, strides, bias, ie_device, precision,
-                               ir_version, temp_dir, api_2):
+                               ir_version, temp_dir, use_old_api):
+        custom_eps_value = 1e-1 if ie_device == 'GPU' and precision == 'FP16' else None
         self._test(
             *self.create_net(**params, shape=[2, 3, 25, 25, 25], dilations=dilations, pads=pads,
                              strides=strides,
                              bias=bias, ir_version=ir_version),
-            ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+            ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api, custom_eps=custom_eps_value)
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.parametrize("dilations", [[1, 1, 1], [2, 2, 2], [3, 4, 5]])
@@ -490,12 +491,12 @@ class TestConv(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("bias", [False, True])
     @pytest.mark.nightly
     def test_conv_5D(self, params, dilations, pads, strides, bias, ie_device, precision, ir_version,
-                     temp_dir, api_2):
+                     temp_dir, use_old_api):
         self._test(
             *self.create_net(**params, shape=[2, 3, 25, 25, 25], dilations=dilations, pads=pads,
                              strides=strides,
                              bias=bias, ir_version=ir_version),
-            ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+            ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_5D_autopad[:-1])
     @pytest.mark.parametrize("auto_pad", ['SAME_UPPER', 'SAME_LOWER'])
@@ -503,8 +504,8 @@ class TestConv(OnnxRuntimeLayerTest):
     @pytest.mark.nightly
     @pytest.mark.xfail(reason='autopad dimetions do not agree with framework')
     def test_conv_5D_autopad(self, params, auto_pad, bias, ie_device, precision, ir_version,
-                             temp_dir, api_2):
+                             temp_dir, use_old_api):
         self._test(
             *self.create_net(**params, shape=[2, 3, 25, 25, 25], bias=bias, auto_pad=auto_pad,
                              ir_version=ir_version), ie_device, precision, ir_version,
-            temp_dir=temp_dir, api_2=api_2)
+            temp_dir=temp_dir, use_old_api=use_old_api)

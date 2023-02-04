@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #distutils: language=c++
@@ -478,11 +478,11 @@ cdef class IECore:
         
             ie = IECore()
             net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
-            exec_net = ie.load_network(network=net, device_name="MYRIAD", num_requests=2)
+            exec_net = ie.load_network(network=net, device_name="CPU", num_requests=2)
             # export executable network
             exec_net.export(path_to_file_to_save)
             # import previously exported executable network
-            exec_net_imported = ie.import_network(model_file=path_to_file_to_save, device_name="MYRIAD")
+            exec_net_imported = ie.import_network(model_file=path_to_file_to_save, device_name="CPU")
         """
         cdef ExecutableNetwork exec_net = ExecutableNetwork()
         cdef map[string, string] c_config
@@ -541,10 +541,10 @@ cdef class IECore:
 
 
     def register_plugin(self, plugin_name: str, device_name: str = ""):
-        """Registers plugins specified in an `.xml` configuration file
+        """Register a new device and plugin that enables this device inside OpenVINO Runtime.
         
-        :param plugin_name: A name of a plugin. Depending on a platform, plugin_name is wrapped with a shared
-                            library suffix and a prefix to identify a full name of the library
+        :param plugin_name: A path (absolute or relative) or name of a plugin. Depending on platform, 
+                            `plugin` is wrapped with shared library suffix and prefix to identify library full name
         :param device_name: A target device name for the plugin. If not specified, the method registers
                             a plugin with the default name.
         
@@ -555,7 +555,7 @@ cdef class IECore:
         .. code-block:: python
 
             ie = IECore()
-            ie.register_plugin(plugin="openvino_intel_cpu_plugin", device_name="MY_NEW_PLUGIN")
+            ie.register_plugin(plugin_name="openvino_intel_cpu_plugin", device_name="MY_NEW_PLUGIN")
         """
         self.impl.registerPlugin(plugin_name.encode(), device_name.encode())
 
@@ -646,12 +646,12 @@ cdef class IECore:
         """
         return self.impl.getConfig(device_name.encode(), config_name.encode())
 
-    ## A list of devices. The devices are returned as \[CPU, GPU.0, GPU.1, MYRIAD\].
+    ## A list of devices. The devices are returned as \[CPU, GPU.0, GPU.1\].
     # If there are more than one device of a specific type, they all are listed followed by a dot and a number.
     @property
     def available_devices(self):
         """
-        A list of devices. The devices are returned as \[CPU, FPGA.0, FPGA.1, MYRIAD\].
+        A list of devices. The devices are returned as \[CPU, GPU.0, GPU.1\].
         If there are more than one device of a specific type, they all are listed followed by a dot and a number.
         """
         cdef vector[string] c_devices = self.impl.getAvailableDevices()
@@ -1113,7 +1113,7 @@ cdef class ExecutableNetwork:
         """
         A tuple of :class:`InferRequest` instances
         """
-        cdef size_t c_infer_requests_size = deref(self.impl).infer_requests.size()
+        cdef int c_infer_requests_size = deref(self.impl).infer_requests.size()
         if len(self._infer_requests) == 0:
             for i in range(c_infer_requests_size):
                 infer_request = InferRequest()
@@ -1239,7 +1239,7 @@ cdef class ExecutableNetwork:
     #  ```python
     #  ie = IECore()
     #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
-    #  exec_net = ie.load_network(network=net, device_name="MYRIAD", num_requests=2)
+    #  exec_net = ie.load_network(network=net, device_name="CPU", num_requests=2)
     #  exec_net.export(path_to_file_to_save)
     #  ```
     def export(self, model_file: str):
@@ -1252,7 +1252,7 @@ cdef class ExecutableNetwork:
     
             ie = IECore()
             net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
-            exec_net = ie.load_network(network=net, device_name="MYRIAD", num_requests=2)
+            exec_net = ie.load_network(network=net, device_name="CPU", num_requests=2)
             exec_net.export(path_to_file_to_save)
         """
         deref(self.impl).exportNetwork(model_file.encode())

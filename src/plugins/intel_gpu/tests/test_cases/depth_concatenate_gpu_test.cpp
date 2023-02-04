@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "test_utils/test_utils.h"
 
@@ -65,7 +63,7 @@ TEST(depth_concatenate_f32_gpu, test01) {
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
-    topology.add(concatenation("depth1", {"input1", "input2"}, 1));
+    topology.add(concatenation("depth1", { input_info("input1"), input_info("input2") }, 1));
 
     network network(engine, topology);
 
@@ -73,22 +71,22 @@ TEST(depth_concatenate_f32_gpu, test01) {
     network.set_input_data("input2", input2);
 
     auto outputs = network.execute({});
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "depth1");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "depth1");
 
     auto output = outputs.at("depth1").get_memory();
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-    EXPECT_FLOAT_EQ(0.5f, output_ptr[0]);
-    EXPECT_FLOAT_EQ(0.7f, output_ptr[1]);
-    EXPECT_FLOAT_EQ(0.2f, output_ptr[2]);
-    EXPECT_FLOAT_EQ(0.4f, output_ptr[3]);
-    EXPECT_FLOAT_EQ(1.0f, output_ptr[4]);
-    EXPECT_FLOAT_EQ(0.1f, output_ptr[5]);
-    EXPECT_FLOAT_EQ(0.3f, output_ptr[6]);
-    EXPECT_FLOAT_EQ(-0.5f, output_ptr[7]);
-    EXPECT_FLOAT_EQ(0.0f, output_ptr[8]);
-    EXPECT_FLOAT_EQ(-0.2f, output_ptr[9]);
+    ASSERT_FLOAT_EQ(0.5f, output_ptr[0]);
+    ASSERT_FLOAT_EQ(0.7f, output_ptr[1]);
+    ASSERT_FLOAT_EQ(0.2f, output_ptr[2]);
+    ASSERT_FLOAT_EQ(0.4f, output_ptr[3]);
+    ASSERT_FLOAT_EQ(1.0f, output_ptr[4]);
+    ASSERT_FLOAT_EQ(0.1f, output_ptr[5]);
+    ASSERT_FLOAT_EQ(0.3f, output_ptr[6]);
+    ASSERT_FLOAT_EQ(-0.5f, output_ptr[7]);
+    ASSERT_FLOAT_EQ(0.0f, output_ptr[8]);
+    ASSERT_FLOAT_EQ(-0.2f, output_ptr[9]);
 }
 
 template <data_types DType>
@@ -124,10 +122,10 @@ void concat_basic_with_reorder() {
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
-    topology.add(reorder("to_int1", "input1", {DType, format::yxfb, {2, 2, 1, 1}}));
-    topology.add(reorder("to_int2", "input2", {DType, format::yxfb, {2, 3, 1, 1}}));
-    topology.add(concatenation("depth1", {"to_int1", "to_int2"}, 1));
-    topology.add(reorder("to_float", "depth1", {data_types::f32, format::yxfb, {2, 5, 1, 1}}));
+    topology.add(reorder("to_int1", input_info("input1"), {DType, format::yxfb, {2, 2, 1, 1}}));
+    topology.add(reorder("to_int2", input_info("input2"), {DType, format::yxfb, {2, 3, 1, 1}}));
+    topology.add(concatenation("depth1", { input_info("to_int1"), input_info("to_int2") }, 1));
+    topology.add(reorder("to_float", input_info("depth1"), {data_types::f32, format::yxfb, {2, 5, 1, 1}}));
 
     network network(engine, topology);
 
@@ -136,14 +134,14 @@ void concat_basic_with_reorder() {
 
     auto outputs = network.execute({});
     ASSERT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "to_float");
+    ASSERT_EQ(outputs.begin()->first, "to_float");
 
     auto output = outputs.at("to_float").get_memory();
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     int ptr_cntr = 0;
     for (const auto& ref : outs) {
-        EXPECT_FLOAT_EQ(ref, output_ptr[ptr_cntr++]);
+        ASSERT_FLOAT_EQ(ref, output_ptr[ptr_cntr++]);
     }
 }
 
@@ -203,7 +201,7 @@ TEST(depth_concatenate_f32_gpu, test02) {
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("input3", input3->get_layout()));
-    topology.add(concatenation("depth1", {"input1", "input2", "input3"}, 1));
+    topology.add(concatenation("depth1", { input_info("input1"), input_info("input2"), input_info("input3") }, 1));
 
     network network(engine, topology);
 
@@ -212,28 +210,28 @@ TEST(depth_concatenate_f32_gpu, test02) {
     network.set_input_data("input3", input3);
 
     auto outputs = network.execute({});
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "depth1");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "depth1");
 
     auto output = outputs.at("depth1").get_memory();
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-    EXPECT_FLOAT_EQ(0.5f, output_ptr[0]);
-    EXPECT_FLOAT_EQ(0.7f, output_ptr[1]);
-    EXPECT_FLOAT_EQ(0.2f, output_ptr[2]);
-    EXPECT_FLOAT_EQ(0.4f, output_ptr[3]);
-    EXPECT_FLOAT_EQ(1.0f, output_ptr[4]);
-    EXPECT_FLOAT_EQ(0.1f, output_ptr[5]);
-    EXPECT_FLOAT_EQ(0.3f, output_ptr[6]);
-    EXPECT_FLOAT_EQ(-0.5f, output_ptr[7]);
-    EXPECT_FLOAT_EQ(0.0f, output_ptr[8]);
-    EXPECT_FLOAT_EQ(-0.2f, output_ptr[9]);
-    EXPECT_FLOAT_EQ(1.0f, output_ptr[10]);
-    EXPECT_FLOAT_EQ(0.1f, output_ptr[11]);
-    EXPECT_FLOAT_EQ(0.3f, output_ptr[12]);
-    EXPECT_FLOAT_EQ(-0.5f, output_ptr[13]);
-    EXPECT_FLOAT_EQ(0.0f, output_ptr[14]);
-    EXPECT_FLOAT_EQ(-0.2f, output_ptr[15]);
+    ASSERT_FLOAT_EQ(0.5f, output_ptr[0]);
+    ASSERT_FLOAT_EQ(0.7f, output_ptr[1]);
+    ASSERT_FLOAT_EQ(0.2f, output_ptr[2]);
+    ASSERT_FLOAT_EQ(0.4f, output_ptr[3]);
+    ASSERT_FLOAT_EQ(1.0f, output_ptr[4]);
+    ASSERT_FLOAT_EQ(0.1f, output_ptr[5]);
+    ASSERT_FLOAT_EQ(0.3f, output_ptr[6]);
+    ASSERT_FLOAT_EQ(-0.5f, output_ptr[7]);
+    ASSERT_FLOAT_EQ(0.0f, output_ptr[8]);
+    ASSERT_FLOAT_EQ(-0.2f, output_ptr[9]);
+    ASSERT_FLOAT_EQ(1.0f, output_ptr[10]);
+    ASSERT_FLOAT_EQ(0.1f, output_ptr[11]);
+    ASSERT_FLOAT_EQ(0.3f, output_ptr[12]);
+    ASSERT_FLOAT_EQ(-0.5f, output_ptr[13]);
+    ASSERT_FLOAT_EQ(0.0f, output_ptr[14]);
+    ASSERT_FLOAT_EQ(-0.2f, output_ptr[15]);
 }
 
 TEST(concatenate_f32_gpu, test_concatenation_of_pool_and_unpool) {
@@ -245,19 +243,19 @@ TEST(concatenate_f32_gpu, test_concatenation_of_pool_and_unpool) {
     set_values(weights, {.1f, .2f});
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
-    topology.add(pooling("pool1", "input1",
+    topology.add(pooling("pool1", input_info("input1"),
                          cldnn::pooling_mode::max,
                          {1, 2}, /*kernel*/
                          {1, 1}  /*stride*/
                          ));
-    topology.add(resample("unpool1", "input1", tensor(1, 1, 2, 2), 0, resample_type::nearest));
-    topology.add(concatenation("concat1", {"pool1", "unpool1"}, 3));
+    topology.add(resample("unpool1", input_info("input1"), tensor(1, 1, 2, 2), 0, resample::InterpolateOp::InterpolateMode::NEAREST));
+    topology.add(concatenation("concat1", { input_info("pool1"), input_info("unpool1") }, 3));
     topology.add(data("weights", weights));
-    topology.add(convolution("conv", "concat1", {"weights"}));
+    topology.add(convolution("conv", input_info("concat1"), {"weights"}));
 
-    cldnn::build_options options;
-    options.set_option(cldnn::build_option::optimize_data(true));
-    network network(engine, topology, options);
+    ov::intel_gpu::ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
     network.set_input_data("input1", input1);
 
     auto outputs = network.execute({});
@@ -265,7 +263,7 @@ TEST(concatenate_f32_gpu, test_concatenation_of_pool_and_unpool) {
     std::vector<float> out_ref = {6.4f, 8.f, 51.2f, 64.f};
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     for (int i = 0; i < 4; i++) {
-        EXPECT_NEAR(output_ptr[i], out_ref[i], 1e-3);
+        ASSERT_NEAR(output_ptr[i], out_ref[i], 1e-3);
     }
 }
 
@@ -281,18 +279,18 @@ TEST(depth_concatenate_f32_gpu, test03_cascade_concat_opt) {
 
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
-    topology.add(activation("relu1", "input1", activation_func::relu));
-    topology.add(activation("relu2", "relu1", activation_func::sqrt));
-    topology.add(concatenation("depth1", {"relu2", "relu1"}, 1));
-    topology.add(activation("relu3", "depth1", activation_func::sqrt));
-    topology.add(concatenation("depth2", {"relu3", "depth1"}, 1));
-    topology.add(activation("relu4", "depth2", activation_func::sqrt));
-    topology.add(concatenation("depth3", {"relu4", "depth2"}, 1));
-    topology.add(activation("relu5", "depth3", activation_func::relu));
+    topology.add(activation("relu1", input_info("input1"), activation_func::relu));
+    topology.add(activation("relu2", input_info("relu1"), activation_func::sqrt));
+    topology.add(concatenation("depth1", { input_info("relu2"), input_info("relu1") }, 1));
+    topology.add(activation("relu3", input_info("depth1"), activation_func::sqrt));
+    topology.add(concatenation("depth2", { input_info("relu3"), input_info("depth1") }, 1));
+    topology.add(activation("relu4", input_info("depth2"), activation_func::sqrt));
+    topology.add(concatenation("depth3", { input_info("relu4"), input_info("depth2") }, 1));
+    topology.add(activation("relu5", input_info("depth3"), activation_func::relu));
 
-    cldnn::build_options options;
-    options.set_option(cldnn::build_option::optimize_data(true));
-    network network(engine, topology, options);
+    ov::intel_gpu::ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
 
     network.set_input_data("input1", input1);
 
@@ -302,26 +300,26 @@ TEST(depth_concatenate_f32_gpu, test03_cascade_concat_opt) {
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
     auto executed_primitives = network.get_executed_primitives();
 
-    EXPECT_TRUE(executed_primitives.count("depth1") == 0);
-    EXPECT_TRUE(executed_primitives.count("depth2") == 0);
-    EXPECT_TRUE(executed_primitives.count("depth3") == 0);
+    ASSERT_TRUE(executed_primitives.count("depth1") == 0);
+    ASSERT_TRUE(executed_primitives.count("depth2") == 0);
+    ASSERT_TRUE(executed_primitives.count("depth3") == 0);
 
-    EXPECT_NEAR(1.4142f, output_ptr[0], 1e-3);
-    EXPECT_NEAR(1.5422f, output_ptr[1], 1e-3);
-    EXPECT_NEAR(1.8340f, output_ptr[2], 1e-3);
-    EXPECT_NEAR(2.0f, output_ptr[3], 1e-3);
-    EXPECT_NEAR(2.0f, output_ptr[4], 1e-3);
-    EXPECT_NEAR(2.3784f, output_ptr[5], 1e-3);
-    EXPECT_NEAR(3.3635f, output_ptr[6], 1e-3);
-    EXPECT_NEAR(4.0f, output_ptr[7], 1e-3);
-    EXPECT_NEAR(2.0f, output_ptr[8], 1e-3);
-    EXPECT_NEAR(2.3784f, output_ptr[9], 1e-3);
-    EXPECT_NEAR(3.3635f, output_ptr[10], 1e-3);
-    EXPECT_NEAR(4.0f, output_ptr[11], 1e-3);
-    EXPECT_NEAR(4.0f, output_ptr[12], 1e-3);
-    EXPECT_NEAR(5.6568f, output_ptr[13], 1e-3);
-    EXPECT_NEAR(11.3137f, output_ptr[14], 1e-3);
-    EXPECT_NEAR(16.0f, output_ptr[15], 1e-3);
+    ASSERT_NEAR(1.4142f, output_ptr[0], 1e-3);
+    ASSERT_NEAR(1.5422f, output_ptr[1], 1e-3);
+    ASSERT_NEAR(1.8340f, output_ptr[2], 1e-3);
+    ASSERT_NEAR(2.0f, output_ptr[3], 1e-3);
+    ASSERT_NEAR(2.0f, output_ptr[4], 1e-3);
+    ASSERT_NEAR(2.3784f, output_ptr[5], 1e-3);
+    ASSERT_NEAR(3.3635f, output_ptr[6], 1e-3);
+    ASSERT_NEAR(4.0f, output_ptr[7], 1e-3);
+    ASSERT_NEAR(2.0f, output_ptr[8], 1e-3);
+    ASSERT_NEAR(2.3784f, output_ptr[9], 1e-3);
+    ASSERT_NEAR(3.3635f, output_ptr[10], 1e-3);
+    ASSERT_NEAR(4.0f, output_ptr[11], 1e-3);
+    ASSERT_NEAR(4.0f, output_ptr[12], 1e-3);
+    ASSERT_NEAR(5.6568f, output_ptr[13], 1e-3);
+    ASSERT_NEAR(11.3137f, output_ptr[14], 1e-3);
+    ASSERT_NEAR(16.0f, output_ptr[15], 1e-3);
 }
 
 TEST(depth_concatenate_f32_gpu, test04_fused_relu) {
@@ -339,19 +337,19 @@ TEST(depth_concatenate_f32_gpu, test04_fused_relu) {
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
-    topology.add(concatenation("depth1", {"input1", "input2"}, 1));
-    topology.add(activation("relu1", "depth1", activation_func::relu));
+    topology.add(concatenation("depth1", { input_info("input1"), input_info("input2") }, 1));
+    topology.add(activation("relu1", input_info("depth1"), activation_func::relu));
 
-    cldnn::build_options options;
-    options.set_option(cldnn::build_option::optimize_data(true));
-    network network(engine, topology, options);
+    ov::intel_gpu::ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
 
     auto outputs = network.execute({});
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "relu1");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "relu1");
 
     auto output = outputs.at("relu1").get_memory();
 
@@ -359,9 +357,9 @@ TEST(depth_concatenate_f32_gpu, test04_fused_relu) {
     unsigned int input_element_count = 300;
     for (unsigned int i = 0; i < 600; i++) {
         if (i < input_element_count)
-            EXPECT_FLOAT_EQ(input1_vec[i] < 0.0f ? 0.0f : input1_vec[i], output_ptr[i]);
+            ASSERT_FLOAT_EQ(input1_vec[i] < 0.0f ? 0.0f : input1_vec[i], output_ptr[i]);
         else
-            EXPECT_FLOAT_EQ(input2_vec[i - input_element_count] < 0.0f ? 0.0f : input2_vec[i - input_element_count], output_ptr[i]);
+            ASSERT_FLOAT_EQ(input2_vec[i - input_element_count] < 0.0f ? 0.0f : input2_vec[i - input_element_count], output_ptr[i]);
     }
 }
 
@@ -391,27 +389,27 @@ TEST(depth_concatenate_f32_gpu, test05_different_formats) {
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
-    topology.add(reshape("reshape1", "input1", {1, 3, 2, 2}));
-    topology.add(reshape("reshape2", "input2", {1, 3, 2, 2}));
-    topology.add(concatenation("depth1", {"reshape1", "reshape2"}, 1));
-    topology.add(reorder("output", "depth1", format::bfyx, data_types::f32));
+    topology.add(reshape("reshape1", input_info("input1"), {1, 3, 2, 2}));
+    topology.add(reshape("reshape2", input_info("input2"), {1, 3, 2, 2}));
+    topology.add(concatenation("depth1", { input_info("reshape1"), input_info("reshape2") }, 1));
+    topology.add(reorder("output", input_info("depth1"), format::bfyx, data_types::f32));
 
-    cldnn::build_options options;
-    options.set_option(cldnn::build_option::optimize_data(true));
-    network network(engine, topology, options);
+    ov::intel_gpu::ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
 
     auto outputs = network.execute({});
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "output");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output");
 
     auto output = outputs.at("output").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     int cntr = 0;
     for (float val : output_ptr) {
-        EXPECT_EQ(val, out_ref[cntr++]);
+        ASSERT_EQ(val, out_ref[cntr++]);
     }
 }
 
@@ -447,33 +445,33 @@ TEST(depth_concatenate_f32_gpu, test06_padded_input) {
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
-    topology.add(activation("actv1", "input1", activation_func::linear, { 0.75f, 0.0f }));
-    topology.add(activation("actv2", "input2", activation_func::linear, { 0.5f, 0.0f }));
+    topology.add(activation("actv1", input_info("input1"), activation_func::linear, { 0.75f, 0.0f }));
+    topology.add(activation("actv2", input_info("input2"), activation_func::linear, { 0.5f, 0.0f }));
     topology.add(data("weights", weights));
-    topology.add(convolution("conv", "actv2", { "weights" }, {1, 1}, {1, 1}));
-    topology.add(concatenation("depth1", { "actv1", "actv2" }, 1));
-    topology.add(concatenation("depth2", { "depth1", "conv" }, 1));
-    topology.add(reorder("output", "depth2", format::bfyx, data_types::f32));
+    topology.add(convolution("conv", input_info("actv2"), { "weights" }, {1, 1}, {1, 1}));
+    topology.add(concatenation("depth1", { input_info("actv1"), input_info("actv2") }, 1));
+    topology.add(concatenation("depth2", { input_info("depth1"), input_info("conv") }, 1));
+    topology.add(reorder("output", input_info("depth2"), format::bfyx, data_types::f32));
 
-    cldnn::build_options options;
-    options.set_option(cldnn::build_option::optimize_data(true));
-     options.set_option(cldnn::build_option::force_implementations({ {"conv", implementation_desc{format::fs_b_yx_fsv32, ""} } }));
-    network network(engine, topology, options);
+    ov::intel_gpu::ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv", ov::intel_gpu::ImplementationDesc{format::fs_b_yx_fsv32, ""} } }));
+    network network(engine, topology, config);
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
 
     auto outputs = network.execute({});
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "output");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output");
     // Check that all concatenations have been optimized out.
     auto executed_primitives = network.get_executed_primitives();
-    EXPECT_TRUE(executed_primitives.count("depth1") == 0);
-    EXPECT_TRUE(executed_primitives.count("depth2") == 0);
+    ASSERT_TRUE(executed_primitives.count("depth1") == 0);
+    ASSERT_TRUE(executed_primitives.count("depth2") == 0);
     // Check that convolution was able to use optimzed kernel.
     for (auto& info : network.get_primitives_info()) {
         if (info.original_id == "conv") {
-            EXPECT_TRUE(info.kernel_id.find("ref") == std::string::npos) << " selected kernel: " << info.kernel_id;
+            ASSERT_TRUE(info.kernel_id.find("ref") == std::string::npos) << " selected kernel: " << info.kernel_id;
         }
     }
 
@@ -490,7 +488,7 @@ TEST(depth_concatenate_f32_gpu, test06_padded_input) {
         else
             ref = static_cast<float>(input2_data[0][i % input_f][0][0]);
 
-        EXPECT_EQ(val, ref) << " at i=" << i;
+        ASSERT_EQ(val, ref) << " at i=" << i;
     }
 }
 
@@ -524,31 +522,31 @@ TEST(depth_concatenate_f32_gpu, test07_padded_output) {
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
-    topology.add(activation("actv1", "input1", activation_func::linear, { 0.75f, 0.0f }));
-    topology.add(activation("actv2", "input2", activation_func::linear, { 0.5f, 0.0f }));
-    topology.add(concatenation("depth1", { "actv1", "actv2" }, 1));
+    topology.add(activation("actv1", input_info("input1"), activation_func::linear, { 0.75f, 0.0f }));
+    topology.add(activation("actv2", input_info("input2"), activation_func::linear, { 0.5f, 0.0f }));
+    topology.add(concatenation("depth1", { input_info("actv1"), input_info("actv2") }, 1));
     topology.add(data("weights", weights));
-    topology.add(convolution("conv", "depth1", { "weights" }, {1, 1}, {1, 1}));
-    topology.add(reorder("output", "conv", format::bfyx, data_types::f32));
+    topology.add(convolution("conv", input_info("depth1"), { "weights" }, {1, 1}, {1, 1}));
+    topology.add(reorder("output", input_info("conv"), format::bfyx, data_types::f32));
 
-    cldnn::build_options options;
-    options.set_option(cldnn::build_option::optimize_data(true));
-    options.set_option(cldnn::build_option::force_implementations({ {"conv", implementation_desc{format::fs_b_yx_fsv32, ""} } }));
-    network network(engine, topology, options);
+    ov::intel_gpu::ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv", ov::intel_gpu::ImplementationDesc{format::fs_b_yx_fsv32, ""} } }));
+    network network(engine, topology, config);
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
 
     auto outputs = network.execute({});
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "output");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output");
     // Check that all concatenations have been optimized out.
     auto executed_primitives = network.get_executed_primitives();
-    EXPECT_TRUE(executed_primitives.count("depth1") == 0);
+    ASSERT_TRUE(executed_primitives.count("depth1") == 0);
     // Check that convolution was able to use optimzed kernel.
     for (auto& info : network.get_primitives_info()) {
         if (info.original_id == "conv") {
-            EXPECT_TRUE(info.kernel_id.find("ref") == std::string::npos) << " selected kernel: " << info.kernel_id;
+            ASSERT_TRUE(info.kernel_id.find("ref") == std::string::npos) << " selected kernel: " << info.kernel_id;
         }
     }
 
@@ -563,7 +561,7 @@ TEST(depth_concatenate_f32_gpu, test07_padded_output) {
         else
             ref = static_cast<float>(input2_data[0][i % input_f][0][0]);
 
-        EXPECT_EQ(val, ref) << " at i=" << i;
+        ASSERT_EQ(val, ref) << " at i=" << i;
     }
 }
 
@@ -587,23 +585,23 @@ TEST(depth_concatenate_f32_gpu, test07_concat_is_output) {
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
-    topology.add(activation("actv1", "input1", activation_func::linear, { 0.75f, 0.0f }));
-    topology.add(activation("actv2", "input2", activation_func::linear, { 0.5f, 0.0f }));
-    topology.add(concatenation("depth1", { "actv1", "actv2" }, 1));
+    topology.add(activation("actv1", input_info("input1"), activation_func::linear, { 0.75f, 0.0f }));
+    topology.add(activation("actv2", input_info("input2"), activation_func::linear, { 0.5f, 0.0f }));
+    topology.add(concatenation("depth1", { input_info("actv1"), input_info("actv2") }, 1));
 
-    cldnn::build_options options;
-    options.set_option(cldnn::build_option::optimize_data(true));
-    network network(engine, topology, options);
+    ov::intel_gpu::ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
 
     auto outputs = network.execute({});
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "depth1");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "depth1");
     // Check that concatenation haven't been optimized out.
     auto executed_primitives = network.get_executed_primitives();
-    EXPECT_TRUE(executed_primitives.count("depth1") == 1);
+    ASSERT_TRUE(executed_primitives.count("depth1") == 1);
 
     auto output = outputs.at("depth1").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -616,13 +614,13 @@ TEST(depth_concatenate_f32_gpu, test07_concat_is_output) {
         else
             ref = 0.5f * input2_data[0][i % input_f][0][0];
 
-        EXPECT_EQ(val, ref) << " at i=" << i;
+        ASSERT_EQ(val, ref) << " at i=" << i;
     }
 }
 
 TEST(depth_concatenate_f32_gpu, concat_with_different_format_inputs) {
     auto& engine = get_test_engine();
-    build_options build_opt;
+    ExecutionConfig config;
     const int in1_f = 2, in2_f = 1;
     const int b = 2, x = 2, y = 4;
     auto input1 = engine.allocate_memory({ data_types::f32, format::yxfb,{ b, in1_f, y, x } });
@@ -650,22 +648,22 @@ TEST(depth_concatenate_f32_gpu, concat_with_different_format_inputs) {
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
-    topology.add(concatenation("depth1", { "input1" }, 1));
-    topology.add(concatenation("depth2", { "input2" }, 1));
+    topology.add(concatenation("depth1", { input_info("input1") }, 1));
+    topology.add(concatenation("depth2", { input_info("input2") }, 1));
     // In the step below there will be run of buffer fusing optimization for concatenation with
     // Input1 YXFB, Input2 BFYX and Output YXFB
-    topology.add(concatenation("depth3", { "depth1", "depth2" }, 1));
-    topology.add(concatenation("depth4", { "depth3" }, 1));
+    topology.add(concatenation("depth3", { input_info("depth1"), input_info("depth2") }, 1));
+    topology.add(concatenation("depth4", { input_info("depth3") }, 1));
 
-    build_opt.set_option(build_option::optimize_data(true));
-    network network(engine, topology, build_opt);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
 
     auto outputs = network.execute({});
     ASSERT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "depth4");
+    ASSERT_EQ(outputs.begin()->first, "depth4");
 
     auto output = outputs.at("depth4").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -679,7 +677,7 @@ TEST(depth_concatenate_f32_gpu, concat_with_different_format_inputs) {
     for (unsigned i = 0; i < input1->count(); i++)
     {
         int value = i + 1;
-        EXPECT_FLOAT_EQ(float(value), output_ptr[out_offset++]);
+        ASSERT_FLOAT_EQ(float(value), output_ptr[out_offset++]);
 
         if ((value % input1_values_count) == 0)
         {
@@ -693,7 +691,7 @@ TEST(depth_concatenate_f32_gpu, concat_with_different_format_inputs) {
         for (unsigned j = 0; j < b; j++)
         {
             int value = i + input2_start_value + j * input2_batch_offset;
-            EXPECT_FLOAT_EQ(float(value), output_ptr[out_offset++]);
+            ASSERT_FLOAT_EQ(float(value), output_ptr[out_offset++]);
 
             if ((out_offset % all_values_count) == 0)
             {
@@ -706,7 +704,7 @@ TEST(depth_concatenate_f32_gpu, concat_with_different_format_inputs) {
 TEST(depth_concatenate_f32_gpu, concat_with_reshape_input) {
 
     auto& engine = get_test_engine();
-    build_options build_opt;
+    ExecutionConfig config;
     auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2,4,1,2 } });
 
     std::vector<float> values = {
@@ -719,18 +717,18 @@ TEST(depth_concatenate_f32_gpu, concat_with_reshape_input) {
 
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
-    topology.add(reshape("reshape", "input1", tensor(2, 1, 4, 2)));
-    topology.add(concatenation("depth1", { "reshape" }, 1));
-    topology.add(concatenation("depth2", { "depth1" }, 1));
+    topology.add(reshape("reshape", input_info("input1"), tensor(2, 1, 4, 2)));
+    topology.add(concatenation("depth1", { input_info("reshape") }, 1));
+    topology.add(concatenation("depth2", { input_info("depth1") }, 1));
 
-    build_opt.set_option(build_option::optimize_data(true));
-    network network(engine, topology, build_opt);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
 
     network.set_input_data("input1", input1);
 
     auto outputs = network.execute({});
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "depth2");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "depth2");
 
     auto output = outputs.at("depth2").get_memory();
 
@@ -738,40 +736,40 @@ TEST(depth_concatenate_f32_gpu, concat_with_reshape_input) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_FLOAT_EQ(values[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(values[i], output_ptr[i]);
     }
 }
 
 TEST(depth_concatenate_i32_gpu, optimize_data01) {
     auto& engine = get_test_engine();
-    build_options build_opt;
+    ExecutionConfig config;
     auto input = engine.allocate_memory({data_types::i32, format::bfyx, {1, 1, 1, 1}});
 
     topology topology;
     topology.add(
         input_layout("input", input->get_layout()));
-    topology.add(cldnn::concatenation("int1", {"input"}, 1));
-    topology.add(cldnn::concatenation("result1", {"int1"}, 1));
-    topology.add(cldnn::concatenation("result2", {"int1"}, 1));
+    topology.add(cldnn::concatenation("int1", { input_info("input") }, 1));
+    topology.add(cldnn::concatenation("result1", { input_info("int1") }, 1));
+    topology.add(cldnn::concatenation("result2", { input_info("int1") }, 1));
 
     std::vector<int> input_data = {4};
     std::vector<int> out_data = {4};
     set_values(input, input_data);
 
-    build_opt.set_option(build_option::optimize_data(true));
-    network network(engine, topology, build_opt);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
     for (auto& it : outputs) {
         cldnn::mem_lock<int> output_ptr(it.second.get_memory(), get_test_stream());
-        EXPECT_EQ(output_ptr[0], out_data[0]);
+        ASSERT_EQ(output_ptr[0], out_data[0]);
     }
 }
 
 TEST(depth_concatenate_i32_gpu, optimize_data02) {
     auto& engine = get_test_engine();
-    build_options build_opt;
+    ExecutionConfig config;
     auto input1 = engine.allocate_memory({data_types::i32, format::bfyx, {1, 1, 2, 2}});
     auto input2 = engine.allocate_memory({data_types::i32, format::bfyx, {1, 1, 2, 2}});
     auto input3 = engine.allocate_memory({data_types::i32, format::bfyx, {1, 1, 2, 2}});
@@ -787,14 +785,14 @@ TEST(depth_concatenate_i32_gpu, optimize_data02) {
     topology.add(
         input_layout("input4", input4->get_layout()));
 
-    topology.add(cldnn::concatenation("concat1", {"input1", "input2"}, 3));
-    topology.add(cldnn::concatenation("concat2", {"input3", "input4"}, 3));
-    topology.add(cldnn::concatenation("concat3", {"input2", "input4"}, 3));
+    topology.add(cldnn::concatenation("concat1", { input_info("input1"), input_info("input2") }, 3));
+    topology.add(cldnn::concatenation("concat2", { input_info("input3"), input_info("input4") }, 3));
+    topology.add(cldnn::concatenation("concat3", { input_info("input2"), input_info("input4") }, 3));
 
-    topology.add(cldnn::concatenation("concat4", {"concat1", "concat2"}, 3));
-    topology.add(cldnn::concatenation("concat5", {"concat2", "concat3"}, 3));
+    topology.add(cldnn::concatenation("concat4", { input_info("concat1"), input_info("concat2") }, 3));
+    topology.add(cldnn::concatenation("concat5", { input_info("concat2"), input_info("concat3") }, 3));
 
-    topology.add(cldnn::concatenation("concat6", {"concat4", "concat5"}, 3));
+    topology.add(cldnn::concatenation("concat6", { input_info("concat4"), input_info("concat5") }, 3));
 
     std::vector<int> input_data1 =
         {1, 2,
@@ -821,8 +819,8 @@ TEST(depth_concatenate_i32_gpu, optimize_data02) {
     set_values(input3, input_data3);
     set_values(input4, input_data4);
 
-    build_opt.set_option(build_option::optimize_data(true));
-    network network(engine, topology, build_opt);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
     network.set_input_data("input3", input3);
@@ -832,25 +830,25 @@ TEST(depth_concatenate_i32_gpu, optimize_data02) {
     cldnn::mem_lock<int> output_concat6(outputs.at("concat6").get_memory(), get_test_stream());
 
     for (size_t i = 0; i < output_concat6.size(); i++) {
-        EXPECT_EQ(output_concat6[i], c6_data[i]);
+        ASSERT_EQ(output_concat6[i], c6_data[i]);
     }
 }
 
 TEST(depth_concatenate_i32_gpu, optimize_data03) {
     auto& engine = get_test_engine();
-    build_options build_opt;
+    ExecutionConfig config;
     auto input1 = engine.allocate_memory({data_types::i32, format::bfyx, {1, 1, 2, 2}});
 
     topology topology;
     topology.add(
         input_layout("input1", input1->get_layout()));
 
-    topology.add(cldnn::concatenation("concat1", {"input1"}, 3));
+    topology.add(cldnn::concatenation("concat1", { input_info("input1") }, 3));
 
-    topology.add(cldnn::concatenation("concat2", {"concat1"}, 3));
-    topology.add(cldnn::concatenation("concat3", {"concat1"}, 3));
+    topology.add(cldnn::concatenation("concat2", { input_info("concat1") }, 3));
+    topology.add(cldnn::concatenation("concat3", { input_info("concat1") }, 3));
 
-    topology.add(cldnn::concatenation("concat4", {"concat3"}, 3));
+    topology.add(cldnn::concatenation("concat4", { input_info("concat3") }, 3));
 
     std::vector<int> input_data1 =
         {1, 2,
@@ -862,8 +860,8 @@ TEST(depth_concatenate_i32_gpu, optimize_data03) {
 
     set_values(input1, input_data1);
 
-    build_opt.set_option(build_option::optimize_data(true));
-    network network(engine, topology, build_opt);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
     network.set_input_data("input1", input1);
 
     auto outputs = network.execute();
@@ -871,26 +869,26 @@ TEST(depth_concatenate_i32_gpu, optimize_data03) {
     for (auto& it : outputs) {
         cldnn::mem_lock<int> output_ptr(it.second.get_memory(), get_test_stream());
         for (size_t i = 0; i < output_ptr.size(); i++) {
-            EXPECT_EQ(output_ptr[i], output_data[i]);
+            ASSERT_EQ(output_ptr[i], output_data[i]);
         }
     }
 }
 
 TEST(depth_concatenate_i32_gpu, optimize_data04) {
     auto& engine = get_test_engine();
-    build_options build_opt;
+    ExecutionConfig config;
     auto input1 = engine.allocate_memory({data_types::i32, format::bfyx, {1, 1, 2, 2}});
 
     topology topology;
     topology.add(
         input_layout("input1", input1->get_layout()));
 
-    topology.add(cldnn::concatenation("concat1", {"input1"}, 3));
+    topology.add(cldnn::concatenation("concat1", { input_info("input1") }, 3));
 
-    topology.add(cldnn::concatenation("concat2", {"concat1"}, 3));
-    topology.add(cldnn::concatenation("concat3", {"concat1"}, 3));
+    topology.add(cldnn::concatenation("concat2", { input_info("concat1") }, 3));
+    topology.add(cldnn::concatenation("concat3", { input_info("concat1") }, 3));
 
-    topology.add(cldnn::concatenation("concat4", {"concat2", "concat3"}, 3));
+    topology.add(cldnn::concatenation("concat4", { input_info("concat2"), input_info("concat3") }, 3));
 
     std::vector<int> input_data1 =
         {1, 2,
@@ -902,8 +900,8 @@ TEST(depth_concatenate_i32_gpu, optimize_data04) {
 
     set_values(input1, input_data1);
 
-    build_opt.set_option(build_option::optimize_data(true));
-    network network(engine, topology, build_opt);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
     network.set_input_data("input1", input1);
 
     auto outputs = network.execute();
@@ -911,27 +909,27 @@ TEST(depth_concatenate_i32_gpu, optimize_data04) {
     for (auto& it : outputs) {
         cldnn::mem_lock<int> output_ptr(it.second.get_memory(), get_test_stream());
         for (size_t i = 0; i < output_ptr.size(); i++) {
-            EXPECT_EQ(output_ptr[i], output_data[i]);
+            ASSERT_EQ(output_ptr[i], output_data[i]);
         }
     }
 }
 
 TEST(depth_concatenate_i32_gpu, optimize_data05) {
     auto& engine = get_test_engine();
-    build_options build_opt;
+    ExecutionConfig config;
     auto input1 = engine.allocate_memory({data_types::i32, format::bfyx, {1, 1, 2, 2}});
 
     topology topology;
     topology.add(
         input_layout("input1", input1->get_layout()));
 
-    topology.add(cldnn::concatenation("concat1", {"input1"}, 3));
+    topology.add(cldnn::concatenation("concat1", { input_info("input1") }, 3));
 
-    topology.add(cldnn::concatenation("concat2", {"concat1"}, 3));
-    topology.add(cldnn::concatenation("concat3", {"concat1"}, 3));
+    topology.add(cldnn::concatenation("concat2", { input_info("concat1") }, 3));
+    topology.add(cldnn::concatenation("concat3", { input_info("concat1") }, 3));
 
-    topology.add(cldnn::concatenation("concat4", {"concat2", "concat3"}, 3));
-    topology.add(cldnn::concatenation("concat5", {"concat1", "concat4"}, 3));
+    topology.add(cldnn::concatenation("concat4", { input_info("concat2"), input_info("concat3") }, 3));
+    topology.add(cldnn::concatenation("concat5", { input_info("concat1"), input_info("concat4") }, 3));
 
     std::vector<int> input_data1 =
         {1, 2,
@@ -943,8 +941,8 @@ TEST(depth_concatenate_i32_gpu, optimize_data05) {
 
     set_values(input1, input_data1);
 
-    build_opt.set_option(build_option::optimize_data(true));
-    network network(engine, topology, build_opt);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
     network.set_input_data("input1", input1);
 
     auto outputs = network.execute();
@@ -952,11 +950,12 @@ TEST(depth_concatenate_i32_gpu, optimize_data05) {
     cldnn::mem_lock<int> output_concat5(outputs.at("concat5").get_memory(), get_test_stream());
 
     for (size_t i = 0; i < output_concat5.size(); i++) {
-        EXPECT_EQ(output_concat5[i], c5_data[i]);
+        ASSERT_EQ(output_concat5[i], c5_data[i]);
     }
 }
 
-TEST(depth_concatenate_f32_gpu, basic_bfwzyx_along_w) {
+template <typename T>
+void test_depth_concatenate_f32_gpu_basic_bfwzyx_along_w(bool is_caching_test) {
     auto& engine = get_test_engine();
     const int b = 2;
     const int f = 3;
@@ -971,11 +970,11 @@ TEST(depth_concatenate_f32_gpu, basic_bfwzyx_along_w) {
 
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
-    topology.add(concatenation("concat", {"input1", "input1"}, 2));
+    topology.add(concatenation("concat", { input_info("input1"), input_info("input1") }, 2));
 
-    auto input_data = generate_random_1d<float>(input1->count(), -1, 1);
+    auto input_data = generate_random_1d<T>(input1->count(), -1, 1);
 
-    auto expected_output = std::vector<float>(input1->count() * 2);
+    auto expected_output = std::vector<T>(input1->count() * 2);
 
     for (int bi = 0; bi < b; bi++)
         for (int fi = 0; fi < f; fi++)
@@ -991,19 +990,45 @@ TEST(depth_concatenate_f32_gpu, basic_bfwzyx_along_w) {
 
     set_values(input1, input_data);
 
-    build_options build_opt;
-    build_opt.set_option(build_option::optimize_data(true));
-    network network(engine, topology, build_opt);
-    network.set_input_data("input1", input1);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    cldnn::network::ptr network;
 
-    auto outputs = network.execute();
+    if (is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology, config);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, topology, config);
+    }
 
-    cldnn::mem_lock<float> output_concat(outputs.at("concat").get_memory(), get_test_stream());
+    network->set_input_data("input1", input1);
+
+    auto outputs = network->execute();
+
+    cldnn::mem_lock<T> output_concat(outputs.at("concat").get_memory(), get_test_stream());
 
     ASSERT_EQ(output_concat.size(), expected_output.size());
     for (size_t i = 0; i < output_concat.size(); i++) {
-        EXPECT_EQ(output_concat[i], expected_output[i]);
+        ASSERT_EQ(output_concat[i], expected_output[i]);
     }
+}
+
+TEST(depth_concatenate_f32_gpu, basic_bfwzyx_along_w) {
+    test_depth_concatenate_f32_gpu_basic_bfwzyx_along_w<float>(false);
+}
+
+TEST(export_import_depth_concatenate_f32_gpu, basic_bfwzyx_along_w) {
+    test_depth_concatenate_f32_gpu_basic_bfwzyx_along_w<float>(true);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1020,16 +1045,16 @@ static network::ptr setup_depth_concatatenate_network(const std::vector<data_typ
     auto& engine = get_test_engine();
     topology topology;
 
-    std::vector<std::string> input_names;
+    std::vector<input_info> input_names;
     input_names.resize(sz);
 
     for (size_t i = 0; i < sz; ++i) {
         auto input = engine.allocate_memory({dts[i], fmt[i], ts[i]});
 
-        input_names[i] = "input";
-        input_names[i] += std::to_string(i);
+        input_names[i] = input_info("input");
+        input_names[i].pid += std::to_string(i);
 
-        topology.add(input_layout(input_names[i], input->get_layout()));
+        topology.add(input_layout(input_names[i].pid, input->get_layout()));
     }
     //TODO: ask Uzi if something tests cases where there's missing input_names (nodes not present in the topology, etc.)
     topology.add(concatenation("depth_concat_node", input_names, 1));
@@ -1086,13 +1111,13 @@ public:
 
         switch (i) {
             case 1:
-                all_layer_params.emplace_back(new concatenation("depth_concatenate", {"input0"}, 1));
+                all_layer_params.emplace_back(new concatenation("depth_concatenate", { input_info("input0") }, 1));
                 break;
             case 2:
-                all_layer_params.emplace_back(new concatenation("depth_concatenate", {"input0", "input1"}, 1));
+                all_layer_params.emplace_back(new concatenation("depth_concatenate", { input_info("input0"), input_info("input1") }, 1));
                 break;
             case 3:
-                all_layer_params.emplace_back(new concatenation("depth_concatenate", {"input0", "input1", "input2"}, 1));
+                all_layer_params.emplace_back(new concatenation("depth_concatenate", { input_info("input0"), input_info("input1"), input_info("input2") }, 1));
                 break;
             default:
                 assert(0);

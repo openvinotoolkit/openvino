@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,57 +17,60 @@ namespace ocl {
 struct border_impl : typed_primitive_impl_ocl<border> {
     using parent = typed_primitive_impl_ocl<border>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::border_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::border_params, kernel_selector::border_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<border_impl>(*this);
     }
 
-    static primitive_impl* create(const border_node& arg, const kernel_impl_params& impl_param) {
-        auto desc = arg.get_primitive();
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<border>();
+        auto params = get_default_params<kernel_selector::border_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::border_optional_params>(impl_param.get_program());
 
-        auto b_params = get_default_params<kernel_selector::border_params>(impl_param, 1);
-        auto b_optional_params =
-            get_default_optional_params<kernel_selector::border_optional_params>(arg.get_program());
+        size_t rank = impl_param.get_input_layout(0).get_rank();
+        format pads_format = format::adjust_to_rank(format::bfyx, rank);
+        std::vector<tensor::value_type> pads_begin(primitive->pads_begin.begin(), primitive->pads_begin.end());
+        std::vector<tensor::value_type> pads_end(primitive->pads_end.begin(), primitive->pads_end.end());
 
-        b_params.lt_sizes = convert_dim_vector(desc->left_top_sizes);
-        b_params.rb_sizes = convert_dim_vector(desc->right_bottom_sizes);
-        b_params.border_value = desc->border_value;
-
-        switch (desc->type) {
-            case border_type::constant:
-                b_params.b_type = kernel_selector::border_type::CONSTANT;
-                break;
-            case border_type::edge:
-                b_params.b_type = kernel_selector::border_type::EDGE;
-                break;
-            case border_type::mirror:
-                b_params.b_type = kernel_selector::border_type::MIRROR;
-                break;
-            case border_type::mirror_101:
-                b_params.b_type = kernel_selector::border_type::MIRROR_101;
-                break;
-            default:
-                assert(
-                    false &&
-                    "Encountered unhandled enum case: border_type during translation to kernel selector enumeration.");
+        if (pads_begin.size() < rank) {
+            size_t zeros_to_add = rank - pads_begin.size();
+            pads_begin.insert(pads_begin.end(), zeros_to_add, 0);
+            pads_end.insert(pads_end.end(), zeros_to_add, 0);
         }
 
-        auto& kernel_selector = kernel_selector::border_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(b_params, b_optional_params);
+        params.lt_sizes = convert_dim_vector(tensor(pads_format, pads_begin, 0));
+        params.rb_sizes = convert_dim_vector(tensor(pads_format, pads_end, 0));
+        params.border_value = primitive->pad_value;
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
+        switch (primitive->pad_mode) {
+            case ov::op::PadMode::CONSTANT:
+                params.b_type = kernel_selector::border_type::CONSTANT;
+                break;
+            case ov::op::PadMode::EDGE:
+                params.b_type = kernel_selector::border_type::EDGE;
+                break;
+            case ov::op::PadMode::SYMMETRIC:
+                params.b_type = kernel_selector::border_type::MIRROR;
+                break;
+            case ov::op::PadMode::REFLECT:
+                params.b_type = kernel_selector::border_type::MIRROR_101;
+                break;
+            default:
+                OPENVINO_ASSERT(false, "[GPU] Encountered unhandled enum case: PadMode during translation to kernel selector enumeration.");
+        }
 
-        return new border_impl(arg, best_kernels[0]);
+        return {params, optional_params};
     }
 };
 
 namespace detail {
 
 attach_border_impl::attach_border_impl() {
-    implementation_map<border>::add(impl_types::ocl, border_impl::create, {
+    implementation_map<border>::add(impl_types::ocl, typed_primitive_impl_ocl<border>::create<border_impl>, {
         std::make_tuple(data_types::f32, format::yxfb),
         std::make_tuple(data_types::f16, format::yxfb),
         std::make_tuple(data_types::i32, format::yxfb),
@@ -169,3 +172,5 @@ attach_border_impl::attach_border_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::border_impl)

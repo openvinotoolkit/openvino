@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -7,7 +7,7 @@ from typing import Dict
 import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
-from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.front.tf.graph_utils import add_constant_to_negative_values, create_op_with_const_inputs
 from openvino.tools.mo.graph.graph import Graph, Node, rename_nodes
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 from openvino.tools.mo.ops.transpose import Transpose
@@ -34,14 +34,14 @@ class SSliceComplex(MiddleReplacementPattern):
     and StridedSlice nodes have output shapes [N_0, ..., N_{k - 1}, N_{k +1}, ..., N_{r - 1}].
 
     But MO and Inference Engine do not support complex tensors. Hence, we need to replace this sub-graph with.
-    If k == r - 1, then the replacement should be the subgraph
+    1. If k == r - 1, then the replacement should be the subgraph
 
          SomeOp   other inputs
           |       |  ...  |
          -------------------
                  SomeOp1
 
-    In the other case, that is if 0 <= k and k < r - 1 the replacement should be the subgraph
+    2. In the other case, that is if 0 <= k and k < r - 1 the replacement should be the subgraph
 
          SomeOp
            |
@@ -54,9 +54,6 @@ class SSliceComplex(MiddleReplacementPattern):
                  SomeOp1
 
     where the input_order is a Constant, and the value of input_order is [0, ..., k - 1, k + 1, ..., r - 1, k].
-
-    After this transformation we need to mark SomeOp1 operation that its input rank has changed because
-    its inputs/attributes should probably be updated. Currently we have such a case for a Roll operation.
     """
     enabled = True
 
@@ -109,10 +106,16 @@ class SSliceComplex(MiddleReplacementPattern):
 
         for dst in complex_node.out_port(0).get_connection().get_destinations():
             after_complex_node = dst.node
-            after_complex_node['input_rank_changed'] = True
+            # TODO: now it does not support adjustment of `axis` inputs for other operations such Gather, Concat, etc.
+            # It does not traverse the full path affected by complex numbers for adjusting the corresponding operations.
+            # It can affect other models with complex numbers for which we can generate incorrect IRs or offline transformation fails.
+            if after_complex_node.type == 'Roll':
+                add_constant_to_negative_values(after_complex_node, 2, int64_array(emulated_complex_tensor_rank))
 
         input_slices_have_ellipsis = len(np.argwhere(real_slices == Ellipsis).flatten()) != 0
 
+        # If output of SomeOp is sliced on the last dimension on the last dimension (like described in 1 case), skipping Complex op is enough.
+        # Otherwise, (like described in 2 case) Transpose insertion is needed to align data arrangement.
         if slice_dim_for_real_part == emulated_complex_tensor_rank - 1 or input_slices_have_ellipsis:
             complex_node.out_port(0).get_connection().set_source(strided_slice_real.in_port(0).get_source())
         else:

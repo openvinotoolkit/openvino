@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -128,18 +128,43 @@ std::map<std::string, ov::TensorVector> get_remote_input_tensors(
 #endif
 }
 
+ov::Shape get_static_shape(const ov::Output<const ov::Node>& compiled_output) {
+    // FIXME: this is a WA for case when original model has internal dynamism (NonMaxSuppression)
+    // and runtime has static output due to conversions to legacy op and lack of dynamism support
+    // to be removed along with dynamism support
+    const auto& compiled_pshape = compiled_output.get_partial_shape();
+    if (compiled_pshape.is_static())
+        return compiled_pshape.to_shape();
+    else if (compiled_pshape.rank().is_dynamic())
+        OPENVINO_UNREACHABLE(
+            "Benchmark App - NOT IMPLEMENTED - Output of dynamic rank is not supported for remote tensor. ",
+            "Output: ",
+            compiled_output);
+    ov::Shape shape;
+    for (const auto& dimension : compiled_pshape) {
+        if (dimension.get_interval().has_upper_bound())
+            shape.push_back(static_cast<ov::Shape::value_type>(dimension.get_max_length()));
+        else
+            OPENVINO_UNREACHABLE("Benchmark App - NOT IMPLEMENTED - Fully dynamic output dimensions are not supported "
+                                 "for remote tensor. ",
+                                 "Output: ",
+                                 compiled_output);
+    }
+    return shape;
+}
+
 std::map<std::string, ov::Tensor> get_remote_output_tensors(const ov::CompiledModel& compiledModel,
                                                             std::map<std::string, ::gpu::BufferType>& clBuffer) {
 #ifdef HAVE_DEVICE_MEM_SUPPORT
     std::map<std::string, ov::Tensor> outputTensors;
+    std::shared_ptr<const ov::Model> runtime_model = nullptr;
     for (auto& output : compiledModel.outputs()) {
         auto context = compiledModel.get_context();
         auto& oclContext = static_cast<ov::intel_gpu::ocl::ClContext&>(context);
         auto oclInstance = std::make_shared<OpenCL>(oclContext.get());
-
+        ov::Shape shape = get_static_shape(output);
         cl_int err;
-        auto elementsNum =
-            std::accumulate(begin(output.get_shape()), end(output.get_shape()), 1, std::multiplies<size_t>());
+        auto elementsNum = shape_size(shape);
         auto inputSize = elementsNum * output.get_element_type().bitwidth() / 8;
 
         cl::size_type bufferSize = 0;
@@ -153,9 +178,8 @@ std::map<std::string, ov::Tensor> get_remote_output_tensors(const ov::CompiledMo
                 buff = cl::Buffer(oclInstance->_context, CL_MEM_READ_WRITE, (cl::size_type)inputSize, NULL, &err);
             }
         }
-        outputTensors[output.get_any_name()] = oclContext.create_tensor(output.get_element_type(),
-                                                                        output.get_shape(),
-                                                                        clBuffer[output.get_any_name()].get());
+        outputTensors[output.get_any_name()] =
+            oclContext.create_tensor(output.get_element_type(), shape, clBuffer[output.get_any_name()].get());
     }
 
     return outputTensors;

@@ -1,35 +1,23 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/pass/manager.hpp"
 
 #include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 
 #include <utility>
 
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pass.hpp"
 #include "openvino/pass/serialize.hpp"
-#include "openvino/pass/validate.hpp"
 #include "pyopenvino/graph/passes/manager.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
 using Version = ov::pass::Serialize::Version;
 using FilePaths = std::pair<const std::string, const std::string>;
-
-inline Version convert_to_version(const std::string& version) {
-    if (version == "UNSPECIFIED")
-        return Version::UNSPECIFIED;
-    if (version == "IR_V10")
-        return Version::IR_V10;
-    if (version == "IR_V11")
-        return Version::IR_V11;
-    throw ov::Exception("Invoked with wrong version argument: '" + version +
-                        "'! The supported versions are: 'UNSPECIFIED'(default), 'IR_V10', 'IR_V11'.");
-}
 
 void regclass_passes_Manager(py::module m) {
     py::class_<ov::pass::Manager> manager(m, "Manager");
@@ -69,10 +57,9 @@ void regclass_passes_Manager(py::module m) {
     manager.def(
         "register_pass",
         [](ov::pass::Manager& self, const std::string& pass_name) -> void {
-            PyErr_WarnEx(PyExc_DeprecationWarning,
-                         "register_pass with this arguments is deprecated! "
-                         "Please use register_pass(ConstantFolding()) instead.",
-                         1);
+            Common::utils::deprecation_warning("register_pass(pass_name)",
+                                               "",
+                                               "Please use register_pass(ConstantFolding()) instead.");
             if (pass_name == "ConstantFolding") {
                 self.register_pass<ov::pass::ConstantFolding>();
             }
@@ -93,14 +80,13 @@ void regclass_passes_Manager(py::module m) {
            const std::string& pass_name,
            const FilePaths& file_paths,
            const std::string& version) -> void {
-            PyErr_WarnEx(PyExc_DeprecationWarning,
-                         "register_pass with this arguments is deprecated! "
-                         "Please use register_pass(Serialize(xml, bin, version)) instead.",
-                         1);
+            Common::utils::deprecation_warning("register_pass(pass_name, output_files, version)",
+                                               "",
+                                               "Please use register_pass(Serialize(xml, bin, version)) instead.");
             if (pass_name == "Serialize") {
                 self.register_pass<ov::pass::Serialize>(file_paths.first,
                                                         file_paths.second,
-                                                        convert_to_version(version));
+                                                        Common::utils::convert_to_version(version));
             }
         },
         py::arg("pass_name"),
@@ -139,12 +125,11 @@ void regclass_passes_Manager(py::module m) {
            const std::string& xml_path,
            const std::string& bin_path,
            const std::string& version) -> void {
-            PyErr_WarnEx(PyExc_DeprecationWarning,
-                         "register_pass with this arguments is deprecated! "
-                         "Please use register_pass(Serialize(xml, bin, version)) instead.",
-                         1);
+            Common::utils::deprecation_warning("register_pass(pass_name, xml_path, bin_path, version",
+                                               "",
+                                               "Please use register_pass(Serialize(xml, bin, version)) instead.");
             if (pass_name == "Serialize") {
-                self.register_pass<ov::pass::Serialize>(xml_path, bin_path, convert_to_version(version));
+                self.register_pass<ov::pass::Serialize>(xml_path, bin_path, Common::utils::convert_to_version(version));
             }
         },
         py::arg("pass_name"),

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,9 @@ using TFConvertModelTest = FrontEndConvertModelTest;
 
 static const std::vector<std::string> models{
     std::string("2in_2out/2in_2out.pb"),
-};
+    std::string("forward_edge_model/forward_edge_model.pb"),
+    std::string("forward_edge_model2/forward_edge_model2.pb"),
+    std::string("concat_with_non_constant_axis/concat_with_non_constant_axis.pb")};
 
 INSTANTIATE_TEST_SUITE_P(TFConvertModelTest,
                          FrontEndConvertModelTest,

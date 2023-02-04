@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "functional_test_utils/layer_test_utils/environment.hpp"
+#include "functional_test_utils/summary/environment.hpp"
 
 #include "read_ir_test/read_ir.hpp"
 #include "gflag_config.hpp"
@@ -45,11 +45,15 @@ int main(int argc, char* argv[]) {
     }
 
     FuncTestUtils::SkipTestsConfig::disable_tests_skipping = FLAGS_disable_test_config;
-    LayerTestsUtils::Summary::setExtendReport(FLAGS_extend_report);
-    LayerTestsUtils::Summary::setExtractBody(FLAGS_extract_body);
-    LayerTestsUtils::Summary::setSaveReportWithUniqueName(FLAGS_report_unique_name);
-    LayerTestsUtils::Summary::setOutputFolder(FLAGS_output_folder);
-    LayerTestsUtils::Summary::setSaveReportTimeout(FLAGS_save_report_timeout);
+    ov::test::utils::OpSummary::setExtendReport(FLAGS_extend_report);
+    ov::test::utils::OpSummary::setExtractBody(FLAGS_extract_body);
+    ov::test::utils::OpSummary::setSaveReportWithUniqueName(FLAGS_report_unique_name);
+    ov::test::utils::OpSummary::setOutputFolder(FLAGS_output_folder);
+    ov::test::utils::OpSummary::setSaveReportTimeout(FLAGS_save_report_timeout);
+    {
+        auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
+        apiSummary.setDeviceName(FLAGS_device);
+    }
     if (FLAGS_shape_mode == std::string("static")) {
         ov::test::subgraph::shapeMode = ov::test::subgraph::ShapeMode::STATIC;
     } else if (FLAGS_shape_mode == std::string("dynamic")) {
@@ -75,25 +79,29 @@ int main(int argc, char* argv[]) {
     }
 
     ::testing::InitGoogleTest(&argc, argv);
-    ::testing::AddGlobalTestEnvironment(new LayerTestsUtils::TestEnvironment);
+    ::testing::AddGlobalTestEnvironment(new ov::test::utils::TestEnvironment);
 
     auto exernalSignalHandler = [](int errCode) {
         std::cerr << "Unexpected application crash with code: " << errCode << std::endl;
 
+        auto& op_summary = ov::test::utils::OpSummary::getInstance();
+        auto& api_summary = ov::test::utils::ApiSummary::getInstance();
+        op_summary.saveReport();
+        api_summary.saveReport();
+
         // set default handler for crash
+        signal(SIGABRT, SIG_DFL);
+        signal(SIGSEGV, SIG_DFL);
         signal(SIGINT, SIG_DFL);
         signal(SIGTERM, SIG_DFL);
 
-        if (errCode == SIGINT || errCode == SIGTERM) {
-            auto& s = LayerTestsUtils::Summary::getInstance();
-            s.saveReport();
-            exit(1);
-        }
+        exit(1);
     };
 
-    // killed by extarnal
+    // killed by external
     signal(SIGINT, exernalSignalHandler);
     signal(SIGTERM , exernalSignalHandler);
-
+    signal(SIGSEGV, exernalSignalHandler);
+    signal(SIGABRT, exernalSignalHandler);
     return RUN_ALL_TESTS();
 }

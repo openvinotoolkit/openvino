@@ -18,7 +18,9 @@ __HARDWARE_CONFIG_DIR = Path(__file__).parent.parent.parent.absolute() / 'config
 __HARDWARE_CONFIGS_MAP = {'ANY': 'cpu.json',
                           'CPU': 'cpu.json',
                           'GNA': 'gna.json',
-                          'GPU': 'cpu.json',
+                          'GNA3': 'gna3.json',
+                          'GNA3.5': 'gna3.json',
+                          'GPU': 'gpu.json',  # Same as cpu.json but without LSTM/GRUSequence quantization
                           'VPU': 'vpu.json',
                           'CPU_SPR': 'cpu.json'}
 
@@ -31,7 +33,7 @@ def load_hardware_config(config):
         raise ValueError('Unsupported target_device : {}'.format(config['target_device']))
 
     hardware_config_path = __HARDWARE_CONFIG_DIR / __HARDWARE_CONFIGS_MAP.get(config['target_device'], "cpu.json")
-    return HardwareConfig.from_json(hardware_config_path.as_posix())
+    return HardwareConfig.from_json(hardware_config_path.as_posix(), config['target_device'])
 
 
 def append_estimator_configs(quantization_configs, is_weights, config, opt_conf=None):

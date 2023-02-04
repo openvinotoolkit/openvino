@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,8 +24,8 @@ add_reorders optimization pass.
 //concatenation of incompatible convolutions
 TEST(add_reorders_gpu, two_convolutions_and_concatenation) {
     auto& engine = get_test_engine();
-    build_options build_opt;
-    build_opt.set_option(build_option::optimize_data(false));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(false));
 
     auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 1, 1, 2, 2 } });
     auto weights1 = engine.allocate_memory({ data_types::f32, format::yxio,{ 1, 1, 1, 2 } });
@@ -40,17 +40,17 @@ TEST(add_reorders_gpu, two_convolutions_and_concatenation) {
     topology.add(data("weights1", weights1));
     topology.add(data("weights2", weights2));
 
-    topology.add(cldnn::convolution("conv1", { "input" }, { "weights1" }));
-    topology.add(cldnn::reorder("reorder", "input", cldnn::layout(data_types::f32, format::byxf, tensor(4))));
-    topology.add(cldnn::convolution("conv2", { "reorder" }, { "weights2" }));
+    topology.add(cldnn::convolution("conv1", { input_info("input") }, { "weights1" }));
+    topology.add(cldnn::reorder("reorder", input_info("input"), cldnn::layout(data_types::f32, format::byxf, tensor(4))));
+    topology.add(cldnn::convolution("conv2", { input_info("reorder") }, { "weights2" }));
 
-    topology.add(cldnn::concatenation("concat", { "conv1", "conv2" }, 1));
+    topology.add(cldnn::concatenation("concat", { input_info("conv1"), input_info("conv2") }, 1));
 
-    network network(engine, topology, build_opt);
+    network network(engine, topology, config);
     network.set_input_data("input", input);
 
     //concatenation accepts inputs in different formats, so no reorders should be added here
-    EXPECT_EQ(network.get_all_primitive_org_ids().size(), size_t(7));
+    ASSERT_EQ(network.get_all_primitive_org_ids().size(), size_t(7));
     auto outputs = network.execute();
 
     float expected_out[] = { 6.34f, 1.34f, 6.86f, 1.46f };
@@ -59,7 +59,7 @@ TEST(add_reorders_gpu, two_convolutions_and_concatenation) {
     for (auto& it : outputs) {
         cldnn::mem_lock<float> output(it.second.get_memory(), get_test_stream());
         for (size_t cntr = 0; cntr < 2 * 2; cntr++) {
-            EXPECT_NEAR(expected_out[cntr], output[cntr], epsilon);
+            ASSERT_NEAR(expected_out[cntr], output[cntr], epsilon);
         }
     }
 }
@@ -107,7 +107,8 @@ void tile_ref(const memory::ptr input, memory::ptr output, int64_t axis, int num
     }
 }
 
-TEST(add_reorders_gpu, basic_reshape_and_tile) {
+template <typename T>
+void test_add_reorders_gpu_basic_reshape_and_tile(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({ data_types::f32, format::byxf,{ 1, 2, 2, 1 } });
@@ -115,25 +116,51 @@ TEST(add_reorders_gpu, basic_reshape_and_tile) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(reshape("reshape", "input", tensor(2, 1, 2, 1)));
-    topology.add(tile("tile", "reshape", { 1, 1, 4, 1 }));
+    topology.add(reshape("reshape", input_info("input"), tensor(2, 1, 2, 1)));
+    topology.add(tile("tile", input_info("reshape"), std::vector<int64_t>{ 1, 1, 4, 1 }));
 
-    std::vector<float> input_vec = { 1.f, 0.f, 5.f, 1.5f };
+    std::vector<T> input_vec = { 1.f, 0.f, 5.f, 1.5f };
     set_values(input, input_vec);
-    tile_ref<float>(input, output_ref, 2, 4);
+    tile_ref<T>(input, output_ref, 2, 4);
 
-    network network(engine, topology);
-    network.set_input_data("input", input);
+    cldnn::network::ptr network;
+
+    if (is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, topology);
+    }
+
+    network->set_input_data("input", input);
 
     //reorder is required as tile accepts only bfyx format
-    EXPECT_EQ(network.get_all_primitive_org_ids().size(), size_t(4));
-    auto outputs = network.execute();
+    ASSERT_EQ(network->get_all_primitive_org_ids().size(), size_t(4));
+    auto outputs = network->execute();
 
     auto output = outputs.at("tile").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-    cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
+    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T> output_ref_ptr(output_ref, get_test_stream());
 
     for (unsigned int i = 0; i < output_ref->count(); ++i) {
-        EXPECT_EQ(output_ptr[i], output_ref_ptr[i]);
+        ASSERT_EQ(output_ptr[i], output_ref_ptr[i]);
     }
+}
+
+TEST(add_reorders_gpu, basic_reshape_and_tile) {
+    test_add_reorders_gpu_basic_reshape_and_tile<float>(false);
+}
+
+TEST(export_import_add_reorders_gpu, basic_reshape_and_tile) {
+    test_add_reorders_gpu_basic_reshape_and_tile<float>(true);
 }

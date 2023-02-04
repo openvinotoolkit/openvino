@@ -8,19 +8,22 @@ import json
 import numpy as np
 
 from openvino.tools.pot.version import get_version
-from .cpu_patterns import get_cpu_ignored_patterns
+from .cpu_patterns import get_cpu_ignored_patterns, get_cpu_spr_ignored_patterns
 from .gpu_patterns import get_gpu_ignored_patterns
 from .vpu_patterns import get_vpu_ignored_patterns
-from .gna_patterns import get_gna_ignored_patterns
+from .gna_patterns import get_gna_ignored_patterns, get_gna3_ignored_patterns
 from .special_operations import QUANTIZE_AGNOSTIC_OPERATIONS
 from .node_utils import get_all_node_outputs, get_input_shape
 
 HARDWARE_AWARE_IGNORED_PATTERNS = {
+    'ANY': get_cpu_ignored_patterns(),
     'CPU': get_cpu_ignored_patterns(),
     'GPU': get_gpu_ignored_patterns(),
     'VPU': get_vpu_ignored_patterns(),
     'GNA': get_gna_ignored_patterns(),
-    'CPU_SPR': get_cpu_ignored_patterns()
+    'GNA3': get_gna3_ignored_patterns(),
+    'GNA3.5': get_gna3_ignored_patterns(),
+    'CPU_SPR': get_cpu_spr_ignored_patterns()
 }
 
 DEFAULT_PATH = 'PATH'

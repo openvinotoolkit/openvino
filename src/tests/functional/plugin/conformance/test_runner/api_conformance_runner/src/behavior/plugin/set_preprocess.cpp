@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ INSTANTIATE_TEST_SUITE_P(ie_plugin, InferRequestPreprocessTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisionsPreprocess),
                                 ::testing::ValuesIn(return_all_possible_device_combination()),
-                                ::testing::ValuesIn(empty_config)),
+                                ::testing::Values(ie_config)),
                          InferRequestPreprocessTest::getTestCaseName);
 
 const std::vector<InferenceEngine::Precision> ioPrecisionsPreprocess = {
@@ -47,7 +47,7 @@ INSTANTIATE_TEST_SUITE_P(ie_plugin, InferRequestPreprocessConversionTest,
                             ::testing::Bool(),
                             ::testing::Bool(),
                             ::testing::ValuesIn(return_all_possible_device_combination()),
-                            ::testing::ValuesIn(empty_config)),
+                            ::testing::Values(ie_config)),
                     InferRequestPreprocessConversionTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ie_plugin, InferRequestPreprocessDynamicallyInSetBlobTest,
@@ -61,6 +61,6 @@ INSTANTIATE_TEST_SUITE_P(ie_plugin, InferRequestPreprocessDynamicallyInSetBlobTe
                             ::testing::Values(true), // only SetBlob
                             ::testing::Values(true), // only SetBlob
                             ::testing::ValuesIn(return_all_possible_device_combination()),
-                            ::testing::ValuesIn(empty_config)),
+                            ::testing::Values(ie_config)),
                     InferRequestPreprocessDynamicallyInSetBlobTest::getTestCaseName);
 }  // namespace

@@ -1,4 +1,4 @@
-# Converting Models with Model Optimizer {#openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide}
+# Model Optimizer Usage {#openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide}
 
 @sphinxdirective
 
@@ -8,19 +8,11 @@
    :maxdepth: 1
    :hidden:
 
+   openvino_docs_model_inputs_outputs
    openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model
-   openvino_docs_MO_DG_prepare_model_Model_Optimization_Techniques
    openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model
    openvino_docs_MO_DG_Additional_Optimization_Use_Cases
    openvino_docs_MO_DG_FP16_Compression
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi
-   openvino_docs_MO_DG_prepare_model_convert_model_tutorials
    openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ
 
 @endsphinxdirective
@@ -41,10 +33,7 @@ where IR is a pair of files describing the model:
 
 *  <code>.bin</code> - Contains the weights and biases binary data.
 
-The generated IR can be additionally optimized for inference by [Post-training optimization](../../tools/pot/docs/Introduction.md)
-> that applies post-training quantization methods.
-
-> **TIP**: You can also work with Model Optimizer in OpenVINO™ [Deep Learning Workbench (DL Workbench)](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Introduction.html), which is a web-based tool with GUI for optimizing, fine-tuning, analyzing, visualizing, and comparing performance of deep learning models.
+The OpenVINO IR can be additionally optimized for inference by [Post-training optimization](../../tools/pot/docs/Introduction.md) that applies post-training quantization methods.
 
 ## How to Run Model Optimizer
 
@@ -67,7 +56,7 @@ You can also insert additional input pre-processing sub-graphs into the converte
 the `--mean_values`, `scales_values`, `--layout`, and other parameters described
 in the [Embedding Preprocessing Computation](prepare_model/Additional_Optimizations.md) article.
 
-The `--data_type` compression parameter in Model Optimizer allows generating IR of the `FP16` data type. For more details, refer to the [Compression of a Model to FP16](prepare_model/FP16_Compression.md) guide.
+The `--compress_to_fp16` compression parameter in Model Optimizer allows generating IR with constants (for example, weights for convolutions and matrix multiplications) compressed to `FP16` data type. For more details, refer to the [Compression of a Model to FP16](prepare_model/FP16_Compression.md) guide.
 
 To get the full list of conversion parameters available in Model Optimizer, run the following command:
 
@@ -94,7 +83,7 @@ For more information, refer to the [Converting a TensorFlow Model](prepare_model
 ```sh
 mo --input_model ocr.onnx --output probabilities
 ```
-For more information, refer to the [Converting an ONNX Model (prepare_model/convert_model/Convert_Model_From_ONNX.md) guide.
+For more information, refer to the [Converting an ONNX Model](prepare_model/convert_model/Convert_Model_From_ONNX.md) guide.
 
 > **NOTE**: PyTorch models must be exported to the ONNX format before conversion into IR. More information can be found in [Converting a PyTorch Model](prepare_model/convert_model/Convert_Model_From_PyTorch.md).
 

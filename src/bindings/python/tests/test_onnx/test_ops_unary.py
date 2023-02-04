@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -480,6 +480,11 @@ def test_constant_err():
 @pytest.mark.parametrize(
     ("shape", "shift"),
     [
+        ((1, 1), -1),
+        ((2, 4), 5),
+        ((2, 4), 15),
+        ((2, 4), -5),
+        ((2, 4), -15),
         ((4, 4), 0),
         ((4, 4), 1),
         ((4, 4), -1),
