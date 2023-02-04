@@ -62,6 +62,7 @@ protected:
         InferenceEngine::IInferRequestInternal::Ptr syncRequestImpl;
         try {
             syncRequestImpl = this->CreateInferRequestImpl(_parameters, _results);
+        } catch (const ::ov::NotImplemented&) {
         } catch (const InferenceEngine::NotImplemented&) {
         }
         if (!syncRequestImpl) {
