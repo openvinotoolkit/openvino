@@ -20,6 +20,10 @@ struct CommonDispatchData {
     std::vector<size_t> lws;
 
     CommonDispatchData() : gws({0, 0, 0}), lws({0, 0, 0}) {}
+
+    size_t GetTotalNumberOfWorkItems() {
+        return std::accumulate(gws.begin(), gws.end(), 1, std::multiplies<size_t>());
+    }
 };
 
 std::string toString(const kernel_selector::CommonDispatchData& dispatchData);

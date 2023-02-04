@@ -209,8 +209,12 @@ protected:
 
         stream& stream = instance.get_network().get_stream();
 
-        for (size_t k = 0; k < _kernels.size(); ++k) {
+        //for (size_t k = 0; k < _kernels.size(); ++k) {
+        int32_t iter = 0;
+        for (size_t k = 0; k < _kernel_data.kernels.size(); ++k) {
             kernel_arguments_data args;
+            if (_kernel_data.kernels[k].skip_execution)
+                continue;
 
             if (_kernel_args.inputs.size() > 0) {
                 args = get_arguments_by_idx(instance);
@@ -224,7 +228,7 @@ protected:
 
             args.scalars = &_kernel_data.kernels[k].params.scalars;
 
-            stream.set_arguments(*_kernels[k], _kernel_data.kernels[k].params, args);
+            stream.set_arguments(*_kernels[iter++], _kernel_data.kernels[k].params, args);
         }
     }
 
@@ -254,11 +258,12 @@ protected:
         if (instance.can_be_optimized()) {
             return aggregate_events(events, stream, false, instance.is_output());
         }
-
         std::vector<event::ptr> tmp_events(events);
         std::vector<event::ptr> all_events;
-
-        for (size_t k = 0; k < _kernels.size(); ++k) {
+        int32_t iter = 0;
+        for (size_t k = 0; k < _kernel_data.kernels.size(); ++k) {
+            if (_kernel_data.kernels[k].skip_execution)
+                continue;
             std::vector<event::ptr> new_events;
             // is any user of the prim's users is an detecion output, set prim as a output event (event won't be nullptr)
             bool is_output_event;
@@ -283,7 +288,7 @@ protected:
 
             args.scalars = &_kernel_data.kernels[k].params.scalars;
 
-            auto ev = stream.enqueue_kernel(*_kernels[k], _kernel_data.kernels[k].params, args, tmp_events, is_output_event);
+            auto ev = stream.enqueue_kernel(*_kernels[iter++], _kernel_data.kernels[k].params, args, tmp_events, is_output_event);
             new_events.push_back(ev);
             all_events.push_back(ev);
 
@@ -304,7 +309,8 @@ protected:
     std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() override {
         std::vector<std::shared_ptr<cldnn::kernel_string>> kernel_strings;
         for (size_t i = 0; i < _kernel_data.kernels.size(); ++i) {
-            kernel_strings.push_back(_kernel_data.kernels[i].code.kernelString);
+            if (!_kernel_data.kernels[i].skip_execution)
+                kernel_strings.push_back(_kernel_data.kernels[i].code.kernelString);
         }
         return kernel_strings;
     }

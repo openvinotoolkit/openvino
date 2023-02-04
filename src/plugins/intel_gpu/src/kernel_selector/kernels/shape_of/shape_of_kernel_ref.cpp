@@ -47,6 +47,7 @@ KernelsData ShapeOfKernelRef::GetKernelsData(const Params &params, const optiona
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = (dispatchData.GetTotalNumberOfWorkItems() == 0);
     };
 
     FillCLKernelData(clKernelData, dispatch_data, params.engineInfo, kernelName, jit, entry_point, EXE_MODE_DEFAULT,

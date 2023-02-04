@@ -89,7 +89,11 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
     }
 
     const concatenation_params& orgParams = static_cast<const concatenation_params&>(params);
-
+    auto num_valid_kernels = 0;
+    for (size_t i = 0; i < orgParams.inputs.size(); ++i) {
+        if (orgParams.inputs[i].LogicalSize() != 0)
+            num_valid_kernels++;
+    }
     KernelData kd = KernelData::Default<concatenation_params>(params, orgParams.inputs.size());
 
     uint32_t lastOffset = 0;
@@ -106,6 +110,10 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
 
         auto& kernel = kd.kernels[i];
         DispatchData dispatchData = SetDefault(newParams);
+        if (dispatchData.GetTotalNumberOfWorkItems() == 0) {
+            kernel.skip_execution = true;
+            continue;
+        }
         auto cldnnJit = GetJitConstants(newParams);
         auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, params, options, i);
         auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
@@ -113,7 +121,7 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
         kernel.code.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);
         kernel.params.workGroups.global = dispatchData.gws;
         kernel.params.workGroups.local = dispatchData.lws;
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, (uint32_t)i });
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, (uint32_t) i});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
         ScalarDescriptor s;

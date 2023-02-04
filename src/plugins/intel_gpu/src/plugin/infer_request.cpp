@@ -519,7 +519,19 @@ void InferRequest::wait() {
         std::string outputID = outputsMap.empty() ? m_graph->MapOutputName(no.first) : outputsMap.at(no.first);
         auto outputMemory = internal_outputs.at(outputID).get_memory();
 
-        bool need_output_update = _outputs.find(no.first) == _outputs.end() || _outputs.at(no.first)->byteSize() != outputMemory->size();
+        bool need_output_update = false;
+
+        if (!outputMemory) {
+            // only update shape for empty tensor
+            auto internal_output_layout = internal_outputs.at(outputID).get_layout();
+            auto dims = SizeVector();
+            for (size_t i = 0; i < internal_output_layout.get_shape().size(); ++i) {
+                dims.push_back(internal_output_layout.get_shape()[i]);
+            }
+            _outputs[no.first]->setShape(dims);
+        } else if (_outputs.find(no.first) == _outputs.end() || _outputs.at(no.first)->byteSize() != outputMemory->size()) {
+            need_output_update = true;
+        }
 
         if (need_output_update) {
             auto node = findOutputByNodeName(no.first);
@@ -563,9 +575,9 @@ void InferRequest::wait() {
             {
                 auto dst_lock = bptr->cbuffer();
                 auto dst_ptr = dst_lock.as<uint8_t*>();
-                same_mem = same_host_mem(outputMemory, dst_ptr);
+                same_mem = outputMemory && same_host_mem(outputMemory, dst_ptr);
             }
-            if (!same_mem) {
+            if (!same_mem && outputMemory) {
                 copy_output_data(outputMemory, bptr);
             }
         }

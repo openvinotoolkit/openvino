@@ -248,6 +248,16 @@ void primitive_inst::realloc_if_needed() {
     // input_layout node is supposed to always use external memory in dynamic case
     if (_node->is_type<input_layout>())
         return;
+#if 0
+    if (actual_layout.bytes_count() == 0) {
+        ov::Shape new_shape;
+        for (auto dim : actual_layout.get_shape()) {
+            new_shape.push_back((dim == 0) ? 1 : dim);
+        }
+        actual_layout = {ov::PartialShape(new_shape), actual_layout.data_type, actual_layout.format};
+        updated_params.output_layouts[0] = actual_layout;
+    }
+    #endif
 
     bool can_reuse_buffer = _outputs[0] && actual_layout.count() <= max_output_layout_size;
 
@@ -264,6 +274,8 @@ void primitive_inst::realloc_if_needed() {
     }
     // intermediate memory allocation is required for primitives consisting of multiple kernels in dynamic case
     {
+        if (_impl == nullptr)
+            return;
         const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
         if (ibuf_layouts.empty())
             return;
@@ -288,6 +300,14 @@ void primitive_inst::realloc_if_needed() {
 
 bool primitive_inst::update_impl() {
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::update_implementation);
+#if 0
+    if (get_output_layout().bytes_count() == 0) {
+        // skip execution if output is empty
+        reset_shape_change();
+        return true;
+    }
+#endif
+
     auto prev_impl_str =  _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
 
     auto update_shape_info = [this, prev_impl_str](const kernel_impl_params& params) {
@@ -386,13 +406,17 @@ bool primitive_inst::update_impl() {
 event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     const auto primitive_id = id();
     OPENVINO_ASSERT(_has_valid_input, primitive_id, " has invalid/unset input");
-
     GPU_DEBUG_GET_INSTANCE(debug_config);
 
     std::vector<event::ptr> dependencies;
     if (is_dynamic()) {
         OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
         update_shape();
+        if (_impl_params->output_layouts[0].bytes_count() == 0) {
+            auto ev = get_network().get_stream().create_user_event(true);
+            return ev;
+        }
+
         if (!is_valid_fusion()) {
             auto subgraph = get_unfused_subgraph();
 
@@ -423,13 +447,19 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
 
         // Try update impl if current impl is dynamic because opt kernel may be added to impl cache through async compilation.
         // Only try update weight and realloc when impl is updated.
-        if (shape_changed() || !_impl
-            || (!shape_changed() && _impl->is_dynamic())) {
+        if (shape_changed() || !_impl || (!shape_changed() && _impl->is_dynamic())) {
             if (update_impl()) {
                 auto ev = update_weights();
                 if (ev)
                     dependencies.push_back(ev);
                 realloc_if_needed();
+                #if 0
+                if (get_output_layout().bytes_count() == 0) {
+                    // skip execution if output is empty
+                    auto ev = get_network().get_stream().create_user_event(true);
+                    return ev;
+                }
+                #endif
             }
         }
     }
