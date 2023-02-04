@@ -31,10 +31,14 @@ function (GetNameAndUrlToDownload name url archive_name_unified archive_name_win
     endif()
 
     set (${name} ${archive_name} PARENT_SCOPE)
-    if (USE_NEW_LOCATION)
-      set (${url} "${archive_name}" PARENT_SCOPE)
+
+    set(HDDL_DEPENDENCIES "")
+    string(REGEX MATCH "hddl" HDDL_DEPENDENCIES ${archive_name})
+
+    if(NOT ${HDDL_DEPENDENCIES} EQUAL "")
+      set (${url}  "${archive_name}" PARENT_SCOPE)
     else()
-      set (${url} "thirdparty/${PLATFORM_FOLDER}/${archive_name}" PARENT_SCOPE)
+      set (${url}  "thirdparty/${PLATFORM_FOLDER}/${archive_name}" PARENT_SCOPE)
     endif()
   endif()
 endfunction(GetNameAndUrlToDownload)
