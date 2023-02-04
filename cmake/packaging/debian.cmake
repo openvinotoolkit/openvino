@@ -352,6 +352,7 @@ macro(ov_cpack_settings)
     # can be skipped with --no-install-recommends
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_RECOMMENDS "${samples_build_deps}")
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_ARCHITECTURE "all")
+    ov_debian_generate_conflicts(${OV_CPACK_COMP_CPP_SAMPLES} ${conflicting_versions})
     set(samples_copyright "generic")
 
     # python_samples
