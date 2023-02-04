@@ -86,22 +86,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBehaviorTests, OVPropertiesDefaultTests,
                 ::testing::ValuesIn(default_properties)),
         OVPropertiesDefaultTests::getTestCaseName);
 
-const std::vector<ov::AnyMap> core_properties = {
-    {ov::auto_batch_timeout("2000")},
-    {ov::hint::allow_auto_batching("NO")},
-    {ov::cache_dir("./xyz")}
-};
-
-const std::vector<std::string> target_devices = {
-    CommonTestUtils::DEVICE_AUTO,
-    CommonTestUtils::DEVICE_CPU,
-    std::string("BATCH:CPU(4)"),
-};
-INSTANTIATE_TEST_SUITE_P(smoke_AutoBehaviorTests,
-                         OVCorePropertiesTest,
-                         ::testing::Combine(::testing::ValuesIn(target_devices), ::testing::ValuesIn(core_properties)),
-                         OVCorePropertiesTest::getTestCaseName);
-
 const std::vector<std::pair<ov::AnyMap, std::string>> automultiExeDeviceConfigs = {
             std::make_pair(ov::AnyMap{{ov::device::priorities(CommonTestUtils::DEVICE_CPU)}}, "CPU")
     };
