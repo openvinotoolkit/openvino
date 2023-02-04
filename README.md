@@ -150,7 +150,7 @@ The latest documentation for OpenVINO™ Toolkit is available [here](https://doc
 
 The list of OpenVINO tutorials:
 
-- [Jupiter notebooks](https://github.com/openvinotoolkit/openvino_notebooks)
+- [Jupyter notebooks](https://github.com/openvinotoolkit/openvino_notebooks)
 
 ## Products which use OpenVINO
 
