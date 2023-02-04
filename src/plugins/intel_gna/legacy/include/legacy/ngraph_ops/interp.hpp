@@ -4,11 +4,11 @@
 
 #pragma once
 
+#include <ie_api.h>
+
 #include <limits>
 #include <memory>
 #include <string>
-
-#include <ie_api.h>
 
 #include "ngraph/op/op.hpp"
 
@@ -40,7 +40,9 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    InterpolateIEAttrs get_attrs() { return m_attrs; }
+    InterpolateIEAttrs get_attrs() {
+        return m_attrs;
+    }
 
 private:
     InterpolateIEAttrs m_attrs;
@@ -56,20 +58,20 @@ class ResampleV2 : public Op {
 public:
     OPENVINO_OP("ResampleV2", "legacy");
 
-    ResampleV2(const Output<Node>& image,
-               const Output<Node>& output_shape,
-               const ResampleIEAttrs& attrs);
+    ResampleV2(const Output<Node>& image, const Output<Node>& output_shape, const ResampleIEAttrs& attrs);
 
-    ResampleV2(const Output<Node>& image,
-               const ResampleIEAttrs& attrs);
+    ResampleV2(const Output<Node>& image, const ResampleIEAttrs& attrs);
 
     void validate_and_infer_types() override;
 
-    bool visit_attributes(AttributeVisitor &visitor) override;
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    ResampleIEAttrs get_attrs() { return m_attrs; }
+    ResampleIEAttrs get_attrs() {
+        return m_attrs;
+    }
+
 private:
     ResampleIEAttrs m_attrs;
 };

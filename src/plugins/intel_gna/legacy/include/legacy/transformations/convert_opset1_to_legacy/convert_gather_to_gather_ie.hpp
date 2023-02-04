@@ -4,20 +4,18 @@
 
 #pragma once
 
-#include <vector>
-#include <memory>
-#include <string>
-
 #include <ie_api.h>
 
-#include <ngraph/pass/graph_rewrite.hpp>
 #include <legacy/ngraph_ops/gather_ie.hpp>
+#include <memory>
+#include <ngraph/pass/graph_rewrite.hpp>
+#include <string>
+#include <vector>
 
-#include "ngraph/op/gather.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/gather.hpp"
 #include "ngraph/op/squeeze.hpp"
 #include "ngraph/op/unsqueeze.hpp"
-
 
 namespace ngraph {
 namespace pass {

@@ -4,13 +4,12 @@
 
 #pragma once
 
-#include <vector>
-#include <memory>
-#include <string>
-
 #include <ie_api.h>
 
+#include <memory>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <string>
+#include <vector>
 
 namespace ngraph {
 namespace pass {
@@ -20,7 +19,7 @@ class ConvertPowerToPowerIEMatcher;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertPowerToPowerIEMatcher: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertPowerToPowerIEMatcher : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertPowerToPowerIEMatcher", "0");
     ConvertPowerToPowerIEMatcher();

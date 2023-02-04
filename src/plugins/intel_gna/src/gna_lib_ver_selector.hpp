@@ -6,10 +6,9 @@
 
 #include <cstdint>
 
-#define nLayerKind operation
+#define nLayerKind         operation
 #define intel_layer_kind_t gna_layer_operation
-#define intel_gna_proc_t uint32_t
-
+#define intel_gna_proc_t   uint32_t
 
 /**
  * Rounds a number up, to the nearest multiple of significance
@@ -20,7 +19,7 @@
  *                      the number to the lowest possible value divisible by "significance".
  * @return Rounded integer value.
  */
-#define ALIGN(number, significance) ((((number) + (significance) - 1) / (significance)) * (significance))
+#define ALIGN(number, significance) ((((number) + (significance)-1) / (significance)) * (significance))
 
 /**
  * Rounds a number up, to the nearest multiple of 64

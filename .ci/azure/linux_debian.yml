@@ -237,10 +237,6 @@ jobs:
       # - tests install dir for mock_py
       # - OpenVINO wheel installation dir for others frontend required by mock_py (is not part of wheel pkg)
       export LD_LIBRARY_PATH=$(PYTHON_WHEEL_INSTALL_DIR)/openvino/libs:$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
-      # For frontend manager to load frontend libraries:
-      # - tests install dir for mock_py
-      # - OpenVINO wheel installation dir for others frontend (not required if this variable is not set)
-      export OV_FRONTEND_PATH=$(PYTHON_WHEEL_INSTALL_DIR)/openvino/libs:$(INSTALL_TEST_DIR)
       # For python imports to import pybind_mock_frontend
       export PYTHONPATH=$(INSTALL_TEST_DIR):$PYTHONPATH
       python3 -m pytest -s $(INSTALL_TEST_DIR)/pyopenvino \
@@ -336,7 +332,6 @@ jobs:
 
   - script: $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieMultiPluginUnitTests.xml
     displayName: 'MULTI UT'
-    enabled: 'false'
 
   - script:  |
       $(INSTALL_TEST_DIR)/ov_template_func_tests --gtest_filter=*smoke* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-templateFuncTests.xml
@@ -392,6 +387,13 @@ jobs:
       export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
       python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_Roll.xmlTEST
     displayName: 'TensorFlow 1 Layer Tests - Legacy FE'
+
+  - script: |
+      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
+      export PYTHONPATH=$(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR):$PYTHONPATH
+      export TEST_DEVICE=CPU
+      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_lite_tests/ --junitxml=$(INSTALL_TEST_DIR)/TEST-tfl_fe.xmlTEST
+    displayName: 'TensorFlow Lite Layer Tests - TFL FE'
 
   - task: PublishTestResults@2
     condition: always()

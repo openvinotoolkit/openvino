@@ -120,8 +120,7 @@ jobs:
         -B $(BUILD_DIR)
     displayName: 'Cmake CC COLLECT'
 
-  - script: cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE) --target \
-      openvino_intel_cpu_plugin openvino_ir_frontend benchmark_app sea_itt_lib
+  - script: cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE) --target openvino_intel_cpu_plugin openvino_ir_frontend benchmark_app sea_itt_lib
     displayName: 'Build CC COLLECT'
 
   - script: ls -alR $(REPO_DIR)/bin/
@@ -144,8 +143,7 @@ jobs:
         -B $(BUILD_DIR)
     displayName: 'CMake CC ON'
 
-  - script: cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE) --target \
-      openvino_intel_cpu_plugin openvino_ir_frontend
+  - script: cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE) --target openvino_intel_cpu_plugin openvino_ir_frontend
     displayName: 'Build CC ON'
 
   - script: ls -alR $(REPO_DIR)/bin/
