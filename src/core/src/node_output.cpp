@@ -11,7 +11,10 @@
 #include "openvino/op/parameter.hpp"
 
 namespace ov {
-Output<Node>::Output(Node* node, size_t index) : m_node(node->shared_from_this()), m_index(index) {}
+Output<Node>::Output(Node* node, size_t index) : m_index(index) {
+    OPENVINO_ASSERT(node, "Cannot create ov::Output<ov::Node> from nullptr!");
+    m_node = node->shared_from_this();
+}
 
 Output<Node>::Output(const std::shared_ptr<Node>& node, size_t index) : m_node(node), m_index(index) {}
 
@@ -143,7 +146,11 @@ bool Output<Node>::operator<=(const Output& other) const {
 bool Output<Node>::operator>=(const Output& other) const {
     return !(*this < other);
 }
-Output<const Node>::Output(const Node* node, size_t index) : m_node(node->shared_from_this()), m_index(index) {}
+
+Output<const Node>::Output(const Node* node, size_t index) : m_index(index) {
+    OPENVINO_ASSERT(node, "Cannot create ov::Output<const ov::Node> from nullptr!");
+    m_node = node->shared_from_this();
+}
 
 Output<const Node>::Output(const std::shared_ptr<const Node>& node, size_t index) : m_node(node), m_index(index) {}
 
