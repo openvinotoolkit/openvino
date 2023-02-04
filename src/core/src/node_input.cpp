@@ -7,7 +7,9 @@
 #include "openvino/core/node.hpp"
 
 namespace ov {
-Input<Node>::Input(Node* node, size_t index) : m_node(node), m_index(index) {}
+Input<Node>::Input(Node* node, size_t index) : m_node(node), m_index(index) {
+    OPENVINO_ASSERT(m_node, "Cannot create ov::Input<ov::Node> from nullptr!");
+}
 
 Node* Input<Node>::get_node() const {
     return m_node;
@@ -72,7 +74,9 @@ bool Input<Node>::operator<=(const Input& other) const {
 bool Input<Node>::operator>=(const Input& other) const {
     return !(*this < other);
 }
-Input<const Node>::Input(const Node* node, size_t index) : m_node(node), m_index(index) {}
+Input<const Node>::Input(const Node* node, size_t index) : m_node(node), m_index(index) {
+    OPENVINO_ASSERT(m_node, "Cannot create ov::Input<const ov::Node> from nullptr!");
+}
 
 RTMap& Input<Node>::get_rt_info() {
     return m_node->m_inputs.at(m_index).get_rt_info();

@@ -2040,3 +2040,15 @@ TEST(model, set_complex_meta_information) {
 
     check_rt_info(f);
 }
+
+TEST(model, create_model) {
+    EXPECT_NO_THROW(ov::Model({}, ""));
+    EXPECT_THROW(ov::Model(ov::ResultVector{nullptr}, {}, ""), ov::Exception);
+    EXPECT_NO_THROW(ov::Model(ov::ResultVector{}, ov::ParameterVector{}, ""));
+    EXPECT_THROW(ov::Model({nullptr}, {nullptr}, {nullptr}, {nullptr}, ""), ov::Exception);
+    EXPECT_THROW(ov::Model({nullptr}, {}, {}, {}, ""), ov::Exception);
+    EXPECT_THROW(ov::Model(ov::ResultVector{}, {nullptr}, {}, {}, ""), ov::Exception);
+    EXPECT_THROW(ov::Model(ov::ResultVector{}, {}, {nullptr}, {}, ""), ov::Exception);
+    EXPECT_THROW(ov::Model(ov::ResultVector{}, {}, {}, {nullptr}, ""), ov::Exception);
+    EXPECT_THROW(ov::Model(ov::OutputVector{ov::Output<ov::Node>{nullptr, 0}}, {}, {}, {}, ""), ov::Exception);
+}
