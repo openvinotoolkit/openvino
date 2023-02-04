@@ -114,6 +114,8 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::hint::Priority>());
     } else if (any.is<ov::hint::PerformanceMode>()) {
         return py::cast(any.as<ov::hint::PerformanceMode>());
+    } else if (any.is<ov::hint::ExecutionMode>()) {
+        return py::cast(any.as<ov::hint::ExecutionMode>());
     } else if (any.is<ov::log::Level>()) {
         return py::cast(any.as<ov::log::Level>());
     } else if (any.is<ov::device::Type>()) {
