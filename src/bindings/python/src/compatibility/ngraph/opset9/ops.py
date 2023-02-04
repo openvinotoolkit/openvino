@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all ngraph ops."""
@@ -25,12 +25,12 @@ _get_node_factory_opset9 = partial(_get_node_factory, "opset9")
 
 @nameable_op
 def eye(
-        num_rows: NodeInput,
-        num_columns: NodeInput,
-        diagonal_index: NodeInput,
-        output_type: str,
-        batch_shape: Optional[NodeInput] = None,
-        name: Optional[str] = None,
+    num_rows: NodeInput,
+    num_columns: NodeInput,
+    diagonal_index: NodeInput,
+    output_type: str,
+    batch_shape: Optional[NodeInput] = None,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs eye operation.
 
@@ -153,9 +153,9 @@ def softsign(node: NodeInput, name: Optional[str] = None) -> Node:
 
 @nameable_op
 def rdft(
-        data: NodeInput,
-        axes: NodeInput,
-        signal_size: Optional[NodeInput] = None,
+    data: NodeInput,
+    axes: NodeInput,
+    signal_size: Optional[NodeInput] = None,
 ) -> Node:
     """Return a node which performs RDFT operation.
 
@@ -174,9 +174,9 @@ def rdft(
 
 @nameable_op
 def irdft(
-        data: NodeInput,
-        axes: NodeInput,
-        signal_size: Optional[NodeInput] = None,
+    data: NodeInput,
+    axes: NodeInput,
+    signal_size: Optional[NodeInput] = None,
 ) -> Node:
     """Return a node which performs IRDFT operation.
 
@@ -195,19 +195,19 @@ def irdft(
 
 @nameable_op
 def multiclass_nms(
-        boxes: NodeInput,
-        scores: NodeInput,
-        roisnum: Optional[NodeInput] = None,
-        sort_result_type: Optional[str] = "none",
-        sort_result_across_batch: Optional[bool] = False,
-        output_type: Optional[str] = "i64",
-        iou_threshold: Optional[float] = 0.0,
-        score_threshold: Optional[float] = 0.0,
-        nms_top_k: Optional[int] = -1,
-        keep_top_k: Optional[int] = -1,
-        background_class: Optional[int] = -1,
-        nms_eta: Optional[float] = 1.0,
-        normalized: Optional[bool] = True
+    boxes: NodeInput,
+    scores: NodeInput,
+    roisnum: Optional[NodeInput] = None,
+    sort_result_type: Optional[str] = "none",
+    sort_result_across_batch: Optional[bool] = False,
+    output_type: Optional[str] = "i64",
+    iou_threshold: Optional[float] = 0.0,
+    score_threshold: Optional[float] = 0.0,
+    nms_top_k: Optional[int] = -1,
+    keep_top_k: Optional[int] = -1,
+    background_class: Optional[int] = -1,
+    nms_eta: Optional[float] = 1.0,
+    normalized: Optional[bool] = True,
 ) -> Node:
     """Return a node which performs MulticlassNms.
 
@@ -249,7 +249,7 @@ def multiclass_nms(
         "keep_top_k": keep_top_k,
         "background_class": background_class,
         "nms_eta": nms_eta,
-        "normalized": normalized
+        "normalized": normalized,
     }
 
     return _get_node_factory_opset9().create("MulticlassNms", inputs, attributes)
@@ -294,18 +294,13 @@ def generate_proposals(
         "post_nms_count": post_nms_count,
         "normalized": normalized,
         "nms_eta": nms_eta,
-        "roi_num_type": roi_num_type
+        "roi_num_type": roi_num_type,
     }
 
     return _get_node_factory_opset9().create("GenerateProposals", inputs, attributes)
 
 
-def grid_sample(
-        data: NodeInput,
-        grid: NodeInput,
-        attributes: dict,
-        name: Optional[str] = None
-) -> Node:
+def grid_sample(data: NodeInput, grid: NodeInput, attributes: dict, name: Optional[str] = None) -> Node:
     """Return a node which performs GridSample operation.
 
     :param data: The input image.

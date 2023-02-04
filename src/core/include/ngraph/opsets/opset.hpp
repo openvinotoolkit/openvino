@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,14 +33,7 @@ public:
     }
 
     /// \brief Insert OP_TYPE into the opset with the default name and factory
-    template <typename OP_TYPE, typename std::enable_if<ngraph::HasTypeInfoMember<OP_TYPE>::value, bool>::type = true>
-    void insert() {
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        ov::OpSet::insert<OP_TYPE>(OP_TYPE::type_info.name);
-        NGRAPH_SUPPRESS_DEPRECATED_END
-    }
-
-    template <typename OP_TYPE, typename std::enable_if<!ngraph::HasTypeInfoMember<OP_TYPE>::value, bool>::type = true>
+    template <typename OP_TYPE>
     void insert() {
         ov::OpSet::insert<OP_TYPE>(OP_TYPE::get_type_info_static().name);
     }
@@ -60,4 +53,5 @@ const NGRAPH_API OpSet& get_opset7();
 const NGRAPH_API OpSet& get_opset8();
 const NGRAPH_API OpSet& get_opset9();
 const NGRAPH_API OpSet& get_opset10();
+const NGRAPH_API std::map<std::string, std::function<const ngraph::OpSet&()>>& get_available_opsets();
 }  // namespace ngraph

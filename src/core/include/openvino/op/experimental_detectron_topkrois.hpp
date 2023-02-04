@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,6 @@ namespace v6 {
 class OPENVINO_API ExperimentalDetectronTopKROIs : public Op {
 public:
     OPENVINO_OP("ExperimentalDetectronTopKROIs", "opset6", op::Op, 6);
-    BWDCMP_RTTI_DECLARATION;
 
     ExperimentalDetectronTopKROIs() = default;
     /// \brief Constructs a ExperimentalDetectronTopKROIs operation.

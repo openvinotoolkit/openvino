@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "intel_gpu/primitives/split.hpp"
@@ -17,6 +16,7 @@ using split_node = typed_program_node<split>;
 template <>
 class typed_primitive_inst<split> : public typed_primitive_inst_base<split> {
     using parent = typed_primitive_inst_base<split>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(split_node const& node, kernel_impl_params const& impl_param);

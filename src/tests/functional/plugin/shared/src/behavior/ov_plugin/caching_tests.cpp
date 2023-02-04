@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 
+#include <gtest/gtest.h>
 #include <thread>
 
 #include "behavior/ov_plugin/caching_tests.hpp"
@@ -13,6 +14,9 @@
 
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/op/parameter.hpp"
 
 #define GTEST_COUT std::cout << "[          ] [ INFO ] "
 
@@ -58,18 +62,15 @@ static std::shared_ptr<ov::Model> simple_function_relu(ov::element::Type type, s
     return func;
 }
 
-std::vector<ovModelWithName> CompileModelCacheTestBase::getStandardFunctions() {
-    // Wrapper of most part of available builder functions
-    using ovModelIS = std::function<std::shared_ptr<ov::Model>(std::vector<size_t> inputShape,
-                                                                      ov::element::Type_t type)>;
-    auto inputShapeWrapper = [](ovModelIS fun, std::vector<size_t> inputShape) {
-        return [fun, inputShape](ngraph::element::Type type, std::size_t batchSize) {
-            auto shape = inputShape;
-            shape[0] = batchSize;
-            return fun(shape, type);
-        };
+ovModelGenerator CompileModelCacheTestBase::inputShapeWrapper(ovModelIS fun, std::vector<size_t> inputShape) {
+    return [fun, inputShape](ngraph::element::Type type, std::size_t batchSize) {
+        auto shape = inputShape;
+        shape[0] = batchSize;
+        return fun(shape, type);
     };
+}
 
+std::vector<ovModelWithName> CompileModelCacheTestBase::getNumericTypeOnlyFunctions() {
     std::vector<ovModelWithName> res;
     res.push_back(ovModelWithName { simple_function_multiply, "SimpleFunctionMultiply"});
     res.push_back(ovModelWithName { simple_function_relu, "SimpleFunctionRelu"});
@@ -82,9 +83,6 @@ std::vector<ovModelWithName> CompileModelCacheTestBase::getStandardFunctions() {
     res.push_back(ovModelWithName {
         inputShapeWrapper(ngraph::builder::subgraph::makeKSOFunction, {1, 4, 20, 20}),
         "KSOFunction"});
-    res.push_back(ovModelWithName { [](ngraph::element::Type type, size_t batchSize) {
-        return ngraph::builder::subgraph::makeTIwithLSTMcell(type, batchSize);
-    }, "TIwithLSTMcell1"});
     res.push_back(ovModelWithName {
         inputShapeWrapper(ngraph::builder::subgraph::makeSingleConv, {1, 3, 24, 24}),
         "SingleConv"});
@@ -106,14 +104,44 @@ std::vector<ovModelWithName> CompileModelCacheTestBase::getStandardFunctions() {
     res.push_back(ovModelWithName {
         inputShapeWrapper(ngraph::builder::subgraph::makeConvBias, {1, 3, 24, 24}),
         "ConvBias"});
-    res.push_back(ovModelWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeReadConcatSplitAssign, {1, 1, 2, 4}),
-        "ReadConcatSplitAssign"});
     res.push_back(ovModelWithName{
         inputShapeWrapper(ngraph::builder::subgraph::makeMatMulBias, {1, 3, 24, 24}),
         "MatMulBias" });
-
     return res;
+}
+
+std::vector<ovModelWithName> CompileModelCacheTestBase::getAnyTypeOnlyFunctions() {
+    std::vector<ovModelWithName> res;
+    res.push_back(ovModelWithName {
+        inputShapeWrapper(ngraph::builder::subgraph::makeReadConcatSplitAssign, {1, 1, 2, 4}),
+        "ReadConcatSplitAssign"});
+    return res;
+}
+
+std::vector<ovModelWithName> CompileModelCacheTestBase::getFloatingPointOnlyFunctions() {
+    std::vector<ovModelWithName> res;
+    res.push_back(ovModelWithName { [](ngraph::element::Type type, size_t batchSize) {
+        return ngraph::builder::subgraph::makeTIwithLSTMcell(type, batchSize);
+    }, "TIwithLSTMcell1"});
+    return res;
+}
+
+std::vector<ovModelWithName> CompileModelCacheTestBase::getNumericAnyTypeFunctions() {
+    std::vector<ovModelWithName> funcs = CompileModelCacheTestBase::getAnyTypeOnlyFunctions();
+    std::vector<ovModelWithName> numericType = CompileModelCacheTestBase::getNumericTypeOnlyFunctions();
+    funcs.insert(funcs.end(), numericType.begin(), numericType.end());
+
+    return funcs;
+}
+
+std::vector<ovModelWithName> CompileModelCacheTestBase::getStandardFunctions() {
+    std::vector<ovModelWithName> funcs = CompileModelCacheTestBase::getAnyTypeOnlyFunctions();
+    std::vector<ovModelWithName> numericType = CompileModelCacheTestBase::getNumericTypeOnlyFunctions();
+    funcs.insert(funcs.end(), numericType.begin(), numericType.end());
+    std::vector<ovModelWithName> floatType = CompileModelCacheTestBase::getFloatingPointOnlyFunctions();
+    funcs.insert(funcs.end(), floatType.begin(), floatType.end());
+
+    return funcs;
 }
 
 bool CompileModelCacheTestBase::importExportSupported(ov::Core& core) const {
@@ -145,11 +173,7 @@ void CompileModelCacheTestBase::SetUp() {
     APIBaseTest::SetUp();
     auto fGen = std::get<0>(funcPair);
     m_functionName = std::get<1>(funcPair);
-    try {
-        function = fGen(m_precision, m_batchSize);
-    } catch (...) {
-        GTEST_SKIP();
-    }
+    function = fGen(m_precision, m_batchSize);
 
     std::stringstream ss;
     auto hash = std::hash<std::string>()(SubgraphBaseTest::GetTestName());
@@ -165,14 +189,18 @@ void CompileModelCacheTestBase::TearDown() {
     CommonTestUtils::removeFilesWithExt(m_cacheFolderName, "blob");
     std::remove(m_cacheFolderName.c_str());
     core->set_property(ov::cache_dir());
+    try {
+        core->set_property(targetDevice, ov::cache_dir());
+    } catch (...) {
+       // do nothing
+    }
     APIBaseTest::TearDown();
 }
 
 void CompileModelCacheTestBase::run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     if (!function) {
-        GTEST_COUT << "Can't create function " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
-        GTEST_SKIP();
+        GTEST_FAIL() << "Can't create function " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
     } else {
         std::vector<ov::Shape> inShapes;
         for (const auto& param : function->get_parameters()) {
@@ -180,22 +208,28 @@ void CompileModelCacheTestBase::run() {
         }
         init_input_shapes(static_shapes_to_test_representation(inShapes));
     }
+    if ((targetDevice.find("GPU") != std::string::npos)) {
+#if !defined(_WIN32) && !defined(_WIN64)
+        setenv("OV_GPU_CACHE_MODEL", "1", 1);
+#endif
+    }
     if ((targetDevice.find("AUTO") == std::string::npos) && !importExportSupported(*core)) {
-        GTEST_COUT << "Plugin doesn't support import and export - skipping test" << std::endl;
-        GTEST_SKIP();
+        GTEST_FAIL() << "Plugin doesn't support import and export - skipping test" << std::endl;
+    }
+    if (importExportSupported(*core)) {
+        ASSERT_NO_THROW(core->get_property(targetDevice, ov::caching_properties));
     }
     configure_model();
     try {
         compiledModel = core->compile_model(function, targetDevice, configuration);
+        ASSERT_FALSE(compiledModel.get_property(ov::loaded_from_cache));
         generate_inputs(targetStaticShapes.front());
         infer();
     } catch (const Exception &ex) {
-        GTEST_COUT << "Can't loadNetwork without cache for " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
-        GTEST_COUT << "Exception [" << ex.what() << "]" << std::endl;
-        GTEST_SKIP();
+        GTEST_FAIL() << "Can't loadNetwork without cache for " << m_functionName << " with precision " << m_precision.get_type_name() <<
+        "\nException [" << ex.what() << "]" << std::endl;
     } catch (...) {
-        GTEST_COUT << "Can't compile network without cache for " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
-        GTEST_SKIP(); // skip caching test if such network is not supported by device at all
+        GTEST_FAIL() << "Can't compile network without cache for " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
     }
     auto originalOutputs = get_plugin_outputs();
 
@@ -206,6 +240,9 @@ void CompileModelCacheTestBase::run() {
         {
             core->set_property(ov::cache_dir(m_cacheFolderName));
             ASSERT_NO_THROW(compiledModel = core->compile_model(function, targetDevice, configuration));
+            if (targetDevice.find("AUTO") == std::string::npos)
+                // Apply check only for HW plugins
+                ASSERT_EQ(i != 0, compiledModel.get_property(ov::loaded_from_cache));
             generate_inputs(targetStaticShapes.front());
             ASSERT_NO_THROW(infer());
         }
@@ -213,9 +250,234 @@ void CompileModelCacheTestBase::run() {
         ASSERT_EQ(CommonTestUtils::listFilesWithExt(m_cacheFolderName, "blob").size(), 1);
         compare(originalOutputs, get_plugin_outputs());
     }
+    if ((targetDevice.find("GPU") != std::string::npos)) {
+#if !defined(_WIN32) && !defined(_WIN64)
+        setenv("OV_GPU_CACHE_MODEL", "", 1);
+#endif
+    }
 }
 
 TEST_P(CompileModelCacheTestBase, CompareWithRefImpl) {
+    run();
+}
+
+std::string CompileModelLoadFromFileTestBase::getTestCaseName(testing::TestParamInfo<compileModelLoadFromFileParams> obj) {
+    auto param = obj.param;
+    auto deviceName = std::get<0>(param);
+    auto configuration = std::get<1>(param);
+    std::ostringstream result;
+    std::replace(deviceName.begin(), deviceName.end(), ':', '.');
+    result << "device_name=" << deviceName << "_";
+    for (auto& iter : configuration) {
+        result << "_" << iter.first << "_" << iter.second.as<std::string>() << "_";
+    }
+    return result.str();
+}
+
+void CompileModelLoadFromFileTestBase::SetUp() {
+    ovModelWithName funcPair;
+    std::tie(targetDevice, configuration) = GetParam();
+    target_device = targetDevice;
+    APIBaseTest::SetUp();
+    std::stringstream ss;
+    std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+    ss << "testCache_" << filePrefix;
+    m_modelName = ss.str() + ".xml";
+    m_weightsName = ss.str() + ".bin";
+    for (auto& iter : configuration) {
+        ss << "_" << iter.first << "_" << iter.second.as<std::string>() << "_";
+    }
+    m_cacheFolderName = ss.str();
+    core->set_property(ov::cache_dir());
+    ngraph::pass::Manager manager;
+    manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
+    manager.run_passes(ngraph::builder::subgraph::makeConvPoolRelu(
+            {1, 3, 227, 227}, InferenceEngine::details::convertPrecision(InferenceEngine::Precision::FP32)));
+}
+
+void CompileModelLoadFromFileTestBase::TearDown() {
+    CommonTestUtils::removeFilesWithExt(m_cacheFolderName, "blob");
+    CommonTestUtils::removeFilesWithExt(m_cacheFolderName, "cl_cache");
+    CommonTestUtils::removeIRFiles(m_modelName, m_weightsName);
+    std::remove(m_cacheFolderName.c_str());
+    core->set_property(ov::cache_dir());
+    APIBaseTest::TearDown();
+}
+
+void CompileModelLoadFromFileTestBase::run() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    core->set_property(ov::cache_dir(m_cacheFolderName));
+    try {
+        compiledModel = core->compile_model(m_modelName, targetDevice, configuration);
+        inferRequest = compiledModel.create_infer_request();
+        inferRequest.infer();
+    } catch (const Exception &ex) {
+        GTEST_FAIL() << "Can't loadNetwork with model path " << m_modelName <<
+        "\nException [" << ex.what() << "]" << std::endl;
+    } catch (...) {
+        GTEST_FAIL() << "Can't compile network with model path " << m_modelName << std::endl;
+    }
+}
+
+TEST_P(CompileModelLoadFromFileTestBase, CanLoadFromFileWithoutExecption) {
+    run();
+}
+
+std::string CompileModelLoadFromMemoryTestBase::getTestCaseName(
+    testing::TestParamInfo<compileModelLoadFromMemoryParams> obj) {
+    auto param = obj.param;
+    auto deviceName = std::get<0>(param);
+    auto configuration = std::get<1>(param);
+    std::ostringstream result;
+    std::replace(deviceName.begin(), deviceName.end(), ':', '.');
+    result << "device_name=" << deviceName << "_";
+    for (auto& iter : configuration) {
+        result << "_" << iter.first << "_" << iter.second.as<std::string>() << "_";
+    }
+    return result.str();
+}
+
+bool CompileModelLoadFromMemoryTestBase::importExportSupported(ov::Core& core) const {
+    auto supportedProperties = core.get_property(targetDevice, ov::supported_properties);
+    if (std::find(supportedProperties.begin(), supportedProperties.end(), ov::device::capabilities) ==
+        supportedProperties.end()) {
+        return false;
+    }
+    auto device_capabilities = core.get_property(targetDevice, ov::device::capabilities);
+    if (std::find(device_capabilities.begin(),
+                  device_capabilities.end(),
+                  std::string(ov::device::capability::EXPORT_IMPORT)) == device_capabilities.end()) {
+        return false;
+    }
+    return true;
+}
+
+void CompileModelLoadFromMemoryTestBase::SetUp() {
+    ovModelWithName funcPair;
+    std::tie(targetDevice, configuration) = GetParam();
+    target_device = targetDevice;
+    if ((targetDevice.find("GPU") != std::string::npos)) {
+#if !defined(_WIN32) && !defined(_WIN64)
+        setenv("OV_GPU_CACHE_MODEL", "1", 1);
+#endif
+    }
+    APIBaseTest::SetUp();
+    std::stringstream ss;
+    auto hash = std::hash<std::string>()(SubgraphBaseTest::GetTestName());
+    ss << "testCache_" << std::to_string(hash) << "_" << std::this_thread::get_id() << "_" << GetTimestamp();
+    m_modelName = ss.str() + ".xml";
+    m_weightsName = ss.str() + ".bin";
+    for (auto& iter : configuration) {
+        ss << "_" << iter.first << "_" << iter.second.as<std::string>() << "_";
+    }
+    m_cacheFolderName = ss.str();
+    core->set_property(ov::cache_dir());
+    ngraph::pass::Manager manager;
+    manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
+    manager.run_passes(ngraph::builder::subgraph::makeConvPoolRelu(
+        {1, 3, 227, 227},
+        InferenceEngine::details::convertPrecision(InferenceEngine::Precision::FP32)));
+
+    try {
+        std::ifstream model_file(m_modelName, std::ios::binary);
+        std::stringstream ss;
+        ss << model_file.rdbuf();
+        m_model = ss.str();
+    } catch (const Exception& ex) {
+        GTEST_FAIL() << "Can't read xml file from: " << m_modelName << "\nException [" << ex.what() << "]" << std::endl;
+    }
+
+    try {
+        std::ifstream weights_file(m_weightsName, std::ios::binary);
+        weights_file.unsetf(std::ios::skipws);
+
+        weights_file.seekg(0, std::ios::end);
+        const auto weights_size = static_cast<std::size_t>(weights_file.tellg());
+        weights_file.seekg(0, std::ios::beg);
+
+        weights_vector.reserve(weights_size);
+        weights_vector.insert(weights_vector.begin(),
+                              std::istream_iterator<std::uint8_t>(weights_file),
+                              std::istream_iterator<std::uint8_t>());
+        m_weights = ov::Tensor(ov::element::u8, {1, 1, 1, weights_size}, weights_vector.data());
+    } catch (const Exception& ex) {
+        GTEST_FAIL() << "Can't read weights file from: " << m_weightsName << "\nException [" << ex.what() << "]"
+                     << std::endl;
+    }
+}
+
+void CompileModelLoadFromMemoryTestBase::TearDown() {
+    CommonTestUtils::removeFilesWithExt(m_cacheFolderName, "blob");
+    CommonTestUtils::removeFilesWithExt(m_cacheFolderName, "cl_cache");
+    CommonTestUtils::removeIRFiles(m_modelName, m_weightsName);
+    std::remove(m_cacheFolderName.c_str());
+    core->set_property(ov::cache_dir());
+    APIBaseTest::TearDown();
+    weights_vector.clear();
+    if ((targetDevice.find("GPU") != std::string::npos)) {
+#if !defined(_WIN32) && !defined(_WIN64)
+        setenv("OV_GPU_CACHE_MODEL", "", 1);
+#endif
+    }
+}
+
+void CompileModelLoadFromMemoryTestBase::run() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    core->set_property(ov::cache_dir(m_cacheFolderName));
+    for (int i = 0; i < 2; i++) {
+        try {
+            compiledModel = core->compile_model(m_model, m_weights, targetDevice, configuration);
+            if (importExportSupported(*core)) {
+                ASSERT_EQ(i != 0, compiledModel.get_property(ov::loaded_from_cache));
+            }
+            inferRequest = compiledModel.create_infer_request();
+            inferRequest.infer();
+        } catch (const Exception& ex) {
+            GTEST_FAIL() << "Can't loadNetwork with model path " << m_modelName << "\nException [" << ex.what() << "]"
+                         << std::endl;
+        } catch (...) {
+            GTEST_FAIL() << "Can't compile network with model path " << m_modelName << std::endl;
+        }
+
+        // For GPU plugin, KEY_GPU_THROUGHPUT_STREAMS will lead to config.throughput_streams==2, and Export stops.
+        if (targetDevice.find("GPU") != std::string::npos) {
+            auto item = configuration.find(ov::hint::performance_mode.name());
+            if (item != configuration.end() &&
+                item->second.as<ov::hint::PerformanceMode>() == ov::hint::PerformanceMode::THROUGHPUT) {
+                break;
+            }
+        }
+    }
+}
+
+TEST_P(CompileModelLoadFromMemoryTestBase, CanLoadFromMemoryWithoutExecption) {
+    run();
+}
+
+TEST_P(CompileModelLoadFromMemoryTestBase, CanLoadFromMemoryWithoutWeightsANdExecption) {
+    ngraph::pass::Manager manager;
+    std::shared_ptr<ov::Model> model;
+    {
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 1, 2});
+
+        auto mul = std::make_shared<ov::op::v1::Multiply>(data, data);
+
+        auto res = std::make_shared<ov::op::v0::Result>(mul);
+        model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{data});
+    }
+
+    manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
+    manager.run_passes(model);
+
+    try {
+        std::ifstream model_file(m_modelName, std::ios::binary);
+        std::stringstream ss;
+        ss << model_file.rdbuf();
+        m_model = ss.str();
+    } catch (const Exception& ex) {
+        GTEST_FAIL() << "Can't read xml file from: " << m_modelName << "\nException [" << ex.what() << "]" << std::endl;
+    }
+    m_weights = ov::Tensor();
     run();
 }
 
@@ -241,6 +503,7 @@ void CompiledKernelsCacheTest::SetUp() {
     std::tie(targetDevice, userConfig) = GetParam();
     target_device = targetDevice;
     APIBaseTest::SetUp();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     configuration = userConfig.first;
     std::string ext = userConfig.second;
     std::string::size_type pos = 0;
@@ -336,42 +599,38 @@ TEST_P(CompiledKernelsCacheTest, TwoNetworksWithSameModelCreatesSameCache) {
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinariesUnicodePath) {
-    #if defined(_WIN32) || defined(_WIN64)
-        GTEST_SKIP();
-    #else
-        for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
-            std::wstring postfix  = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
-            std::wstring cache_path_w = CommonTestUtils::stringToWString(cache_path) + postfix;
+    for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
+        std::wstring postfix  = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
+        std::wstring cache_path_w = CommonTestUtils::stringToWString(cache_path) + postfix;
 
-            try {
-                auto cache_path_mb = ov::util::wstring_to_string(cache_path_w);
-                core->set_property(ov::cache_dir(cache_path_mb));
-                // Load CNNNetwork to target plugins
-                auto execNet = core->compile_model(function, targetDevice, configuration);
-                execNet = {};
-                // Check that directory with cached kernels exists after loading network
-                ASSERT_TRUE(CommonTestUtils::directoryExists(cache_path_w)) << "Directory with cached kernels doesn't exist";
+        try {
+            auto cache_path_mb = ov::util::wstring_to_string(cache_path_w);
+            core->set_property(ov::cache_dir(cache_path_mb));
+            // Load CNNNetwork to target plugins
+            auto execNet = core->compile_model(function, targetDevice, configuration);
+            execNet = {};
+            // Check that directory with cached kernels exists after loading network
+            ASSERT_TRUE(CommonTestUtils::directoryExists(cache_path_w)) << "Directory with cached kernels doesn't exist";
+            // Check that folder contains cache files and remove them
+            for (auto& ext : m_extList) {
                 // Check that folder contains cache files and remove them
+                ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path_w, CommonTestUtils::stringToWString(ext)), 0);
+            }
+            // Remove directory and check that it doesn't exist anymore
+            ASSERT_EQ(CommonTestUtils::removeDir(cache_path_w), 0);
+            ASSERT_FALSE(CommonTestUtils::directoryExists(cache_path_w));
+        } catch (std::exception& ex) {
+            // Cleanup in case of any exception
+            if (CommonTestUtils::directoryExists(cache_path_w)) {
                 for (auto& ext : m_extList) {
                     // Check that folder contains cache files and remove them
                     ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path_w, CommonTestUtils::stringToWString(ext)), 0);
                 }
-                // Remove directory and check that it doesn't exist anymore
                 ASSERT_EQ(CommonTestUtils::removeDir(cache_path_w), 0);
-                ASSERT_FALSE(CommonTestUtils::directoryExists(cache_path_w));
-            } catch (std::exception& ex) {
-                // Cleanup in case of any exception
-                if (CommonTestUtils::directoryExists(cache_path_w)) {
-                    for (auto& ext : m_extList) {
-                        // Check that folder contains cache files and remove them
-                        ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path_w, CommonTestUtils::stringToWString(ext)), 0);
-                    }
-                    ASSERT_EQ(CommonTestUtils::removeDir(cache_path_w), 0);
-                }
-                FAIL() << ex.what() << std::endl;
             }
+            FAIL() << ex.what() << std::endl;
         }
-    #endif
+    }
 }
 #endif
 } // namespace behavior

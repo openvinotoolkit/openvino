@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "lpt_ngraph_functions/concat_function.hpp"
 
 #include <openvino/opsets/opset1.hpp>
-#include "ngraph_ops/type_relaxed.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
@@ -871,7 +871,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReference(
     input2->set_friendly_name("input2");
     const auto fakeQuantize2 = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(input2, precision, fqOnData2);
 
-    const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Concat>>(
+    const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Concat>>(
         ngraph::OutputVector{ fakeQuantize1->output(0), fakeQuantize2->output(0) }, 1);
     auto& rtInfo = concat->get_rt_info();
     rtInfo["Variant::std::string"] = "concat";
@@ -1166,11 +1166,11 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithNeighbors(
         convShape[1] = inputShape[1].get_length() + inputShape[1].get_length();
         convShape[0] = convShape[1] * 2;
         convShape[2] = convShape[3] = 1;
-        auto convolutionAddition = std::make_shared<op::TypeRelaxed<opset1::Convolution>>(
+        auto convolutionAddition = std::make_shared<ov::op::TypeRelaxed<opset1::Convolution>>(
                 element::TypeVector{ element::f32, element::f32 },
                 element::TypeVector{ element::f32 },
-                op::TemporaryReplaceOutputType(mainBranch, element::f32).get(),
-                op::TemporaryReplaceOutputType(opset1::Constant::create(element::i8, convShape, {1}), element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(mainBranch, element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(opset1::Constant::create(element::i8, convShape, {1}), element::f32).get(),
                 ngraph::Strides{ 1, 1 },
                 ngraph::CoordinateDiff{ 0, 0 },
                 ngraph::CoordinateDiff{ 0, 0 },
@@ -1211,11 +1211,11 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithNeighbors(
         convShape[0] = inputShape[1].get_length() * 2;
         convShape[1] = inputShape[1].get_length();
         convShape[2] = convShape[3] = 1;
-        auto convolutionNeighbor = std::make_shared<op::TypeRelaxed<ngraph::opset1::Convolution>>(
+        auto convolutionNeighbor = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Convolution>>(
                 element::TypeVector{ element::f32, element::f32 },
                 element::TypeVector{ element::f32 },
-                op::TemporaryReplaceOutputType(neighbor, element::f32).get(),
-                op::TemporaryReplaceOutputType(opset1::Constant::create(element::i8, convShape, {1}), element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(neighbor, element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(opset1::Constant::create(element::i8, convShape, {1}), element::f32).get(),
                 ngraph::Strides{ 1, 1 },
                 ngraph::CoordinateDiff{ 0, 0 },
                 ngraph::CoordinateDiff{ 0, 0 },
@@ -1390,10 +1390,10 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithIntermediateAv
     const std::shared_ptr<ngraph::Node> parent1 = makeDequantization(concat, dequantizationAfter1);
     parent1->set_friendly_name("concat");
 
-    std::shared_ptr<Node> parent2 = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::AvgPool>>(
+    std::shared_ptr<Node> parent2 = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::AvgPool>>(
         std::vector<ngraph::element::Type>{ element::f32, element::f32 },
         std::vector<ngraph::element::Type>{ element::f32 },
-        ngraph::op::TemporaryReplaceOutputType(intermediateOp, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(intermediateOp, element::f32).get(),
         Strides{ 1, 1 },
         Shape{ 1, 1 },
         Shape{ 0, 0 },

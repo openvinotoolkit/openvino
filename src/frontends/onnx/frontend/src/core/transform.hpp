@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,13 @@ namespace ngraph {
 namespace onnx_import {
 namespace transform {
 
-static const std::vector<std::string> onnx_functions_to_expand =
-    {"Bernoulli", "Celu", "GreaterOrEqual", "LessOrEqual", "NegativeLogLikelihoodLoss", "SoftmaxCrossEntropyLoss"};
+static const std::vector<std::string> onnx_functions_to_expand = {"Bernoulli",
+                                                                  "Celu",
+                                                                  "GreaterOrEqual",
+                                                                  "LessOrEqual",
+                                                                  "NegativeLogLikelihoodLoss",
+                                                                  "SoftmaxCrossEntropyLoss",
+                                                                  "LayerNormalization"};
 
 /// \brief Replace nodes with expanded body of ONNX functions
 ///

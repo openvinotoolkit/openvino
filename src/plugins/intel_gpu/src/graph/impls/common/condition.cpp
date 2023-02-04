@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,8 @@ namespace cldnn {
 namespace common {
 
 struct condition_impl : typed_primitive_impl<condition> {
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<condition_impl>(*this);
     }
@@ -32,6 +34,7 @@ struct condition_impl : typed_primitive_impl<condition> {
             a->wait();
         }
         auto ev = instance.get_network().get_stream().create_user_event(false);
+        set_node_params(instance.get_node());
 
         bool exec_branch = choose_branch_to_exec(instance);
         memory::ptr memory_to_copy;
@@ -47,7 +50,9 @@ struct condition_impl : typed_primitive_impl<condition> {
         return ev;
     }
 
-    static primitive_impl* create(const condition_node& arg, const kernel_impl_params&) { return new condition_impl(arg); }
+    static std::unique_ptr<primitive_impl> create(const condition_node& arg, const kernel_impl_params&) {
+        return make_unique<condition_impl>(arg);
+    }
 
     void init_kernels(const kernels_cache&) override {}
 
@@ -133,3 +138,5 @@ attach_condition_common::attach_condition_common() {
 }  // namespace detail
 }  // namespace common
 }  // namespace cldnn
+
+ASSIGN_TYPE_NAME(cldnn::common::condition_impl)

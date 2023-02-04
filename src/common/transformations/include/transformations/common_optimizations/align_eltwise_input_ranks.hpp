@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 
 /**
@@ -12,7 +12,7 @@
  * @brief transformation aligns elementwise constant inputs ranks with its output rank
  */
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API AlignEltwiseInputRanks : public MatcherPass {
@@ -22,4 +22,4 @@ public:
 };
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov

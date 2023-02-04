@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,6 +46,16 @@ void regclass_Version(py::module m) {
         },
         R"(
             :return: OpenVINO's minor version.
+            :rtype: int
+        )");
+
+    cls.def_property_readonly(
+        "patch",
+        [](ov::Version& self) {
+            return OPENVINO_VERSION_PATCH;
+        },
+        R"(
+            :return: OpenVINO's version patch.
             :rtype: int
         )");
 }

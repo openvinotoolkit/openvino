@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -157,9 +157,9 @@ ov_define_component_names()
 #  - ov_add_lintian_suppression()
 #  - ov_add_latest_component()
 if(CPACK_GENERATOR STREQUAL "DEB")
-    include(packaging/debian)
+    include(packaging/debian/debian)
 elseif(CPACK_GENERATOR STREQUAL "RPM")
-    include(packaging/rpm)
+    include(packaging/rpm/rpm)
 elseif(CPACK_GENERATOR STREQUAL "NSIS")
     include(packaging/nsis)
 elseif(CPACK_GENERATOR MATCHES "^(CONDA-FORGE|BREW)$")
@@ -171,7 +171,7 @@ macro(ie_cpack)
         set(CPACK_GENERATOR "TGZ")
     endif()
     set(CPACK_SOURCE_GENERATOR "") # not used
-    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "OpenVINO™ Toolkit for Deep Learning Inference")
+    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "OpenVINO™ Toolkit")
     set(CPACK_COMPONENT_UNSPECIFIED_REQUIRED OFF)
     set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY OFF)
     set(CPACK_PACKAGE_VENDOR "Intel Corporation")

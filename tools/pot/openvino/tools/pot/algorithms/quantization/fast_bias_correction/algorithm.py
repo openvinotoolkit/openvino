@@ -96,7 +96,7 @@ class FastBiasCorrection(Algorithm):
             # Reshaped since bias are broadcasted
             after_biased_conv_node_name = get_quantized_input_key(after_biased_conv)
             add_out_shape = get_input_shape_for_bias(activations_statistics, after_biased_conv_node_name)
-            bias_shape = np.ones(len(add_out_shape), dtype=np.int)
+            bias_shape = np.ones(len(add_out_shape), dtype=int)
             axis_channel = self.get_channel_axis(input_node_name)
             bias_shape[axis_channel] = add_out_shape[axis_channel]
 
@@ -111,6 +111,7 @@ class FastBiasCorrection(Algorithm):
                 continue
 
             if bias_shift_magnitude < self._threshold:
+                logger.debug('Setting bias for %s. Magnitude: %f', op_node.fullname, bias_shift_magnitude)
                 op_node['original_bias'] = current_bias_value
                 nu.set_node_value(bias_node, bias_shift)
             else:
@@ -148,12 +149,14 @@ class FastBiasCorrection(Algorithm):
                     inputs_outputs_layout[op_output_name] = {
                         "mean_per_channel": TensorStatisticAxis(inplace_statistics=inplace_statistics,
                                                                 granularity='perchannel', type='mean',
+                                                                graph_depth=op_output_name.count('|'),
                                                                 channel=self._channel_axis)}
 
                 input_name = get_quantized_input_key(quantized_node)
                 inputs_outputs_layout[input_name] = {
                     "mean_per_channel": TensorStatisticAxis(inplace_statistics=inplace_statistics,
                                                             granularity='perchannel', type='mean',
+                                                            graph_depth=op_output_name.count('|'),
                                                             channel=self._channel_axis)}
                 inputs_outputs_layout[input_name]["shape"] = TensorStatistic(func=lambda x, **kwargs: x.shape,
                                                                              shape_for_inference=True)

@@ -1,7 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/test_assertions.hpp"
 #include "dimension_tracker.hpp"
 #include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
@@ -389,6 +390,7 @@ TEST(type_prop, gather_7_dynamic_batch_dims_inconsistent) {
     int64_t axis = 1;
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 1;
+
     OV_EXPECT_THROW(auto g = make_shared<op::v7::Gather>(D, I, A, batch_dims),
                     NodeValidationFailure,
                     HasSubstr("data and indices must have equal or intersecting sizes until batch_dims"));

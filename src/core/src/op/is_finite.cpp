@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/op/is_finite.hpp"
 
 #include "itt.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
 
 ov::op::v10::IsFinite::IsFinite(const Output<Node>& data) : op::Op{{data}} {
     constructor_validate_and_infer_types();

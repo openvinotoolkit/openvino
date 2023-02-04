@@ -1,14 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset4.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
+#include <openvino/opsets/opset4.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -35,21 +35,21 @@
 //                       v
 //
 
-ngraph::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
+ov::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
     MATCHER_SCOPE(FakeQuantizeMulFusion);
-    const auto data_p = ngraph::pattern::any_input();
-    const auto fq_output_low_p = ngraph::pattern::any_input();
-    const auto fq_output_high_p = ngraph::pattern::any_input();
+    const auto data_p = pass::pattern::any_input();
+    const auto fq_output_low_p = pass::pattern::any_input();
+    const auto fq_output_high_p = pass::pattern::any_input();
 
     const auto fq_node_p = ngraph::pattern::wrap_type<opset4::FakeQuantize>(
-        {data_p, ngraph::pattern::any_input(), ngraph::pattern::any_input(), fq_output_low_p, fq_output_high_p},
+        {data_p, pass::pattern::any_input(), pass::pattern::any_input(), fq_output_low_p, fq_output_high_p},
         pattern::consumers_count(1));
 
     const auto mul_constant_p = ngraph::pattern::wrap_type<opset4::Constant>();
     const auto mul_node_p =
         ngraph::pattern::wrap_type<opset4::Multiply>({fq_node_p, mul_constant_p}, pattern::consumers_count(1));
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         const auto& data = pattern_map.at(data_p);
@@ -92,15 +92,15 @@ ngraph::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
             auto diff = rank - mul_constant_shape.size();
             if (diff > 0) {
                 mul_constant_shape.insert(mul_constant_shape.begin(), diff, 1);
-                mul_constant = std::make_shared<ngraph::opset4::Reshape>(
+                mul_constant = std::make_shared<opset4::Reshape>(
                     mul_constant,
-                    op::Constant::create(element::i64, Shape{mul_constant_shape.size()}, mul_constant_shape),
+                    opset4::Constant::create(element::i64, Shape{mul_constant_shape.size()}, mul_constant_shape),
                     false);
             }
         }
 
         auto get_adjusted_output_range = [&](const Output<Node>& node) -> std::shared_ptr<Node> {
-            auto ret = std::make_shared<ngraph::opset4::Multiply>(node, mul_constant);
+            auto ret = std::make_shared<opset4::Multiply>(node, mul_constant);
             copy_runtime_info(node.get_node_shared_ptr(), ret);
             auto constant = get_constant_from_source(ret);
             if (constant)

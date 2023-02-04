@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -3105,6 +3105,29 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatterND_const_i32_indices) {
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatterND_opset16_reduction_none) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/scatter_nd_opset16_reduction_none.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f});
+    test_case.add_input<int64_t>({4, 3, 1, 7});
+    test_case.add_input<float>({9.f, 10.f, 11.f, 12.f});
+    test_case.add_expected_output<float>(Shape{8}, {1.f, 11.f, 3.f, 10.f, 9.f, 6.f, 7.f, 12.f});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatterND_opset16_reduction_add) {
+    EXPECT_THROW(onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                     SERIALIZED_ZOO,
+                                                                     "onnx/scatter_nd_opset16_reduction_add.onnx")),
+                 ngraph_error)
+        << "Unsupported type of attribute: `reduction`. Only `none` is supported";
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_float_1D) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/gather_float_1D.onnx"));
@@ -3440,6 +3463,28 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_import_only) {
     EXPECT_EQ(scatter_fn->get_output_shape(0), data_shape);
     EXPECT_EQ(count_ops_of_type<op::v3::ScatterElementsUpdate>(scatter_fn), 1);
     EXPECT_EQ(count_ops_of_type<op::v0::Constant>(scatter_fn), 4);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_opset16_reduction_none) {
+    const auto scatter_fn =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/scatter_elements_opset16_reduction_none.onnx"));
+
+    const Shape data_shape{1, 5};
+
+    EXPECT_EQ(scatter_fn->get_output_size(), 1);
+    EXPECT_EQ(scatter_fn->get_output_shape(0), data_shape);
+    EXPECT_EQ(count_ops_of_type<op::v3::ScatterElementsUpdate>(scatter_fn), 1);
+    EXPECT_EQ(count_ops_of_type<op::v0::Constant>(scatter_fn), 4);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_opset16_reduction_add) {
+    const auto path = file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                           SERIALIZED_ZOO,
+                                           "onnx/scatter_elements_opset16_reduction_add.onnx");
+    EXPECT_THROW(onnx_import::import_onnx_model(path), ngraph_error)
+        << "Unsupported type of attribute: `reduction`. Only `none` is supported";
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample6_nearest_infer) {
@@ -5926,7 +5971,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_trilu_dynamic_shapes) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_is_finite) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/is_finite.onnx"));
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/is_finite.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -5950,8 +5996,6 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_is_inf_default) {
     auto test_case = test::TestCase(function, s_device);
 
     // clang-format off
-
-    test_case.add_input<float>(Shape{1, 2, 3}, {std::nanf(""), std::numeric_limits<float>::infinity(), -0.6000f, -1.0000f, std::nanf(""), -1.0000f});
 
     test_case.add_input<float>(
         Shape{2, 2, 2},
@@ -6046,15 +6090,16 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_is_inf_detect_none) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_is_nan) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/is_nan.onnx"));
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/is_nan.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
     // clang-format off
-    
+
     test_case.add_input<float>(Shape{1, 2, 3}, {std::nanf(""), std::nanf(""), -0.6000f, -1.0000f, std::nanf(""), -1.0000f});
 
-    test_case.add_expected_output<float>(
+    test_case.add_expected_output<bool>(
         Shape{1, 2, 3},
         {true, true, false, false, true, false});
 
@@ -6077,4 +6122,476 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_squeeze_default_domain_opset13) {
     test_case.add_input(input);
     test_case.add_expected_output(expected_output);
     test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_of_shape_empty_init) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/constant_of_shape_empty_init.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_expected_output<int32_t>(Shape{}, {1});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_of_shape_null_node) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/constant_of_shape_null_node.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_expected_output<int32_t>(Shape{}, {1});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, castlike_float16_to_uint32) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/castlike_float16_to_uint32.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    test_case.add_input<ngraph::float16>(Shape{1, 1, 2, 2}, std::vector<ngraph::float16>{1.5, 2.3, 3, 4});
+    test_case.add_input<uint32_t>(Shape{4}, {1, 2, 3, 4});
+    test_case.add_expected_output<uint32_t>(std::vector<uint32_t>{1, 2, 3, 4});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, castlike_float16_to_int64) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/castlike_float16_to_int64.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    test_case.add_input<ngraph::float16>(Shape{1, 1, 2, 2}, std::vector<ngraph::float16>{1.5, 2.3, 3, 4});
+    test_case.add_input<int64_t>(Shape{4}, {1, 2, 3, 4});
+    test_case.add_expected_output<int64_t>(std::vector<int64_t>{1, 2, 3, 4});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_castlike_int8_to_uint16) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/castlike_int8_to_uint16.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    test_case.add_input<int8_t>(Shape{1, 1, 2, 2}, std::vector<int8_t>{-1, -2, 3, 4});
+    test_case.add_input<uint16_t>(Shape{4}, {1, 2, 3, 4});
+    test_case.add_expected_output<uint16_t>(std::vector<uint16_t>{65535, 65534, 3, 4});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, castlike_float64_to_int64) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/castlike_float64_to_int64.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    test_case.add_input<double>(Shape{1, 1, 2, 2}, std::vector<double>{1.5, 2.3, 3, 4});
+    test_case.add_input<int64_t>(Shape{4}, {1, 2, 3, 4});
+    test_case.add_expected_output<int64_t>(std::vector<int64_t>{1, 2, 3, 4});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, castlike_int8_to_float16) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/castlike_int8_to_float16.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    test_case.add_input<int8_t>(Shape{1, 1, 2, 2}, std::vector<int8_t>{-127, -2, 3, 4});
+    test_case.add_input<ngraph::float16>(Shape{4}, {1, 2, 3, 4});
+    test_case.add_expected_output<ngraph::float16>(std::vector<ngraph::float16>{-127.0, -2.0, 3.0, 4.0});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, castlike_int32_to_float) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/castlike_int32_to_float64.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    test_case.add_input<int32_t>(Shape{1, 1, 2, 2}, std::vector<int32_t>{-1, 2, 3, 4});
+    test_case.add_input<float>(Shape{4}, {1, 2, 3, 4});
+    test_case.add_expected_output<float>(std::vector<float>{-1.0, 2.0, 3.0, 4.0});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, castlike_float64_to_int32) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/castlike_float64_to_int32.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    test_case.add_input<float>(Shape{1, 1, 2, 2}, std::vector<float>{-107374.9876543, -2.2, 3.3, 4.4});
+    test_case.add_input<int32_t>(Shape{4}, {1, 2, 3, 4});
+    test_case.add_expected_output<int32_t>(std::vector<int32_t>{-107374, -2, 3, 4});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_castlike_float32_to_bfloat16) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/castlike_float32_to_bfloat16.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    test_case.add_input<float>(Shape{3, 4}, std::vector<float>{121.5, 122.7, 3, 4, 5, 6, 7, 8.8, 9, 10, 11, 12});
+    test_case.add_input<bfloat16>(Shape{3, 4}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+    test_case.add_expected_output<bfloat16>(std::vector<bfloat16>{121.5, 122.7, 3, 4, 5, 6, 7, 8.8, 9, 10, 11, 12});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_castlike_bfloat16_to_float32) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/castlike_bfloat16_to_float32.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    test_case.add_input<bfloat16>(Shape{3, 4}, std::vector<bfloat16>{121.5, 122.7, 3, 4, 5, 6, 7, 8.8, 9, 10, 11, 12});
+    test_case.add_input<float>(Shape{3, 4}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+    test_case.add_expected_output<float>(std::vector<float>{121.5, 122.7, 3, 4, 5, 6, 7, 8.75, 9, 10, 11, 12});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unique_3d_default_attributes) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/unique_3d_default_attributes.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    test_case.add_input<int32_t>({9, 12, 3, 121, 5, 4, 10, 9});
+    test_case.add_expected_output<int32_t>(Shape{7}, {3, 4, 5, 9, 10, 12, 121});
+    test_case.add_expected_output<int64_t>(Shape{7}, {2, 5, 4, 0, 6, 1, 3});
+    test_case.add_expected_output<int64_t>(Shape{8}, {3, 5, 0, 6, 2, 1, 4, 3});
+    test_case.add_expected_output<int64_t>(Shape{7}, {1, 1, 1, 2, 1, 1, 1});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unique_1d_no_duplicates) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/unique_1d_no_duplicates.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    test_case.add_input<int32_t>({5, 4, 3, 2, 1});
+    test_case.add_expected_output<int32_t>(Shape{5}, {5, 4, 3, 2, 1});
+    test_case.add_expected_output<int64_t>(Shape{5}, {0, 1, 2, 3, 4});
+    test_case.add_expected_output<int64_t>(Shape{5}, {0, 1, 2, 3, 4});
+    test_case.add_expected_output<int64_t>(Shape{5}, {1, 1, 1, 1, 1});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unique_1d_no_duplicates_sorted) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/unique_1d_no_duplicates_sorted.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    test_case.add_input<int32_t>({5, 4, 3, 2, 1});
+    test_case.add_expected_output<int32_t>(Shape{5}, {1, 2, 3, 4, 5});
+    test_case.add_expected_output<int64_t>(Shape{5}, {4, 3, 2, 1, 0});
+    test_case.add_expected_output<int64_t>(Shape{5}, {4, 3, 2, 1, 0});
+    test_case.add_expected_output<int64_t>(Shape{5}, {1, 1, 1, 1, 1});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unique_3d_with_duplicates_and_axis) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/unique_3d_with_duplicates_and_axis.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    test_case.add_input<int32_t>({1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6});
+    test_case.add_expected_output<int32_t>(Shape{1, 2, 3}, {1, 2, 3, 4, 5, 6});
+    test_case.add_expected_output<int64_t>(Shape{1}, {0});
+    test_case.add_expected_output<int64_t>(Shape{2}, {0, 0});
+    test_case.add_expected_output<int64_t>(Shape{1}, {2});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unique_3d_with_duplicates_and_axis_2) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/unique_3d_with_duplicates_and_axis_2.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    test_case.add_input<int32_t>({-1, 2, -1, 5, -3, 5, 7, -8, 7, 4, 4, 4});
+    test_case.add_expected_output<int32_t>(Shape{2, 2, 2}, {-1, 2, 5, -3, 7, -8, 4, 4});
+    test_case.add_expected_output<int64_t>(Shape{2}, {0, 1});
+    test_case.add_expected_output<int64_t>(Shape{3}, {0, 1, 0});
+    test_case.add_expected_output<int64_t>(Shape{2}, {2, 1});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/dft.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{3, 5, 2}, {0.000000f,  0.000000f, 1.000000f,  0.000000f, 2.000000f,  0.000000f,
+                                                3.000000f,  0.000000f, 4.000000f,  0.000000f, 5.000000f,  0.000000f,
+                                                6.000000f,  0.000000f, 7.000000f,  0.000000f, 8.000000f,  0.000000f,
+                                                9.000000f,  0.000000f, 10.000000f, 0.000000f, 11.000000f, 0.000000f,
+                                                12.000000f, 0.000000f, 13.000000f, 0.000000f, 14.000000f, 0.000000f});
+    test_case.add_expected_output<float>(
+        Shape{3, 5, 2},
+        {10.000000f, 0.000000f,  -2.500000f, 3.440955f,  -2.500000f, 0.812299f, -2.500000f, -0.812299f,
+         -2.500000f, -3.440955f, 35.000000f, 0.000000f,  -2.500000f, 3.440955f, -2.500000f, 0.812299f,
+         -2.500000f, -0.812299f, -2.500000f, -3.440955f, 60.000000f, 0.000000f, -2.500000f, 3.440955f,
+         -2.500000f, 0.812299f,  -2.500000f, -0.812299f, -2.500000f, -3.440955f});
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_only_real) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/dft_only_real.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{3, 5, 1},
+                               {
+                                   0.000000f,
+                                   1.000000f,
+                                   2.000000f,
+                                   3.000000f,
+                                   4.000000f,
+                                   5.000000f,
+                                   6.000000f,
+                                   7.000000f,
+                                   8.000000f,
+                                   9.000000f,
+                                   10.000000f,
+                                   11.000000f,
+                                   12.000000f,
+                                   13.000000f,
+                                   14.000000f,
+                               });
+    test_case.add_expected_output<float>(
+        Shape{3, 5, 2},
+        {10.000000f, 0.000000f,  -2.500000f, 3.440955f,  -2.500000f, 0.812299f, -2.500000f, -0.812299f,
+         -2.500000f, -3.440955f, 35.000000f, 0.000000f,  -2.500000f, 3.440955f, -2.500000f, 0.812299f,
+         -2.500000f, -0.812299f, -2.500000f, -3.440955f, 60.000000f, 0.000000f, -2.500000f, 3.440955f,
+         -2.500000f, 0.812299f,  -2.500000f, -0.812299f, -2.500000f, -3.440955f});
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_onesided) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/dft_onesided.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(
+        Shape{2, 4},
+        {0.000000f, 1.000000f, 2.000000f, 3.000000f, 4.000000f, 5.000000f, 6.000000f, 7.000000f});
+    test_case.add_expected_output<float>(Shape{2, 3, 2},
+                                         {6.000000f,
+                                          0.000000f,
+                                          -2.000000f,
+                                          2.000000f,
+                                          -2.000000f,
+                                          0.000000f,
+                                          22.000000f,
+                                          0.000000f,
+                                          -2.000000f,
+                                          2.000000f,
+                                          -2.000000f,
+                                          0.000000f});
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_onesided_skip_convert_to_complex) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/dft_onesided_skip_convert_to_complex.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(
+        Shape{2, 4, 1},
+        {0.000000f, 1.000000f, 2.000000f, 3.000000f, 4.000000f, 5.000000f, 6.000000f, 7.000000f});
+    test_case.add_expected_output<float>(Shape{2, 3, 1, 2},
+                                         {6.000000f,
+                                          0.000000f,
+                                          -2.000000f,
+                                          2.000000f,
+                                          -2.000000f,
+                                          0.000000f,
+                                          22.000000f,
+                                          0.000000f,
+                                          -2.000000f,
+                                          2.000000f,
+                                          -2.000000f,
+                                          0.000000f});
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_length_provided) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/dft_lenght_provided.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{3, 5, 2}, {0.000000f,  0.000000f, 1.000000f,  0.000000f, 2.000000f,  0.000000f,
+                                                3.000000f,  0.000000f, 4.000000f,  0.000000f, 5.000000f,  0.000000f,
+                                                6.000000f,  0.000000f, 7.000000f,  0.000000f, 8.000000f,  0.000000f,
+                                                9.000000f,  0.000000f, 10.000000f, 0.000000f, 11.000000f, 0.000000f,
+                                                12.000000f, 0.000000f, 13.000000f, 0.000000f, 14.000000f, 0.000000f});
+    test_case.add_expected_output<float>(
+        Shape{1, 5, 2},
+        {0.000000f, 0.000000f, 1.000000f, 0.000000f, 2.000000f, 0.000000f, 3.000000f, 0.000000f, 4.000000f, 0.000000f});
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_length_provided_onesided) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/dft_lenght_provided_onesided.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{4, 3},
+                               {0.000000f,
+                                1.000000f,
+                                2.000000f,
+                                3.000000f,
+                                4.000000f,
+                                5.000000f,
+                                6.000000f,
+                                7.000000f,
+                                8.000000f,
+                                9.000000f,
+                                10.000000f,
+                                11.000000f});
+    test_case.add_expected_output<float>(Shape{1, 3, 2},
+                                         {0.000000f, 0.000000f, 1.000000f, 0.000000f, 2.000000f, 0.000000f});
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_inverse) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/dft_inverse.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{3, 5, 2}, {0.000000f,  0.000000f, 1.000000f,  0.000000f, 2.000000f,  0.000000f,
+                                                3.000000f,  0.000000f, 4.000000f,  0.000000f, 5.000000f,  0.000000f,
+                                                6.000000f,  0.000000f, 7.000000f,  0.000000f, 8.000000f,  0.000000f,
+                                                9.000000f,  0.000000f, 10.000000f, 0.000000f, 11.000000f, 0.000000f,
+                                                12.000000f, 0.000000f, 13.000000f, 0.000000f, 14.000000f, 0.000000f});
+    test_case.add_expected_output<float>(
+        Shape{3, 5, 2},
+        {2.000000f,  0.000000f,  -0.500000f, -0.688191f, -0.500000f, -0.162460f, -0.500000f, 0.162460f,
+         -0.500000f, 0.688191f,  7.000000f,  0.000000f,  -0.500000f, -0.688191f, -0.500000f, -0.162460f,
+         -0.500000f, 0.162460f,  -0.500000f, 0.688191f,  12.000000f, 0.000000f,  -0.500000f, -0.688191f,
+         -0.500000f, -0.162460f, -0.500000f, 0.162460f,  -0.500000f, 0.688191f});
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_only_real) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/dft_inverse_only_real.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{3, 5, 1},
+                               {0.000000f,
+                                1.000000f,
+                                2.000000f,
+                                3.000000f,
+                                4.000000f,
+                                5.000000f,
+                                6.000000f,
+                                7.000000f,
+                                8.000000f,
+                                9.000000f,
+                                10.000000f,
+                                11.000000f,
+                                12.000000f,
+                                13.000000f,
+                                14.000000f});
+    test_case.add_expected_output<float>(
+        Shape{3, 5, 2},
+        {2.000000f,  0.000000f,  -0.500000f, -0.688191f, -0.500000f, -0.162460f, -0.500000f, 0.162460f,
+         -0.500000f, 0.688191f,  7.000000f,  0.000000f,  -0.500000f, -0.688191f, -0.500000f, -0.162460f,
+         -0.500000f, 0.162460f,  -0.500000f, 0.688191f,  12.000000f, 0.000000f,  -0.500000f, -0.688191f,
+         -0.500000f, -0.162460f, -0.500000f, 0.162460f,  -0.500000f, 0.688191f});
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_onesided) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/dft_inverse_onesided.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{2, 3, 2},
+                               {6.000000f,
+                                0.000000f,
+                                -2.000000f,
+                                2.000000f,
+                                -2.000000f,
+                                0.000000f,
+                                22.000000f,
+                                0.000000f,
+                                -2.000000f,
+                                2.000000f,
+                                -2.000000f,
+                                0.000000f});
+    test_case.add_expected_output<float>(
+        Shape{2, 4},
+        {0.000000f, 1.000000f, 2.000000f, 3.000000f, 4.000000f, 5.000000f, 6.000000f, 7.000000f});
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_onesided_real_input) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/dft_inverse_onesided_real_input.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{2, 3, 1}, {1.000000f, 0.000000f, -1.000000f, 0.5000000f, -0.5000000f, 0.000000f});
+    test_case.add_expected_output<float>(Shape{2, 3, 1},
+                                         {0.750000f, -0.250000f, -0.500000f, 0.250000f, 0.250000f, -0.500000f});
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_inversed_length_provided) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/dft_inversed_lenght_provided.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{3, 5, 2}, {0.000000f,  0.000000f, 1.000000f,  0.000000f, 2.000000f,  0.000000f,
+                                                3.000000f,  0.000000f, 4.000000f,  0.000000f, 5.000000f,  0.000000f,
+                                                6.000000f,  0.000000f, 7.000000f,  0.000000f, 8.000000f,  0.000000f,
+                                                9.000000f,  0.000000f, 10.000000f, 0.000000f, 11.000000f, 0.000000f,
+                                                12.000000f, 0.000000f, 13.000000f, 0.000000f, 14.000000f, 0.000000f});
+    test_case.add_expected_output<float>(
+        Shape{1, 5, 2},
+        {0.000000f, 0.000000f, 1.000000f, 0.000000f, 2.000000f, 0.000000f, 3.000000f, 0.000000f, 4.000000f, 0.000000f});
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_length_provided_onesided) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/dft_inverse_lenght_provided_onesided.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{1, 3, 2}, {0.000000f, 0.000000f, 1.000000f, 0.000000f, 2.000000f, 0.000000f});
+    test_case.add_expected_output<float>(Shape{4, 3},
+                                         {0.000000f,
+                                          1.000000f,
+                                          2.000000f,
+                                          3.000000f,
+                                          4.000000f,
+                                          5.000000f,
+                                          6.000000f,
+                                          7.000000f,
+                                          8.000000f,
+                                          9.000000f,
+                                          10.000000f,
+                                          11.000000f});
 }

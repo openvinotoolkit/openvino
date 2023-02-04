@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -80,28 +80,21 @@ TEST(type_prop, unsqueeze_empty_axes) {
     }
 }
 
-class UnsqueezeTestCommon : public Test {
-protected:
-    void SetUp() override {
-        param = std::make_shared<op::Parameter>(element::f32, p_shape);
-    }
+using UnSqueezeTypePropTestParam = std::tuple<PartialShape,          // Input shape
+                                              std::vector<int64_t>,  // Unsqueeze axis
+                                              PartialShape           // Expected shape
+                                              >;
 
-    PartialShape p_shape, exp_shape;
-    std::shared_ptr<op::Parameter> param;
-};
-
-using TypePropTestParam = std::tuple<PartialShape, std::vector<int64_t>, PartialShape>;
-
-class UnsqueezeTest : public WithParamInterface<TypePropTestParam>, public UnsqueezeTestCommon {
+class UnsqueezeTest : public WithParamInterface<UnSqueezeTypePropTestParam>, public UnSqueezeFixture {
 protected:
     void SetUp() override {
         std::tie(p_shape, axes, exp_shape) = GetParam();
-        UnsqueezeTestCommon::SetUp();
+        UnSqueezeFixture::SetUp();
     }
 
-    std::pair<std::vector<size_t>, std::vector<size_t>> make_in_exp_labels() const {
-        std::vector<size_t> in_labels;
-        std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<size_t>(1));
+    std::pair<ov::TensorLabel, ov::TensorLabel> make_in_exp_labels() const {
+        ov::TensorLabel in_labels;
+        std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<ov::label_t>(1));
 
         auto unique_axes = std::set<int64_t>(axes.begin(), axes.end());
         auto out_rank = unique_axes.size() + p_shape.size();
@@ -245,7 +238,7 @@ TEST_P(UnsqueezeTest, labels_propagation) {
     if (p_shape.rank().is_dynamic()) {
         GTEST_SKIP() << "No dimension to set label";
     }
-    std::vector<size_t> in_labels, exp_labels;
+    ov::TensorLabel in_labels, exp_labels;
     std::tie(in_labels, exp_labels) = make_in_exp_labels();
 
     set_shape_labels(p_shape, in_labels);
@@ -257,17 +250,7 @@ TEST_P(UnsqueezeTest, labels_propagation) {
     EXPECT_EQ(get_shape_labels(unsqueeze->get_output_partial_shape(0)), exp_labels);
 }
 
-using BoundTestParam = std::tuple<PartialShape, PartialShape>;
-
-class UnsqueezeBoundTest : public WithParamInterface<BoundTestParam>, public UnsqueezeTestCommon {
-protected:
-    void SetUp() override {
-        std::tie(p_shape, exp_shape) = GetParam();
-        UnsqueezeTestCommon::SetUp();
-    }
-
-    std::vector<size_t> in_labels;
-};
+using UnsqueezeBoundTest = UnSqueezeBoundTest;
 
 INSTANTIATE_TEST_SUITE_P(
     type_prop_bounds_propagate,
@@ -290,7 +273,7 @@ INSTANTIATE_TEST_SUITE_P(
 TEST_P(UnsqueezeBoundTest, propagate_label_and_dynamic_value) {
     PartialShape labeled_shape = PartialShape{p_shape};
 
-    std::generate_n(std::back_inserter(in_labels), labeled_shape.size(), ov::SeqGen<size_t>(1));
+    std::generate_n(std::back_inserter(in_labels), labeled_shape.size(), ov::SeqGen<ov::label_t>(1));
     set_shape_labels(labeled_shape, in_labels);
 
     constexpr auto et = element::i64;
@@ -303,7 +286,7 @@ TEST_P(UnsqueezeBoundTest, propagate_label_and_dynamic_value) {
     const auto gather = std::make_shared<op::v7::Gather>(labeled_shape_of, indices, axis);
     const auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(gather, axis);
 
-    const auto bc = std::make_shared<op::v1::Broadcast>(param, unsqueeze);
+    const auto bc = std::make_shared<op::v3::Broadcast>(param, unsqueeze);
 
     EXPECT_EQ(bc->get_output_partial_shape(0), exp_shape);
     const auto labels = get_shape_labels(bc->get_output_partial_shape(0));

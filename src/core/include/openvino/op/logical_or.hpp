@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,6 @@ namespace v1 {
 class OPENVINO_API LogicalOr : public util::BinaryElementwiseLogical {
 public:
     OPENVINO_OP("LogicalOr", "opset1", util::BinaryElementwiseLogical, 1);
-    BWDCMP_RTTI_DECLARATION;
     LogicalOr() = default;
     /// \brief Constructs a logical-or operation.
     ///

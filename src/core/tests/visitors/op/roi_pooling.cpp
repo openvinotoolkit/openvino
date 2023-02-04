@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ TEST(attributes, roi_pooling_op) {
     const auto data = make_shared<op::Parameter>(element::f32, Shape{2, 3, 4, 5});
     const auto coords = make_shared<op::Parameter>(element::f32, Shape{2, 5});
 
-    const auto op = make_shared<opset3::ROIPooling>(data, coords, Shape{5, 5}, 0.123, "bilinear");
+    const auto op = make_shared<opset3::ROIPooling>(data, coords, Shape{5, 5}, 0.123f, "bilinear");
     NodeBuilder builder(op, {data, coords});
     const auto g_op = ov::as_type_ptr<opset3::ROIPooling>(builder.create());
 

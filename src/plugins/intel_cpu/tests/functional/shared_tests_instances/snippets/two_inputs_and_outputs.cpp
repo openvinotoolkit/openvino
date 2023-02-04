@@ -10,7 +10,7 @@ namespace test {
 namespace snippets {
 namespace {
 
-const std::vector<std::vector<ov::Shape>> input_shapes = {
+const std::vector<std::vector<ov::PartialShape>> input_shapes = {
         { {5, 5, 256, 1}, {5, 5, 256, 1} },
         { {5, 5, 16, 35}, {5, 5, 16, 35} },
         { {5, 5, 256, 1}, {5, 5, 256, 35} },
@@ -26,7 +26,6 @@ const std::vector<std::vector<ov::Shape>> input_shapes = {
 
         { {5, 5, 35, 17}, {5, 5, 35, 17} },
         { {5, 5, 35, 17}, {5, 5, 1, 17} },
-
         { {5, 5, 35, 18}, {5, 5, 35, 18} },
         { {5, 5, 35, 18}, {5, 5, 1, 18} },
 };
@@ -34,7 +33,7 @@ const std::vector<std::vector<ov::Shape>> input_shapes = {
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, TwoInputsAndOutputs,
                          ::testing::Combine(
                              ::testing::ValuesIn(input_shapes),
-                             ::testing::Values(4),
+                             ::testing::Values(2),
                              ::testing::Values(1),
                              ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                          TwoInputsAndOutputs::getTestCaseName);

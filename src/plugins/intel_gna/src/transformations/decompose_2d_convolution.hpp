@@ -1,16 +1,15 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
 #include <ie_precision.hpp>
+#include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ov {
 namespace intel_gna {
 namespace pass {
-
 
 /**
  * @brief Decompose a 2D convolution, wrapped with transposes,
@@ -55,7 +54,8 @@ public:
 class Decompose2DConvTransposedWithBias : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("Decompose2DConvTransposedWithBias", "0");
-    Decompose2DConvTransposedWithBias(const std::string& gnaCompileTarget, const InferenceEngine::Precision& gnaPrecision);
+    Decompose2DConvTransposedWithBias(const std::string& gnaCompileTarget,
+                                      const InferenceEngine::Precision& gnaPrecision);
 };
 
 /**
@@ -78,9 +78,10 @@ public:
 class Decompose2DConvTransposedWithBiasAF : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("Decompose2DConvTransposedWithBiasAF", "0");
-    Decompose2DConvTransposedWithBiasAF(const std::string& gnaCompileTarget, const InferenceEngine::Precision& gnaPrecision);
+    Decompose2DConvTransposedWithBiasAF(const std::string& gnaCompileTarget,
+                                        const InferenceEngine::Precision& gnaPrecision);
 };
 
-} // namespace pass
-} // namespace intel_gna
-} // namespace ov
+}  // namespace pass
+}  // namespace intel_gna
+}  // namespace ov

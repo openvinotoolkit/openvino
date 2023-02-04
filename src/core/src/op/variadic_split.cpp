@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,8 @@
 
 #include <numeric>
 
+#include "bound_evaluate.hpp"
+#include "compare.hpp"
 #include "itt.hpp"
 #include "ngraph/runtime/reference/slice.hpp"
 #include "ngraph/validation_util.hpp"
@@ -13,8 +15,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v1::VariadicSplit);
 
 op::v1::VariadicSplit::VariadicSplit(const Output<Node>& data,
                                      const Output<Node>& axis,
@@ -30,13 +30,11 @@ bool ngraph::op::v1::VariadicSplit::visit_attributes(AttributeVisitor& visitor) 
 
 void ngraph::op::v1::VariadicSplit::validate_and_infer_types() {
     OV_OP_SCOPE(v1_VariadicSplit_validate_and_infer_types);
-    set_input_is_relevant_to_value(0);
-    set_input_is_relevant_to_value(1);
-    set_input_is_relevant_to_value(2);
+    for (size_t i = 0; i < get_input_size(); ++i) {
+        set_input_is_relevant_to_value(i);
+    }
 
-    std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
-                                                  get_input_partial_shape(1),
-                                                  get_input_partial_shape(2)};
+    const auto input_shapes = get_node_input_partial_shapes(*this);
     std::vector<ov::PartialShape> output_shapes;
     shape_infer(this, input_shapes, output_shapes);
 
@@ -59,9 +57,7 @@ inline bool evaluate(const HostTensorPtr& in,
                      const Coordinate& lower_bounds,
                      const Coordinate& upper_bounds) {
     const auto& output_shape = out->get_shape();
-    auto has_nonzero_dims = std::all_of(output_shape.begin(), output_shape.end(), [](size_t dim) {
-        return dim != 0;
-    });
+    const auto has_nonzero_dims = std::none_of(output_shape.begin(), output_shape.end(), ov::cmp::Equal<size_t>(0));
 
     if (has_nonzero_dims) {
         runtime::reference::slice(in->get_data_ptr<const char>(),
@@ -121,4 +117,29 @@ bool op::v1::VariadicSplit::evaluate(const HostTensorVector& outputs, const Host
 bool op::v1::VariadicSplit::has_evaluate() const {
     OV_OP_SCOPE(v1_VariadicSplit_has_evaluate);
     return get_input_element_type(1).is_integral_number() && get_input_element_type(2).is_integral_number();
+}
+
+bool op::v1::VariadicSplit::has_axis_and_splits_bound_set() const {
+    for (size_t i = 1; i < get_input_size(); ++i) {
+        if (!get_input_tensor(i).has_and_set_bound()) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool op::v1::VariadicSplit::evaluate_lower(ov::TensorVector& output_values) const {
+    OV_OP_SCOPE(v1_Split_evaluate_lower);
+
+    return has_axis_and_splits_bound_set() && default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v1::VariadicSplit::evaluate_upper(ov::TensorVector& output_values) const {
+    OV_OP_SCOPE(v1_Split_evaluate_upper);
+
+    return has_axis_and_splits_bound_set() && default_upper_bound_evaluator(this, output_values);
+}
+
+bool op::v1::VariadicSplit::evaluate_label(TensorLabelVector& output_labels) const {
+    return has_axis_and_splits_bound_set() && default_label_evaluator(this, output_labels);
 }

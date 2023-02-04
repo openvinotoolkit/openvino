@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,6 @@ ParamsKey PoolingKernelGPUBfyxBlockOpt::GetSupportedKey() const {
     k.EnableBatching();
     k.EnablePoolType(PoolType::MAX);
     k.EnablePoolType(PoolType::AVG);
-    k.EnablePoolType(PoolType::MAX_WITH_ARGMAX);
     k.EnablePoolRemainder(PoolRemainder::FLOOR);
     k.EnablePoolRemainder(PoolRemainder::CEIL);
     k.EnablePoolKernelDividerMode(KernelDividerMode::FIXED);

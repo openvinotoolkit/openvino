@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -120,34 +120,10 @@ void default_logger_handler_func(const std::string& s);
                       ngraph::default_logger_handler_func)                \
         .stream()
 
-#ifdef ENABLE_OPENVINO_DEBUG
-#    define NGRAPH_DEBUG                                                      \
-        ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_DEBUG,                  \
-                          ngraph::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
-                          __LINE__,                                           \
-                          ngraph::default_logger_handler_func)                \
-            .stream()
-#else
-
-struct NullLogger {};
-
-template <typename T>
-NullLogger&& operator<<(NullLogger&& logger, T&&) {
-    return std::move(logger);
-}
-
-template <typename T>
-NullLogger&& operator<<(NullLogger&& logger, const T&) {
-    return std::move(logger);
-}
-
-inline NullLogger&& operator<<(
-    NullLogger&& logger,
-    std::basic_ostream<char, std::char_traits<char>>& (&)(std::basic_ostream<char, std::char_traits<char>>&)) {
-    return std::move(logger);
-}
-
-#    define NGRAPH_DEBUG \
-        ::ngraph::NullLogger {}
-#endif
+#define NGRAPH_DEBUG                                                      \
+    ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_DEBUG,                  \
+                      ngraph::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
+                      __LINE__,                                           \
+                      ngraph::default_logger_handler_func)                \
+        .stream()
 }  // namespace ngraph

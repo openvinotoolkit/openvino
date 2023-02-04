@@ -6,7 +6,7 @@
 
 **Short description**: *AUGRUCell* represents a single AUGRU Cell (GRU with attentional update gate).
 
-**Detailed description**: The main difference between *AUGRUCell* and [GRUCell](../../../../../docs/ops/sequence/GRUCell_3.md) is the additional attention score input `A`, which is a multiplier for the update gate.
+**Detailed description**: The main difference between *AUGRUCell* and [GRUCell](../../../docs/ops/sequence/GRUCell_3.md) is the additional attention score input `A`, which is a multiplier for the update gate.
 The AUGRU formula is based on the [paper arXiv:1809.03672](https://arxiv.org/abs/1809.03672).
 
 ```
@@ -78,9 +78,9 @@ AUGRU formula:
 
 * **4**: `R` - 2D tensor of type *T* and shape `[3 * hidden_size, hidden_size]`. The recurrence weights for matrix multiplication, gate order: zrh. **Required.**
 
-* **6**: `B` - 2D tensor of type *T*. The biases. If *linear_before_reset* is set to  `False`, then the shape is `[3 * hidden_size]`, gate order: zrh. Otherwise the shape is `[4 * hidden_size]` - the sum of biases for z and r gates (weights and recurrence weights), the biases for h gate are placed separately. **Required.**
+* **5**: `B` - 2D tensor of type *T*. The biases. If *linear_before_reset* is set to  `False`, then the shape is `[3 * hidden_size]`, gate order: zrh. Otherwise the shape is `[4 * hidden_size]` - the sum of biases for z and r gates (weights and recurrence weights), the biases for h gate are placed separately. **Required.**
 
-* **7**: `A` - 2D tensor of type *T* and shape `[batch_size, 1]`, the attention score. **Required.**
+* **6**: `A` - 2D tensor of type *T* and shape `[batch_size, 1]`, the attention score. **Required.**
 
 
 **Outputs**

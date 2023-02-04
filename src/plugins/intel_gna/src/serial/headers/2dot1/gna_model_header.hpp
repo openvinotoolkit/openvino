@@ -1,18 +1,18 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <cstdint>
-#include "backend/dnn_types.h"
+
+#include "backend/dnn_types.hpp"
 
 #pragma pack(push, 1)
 
-
-namespace GNAPluginNS {
-namespace Header2dot1 {
-
+namespace ov {
+namespace intel_gna {
+namespace header_2_dot_1 {
 
 /**
  * @brief Header version 2.1
@@ -89,7 +89,7 @@ struct RuntimeEndPoint {
     uint32_t elements_count = 0;
     /**
      * Offset in bytes of pointer descriptor
-    */
+     */
     uint64_t descriptor_offset = 0ull;
 
     intel_dnn_orientation_t orientation = kDnnUnknownOrientation;
@@ -99,12 +99,14 @@ struct RuntimeEndPoint {
                     void* descriptor_ptr,
                     uint32_t element_size,
                     uint32_t elements_count,
-                    intel_dnn_orientation_t orientation) : scaleFactor(static_cast<float>(scaleFactor)),
-                                                           descriptor_ptr(descriptor_ptr),
-                                                           element_size(element_size),
-                                                           elements_count(elements_count),
-                                                           orientation(orientation) {
-    }
+                    intel_dnn_orientation_t orientation)
+        : scaleFactor(static_cast<float>(scaleFactor)),
+          descriptor_ptr(descriptor_ptr),
+          element_size(element_size),
+          elements_count(elements_count),
+          orientation(orientation) {}
 };
-} // namespace Header2dot1
-} // namespace GNAPluginNS
+
+}  // namespace header_2_dot_1
+}  // namespace intel_gna
+}  // namespace ov

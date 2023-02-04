@@ -1,12 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
 #include "include/batch_headers/fetch_data.cl"
 
-#define unroll_for __attribute__((opencl_unroll_hint)) for
-#define CEIL_DIV(A, B) (((A) + (B) - 1) / (B))
 #define INPUT0_GET_TILED_INDEX(ORDER) INPUT0_GET_INDEX(ORDER)
 #define OUTPUT_GET_TILED_INDEX(ORDER) OUTPUT_GET_INDEX(ORDER)
 
@@ -21,8 +19,7 @@
 #define GET_LOCAL_ID(IDX) ((uint)get_local_id(IDX))
 #define GET_LOCAL_SIZE(IDX) ((uint)get_local_size(IDX))
 
-__attribute__((intel_reqd_sub_group_size(DEFAULT_STRIDE)))
-
+REQD_SUB_GROUP_SIZE(DEFAULT_STRIDE)
 KERNEL (reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output
@@ -70,7 +67,7 @@ KERNEL (reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx)(
 
 #if (TILE_SIZE == DEFAULT_TILE_SIZE)
     // read
-    INPUTVTYPE read_data = AS_INPUTVTYPE(intel_sub_group_block_read8((const __global uint*)(input) + input_idx_tile));
+    INPUTVTYPE read_data = AS_INPUTVTYPE(_sub_group_block_read8((const __global uint*)(input) + input_idx_tile));
 
     // write
     const uint output_idx = OUTPUT_GET_TILED_INDEX(OUTPUT_TILED_ORDER);
@@ -97,7 +94,7 @@ KERNEL (reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx)(
 
     // read
     const uint input_idx_final = input_idx_tile + sgid_remainder * (DEFAULT_STRIDE * DEFAULT_TILE_SIZE);
-    INPUTVTYPE read_data = AS_INPUTVTYPE(intel_sub_group_block_read8((const __global uint*)(input) + input_idx_final));
+    INPUTVTYPE read_data = AS_INPUTVTYPE(_sub_group_block_read8((const __global uint*)(input) + input_idx_final));
     INPUTVTYPE_HALF read_half1 = {read_data[0], read_data[2], read_data[4], read_data[6]};
     INPUTVTYPE_HALF read_half2 = {read_data[1], read_data[3], read_data[5], read_data[7]};
 
@@ -157,5 +154,3 @@ KERNEL (reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx)(
 
 #undef OUTPUT_GET_TILED_INDEX
 #undef INPUT0_GET_TILED_INDEX
-#undef CEIL_DIV
-#undef unroll_for

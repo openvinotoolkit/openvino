@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,11 +9,7 @@
 #include <data_inst.h>
 
 namespace cldnn {
-
-primitive_type_id experimental_detectron_topk_rois::type_id() {
-    static primitive_type_base<experimental_detectron_topk_rois> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(experimental_detectron_topk_rois)
 
 experimental_detectron_topk_rois_inst::typed_primitive_inst(network& network, experimental_detectron_topk_rois_node const &node)
 : parent(network, node) {

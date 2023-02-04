@@ -1,14 +1,33 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cstring>
-#include <gna_plugin_log.hpp>
-#include <limits>
-#include "backend/gna_types.h"
 #include "quantization.hpp"
-#include <algorithm>
 
+#include <algorithm>
+#include <cstring>
+#include <limits>
+
+#include "backend/gna_types.hpp"
+#include "layers/gna_fake_quantize_layer.hpp"
+#include "log/debug.hpp"
+#include "log/log.hpp"
+
+namespace ov {
+namespace intel_gna {
+namespace frontend {
+
+float ApplyFQ(float value, float input_low, float input_high, float output_low, float output_high, uint32_t levels) {
+    if (value <= std::min(input_low, input_high)) {
+        return output_low;
+    } else if (value > std::max(input_low, input_high)) {
+        return output_high;
+    } else {
+        return nearbyint((value - input_low) / (input_high - input_low) * (levels - 1)) / (levels - 1) *
+                   (output_high - output_low) +
+               output_low;
+    }
+}
 
 std::pair<float, float> FindMinMaxValues(void* ptr_float_memory, size_t num_elements) {
     float* ptr_float_feat = reinterpret_cast<float*>(ptr_float_memory);
@@ -25,11 +44,11 @@ std::pair<float, float> FindMinMaxValues(void* ptr_float_memory, size_t num_elem
         }
     }
 
-    return { min, max };
+    return {min, max};
 }
 
 float ScaleFactorForQuantization(void* ptr_float_memory, float target_max, size_t num_elements) {
-    float *ptr_float_feat = reinterpret_cast<float *>(ptr_float_memory);
+    float* ptr_float_feat = reinterpret_cast<float*>(ptr_float_memory);
     float max = 0.0f;
     float scale_factor;
 
@@ -49,15 +68,21 @@ float ScaleFactorForQuantization(void* ptr_float_memory, float target_max, size_
 }
 
 template <typename T>
-void QuantizeWeights(const QuantizationData& data, float* ptr_float_weights, T* ptr_int_weights,
-    gna_compound_bias_t* ptr_int_biases, const bool quantized_weights) {}
+void QuantizeWeights(const QuantizationData& data,
+                     float* ptr_float_weights,
+                     T* ptr_int_weights,
+                     gna_compound_bias_t* ptr_int_biases,
+                     const bool quantized_weights) {}
 
 template <typename T>
 void QuantizeBiases(const QuantizationData& data, float* ptr_float_biases, T* ptr_int_biases) {}
 
 template <>
-void QuantizeWeights<int8_t>(const QuantizationData& data, float* ptr_float_weights, int8_t* ptr_int_weights,
-    gna_compound_bias_t* ptr_int_biases, const bool quantized_weights) {
+void QuantizeWeights<int8_t>(const QuantizationData& data,
+                             float* ptr_float_weights,
+                             int8_t* ptr_int_weights,
+                             gna_compound_bias_t* ptr_int_biases,
+                             const bool quantized_weights) {
     if (!ptr_int_biases && quantized_weights) {
         THROW_GNA_EXCEPTION << "Quantized weights are not yet supported in int8 quantization mode";
     }
@@ -118,15 +143,7 @@ void QuantizeWeights<int8_t>(const QuantizationData& data, float* ptr_float_weig
             float value = ptr_float_weights[offset];
 
             if (min_values_size > 0) {
-                auto x = value;
-                if (x <= std::min(input_low, input_high)) {
-                    value = output_low;
-                } else if (x > std::max(input_low, input_high)) {
-                    value = output_high;
-                } else {
-                    value = nearbyint((x - input_low) / (input_high - input_low) * (levels - 1)) / (levels - 1) *
-                                (output_high - output_low) + output_low;
-                }
+                value = ApplyFQ(value, input_low, input_high, output_low, output_high, levels);
             }
 
             if (ptr_int_biases) {
@@ -141,27 +158,22 @@ void QuantizeWeights<int8_t>(const QuantizationData& data, float* ptr_float_weig
 
             int8_t* ptr_weight_8 = ptr_int_weights + offset;
 
-            if (value > std::numeric_limits<int8_t>::max()) {
-                *ptr_weight_8 = std::numeric_limits<int8_t>::max();
-                num_saturate++;
-            } else if (value < std::numeric_limits<int8_t>::min()) {
-                *ptr_weight_8 = std::numeric_limits<int8_t>::min();
-                num_saturate++;
-            } else {
-                *ptr_weight_8 = static_cast<int8_t>(value);
-            }
+            *ptr_weight_8 = SaturationCast<int8_t>(value, &num_saturate);
         }
     }
 
     if (num_saturate > 0) {
-        gnalog() << "Warning: " << num_saturate << " / " << (data.num_rows * data.num_columns)
-                 << " saturations in int8 weights quantization." << std::endl;
+        log::warning() << num_saturate << " / " << (data.num_rows * data.num_columns)
+                       << " saturations in int8 weights quantization." << std::endl;
     }
 }
 
-template<>
-void QuantizeWeights<int16_t>(const QuantizationData& data, float* ptr_float_weights, int16_t* ptr_int_weights,
-    gna_compound_bias_t* ptr_int_biases, const bool quantized_weights) {
+template <>
+void QuantizeWeights<int16_t>(const QuantizationData& data,
+                              float* ptr_float_weights,
+                              int16_t* ptr_int_weights,
+                              gna_compound_bias_t* ptr_int_biases,
+                              const bool quantized_weights) {
     if (quantized_weights) {
         THROW_GNA_EXCEPTION << "Quantized weights are not yet supported in int16 quantization mode";
     }
@@ -187,50 +199,34 @@ void QuantizeWeights<int16_t>(const QuantizationData& data, float* ptr_float_wei
             float rounding_value = (ptr_float_weights[row * data.num_columns + col] > 0) ? 0.5f : -0.5f;
             float value = ptr_float_weights[row * data.num_columns + col];
             if (min_values_size > 0) {
-                auto x = value;
-                if (x <= std::min(input_low, input_high)) {
-                    value = output_low;
-                } else if (x > std::max(input_low, input_high)) {
-                    value = output_high;
-                } else {
-                    value = nearbyint((x - input_low) / (input_high - input_low) * (levels - 1)) /
-                        (levels - 1) * (output_high - output_low) + output_low;
-                }
+                value = ApplyFQ(value, input_low, input_high, output_low, output_high, levels);
             }
 
             value = value * data.scale_factor + rounding_value;
 
             int16_t* ptr_weight_16 = ptr_int_weights + (row * data.num_columns + col);
 
-            if (value > std::numeric_limits<int16_t>::max()) {
-                *ptr_weight_16 = std::numeric_limits<int16_t>::max();
-                num_saturate++;
-            } else if (value < std::numeric_limits<int16_t>::min()) {
-                *ptr_weight_16 = std::numeric_limits<int16_t>::min();
-                num_saturate++;
-            } else {
-                *ptr_weight_16 = (int16_t)value;
-            }
+            *ptr_weight_16 = SaturationCast<int16_t>(value, &num_saturate);
         }
     }
 
     if (num_saturate > 0) {
-        gnalog() << "Warning: " << num_saturate << " / " << (data.num_rows * data.num_columns)
-                 << " saturations in int16 weights quantization." << std::endl;
+        log::warning() << num_saturate << " / " << (data.num_rows * data.num_columns)
+                       << " saturations in int16 weights quantization." << std::endl;
     }
 }
 
-template<>
+template <>
 void QuantizeBiases<int8_t>(const QuantizationData& data, float* ptr_float_biases, int8_t* ptr_int_biases) {
     // Stub
 }
 
-template<>
+template <>
 void QuantizeBiases<int16_t>(const QuantizationData& data, float* ptr_float_biases, int16_t* ptr_int_biases) {
     // Stub
 }
 
-template<>
+template <>
 void QuantizeBiases<int32_t>(const QuantizationData& data, float* ptr_float_biases, int32_t* ptr_int_biases) {
     uint32_t num_saturate = 0;
 
@@ -239,45 +235,37 @@ void QuantizeBiases<int32_t>(const QuantizationData& data, float* ptr_float_bias
         for (size_t row = 0; row < data.num_rows; row++) {
             float rounding_value = (ptr_float_biases[row] > 0) ? 0.5f : -0.5f;
             float value = ptr_float_biases[row] * data.scale_factor + rounding_value;
-            if (value > std::numeric_limits<int32_t>::max()) {
-                ptr_int_biases[row] = std::numeric_limits<int32_t>::max();
-                num_saturate++;
-            } else if (value < std::numeric_limits<int32_t>::min()) {
-                ptr_int_biases[row] = std::numeric_limits<int32_t>::min();
-                num_saturate++;
-            } else {
-                ptr_int_biases[row] = static_cast<int32_t>(value);
-            }
+
+            ptr_int_biases[row] = SaturationCast<int32_t>(value, &num_saturate);
         }
     }
 
     if (num_saturate > 0) {
-        gnalog() << "Warning: " << num_saturate << " / " << data.num_rows
-                 << " saturations in int32 biases quantization." << std::endl;
+        log::warning() << num_saturate << " / " << data.num_rows << " saturations in int32 biases quantization."
+                       << std::endl;
     }
 }
 
-template<>
-void QuantizeBiases<gna_compound_bias_t>(const QuantizationData& data, float* ptr_float_biases, gna_compound_bias_t* ptr_int_biases) {
+template <>
+void QuantizeBiases<gna_compound_bias_t>(const QuantizationData& data,
+                                         float* ptr_float_biases,
+                                         gna_compound_bias_t* ptr_int_biases) {
     uint32_t num_saturate = 0;
 
     if (ptr_float_biases != nullptr) {
         for (size_t row = 0; row < data.num_rows; row++) {
             float rounding_value = (ptr_float_biases[row] > 0) ? 0.5f : -0.5f;
             float value = ptr_float_biases[row] * data.scale_factor + rounding_value;
-            if (value > std::numeric_limits<int32_t>::max()) {
-                ptr_int_biases[row].bias = std::numeric_limits<int32_t>::max();
-                num_saturate++;
-            } else if (value < std::numeric_limits<int32_t>::min()) {
-                ptr_int_biases[row].bias = std::numeric_limits<int32_t>::min();
-                num_saturate++;
-            } else {
-                ptr_int_biases[row].bias = static_cast<int32_t>(value);
-            }
+
+            ptr_int_biases[row].bias = SaturationCast<int32_t>(value, &num_saturate);
         }
     }
     if (num_saturate > 0) {
-        gnalog() << "Warning: " << num_saturate << " / " << data.num_rows
-                 << " saturations in compound biases quantization." << std::endl;
+        log::warning() << num_saturate << " / " << data.num_rows << " saturations in compound biases quantization."
+                       << std::endl;
     }
 }
+
+}  // namespace frontend
+}  // namespace intel_gna
+}  // namespace ov

@@ -1,19 +1,19 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertNmsGatherPathToUnsigned;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -25,7 +25,7 @@ class TRANSFORMATIONS_API ConvertNmsGatherPathToUnsigned;
  * Gather-8 will accept UINT32_MAX which is always outside of the bounds
  * and corresponding output for such indices in gather always will be filled with zeros.
  */
-class ngraph::pass::ConvertNmsGatherPathToUnsigned : public ngraph::pass::GraphRewrite {
+class ov::pass::ConvertNmsGatherPathToUnsigned : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("ConvertNmsGatherPathToUnsigned", "0");
     ConvertNmsGatherPathToUnsigned();

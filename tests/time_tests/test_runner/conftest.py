@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 """
@@ -32,7 +32,7 @@ sys.path.insert(0, str(UTILS_DIR))
 
 from path_utils import check_positive_int
 from platform_utils import get_os_name, get_os_version, get_cpu_info
-from utils import upload_data, metadata_from_manifest, DB_COLLECTIONS
+from utils import upload_data, metadata_from_manifest, push_to_db_facade, modify_data_for_push_to_new_db, DB_COLLECTIONS
 
 # -------------------- CLI options --------------------
 
@@ -98,6 +98,12 @@ def pytest_addoption(parser):
         type=Path,
         required=is_db_used,
         help='Path to build manifest to extract commit information'
+    )
+    db_args_parser.addoption(
+        '--db_api_handler',
+        type=str,
+        help='API handler url for push data to database',
+        default=''
     )
 
 
@@ -413,3 +419,9 @@ def pytest_runtest_makereport(item, call):
         logging.info(f"Upload data to {db_url}/{'timetests'}.{db_collection}. "
                      f"Data: {data}")
         upload_data(data, db_url, 'timetests', db_collection)
+
+        db_api_handler = item.config.getoption("db_api_handler")
+        if db_api_handler and call.when == "call":
+            new_format_records = modify_data_for_push_to_new_db(data)
+            new_format_records['data'][0]["log"] = item._request.test_info["logs"]
+            push_to_db_facade(new_format_records, db_api_handler)

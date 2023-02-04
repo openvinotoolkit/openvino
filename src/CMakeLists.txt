@@ -1,8 +1,8 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+add_definitions(-DPROJECT_ROOT_DIR="${OpenVINO_SOURCE_DIR}")
 
 include(cmake/install_tbb.cmake)
 
@@ -29,6 +29,5 @@ add_subdirectory(common/preprocessing)
 add_subdirectory(bindings)
 
 if(ENABLE_TESTS)
-    add_subdirectory(tests_deprecated)
     add_subdirectory(tests)
 endif()

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,7 @@ public:
 
     static void ValidateBlobs(const ov::Tensor& refBlob,
                               const ov::Tensor& outBlob,
+                              const size_t blob_idx,
                               float threshold,
                               float abs_threshold,
                               size_t actual_comparision_size = 0);

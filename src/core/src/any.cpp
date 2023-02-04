@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,7 +63,8 @@ void Any::Base::read_to(Base& other) const {
     if (other.is<std::string>()) {
         *static_cast<std::string*>(other.addressof()) = strm.str();
     } else {
-        other.read(strm);
+        if (!strm.str().empty())
+            other.read(strm);
     }
 }
 

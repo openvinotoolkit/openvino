@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ namespace node {
 
 class Deconvolution : public Node {
 public:
-    Deconvolution(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    Deconvolution(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
@@ -49,9 +49,10 @@ public:
     void execute(dnnl::stream strm) override;
     void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
     bool needShapeInfer() const override;
-    std::vector<VectorDims> shapeInfer() const override;
 
     void setDynamicBatchLim(int lim) override;
+    bool canBeExecutedInInt8() const;
+    bool canFuseBias() const;
 
 protected:
     AttrPtr initPrimitiveAttr() override;
@@ -96,10 +97,13 @@ private:
     ov::CoordinateDiff outputPadding;
     std::vector<int32_t> lastOutputSpatialDims;
     VectorDims int8WeightDims;
+    VectorDims biasesDims;
 
     Shape inShape;
 
     AttrPtr pAttr;
+
+    dnnl::memory::data_type outputDataType;
 
     std::shared_ptr<dnnl::primitive_attr> attr;
     void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims);
@@ -108,10 +112,11 @@ private:
     void initPaddingR(const Shape &inShape, const Shape &outShape);
     std::vector<int32_t> readOutputSpatialDims() const;
     std::pair<VectorDims, VectorDims> makeDummyInOutShape();
+    bool withBiases = false;
+    size_t biasPort;
 
     std::string errorPrefix;
 
-    bool canBeExecutedInInt8() const;
     InferenceEngine::Blob::Ptr createWeiBlobAsIO(InferenceEngine::SizeVector dims);
 };
 

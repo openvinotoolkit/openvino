@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include "common_test_utils/file_utils.hpp"
-#include "common_test_utils/file_utils.hpp"
+#include <list>
 
 namespace ov {
 namespace test {
@@ -15,6 +15,7 @@ extern const char *targetPluginName;
 
 extern std::vector<std::string> IRFolderPaths;
 extern std::vector<std::string> disabledTests;
+extern std::list<std::string> dirList;
 
 extern ov::AnyMap pluginConfig;
 
@@ -44,18 +45,46 @@ inline ov::AnyMap readPluginConfig(const std::string &configFilePath) {
     return config;
 }
 
-inline std::vector<std::string> getModelPaths(const std::vector<std::string>& conformance_ir_paths) {
-    std::vector<std::string> result;
-    for (const auto& conformance_ir_path : conformance_ir_paths) {
-        std::vector<std::string> tmp_buf;
-        if (CommonTestUtils::directoryExists(conformance_ir_path)) {
-            tmp_buf = CommonTestUtils::getFileListByPatternRecursive({conformance_ir_path}, {std::regex(R"(.*\.xml)")});
-        } else if (CommonTestUtils::fileExists(conformance_ir_path)) {
-            tmp_buf = CommonTestUtils::readListFiles({conformance_ir_path});
-        } else {
-            continue;
+inline std::vector<std::string> getModelPaths(const std::vector<std::string>& conformance_ir_paths,
+                                              const std::string opName = "Other") {
+    // This is required to prevent re-scan folders each call in case there is nothing found
+    static bool listPrepared = false;
+    if (!listPrepared) {
+        // Looking for any applicable files in a folders
+        for (const auto& conformance_ir_path : conformance_ir_paths) {
+            std::vector<std::string> tmp_buf;
+            if (CommonTestUtils::directoryExists(conformance_ir_path)) {
+                tmp_buf =
+                    CommonTestUtils::getFileListByPatternRecursive({conformance_ir_path}, {std::regex(R"(.*\.xml)")});
+            } else if (CommonTestUtils::fileExists(conformance_ir_path)) {
+                tmp_buf = CommonTestUtils::readListFiles({conformance_ir_path});
+            } else {
+                continue;
+            }
+            //Save it in a list
+            dirList.insert(dirList.end(), tmp_buf.begin(), tmp_buf.end());
         }
-        result.insert(result.end(), tmp_buf.begin(), tmp_buf.end());
+        listPrepared = true;
+    }
+
+    std::vector<std::string> result;
+    if (!opName.empty() && opName != "Other") {
+        std::string strToFind = CommonTestUtils::FileSeparator + opName + CommonTestUtils::FileSeparator;
+        auto it = dirList.begin();
+        while (it != dirList.end()) {
+            if (it->find(strToFind) != std::string::npos) {
+                result.push_back(*it);
+                it = dirList.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    } else if (opName == "Other") {
+        // For "Undefined" operation name - run all applicable files in "Undefined" handler
+        result.insert(result.end(), dirList.begin(), dirList.end());
+    } else {
+        std::string message = "Operatiion name: " + opName + " is incorrect. Please check the instantiation parameters!";
+        throw std::runtime_error(message);
     }
     return result;
 }

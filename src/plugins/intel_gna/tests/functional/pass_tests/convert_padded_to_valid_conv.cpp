@@ -1,21 +1,21 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include "common_test_utils/test_common.hpp"
-#include <string>
-#include <sstream>
 #include <fstream>
+#include <map>
 #include <memory>
 #include <queue>
-#include <map>
+#include <sstream>
+#include <string>
 
-#include "transformations/init_node_info.hpp"
+#include "../shared_tests_instances/skip_tests_check.hpp"
+#include "common_test_utils/test_common.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "../shared_tests_instances/skip_tests_check.hpp"
+#include "transformations/init_node_info.hpp"
 
 using namespace ngraph;
 using namespace ngraph::opset7;
@@ -23,45 +23,49 @@ using namespace ngraph::opset7;
 namespace LayerTestsDefinitions {
 
 enum class modelType {
-    TranspConvTransp = 0,               /* Transpose(NHWC->NCHW) => Conv => Transpose(NCHW->NHWC) */
-    TranspConvBcastAddTransp,           /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => Transpose(NCHW->NHWC) */
-    TranspConvActTransp,                /* Transpose(NHWC->NCHW) => Conv => Activation Function => Transpose(NCHW->NHWC) */
-    TranspConvBcastAddMaxPoolTransp,    /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => MaxPooling => Transpose(NCHW->NHWC) (2D Max Pool case) */
-    TranspConvBcastAddActTransp,        /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => Activation Function => Transpose(NCHW->NHWC) */
-    TranspConvBcastAddMaxPoolActTransp, /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => MaxPool => Activation Function => Transpose(NCHW->NHWC) */
+    TranspConvTransp = 0,     /* Transpose(NHWC->NCHW) => Conv => Transpose(NCHW->NHWC) */
+    TranspConvBcastAddTransp, /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => Transpose(NCHW->NHWC) */
+    TranspConvActTransp,      /* Transpose(NHWC->NCHW) => Conv => Activation Function => Transpose(NCHW->NHWC) */
+    TranspConvBcastAddMaxPoolTransp, /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => MaxPooling =>
+                                        Transpose(NCHW->NHWC) (2D Max Pool case) */
+    TranspConvBcastAddActTransp, /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => Activation Function =>
+                                    Transpose(NCHW->NHWC) */
+    TranspConvBcastAddMaxPoolActTransp, /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => MaxPool =>
+                                           Activation Function => Transpose(NCHW->NHWC) */
     TranspConvTranspBcastAdd,           /* Transpose(NHWC->NCHW) => Conv => Transpose(NCHW->NHWC) => Bias */
-    TranspConvTranspBcastAddAct         /* Transpose(NHWC->NCHW) => Conv => Transpose(NCHW->NHWC) => Bias => Activation Function */
+    TranspConvTranspBcastAddAct /* Transpose(NHWC->NCHW) => Conv => Transpose(NCHW->NHWC) => Bias => Activation Function
+                                 */
 };
 
-typedef std::tuple<
-    InferenceEngine::SizeVector,    // Kernel size
-    InferenceEngine::SizeVector,    // Strides
-    std::vector<ptrdiff_t>,         // Pad begin
-    std::vector<ptrdiff_t>,         // Pad end
-    InferenceEngine::SizeVector,    // Dilation
-    size_t,                         // Num out channels
-    op::PadType                     // Padding type
-> convSpecificParams;
+typedef std::tuple<InferenceEngine::SizeVector,  // Kernel size
+                   InferenceEngine::SizeVector,  // Strides
+                   std::vector<ptrdiff_t>,       // Pad begin
+                   std::vector<ptrdiff_t>,       // Pad end
+                   InferenceEngine::SizeVector,  // Dilation
+                   size_t,                       // Num out channels
+                   op::PadType                   // Padding type
+                   >
+    convSpecificParams;
 
-typedef std::tuple<
-    InferenceEngine::SizeVector,    // Bias
-    InferenceEngine::SizeVector,    // Transposed Bias
-    InferenceEngine::SizeVector,    // Maxpool pool
-    InferenceEngine::SizeVector     // Maxpool strides
-> miscSpecificParams;
+typedef std::tuple<InferenceEngine::SizeVector,  // Bias
+                   InferenceEngine::SizeVector,  // Transposed Bias
+                   InferenceEngine::SizeVector,  // Maxpool pool
+                   InferenceEngine::SizeVector   // Maxpool strides
+                   >
+    miscSpecificParams;
 
-typedef std::tuple<
-    convSpecificParams,                 // Convolution parameters
-    miscSpecificParams,                 // Bias & Maxpool parameters
-    InferenceEngine::Precision,         // Network Precision
-    std::string,                        // Target Device
-    std::map<std::string, std::string>, // Configuration
-    InferenceEngine::SizeVector,        // Input shapes
-    modelType                           // Test model
-> paddedToValidParams;
+typedef std::tuple<convSpecificParams,                  // Convolution parameters
+                   miscSpecificParams,                  // Bias & Maxpool parameters
+                   InferenceEngine::Precision,          // Network Precision
+                   std::string,                         // Target Device
+                   std::map<std::string, std::string>,  // Configuration
+                   InferenceEngine::SizeVector,         // Input shapes
+                   modelType                            // Test model
+                   >
+    paddedToValidParams;
 
 class PaddedToValidConvTest : public testing::WithParamInterface<paddedToValidParams>,
-    virtual public LayerTestsUtils::LayerTestsCommon {
+                              virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<paddedToValidParams> obj) {
         convSpecificParams convParams;
@@ -102,6 +106,8 @@ public:
     }
 
 protected:
+    GnaLayerTestCheck gnaVersionCheck;
+
     void SetUp() override {
         threshold = 0.015f;
         convSpecificParams convParams;
@@ -109,7 +115,8 @@ protected:
         InferenceEngine::Precision netPrecision;
         std::vector<size_t> inputShape;
         modelType model;
-        std::tie(convParams, miscParams, netPrecision, targetDevice, configuration, inputShape, model) = this->GetParam();
+        std::tie(convParams, miscParams, netPrecision, targetDevice, configuration, inputShape, model) =
+            this->GetParam();
         op::PadType padType;
         InferenceEngine::SizeVector kernel, stride, dilation, bias, transpBias, maxpoolPool, maxpoolStride;
         std::vector<ptrdiff_t> padBegin, padEnd;
@@ -127,71 +134,77 @@ protected:
         auto transposeInOrder = op::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
         auto transposeIn = std::make_shared<Transpose>(input[0], transposeInOrder);
         auto filterSize = std::accumulate(std::begin(kernel), std::end(kernel), 1ull, std::multiplies<size_t>());
-        auto filterWeights = CommonTestUtils::generate_float_numbers(numOutChannels * inputShape[3] * filterSize, -0.05f, 0.05f);
-        auto conv = builder::makeConvolution(transposeIn, ngPrc, kernel, stride, padBegin,
-            padEnd, dilation, padType, numOutChannels, false, filterWeights);
+        auto filterWeights =
+            CommonTestUtils::generate_float_numbers(numOutChannels * inputShape[3] * filterSize, -0.05f, 0.05f);
+        auto conv = builder::makeConvolution(transposeIn,
+                                             ngPrc,
+                                             kernel,
+                                             stride,
+                                             padBegin,
+                                             padEnd,
+                                             dilation,
+                                             padType,
+                                             numOutChannels,
+                                             false,
+                                             filterWeights);
         auto transposeOutOrder = op::Constant::create(element::i64, Shape{4}, {0, 2, 3, 1});
         auto biasWeights = CommonTestUtils::generate_float_numbers(shape_size(biasShape), -1.5f, 1.5f);
         Output<Node> biasConst = std::make_shared<Constant>(ngPrc, biasShape, biasWeights);
         Output<Node> lastOp = std::make_shared<Transpose>(conv, transposeOutOrder);
 
         switch (model) {
-        case modelType::TranspConvBcastAddTransp:
-        {
+        case modelType::TranspConvBcastAddTransp: {
             auto bias = std::make_shared<Add>(conv, biasConst);
             lastOp = std::make_shared<Transpose>(bias, transposeOutOrder);
-        }
-        break;
+        } break;
 
-        case modelType::TranspConvActTransp:
-        {
+        case modelType::TranspConvActTransp: {
             auto activation = std::make_shared<Relu>(conv);
             lastOp = std::make_shared<Transpose>(activation, transposeOutOrder);
-        }
-        break;
+        } break;
 
-        case modelType::TranspConvBcastAddMaxPoolTransp:
-        {
+        case modelType::TranspConvBcastAddMaxPoolTransp: {
             auto bcastAdd = std::make_shared<Add>(conv, biasConst);
-            auto maxpool = std::make_shared<MaxPool>(bcastAdd, maxpoolStrides, Shape{0, 0}, Shape{0, 0}, maxpoolShape,
-                op::RoundingType::FLOOR, op::PadType::VALID);
+            auto maxpool = std::make_shared<MaxPool>(bcastAdd,
+                                                     maxpoolStrides,
+                                                     Shape{0, 0},
+                                                     Shape{0, 0},
+                                                     maxpoolShape,
+                                                     op::RoundingType::FLOOR,
+                                                     op::PadType::VALID);
             auto transpose = std::make_shared<Transpose>(maxpool, transposeOutOrder);
             auto lastOp = std::make_shared<Relu>(transpose);
-        }
-        break;
+        } break;
 
-        case modelType::TranspConvBcastAddActTransp:
-        {
+        case modelType::TranspConvBcastAddActTransp: {
             auto bcastAdd = std::make_shared<Add>(conv, biasConst);
             auto activation = std::make_shared<Relu>(bcastAdd);
             lastOp = std::make_shared<Transpose>(activation, transposeOutOrder);
-        }
-        break;
+        } break;
 
-        case modelType::TranspConvBcastAddMaxPoolActTransp:
-        {
+        case modelType::TranspConvBcastAddMaxPoolActTransp: {
             auto bcastAdd = std::make_shared<Add>(conv, biasConst);
-            auto maxpool = std::make_shared<MaxPool>(bcastAdd, maxpoolStrides, Shape{0, 0}, Shape{0, 0}, maxpoolShape,
-                op::RoundingType::FLOOR, op::PadType::VALID);
+            auto maxpool = std::make_shared<MaxPool>(bcastAdd,
+                                                     maxpoolStrides,
+                                                     Shape{0, 0},
+                                                     Shape{0, 0},
+                                                     maxpoolShape,
+                                                     op::RoundingType::FLOOR,
+                                                     op::PadType::VALID);
             auto activation = std::make_shared<Relu>(maxpool);
             lastOp = std::make_shared<Transpose>(activation, transposeOutOrder);
-        }
-        break;
+        } break;
 
-        case modelType::TranspConvTranspBcastAdd:
-        {
+        case modelType::TranspConvTranspBcastAdd: {
             biasConst = std::make_shared<Constant>(ngPrc, transpBiasShape);
             lastOp = std::make_shared<Add>(lastOp, biasConst);
-        }
-        break;
+        } break;
 
-        case modelType::TranspConvTranspBcastAddAct:
-        {
+        case modelType::TranspConvTranspBcastAddAct: {
             biasConst = builder::makeConstant(ngPrc, transpBiasShape, biasWeights, true);
             auto bcastAdd = std::make_shared<Add>(lastOp, biasConst);
             lastOp = std::make_shared<Relu>(bcastAdd);
-        }
-        break;
+        } break;
 
         case modelType::TranspConvTransp:
         default:
@@ -200,168 +213,146 @@ protected:
 
         auto result = std::make_shared<Result>(lastOp);
         function = std::make_shared<Function>(ResultVector{result}, ParameterVector{input});
+        gnaVersionCheck.SetUp(targetDevice);
     }
 };
 
-class Gna30PaddedToValidConvTest : public PaddedToValidConvTest, GnaLayerTestCheck {
-protected:
-    void Run() override {
-        GnaLayerTestCheck::SkipTestCheck();
-
-        if (!GnaLayerTestCheck::skipTest) {
-            PaddedToValidConvTest::Run();
-        }
-    }
-
-    void SetUp() override {
-        PaddedToValidConvTest::SetUp();
-    }
-};
+using Gna35PaddedToValidConvTest = PaddedToValidConvTest;
 
 TEST_P(PaddedToValidConvTest, CompareWithRefs) {
     Run();
 }
 
-TEST_P(Gna30PaddedToValidConvTest, CompareWithRefs) {
+TEST_P(Gna35PaddedToValidConvTest, CompareWithRefs) {
+    if (gnaVersionCheck.gnaLibVersionLessThan("3.5")) {
+        GTEST_SKIP() << gnaVersionCheck.getLastCmpResultMsg() << std::endl;
+        return;
+    }
     Run();
 }
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32,
-    InferenceEngine::Precision::FP16
-};
+const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
+                                                               InferenceEngine::Precision::FP16};
 
 const std::vector<std::map<std::string, std::string>> configs1D = {
-    {
-        {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-        {"GNA_SCALE_FACTOR_0", "1"},
-        {"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}
-    }
-};
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "1"}, {"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "1"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}}};
 
-const std::vector<std::map<std::string, std::string>> configs1D_Gna30 = {
-    {
-        {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-        {"GNA_SCALE_FACTOR_0", "1"},
-        {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}
-    }
-};
+const std::vector<std::map<std::string, std::string>> configs1D_Gna35 = {
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "1"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}}};
 
 const std::vector<std::map<std::string, std::string>> configs2D = {
-    {
-        {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-        {"GNA_SCALE_FACTOR_0", "1"},
-        {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}
-    }
-};
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "1"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}}};
 
-const std::vector<op::PadType> padTypes = {
-        op::PadType::VALID,
-        op::PadType::EXPLICIT,
-        op::PadType::SAME_LOWER,
-        op::PadType::SAME_UPPER
-};
+const std::vector<std::map<std::string, std::string>> configs2D_Gna35 = {
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "1"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}}};
 
-const std::vector<modelType> models = {
-    modelType::TranspConvTransp,
-    modelType::TranspConvBcastAddTransp,
-    modelType::TranspConvActTransp,
-    modelType::TranspConvBcastAddActTransp,
-    modelType::TranspConvTranspBcastAdd,
-    modelType::TranspConvTranspBcastAddAct,
-    modelType::TranspConvBcastAddMaxPoolTransp,
-    modelType::TranspConvBcastAddMaxPoolActTransp
-};
+const std::vector<op::PadType> padTypes = {op::PadType::VALID,
+                                           op::PadType::EXPLICIT,
+                                           op::PadType::SAME_LOWER,
+                                           op::PadType::SAME_UPPER};
+
+const std::vector<modelType> models = {modelType::TranspConvTransp,
+                                       modelType::TranspConvBcastAddTransp,
+                                       modelType::TranspConvActTransp,
+                                       modelType::TranspConvBcastAddActTransp,
+                                       modelType::TranspConvTranspBcastAdd,
+                                       modelType::TranspConvTranspBcastAddAct,
+                                       modelType::TranspConvBcastAddMaxPoolTransp,
+                                       modelType::TranspConvBcastAddMaxPoolActTransp};
 
 const std::vector<std::vector<size_t>> input1DNHWC = {{1, 1, 16, 8}};
-const std::vector<std::vector<size_t >> kernels1D = {{1, 2}, {1, 3}, {1, 4}};
-const std::vector<std::vector<size_t >> strides1D = {{1, 1}};
+const std::vector<std::vector<size_t>> kernels1D = {{1, 2}, {1, 3}, {1, 4}};
+const std::vector<std::vector<size_t>> strides1D = {{1, 1}};
 const std::vector<std::vector<ptrdiff_t>> padBegins1D = {{0, 2}};
 const std::vector<std::vector<ptrdiff_t>> padEnds1D = {{0, 3}};
-const std::vector<std::vector<size_t >> dilations1D = {{1, 1}};
+const std::vector<std::vector<size_t>> dilations1D = {{1, 1}};
 const std::vector<size_t> numOutChannels1D = {4};
-const std::vector<std::vector<size_t >> biases1D = {{1, 4, 1, 1}};
-const std::vector<std::vector<size_t >> transpBiases1D = {{1, 1, 1, 4}};
-const std::vector<std::vector<size_t >> maxpool1DPools = {{1, 2}};
-const std::vector<std::vector<size_t >> maxpool1DStrides = {{1, 1}};
+const std::vector<std::vector<size_t>> biases1D = {{1, 4, 1, 1}};
+const std::vector<std::vector<size_t>> transpBiases1D = {{1, 1, 1, 4}};
+const std::vector<std::vector<size_t>> maxpool1DPools = {{1, 2}};
+const std::vector<std::vector<size_t>> maxpool1DStrides = {{1, 1}};
 
 const std::vector<std::vector<size_t>> input2DNHWC = {{1, 16, 16, 32}};
-const std::vector<std::vector<size_t >> kernels2D = {{2, 2}, {4, 1}};
-const std::vector<std::vector<size_t >> strides2D = {{1, 1}, {2, 1}};
+const std::vector<std::vector<size_t>> kernels2D = {{2, 2}, {4, 1}};
+const std::vector<std::vector<size_t>> strides2D = {{1, 1}, {2, 1}};
 const std::vector<std::vector<ptrdiff_t>> padBegins2D = {{1, 2}};
 const std::vector<std::vector<ptrdiff_t>> padEnds2D = {{3, 1}};
-const std::vector<std::vector<size_t >> dilations2D = {{1, 1}};
+const std::vector<std::vector<size_t>> dilations2D = {{1, 1}};
 const std::vector<size_t> numOutChannels2D = {8};
-const std::vector<std::vector<size_t >> biases2D = {{1, 8, 1, 1}};
-const std::vector<std::vector<size_t >> transpBiases2D = {{1, 1, 1, 8}};
-const std::vector<std::vector<size_t >> maxpool2DPools = {{2, 2}};
-const std::vector<std::vector<size_t >> maxpool2DStrides = {{2, 1}};
+const std::vector<std::vector<size_t>> biases2D = {{1, 8, 1, 1}};
+const std::vector<std::vector<size_t>> transpBiases2D = {{1, 1, 1, 8}};
+const std::vector<std::vector<size_t>> maxpool2DPools = {{2, 2}};
+const std::vector<std::vector<size_t>> maxpool2DStrides = {{2, 1}};
 
-const auto conv1DParams = ::testing::Combine(
-    ::testing::ValuesIn(kernels1D),
-    ::testing::ValuesIn(strides1D),
-    ::testing::ValuesIn(padBegins1D),
-    ::testing::ValuesIn(padEnds1D),
-    ::testing::ValuesIn(dilations1D),
-    ::testing::ValuesIn(numOutChannels1D),
-    ::testing::ValuesIn(padTypes)
-);
+const auto conv1DParams = ::testing::Combine(::testing::ValuesIn(kernels1D),
+                                             ::testing::ValuesIn(strides1D),
+                                             ::testing::ValuesIn(padBegins1D),
+                                             ::testing::ValuesIn(padEnds1D),
+                                             ::testing::ValuesIn(dilations1D),
+                                             ::testing::ValuesIn(numOutChannels1D),
+                                             ::testing::ValuesIn(padTypes));
 
-const auto misc1DParams = ::testing::Combine(
-    ::testing::ValuesIn(biases1D),
-    ::testing::ValuesIn(transpBiases1D),
-    ::testing::ValuesIn(maxpool1DPools),
-    ::testing::ValuesIn(maxpool1DStrides)
-);
+const auto misc1DParams = ::testing::Combine(::testing::ValuesIn(biases1D),
+                                             ::testing::ValuesIn(transpBiases1D),
+                                             ::testing::ValuesIn(maxpool1DPools),
+                                             ::testing::ValuesIn(maxpool1DStrides));
 
-const auto conv2DParams = ::testing::Combine(
-    ::testing::ValuesIn(kernels2D),
-    ::testing::ValuesIn(strides2D),
-    ::testing::ValuesIn(padBegins2D),
-    ::testing::ValuesIn(padEnds2D),
-    ::testing::ValuesIn(dilations2D),
-    ::testing::ValuesIn(numOutChannels2D),
-    ::testing::ValuesIn(padTypes)
-);
+const auto conv2DParams = ::testing::Combine(::testing::ValuesIn(kernels2D),
+                                             ::testing::ValuesIn(strides2D),
+                                             ::testing::ValuesIn(padBegins2D),
+                                             ::testing::ValuesIn(padEnds2D),
+                                             ::testing::ValuesIn(dilations2D),
+                                             ::testing::ValuesIn(numOutChannels2D),
+                                             ::testing::ValuesIn(padTypes));
 
-const auto misc2DParams = ::testing::Combine(
-    ::testing::ValuesIn(biases2D),
-    ::testing::ValuesIn(transpBiases2D),
-    ::testing::ValuesIn(maxpool2DPools),
-    ::testing::ValuesIn(maxpool2DStrides)
-);
+const auto misc2DParams = ::testing::Combine(::testing::ValuesIn(biases2D),
+                                             ::testing::ValuesIn(transpBiases2D),
+                                             ::testing::ValuesIn(maxpool2DPools),
+                                             ::testing::ValuesIn(maxpool2DStrides));
 
-INSTANTIATE_TEST_SUITE_P(smoke_1DPaddedToValid, PaddedToValidConvTest,
-    ::testing::Combine(
-        conv1DParams,
-        misc1DParams,
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GNA),
-        ::testing::ValuesIn(configs1D),
-        ::testing::ValuesIn(input1DNHWC),
-        ::testing::ValuesIn(models)),
-    PaddedToValidConvTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_1DPaddedToValid,
+                         PaddedToValidConvTest,
+                         ::testing::Combine(conv1DParams,
+                                            misc1DParams,
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::ValuesIn(configs1D),
+                                            ::testing::ValuesIn(input1DNHWC),
+                                            ::testing::ValuesIn(models)),
+                         PaddedToValidConvTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_1DPaddedToValid, Gna30PaddedToValidConvTest,
-    ::testing::Combine(
-        conv1DParams,
-        misc1DParams,
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GNA),
-        ::testing::ValuesIn(configs1D_Gna30),
-        ::testing::ValuesIn(input1DNHWC),
-        ::testing::ValuesIn(models)),
-    Gna30PaddedToValidConvTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_1DPaddedToValid,
+                         Gna35PaddedToValidConvTest,
+                         ::testing::Combine(conv1DParams,
+                                            misc1DParams,
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::ValuesIn(configs1D_Gna35),
+                                            ::testing::ValuesIn(input1DNHWC),
+                                            ::testing::ValuesIn(models)),
+                         Gna35PaddedToValidConvTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_2DPaddedToValid, Gna30PaddedToValidConvTest,
-    ::testing::Combine(
-        conv2DParams,
-        misc2DParams,
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GNA),
-        ::testing::ValuesIn(configs2D),
-        ::testing::ValuesIn(input2DNHWC),
-        ::testing::ValuesIn(models)),
-    Gna30PaddedToValidConvTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_2DPaddedToValid,
+                         PaddedToValidConvTest,
+                         ::testing::Combine(conv2DParams,
+                                            misc2DParams,
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::ValuesIn(configs2D_Gna35),
+                                            ::testing::ValuesIn(input2DNHWC),
+                                            ::testing::ValuesIn(models)),
+                         PaddedToValidConvTest::getTestCaseName);
 
-} // namespace LayerTestsDefinitions
+INSTANTIATE_TEST_SUITE_P(smoke_2DPaddedToValid,
+                         Gna35PaddedToValidConvTest,
+                         ::testing::Combine(conv2DParams,
+                                            misc2DParams,
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::ValuesIn(configs2D_Gna35),
+                                            ::testing::ValuesIn(input2DNHWC),
+                                            ::testing::ValuesIn(models)),
+                         Gna35PaddedToValidConvTest::getTestCaseName);
+
+}  // namespace LayerTestsDefinitions

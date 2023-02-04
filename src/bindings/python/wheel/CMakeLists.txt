@@ -1,10 +1,8 @@
-﻿# Copyright (C) 2018-2022 Intel Corporation
+﻿# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-#
-# Common vars used by setup.py
-#
+# define version (syncronize with tools/openvino_dev/CMakeLists.txt)
 
 if(DEFINED ENV{CI_BUILD_DEV_TAG} AND NOT "$ENV{CI_BUILD_DEV_TAG}" STREQUAL "")
     set(WHEEL_VERSION "${OpenVINO_VERSION}.$ENV{CI_BUILD_DEV_TAG}" CACHE STRING "Version of this release" FORCE)
@@ -13,6 +11,11 @@ else()
     set(WHEEL_VERSION ${OpenVINO_VERSION} CACHE STRING "Version of this release" FORCE)
 endif()
 set(WHEEL_BUILD "${OpenVINO_VERSION_BUILD}" CACHE STRING "Build number of this release" FORCE)
+
+
+#
+# Common vars used by setup.py
+#
 
 set(PY_PACKAGES_DIR ${OV_CPACK_PYTHONDIR})
 set(TBB_LIBS_DIR runtime/3rdparty/tbb/lib)
@@ -59,7 +62,7 @@ execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.vendored.packaging
                 OUTPUT_VARIABLE PYTHON_TAG OUTPUT_STRIP_TRAILING_WHITESPACE)
 execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.bdist_wheel ; print(f'{wheel.bdist_wheel.get_abi_tag()}')"
                 OUTPUT_VARIABLE ABI_TAG OUTPUT_STRIP_TRAILING_WHITESPACE)
-execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.vendored.packaging.tags as tags ; print(f'{next(tags._platform_tags())}')"
+execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.vendored.packaging.tags as tags ; print(f'{next(tags.platform_tags())}')"
                 OUTPUT_VARIABLE PLATFORM_TAG OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 # defines wheel architecture part of `PLATFORM_TAG`
@@ -76,6 +79,10 @@ macro(_ov_platform_arch)
         set(_arch "x86_64")
     elseif(X86)
         set(_arch "i686")
+    elseif(RISCV64)
+        set(_arch "riscv64")
+    else()
+        message(FATAL_ERROR "Unknown architecture: ${CMAKE_SYSTEM_PROCESSOR}")
     endif()
 endmacro()
 
@@ -97,23 +104,23 @@ if(APPLE AND DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
 elseif(LINUX)
     _ov_platform_arch()
 
-    execute_process(COMMAND ldd --version
-        OUTPUT_VARIABLE _libc_version
-        OUTPUT_STRIP_TRAILING_WHITESPACE)
+    if(CMAKE_CROSSCOMPILING)
+        # TODO: think which proper tag is needed for arm / aarch64
+        set(PLATFORM_TAG "linux_${_arch}")
+    else()
+        string(REPLACE "." "_" _ov_glibc_version "${OV_GLIBC_VERSION}")
+        set(manylinux "manylinux_${_ov_glibc_version}")
 
-    if(_libc_version MATCHES ".*([0-9]+)\\.([0-9]+).*")
-        set(_libc_major "${CMAKE_MATCH_1}")
-        set(_libc_minor "${CMAKE_MATCH_2}")
-    endif()
-
-    # common pattern manylinux_<libc major>_<libc minor>_<arch>
-    if(_libc_major AND _libc_minor AND _arch)
-        if(CMAKE_CROSSCOMPILING)
-            # TODO: think which proper tag is needed for arm / aarch64
-            set(PLATFORM_TAG "linux_${_arch}")
-        else()
-            set(PLATFORM_TAG "manylinux_${_libc_major}_${_libc_minor}_${_arch}")
+        # convert to well-known formats according to PEP 600
+        if(manylinux STREQUAL "manylinux_2_5")
+            set(manylinux "manylinux1")
+        elseif(manylinux STREQUAL "manylinux_2_12")
+            set(manylinux "manylinux2010")
+        elseif(manylinux STREQUAL "manylinux_2_17")
+            set(manylinux "manylinux2014")
         endif()
+
+        set(PLATFORM_TAG "${manylinux}_${_arch}")
     endif()
 endif()
 

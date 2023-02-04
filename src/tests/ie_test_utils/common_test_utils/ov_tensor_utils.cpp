@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -173,6 +173,49 @@ tensor.get_size(), range, start_from, resolution); break;
     return tensor;
 }
 
+constexpr double eps = std::numeric_limits<double>::epsilon();
+
+inline double less(double a, double b) {
+    return (b - a) > (std::fmax(std::fabs(a), std::fabs(b)) * eps);
+}
+
+inline double less_or_equal(double a, double b) {
+    return (b - a) >= (std::fmax(std::fabs(a), std::fabs(b)) * eps);
+}
+
+struct Error {
+    double max = 0.;
+    double mean = 0.;
+    size_t max_coordinate = 0;
+    size_t count = 0;
+    double threshold;
+
+    Error(double _threshold) : threshold(_threshold) {}
+
+    void update(double val, size_t i) {
+        if (less(max, val)) {
+            max = val;
+            max_coordinate = i;
+        }
+        mean += val;
+        count += less(threshold, val);
+    }
+};
+
+inline double calculate_median(std::vector<double>& abs_values) {
+    double abs_median = 0.;
+    auto expected_shape = abs_values.size();
+    if (expected_shape % 2) {
+        std::nth_element(abs_values.begin(), abs_values.begin() + expected_shape / 2, abs_values.end());
+        abs_median =  abs_values[expected_shape / 2];
+    } else {
+        std::nth_element(abs_values.begin(), abs_values.begin() + expected_shape / 2, abs_values.end());
+        std::nth_element(abs_values.begin(), abs_values.begin() + (expected_shape - 1) / 2, abs_values.end());
+        abs_median = (abs_values[(expected_shape - 1) / 2]  + abs_values[expected_shape / 2]) / 2.0;
+    }
+    return abs_median;
+}
+
 template<typename ExpectedT, typename ActualT>
 void compare(const ov::Tensor& expected,
              const ov::Tensor& actual,
@@ -185,7 +228,6 @@ void compare(const ov::Tensor& expected,
         out_stream << "Expected and actual shape are different: " << expected_shape << " " << actual_shape;
         throw  std::runtime_error(out_stream.str());
     }
-
     if (shape_size(actual_shape) == 0) {
         return;
     }
@@ -194,57 +236,33 @@ void compare(const ov::Tensor& expected,
     auto actual_data = actual.data<ActualT>();
     double abs_threshold = abs_threshold_;
     double rel_threshold = rel_threshold_;
+    size_t shape_size_cnt = shape_size(expected_shape);
     if (abs_threshold == std::numeric_limits<double>::max() && rel_threshold == std::numeric_limits<double>::max()) {
         if (sizeof(ExpectedT) == 1 || sizeof(ActualT) == 1) {
             abs_threshold = 1.;
         } else {
-            std::vector<double> abs_values;
-            abs_values.reserve(shape_size(expected_shape));
-            for (size_t i = 0; i < shape_size(expected_shape); i++) {
-                abs_values.push_back(std::fabs(static_cast<double>(expected_data[i])));
+            std::vector<double> abs_values(shape_size_cnt);
+            for (size_t i = 0; i < shape_size_cnt; i++) {
+                abs_values[i] = std::fabs(static_cast<double>(expected_data[i]));
             }
-            std::sort(abs_values.begin(), abs_values.end());
-            double abs_median;
-            if (abs_values.size() % 2 == 0) {
-                abs_median = abs_values.size() > 2 ?
-                        (abs_values.at(abs_values.size()/2) + abs_values.at(abs_values.size()/2 + 1))/2 : (abs_values.front() + abs_values.back())/2;
-            } else {
-                abs_median = abs_values.at(abs_values.size()/2);
-            }
-            abs_threshold = abs_median == 0.f ? 1e-5 : 0.05 * abs_median;
+            auto abs_median = calculate_median(abs_values);
+            abs_threshold = abs_median * 0.05 < 1e-5 ? 1e-5 : 0.05 * abs_median;
             if (std::is_integral<ExpectedT>::value) {
                 abs_threshold = std::ceil(abs_threshold);
             }
         }
     }
-    if (!std::isnan(abs_threshold) && !std::isnan(rel_threshold)) {
-        std::cout << "abs_threshold: " << abs_threshold << " rel_threshold: " << rel_threshold << std::endl;
+    if (!std::isnan(abs_threshold)) {
+        std::cout << "[ COMPARATION ] rel_threshold: " << rel_threshold << std::endl;
     }
-    struct Error {
-        double max = 0.;
-        double mean = 0.;
-        size_t max_coordinate = 0;
-        size_t count = 0;
-    } abs_error, rel_error;
-    auto less = [] (double a, double b) {
-        auto eps = std::numeric_limits<double>::epsilon();
-        return (b - a) > (std::fmax(std::fabs(a), std::fabs(b)) * eps);
-    };
-    auto less_or_equal = [] (double a, double b) {
-        auto eps = std::numeric_limits<double>::epsilon();
-        return (b - a) >= (std::fmax(std::fabs(a), std::fabs(b)) * eps);
-    };
-    for (size_t i = 0; i < shape_size(expected_shape); i++) {
+    if (!std::isnan(rel_threshold)) {
+        std::cout << "[ COMPARATION ] abs_threshold: " << abs_threshold << std::endl;
+    }
+
+    Error abs_error(abs_threshold), rel_error(rel_threshold);
+    for (size_t i = 0; i < shape_size_cnt; ++i) {
         double expected_value = expected_data[i];
         double actual_value = actual_data[i];
-        auto error = [&] (Error& err, double val, double threshold) {
-            if (less(err.max, val)) {
-                err.max = val;
-                err.max_coordinate = i;
-            }
-            err.mean += val;
-            err.count += less(threshold, val);
-        };
         if (std::isnan(expected_value)) {
             std::ostringstream out_stream;
             out_stream << "Expected value is NAN on coordinate: " << i;
@@ -255,24 +273,25 @@ void compare(const ov::Tensor& expected,
             out_stream << "Actual value is NAN on coordinate: " << i;
             throw std::runtime_error(out_stream.str());
         }
-        auto abs = std::fabs(expected_value - actual_value);
-        auto rel = expected_value ? (abs/std::fabs(expected_value)) : abs;
-        error(abs_error, abs, abs_threshold);
-        error(rel_error, rel, rel_threshold);
+        double abs = std::fabs(expected_value - actual_value);
+        double rel = expected_value ? (abs / std::fabs(expected_value)) : abs;
+        abs_error.update(abs, i);
+        rel_error.update(rel, i);
     }
-    abs_error.mean /= shape_size(expected_shape);
-    rel_error.mean /= shape_size(expected_shape);
+    abs_error.mean /= shape_size_cnt;
+    rel_error.mean /= shape_size_cnt;
+
     if (!(less_or_equal(abs_error.max, abs_threshold) && less_or_equal(rel_error.max, rel_threshold))) {
         std::ostringstream out_stream;
         out_stream << "abs_max < abs_threshold && rel_max < rel_threshold" <<
-                   "\n\t abs_max: " << abs_error.max <<
-                   "\n\t\t coordinate " << abs_error.max_coordinate<<
-                   "; abs errors count "  << abs_error.count  << "; abs mean " <<
-                   abs_error.mean  << "; abs threshold "  << abs_threshold <<
-                   "\n\t rel_max: "  << rel_error.max <<
-                   "\n\t\t coordinate "  << rel_error.max_coordinate <<
-                   "; rel errors count "  << rel_error.count  << "; rel mean " <<
-                   rel_error.mean  << "; rel threshold "  << rel_threshold;
+                "\n\t abs_max: " << abs_error.max <<
+                "\n\t\t coordinate " << abs_error.max_coordinate<<
+                "; abs errors count "  << abs_error.count  << "; abs mean " <<
+                abs_error.mean  << "; abs threshold "  << abs_threshold <<
+                "\n\t rel_max: "  << rel_error.max <<
+                "\n\t\t coordinate "  << rel_error.max_coordinate <<
+                "; rel errors count "  << rel_error.count  << "; rel mean " <<
+                rel_error.mean  << "; rel threshold "  << rel_threshold;
         throw std::runtime_error(out_stream.str());
     }
 }

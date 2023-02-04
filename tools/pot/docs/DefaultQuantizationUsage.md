@@ -12,7 +12,7 @@
 
 This guide describes how to apply model quantization with the Default Quantization method without accuracy control, using an unannotated dataset. To use this method, create a Python script using an API of Post-Training Optimization Tool (POT) and implement data preparation logic and quantization pipeline. If you are not familiar with Python, try [command-line interface](@ref pot_compression_cli_README) of POT which is designed to quantize models from OpenVINO [Model Zoo](https://github.com/openvinotoolkit/open_model_zoo). The figure below shows the common workflow of the quantization script implemented with POT API.
 
-![](./images/default_quantization_flow.png)
+![](./images/default_quantization_flow.svg)
 
 The script should include three basic steps:
 1. Prepare data and dataset interface.
@@ -69,7 +69,10 @@ Default Quantization algorithm has mandatory and optional parameters which are d
 }
 ```  
 
-- `"target_device"` - currently, only two options are available: `"ANY"` (or `"CPU"`) -  to quantize model for CPU, GPU, or VPU, and `"GNA"` - for inference on GNA.
+- `"target_device"` - the following options are available: 
+   * `"ANY"` (or `"CPU"`) -  default option to quantize models for CPU, GPU, or VPU
+   * `"CPU_SPR"` -  to quantize models for CPU SPR (4th Generation Intel® Xeon® Scalable processor family)
+   * `"GNA"`, `"GNA3"`, `"GNA3.5"` - to quantize models for GNA devices respectively.
 - `"stat_subset_size"` - size of data subset to calculate activations statistics used for quantization. The whole dataset is used if no parameter is specified. It is recommended to use not less than 300 samples.
 - `"stat_batch_size"` - size of batch to calculate activations statistics used for quantization. 1 if no parameter specified.
 
@@ -150,5 +153,5 @@ When the optimized model is a cascaded one (consists of several submodels, for e
 * Samples:
   * [Quantization of 3D segmentation model](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/3d_segmentation)
   * [Quantization of Face Detection model](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/face_detection)
-  * [Quantizatin of speech model for GNA device](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/speech)
+  * [Quantization of speech model for GNA device](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/speech)
 

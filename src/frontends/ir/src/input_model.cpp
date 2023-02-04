@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 #include <pugixml.hpp>
 
 #include "openvino/core/validation_util.hpp"
+#include "openvino/opsets/opset.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -206,15 +207,9 @@ public:
             IE_THROW() << res.description() << " at offset " << res.offset;
         }
         m_root = m_xml_doc.document_element();
-        m_opsets["opset1"] = ngraph::get_opset1();
-        m_opsets["opset2"] = ngraph::get_opset2();
-        m_opsets["opset3"] = ngraph::get_opset3();
-        m_opsets["opset4"] = ngraph::get_opset4();
-        m_opsets["opset5"] = ngraph::get_opset5();
-        m_opsets["opset6"] = ngraph::get_opset6();
-        m_opsets["opset7"] = ngraph::get_opset7();
-        m_opsets["opset8"] = ngraph::get_opset8();
-        m_opsets["opset9"] = ngraph::get_opset9();
+        for (const auto& it : ov::get_available_opsets()) {
+            m_opsets[it.first] = it.second();
+        }
     }
 
     std::shared_ptr<Function> convert();

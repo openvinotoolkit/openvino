@@ -1,10 +1,11 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "normalize_kernel_selector.h"
-#include "normalize_kernel_within_spatial_ref.h"
+
 #include "normalize_kernel_across_spatial_ref.h"
+#include "normalize_kernel_within_spatial_ref.h"
 
 namespace kernel_selector {
 normalize_kernel_selector::normalize_kernel_selector() {

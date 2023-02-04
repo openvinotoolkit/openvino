@@ -1,13 +1,15 @@
 // Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #include "gna_crop_layer.hpp"
-#include "../gna_plugin_log.hpp"
 
 #include <vector>
 
-namespace GNAPluginNS {
+#include "log/debug.hpp"
+#include "log/log.hpp"
+
+namespace ov {
+namespace intel_gna {
 
 SimpleCrop get_crop_params(const std::vector<int32_t>& axis_in,
                            const std::vector<int32_t>& offset_in,
@@ -22,7 +24,7 @@ SimpleCrop get_crop_params(const std::vector<int32_t>& axis_in,
     for (int n = 0; n < axis_in.size(); n++) {
         const auto axis = axis_in[n];
         if (axis < 0 || axis >= input_dims.size()) {
-            gnawarn() << "Crop axis outside of input shape size detected.\n";
+            log::warning() << "Crop axis outside of input shape size detected.\n";
             continue;
         }
         const auto input_dim = input_dims[axis];
@@ -55,4 +57,5 @@ SimpleCrop GetCropParams(InferenceEngine::CropLayer* cropLayer) {
     return out_val;
 }
 
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

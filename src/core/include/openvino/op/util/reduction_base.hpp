@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,23 @@ protected:
 
 public:
     OPENVINO_OP("ReductionBase", "util");
-    BWDCMP_RTTI_DECLARATION;
+
+    /// \return true if reduction axes are constant else false.
+    bool reduction_axes_constant() const;
+
+    /// \return The axis positions (0-based) to be eliminated through reduction.
+    /// \throws CheckFailure if the reduction axes are not constant. (Use
+    ///           reduction_axes_constant to check.)
+    const AxisSet get_reduction_axes() const;
+
+    /// \brief Change the reduction axes
+    void set_reduction_axes(const AxisSet& reduction_axes);
+
+    // \brief Returns true if keep_dims is set to true explicitly.
+    // Otherwise, (also keep_dims not handled) returns false.
+    virtual bool get_keep_dims() const {
+        return false;
+    }
 };
 }  // namespace util
 }  // namespace op

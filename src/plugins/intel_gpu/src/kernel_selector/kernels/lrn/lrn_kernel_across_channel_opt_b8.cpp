@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,9 +19,12 @@ ParamsKey LRNKernelAcrossChannel_b8::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableLRNMode(LRNMode::ACROSS_CHANNEL);
     k.EnableLRNKernelDividerMode(KernelDividerMode::FIXED);
-    k.EnableSubGroup();
     k.EnableDifferentTypes();
     return k;
+}
+
+DeviceFeaturesKey LRNKernelAcrossChannel_b8::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    return get_common_subgroups_device_features_key(params, options);
 }
 
 CommonDispatchData LRNKernelAcrossChannel_b8::SetDefault(const lrn_params& params) const {

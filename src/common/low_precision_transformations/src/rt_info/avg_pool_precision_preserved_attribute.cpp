@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ using namespace ngraph;
 using namespace ov;
 
 
-void AvgPoolPrecisionPreservedAttribute::merge(std::vector<ov::Any>& attributes) {
+void AvgPoolPrecisionPreservedAttribute::merge_attributes(std::vector<ov::Any>& attributes) {
 }
 
 bool AvgPoolPrecisionPreservedAttribute::is_skipped() const {

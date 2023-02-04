@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <time.h>
@@ -220,12 +220,23 @@ int main(int argc, char* argv[]) {
                 gnaPluginConfig[ov::intel_gna::scale_factors_per_input.name()] = scale_factors_per_input;
             }
         }
-        gnaPluginConfig[ov::hint::inference_precision.name()] = (FLAGS_qb == 8) ? ov::element::i8 : ov::element::i16;
+        gnaPluginConfig[ov::inference_precision.name()] = (FLAGS_qb == 8) ? ov::element::i8 : ov::element::i16;
         auto parse_target = [&](const std::string& target) -> ov::intel_gna::HWGeneration {
-            return (target == "GNA_TARGET_2_0") ? ov::intel_gna::HWGeneration::GNA_2_0
-                                                : (target == "GNA_TARGET_3_0") ? ov::intel_gna::HWGeneration::GNA_3_0
-                                                                               : ov::intel_gna::HWGeneration::UNDEFINED;
+            auto hw_target = ov::intel_gna::HWGeneration::UNDEFINED;
+
+            if (target == "GNA_TARGET_2_0") {
+                hw_target = ov::intel_gna::HWGeneration::GNA_2_0;
+            } else if (target == "GNA_TARGET_3_0") {
+                hw_target = ov::intel_gna::HWGeneration::GNA_3_0;
+            } else if (target == "GNA_TARGET_3_5") {
+                hw_target = ov::intel_gna::HWGeneration::GNA_3_5;
+            } else if (!target.empty()) {
+                slog::warn << "Unsupported target: " << target << slog::endl;
+            }
+
+            return hw_target;
         };
+
         gnaPluginConfig[ov::intel_gna::execution_target.name()] = parse_target(FLAGS_exec_target);
         gnaPluginConfig[ov::intel_gna::compile_target.name()] = parse_target(FLAGS_compile_target);
         gnaPluginConfig[ov::intel_gna::memory_reuse.name()] = !FLAGS_memory_reuse_off;
@@ -332,14 +343,22 @@ int main(int argc, char* argv[]) {
             if (output_name_files.size() != outputs.size() && outputs.size()) {
                 throw std::logic_error("The number of output files is not equal to the number of network outputs.");
             }
-            count_file = output_name_files.empty() ? 1 : output_name_files.size();
+            count_file = output_name_files.size();
+            if (executableNet.outputs().size() > 1 && output_data.second.empty() && count_file == 1) {
+                throw std::logic_error("-o is ambiguous: the model has multiple outputs but only one file provided "
+                                       "without output name specification");
+            }
         }
         if (!reference_data.first.empty()) {
             reference_name_files = convert_str_to_vector(reference_data.first);
             if (reference_name_files.size() != outputs.size() && outputs.size()) {
                 throw std::logic_error("The number of reference files is not equal to the number of network outputs.");
             }
-            count_file = reference_name_files.empty() ? 1 : reference_name_files.size();
+            count_file = reference_name_files.size();
+            if (executableNet.outputs().size() > 1 && reference_data.second.empty() && count_file == 1) {
+                throw std::logic_error("-r is ambiguous: the model has multiple outputs but only one file provided "
+                                       "without output name specification");
+            }
         }
         if (count_file > executableNet.outputs().size()) {
             throw std::logic_error(

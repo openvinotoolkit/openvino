@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -174,7 +174,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
         {},
         {
             { ngraph::element::f32, false },
-            { {128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true },
+            { {128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::u8, true },
             { {0.2f}, ngraph::element::f32, {}, false }
         },
         "Convolution",

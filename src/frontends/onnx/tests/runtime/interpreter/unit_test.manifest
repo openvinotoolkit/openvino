@@ -32,6 +32,7 @@ INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_uint8_negative_axis
 # ONNX evaluate method not implemented for If operator
 INTERPRETER.onnx_if_inside_if
 INTERPRETER.onnx_if_inside_loop
+INTERPRETER.onnx_if_inside_if_inside_loop
 
 # Activation function hardsigmoid unsupported
 onnx_model_gru_fwd_activations_relu_hardsigmoid
@@ -82,12 +83,3 @@ onnx_clip_no_min_no_max_int64
 # z node not found in graph cache - ticket: 81976
 INTERPRETER.onnx_expand_context_dependent_function
 INTERPRETER.onnx_softmax_crossentropy_loss_mean
-
-onnx_is_finite
-
-onnx_is_inf_default
-onnx_is_inf_positive_only
-onnx_is_inf_negative_only
-onnx_is_inf_detect_none
-
-onnx_is_nan

@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "subgraph_tests/trivial_concat.hpp"
+
 #include <vector>
 
-#include "subgraph_tests/trivial_concat.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace SubgraphTestsDefinitions;
@@ -19,7 +20,7 @@ std::vector<std::vector<size_t>> inShapes = {
 };
 
 std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
-    InferenceEngine::Precision::FP16};
+                                                         InferenceEngine::Precision::FP16};
 
 std::map<std::string, std::string> additional_config = {
     {"GNA_COMPACT_MODE", "NO"},
@@ -27,11 +28,11 @@ std::map<std::string, std::string> additional_config = {
     {"GNA_SCALE_FACTOR_0", "2000.0"},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_trivial_concat_Basic, TrivialConcatLayerTest,
-    ::testing::Combine(
-        ::testing::ValuesIn(inShapes),
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GNA),
-        ::testing::Values(additional_config)),
-    TrivialConcatLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_trivial_concat_Basic,
+                         TrivialConcatLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(inShapes),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(additional_config)),
+                         TrivialConcatLayerTest::getTestCaseName);
 }  // namespace

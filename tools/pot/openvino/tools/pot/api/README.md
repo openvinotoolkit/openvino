@@ -158,7 +158,7 @@ describe internal representation of the DL model and how to work with it.
 ```
 class openvino.tools.pot.IEEngine(config, data_loader=None, metric=None)
 ```
-IEEngine is a helper which implements Engine class based on [OpenVINO&trade; Inference Engine Python* API](ie_python_api/api.html).
+IEEngine is a helper which implements Engine class based on [OpenVINO&trade; Inference Engine Python* API](https://docs.openvino.ai/latest/api/ie_python_api/api.html).
 This class support inference in synchronous and asynchronous modes and can be reused as-is in the custom pipeline or 
 with some modifications, e.g. in case of custom post-processing of inference results.
 

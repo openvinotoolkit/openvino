@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/frontend/paddle/frontend.hpp"
+
+#include <google/protobuf/stubs/logging.h>
 
 #include <fstream>
 #include <map>
@@ -58,7 +60,7 @@ NamedOutputs make_ng_node(const std::map<paddle::TensorName, Output<Node>>& node
     NamedOutputs outputs;
     // In case the conversion function throws exception
     try {
-        outputs = creator_it->second(paddle::NodeContext(DecoderProto(op_place), named_inputs));
+        outputs = creator_it->second(paddle::NodeContext(op_place->get_decoder(), named_inputs));
     } catch (std::exception& ex) {
         FRONT_END_OP_CONVERSION_CHECK(false, "Fail to convert " + op_desc.type() + " Exception " + ex.what());
     }
@@ -88,7 +90,10 @@ NamedOutputs make_framework_node(const std::map<paddle::TensorName, Output<Node>
         }
     }
 
-    auto node = std::make_shared<FrameworkNode>(DecoderProto(op_place), inputs_vector, inputs_names);
+    auto decoder_proto = std::dynamic_pointer_cast<DecoderProto>(op_place->get_decoder());
+    if (!decoder_proto)
+        FRONT_END_THROW("Failed to cast to DecoderProto.");
+    auto node = std::make_shared<FrameworkNode>(decoder_proto, inputs_vector, inputs_names);
 
     return node->return_named_outputs();
 }
@@ -190,7 +195,7 @@ void try_update_sublock_info(const std::shared_ptr<OpPlace>& op_place, SubblockI
             inp_tensors.push_back(inp_tensor);
         }
 
-        auto tmp_node = paddle::NodeContext(DecoderProto(op_place), paddle::NamedInputs());
+        auto tmp_node = paddle::NodeContext(op_place->get_decoder(), paddle::NamedInputs());
         auto block_idx = tmp_node.get_attribute<int32_t>("sub_block");
 
         subblock_info[block_idx] = std::make_tuple(op_desc.type(), inp_tensors, outp_tensors);
@@ -212,7 +217,7 @@ void try_update_sublock_info(const std::shared_ptr<OpPlace>& op_place, SubblockI
         }
         FRONT_END_GENERAL_CHECK(inp_tensors.size() > 0, "Port has no tensors connected.");
 
-        auto tmp_node = paddle::NodeContext(DecoderProto(op_place), paddle::NamedInputs());
+        auto tmp_node = paddle::NodeContext(op_place->get_decoder(), paddle::NamedInputs());
         auto block_idx = tmp_node.get_attribute<int32_t>("sub_block");
 
         subblock_info[block_idx] = std::make_tuple(op_desc.type(), inp_tensors, outp_tensors);
@@ -523,5 +528,10 @@ PADDLE_C_API void* GetFrontEndData() {
     res->m_creator = []() {
         return std::make_shared<ov::frontend::paddle::FrontEnd>();
     };
+
+#ifndef OPENVINO_DEBUG_ENABLE
+    // disable protobuf logging
+    google::protobuf::SetLogHandler(nullptr);
+#endif
     return res;
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -123,6 +123,7 @@ public:
     }
 
     void validate() override {
+        auto actualOutputs = get_plugin_outputs();
         if (function->get_parameters().size() == 2) {
             auto pos = std::find_if(inputs.begin(), inputs.end(),
                 [](const std::pair<std::shared_ptr<ov::Node>, ov::Tensor> &params) {
@@ -131,7 +132,14 @@ public:
             IE_ASSERT(pos != inputs.end());
             inputs.erase(pos);
         }
-        SubgraphBaseTest::validate();
+        auto expectedOutputs = calculate_refs();
+        if (expectedOutputs.empty()) {
+                return;
+        }
+        ASSERT_EQ(actualOutputs.size(), expectedOutputs.size())
+                << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
+
+        compare(expectedOutputs, actualOutputs);
     }
 
     void configure_model() override {
@@ -248,8 +256,6 @@ private:
 };
 
 TEST_P(GroupDeconvolutionLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     if (!fusedOps.empty()) {
         bool isSupportedParams = stride[stride.size() - 1] <= kernel[kernel.size() - 1];
         if (stride.size() > 1)

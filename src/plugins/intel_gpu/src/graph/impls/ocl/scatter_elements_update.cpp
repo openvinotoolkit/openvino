@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,8 +16,7 @@ namespace cldnn {
 namespace ocl {
 
 namespace {
-kernel_selector::scatter_update_axis convert_axis(int64_t axis, const scatter_elements_update_node& arg) {
-    auto rank = arg.input(0).get_output_layout().get_rank();
+kernel_selector::scatter_update_axis convert_axis(int64_t axis, size_t rank) {
     if (axis < 0) {
         axis += rank;
     }
@@ -36,7 +35,7 @@ kernel_selector::scatter_update_axis convert_axis(int64_t axis, const scatter_el
         case 3: return kernel_selector::scatter_update_axis::Y;
         case 4: return kernel_selector::scatter_update_axis::Z;
         case 5: return kernel_selector::scatter_update_axis::W;
-        default: CLDNN_ERROR_MESSAGE(arg.id(), "Unsupported Axis");
+        default: OPENVINO_ASSERT(false, "[GPU] Unsupported scatter update axis");
     }
     return kernel_selector::scatter_update_axis::X;
 }
@@ -45,34 +44,25 @@ kernel_selector::scatter_update_axis convert_axis(int64_t axis, const scatter_el
 struct scatter_elements_update_impl : typed_primitive_impl_ocl<scatter_elements_update> {
     using parent = typed_primitive_impl_ocl<scatter_elements_update>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::scatter_elements_update_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::scatter_elements_update_params, kernel_selector::scatter_elements_update_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<scatter_elements_update_impl>(*this);
     }
 
-public:
-    static primitive_impl* create(const scatter_elements_update_node& arg, const kernel_impl_params& impl_param) {
-        const auto& prim = arg.get_primitive();
-        auto scatter_elements_update_params = get_default_params<kernel_selector::scatter_elements_update_params>(impl_param);
-        auto scatter_elements_update_optional_params =
-            get_default_optional_params<kernel_selector::scatter_elements_update_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<scatter_elements_update>();
+        auto params = get_default_params<kernel_selector::scatter_elements_update_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::scatter_elements_update_optional_params>(impl_param.get_program());
 
-        scatter_elements_update_params.axis = convert_axis(prim->axis, arg);
+        params.axis = convert_axis(primitive->axis, impl_param.get_input_layout(0).get_rank());
 
-        scatter_elements_update_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
-        scatter_elements_update_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[2]));
-
-        auto& kernel_selector = kernel_selector::scatter_elements_update_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(scatter_elements_update_params, scatter_elements_update_optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto scatter_elements_update = new scatter_elements_update_impl(arg, best_kernels[0]);
-
-        return scatter_elements_update;
+        params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
+        params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));
+        return {params, optional_params};
     }
 };
 
@@ -98,9 +88,15 @@ attach_scatter_elements_update_impl::attach_scatter_elements_update_impl() {
             format::bfwzyx
     };
 
-    implementation_map<scatter_elements_update>::add(impl_types::ocl, scatter_elements_update_impl::create, types, formats);
+    implementation_map<scatter_elements_update>::add(
+        impl_types::ocl,
+        typed_primitive_impl_ocl<scatter_elements_update>::create<scatter_elements_update_impl>,
+        types,
+        formats);
 }
 
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::scatter_elements_update_impl)

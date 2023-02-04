@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -139,8 +139,8 @@ bool Pooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
     return true;
 }
 
-Pooling::Pooling(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+Pooling::Pooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -363,8 +363,8 @@ void Pooling::prepareParams() {
                                                key.effective_dilation,
                                                key.data_pad_end);
         DnnlDesriptor desc{desc_ptr};
-        pooling_v2_forward::primitive_desc prim_desc;
         primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, key.attr);
+        pooling_v2_forward::primitive_desc prim_desc = itpd.get();
         while (static_cast<bool>(itpd)) {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
 
@@ -373,12 +373,12 @@ void Pooling::prepareParams() {
                 break;
             }
             if (!itpd.next_impl())
-                return nullptr;
+                break;
         }
         return std::make_shared<pooling_v2_forward>(prim_desc);
     };
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
 
     if (!result.first) {
@@ -387,9 +387,11 @@ void Pooling::prepareParams() {
 
     prim = result.first;
 
+    auto pd = (*prim).get_primitive_desc();
+    auto scratchpadMem = getScratchPadMem(pd);
     auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-    primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}};
+    primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}, {DNNL_ARG_SCRATCHPAD, scratchpadMem->GetPrimitive()}};
 
     Node::appendPostOpArgs(*attr, primArgs, postOpsArgs);
 }
@@ -616,6 +618,8 @@ Node::AttrPtr Pooling::initPrimitiveAttr() {
 
     setPostOps(*attr);
 
+    (*attr).set_scratchpad_mode(dnnl::scratchpad_mode::user);
+
     return attr;
 }
 
@@ -635,6 +639,6 @@ void Pooling::setPostOps(dnnl::primitive_attr &attr) {
     attr.set_post_ops(ops);
 }
 
-}   // namespace node
+}  // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

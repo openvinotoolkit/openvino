@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,6 +58,8 @@ std::vector<std::int32_t> extractShape(kernel_selector::Tensor::DataTensor& tens
 struct slice_impl : typed_primitive_impl_ocl<slice> {
     using parent = typed_primitive_impl_ocl<slice>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::slice_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::slice_params, kernel_selector::slice_optional_params>;
 
     enum InputIndices {
         kData,
@@ -68,22 +70,24 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
         kInputsNum
     };
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<slice_impl>(*this);
     }
 
-    static primitive_impl* create(const slice_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const slice_node& arg, const kernel_impl_params& impl_param) {
         auto params = get_default_params<kernel_selector::slice_params>(impl_param);
         auto op_params = get_default_optional_params<kernel_selector::slice_optional_params>(arg.get_program());
         const auto& inputs = arg.get_dependencies();
         const stream& stream = arg.get_program().get_stream();
-        auto start_elts = extractIntegerData(inputs[InputIndices::kStart]->as<data>(), stream);
-        auto end_elts = extractIntegerData(inputs[InputIndices::kEnd]->as<data>(), stream);
-        auto step_elts = extractIntegerData(inputs[InputIndices::kStep]->as<data>(), stream);
+        auto start_elts = extractIntegerData(inputs[InputIndices::kStart].first->as<data>(), stream);
+        auto end_elts = extractIntegerData(inputs[InputIndices::kEnd].first->as<data>(), stream);
+        auto step_elts = extractIntegerData(inputs[InputIndices::kStep].first->as<data>(), stream);
         auto data_shape = extractShape(params.inputs[0]);
         std::vector<std::int32_t> axes(data_shape.size());
         if (inputs.size() == InputIndices::kInputsNum)
-            axes = std::move(extractIntegerData(inputs[InputIndices::kAxes]->as<data>(), stream));
+            axes = std::move(extractIntegerData(inputs[InputIndices::kAxes].first->as<data>(), stream));
         else
             std::iota(axes.begin(), axes.end(), 0);
         std::vector<std::int32_t> selected_start(data_shape.size(), 0);
@@ -103,12 +107,9 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
         params.step = std::move(selected_step);
         auto &kernel_selector =
                 kernel_selector::slice_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(params, op_params);
+        auto best_kernel = kernel_selector.get_best_kernel(params, op_params);
 
-        CLDNN_ERROR_BOOL(arg.id(), "Best_kernel.empty()", best_kernels.empty(),
-                "Cannot find a proper kernel with this arguments");
-
-        return new slice_impl(arg, best_kernels[0]);
+        return make_unique<slice_impl>(best_kernel);
     }
 };
 
@@ -135,3 +136,5 @@ attach_slice_impl::attach_slice_impl() {
 
 } // namespace ocl
 } // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::slice_impl)

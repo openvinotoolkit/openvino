@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,16 +53,15 @@ bool LayerTransformation::canBeTransformed(const TransformationContext& context,
 
 bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& layer,
     const std::vector<ngraph::element::Type>& defaultPrecisions) {
-    for (const auto& output : layer->outputs()) {
-        const auto rank = output.get_partial_shape().rank();
-        if (rank.is_dynamic() || rank.get_length() < 2) {
-            return false;
-        }
+    const auto outputs = layer->outputs();
+    if (std::any_of(outputs.begin(), outputs.end(),
+        [](const Output<Node>& out) { return out.get_partial_shape().rank().is_dynamic(); })) {
+        return false;
     }
 
     const auto dequantization = NetworkHelper::getDequantization(layer, defaultPrecisions);
     if (!dequantization.empty()) {
-        auto perChannelQuantization = [](const PartialShape dataPShape, Shape constShape) {
+        auto perChannelQuantization = [](const PartialShape dataPShape, Shape constShape, size_t idxChannelDim) {
             if (ngraph::shape_size(constShape) == 1ul) {
                 return true;
             }
@@ -72,17 +71,20 @@ bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& la
                 return false;
             }
 
-            const auto dataShapeSize = static_cast<size_t>(rank.get_length());
-            if ((dataShapeSize - constShape.size()) == 1ul) {
+            if ((dataPShape.size() - constShape.size()) == 1ul) {
                 constShape.insert(constShape.begin(), 1ul);
             }
+
+            // special case: 1D const is assumed to imply per-channel
+            if (constShape.size() == 1)
+                return true;
 
             if ((constShape.size() >= 2ul) && (constShape[0] != 1ul)) {
                 return false;
             }
 
-            for (size_t i = 2; i < constShape.size(); ++i) {
-                if (constShape[i] != 1ul) {
+            for (size_t i = 0; i < constShape.size(); ++i) {
+                if ((constShape[i] != 1ul) && (i != idxChannelDim)) {
                     return false;
                 }
             }
@@ -91,13 +93,15 @@ bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& la
 
         if ((dequantization.subtract != nullptr) && (!perChannelQuantization(
             dequantization.subtract->get_output_partial_shape(0),
-            dequantization.subtractConstant->get_shape()))) {
+            dequantization.subtractConstant->get_shape(),
+            dequantization.channelDimIndex))) {
             return false;
         }
 
         if ((dequantization.multiply != nullptr) && (!perChannelQuantization(
             dequantization.multiply->get_output_partial_shape(0),
-            dequantization.multiplyConstant->get_shape()))) {
+            dequantization.multiplyConstant->get_shape(),
+            dequantization.channelDimIndex))) {
             return false;
         }
     }
@@ -109,18 +113,10 @@ bool LayerTransformation::canBeTransformedSpatialDimension(const TransformationC
     if (!isQuantized(layer, defaultPrecisions)) {
         return false;
     }
-
-    for (const auto& output : layer->outputs()) {
-        const auto outPShape = output.get_partial_shape();
-        const auto rank = outPShape.rank();
-        if (rank.is_dynamic()) {
-            return false;
-        }
-
-        const auto size = rank.get_length();
-        if ((size < 2) || (size > 5)) {
-            return false;
-        }
+    const auto outputs = layer->outputs();
+    if (std::any_of(outputs.begin(), outputs.end(),
+        [](const Output<Node>& out) { return out.get_partial_shape().rank().is_dynamic(); })) {
+        return false;
     }
     return true;
 }

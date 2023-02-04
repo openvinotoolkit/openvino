@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,25 +16,23 @@ namespace ocl {
 struct experimental_detectron_topk_rois_impl : typed_primitive_impl_ocl<experimental_detectron_topk_rois> {
     using parent = typed_primitive_impl_ocl<experimental_detectron_topk_rois>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::experimental_detectron_topk_rois_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::experimental_detectron_topk_roi_params,
+                                      kernel_selector::experimental_detectron_topk_roi_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<experimental_detectron_topk_rois_impl>(*this);
     }
 
-    static primitive_impl *create(const experimental_detectron_topk_rois_node &arg, const kernel_impl_params& impl_param) {
-        const auto& primitive = arg.get_primitive();
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<experimental_detectron_topk_rois>();
         auto params = get_default_params<kernel_selector::experimental_detectron_topk_roi_params>(impl_param);
-        const auto& experimental_detectron_topk_rois_kernel_selector =
-                kernel_selector::experimental_detectron_topk_rois_kernel_selector::Instance();
-        params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
+        params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
         params.max_rois = primitive->max_rois;
-        auto best_kernels = experimental_detectron_topk_rois_kernel_selector.GetBestKernels(params,
-                                                                                            kernel_selector::experimental_detectron_topk_roi_optional_params());
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-        return new experimental_detectron_topk_rois_impl(arg, best_kernels[0]);
+
+        return {params, {}};
     }
 };
 
@@ -48,13 +46,16 @@ attach_experimental_detectron_topk_rois_impl::attach_experimental_detectron_topk
                     format::bs_fs_yx_bsv16_fsv16,
                     format::bs_fs_yx_bsv32_fsv16,
                     format::bs_fs_yx_bsv32_fsv32};
-    implementation_map<experimental_detectron_topk_rois>::add(impl_types::ocl,
-                                                              experimental_detectron_topk_rois_impl::create,
-                                                              types,
-                                                              formats);
+    implementation_map<experimental_detectron_topk_rois>::add(
+        impl_types::ocl,
+        typed_primitive_impl_ocl<experimental_detectron_topk_rois>::create<experimental_detectron_topk_rois_impl>,
+        types,
+        formats);
 }
 
 }  // namespace detail
 
 } // namespace ocl
 } // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::experimental_detectron_topk_rois_impl)

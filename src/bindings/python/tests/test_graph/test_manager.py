@@ -1,20 +1,20 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
 
-import json
 import os
 
 import numpy as np
 import pytest
 
 import openvino.runtime.opset8 as ov
-from openvino.runtime import Model, PartialShape, Shape
-from openvino.runtime.passes import Manager
+from openvino.runtime import Model
+from openvino.runtime.passes import Manager, Serialize, ConstantFolding, Version
 from tests.test_graph.util import count_ops_of_type
 from openvino.runtime import Core
 
+from tests.test_utils.test_utils import create_filename_for_test
 
 def test_constant_folding():
     node_constant = ov.constant(np.array([[0.0, 0.1, -0.1], [-2.5, 2.5, 3.0]], dtype=np.float32))
@@ -25,7 +25,7 @@ def test_constant_folding():
     assert count_ops_of_type(model, node_constant) == 1
 
     pass_manager = Manager()
-    pass_manager.register_pass("ConstantFolding")
+    pass_manager.register_pass(ConstantFolding())
     pass_manager.run_passes(model)
 
     assert count_ops_of_type(model, node_ceil) == 0
@@ -38,10 +38,10 @@ def test_constant_folding():
     assert np.allclose(values_out, values_expected)
 
 
-def test_serialize_seperate_paths_kwargs():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_serialize_seperate_paths_kwargs(request, tmp_path):
     core = Core()
-    xml_path = "serialized_function.xml"
-    bin_path = "serialized_function.bin"
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     shape = [2, 2]
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
@@ -50,7 +50,7 @@ def test_serialize_seperate_paths_kwargs():
     func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
 
     pass_manager = Manager()
-    pass_manager.register_pass(pass_name="Serialize", xml_path=xml_path, bin_path=bin_path)
+    pass_manager.register_pass(Serialize(path_to_xml=xml_path, path_to_bin=bin_path))
     pass_manager.run_passes(func)
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
@@ -61,10 +61,11 @@ def test_serialize_seperate_paths_kwargs():
     os.remove(xml_path)
     os.remove(bin_path)
 
-def test_serialize_seperate_paths_args():
+
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_serialize_seperate_paths_args(request, tmp_path):
     core = Core()
-    xml_path = "serialized_function.xml"
-    bin_path = "serialized_function.bin"
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     shape = [2, 2]
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
@@ -74,7 +75,7 @@ def test_serialize_seperate_paths_args():
     func = Model(model, [parameter_a, parameter_b, parameter_c, parameter_d], "Model")
 
     pass_manager = Manager()
-    pass_manager.register_pass("Serialize", xml_path, bin_path)
+    pass_manager.register_pass(Serialize(xml_path, bin_path))
     pass_manager.run_passes(func)
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
@@ -86,10 +87,10 @@ def test_serialize_seperate_paths_args():
     os.remove(bin_path)
 
 
-def test_serialize_pass_mixed_args_kwargs():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_serialize_pass_mixed_args_kwargs(request, tmp_path):
     core = Core()
-    xml_path = "serialized_function.xml"
-    bin_path = "serialized_function.bin"
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     shape = [3, 2]
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
@@ -97,7 +98,7 @@ def test_serialize_pass_mixed_args_kwargs():
     func = Model(model, [parameter_a, parameter_b], "Model")
 
     pass_manager = Manager()
-    pass_manager.register_pass("Serialize", xml_path, bin_path=bin_path)
+    pass_manager.register_pass(Serialize(xml_path, path_to_bin=bin_path))
     pass_manager.run_passes(func)
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
@@ -109,19 +110,18 @@ def test_serialize_pass_mixed_args_kwargs():
     os.remove(bin_path)
 
 
-def test_serialize_pass_mixed_args_kwargs_v2():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_serialize_pass_mixed_args_kwargs_v2(request, tmp_path):
     core = Core()
-    xml_path = "./serialized_function.xml"
-    bin_path = "./serialized_function.bin"
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     shape = [100, 100, 2]
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
     parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
-    parameter_d = ov.parameter(shape, dtype=np.float32, name="D")
     model = ov.floor(ov.minimum(ov.abs(parameter_a), ov.multiply(parameter_b, parameter_c)))
     func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
     pass_manager = Manager()
-    pass_manager.register_pass("Serialize", xml_path=xml_path, bin_path=bin_path)
+    pass_manager.register_pass(Serialize(path_to_xml=xml_path, path_to_bin=bin_path))
     pass_manager.run_passes(func)
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
@@ -133,26 +133,26 @@ def test_serialize_pass_mixed_args_kwargs_v2():
     os.remove(bin_path)
 
 
-def test_serialize_pass_wrong_num_of_args():
-    xml_path = "serialized_function.xml"
-    bin_path = "serialized_function.bin"
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_serialize_pass_wrong_num_of_args(request, tmp_path):
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
 
     pass_manager = Manager()
     with pytest.raises(TypeError) as e:
-        pass_manager.register_pass(pass_name="Serialize", xml_path=xml_path, bin_path=bin_path, model=5)
+        pass_manager.register_pass(Serialize(path_to_xml=xml_path, path_to_bin=bin_path, model=5))
     assert "Invoked with:" in str(e.value)
 
 
-def test_serialize_results():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_serialize_results(request, tmp_path):
     core = Core()
     node_constant = ov.constant(np.array([[0.0, 0.1, -0.1], [-2.5, 2.5, 3.0]], dtype=np.float32))
     node_ceil = ov.ceiling(node_constant)
     func = Model(node_ceil, [], "Model")
 
-    xml_path = "serialized_function.xml"
-    bin_path = "serialized_function.bin"
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     pass_manager = Manager()
-    pass_manager.register_pass("Serialize", xml_path=xml_path, bin_path=bin_path)
+    pass_manager.register_pass(Serialize(path_to_xml=xml_path, path_to_bin=bin_path))
     pass_manager.run_passes(func)
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
@@ -165,10 +165,10 @@ def test_serialize_results():
     os.remove(bin_path)
 
 
-def test_serialize_pass_tuple():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_serialize_pass_tuple(request, tmp_path):
     core = Core()
-    xml_path = "./serialized_function.xml"
-    bin_path = "./serialized_function.bin"
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     shape = [100, 100, 2]
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
@@ -177,7 +177,7 @@ def test_serialize_pass_tuple():
     model = ov.floor(ov.minimum(ov.abs(parameter_a), ov.multiply(parameter_b, parameter_c)))
     func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
     pass_manager = Manager()
-    pass_manager.register_pass("Serialize", output_files=(xml_path, bin_path))
+    pass_manager.register_pass("Serialize", output_files=(str(xml_path), str(bin_path)))
     pass_manager.run_passes(func)
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
@@ -189,10 +189,10 @@ def test_serialize_pass_tuple():
     os.remove(bin_path)
 
 
-def test_default_version():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_default_version(request, tmp_path):
     core = Core()
-    xml_path = "./serialized_function.xml"
-    bin_path = "./serialized_function.bin"
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     shape = [100, 100, 2]
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
@@ -201,7 +201,7 @@ def test_default_version():
     model = ov.floor(ov.minimum(ov.abs(parameter_a), ov.multiply(parameter_b, parameter_c)))
     func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
     pass_manager = Manager()
-    pass_manager.register_pass("Serialize", output_files=(xml_path, bin_path))
+    pass_manager.register_pass("Serialize", output_files=(str(xml_path), str(bin_path)))
     pass_manager.run_passes(func)
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
@@ -213,10 +213,10 @@ def test_default_version():
     os.remove(bin_path)
 
 
-def test_default_version_IR_V11_tuple():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_default_version_IR_V11_tuple(request, tmp_path):
     core = Core()
-    xml_path = "./serialized_function.xml"
-    bin_path = "./serialized_function.bin"
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     shape = [100, 100, 2]
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
@@ -225,7 +225,7 @@ def test_default_version_IR_V11_tuple():
     model = ov.floor(ov.minimum(ov.abs(parameter_a), ov.multiply(parameter_b, parameter_c)))
     func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
     pass_manager = Manager()
-    pass_manager.register_pass("Serialize", output_files=(xml_path, bin_path), version="IR_V11")
+    pass_manager.register_pass("Serialize", output_files=(str(xml_path), str(bin_path)), version="IR_V11")
     pass_manager.run_passes(func)
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
@@ -237,10 +237,10 @@ def test_default_version_IR_V11_tuple():
     os.remove(bin_path)
 
 
-def test_default_version_IR_V11_seperate_paths():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_default_version_IR_V11_seperate_paths(request, tmp_path):
     core = Core()
-    xml_path = "./serialized_function.xml"
-    bin_path = "./serialized_function.bin"
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     shape = [100, 100, 2]
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
@@ -249,7 +249,7 @@ def test_default_version_IR_V11_seperate_paths():
     model = ov.floor(ov.minimum(ov.abs(parameter_a), ov.multiply(parameter_b, parameter_c)))
     func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
     pass_manager = Manager()
-    pass_manager.register_pass("Serialize", xml_path=xml_path, bin_path=bin_path, version="IR_V11")
+    pass_manager.register_pass(Serialize(path_to_xml=xml_path, path_to_bin=bin_path, version=Version.IR_V11))
     pass_manager.run_passes(func)
 
     res_model = core.read_model(model=xml_path, weights=bin_path)

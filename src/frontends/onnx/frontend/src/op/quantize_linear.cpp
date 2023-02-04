@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -199,9 +199,15 @@ OutputVector quantize_linear(const Node& node) {
                  "input. Got: ",
                  inputs.size());
 
-    const auto x = inputs[0];
-    auto scale = inputs[1];
-    auto zero_point = op::detail::get_zero_point(inputs);
+    const auto& x = inputs[0];
+    const auto& scale = inputs[1];
+    const auto zero_point = op::detail::get_zero_point(inputs);
+
+    // per-tensor quantization, axis attribute ignored
+    if (scale.get_partial_shape().rank().is_static() && scale.get_partial_shape().rank().get_length() == 0 &&
+        zero_point.get_partial_shape().rank().is_static() && zero_point.get_partial_shape().rank().get_length() == 0) {
+        return set_1::quantize_linear(node);
+    }
 
     return quantize_linear(x, scale, zero_point, node.get_attribute_value<int64_t>("axis", 1), node);
 }

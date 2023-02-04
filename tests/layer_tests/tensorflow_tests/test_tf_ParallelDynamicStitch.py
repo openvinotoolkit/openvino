@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -19,7 +19,10 @@ class TestParallelDynamicStitch(CommonTFLayerTest):
             indices_shape = inputs_info[indices_in_name]
             num_elements = num_elements + np.prod(indices_shape, dtype=int)
 
-        indices_array = np.arange(np.random.randint(1, num_elements+1), dtype=np.intc)
+        # we support DynamicStitch via decomposition to subgraph with ScatterUpdate op
+        # ScatterUpdate has undefined behavior if there are multiple identical indexes
+        # indices_array = np.arange(np.random.randint(1, num_elements+1), dtype=np.intc)
+        indices_array = np.arange(num_elements, dtype=np.intc)
         np.random.shuffle(indices_array)
         indices_array = np.resize(indices_array, num_elements)
 
@@ -66,6 +69,7 @@ class TestParallelDynamicStitch(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit_tf_fe
+    @pytest.mark.nightly
     def test_parallel_dynamic_stitch_basic(self, params, ie_device, precision, ir_version, temp_dir,
                                use_new_frontend, use_old_api):
         if not use_new_frontend:

@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph_ops/type_relaxed.hpp>
+#include <ov_ops/type_relaxed.hpp>
 
 #include "low_precision/network_helper.hpp"
 #include "lpt_ngraph_functions/common/builders.hpp"
@@ -36,8 +36,8 @@ std::shared_ptr<Node> createConvolution(
     fakeQuantizeOnWeights->set_friendly_name("fakeQuantizeOnWeights");
 
     auto convolution = std::make_shared<ngraph::opset1::Convolution>(
-        ngraph::op::TemporaryReplaceOutputType(parent, precision).get(),
-        ngraph::op::TemporaryReplaceOutputType(fakeQuantizeOnWeights, precision).get(),
+        ov::op::TemporaryReplaceOutputType(parent, precision).get(),
+        ov::op::TemporaryReplaceOutputType(fakeQuantizeOnWeights, precision).get(),
         ngraph::Strides{ 1, 1 },
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::CoordinateDiff{ 0, 0 },
@@ -193,7 +193,7 @@ std::shared_ptr<ngraph::Function> MarkupAvgPoolPrecisionsFunction::getReference(
 
     const auto deqBefore = makeDequantization(input, dequantizationBefore);
     auto outPrecision = precisionAfterOperation;
-    const std::shared_ptr<ngraph::Node> avgPool = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::AvgPool>>(
+    const std::shared_ptr<ngraph::Node> avgPool = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::AvgPool>>(
         opset1::AvgPool(
             deqBefore,
             Strides{ 1, 1 },

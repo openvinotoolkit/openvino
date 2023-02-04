@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -142,4 +142,11 @@ TEST(node_input_output, input_set_argument) {
     EXPECT_EQ(add->get_input_size(), 2);
     EXPECT_EQ(add->input(0).get_shape(), Shape{3});
     EXPECT_EQ(add->input(1).get_shape(), Shape{1});
+}
+
+TEST(node_input_output, create_wrong_input_output) {
+    EXPECT_THROW(ov::Output<ov::Node>(nullptr, 0), ov::Exception);
+    EXPECT_THROW(ov::Output<const ov::Node>(nullptr, 0), ov::Exception);
+    EXPECT_THROW(ov::Input<ov::Node>(nullptr, 0), ov::Exception);
+    EXPECT_THROW(ov::Input<const ov::Node>(nullptr, 0), ov::Exception);
 }

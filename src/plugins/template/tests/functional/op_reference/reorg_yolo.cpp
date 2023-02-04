@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,10 @@ struct ReorgYoloParams {
           refData(CreateTensor(iType, oValues)),
           testcaseName(testcaseName) {
               std::vector<IT> iValues(shape_size(inputShape.get_shape()));
+              #pragma warning(push)
+              #pragma warning(disable : 4244)
               std::iota(iValues.begin(), iValues.end(), 0);
+              #pragma warning(pop)
               inputData = CreateTensor(iType, iValues);
           }
 

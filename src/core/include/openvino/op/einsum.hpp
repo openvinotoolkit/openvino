@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,6 @@ namespace v7 {
 class OPENVINO_API Einsum : public Op {
 public:
     OPENVINO_OP("Einsum", "opset7", op::Op, 7);
-    BWDCMP_RTTI_DECLARATION;
 
     Einsum() = default;
 
@@ -33,6 +32,11 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+
+    /// \brief Set Einsum equation
+    ///
+    /// \param equation Equation string to be set.
+    void set_equation(std::string equation);
 
     /// \brief      Get an equation of Einsum operation
     ///

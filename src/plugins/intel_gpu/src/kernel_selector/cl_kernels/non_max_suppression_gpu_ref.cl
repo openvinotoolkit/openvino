@@ -1,9 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/data_types.cl"
-#include "include/fetch_data.cl"
+#include "include/batch_headers/fetch_data.cl"
 
 /// Kernels
 /// 0: Only boxes exceeding SCORE_THRESHOLD are copied to intermediate-buffer0.
@@ -29,14 +28,12 @@
 ///  - desc: sorted box num for batch*class
 
 /// optional input variables
-/// NUM_SELECT_PER_CLASS_VAL TO_UNIT_TYPE(num_select_per_class[0]),   default is 0 
+/// NUM_SELECT_PER_CLASS_VAL TO_UNIT_TYPE(num_select_per_class[0]),   default is 0
 /// IOU_THRESHOLD_VAL        TO_ACCUMULATOR_TYPE(iou_threshold[0]),   default is ACCUMULATOR_VAL_ZERO
 /// SCORE_THRESHOLD_VAL      TO_ACCUMULATOR_TYPE(score_threshold[0]), default is ACCUMULATOR_VAL_ZERO
 /// SOFT_NMS_SIGMA_VAL       TO_ACCUMULATOR_TYPE(soft_nms_sigma[0]),  default is ACCUMULATOR_VAL_ZERO
 /// OUTPUT_NUM               Number of outputs. [OUTPUT_NUM, 3, 1, 1]
 /// BUFFER_STRIDE            sizeof(SBOX_INFO) * NUM_BOXES
-
-#define unroll_for __attribute__((opencl_unroll_hint)) for
 
 #define NUM_BATCHES     INPUT0_BATCH_NUM
 #define NUM_BOXES       INPUT0_FEATURE_NUM
@@ -183,7 +180,7 @@ inline void FUNC(quickSortIterative)(__global SBOX_INFO* arr, int l, int h)
         // Set pivot element at its correct position
         // in sorted array
         const int p = FUNC_CALL(partition)(arr, l, h);
-  
+
         // If there are elements on left side of pivot,
         // then push left side to stack
         if (p - 1 > l) {
@@ -481,14 +478,21 @@ KERNEL (non_max_suppression_ref_stage_2)(
             if (convert_float(next_candidate.score) > SCORE_THRESHOLD_VAL) {
                 --i;
                 sortedBoxList[i] = next_candidate;
-                FUNC_CALL(quickSortIterative)(sortedBoxList, i, kSortedBoxNum);
+                FUNC_CALL(quickSortIterative)(sortedBoxList, i, kSortedBoxNum - 1);
             }
         }
     }
 
     // Set pad value to indicate the end of selected box list.
     if (selectedBoxNum < NUM_BOXES) {
-        selectedBoxList[selectedBoxNum].batchId = -1;
+        int b = selectedBoxNum;
+        #ifdef REUSE_INTERNAL_BUFFER
+            for (; b < NUM_BOXES; ++b) {
+                selectedBoxList[b].batchId = -1;
+            }
+        #else
+            selectedBoxList[b].batchId = -1;
+        #endif
     }
 }
 #endif /* NMS_STAGE_2 */
@@ -503,6 +507,10 @@ KERNEL (non_max_suppression_ref_stage_3)(
     #endif
     #ifdef THIRD_OUTPUT_TYPE
     , __global THIRD_OUTPUT_TYPE *valid_outputs
+    #endif
+    #ifdef MULTIPLE_OUTPUTS
+    , __global OUTPUT1_TYPE *selected_scores
+    , __global OUTPUT2_TYPE *valid_outputs
     #endif
     )
 {
@@ -553,9 +561,26 @@ KERNEL (non_max_suppression_ref_stage_3)(
         selected_scores[SECOND_OUTPUT_GET_INDEX(i, 2, 0, 0)] = -1;
     }
 #endif
+#ifdef MULTIPLE_OUTPUTS
+    unroll_for (int i = 0; i < outputIdx; i++) {
+        selected_scores[OUTPUT1_GET_INDEX(i, 0, 0, 0)] = TO_OUTPUT1_TYPE(sortedBoxList[i].batchId);
+        selected_scores[OUTPUT1_GET_INDEX(i, 1, 0, 0)] = TO_OUTPUT1_TYPE(sortedBoxList[i].classId);
+        selected_scores[OUTPUT1_GET_INDEX(i, 2, 0, 0)] = TO_OUTPUT1_TYPE(sortedBoxList[i].score);
+    }
+
+    // Padding
+    unroll_for (int i = outputIdx; i < OUTPUT_NUM; i++) {
+        selected_scores[OUTPUT1_GET_INDEX(i, 0, 0, 0)] = -1;
+        selected_scores[OUTPUT1_GET_INDEX(i, 1, 0, 0)] = -1;
+        selected_scores[OUTPUT1_GET_INDEX(i, 2, 0, 0)] = -1;
+    }
+#endif
 
 #ifdef THIRD_OUTPUT_TYPE
     valid_outputs[THIRD_OUTPUT_GET_INDEX(0, 0, 0, 0)] = TO_THIRD_OUTPUT_TYPE(outputIdx);
+#endif
+#ifdef MULTIPLE_OUTPUTS
+    valid_outputs[OUTPUT2_GET_INDEX(0, 0, 0, 0)] = TO_OUTPUT2_TYPE(outputIdx);
 #endif
 }
 #endif  /* NMS_STAGE_3 */

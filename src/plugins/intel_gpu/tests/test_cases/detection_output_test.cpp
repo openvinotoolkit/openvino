@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "test_utils.h"
 
@@ -89,7 +87,7 @@ public:
     void init_buffer_sort(cldnn::memory::ptr input_buff) {
         cldnn::mem_lock<T> input_data_ptr(input_buff, get_test_stream());
 
-        EXPECT_EQ((int)input_buff->count(), 128);
+        ASSERT_EQ((int)input_buff->count(), 128);
 
         T* input_data = input_data_ptr.data();
         input_data[0] = 8;
@@ -119,16 +117,16 @@ public:
         std::vector<std::string> items;
         std::istringstream iss(values);
         std::copy(std::istream_iterator<std::string>(iss), std::istream_iterator<std::string>(), back_inserter(items));
-        EXPECT_EQ((int)items.size(), 7);
+        ASSERT_EQ((int)items.size(), 7);
 
         // Check data.
         cldnn::mem_lock<T> out_ptr(output, get_test_stream());
         const T* data = out_ptr.data();
         for (int i = 0; i < 2; ++i) {
-            EXPECT_EQ(static_cast<int>((float)data[num * output->get_layout().spatial(0) + i]), atoi(items[i].c_str()));
+            ASSERT_EQ(static_cast<int>((float)data[num * output->get_layout().spatial(0) + i]), atoi(items[i].c_str()));
         }
         for (int i = 2; i < 7; ++i) {
-            EXPECT_TRUE(floating_point_equal(data[num * output->get_layout().spatial(0) + i], (T)(float)atof(items[i].c_str())));
+            ASSERT_TRUE(floating_point_equal(data[num * output->get_layout().spatial(0) + i], (T)(float)atof(items[i].c_str())));
         }
     }
 
@@ -147,23 +145,23 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k));
+        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k));
 
-        build_options opts;
-        network network(engine, topology, opts);
+        ExecutionConfig config;
+        network network(engine, topology, config);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
         network.set_input_data("input_prior_box", input_prior_box);
 
         auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
     }
 
     void setup_two_layers() {
@@ -181,27 +179,27 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output_1", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k));
-        topology.add(detection_output("detection_output_2", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k));
+        topology.add(detection_output("detection_output_1", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k));
+        topology.add(detection_output("detection_output_2", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k));
 
-        build_options opts;
-        network network(engine, topology, opts);
+        ExecutionConfig config;
+        network network(engine, topology, config);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
         network.set_input_data("input_prior_box", input_prior_box);
 
         auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.size(), size_t(2));
+        ASSERT_EQ(outputs.size(), size_t(2));
         unsigned i = 1;
         for (auto it = outputs.begin(); it != outputs.begin(); it++) {
 
-            EXPECT_EQ(it->first, "detection_output_" + std::to_string(i));
+            ASSERT_EQ(it->first, "detection_output_" + std::to_string(i));
 
-            EXPECT_EQ(it->second.get_memory()->get_layout().batch(), 1);
-            EXPECT_EQ(it->second.get_memory()->get_layout().feature(), 1);
-            EXPECT_EQ(it->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-            EXPECT_EQ(it->second.get_memory()->get_layout().spatial(0), 7);
+            ASSERT_EQ(it->second.get_memory()->get_layout().batch(), 1);
+            ASSERT_EQ(it->second.get_memory()->get_layout().feature(), 1);
+            ASSERT_EQ(it->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+            ASSERT_EQ(it->second.get_memory()->get_layout().spatial(0), 7);
             i++;
         }
     }
@@ -224,23 +222,23 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
+        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
-        build_options opts;
-        network network(engine, topology, opts);
+        ExecutionConfig config;
+        network network(engine, topology, config);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
         network.set_input_data("input_prior_box", input_prior_box);
 
         auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -272,23 +270,23 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
+        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
-        build_options opts;
-        network network(engine, topology, opts);
+        ExecutionConfig config;
+        network network(engine, topology, config);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
         network.set_input_data("input_prior_box", input_prior_box);
 
         auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -314,23 +312,23 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
+        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
-        build_options opts;
-        network network(engine, topology, opts);
+        ExecutionConfig config;
+        network network(engine, topology, config);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
         network.set_input_data("input_prior_box", input_prior_box);
 
         auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -367,23 +365,23 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
+        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
-        build_options opts;
-        network network(engine, topology, opts);
+        ExecutionConfig config;
+        network network(engine, topology, config);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
         network.set_input_data("input_prior_box", input_prior_box);
 
         auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -426,27 +424,27 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box",
+        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"),
             this->num_classes, keep_top_k, share_location, background_label_id, nms_threshold,
             top_k, eta, code_type, variance_encoded_in_target, confidence_threshold, prior_info_size,
             prior_coordinates_offset, prior_is_normalized, input_width, input_height, decrease_label_id
         ));
 
-        build_options opts;
-        network network(engine, topology, opts);
+        ExecutionConfig config;
+        network network(engine, topology, config);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
         network.set_input_data("input_prior_box", input_prior_box);
 
         auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -480,23 +478,23 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
+        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
-        build_options opts;
-        network network(engine, topology, opts);
+        ExecutionConfig config;
+        network network(engine, topology, config);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
         network.set_input_data("input_prior_box", input_prior_box);
 
         auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -541,23 +539,23 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
+        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
-        build_options opts;
-        network network(engine, topology, opts);
+        ExecutionConfig config;
+        network network(engine, topology, config);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
         network.set_input_data("input_prior_box", input_prior_box);
 
         auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -589,23 +587,23 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
+        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
-        build_options opts;
-        network network(engine, topology, opts);
+        ExecutionConfig config;
+        network network(engine, topology, config);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
         network.set_input_data("input_prior_box", input_prior_box);
 
         auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -640,23 +638,23 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
+        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
-        build_options opts;
-        network network(engine, topology, opts);
+        ExecutionConfig config;
+        network network(engine, topology, config);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
         network.set_input_data("input_prior_box", input_prior_box);
 
         auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -683,26 +681,26 @@ public:
         topology.add(input_layout("input_location", input_location->get_layout()));
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
-        topology.add(reorder("input_location_padded", "input_location", input_location->get_layout().with_padding(padding{ { 0, 0, 12, 3 },{ 0, 0, 5, 11 } })));
-        topology.add(reorder("input_confidence_padded", "input_confidence", input_location->get_layout().with_padding(padding{ { 0, 0, 2, 7 },{ 0, 0, 13, 1 } })));
+        topology.add(reorder("input_location_padded", input_info("input_location"), input_location->get_layout().with_padding(padding{ { 0, 0, 12, 3 },{ 0, 0, 5, 11 } })));
+        topology.add(reorder("input_confidence_padded", input_info("input_confidence"), input_location->get_layout().with_padding(padding{ { 0, 0, 2, 7 },{ 0, 0, 13, 1 } })));
 
-        topology.add(detection_output("detection_output", "input_location_padded", "input_confidence_padded", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
+        topology.add(detection_output("detection_output", input_info("input_location_padded"), input_info("input_confidence_padded"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
-        build_options opts;
-        network network(engine, topology, opts);
+        ExecutionConfig config;
+        network network(engine, topology, config);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
         network.set_input_data("input_prior_box", input_prior_box);
 
         auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -716,7 +714,7 @@ public:
         check_results(output_prim, 7, "0 0 0 0 0 0 0");
     }
 
-    void test_forward_no_share_location_top_k_faster_rcnn_case() {
+    void test_forward_no_share_location_top_k_faster_rcnn_case(bool is_caching_test) {
         const bool share_location = false;
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 4;
@@ -742,30 +740,48 @@ public:
         topology.add(input_layout("input_location", input_location->get_layout()));
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
-        topology.add(reorder("input_location_padded", "input_location", input_location->get_layout().with_padding(padding{ { 0, 0, 12, 3 },{ 0, 0, 5, 11 } })));
-        topology.add(reorder("input_confidence_padded", "input_confidence", input_location->get_layout().with_padding(padding{ { 0, 0, 2, 7 },{ 0, 0, 13, 1 } })));
+        topology.add(reorder("input_location_padded", input_info("input_location"), input_location->get_layout().with_padding(padding{ { 0, 0, 12, 3 },{ 0, 0, 5, 11 } })));
+        topology.add(reorder("input_confidence_padded", input_info("input_confidence"), input_location->get_layout().with_padding(padding{ { 0, 0, 2, 7 },{ 0, 0, 13, 1 } })));
 
-        topology.add(detection_output("detection_output", "input_location_padded", "input_confidence_padded", "input_prior_box",
+        topology.add(detection_output("detection_output", input_info("input_location_padded"), input_info("input_confidence_padded"), input_info("input_prior_box"),
             this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k,
             eta, code_type, variance_encoded_in_target, confidence_threshold, prior_info_size, prior_coordinates_offset,
             prior_is_normalized, this->img_size, this->img_size
         ));
 
-        build_options opts;
-        network network(engine, topology, opts);
-        network.set_input_data("input_location", input_location);
-        network.set_input_data("input_confidence", input_confidence);
-        network.set_input_data("input_prior_box", input_prior_box);
+        ExecutionConfig config;
+        cldnn::network::ptr network;
 
-        auto outputs = network.execute();
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology, config);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology, config);
+        }
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        network->set_input_data("input_location", input_location);
+        network->set_input_data("input_confidence", input_confidence);
+        network->set_input_data("input_prior_box", input_prior_box);
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        auto outputs = network->execute();
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
+
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -838,5 +854,9 @@ TYPED_TEST(detection_output_test, test_forward_no_share_location_top_k_input_pad
 }
 
 TYPED_TEST(detection_output_test, test_forward_no_share_location_top_k_faster_rcnn_case) {
-    this->test_forward_no_share_location_top_k_faster_rcnn_case();
+    this->test_forward_no_share_location_top_k_faster_rcnn_case(false);
+}
+
+TYPED_TEST(detection_output_test, export_import) {
+    this->test_forward_no_share_location_top_k_faster_rcnn_case(true);
 }

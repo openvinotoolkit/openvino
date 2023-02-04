@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -28,7 +28,9 @@ endforeach()
 message(" ")
 
 # for samples in 3rd party projects
-set_and_check(gflags_DIR "@gflags_BINARY_DIR@")
+if(ENABLE_SAMPLES)
+    set_and_check(gflags_DIR "@gflags_BINARY_DIR@")
+endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # Disable warning as error for private components
@@ -61,9 +63,10 @@ endforeach()
 
 if(ENABLE_SYSTEM_PUGIXML)
     set(_ov_pugixml_pkgconfig_interface "@pugixml_FOUND@")
+    set(_ov_pugixml_cmake_interface "@PugiXML_FOUND@")
     if(_ov_pugixml_pkgconfig_interface)
         find_dependency(PkgConfig)
-    else()
+    elseif(_ov_pugixml_cmake_interface)
         find_dependency(PugiXML)
     endif()
     if(PugiXML_FOUND)
@@ -95,6 +98,17 @@ if(ENABLE_SYSTEM_PUGIXML)
                 set_target_properties(PkgConfig::pugixml PROPERTIES
                     INTERFACE_INCLUDE_DIRECTORIES "")
             endif()
+        endif()
+    endif()
+
+    # debian 9 case: no cmake, no pkg-config files
+    if(NOT TARGET openvino::pugixml)
+        find_library(PUGIXML_LIBRARY NAMES pugixml DOC "Path to pugixml library")
+        if(PUGIXML_LIBRARY)
+            add_library(openvino::pugixml INTERFACE IMPORTED GLOBAL)
+            set_target_properties(openvino::pugixml PROPERTIES INTERFACE_LINK_LIBRARIES "${PUGIXML_LIBRARY}")
+        else()
+            message(FATAL_ERROR "Failed to find system pugixml in OpenVINO Developer Package")
         endif()
     endif()
 endif()

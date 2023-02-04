@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,13 +12,10 @@
 #include <algorithm>
 
 namespace cldnn {
-primitive_type_id border::type_id() {
-    static primitive_type_base<border> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(border)
 
 layout border_inst::calc_output_layout(border_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for border_node!");
     auto input_layout = impl_param.get_input_layout();
     auto input_format = input_layout.format;
@@ -28,8 +25,8 @@ layout border_inst::calc_output_layout(border_node const& node, kernel_impl_para
     auto new_dims = input_layout.get_dims();
 
     for (size_t i = 0; i < new_dims.size(); ++i) {
-        new_dims[i] += desc->pads_begin[i];
-        new_dims[i] += desc->pads_end[i];
+        new_dims[i] += (i < desc->pads_begin.size()) ? desc->pads_begin[i] : 0;
+        new_dims[i] += (i < desc->pads_end.size()) ? desc->pads_end[i] : 0;
     }
     return layout{ input_layout.data_type, input_format, tensor(dims_format, new_dims) };
 }
@@ -106,6 +103,9 @@ std::string border_inst::to_string(border_node const& node) {
 
 border_inst::typed_primitive_inst(network& network, border_node const& node) : parent(network, node) {
     auto input_layout = node.input().get_output_layout();
+    if (input_layout.is_dynamic()) {
+        return;
+    }
 
     const auto& input_sizes = input_layout.get_dims();
     auto pad_mode = argument->pad_mode;
@@ -129,7 +129,7 @@ border_inst::typed_primitive_inst(network& network, border_node const& node) : p
     if (pad_mode == ov::op::PadMode::SYMMETRIC) {
         bool valid_pads = true;
 
-        for (size_t i = 0; i < input_sizes.size(); ++i) {
+        for (size_t i = 0; i < argument->pads_begin.size(); ++i) {
             valid_pads &= argument->pads_begin[i] <= input_sizes[i];
             valid_pads &= argument->pads_end[i] <= input_sizes[i];
         }
@@ -140,7 +140,7 @@ border_inst::typed_primitive_inst(network& network, border_node const& node) : p
     } else if (pad_mode == ov::op::PadMode::REFLECT) {
         bool valid_pads = true;
 
-        for (size_t i = 0; i < input_sizes.size(); ++i) {
+        for (size_t i = 0; i < argument->pads_begin.size(); ++i) {
             valid_pads &= argument->pads_begin[i] < input_sizes[i];
             valid_pads &= argument->pads_end[i] < input_sizes[i];
         }

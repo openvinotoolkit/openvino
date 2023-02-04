@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -188,7 +188,14 @@ struct im_info_t {
 };
 
 struct proposal_impl : typed_primitive_impl<proposal> {
+    using parent = typed_primitive_impl<proposal>;
+    using parent::parent;
+
+    proposal_impl() : parent() {}
+
     explicit proposal_impl(const proposal_node& arg) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<proposal_impl>(*this);
@@ -425,7 +432,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
 
     void init_kernels(const kernels_cache&) override {}
 
-    static primitive_impl* create(const proposal_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const proposal_node& arg, const kernel_impl_params& impl_param) {
         const layout& l = impl_param.input_layouts[2];
         const size_t count = l.feature() == 1 ? static_cast<size_t>(l.batch()) : static_cast<size_t>(l.feature());
 
@@ -437,7 +444,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
             CLDNN_ERROR_MESSAGE(arg.id(), "image_info must have either 3, 4 or 6 items");
         }
 
-        return new proposal_impl(arg);
+        return make_unique<proposal_impl>(arg);
     }
 };
 
@@ -453,3 +460,5 @@ attach_proposal_impl::attach_proposal_impl() {
 }  // namespace detail
 }  // namespace cpu
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::proposal_impl)

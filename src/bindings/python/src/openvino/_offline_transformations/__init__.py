@@ -1,13 +1,15 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
 
 from openvino.utils import add_openvino_libs_to_path
+
 add_openvino_libs_to_path()
 
 from openvino._pyopenvino import get_version
+
 __version__ = get_version()
 
 from openvino._pyopenvino._offline_transformations import apply_fused_names_cleanup

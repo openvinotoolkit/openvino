@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include <json_object.h>
@@ -11,10 +11,7 @@
 #include "primitive_type_base.h"
 
 namespace cldnn {
-primitive_type_id matrix_nms::type_id() {
-    static primitive_type_base<matrix_nms> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(matrix_nms)
 
 layout matrix_nms_inst::calc_output_layout(const matrix_nms_node& node, const kernel_impl_params& impl_param) {
     const auto primitive = impl_param.typed_desc<matrix_nms>();

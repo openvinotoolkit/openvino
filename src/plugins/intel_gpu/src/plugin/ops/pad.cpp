@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,32 +15,20 @@ namespace intel_gpu {
 
 static void CreatePadOp(Program& p, const std::shared_ptr<ngraph::op::v1::Pad>& op) {
     validate_inputs_count(op, {3, 4});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
-    size_t rank = std::max(op->get_input_shape(0).size(), static_cast<size_t>(4));
 
     float pad_value = 0.f;
     if (op->get_input_size() == 4) {
         auto const_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(3));
-        if (!const_node) {
-            IE_THROW() << "Unsupported const node type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
-        }
-        ngraph::op::util::get_single_value(const_node, pad_value);
-    }
-
-    auto pads_begin = op->get_pads_begin();
-    auto pads_end = op->get_pads_end();
-
-    if (pads_begin.size() < rank) {
-        size_t zeros_to_add = rank - pads_begin.size();
-        pads_begin.insert(pads_begin.end(), zeros_to_add, 0);
-        pads_end.insert(pads_end.end(), zeros_to_add, 0);
+        OPENVINO_ASSERT(const_node, "Unsupported const node type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+        ov::op::util::get_single_value(const_node, pad_value);
     }
 
     auto tilePrim = cldnn::border(layerName,
-                                  inputPrimitives[0],
-                                  pads_begin,
-                                  pads_end,
+                                  inputs[0],
+                                  op->get_pads_begin(),
+                                  op->get_pads_end(),
                                   op->get_pad_mode(),
                                   pad_value);
 

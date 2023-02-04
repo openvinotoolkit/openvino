@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,11 +17,11 @@ namespace intel_gpu {
 
 static void CreateCommonMVNOp(Program& p, const std::shared_ptr<ngraph::Node>& op,
                               bool across_channels, bool normalize_variance, float eps, bool eps_inside_sqrt = true) {
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     auto mvnPrim = cldnn::mvn(layerName,
-                              inputPrimitives[0],
+                              inputs[0],
                               normalize_variance,
                               eps,
                               eps_inside_sqrt,

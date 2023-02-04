@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,6 @@
 namespace ov {
 namespace intel_gna {
 namespace pass {
-
 
 // @brief Insert Reshapes from 3d/4d to 2d before MatMul and from 2d to 3d/4d after MatMul
 class InsertReshapeAroundMatmul : public ngraph::pass::MatcherPass {
@@ -37,8 +36,8 @@ public:
     InsertReshapeAroundMatmulWithTranspose();
 };
 
-} // namespace pass
-} // namespace intel_gna
-} // namespace ov
+}  // namespace pass
+}  // namespace intel_gna
+}  // namespace ov
 
-#endif // INSERT_RESHAPE_AROUND_MATMUL_HPP
+#endif  // INSERT_RESHAPE_AROUND_MATMUL_HPP

@@ -19,7 +19,6 @@ GNA_CONFIG_PATH = HARDWARE_CONFIG_PATH / 'gna.json'
 
 TEST_MODELS = [
     ('mobilenetv2_example', 'pytorch', 'ANY'),
-    ('resnet_example', 'pytorch', 'ANY'),
     ('googlenet_example', 'pytorch', 'ANY'),
     ('mobilenetv2_ssd_example', 'pytorch', 'ANY'),
     ('densenet121_example', 'pytorch', 'ANY'),
@@ -28,8 +27,10 @@ TEST_MODELS = [
     ('lstm_example', 'pytorch', 'GNA'),
     #('multiple_outputs_net_example', 'tf', 'GNA'),
     ('resnet_example', 'pytorch', 'CPU_SPR'),
-    #('tensor_iterator_example', 'tf', 'ANY'),
+    ('tensor_iterator_example', 'tf', 'ANY'),
+    ('ti_decomposition_example', 'tf', 'GNA'),
     ('softsign_example', 'tf', 'GNA'),
+    ('gather_example', 'tf', 'CPU'),
     ('split_concat_example', 'pytorch', 'ANY'),
 ]
 
@@ -51,9 +52,9 @@ def test_build_quantization_graph(tmp_path, models, model_name, model_framework,
     model = load_model(model.model_params, target_device=target_device)
 
     if target_device == 'GNA':
-        hardware_config = HardwareConfig.from_json(GNA_CONFIG_PATH.as_posix())
+        hardware_config = HardwareConfig.from_json(GNA_CONFIG_PATH.as_posix(), target_device)
     else:
-        hardware_config = HardwareConfig.from_json(CPU_CONFIG_PATH.as_posix())
+        hardware_config = HardwareConfig.from_json(CPU_CONFIG_PATH.as_posix(), target_device)
 
     quantization_model = GraphTransformer(hardware_config).insert_fake_quantize(model)
 
@@ -257,14 +258,14 @@ def test_multibranch_propagation_without_fq_moving(tmp_path, models, model_name,
 
 MODELS_WITH_LSTM = [
     ('lstm_example', 'pytorch', {
-        'LSTM_15/TensorIterator/22/variable_1':
-            ['Assign_304'],
-        'LSTM_15/TensorIterator/24/variable_2':
-            ['Assign_311'],
-        'LSTM_19/TensorIterator/22/variable_1':
-            ['Assign_333'],
-        'LSTM_19/TensorIterator/24/variable_2':
-            ['Assign_340']
+        'ReadValue_2474':
+            ['Assign_2475'],
+        'ReadValue_2430':
+            ['Assign_2431'],
+        'ReadValue_2440':
+            ['Assign_2441'],
+        'ReadValue_2464':
+            ['Assign_2465']
     })
 ]
 

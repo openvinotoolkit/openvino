@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1437,6 +1437,256 @@ TEST_F(IRFrontendTestsTensorIterator, tensor_iterator_negative_stride_opset4) {
     int64Buffer[393730] = 1;
     int64Buffer[393731] = 1;
     int64Buffer[393732] = 256;
+
+    createTemporalModelFile(xmlModel, buffer);
+    std::shared_ptr<ov::Model> model;
+
+    ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
+    ASSERT_TRUE(!!model);
+}
+
+TEST_F(IRFrontendTestsTensorIterator, test1) {
+    std::string xmlModel = R"V0G0N(
+    <?xml version="1.0"?>
+<net name="Model169" version="10">
+	<layers>
+		<layer id="0" name="Parameter_2683" type="Parameter" version="opset1">
+			<data shape="1,128" element_type="f32" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>128</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="Parameter_2682" type="Parameter" version="opset1">
+			<data shape="1,2,10" element_type="f32" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>2</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="TensorIterator_2680" type="TensorIterator" version="opset1">
+			<port_map>
+				<input axis="1" external_port_id="0" internal_layer_id="1" start="0" end="-1" stride="1" part_size="1" />
+				<input external_port_id="1" internal_layer_id="0" />
+				<output axis="1" external_port_id="2" internal_layer_id="9" start="0" end="-1" stride="1" part_size="1" />
+				<output external_port_id="3" internal_layer_id="10" />
+			</port_map>
+			<back_edges>
+				<edge from-layer="10" to-layer="0" />
+			</back_edges>
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>2</dim>
+					<dim>10</dim>
+				</port>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>128</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>1</dim>
+					<dim>2</dim>
+					<dim>128</dim>
+				</port>
+				<port id="3" precision="FP32">
+					<dim>1</dim>
+					<dim>128</dim>
+				</port>
+			</output>
+			<body>
+				<layers>
+					<layer id="0" name="Parameter_2685" type="Parameter" version="opset1">
+						<data shape="1,128" element_type="f32" />
+						<output>
+							<port id="0" precision="FP32">
+								<dim>1</dim>
+								<dim>128</dim>
+							</port>
+						</output>
+					</layer>
+					<layer id="1" name="Parameter_2684" type="Parameter" version="opset1">
+						<data shape="1,1,10" element_type="f32" />
+						<output>
+							<port id="0" precision="FP32">
+								<dim>1</dim>
+								<dim>1</dim>
+								<dim>10</dim>
+							</port>
+						</output>
+					</layer>
+					<layer id="2" name="Constant_2681" type="Const" version="opset1">
+						<data element_type="i64" shape="1" offset="0" size="8" />
+						<output>
+							<port id="0" precision="I64">
+								<dim>1</dim>
+							</port>
+						</output>
+					</layer>
+					<layer id="3" name="Squeeze_2686" type="Squeeze" version="opset1">
+						<input>
+							<port id="0" precision="FP32">
+								<dim>1</dim>
+								<dim>1</dim>
+								<dim>10</dim>
+							</port>
+							<port id="1" precision="I64">
+								<dim>1</dim>
+							</port>
+						</input>
+						<output>
+							<port id="2" precision="FP32">
+								<dim>1</dim>
+								<dim>10</dim>
+							</port>
+						</output>
+					</layer>
+					<layer id="4" name="Constant_2687" type="Const" version="opset1">
+						<data element_type="f32" shape="384, 10" offset="8" size="15360" />
+						<output>
+							<port id="0" precision="FP32">
+								<dim>384</dim>
+								<dim>10</dim>
+							</port>
+						</output>
+					</layer>
+					<layer id="5" name="Constant_2688" type="Const" version="opset1">
+						<data element_type="f32" shape="384, 128" offset="15368" size="196608" />
+						<output>
+							<port id="0" precision="FP32">
+								<dim>384</dim>
+								<dim>128</dim>
+							</port>
+						</output>
+					</layer>
+					<layer id="6" name="Constant_2689" type="Const" version="opset1">
+						<data element_type="f32" shape="384" offset="211976" size="1536" />
+						<output>
+							<port id="0" precision="FP32">
+								<dim>384</dim>
+							</port>
+						</output>
+					</layer>
+					<layer id="7" name="GRUCell_2690" type="GRUCell" version="opset3">
+						<data linear_before_reset="false" hidden_size="128" activations="sigmoid, tanh" activations_alpha="" activations_beta="" clip="0" />
+						<input>
+							<port id="0" precision="FP32">
+								<dim>1</dim>
+								<dim>10</dim>
+							</port>
+							<port id="1" precision="FP32">
+								<dim>1</dim>
+								<dim>128</dim>
+							</port>
+							<port id="2" precision="FP32">
+								<dim>384</dim>
+								<dim>10</dim>
+							</port>
+							<port id="3" precision="FP32">
+								<dim>384</dim>
+								<dim>128</dim>
+							</port>
+							<port id="4" precision="FP32">
+								<dim>384</dim>
+							</port>
+						</input>
+						<output>
+							<port id="5" precision="FP32">
+								<dim>1</dim>
+								<dim>128</dim>
+							</port>
+						</output>
+					</layer>
+					<layer id="8" name="Unsqueeze_2691" type="Unsqueeze" version="opset1">
+						<input>
+							<port id="0" precision="FP32">
+								<dim>1</dim>
+								<dim>128</dim>
+							</port>
+							<port id="1" precision="I64">
+								<dim>1</dim>
+							</port>
+						</input>
+						<output>
+							<port id="2" precision="FP32">
+								<dim>1</dim>
+								<dim>1</dim>
+								<dim>128</dim>
+							</port>
+						</output>
+					</layer>
+					<layer id="9" name="Result_2693" type="Result" version="opset1">
+						<input>
+							<port id="0" precision="FP32">
+								<dim>1</dim>
+								<dim>1</dim>
+								<dim>128</dim>
+							</port>
+						</input>
+					</layer>
+					<layer id="10" name="Result_2692" type="Result" version="opset1">
+						<input>
+							<port id="0" precision="FP32">
+								<dim>1</dim>
+								<dim>128</dim>
+							</port>
+						</input>
+					</layer>
+				</layers>
+				<edges>
+					<edge from-layer="0" from-port="0" to-layer="7" to-port="1" />
+					<edge from-layer="1" from-port="0" to-layer="3" to-port="0" />
+					<edge from-layer="2" from-port="0" to-layer="3" to-port="1" />
+					<edge from-layer="2" from-port="0" to-layer="8" to-port="1" />
+					<edge from-layer="3" from-port="2" to-layer="7" to-port="0" />
+					<edge from-layer="4" from-port="0" to-layer="7" to-port="2" />
+					<edge from-layer="5" from-port="0" to-layer="7" to-port="3" />
+					<edge from-layer="6" from-port="0" to-layer="7" to-port="4" />
+					<edge from-layer="7" from-port="5" to-layer="8" to-port="0" />
+					<edge from-layer="7" from-port="5" to-layer="10" to-port="0" />
+					<edge from-layer="8" from-port="2" to-layer="9" to-port="0" />
+				</edges>
+				<rt_info />
+			</body>
+		</layer>
+		<layer id="3" name="Result_2695" type="Result" version="opset1">
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>128</dim>
+				</port>
+			</input>
+		</layer>
+		<layer id="4" name="Result_2694" type="Result" version="opset1">
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>2</dim>
+					<dim>128</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="2" to-port="1" />
+		<edge from-layer="1" from-port="0" to-layer="2" to-port="0" />
+		<edge from-layer="2" from-port="3" to-layer="3" to-port="0" />
+		<edge from-layer="2" from-port="2" to-layer="4" to-port="0" />
+	</edges>
+	<rt_info />
+</net>
+    )V0G0N";
+
+    std::vector<unsigned char> buffer(213512, 0);
+    int64_t* int64Buffer = reinterpret_cast<int64_t*>(buffer.data());
+    int64Buffer[0] = 1;
 
     createTemporalModelFile(xmlModel, buffer);
     std::shared_ptr<ov::Model> model;

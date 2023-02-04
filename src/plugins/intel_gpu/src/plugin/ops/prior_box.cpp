@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace intel_gpu {
 
 static void CreatePriorBoxClusteredOp(Program& p, const std::shared_ptr<ngraph::op::v0::PriorBoxClustered>& op) {
     validate_inputs_count(op, {2});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     auto attrs = op->get_attrs();
@@ -51,7 +51,7 @@ static void CreatePriorBoxClusteredOp(Program& p, const std::shared_ptr<ngraph::
     }
 
     auto priorBoxPrim = cldnn::prior_box(layerName,
-                                         inputPrimitives[0],
+                                         inputs[0],
                                          img_size,
                                          clip,
                                          variance,
@@ -67,7 +67,7 @@ static void CreatePriorBoxClusteredOp(Program& p, const std::shared_ptr<ngraph::
 
 static void CreatePriorBoxOp(Program& p, const std::shared_ptr<ngraph::op::v0::PriorBox>& op) {
     validate_inputs_count(op, {2});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     auto attrs = op->get_attrs();
@@ -97,7 +97,7 @@ static void CreatePriorBoxOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
 
     cldnn::tensor img_size = (cldnn::tensor) cldnn::spatial(TensorValue(wdim), TensorValue(hdim));
     auto priorBoxPrim = cldnn::prior_box(layerName,
-                                         inputPrimitives[0],
+                                         inputs[0],
                                          img_size,
                                          min_size,
                                          max_size,
@@ -118,7 +118,7 @@ static void CreatePriorBoxOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
 
 static void CreatePriorBoxOp(Program& p, const std::shared_ptr<ngraph::op::v8::PriorBox>& op) {
     validate_inputs_count(op, {2});
-    const auto inputs = p.GetInputPrimitiveIDs(op);
+    const auto inputs = p.GetInputInfo(op);
     std::string layer_name = layer_type_name_ID(op);
 
     const auto& attrs = op->get_attrs();

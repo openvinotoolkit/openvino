@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -248,3 +248,4 @@ REGISTER_FACTORY(v9, Eye);
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
 REGISTER_FACTORY(internal, GenerateProposalsIEInternal);
 REGISTER_FACTORY(internal, NmsStaticShapeIE8);
+REGISTER_FACTORY(internal, MulticlassNmsIEInternal);

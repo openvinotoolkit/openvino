@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -12,8 +12,6 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
     find_package(OpenVINODeveloperPackage REQUIRED
                  PATHS "${InferenceEngineDeveloperPackage_DIR}")
 endif()
-
-option(ENABLE_CONDA_FOLDER "Create output folder with conda python bindings" OFF)
 
 if(UNIX)
     # cython generated files requires public visibility. Force visibility required.
@@ -32,20 +30,11 @@ endif()
 
 set(pyversion python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
 
-if(ENABLE_CONDA_FOLDER)
-    set(PYTHON_COMPONENT conda_${OV_CPACK_COMP_PYTHON_IE_API}_${pyversion})
-    if(WIN32)
-        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/Conda/${pyversion}/openvino)
-    else()
-        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/Conda/${pyversion}/openvino)
-    endif()
+set(PYTHON_COMPONENT ${OV_CPACK_COMP_PYTHON_IE_API}_${pyversion})
+if(WIN32)
+    set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${pyversion}/openvino)
 else()
-    set(PYTHON_COMPONENT ${OV_CPACK_COMP_PYTHON_IE_API}_${pyversion})
-    if(WIN32)
-        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${pyversion}/openvino)
-    else()
-        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${pyversion}/openvino)
-    endif()
+    set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${pyversion}/openvino)
 endif()
 
 function(ov_python_disable_intel_warnings target)
@@ -65,7 +54,3 @@ endif()
 # install
 
 ie_cpack_add_component(${PYTHON_COMPONENT} HIDDEN)
-
-install(FILES requirements.txt
-        DESTINATION ${OV_CPACK_PYTHONDIR}
-        COMPONENT ${PYTHON_COMPONENT})

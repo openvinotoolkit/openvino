@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
@@ -44,12 +44,7 @@ def base_args_config(use_legacy_fe:bool=None, use_new_fe:bool=None):
     args.output_dir=os.getcwd()
     args.freeze_placeholder_with_value = None
     args.transformations_config = None
-    args.disable_fusing = None
-    args.finegrain_fusing = None
-    args.disable_resnet_optimization = None
-    args.enable_concat_optimization = None
     args.static_shape = None
-    args.disable_weights_compression = None
     args.reverse_input_channels = None
     args.data_type = None
     args.layout = None
@@ -101,39 +96,7 @@ class TestMoFallback(unittest.TestCase):
         self.test_config_files = {}
         self.test_config_files['fake_config.json'] = '[]' # json format
 
-        self.test_config_files['test_config_1.json'] = """[
-            {
-            "custom_attributes": {
-            "test_attribute": true
-            },
-            "id": "TransformationName1",
-            "library": "path_to_library1.so",
-            "match_kind": "scope"
-            },
-            { 
-            "custom_attributes": {
-            },
-            "id": "TransfromationName2",
-            "library": "path_to_library2.so",
-            "match_kind": "scope"
-            },
-            {
-            "id": "TransfromationName3",
-            "library": "path_to_library3.so",
-            "match_kind": "scope"
-            }
-        ]"""
-
-        self.test_config_files['test_config_2.json'] = """{
-            "custom_attributes": {
-            "test_attribute": true
-            },
-            "id": "TransformationName1",
-            "library": "path_to_library.so",
-            "match_kind": "scope"
-        }"""
-
-        self.test_config_files['test_config_3.json'] = """[
+        self.test_config_files['test_config.json'] = """[
             {
             "custom_attributes": {
             "test_attribute": true
@@ -146,26 +109,6 @@ class TestMoFallback(unittest.TestCase):
             },
             "id": "TransfromationName2",
             "match_kind": "scope"
-            }
-        ]"""
-
-        self.test_config_files['test_config_4.json'] = """[
-        {
-            "custom_attributes": {
-            "test_attribute": true
-            },
-            "id": "TransformationName1",
-            "library": "path_to_library",
-            "match_kind": "scope"
-            },
-            { 
-            "custom_attributes": {
-            },
-            "id": "TransfromationName2",
-            "match_kind": "scope"
-            },
-            {
-            "library": "path_to_library.so"
             }
         ]"""
 
@@ -265,6 +208,7 @@ class TestMoFallback(unittest.TestCase):
 
 
     @generate(*[('fake_config.json' , None, None, 'mo_legacy', 'transformations_config'), # fallback
+                ('test_config.json' , None, None, 'mo_legacy', 'transformations_config'), # fallback
                 ('fake_config.json' , True, None, 'mo_legacy', None),
                 (None, None, True, 'onnx_frontend', None),
                 (None, None, None, 'onnx_frontend', None),
@@ -276,7 +220,8 @@ class TestMoFallback(unittest.TestCase):
             args.input_model = "test_model.onnx"
             args.transformations_config = trans_config
 
-            prepare_ir(args)
+            with patch('openvino.tools.mo.utils.class_registration.apply_transform'): # skip applying transforms
+                prepare_ir(args)
 
             tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
             if fallback_reason:
@@ -284,55 +229,6 @@ class TestMoFallback(unittest.TestCase):
             else:
                 with pytest.raises(AssertionError): # not called
                     tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
-
-
-    @generate(*[('test_config_1.json', None, None, 'onnx_frontend', None), # 'library' attribute for all transformations
-                ('test_config_2.json', None, None, 'onnx_frontend', None), # 'library' attribute in single transformation
-                ('test_config_3.json', None, None, 'mo_legacy', 'transformations_config'), # 'library' attribute in no transformations
-    ])
-    def test_fallback_if_new_tranformations_config_specified(self, trans_config, use_legacy, use_new_fe, conversion_method, fallback_reason):
-        with patch('openvino.tools.mo.convert_impl.get_default_frontends') as default_fe:
-            default_fe.return_value = get_test_default_frontends()
-            args = base_args_config(use_legacy, use_new_fe)
-            args.input_model = "test_model.onnx"
-            args.transformations_config = trans_config
-
-            with patch('openvino.tools.mo.utils.class_registration.apply_transform'): # skip applying transforms
-                if conversion_method == 'onnx_frontend':
-                    with pytest.raises(RuntimeError): # workaround to use in tests not existed libaries
-                        prepare_ir(args)
-                else:
-                    prepare_ir(args)
-
-            tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', conversion_method)
-            if fallback_reason:
-                tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
-            else:
-                with pytest.raises(AssertionError): # not called
-                    tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
-
-
-    def test_exception_if_new_trans_config_on_legacy_path(self):
-        with patch('openvino.tools.mo.convert_impl.get_default_frontends') as default_fe:
-            default_fe.return_value = get_test_default_frontends()
-            args = base_args_config(use_legacy_fe=True)
-            args.input_model = "test_model.onnx"
-            args.transformations_config = 'test_config_1.json'
-
-            with pytest.raises(Error) as ex: # not called
-                prepare_ir(args)
-                assert str(ex) == 'New kind of transformations configuration used on legacy path'
-
-
-    def test_exeption_if_mixed_types_of_trans_configs(self):
-        with patch('openvino.tools.mo.convert_impl.get_default_frontends') as default_fe:
-            default_fe.return_value = get_test_default_frontends()
-            args = base_args_config()
-            args.input_model = "test_model.onnx"
-            args.transformations_config = 'test_config_4.json'
-
-            with pytest.raises(Error):
-                prepare_ir(args)
 
 
     @generate(*[(['dir_to_extension'], 'fake_config.json', None, 'mo_legacy', 'extensions, transformations_config'), # fallback
@@ -376,8 +272,7 @@ class TestMoFallback(unittest.TestCase):
                 tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason')
 
 
-    @generate(*[(None, None, ['test_config_1.json'], 'paddle_frontend'),
-                (True, None, None, 'paddle_frontend'),
+    @generate(*[(True, None, None, 'paddle_frontend'),
                 (None, None, None, 'paddle_frontend'),
     ])
     def test_no_fallback_if_pdpd(self, use_new_fe, use_legacy, extension, expected_path):

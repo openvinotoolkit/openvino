@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -222,6 +222,7 @@ struct format {
         gyxio,                                        ///< format used for weights for 2D convolution
         goizyx,                                       ///< format used for weights for 3D convolution
         giozyx,                                       ///< format used for weights for 3D deconvolution
+        g_os_iyx_osv8,                                ///< format used for weights for 2D convolution
         g_os_iyx_osv16,                               ///< format used for weights for 2D convolution
         g_os_iyx_osv32,                               ///< format used for weights for 2D convolution
         gs_oiyx_gsv16,                                ///< format used for weights for 2D convolution
@@ -237,6 +238,10 @@ struct format {
         g_os_is_zyx_isv8_osv16_isv2,
         g_os_is_yx_isv8_osv16_isv2,
         g_os_is_zyx_isv16_osv16,
+        g_os_zy_is_x_osv8_isv2,
+        g_os_zy_is_x_osv8_isv4,
+        g_os_zyx_is_osv8_isv2,
+        g_os_zyx_is_osv8_isv4,
         g_os_zyx_is_osv16_isv4,                       ///< format for imad deconvolution
         g_os_zyx_is_osv16_isv16,                      ///< format for imad deconvolution
         g_os_zyx_is_osv16_isv32,                      ///< format for imad deconvolution
@@ -259,6 +264,8 @@ struct format {
         g_os_is_yx_osa2_isa8_osv16_isv4,
         g_os_is_zyx_osa4_isa8_osv8_isv2,
         g_os_is_zyx_osa4_isa8_osv8_isv4,
+        g_os_is_zyx_isa8_osv8_isv2,
+        g_os_is_zyx_isa8_osv8_isv4,
         g_os_yx_is_osv8_isv2,
         g_os_yx_is_osv8_isv4,
         g_os_y_is_x_osv8_isv2,
@@ -324,6 +331,8 @@ struct format {
     static format get_default_format(size_t rank, bool is_weights = false, bool is_grouped = false);
 
     static format adjust_to_rank(format fmt, size_t new_rank);
+
+    static const std::vector<std::pair<size_t, int>> per_axis_block_size(format fmt);
 
     /// @brief Checks if @p format is of grouped type
     static bool is_grouped(type fmt) { return group_num(fmt) != 0; }

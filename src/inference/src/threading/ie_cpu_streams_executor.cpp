@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -96,8 +96,14 @@ struct CPUStreamsExecutor::Impl {
                 } else {
                     // assigning the stream to the core type in the round-robin fashion
                     // wrapping around total_streams (i.e. how many streams all different core types can handle
-                    // together)
+                    // together). Binding priority: Big core, Logical big core, Small core
                     const auto total_streams = _impl->total_streams_on_core_types.back().second;
+                    const auto big_core_streams = _impl->total_streams_on_core_types.front().second;
+                    const auto hybrid_core = _impl->total_streams_on_core_types.size() > 1;
+                    const auto phy_core_streams =
+                        _impl->_config._big_core_streams == 0
+                            ? 0
+                            : _impl->num_big_core_phys / _impl->_config._threads_per_stream_big;
                     const auto streamId_wrapped = _streamId % total_streams;
                     const auto& selected_core_type =
                         std::find_if(
@@ -107,13 +113,31 @@ struct CPUStreamsExecutor::Impl {
                                 return p.second > streamId_wrapped;
                             })
                             ->first;
-                    const auto max_concurrency = selected_core_type == 0 ? _impl->_config._threads_per_stream_small
-                                                                         : _impl->_config._threads_per_stream_big;
+                    const auto small_core = hybrid_core && selected_core_type == 0;
+                    const auto logic_core = !small_core && streamId_wrapped >= phy_core_streams;
+                    const auto small_core_skip = small_core && _impl->_config._threads_per_stream_small == 3 &&
+                                                 _impl->_config._small_core_streams > 1;
+                    const auto max_concurrency =
+                        small_core ? _impl->_config._threads_per_stream_small : _impl->_config._threads_per_stream_big;
+                    // Special handling of _threads_per_stream_small == 3
+                    const auto small_core_id = small_core_skip ? 0 : streamId_wrapped - big_core_streams;
                     const auto stream_id =
-                        selected_core_type == 0 ? _streamId - _impl->_config._big_core_streams : _streamId;
-                    const auto thread_binding_step = selected_core_type == 0 ? _impl->_config._threadBindingStep : 2;
-                    // Prevent conflicts with system scheduling, so default cpu id on big core starts from 1
-                    const auto cpu_idx_offset = selected_core_type == 0 ? _impl->_config._small_core_offset : 1;
+                        hybrid_core
+                            ? (small_core ? small_core_id
+                                          : (logic_core ? streamId_wrapped - phy_core_streams : streamId_wrapped))
+                            : streamId_wrapped;
+                    const auto thread_binding_step = hybrid_core ? (small_core ? _impl->_config._threadBindingStep : 2)
+                                                                 : _impl->_config._threadBindingStep;
+                    // Special handling of _threads_per_stream_small == 3, need to skip 4 (Four cores share one L2 cache
+                    // on the small core), stream_id = 0, cpu_idx_offset cumulative plus 4
+                    const auto small_core_offset =
+                        small_core_skip ? _impl->_config._small_core_offset + (streamId_wrapped - big_core_streams) * 4
+                                        : _impl->_config._small_core_offset;
+                    const auto cpu_idx_offset =
+                        hybrid_core
+                            // Prevent conflicts with system scheduling, so default cpu id on big core starts from 1
+                            ? (small_core ? small_core_offset : (logic_core ? 0 : 1))
+                            : 0;
 
                     _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                                 .set_core_type(selected_core_type)
@@ -224,13 +248,25 @@ struct CPUStreamsExecutor::Impl {
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
         if (ThreadBindingType::HYBRID_AWARE == config._threadBindingType) {
             const auto core_types = custom::info::core_types();
+            const auto num_core_phys = getNumberOfCPUCores();
+            num_big_core_phys = getNumberOfCPUCores(true);
+            const auto num_small_core_phys = num_core_phys - num_big_core_phys;
             int sum = 0;
             // reversed order, so BIG cores are first
             for (auto iter = core_types.rbegin(); iter < core_types.rend(); iter++) {
                 const auto& type = *iter;
                 // calculating the #streams per core type
                 const int num_streams_for_core_type =
-                    type == 0 ? std::max(1, config._small_core_streams) : std::max(1, config._big_core_streams);
+                    type == 0 ? std::max(1,
+                                         std::min(config._small_core_streams,
+                                                  config._threads_per_stream_small == 0
+                                                      ? 0
+                                                      : num_small_core_phys / config._threads_per_stream_small))
+                              : std::max(1,
+                                         std::min(config._big_core_streams,
+                                                  config._threads_per_stream_big == 0
+                                                      ? 0
+                                                      : num_big_core_phys / config._threads_per_stream_big * 2));
                 sum += num_streams_for_core_type;
                 // prefix sum, so the core type for a given stream id will be deduced just as a upper_bound
                 // (notice that the map keeps the elements in the descending order, so the big cores are populated
@@ -317,6 +353,7 @@ struct CPUStreamsExecutor::Impl {
     // (so mapping is actually just an upper_bound: core type is deduced from the entry for which the id < #streams)
     using StreamIdToCoreTypes = std::vector<std::pair<custom::core_type_id, int>>;
     StreamIdToCoreTypes total_streams_on_core_types;
+    int num_big_core_phys;
 #endif
     ExecutorManager::Ptr _exectorMgr;
 };

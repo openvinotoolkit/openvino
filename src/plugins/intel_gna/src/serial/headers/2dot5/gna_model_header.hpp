@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,13 +6,15 @@
 
 #include <cstdint>
 #include <map>
-#include "backend/dnn_types.h"
-#include "serial/headers/2dot4/gna_model_header.hpp"
+
+#include "backend/dnn_types.hpp"
 #include "gna_data_types.hpp"
+#include "serial/headers/2dot4/gna_model_header.hpp"
 #pragma pack(push, 1)
 
-namespace GNAPluginNS {
-namespace Header2dot5 {
+namespace ov {
+namespace intel_gna {
+namespace header_2_dot_5 {
 
 /**
  * @brief Header version 2.5
@@ -77,7 +79,7 @@ struct ModelHeader {
      * Reserved Data might be here
      */
     ModelHeader() = default;
-    ModelHeader(GNAPluginNS::Header2dot1::ModelHeader const &old) {
+    ModelHeader(header_2_dot_1::ModelHeader const& old) {
         gnaMemSize = old.gnaMemSize;
         layersCount = old.layersCount;
         nGroup = old.nGroup;
@@ -87,7 +89,7 @@ struct ModelHeader {
         nOutputs = old.nOutputs;
         version.minor = old.version.minor;
     }
-    ModelHeader(GNAPluginNS::Header2dot4::ModelHeader const &old) {
+    ModelHeader(header_2_dot_4::ModelHeader const& old) {
         gnaMemSize = old.gnaMemSize;
         layersCount = old.layersCount;
         nGroup = old.nGroup;
@@ -100,7 +102,7 @@ struct ModelHeader {
         doRotateOutput = old.doRotateOutput;
         version.minor = old.version.minor;
     }
-    ModelHeader(GNAPluginNS::Header2dot3::ModelHeader const &old) {
+    ModelHeader(header_2_dot_3::ModelHeader const& old) {
         gnaMemSize = old.gnaMemSize;
         layersCount = old.layersCount;
         nGroup = old.nGroup;
@@ -135,7 +137,7 @@ struct RuntimeEndPoint {
     uint32_t elements_count = 0;
     /**
      * Offset in bytes of pointer descriptor
-    */
+     */
     uint64_t descriptor_offset = 0ull;
 
     intel_dnn_orientation_t orientation = kDnnUnknownOrientation;
@@ -145,11 +147,14 @@ struct RuntimeEndPoint {
                     void* descriptor_ptr,
                     uint32_t element_size,
                     uint32_t elements_count,
-                    intel_dnn_orientation_t orientation) : scaleFactor(scaleFactor),
-                                                           descriptor_ptr(descriptor_ptr),
-                                                           element_size(element_size),
-                                                           elements_count(elements_count),
-                                                           orientation(orientation) { }
+                    intel_dnn_orientation_t orientation)
+        : scaleFactor(scaleFactor),
+          descriptor_ptr(descriptor_ptr),
+          element_size(element_size),
+          elements_count(elements_count),
+          orientation(orientation) {}
 };
-} // namespace Header2dot5
-} // namespace GNAPluginNS
+
+}  // namespace header_2_dot_5
+}  // namespace intel_gna
+}  // namespace ov

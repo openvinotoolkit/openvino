@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -126,12 +126,12 @@ void OPCache::serialize_meta_info(const LayerTestsUtils::OPInfo &info, const std
     for (const auto &model : info.found_in_models) {
         pugi::xml_node model_node = models.append_child("model");
         model_node.append_attribute("name").set_value(model.first.c_str());
-        model_node.append_attribute("count").set_value(model.second);
+        model_node.append_attribute("count").set_value(static_cast<unsigned long long>(model.second));
     }
     auto ports_info = root.append_child("ports_info");
     for (const auto &port : info.ports_info) {
         auto port_node = ports_info.append_child("port");
-        port_node.append_attribute("id").set_value(port.first);
+        port_node.append_attribute("id").set_value(static_cast<unsigned long long>(port.first));
         if (port.second.min == std::numeric_limits<double>::min()) {
             port_node.append_attribute("max").set_value("undefined");
             port_node.append_attribute("min").set_value("undefined");
@@ -196,7 +196,6 @@ OPCache::serialize_function(const std::pair<std::shared_ptr<ov::Node>, LayerTest
         }
         std::replace(op_name.begin(), op_name.end(), '/', '_');
         std::replace(op_name.begin(), op_name.end(), '\\', '_');
-        // TODO: Possible names collision
         auto xml_path = current_op_folder + CommonTestUtils::FileSeparator + op_name + ".xml";
         auto bin_path = current_op_folder + CommonTestUtils::FileSeparator + op_name + ".bin";
         auto meta_info = current_op_folder + CommonTestUtils::FileSeparator + op_name + ".meta";

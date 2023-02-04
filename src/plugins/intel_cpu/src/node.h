@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,7 @@
 #include "extension_mngr.h"
 #include "primitive.h"
 #include "weights_cache.hpp"
+#include "dnnl_scratch_pad.h"
 #include <openvino/itt.hpp>
 #include "utils/ngraph_utils.hpp"
 #include <ngraph/ops.hpp>
@@ -28,12 +29,15 @@
 #include <nodes/common/blocked_desc_creator.h>
 #include "cpu_types.h"
 #include "cpu_shape.h"
+#include "config.h"
 #include "nodes/node_config.h"
 #include "cache/multi_cache.h"
 
-#include <utils/shape_inference/static_shape.hpp>
-#include <utils/shape_inference/shape_inference.hpp>
+#include <utils/shape_inference/shape_inference_cpu.hpp>
 #include "utils/debug_capabilities.h"
+
+#include "dnnl_postops_composer.h"
+#include "graph_context.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -185,7 +189,7 @@ public:
 
     static void appendPostOpArgs(const dnnl::primitive_attr& attr,
                                  std::unordered_map<int, dnnl::memory>& primArgs,
-                                 const std::vector<MemoryPtr>& postOpsArgs);
+                                 const std::unordered_map<int, MemoryPtr>& postOpsArgs);
 
     bool isFusedWith(Type type) const;
 
@@ -332,8 +336,11 @@ public:
     void resolveInPlaceEdges();
 
     virtual void execute(dnnl::stream strm);
+    void updateShapes();
+    void updateDynamicParams();
     void executeDynamic(dnnl::stream strm);
     virtual void redefineOutputMemory(const std::vector<VectorDims> &newShapes);
+    bool outputShapeDataDependency() const;
 
     virtual void initSupportedPrimitiveDescriptors();
 
@@ -409,7 +416,7 @@ public:
             }
         }
 
-        IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
+        IE_THROW() << "Primitive descriptor was not found for node " << getName() << " with type " << NameFromType(getType()) << ".";
     }
 
     int getExecIndex() const {
@@ -521,10 +528,6 @@ public:
         return false;
     }
 
-    void setQuantizedGraphFlag(bool flag) {
-        isInQuantizedGraph = flag;
-    }
-
     bool canBePerformedAsScaleShift(const Node *parentNode = nullptr) const;
 
     bool isDynamicNode() const {
@@ -564,18 +567,8 @@ public:
      * Seed node should call this routine and pass its post operations list as parameter.
      * @param ops List of fused post operations
      */
-    virtual void appendPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<MemoryPtr>& postOpsMem, const int channelAxis = 1);
+    virtual void appendPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::unordered_map<int, MemoryPtr>& postOpsMem, const int channelAxis = 1);
     virtual void appendPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis = 1);
-
-    virtual void appendBinPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem);
-
-    void setRuntimeCache(MultiCachePtr cache) {
-        rtParamsCache = cache;
-    }
-
-    void setSharedMutex(const std::shared_ptr<std::mutex>& mutex) {
-        sharedMutex = mutex;
-    }
 
 protected:
     bool canFuseSimpleOperation(const NodePtr& node) const;
@@ -610,8 +603,8 @@ protected:
 
     std::string originalLayers;  // contains names of the original layers separated by comma
 
-    Node(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache);
-    Node(const std::string& type, const std::string& name, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache);
+    Node(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr ctx, const ShapeInferFactory& shapeInferFactory);
+    Node(const std::string& type, const std::string& name, const GraphContext::CPtr ctx);
 
     int selectedPrimitiveDescriptorIndex = -1;
     bool permanent = false;
@@ -633,15 +626,13 @@ protected:
     std::vector<MemoryPtr> internalBlobMemory;
     std::vector<NodeDesc> supportedPrimitiveDescriptors;
     std::unordered_map<int, dnnl::memory> primArgs;
-    std::vector<MemoryPtr> postOpsArgs;
+    std::unordered_map<int, MemoryPtr> postOpsArgs;
     Primitive prim;
     std::vector<DnnlDesriptor> descs;
 
-    WeightsSharing::Ptr weightCache;
+    const GraphContext::CPtr context;
 
     Algorithm algorithm = Algorithm::Default;
-
-    bool isInQuantizedGraph = false;
 
     friend class Edge;
     friend class Graph;
@@ -673,42 +664,7 @@ protected:
     void addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfigs,
                               const std::vector<PortConfigurator>& outPortConfigs,
                               impl_desc_type implType,
-                              bool dynBatchSupport = false) {
-        auto fill_port = [] (const PortConfigurator& portConfigurator, const Shape& shape,
-                             InferenceEngine::Precision prc, std::vector<PortConfig>& port) -> bool {
-            // In order to simplify particular node initialization logic we just don't add config in case target shape is not supported by blockedDescCreator.
-            // This should be suitable for major of scenarios since almost all nodes add `ncsp` blockedDescCreator which supports any shape rank.
-            if (shape.getRank() < portConfigurator.blockedDescCreator->getMinimalRank())
-                return false;
-
-            PortConfig portConfig;
-            portConfig.inPlace(portConfigurator.inPlace);
-            portConfig.constant(portConfigurator.constant);
-            portConfig.setMemDesc(portConfigurator.blockedDescCreator->createSharedDesc(prc, shape));
-
-            port.push_back(std::move(portConfig));
-
-            return true;
-        };
-
-        NodeConfig config;
-        for (size_t i = 0; i < inPortConfigs.size(); i++) {
-            auto shape = inPortConfigs[i].shape.getRank() == 0 ? getInputShapeAtPort(i) : inPortConfigs[i].shape;
-            auto prc = inPortConfigs[i].prc == InferenceEngine::Precision::UNSPECIFIED ? getOriginalInputPrecisionAtPort(i) : inPortConfigs[i].prc;
-            if (!fill_port(inPortConfigs[i], shape, prc, config.inConfs))
-                return;
-        }
-
-        for (size_t i = 0; i < outPortConfigs.size(); i++) {
-            auto dims = outPortConfigs[i].shape.getRank() == 0 ? getOutputShapeAtPort(i) : outPortConfigs[i].shape;
-            auto prc = outPortConfigs[i].prc == InferenceEngine::Precision::UNSPECIFIED ? getOriginalOutputPrecisionAtPort(i) : outPortConfigs[i].prc;
-            if (!fill_port(outPortConfigs[i], dims, prc, config.outConfs))
-                return;
-        }
-
-        config.dynBatchSupport = dynBatchSupport;
-        supportedPrimitiveDescriptors.push_back({config, implType});
-    }
+                              bool dynBatchSupport = false);
 
     void prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs);
     void prepareMemory(dnnl::primitive_desc_iterator& itpd);
@@ -728,8 +684,7 @@ protected:
 
     bool inputShapesModified() const;
     virtual bool needShapeInfer() const;
-    std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& inputDims, uint32_t value_port_mask = 0) const;
-    std::vector<VectorDims> shapeInferGeneric(uint32_t value_port_mask = 0) const;
+    std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& inputDims) const;
     virtual std::vector<VectorDims> shapeInfer() const;
     // TODO [DS] : make pure after all nodes will be support dynamic shapes
     virtual void executeDynamicImpl(dnnl::stream strm) {
@@ -743,15 +698,15 @@ protected:
         IE_THROW(NotImplemented) << "[DS] prapareParams not implemented for node with type " << NameFromType(getType());
     }
 
-    MultiCachePtr getRuntimeCache() const {
-        return rtParamsCache;
+    MemoryPtr getScratchPadMem(const const_dnnl_primitive_desc_t& pd) {
+        auto scratchpadMemoryDesc = DnnlExtensionUtils::query_md(pd, dnnl::query::scratchpad_md);
+        scratchpadMem = context->getScratchPad()->createScratchPadMem(scratchpadMemoryDesc);
+        return scratchpadMem;
     }
 
     std::vector<VectorDims> lastInputDims = {};
 
     std::shared_ptr<IShapeInfer> shapeInference;
-
-    std::shared_ptr<std::mutex> sharedMutex = nullptr;
 
 private:
     std::vector<EdgeWeakPtr> parentEdges;
@@ -762,7 +717,7 @@ private:
 
     int fusingPort;
 
-    dnnl::engine engine;
+    const dnnl::engine engine;
 
     std::string name;
     std::string typeStr;
@@ -774,7 +729,7 @@ private:
     PerfCount perfCounter;
     PerfCounters profiling;
 
-    MultiCachePtr rtParamsCache;
+    MemoryPtr scratchpadMem;
 
     bool isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) const;
 
@@ -796,9 +751,6 @@ private:
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2 };
     ConstantType checkConstant(LOOK look, std::vector<NodePtr>& checkNodes);
 
-    std::vector<VectorDims> shapeInferGeneric(const std::vector<StaticShape>& input_shapes,
-                                              uint32_t input_value_port_mask) const;
-
 #ifdef CPU_DEBUG_CAPS
     friend class Verbose;
 #endif
@@ -815,19 +767,17 @@ constexpr uint64_t PortMask(int n, T... rest) {
 
 class Node::NodesFactory : public openvino::cc::Factory<Type,
                                             Node*(const std::shared_ptr<ngraph::Node>& op,
-                                                  const dnnl::engine &,
-                                                  WeightsSharing::Ptr &)> {
+                                                  const GraphContext::CPtr)> {
 public:
     NodesFactory();
 
-    Node* create(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-                 const ExtensionManager::Ptr& extMgr, WeightsSharing::Ptr &w_cache);
+    Node* create(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 };
 
 template<typename NodeType>
 struct NodeImpl : public NodeType {
-    NodeImpl(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : NodeType(op, eng, cache) {
+    NodeImpl(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+        : NodeType(op, context) {
         NodeType::perfCounters().template buildClassCounters<NodeType>(NameFromType(NodeType::getType()));
     }
 };

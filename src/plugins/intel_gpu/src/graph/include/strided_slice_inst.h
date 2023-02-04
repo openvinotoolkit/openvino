@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "intel_gpu/primitives/strided_slice.hpp"
@@ -30,6 +29,7 @@ using strided_slice_node = typed_program_node<strided_slice>;
 template <>
 class typed_primitive_inst<strided_slice> : public typed_primitive_inst_base<strided_slice> {
     using parent = typed_primitive_inst_base<strided_slice>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>

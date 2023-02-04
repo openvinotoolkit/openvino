@@ -15,7 +15,8 @@ from openvino.runtime.passes import (
     LowLatency2,
     Serialize,
 )
-from utils.utils import count_ops, get_test_model
+from tests.test_transformations.utils.utils import count_ops, get_relu_model
+from tests.test_utils.test_utils import create_filename_for_test
 
 
 def get_model():
@@ -102,12 +103,22 @@ def test_low_latency2():
     assert count_ops(model, "TensorIterator") == [1]
 
 
-def test_serialize_pass():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+@pytest.mark.parametrize("is_path_xml, is_path_bin", [  # noqa: PT006
+    (True, True),
+    (True, False),
+    (False, True),
+    (False, False),
+],
+)
+def test_serialize_pass(request, tmp_path, is_path_xml, is_path_bin):
     core = Core()
-    xml_path = "serialized_function.xml"
-    bin_path = "serialized_function.bin"
+    xml_path, bin_path = create_filename_for_test(request.node.name,
+                                                  tmp_path,
+                                                  is_path_xml,
+                                                  is_path_bin)
 
-    func = get_test_model()
+    func = get_relu_model()
 
     manager = Manager()
     manager.register_pass(Serialize(xml_path, bin_path))

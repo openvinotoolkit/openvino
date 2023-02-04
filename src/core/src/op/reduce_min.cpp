@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <ngraph/validation_util.hpp>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/op/min.hpp"
 #include "ngraph/op/util/evaluate_helpers.hpp"
@@ -40,8 +41,6 @@ bool evaluate_min(const HostTensorPtr& arg, const HostTensorPtr& out, const Axis
 }
 }  // namespace
 }  // namespace minop
-
-BWDCMP_RTTI_DEFINITION(op::v1::ReduceMin);
 
 op::v1::ReduceMin::ReduceMin(const Output<Node>& arg, const Output<Node>& reduction_axes, bool keep_dims)
     : ArithmeticReductionKeepDims(arg, reduction_axes, keep_dims) {
@@ -81,14 +80,10 @@ bool op::v1::ReduceMin::has_evaluate() const {
     return false;
 }
 
-bool op::v1::ReduceMin::evaluate_lower(const HostTensorVector& output_values) const {
-    if (!input_value(1).get_tensor().has_and_set_bound())
-        return false;
-    return default_lower_bound_evaluator(this, output_values);
+bool op::v1::ReduceMin::evaluate_lower(ov::TensorVector& output_values) const {
+    return input_value(1).get_tensor().has_and_set_bound() && default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v1::ReduceMin::evaluate_upper(const HostTensorVector& output_values) const {
-    if (!input_value(1).get_tensor().has_and_set_bound())
-        return false;
-    return default_upper_bound_evaluator(this, output_values);
+bool op::v1::ReduceMin::evaluate_upper(ov::TensorVector& output_values) const {
+    return input_value(1).get_tensor().has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
 }

@@ -1,22 +1,28 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set(TARGET_NAME "paddle_tests")
 
-file(GLOB SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-
-add_executable(${TARGET_NAME} ${SRC})
-
-target_link_libraries(${TARGET_NAME} PRIVATE cnpy frontend_shared_test_classes
-    openvino_paddle_frontend openvino::runtime gtest_main_manifest)
-
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
-
-install(TARGETS ${TARGET_NAME}
-        RUNTIME DESTINATION tests
-        COMPONENT tests
-        EXCLUDE_FROM_ALL)
+ov_add_test_target(
+    NAME ${TARGET_NAME}
+        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        DEPENDENCIES
+            paddle_test_models
+            openvino_paddle_frontend
+            paddle_fe_standalone_build_test
+        LINK_LIBRARIES
+            cnpy
+            frontend_shared_test_classes
+            openvino_paddle_frontend
+            openvino::runtime
+            gtest_main_manifest
+            funcTestUtils
+        ADD_CLANG_FORMAT
+        LABELS
+            OV
+            PADDLE_FE
+)
 
 # Test model generating
 ov_check_pip_packages(REQUIREMENTS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/requirements.txt"
@@ -72,13 +78,9 @@ else()
     add_custom_target(paddle_test_models DEPENDS unable_build_paddle_models.txt)
 endif()
 
-add_dependencies(${TARGET_NAME} paddle_test_models)
-add_dependencies(${TARGET_NAME} openvino_paddle_frontend)
-
 # Fuzzy tests for PaddlePaddle use IE_CPU engine
 if(ENABLE_INTEL_CPU)
     add_dependencies(${TARGET_NAME} openvino_intel_cpu_plugin)
 endif()
 
 add_subdirectory(standalone_build)
-add_dependencies(${TARGET_NAME} paddle_fe_standalone_build_test)

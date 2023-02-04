@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,8 @@ TEST(attributes, scatter_update_op) {
     auto op = make_shared<ScatterUpdate>(R, I, U, A);
 
     NodeBuilder builder(op, {R, I, U, A});
+    EXPECT_NO_THROW(auto g_op = ov::as_type_ptr<ScatterUpdate>(builder.create()));
+
     const auto expected_attr_count = 0;
 
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

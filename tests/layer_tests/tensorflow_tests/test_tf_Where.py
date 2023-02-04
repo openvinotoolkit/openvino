@@ -1,119 +1,43 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import numpy as np
 import pytest
-
+import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
-from common.utils.tf_utils import permute_nchw_to_nhwc
 
 
-# TODO: refactor and correct this test in the scope of 92881 ticket
 class TestWhere(CommonTFLayerTest):
-    def create_where_net(self, shape_condition, shape_input, ir_version, use_new_frontend):
-        """
-            Tensorflow net                 IR net
+    def _prepare_input(self, inputs_info):
+        assert 'condition' in inputs_info, "Test error: inputs_info must contain `condition`"
+        condition_shape = inputs_info['condition']
+        inputs_data = {}
+        inputs_data['condition'] = np.random.randint(-2, 2, condition_shape)
+        return inputs_data
 
-            Condition --|               Condition --|
-                        v                           v
-            Input_1-> Where             Input_1-> Select
-                        ^                           ^
-            Input_2-----|               Input_2-----|
-        """
-
-        import tensorflow as tf
-
+    def create_where_net(self, condition_shape, condition_type):
         tf.compat.v1.reset_default_graph()
-
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            # Permute shapes NCHW -> NHWC for TF network creation
-            shape_condition_net = permute_nchw_to_nhwc(shape_condition)
-            shape_input_net = permute_nchw_to_nhwc(shape_input)
-
-            condition = tf.compat.v1.placeholder(tf.bool, shape_condition_net, 'Input_condition')
-            input_1 = tf.compat.v1.placeholder(tf.float32, shape_input_net, 'Input_1')
-            input_2 = tf.compat.v1.placeholder(tf.float32, shape_input_net, 'Input_2')
-
-            tf.compat.v1.where(condition, input_1, input_2, name='Operation')
-
+            condition = tf.compat.v1.placeholder(condition_type, condition_shape, 'condition')
+            tf.raw_ops.Where(condition=condition, name='where')
             tf.compat.v1.global_variables_initializer()
+
             tf_net = sess.graph_def
 
-        #
-        #   Create reference IR net
-        #   Please, specify 'type': 'Input' for input node
-        #   Moreover, do not forget to validate ALL layer attributes!!!
-        #
+        return tf_net, None
 
-        ref_net = None
-
-        return tf_net, ref_net
-
-    test_data_1D = [dict(shape_condition=[2], shape_input=[2])]
-
-    @pytest.mark.parametrize("params", test_data_1D)
-    @pytest.mark.nightly
-    def test_where_1D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                      use_old_api):
-        self._test(*self.create_where_net(**params, ir_version=ir_version,
-                                          use_new_frontend=use_new_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
-
-    test_data_2D = [
-        pytest.param(dict(shape_condition=[2], shape_input=[2, 3]), marks=pytest.mark.precommit_tf_fe),
-        dict(shape_condition=[3, 5], shape_input=[3, 5]),
+    test_data_basic = [
+        dict(condition_shape=[2], condition_type=tf.float32),
+        dict(condition_shape=[3, 4], condition_type=tf.bool),
+        dict(condition_shape=[2, 4, 5], condition_type=tf.int32),
     ]
 
-    @pytest.mark.parametrize("params", test_data_2D)
+    @pytest.mark.parametrize("params", test_data_basic)
+    @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
-    def test_where_2D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                      use_old_api):
-        self._test(*self.create_where_net(**params, ir_version=ir_version,
-                                          use_new_frontend=use_new_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
-
-    test_data_3D = [
-        dict(shape_condition=[3], shape_input=[3, 4, 5]),
-        dict(shape_condition=[3, 4, 5], shape_input=[3, 4, 5]),
-    ]
-
-    @pytest.mark.parametrize("params", test_data_3D)
-    @pytest.mark.nightly
-    def test_where_3D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                      use_old_api):
-        self._test(*self.create_where_net(**params, ir_version=ir_version,
-                                          use_new_frontend=use_new_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
-
-    test_data_4D = [
-        dict(shape_condition=[3], shape_input=[3, 4, 5, 6]),
-        dict(shape_condition=[3, 4, 5, 6], shape_input=[3, 4, 5, 6]),
-    ]
-
-    @pytest.mark.parametrize("params", test_data_4D)
-    @pytest.mark.nightly
-    @pytest.mark.precommit
-    def test_where_4D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                      use_old_api):
-        self._test(*self.create_where_net(**params, ir_version=ir_version,
-                                          use_new_frontend=use_new_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
-
-    test_data_5D = [
-        dict(shape_condition=[3], shape_input=[3, 4, 5, 6, 7]),
-        dict(shape_condition=[3, 4, 5, 6, 7], shape_input=[3, 4, 5, 6, 7]),
-    ]
-
-    # TODO mark as precommit (after successfully passing in nightly)
-    @pytest.mark.parametrize("params", test_data_5D)
-    @pytest.mark.nightly
-    def test_where_5D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                      use_old_api):
-        self._test(*self.create_where_net(**params, ir_version=ir_version,
-                                          use_new_frontend=use_new_frontend),
+    def test_where_basic(self, params, ie_device, precision, ir_version, temp_dir,
+                         use_new_frontend, use_old_api):
+        self._test(*self.create_where_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -168,6 +168,10 @@ JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppressi
         jit.AddConstant(MakeJitConstant("THIRD_OUTPUT_GET_INDEX", GetToInputIndexStr(params.GetIndexThirdOutput())));
     }
 
+    if (params.use_multiple_outputs) {
+        jit.AddConstant(MakeJitConstant("MULTIPLE_OUTPUTS", 1));
+    }
+
     return jit;
 }
 
@@ -235,6 +239,10 @@ void NonMaxSuppressionKernelRef::SetKernelArguments(const non_max_suppression_pa
             kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexSecondOutput() });
         if (params.has_third_output)
             kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexThirdOutput() });
+        if (params.use_multiple_outputs) {
+            kernel.params.arguments.push_back({ ArgumentDescriptor::Types::OUTPUT, 1 });
+            kernel.params.arguments.push_back({ ArgumentDescriptor::Types::OUTPUT, 2 });
+        }
         break;
 
     default:
@@ -284,6 +292,8 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params, con
                                    , MakeJitConstant("LOCAL_CLASS_NUM", dispatchData.lws[1])
                                    , MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2])
                                    , MakeJitConstant("PARTITION_STEP", GetPartitionStep(static_cast<int>(dispatchData.lws[2])))});
+        } else if (i == 2 && orgParams.reuse_internal_buffer) {
+            cldnn_jit.AddConstant({ MakeJitConstant("REUSE_INTERNAL_BUFFER", 1)});
         }
         cldnn_jit.AddConstant(MakeJitConstant("NMS_STAGE_" + std::to_string(i), "true"));
 

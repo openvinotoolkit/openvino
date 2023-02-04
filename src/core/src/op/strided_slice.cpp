@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,26 +6,23 @@
 
 #include <algorithm>
 
+#include "bound_evaluate.hpp"
+#include "compare.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/op/gather.hpp"
 #include "ngraph/op/shape_of.hpp"
-#include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/strided_slice.hpp"
 #include "ngraph/slice_plan.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
-#include "ngraph/validation_util.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "strided_slice_shape_inference.hpp"
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v1::StridedSlice);
 
 op::v1::StridedSlice::StridedSlice(const Output<Node>& data,
                                    const Output<Node>& begin,
@@ -111,9 +108,7 @@ void op::v1::StridedSlice::validate_and_infer_types() {
                           "End mask must be an integral number, but is: ",
                           end_mask_et);
 
-    auto are_mask_elem_in_range = [](size_t e) {
-        return e == 0 || e == 1;
-    };
+    constexpr auto are_mask_elem_in_range = cmp::Between<int64_t, cmp::BOTH>(0, 1);
     NODE_VALIDATION_CHECK(
         this,
         std::all_of(m_begin_mask.begin(), m_begin_mask.end(), are_mask_elem_in_range) &&
@@ -142,11 +137,8 @@ void op::v1::StridedSlice::validate_and_infer_types() {
     set_input_is_relevant_to_shape(2);
     set_input_is_relevant_to_shape(3);
 
-    std::vector<ov::PartialShape> input_shapes;
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
-    for (size_t input_idx = 0; input_idx < get_input_size(); ++input_idx) {
-        input_shapes.push_back(get_input_partial_shape(input_idx));
-    }
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    auto output_shapes = std::vector<ov::PartialShape>(1, PartialShape::dynamic());
 
     shape_infer(this, input_shapes, output_shapes);
 
@@ -250,16 +242,12 @@ bool strided_slice_input_check(const ov::Node* node) {
 }
 }  // namespace
 
-bool op::v1::StridedSlice::evaluate_lower(const HostTensorVector& output_values) const {
-    if (!strided_slice_input_check(this))
-        return false;
-    return default_lower_bound_evaluator(this, output_values);
+bool op::v1::StridedSlice::evaluate_lower(ov::TensorVector& output_values) const {
+    return strided_slice_input_check(this) && default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v1::StridedSlice::evaluate_upper(const HostTensorVector& output_values) const {
-    if (!strided_slice_input_check(this))
-        return false;
-    return default_upper_bound_evaluator(this, output_values);
+bool op::v1::StridedSlice::evaluate_upper(ov::TensorVector& output_values) const {
+    return strided_slice_input_check(this) && default_upper_bound_evaluator(this, output_values);
 }
 
 bool op::v1::StridedSlice::evaluate_label(TensorLabelVector& output_labels) const {

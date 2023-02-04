@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,14 +9,8 @@
 
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/builder/autobroadcast.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/multiply.hpp"
-#include "ngraph/op/reshape.hpp"
-#include "ngraph/op/subtract.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/reference/softmax.hpp"
-#include "ngraph/util.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -46,7 +40,6 @@ bool evaluate_softmax(const HostTensorPtr& arg, const HostTensorPtr& out, const 
 }  // namespace
 
 // *** SOFTMAX OP SET V1 ***
-BWDCMP_RTTI_DEFINITION(op::v1::Softmax);
 
 op::v1::Softmax::Softmax(const Output<Node>& arg, const size_t axis) : Op({arg}), m_axis(axis) {
     constructor_validate_and_infer_types();
@@ -101,8 +94,6 @@ bool op::v1::Softmax::has_evaluate() const {
 }
 
 // *** SOFTMAX OP SET V8 ***
-BWDCMP_RTTI_DEFINITION(op::v8::Softmax);
-
 op::v8::Softmax::Softmax(const Output<Node>& arg, const int64_t axis) : Op({arg}), m_axis(axis) {
     constructor_validate_and_infer_types();
 }

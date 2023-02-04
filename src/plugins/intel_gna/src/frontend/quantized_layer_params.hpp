@@ -1,12 +1,22 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+namespace frontend {
 
 class QuantizationParams {
+    float scale = 1.0f;
+    bool scale_set = false;
+    size_t levels = 0;
+    std::vector<float> input_min_values;
+    std::vector<float> input_max_values;
+    std::vector<float> output_min_values;
+    std::vector<float> output_max_values;
+
 public:
     void SetScale(float s) {
         scale = s;
@@ -27,7 +37,7 @@ public:
     bool IsStatsSet() const {
         return !input_min_values.empty() && !input_max_values.empty();
     }
-    void SetMinValues(const std::vector<float> &min, bool input = true) {
+    void SetMinValues(const std::vector<float>& min, bool input = true) {
         if (input) {
             input_min_values.clear();
             input_min_values.insert(input_min_values.end(), min.begin(), min.end());
@@ -59,22 +69,13 @@ public:
 
         return output_max_values;
     }
-    void CopyStats(QuantizationParams &src) {
+    void CopyStats(QuantizationParams& src) {
         levels = src.GetLevels();
         SetMinValues(src.GetMinValues(true), true);
         SetMaxValues(src.GetMaxValues(true), true);
         SetMinValues(src.GetMinValues(false), false);
         SetMaxValues(src.GetMaxValues(false), false);
     }
-
-private:
-    float scale = 1.0f;
-    bool scale_set = false;
-    size_t levels = 0;
-    std::vector<float> input_min_values;
-    std::vector<float> input_max_values;
-    std::vector<float> output_min_values;
-    std::vector<float> output_max_values;
 };
 
 struct QuantizedLayerParams {
@@ -84,9 +85,8 @@ struct QuantizedLayerParams {
     // deprecate this
     QuantizationParams _weights_quant;
     QuantizationParams _bias_quant;
-
-    bool _weights_int8_precision = false;
-    bool _inputs_int8_precision = false;
 };
 
-}  // namespace GNAPluginNS
+}  // namespace frontend
+}  // namespace intel_gna
+}  // namespace ov
