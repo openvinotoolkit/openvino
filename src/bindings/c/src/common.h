@@ -21,6 +21,7 @@
     }
 
 #define CATCH_OV_EXCEPTIONS                                   \
+    CATCH_OV_EXCEPTION(NOT_IMPLEMENTED, NotImplemented)       \
     CATCH_OV_EXCEPTION(GENERAL_ERROR, Exception)              \
     CATCH_IE_EXCEPTION(GENERAL_ERROR, GeneralError)           \
     CATCH_IE_EXCEPTION(NOT_IMPLEMENTED, NotImplemented)       \
