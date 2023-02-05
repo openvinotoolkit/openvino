@@ -21,20 +21,21 @@
     }
 
 #define CATCH_OV_EXCEPTIONS                                   \
-    CATCH_OV_EXCEPTION(GENERAL_ERROR, GeneralError)           \
-    CATCH_OV_EXCEPTION(NOT_IMPLEMENTED, NotImplemented)       \
-    CATCH_OV_EXCEPTION(NETWORK_NOT_LOADED, NetworkNotLoaded)  \
-    CATCH_OV_EXCEPTION(PARAMETER_MISMATCH, ParameterMismatch) \
-    CATCH_OV_EXCEPTION(NOT_FOUND, NotFound)                   \
-    CATCH_OV_EXCEPTION(OUT_OF_BOUNDS, OutOfBounds)            \
-    CATCH_OV_EXCEPTION(UNEXPECTED, Unexpected)                \
-    CATCH_OV_EXCEPTION(REQUEST_BUSY, RequestBusy)             \
-    CATCH_OV_EXCEPTION(RESULT_NOT_READY, ResultNotReady)      \
-    CATCH_OV_EXCEPTION(NOT_ALLOCATED, NotAllocated)           \
-    CATCH_OV_EXCEPTION(INFER_NOT_STARTED, InferNotStarted)    \
-    CATCH_OV_EXCEPTION(NETWORK_NOT_READ, NetworkNotRead)      \
-    CATCH_OV_EXCEPTION(INFER_CANCELLED, InferCancelled)       \
-    catch (const std::exception&) {                           \
+    CATCH_OV_EXCEPTION(GENERAL_ERROR, Exception)              \
+    CATCH_IE_EXCEPTION(GENERAL_ERROR, GeneralError)           \
+    CATCH_IE_EXCEPTION(NOT_IMPLEMENTED, NotImplemented)       \
+    CATCH_IE_EXCEPTION(NETWORK_NOT_LOADED, NetworkNotLoaded)  \
+    CATCH_IE_EXCEPTION(PARAMETER_MISMATCH, ParameterMismatch) \
+    CATCH_IE_EXCEPTION(NOT_FOUND, NotFound)                   \
+    CATCH_IE_EXCEPTION(OUT_OF_BOUNDS, OutOfBounds)            \
+    CATCH_IE_EXCEPTION(UNEXPECTED, Unexpected)                \
+    CATCH_IE_EXCEPTION(REQUEST_BUSY, RequestBusy)             \
+    CATCH_IE_EXCEPTION(RESULT_NOT_READY, ResultNotReady)      \
+    CATCH_IE_EXCEPTION(NOT_ALLOCATED, NotAllocated)           \
+    CATCH_IE_EXCEPTION(INFER_NOT_STARTED, InferNotStarted)    \
+    CATCH_IE_EXCEPTION(NETWORK_NOT_READ, NetworkNotRead)      \
+    CATCH_IE_EXCEPTION(INFER_CANCELLED, InferCancelled)       \
+    catch (...) {                                             \
         return ov_status_e::UNKNOW_EXCEPTION;                 \
     }
 
