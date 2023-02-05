@@ -70,9 +70,74 @@
 #endif
 
 #include <windows.h>
+#include <wintrust.h>
+#include <Softpub.h>
+
+// #include <wincrypt.h>
+// #include <wintrust.h>
+
+// #pragma comment (lib, "wintrust")
+
+namespace {
+bool verify_embedded_signature(LPCWSTR pwszSourceFile)
+{
+	GUID WintrustVerifyGuid = WINTRUST_ACTION_GENERIC_VERIFY_V2;
+
+	WINTRUST_DATA wd = { 0 };
+	WINTRUST_FILE_INFO wfi = { 0 };
+
+	memset(&wfi, 0, sizeof(wfi));
+	wfi.cbStruct = sizeof(WINTRUST_FILE_INFO);
+	wfi.pcwszFilePath = pwszSourceFile;
+	wfi.hFile = NULL;
+	wfi.pgKnownSubject = NULL;
+
+	memset(&wd, 0, sizeof(wd));
+	wd.cbStruct = sizeof(WINTRUST_DATA);
+	wd.dwUnionChoice = WTD_CHOICE_FILE;
+	wd.pFile = &wfi;
+	wd.dwUIChoice = WTD_UI_NONE;
+	wd.fdwRevocationChecks = WTD_REVOKE_NONE;
+	wd.dwStateAction = WTD_STATEACTION_VERIFY;
+	wd.hWVTStateData = NULL;
+	wd.pwszURLReference = NULL;
+	wd.pPolicyCallbackData = NULL;
+	wd.pSIPClientData = NULL;
+	wd.dwUIContext = 0;
+
+    auto status = WinVerifyTrust(NULL, &WintrustVerifyGuid, &wd);
+
+    // Any hWVTStateData must be released by a call with close.
+    wd.dwStateAction = WTD_STATEACTION_CLOSE;
+    std::ignore = WinVerifyTrust(NULL, &WintrustVerifyGuid, &wd);
+
+	return status == ERROR_SUCCESS;
+}
+
+bool verify_embedded_signature(const char* path) {
+    return verify_embedded_signature(ov::util::string_to_wstring(path).c_str());
+}
+}  // namespace
 
 namespace ov {
 namespace util {
+std::shared_ptr<void> load_shared_object(const char* path, const bool& verify_signature) {
+    if (verify_signature) {
+        if (!is_absolute_file_path(path)) {
+            // TODO: check how it works with file names
+            std::stringstream ss;
+            ss << "Cannot verify signature of library '" << path << "': path isn't absolute.";
+            throw std::runtime_error(ss.str());
+        }
+        if (!verify_embedded_signature(path)) {
+            std::stringstream ss;
+            ss << "Signature verification of library '" << path << "' failed";
+            throw std::runtime_error(ss.str());
+        }
+    }
+    return load_shared_object(path);
+}
+
 std::shared_ptr<void> load_shared_object(const char* path) {
     void* shared_object = nullptr;
     using GetDllDirectoryA_Fnc = DWORD (*)(DWORD, LPSTR);
@@ -124,6 +189,23 @@ std::shared_ptr<void> load_shared_object(const char* path) {
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+std::shared_ptr<void> load_shared_object(const wchar_t* path, const bool& verify_signature) {
+    if (verify_signature) {
+        if (!is_absolute_file_path(ov::util::wstring_to_string(path))) {
+            // TODO: check how it works with file names
+            std::stringstream ss;
+            ss << "Cannot verify signature of library '" << ov::util::wstring_to_string(std::wstring(path)) << "': path isn't absolute.";
+            throw std::runtime_error(ss.str());
+        }
+        if (!verify_embedded_signature(path)) {
+            std::stringstream ss;
+            ss << "Signature verification of library '" << ov::util::wstring_to_string(std::wstring(path)) << "' failed";
+            throw std::runtime_error(ss.str());
+        }
+    }
+    return load_shared_object(path);
+}
+
 std::shared_ptr<void> load_shared_object(const wchar_t* path) {
     void* shared_object = nullptr;
     using GetDllDirectoryW_Fnc = DWORD (*)(DWORD, LPWSTR);

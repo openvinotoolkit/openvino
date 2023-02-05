@@ -12,6 +12,9 @@
 
 namespace ov {
 namespace util {
+std::shared_ptr<void> load_shared_object(const char* path, const bool& verify_signature) {
+    return load_shared_object(path);
+}
 std::shared_ptr<void> load_shared_object(const char* path) {
     auto shared_object = std::shared_ptr<void>{dlopen(path, RTLD_NOW), [](void* shared_object) {
                                                    if (shared_object != nullptr) {
@@ -36,6 +39,10 @@ std::shared_ptr<void> load_shared_object(const char* path) {
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+std::shared_ptr<void> load_shared_object(const wchar_t* path, const bool& verify_signature) {
+    return load_shared_object(path);
+}
+
 std::shared_ptr<void> load_shared_object(const wchar_t* path) {
     return load_shared_object(ov::util::wstring_to_string(path).c_str());
 }
