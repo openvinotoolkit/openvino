@@ -157,7 +157,10 @@ void ov::op::v8::If::validate_and_infer_types() {
                                   element::Type::merge(merged_type,
                                                        then_node_result.get_element_type(),
                                                        else_node_result.get_element_type()),
-                                  "type of then_body output is not equal type of else_body output");
+                                  "type of then_body output ",
+                                  then_node_result.get_element_type(),
+                                  " is not equal type of else_body output",
+                                  else_node_result.get_element_type());
 
             // shape inference for output and associated with it body outputs
             auto partial_shape =
