@@ -10,16 +10,19 @@
 #include <streambuf>
 #include <string>
 
+#include "details/ie_exception.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/openvino.hpp"
 
-// TODO: we need to catch ov::Exception instead of ie::Exception
-#include "details/ie_exception.hpp"
+#define CATCH_IE_EXCEPTION(StatusCode, ExceptionType) \
+    catch (const InferenceEngine::ExceptionType&) {   \
+        return ov_status_e::StatusCode;               \
+    }
 
 #define CATCH_OV_EXCEPTION(StatusCode, ExceptionType) \
     catch (const InferenceEngine::ExceptionType&) {   \
         return ov_status_e::StatusCode;               \
     }
-
 #define CATCH_OV_EXCEPTIONS                                   \
     CATCH_OV_EXCEPTION(NOT_IMPLEMENTED, NotImplemented)       \
     CATCH_OV_EXCEPTION(GENERAL_ERROR, Exception)              \
