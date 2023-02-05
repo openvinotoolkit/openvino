@@ -165,6 +165,9 @@ std::shared_ptr<const ov::Model> ov::legacy_convert::convert_model(const Inferen
         auto& rt_info = output.get_rt_info();
         rt_info["ie_legacy_td"] = output_info->getTensorDesc();
     }
+    if (!cloned_model->has_rt_info("version")) {
+        cloned_model->set_rt_info(int64_t(10), "version");
+    }
     return cloned_model;
 }
 
@@ -172,7 +175,7 @@ namespace ov {
 
 class IInferencePluginWrapper : public InferenceEngine::IInferencePlugin {
 public:
-    IInferencePluginWrapper(const std::shared_ptr<ov::IPlugin>& plugin) {
+    IInferencePluginWrapper(const std::shared_ptr<ov::IPlugin>& plugin) : m_plugin(plugin) {
         auto& ver = plugin->get_version();
         InferenceEngine::Version version;
         version.buildNumber = ver.buildNumber;
@@ -319,7 +322,7 @@ namespace ov {
 
 class IExecutableNetworkWrapper : public InferenceEngine::IExecutableNetworkInternal {
 public:
-    IExecutableNetworkWrapper(const std::shared_ptr<ov::ICompiledModel>& model) : m_model(model) {
+    explicit IExecutableNetworkWrapper(const std::shared_ptr<ov::ICompiledModel>& model) : m_model(model) {
         for (const auto& input : m_model->inputs()) {
             InferenceEngine::InputInfo::Ptr input_info;
             ov::legacy_convert::fill_input_info(input, input_info);
@@ -327,8 +330,10 @@ public:
             _parameters.emplace_back(input.get_node_shared_ptr());
         }
         for (const auto& output : m_model->outputs()) {
+            auto out = output.get_node()->input_value(0);
             InferenceEngine::DataPtr output_info;
-            ov::legacy_convert::fill_output_info(output, output_info);
+            ov::legacy_convert::fill_output_info(ov::Output<const ov::Node>(out.get_node(), out.get_index()),
+                                                 output_info);
             _networkOutputs[output_info->getName()] = output_info;
             _results.emplace_back(output.get_node_shared_ptr());
         }
@@ -349,7 +354,7 @@ public:
     }
 
     std::shared_ptr<ngraph::Function> GetExecGraphInfo() override {
-        return m_model->get_runtime_model();
+        return m_model->get_runtime_model()->clone();
     }
 
     void SetConfig(const std::map<std::string, InferenceEngine::Parameter>& config) override {
@@ -368,7 +373,7 @@ public:
         return m_model->get_context()._impl;
     }
 
-    std::shared_ptr<ov::ICompiledModel> get_model() {
+    std::shared_ptr<ov::ICompiledModel> get_compiled_model() {
         return m_model;
     }
 
@@ -380,7 +385,7 @@ private:
 std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::legacy_convert::convert_compiled_model(
     const std::shared_ptr<ov::ICompiledModel>& model) {
     if (auto comp_model = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(model)) {
-        return comp_model->get_model();
+        return comp_model->get_executable_network();
     }
     return std::make_shared<ov::IExecutableNetworkWrapper>(model);
 }
@@ -388,7 +393,7 @@ std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::legacy_convert:
 std::shared_ptr<ov::ICompiledModel> ov::legacy_convert::convert_compiled_model(
     const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& model) {
     if (auto comp_model = std::dynamic_pointer_cast<ov::IExecutableNetworkWrapper>(model)) {
-        return comp_model->get_model();
+        return comp_model->get_compiled_model();
     }
     return std::make_shared<InferenceEngine::ICompiledModelWrapper>(model);
 }

@@ -216,6 +216,15 @@ JitConstants ReduceKernel_b_fs_yx_fsv16::GetJitConstants(const reduce_params& pa
         }
     }
 
+    // MIN/MAX mode should handle feature remainder in case reduce axes includes feature
+    if (params.reduceMode == ReduceMode::MIN || params.reduceMode == ReduceMode::MAX) {
+        if (count(params.reduceAxes.begin(), params.reduceAxes.end(), 1) > 0) {
+            if (params.inputs[0].Feature().v % 16 != 0) {
+                jit.AddConstant(MakeJitConstant("HANDLE_FEATURE_REMAINDER", 1));
+            }
+        }
+    }
+
     return jit;
 }
 

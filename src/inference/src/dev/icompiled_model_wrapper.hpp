@@ -17,7 +17,7 @@ public:
 
     void export_model(std::ostream& model) const override;
 
-    std::shared_ptr<ov::Model> get_runtime_model() const override;
+    std::shared_ptr<const ov::Model> get_runtime_model() const override;
 
     void set_property(const ov::AnyMap& properties) override;
 
@@ -26,7 +26,7 @@ public:
 
     ov::RemoteContext get_context() const override;
 
-    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> get_model();
+    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> get_executable_network();
 
 private:
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> m_model;

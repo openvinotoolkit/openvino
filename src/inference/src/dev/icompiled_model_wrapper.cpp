@@ -29,7 +29,7 @@ void InferenceEngine::ICompiledModelWrapper::export_model(std::ostream& model) c
     m_model->Export(model);
 }
 
-std::shared_ptr<ov::Model> InferenceEngine::ICompiledModelWrapper::get_runtime_model() const {
+std::shared_ptr<const ov::Model> InferenceEngine::ICompiledModelWrapper::get_runtime_model() const {
     return m_model->GetExecGraphInfo();
 }
 
@@ -89,6 +89,7 @@ ov::RemoteContext InferenceEngine::ICompiledModelWrapper::get_context() const {
     return {m_model->GetContext(), {}};
 }
 
-std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> InferenceEngine::ICompiledModelWrapper::get_model() {
+std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
+InferenceEngine::ICompiledModelWrapper::get_executable_network() {
     return m_model;
 }
