@@ -2,24 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "legacy/ngraph_ops/hard_sigmoid_ie.hpp"
+
 #include <memory>
 #include <string>
 
-#include "legacy/ngraph_ops/hard_sigmoid_ie.hpp"
-
-#include "ngraph/op/hard_sigmoid.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/hard_sigmoid.hpp"
 #include "ngraph/op/multiply.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-op::HardSigmoid_IE::HardSigmoid_IE(const ngraph::Output<ngraph::Node> &arg,
-                   float alpha,
-                   float beta)
-        : Op({arg})
-        , m_alpha(alpha)
-        , m_beta(beta) {
+op::HardSigmoid_IE::HardSigmoid_IE(const ngraph::Output<ngraph::Node>& arg, float alpha, float beta)
+    : Op({arg}),
+      m_alpha(alpha),
+      m_beta(beta) {
     constructor_validate_and_infer_types();
 }
 

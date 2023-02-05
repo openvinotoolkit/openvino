@@ -398,8 +398,9 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetworkParameterResultOnly) 
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
     }
 
-    std::shared_ptr<InferenceEngine::Core> ie = ::PluginCache::get().ie();
-    InferenceEngine::ExecutableNetwork execNet;
+    // New plugin API wraps CNNNetwork conversions into model, it is why parameter->result graphs won't work in legacy API with new plugin
+    std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
+    ov::CompiledModel compiled_model;
 
     // Create a simple function
     {
@@ -408,34 +409,30 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetworkParameterResultOnly) 
         param->output(0).get_tensor().set_names({"data"});
         auto result = std::make_shared<ov::opset8::Result>(param);
         result->set_friendly_name("result");
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                      ngraph::ParameterVector{param});
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param});
         function->set_friendly_name("ParamResult");
     }
-    execNet = ie->LoadNetwork(InferenceEngine::CNNNetwork(function), target_device, any_copy(configuration));
+    compiled_model = core->compile_model(function, target_device, configuration);
 
-    auto inputPrecision = InferenceEngine::details::convertPrecision(execNet.GetInputsInfo().at("param")->getPrecision());
-    auto outputPrecision = InferenceEngine::details::convertPrecision(execNet.GetOutputsInfo().at("param")->getPrecision());
+    auto inputPrecision = compiled_model.input().get_element_type();
+    auto outputPrecision = compiled_model.output().get_element_type();
 
     std::stringstream strm;
-    execNet.Export(strm);
+    compiled_model.export_model(strm);
 
     ov::CompiledModel importedCompiledModel = core->import_model(strm, target_device, configuration);
     EXPECT_EQ(function->inputs().size(), 1);
     EXPECT_EQ(function->inputs().size(), importedCompiledModel.inputs().size());
     EXPECT_NO_THROW(importedCompiledModel.input());
     EXPECT_NO_THROW(importedCompiledModel.input("data").get_node());
-    EXPECT_NO_THROW(importedCompiledModel.input("param").get_node());
 
     EXPECT_EQ(function->outputs().size(), 1);
     EXPECT_EQ(function->outputs().size(), importedCompiledModel.outputs().size());
     EXPECT_NO_THROW(importedCompiledModel.output());
-    EXPECT_NE(function->output(0).get_tensor().get_names(),
-              importedCompiledModel.output(0).get_tensor().get_names());
+    EXPECT_EQ(function->output(0).get_tensor().get_names(), importedCompiledModel.output(0).get_tensor().get_names());
     EXPECT_NO_THROW(importedCompiledModel.output("data").get_node());
-    EXPECT_NO_THROW(importedCompiledModel.output("param").get_node());
 
-    EXPECT_EQ(inputPrecision, importedCompiledModel.input("param").get_element_type());
+    EXPECT_EQ(inputPrecision, importedCompiledModel.input("data").get_element_type());
     EXPECT_EQ(outputPrecision, importedCompiledModel.output("data").get_element_type());
 }
 

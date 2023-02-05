@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <fstream>
 #include <xml_parse_utils.h>
+
 #include <array>
+#include <fstream>
 
 namespace InferenceEngine {
 namespace details {
@@ -27,7 +28,8 @@ inline size_t GetIRVersion(std::istream& model) {
     model.seekg(0, model.beg);
 
     pugi::xml_document doc;
-    auto res = doc.load_buffer(header.data(), header.size(), pugi::parse_default | pugi::parse_fragment, pugi::encoding_utf8);
+    auto res =
+        doc.load_buffer(header.data(), header.size(), pugi::parse_default | pugi::parse_fragment, pugi::encoding_utf8);
 
     if (res == pugi::status_ok) {
         pugi::xml_node root = doc.document_element();

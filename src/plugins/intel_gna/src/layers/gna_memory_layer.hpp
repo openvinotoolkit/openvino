@@ -4,27 +4,32 @@
 
 #pragma once
 
-#include "legacy/ie_layers.h"
 #include "debug.h"
+#include "legacy/ie_layers.h"
 
 namespace ov {
 namespace intel_gna {
 
 /**
-* maps type of connection to input and output layers also stores gna_pointer for alloc request
-*/
+ * maps type of connection to input and output layers also stores gna_pointer for alloc request
+ */
 class GNAMemoryLayer {
     InferenceEngine::CNNLayerPtr inputLayer;
     InferenceEngine::CNNLayerPtr outputLayer;
     const int elementSize;
 
 public:
-    GNAMemoryLayer(InferenceEngine::CNNLayerPtr inLayer, InferenceEngine::CNNLayerPtr outLayer, int elementSize) :
-        inputLayer(inLayer), outputLayer(outLayer), elementSize(elementSize) {
-    }
+    GNAMemoryLayer(InferenceEngine::CNNLayerPtr inLayer, InferenceEngine::CNNLayerPtr outLayer, int elementSize)
+        : inputLayer(inLayer),
+          outputLayer(outLayer),
+          elementSize(elementSize) {}
 
-    InferenceEngine::CNNLayerPtr getInput() const { return inputLayer; }
-    InferenceEngine::CNNLayerPtr getOutput() const { return outputLayer; }
+    InferenceEngine::CNNLayerPtr getInput() const {
+        return inputLayer;
+    }
+    InferenceEngine::CNNLayerPtr getOutput() const {
+        return outputLayer;
+    }
     InferenceEngine::SizeVector getDims() const {
         return inputLayer->outData.front()->getDims();
     }
@@ -51,15 +56,15 @@ public:
     /**
      * pointer to gna memory request
      */
-    void *gna_ptr = nullptr;
+    void* gna_ptr = nullptr;
     /**
      * gna memory of this size is reserved
      */
-    size_t  reserved_size = 0;
+    size_t reserved_size = 0;
     /**
      * gna memory of this offset from gna_ptr
      */
-    size_t  reserved_offset = 0;
+    size_t reserved_offset = 0;
     /**
      * scale factor to gna memory layer
      */

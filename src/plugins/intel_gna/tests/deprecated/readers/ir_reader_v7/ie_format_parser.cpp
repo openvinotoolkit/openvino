@@ -3,7 +3,6 @@
 //
 
 #include "ie_format_parser.h"
-#include "ie_layer_validators.hpp"
 
 #include <fstream>
 #include <set>
@@ -12,6 +11,7 @@
 
 #include "ie_blob_proxy.hpp"
 #include "ie_layer_parsers.h"
+#include "ie_layer_validators.hpp"
 #include "xml_parse_utils.h"
 
 using namespace InferenceEngine;
@@ -20,7 +20,9 @@ using namespace XMLParseUtils;
 using namespace std;
 
 void LayerParseParameters::addOutputPort(const LayerPortData& port) {
-    outputPorts.insert(std::upper_bound(outputPorts.begin(), outputPorts.end(), port,
+    outputPorts.insert(std::upper_bound(outputPorts.begin(),
+                                        outputPorts.end(),
+                                        port,
                                         [=](const LayerParseParameters::LayerPortData& lhs,
                                             const LayerParseParameters::LayerPortData& rhs) {
                                             return lhs.portId < rhs.portId;
@@ -29,7 +31,9 @@ void LayerParseParameters::addOutputPort(const LayerPortData& port) {
 }
 
 void LayerParseParameters::addInputPort(const LayerPortData& port) {
-    inputPorts.insert(std::upper_bound(inputPorts.begin(), inputPorts.end(), port,
+    inputPorts.insert(std::upper_bound(inputPorts.begin(),
+                                       inputPorts.end(),
+                                       port,
                                        [=](const LayerParseParameters::LayerPortData& lhs,
                                            const LayerParseParameters::LayerPortData& rhs) {
                                            return lhs.portId < rhs.portId;
@@ -42,7 +46,8 @@ IE_SUPPRESS_DEPRECATED_START
 inline void ParseSegment(LayerParseParameters& prms, const pugi::xml_node& blob) {
     uint64_t size = GetUInt64Attr(blob, "size", 0);
     uint64_t start = GetUInt64Attr(blob, "offset", 0);
-    if (!size) return;
+    if (!size)
+        return;
 
     WeightSegment& segment = prms.blobs[blob.name()];
     segment.start = static_cast<size_t>(start);
@@ -58,7 +63,8 @@ void FormatParser::ParsePort(LayerParseParameters::LayerPortData& port, pugi::xm
     port.portId = GetIntAttr(node, "id");
     ParseDims(port.dims, node);
     const std::string& preStr = GetStrAttr(node, "precision", "");
-    if (!preStr.empty()) port.precision = Precision::FromStr(preStr);
+    if (!preStr.empty())
+        port.precision = Precision::FromStr(preStr);
 }
 
 void FormatParser::ParseGenericParams(pugi::xml_node& node, LayerParseParameters& layerParsePrms) const {
@@ -71,26 +77,28 @@ void FormatParser::ParseGenericParams(pugi::xml_node& node, LayerParseParameters
 
     prms.name = GetStrAttr(node, "name");
     const std::string& preStr = GetStrAttr(node, "precision", "");
-    if (!preStr.empty()) prms.precision = Precision::FromStr(preStr);
+    if (!preStr.empty())
+        prms.precision = Precision::FromStr(preStr);
 
     if (prms.precision == Precision::MIXED) {
         IE_THROW() << "Layer precision must not be MIXED, at layer name: " << prms.name
-                           << ", offset: " << node.offset_debug();
+                   << ", offset: " << node.offset_debug();
     }
 
     auto outNode = node.child("output");
     if (!outNode.empty()) {
-        FOREACH_CHILD(_cn, outNode, "port") {
+        FOREACH_CHILD (_cn, outNode, "port") {
             LayerParseParameters::LayerPortData port;
             port.precision = prms.precision;
             ParsePort(port, _cn);
-            if (prms.type == "Const" || !prms.precision) prms.precision = port.precision;
+            if (prms.type == "Const" || !prms.precision)
+                prms.precision = port.precision;
             layerParsePrms.addOutputPort(port);
         }
     }
     auto inpNode = node.child("input");
     if (!inpNode.empty()) {
-        FOREACH_CHILD(_cn, inpNode, "port") {
+        FOREACH_CHILD (_cn, inpNode, "port") {
             LayerParseParameters::LayerPortData port;
             port.precision = prms.precision;
             ParsePort(port, _cn);
@@ -122,19 +130,22 @@ static inline std::string gen_id(int layer_id, int port_id) {
 InferenceEngine::CNNLayer::Ptr FormatParser::CreateLayer(pugi::xml_node& node,
                                                          LayerParseParameters& layerParsePrms) const {
     for (auto& creator : creators) {
-        if (!creator->shouldCreate(layerParsePrms.prms.type)) continue;
+        if (!creator->shouldCreate(layerParsePrms.prms.type))
+            continue;
         return creator->CreateLayer(node, layerParsePrms);
     }
     LayerCreator<GenericLayer> genericCreator("");
     return genericCreator.CreateLayer(node, layerParsePrms);
 }
 
-void FormatParser::SetLayerInput(CNNNetworkImpl& network, const std::string& dataId, CNNLayerPtr& targetLayer,
+void FormatParser::SetLayerInput(CNNNetworkImpl& network,
+                                 const std::string& dataId,
+                                 CNNLayerPtr& targetLayer,
                                  int inputPort) {
     DataPtr& dataPtr = _portsToData[dataId];
     if (!dataPtr)
         IE_THROW() << "in Layer " << targetLayer->name
-                           << ": trying to connect an edge to non existing output port: " << dataId;
+                   << ": trying to connect an edge to non existing output port: " << dataId;
 
     getInputTo(dataPtr)[targetLayer->name] = targetLayer;
     const LayerParseParameters& parseInfo = layersParseInfo[targetLayer->name];
@@ -142,7 +153,8 @@ void FormatParser::SetLayerInput(CNNNetworkImpl& network, const std::string& dat
         targetLayer->insData.resize(parseInfo.inputPorts.size());
     }
     for (unsigned i = 0; i < parseInfo.inputPorts.size(); i++) {
-        if (parseInfo.inputPorts[i].portId != inputPort) continue;
+        if (parseInfo.inputPorts[i].portId != inputPort)
+            continue;
         if (parseInfo.inputPorts[i].precision != dataPtr->getPrecision()) {
             if (dataPtr->getPrecision() == Precision::UNSPECIFIED) {
                 dataPtr->setPrecision(parseInfo.inputPorts[i].precision);
@@ -156,9 +168,9 @@ void FormatParser::SetLayerInput(CNNNetworkImpl& network, const std::string& dat
         }
         if (!equal(parseInfo.inputPorts[i].dims, dataPtr->getDims()))
             IE_THROW() << "in Layer " << targetLayer->name
-                               << ": trying to connect an edge to mismatch dimensions of output port: "
-                               << dataPtr->getName() << " dims input: " << dumpVec(parseInfo.inputPorts[i].dims)
-                               << " dims output: " << dumpVec(dataPtr->getDims());
+                       << ": trying to connect an edge to mismatch dimensions of output port: " << dataPtr->getName()
+                       << " dims input: " << dumpVec(parseInfo.inputPorts[i].dims)
+                       << " dims output: " << dumpVec(dataPtr->getDims());
         targetLayer->insData[i] = dataPtr;
         const auto insId = gen_id(parseInfo.layerId, parseInfo.inputPorts[i].portId);
         _portsToData[insId] = dataPtr;
@@ -167,7 +179,7 @@ void FormatParser::SetLayerInput(CNNNetworkImpl& network, const std::string& dat
     IE_THROW() << "input port " << inputPort << " does not exist in layer " << targetLayer->name;
 }
 
-FormatParser::FormatParser(size_t version): _version(version) {
+FormatParser::FormatParser(size_t version) : _version(version) {
     // there should be unique_ptr but it cant be used with initializer lists
     creators = {std::make_shared<LayerCreator<PowerLayer>>("Power"),
                 std::make_shared<LayerCreator<ConvolutionLayer>>("Convolution"),
@@ -268,8 +280,10 @@ FormatParser::FormatParser(size_t version): _version(version) {
                 std::make_shared<LayerCreator<NonMaxSuppressionLayer>>("NonMaxSuppression"),
                 std::make_shared<LayerCreator<ScatterUpdateLayer>>("ScatterUpdate"),
                 std::make_shared<LayerCreator<ScatterElementsUpdateLayer>>("ScatterElementsUpdate"),
-                std::make_shared<LayerCreator<ExperimentalDetectronPriorGridGeneratorLayer>>("ExperimentalDetectronPriorGridGenerator"),
-                std::make_shared<LayerCreator<ExperimentalDetectronGenerateProposalsSingleImageLayer>>("ExperimentalDetectronGenerateProposalsSingleImage"),
+                std::make_shared<LayerCreator<ExperimentalDetectronPriorGridGeneratorLayer>>(
+                    "ExperimentalDetectronPriorGridGenerator"),
+                std::make_shared<LayerCreator<ExperimentalDetectronGenerateProposalsSingleImageLayer>>(
+                    "ExperimentalDetectronGenerateProposalsSingleImage"),
                 std::make_shared<LayerCreator<ExperimentalDetectronTopKROIs>>("ExperimentalDetectronTopKROIs")};
     creators.emplace_back(_version < 6 ? std::make_shared<LayerCreator<QuantizeLayer>>("Quantize")
                                        : std::make_shared<LayerCreator<QuantizeLayer>>("FakeQuantize"));
@@ -286,12 +300,13 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
     std::vector<CNNLayer::Ptr> inputLayers;
     int nodeCnt = 0;
     std::map<int, CNNLayer::Ptr> layerById;
-    FOREACH_CHILD(node, allLayersNode, "layer") {
+    FOREACH_CHILD (node, allLayersNode, "layer") {
         LayerParseParameters lprms;
         ParseGenericParams(node, lprms);
 
         CNNLayer::Ptr layer = CreateLayer(node, lprms);
-        if (!layer) IE_THROW() << "Don't know how to create Layer type: " << lprms.prms.type;
+        if (!layer)
+            IE_THROW() << "Don't know how to create Layer type: " << lprms.prms.type;
 
         layersParseInfo[layer->name] = lprms;
         _network->addLayer(layer);
@@ -315,7 +330,7 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
 
             if (getCreatorLayer(ptr).lock())
                 IE_THROW() << "two layers set to the same output [" << outName << "], conflict at offset "
-                                   << node.offset_debug();
+                           << node.offset_debug();
 
             getCreatorLayer(ptr) = layer;
             layer->outData.push_back(ptr);
@@ -326,7 +341,7 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
     // connect the edges
     pugi::xml_node edges = root.child("edges");
 
-    FOREACH_CHILD(_ec, edges, "edge") {
+    FOREACH_CHILD (_ec, edges, "edge") {
         int fromLayer = GetIntAttr(_ec, "from-layer");
         int fromPort = GetIntAttr(_ec, "from-port");
         int toLayer = GetIntAttr(_ec, "to-layer");
@@ -336,7 +351,7 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
         auto targetLayer = layerById[toLayer];
         if (!targetLayer)
             IE_THROW() << "Layer ID " << toLayer << " was not found while connecting edge at offset "
-                               << _ec.offset_debug();
+                       << _ec.offset_debug();
 
         SetLayerInput(*_network, dataId, targetLayer, toPort);
     }
@@ -359,7 +374,7 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
     for (auto inLayer : inputLayers) {
         if (inLayer->outData.size() != 1)
             IE_THROW() << "Input layer must have 1 output. "
-                                  "See documentation for details.";
+                          "See documentation for details.";
         keep_input_info(inLayer->outData[0]);
     }
 
@@ -368,15 +383,18 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
         const CNNLayer::Ptr& layer = kvp.second;
         auto pars_info = layersParseInfo[layer->name];
 
-        if (layer->insData.empty()) layer->insData.resize(pars_info.inputPorts.size());
+        if (layer->insData.empty())
+            layer->insData.resize(pars_info.inputPorts.size());
 
         for (size_t i = 0; i < layer->insData.size(); i++) {
             if (!layer->insData[i].lock()) {
                 std::string data_name =
                     (layer->insData.size() == 1) ? layer->name : layer->name + "." + std::to_string(i);
 
-                DataPtr data(new Data(data_name, {pars_info.inputPorts[i].precision, pars_info.inputPorts[i].dims,
-                                                  TensorDesc::getLayoutByDims(pars_info.inputPorts[i].dims)}));
+                DataPtr data(new Data(data_name,
+                                      {pars_info.inputPorts[i].precision,
+                                       pars_info.inputPorts[i].dims,
+                                       TensorDesc::getLayoutByDims(pars_info.inputPorts[i].dims)}));
 
                 layer->insData[i] = data;
                 getInputTo(data)[layer->name] = layer;
@@ -398,7 +416,7 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
             auto ti = dynamic_cast<TensorIterator*>(layer.get());
             if (!ti)
                 IE_THROW() << "Failed to cast to 'TensorIterator'";
-            for (auto &in_map_rule : ti->input_port_map) {
+            for (auto& in_map_rule : ti->input_port_map) {
                 auto exter_data = ti->insData[in_map_rule.from].lock();
                 auto inter_data = ti->body.inputs[in_map_rule.to];
 
@@ -408,13 +426,15 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
         }
     }
 
-    if (!_network->allLayers().size()) IE_THROW() << "Incorrect model! Network doesn't contain layers.";
+    if (!_network->allLayers().size())
+        IE_THROW() << "Incorrect model! Network doesn't contain layers.";
 
     size_t inputLayersNum(0);
     CaselessEq<std::string> cmp;
     for (const auto& kvp : _network->allLayers()) {
         const CNNLayer::Ptr& layer = kvp.second;
-        if (cmp(layer->type, "Input") || cmp(layer->type, "Const")) inputLayersNum++;
+        if (cmp(layer->type, "Input") || cmp(layer->type, "Const"))
+            inputLayersNum++;
     }
 
     if (!inputLayersNum && !cmp(root.name(), "body"))
@@ -430,8 +450,8 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
 
         for (unsigned i = 0; i < inSize; i++) {
             if (!layer->insData[i].lock()) {
-                IE_THROW() << "Layer " << layer->name.c_str() << " input port "
-                                   << parseInfo.inputPorts[i].portId << " is not connected to any data";
+                IE_THROW() << "Layer " << layer->name.c_str() << " input port " << parseInfo.inputPorts[i].portId
+                           << " is not connected to any data";
             }
         }
         layer->parseParams();
@@ -448,7 +468,7 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
         if (outputInfo.second->getPrecision() == Precision::I64) {
             outputInfo.second->setPrecision(Precision::I32);
         } else if (outputInfo.second->getPrecision() != Precision::FP32 &&
-            outputInfo.second->getPrecision() != Precision::I32) {
+                   outputInfo.second->getPrecision() != Precision::I32) {
             outputInfo.second->setPrecision(Precision::FP32);
         }
     }
@@ -459,7 +479,8 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
 template <typename BlobType>
 inline Blob::Ptr GetTypedBlobFromSegment(const TBlob<uint8_t>::Ptr& weights, const WeightSegment& segment) {
     if (segment.getEnd() > weights->size())
-        IE_THROW() << "segment size(" << segment.getEnd() << ") exceeds given buffer limits(" << weights->size() <<"). Please, validate weights file";
+        IE_THROW() << "segment size(" << segment.getEnd() << ") exceeds given buffer limits(" << weights->size()
+                   << "). Please, validate weights file";
 
     size_t noOfElement = segment.size / sizeof(BlobType);
     // RanC: TODO: IR does not provide me with weight slayout.
@@ -533,7 +554,8 @@ void FormatParser::SetWeights(const TBlob<uint8_t>::Ptr& weights) {
             }
         }
         auto pGL = kvp.second.get();
-        if (pGL == nullptr) continue;
+        if (pGL == nullptr)
+            continue;
         for (auto s : lprms.blobs) {
             pGL->blobs[s.first] = GetBlobFromSegment(weights, s.second);
             if (pGL->type == "Const") {
@@ -543,13 +565,15 @@ void FormatParser::SetWeights(const TBlob<uint8_t>::Ptr& weights) {
         }
 
         // Some layer can specify additional action to prepare weights
-        if (fit->second.internalWeightSet) fit->second.internalWeightSet(weights);
+        if (fit->second.internalWeightSet)
+            fit->second.internalWeightSet(weights);
     }
     for (auto& kvp : _preProcessSegments) {
         const std::string& inputName = kvp.first;
         auto& segments = kvp.second;
         auto inputInfo = _network->getInput(inputName);
-        if (!inputInfo) IE_THROW() << "Internal error: missing input name " << inputName;
+        if (!inputInfo)
+            IE_THROW() << "Internal error: missing input name " << inputName;
 
         auto dims = inputInfo->getTensorDesc().getDims();
         size_t width = 0ul, height = 0ul;
@@ -570,7 +594,8 @@ void FormatParser::SetWeights(const TBlob<uint8_t>::Ptr& weights) {
         PreProcessInfo& pp = inputInfo->getPreProcess();
 
         for (size_t c = 0; c < segments.size(); c++) {
-            if (segments[c].size == 0) continue;
+            if (segments[c].size == 0)
+                continue;
             Blob::Ptr blob = GetBlobFromSegment(weights, segments[c]);
             blob->getTensorDesc().reshape({height, width},
                                           Layout::HW);  // to fit input image sizes (summing it is an image)
@@ -580,13 +605,13 @@ void FormatParser::SetWeights(const TBlob<uint8_t>::Ptr& weights) {
 }
 
 void FormatParser::ParseDims(SizeVector& dims, const pugi::xml_node& parentNode) const {
-    FOREACH_CHILD(node, parentNode, "dim") {
+    FOREACH_CHILD (node, parentNode, "dim") {
         unsigned int dim = 0;
         const pugi::char_t* dimVal = node.child_value();
         stringstream ss(dimVal);
         if (!(ss >> dim) || dim == 0) {
             IE_THROW() << "dimension (" << dimVal << ") in node " << node.name()
-                               << " must be a positive integer: at offset " << node.offset_debug();
+                       << " must be a positive integer: at offset " << node.offset_debug();
         }
         dims.push_back(dim);
     }
@@ -627,7 +652,8 @@ void FormatParser::ParsePreProcess(pugi::xml_node& root) {
         InputsDataMap inputs;
         _network->getInputsInfo(inputs);
 
-        if (inputs.empty()) IE_THROW() << "network has no input";
+        if (inputs.empty())
+            IE_THROW() << "network has no input";
 
         for (auto i : inputs) {
             if (i.second->getTensorDesc().getDims().size() == 4) {
@@ -685,7 +711,7 @@ void FormatParser::ParsePreProcess(pugi::xml_node& root) {
     std::unordered_set<int> idsForMeanValue;
     std::unordered_set<int> idsForMeanImage;
 
-    FOREACH_CHILD(chan, ppNode, "channel") {
+    FOREACH_CHILD (chan, ppNode, "channel") {
         int chanNo = GetIntAttr(chan, "id", lastChanNo + 1);
         if (chanNo >= static_cast<int>(noOfChannels) || chanNo < 0) {
             IE_THROW() << "Pre-process channel id invalid: " << chanNo;
@@ -710,8 +736,7 @@ void FormatParser::ParsePreProcess(pugi::xml_node& root) {
                 preProcessSegment.precision = meanSegmentPrecision;
                 if (width * height * meanSegmentPrecision.size() != preProcessSegment.size) {
                     IE_THROW() << "mean blob size mismatch expected input, got: " << preProcessSegment.size
-                                       << " extpecting " << width << " x " << height << " x "
-                                       << meanSegmentPrecision.size();
+                               << " extpecting " << width << " x " << height << " x " << meanSegmentPrecision.size();
                 }
                 if (!meanSegmentPrecision || meanSegmentPrecision == Precision::MIXED)
                     IE_THROW() << "mean blob defined without specifying precision.";
@@ -739,10 +764,10 @@ void FormatParser::ParsePreProcess(pugi::xml_node& root) {
             validMeanImageIds += std::to_string(id) + " ";
         }
         IE_THROW() << "mean is not provided for all channels\n"
-                              "Provided mean values for : "
-                           << validMeanValuesIds
-                           << "\n"
-                              "Provided mean image for: "
-                           << validMeanImageIds;
+                      "Provided mean values for : "
+                   << validMeanValuesIds
+                   << "\n"
+                      "Provided mean image for: "
+                   << validMeanImageIds;
     }
 }
