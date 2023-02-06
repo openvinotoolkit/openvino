@@ -105,7 +105,7 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op,
         originalInputPrecisions.emplace_back(details::convertPrecision(op->get_input_element_type(i)));
     }
 
-    if (typeStr != "Result" && typeStr != "Assign") {
+    if (type != Type::Output && type != Type::MemoryOutput) {
         if (op->get_output_size() == 0) {
             IE_THROW() << "Node with type '" << typeStr << "' and name '" << name << "' does not have any outputs.";
         }

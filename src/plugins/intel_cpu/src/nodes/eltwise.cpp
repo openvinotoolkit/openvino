@@ -67,7 +67,7 @@ struct EltwiseEmitterContext {
     jit_generator *host;
     cpu_isa_t host_isa;
     const Eltwise::EltwiseData& opData;
-    InferenceEngine::Precision exec_prc;
+    Precision exec_prc;
 };
 
 template<typename T>
@@ -658,15 +658,31 @@ private:
 
     inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, Precision src_prc, Precision dst_prc, bool broadcast) {
         Xmm xmm_src = Xmm(vmm_src.getIdx());
+        Ymm ymm_src = Ymm(vmm_src.getIdx());
 
         if (broadcast) {
             load_scalar(xmm_src, op, src_prc, dst_prc);
-            uni_vbroadcastss(vmm_src, xmm_src);
+            if (src_prc.size() == 4) {
+                uni_vbroadcastss(vmm_src, xmm_src);
+            } else if (src_prc.size() == 8) {
+                uni_vbroadcastsd(vmm_src, xmm_src);
+            }
         } else {
             switch (src_prc) {
                 case Precision::FP32:
+                    if (dst_prc == Precision::FP32) {
+                        uni_vmovups(vmm_src, op);
+                    }
+                    break;
                 case Precision::I32:
-                    uni_vmovups(vmm_src, op);
+                    if (dst_prc == Precision::I32) {
+                        uni_vmovups(vmm_src, op);
+                    }
+                    break;
+                case Precision::I64:
+                    if (dst_prc == Precision::I64 || dst_prc == Precision::I32) {
+                        uni_vmovups(vmm_src, op);
+                    }
                     break;
                 case Precision::BF16:
                     vpmovzxwd(vmm_src, op);
@@ -685,26 +701,45 @@ private:
                     uni_vpmovzxbd(vmm_src, op);
                     break;
                 default:
-                    assert(!"unknown src_prc");
+                    IE_THROW() << "Unknown src_prc: " << src_prc;
             }
 
             switch (dst_prc) {
                 case Precision::FP32:
-                    if (src_prc != Precision::FP32 && src_prc != Precision::BF16)
-                        uni_vcvtdq2ps(vmm_src, vmm_src);
+                    if (src_prc == Precision::I64) {
+                        if (isa == x64::avx512_core) {
+                            vcvtqq2ps(vmm_src, op);
+                        } else {
+                            // TODO
+                        }
+                    } else if (src_prc != Precision::FP32 && src_prc != Precision::BF16) {
+                        uni_vcvtdq2ps(vmm_src, op);
+                    }
                     break;
                 case Precision::I32:
-                    if (src_prc == Precision::FP32 || src_prc == Precision::BF16)
-                        uni_vcvtps2dq(vmm_src, vmm_src);
+                    if (src_prc == Precision::I64) {
+                        if (isa == x64::avx512_core) {
+                            vpmovsqd(ymm_src, vmm_src);
+                        } else {
+                            // TODO
+                        }
+                    } else if (src_prc == Precision::FP32 || src_prc == Precision::BF16) {
+                        uni_vcvtps2dq(vmm_src, op);
+                    }
+                    break;
+                case Precision::I64:
                     break;
                 default:
-                    assert(!"unknown dst_prc");
+                    IE_THROW() << "Unknown dst_prc: " << dst_prc;
             }
         }
     }
 
     inline void load_scalar(Xmm xmm_src, const Xbyak::Address &op, Precision src_prc, Precision dst_prc) {
         switch (src_prc) {
+            case Precision::I64:
+                uni_vmovsd(xmm_src, op);
+                break;
             case Precision::FP32:
             case Precision::I32:
                 uni_vmovss(xmm_src, op);
@@ -735,12 +770,28 @@ private:
 
         switch (dst_prc) {
             case Precision::FP32:
-                if (src_prc != Precision::FP32 && src_prc != Precision::BF16)
+                if (src_prc == Precision::I64) {
+                    if (isa == x64::avx512_core) {
+                        vcvtqq2ps(xmm_src, xmm_src);
+                    } else {
+                        // TODO
+                    }
+                } else if (src_prc != Precision::FP32 && src_prc != Precision::BF16) {
                     uni_vcvtdq2ps(xmm_src, xmm_src);
+                }
                 break;
             case Precision::I32:
-                if (src_prc == Precision::FP32 || src_prc == Precision::BF16)
+                if (src_prc == Precision::I64) {
+                    if (isa == x64::avx512_core) {
+                        vpmovsqd(xmm_src, xmm_src);
+                    } else {
+                        // TODO
+                    }
+                } else if (src_prc == Precision::FP32 || src_prc == Precision::BF16) {
                     uni_vcvtps2dq(xmm_src, xmm_src);
+                }
+                break;
+            case Precision::I64:
                 break;
             default:
                 assert(!"unknown dst_prc");
@@ -760,14 +811,42 @@ private:
                 if (dst_prc == Precision::FP32 || dst_prc == Precision::BF16)
                     uni_vcvtdq2ps(vmm_dst, vmm_dst);
                 break;
+            case Precision::I64:
+                if (dst_prc == Precision::FP32 || dst_prc == Precision::BF16) {
+                    if (isa == x64::avx512_core) {
+                        vcvtqq2ps(ymm_dst, vmm_dst);
+                    } else {
+                        // TODO
+                    }
+                }
+                break;
             default:
                 assert(!"unknown src_prc");
         }
 
         switch (dst_prc) {
             case Precision::FP32:
+                if (src_prc == Precision::I64) {
+                    uni_vmovups(op, ymm_dst);
+                } else {
+                    uni_vmovups(op, vmm_dst);
+                }
+                break;
+            case Precision::I64:
+                if (src_prc == Precision::I64) {
+                    uni_vmovups(op, vmm_dst);
+                }
+                break;
             case Precision::I32:
-                uni_vmovups(op, vmm_dst);
+                if (src_prc == Precision::I64) {
+                    if (isa == x64::avx512_core) {
+                        vpmovsqd(op, vmm_dst);
+                    } else {
+                        // TODO
+                    }
+                } else {
+                    uni_vmovups(op, vmm_dst);
+                }
                 break;
             case Precision::BF16:
                 uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
@@ -802,7 +881,11 @@ private:
                 break;
             case Precision::I8:
                 if (isa == x64::avx512_core) {
-                    vpmovsdb(op, vmm_dst);
+                    if (src_prc == Precision::I64) {
+                        vpmovsqb(xmm_dst, vmm_dst);
+                    } else {
+                        vpmovsdb(op, vmm_dst);
+                    }
                 } else {
                     uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
                     if (isa != x64::sse41)
@@ -816,8 +899,12 @@ private:
                 break;
             case Precision::U8:
                 if (isa == x64::avx512_core) {
-                    vpmaxsd(vmm_dst, vmm_zero, vmm_dst);
-                    vpmovusdb(op, vmm_dst);
+                    if (src_prc == Precision::I64) {
+                        vpmovusqb(xmm_dst, vmm_dst);
+                    } else {
+                        vpmaxsd(vmm_dst, vmm_zero, vmm_dst);
+                        vpmovusdb(op, vmm_dst);
+                    }
                 } else {
                     uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
                     if (isa != x64::sse41)
@@ -844,11 +931,31 @@ private:
                 if (dst_prc == Precision::FP32 || dst_prc == Precision::BF16)
                     uni_vcvtdq2ps(xmm_dst, xmm_dst);
                 break;
+            case Precision::I64:
+                if (dst_prc == Precision::FP32 || dst_prc == Precision::BF16) {
+                    if (isa == x64::avx512_core) {
+                        vcvtqq2ps(xmm_dst, xmm_dst);
+                    } else {
+                        // TODO
+                    }
+                } else if (dst_prc == Precision::I32) {
+                    if (isa == x64::avx512_core) {
+                        vpmovsqd(xmm_dst, xmm_dst);
+                    } else {
+                        // TODO
+                    }
+                }
+                break;
             default:
                 assert(!"unknown src_prc");
         }
 
         switch (dst_prc) {
+            case Precision::I64:
+                if (src_prc == Precision::I64) {
+                    uni_vmovsd(op, xmm_dst);
+                }
+                break;
             case Precision::FP32:
             case Precision::I32:
                 uni_vmovss(op, xmm_dst);
@@ -874,10 +981,7 @@ private:
                 mov(op, reg_tmp_8);
                 break;
             case Precision::U8:
-                uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
-                uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
-                movq(reg_tmp_64, xmm_dst);
-                mov(op, reg_tmp_8);
+                uni_vpextrb(op, xmm_dst, 0);
                 break;
             default:
                 assert(!"unknown dst_prc");
@@ -1113,8 +1217,8 @@ struct EltwiseKey {
     VectorDims outBlkDims;
     VectorDims outOrder;
     std::vector<VectorDims> inpDims;
-    std::vector<InferenceEngine::Precision> inpPrc;
-    InferenceEngine::Precision outPrc;
+    std::vector<Precision> inpPrc;
+    Precision outPrc;
     dnnl::post_ops postOps;
     bool useDynBatch;
     bool useJit;
@@ -1195,8 +1299,8 @@ public:
                        const VectorDims& outBlkDims,
                        const VectorDims& outOrder,
                        std::vector<VectorDims> inpDims,
-                       const std::vector<InferenceEngine::Precision>& inpPrc,
-                       const InferenceEngine::Precision& outPrc,
+                       const std::vector<Precision>& inpPrc,
+                       const Precision& outPrc,
                        const dnnl::post_ops& post_ops,
                        bool useDynBatch) {
         auto collapseLastDims = [](std::vector<size_t>& dims, int dimsToCollapse) {
@@ -1783,7 +1887,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         IE_THROW() << "Eltwise node with name `" << getName() << "` has invalid input number of inputs: expected = " << expectedInputsNum
                            << " (actual = " << getParentEdges().size() << ")";
 
-    std::vector<InferenceEngine::Precision> inputPrecisions;
+    std::vector<Precision> inputPrecisions;
     for (const auto &prec : getOriginalInputPrecisions()) {
         inputPrecisions.push_back(prec);
     }
@@ -1800,7 +1904,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     if (inputPrecisions.size() != getParentEdges().size())
         IE_THROW() << "Eltwise node with name `" << getName() << "` has invalid input precisions configuration.";
 
-    InferenceEngine::Precision outputPrecision = getOriginalOutputPrecisionAtPort(0);
+    Precision outputPrecision = getOriginalOutputPrecisionAtPort(0);
     if (!fusedWith.empty()) {
         outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
     }
@@ -2024,7 +2128,7 @@ void Eltwise::prepareParams() {
     const auto desc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
     start_offset_out = desc->getOffsetPadding() * desc->getPrecision().size();
 
-    std::vector<InferenceEngine::Precision> inpPrc;
+    std::vector<Precision> inpPrc;
     for (size_t i = 0; i < inputNum; ++i) {
         inpPrc.push_back(getParentEdgeAt(i)->getMemory().getDesc().getPrecision());
     }
@@ -2431,8 +2535,8 @@ bool Eltwise::canFuse(const NodePtr& node) const {
     return false;
 }
 
-InferenceEngine::Precision Eltwise::getRuntimePrecision() const {
-    std::vector<InferenceEngine::Precision> inputPrecisions;
+Precision Eltwise::getRuntimePrecision() const {
+    std::vector<Precision> inputPrecisions;
     // Don't take bias precision into account
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto parentEdge = getParentEdgeAt(i);

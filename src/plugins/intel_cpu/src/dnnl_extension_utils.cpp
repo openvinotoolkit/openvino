@@ -3,7 +3,6 @@
 //
 
 #include "dnnl_extension_utils.h"
-#include "utils/general_utils.h"
 #include <vector>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
@@ -12,21 +11,23 @@ using namespace dnnl;
 namespace ov {
 namespace intel_cpu {
 
-uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
+uint8_t DnnlExtensionUtils::sizeOfDataType(memory::data_type dataType) {
     switch (dataType) {
-    case dnnl::memory::data_type::f32:
+    case memory::data_type::f32:
         return 4;
-    case dnnl::memory::data_type::s32:
+    case memory::data_type::s32:
         return 4;
-    case dnnl::memory::data_type::bf16:
+    case memory::data_type::s64:
+        return 8;
+    case memory::data_type::bf16:
         return 2;
-    case dnnl::memory::data_type::s8:
+    case memory::data_type::s8:
         return 1;
-    case dnnl::memory::data_type::u8:
+    case memory::data_type::u8:
         return 1;
-    case dnnl::memory::data_type::bin:
+    case memory::data_type::bin:
         return 1;
-    case dnnl::memory::data_type::undef:
+    case memory::data_type::undef:
         return 0;
     default:
         IE_THROW() << "Unsupported data type.";
@@ -48,6 +49,8 @@ memory::data_type DnnlExtensionUtils::IEPrecisionToDataType(const InferenceEngin
             return memory::data_type::u8;
         case InferenceEngine::Precision::BIN:
             return memory::data_type::bin;
+        case InferenceEngine::Precision::I64:
+            return memory::data_type::s64;
         case InferenceEngine::Precision::UNSPECIFIED:
             return memory::data_type::undef;
         default: {
@@ -62,6 +65,8 @@ InferenceEngine::Precision DnnlExtensionUtils::DataTypeToIEPrecision(memory::dat
             return InferenceEngine::Precision::FP32;
         case memory::data_type::s32:
             return InferenceEngine::Precision::I32;
+        case memory::data_type::s64:
+            return InferenceEngine::Precision::I64;
         case memory::data_type::bf16:
             return InferenceEngine::Precision::BF16;
         case memory::data_type::s8:
@@ -78,11 +83,11 @@ InferenceEngine::Precision DnnlExtensionUtils::DataTypeToIEPrecision(memory::dat
     }
 }
 
-Dim DnnlExtensionUtils::convertToDim(const dnnl::memory::dim &dim) {
+Dim DnnlExtensionUtils::convertToDim(const memory::dim &dim) {
     return dim == DNNL_RUNTIME_DIM_VAL ?  Shape::UNDEFINED_DIM : static_cast<size_t>(dim);
 }
-dnnl::memory::dim DnnlExtensionUtils::convertToDnnlDim(const Dim &dim) {
-    return dim == Shape::UNDEFINED_DIM ? DNNL_RUNTIME_DIM_VAL : static_cast<dnnl::memory::dim>(dim);
+memory::dim DnnlExtensionUtils::convertToDnnlDim(const Dim &dim) {
+    return dim == Shape::UNDEFINED_DIM ? DNNL_RUNTIME_DIM_VAL : static_cast<memory::dim>(dim);
 }
 
 VectorDims DnnlExtensionUtils::convertToVectorDims(const memory::dims& dims) {
@@ -121,7 +126,7 @@ memory::format_tag DnnlExtensionUtils::GetPlainFormatByRank(size_t rank) {
     }
 }
 
-DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const dnnl::memory::desc &desc) {
+DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const memory::desc &desc) {
     if (desc.data.format_kind == dnnl_blocked) {
         return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(desc));
     } else {
@@ -129,7 +134,7 @@ DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const dnnl::memory::desc &d
     }
 }
 
-size_t DnnlExtensionUtils::getMemSizeForDnnlDesc(const dnnl::memory::desc& desc) {
+size_t DnnlExtensionUtils::getMemSizeForDnnlDesc(const memory::desc& desc) {
     auto tmpDesc = desc;
     const auto offset0 = tmpDesc.data.offset0;
     tmpDesc.data.offset0 = 0;
@@ -148,8 +153,8 @@ std::shared_ptr<DnnlBlockedMemoryDesc> DnnlExtensionUtils::makeUndefinedDesc(con
     }
 }
 
-DnnlMemoryDescPtr DnnlExtensionUtils::query_md(const const_dnnl_primitive_desc_t& pd, const dnnl::query& what, int idx) {
-    auto query = dnnl::convert_to_c(what);
+DnnlMemoryDescPtr DnnlExtensionUtils::query_md(const const_dnnl_primitive_desc_t& pd, const query& what, int idx) {
+    auto query = convert_to_c(what);
     const dnnl_memory_desc_t* cdesc = dnnl_primitive_desc_query_md(pd, query, idx);
     if (!cdesc)
         IE_THROW() << "query_md failed for query=" << query << " idx=" << idx << ".";

@@ -8,6 +8,7 @@
 
 using namespace LayerTestsDefinitions;
 using namespace LayerTestsDefinitions::ComparisonParams;
+using namespace InferenceEngine;
 
 namespace {
 
@@ -18,13 +19,6 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> inputShapes = {
         {{1, 3, 20}, {{20}, {2, 1, 1}}},
         {{2, 17, 3, 4}, {{4}, {1, 3, 4}, {2, 1, 3, 4}}},
         {{2, 1, 1, 3, 1}, {{1}, {1, 3, 4}, {2, 1, 3, 4}, {1, 1, 1, 1, 1}}},
-};
-
-std::vector<InferenceEngine::Precision> inputsPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16,
-        InferenceEngine::Precision::I32,
-        InferenceEngine::Precision::BOOL,
 };
 
 std::vector<ngraph::helpers::ComparisonTypes> comparisonOpTypes = {
@@ -43,17 +37,29 @@ std::vector<ngraph::helpers::InputLayerType> secondInputTypes = {
 
 std::map<std::string, std::string> additional_config = {};
 
-const auto ComparisonTestParams = ::testing::Combine(
-        ::testing::ValuesIn(CommonTestUtils::combineParams(inputShapes)),
-        ::testing::ValuesIn(inputsPrecisions),
-        ::testing::ValuesIn(comparisonOpTypes),
-        ::testing::ValuesIn(secondInputTypes),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
-        ::testing::Values(additional_config));
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, ComparisonLayerTest, 
+        ::testing::Combine(
+                ::testing::ValuesIn(CommonTestUtils::combineParams(inputShapes)),
+                ::testing::ValuesIn(std::vector<Precision>{Precision::FP32, Precision::I32, Precision::I64}),
+                ::testing::ValuesIn(comparisonOpTypes),
+                ::testing::ValuesIn(secondInputTypes),
+                ::testing::Values(Precision::UNSPECIFIED),
+                ::testing::Values(Precision::UNSPECIFIED),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                ::testing::Values(additional_config)),
+        ComparisonLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, ComparisonLayerTest, ComparisonTestParams, ComparisonLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(nightly_CompareWithRefs, ComparisonLayerTest,
+        ::testing::Combine(
+                ::testing::ValuesIn(CommonTestUtils::combineParams(inputShapes)),
+                ::testing::ValuesIn(std::vector<Precision>{Precision::FP16, Precision::BOOL}),
+                ::testing::ValuesIn(comparisonOpTypes),
+                ::testing::ValuesIn(secondInputTypes),
+                ::testing::Values(Precision::UNSPECIFIED),
+                ::testing::Values(Precision::UNSPECIFIED),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                ::testing::Values(additional_config)),
+        ComparisonLayerTest::getTestCaseName);
 
 
 std::vector<InputShapesTuple> inputShapesIsOps = {
@@ -80,11 +86,11 @@ std::vector<ngraph::helpers::ComparisonTypes> comparisonOpTypesIs = {
 
 const auto ComparisonTestParamsIs = ::testing::Combine(
         ::testing::ValuesIn(inputShapesIsOps),
-        ::testing::Values(InferenceEngine::Precision::FP32),
+        ::testing::Values(Precision::FP32),
         ::testing::ValuesIn(comparisonOpTypesIs),
         ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(Precision::UNSPECIFIED),
+        ::testing::Values(Precision::UNSPECIFIED),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(additional_config));
 

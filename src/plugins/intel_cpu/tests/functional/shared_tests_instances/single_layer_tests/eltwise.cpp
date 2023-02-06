@@ -41,10 +41,15 @@ std::vector<std::vector<ov::test::InputShape>> inShapesDynamic = {
          {{ngraph::Dimension(1, 10), 200}, {{2, 200}, {5, 200}}}},
 };
 
-std::vector<ov::test::ElementType> netPrecisions = {
+std::vector<ov::test::ElementType> smokeNetPrecisions = {
         ov::element::f32,
+        ov::element::i32
+};
+
+std::vector<ov::test::ElementType> nightlyNetPrecisions = {
         ov::element::f16,
-        ov::element::i32,
+        ov::element::bf16,
+        ov::element::i64
 };
 
 std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
@@ -89,7 +94,7 @@ const auto multiply_params = ::testing::Combine(
         ::testing::ValuesIn(eltwiseOpTypes),
         ::testing::ValuesIn(secondaryInputTypes),
         ::testing::ValuesIn(opTypes),
-        ::testing::ValuesIn(netPrecisions),
+        ::testing::ValuesIn(smokeNetPrecisions),
         ::testing::Values(ov::element::undefined),
         ::testing::Values(ov::element::undefined),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -100,7 +105,7 @@ const auto collapsing_params = ::testing::Combine(
         ::testing::ValuesIn(eltwiseOpTypes),
         ::testing::ValuesIn(secondaryInputTypes),
         ::testing::Values(opTypes[1]),
-        ::testing::ValuesIn(netPrecisions),
+        ::testing::ValuesIn(smokeNetPrecisions),
         ::testing::Values(ov::element::undefined),
         ::testing::Values(ov::element::undefined),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -111,7 +116,7 @@ const auto multiply_params_dynamic = ::testing::Combine(
         ::testing::ValuesIn(eltwiseOpTypesDynamic),
         ::testing::ValuesIn(secondaryInputTypesDynamic),
         ::testing::ValuesIn(opTypesDynamic),
-        ::testing::ValuesIn(netPrecisions),
+        ::testing::ValuesIn(smokeNetPrecisions),
         ::testing::Values(ov::element::undefined),
         ::testing::Values(ov::element::undefined),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -120,6 +125,45 @@ const auto multiply_params_dynamic = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_static, EltwiseLayerTest, multiply_params, EltwiseLayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_static_check_collapsing, EltwiseLayerTest, collapsing_params, EltwiseLayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynamic, EltwiseLayerTest, multiply_params_dynamic, EltwiseLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(nightly_CompareWithRefs_static, EltwiseLayerTest,
+        ::testing::Combine(
+                ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapesStatic)),
+                ::testing::ValuesIn(eltwiseOpTypes),
+                ::testing::ValuesIn(secondaryInputTypes),
+                ::testing::ValuesIn(opTypes),
+                ::testing::ValuesIn(nightlyNetPrecisions),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                ::testing::Values(additional_config)),
+        EltwiseLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(nightly_CompareWithRefs_static_check_collapsing, EltwiseLayerTest,
+        ::testing::Combine(
+                ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapesStaticCheckCollapse)),
+                ::testing::ValuesIn(eltwiseOpTypes),
+                ::testing::ValuesIn(secondaryInputTypes),
+                ::testing::Values(opTypes[1]),
+                ::testing::ValuesIn(nightlyNetPrecisions),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                ::testing::Values(additional_config)),
+        EltwiseLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(nightly_CompareWithRefs_dynamic, EltwiseLayerTest,
+        ::testing::Combine(
+                ::testing::ValuesIn(inShapesDynamic),
+                ::testing::ValuesIn(eltwiseOpTypesDynamic),
+                ::testing::ValuesIn(secondaryInputTypesDynamic),
+                ::testing::ValuesIn(opTypesDynamic),
+                ::testing::ValuesIn(nightlyNetPrecisions),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                ::testing::Values(additional_config)),
+        EltwiseLayerTest::getTestCaseName);
 
 
 std::vector<std::vector<ov::Shape>> inShapesSingleThread = {
@@ -142,13 +186,26 @@ const auto single_thread_params = ::testing::Combine(
         ::testing::ValuesIn(eltwiseOpTypesSingleThread),
         ::testing::ValuesIn(secondaryInputTypes),
         ::testing::ValuesIn(opTypes),
-        ::testing::ValuesIn(netPrecisions),
+        ::testing::ValuesIn(smokeNetPrecisions),
         ::testing::Values(ov::element::undefined),
         ::testing::Values(ov::element::undefined),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(additional_config_single_thread));
 
 INSTANTIATE_TEST_SUITE_P(smoke_SingleThread, EltwiseLayerTest, single_thread_params, EltwiseLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(nightly_SingleThread, EltwiseLayerTest,
+        ::testing::Combine(
+                ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapesSingleThread)),
+                ::testing::ValuesIn(eltwiseOpTypesSingleThread),
+                ::testing::ValuesIn(secondaryInputTypes),
+                ::testing::ValuesIn(opTypes),
+                ::testing::ValuesIn(nightlyNetPrecisions),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                ::testing::Values(additional_config_single_thread)),
+        EltwiseLayerTest::getTestCaseName);
 
 
 } // namespace
