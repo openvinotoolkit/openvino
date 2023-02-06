@@ -4,15 +4,15 @@
 
 #pragma once
 
-#include <list>
-#include <vector>
-#include <string>
-#include <utility>
-
 #include <ie_common.h>
 #include <legacy/ie_layers.h>
-#include "dnn_types.hpp"
 
+#include <list>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "dnn_types.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -22,10 +22,10 @@ struct DnnComponentExtra {
     std::string name;
     intel_dnn_component_t dnnComponent;
     bool isDelayed;
-    DnnComponentExtra(std::string name,
-                      const intel_dnn_component_t& dnnComponent,
-                      bool isDelayed) :
-                      name(name), dnnComponent(dnnComponent), isDelayed(isDelayed) {}
+    DnnComponentExtra(std::string name, const intel_dnn_component_t& dnnComponent, bool isDelayed)
+        : name(name),
+          dnnComponent(dnnComponent),
+          isDelayed(isDelayed) {}
 };
 
 /**
@@ -40,12 +40,12 @@ struct DnnComponents {
      * @param layerMetaType - usually either gna of original layer type
      * @return
      */
-    intel_dnn_component_t & addComponent(const std::string layerName, const std::string layerMetaType);
+    intel_dnn_component_t& addComponent(const std::string layerName, const std::string layerMetaType);
     /**
      * @brief returns corresponding dnn layer for topology layer
      * @return
      */
-    intel_dnn_component_t * findComponent(InferenceEngine::CNNLayerPtr layer);
+    intel_dnn_component_t* findComponent(InferenceEngine::CNNLayerPtr layer);
 
     /**
      * @brief returns Pointer to corresponding dnn layer for topology layer name
@@ -59,7 +59,7 @@ struct DnnComponents {
      */
     const intel_dnn_component_t* findComponent(InferenceEngine::CNNLayerPtr layer) const;
 
-     /**
+    /**
      * @brief returns const Pointer to const corresponding dnn layer name for topology layer name
      * @return
      */
