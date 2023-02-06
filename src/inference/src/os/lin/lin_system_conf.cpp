@@ -104,7 +104,7 @@ void parse_processor_info_linux(const int _processors,
                                 std::vector<std::vector<int>>& _cpu_mapping_table) {
     int n_group = 0;
 
-    _cpu_mapping_table.resize(_processors, std::vector<int>(CPU_MAP_USED_FLAG + 1, -1));
+    _cpu_mapping_table.resize(_processors, std::vector<int>(CPU_MAP_TABLE_SIZE, -1));
 
     auto UpdateProcMapping = [&](const int nproc) {
         if (-1 == _cpu_mapping_table[nproc][CPU_MAP_CORE_ID]) {
@@ -181,6 +181,8 @@ void parse_processor_info_linux(const int _processors,
         return;
     };
 
+    std::vector<int> line_value_0(PROC_TYPE_TABLE_SIZE, 0);
+
     for (int n = 0; n < _processors; n++) {
         if (-1 == _cpu_mapping_table[n][CPU_MAP_SOCKET_ID]) {
             std::string::size_type pos = 0;
@@ -191,10 +193,10 @@ void parse_processor_info_linux(const int _processors,
             int core_2;
 
             if (0 == _sockets) {
-                _proc_type_table.push_back({0, 0, 0, 0});
+                _proc_type_table.push_back(line_value_0);
             } else {
                 _proc_type_table.push_back(_proc_type_table[0]);
-                _proc_type_table[0] = {0, 0, 0, 0};
+                _proc_type_table[0] = line_value_0;
             }
 
             while (1) {
@@ -228,10 +230,10 @@ void parse_processor_info_linux(const int _processors,
     }
     if (_sockets > 1) {
         _proc_type_table.push_back(_proc_type_table[0]);
-        _proc_type_table[0] = {0, 0, 0, 0};
+        _proc_type_table[0] = line_value_0;
 
         for (int m = 1; m <= _sockets; m++) {
-            for (int n = 0; n <= EFFICIENT_CORE_PROC; n++) {
+            for (int n = 0; n < PROC_TYPE_TABLE_SIZE; n++) {
                 _proc_type_table[0][n] += _proc_type_table[m][n];
             }
         }
