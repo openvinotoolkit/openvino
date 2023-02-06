@@ -81,7 +81,21 @@ public:
         params.axis = convert_axis(primitive->axis, input_layout.get_rank());
         params.batch_dim = size_t(primitive->batch_dim);
         params.support_neg_ind = primitive->support_neg_ind;
+        auto output_layout = impl_param.get_output_layout(0);
+        auto in_rank = impl_param.get_input_layout(0).get_rank();
+        auto out_rank = impl_param.get_output_layout(0).get_rank();
+        if (in_rank > 4 && in_rank > out_rank) { // if in_rank <= 4, the dims are to be adjusted to 4 by convert_data_tensor
+            auto output_shape = impl_param.get_output_layout(0).get_partial_shape();
+            ov::PartialShape new_output_shape({output_shape[0], output_shape[1]});
+            for (size_t i = 0; i < in_rank - out_rank; ++i)
+                new_output_shape.push_back(1);
 
+            for (size_t i = 2; i < out_rank; ++i) {
+                new_output_shape.push_back(output_shape[i]);
+            }
+            output_layout = layout(new_output_shape, impl_param.get_output_layout(0).data_type, format::get_default_format(new_output_shape.size()));
+        }
+        params.outputs[0] = convert_data_tensor(output_layout);
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
         return {params, optional_params};
     }

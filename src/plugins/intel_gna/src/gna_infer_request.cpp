@@ -9,7 +9,6 @@
 namespace ov {
 namespace intel_gna {
 
-
 GNAInferRequest::GNAInferRequest(const std::shared_ptr<GNAPlugin>& plg,
                                  const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                  const std::vector<std::shared_ptr<const ov::Node>>& outputs)

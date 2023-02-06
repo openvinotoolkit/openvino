@@ -10,7 +10,6 @@ import numpy as np
 import pytest
 
 from pathlib import Path
-from platform import processor
 
 import openvino
 import openvino.runtime.opset8 as ops
@@ -28,30 +27,10 @@ def test_compare_models():
         print("openvino.test_utils.compare_models is not available")  # noqa: T201
 
 
-def generate_lib_name(device, full_device_name):
-    lib_name = ""
-    arch = processor()
-    if arch == "x86_64" or "Intel" in full_device_name or device in ["GNA", "HDDL", "MYRIAD", "VPUX"]:
-        lib_name = "openvino_intel_" + device.lower() + "_plugin"
-    elif arch != "x86_64" and device == "CPU":
-        lib_name = "openvino_arm_cpu_plugin"
-    elif device in ["HETERO", "MULTI", "AUTO"]:
-        lib_name = "openvino_" + device.lower() + "_plugin"
-    return lib_name
-
-
-def plugins_path(device, full_device_name):
-    lib_name = generate_lib_name(device, full_device_name)
-    full_lib_name = ""
-
-    if sys.platform == "win32":
-        full_lib_name = lib_name + ".dll"
-    else:
-        full_lib_name = "lib" + lib_name + ".so"
-
+def plugins_path(device, lib_path):
     plugin_xml = f"""<ie>
     <plugins>
-        <plugin location="{full_lib_name}" name="CUSTOM">
+        <plugin location="{lib_path}" name="{device}">
         </plugin>
     </plugins>
     </ie>"""
@@ -128,7 +107,7 @@ def test_deprecation_decorator():
         deprecated_function4()
 
 
-def create_filename_for_test(test_name, is_xml_path=False, is_bin_path=False):
+def create_filename_for_test(test_name, tmp_path, is_xml_path=False, is_bin_path=False):
     """Return a tuple with automatically generated paths for xml and bin files.
 
     :param test_name: Name used in generating.
@@ -137,8 +116,8 @@ def create_filename_for_test(test_name, is_xml_path=False, is_bin_path=False):
     :return: Tuple with two objects representing xml and bin files.
     """
     python_version = str(sys.version_info.major) + "_" + str(sys.version_info.minor)
-    filename = "./" + test_name.replace("test_", "").replace("[", "_").replace("]", "_")
+    filename = test_name.replace("test_", "").replace("[", "_").replace("]", "_")
     filename = filename + "_" + python_version
-    _xml = Path(filename + ".xml") if is_xml_path else filename + ".xml"
-    _bin = Path(filename + ".bin") if is_bin_path else filename + ".bin"
+    _xml = tmp_path / Path(filename + ".xml") if is_xml_path else tmp_path / Path(filename + ".xml")
+    _bin = tmp_path / Path(filename + ".bin") if is_bin_path else tmp_path / Path(filename + ".bin")
     return (_xml, _bin)

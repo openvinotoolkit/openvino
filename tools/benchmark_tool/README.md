@@ -21,7 +21,7 @@ By default, the application will load the specified model onto the CPU and perfo
 You may be able to improve benchmark results beyond the default configuration by configuring some of the execution parameters for your model. For example, you can use "throughput" or "latency" performance hints to optimize the runtime for higher FPS or reduced inferencing time. Read on to learn more about the configuration options available with benchmark_app.
 
 ## Configuration Options
-The benchmark app provides various options for configuring execution parameters. This section covers key configuration options for easily tuning benchmarking to achieve better performance on your device. A list of all configuration options is given in the [Advanced Usage](#advanced-usage) section.
+The benchmark app provides various options for configuring execution parameters. This section covers key configuration options for easily tuning benchmarking to achieve better performance on your device. A list of all configuration options is given in the [Advanced Usage](#advanced-usage-python-benchmark) section.
 
 ### Performance hints: latency and throughput
 The benchmark app allows users to provide high-level "performance hints" for setting latency-focused or throughput-focused inference modes. This hint causes the runtime to automatically adjust runtime parameters, such as the number of processing streams and inference batch size, to prioritize for reduced latency or high throughput.
@@ -53,7 +53,7 @@ For more information on performance hints, see the [High-level Performance Hints
 
 
 ### Device
-To set which device benchmarking runs on, use the `-d <device>` argument. This will tell benchmark_app to run benchmarking on that specific device. The benchmark app supports "CPU", "GPU", and "MYRIAD" (also known as [VPU](../../docs/OV_Runtime_UG/supported_plugins/VPU.md)) devices. In order to use the GPU or VPU, the system must have the appropriate drivers installed. If no device is specified, benchmark_app will default to using CPU.
+To set which device benchmarking runs on, use the `-d <device>` argument. This will tell benchmark_app to run benchmarking on that specific device. The benchmark app supports "CPU", "GPU", and GNA devices. In order to use the GPU, the system must have the appropriate drivers installed. If no device is specified, benchmark_app will default to using CPU.
 
 For example, to run benchmarking on GPU, use:
 
@@ -85,9 +85,9 @@ The benchmark tool runs benchmarking on user-provided input images in `.jpg`, `.
 The tool will repeatedly loop through the provided inputs and run inferencing on them for the specified amount of time or number of iterations. If the `-i` flag is not used, the tool will automatically generate random data to fit the input shape of the model. 
 
 ### Examples
-For more usage examples (and step-by-step instructions on how to set up a model for benchmarking), see the [Examples of Running the Tool](#examples-of-running-the-tool) section.
+For more usage examples (and step-by-step instructions on how to set up a model for benchmarking), see the [Examples of Running the Tool](#examples-of-running-the-tool-python) section.
 
-## Advanced Usage
+## <a name="advanced-usage-python-benchmark"></a> Advanced Usage
 
 > **NOTE**: By default, OpenVINO samples, tools and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channel order in the sample or demo application or reconvert your model using the Model Optimizer tool with --reverse_input_channels argument specified. For more information about the argument, refer to When to Reverse Input Channels section of Converting a Model to Intermediate Representation (IR).
 
@@ -100,7 +100,7 @@ The application also collects per-layer Performance Measurement (PM) counters fo
 
 Depending on the type, the report is stored to benchmark_no_counters_report.csv, benchmark_average_counters_report.csv, or benchmark_detailed_counters_report.csv file located in the path specified in -report_folder. The application also saves executable graph information serialized to an XML file if you specify a path to it with the -exec_graph_path parameter.
 
-### <a name="all-configuration-options"></a> All configuration options
+### <a name="all-configuration-options-python-benchmark"></a> All configuration options
 Running the application with the `-h` or `--help` option yields the following usage message:
 
 ```
@@ -151,7 +151,7 @@ Options:
                         shape for input tensors. For example, "input1[1,3,224,224][1,3,448,448],input2[1,4][1,8]" or "[1,3,224,224][1,3,448,448] in case of one input size.
   -layout LAYOUT        Optional. Prompts how model layouts should be treated by application. For example, "input1[NCHW],input2[NC]" or "[NCHW]" in case of one input size.
   -nstreams NUMBER_STREAMS, --number_streams NUMBER_STREAMS
-                        Optional. Number of streams to use for inference on the CPU/GPU/MYRIAD (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just
+                        Optional. Number of streams to use for inference on the CPU/GPU (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just
                         <nstreams>). Default value is determined automatically for a device. Please note that although the automatic selection usually provides a reasonable performance, it
                         still may be non - optimal for some cases, especially for very small models. Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency
                         estimations the number of streams should be set to 1. See samples README for more details.
@@ -235,7 +235,7 @@ Running the application with the empty list of options yields the usage message 
 ### More information on inputs
 The benchmark tool supports topologies with one or more inputs. If a topology is not data sensitive, you can skip the input parameter, and the inputs will be filled with random values. If a model has only image input(s), provide a folder with images or a path to an image as input. If a model has some specific input(s) (besides images), please prepare a binary file(s) that is filled with data of appropriate precision and provide a path to it as input. If a model has mixed input types, the input folder should contain all required files. Image inputs are filled with image files one by one. Binary inputs are filled with binary inputs one by one.
 
-## Examples of Running the Tool
+## <a name="examples-of-running-the-tool-python"></a> Examples of Running the Tool
 This section provides step-by-step instructions on how to run the Benchmark Tool with the `asl-recognition` Intel model on CPU or GPU devices. It uses random data as the input.
 
 > **NOTE**: Internet access is required to execute the following steps successfully. If you have access to the Internet through a proxy server only, please make sure that it is configured in your OS environment.
@@ -330,7 +330,7 @@ An example of the information output when running benchmark_app on CPU in latenc
    [ INFO ] Throughput:   89.61 FPS
    ```
 
-The Benchmark Tool can also be used with dynamically shaped networks to measure expected inference time for various input data shapes. See the -shape and -data_shape argument descriptions in the <a href="#all-configuration-options">All configuration options</a> section to learn more about using dynamic shapes. Here is a command example for using benchmark_app with dynamic networks and a portion of the resulting output:
+The Benchmark Tool can also be used with dynamically shaped networks to measure expected inference time for various input data shapes. See the -shape and -data_shape argument descriptions in the <a href="#all-configuration-options-python-benchmark">All configuration options</a> section to learn more about using dynamic shapes. Here is a command example for using benchmark_app with dynamic networks and a portion of the resulting output:
 
    ```sh
    benchmark_app -m omz_models/intel/asl-recognition-0004/FP16/asl-recognition-0004.xml -d CPU -shape [-1,3,16,224,224] -data_shape [1,3,16,224,224][2,3,16,224,224][4,3,16,224,224] -pcseq

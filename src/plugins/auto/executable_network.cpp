@@ -18,18 +18,6 @@ ExecutableNetwork::ExecutableNetwork(const Schedule::Ptr& schedule,
 ExecutableNetwork::~ExecutableNetwork() {
 }
 
-IInferPtr ExecutableNetwork::CreateInferRequestImpl(
-    const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-    const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
-    return _schedule->CreateInferRequestImpl(inputs, outputs);
-}
-
-IInferPtr ExecutableNetwork::CreateInferRequestImpl(
-    InferenceEngine::InputsDataMap networkInputs,
-    InferenceEngine::OutputsDataMap networkOutputs) {
-    return _schedule->CreateInferRequestImpl(networkInputs, networkOutputs);
-}
-
 IInferRequestInternal::Ptr ExecutableNetwork::CreateInferRequest() {
     SetExeNetworkForContext();
     return _schedule->CreateInferRequest();

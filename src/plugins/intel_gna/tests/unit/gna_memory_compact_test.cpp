@@ -2,30 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-#include <memory>
-
 #include <gtest/gtest.h>
-#include <legacy/ie_layers.h>
-#include <legacy/graph_tools.hpp>
 #include <legacy/details/ie_cnn_network_tools.h>
-#include "ngraph_functions/builders.hpp"
-#include "memory/gna_memory.hpp"
-#include "gna_plugin.hpp"
-#include "gna_fused_iterator.hpp"
-#include "gna_data_types.hpp"
+#include <legacy/ie_layers.h>
 
+#include <legacy/graph_tools.hpp>
+#include <memory>
+#include <vector>
+
+#include "gna_data_types.hpp"
+#include "gna_fused_iterator.hpp"
+#include "gna_plugin.hpp"
+#include "memory/gna_memory.hpp"
+#include "ngraph_functions/builders.hpp"
 
 using namespace InferenceEngine;
 using namespace memory;
 
 class GNAMemoryCompactTest : public ::testing::Test {
- protected:
+protected:
     GNAMemory<memory::GNAFloatAllocator> mem;
     bool isCompact = true;
 
-    void SetUp() override  {
-    }
+    void SetUp() override {}
 };
 
 TEST_F(GNAMemoryCompactTest, canOptimizeReservePtr) {
@@ -115,7 +114,6 @@ TEST_F(GNAMemoryCompactTest, canOptimizeTwoPushValueAndReservePtr) {
     ASSERT_EQ(scratchQueue->getSize(), 5 * sizeof(float));
 }
 
-
 TEST_F(GNAMemoryCompactTest, canOptimizePushPtrAndReservePtr) {
     IE_SUPPRESS_DEPRECATED_START
     CNNLayerPtr layer1 = std::make_shared<CNNLayer>(LayerParams("layer1", "test", Precision::FP32));
@@ -126,7 +124,7 @@ TEST_F(GNAMemoryCompactTest, canOptimizePushPtrAndReservePtr) {
     layer3->userValue.v_int = 3;
     IE_SUPPRESS_DEPRECATED_END
 
-    float input[]  = {1, 2, 3};
+    float input[] = {1, 2, 3};
     size_t input_size = sizeof(input);
 
     float* pFuture1 = reinterpret_cast<float*>(&pFuture1);
@@ -264,20 +262,24 @@ class GNAMemoryTested : public memory::GNAMemory<memory::GNAFloatAllocator> {
 public:
     void Test() {
         // filtering RW allocation requests only
-        auto filter_req = [] (const MemRequest &re) { return re._region == REGION_SCRATCH && re._type != REQUEST_BIND; };
+        auto filter_req = [](const MemRequest& re) {
+            return re._region == REGION_SCRATCH && re._type != REQUEST_BIND;
+        };
         std::vector<MemRequest> test_reqs;
         const auto& requests = getQueue(REGION_SCRATCH)->_mem_requests;
 
         auto it = std::copy_if(requests.begin(), requests.end(), std::back_inserter(test_reqs), filter_req);
 
         // intercrossing condition
-        auto is_crossed = [] (const MemRequest &re1, const MemRequest &re2) {
-            const std::pair<uint16_t, uint16_t> limits_default {0, UINT16_MAX};
+        auto is_crossed = [](const MemRequest& re1, const MemRequest& re2) {
+            const std::pair<uint16_t, uint16_t> limits_default{0, UINT16_MAX};
             if (re1._life_limits == limits_default || re2._life_limits == limits_default) {
                 return true;
             }
-            return (re1._life_limits.first > re2._life_limits.first && re1._life_limits.first < re2._life_limits.second) ||
-                   (re1._life_limits.second > re2._life_limits.first && re1._life_limits.second < re2._life_limits.second);
+            return (re1._life_limits.first > re2._life_limits.first &&
+                    re1._life_limits.first < re2._life_limits.second) ||
+                   (re1._life_limits.second > re2._life_limits.first &&
+                    re1._life_limits.second < re2._life_limits.second);
         };
 
         // verify that requests are intercrossed
@@ -308,17 +310,19 @@ class GNAMemoryOrderTest : public ::testing::Test {};
 TEST_F(GNAMemoryOrderTest, orderingFusedLayersActivation) {
     auto plugin = GNAPluginTested();
 
-    ov::Shape input_shape =  { 1, 8, 20, 16 };
-    ov::Strides strides = { 1, 1 };
-    ov::Strides dilations = { 1, 1 };
+    ov::Shape input_shape = {1, 8, 20, 16};
+    ov::Strides strides = {1, 1};
+    ov::Strides dilations = {1, 1};
     ov::CoordinateDiff pad_begin(0, 0), pad_end(0, 0);
-    auto weights = ngraph::builder::makeConstant<float>(ov::element::f32, { 8, 8, 1, 1 }, { 1.f });
+    auto weights = ngraph::builder::makeConstant<float>(ov::element::f32, {8, 8, 1, 1}, {1.f});
 
     auto input = std::make_shared<ngraph::opset8::Parameter>(ov::element::f32, input_shape);
     auto conv = std::make_shared<ngraph::opset8::Convolution>(input, weights, strides, pad_begin, pad_end, dilations);
-    auto activation = ngraph::builder::makeActivation(conv, ov::element::f32, ngraph::helpers::ActivationTypes::Sigmoid);
+    auto activation =
+        ngraph::builder::makeActivation(conv, ov::element::f32, ngraph::helpers::ActivationTypes::Sigmoid);
     auto result = std::make_shared<ngraph::opset8::Result>(activation);
-    auto function = std::make_shared<ov::Model>(ov::ResultVector({result}), ov::ParameterVector({input}), "convolution");
+    auto function =
+        std::make_shared<ov::Model>(ov::ResultVector({result}), ov::ParameterVector({input}), "convolution");
 
     InferenceEngine::CNNNetwork cnn_network(function);
     plugin.LoadNetwork(cnn_network);
@@ -328,18 +332,26 @@ TEST_F(GNAMemoryOrderTest, orderingFusedLayersActivation) {
 TEST_F(GNAMemoryOrderTest, orderingFusedLayersMaxPool) {
     auto plugin = GNAPluginTested();
 
-    ov::Shape input_shape =  { 1, 8, 20, 16 };
-    ov::Strides strides = { 1, 1 };
-    ov::Strides dilations = { 1, 1 };
+    ov::Shape input_shape = {1, 8, 20, 16};
+    ov::Strides strides = {1, 1};
+    ov::Strides dilations = {1, 1};
     ov::CoordinateDiff pad_begin(0, 0), pad_end(0, 0);
-    auto weights = ngraph::builder::makeConstant<float>(ov::element::f32, { 8, 8, 1, 1 }, { 1.f });
+    auto weights = ngraph::builder::makeConstant<float>(ov::element::f32, {8, 8, 1, 1}, {1.f});
 
     auto input = std::make_shared<ngraph::opset8::Parameter>(ov::element::f32, input_shape);
     auto conv = std::make_shared<ngraph::opset8::Convolution>(input, weights, strides, pad_begin, pad_end, dilations);
-    auto maxpool = ngraph::builder::makePooling(conv, {1, 1}, {0, 0}, {0, 0}, {1, 1}, ngraph::op::RoundingType::FLOOR,
-                                                    ngraph::op::PadType::VALID, false, ngraph::helpers::PoolingTypes::MAX);
+    auto maxpool = ngraph::builder::makePooling(conv,
+                                                {1, 1},
+                                                {0, 0},
+                                                {0, 0},
+                                                {1, 1},
+                                                ngraph::op::RoundingType::FLOOR,
+                                                ngraph::op::PadType::VALID,
+                                                false,
+                                                ngraph::helpers::PoolingTypes::MAX);
     auto result = std::make_shared<ngraph::opset8::Result>(maxpool);
-    auto function = std::make_shared<ov::Model>(ov::ResultVector({result}), ov::ParameterVector({input}), "convolution");
+    auto function =
+        std::make_shared<ov::Model>(ov::ResultVector({result}), ov::ParameterVector({input}), "convolution");
 
     InferenceEngine::CNNNetwork cnn_network(function);
     plugin.LoadNetwork(cnn_network);
@@ -349,19 +361,28 @@ TEST_F(GNAMemoryOrderTest, orderingFusedLayersMaxPool) {
 TEST_F(GNAMemoryOrderTest, orderingFusedLayersActivationMaxPool) {
     auto plugin = GNAPluginTested();
 
-    ov::Shape input_shape =  { 1, 8, 20, 16 };
-    ov::Strides strides = { 1, 1 };
-    ov::Strides dilations = { 1, 1 };
+    ov::Shape input_shape = {1, 8, 20, 16};
+    ov::Strides strides = {1, 1};
+    ov::Strides dilations = {1, 1};
     ov::CoordinateDiff pad_begin(0, 0), pad_end(0, 0);
-    auto weights = ngraph::builder::makeConstant<float>(ov::element::f32, { 8, 8, 1, 1 }, { 1.f });
+    auto weights = ngraph::builder::makeConstant<float>(ov::element::f32, {8, 8, 1, 1}, {1.f});
 
     auto input = std::make_shared<ngraph::opset8::Parameter>(ov::element::f32, input_shape);
     auto conv = std::make_shared<ngraph::opset8::Convolution>(input, weights, strides, pad_begin, pad_end, dilations);
-    auto activation = ngraph::builder::makeActivation(conv, ov::element::f32, ngraph::helpers::ActivationTypes::Sigmoid);
-    auto maxpool = ngraph::builder::makePooling(activation, {1, 1}, {0, 0}, {0, 0}, {1, 1}, ngraph::op::RoundingType::FLOOR,
-                                                    ngraph::op::PadType::VALID, false, ngraph::helpers::PoolingTypes::MAX);
+    auto activation =
+        ngraph::builder::makeActivation(conv, ov::element::f32, ngraph::helpers::ActivationTypes::Sigmoid);
+    auto maxpool = ngraph::builder::makePooling(activation,
+                                                {1, 1},
+                                                {0, 0},
+                                                {0, 0},
+                                                {1, 1},
+                                                ngraph::op::RoundingType::FLOOR,
+                                                ngraph::op::PadType::VALID,
+                                                false,
+                                                ngraph::helpers::PoolingTypes::MAX);
     auto result = std::make_shared<ngraph::opset8::Result>(maxpool);
-    auto function = std::make_shared<ov::Model>(ov::ResultVector({result}), ov::ParameterVector({input}), "convolution");
+    auto function =
+        std::make_shared<ov::Model>(ov::ResultVector({result}), ov::ParameterVector({input}), "convolution");
 
     InferenceEngine::CNNNetwork cnn_network(function);
     plugin.LoadNetwork(cnn_network);

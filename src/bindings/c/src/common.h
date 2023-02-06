@@ -18,11 +18,11 @@
     catch (const InferenceEngine::ExceptionType&) {   \
         return ov_status_e::StatusCode;               \
     }
-
 #define CATCH_OV_EXCEPTION(StatusCode, ExceptionType) \
-    catch (const InferenceEngine::ExceptionType&) {   \
+    catch (const ov::ExceptionType&) {                \
         return ov_status_e::StatusCode;               \
     }
+
 #define CATCH_OV_EXCEPTIONS                                   \
     CATCH_OV_EXCEPTION(NOT_IMPLEMENTED, NotImplemented)       \
     CATCH_OV_EXCEPTION(GENERAL_ERROR, Exception)              \
@@ -178,7 +178,7 @@ struct mem_stringbuf : std::streambuf {
         char* bptr(const_cast<char*>(buffer));
         setg(bptr, bptr, bptr + sz);
     }
-    
+
     pos_type seekoff(off_type off,
                      std::ios_base::seekdir dir,
                      std::ios_base::openmode which = std::ios_base::in) override {
