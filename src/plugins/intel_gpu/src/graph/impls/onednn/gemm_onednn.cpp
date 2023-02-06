@@ -307,7 +307,7 @@ public:
                 prim.input_layout.count() == prim.output_layout.count() || prim.input_layout.count() == 1;
         }
         if (!full_tensor_or_per_tensor) {
-            IE_THROW() << "FIXME: Onednn gemm has some issues in the post-op axis. Refer PR(#15353) message.";
+            IE_THROW() << "Unimplemented: per channel binary post-operation is not supported for onednn gemm. Refer PR(#15353) message.";
         }
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
