@@ -15,7 +15,6 @@
 #
 EXIT_FAILURE=1
 EXIT_WRONG_ARG=2
-RHEL_VERSION=
 UBUNTU_VERSION=
 DISTRO=
 SCRIPT_DIR="$( cd "$( dirname "$(realpath "${BASH_SOURCE[0]}")" )" >/dev/null 2>&1 && pwd )"
@@ -80,8 +79,7 @@ _install_prerequisites_redhat()
     
     for cmd in "${CMDS[@]}"; do
         echo "$cmd"
-        eval "$cmd"
-        if [[ $? -ne 0 ]]; then
+        if ! eval "$cmd"; then
             echo "ERROR: failed to run $cmd" >&2
             echo "Problem (or disk space)?" >&2
             echo ". Verify that you have enough disk space, and run the script again." >&2
@@ -105,8 +103,7 @@ _install_prerequisites_ubuntu()
     
     for cmd in "${CMDS[@]}"; do
         echo "$cmd"
-        eval "$cmd"
-        if [[ $? -ne 0 ]]; then
+        if ! eval "$cmd"; then
             echo "ERROR: failed to run $cmd" >&2
             echo "Problem (or disk space)?" >&2
             echo "                sudo -E $0" >&2
@@ -155,8 +152,7 @@ _install_user_mode_redhat()
 
     for cmd in "${CMDS[@]}"; do
         echo "$cmd"
-        eval "$cmd"
-        if [[ $? -ne 0 ]]; then
+        if ! eval "$cmd"; then
             echo "ERROR: failed to run $cmd" >&2
             echo "Problem (or disk space)?" >&2
             echo "                sudo -E $0" >&2
@@ -168,8 +164,8 @@ _install_user_mode_redhat()
 
 _install_user_mode_ubuntu()
 {
-    find . -name "intel*.deb" -exec dpkg -i {} \;
-    if [[ $? -ne 0 ]]; then
+    cmd='find . -name "intel*.deb" -exec dpkg -i {} \;'
+    if ! eval "$cmd"; then
         echo "ERROR: failed to install debs $cmd error"  >&2
         echo "Make sure you have enough disk space or fix the problem manually and try again." >&2
         exit $EXIT_FAILURE
@@ -203,12 +199,12 @@ _uninstall_user_mode_redhat()
     for package in "${PACKAGES[@]}"; do      
         echo "rpm -qa | grep $package"
         found_package=$(rpm -qa | grep "$package")
-        if [[ $? -eq 0 ]]; then
+        if [[ ${#found_package} -gt 0 ]]; then
             echo "Found installed user-mode driver, performing uninstall..."
             cmd="rpm -e --nodeps ${found_package}"
             echo "$cmd"
             eval "$cmd"
-            if [[ $? -ne 0 ]]; then
+            if ! eval "$cmd"; then
                 echo "ERROR: failed to uninstall existing user-mode driver." >&2
                 echo "Please try again manually and run the script again." >&2
                 exit $EXIT_FAILURE
@@ -230,12 +226,11 @@ _uninstall_user_mode_ubuntu()
 
     for package in "${PACKAGES[@]}"; do
         found_package=$(dpkg-query -W -f='${binary:Package}\n' "${package}")
-        if [[ $? -eq 0 ]]; then
+        if [[ ${#found_package} -gt 0 ]]; then
             echo "Found installed user-mode driver, performing uninstall..."
             cmd="apt-get autoremove -y $package"
             echo "$cmd"
-            eval "$cmd"
-            if [[ $? -ne 0 ]]; then
+            if ! eval "$cmd"; then
                 echo "ERROR: failed to uninstall existing user-mode driver." >&2
                 echo "Please try again manually and run the script again." >&2
                 exit $EXIT_FAILURE
@@ -322,8 +317,8 @@ get_packages()
     else
         _get_packages_ubuntu
     fi
-    verify_checksum
-    if [[ $? -ne 0 ]]; then
+    
+    if ! verify_checksum; then
         echo "ERROR: checksums do not match for the downloaded packages"
         echo "       Please verify your Internet connection and make sure you have enough disk space or fix the problem manually and try again. "
         exit $EXIT_FAILURE
@@ -368,13 +363,13 @@ add_user_to_video_group()
     real_user=$(logname 2>/dev/null || echo "${SUDO_USER:-${USER}}")
     echo
     echo "Adding $real_user to the video group..."
-    usermod -a -G video "$real_user"
-    if [[ $? -ne 0 ]]; then
+    cmd="usermod -a -G video \"$real_user\""
+    if ! eval "$cmd"; then
         echo "WARNING: unable to add $real_user to the video group" >&2
     fi
     echo "Adding $real_user to the render group..."
-    usermod -a -G render "$real_user"
-    if [[ $? -ne 0 ]]; then
+    cmd="usermod -a -G render \"$real_user\""
+    if ! eval "$cmd"; then
         echo "WARNING: unable to add $real_user to the render group" >&2
     fi
 }
@@ -383,8 +378,8 @@ _check_distro_version()
 {
     if [[ $DISTRO == redhat ]]; then
         RHEL_MINOR_VERSION_SUPPORTED="[3-7]"
-        RHEL_VERSION=$(grep -m1 'VERSION_ID' /etc/os-release | grep -Eo "8.${RHEL_MINOR_VERSION_SUPPORTED}")
-        if [[ $? -ne 0 ]]; then
+        cmd=$(grep -m1 'VERSION_ID' /etc/os-release | grep -Eo "8.${RHEL_MINOR_VERSION_SUPPORTED}")
+        if ! cmd; then
             echo "Warning: This runtime can be installed only on RHEL 8.3 up to RHEL 8.7"
             echo "More info https://dgpu-docs.intel.com/releases/releases-20211130.html" >&2
             echo "Installation of Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver interrupted"
@@ -428,7 +423,7 @@ check_agreement()
     echo "that was used to validate this OpenVINO™ package."
     echo "In case if you already have the driver - script will try to remove it."
     while true; do
-        read -p "Want to proceed? (y/n): " yn
+        read -rp "Want to proceed? (y/n): " yn
         case $yn in
             [Yy]*) return 0  ;;
             [Nn]*) exit $EXIT_FAILURE ;;
@@ -451,7 +446,7 @@ check_current_driver()
     gfx_version="$(echo -e "${gfx_version}" | grep -Eo "[0-9]{2,3}\.[0-9]{2,3}\.[0-9]{3,6}")"
     
     # install NEO OCL driver if the current driver version < INSTALL_DRIVER_VERSION
-    if [[ ! -z $gfx_version && "$(printf '%s\n' "$INSTALL_DRIVER_VERSION" "$gfx_version" | sort -V | head -n 1)" = "$INSTALL_DRIVER_VERSION" ]]; then
+    if [[ -n $gfx_version && "$(printf '%s\n' "$INSTALL_DRIVER_VERSION" "$gfx_version" | sort -V | head -n 1)" = "$INSTALL_DRIVER_VERSION" ]]; then
         echo "Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver installation skipped because current version greater or equal to $INSTALL_DRIVER_VERSION" >&2
         echo "Installation of Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver interrupted." >&2
         exit $EXIT_FAILURE
