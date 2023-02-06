@@ -52,8 +52,6 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
-    std::shared_ptr<dnnl::primitive_attr> initPrimitiveAttr() override;
-
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override;
 
@@ -69,7 +67,7 @@ private:
     VectorDims inDims;
     VectorDims outDims;
 
-    void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool initWeights = false);
+    void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims);
 
     bool withBiases = false;
 

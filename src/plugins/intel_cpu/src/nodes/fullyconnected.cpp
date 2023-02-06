@@ -266,9 +266,9 @@ void FullyConnected::getSupportedDescriptors() {
 }
 
 void FullyConnected::createPrimitive() {
-    Node::createPrimitive();
     setPostOps(attr, outDims);
     attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
+    Node::createPrimitive();
     appendPostOpArgs(attr, primArgs, postOpsArgs);
 }
 
@@ -505,7 +505,7 @@ bool FullyConnected::canFuse(const NodePtr& node) const {
     return canFuseSimpleOperation(node);
 }
 
-void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims_ext, bool initWeights) {
+void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims_ext) {
     dnnl::post_ops ops;
 
     // accoridng to https://oneapi-src.github.io/oneDNN/dev_guide_inner_product.html
@@ -596,14 +596,6 @@ const std::vector<impl_desc_type>& FullyConnected::getPrimitivesPriority() {
             implPriorities.push_back(impl);
     }
     return implPriorities;
-}
-
-Node::AttrPtr FullyConnected::initPrimitiveAttr() {
-    auto attr = std::make_shared<dnnl::primitive_attr>(dnnl::primitive_attr());
-
-    setPostOps(*attr, outDims);
-
-    return attr;
 }
 
 // WA: creation DnnlMemoryDesc with format == any is prohibited
