@@ -1054,6 +1054,19 @@ bool use_legacy_fused_ops(const kernel_impl_params& param_info) {
         return false;
     }
 
+    // Limit legacy activations fusions usage only with old kernels w/o modern fusions support. Otherwise for any single
+    // fused activation we will try to use legacy mechanism even if it's not implemented in the kernel.
+    // The main distinguishing characteristic of old kernels is plain and winograd formats, so do fallback to legacy
+    // only if this criteria is met.
+    if (convolution::type_id() == param_info.desc->type) {
+        bool has_plain_formats = format::is_simple_data_format(param_info.get_input_layout().format) &&
+                                 format::is_simple_data_format(param_info.get_output_layout().format);
+        bool has_winograd_formats = format::is_winograd(param_info.get_input_layout().format) ||
+                                    format::is_winograd(param_info.get_output_layout().format);
+        if (!has_plain_formats && !has_winograd_formats)
+            return false;
+    }
+
     return true;
 }
 
