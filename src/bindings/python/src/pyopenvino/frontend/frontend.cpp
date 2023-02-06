@@ -19,6 +19,14 @@ namespace py = pybind11;
 
 using namespace ov::frontend;
 
+class MemoryBuffer : public std::streambuf {
+public:
+    MemoryBuffer(const char* data, std::size_t size) {
+        char* p = const_cast<char*>(data);
+        setg(p, p, p + size);
+    }
+};
+
 void regclass_frontend_FrontEnd(py::module m) {
     py::class_<FrontEnd, std::shared_ptr<FrontEnd>> fem(m, "FrontEnd", py::dynamic_attr(), py::module_local());
     fem.doc() = "openvino.frontend.FrontEnd wraps ov::frontend::FrontEnd";
@@ -26,10 +34,18 @@ void regclass_frontend_FrontEnd(py::module m) {
     fem.def(
         "load",
         [](FrontEnd& self, const py::object& py_obj) {
-            try {
+            if (py::isinstance(py_obj, py::module_::import("pathlib").attr("Path")) ||
+                py::isinstance<py::str>(py_obj) || py::isinstance<py::bytes>(py_obj)) {
+                // check if model path is either a string/pathlib.Path/bytes
                 std::string model_path = Common::utils::convert_path_to_string(py_obj);
                 return self.load(model_path);
-            } catch (...) {
+            } else if (py::isinstance(py_obj, pybind11::module::import("io").attr("BytesIO"))) {
+                // support of BytesIO
+                py::buffer_info info = py::buffer(py_obj.attr("getbuffer")()).request();
+                MemoryBuffer mb(reinterpret_cast<const char*>(info.ptr), info.size);
+                std::istream _istream(&mb);
+                return self.load(&_istream);
+            } else {
                 // Extended for one argument only for this time
                 return self.load({Common::utils::py_object_to_any(py_obj)});
             }

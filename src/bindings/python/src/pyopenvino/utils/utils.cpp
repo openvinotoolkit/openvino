@@ -157,9 +157,9 @@ std::string convert_path_to_string(const py::object& path) {
         return path.str();
     }
     // Convert bytes to string
-    // if (py::isinstance<py::bytes>(path)) {
-    //     return path.cast<std::string>();
-    // }
+    if (py::isinstance<py::bytes>(path)) {
+        return path.cast<std::string>();
+    }
     std::stringstream str;
     str << "Path: '" << path << "'"
         << " does not exist. Please provide valid model's path either as a string, bytes or pathlib.Path. "
