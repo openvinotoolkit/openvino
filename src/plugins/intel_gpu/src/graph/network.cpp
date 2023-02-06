@@ -433,6 +433,14 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
         prim_inst->set_output_memory(new_mem);
     }
 
+    size_t num_variable_state_primitives;
+    ib >> num_variable_state_primitives;
+    for (size_t i = 0; i < num_variable_state_primitives; i++) {
+        primitive_id p_inst_id;
+        ib >> p_inst_id;
+        _variable_state_primitives.emplace_back(_primitives.at(p_inst_id));
+    }
+
     add_default_output_chains();
 }
 
@@ -512,6 +520,11 @@ void network::save(cldnn::BinaryOutputBuffer& ob) {
     }
 
     ob << reuse_map;
+
+    ob << _variable_state_primitives.size();
+    for (const auto& p_inst : _variable_state_primitives) {
+        ob << p_inst->id();
+    }
 }
 
 network::ptr network::allocate_network(stream::ptr stream, program::ptr program, bool is_internal, bool is_primary_stream) {

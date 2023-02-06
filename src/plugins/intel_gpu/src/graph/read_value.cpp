@@ -33,4 +33,17 @@ std::string read_value_inst::to_string(const read_value_node& node) {
     return primitive_description.str();
 }
 
+void read_value_inst::save(cldnn::BinaryOutputBuffer& ob) const {
+    parent::save(ob);
+
+    ob << variable_id();
+}
+
+void read_value_inst::load(cldnn::BinaryInputBuffer& ib) {
+    parent::load(ib);
+
+    std::string variable_id;
+    ib >> variable_id;
+    set_variable_id(variable_id);
+}
 } // namespace cldnn
