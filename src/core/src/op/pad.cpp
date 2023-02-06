@@ -103,11 +103,7 @@ void op::v1::Pad::validate_and_infer_types() {
                           pads_end_element_type,
                           ").");
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
-    std::vector<ov::PartialShape> input_shapes;
-    for (size_t i = 0; i < get_input_size(); i++)
-        input_shapes.push_back(get_input_partial_shape(i));
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this));
     set_output_type(0, result_et, output_shapes[0]);
 }
 
