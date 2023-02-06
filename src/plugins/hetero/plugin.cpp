@@ -93,11 +93,13 @@ Engine::DeviceMetaInformationMap Engine::GetDevicePlugins(const std::string& tar
 
         auto config = GetCore()->GetSupportedConfig(deviceName, tconfig);
 
-        // Propagate existed core properties to the following operations, e.g. LoadNetwork
+        // Hetero doesn't use any core properties, remove them
         auto core_config = GetCore()->QueryCoreSupportedConfig();
-        for (auto& item : localConfig) {
-            if (core_config.count(item.first)) {
-                config[item.first] = item.second;
+        for (auto item = config.begin(); item != config.end();) {
+            if (core_config.count(item->first)) {
+                item = config.erase(item);
+            } else {
+                item++;
             }
         }
         return config;
