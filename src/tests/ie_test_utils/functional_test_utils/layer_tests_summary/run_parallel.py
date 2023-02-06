@@ -374,7 +374,7 @@ class TestParallelRunner:
                 return False
             else:
                 hash_map.update({hash_str: (dir, test_name)})
-            test_log_filename = os.path.join(logs_dir, dir, f'{hash_str}.txt')
+            test_log_filename = os.path.join(logs_dir, dir, f'{hash_str}.log')
             if os.path.isfile(test_log_filename):
                 # logger.warning(f"Log file {test_log_filename} is exist!")
                 return False
