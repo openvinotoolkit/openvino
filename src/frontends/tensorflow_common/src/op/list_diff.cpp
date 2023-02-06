@@ -6,6 +6,7 @@
 #include "openvino/opsets/opset8.hpp"
 
 using namespace std;
+using namespace ov;
 using namespace ov::opset8;
 
 namespace ov {
@@ -19,35 +20,35 @@ OutputVector translate_list_diff_op(const NodeContext& node) {
     auto y = node.get_input(1);
 
     // retrieve attribute
-    auto out_idx = node.get_attribute<ov::element::Type>("out_idx", ov::element::i32);
+    auto out_idx = node.get_attribute<element::Type>("out_idx", element::i32);
 
     // unsqueeze both operand to make comparison elements between each other
-    auto unsqueeze_x =
-        make_shared<Unsqueeze>(x, make_shared<Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>{1}));
-    auto unsqueeze_y =
-        make_shared<Unsqueeze>(y, make_shared<Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>{0}));
+    auto const_zero = make_shared<Constant>(element::i32, Shape{1}, 0);
+    auto const_one = make_shared<Constant>(element::i32, Shape{1}, 1);
+    auto unsqueeze_x = make_shared<Unsqueeze>(x, const_one);
+    auto unsqueeze_y = make_shared<Unsqueeze>(y, const_zero);
 
     // generate a mask where elements x and y are different
-    auto x_is_non_equal_y =
-        make_shared<ReduceLogicalOr>(make_shared<NotEqual>(unsqueeze_x, unsqueeze_y),
-                                     make_shared<Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>{1}),
-                                     false);
-    auto mask01_x_is_non_equal_y =
-        make_shared<Select>(x_is_non_equal_y,
-                            make_shared<Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>{1}),
-                            make_shared<Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>{0}));
+    // compute 0-1 mask of elements in x that are absent in y
+    // 1 means element is absent in y, 0 - otherwise
+    auto equal = make_shared<Equal>(unsqueeze_x, unsqueeze_y);
+    auto reduce_axis = make_shared<Constant>(element::i32, ov::Shape{}, 1);
+    Output<Node> mask_01 = make_shared<ReduceLogicalOr>(equal, reduce_axis, false);
+    mask_01 = make_shared<Select>(mask_01, const_zero, const_one);
 
     // compute indices of x elements different from elements of y
-    auto diff_output_indices =
-        make_shared<Reshape>(make_shared<NonZero>(mask01_x_is_non_equal_y, out_idx),
-                             make_shared<Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1}),
-                             false);
+    // compute indices of elements in x that are absent in y
+    Output<Node> idx = make_shared<NonZero>(mask_01, out_idx);
+    auto new_shape = make_shared<Constant>(element::i32, Shape{1}, -1);
+    idx = make_shared<Reshape>(idx, new_shape, false);
 
-    // gather elements from x that occur in y
-    auto diff_x = make_shared<Gather>(x,
-                                      diff_output_indices,
-                                      make_shared<Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>{0}));
-    return {diff_x, diff_output_indices};
+    // gather elements from x that are absent in y
+    auto out = make_shared<Gather>(x, idx, const_zero);
+
+    // set tensor names
+    set_out_name({node.get_name() + ":0"}, out);
+    set_out_name({node.get_name() + ":1"}, idx);
+    return {out, idx};
 }
 }  // namespace op
 }  // namespace tensorflow
