@@ -38,6 +38,7 @@ extensions = [
     'sphinx_inline_tabs',
     'sphinx_copybutton',
     'sphinx_panels',
+    'sphinx_design',
     'doxyrest',
     'cpplexer',
     'sphinx.ext.autodoc',

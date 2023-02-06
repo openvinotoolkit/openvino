@@ -25,7 +25,6 @@ using DataBitField = std::bitset<DataLayout::DataLayoutCount>;
 using WightsBitField = std::bitset<WeightsLayout::WeightsLayoutCount>;
 
 class JitConstants;
-class TuningCache;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // fuse_params
@@ -102,7 +101,6 @@ class ParamsKey {
 public:
     ParamsKey() {
         key.restrict.raw = 0;
-        key.enableTuning = 1;
         key.inputType.raw = 0;
         key.outputType.raw = 0;
         key.inputWeightsType.raw = 0;
@@ -266,7 +264,6 @@ public:
             uint32_t raw;
         } DataTypesKey;
 
-        uint32_t enableTuning;
         DataTypesKey inputType;
         DataTypesKey outputType;
         DataTypesKey inputWeightsType;
@@ -345,17 +342,9 @@ public:
     void EnableLSTMDyanmicOptionalHiddenOutput() { key.restrict.val.dedicated.lstm_dynamic.last_hidden = 1; }
     void EnableLSTMDyanmicOptionalCellOutput() { key.restrict.val.dedicated.lstm_dynamic.last_cell = 1; }
     void EnableConcatKernelPerInput() { key.restrict.val.dedicated.concat.kernelPerInput = 1; }
-    void DisableTuning() { key.enableTuning = 0; }
     void EnableConcatOneKernel() { key.restrict.val.dedicated.concat.oneKernel = 1; }
     void EnableArgMaxMinAxis(ArgMaxMinAxis a);
-    void EnableIndexSelectAxis(IndexSelectAxis a);
-    void EnableFusedConvEltwiseRWOutOpt();
     bool Support(const ParamsKey& k) const;
-    bool TuningSupport() const {
-        if (key.enableTuning == 1)
-            return true;
-        return false;
-    }
     bool isEnabledDifferentInputWeightsTypes() const {
         return key.restrict.val.different_input_weights_types ? true : false;
     }
@@ -405,7 +394,6 @@ struct EngineInfo {
     std::string deviceId = "";
     std::string driverVersion = "";
     std::vector<size_t> supportedSimdSizes = {};
-    std::shared_ptr<TuningCache> deviceCache;
 
     DeviceFeaturesKey get_supported_device_features_key() const;
 };
@@ -643,6 +631,7 @@ struct base_params : public Params {
     std::vector<fused_operation_desc> fused_ops = {};
     MultiDataTensor inputs;
     MultiDataTensor outputs;
+    bool is_shape_agnostic;
     std::string to_string() const override;
     std::string to_cache_string_v2() const override;
     ParamsKey GetParamsKey() const override;
@@ -660,19 +649,7 @@ struct base_params : public Params {
     }
 
 protected:
-    explicit base_params(KernelType kt) : Params(kt, ""), inputs(1), outputs(1) {}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Auto tuner parameters
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class KernelRunnerInterface;
-struct TuningParams {
-    TuningMode mode;
-    std::string cacheFilePath;
-    std::shared_ptr<KernelRunnerInterface> runner;
-
-    TuningParams() : mode(TuningMode::TUNING_DISABLED), cacheFilePath(""), runner(nullptr) {}
+    explicit base_params(KernelType kt) : Params(kt, ""), inputs(1), outputs(1), is_shape_agnostic(false) {}
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -693,8 +670,6 @@ struct optional_params {
         false;  // allow kernel to ask graph compiler to reorder the input data before executing its
     bool allowOutputReordering =
         false;  // allow kernel to ask graph compiler to reorder the output data before executing the next kernel
-
-    TuningParams tuningParams;
 
     virtual ParamsKey GetSupportedKey() const;
 

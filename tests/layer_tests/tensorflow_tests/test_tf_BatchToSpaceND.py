@@ -27,6 +27,7 @@ class TestBatchToSpaceND(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit_tf_fe
+    @pytest.mark.nightly
     def test_batch_to_space_nd_basic(self, params, ie_device, precision, ir_version, temp_dir,
                                      use_new_frontend, use_old_api):
         self._test(*self.create_batch_to_space_nd_net(**params),

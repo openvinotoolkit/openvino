@@ -53,11 +53,10 @@ bool LayerTransformation::canBeTransformed(const TransformationContext& context,
 
 bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& layer,
     const std::vector<ngraph::element::Type>& defaultPrecisions) {
-    for (const auto& output : layer->outputs()) {
-        const auto rank = output.get_partial_shape().rank();
-        if (rank.is_dynamic() || rank.get_length() < 2) {
-            return false;
-        }
+    const auto outputs = layer->outputs();
+    if (std::any_of(outputs.begin(), outputs.end(),
+        [](const Output<Node>& out) { return out.get_partial_shape().rank().is_dynamic(); })) {
+        return false;
     }
 
     const auto dequantization = NetworkHelper::getDequantization(layer, defaultPrecisions);
@@ -72,8 +71,7 @@ bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& la
                 return false;
             }
 
-            const auto dataShapeSize = static_cast<size_t>(rank.get_length());
-            if ((dataShapeSize - constShape.size()) == 1ul) {
+            if ((dataPShape.size() - constShape.size()) == 1ul) {
                 constShape.insert(constShape.begin(), 1ul);
             }
 
@@ -115,18 +113,10 @@ bool LayerTransformation::canBeTransformedSpatialDimension(const TransformationC
     if (!isQuantized(layer, defaultPrecisions)) {
         return false;
     }
-
-    for (const auto& output : layer->outputs()) {
-        const auto outPShape = output.get_partial_shape();
-        const auto rank = outPShape.rank();
-        if (rank.is_dynamic()) {
-            return false;
-        }
-
-        const auto size = rank.get_length();
-        if ((size < 2) || (size > 5)) {
-            return false;
-        }
+    const auto outputs = layer->outputs();
+    if (std::any_of(outputs.begin(), outputs.end(),
+        [](const Output<Node>& out) { return out.get_partial_shape().rank().is_dynamic(); })) {
+        return false;
     }
     return true;
 }
