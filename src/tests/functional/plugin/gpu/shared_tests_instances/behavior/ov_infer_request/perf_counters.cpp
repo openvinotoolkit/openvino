@@ -72,4 +72,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, OVInferRequestPerfCounte
                                  ::testing::Values(CommonTestUtils::DEVICE_BATCH),
                                  ::testing::ValuesIn(AutoBatchConfigs())),
                          OVInferRequestPerfCountersTest::getTestCaseName);
+
+#ifdef ENABLE_INTEL_CPU
+auto MulticonfigsTest = []() {
+    return std::vector<ov::AnyMap>{{ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU),
+                                    ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU)}};
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
+                         OVInferRequestPerfCountersExceptionTest,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                                            ::testing::ValuesIn(MulticonfigsTest())),
+                         OVInferRequestPerfCountersExceptionTest::getTestCaseName);
+#endif
 }  // namespace

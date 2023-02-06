@@ -13,6 +13,7 @@ struct OVInferRequestPerfCountersTest : public virtual OVInferRequestTests {
     void SetUp() override;
     ov::InferRequest req;
 };
+using OVInferRequestPerfCountersExceptionTest = OVInferRequestPerfCountersTest;
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
