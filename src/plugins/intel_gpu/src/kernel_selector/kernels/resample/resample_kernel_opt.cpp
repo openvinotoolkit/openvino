@@ -126,8 +126,7 @@ ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_sele
         } else {
             dispatchData.gws[0] = CeilDiv(out.X().v, opt_x_block_size) * out.Y().v;
         }
-        const size_t vec_size = get_vec_size(arg);
-        dispatchData.gws[1] = Align(vec_size == 1 ? out.Feature().v : (out.Feature().v + 1) / vec_size, sub_group_size);
+        dispatchData.gws[1] = Align(CeilDiv(out.Feature().v, get_vec_size(arg)), sub_group_size);
         dispatchData.gws[2] = arg.outputs[0].Batch().v;
 
         dispatchData.lws[0] = 1;
