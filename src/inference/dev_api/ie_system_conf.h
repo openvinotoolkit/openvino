@@ -188,7 +188,7 @@ typedef enum {
     CPU_MAP_CORE_ID = 2,       //!< column for hardware core id of the processor
     CPU_MAP_CORE_TYPE = 3,     //!< column for CPU core type corresponding to the processor
     CPU_MAP_GROUP_ID = 4,      //!< column for group id to the processor. Processors in one group have dependency.
-    CPU_MAP_USED_FLAG = 5,      //!< column for resource management of the processor
+    CPU_MAP_USED_FLAG = 5,     //!< column for resource management of the processor
     CPU_MAP_TABLE_SIZE = 6
 } column_of_cpu_mapping_table;
 
