@@ -1210,11 +1210,14 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
         return;
     }
 
-    bool output_is_null;
-    ib >> output_is_null;
+    // mem_allocated : it is true if the output memory is allocated by this layer, and
+    //                 false if this layer reuses output memory that is allocated by other layer.
+    // is_output_null : it is true if the output memory is not allocated yet and false otherwise.
+    bool is_output_null;
+    ib >> is_output_null;
     layout output_layout = layout();
     allocation_type _allocation_type;
-    if (!output_is_null) {
+    if (!is_output_null) {
         ib >> output_layout;
         ib >> make_data(&_allocation_type, sizeof(_allocation_type));
     }
@@ -1239,7 +1242,7 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
     }
 
     _outputs[0] = nullptr;
-    if (!output_is_null) {
+    if (!is_output_null) {
         if (!_mem_allocated) {
             std::string dep_id;
             ib >> dep_id;
