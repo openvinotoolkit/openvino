@@ -231,7 +231,7 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
                 tensor_element.rev_idx = existing_unique->rev_idx;
                 existing_unique->count++;
             } else {
-                tensor_element.rev_idx = ret.unique_tensor_elements.size();
+                tensor_element.rev_idx = static_cast<Index_t>(ret.unique_tensor_elements.size());
                 ret.unique_tensor_elements.push_back(tensor_element);
             }
         }

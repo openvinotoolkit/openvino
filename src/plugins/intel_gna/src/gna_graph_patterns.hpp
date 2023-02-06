@@ -109,7 +109,7 @@ FindPermutationsAroundConvolutionInNHWCModel(InferenceEngine::CNNLayerPtr layer)
         const auto order = next->GetParamAsInts("order");
         if ((layout != InferenceEngine::Layout::NCHW && layout != InferenceEngine::Layout::CHW) ||
             (order != permute::GetPermuteOrder(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC) &&
-                order != std::vector<int32_t>{0, 2, 1} /* NCW to NWC */)) {
+             order != std::vector<int32_t>{0, 2, 1} /* NCW to NWC */)) {
             return std::make_pair(nullptr, nullptr);
         }
     } else if (LayerInfo(next).isReshape()) {
@@ -159,7 +159,7 @@ FindPermutationsAroundConvolutionInNHWCModel(InferenceEngine::CNNLayerPtr layer)
         const auto order = prev->GetParamAsInts("order");
         if ((layout != InferenceEngine::Layout::NCHW && layout != InferenceEngine::Layout::CHW) ||
             (order != permute::GetPermuteOrder(InferenceEngine::Layout::NHWC, InferenceEngine::Layout::NCHW) &&
-                order != std::vector<int32_t>{0, 2, 1} /* NWC to NCW */)) {
+             order != std::vector<int32_t>{0, 2, 1} /* NWC to NCW */)) {
             return std::make_pair(nullptr, nullptr);
         }
     } else if (LayerInfo(prev).isReshape()) {

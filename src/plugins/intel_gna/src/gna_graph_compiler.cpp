@@ -1679,9 +1679,7 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
                 layer,
                 ptr_weights,
                 weightable._weights->byteSize(),
-                [isDiag, num_rows_out, transposedRows, transposedCols, weightsBuffer, wpSize](
-                    void* data,
-                    size_t size) {
+                [isDiag, num_rows_out, transposedRows, transposedCols, weightsBuffer, wpSize](void* data, size_t size) {
                     for (uint32_t k = 0; k < (isDiag ? 1 : num_rows_out); k++) {
                         auto rowOffset = k * transposedRows * transposedCols * wpSize;
                         auto cbuffer = weightsBuffer + rowOffset;

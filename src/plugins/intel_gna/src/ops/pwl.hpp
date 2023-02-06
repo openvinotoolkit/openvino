@@ -68,7 +68,7 @@ private:
                       ov::TensorVector& outputs,
                       const ov::TensorVector& inputs) const {
         return (inputs[1].get_element_type() == T1::value && inputs[0].get_element_type() == T2::value &&
-                   evaluate<T1, T2>(outputs, inputs)) ||
+                evaluate<T1, T2>(outputs, inputs)) ||
                evaluate_pwl<T1>(std::tuple<Types2...>(), outputs, inputs);
     }
 
