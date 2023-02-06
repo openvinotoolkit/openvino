@@ -123,9 +123,8 @@ target_compile_definitions(${TARGET_NAME}
     DATA_PATH=\"${DATA_PATH}\"
     MODELS_PATH=\"${MODELS_PATH}\")
 
-if(OpenCL_FOUND AND OpenCL_HEADERS)
-    target_link_libraries(${TARGET_NAME} PRIVATE ${OpenCL_LIB})
-    target_include_directories(${TARGET_NAME} PRIVATE ${OpenCL_HEADERS})
+if(TARGET OpenCL::OpenCL)
+    target_link_libraries(${TARGET_NAME} PRIVATE OpenCL::OpenCL)
 endif()
 
 if(ENABLE_AUTO OR ENABLE_MULTI)
