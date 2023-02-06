@@ -6,12 +6,12 @@ include(ProcessorCount)
 include(CheckCXXCompilerFlag)
 
 #
-# disable_deprecated_warnings()
+# ov_disable_deprecated_warnings()
 #
 # Disables deprecated warnings generation in current scope (directory, function)
 # Defines ie_c_cxx_deprecated varaible which contains C / C++ compiler flags
 #
-macro(disable_deprecated_warnings)
+macro(ov_disable_deprecated_warnings)
     if(WIN32)
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
             set(ie_c_cxx_deprecated "/Qdiag-disable:1478,1786")
@@ -23,7 +23,7 @@ macro(disable_deprecated_warnings)
     else()
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
             set(ie_c_cxx_deprecated "-diag-disable=1478,1786")
-        else()
+        elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX)
             set(ie_c_cxx_deprecated "-Wno-deprecated-declarations")
         endif()
     endif()
@@ -39,12 +39,12 @@ macro(disable_deprecated_warnings)
 endmacro()
 
 #
-# ie_deprecated_no_errors()
+# ov_deprecated_no_errors()
 #
 # Don't threat deprecated warnings as errors in current scope (directory, function)
 # Defines ie_c_cxx_deprecated_no_errors varaible which contains C / C++ compiler flags
 #
-macro(ie_deprecated_no_errors)
+macro(ov_deprecated_no_errors)
     if(WIN32)
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
             set(ie_c_cxx_deprecated_no_errors "/Qdiag-warning:1478,1786")
@@ -73,15 +73,15 @@ macro(ie_deprecated_no_errors)
 endmacro()
 
 #
-# ie_dev_package_no_errors()
+# ov_dev_package_no_errors()
 #
 # Exports flags for 3rdparty modules, but without errors
 #
-macro(ie_dev_package_no_errors)
+macro(ov_dev_package_no_errors)
     if(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX)
         set(ie_c_cxx_dev_no_errors "-Wno-all")
         if(SUGGEST_OVERRIDE_SUPPORTED)
-            set(ie_cxx_dev_no_errors "${ie_c_cxx_dev_no_errors} -Wno-suggest-override")
+            set(ie_cxx_dev_no_errors "${ie_c_cxx_dev_no_errors} -Wno-error=suggest-override")
         endif()
     endif()
 

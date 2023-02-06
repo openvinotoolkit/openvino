@@ -45,13 +45,13 @@ if(COMMAND ie_add_vs_version_file)
     endforeach()
 endif()
 
-function(python_disable_deprecated_warnings)
-    disable_deprecated_warnings()
+function(python_ov_disable_deprecated_warnings)
+    ov_disable_deprecated_warnings()
     set(pyx_file "${CMAKE_CURRENT_BINARY_DIR}/ie_api.cxx" "${CMAKE_CURRENT_BINARY_DIR}/constants.cxx")
     set_source_files_properties(${pyx_file} PROPERTIES COMPILE_OPTIONS ${ie_c_cxx_deprecated})
 endfunction()
 
-python_disable_deprecated_warnings()
+python_ov_disable_deprecated_warnings()
 ie_python_minimal_api(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
