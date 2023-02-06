@@ -171,17 +171,17 @@ bool op::v1::Pad::has_evaluate() const {
     return true;
 }
 
-bool op::v1::Pad::evaluate_lower(TensorVector& output_values) const {
+bool op::v1::Pad::evaluate_lower(ov::TensorVector& output_values) const {
     OV_OP_SCOPE(v1_Pad_evaluate_lower);
     return ov::have_node_inputs_bounds_set(this, 1, 2) && ov::default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v1::Pad::evaluate_upper(TensorVector& output_values) const {
+bool op::v1::Pad::evaluate_upper(ov::TensorVector& output_values) const {
     OV_OP_SCOPE(v1_Pad_evaluate_upper);
     return ov::have_node_inputs_bounds_set(this, 1, 2) && ov::default_upper_bound_evaluator(this, output_values);
 }
 
-bool op::v1::Pad::evaluate_label(TensorLabelVector& output_labels) const {
+bool op::v1::Pad::evaluate_label(ov::TensorLabelVector& output_labels) const {
     OV_OP_SCOPE(v1_Pad_evaluate_label);
     return ov::default_label_evaluator(this, output_labels);
 }
