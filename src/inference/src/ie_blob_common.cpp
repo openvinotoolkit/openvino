@@ -85,6 +85,7 @@ Blob::Ptr make_shared_blob(const Blob::Ptr& inputBlob,
 Blob::~Blob() {}
 MemoryBlob::~MemoryBlob() {}
 
+#ifndef _WIN32
 template class TBlob<float>;
 template class TBlob<double>;
 template class TBlob<int8_t>;
@@ -99,5 +100,6 @@ template class TBlob<unsigned long>;
 template class TBlob<unsigned long long>;
 template class TBlob<bool>;
 template class TBlob<char>;
+#endif
 
 }  // namespace InferenceEngine

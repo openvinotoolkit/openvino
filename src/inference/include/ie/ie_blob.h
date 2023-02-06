@@ -808,6 +808,8 @@ protected:
     }
 };
 
+// These should not be exported for WIN32 to avoid usage of '_handle' and '_allocator' across CRT bounaries
+#ifndef _WIN32
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<float>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<double>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<int8_t>);
@@ -822,6 +824,7 @@ extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<unsigned
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<unsigned long long>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<bool>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<char>);
+#endif
 
 /**
  * @brief Creates a blob with the given tensor descriptor.
