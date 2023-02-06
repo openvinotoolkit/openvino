@@ -48,11 +48,6 @@ find_package(OpenCL QUIET)
 
 if(NOT OpenCL_FOUND)
     message(WARNING "OpenCL is disabled or not found, ${TARGET_NAME} will be built without OpenCL support. Install OpenCL.")
-else()
-    list(APPEND opencl_root_hints
-        ${OPENCLROOT}
-        $ENV{OPENCLROOT}
-        ${OpenCL_INCLUDE_DIRS})
 endif()
 
 set(opencl_header_search_params
