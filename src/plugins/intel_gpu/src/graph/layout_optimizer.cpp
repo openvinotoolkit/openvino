@@ -28,6 +28,7 @@
 #include "depth_to_space_inst.h"
 #include "region_yolo_inst.h"
 #include "prior_box_inst.h"
+#include "scatter_nd_update_inst.h"
 #include "to_string_utils.h"
 #include <vector>
 #include <memory>
@@ -1601,9 +1602,12 @@ format layout_optimizer::get_preferred_format(program_node& node) {
 
         // Let reorder_input pass to check input format instead of output_format in forward investigation, vice versa
         auto out_lay_rank = node.get_output_layout(false).get_rank();
-        auto in_lay_rank = node.get_dependencies().size() > 0 ? node.get_dependency(0).get_output_layout(false).get_rank() : out_lay_rank;
-        if (in_lay_rank != out_lay_rank)
-            node.set_preferred_input_fmt(0, get_preferred_format(node.get_dependency(0)));
+        auto dep_size = node.get_dependencies().size();
+        for (size_t i = 0; i < dep_size; i++) {
+            auto in_lay_rank = node.get_dependency(i).get_output_layout(false).get_rank();
+            if (in_lay_rank != out_lay_rank)
+                node.set_preferred_input_fmt(i, get_preferred_format(node.get_dependency(i)));
+        }
 
         // shape_infer_dep should be plain format because the memory is being read by ngraph shape infer as is
         if (node.is_shape_infer_dep()) {
