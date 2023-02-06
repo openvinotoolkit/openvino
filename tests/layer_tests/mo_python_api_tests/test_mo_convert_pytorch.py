@@ -178,7 +178,7 @@ def create_pytorch_nn_module_compare_convert_paths_case1(tmp_dir):
     onnx_model_path = os.path.join(tmp_dir, 'export.onnx')
     torch.onnx.export(pt_model, sample_input, onnx_model_path, opset_version=16)
 
-    ref_model = convert_model(onnx_model_path)
+    ref_model = convert_model(onnx_model_path, compress_to_fp16=False)
     return pt_model, ref_model, {'example_input': sample_input, 'onnx_opset_version': 16}
 
 
@@ -190,7 +190,7 @@ def create_pytorch_nn_module_compare_convert_paths_case2(tmp_dir):
     onnx_model_path = os.path.join(tmp_dir, 'export.onnx')
     torch.onnx.export(pt_model, sample_input, onnx_model_path, opset_version=16)
 
-    ref_model = convert_model(onnx_model_path)
+    ref_model = convert_model(onnx_model_path, compress_to_fp16=False)
     return pt_model, ref_model, {'example_input': sample_input,
                                  'input_shape': [1, 3, 10, 10],
                                  'onnx_opset_version': 16}
@@ -204,7 +204,7 @@ def create_pytorch_nn_module_compare_convert_paths_case3(tmp_dir):
     onnx_model_path = os.path.join(tmp_dir, 'export.onnx')
     torch.onnx.export(pt_model, sample_input, onnx_model_path, opset_version=16)
 
-    ref_model = convert_model(onnx_model_path)
+    ref_model = convert_model(onnx_model_path, compress_to_fp16=False)
     return pt_model, ref_model, {'input_shape': [1, 3, 10, 10],
                                  'onnx_opset_version': 16}
 
@@ -220,7 +220,7 @@ def create_pytorch_nn_module_compare_convert_paths_case4(tmp_dir):
     onnx_model_path = os.path.join(tmp_dir, 'export.onnx')
     torch.onnx.export(pt_model, sample_input, onnx_model_path, opset_version=16)
 
-    ref_model = convert_model(onnx_model_path)
+    ref_model = convert_model(onnx_model_path, compress_to_fp16=False)
 
     return pt_model, ref_model, {'example_input': sample_input, 'onnx_opset_version': 16}
 
@@ -236,7 +236,7 @@ def create_pytorch_nn_module_compare_convert_paths_case5(tmp_dir):
     onnx_model_path = os.path.join(tmp_dir, 'export.onnx')
     torch.onnx.export(pt_model, sample_input, onnx_model_path, opset_version=16)
 
-    ref_model = convert_model(onnx_model_path)
+    ref_model = convert_model(onnx_model_path, compress_to_fp16=False)
 
     return pt_model, ref_model, {'example_input': sample_input,
                                  'input_shape': [torch.Size([1, 3, 10, 10]), PartialShape([1, 3, 10, 10])],
@@ -254,7 +254,7 @@ def create_pytorch_nn_module_compare_convert_paths_case6(tmp_dir):
     onnx_model_path = os.path.join(tmp_dir, 'export.onnx')
     torch.onnx.export(pt_model, sample_input, onnx_model_path, opset_version=16)
 
-    ref_model = convert_model(onnx_model_path)
+    ref_model = convert_model(onnx_model_path, compress_to_fp16=False)
 
     return pt_model, ref_model, {'input_shape': [torch.Size([1, 3, 10, 10]), torch.Size([1, 3, 10, 10])],
                                  'onnx_opset_version': 16}
@@ -290,7 +290,7 @@ def create_pytorch_nn_module_sample_input_numpy(tmp_dir):
     onnx_model_path = os.path.join(tmp_dir, 'export.onnx')
     torch.onnx.export(pt_model, torch.zeros(1, 3, 10, 10, dtype=torch.int32), onnx_model_path, opset_version=16)
 
-    ref_model = convert_model(onnx_model_path)
+    ref_model = convert_model(onnx_model_path, compress_to_fp16=False)
     return pt_model, ref_model, {'example_input': example_inputs,
                                  'input_shape': [1, 3, 10, 10],
                                  'onnx_opset_version': 16}
@@ -304,7 +304,7 @@ def create_pytorch_nn_module_sample_input_dict(tmp_dir):
     onnx_model_path = os.path.join(tmp_dir, 'export.onnx')
     torch.onnx.export(pt_model, torch.zeros(1, 3, 10, 10, dtype=torch.int32), onnx_model_path, opset_version=16)
 
-    ref_model = convert_model(onnx_model_path)
+    ref_model = convert_model(onnx_model_path, compress_to_fp16=False)
     return pt_model, ref_model, {'example_input': example_inputs,
                                  'onnx_opset_version': 16}
 
@@ -319,7 +319,7 @@ def create_pytorch_nn_module_sample_input_dict_two_inputs(tmp_dir):
     torch.onnx.export(pt_model, {"y": torch.zeros(1, 3, 10, 10, dtype=torch.int32),
                                  "x": torch.zeros(1, 3, 10, 10, dtype=torch.int32)}, onnx_model_path, opset_version=16)
 
-    ref_model = convert_model(onnx_model_path)
+    ref_model = convert_model(onnx_model_path, compress_to_fp16=False)
     return pt_model, ref_model, {'example_input': example_inputs,
                                  'onnx_opset_version': 16}
 
@@ -333,7 +333,7 @@ def create_pytorch_nn_module_sample_list_of_tensors(tmp_dir):
     onnx_model_path = os.path.join(tmp_dir, 'export.onnx')
     torch.onnx.export(pt_model, torch.unsqueeze(example_inputs[0], 0), onnx_model_path, opset_version=16)
 
-    ref_model = convert_model(onnx_model_path)
+    ref_model = convert_model(onnx_model_path, compress_to_fp16=False)
     return pt_model, ref_model, {'example_input': example_inputs,
                                  'onnx_opset_version': 16}
 
@@ -347,7 +347,7 @@ def create_pytorch_nn_module_sample_input_ov_host_tensor(tmp_dir):
     onnx_model_path = os.path.join(tmp_dir, 'export.onnx')
     torch.onnx.export(pt_model, torch.zeros(1, 3, 10, 10, dtype=torch.int32), onnx_model_path, opset_version=16)
 
-    ref_model = convert_model(onnx_model_path)
+    ref_model = convert_model(onnx_model_path, compress_to_fp16=False)
     return pt_model, ref_model, {'example_input': sample_input,
                                  'input_shape': [1, 3, 10, 10],
                                  'onnx_opset_version': 16}
@@ -367,7 +367,7 @@ def create_pytorch_nn_module_sample_input_ov_host_tensor_two_inputs(tmp_dir):
                                        torch.zeros(1, 3, 10, 10, dtype=torch.int32)]),
                       onnx_model_path, opset_version=16)
 
-    ref_model = convert_model(onnx_model_path)
+    ref_model = convert_model(onnx_model_path, compress_to_fp16=False)
 
     return pt_model, ref_model, {'example_input': sample_input,
                                  'onnx_opset_version': 16}
