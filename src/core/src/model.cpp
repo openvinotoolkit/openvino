@@ -186,6 +186,22 @@ ov::Model::Model(const OutputVector& results, const string& name) : Model(result
 void ov::Model::prerequirements(bool detect_variables, bool detect_parameters) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Model::prerequirements");
 
+    for (const auto& param : m_parameters) {
+        OPENVINO_ASSERT(param != nullptr, "Model is incorrect! Some Parameter operation equals to nullptr.");
+    }
+
+    for (const auto& result : m_results) {
+        OPENVINO_ASSERT(result != nullptr, "Model is incorrect! Some Result operation equals to nullptr.");
+    }
+
+    for (const auto& sink : m_sinks) {
+        OPENVINO_ASSERT(sink != nullptr, "Model is incorrect! Some Sink operation equals to nullptr.");
+    }
+
+    for (const auto& variable : m_variables) {
+        OPENVINO_ASSERT(variable != nullptr, "Model is incorrect! Some Variable equals to nullptr.");
+    }
+
     m_shared_rt_info = std::make_shared<SharedRTInfo>();
 
     const auto& ordered_ops = get_ordered_ops();
