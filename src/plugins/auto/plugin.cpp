@@ -459,7 +459,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     if (configIter != fullConfig.end() && configIter->second == InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT) {
         configIter->second = InferenceEngine::PluginConfigParams::THROUGHPUT;
         _LogTag = "AUTO";
-        _AutoSetToMulti = true;
         LOG_INFO_TAG("CUMULATIVE Call MULTI PERFORMANCE_HINT set to THROUGHPUT");
     }
     if (priorities->second.empty()) {
@@ -502,16 +501,11 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         try {
             if (modelPath.empty()) {
                 exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
-            } else if (GetCore()->DeviceSupportsImportExport(deviceName)) {
-                exec_net = GetCore()->LoadNetwork(modelPath, deviceName, deviceConfig);
             } else {
-                std::call_once(readNetworkFlag, [&]() {
-                    network = GetCore()->ReadNetwork(modelPath, std::string());
-                });
-                exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
+                exec_net = GetCore()->LoadNetwork(modelPath, deviceName, deviceConfig);
             }
         } catch (const IE::Exception&) {
-            if (_AutoSetToMulti) {
+            if (_LogTag == "AUTO") {
                 LOG_DEBUG_TAG("Failed to load network to device:%s", deviceName.c_str());
                 return;
             } else {
