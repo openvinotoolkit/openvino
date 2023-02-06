@@ -176,7 +176,7 @@ To uninstall OpenVINO, follow the steps on the [Uninstalling page](uninstalling-
 
 ## Additional Resources
 
-## Additional Resources
+@sphinxdirective
 
 * :ref:`Troubleshooting Guide for OpenVINO Installation & Configuration <troubleshooting guide for install>`
 * Converting models for use with OpenVINO™: :ref:`Model Optimizer Developer Guide <deep learning model optimizer>`
