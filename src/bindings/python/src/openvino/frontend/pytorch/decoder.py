@@ -15,13 +15,13 @@ import torch
 def get_type_from_py_type(value):
     if isinstance(value, float):
         return OVType.f32
+    if isinstance(value, bool):
+        return OVType.boolean
     if isinstance(value, int):
         # Python int is 64 bit, but we will convert it to int32 except cases when it can't fit in 32 bits
         if torch.iinfo(torch.int).min <= value <= torch.iinfo(torch.int).max:
             return OVType.i32
         return OVType.i64
-    if isinstance(value, bool):
-        return OVType.boolean
     return OVType.dynamic
 
 

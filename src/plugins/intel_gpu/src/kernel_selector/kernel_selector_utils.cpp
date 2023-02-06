@@ -270,6 +270,7 @@ std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const
     auto blocked_bsv_fsv_layout = output_layout == DataLayout::bs_fs_yx_bsv16_fsv2 || output_layout == DataLayout::bs_fs_zyx_bsv16_fsv2 ||
                                   output_layout == DataLayout::bs_fs_yx_bsv16_fsv4 || output_layout == DataLayout::bs_fs_zyx_bsv16_fsv4 ||
                                   output_layout == DataLayout::bs_fs_yx_bsv16_fsv16 || output_layout == DataLayout::bs_fs_yx_bsv16_fsv32 ||
+                                  output_layout == DataLayout::bs_fs_yx_bsv32_fsv16 || output_layout == DataLayout::bs_fs_yx_bsv32_fsv32 ||
                                   output_layout == DataLayout::bs_fs_zyx_bsv16_fsv16 || output_layout == DataLayout::bs_fs_zyx_bsv16_fsv32 ||
                                   output_layout == DataLayout::bs_fs_zyx_bsv32_fsv16 || output_layout == DataLayout::bs_fs_zyx_bsv32_fsv32;
 
@@ -388,6 +389,9 @@ std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const
             } else if ((output_layout == DataLayout::bs_fs_yx_bsv16_fsv16 || output_layout == DataLayout::bs_fs_zyx_bsv16_fsv16) &&
                        (axis_by_gws[b] != axis_by_gws[f]) && (axis_by_gws[b] != unused_axis)) {
                 max_optimal_lws0_value = 16;
+            } else if ((output_layout == DataLayout::bs_fs_yx_bsv32_fsv32 || output_layout == DataLayout::bs_fs_zyx_bsv32_fsv32) &&
+                       (axis_by_gws[b] != axis_by_gws[f]) && (axis_by_gws[b] != unused_axis)) {
+                max_optimal_lws0_value = 32;
             }
         }
 
