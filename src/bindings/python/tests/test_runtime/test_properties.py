@@ -61,6 +61,14 @@ def test_properties_rw_base():
             ),
         ),
         (
+            properties.hint.ExecutionMode,
+            (
+                (properties.hint.ExecutionMode.UNDEFINED, "ExecutionMode.UNDEFINED", -1),
+                (properties.hint.ExecutionMode.PERFORMANCE, "ExecutionMode.PERFORMANCE", 1),
+                (properties.hint.ExecutionMode.ACCURACY, "ExecutionMode.ACCURACY", 2),
+            ),
+        ),
+        (
             properties.device.Type,
             (
                 (properties.device.Type.INTEGRATED, "Type.INTEGRATED", 0),
@@ -199,6 +207,7 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((properties.Affinity.NONE, properties.Affinity.NONE),),
         ),
         (properties.force_tbb_terminate, "FORCE_TBB_TERMINATE", ((True, True),)),
+        (properties.inference_precision, "INFERENCE_PRECISION_HINT", ((Type.f32, Type.f32),)),
         (properties.hint.inference_precision, "INFERENCE_PRECISION_HINT", ((Type.f32, Type.f32),)),
         (
             properties.hint.model_priority,
@@ -209,6 +218,11 @@ def test_properties_ro(ov_property_ro, expected_value):
             properties.hint.performance_mode,
             "PERFORMANCE_HINT",
             ((properties.hint.PerformanceMode.UNDEFINED, properties.hint.PerformanceMode.UNDEFINED),),
+        ),
+        (
+            properties.hint.execution_mode,
+            "EXECUTION_MODE_HINT",
+            ((properties.hint.ExecutionMode.UNDEFINED, properties.hint.ExecutionMode.UNDEFINED),),
         ),
         (
             properties.hint.num_requests,
@@ -342,9 +356,6 @@ def test_properties_hint_model():
 def test_single_property_setting(device):
     core = Core()
 
-    if device == "CPU" and "Intel" not in core.get_property(device, "FULL_DEVICE_NAME"):
-        pytest.skip("This test runs only on openvino intel cpu plugin")
-
     core.set_property(device, properties.streams.num(properties.streams.Num.AUTO))
 
     assert properties.streams.Num.AUTO.to_integer() == -1
@@ -362,7 +373,7 @@ def test_single_property_setting(device):
                 properties.cache_dir("./"),
                 properties.inference_num_threads(9),
                 properties.affinity(properties.Affinity.NONE),
-                properties.hint.inference_precision(Type.f32),
+                properties.inference_precision(Type.f32),
                 properties.hint.performance_mode(properties.hint.PerformanceMode.LATENCY),
                 properties.hint.num_requests(12),
                 properties.streams.num(5),
@@ -374,7 +385,7 @@ def test_single_property_setting(device):
             properties.cache_dir(): "./",
             properties.inference_num_threads(): 9,
             properties.affinity(): properties.Affinity.NONE,
-            properties.hint.inference_precision(): Type.f32,
+            properties.inference_precision(): Type.f32,
             properties.hint.performance_mode(): properties.hint.PerformanceMode.LATENCY,
             properties.hint.num_requests(): 12,
             properties.streams.num(): 5,

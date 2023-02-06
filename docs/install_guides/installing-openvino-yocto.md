@@ -58,9 +58,6 @@ Follow the [Yocto Project official documentation](https://docs.yoctoproject.org/
    # Include OpenVINO Python API package in the target image.
    CORE_IMAGE_EXTRA_INSTALL:append = " openvino-inference-engine-python3"
 
-   # Enable MYRIAD plugin
-   CORE_IMAGE_EXTRA_INSTALL:append = " openvino-inference-engine-vpu-firmware"
-
    # Include Model Optimizer in the target image.
    CORE_IMAGE_EXTRA_INSTALL:append = " openvino-model-optimizer"
    ```
@@ -89,7 +86,6 @@ openvino-inference-engine-dev
 openvino-inference-engine-python3
 openvino-inference-engine-samples
 openvino-inference-engine-src
-openvino-inference-engine-vpu-firmware
 openvino-model-optimizer
 openvino-model-optimizer-dbg
 openvino-model-optimizer-dev
@@ -104,3 +100,4 @@ openvino-model-optimizer-dev
 - [Meta-intel](https://git.yoctoproject.org/meta-intel/tree/README)
 - [Meta-openembedded](http://cgit.openembedded.org/meta-openembedded/tree/README)
 - [Meta-clang](https://github.com/kraj/meta-clang/tree/master/#readme)
+- [OpenVINO Installation Selector Tool](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html)

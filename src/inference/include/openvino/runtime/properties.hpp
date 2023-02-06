@@ -37,33 +37,6 @@ enum class PropertyMutability {
     RW,  //!< Read/Write property key may change readability in runtime
 };
 
-/**
- * @brief This class is used to return property name and its mutability attribute
- */
-struct PropertyName : public std::string {
-    using std::string::string;
-
-    /**
-     * @brief Constructs property name object
-     * @param str property name
-     * @param mutability property mutability
-     */
-    PropertyName(const std::string& str, PropertyMutability mutability = PropertyMutability::RW)
-        : std::string{str},
-          _mutability{mutability} {}
-
-    /**
-     * @brief check property mutability
-     * @return true if property is mutable
-     */
-    bool is_mutable() const {
-        return _mutability == PropertyMutability::RW;
-    }
-
-private:
-    PropertyMutability _mutability = PropertyMutability::RW;
-};
-
 /** @cond INTERNAL */
 namespace util {
 struct PropertyTag {};
@@ -193,6 +166,37 @@ public:
 };
 
 /**
+ * @brief This class is used to return property name and its mutability attribute
+ */
+struct PropertyName : public std::string {
+    using std::string::string;
+
+    /**
+     * @brief Constructs property name object
+     * @param str property name
+     * @param mutability property mutability
+     */
+    PropertyName(const std::string& str, PropertyMutability mutability = PropertyMutability::RW)
+        : std::string{str},
+          _mutability{mutability} {}
+
+    template <class T, typename std::enable_if<std::is_base_of<ov::util::PropertyTag, T>::value, bool>::type = true>
+    PropertyName(const T& property) : std::string{property.name()},
+                                      _mutability{property.mutability} {}
+
+    /**
+     * @brief check property mutability
+     * @return true if property is mutable
+     */
+    bool is_mutable() const {
+        return _mutability == PropertyMutability::RW;
+    }
+
+private:
+    PropertyMutability _mutability = PropertyMutability::RW;
+};
+
+/**
  * @brief This class is used to bind read-only property name with value type
  * @tparam T type of value used to pass or get property
  */
@@ -229,15 +233,21 @@ static constexpr Property<uint32_t, PropertyMutability::RO> optimal_number_of_in
     "OPTIMAL_NUMBER_OF_INFER_REQUESTS"};
 
 /**
+ * @brief Hint for device to use specified precision for inference
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<element::Type, PropertyMutability::RW> inference_precision{"INFERENCE_PRECISION_HINT"};
+
+/**
  * @brief Namespace with hint properties
  */
 namespace hint {
 
 /**
- * @brief Hint for device to use specified precision for inference
+ * @brief An alias for inference_precision property for backward compatibility
  * @ingroup ov_runtime_cpp_prop_api
  */
-static constexpr Property<element::Type, PropertyMutability::RW> inference_precision{"INFERENCE_PRECISION_HINT"};
+using ov::inference_precision;
 
 /**
  * @brief Enum to define possible priorities hints
@@ -360,6 +370,56 @@ static constexpr Property<std::shared_ptr<ov::Model>> model{"MODEL_PTR"};
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<bool, PropertyMutability::RW> allow_auto_batching{"ALLOW_AUTO_BATCHING"};
+
+/**
+ * @brief Enum to define possible execution mode hints
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+enum class ExecutionMode {
+    UNDEFINED = -1,   //!<  Undefined value, settings may vary from device to device
+    PERFORMANCE = 1,  //!<  Optimize for max performance
+    ACCURACY = 2,     //!<  Optimize for max accuracy
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const ExecutionMode& mode) {
+    switch (mode) {
+    case ExecutionMode::UNDEFINED:
+        return os << "UNDEFINED";
+    case ExecutionMode::PERFORMANCE:
+        return os << "PERFORMANCE";
+    case ExecutionMode::ACCURACY:
+        return os << "ACCURACY";
+    default:
+        throw ov::Exception{"Unsupported execution mode hint"};
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, ExecutionMode& mode) {
+    std::string str;
+    is >> str;
+    if (str == "PERFORMANCE") {
+        mode = ExecutionMode::PERFORMANCE;
+    } else if (str == "ACCURACY") {
+        mode = ExecutionMode::ACCURACY;
+    } else if (str == "UNDEFINED") {
+        mode = ExecutionMode::UNDEFINED;
+    } else {
+        throw ov::Exception{"Unsupported execution mode: " + str};
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief High-level OpenVINO Execution hint
+ * unlike low-level properties that are individual (per-device), the hints are something that every device accepts
+ * and turns into device-specific settings
+ * Execution mode hint controls preferred optimization targets (performance or accuracy) for given model
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<ExecutionMode> execution_mode{"EXECUTION_MODE_HINT"};
+
 }  // namespace hint
 
 /**

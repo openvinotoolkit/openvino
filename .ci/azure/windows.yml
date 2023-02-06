@@ -178,7 +178,6 @@ jobs:
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON ^
         -DENABLE_STRICT_DEPENDENCIES=OFF ^
         -DENABLE_PYTHON=ON ^
-        -DENABLE_INTEL_MYRIAD_COMMON=OFF ^
         -DBUILD_nvidia_plugin=OFF ^
         -DPYTHON_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.10.7\x64\python.exe" ^
         -DPYTHON_INCLUDE_DIR="C:\hostedtoolcache\windows\Python\3.10.7\x64\include" ^
@@ -279,11 +278,23 @@ jobs:
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-Tensorflow.xml
     displayName: 'TensorFlow Frontend Unit Tests'
 
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_tensorflow_common_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-TensorflowCommon.xml
+    displayName: 'TensorFlow Common Unit Tests'
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_tensorflow_lite_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-TensorflowLite.xml
+    displayName: 'TensorFlow Lite Frontend Unit Tests'
+
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_lp_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\LpTransformations.xml
     displayName: 'Low Precision Transformations Tests'
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\Transformations.xml
     displayName: 'Transformations Tests'
+    
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_legacy_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\LegacyTransformations.xml
+    displayName: 'Legacy Transformations Tests'
+    
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\commonUtilsTests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\CommonUtilTests.xml
+    displayName: 'Common Utils Tests'
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\InferenceEngineUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-InferenceEngineUnitTests.xml
     displayName: 'IE UT old'

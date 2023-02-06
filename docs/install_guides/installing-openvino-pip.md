@@ -35,19 +35,22 @@ To create a virtual environment, use the following command:
 
 @sphinxdirective
 
-.. tab:: On Linux and macOS
+.. tab:: Linux and macOS
 
    .. code-block:: sh
    
       source openvino_env/bin/activate
    
-.. tab:: On Windows
+.. tab:: Windows
 
    .. code-block:: sh
    
       openvino_env\Scripts\activate
-     
-     
+
+.. important::
+
+   The above command must be re-run every time a new command terminal window is opened.
+
 @endsphinxdirective
 
 ### Step 3. Set Up and Update PIP to the Highest Version
@@ -95,9 +98,10 @@ Visit the [Tutorials](../tutorials.md) page for more Jupyter Notebooks to get yo
 * [Convert a PyTorch model and use it for image background removal](https://docs.openvino.ai/nightly/notebooks/205-vision-background-removal-with-output.html)
 
 ### Run OpenVINO on accelerated devices
-OpenVINO Runtime has a plugin architecture that enables you to run inference on multiple devices without rewriting your code. Supported devices include integrated GPUs, discrete GPUs, NCS2, VPUs, and GNAs. Visit the [Additional Configurations](configurations-header.md) page for instructions on how to configure your hardware devices to work with OpenVINO.
+OpenVINO Runtime has a plugin architecture that enables you to run inference on multiple devices without rewriting your code. Supported devices include integrated GPUs, discrete GPUs and GNAs. Visit the [Additional Configurations](configurations-header.md) page for instructions on how to configure your hardware devices to work with OpenVINO.
 
 ## Additional Resources
 
 - Intel® Distribution of OpenVINO™ toolkit home page: <https://software.intel.com/en-us/openvino-toolkit>
 - For IoT Libraries & Code Samples, see [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).
+- [OpenVINO Installation Selector Tool](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html)

@@ -115,7 +115,7 @@ CMake version 3.10 or higher is required for building the OpenVINO™ toolkit sa
 
 CMake is installed. Continue to the next section to set the environment variables.
 
-.. _set-the-environment-variables:
+.. _set-the-environment-variables-raspbian:
 
 @endsphinxdirective
 
@@ -157,19 +157,6 @@ If you want to use your model for inference, the model must be converted to the 
 * Convert the models using the Model Optimizer. Model Optimizer is provided with OpenVINO Development Tools.
 
   * OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. See the :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>` page for step-by-step installation instructions.
-
-.. _add-usb-rules:
-
-@endsphinxdirective
-
-
-## Step 5 (Optional): Add USB Rules for an Intel® Neural Compute Stick 2 device
-
-@sphinxdirective
-
-To perform inference on Intel® Neural Compute Stick 2, follow the steps in :ref:`NCS2 Setup Guide <ncs guide raspbianos>`.
-
-.. _get-started:
 
 @endsphinxdirective
 
@@ -222,6 +209,8 @@ To uninstall the toolkit, follow the steps on the :doc:`Uninstalling page <openv
 * Sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
 * Pre-trained deep learning models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
 * IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit`_ 
+* :ref:`OpenVINO Installation Selector Tool <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`
+
 .. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
 
 @endsphinxdirective

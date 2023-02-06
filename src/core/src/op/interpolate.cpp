@@ -194,7 +194,7 @@ void op::v4::Interpolate::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this,
                           input_et == element::f32 || input_et == element::f16 || input_et == element::i8 ||
                               input_et == element::bf16 || input_et == element::u8 || input_et == element::i64 ||
-                              input_et == element::i32,
+                              input_et == element::i32 || input_et == element::dynamic,
                           "Input element type must be f32, f16, bf16, i8, u8, i64, i32");
 
     element::Type sizes_et = get_input_element_type(1);

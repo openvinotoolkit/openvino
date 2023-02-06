@@ -44,7 +44,7 @@ void MatMulMultiplyFusion::SetUp() {
 
     auto transformed_function = clone_function(*function);
     pass::Manager manager;
-    manager.register_pass<pass::MatMulMultiplyFusion>();
+    manager.register_pass<ov::pass::MatMulMultiplyFusion>();
     manager.run_passes(transformed_function);
 
     bool functions_equal;
@@ -101,7 +101,7 @@ void QuantizedMatMulMultiplyFusion::SetUp() {
 
     auto transformed_function = clone_function(*function);
     pass::Manager manager;
-    manager.register_pass<pass::MatMulMultiplyFusion>();
+    manager.register_pass<ov::pass::MatMulMultiplyFusion>();
     manager.run_passes(transformed_function);
 
     bool functions_equal;
