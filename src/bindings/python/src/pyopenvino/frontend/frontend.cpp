@@ -21,9 +21,8 @@ using namespace ov::frontend;
 
 class MemoryBuffer : public std::streambuf {
 public:
-    MemoryBuffer(const char* data, std::size_t size) {
-        char* p = const_cast<char*>(data);
-        setg(p, p, p + size);
+    MemoryBuffer(char* data, std::size_t size) {
+        setg(data, data, data + size);
     }
 };
 
@@ -42,7 +41,7 @@ void regclass_frontend_FrontEnd(py::module m) {
             } else if (py::isinstance(py_obj, pybind11::module::import("io").attr("BytesIO"))) {
                 // support of BytesIO
                 py::buffer_info info = py::buffer(py_obj.attr("getbuffer")()).request();
-                MemoryBuffer mb(reinterpret_cast<const char*>(info.ptr), info.size);
+                MemoryBuffer mb(reinterpret_cast<char*>(info.ptr), info.size);
                 std::istream _istream(&mb);
                 return self.load(&_istream);
             } else {

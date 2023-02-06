@@ -347,7 +347,7 @@ void regclass_Core(py::module m) {
                 py::gil_scoped_release release;
                 return self.read_model(_stream.str(), tensor);
             } else {
-                std::string model_path_cpp{py::str(model_path)};
+                const std::string model_path_cpp{py::str(model_path)};
                 std::string weights_path_cpp;
                 if (!py::isinstance<py::none>(weights_path)) {
                     weights_path_cpp = py::str(weights_path);
