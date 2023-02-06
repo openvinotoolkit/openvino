@@ -30,7 +30,7 @@ class TestUnpack(CommonTFLayerTest):
             if axis is not None:
                 unpack = tf.raw_ops.Unpack(value=x, num=num, axis=axis)
             else:
-                unpack = tf.raw_ops.Unpack(value=x, num=num, axis=axis)
+                unpack = tf.raw_ops.Unpack(value=x, num=num)
             for ind in range(num):
                 tf.identity(unpack[ind], name="output_" + str(ind))
             tf.compat.v1.global_variables_initializer()
