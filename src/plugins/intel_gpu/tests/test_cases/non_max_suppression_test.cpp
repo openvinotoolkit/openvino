@@ -78,15 +78,14 @@ struct non_max_suppression_basic : public testing::Test {
         DataType(0.3f),
     };
 
-    const layout boxes_layout = layout(type_to_data_type<DataType>::value,
-                                       format::bfyx,
-                                       tensor(batch(batch_size), feature(boxes_num), spatial(1, 4)));
-    const layout scores_layout = layout(type_to_data_type<DataType>::value,
-                                        format::bfyx,
-                                        tensor(batch(batch_size), feature(classes_num), spatial(1, boxes_num)));
-    const layout selected_scores_layout =
-        layout(data_type, layout_format, tensor(batch(selected_indices_num), feature(3)));
-    const layout valid_outputs_layout = layout(cldnn::data_types::i32, layout_format, tensor(batch(1)));
+    const layout boxes_layout = layout(ov::PartialShape{batch_size, boxes_num, 4},
+                                       type_to_data_type<DataType>::value,
+                                       format::bfyx);
+    const layout scores_layout = layout(ov::PartialShape{batch_size, classes_num, boxes_num},
+                                        type_to_data_type<DataType>::value,
+                                        format::bfyx);
+    const layout selected_scores_layout = layout(ov::PartialShape{selected_indices_num, 3}, data_type, layout_format);
+    const layout valid_outputs_layout = layout(ov::PartialShape{1}, cldnn::data_types::i32, layout_format);
 
     memory::ptr get_boxes_memory(engine& engine) {
         auto mem = engine.allocate_memory(boxes_layout);
