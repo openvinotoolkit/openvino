@@ -2061,6 +2061,34 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_activation_eltwise_quantize, ::t
     convolution_test_params{ CASE_CONV_S8S8_8, 2, 4, 5 },
 }));
 
+class conv_int8_activation : public ConvFusingTest {};
+TEST_P(conv_int8_activation, fsv16) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        convolution("conv_prim", input_info("input"), { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", input_info("conv_prim"), activation_func::negative),
+        reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
+    );
+
+    if (p.default_format.dimension() == 4) {
+        ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "convolution_gpu_b_fs_zyx_fsv16_imad" };
+        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
+    } else {
+        // TODO Add 5D int8 optimized convolution implementations
+        return;
+    }
+
+    tolerance = default_tolerance(p.default_type);
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_activation, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 3 },
+}));
+
 class conv_int8_activation_eltwise : public ConvFusingTest {};
 TEST_P(conv_int8_activation_eltwise, fsv16) {
     auto p = GetParam();

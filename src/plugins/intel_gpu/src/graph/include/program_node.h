@@ -83,6 +83,22 @@ public:
         return res;
     }
 
+    bool is_shape_infer_dep(void) const {
+        if (!myprog.get_config().get_property(ov::intel_gpu::allow_new_shape_infer))
+            return false;
+        for (auto u : users) {
+            for (auto dep_idx : u->get_shape_infer_dependencies()) {
+                if (u->get_dependencies().size() <= dep_idx) {
+                    continue;
+                }
+                if (u->get_dependency(dep_idx).get_unique_id() == unique_id) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     std::map<size_t, memory::ptr> get_const_memory_deps() const;
 
     virtual std::unique_ptr<kernel_impl_params> get_kernel_impl_params() const {
