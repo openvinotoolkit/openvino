@@ -120,7 +120,11 @@ NodePtr InsertUnsqueeze(const Output<Node>& node, size_t n_dims) {
 }
 
 ov::Output<ov::Node> FixInputNodeRank(ov::Output<ov::Node> input_node, ov::Rank::value_type required_rank) {
-    const ov::Rank::value_type output_rank = input_node.get_partial_shape().rank().get_length();
+    auto rank = input_node.get_partial_shape().rank();
+    if (rank.is_dynamic()) {
+        return input_node;
+    }
+    const auto output_rank = rank.get_length();
     if (output_rank >= required_rank)
         return input_node;
     return InsertUnsqueeze(input_node, required_rank - output_rank)->output(0);
@@ -130,16 +134,19 @@ ov::Output<ov::Node> FixInputNodeRank(ov::Output<ov::Node> input_node, ov::Rank:
 
 namespace sink_forward {
 AxisVector AlignTransposeOrder(const Output<Node>& output, const TransposeInputsInfo& transpose_input_info) {
+    if (transpose_input_info.isEmpty()) {
+        return {};
+    }
     auto num_of_val = static_cast<int64_t>(shape_size(transpose_input_info.transpose_const->get_shape()));
-    const auto rank = output.get_partial_shape().rank().get_length();
-
+    const auto rank = output.get_partial_shape().rank();
+    const auto rank_val = rank.get_length();
     AxisVector new_transpose_order;
-    if (rank > num_of_val) {
-        const auto diff = rank - num_of_val;
-        new_transpose_order.resize(rank);
+    if (rank_val > num_of_val) {
+        const auto diff = rank_val - num_of_val;
+        new_transpose_order.resize(rank_val);
         std::iota(new_transpose_order.begin(), new_transpose_order.end(), 0);
         auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
-        for (int64_t i = diff; i < rank; ++i) {
+        for (int64_t i = diff; i < rank_val; ++i) {
             new_transpose_order[i] = transpose_axis_order[i - diff] + diff;
         }
     } else {
@@ -156,21 +163,24 @@ bool UpdateInputTransposes(const NodePtr& main_node, const TransposeInputsInfo& 
     if (max_input_rank < 0)
         return false;
 
-    const size_t tranpose_input_index = transpose_input_info.input_idx;
+    const size_t transpose_input_index = transpose_input_info.input_idx;
     const auto transpose_element_type = transpose_input_info.transpose_const->get_element_type();
 
     for (size_t i = 0; i < main_node->get_input_size(); ++i) {
         auto input_node = main_node->input_value(i);
-        if (i == tranpose_input_index) {
+        if (i == transpose_input_index) {
             auto transpose_parent = input_node.get_node()->input_value(0);
             main_node->input(i).replace_source_output(transpose_parent);
         } else {
             input_node = FixInputNodeRank(input_node, max_input_rank);
             auto transpose_order = AlignTransposeOrder(input_node, transpose_input_info);
-            const auto reversed_traspose_axis_order = ReverseTransposeOrder(transpose_order);
+            if (transpose_order.empty()) {
+                return false;
+            }
+            const auto reversed_transpose_axis_order = ReverseTransposeOrder(transpose_order);
             auto new_transpose_const = std::make_shared<Constant>(transpose_element_type,
-                                                                  Shape{reversed_traspose_axis_order.size()},
-                                                                  reversed_traspose_axis_order);
+                                                                  Shape{reversed_transpose_axis_order.size()},
+                                                                  reversed_transpose_axis_order);
             auto new_transpose = std::make_shared<Transpose>(input_node, new_transpose_const);
 
             main_node->input(i).replace_source_output(new_transpose->output(0));
