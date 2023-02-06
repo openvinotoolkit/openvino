@@ -156,6 +156,8 @@ To uninstall OpenVINO, follow the steps on the [Uninstalling page](uninstalling-
 
 ## Additional Resources
 
+@sphinxdirective
+
 * :ref:`Troubleshooting Guide for OpenVINO Installation & Configuration <troubleshooting guide for install>`
 * Converting models for use with OpenVINO™: :ref:`Model Optimizer Developer Guide <deep learning model optimizer>`
 * Writing your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning openvino runtime>`
@@ -174,3 +176,7 @@ To uninstall OpenVINO, follow the steps on the [Uninstalling page](uninstalling-
 .. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
 
 @endsphinxdirective
+
+## Additional Resources
+
+- [OpenVINO Installation Selector Tool](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html)

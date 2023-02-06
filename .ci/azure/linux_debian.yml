@@ -262,8 +262,7 @@ jobs:
       sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
       echo "deb https://apt.repos.intel.com/openvino/2022 focal main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
       sudo apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/intel-openvino-2022.list
-      # TODO: sudo apt-get install openvino -y || exit 1
-      sudo apt-get install openvino -y
+      sudo apt-get install openvino -y || exit 1
       # install our local one and make sure the conflicts are resolved
       sudo apt-get install --no-install-recommends dpkg-dev -y
       rm -r _CPack_Packages
@@ -332,7 +331,6 @@ jobs:
 
   - script: $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieMultiPluginUnitTests.xml
     displayName: 'MULTI UT'
-    enabled: 'false'
 
   - script:  |
       $(INSTALL_TEST_DIR)/ov_template_func_tests --gtest_filter=*smoke* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-templateFuncTests.xml

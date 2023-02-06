@@ -274,6 +274,7 @@ ov_preprocess_preprocess_steps_reverse_channels(ov_preprocess_preprocess_steps_t
  * @ingroup ov_prepostprocess_c_api
  * @param preprocess_input_tensor_info A pointer to the ov_preprocess_input_tensor_info_t.
  * @param element_type A point to element_type
+ * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_input_tensor_info_set_element_type(
@@ -285,11 +286,27 @@ ov_preprocess_input_tensor_info_set_element_type(
  * @ingroup ov_prepostprocess_c_api
  * @param preprocess_input_tensor_info A pointer to the ov_preprocess_input_tensor_info_t.
  * @param colorFormat The enumerate of colorFormat
+ * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_preprocess_input_tensor_info_set_color_format(
-                                ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
-                                const ov_color_format_e colorFormat);
+ov_preprocess_input_tensor_info_set_color_format(ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
+                                                 const ov_color_format_e colorFormat);
+
+/**
+ * @brief Set ov_preprocess_input_tensor_info_t color format with subname.
+ * @ingroup ov_prepostprocess_c_api
+ * @param preprocess_input_tensor_info A pointer to the ov_preprocess_input_tensor_info_t.
+ * @param colorFormat The enumerate of colorFormat
+ * @param sub_names_size The size of sub_names
+ * @param variadic params sub_names Optional list of sub-names assigned for each plane (e.g. "Y", "UV").
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_input_tensor_info_set_color_format_with_subname(
+    ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
+    const ov_color_format_e colorFormat,
+    const size_t sub_names_size,
+    ...);
 
 /**
  * @brief Set ov_preprocess_input_tensor_info_t spatial_static_shape.
@@ -297,6 +314,7 @@ ov_preprocess_input_tensor_info_set_color_format(
  * @param preprocess_input_tensor_info A pointer to the ov_preprocess_input_tensor_info_t.
  * @param input_height The height of input
  * @param input_width The width of input
+ * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_input_tensor_info_set_spatial_static_shape(
@@ -305,10 +323,22 @@ ov_preprocess_input_tensor_info_set_spatial_static_shape(
                                 const size_t input_width);
 
 /**
+ * @brief Set ov_preprocess_input_tensor_info_t memory type.
+ * @ingroup prepostprocess
+ * @param preprocess_input_tensor_info A pointer to the ov_preprocess_input_tensor_info_t.
+ * @param mem_type Memory type. Refer to ov_remote_context.h to get memory type string info.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_input_tensor_info_set_memory_type(ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
+                                                const char* mem_type);
+
+/**
  * @brief Convert ov_preprocess_preprocess_steps_t element type.
  * @ingroup ov_prepostprocess_c_api
  * @param preprocess_input_steps A pointer to the ov_preprocess_preprocess_steps_t.
  * @param element_type preprocess input element type.
+ * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_preprocess_steps_convert_element_type(
@@ -320,6 +350,7 @@ ov_preprocess_preprocess_steps_convert_element_type(
  * @ingroup ov_prepostprocess_c_api
  * @param preprocess_input_steps A pointer to the ov_preprocess_preprocess_steps_t.
  * @param colorFormat The enumerate of colorFormat.
+ * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_preprocess_steps_convert_color(
@@ -331,6 +362,7 @@ ov_preprocess_preprocess_steps_convert_color(
  * @ingroup ov_prepostprocess_c_api
  * @param preprocess_input_tensor_info A pointer to the ov_preprocess_input_tensor_info_t.
  * @param tensor A point to ov_tensor_t
+ * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_input_tensor_info_set_from(
@@ -342,6 +374,7 @@ ov_preprocess_input_tensor_info_set_from(
  * @ingroup ov_prepostprocess_c_api
  * @param preprocess_input_tensor_info A pointer to the ov_preprocess_input_tensor_info_t.
  * @param layout A point to ov_layout_t
+ * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_input_tensor_info_set_layout(
@@ -422,6 +455,7 @@ ov_preprocess_output_tensor_info_free(
  * @ingroup ov_prepostprocess_c_api
  * @param preprocess_output_tensor_info A pointer to the ov_preprocess_output_tensor_info_t.
  * @param element_type A point to element_type
+ * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_output_set_element_type(
@@ -453,6 +487,7 @@ ov_preprocess_input_model_info_free(ov_preprocess_input_model_info_t* preprocess
  * @ingroup ov_prepostprocess_c_api
  * @param preprocess_input_model_info A pointer to the ov_preprocess_input_model_info_t
  * @param layout A point to ov_layout_t
+ * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_input_model_info_set_layout(

@@ -185,7 +185,13 @@ ov::Tensor or_tensor(const ov::Tensor& lhs, const ov::Tensor& rhs) {
 
 struct TensorVectorCmp {
     bool operator()(const ov::TensorVector& lhs, const ov::TensorVector& rhs) const {
-        return !std::equal(lhs.begin(), lhs.end(), rhs.begin(), &are_same_tensor);
+        auto rhs_it = rhs.begin();
+        return std::any_of(lhs.begin(), lhs.end(), [&rhs_it](const ov::Tensor& lhs) {
+            bool is_less =
+                (lhs && *rhs_it) ? lhs.data() < rhs_it->data() : static_cast<bool>(lhs) < static_cast<bool>(*rhs_it);
+            ++rhs_it;
+            return is_less;
+        });
     }
 };
 
