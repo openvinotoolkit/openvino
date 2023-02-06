@@ -22,7 +22,7 @@ class Plugin;
 // ! [executable_network:header]
 class CompiledModel : public ov::ICompiledModel {
 public:
-    CompiledModel(const std::shared_ptr<const ov::Model>& model,
+    CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const InferenceEngine::ITaskExecutor::Ptr& task_executor,
                   const Configuration& cfg);
