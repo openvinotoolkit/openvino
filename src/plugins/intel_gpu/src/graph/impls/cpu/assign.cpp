@@ -10,18 +10,41 @@ namespace cldnn {
 namespace cpu {
 
 struct assign_impl : public typed_primitive_impl<assign> {
+    using parent = typed_primitive_impl<assign>;
+    using parent::parent;
+
+    std::string variable_id;
+
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<assign_impl>(*this);
     }
 
+    assign_impl() : parent() {}
+
+    explicit assign_impl(const assign_node& outer) {
+        set_node_params(outer);
+    }
+
+    void set_node_params(const program_node& arg) override {
+        IE_ASSERT(arg.is_type<assign>());
+        const auto& node = arg.as<assign>();
+        variable_id = node.get_primitive()->variable_id;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        ob << variable_id;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        ib >> variable_id;
+    }
+
     event::ptr execute_impl(const std::vector<event::ptr>& events, assign_inst& instance) override {
-        const auto arg = instance.argument;
-        const auto variable_id = arg->variable_id;
         auto& variable = instance.get_network().get_variable_memory(variable_id);
 
-        if (variable.memory->get_layout() != arg->output_layout) {
+        if (variable.memory->get_layout() != instance.get_output_layout()) {
             CLDNN_ERROR_MESSAGE(instance.id(), "Layout mismatch");
         }
 
