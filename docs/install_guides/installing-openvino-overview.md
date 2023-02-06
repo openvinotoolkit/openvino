@@ -25,10 +25,11 @@ Intel® Distribution of OpenVINO™ toolkit is a comprehensive toolkit for devel
 
 @sphinxdirective
 
-.. link-button:: https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html 
-   :type: url
-   :text: Check out the OpenVINO Download Page
-   :classes: btn-primary btn-block
+.. button-link:: https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html
+   :color: primary
+   :outline:
+
+   Check out the OpenVINO Download Page :fas:`fa-external-link-alt`
 
 @endsphinxdirective
 
