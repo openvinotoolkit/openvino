@@ -38,6 +38,10 @@ macro(ov_disable_deprecated_warnings)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ie_c_cxx_deprecated}")
 endmacro()
 
+macro(disable_deprecated_warnings)
+    ov_disable_deprecated_warnings()
+endmacro()
+
 #
 # ov_deprecated_no_errors()
 #
@@ -455,6 +459,10 @@ else()
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--gc-sections")
     endif()
 endif()
+
+# if(OV_COMPILER_IS_CLANG)
+#     ie_add_compiler_flags(-Wshorten-64-to-32)
+# endif()
 
 #
 # link_system_libraries(target <PUBLIC | PRIVATE | INTERFACE> <lib1 [lib2 lib3 ...]>)
