@@ -29,3 +29,4 @@
 #include "openvino/c/ov_rank.h"
 #include "openvino/c/ov_shape.h"
 #include "openvino/c/ov_tensor.h"
+#include "openvino/c/ov_remote_context.h"
