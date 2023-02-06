@@ -90,11 +90,7 @@ static size_t get_vec_size(const resample_params &params) {
 }
 
 static int get_feature_slice_size(const resample_params &params) {
-    if (params.inputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32) {
-        return 32;
-    } else {
-        return 16;
-    }
+    return 16 * get_vec_size(params);
 }
 
 ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_selector::resample_params &arg) const {
