@@ -6,6 +6,8 @@
 
 #include "primitive.hpp"
 #include <vector>
+#include "intel_gpu/graph/serialization/utils.hpp"
+#include "intel_gpu/graph/serialization/vector_serializer.hpp"
 
 namespace cldnn {
 
