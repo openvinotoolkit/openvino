@@ -5,7 +5,7 @@ compressed `FP16` model. The resulting model will occupy about twice as less spa
 but it may have some accuracy drop. For most models, the accuracy drop is negligible. 
 But in case if accuracy drop is significant user can disable compression explicitly.
 
-By default, model is compressed to `FP16`, you can turn it off by specifying `--compress_to_fp16=False`:
+By default, models are compressed to `FP16`, but you can disable compression by specifying `--compress_to_fp16=False`:
 ```
 mo --input_model INPUT_MODEL --compress_to_fp16=False
 ```
