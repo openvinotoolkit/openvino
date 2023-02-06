@@ -36,11 +36,11 @@ public:
         std::vector<std::vector<int>> test_cpu_mapping_table;
 
         InferenceEngine::parse_processor_info_linux(test_data._processors,
-                                   test_data.system_info_table,
-                                   test_sockets,
-                                   test_cores,
-                                   test_proc_type_table,
-                                   test_cpu_mapping_table);
+                                                    test_data.system_info_table,
+                                                    test_sockets,
+                                                    test_cores,
+                                                    test_proc_type_table,
+                                                    test_cpu_mapping_table);
 
         ASSERT_EQ(test_data._sockets, test_sockets);
         ASSERT_EQ(test_data._cores, test_cores);
