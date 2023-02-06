@@ -197,7 +197,7 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
             "https://download-ib01.fedoraproject.org/pub/epel/8/Everything/$arch/Packages/p/pugixml-1.13-1.el8.$arch.rpm"
             "https://vault.centos.org/centos/8/PowerTools/$arch/os/Packages/gflags-2.1.2-6.el8.$arch.rpm"
         )
-        pkgs_gpu=(
+        pkgs_gpu+=(
             "http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/ocl-icd-2.2.12-1.el8.x86_64.rpm"
         )
         pkgs_python+=(python38 python38-pip)
