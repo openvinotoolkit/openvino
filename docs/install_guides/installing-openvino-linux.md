@@ -11,3 +11,5 @@ Currently only the following ways are provided to install OpenVINO™:
 * [Build From Source](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode)
 
 The other installation methods are temporarily unavailable.
+
+For a full selection of distribution channels, see the [OpenVINO Installation Selector Tool](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html)

@@ -104,3 +104,4 @@ openvino-model-optimizer-dev
 - [Meta-intel](https://git.yoctoproject.org/meta-intel/tree/README)
 - [Meta-openembedded](http://cgit.openembedded.org/meta-openembedded/tree/README)
 - [Meta-clang](https://github.com/kraj/meta-clang/tree/master/#readme)
+- [OpenVINO Installation Selector Tool](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html)
