@@ -87,22 +87,22 @@ OutputVector translate_tensor_list_set_item_op(const NodeContext& node) {
     item = make_shared<Reshape>(item, new_item_shape, false);
     auto item_shape = make_shared<ShapeOf>(item, element::i32);
 
+    // reshape the tensor list to the shape [num_elements, -1]
+    // that is because in the first iteration we have empty constant of a shape [0,0]
+    auto minus_one = make_shared<Constant>(element::i32, Shape{1}, -1);
+    auto new_input_handle_shape = make_shared<Concat>(OutputVector{minus_one, item_shape}, 0);
+    input_handle = make_shared<Reshape>(input_handle, new_input_handle_shape, false);
+    input_handle = make_shared<Convert>(input_handle, item.get_element_type());
+
     // compute the current length of the list
     Output<Node> list_length = make_shared<ShapeOf>(input_handle, element::i32);
     auto zero_const = make_shared<Constant>(element::i32, Shape{1}, 0);
     auto one_const = make_shared<Constant>(element::i32, Shape{1}, 1);
     list_length = make_shared<Slice>(list_length, zero_const, one_const, one_const);
 
-    // reshape the tensor list to the shape [num_elements, -1]
-    // that is because in the first iteration we have empty constant of a shape [0,0]
-    auto minus_one = make_shared<Constant>(element::i32, Shape{1}, -1);
-    auto new_input_handle_shape = make_shared<Concat>(OutputVector{list_length, item_shape}, 0);
-    input_handle = make_shared<Reshape>(input_handle, new_input_handle_shape, false);
-    input_handle = make_shared<Convert>(input_handle, item.get_element_type());
-
     // compute a size of the dummy tensor that serves to fill holes in the list
     // if no tensor is inserted at this position
-    auto one_const_scalar = make_shared<Constant>(element::i32, Shape{}, 1);
+    auto one_const_scalar = make_shared<Constant>(element::i32, Shape{1}, 1);
     auto index_plus_one = make_shared<Add>(index, one_const_scalar);
     Output<Node> max_length = make_shared<Maximum>(list_length, index_plus_one);
     Output<Node> dummy_tensor_size = make_shared<Subtract>(max_length, list_length);
