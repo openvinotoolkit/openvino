@@ -308,7 +308,7 @@ set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 
 if(CMAKE_CL_64)
     # Default char Type Is unsigned
-    ie_add_compiler_flags(/J)
+    # ie_add_compiler_flags(/J)
 else()
     ie_add_compiler_flags(-fsigned-char)
 endif()
