@@ -47,30 +47,67 @@ file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 find_package(OpenCL QUIET)
 
 if(NOT OpenCL_FOUND)
-    MESSAGE(WARNING "OpenCL is disabled or not found, ${TARGET_NAME} will be built without OpenCL support. Install OpenCL.")
+    message(WARNING "OpenCL is disabled or not found, ${TARGET_NAME} will be built without OpenCL support. Install OpenCL.")
+else()
+    list(APPEND opencl_root_hints
+        ${OPENCLROOT}
+        $ENV{OPENCLROOT}
+        ${OpenCL_INCLUDE_DIRS})
 endif()
+
+set(opencl_header_search_params
+    HINTS
+    ${opencl_root_hints}
+    PATHS
+    ENV "PROGRAMFILES(X86)"
+    ENV AMDAPPSDKROOT
+    ENV INTELOCLSDKROOT
+    ENV NVSDKCOMPUTE_ROOT
+    ENV CUDA_PATH
+    ENV ATISTREAMSDKROOT
+    ENV OCL_ROOT
+    PATH_SUFFIXES
+    "include"
+    "OpenCL/common/inc"
+    "AMD APP/include")
 
 find_path(OpenCL_HPP_INCLUDE_DIR
     NAMES
-    CL/cl2.hpp OpenCL/cl2.hpp
-    HINTS
-    ${opencl_root_hints}
-    ENV "PROGRAMFILES(X86)"
-    ENV INTELOCLSDKROOT
-    ENV OCL_ROOT
-    PATH_SUFFIXES
-    include
-    OpenCL/common/inc
-    "AMD APP/include")
+    CL/opencl.hpp OpenCL/opencl.hpp
+    ${opencl_header_search_params})
 
-if(TARGET OpenCL)
-    # Use OpenCL CPP headers from sources if present
-    set(OpenCL_HEADERS ${OPENCL_HEADERS_DIR})
-    set(OpenCL_LIB "OpenCL")
-elseif(OpenCL_HPP_INCLUDE_DIR)
-    # Append OpenCL CPP headers to C headers and use both
-    set(OpenCL_HEADERS ${OpenCL_INCLUDE_DIR} ${OpenCL_HPP_INCLUDE_DIR})
-    set(OpenCL_LIB "OpenCL::OpenCL")
+find_path(CL2_HPP_INCLUDE_DIR
+    NAMES
+    CL/cl2.hpp OpenCL/cl2.hpp
+    ${opencl_header_search_params})
+
+if(OpenCL_FOUND AND(OpenCL_HPP_INCLUDE_DIR OR CL2_HPP_INCLUDE_DIR))
+    set(OpenCL_DEFINITIONS HAVE_GPU_DEVICE_MEM_SUPPORT)
+
+    if(OpenCL_HPP_INCLUDE_DIR)
+        list(APPEND OpenCL_HEADERS ${OpenCL_HPP_INCLUDE_DIR})
+
+        # the macro below is defined when opencl.hpp is found to suppress deprecation message from cl2.hpp
+        list(APPEND OpenCL_DEFINITIONS OV_GPU_USE_OPENCL_HPP)
+    endif()
+
+    if(CL2_HPP_INCLUDE_DIR)
+        list(APPEND OpenCL_HEADERS ${CL2_HPP_INCLUDE_DIR})
+    endif()
+
+    set(OpenCL_LIB OpenCL::OpenCL)
+
+    # cmake cannot set properties for imported targets
+    get_target_property(opencl_target OpenCL::OpenCL ALIASED_TARGET)
+
+    if(NOT TARGET ${opencl_target})
+        set(opencl_target OpenCL::OpenCL)
+    endif()
+
+    set_property(TARGET ${opencl_target} APPEND PROPERTY
+        INTERFACE_INCLUDE_DIRECTORIES ${OpenCL_HEADERS})
+    set_property(TARGET ${opencl_target} APPEND PROPERTY
+        INTERFACE_COMPILE_DEFINITIONS ${OpenCL_DEFINITIONS})
 else()
     message(WARNING "OpenCL CPP header is not found, ${TARGET_NAME} will be built without OpenCL support. Download it from: https://github.com/KhronosGroup/OpenCL-CLHPP and set -Dopencl_root_hints=[PATH]/OpenCL-CLHPP/include to cmake.")
 endif()
