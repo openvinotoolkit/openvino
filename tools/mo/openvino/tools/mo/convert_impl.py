@@ -28,6 +28,7 @@ from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_
 from openvino.tools.mo.pipeline.common import prepare_emit_ir
 from openvino.tools.mo.pipeline.unified import unified_pipeline
 from openvino.tools.mo.utils import import_extensions
+from openvino.tools.mo.utils.get_ov_update_message import get_compression_message
 from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
     get_advanced_cli_options, get_available_front_ends, get_caffe_cli_options, \
     get_common_cli_options, get_freeze_placeholder_values, get_kaldi_cli_options, get_layout_values, \
@@ -224,10 +225,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
     if ('compress_to_fp16' not in argv or argv.compress_to_fp16 is None) \
             and ('data_type' not in argv or argv.data_type is None):
         argv.compress_to_fp16 = True
-        log.error("Be aware that --compress_to_fp16 argument was not specified. "
-                  "Generated IR will be compressed to fp16 by default. "
-                  "If you get lower accuracy, please consider disabling compression explicitly "
-                  "by adding argument --compress_to_fp16=False", extra={'is_warning': True})
+        print(get_compression_message())
 
     if ('data_type' in argv and argv.data_type in ['FP16', 'half']) or \
             ('compress_to_fp16' in argv and argv.compress_to_fp16 is True):
