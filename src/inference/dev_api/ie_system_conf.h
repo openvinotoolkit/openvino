@@ -141,15 +141,15 @@ INFERENCE_ENGINE_API_CPP(bool) with_cpu_x86_avx512_core_amx();
  * This enum are also defination of each columns in processor type table. Below are two example of processor type table.
  *  1. Processor table of two socket CPUs XEON server
  *
- *  ALL_PROC | MAIN_CORE_PROC | HYPER_THREADING_PROC | EFFICIENT_CORE_PROC
- *     96            48                   48                   0            // Total number of two sockets
- *     48            24                   24                   0            // Number of socket one
- *     48            24                   24                   0            // Number of socket two
+ *  ALL_PROC | MAIN_CORE_PROC | EFFICIENT_CORE_PROC | HYPER_THREADING_PROC
+ *     96            48                 0                       48          // Total number of two sockets
+ *     48            24                 0                       24          // Number of socket one
+ *     48            24                 0                       24          // Number of socket two
  *
  * 2. Processor table of one socket CPU desktop
  *
- *  ALL_PROC | MAIN_CORE_PROC | HYPER_THREADING_PROC | EFFICIENT_CORE_PROC
- *     32            8                    8                   16            // Total number of one socket
+ *  ALL_PROC | MAIN_CORE_PROC | EFFICIENT_CORE_PROC | HYPER_THREADING_PROC
+ *     32            8                 16                       8           // Total number of one socket
  */
 typedef enum {
     ALL_PROC = 0,              //!< All processors, regardless of backend cpu
