@@ -19,17 +19,6 @@ namespace py = pybind11;
 using Version = ov::pass::Serialize::Version;
 using FilePaths = std::pair<const std::string, const std::string>;
 
-inline Version convert_to_version(const std::string& version) {
-    if (version == "UNSPECIFIED")
-        return Version::UNSPECIFIED;
-    if (version == "IR_V10")
-        return Version::IR_V10;
-    if (version == "IR_V11")
-        return Version::IR_V11;
-    throw ov::Exception("Invoked with wrong version argument: '" + version +
-                        "'! The supported versions are: 'UNSPECIFIED'(default), 'IR_V10', 'IR_V11'.");
-}
-
 void regclass_passes_Manager(py::module m) {
     py::class_<ov::pass::Manager> manager(m, "Manager");
     manager.doc() = "openvino.runtime.passes.Manager executes sequence of transformation on a given Model";
@@ -97,7 +86,7 @@ void regclass_passes_Manager(py::module m) {
             if (pass_name == "Serialize") {
                 self.register_pass<ov::pass::Serialize>(file_paths.first,
                                                         file_paths.second,
-                                                        convert_to_version(version));
+                                                        Common::utils::convert_to_version(version));
             }
         },
         py::arg("pass_name"),
@@ -140,7 +129,7 @@ void regclass_passes_Manager(py::module m) {
                                                "",
                                                "Please use register_pass(Serialize(xml, bin, version)) instead.");
             if (pass_name == "Serialize") {
-                self.register_pass<ov::pass::Serialize>(xml_path, bin_path, convert_to_version(version));
+                self.register_pass<ov::pass::Serialize>(xml_path, bin_path, Common::utils::convert_to_version(version));
             }
         },
         py::arg("pass_name"),

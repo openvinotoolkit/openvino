@@ -537,7 +537,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         return decltype(ov::intel_gpu::device_id)::value_type {s.str()};
     } else if (name == ov::device::architecture) {
         std::stringstream s;
-        s << "GPU: ";
+        s << "GPU: vendor=0x" << std::hex << device_info.vendor_id << std::dec << " arch=";
         if (device_info.gfx_ver.major == 0 && device_info.gfx_ver.minor == 0) {
             s << device_info.dev_name;
         } else {
@@ -700,7 +700,7 @@ uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& opti
 
         auto function = InferenceEngine::details::cloneNetwork(cloned_network).getFunction();
         ov::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::FindBatch>(true, false);
         m.run_passes(function);
         const auto& params = function->get_parameters();
@@ -717,7 +717,7 @@ uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& opti
                 for (size_t s = 0; s < shape.size(); s++) {
                     if (ov::DimensionTracker::get_label(shape[s])) {
                         // batched dim for the input
-                        auto batched_input_id = ngraph::op::util::get_ie_output_name(params[input_id]->output(0));
+                        auto batched_input_id = ov::op::util::get_ie_output_name(params[input_id]->output(0));
                         GPU_DEBUG_LOG << "[MAX_BATCH_SIZE] detected batched input " << batched_input_id
                                       << "[" << s << "]" << std::endl;
                         batched_inputs.insert(std::make_pair(batched_input_id, s));

@@ -225,10 +225,7 @@ jobs:
 
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
-      # TODO (vurusovs): revert skip of test_core.py::test_register_plugin*,
-      # test should be fixed
       python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph \
-        -k 'not test_register_plugin' \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py \
         --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
@@ -240,16 +237,9 @@ jobs:
       # - tests install dir for mock_py
       # - OpenVINO wheel installation dir for others frontend required by mock_py (is not part of wheel pkg)
       export LD_LIBRARY_PATH=$(PYTHON_WHEEL_INSTALL_DIR)/openvino/libs:$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
-      # For frontend manager to load frontend libraries:
-      # - tests install dir for mock_py
-      # - OpenVINO wheel installation dir for others frontend (not required if this variable is not set)
-      export OV_FRONTEND_PATH=$(PYTHON_WHEEL_INSTALL_DIR)/openvino/libs:$(INSTALL_TEST_DIR)
       # For python imports to import pybind_mock_frontend
       export PYTHONPATH=$(INSTALL_TEST_DIR):$PYTHONPATH
-      # TODO (vurusovs): revert skip of test_core.py::test_register_plugin*,
-      # test should be fixed
       python3 -m pytest -s $(INSTALL_TEST_DIR)/pyopenvino \
-        -k 'not test_register_plugin' \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py \
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_zoo_models.py \
@@ -272,8 +262,7 @@ jobs:
       sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
       echo "deb https://apt.repos.intel.com/openvino/2022 focal main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
       sudo apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/intel-openvino-2022.list
-      # TODO: sudo apt-get install openvino -y || exit 1
-      sudo apt-get install openvino -y
+      sudo apt-get install openvino -y || exit 1
       # install our local one and make sure the conflicts are resolved
       sudo apt-get install --no-install-recommends dpkg-dev -y
       rm -r _CPack_Packages
@@ -320,8 +309,7 @@ jobs:
       LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
     displayName: 'Paddle Frontend UT'
 
-  - script: |
-      $(INSTALL_TEST_DIR)/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
+  - script: $(INSTALL_TEST_DIR)/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
     env:
       LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
     displayName: 'TensorFlow Frontend Unit Tests'
@@ -332,16 +320,17 @@ jobs:
       LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
     displayName: 'TensorFlow Common Unit Tests'
 
-    # python3 $(WORK_DIR)/gtest-parallel/gtest_parallel.py $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --workers=16 --dump_json_test_results=InferenceEngineUnitTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
-  - script: $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineUnitTests.xml
-    displayName: 'IE UT old'
+  - script: |
+      $(INSTALL_TEST_DIR)/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-TensorflowLite.xml
+    env:
+      LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
+    displayName: 'TensorFlow Lite Frontend Unit Tests'
 
   - script: $(INSTALL_TEST_DIR)/ov_cpu_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_cpu_unit_tests.xml
     displayName: 'Intel CPU Unit Tests'
 
   - script: $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieMultiPluginUnitTests.xml
     displayName: 'MULTI UT'
-    enabled: 'false'
 
   - script:  |
       $(INSTALL_TEST_DIR)/ov_template_func_tests --gtest_filter=*smoke* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-templateFuncTests.xml
@@ -354,9 +343,7 @@ jobs:
     displayName: 'CPU FuncTests'
 
   - script: |
-      # TODO (vurusovs): revert skip of ie_core_*register_plugin*,
-      # tests should be fixed
-      $(INSTALL_TEST_DIR)/InferenceEngineCAPITests --gtest_filter=-*register_plugin* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineCAPITests.xml
+      $(INSTALL_TEST_DIR)/InferenceEngineCAPITests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineCAPITests.xml
     env:
       DATA_PATH: $(MODELS_PATH)
       MODELS_PATH: $(MODELS_PATH)
@@ -399,6 +386,13 @@ jobs:
       export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
       python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_Roll.xmlTEST
     displayName: 'TensorFlow 1 Layer Tests - Legacy FE'
+
+  - script: |
+      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
+      export PYTHONPATH=$(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR):$PYTHONPATH
+      export TEST_DEVICE=CPU
+      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_lite_tests/ --junitxml=$(INSTALL_TEST_DIR)/TEST-tfl_fe.xmlTEST
+    displayName: 'TensorFlow Lite Layer Tests - TFL FE'
 
   - task: PublishTestResults@2
     condition: always()

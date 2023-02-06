@@ -233,16 +233,19 @@ std::unique_ptr<TResult> get_input_bounds(const ov::Node* op,
         };
 
     std::unique_ptr<TResult> out;
-    if (auto lowers =
-            op::get_input_const_data_as<TShape, int64_t>(op, idx, constant_data, sh_infer::tr::Cast<int64_t>())) {
+    if (auto lowers = op::get_input_const_data_as<TShape, int64_t>(op, idx, constant_data)) {
         const auto& et = get_input_const_element_type(op, idx, constant_data);
         out.reset(new TResult(make_bounds_vec(et, *lowers, *lowers)));
     } else {
-        auto bounds = ngraph::evaluate_both_bounds(op->get_input_source_output(idx));
-        if (bounds.first && bounds.second) {
+        ov::Tensor lb, ub;
+        std::tie(lb, ub) = ov::evaluate_both_bounds(op->get_input_source_output(idx));
+
+        if (lb && ub) {
             const auto& et = op->get_input_element_type(idx);
-            auto lowers = std::make_shared<op::v0::Constant>(bounds.first)->cast_vector<int64_t>();
-            auto uppers = std::make_shared<op::v0::Constant>(bounds.second)->cast_vector<int64_t>();
+            auto lowers = std::make_shared<op::v0::Constant>(lb.get_element_type(), lb.get_shape(), lb.data())
+                              ->cast_vector<int64_t>();
+            auto uppers = std::make_shared<op::v0::Constant>(ub.get_element_type(), ub.get_shape(), ub.data())
+                              ->cast_vector<int64_t>();
             out.reset(new TResult(make_bounds_vec(et, lowers, uppers)));
         }
     }

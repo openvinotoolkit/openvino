@@ -127,6 +127,7 @@ program::program(engine& engine_ref,
     } else {
         build_program(is_internal);
     }
+    calc_nodes_hash();
 }
 
 program::program(engine& engine_ref,
@@ -151,6 +152,7 @@ program::program(engine& engine_ref,
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(nodes);
     build_program(is_internal);
+    calc_nodes_hash();
 }
 
 program::program(engine& engine)
@@ -539,6 +541,12 @@ void program::query_local_block_io_supported() {
     }
 }
 
+void program::calc_nodes_hash() {
+    for (auto& node : processing_order) {
+        node->calculate_hash();
+    }
+}
+
 void program::build_program(bool is_internal) {
     init_graph();
     { pre_optimize_graph(is_internal); }
@@ -563,7 +571,8 @@ void program::build_program(bool is_internal) {
 
     if (!is_internal) {
         prim_info = get_current_stage_info();
-        transfer_memory_to_device();
+        if (get_engine().get_device_info().dev_type == device_type::discrete_gpu)
+            transfer_memory_to_device();
     }
 
     cleanup();
@@ -729,13 +738,15 @@ void program::transfer_memory_to_device() {
         return;
 
     for (auto& node : processing_order) {
+        if (node->is_shape_infer_dep()) {
+            continue;
+        }
         if (node->is_type<data>() && !node->need_lockable_memory()) {
             auto& data_node = node->as<data>();
             auto data_node_layout = data_node.get_output_layout();
             auto& mem = data_node.get_attached_memory();
             auto mem_layout = mem.get_layout();
             auto alloc_type = mem.get_allocation_type();
-
             if (!mem_layout.compatible(data_node_layout)) {
                 std::string err_str("Node and memory layouts are incompatible, error occurred for " + node->id() + " node");
                 throw std::invalid_argument(err_str);

@@ -19,7 +19,8 @@ except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
 
 from openvino.tools.mo.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
-from openvino.tools.mo.moc_frontend.check_config import legacy_transformations_config_used, new_extensions_used
+from openvino.tools.mo.moc_frontend.check_config import legacy_transformations_config_used, \
+    tensorflow_custom_operations_config_update_used, new_extensions_used
 from openvino.tools.mo.moc_frontend.pipeline import moc_pipeline
 from openvino.tools.mo.moc_frontend.serialize import moc_emit_ir
 from openvino.tools.mo.graph.graph import Graph
@@ -47,7 +48,7 @@ from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
 
 # pylint: disable=no-name-in-module,import-error
-from openvino.frontend import FrontEndManager, ProgressReporterExtension, TelemetryExtension
+from openvino.frontend import FrontEndManager, OpConversionFailure, ProgressReporterExtension, TelemetryExtension
 from openvino.runtime import PartialShape, Dimension
 from openvino.runtime import get_version as get_rt_version
 
@@ -182,7 +183,6 @@ def arguments_post_parsing(argv: argparse.Namespace):
     elif (is_kaldi or is_onnx) and not argv.input_model:
         raise Error('Path to input model is required: use --input_model.')
 
-    log.debug(str(argv))
     log.debug("Model Optimizer started")
 
     log.debug('Output model name would be {}{{.xml, .bin}}'.format(argv.model_name))
@@ -234,7 +234,10 @@ def arguments_post_parsing(argv: argparse.Namespace):
     if ret_code:
         raise Error('check_requirements exited with return code {}'.format(ret_code))
 
-    if is_tf and argv.tensorflow_use_custom_operations_config is not None:
+    if hasattr(argv, 'tensorflow_use_custom_operations_config') and \
+            argv.tensorflow_use_custom_operations_config is not None:
+        # update command-line arguments even for new TensorFlow Frontend
+        # because it should fallback to the Legacy Frontend in this case
         argv.transformations_config = argv.tensorflow_use_custom_operations_config
 
     if argv.scale and argv.scale_values:
@@ -301,16 +304,57 @@ def check_fallback(argv: argparse.Namespace):
 
     fallback_reasons['extensions'] = legacy_extensions_used
     fallback_reasons['transformations_config'] = legacy_transformations_config_used
+    fallback_reasons['tensorflow_custom_operations_config_update'] = tensorflow_custom_operations_config_update_used
 
     reasons = [reason for reason, is_applicable in fallback_reasons.items() if is_applicable(argv)]
     return reasons
+
+
+def update_fallback_with_conversion_error(use_new_frontend: bool, is_tf: bool, ex_msg: str, fallback_reasons: list):
+    import re
+    if not is_tf:
+        # this sort of fallback is only used by TensorFlow Frontend
+        return False
+
+    if use_new_frontend:
+        # this option forces to use new TensorFlow Frontend
+        # so it is not possible for the fallback
+        return False
+
+    # for TensorFlow FE we have a set of operations that should lead to the fallback to the legacy
+    conversion_error_re = r"^(\[TensorFlow\ Frontend\]\ Internal\ error\:\ No\ translator\ found\ for\ )(\w+)(\ node\.)$"
+    conversion_error_match = re.findall(conversion_error_re, ex_msg, re.MULTILINE)
+    fallback_operations = [
+        # corresponds to TF1 While operation
+        "TensorArrayScatterV3", "TensorArrayV3", "TensorArraySizeV3", "TensorArrayGatherV3",
+        "LoopCond", "Enter", "NextIteration", "Exit",
+        # corresponds to TF1 If and TF1 While operations
+        "Switch", "Merge",
+        # corresponds to TF2 While operations
+        "TensorListLength", "TensorListReserve", "TensorListFromTensor",
+        "TensorListSetItem", "TensorListStack",
+        # corresponds to operations with complex tensors
+        "FFT", "FFT2D", "FFT3D", "IFFT", "IFFT2D", "IFFT3D",
+        "RFFT", "RFFT2D", "RFFT3D", "IRFFT", "IRFFT2D", "IRFFT3D",
+        "Complex", "ComplexAbs", "Real", "Imag",
+        # corresponds to automatic pruning
+        "FIFOQueueV2", "QueueDequeueUpToV2", "QueueDequeueManyV2",
+        "QueueDequeue", "QueueDequeueV2", "IteratorGetNext",
+        "LookupTableInsert", "LookupTableInsertV2"
+    ]
+    if len(conversion_error_match) < 1 or len(conversion_error_match[0]) != 3 or \
+            conversion_error_match[0][1] not in fallback_operations:
+        return False
+
+    fallback_reasons.append("Unsupported operation: " + conversion_error_match[0][1])
+    return True
 
 
 def get_default_frontends():
     # Set which frontend to use by default, values should be 'new' or 'legacy'
     default_frontends = {
         'onnx': 'new',
-        'tf': 'legacy'
+        'tf': 'new'
     }
     return default_frontends
 
@@ -354,7 +398,8 @@ def prepare_ir(argv: argparse.Namespace):
     # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
     is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
     path_to_aux_pb = None
-    if argv.use_new_frontend and is_tf:
+    orig_argv_values = {"input_model": argv.input_model, "model_name": argv.model_name}
+    if not argv.use_legacy_frontend and is_tf:
         from openvino.tools.mo.front.tf.loader import convert_to_pb
         path_to_aux_pb = convert_to_pb(argv)
 
@@ -362,38 +407,51 @@ def prepare_ir(argv: argparse.Namespace):
     t = tm.Telemetry()
     graph = None
     ngraph_function = None
+    fallback_reasons = []
     moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
     if moc_front_end:
         fallback_reasons = check_fallback(argv)
         if len(fallback_reasons) == 0:
-            t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
-            moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
-            moc_front_end.add_extension(ProgressReporterExtension(progress_printer(argv)))
-            if legacy_transformations_config_used(argv):
-                raise Error('Legacy extensions are not supported for the new frontend')
-            if legacy_extensions_used(argv):
-                raise Error('Legacy transformations configuration is not supported for the new frontend')
-            if new_extensions_used(argv):
-                for extension in argv.extensions:
-                    moc_front_end.add_extension(extension)
-            ngraph_function = moc_pipeline(argv, moc_front_end)
+            try:
+                t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
+                moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
+                moc_front_end.add_extension(ProgressReporterExtension(progress_printer(argv)))
+                if legacy_transformations_config_used(argv):
+                    raise Error('Legacy extensions are not supported for the new frontend')
+                if legacy_extensions_used(argv):
+                    raise Error('Legacy transformations configuration is not supported for the new frontend')
+                if tensorflow_custom_operations_config_update_used(argv) and is_tf:
+                    raise Error('TensorFlow custom operation config is not supported for the new frontend')
+                if new_extensions_used(argv):
+                    for extension in argv.extensions:
+                        moc_front_end.add_extension(extension)
+                ngraph_function = moc_pipeline(argv, moc_front_end)
+                return graph, ngraph_function
+            except OpConversionFailure as ex:
+                # in some set of operations (TF1 While), we have to fallback to the Legacy TensorFlow Frontend
+                # this is the second attempt for the fallback
+                if not update_fallback_with_conversion_error(argv.use_new_frontend, is_tf, str(ex), fallback_reasons):
+                    # re-throw exception for all frontends except TensorFlow FE
+                    # and in case unexpected conversion failures
+                    raise
+            finally:
+                # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
+                # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
+                if is_tf and path_to_aux_pb is not None:
+                    argv.input_model = orig_argv_values["input_model"]
+                    argv.model_name = orig_argv_values["model_name"]
+                    if os.path.exists(path_to_aux_pb):
+                        os.remove(path_to_aux_pb)
 
-            # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
-            # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
-            if argv.use_new_frontend and is_tf and path_to_aux_pb is not None:
-                if os.path.exists(path_to_aux_pb):
-                    os.remove(path_to_aux_pb)
-
-            return graph, ngraph_function
-        else:  # apply fallback
-            reasons_message = ", ".join(fallback_reasons)
-            load_extensions(argv, *list(deduce_legacy_frontend_by_namespace(argv)))
-            t.send_event("mo", "fallback_reason", reasons_message)
-            log.warning("The IR preparation was executed by the legacy MO path. "
-                        "This is a fallback scenario applicable only for some specific cases. "
-                        f"The detailed reason why fallback was executed: not supported {reasons_message} were used. "
-                        "You can specify --use_new_frontend flag to force using the Frontend MO path to avoid additional checks. " +
-                        refer_to_faq_msg(105))
+    if len(fallback_reasons) > 0:
+        reasons_message = ", ".join(fallback_reasons)
+        load_extensions(argv, *list(deduce_legacy_frontend_by_namespace(argv)))
+        t.send_event("mo", "fallback_reason", reasons_message)
+        log.warning("The IR preparation was executed by the legacy MO path. "
+                    "This is a fallback scenario applicable only for some specific cases. "
+                    f"The detailed reason why fallback was executed: not supported {reasons_message} were used. "
+                    "You can specify --use_new_frontend flag to force using the Frontend MO path to avoid additional checks. " +
+                    refer_to_faq_msg(105))
 
     t.send_event("mo", "conversion_method", "mo_legacy")
     graph = unified_pipeline(argv)
@@ -712,6 +770,9 @@ def parse_input_shapes(argv):
 def driver(argv: argparse.Namespace, non_default_params: dict):
     init_logger(argv.log_level.upper(), argv.silent)
 
+    # Log dictionary with non-default cli parameters where complex classes are excluded.
+    log.debug(str(non_default_params))
+
     start_time = datetime.datetime.now()
 
     graph, ngraph_function = prepare_ir(argv)
@@ -932,9 +993,9 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
                 if argv.framework != model_framework:
                     raise Error("Provided model does not correspond to provided framework. The provided "
                                 "framework is {}, the model type is {} which is expected to be {} framework.".format(
-                                    argv.framework,
-                                    type(argv.input_model),
-                                    model_framework))
+                        argv.framework,
+                        type(argv.input_model),
+                        model_framework))
             else:
                 argv.framework = model_framework
 

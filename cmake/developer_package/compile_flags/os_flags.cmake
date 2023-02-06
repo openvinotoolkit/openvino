@@ -49,8 +49,6 @@ macro(ie_deprecated_no_errors)
         elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
             # show 4996 only for /w4
             set(ie_c_cxx_deprecated_no_errors "/wd4996")
-            # WA for VPUX plugin
-            set(ie_c_cxx_deprecated_no_errors "${ie_c_cxx_deprecated_no_errors} /wd4146 /wd4703")
         endif()
     else()
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
@@ -357,6 +355,7 @@ else()
 
     if(OV_COMPILER_IS_APPLECLANG)
         ie_add_compiler_flags(-Wswitch)
+        set(CMAKE_CXX_FLAGS "-Woverloaded-virtual ${CMAKE_CXX_FLAGS}")
     else()
         ie_add_compiler_flags(-Wuninitialized -Winit-self)
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
