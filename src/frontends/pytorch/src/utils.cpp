@@ -187,22 +187,19 @@ OutputVector make_framework_node(NodeContext* context) {
     }
 
     // Pay attention to subgraphs that may appear in the node
-    auto fw_node =
-        std::make_shared<PtFrameworkNode>(context->get_decoder(), context->inputs(), context->num_of_outputs());
-    fw_node->set_friendly_name(context->get_op_type());
-
     std::map<size_t, ParameterVector> inputs_map;
     std::map<size_t, ResultVector> extra_outputs_map;
     std::set<size_t> input_idxs;  // initial inputs
+    std::vector<std::shared_ptr<ov::Model>> bodies;
     // We need to remember initial inputs to be able to find extra inputs to body that were created to propagate
     // external context
-    int num_body_outs = 0;
+    size_t num_body_outs = 0;
     for (size_t i = 0; i < context->get_decoder()->get_subgraph_size(); ++i) {
         auto subgraph_decoder = context->get_decoder()->get_subgraph_decoder(i);
         auto inputs = subgraph_decoder->inputs();
         input_idxs.insert(inputs.begin(), inputs.end());
         auto body = context->convert_subgraph(i);
-        fw_node->set_function(i, body);
+        bodies.push_back(body);
         for (const auto& param : body->get_parameters()) {
             auto name = param->get_output_tensor(0).get_any_name();
             size_t input_idx = (size_t)std::stoll(name);
@@ -226,6 +223,20 @@ OutputVector make_framework_node(NodeContext* context) {
             extra_outputs_map[out_idx].push_back(body_results[i]);
         }
     }
+    // Number of body outputs can be higher then number of pt node outputs, e.g. in case of loop first body output is
+    // condition, we have to skip such outputs.
+    int num_skip_body_outputs =
+        num_body_outs > context->num_of_outputs() ? num_body_outs - context->num_of_outputs() : 0;
+
+    // We need to reduce number of outputs, because some outputs are outputs from body
+    auto fw_node = std::make_shared<PtFrameworkNode>(context->get_decoder(),
+                                                     context->inputs(),
+                                                     context->num_of_outputs() - num_body_outs + num_skip_body_outputs);
+    fw_node->set_friendly_name(context->get_op_type());
+    for (size_t i = 0; i < bodies.size(); ++i) {
+        fw_node->set_function(i, bodies[i]);
+    }
+
     // Connect inputs with external context
     for (const auto& input : inputs_map) {
         if (!input_idxs.count(input.first)) {
@@ -238,12 +249,6 @@ OutputVector make_framework_node(NodeContext* context) {
             }
         }
     }
-    // Number of body outputs can be higher then number of pt node outputs, e.g. in case of loop first body output is
-    // condition, we have to skip such outputs
-    int num_skip_body_outputs =
-        num_body_outs > context->num_of_outputs() ? num_body_outs - context->num_of_outputs() : 0;
-    // We need to reduce number of outputs, because some outputs are outputs from body
-    fw_node->set_output_size(context->num_of_outputs() - num_body_outs + num_skip_body_outputs);
     OutputVector res(context->mark_node(fw_node)->outputs());
     if (fw_node->get_internal_subgraphs_size() > 0) {
         auto first_body_results = fw_node->get_function(0)->get_results();
@@ -457,6 +462,107 @@ Any simplified_type_interpret(Any type) {
     }
 
     return type;
+}
+
+namespace {
+std::unordered_map<size_t, element::Type> bit_to_float{
+    {16, element::f16},
+    {32, element::f32},
+    {64, element::f64},
+};
+std::unordered_map<size_t, element::Type> bit_to_int{
+    // {4, element::i4}, torch don't have int4
+    {8, element::i8},
+    {16, element::i16},
+    {32, element::i32},
+    {64, element::i64},
+};
+}  // namespace
+
+void align_eltwise_input_types(const NodeContext& context,
+                               ov::Output<ov::Node>& lhs,
+                               ov::Output<ov::Node>& rhs,
+                               bool align_scalars) {
+    const auto& lhs_type = lhs.get_element_type();
+    const auto& rhs_type = rhs.get_element_type();
+    if (lhs_type.is_dynamic() || rhs_type.is_dynamic()) {
+        // if any of types is not known, align to lhs type.
+        // TODO: can be fixed with special operation?
+        rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(rhs, lhs));
+        return;
+    }
+
+    // Both types are static, align types. If float and int types are used convert int type to f32, after that align
+    // to the largest bitness, if both float or both int, just align bitness
+    if (lhs_type == rhs_type)
+        return;
+
+    // if one of operands is scalar, the resulting type is taken from the other operand except when scalar is float
+    // type and other operand is int, in that case BOTH operands get fp32 type
+    const auto& lhs_rank = lhs.get_partial_shape().rank();
+    const auto& rhs_rank = rhs.get_partial_shape().rank();
+    // consider dynamic rank as non scalar
+    const auto is_lhs_scalar = lhs_rank.is_static() && lhs_rank.get_length() == 0;
+    const auto is_rhs_scalar = rhs_rank.is_static() && rhs_rank.get_length() == 0;
+    if (is_lhs_scalar && is_rhs_scalar) {
+        // if both scalar, align to lhs
+        rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(rhs, lhs));
+        return;
+    }
+    auto lhs_dst_type = lhs_type;
+    auto rhs_dst_type = rhs_type;
+    if (is_lhs_scalar) {
+        if (lhs_type.is_real() && !rhs_type.is_real()) {
+            // if div we need to also align float types to highest bitness regardless of scalar
+            if (!align_scalars)
+                lhs_dst_type = element::f32;
+            rhs_dst_type = element::f32;
+        } else {
+            lhs = context.mark_node(std::make_shared<opset10::ConvertLike>(lhs, rhs));
+            return;
+        }
+    } else if (is_rhs_scalar) {
+        if (!lhs_type.is_real() && rhs_type.is_real()) {
+            lhs_dst_type = element::f32;
+            // if div we need to also align float types to highest bitness regardless of scalar
+            if (!align_scalars)
+                rhs_dst_type = element::f32;
+        } else {
+            rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(rhs, lhs));
+            return;
+        }
+    }
+
+    if (lhs_dst_type == element::boolean || rhs_dst_type == element::boolean) {
+        // Do nothing with bool
+        return;
+    }
+
+    if (!lhs_dst_type.is_real() && rhs_dst_type.is_real()) {
+        lhs_dst_type = element::f32;
+    } else if (lhs_dst_type.is_real() && !rhs_dst_type.is_real()) {
+        rhs_dst_type = element::f32;
+    }
+    // Align bitness to higher
+    if (lhs_dst_type.bitwidth() != rhs_dst_type.bitwidth()) {
+        const auto dst_bitness = std::max(lhs_dst_type.bitwidth(), rhs_dst_type.bitwidth());
+        element::Type* type_to_align = &lhs_dst_type;
+        if (rhs_dst_type.bitwidth() < dst_bitness)
+            type_to_align = &rhs_dst_type;
+        if (type_to_align->is_real()) {
+            *type_to_align = bit_to_float.at(dst_bitness);
+        } else {
+            *type_to_align = bit_to_int.at(dst_bitness);
+        }
+    }
+
+    // Cast to destination types
+    if (lhs_dst_type != lhs_type) {
+        lhs = context.mark_node(std::make_shared<opset10::Convert>(lhs, lhs_dst_type));
+    }
+    if (rhs_dst_type != rhs_type) {
+        rhs = context.mark_node(std::make_shared<opset10::Convert>(rhs, rhs_dst_type));
+    }
 }
 
 }  // namespace pytorch
