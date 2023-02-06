@@ -24,7 +24,7 @@ std::shared_ptr<const ov::Model> convert_model(const InferenceEngine::CNNNetwork
 std::shared_ptr<::InferenceEngine::IInferencePlugin> convert_plugin(const std::shared_ptr<::ov::IPlugin>& plugin);
 std::shared_ptr<::ov::IPlugin> convert_plugin(const std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin);
 
-std::shared_ptr<::InferenceEngine::IExecutableNetworkInternal> convert_compiled_model(
+OPENVINO_RUNTIME_API std::shared_ptr<::InferenceEngine::IExecutableNetworkInternal> convert_compiled_model(
     const std::shared_ptr<::ov::ICompiledModel>& model);
 std::shared_ptr<::ov::ICompiledModel> convert_compiled_model(
     const std::shared_ptr<::InferenceEngine::IExecutableNetworkInternal>& model);

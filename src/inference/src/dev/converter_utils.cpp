@@ -353,7 +353,9 @@ public:
     }
 
     std::shared_ptr<InferenceEngine::IInferRequestInternal> CreateInferRequest() override {
-        return legacy_convert::convert_infer_request(m_model->create_infer_request());
+        auto infer_request = legacy_convert::convert_infer_request(m_model->create_infer_request());
+        infer_request->setPointerToExecutableNetworkInternal(shared_from_this());
+        return infer_request;
     }
 
     void Export(std::ostream& model) override {

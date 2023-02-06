@@ -142,11 +142,16 @@ std::shared_ptr<ov::IAsyncInferRequest> TemplatePlugin::CompiledModel::create_in
         _inputs,
         _outputs,
         std::static_pointer_cast<const TemplatePlugin::CompiledModel>(shared_from_this()));
-    return ov::legacy_convert::convert_infer_request(std::make_shared<TemplateAsyncInferRequest>(
+    auto async_infer_request = std::make_shared<TemplateAsyncInferRequest>(
         std::static_pointer_cast<TemplatePlugin::TemplateInferRequest>(internal_request),
         get_task_executor(),
         get_template_plugin()->_waitExecutor,
-        get_callback_executor()));
+        get_callback_executor());
+
+    async_infer_request->setPointerToExecutableNetworkInternal(
+        ov::legacy_convert::convert_compiled_model(std::const_pointer_cast<ov::ICompiledModel>(shared_from_this())));
+
+    return ov::legacy_convert::convert_infer_request(async_infer_request);
 }
 
 std::shared_ptr<ov::ISyncInferRequest> TemplatePlugin::CompiledModel::create_sync_infer_request() const {
