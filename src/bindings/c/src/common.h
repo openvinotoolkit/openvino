@@ -170,6 +170,14 @@ struct ov_preprocess_preprocess_steps {
 };
 
 /**
+ * @struct ov_remote_context
+ * @brief This is an interface of ov::RemoteContext
+ */
+struct ov_remote_context {
+    std::shared_ptr<ov::RemoteContext> object;
+};
+
+/**
  * @struct mem_stringbuf
  * @brief This struct puts memory buffer to stringbuf.
  */
