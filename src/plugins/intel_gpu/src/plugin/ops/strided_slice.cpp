@@ -245,7 +245,7 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
     auto output_shape = output_pshape.is_static() ? output_pshape.to_shape() : ov::Shape{};
 
     std::shared_ptr<cldnn::strided_slice> stridedSlicePrim = nullptr;
-    if (begin_constant && end_constant && stride_constant) {
+    if (begin_constant && end_constant && stride_constant && !input_pshape.is_dynamic() && !output_pshape.is_dynamic()) {
         stridedSlicePrim = std::make_shared<cldnn::strided_slice>(layerName,
                                                                   inputs[0],
                                                                   begin,
