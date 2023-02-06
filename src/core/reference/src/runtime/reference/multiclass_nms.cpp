@@ -251,7 +251,7 @@ static const std::vector<BoxInfo> nms(const float* boxes_data,
         }
     }
 
-    auto candiate_size = candidate_boxes.size();
+    int candiate_size = static_cast<int>(candidate_boxes.size());
 
     // threshold nms_top_k for each class
     // NOTE: "nms_top_k" in PDPD not exactly equal to
@@ -336,7 +336,7 @@ static const std::vector<BoxInfo> multiclass_nms(const float* boxes_data,
     const auto num_boxes = shared ? scores_data_shape[2] : scores_data_shape[1];
 
     for (size_t class_idx = 0; class_idx < num_classes; class_idx++) {
-        if (class_idx == attrs.background_class)
+        if (static_cast<int>(class_idx) == attrs.background_class)
             continue;
 
         std::vector<BoxInfo> selected;

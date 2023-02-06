@@ -98,6 +98,9 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         return make_unique<ImplType>(best_kernel);
     }
 
+private:
+    using primitive_impl::get_arguments;
+
 protected:
     virtual kernel_arguments_data get_arguments(const typed_primitive_inst<PType>& instance) const {
         kernel_arguments_data args;
@@ -170,7 +173,7 @@ protected:
 
         _kernels.reserve(_kernel_ids.size());
         for (size_t k = 0; k < _kernel_ids.size(); ++k) {
-            _kernels.emplace_back(std::move(kernels_cache.get_kernel(_kernel_ids[k])));
+            _kernels.emplace_back(kernels_cache.get_kernel(_kernel_ids[k]));
         }
     }
 

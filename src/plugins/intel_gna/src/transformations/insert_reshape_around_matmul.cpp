@@ -191,9 +191,9 @@ InsertReshapeAroundMatmul::InsertReshapeAroundMatmul() {
         }
 
         auto next_node = inputs.begin()->get_node();
-        return outputs.size() != 1 || !dynamic_cast<ngraph::opset8::Transpose*>(next_node) &&
+        return outputs.size() != 1 || (!dynamic_cast<ngraph::opset8::Transpose*>(next_node) &&
                                           !dynamic_cast<ngraph::opset8::FakeQuantize*>(next_node) &&
-                                          !dynamic_cast<ngraph::opset8::Add*>(next_node);
+                                          !dynamic_cast<ngraph::opset8::Add*>(next_node));
     };
 
     std::shared_ptr<ngraph::Node> input;
@@ -220,8 +220,8 @@ InsertReshapeAroundMatmulWithAdd::InsertReshapeAroundMatmulWithAdd() {
         }
 
         auto next_node = inputs.begin()->get_node();
-        return outputs.size() != 1 || !dynamic_cast<ngraph::opset8::Transpose*>(next_node) &&
-                                          !dynamic_cast<ngraph::opset8::FakeQuantize*>(next_node);
+        return outputs.size() != 1 || (!dynamic_cast<ngraph::opset8::Transpose*>(next_node) &&
+                                          !dynamic_cast<ngraph::opset8::FakeQuantize*>(next_node));
     };
 
     std::shared_ptr<ngraph::Node> input;

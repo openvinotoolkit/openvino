@@ -46,7 +46,7 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
         auto op = std::make_shared<PtFrameworkNode>(m_decoder, inputs, get_output_size());
 
-        for (auto body_index = 0; body_index < m_bodies.size(); ++body_index) {
+        for (size_t body_index = 0; body_index < m_bodies.size(); ++body_index) {
             op->set_function(body_index, clone_model(*get_function(body_index)));
             for (const auto& m_input_descr : m_input_descriptions[body_index]) {
                 op->m_input_descriptions[body_index].push_back(m_input_descr->copy());

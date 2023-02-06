@@ -735,15 +735,6 @@ bool is_exec_graph(const ngraph::Function& f) {
     return false;
 }
 
-bool has_dynamic_output(const std::shared_ptr<Node>& n) {
-    for (size_t i = 0; i < n->get_output_size(); i++) {
-        if (n->get_output_partial_shape(i).is_dynamic()) {
-            return true;
-        }
-    }
-    return false;
-}
-
 void auto_pad_resolving(ov::Node* node) {
     const std::set<ov::op::PadType> pad_agnostic_types = {
         ov::op::PadType::SAME_LOWER,

@@ -57,7 +57,7 @@ std::vector<TensorSlice<Index_t, Count_t>> generate_descriptors(const size_t cou
     std::vector<TensorSlice<Index_t, Count_t>> descriptors;
     descriptors.reserve(count);
 
-    for (Index_t i = 0; i < count; ++i) {
+    for (Index_t i = 0, end = static_cast<Index_t>(count); i < end; ++i) {
         descriptors.emplace_back(i, type);
     }
 

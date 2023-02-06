@@ -168,9 +168,9 @@ void GridSampleKernel<isa>::initVectors() {
     uni_vmovups(vSrcWidthF, ptr[rAux]);
 
     if (one_of(jcp.interpolationMode, GridSampleInterpolationMode::BILINEAR, GridSampleInterpolationMode::NEAREST) ||
-        jcp.interpolationMode == GridSampleInterpolationMode::BICUBIC && (jcp.paddingMode == GridSamplePaddingMode::REFLECTION ||
-                                                                          jcp.paddingMode == GridSamplePaddingMode::BORDER && !jcp.alignCorners ||
-                                                                          jcp.paddingMode == GridSamplePaddingMode::ZEROS)) {
+        (jcp.interpolationMode == GridSampleInterpolationMode::BICUBIC && (jcp.paddingMode == GridSamplePaddingMode::REFLECTION ||
+                                                                          (jcp.paddingMode == GridSamplePaddingMode::BORDER && !jcp.alignCorners) ||
+                                                                           jcp.paddingMode == GridSamplePaddingMode::ZEROS)) ) {
         vSrcHeightF = getVmm();
         mov(rAux, ptr[regParams + GET_OFF(srcHeightF)]);
         uni_vmovups(vSrcHeightF, ptr[rAux]);
@@ -185,7 +185,7 @@ void GridSampleKernel<isa>::initVectors() {
 
     if (jcp.interpolationMode != GridSampleInterpolationMode::BICUBIC) {
         if (one_of(jcp.paddingMode, GridSamplePaddingMode::BORDER, GridSamplePaddingMode::ZEROS) &&
-            (isa == x64::avx2 && jcp.interpolationMode == GridSampleInterpolationMode::NEAREST || one_of(isa, x64::avx, x64::sse41))) {
+            ((isa == x64::avx2 && jcp.interpolationMode == GridSampleInterpolationMode::NEAREST) || one_of(isa, x64::avx, x64::sse41))) {
             vZeros = getVmm();
             uni_vpxor(vZeros, vZeros, vZeros);
         }

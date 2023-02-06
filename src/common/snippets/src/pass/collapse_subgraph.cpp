@@ -40,7 +40,7 @@ auto outputs_are_not_broadcastable(const std::shared_ptr<const Node>& node) -> b
         return false;
     ov::PartialShape ref_shape = outputs.front().get_partial_shape();
     bool success = true;
-    for (int i = 1; i < outputs.size() && success; i++) {
+    for (size_t i = 1; i < outputs.size() && success; i++) {
         success &= ov::PartialShape::broadcast_merge_into(ref_shape, outputs[i].get_partial_shape(), ov::op::AutoBroadcastType::NUMPY);
     }
     return !success;

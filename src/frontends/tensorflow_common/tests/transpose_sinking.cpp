@@ -453,26 +453,27 @@ TEST(TransposeSinkingTest, SinkingThroughPreLUWithNonScalarSlope) {
     EXPECT_EQ(after_count, 2);
 }
 
-//            X (NCHW)
-//            |
-//         Transpose1
-//            |
-//         Split (NHWC)
-//           /  \
-//          /    \
-//   Transpose2 Transpose3 (NCHW)
-//       |        |
-// Const |        |   Const (NCHW)
-//  \    |        |   /
-//   \   |        |  /
-//    \  |        | /
-//     Add        Add (NCHW)
-//        \       /
-//         \     /
-//          \   /
-//           Add (NCHW)
-//            |
-//          Result (NCHW)
+/*            X (NCHW)
+ *            |
+ *         Transpose1
+ *            |
+ *         Split (NHWC)
+ *           /  \
+ *          /    \
+ *   Transpose2 Transpose3 (NCHW)
+ *       |        |
+ * Const |        |   Const (NCHW)
+ *  \    |        |   /
+ *   \   |        |  /
+ *    \  |        | /
+ *     Add        Add (NCHW)
+ *        \       /
+ *         \     /
+ *          \   /
+ *           Add (NCHW)
+ *            |
+ *          Result (NCHW)
+ */
 TEST(TransposeSinkingTest, MultiOutput) {
     ngraph::Shape shape_nhwc{1, 4, 4, 1};
     ngraph::Shape shape_nchw{1, 1, 4, 6};
@@ -514,34 +515,35 @@ TEST(TransposeSinkingTest, MultiOutput) {
     ASSERT_EQ(new_transpose->get_output_shape(0), (ngraph::Shape{1, 1, 4, 3}));
 }
 
-//            X (NHWC)
-//            |
-//        Transpose (NCHW)
-//            |
-//         AvgPool0
-//            |
-//        Transpose0 (NHWC)
-//            |
-//          Split (NHWC)
-//           /  \
-//          /    \
-//   Transpose1 Transpose2 (NCHW)
-//       |         |
-//     AvgPool1  AvgPool2
-//       |         |
-//   Transpose3 Transpose4 (NHWC)
-//        \       /
-//         \     /
-//          \   /
-//          Concat (NHWC)
-// Const      /
-//   \       /
-//    \     /
-//     \   /
-//      \ /
-//      Add (NHWC)
-//       |
-//     Result
+/*            X (NHWC)
+ *            |
+ *        Transpose (NCHW)
+ *            |
+ *         AvgPool0
+ *            |
+ *        Transpose0 (NHWC)
+ *            |
+ *          Split (NHWC)
+ *           /  \
+ *          /    \
+ *   Transpose1 Transpose2 (NCHW)
+ *       |         |
+ *     AvgPool1  AvgPool2
+ *       |         |
+ *   Transpose3 Transpose4 (NHWC)
+ *        \       /
+ *         \     /
+ *          \   /
+ *          Concat (NHWC)
+ * Const      /
+ *   \       /
+ *    \     /
+ *     \   /
+ *      \ /
+ *      Add (NHWC)
+ *       |
+ *     Result
+ */
 TEST(TransposeSinkingTest, AlexnetPattern) {
     ngraph::Shape shape_nhwc{1, 55, 55, 96};
     ngraph::Shape shape_nchw{1, 96, 55, 55};

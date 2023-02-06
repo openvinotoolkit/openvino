@@ -28,11 +28,12 @@ namespace LayerTestsDefinitions {
 class ScaleshiftConv_x2_Eltwise : public BasicBF16Test {
 protected:
     std::shared_ptr<ngraph::Function> createGraph(InferenceEngine::Precision netPrecision) override {
-        //              scaleshift (FP32)
-        //             /             \
-        //           Conv1 (BF16)     Conv1 (BF16)
-        //             \               /
-        //                eltwise (Fused into Conv1) produce FP32 output
+        /*              scaleshift (FP32)
+         *             /             \
+         *           Conv1 (BF16)     Conv1 (BF16)
+         *             \               /
+         *                eltwise (Fused into Conv1) produce FP32 output
+         */
 
         ngraph::element::Type ntype = (netPrecision == Precision::FP32) ? ngraph::element::f32 : ngraph::element::bf16;
         auto channelsCount = inputShapes[1];

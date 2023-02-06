@@ -351,8 +351,8 @@ InferenceEngine::Precision GetInputPrecision() {
 InferenceEngine::Precision GetWeightsPrecision(const LayerInfo& layer_info,
                                                const QuantizedLayerParams& quant_layer_params,
                                                const Config& gna_config) {
-    if ((layer_info.isConvolution() || layer_info.isConvolutionFilter()) &&
-            gna_config.gnaCompileTarget != common::kGnaTarget3_5 ||
+    if (((layer_info.isConvolution() || layer_info.isConvolutionFilter()) &&
+            gna_config.gnaCompileTarget != common::kGnaTarget3_5) ||
         layer_info.isScaleShift()) {
         return InferenceEngine::Precision::I16;
     }

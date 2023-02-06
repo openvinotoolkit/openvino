@@ -35,7 +35,7 @@ public:
                 << "_Scale=" << vector_to_string(scaleShift.first)
                 << "_Shift=" << vector_to_string(scaleShift.second)
                 << "_Intervals=";
-        for (const auto vecInt : quantizeIntervals) {
+        for (const auto& vecInt : quantizeIntervals) {
             results << vector_to_string(vecInt) << ",";
         }
 

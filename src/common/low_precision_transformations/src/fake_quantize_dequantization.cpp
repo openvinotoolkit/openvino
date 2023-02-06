@@ -104,7 +104,7 @@ bool FakeQuantizeDequantization::checkShape(const std::shared_ptr<ngraph::Node>&
     }
 
     if (!inPShape.rank().is_dynamic()) {
-        for (int i = 0; i < inPShape.size(); ++i) {
+        for (size_t i = 0; i < inPShape.size(); ++i) {
             if (inPShape[i] != outPShape[i] && !inPShape[i].is_dynamic()) {
                 return false;
             }

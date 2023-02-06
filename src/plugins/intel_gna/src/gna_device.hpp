@@ -41,7 +41,6 @@ class GNADeviceHelper : public ov::intel_gna::GNADevice {
     std::string modeOfOperation = "default";
     GnaAllocations allAllocations;
     uint32_t nGnaDeviceIndex = 0;
-    bool swExactMode = false;
     Gna2DeviceVersion detectedGnaDevVersion = Gna2DeviceVersionSoftwareEmulation;
     std::string executionTarget;
     std::string compileTarget;
