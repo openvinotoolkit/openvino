@@ -15,7 +15,8 @@ namespace v1 {
 namespace pad {
 inline auto calc_dim(const int64_t dim, const int64_t pad_dim_diff) -> int64_t {
     constexpr auto inf_bound = -1;
-    return (dim == inf_bound) ? dim : clip(dim + pad_dim_diff, 0, std::numeric_limits<int64_t>::max());
+    const auto padded_dim = dim + pad_dim_diff;
+    return ((dim == inf_bound) || (padded_dim < 0)) ? inf_bound : padded_dim;
 };
 }  // namespace pad
 
@@ -57,8 +58,8 @@ std::vector<TShape> shape_infer(const Pad* op,
     const auto& arg_shape_rank = arg_shape.rank();
 
     TShape output_shape;
-    const auto pads_begin_coord = get_input_const_data_as<TShape, int64_t>(op, 1, constant_data);
-    const auto pads_end_coord = get_input_const_data_as<TShape, int64_t>(op, 2, constant_data);
+    const auto pads_begin_coord = get_input_bounds<TShape, int64_t>(op, 1, constant_data);
+    const auto pads_end_coord = get_input_bounds<TShape, int64_t>(op, 2, constant_data);
 
     if (arg_shape_rank.is_static()) {
         const auto arg_rank_len = arg_shape_rank.get_length();
@@ -83,10 +84,13 @@ std::vector<TShape> shape_infer(const Pad* op,
                 const auto& begin = (*pads_begin_coord)[i];
                 const auto& end = (*pads_end_coord)[i];
 
+                const auto& begin_lb = std::get<0>(begin);
+                const auto& end_lb = std::get<0>(end);
+
                 const auto dim_lb = arg_shape[i].get_min_length();
 
                 if (arg_shape[i].is_static()) {
-                    if (begin > 0 || end > 0) {
+                    if (begin_lb > 0 || end_lb > 0) {
                         NODE_VALIDATION_CHECK(op,
                                               pad_mode != op::PadMode::EDGE || dim_lb >= 1,
                                               "EDGE padding mode requires an input of dimension of "
@@ -100,24 +104,22 @@ std::vector<TShape> shape_infer(const Pad* op,
                     }
                     NODE_VALIDATION_CHECK(
                         op,
-                        pad_mode != op::PadMode::REFLECT || (cmp::lt(begin, dim_lb) && cmp::lt(end, dim_lb)),
+                        pad_mode != op::PadMode::REFLECT || (cmp::lt(begin_lb, dim_lb) && cmp::lt(end_lb, dim_lb)),
                         "REFLECT padding mode requires that 'pads_begin[D]' and 'pads_end[D]' "
                         "must be not greater than 'data_shape[D] - 1'.");
                     NODE_VALIDATION_CHECK(
                         op,
-                        pad_mode != op::PadMode::SYMMETRIC || (cmp::le(begin, dim_lb) && cmp::le(end, dim_lb)),
+                        pad_mode != op::PadMode::SYMMETRIC || (cmp::le(begin_lb, dim_lb) && cmp::le(end_lb, dim_lb)),
                         "SYMMETRIC padding mode requires that 'pads_begin[D]' and 'pads_end[D]' "
                         "must be not greater than 'data_shape[D]'.");
                 }
 
-                const auto pad_dim_diff = begin + end;
-                if (pad_dim_diff != 0) {
-                    const auto lb = pad::calc_dim(dim_lb, pad_dim_diff);
-                    if (arg_shape[i].is_static()) {
-                        output_shape.emplace_back(lb);
-                    } else {
-                        output_shape.emplace_back(lb, pad::calc_dim(arg_shape[i].get_max_length(), pad_dim_diff));
-                    }
+                const auto pad_dim_diff_lb = begin_lb + end_lb;
+                const auto pad_dim_diff_ub = begin.second + end.second;
+                if ((pad_dim_diff_lb != 0) || (pad_dim_diff_ub != 0)) {
+                    const auto lb = pad::calc_dim(dim_lb, pad_dim_diff_lb);
+                    const auto ub = pad::calc_dim(arg_shape[i].get_max_length(), pad_dim_diff_ub);
+                    output_shape.emplace_back(lb, ub);
                 } else {
                     output_shape.push_back(arg_shape[i]);
                 }

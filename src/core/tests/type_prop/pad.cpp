@@ -279,6 +279,41 @@ TEST(type_prop, pad_v1_dynamic_input_type_with_static_value) {
     EXPECT_EQ(pad->get_output_partial_shape(0), PartialShape::dynamic(3));
 }
 
+TEST(type_prop, pad_v1_preserve_partial_values_and_labels_via_evaluates_bounds) {
+    auto arg_shape = PartialShape{1, {2, 5}, {1, 3}};
+    auto begin_shape = PartialShape{{2, 4}, 0, {0, 2}};
+    auto end_shape = PartialShape{{1, 2}, 0, 1};
+    set_shape_labels(arg_shape, 10);
+    set_shape_labels(begin_shape, 20);
+    set_shape_labels(end_shape, 30);
+
+    auto arg = make_shared<op::Parameter>(element::f32, arg_shape);
+    auto s_begin = make_shared<op::ShapeOf>(make_shared<op::Parameter>(element::i64, begin_shape));
+    auto s_end = make_shared<op::ShapeOf>(make_shared<op::Parameter>(element::i64, end_shape));
+
+    auto pad = make_shared<op::v1::Pad>(arg, s_begin, s_end, op::PadMode::EDGE);
+
+    EXPECT_EQ(pad->get_output_partial_shape(0), PartialShape({{4, 7}, {2, 5}, {2, 6}}));
+    EXPECT_THAT(get_shape_labels(pad->get_output_partial_shape(0)), ElementsAre(ov::no_label, 11, ov::no_label));
+}
+
+TEST(type_prop, pad_v1_preserve_partial_values_and_labels_on_inputs) {
+    auto arg_shape = PartialShape{1, {2, 5}, {1, 3}};
+    set_shape_labels(arg_shape, 10);
+    auto arg = make_shared<op::Parameter>(element::i32, arg_shape);
+    auto s = make_shared<op::ShapeOf>(arg);
+
+    auto pads_begin = make_shared<op::Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
+    auto pads_end = make_shared<op::Constant>(element::i64, Shape{1}, std::vector<int64_t>{2});
+
+    auto pad = make_shared<op::v1::Pad>(s, pads_begin, pads_end, op::PadMode::EDGE);
+    auto param = make_shared<op::Parameter>(element::f32, PartialShape{1});
+    auto bc = std::make_shared<op::v3::Broadcast>(param, pad, op::BroadcastType::BIDIRECTIONAL);
+
+    EXPECT_EQ(bc->get_output_partial_shape(0), PartialShape({1, 1, {2, 5}, {1, 3}, {1, 3}, {1, 3}}));
+    EXPECT_THAT(get_shape_labels(bc->get_output_partial_shape(0)), ElementsAre(10, 10, 11, 12, 12, 12));
+}
+
 TEST(type_prop, pad_v1_default_ctor) {
     const auto arg_shape = PartialShape{{1, 2}, {4, 10}, {3, 8}, {1, 2}};
     const auto arg = make_shared<op::Parameter>(element::f32, arg_shape);

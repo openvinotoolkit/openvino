@@ -331,6 +331,50 @@ std::unique_ptr<TShape> get_input_const_data_as_shape(const ov::Node* op,
     }
     return {};
 }
+
+/**
+ * \brief Get the input bounds from constant input (constant map) or evaluate bunds
+ *  and return them as vector of pairs (lower, upper).
+ *
+ * \tparam TShape        Shape type.
+ * \tparam TData         Bound value type.
+ *
+ * \param op             Operator pointer.
+ * \param idx            Input index.
+ * \param constant_data  Map with constant data.
+ *
+ * \return Return vector of bounds as pair lower, upper.
+ */
+template <class TShape, class TData, class TResult = std::vector<std::pair<TData, TData>>>
+std::unique_ptr<TResult> get_input_bounds(const ov::Node* op,
+                                          size_t idx,
+                                          const std::map<size_t, HostTensorPtr>& constant_data) {
+    const auto make_bound = [](TData lb, TData ub) -> typename TResult::value_type {
+        return {lb, ub};
+    };
+
+    if (auto lowers = op::get_input_const_data_as<TShape, TData>(op, idx, constant_data)) {
+        auto out = std::unique_ptr<TResult>(new TResult);
+        out->reserve(lowers->size());
+        std::transform(lowers->begin(), lowers->end(), lowers->begin(), std::back_inserter(*out), make_bound);
+        return out;
+    } else {
+        auto bounds = ov::evaluate_both_bounds(op->get_input_source_output(idx));
+
+        if (bounds.first && bounds.second) {
+            constexpr auto cast = ov::util::Cast<TData>();
+            auto lowers = get_tensor_data_as<TData>(bounds.first, cast);
+            auto uppers = get_tensor_data_as<TData>(bounds.second, cast);
+
+            auto out = std::unique_ptr<TResult>(new TResult);
+            out->reserve(lowers.size());
+            std::transform(lowers.begin(), lowers.end(), uppers.begin(), std::back_inserter(*out), make_bound);
+            return out;
+        }
+    }
+    return {};
+}
+
 }  // namespace op
 }  // namespace ov
 
