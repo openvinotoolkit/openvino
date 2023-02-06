@@ -141,6 +141,18 @@ protected:
     }
 
     RegistersPool::Ptr registersPool;
+
+    enum {
+        // Comparison predicate operand (immediate byte) for single-precision floating-point values.
+        CMP_EQ_PS = 0, // Equal (ordered, non-signaling)
+        CMP_LT_PS,     // Less-than (ordered, signaling)
+        CMP_LE_PS,     // Less-than-or-equal (ordered, signaling)
+        CMP_UNORD_PS,  // Unordered (non-signaling)
+        CMP_NEQ_PS,    // Not-equal (unordered, non-signaling)
+        CMP_NLT_PS,    // Not-less-than (unordered, signaling)
+        CMP_NLE_PS,    // Not-less-than-or-equal (unordered, signaling)
+        CMP_ORD_PS     // Ordered (non-signaling)
+    };
 };
 
 } // namespace intel_cpu
