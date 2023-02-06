@@ -227,6 +227,12 @@ InferenceEngine::Parameter TemplatePlugin::CompiledModel::get_property(const std
 
     return _cfg.Get(name);
 }
+
+InferenceEngine::Parameter TemplatePlugin::CompiledModel::get_property(const std::string& name,
+                                                                       const std::string& target_device) const {
+    // apply for Meta plugin if want to query hw device's property through this function via Meta plugin.
+    OPENVINO_NOT_IMPLEMENTED;
+}
 // ! [executable_network:get_config]
 
 // ! [executable_network:export]

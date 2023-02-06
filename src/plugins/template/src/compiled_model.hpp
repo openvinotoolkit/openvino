@@ -33,6 +33,8 @@ public:
 
     virtual ov::Any get_property(const std::string& name) const override;
 
+    virtual ov::Any get_property(const std::string& name, const std::string& target_device) const override;
+
     ov::RemoteContext get_context() const override;
     std::shared_ptr<InferenceEngine::IInferRequestInternal> create_infer_request() const override;
 
