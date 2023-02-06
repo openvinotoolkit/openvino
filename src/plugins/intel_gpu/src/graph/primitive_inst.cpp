@@ -356,9 +356,9 @@ bool primitive_inst::update_impl() {
                 });
 
                 _impl = _dynamic_impl->clone();
-                _impl->update_dispatch_data(updated_params);
+                _impl->update_dispatch_data(*_impl_params);
 
-                update_shape_info(updated_params);
+                update_shape_info(*_impl_params);
             } else {
                 _impl = _node->type()->choose_impl(*_node, updated_params);
                 auto& kernels_cache = get_network().get_kernels_cache();
@@ -776,6 +776,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
         return pool.get_memory(static_layout, type);
     };
 
+
     auto layout = impl_params.get_output_layout(idx);
     OPENVINO_ASSERT(layout.is_static() || layout.has_upper_bound(), "[GPU] Can't allocate output for dynamic layout");
     auto device_mem_acc = [&](size_t a, const cldnn::layout& l) {
@@ -804,8 +805,11 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     auto use_lockable_memory = is_output_buffer(_node) || is_cpu || is_any_user_cpu(_node.get_users()) ||
                                !_engine.supports_allocation(allocation_type::usm_device);
     const auto& lockable_mem_type = _engine.get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
+
+    // If this node is to be used as shape infer, it needs to copy data to be used by shape infer.
     auto alloc_type = use_lockable_memory ? lockable_mem_type
-                    : usm_device_allocatable ? allocation_type::usm_device : lockable_mem_type;
+                    : !usm_device_allocatable ? lockable_mem_type :
+                      !_node.is_shape_infer_dep() ? allocation_type::usm_device : lockable_mem_type;
 
     if ((is_internal && (_node.can_be_optimized() || _node.is_type<generic_layer>())) || (memory_reuse_by_user == false)) {
         GPU_DEBUG_LOG << "[" << _node.id() << ": output]" << std::endl;
@@ -1270,6 +1274,7 @@ size_t primitive_inst::get_impl_key(const kernel_impl_params& params) const {
     }
     return seed;
 }
+
 size_t primitive_inst::get_impl_key() const {
     auto updated_params = _node->type()->get_fake_aligned_params(*_impl_params);
     return get_impl_key(updated_params);

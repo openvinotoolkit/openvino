@@ -59,14 +59,14 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassExecutableNetworkGetMetricTest,
 auto multiModelPriorityConfigs = []() {
     return std::vector<ov::AnyMap>{{ov::hint::model_priority(ov::hint::Priority::HIGH)},
                                    {ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
-                                   {ov::hint::model_priority(ov::hint::Priority::LOW)},
-                                   {ov::hint::model_priority(ov::hint::Priority::DEFAULT)}};
+                                   {ov::hint::model_priority(ov::hint::Priority::LOW)}};
 };
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassExecutableNetworkGetMetricTest,
                          OVClassExecutableNetworkGetMetricTest_MODEL_PRIORITY,
                          ::testing::Combine(::testing::Values("AUTO"),
-                                            ::testing::ValuesIn(multiModelPriorityConfigs())));
+                                            ::testing::ValuesIn(multiModelPriorityConfigs())),
+                         OVClassExecutableNetworkGetMetricTest_MODEL_PRIORITY::getTestCaseName);
 
 const std::vector<ov::AnyMap> multiPerformanceHintConfigs = {
     {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},

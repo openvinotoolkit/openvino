@@ -28,7 +28,7 @@ ov::Any PrecisionsAttribute::create(
     return (rt[PrecisionsAttribute::get_type_info_static()] = PrecisionsAttribute(params.defaultPrecisions));
 }
 
-void PrecisionsAttribute::merge(std::vector<ov::Any>& attributes) {
+void PrecisionsAttribute::merge_attributes(std::vector<ov::Any>& attributes) {
     auto& my = value();
     for (auto attribute : attributes) {
         const auto& attributeValues = attribute.as<PrecisionsAttribute>().value();

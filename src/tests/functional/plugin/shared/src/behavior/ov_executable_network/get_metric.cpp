@@ -7,6 +7,19 @@
 namespace ov {
 namespace test {
 namespace behavior {
+std::string OVClassExecutableNetworkGetMetricTest_Priority::getTestCaseName(testing::TestParamInfo<PriorityParams> obj) {
+    std::string target_device;
+    ov::AnyMap userConfig;
+    std::tie(target_device, userConfig) = obj.param;
+    std::replace(target_device.begin(), target_device.end(), ':', '.');
+    auto compileModelProperties = userConfig;
+    std::ostringstream result;
+    result << "device_name=" << target_device << "_";
+    for (auto& iter : compileModelProperties) {
+        result << iter.first << "_" << iter.second.as<std::string>() << "_";
+    }
+    return result.str();
+}
 
 void OVClassHeteroExecutableNetworkGetMetricTest::SetCpuAffinity(ov::Core& core, std::vector<std::string>& expectedTargets) {
 #ifdef ENABLE_INTEL_CPU
