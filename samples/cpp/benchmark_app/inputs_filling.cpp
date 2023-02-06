@@ -571,7 +571,7 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
     } else if (type == ov::element::f64) {
         return create_tensor_random<double, double>(inputInfo.second);
     } else if (type == ov::element::f16) {
-        return create_tensor_random<ov::float16, short>(inputInfo.second);
+        return create_tensor_random<short, short>(inputInfo.second);
     } else if (type == ov::element::i32) {
         return create_tensor_random<int32_t, int32_t>(inputInfo.second);
     } else if (type == ov::element::i64) {
