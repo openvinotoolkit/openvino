@@ -122,8 +122,6 @@ std::vector<std::string> disabledTestPatterns() {
         // New plugin API doesn't support changes of pre-processing
         R"(.*InferRequestPreprocessTest.*SetPreProcessToInputInfo.*)",
         R"(.*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
-        // TODO: Fix deep copy for inputs/output
-        R"(.*OVInferRequestBatchedTests.*SetInputTensors_Cache_CheckDeepCopy.*)",
     };
 
 #ifdef _WIN32
