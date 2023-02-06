@@ -15,18 +15,36 @@ using namespace CPUTestUtils;
 using namespace InferenceEngine;
 
 namespace SubgraphTestsDefinitions {
-class RemoveConvertCPUTest : virtual public SubgraphBaseTest, public CPUTestsBase {
+using RemoveConvertCPUTestParams = std::tuple<ElementType, InputShape>;
+
+class RemoveUselessBF16ConvertCPUTest : public testing::WithParamInterface<RemoveConvertCPUTestParams>,
+                             virtual public SubgraphBaseTest,
+                             public CPUTestsBase {
 public:
+    static std::string getTestCaseName(const testing::TestParamInfo<RemoveConvertCPUTestParams>& obj) {
+        ElementType inType;
+        InputShape inputShape;
+        std::tie(inType, inputShape) = obj.param;
+        std::ostringstream result;
+        result << "IS=" << inputShape << "_";
+        result << "Prc=" << inType;
+        return result.str();
+    }
+
     void SetUp() override {
+        ElementType inType;
+        InputShape inputShape;
+        std::tie(inType, inputShape) = this->GetParam();
         targetDevice = CommonTestUtils::DEVICE_CPU;
+        // snippets will capture convert before graph optimizer, disable it
         configuration.insert({"SNIPPETS_MODE", "DISABLE"});
-        configuration.insert({"ENFORCE_BF16", "YES"});
-        const auto input_static_shape = ov::Shape{1, 4, 32, 64};
-        std::tie(inFmts, outFmts, priority, selectedType) = CPUSpecificParams{{}, {}, {},
-            makeSelectedTypeStr("ref", ov::element::bf16)};
-        auto in_shapes = static_shapes_to_test_representation({input_static_shape});
-        init_input_shapes({in_shapes});
-        auto input_params = builder::makeParams(element::bf16, {input_static_shape});
+        if (inType == ElementType::bf16) {
+            configuration.insert({"ENFORCE_BF16", "YES"});
+        }
+        std::tie(inFmts, outFmts, priority, selectedType) =
+            CPUSpecificParams{{}, {}, {}, makeSelectedTypeStr("ref", inType)};
+        init_input_shapes({inputShape});
+        auto input_params = builder::makeDynamicParams(inType, {inputShape.first});
         auto convert = builder::makeConversion(input_params[0], element::f32, ::helpers::ConversionTypes::CONVERT);
         auto begin = builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 0, 0});
         auto end = builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 16, 0});
@@ -41,15 +59,33 @@ public:
                                                {},
                                                {},
                                                {});
-        auto convert2 = builder::makeConversion(slice, element::bf16, ::helpers::ConversionTypes::CONVERT);
+        auto convert2 = builder::makeConversion(slice, inType, ::helpers::ConversionTypes::CONVERT);
         function = std::make_shared<ov::Model>(convert2, input_params, "remove_convert");
     };
 };
-namespace {
-TEST_F(RemoveConvertCPUTest, smoke_RemoveConverts_CPU) {
+
+TEST_P(RemoveUselessBF16ConvertCPUTest, CompareWithRefs) {
     run();
     CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
     CheckPluginRelatedResults(compiledModel, "StridedSlice");
 }
+namespace {
+const std::vector<ElementType> inPrecisions = {
+    // only bf16 could match this pattern
+    ElementType::bf16,
+};
+
+const std::vector<InputShape> inputShapes = {
+    // dynamic batch
+    {{-1, 4, 32, 64}, {{1, 4, 32, 64}, {2, 4, 32, 64}, {3, 4, 32, 64}}},
+    {{-1, -1, -1, -1}, {{1, 4, 32, 64}, {2, 4, 32, 64}, {3, 4, 32, 64}}},
+    // static shape
+    {{1, 4, 32, 64}, {{1, 4, 32, 64}}},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_RemoveConvert,
+                         RemoveUselessBF16ConvertCPUTest,
+                         ::testing::Combine(::testing::ValuesIn(inPrecisions), ::testing::ValuesIn(inputShapes)),
+                         RemoveUselessBF16ConvertCPUTest::getTestCaseName);
 }  // namespace
 }  // namespace SubgraphTestsDefinitions
