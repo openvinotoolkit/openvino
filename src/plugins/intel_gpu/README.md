@@ -10,11 +10,11 @@ Please contact a member of [openvino-ie-gpu-maintainers](https://github.com/orgs
 
 GPU Plugin contains the following components:
 
-* [docs](./docs/) - contains developer documentation pages for the component.
-* [include](./include/) - contains public API.
-* [src](./src/) - folder contains sources of the component.
-* [tests](./tests/) - contains tests for OpenVINO Plugin component.
-* [thirdparty](./thirdparty/) - contains third-party modules.
+* [docs](./docs/) - developer documentation pages for the component.
+* [include](./include/) - public API.
+* [src](./src/) - sources of the component.
+* [tests](./tests/) - tests for OpenVINO Plugin component.
+* [thirdparty](./thirdparty/) - third-party modules.
 
 ## Tutorials
 
