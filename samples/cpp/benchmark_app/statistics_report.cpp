@@ -321,7 +321,7 @@ const nlohmann::json StatisticsReportJSON::sort_perf_counters_to_json(
         nlohmann::json item;
         item["name"] = layer.node_name;  // layer name
         item["status"] =
-            ((int)layer.status < (size_t)(sizeof(status_names) / sizeof(status_names[0])) ? status_names[(int)layer.status]
+            ((int)layer.status < (int)(sizeof(status_names) / sizeof(status_names[0])) ? status_names[(int)layer.status]
                                                                                   : "INVALID_STATUS");
         item["node_type"] = layer.node_type;
         item["exec_type"] = layer.exec_type;
