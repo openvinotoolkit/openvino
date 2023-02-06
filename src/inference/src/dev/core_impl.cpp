@@ -340,11 +340,12 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(ov::Plugin& plugin,
         manager.run_passes(cloned_model);
         prepared_model = cloned_model;
     }
-
+    auto _config = config;
+    coreConfig.update_config(plugin, _config);
     if (!context._impl) {
-        compiled_model = plugin.compile_model(prepared_model, config);
+        compiled_model = plugin.compile_model(prepared_model, _config);
     } else {
-        compiled_model = plugin.compile_model(prepared_model, context, config);
+        compiled_model = plugin.compile_model(prepared_model, context, _config);
     }
     return compiled_model;
 }
@@ -997,10 +998,11 @@ bool ov::CoreImpl::CoreConfig::core_config_supported(const ov::Plugin& plugin, c
     auto device_name = plugin.get_name();
 
     if (_core_plugins_properties.find(config_name) != _core_plugins_properties.end()) {
-        // Remove after all plugins can handle core properties.
+        // TODO: support ARM, CUDA  plugins.
         supported = device_name.find("CPU") != std::string::npos || device_name.find("GPU") != std::string::npos ||
                     device_name.find("GNA") != std::string::npos || device_name.find("AUTO") != std::string::npos ||
-                    device_name.find("MULTI") != std::string::npos || device_name.find("BATCH") != std::string::npos;
+                    device_name.find("MULTI") != std::string::npos || device_name.find("BATCH") != std::string::npos ||
+                    device_name.find("HETERO") != std::string::npos;
         if (!supported) {
             supported = util::contains(plugin.get_property(ov::supported_properties), config_name);
         }

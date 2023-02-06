@@ -91,7 +91,16 @@ Engine::DeviceMetaInformationMap Engine::GetDevicePlugins(const std::string& tar
             tconfig[KEY_DEVICE_ID] = deviceIDLocal;
         }
 
-        return GetCore()->GetSupportedConfig(deviceName, tconfig);
+        auto config = GetCore()->GetSupportedConfig(deviceName, tconfig);
+
+        // Propagate existed core properties to the following operations, e.g. LoadNetwork
+        auto core_config = GetCore()->QueryCoreSupportedConfig();
+        for (auto& item : localConfig) {
+            if (core_config.count(item.first)) {
+                config[item.first] = item.second;
+            }
+        }
+        return config;
     };
 
     auto fallbackDevices = InferenceEngine::DeviceIDParser::getHeteroDevices(targetFallback);
@@ -106,12 +115,19 @@ Engine::DeviceMetaInformationMap Engine::GetDevicePlugins(const std::string& tar
 }
 
 void Engine::SetConfig(const Configs& configs) {
+    if (GetCore() == nullptr) {
+        IE_THROW() << "Please, work with HETERO device via InferencEngine::Core object";
+    }
+    auto core_config = GetCore()->QueryCoreSupportedConfig();
+
     for (auto&& kvp : configs) {
         const auto& name = kvp.first;
         const auto& supported_configKeys = getSupportedConfigKeys();
-        if (supported_configKeys.end() != std::find(supported_configKeys.begin(), supported_configKeys.end(), name))
+        if (supported_configKeys.end() != std::find(supported_configKeys.begin(), supported_configKeys.end(), name)) {
             _config[name] = kvp.second;
-        else
+        } else if (core_config.count(name)) {
+            IE_THROW() << "Unsupported core property key: " << name;
+        } else
             IE_THROW() << "Unsupported config key: " << name;
     }
 }
@@ -214,6 +230,10 @@ std::string Engine::DeviceArchitecture(const std::string& targetFallback) const 
 }
 
 Parameter Engine::GetConfig(const std::string& name, const std::map<std::string, Parameter>& /*options*/) const {
+    if (GetCore() == nullptr) {
+        IE_THROW() << "Please, work with HETERO device via InferencEngine::Core object";
+    }
+    auto core_config = GetCore()->QueryCoreSupportedConfig();
     if (name == HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)) {
         auto it = _config.find(HETERO_CONFIG_KEY(DUMP_GRAPH_DOT));
         IE_ASSERT(it != _config.end());
@@ -229,6 +249,8 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
         } else {
             return {it->second};
         }
+    } else if (core_config.count(name)) {
+        IE_THROW() << "Unsupported core property key: " << name;
     } else {
         IE_THROW() << "Unsupported config key: " << name;
     }
