@@ -4,7 +4,7 @@
 import os
 import sys
 import re
-from typing import List
+from typing import Dict, List
 import numpy as np
 from collections import defaultdict
 from pathlib import Path
@@ -80,6 +80,14 @@ def get_batch_sizes_per_input_map(app_input_info: List[AppInputInfo]):
             batch_sizes_map[info.name] = [1] * len(info.shapes)
     return batch_sizes_map
 
+def verify_objects_to_be_used(objects_to_be_used_map: Dict[str, List[str]], info: AppInputInfo, total_frames: int, input_type_name: str):
+        if objects_to_be_used_map[info.name] > total_frames and objects_to_be_used_map[info.name] % total_frames != 0:
+            objects_to_be_used_map[info.name] = objects_to_be_used_map[info.name] - objects_to_be_used_map[info.name] % total_frames
+            logger.warning(f"Number of provided {input_type_name} for input '{info.name}' is not a multiple of the number of "
+                            f"provided data shapes. Only {objects_to_be_used_map[info.name]} {input_type_name} will be processed for this input.")
+        elif objects_to_be_used_map[info.name] < total_frames:
+            logger.warning(f"Some {input_type_name} will be dublicated: {total_frames} is required, "
+                            f"but only {objects_to_be_used_map[info.name]} were provided.")
 
 def get_input_data(paths_to_input, app_input_info):
     image_mapping, numpy_mapping, binary_mapping = get_input_file_mappings(paths_to_input, app_input_info)
@@ -93,15 +101,6 @@ def get_input_data(paths_to_input, app_input_info):
                             for input_name, images in numpy_mapping.items()}
     binaries_to_be_used_map = {input_name: len(binaries)
                             for input_name, binaries in binary_mapping.items()}
-
-    def verify_objects_to_be_used(objects_to_be_used_map, info, total_frames, type):
-        if objects_to_be_used_map[info.name] > total_frames and objects_to_be_used_map[info.name] % total_frames != 0:
-            objects_to_be_used_map[info.name] = objects_to_be_used_map[info.name] - objects_to_be_used_map[info.name] % total_frames
-            logger.warning(f"Number of provided {type} for input '{info.name}' is not a multiple of the number of "
-                            f"provided data shapes. Only {objects_to_be_used_map[info.name]} {type} will be processed for this input.")
-        elif objects_to_be_used_map[info.name] < total_frames:
-            logger.warning(f"Some {type} will be dublicated: {total_frames} is required, "
-                            f"but only {objects_to_be_used_map[info.name]} were provided.")
 
     for info in app_input_info:
         if info.shapes:
@@ -382,7 +381,8 @@ def get_input_file_mappings(paths_to_inputs, app_input_info):
 
 def parse_path(path, app_input_info):
     """
-    Parse "input_1:file1/dir1,file2/dir2,input_2:file3/dir3 or file1/dir1,file2/dir2" into two dicts - with binary files and with images
+    Parse "input_1:file1/dir1,file2/dir2,input_2:file3/dir3 or file1/dir1,file2/dir2" into three dicts,
+    each containing input_name (str) as key and list of strings of binary/numpy/image filepaths as values.
     """
     input_names = list(info.name for info in app_input_info)
     input_node_names = list(info.node_name for info in app_input_info)

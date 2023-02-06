@@ -112,8 +112,8 @@ usage: benchmark_app.py [-h [HELP]] [-i PATHS_TO_INPUT [PATHS_TO_INPUT ...]] -m 
                         [-pin {YES,NO,NUMA,HYBRID_AWARE}] [-exec_graph_path EXEC_GRAPH_PATH] [-pc [PERF_COUNTS]] [-pcsort {no_sort,sort,simple_sort}] [-pcseq [PCSEQ]]
                         [-inference_only [INFERENCE_ONLY]] [-report_type {no_counters,average_counters,detailed_counters}] [-report_folder REPORT_FOLDER] [-dump_config DUMP_CONFIG]
                         [-load_config LOAD_CONFIG] [-infer_precision INFER_PRECISION]
-                        [-ip {boolean,bool,f16,fp16,f32,fp32,f64,fp64,i8,i16,i32,i64,u8,u16,u32,u64}]]
-                        [-op {boolean,bool,f16,fp16,f32,fp32,f64,fp64,i8,i16,i32,i64,u8,u16,u32,u64}]]
+                        [-ip {bool,f16,f32,f64,i8,i16,i32,i64,u8,u16,u32,u64}]]
+                        [-op {bool,f16,f32,f64,i8,i16,i32,i64,u8,u16,u32,u64}]]
                         [-iop INPUT_OUTPUT_PRECISION]
                         [-cdir CACHE_DIR] [-lfile [LOAD_FROM_FILE]] [--mean_values [R,G,B]] [--scale_values [R,G,B]]
 
@@ -215,9 +215,9 @@ Options:
                                     }
   -infer_precision INFER_PRECISION
                         Optional. Hint to specifies inference precision. Example: -infer_precision CPU:bf16,GPU:f32
-  -ip {boolean,bool,f16,fp16,f32,fp32,f64,fp64,i8,i16,i32,i64,u8,u16,u32,u64}, --input_precision {boolean,bool,f16,fp16,f32, fp32,f64,fp64,i8,i16,i32,i64,u8,u16,u32,u64}
+  -ip {bool,f16,f32,f64,i8,i16,i32,i64,u8,u16,u32,u64}, --input_precision {bool,f16,f32, f64,i8,i16,i32,i64,u8,u16,u32,u64}
                         Optional. Specifies precision for all input layers of the network.
-  -op {boolean,bool,f16,fp16,f32,fp32,f64,fp64,i8,i16,i32,i64,u8,u16,u32,u64}, --output_precision {boolean,bool,f16,fp16,f32, fp32,f64,fp64,i8,i16,i32,i64,u8,u16,u32,u64}
+  -op {bool,f16,f32,f64,i8,i16,i32,i64,u8,u16,u32,u64}, --output_precision {bool,f16,f32, f64,i8,i16,i32,i64,u8,u16,u32,u64}
                         Optional. Specifies precision for all output layers of the network.
   -iop INPUT_OUTPUT_PRECISION, --input_output_precision INPUT_OUTPUT_PRECISION
                         Optional. Specifies precision for input and output layers by name. Example: -iop "input:f16, output:f16". Notice that quotes are required. Overwrites

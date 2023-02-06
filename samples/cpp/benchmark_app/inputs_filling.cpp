@@ -107,7 +107,7 @@ ov::Tensor create_tensor_from_numpy(const std::vector<std::string>& files,
     auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
     auto data = reinterpret_cast<T*>(allocator->get_buffer());
 
-    std::vector<std::shared_ptr<uint8_t>> numpy_array_pointers;
+    std::vector<std::shared_ptr<unsigned char>> numpy_array_pointers;
     numpy_array_pointers.reserve(batchSize);
 
     size_t numpy_batch_size = 1;
@@ -131,26 +131,25 @@ ov::Tensor create_tensor_from_numpy(const std::vector<std::string>& files,
             continue;
         }
 
-        std::shared_ptr<uint8_t> numpy_array_data_pointer(
-            numpy_array_reader->getData(inputInfo.width(), inputInfo.height()));
+        std::shared_ptr<unsigned char> numpy_array_data_pointer(numpy_array_reader->getData());
         if (numpy_array_data_pointer) {
             numpy_array_pointers.push_back(numpy_array_data_pointer);
         }
     }
 
     size_t type_bytes_size = sizeof(T);
-    unsigned char* bytes_buffer = new unsigned char[type_bytes_size];
+    std::unique_ptr<unsigned char[]> bytes_buffer(new unsigned char[type_bytes_size]);
 
     for (size_t batch_nr = 0; batch_nr < numpy_batch_size; ++batch_nr) {
         for (size_t input_tensor_nr = 0; input_tensor_nr < tensor_size; ++input_tensor_nr) {
             size_t offset = batch_nr * tensor_size + input_tensor_nr;
             for (size_t byte_nr = 0; byte_nr < type_bytes_size; ++byte_nr) {
-                bytes_buffer[byte_nr] = numpy_array_pointers.at(batch_nr).get()[offset * type_bytes_size + byte_nr];
+                bytes_buffer.get()[byte_nr] =
+                    numpy_array_pointers.at(batch_nr).get()[offset * type_bytes_size + byte_nr];
             }
-            data[offset] = *((T*)bytes_buffer);
+            data[offset] = *((T*)(bytes_buffer.get()));
         }
     }
-    delete[] bytes_buffer;
 
     return ov::Tensor(inputInfo.type, inputInfo.dataShape, ov::Allocator(allocator));
 }
@@ -396,12 +395,12 @@ ov::Tensor get_numpy_tensor(const std::vector<std::string>& files,
                             std::string* filenames_used = nullptr) {
     auto type = inputInfo.second.type;
     if (type == ov::element::f16) {
-        return create_tensor_from_numpy<short>(files,
-                                               inputId,
-                                               batchSize,
-                                               inputInfo.second,
-                                               inputInfo.first,
-                                               filenames_used);
+        return create_tensor_from_numpy<ov::float16>(files,
+                                                     inputId,
+                                                     batchSize,
+                                                     inputInfo.second,
+                                                     inputInfo.first,
+                                                     filenames_used);
     } else if (type == ov::element::f32) {
         return create_tensor_from_numpy<float>(files,
                                                inputId,
@@ -484,12 +483,12 @@ ov::Tensor get_binary_tensor(const std::vector<std::string>& files,
                              std::string* filenames_used = nullptr) {
     const auto& type = inputInfo.second.type;
     if (type == ov::element::f16) {
-        return create_tensor_from_binary<short>(files,
-                                                inputId,
-                                                batchSize,
-                                                inputInfo.second,
-                                                inputInfo.first,
-                                                filenames_used);
+        return create_tensor_from_binary<ov::float16>(files,
+                                                      inputId,
+                                                      batchSize,
+                                                      inputInfo.second,
+                                                      inputInfo.first,
+                                                      filenames_used);
     } else if (type == ov::element::f32) {
         return create_tensor_from_binary<float>(files,
                                                 inputId,
@@ -572,7 +571,7 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
     } else if (type == ov::element::f64) {
         return create_tensor_random<double, double>(inputInfo.second);
     } else if (type == ov::element::f16) {
-        return create_tensor_random<short, short>(inputInfo.second);
+        return create_tensor_random<ov::float16, short>(inputInfo.second);
     } else if (type == ov::element::i32) {
         return create_tensor_random<int32_t, int32_t>(inputInfo.second);
     } else if (type == ov::element::i64) {

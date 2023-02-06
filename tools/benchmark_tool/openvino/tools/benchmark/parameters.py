@@ -6,8 +6,8 @@ import sys, argparse
 from openvino.tools.benchmark.utils.utils import show_available_devices
 
 INPUT_OUTPUT_PRECISION_CHOICES = [
-    'boolean', 'bool', \
-    'f16', 'fp16', 'f32', 'fp32', 'f64', 'fp64', \
+    'bool', \
+    'f16', 'f32', 'f64', \
     'i8', 'i16', 'i32', 'i64', \
     'u8', 'u16', 'u32', 'u64']
 

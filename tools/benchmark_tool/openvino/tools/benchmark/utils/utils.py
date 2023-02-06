@@ -212,7 +212,6 @@ def get_number_iterations(number_iterations: int, nireq: int, num_shapes: int, a
 
     return niter
 
-
 def get_duration_seconds(time, number_iterations, device):
     if time:
         # time limit
@@ -545,7 +544,6 @@ def parse_scale_or_mean(parameter_string, input_info):
         else:
             raise Exception(f"Can't parse input parameter: {parameter_string}")
     return return_value
-
 
 class AppInputInfo:
     def __init__(self):
