@@ -490,6 +490,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
             case onednn_post_op_type::eltwise_clip:
             case onednn_post_op_type::eltwise_linear:
             case onednn_post_op_type::eltwise_round:
+            case onednn_post_op_type::eltwise_hardsigmoid:
             {
                 dnnl::algorithm alg;
                 float alpha, beta;
