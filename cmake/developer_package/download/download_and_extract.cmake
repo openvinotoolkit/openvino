@@ -33,7 +33,7 @@ function (GetNameAndUrlToDownload name url archive_name_unified archive_name_win
     set (${name} ${archive_name} PARENT_SCOPE)
 
     set(HDDL_DEPENDENCIES "")
-    string(REGEX MATCH "hddl" HDDL_DEPENDENCIES ${archive_name})
+    string(REGEX MATCH "hddl_" HDDL_DEPENDENCIES ${archive_name})
 
     if(NOT ${HDDL_DEPENDENCIES} EQUAL "")
       set (${url}  "${archive_name}" PARENT_SCOPE)
