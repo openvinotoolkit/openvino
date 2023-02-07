@@ -7,6 +7,7 @@ import os
 import re
 import sys
 from argparse import Namespace
+from copy import copy
 
 # WA for abseil bug that affects logging while importing TF starting 1.14 version
 # Link to original issue: https://github.com/abseil/abseil-py/issues/99
@@ -74,9 +75,20 @@ def init_logger(lvl: str, silent: bool):
     logger = log.getLogger()
     logger.setLevel(lvl)
     logger.addFilter(TagFilter(regex=log_exp))
-    if handler_num == 0:
+    if handler_num == 0 and len(logger.handlers) == 0:
         logger.addHandler(handler)
         handler_num += 1
+
+def get_logger_state():
+    logger = log.getLogger()
+    return logger.level, copy(logger.filters), copy(logger.handlers)
+
+def restore_logger_state(state: tuple):
+    level, filters, handlers = state
+    logger = log.getLogger()
+    logger.setLevel(level)
+    logger.filters = filters
+    logger.handlers = handlers
 
 
 def progress_bar(function: callable):
