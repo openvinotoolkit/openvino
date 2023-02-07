@@ -24,6 +24,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd4267)
     # unreferenced local variable
     ie_add_compiler_flags(/wd4101)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU") 
+    ie_add_compiler_flags(-Wno-sign-compare)
 endif()
 
 add_subdirectory(common)

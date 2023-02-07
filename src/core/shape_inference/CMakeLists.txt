@@ -3,9 +3,10 @@
 #
 
 set(TARGET_NAME "ov_shape_inference")
-ie_add_compiler_flags(-Wno-sign-compare)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd4018)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU") 
+    ie_add_compiler_flags(-Wno-sign-compare)
 endif()
 
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)

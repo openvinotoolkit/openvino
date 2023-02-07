@@ -23,6 +23,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # '<': signed/unsigned mismatch
     ie_add_compiler_flags(/wd4018)
     ie_add_compiler_flags(/wd4309)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU") 
+    ie_add_compiler_flags(-Wno-sign-compare)
 endif()
 
 if (WIN32)

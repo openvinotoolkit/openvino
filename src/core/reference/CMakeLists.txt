@@ -3,10 +3,14 @@
 #
 
 set(TARGET_NAME "ngraph_reference")
-ie_add_compiler_flags(-Wno-sign-compare)
+
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd4267)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU") 
+    ie_add_compiler_flags(-Wno-sign-compare)
 endif()
+
+
 
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)

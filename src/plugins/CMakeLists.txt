@@ -4,7 +4,6 @@
 
 set(skip_module "${CMAKE_CURRENT_SOURCE_DIR}/template")
 file(GLOB local_modules "${CMAKE_CURRENT_SOURCE_DIR}/*")
-ie_add_compiler_flags(-Wno-sign-compare)
 foreach(module_path IN LISTS local_modules)
     if( # Skip files
         NOT IS_DIRECTORY ${module_path} OR
