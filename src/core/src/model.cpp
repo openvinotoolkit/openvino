@@ -425,6 +425,14 @@ void ov::Model::replace_parameter(size_t parameter_index, const shared_ptr<ngrap
     m_parameters[parameter_index] = parameter;
 }
 
+void ov::Model::set_parameter(size_t parameter_index, const shared_ptr<ngraph::op::Parameter>& parameter) {
+    m_parameters[parameter_index] = parameter;
+}
+
+void ov::Model::set_result(size_t index, const shared_ptr<ngraph::op::Result>& result) {
+    m_results[index] = result;
+}
+
 void ov::Model::set_topological_sort(topological_sort_t sorter) {
     m_topological_sorter = sorter;
     // reset topological nodes order cache as new sorter can have different behaviour

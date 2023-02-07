@@ -58,6 +58,25 @@ namespace {
         auto constantNode = std::dynamic_pointer_cast<ngraph::opset8::Constant>(node);
         return constantNode != nullptr && shape_size(constantNode->get_shape()) == 1;
     }
+
+    std::shared_ptr<ov::frontend::tensorflow::FrameworkNode> as_tf_op_type(
+        const std::shared_ptr<ngraph::Node>& node,
+        const std::string& tf_op_type)
+    {
+        auto fw_node = std::dynamic_pointer_cast<ov::frontend::tensorflow::FrameworkNode>(node);
+        if(!fw_node) {
+            return nullptr;
+        }
+        const auto& info = node->get_rt_info();
+        auto entry = info.find("tf_orig_type");
+        if(entry != info.end() &&
+                entry->second.is<std::string>() &&
+                entry->second.as<std::string>() == tf_op_type)
+        {
+            return fw_node;
+        }
+        return nullptr;
+    }
 } // namespace
 
 namespace ov {
@@ -585,6 +604,391 @@ bool ReplaceParameterByVocab::run_on_model(const std::shared_ptr<Model>& model) 
     }
 
     return true;
+}
+
+
+ThroughTensorListSetItem::ThroughTensorListSetItem() {
+    // Should better match node that has at least one StructPack at least at one inputs
+    //auto list = wrap_type<StructPack>();
+    auto node = wrap_type<tensorflow::FrameworkNode>(OutputVector{any_input(), any_input(), any_input()});
+
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        using namespace opset10;
+
+        if(auto node = as_tf_op_type(m.get_match_root(), "TensorListSetItem")) {
+            std::cerr << "Found TensorListSetItem: " << node << "\n";
+            auto sp = std::dynamic_pointer_cast<StructPack>(node->get_input_node_shared_ptr(0));
+            if(!sp) {
+                std::cerr << "[ ERROR ] Coudn't decode StructPack at the first input port of TensorListSetItem\n";
+                std::cerr << node->get_input_node_shared_ptr(0) << "\n";
+                return false;
+            }
+
+            auto shapes =   sp->get_input_source_output(0);
+            auto begins =   sp->get_input_source_output(1);
+            auto ends =     sp->get_input_source_output(2);
+            auto elements = sp->get_input_source_output(3);
+
+            auto zero_1d = const_value(0, 1, begins.get_element_type());
+            auto zero = const_value(0);
+            typedef std::vector<int64_t> V;
+
+            auto index_scalar = node->get_input_source_output(1);
+            auto index = make_shared<Unsqueeze>(index_scalar, zero);
+            auto item = node->get_input_source_output(2);
+
+            auto begin = make_shared<Gather>(begins, index, zero);
+            auto end = make_shared<Gather>(ends, index, zero);
+            auto len = make_shared<ShapeOf>(begins, begins.get_element_type());
+
+            // Get two parts of elements: before and after a target item area
+            auto before = make_shared<StridedSlice>(elements, zero_1d, begin, V{1}, V{0});
+            auto after = make_shared<StridedSlice>(elements, end, zero_1d, V{0}, V{1});
+            auto flat = make_shared<Reshape>(item, const_value(-1, 1), false);
+            auto new_elements = make_shared<Concat>(OutputVector{before, flat, after}, 0);
+            auto new_end = make_shared<Add>(begin, make_shared<ShapeOf>(flat, begins.get_element_type()));
+            auto shift = make_shared<Subtract>(new_end, end);
+
+            auto one_1d = const_value(1, 1, begins.get_element_type());
+
+            // TODO: begins_shift/ends_shift don't look very efficient, try StridedSplice, Add and Concat instead
+
+            auto begins_shift = make_shared<Concat>(OutputVector{
+                make_shared<Tile>(zero_1d, make_shared<Add>(index, one_1d)),
+                make_shared<Tile>(shift, make_shared<Subtract>(make_shared<Subtract>(len, index), one_1d))},
+                0);
+
+            auto ends_shift = make_shared<Concat>(OutputVector{
+                make_shared<Tile>(zero_1d, index),
+                make_shared<Tile>(shift, make_shared<Subtract>(len, index))},
+                0);
+
+            auto new_begins = make_shared<Add>(begins, begins_shift);
+            auto new_ends = make_shared<Add>(ends, ends_shift);
+
+            //auto shape = make_shared<SpyOp>(OutputVector{make_shared<ShapeOf>(item, shapes.get_element_type())});
+            auto shape = make_shared<ShapeOf>(item, shapes.get_element_type());
+
+            #if 0 // this part has an issue in CPU: ranks mismatch presumably due to scalar index
+            auto new_shapes = make_shared<ScatterUpdate>(shapes, index_scalar, shape, zero);
+            #else
+            #if 1
+            //auto new_shapes = make_shared<SpyOp>(OutputVector{make_shared<ScatterUpdate>(shapes, index, make_shared<Unsqueeze>(shape, zero), zero)});
+            auto new_shapes = make_shared<ScatterUpdate>(shapes, index, make_shared<Unsqueeze>(shape, zero), zero);
+            #else
+            auto index_2d = make_shared<Unsqueeze>(index, zero);
+            make_shared<StridedSlice>(shapes, const_value(0, 2), index_2d, V{1, 1}, V{0, 1})
+            make_shared<StridedSlice>(shapes, make_index_2d) ...
+            #endif
+            #endif
+
+            auto new_sp = sp->clone_with_new_inputs({new_shapes, new_begins, new_ends, new_elements});
+
+            replace_node(node, new_sp);
+
+            return true;
+        } else if(auto node = as_tf_op_type(m.get_match_root(), "TensorListGetItem")) {
+            std::cerr << "Found TensorListGetItem: " << node << "\n";
+            auto sp = std::dynamic_pointer_cast<StructPack>(node->get_input_node_shared_ptr(0));
+            if(!sp) {
+                std::cerr << "[ ERROR ] Coudn't decode StructPack at the first input port of TensorListGetItem\n";
+                std::cerr << node->get_input_node_shared_ptr(0) << "\n";
+                return false;
+            }
+
+            auto shapes =   sp->get_input_source_output(0);
+            auto begins =   sp->get_input_source_output(1);
+            auto ends =     sp->get_input_source_output(2);
+            auto elements = sp->get_input_source_output(3);
+
+            auto index = node->get_input_source_output(1);
+            auto zero = const_value(0);
+            typedef std::vector<int64_t> V;
+
+            // Get part of elements which correspond to a required item tensor
+            auto flat = make_shared<StridedSlice>(
+                elements,
+                make_shared<Unsqueeze>(make_shared<Gather>(begins, index, zero), zero),
+                make_shared<Unsqueeze>(make_shared<Gather>(ends,   index, zero), zero),
+                V{0}, V{0});
+
+            // auto flat = make_shared<StridedSlice>(
+            //     elements,
+            //     make_shared<SpyOp>(OutputVector{make_shared<Unsqueeze>(make_shared<Gather>(begins, index, zero), zero)}),
+            //     make_shared<SpyOp>(OutputVector{make_shared<Unsqueeze>(make_shared<Gather>(ends,   index, zero), zero)}),
+            //     V{0}, V{0});
+
+            // Get shape that belongs to that area
+            auto shape = make_shared<Gather>(shapes, index, zero);
+
+            // Shape `flat` to obtained `shape`
+            // TODO: Learn how to use node->input(2) which contains element shape (double Reshape to fix rank? not sure it adds value...)
+            //auto item = make_shared<SpyOp>(OutputVector{make_shared<Reshape>(flat, shape, false)});
+            auto item = make_shared<Reshape>(flat, shape, false);
+            replace_node(node, item);
+            return true;
+        }
+        return false;
+    };
+
+    auto m = make_shared<ov::pass::pattern::Matcher>(node, "ov::frontend::tensorflow::pass::ThroughTensorListSetItem");
+    register_matcher(m, callback);
+}
+
+struct PatchedInputDesc {
+    size_t result_index;    // result index that updates this input at the next iterations
+    std::vector<size_t> desc_indices;   // indices in input_descs which should be updated with new results
+};
+
+ThroughWhileProp::ThroughWhileProp() {
+    // Should better match node that has at least one StructPack at least at one inputs
+    auto node = wrap_type<opset10::Loop>();
+
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        using namespace opset10;
+        auto node = std::dynamic_pointer_cast<opset10::Loop>(m.get_match_root());
+        std::cerr << "[ INFO TF FE ] Matching While op: " << node->get_type_name() << "\n";
+
+        //std::vector<size_t> remove_parameters;  // indices of removed parameters, collect and the prune them all
+
+        // Search for input with StructPack
+        size_t initial_input_size = node->get_input_size();
+        auto& input_descs = node->get_input_descriptions();
+        auto body = node->get_function();
+        std::vector<PatchedInputDesc> pids;
+
+        for(size_t i = 0; i < initial_input_size; ++i) {
+            auto input_node = node->get_input_source_output(i).get_node_shared_ptr();
+            std::cerr << "Testing input " << input_node << '\n';
+            if(auto sp = std::dynamic_pointer_cast<StructPack>(input_node)) {
+                std::cerr << "[ WHILE SP PROP ] Found\n";
+
+                // This input is going to be replaced by all inputs coming to `sp`
+                //remove_parameters.push_back(i);
+                auto new_inputs = get_inputs(sp);
+                node->set_argument(i, new_inputs[0]);
+                for(size_t j = 1; j < new_inputs.size(); ++j) {
+                    node->set_argument(node->get_input_size(), new_inputs[j]);  // add new input to Loop
+                }
+                // Replace current input/body parameter pair by the first element from new_inputs
+                for(size_t k = 0; k < input_descs.size(); ++k) {
+                    if(input_descs[k]->m_input_index == i) {
+                        PatchedInputDesc pid;
+                        auto mid = std::dynamic_pointer_cast<opset10::Loop::MergedInputDescription>(input_descs[k]);
+                        if(mid) {
+                            pid.result_index = mid->m_body_value_index;
+                        }
+                        auto old_body_parameter_index = input_descs[k]->m_body_parameter_index;
+                        auto old_body_parameter = body->get_parameters()[old_body_parameter_index];
+                        std::cerr << "old_body_parameter: " << old_body_parameter << "\n";
+                        OutputVector new_parameters;
+
+                        std::cerr << "Loop patching parameter with new shape: " << new_inputs[0].get_partial_shape() << "\n";
+                        auto new_parameter = make_shared<opset10::Parameter>(
+                            new_inputs[0].get_element_type(),
+                            new_inputs[0].get_partial_shape());
+
+                        body->set_parameter(old_body_parameter_index, new_parameter);
+
+                        new_parameters.push_back(new_parameter);
+
+                        // TODO: Any extra steps for inputs with back edges?
+
+                        for(size_t j = 1; j < new_inputs.size(); ++j) {
+                            if(mid) {
+                                pid.desc_indices.push_back(input_descs.size());
+                                input_descs.push_back(make_shared<opset10::Loop::MergedInputDescription>(
+                                    node->get_input_size() - new_inputs.size() + j, body->get_parameters().size(), /* body_value_index --> */0/* <-- */));
+                                std::cerr << "[ TF FE INFO ] Added new MergedInputDescription with body_value_index left uninitialized\n";
+                                // body_value_index is not yet known because there hasn't been extended outputs yet
+                                // TODO: Any extra steps for inputs with back edges?
+                            } else if(std::dynamic_pointer_cast<opset10::Loop::SliceInputDescription>(input_descs[k])) {
+                                std::cerr << "[ ERROR ] Cannot interpret SliceInputDescription for structural type\n";
+                                throw "Error";
+                            } else if(std::dynamic_pointer_cast<opset10::Loop::InvariantInputDescription>(input_descs[k])) {
+                                input_descs.push_back(make_shared<opset10::Loop::InvariantInputDescription>(
+                                    node->get_input_size() - new_inputs.size() + j, body->get_parameters().size()));
+                                std::cerr << "[ TF FE INFO ] Added new InvariantInputDescription\n";
+                            } else {
+                                std::cerr << "[ ERROR ] Unknown InputDescription type\n";
+                                throw "Error";
+                            }
+
+                            std::cerr << "Loop patching parameter with new shape: " << new_inputs[j].get_partial_shape() << "\n";
+                            auto new_parameter = make_shared<opset10::Parameter>(
+                                new_inputs[j].get_element_type(),
+                                j != new_inputs.size() - 1 ? new_inputs[j].get_partial_shape() : PartialShape{Dimension()});    // FIXME: Hack with dynamic dimension due to broken ability to propagate it correctly in the Loop
+                            std::cerr << ">>>>>>>>> Created parameter: " << new_parameter << "\n";
+                            body->add_parameters({new_parameter});     // add new parameter
+                            new_parameters.push_back(new_parameter);
+                        }
+
+                        if(mid) {
+                            pids.push_back(pid);
+                        }
+
+                        // Modify body to connect all new parameters via a new StructPack which is a clone of `sp`
+                        auto body_sp = sp->clone_with_new_inputs(new_parameters);
+                        std::cerr << "Is about to replace " << old_body_parameter << " by " << body_sp << "\n";
+                        replace_node(old_body_parameter, body_sp);
+                    }
+                }
+            }
+        }
+
+        std::cerr << "[ TF FE INFO ] Inputs/Parameters are patched\n";
+
+        // Apply StructPack propagation transformations to body
+        ov::pass::Manager manager;
+        auto propagators = manager.register_pass<ov::pass::GraphRewrite>();
+        propagators->add_matcher<ov::pass::GraphRewrite>(std::make_shared<pass::ThroughTensorListSetItem>());
+        manager.set_per_pass_validation(false);
+        manager.run_passes(body);
+
+        size_t initial_body_output_size = body->get_results().size();
+        auto& output_descs = node->get_output_descriptions();
+        size_t output_descs_size = output_descs.size();
+
+        for(size_t i = 0; i < initial_body_output_size; ++i) {
+            auto result = body->get_results()[i];
+            auto source = result->get_input_node_shared_ptr(0);
+            if(auto sp = std::dynamic_pointer_cast<StructPack>(source)) {
+                auto inputs = get_inputs(sp);
+                auto new_result_0 = make_shared<Result>(inputs[0]);
+                body->set_result(i, new_result_0);
+                for(size_t j = 1; j < inputs.size(); ++j) {
+                    auto new_result_n = make_shared<Result>(inputs[j]);
+                    body->add_results({new_result_n});
+                }
+
+                for(size_t k = 0; k < pids.size(); ++k) {
+                    if(pids[k].result_index == i) {
+                        for(size_t m = 0; m < pids[k].desc_indices.size(); ++m) {
+                            std::dynamic_pointer_cast<opset10::Loop::MergedInputDescription>(
+                                input_descs[pids[k].desc_indices[m]])->m_body_value_index =
+                                    body->get_results().size() - inputs.size() + 1 + m;
+                            std::cerr << "Patching input desk: result_index = " << pids[k].result_index << ", m_body_value_index = " << std::dynamic_pointer_cast<opset10::Loop::MergedInputDescription>(input_descs[pids[k].desc_indices[m]])->m_body_value_index << "\n";
+                        }
+                    }
+                }
+
+                for(size_t k = 0; k < output_descs_size; ++k) {
+                    if(output_descs[k]->m_body_value_index == i) {
+                        if(auto desc = std::dynamic_pointer_cast<opset10::Loop::BodyOutputDescription>(output_descs[k])) {
+                            if(desc->m_iteration != -1) {
+                                std::cerr << "[ ERROR ] Unsupported output iteration index, should be -1\n";
+                                throw "Error";
+                            }
+
+                            std::cerr << "Patching output ports\n";
+
+                            OutputVector new_outputs;
+                            new_outputs.push_back(node->output(desc->m_output_index));
+                            std::cerr << "Output index: " << desc->m_output_index << "\n";
+
+                            for(size_t j = 1; j < inputs.size(); ++j) {
+                                output_descs.push_back(make_shared<opset10::Loop::BodyOutputDescription>(
+                                    body->get_results().size() - inputs.size() + j, node->get_output_size(), desc->m_iteration
+                                ));
+                                std::cerr << "    Output port " << node->get_output_size() << "\n";
+                                node->set_output_size(node->get_output_size() + 1);
+                                new_outputs.push_back(node->output(node->get_output_size() - 1));
+                            }
+
+                            auto target_inputs = node->get_output_target_inputs(desc->m_output_index);
+                            auto new_sp = sp->clone_with_new_inputs(new_outputs);
+                            std::cerr << "new_sp = " << new_sp << "\n";
+                            std::cerr << "with this loop: " << node << "\n";
+
+                            //node->output(desc->m_output_index).replace(new_sp->output(0));  // FIXME
+
+                            for(auto input: target_inputs) {
+                                input.replace_source_output(new_sp);
+                            }
+
+                        } else {
+                            std::cerr << "[ ERROR ] StructPack passing out not supported output map type\n";
+                            throw "Error";
+                        }
+                    }
+                }
+            }
+        }
+
+        //std::cerr << "About to validate body\n";
+        //body->validate_nodes_and_infer_types();
+
+        std::cerr << "About to validate loop\n";
+        node->validate_and_infer_types();
+
+        std::cerr << "Start serializing the body\n";
+        serialize(body, "body.xml");
+
+        std::cerr << "[TF FE INFO] Done with Loop\n";
+        //throw "Error";
+
+        return true;
+    };
+
+    auto m = make_shared<ov::pass::pattern::Matcher>(node, "ov::frontend::tensorflow::pass::ThroughWhileProp");
+    register_matcher(m, callback);
+}
+
+
+ThroughTensorListStack::ThroughTensorListStack() {
+    // Should better match node that has at least one StructPack at least at one inputs
+    //auto list = wrap_type<StructPack>();
+    auto node = wrap_type<tensorflow::FrameworkNode>(OutputVector{any_input(), any_input()});
+
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        using namespace opset10;
+
+        if(auto node = as_tf_op_type(m.get_match_root(), "TensorListStack")) {
+            std::cerr << "Found TensorListStack: " << node << "\n";
+            auto sp = std::dynamic_pointer_cast<StructPack>(node->get_input_node_shared_ptr(0));
+            if(!sp) {
+                std::cerr << "[ ERROR ] Coudn't decode StructPack at the first input port of TensorListStack\n";
+                std::cerr << node->get_input_node_shared_ptr(0) << "\n";
+                return false;
+            }
+
+            std::cerr << "Start TensorListStack decomposition\n";
+
+            auto shapes =   sp->get_input_source_output(0);
+            auto begins =   sp->get_input_source_output(1);
+            auto ends =     sp->get_input_source_output(2);
+            auto elements = sp->get_input_source_output(3);
+
+            auto zero = const_value(0);
+
+            // ! Suppose the list has at least one element, which is used to deduce shape
+            //   Otherwise we need to check an input to this node with shape, but it may have undefined dimensions with -1 value, in which case there is no reliable source of shape
+
+            // ! Suppose all elements have the same shape at least in all dimension except the 0th
+
+            auto num_items = make_shared<ShapeOf>(begins, shapes.get_element_type());
+            auto shape = make_shared<Gather>(shapes, zero, zero);
+            auto target_shape = make_shared<Concat>(OutputVector{num_items, shape}, 0);
+
+            // FIXME: Due to empty tensor padding an extra StrideSlice is required to cut off the padding
+            auto target_shape_size = make_shared<ReduceProd>(target_shape, const_value(0), true);
+            typedef std::vector<int64_t> V;
+            auto cut_elements = make_shared<StridedSlice>(elements, const_value(0, 1), target_shape_size, V{1}, V{0});
+
+            auto reshaped = make_shared<Reshape>(cut_elements, target_shape, false);
+
+            replace_node(node, reshaped);
+
+            std::cerr << "End TensorListStack decomposition\n";
+
+            return true;
+        }
+
+        return false;
+    };
+
+    auto m = make_shared<ov::pass::pattern::Matcher>(node, "ov::frontend::tensorflow::pass::ThroughTensorListStack");
+    register_matcher(m, callback);
 }
 
 

@@ -35,7 +35,7 @@ bool StridedSlice::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
     } catch (...) {
         return false;
     }
-    return true;
+    return false;   // OBSOLETE: FIXME: temporary switched to ngraph reference by returning false
 }
 
 StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :

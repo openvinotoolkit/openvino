@@ -136,7 +136,8 @@ def postprocess_results (outputs: dict, model_outputs, model=None) -> dict:
     print('postprocess_results')
     print(model)
     #print(model.get_rt_info())
-    if len(model_outputs) == 1:
+    # FIXME: Hack until rt_info is not available in a normal way at the level of compiled_model
+    if len(model_outputs) == 1 and outputs[model_outputs[0]].dtype == np.uint8:
         # TODO: find out how to access RT info in Python or implement it
         #print([key for key in output.get_rt_info()])
         if True: #'structural_type' in output.get_rt_info(): # FIXME: Doesn't work

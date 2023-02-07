@@ -257,6 +257,8 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                                                                operation_place->get_output_ports().size());
                 set_node_name(operation_name, ng_node);
                 std::cerr << "node: " << ng_node << "\n";
+                std::cerr << "node type: " << ng_node->get_op_type() << "\n";
+                ng_node->get_rt_info()["tf_orig_type"] = ng_node->get_op_type();
                 ov_outputs = ng_node->outputs();
             }
         }

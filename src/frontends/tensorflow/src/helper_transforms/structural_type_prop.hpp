@@ -67,6 +67,27 @@ public:
     bool run_on_model(const std::shared_ptr<Model>& model) override;
 };
 
+class ThroughWhileProp : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("ov::frontend::tensorflow::pass::ThroughWhileProp");
+    ThroughWhileProp();
+};
+
+
+class ThroughTensorListSetItem : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("ov::frontend::tensorflow::pass::ThroughTensorListSetItem");
+    ThroughTensorListSetItem();
+};
+
+class ThroughTensorListStack : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("ov::frontend::tensorflow::pass::ThroughTensorListStack");
+    ThroughTensorListStack();
+};
+
+
+
 
 }  // namespace pass
 }  // namespace tensorflow

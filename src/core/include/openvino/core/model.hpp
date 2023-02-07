@@ -260,6 +260,8 @@ public:
     /// \param results new Result nodes
     void add_results(const ov::ResultVector& results);
 
+    void set_result(size_t index, const std::shared_ptr<ov::op::v0::Result>& result);
+
     /// \brief Delete Result node from the list of results. Method will not delete node from
     /// graph.
     /// \param result Result node to delete
@@ -276,6 +278,8 @@ public:
     ///
     /// \param params new Parameter nodes
     void add_parameters(const ov::ParameterVector& params);
+
+    void set_parameter(size_t index, const std::shared_ptr<ov::op::v0::Parameter>& parameter);
 
     /// \brief Delete Parameter node from the list of parameters. Method will not delete node
     /// from graph. You need to replace Parameter with other operation manually.

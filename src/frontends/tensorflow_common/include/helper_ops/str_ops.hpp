@@ -350,7 +350,6 @@ bool evaluate_helper (Node* node, ov::TensorVector& outputs, const ov::TensorVec
 }
 
 
-// https://www.tensorflow.org/text/api_docs/python/text/case_fold_utf8
 class StructuralTypedOp : public ov::op::Op {
 public:
     OPENVINO_OP("StructuralTypedOp", "0", Op);
@@ -907,6 +906,78 @@ public:
 
     Any m_res_type;
     PartialShape m_res_shape;
+};
+
+class SpyOp : public ov::op::Op {
+public:
+    OPENVINO_OP("SpyOp", "0", ov::op::Op);
+
+    SpyOp (const OutputVector& inputs) : ov::op::Op(inputs) {
+        constructor_validate_and_infer_types();
+    }
+
+    void validate_and_infer_types() override {
+        // Act as a multi-path Identity
+        for(size_t i = 0; i < inputs().size(); ++i) {
+            set_output_type(i, get_input_element_type(i), get_input_partial_shape(i));
+        }
+
+        /*
+        if(all_inputs_are_constants(this)) {
+            // Evaluate mode
+            std::cerr << "[ EVALUATION MODE ] SpyOp\n";
+            ov::TensorVector inputs;
+            ConstantVector outputs;
+            // FIXME: remove this part when CPU fixes evaluate with internally dynamic operations
+            for(size_t i = 0; i < get_input_size(); ++i) {
+                auto constant = std::dynamic_pointer_cast<ov::opset1::Constant>(get_input_node_shared_ptr(i));
+                inputs.push_back(Tensor(constant->get_element_type(), constant->get_shape(), const_cast<void*>(constant->get_data_ptr())));
+            }
+            outputs = this->evaluate_internal_helper(inputs);
+
+            for(size_t i = 0; i < get_output_size(); ++i) {
+                set_output_type(i, outputs[i]->get_element_type(), outputs[i]->get_shape());
+            }
+        }
+        */
+    }
+
+
+    ConstantVector evaluate_internal_helper(const ov::TensorVector& inputs) const {
+        ConstantVector results;
+        for(size_t i = 0; i < inputs.size(); ++i) {
+            std::cerr << inputs[i].get_shape() << "\n";
+        }
+        return results;
+    }
+
+    std::shared_ptr<ov::Node> clone_with_new_inputs(const OutputVector& inputs) const override {
+        return std::make_shared<SpyOp>(inputs);
+    }
+
+    bool visit_attributes(ov::AttributeVisitor& visitor) override {
+        return true;
+    }
+
+    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
+        std::cerr << "[  >>  SpyOp  << ] " << this << "\n";
+        for(size_t i = 0; i < inputs.size(); ++i) {
+            size_t length = inputs[i].get_byte_size();
+            std::cerr << "Expected length " << length << ", allocated: " << outputs[i].get_shape() << "\n";
+            if(inputs[i].get_element_type() == element::i32) {
+                for(size_t k = 0; k < length/4; ++k) {
+                    std::cerr << (reinterpret_cast<int*>(inputs[i].data()))[k] << " ";
+                }
+                std::cerr << "\n";
+            }
+            memcpy(outputs[i].data(), inputs[i].data(), length);
+        }
+        return true;
+    }
+
+    bool has_evaluate() const {
+        return true;
+    }
 };
 
 

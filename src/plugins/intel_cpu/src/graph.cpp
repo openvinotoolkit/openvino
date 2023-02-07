@@ -1131,7 +1131,7 @@ void Graph::InferDynamic(InferRequestBase* request) {
             auto& node = executableGraphNodes[inferCounter];
             VERBOSE(node, getConfig().debugCaps.verbose);
             PERF(node, getConfig().collectPerfCounters);
-
+            std::cerr << "[ CPU PLUGIN ] Node: " << node->getName() << "\n";
             if (request)
                 request->ThrowIfCanceled();
             ExecuteNode(node, stream);

@@ -110,6 +110,7 @@ void ScatterUpdate::initSupportedPrimitiveDescriptors() {
     // specific check
     switch (scatterUpdateMode) {
         case ScatterUpdateMode::ScatterUpdate: {
+            std::cerr << "Ranks: " << updateRank << ", " << srcRank << ", " << indicesRank << "\n";
             if (updateRank != (srcRank + indicesRank - 1)) {
                 IE_THROW() << errorPrefix << " do not have matched tensor rank relationship for input, indices and update";
             }

@@ -20,6 +20,8 @@ namespace op {
 
 #define TF_OP_CONVERTER(op) OutputVector op(const ov::frontend::tensorflow::NodeContext& node)
 
+using std::make_shared;
+
 TF_OP_CONVERTER(translate_if_op);
 TF_OP_CONVERTER(translate_block_lstm_op);
 TF_OP_CONVERTER(translate_gru_block_cell_op);
@@ -292,10 +294,78 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
             auto indices = std::make_shared<opset10::Tile>(const_value(0, 1, shape_type), num_elements);
 
             // An empty tensor
-            auto elements = opset10::Constant::create(element_type, {0}, {});
+            // FIXME: This should be an empty tensor but it breaks transformation flow which improperly over-optimize loop bodies
+            // FIXME: That's why a padding in one element is used to keep it not empty. In all other operations this element is ignored
+            // FIXME: due to nature of index operations. The only exception is in the operation which turns a list to a tensor,
+            // FIXME: there will be an extra StridedSlice to cut off this padding.
+            auto elements = opset10::Constant::create(element_type, {1}, {0});
 
             return make_shared<StructPack>(
                 OutputVector{shapes, indices, indices, elements},
+                element::StructuralType::TensorListWithRank(element_type, element_rank),
+                PartialShape::dynamic())->outputs();
+        }},
+        {"TensorListFromTensor", [](const NodeContext& node) -> OutputVector {
+            using namespace opset10;
+
+            auto tensor = node.get_input(0);
+            auto element_shape = node.get_input(1);
+
+            // known rank of elements implies element_shape has static shape
+            TENSORFLOW_OP_VALIDATION(node, element_shape.get_partial_shape().is_static(), "element_shape is not static");
+            TENSORFLOW_OP_VALIDATION(node, element_shape.get_shape().size() == 1, "element_shape is not 1D tensor");
+            auto element_rank = element_shape.get_shape()[0];
+            std::cerr << "[ TF FE INFO ] Element rank = " << element_rank << "\n";
+
+            auto element_type = node.get_attribute<element::Type>("element_dtype");
+            auto shape_type = node.get_attribute<element::Type>("shape_type");
+
+            auto tensor_shape = make_shared<ShapeOf>(tensor, shape_type);
+            //zero_1d = const_value(0, 1, shape_type);
+            auto one_1d = const_value(1, 1, shape_type);
+            typedef std::vector<int64_t> V;
+            auto num_elements = make_shared<StridedSlice>(tensor_shape, one_1d, one_1d, V{1}, V{0});
+            auto real_element_shape = make_shared<StridedSlice>(tensor_shape, one_1d, one_1d, V{0}, V{1});
+
+            auto shapes = make_shared<opset10::Tile>(
+                real_element_shape, make_shared<Concat>(
+                    OutputVector{num_elements, const_value(1, 1, shape_type)}, 0));
+
+            auto total_element_size = make_shared<ReduceProd>(real_element_shape, const_value(0));
+            auto num_elements_scalar = make_shared<Squeeze>(num_elements);
+
+            // auto begins = make_shared<SpyOp>(OutputVector{make_shared<Range>(
+            //     const_value(0),
+            //     make_shared<Multiply>(num_elements_scalar, total_element_size),
+            //     total_element_size,
+            //     shape_type)});
+
+            // auto ends = make_shared<SpyOp>(OutputVector{make_shared<Range>(
+            //     total_element_size,
+            //     make_shared<Multiply>(
+            //         make_shared<Add>(num_elements_scalar, const_value(1, 0, shape_type)),
+            //         total_element_size),
+            //     total_element_size,
+            //     shape_type)});
+
+            auto begins = make_shared<Range>(
+                const_value(0),
+                make_shared<Multiply>(num_elements_scalar, total_element_size),
+                total_element_size,
+                shape_type);
+
+            auto ends = make_shared<Range>(
+                total_element_size,
+                make_shared<Multiply>(
+                    make_shared<Add>(num_elements_scalar, const_value(1, 0, shape_type)),
+                    total_element_size),
+                total_element_size,
+                shape_type);
+
+            auto elements = make_shared<Reshape>(tensor, const_value(-1, 1), true);
+
+            return make_shared<StructPack>(
+                OutputVector{shapes, begins, ends, elements},
                 element::StructuralType::TensorListWithRank(element_type, element_rank),
                 PartialShape::dynamic())->outputs();
         }},

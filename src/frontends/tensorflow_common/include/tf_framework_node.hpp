@@ -24,8 +24,11 @@ public:
         // TODO: are there transformations which rely on correct type name?
         //attrs.set_type_name(m_decoder->get_op_type());
         // Something goes wrong with get_op_type -- it returns bad values, may lead to crash
-        attrs.set_type_name("FrameworkNode"/*m_decoder->get_op_type()*/);
-        //attrs['tf_orig_type'] = std::string(m_decoder->get_op_type());
+        attrs.set_type_name("FrameworkNode");
+        //attrs["tf_orig_type"] = std::string(m_decoder->get_op_type());
+        //get_rt_info()["tf_orig_type"] = std::string(m_decoder->get_op_type());
+        //std::cerr << "[ DECODER ] " << m_decoder->get_op_type() << "\n";
+        //op_type = m_decoder->get_op_type();
 
         set_attrs(attrs);
 
@@ -49,6 +52,7 @@ public:
     std::shared_ptr<DecoderBase> get_decoder() const {
         return m_decoder;
     }
+    //std::string op_type;
 
 private:
     std::shared_ptr<DecoderBase> m_decoder;

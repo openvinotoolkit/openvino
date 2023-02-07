@@ -96,6 +96,7 @@ bool op::v1::StridedSlice::visit_attributes(AttributeVisitor& visitor) {
 }
 
 void op::v1::StridedSlice::validate_and_infer_types() {
+    //std::cerr << "StridedSlice::validate_and_infer_types: " << this << "\n";
     OV_OP_SCOPE(v1_StridedSlice_validate_and_infer_types);
     const auto& begin_mask_et = get_input_element_type(1);
     const auto& end_mask_et = get_input_element_type(2);
