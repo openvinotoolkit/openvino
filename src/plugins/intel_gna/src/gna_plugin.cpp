@@ -486,6 +486,12 @@ void GNAPlugin::UpdateInputs(const std::vector<std::shared_ptr<const ov::Node>>&
         const std::string ie_name = param->get_friendly_name();
         (*inputs_ptr_)[ie_name].name = param->get_friendly_name();
         (*inputs_ptr_)[ie_name].tensor_names = param->get_output_tensor(0).get_names();
+
+        // find preprocessing model
+        auto subgraph_it = subgraph_cpu_map.find(ie_name);
+        if (subgraph_it != subgraph_cpu_map.end()) {
+            (*inputs_ptr_)[ie_name].pre_post_process_model = subgraph_it->second;
+        }
     }
 }
 
@@ -495,6 +501,12 @@ void GNAPlugin::UpdateOutputs(const std::vector<std::shared_ptr<const ov::Node>>
         const std::string ie_name = ov::op::util::create_ie_output_name(result->input_value(0));
         outputs_[ie_name].name = ie_name;
         outputs_[ie_name].tensor_names = result->get_output_tensor(0).get_names();
+
+        // find postprocessing model
+        auto subgraph_it = subgraph_cpu_map.find(ie_name);
+        if (subgraph_it != subgraph_cpu_map.end()) {
+            outputs_[ie_name].pre_post_process_model = subgraph_it->second;
+        }
     }
 }
 
@@ -603,6 +615,14 @@ void GNAPlugin::FillInputsAndOutputsTranspositionInfo(const InferenceEngine::CNN
         transpose_inputs_info.insert({inputLayer->name, transpositionInfo});
         log::debug() << "Input " << inputLayer->name << " transposition info: \n";
         printTranspositionInfo(transpositionInfo);
+
+        // find transpose info
+        auto transp_it = transpose_inputs_info.find(inputLayer->name);
+        if (transp_it != transpose_inputs_info.end() && !transp_it->second.empty()) {
+            const TranspositionInfo& t_info = transp_it->second.front();
+            (*inputs_ptr_).at(inputLayer->name).pre_post_process_model =
+                to_pre_post_process_model(inputLayer->outData[0]->getDims(), t_info.num_transpose_rows, t_info.num_transpose_columns);
+    }
     }
 
     auto outputsMap = net.getOutputsInfo();
@@ -624,6 +644,14 @@ void GNAPlugin::FillInputsAndOutputsTranspositionInfo(const InferenceEngine::CNN
         transpose_outputs_info.insert({outLayer->name, transpositionInfo});
         log::debug() << "Output " << outLayer->name << " transposition info: \n";
         printTranspositionInfo(transpositionInfo);
+
+        // find transpose info
+        auto transp_it = transpose_outputs_info.find(outLayer->name);
+        if (transp_it != transpose_outputs_info.end() && !transp_it->second.empty()) {
+            const TranspositionInfo& t_info = transp_it->second.front();
+            outputs_.at(outLayer->name).pre_post_process_model =
+                to_pre_post_process_model(outLayer->outData[0]->getDims(), t_info.num_transpose_rows, t_info.num_transpose_columns);
+        }
     }
 }
 
@@ -1157,13 +1185,15 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, Infer
         }
 
         // Perform preprocessing on CPU
-        auto subgraph_it = subgraph_cpu_map.find(input_name);
-        if (subgraph_it != subgraph_cpu_map.end()) {
-            std::shared_ptr<ov::Model> model = subgraph_it->second;
-            Blob::Ptr blob_tmp = make_blob_with_precision(gna_input_blob->getTensorDesc());
-            blob_tmp->allocate();
-            pre_post_process(gna_input_blob, blob_tmp, model);
-            gna_input_blob = blob_tmp;
+        std::shared_ptr<ov::Model> model = inputs_ptr_->at(input_name).pre_post_process_model;
+        if (model != nullptr) {
+            Precision output_prc = details::convertPrecision(model->get_result()->get_element_type());
+            SizeVector output_dims = model->get_result()->get_shape();
+            TensorDesc output_desc(output_prc, output_dims, InferenceEngine::Layout::ANY);
+            Blob::Ptr output_blob = make_blob_with_precision(output_desc);
+            output_blob->allocate();
+            pre_post_process(gna_input_blob, output_blob, model);
+            gna_input_blob = output_blob;
         } else {
             log::debug() << "Postprocessing for input " << input_name << " is not required" << std::endl;
         }
@@ -1268,13 +1298,15 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
         Blob::Ptr gna_output_blob = make_blob_with_precision(tensor_desc, gna_output_desc.ptrs[request_idx]);
 
         // Perform postprocessing on CPU
-        auto subgraph_it = subgraph_cpu_map.find(output_name);
-        if (subgraph_it != subgraph_cpu_map.end()) {
-            std::shared_ptr<ov::Model> model = subgraph_it->second;
-            Blob::Ptr blob_tmp= make_blob_with_precision(tensor_desc);
-            blob_tmp->allocate();
-            pre_post_process(gna_output_blob, blob_tmp, model);
-            gna_output_blob = blob_tmp;
+        std::shared_ptr<ov::Model> model = outputs_.at(output_name).pre_post_process_model;
+        if (model) {
+            Precision output_prc = outputs_.at(output_name).tensor_precision;
+            SizeVector output_dims = model->get_result()->get_shape();
+            TensorDesc output_desc(output_prc, output_dims, InferenceEngine::Layout::ANY);
+            Blob::Ptr output_blob = make_blob_with_precision(output_desc);
+            output_blob->allocate();
+            pre_post_process(gna_output_blob, output_blob, model);
+            gna_output_blob = output_blob;
         } else {
             log::debug() << "Postprocessing for output " << output_name << " is not required" << std::endl;
         }
