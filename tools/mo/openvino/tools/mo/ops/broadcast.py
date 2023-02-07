@@ -57,7 +57,11 @@ class Broadcast(Op):
             assert len(target_shape_shape) == 1, 'Shape of target_shape must be [1] for node "{}"'.format(node_name)
             assert is_fully_defined(target_shape_shape), 'Output shape is not defined for node "{}"'.format(node_name)
             new_shape = undefined_shape_of_rank(target_shape_shape.item(0))
-            node.out_port(0).data.set_shape(new_shape)
+            node.out_port(0).data.set_shape(new_shape)            
+            if node.mode == 'explicit':
+                assert node.is_in_port_connected(
+                    2), 'Axes mapping must be specified for Broadcast(mode="explicit"). Node: `{}`'.format(node_name)
+                PermuteInputs().set_input_permutation(node.in_node(2), node, 'output:0', 'axis')
             return
 
         if input_value is not None and not node.has_and_set('stop_value_propagation') and \
