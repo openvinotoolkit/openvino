@@ -48,6 +48,7 @@ public:
 
 public:
     AutoLoadContext                           _loadContext[CONTEXTNUM];
+    // The flag to show if AUTO will use MULTI logic
     bool                                      _AutoSetToMulti = {false};
 
 protected:
