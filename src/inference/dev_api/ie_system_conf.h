@@ -132,63 +132,6 @@ INFERENCE_ENGINE_API_CPP(bool) with_cpu_x86_avx512_core_amx_bf16();
  */
 INFERENCE_ENGINE_API_CPP(bool) with_cpu_x86_avx512_core_amx();
 
-/**
- * @enum cpu_core_type_of_processor
- * @brief This enum contains defination of processor based on specific cpu core types.
- * Will extend to support other CPU core type like ARM.
- *
- * This enum are also defination of each columns in processor type table. Below are two example of processor type table.
- *  1. Processor table of two socket CPUs XEON server
- *
- *  ALL_PROC | MAIN_CORE_PROC | HYPER_THREADING_PROC | EFFICIENT_CORE_PROC
- *     96            48                   48                   0            // Total number of two sockets
- *     48            24                   24                   0            // Number of socket one
- *     48            24                   24                   0            // Number of socket two
- *
- * 2. Processor table of one socket CPU desktop
- *
- *  ALL_PROC | MAIN_CORE_PROC | HYPER_THREADING_PROC | EFFICIENT_CORE_PROC
- *     32            8                    8                   16            // Total number of one socket
- */
-typedef enum {
-    ALL_PROC = 0,              //!< All processors, regardless of backend cpu
-    MAIN_CORE_PROC = 1,        //!< Processor based on physical core of Intel Performance-cores
-    HYPER_THREADING_PROC = 2,  //!< Processor based on logical core of Intel Performance-cores
-    EFFICIENT_CORE_PROC = 3    //!< Processor based on Intel Efficient-cores
-} cpu_core_type_of_processor;
-
-/**
- * @enum column_of_cpu_mapping_table
- * @brief This enum contains defination of each columns in CPU mapping table which use processor id as index.
- *
- * GROUP_ID is generated according to the following rules.
- *  1. If one MAIN_CORE_PROC and one HYPER_THREADING_PROC are based on same Performance-cores, they are in one group.
- *  2. If some EFFICIENT_CORE_PROC share one L2 cachle, they are in one group.
- *  3. There are no duplicate group IDs in the system
- *
- * Below is the example of CPU mapping table.
- *  1. Four processors of two Pcores
- *  2. Four processors of four Ecores shared L2 cache
- *
- *  PROCESSOR_ID | SOCKET_ID | CORE_ID | CORE_TYPE | GROUP_ID | Used
- *       0             0          0          2          0        0
- *       1             0          0          1          0        0
- *       2             0          1          2          1        0
- *       3             0          1          1          1        0
- *       4             0          2          3          2        0
- *       5             0          3          3          2        0
- *       6             0          4          3          2        0
- *       7             0          5          3          2        0
- */
-typedef enum {
-    CPU_MAP_PROCESSOR_ID = 0,  //!< column for processor id of the processor
-    CPU_MAP_SOCKET_ID = 1,     //!< column for socket id of the processor
-    CPU_MAP_CORE_ID = 2,       //!< column for hardware core id of the processor
-    CPU_MAP_CORE_TYPE = 3,     //!< column for CPU core type corresponding to the processor
-    CPU_MAP_GROUP_ID = 4,      //!< column for group id to the processor. Processors in one group have dependency.
-    CPU_MAP_USED_FLAG = 5      //!< column for resource management of the processor
-} column_of_cpu_mapping_table;
-
 #if (defined(_WIN32) || defined(_WIN64))
 /**
  * @brief      Parse processors infomation on Windows
