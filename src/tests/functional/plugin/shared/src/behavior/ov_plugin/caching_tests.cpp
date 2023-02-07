@@ -8,6 +8,8 @@
 
 #include "behavior/ov_plugin/caching_tests.hpp"
 
+#include "ngraph/pass/manager.hpp"
+
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/summary/api_summary.hpp"
