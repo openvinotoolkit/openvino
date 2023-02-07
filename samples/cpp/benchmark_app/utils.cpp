@@ -736,7 +736,7 @@ void load_config(const std::string& filename, std::map<std::string, ov::AnyMap>&
         }
     }
 }
-// #endif
+
 
 #ifdef USE_OPENCV
 const std::vector<std::string> supported_image_extensions =
