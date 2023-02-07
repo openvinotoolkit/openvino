@@ -122,6 +122,11 @@ TEST_P(AutoStartupFallback, releaseResource) {
     metaDevices = {{CommonTestUtils::DEVICE_CPU, {}, -1}, {CommonTestUtils::DEVICE_GPU, {}, -1}};
     // DeviceInformation devInfo;
     ON_CALL(*plugin, ParseMetaDevices(_, _)).WillByDefault(Return(metaDevices));
+    ON_CALL(*plugin, GetValidDevice)
+        .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
+            std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
+            return devices;
+        });
     ON_CALL(*plugin, SelectDevice(_, _, _)).WillByDefault(Return(metaDevices[1]));
 
     EXPECT_CALL(
