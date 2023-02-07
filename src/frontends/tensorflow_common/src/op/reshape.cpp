@@ -14,11 +14,12 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_reshape_op(const NodeContext& node) {
-    auto data = node.get_input(0);
+    default_op_checks(node, 2, {"Reshape"});
+    auto tensor = node.get_input(0);
     auto shape = node.get_input(1);
-    auto res = make_shared<Reshape>(data, shape, false);
-    set_node_name(node.get_name(), res);
-    return res->outputs();
+    auto reshape = make_shared<Reshape>(tensor, shape, false);
+    set_node_name(node.get_name(), reshape);
+    return {reshape};
 }
 }  // namespace op
 }  // namespace tensorflow
