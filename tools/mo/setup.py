@@ -19,7 +19,7 @@ from setuptools import setup, find_namespace_packages
 from setuptools.command.build_py import build_py
 from setuptools.command.install import install
 
-prefix = 'openvino/tools/mo_lite/'
+prefix = 'openvino/tools/mo/'
 SETUP_DIR = Path(__file__).resolve().parent / Path(prefix)
 
 
@@ -81,11 +81,6 @@ setup(
     cmdclass={
         'install': InstallCmd,
         'build_py': BuildCmd,
-    },
-    entry_points={
-        'console_scripts': [
-            'mo = openvino.tools.mo_lite.__main__:main',
-        ],
     },
     package_data={
       'openvino.tools.mo.front.caffe.proto': ['*.proto'],
