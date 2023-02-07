@@ -12,7 +12,7 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_int(NodeContext& context) {
-    return {context.mark_node(std::make_shared<opset10::Convert>(context.get_input(0), element::i64))};
+    return {context.mark_node(std::make_shared<opset10::Convert>(context.get_input(0), element::i32))};
 };
 
 }  // namespace op

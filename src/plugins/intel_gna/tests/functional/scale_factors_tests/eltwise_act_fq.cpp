@@ -2,45 +2,41 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
+#include <ie_core.hpp>
 #include <memory>
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
-
-#include <ie_core.hpp>
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "functional_test_utils/plugin_cache.hpp"
 #include "ngraph_functions/builders.hpp"
-
 #include "ngraph_functions/pass/convert_prc.hpp"
+#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 static std::map<ngraph::helpers::ActivationTypes, std::string> activationNames = {
-        {ngraph::helpers::ActivationTypes::Sigmoid,               "Sigmoid"},
-        {ngraph::helpers::ActivationTypes::Tanh,                  "Tanh"},
-        {ngraph::helpers::ActivationTypes::Relu,                  "Relu"},
-        {ngraph::helpers::ActivationTypes::Exp,                   "Exp"},
-        {ngraph::helpers::ActivationTypes::Log,                   "Log"},
-        {ngraph::helpers::ActivationTypes::Sign,                  "Sign"},
-        {ngraph::helpers::ActivationTypes::Abs,                   "Abs"}
-};
+    {ngraph::helpers::ActivationTypes::Sigmoid, "Sigmoid"},
+    {ngraph::helpers::ActivationTypes::Tanh, "Tanh"},
+    {ngraph::helpers::ActivationTypes::Relu, "Relu"},
+    {ngraph::helpers::ActivationTypes::Exp, "Exp"},
+    {ngraph::helpers::ActivationTypes::Log, "Log"},
+    {ngraph::helpers::ActivationTypes::Sign, "Sign"},
+    {ngraph::helpers::ActivationTypes::Abs, "Abs"}};
 
-typedef std::tuple<
-    InferenceEngine::Precision,         // Network Precision
-    std::string,                        // Target Device
-    std::map<std::string, std::string>, // Configuration
-    std::pair<float, float>,            // Input values
-    ngraph::helpers::ActivationTypes    // Activation type
-> eltwiseActFqParams;
+typedef std::tuple<InferenceEngine::Precision,          // Network Precision
+                   std::string,                         // Target Device
+                   std::map<std::string, std::string>,  // Configuration
+                   std::pair<float, float>,             // Input values
+                   ngraph::helpers::ActivationTypes     // Activation type
+                   >
+    eltwiseActFqParams;
 
 namespace LayerTestsDefinitions {
 
 class EltwiseActFqTest : public testing::WithParamInterface<eltwiseActFqParams>,
-    public LayerTestsUtils::LayerTestsCommon {
+                         public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<eltwiseActFqParams> obj) {
         InferenceEngine::Precision netPrecision;
@@ -93,26 +89,35 @@ protected:
         const ngraph::Shape shape = {1, 128};
         auto params = ngraph::builder::makeParams(ngPrc, {shape});
 
-        auto lowNodeIn = ngraph::builder::makeConstant<float>(ngPrc, {1}, { 100 * -inputDataMax });
-        auto highNodeIn = ngraph::builder::makeConstant<float>(ngPrc, {1}, { 100 * inputDataMax });
-        auto fqIn = std::make_shared<ngraph::opset8::FakeQuantize>(params[0], lowNodeIn, highNodeIn,
-            lowNodeIn, highNodeIn, levels16);
+        auto lowNodeIn = ngraph::builder::makeConstant<float>(ngPrc, {1}, {100 * -inputDataMax});
+        auto highNodeIn = ngraph::builder::makeConstant<float>(ngPrc, {1}, {100 * inputDataMax});
+        auto fqIn = std::make_shared<ngraph::opset8::FakeQuantize>(params[0],
+                                                                   lowNodeIn,
+                                                                   highNodeIn,
+                                                                   lowNodeIn,
+                                                                   highNodeIn,
+                                                                   levels16);
 
-        auto constant = ngraph::builder::makeConstant<float>(ngPrc, shape,
+        auto constant = ngraph::builder::makeConstant<float>(
+            ngPrc,
+            shape,
             CommonTestUtils::generate_float_numbers(shape[1], inputDataMin, inputDataMax));
         auto add = std::make_shared<ngraph::opset8::Add>(fqIn, constant);
 
-        auto lowNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, { 2 * inputDataMin });
-        auto highNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, { 2 * inputDataMax });
-        auto fq = std::make_shared<ngraph::opset8::FakeQuantize>(add, lowNode, highNode,
-            lowNode, highNode, levels32);
+        auto lowNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {2 * inputDataMin});
+        auto highNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {2 * inputDataMax});
+        auto fq = std::make_shared<ngraph::opset8::FakeQuantize>(add, lowNode, highNode, lowNode, highNode, levels32);
 
         auto tanh = ngraph::builder::makeActivation(fq, ngPrc, act);
 
-        auto lowNodeOut = ngraph::builder::makeConstant<float>(ngPrc, {1}, { std::tanh(2 * inputDataMin) });
-        auto highNodeOut = ngraph::builder::makeConstant<float>(ngPrc, {1}, { std::tanh(2 * inputDataMax) });
-        auto fqOut = std::make_shared<ngraph::opset8::FakeQuantize>(tanh, lowNodeOut, highNodeOut,
-            lowNodeOut, highNodeOut, levels16);
+        auto lowNodeOut = ngraph::builder::makeConstant<float>(ngPrc, {1}, {std::tanh(2 * inputDataMin)});
+        auto highNodeOut = ngraph::builder::makeConstant<float>(ngPrc, {1}, {std::tanh(2 * inputDataMax)});
+        auto fqOut = std::make_shared<ngraph::opset8::FakeQuantize>(tanh,
+                                                                    lowNodeOut,
+                                                                    highNodeOut,
+                                                                    lowNodeOut,
+                                                                    highNodeOut,
+                                                                    levels16);
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(fqOut)};
         function = std::make_shared<ngraph::Function>(results, params, "TanhFq");
@@ -130,41 +135,28 @@ TEST_P(EltwiseActFqTest, CompareWithRefImpl) {
     Run();
 };
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32,
-    InferenceEngine::Precision::FP16
-};
+const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
+                                                               InferenceEngine::Precision::FP16};
 
 const std::vector<std::map<std::string, std::string>> configs = {
-    {
-        {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-        {"GNA_PWL_MAX_ERROR_PERCENT", "0.025"}
-    }
-};
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_PWL_MAX_ERROR_PERCENT", "0.025"}}};
 
-const std::vector<std::pair<float, float>> inputValues = {
-    {-10.0, 10.0},
-    {-5.0, 5.0},
-    {-1.0, 1.0},
-    {-0.04, 0.04}
-};
+const std::vector<std::pair<float, float>> inputValues = {{-10.0, 10.0}, {-5.0, 5.0}, {-1.0, 1.0}, {-0.04, 0.04}};
 
-const std::vector<ngraph::helpers::ActivationTypes> activationTypes = {
-    ngraph::helpers::ActivationTypes::Sigmoid,
-    ngraph::helpers::ActivationTypes::Tanh,
-    ngraph::helpers::ActivationTypes::Relu,
-    ngraph::helpers::ActivationTypes::Exp,
-    ngraph::helpers::ActivationTypes::Log,
-    ngraph::helpers::ActivationTypes::Sign,
-    ngraph::helpers::ActivationTypes::Abs
-};
+const std::vector<ngraph::helpers::ActivationTypes> activationTypes = {ngraph::helpers::ActivationTypes::Sigmoid,
+                                                                       ngraph::helpers::ActivationTypes::Tanh,
+                                                                       ngraph::helpers::ActivationTypes::Relu,
+                                                                       ngraph::helpers::ActivationTypes::Exp,
+                                                                       ngraph::helpers::ActivationTypes::Log,
+                                                                       ngraph::helpers::ActivationTypes::Sign,
+                                                                       ngraph::helpers::ActivationTypes::Abs};
 
-INSTANTIATE_TEST_SUITE_P(smoke_base, EltwiseActFqTest,
-    ::testing::Combine(
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GNA),
-        ::testing::ValuesIn(configs),
-        ::testing::ValuesIn(inputValues),
-        ::testing::ValuesIn(activationTypes)),
-    EltwiseActFqTest::getTestCaseName);
-} // namespace LayerTestsDefinitions
+INSTANTIATE_TEST_SUITE_P(smoke_base,
+                         EltwiseActFqTest,
+                         ::testing::Combine(::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::ValuesIn(configs),
+                                            ::testing::ValuesIn(inputValues),
+                                            ::testing::ValuesIn(activationTypes)),
+                         EltwiseActFqTest::getTestCaseName);
+}  // namespace LayerTestsDefinitions

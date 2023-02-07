@@ -4,13 +4,12 @@
 
 #include "copy.hpp"
 
+#include <cmath>
+#include <cstddef>
 #include <ngraph/validation_util.hpp>
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-
-#include <cmath>
-#include <cstddef>
 
 namespace ov {
 namespace intel_gna {
@@ -33,7 +32,6 @@ bool Copy::visit_attributes(ngraph::AttributeVisitor& visitor) {
     return true;
 }
 
-} // namespace op
-} // namespace intel_gna
-} // namespace ov
-
+}  // namespace op
+}  // namespace intel_gna
+}  // namespace ov
