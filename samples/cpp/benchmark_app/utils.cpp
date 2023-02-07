@@ -662,7 +662,6 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                            reshape_required);
 }
 
-
 void dump_config(const std::string& filename, const std::map<std::string, ov::AnyMap>& config) {
     nlohmann::json jsonConfig;
     for (const auto& item : config) {
