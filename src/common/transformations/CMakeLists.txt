@@ -6,7 +6,9 @@ set(TARGET_NAME "inference_engine_transformations")
 
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
-
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU") 
+    ie_add_compiler_flags(-Wno-sign-compare)
+endif()
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 # Create named folders for the sources within the .vcproj
