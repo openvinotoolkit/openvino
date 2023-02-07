@@ -1679,6 +1679,116 @@ TEST(reduce_gpu, dynamic) {
     }
 }
 
+TEST(reduce_gpu, b_fs_yx_fsv16_min_dynamic) {
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 17, 1, 2}});
+
+    set_values(input, {
+        1.0f, -1.0f,
+        2.0f, -2.0f,
+        3.0f, -3.0f,
+        4.0f, -4.0f,
+        5.0f, -5.0f,
+        6.0f, -6.0f,
+        7.0f, -7.0f,
+        8.0f, -8.0f,
+        9.0f, -9.0f,
+        8.0f, -8.0f,
+        7.0f, -7.0f,
+        6.0f, -6.0f,
+        5.0f, -5.0f,
+        4.0f, -4.0f,
+        3.0f, -3.0f,
+        2.0f, -2.0f,
+        1.0f, -1.0f
+    });
+
+    topology topology;
+    auto in_layout = layout(ov::PartialShape::dynamic(4), data_types::f32, format::bfyx);
+    const auto used_layout = layout({1, 17, 1, 2}, data_types::f32, format::b_fs_yx_fsv16);
+
+    topology.add(input_layout("input", in_layout));
+    topology.add(reorder("reorder", input_info("input"), used_layout));
+    topology.add(reduce("reduce", input_info("reorder"), reduce_mode::min, {1}, 0));
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reduce");
+
+    auto output = outputs.at("reduce").get_memory();
+
+    std::vector<float> ref_data = {1.0f, -9.0f};
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < ref_data.size(); ++i) {
+        ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
+    }
+}
+
+TEST(reduce_gpu, b_fs_yx_fsv16_max_dynamic) {
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 17, 1, 2}});
+
+    set_values(input, {
+        1.0f, -1.0f,
+        2.0f, -2.0f,
+        3.0f, -3.0f,
+        4.0f, -4.0f,
+        5.0f, -5.0f,
+        6.0f, -6.0f,
+        7.0f, -7.0f,
+        8.0f, -8.0f,
+        9.0f, -9.0f,
+        8.0f, -8.0f,
+        7.0f, -7.0f,
+        6.0f, -6.0f,
+        5.0f, -5.0f,
+        4.0f, -4.0f,
+        3.0f, -3.0f,
+        2.0f, -2.0f,
+        1.0f, -1.0f
+    });
+
+    topology topology;
+    auto in_layout = layout(ov::PartialShape::dynamic(4), data_types::f32, format::bfyx);
+    const auto used_layout = layout({1, 17, 1, 2}, data_types::f32, format::b_fs_yx_fsv16);
+
+    topology.add(input_layout("input", in_layout));
+    topology.add(reorder("reorder", input_info("input"), used_layout));
+    topology.add(reduce("reduce", input_info("reorder"), reduce_mode::max, {1}, 0)); 
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reduce");
+
+    auto output = outputs.at("reduce").get_memory();
+
+    std::vector<float> ref_data = {9.0f, -1.0f};
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < ref_data.size(); ++i) {
+        ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
+    }
+}
+
 template <data_types InputT, data_types OutputT>
 class ReduceXYWithBigTensorTestBase : public ::testing::TestWithParam<TestParamType_general_reduce_gpu> {
 protected:

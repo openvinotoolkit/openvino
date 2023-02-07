@@ -44,6 +44,10 @@ set(TARGET_NAME "ov_capi_test")
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/ov_*.cpp)
 file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
+if(NOT TARGET OpenCL::OpenCL)
+    list(FILTER SOURCES EXCLUDE REGEX ov_remote_context_test.cpp)
+endif()
+
 add_executable(${TARGET_NAME} ${SOURCES} ${HEADERS})
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_c openvino::util
     commonTestUtils gtest_main)
@@ -55,6 +59,10 @@ target_compile_definitions(${TARGET_NAME}
     PRIVATE
     DATA_PATH=\"${DATA_PATH}\"
     MODELS_PATH=\"${MODELS_PATH}\")
+
+if(TARGET OpenCL::OpenCL)
+    target_link_libraries(${TARGET_NAME} PRIVATE OpenCL::OpenCL)
+endif()
 
 if(ENABLE_AUTO OR ENABLE_MULTI)
     add_dependencies(${TARGET_NAME} openvino_auto_plugin)

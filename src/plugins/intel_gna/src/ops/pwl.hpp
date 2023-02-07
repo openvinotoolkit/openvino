@@ -38,17 +38,20 @@ public:
     std::shared_ptr<ngraph::Node> get_base_node();
 
 private:
-    template<typename T1>
+    template <typename T1>
     bool evaluate_pwl(const std::tuple<>&, ov::TensorVector&, const ov::TensorVector&) const {
         return false;
     }
 
-    template<typename ...Types2>
-    bool evaluate_pwl(const std::tuple<>&, const std::tuple<Types2...>&, ov::TensorVector&, const ov::TensorVector&) const {
+    template <typename... Types2>
+    bool evaluate_pwl(const std::tuple<>&,
+                      const std::tuple<Types2...>&,
+                      ov::TensorVector&,
+                      const ov::TensorVector&) const {
         return false;
     }
 
-    template<typename T1, typename ...Types1, typename ...Types2>
+    template <typename T1, typename... Types1, typename... Types2>
     bool evaluate_pwl(const std::tuple<T1, Types1...>&,
                       const std::tuple<Types2...>& types2,
                       ov::TensorVector& outputs,
@@ -60,22 +63,20 @@ private:
         return evaluate_pwl(std::tuple<Types1...>(), types2, outputs, inputs);
     }
 
-    template<typename T1, typename T2, typename ...Types2>
+    template <typename T1, typename T2, typename... Types2>
     bool evaluate_pwl(const std::tuple<T2, Types2...>&,
                       ov::TensorVector& outputs,
                       const ov::TensorVector& inputs) const {
-        return inputs[1].get_element_type() == T1::value &&
-               inputs[0].get_element_type() == T2::value &&
-               evaluate<T1, T2>(outputs, inputs) ||
+        return inputs[1].get_element_type() == T1::value && inputs[0].get_element_type() == T2::value &&
+                   evaluate<T1, T2>(outputs, inputs) ||
                evaluate_pwl<T1>(std::tuple<Types2...>(), outputs, inputs);
     }
 
     template <typename T1, typename T2>
-    bool evaluate(ov::TensorVector& outputs,
-                  const ov::TensorVector& inputs) const;
+    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const;
 
     std::shared_ptr<ngraph::Node> m_base_node;
-}; // class Pwl
-} // namespace op
-} // namespace intel_gna
-} // namespace ov
+};  // class Pwl
+}  // namespace op
+}  // namespace intel_gna
+}  // namespace ov

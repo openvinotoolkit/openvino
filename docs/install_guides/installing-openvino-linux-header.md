@@ -23,3 +23,4 @@ If you want to install OpenVINO™ Runtime on your Linux machine, there are a fe
 * [Install OpenVINO Runtime from YUM](installing-openvino-yum.md)
 * [Install OpenVINO with Docker](installing-openvino-docker-linux.md)
 
+For a full selection of distribution channels, see the [OpenVINO Installation Selector Tool](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html)

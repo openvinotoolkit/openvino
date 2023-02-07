@@ -4,10 +4,10 @@
 
 #pragma once
 
+#include <ie_api.h>
+
 #include <memory>
 #include <string>
-
-#include <ie_api.h>
 
 #include "ngraph/op/op.hpp"
 

@@ -15,7 +15,6 @@ std::string FrontEndTelemetryTest::getTestCaseName(const testing::TestParamInfo<
 }
 
 void FrontEndTelemetryTest::SetUp() {
-    FrontEndTestUtils::setupTestEnv();
     m_fem = FrontEndManager();  // re-initialize after setting up environment
     initParamTest();
 }
