@@ -59,7 +59,7 @@ TEST(check_hash_value, fc_basic) {
     auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { out_f, in_f, in_y, in_x } });
     auto bias_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, out_f, 1 } });
 
-    auto key_prim_id = "eltwise";
+    const auto key_prim_id = "fc";
     topology topology(
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
@@ -79,7 +79,7 @@ TEST(check_hash_value, fc_basic) {
 
     ASSERT_EQ(primitive_hash, 7881065839556591629UL);
     ASSERT_EQ(prog_node_hash, 7881065839556591629UL);
-    ASSERT_EQ(prim_inst_hash, 2803059017090178132UL);
+    ASSERT_EQ(prim_inst_hash, 12327057149074647711UL);
 }
 
 TEST(check_hash_value, gather_basic) {
