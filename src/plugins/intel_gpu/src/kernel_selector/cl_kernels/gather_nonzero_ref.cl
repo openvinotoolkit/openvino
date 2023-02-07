@@ -18,18 +18,21 @@ KERNEL (gather_nonzero_ref)(
     int local_offset = 0;
     const int result_size = OV_INPUT_RANK * OUTPUT_FEATURE_NUM; // output shape: [ov_rank, count_nonzero]
 
+    OUTPUT_TYPE* out_mem;
+    bool use_local_mem = false;
+    __local OUTPUT_TYPE out_mem_slm[MAX_LOCAL_MEM_SIZE];
 #if IS_DYNAMIC
     const int dst_slm_size = TOTAL_DATA_SIZE * OV_INPUT_RANK;
-    #define DST_SLM_SIZE dst_slm_size
-#if DST_SLM_SIZE < MAX_LOCAL_MEM_SIZE
-    #define USE_LOCAL_MEM 1
-#endif
+    use_local_mem = dst_slm_size < MAX_LOCAL_MEM_SIZE;
 #endif // IS_DYNAMIC
-#if USE_LOCAL_MEM
-    __local OUTPUT_TYPE out_mem[MAX_LOCAL_MEM_SIZE];
-#else
-    __global OUTPUT_TYPE* out_mem = output;
+#ifdef USE_LOCAL_MEM
+    use_local_mem = true;
 #endif // USE_LOCAL_MEM
+    if (use_local_mem) {
+        out_mem = out_mem_slm;
+    } else {
+        out_mem = output;
+    }
 
     int count_nzero = output_shape[0];
 #if OV_INPUT_RANK == 1 // b
@@ -133,23 +136,18 @@ KERNEL (gather_nonzero_ref)(
             ADD_IDXS;
          }
     }
-#if USE_LOCAL_MEM
-    // write back to global mem
-    int local_out_iter = 0;
-    for (; local_out_iter + VSIZE < result_size; local_out_iter += VSIZE) {
-        vstore8(VLOAD(0, out_mem + local_out_iter), 0, output + global_output_offset + local_out_iter);
+
+    if (use_local_mem) {
+        // write back to global mem
+        int local_out_iter = 0;
+        for (; local_out_iter + VSIZE < result_size; local_out_iter += VSIZE) {
+            vstore8(VLOAD(0, out_mem + local_out_iter), 0, output + global_output_offset + local_out_iter);
+        }
+        // leftover
+        for (; local_out_iter < result_size; ++local_out_iter) {
+            output[global_output_offset + local_out_iter] = out_mem[local_out_iter];
+        }
     }
-    // leftover
-    for (; local_out_iter < result_size; ++local_out_iter) {
-        output[global_output_offset + local_out_iter] = out_mem[local_out_iter];
-    }
-#endif // USE_LOCAL_MEM
-#if IS_DYNAMIC
-#undef DST_SLM_SIZE
-#ifdef USE_LOCAL_MEM
-#undef USE_LOCAL_MEM
-#endif
-#endif // IS_DYNAMIC
 }
 #ifdef VLOAD
 #undef VLOAD

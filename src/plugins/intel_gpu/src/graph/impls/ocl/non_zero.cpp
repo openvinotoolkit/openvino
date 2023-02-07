@@ -29,7 +29,6 @@ struct count_nonzero_impl : typed_primitive_impl_ocl<count_nonzero> {
         return make_unique<count_nonzero_impl>(*this);
     }
 
-public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         auto params = get_default_params<kernel_selector::count_nonzero_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::count_nonzero_optional_params>(impl_param.get_program());
@@ -54,13 +53,12 @@ struct gather_nonzero_impl : typed_primitive_impl_ocl<gather_nonzero> {
         return make_unique<gather_nonzero_impl>(*this);
     }
 
-public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         auto params = get_default_params<kernel_selector::gather_nonzero_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::gather_nonzero_optional_params>(impl_param.get_program());
 
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
-        params.ov_input_rank = impl_param.get_input_layout().get_partial_shape().rank().get_length();
+        params.ov_input_rank = impl_param.get_input_layout().get_partial_shape().size();
         return {params, optional_params};
     }
 
