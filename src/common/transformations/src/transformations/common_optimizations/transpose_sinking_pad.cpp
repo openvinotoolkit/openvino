@@ -41,12 +41,13 @@ ov::pass::TransposeSinkingPadForward::TransposeSinkingPadForward() {
 
         // change the order of values for PadBegin and PadEng inputs
         const auto transpose_axis_order = transpose_const->get_axis_vector_val();
+        const auto reversed_transpose_order = ReverseTransposeOrder(transpose_axis_order);
         auto axis = std::make_shared<Constant>(element::i32, Shape{}, std::vector<int32_t>{0});
 
         main_node->input(1).replace_source_output(
-            ChangeValuesOrder(main_node->input_value(1), transpose_axis_order, axis));
+            ChangeValuesOrder(main_node->input_value(1), reversed_transpose_order, axis));
         main_node->input(2).replace_source_output(
-            ChangeValuesOrder(main_node->input_value(2), transpose_axis_order, axis));
+            ChangeValuesOrder(main_node->input_value(2), reversed_transpose_order, axis));
 
         // insert Transpose for Pad output
         TransposeInputsInfo transpose_input_info = {transpose, transpose_const, 0};

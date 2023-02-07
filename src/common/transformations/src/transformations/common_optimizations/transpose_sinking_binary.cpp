@@ -33,7 +33,11 @@ ov::pass::TransposeSinkingBinaryForward::TransposeSinkingBinaryForward() {
 
         TransposeInputsInfo transpose_input_info = GetFirstTransposeInput(main_node);
 
-        sink_forward::UpdateInputTransposes(main_node, transpose_input_info);
+        // todo: support dynamic rank case
+        bool updated = sink_forward::UpdateInputTransposes(main_node, transpose_input_info);
+        if (!updated) {
+            return false;
+        }
         for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
             register_new_node(new_node);
             transpose_sinking::UpdateForwardSinkingAbility(new_node);
