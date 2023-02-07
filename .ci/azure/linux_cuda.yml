@@ -1,30 +1,35 @@
 trigger:
   branches:
     include:
-    - master
-    - releases/*
+    - 'master'
+    - 'releases/*'
   paths:
-    exclude: 
-    - docs/
-    - /**/docs/*
-    - /**/*.md
-    - README.md
-    - /**/layer_tests_summary/**
-    - src/tests/functional/plugin/conformance/**
+    exclude:
+    - '*/docs/*'
+    - 'docs/*'
+    - '*/*.md'
+    - '*.md'
+    - '*/layer_tests_summary/*'
+    - '*/conformance/*'
+    - 'tools/*'
+    - 'tests/layer_tests/*'
 
 pr:
+  drafts: 'false'
   branches:
     include:
-    - master
-    - releases/*
+    - 'master'
+    - 'releases/*'
   paths:
-    exclude: 
-    - docs/
-    - /**/docs/*
-    - /**/*.md
-    - README.md
-    - /**/layer_tests_summary/**
-    - src/tests/functional/plugin/conformance/**
+    exclude:
+    - '*/docs/*'
+    - 'docs/*'
+    - '*/*.md'
+    - '*.md'
+    - '*/layer_tests_summary/*'
+    - '*/conformance/*'
+    - 'tools/*'
+    - 'tests/layer_tests/*'
 
 resources:
   repositories:
@@ -45,7 +50,7 @@ resources:
 
 jobs:
 - job: CUDAPlugin_Lin
-  timeoutInMinutes: 60
+  timeoutInMinutes: '60'
 
   pool:
     name: LIN_VMSS_VENV_F16S_U20_WU2
@@ -94,15 +99,15 @@ jobs:
     displayName: 'Make dir'
 
   - checkout: self
-    clean: true
-    lfs: false
-    submodules: recursive
+    clean: 'true'
+    fetchDepth: '1'
+    submodules: 'true'
     path: openvino
 
   - checkout: openvino_contrib
-    clean: true
-    lfs: false
-    submodules: recursive
+    clean: 'true'
+    fetchDepth: '1'
+    submodules: 'true'
     path: openvino_contrib
 
   - script: |
@@ -113,32 +118,32 @@ jobs:
       sudo apt --assume-yes install unzip
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
       unzip ninja-linux.zip
-    workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
 
-  - script: >
-      sudo docker pull openvino.azurecr.io/openvino_ci/cuda-ubuntu2004:2022.1 && 
-      sudo docker run --volume $(REPO_DIR)/../:/root/repos --volume $(WORK_DIR):/root/w
-      openvino.azurecr.io/openvino_ci/cuda-ubuntu2004:2022.1
-      bash -c "
-      sudo -E /root/repos/openvino/install_build_dependencies.sh &&
-      python3 -m pip install -r /root/repos/openvino/src/bindings/python/requirements.txt &&
-      cd /root/w/build &&
-      cmake -GNinja
-      -DCMAKE_VERBOSE_MAKEFILE=ON
-      -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
-      -DOPENVINO_EXTRA_MODULES=/root/repos/openvino_contrib/modules
-      -DENABLE_INTEL_CPU=OFF
-      -DENABLE_INTEL_GPU=OFF
-      -DENABLE_INTEL_GNA=OFF
-      -DBUILD_arm_plugin=OFF
-      -DBUILD_java_api=OFF
-      -DENABLE_PYTHON=OFF
-      -DENABLE_NVIDIA=ON
-      -DENABLE_TESTS=ON
-      /root/repos/openvino &&
-      /root/w/ninja -v CudaFuncTests CudaUnitTests"
-    workingDirectory: $(WORK_DIR)
+  - script: |
+      sudo docker pull openvino.azurecr.io/openvino_ci/cuda-ubuntu2004:2022.1
+      sudo docker run --volume $(REPO_DIR)/../:/root/repos --volume $(WORK_DIR):/root/w \
+        openvino.azurecr.io/openvino_ci/cuda-ubuntu2004:2022.1 \
+        bash -c "
+          sudo -E /root/repos/openvino/install_build_dependencies.sh &&
+          python3 -m pip install -r /root/repos/openvino/src/bindings/python/requirements.txt &&
+          cmake -GNinja \
+            -DCMAKE_VERBOSE_MAKEFILE=ON \
+            -DDENABLE_CPPLINT=OFF \
+            -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
+            -DOPENVINO_EXTRA_MODULES=/root/repos/openvino_contrib/modules/nvidia_plugin \
+            -DENABLE_INTEL_CPU=OFF \
+            -DENABLE_INTEL_GPU=OFF \
+            -DENABLE_INTEL_GNA=OFF \
+            -DENABLE_OV_TF_FRONTEND=OFF \
+            -DENABLE_OV_PADDLE_FRONTEND=OFF \
+            -DENABLE_OV_PYTORCH_FRONTEND=OFF \
+            -DENABLE_OV_ONNX_FRONTEND=OFF \
+            -DENABLE_PYTHON=OFF \
+            -DENABLE_TESTS=ON \
+            -S /root/repos/openvino \
+            -B /root/w/build &&
+          cmake --build /root/w/build --parallel --config Release --verbose -- CudaFuncTests CudaUnitTests"
     displayName: 'Docker build Lin'
 
   - script: ls -alR $(OPENVINO_REPO_DIR)/bin/

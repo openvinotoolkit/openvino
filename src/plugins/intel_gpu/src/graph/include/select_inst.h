@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/select.hpp"
 #include "primitive_inst.h"
@@ -19,6 +18,7 @@ public:
 
     program_node& input(size_t idx = 0) const { return get_dependency(idx); }
     size_t inputs_count() const { return get_dependencies().size(); }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 };
 
 using select_node = typed_program_node<select>;
@@ -32,6 +32,9 @@ public:
     template<typename ShapeType>
     static std::vector<layout> calc_output_layouts(const select_node& /*node*/, const kernel_impl_params& impl_param);
     static layout calc_output_layout(select_node const& node, kernel_impl_params const& impl_param);
+    static std::vector<size_t> extend_shape_to_6d(ov::PartialShape ps);
+    static std::vector<size_t> extend_input_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t input_idx);
+    static std::vector<size_t> extend_output_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t output_idx);
     static std::string to_string(select_node const& node);
     typed_primitive_inst(network& network, select_node const& node);
 };

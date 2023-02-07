@@ -1,16 +1,16 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
-#include "common_test_utils/test_common.hpp"
 
-#include "precision_utils.h"
+#include "common_test_utils/test_common.hpp"
 #include "ie_precision.hpp"
+#include "precision_utils.h"
 
 #ifdef USE_OPENCV
 
-#include <opencv2/core.hpp>
+#    include <opencv2/core.hpp>
 
 using namespace InferenceEngine;
 

@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/util/gather_base.hpp"
 
-#include <ngraph/validation_util.hpp>
-
+#include "bound_evaluate.hpp"
 #include "gather_shape_inference.hpp"
 #include "itt.hpp"
 #include "ngraph/op/concat.hpp"
@@ -16,8 +15,6 @@
 #include "ngraph/shape.hpp"
 
 using namespace std;
-
-BWDCMP_RTTI_DEFINITION(ov::op::util::GatherBase);
 
 ov::op::util::GatherBase::GatherBase(const Output<Node>& data,
                                      const Output<Node>& indices,
@@ -245,16 +242,16 @@ bool ov::op::util::GatherBase::evaluate(const HostTensorVector& outputs, const H
     return gather::evaluate_gather(inputs[0], inputs[1], outputs[0], axis, batch_dims);
 }
 
-bool ov::op::util::GatherBase::evaluate_lower(const HostTensorVector& output_values) const {
+bool ov::op::util::GatherBase::evaluate_lower(ov::TensorVector& output_values) const {
     if (!get_input_tensor(1).has_and_set_bound() || !get_input_tensor(2).has_and_set_bound())
         return false;
-    return ngraph::default_lower_bound_evaluator(this, output_values);
+    return default_lower_bound_evaluator(this, output_values);
 }
 
-bool ov::op::util::GatherBase::evaluate_upper(const HostTensorVector& output_values) const {
+bool ov::op::util::GatherBase::evaluate_upper(ov::TensorVector& output_values) const {
     if (!get_input_tensor(1).has_and_set_bound() || !get_input_tensor(2).has_and_set_bound())
         return false;
-    return ngraph::default_upper_bound_evaluator(this, output_values);
+    return default_upper_bound_evaluator(this, output_values);
 }
 
 bool ov::op::util::GatherBase::evaluate_label(TensorLabelVector& output_labels) const {

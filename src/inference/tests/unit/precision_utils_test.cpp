@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,10 +12,10 @@ using namespace InferenceEngine;
 
 using PrecisionUtilsTests = ::testing::Test;
 
-static constexpr ie_fp16 positiveInf = 0x7C00;
-static constexpr ie_fp16 negativeInf = 0xFC00;
-static constexpr ie_fp16 largestNumber = 0x7BFF;
-static constexpr ie_fp16 lowestNumber = 0xFBFF;
+static constexpr ie_fp16 positiveInf = static_cast<ie_fp16>(0x7C00);
+static constexpr ie_fp16 negativeInf = static_cast<ie_fp16>(0xFC00);
+static constexpr ie_fp16 largestNumber = static_cast<ie_fp16>(0x7BFF);
+static constexpr ie_fp16 lowestNumber = static_cast<ie_fp16>(0xFBFF);
 
 TEST_F(PrecisionUtilsTests, FP32ToFP16PositiveInfinity) {
     const auto fp16ConvertedInf = InferenceEngine::PrecisionUtils::f32tof16(std::numeric_limits<float>::infinity());
@@ -23,7 +23,8 @@ TEST_F(PrecisionUtilsTests, FP32ToFP16PositiveInfinity) {
 }
 
 TEST_F(PrecisionUtilsTests, FP32ToFP16NegativeInfinity) {
-    const auto fp16ConvertedInf = InferenceEngine::PrecisionUtils::f32tof16(-1 * std::numeric_limits<float>::infinity());
+    const auto fp16ConvertedInf =
+        InferenceEngine::PrecisionUtils::f32tof16(-1 * std::numeric_limits<float>::infinity());
     ASSERT_EQ(fp16ConvertedInf, negativeInf);
 }
 
@@ -43,6 +44,7 @@ TEST_F(PrecisionUtilsTests, FP32ToFP16MaximumValue) {
 }
 
 TEST_F(PrecisionUtilsTests, FP32ToFP16LowestValue) {
-    const auto fp16ConvertedLowestValue = InferenceEngine::PrecisionUtils::f32tof16(std::numeric_limits<float>::lowest());
+    const auto fp16ConvertedLowestValue =
+        InferenceEngine::PrecisionUtils::f32tof16(std::numeric_limits<float>::lowest());
     ASSERT_EQ(fp16ConvertedLowestValue, lowestNumber);
 }

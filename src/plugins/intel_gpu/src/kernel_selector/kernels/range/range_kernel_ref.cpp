@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ KernelsData RangeKernelRef::GetKernelsData(const Params &params, const optional_
     auto jit_constants = MakeBaseParamsJitConstants(derived_params);
     auto jit = CreateJit(kernelName, jit_constants, entry_point);
     auto &clKernelData = kernel_data.kernels[0];
-    FillCLKernelData(clKernelData, dispatch_data, params.engineInfo, kernelName, jit, entry_point, DEFAULT,
+    FillCLKernelData(clKernelData, dispatch_data, params.engineInfo, kernelName, jit, entry_point, EXE_MODE_DEFAULT,
                      false, false, 3);
     auto &arguments = clKernelData.params.arguments;
     arguments.erase(arguments.begin()+1); // stop is not used by kernel

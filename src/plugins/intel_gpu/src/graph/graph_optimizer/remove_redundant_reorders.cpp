@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "pass_manager.h"
 #include "program_helpers.h"
@@ -22,10 +20,8 @@
 
 using namespace cldnn;
 
-#define LOG_NODE_REMOVAL(id) GPU_DEBUG_IF(debug_config->verbose >= 2) {                                                         \
-            GPU_DEBUG_COUT << "[remove_redundant_reorders:" << __LINE__ << "] " << "Remove node: " << (id) << std::endl; }
-#define LOG_NODE_REPLACEMENT(id) GPU_DEBUG_IF(debug_config->verbose >= 2) {                                                     \
-            GPU_DEBUG_COUT << "[remove_redundant_reorders:" << __LINE__ << "] " << "Replace node: " << (id) << std::endl; }
+#define LOG_NODE_REMOVAL(id)      GPU_DEBUG_LOG_PASS << "Remove node: " << (id) << std::endl;
+#define LOG_NODE_REPLACEMENT(id)  GPU_DEBUG_LOG_PASS << "Replace node: " << (id) << std::endl;
 
 
 remove_redundant_reorders::remove_redundant_reorders(layout_optimizer& lo_ref, bool enable_reorder_fusing, bool update_implementations,
@@ -34,7 +30,6 @@ remove_redundant_reorders::remove_redundant_reorders(layout_optimizer& lo_ref, b
     remove_output_reorders(remove_output_reorders) {}
 
 void remove_redundant_reorders::run(program& p) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     auto update_implementation = [&](program_node& node) {
         if (!update_implementations)
             return;
@@ -66,7 +61,7 @@ void remove_redundant_reorders::run(program& p) {
             if (node.has_mean() || !node.get_primitive()->subtract_per_feature.empty())
                 continue;
 
-            if (!node.get_fused_activations_funcs().empty())
+            if (node.has_fused_primitives())
                 continue;
 
             std::function<bool(program_node&)> has_quantize_user;
@@ -154,7 +149,7 @@ void remove_redundant_reorders::run(program& p) {
             !r_dep_node.has_mean() &&
             r_dep_node.get_primitive()->subtract_per_feature.empty() &&
             !r_dep_node.is_output() &&
-            r_dep_node.get_fused_activations_funcs().empty() &&
+            !r_dep_node.has_fused_primitives() &&
             !r_dep_node.get_primitive()->has_surface_input();
 
         // for chains like
@@ -170,7 +165,7 @@ void remove_redundant_reorders::run(program& p) {
             !r_dep_node.is_output() &&
             !r_node.has_mean() &&
             r_node.get_primitive()->subtract_per_feature.empty() &&
-            r_node.get_fused_activations_funcs().empty() &&
+            !r_node.has_fused_primitives() &&
             !r_node.get_primitive()->has_surface_input();
 
         if (remove_dep) {
@@ -182,7 +177,7 @@ void remove_redundant_reorders::run(program& p) {
             auto output_layout = r_node.get_output_layout();
             auto dep_prim = std::const_pointer_cast<reorder>(r_dep_node.get_primitive());
             dep_prim->output_format = output_layout.format;
-            dep_prim->output_data_type = output_layout.data_type;
+            dep_prim->output_data_types = {output_layout.data_type};
 
             LOG_NODE_REMOVAL(r_node.id());
             r_node.can_be_optimized(true);
@@ -210,7 +205,7 @@ void remove_redundant_reorders::run(program& p) {
             r_node.has_mean() ||
             r_node.get_users().size() > 1 ||
             r_node.get_primitive()->subtract_per_feature.size() ||
-            r_node.get_fused_activations_funcs().size())
+            r_node.has_fused_primitives())
             continue;
 
         if (!r_node.get_users().front()->is_type<concatenation>())
@@ -251,6 +246,9 @@ void remove_redundant_reorders::run(program& p) {
         if (!node->is_type<reorder>())  // only care for reorders
             continue;
 
+        if (node->is_dynamic())
+            continue;
+
         auto& r_node = node->as<reorder>();
 
         bool no_output_optimization = remove_output_reorders ?
@@ -260,7 +258,7 @@ void remove_redundant_reorders::run(program& p) {
         if (r_node.has_mean() ||
             !r_node.get_primitive()->subtract_per_feature.empty() ||
             no_output_optimization ||
-            !r_node.get_fused_activations_funcs().empty() ||
+            r_node.has_fused_primitives() ||
             r_node.get_primitive()->has_surface_input())
             continue;
 
@@ -337,7 +335,7 @@ void remove_redundant_reorders::run(program& p) {
             if (user->is_type<reorder>() &&
                 user != node &&
                 !user->is_output() &&
-                user->get_fused_activations_funcs().empty()) {
+                !user->has_fused_primitives()) {
                 auto l1 = node->get_output_layout();
                 auto l2 = user->get_output_layout();
 
@@ -384,7 +382,7 @@ void remove_redundant_reorders::run(program& p) {
             if (node.has_mean() || !node.get_primitive()->subtract_per_feature.empty())
                 continue;
 
-            if (!node.get_fused_activations_funcs().empty())
+            if (node.has_fused_primitives())
                 continue;
 
             if (input.get_users().size() != 1)
@@ -532,7 +530,6 @@ void remove_redundant_reorders::run(program& p) {
             local_desc.f_param = node->get_fuse_params();
             local_desc.dep_start_idx = input.get_fused_primitives().size();
             local_desc.output_layout = output_layout;
-            local_desc.activation = activation_func::none;
             input.add_fused_primitive(local_desc);
 
             // remove reorder node
@@ -563,8 +560,7 @@ void remove_redundant_reorders::run(program& p) {
                 !r_node.get_primitive()->subtract_per_feature.empty())
                 continue;
 
-            if (!r_node.get_fused_activations_funcs().empty() ||
-                !r_node.get_fused_primitives().empty())
+            if (r_node.has_fused_primitives())
                 continue;
 
             // Remove reorder for Convolution bfyx -> fs_b_yx_fsv32
@@ -598,10 +594,10 @@ void remove_redundant_reorders::run(program& p) {
         auto& reshape_input_node = dep_node.as<reshape>();
 
         bool remove_dep = reshape_input_node.get_users().size() == 1 && !reshape_input_node.is_output() &&
-                          reshape_input_node.get_fused_activations_funcs().empty() && reshape_input_node.get_fused_primitives().empty();
+                          !reshape_input_node.has_fused_primitives();
         bool remove_current = remove_dep && !reshape_input_node.get_dependencies().empty() &&
                               reshape_input_node.get_dependency(0).get_output_layout() == reshape_node.get_output_layout() &&
-                              reshape_node.get_fused_activations_funcs().empty() && reshape_node.get_fused_primitives().empty();
+                              reshape_node.has_fused_primitives();
 
         if (remove_dep) {
             LOG_NODE_REMOVAL(reshape_input_node.id());

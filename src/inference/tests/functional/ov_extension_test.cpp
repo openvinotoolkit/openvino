@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -190,14 +190,18 @@ std::string getIncorrectExtensionPath() {
                                               std::string("incorrect") + IE_BUILD_POSTFIX);
 }
 
+std::string getRelativeOVExtensionPath() {
+    std::string absolutePath =
+        ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+                                           std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
+    return CommonTestUtils::getRelativePath(CommonTestUtils::getCurrentWorkingDir(), absolutePath);
+}
+
 }  // namespace
 
 class CustomOldIdentity : public ngraph::op::Op {
 public:
-    static constexpr ngraph::NodeTypeInfo type_info{"Identity", static_cast<uint64_t>(0)};
-    const ngraph::NodeTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_OP("Identity");
 
     CustomOldIdentity() = default;
     CustomOldIdentity(const ngraph::Output<ngraph::Node>& arg) : Op({arg}) {
@@ -220,8 +224,6 @@ public:
         return true;
     }
 };
-
-constexpr ngraph::NodeTypeInfo CustomOldIdentity::type_info;
 
 class TestTileOldExtension : public InferenceEngine::IExtension {
 public:
@@ -358,4 +360,7 @@ TEST_F(OVExtensionTests, load_old_extension) {
 TEST_F(OVExtensionTests, load_incorrect_extension) {
     EXPECT_THROW(core.add_extension(getIncorrectExtensionPath()), ov::Exception);
 }
-#endif //defined(ENABLE_OV_IR_FRONTEND)
+TEST_F(OVExtensionTests, load_relative) {
+    EXPECT_NO_THROW(core.add_extension(getRelativeOVExtensionPath()));
+}
+#endif  // defined(ENABLE_OV_IR_FRONTEND)

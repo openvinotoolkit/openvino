@@ -1,19 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/primitive.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Performs forward calcaulations of input gates for dynamic lstm layer.
 /// @details The current implementation of LSTM_DYNAMIC is described the following equations.
@@ -38,7 +31,7 @@ struct lstm_dynamic_timeloop
     /// @param clip Clip threshold. Provide 0 if using lstm without activations clip threshold.
     /// @param input_forget Provide 0 if using lstm without coupled input-forget gates.
     lstm_dynamic_timeloop(const primitive_id& id,
-                          const primitive_id& input,
+                          const input_info& input,
                           const primitive_id& dyn_length,
                           const primitive_id& recurrent,
                           const primitive_id& last_hidden_state = "",
@@ -48,7 +41,7 @@ struct lstm_dynamic_timeloop
                           const float clip = 0.0f,
                           const bool input_forget = 0,
                           const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           dyn_length(dyn_length),
           recurrent(recurrent),
           last_hidden_state(last_hidden_state),
@@ -75,6 +68,17 @@ struct lstm_dynamic_timeloop
     /// @brief Couple the input and forget gates if input_forget is 1. Default is 0.
     bool input_forget;
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, clip);
+        seed = hash_combine(seed, input_forget);
+        seed = hash_combine(seed, last_hidden_state.empty());
+        seed = hash_combine(seed, last_cell_state.empty());
+        seed = hash_combine(seed, initial_hidden.empty());
+        seed = hash_combine(seed, initial_cell.empty());
+        return seed;
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
@@ -96,7 +100,4 @@ protected:
         return ret;
     }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

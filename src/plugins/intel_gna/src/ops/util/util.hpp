@@ -3,27 +3,23 @@
 //
 
 #pragma once
-#include <vector>
-#include <memory>
-
-#include <transformations/utils/utils.hpp>
-#include <ngraph/opsets/opset9.hpp>
-#include <ngraph/opsets/opset8.hpp>
-#include <ngraph/opsets/opset7.hpp>
-
-#include <legacy/ngraph_ops/crop_ie.hpp>
 #include <legacy/ngraph_ops/convolution_ie.hpp>
+#include <legacy/ngraph_ops/crop_ie.hpp>
 #include <legacy/ngraph_ops/eltwise.hpp>
 #include <legacy/ngraph_ops/fully_connected.hpp>
-#include <legacy/ngraph_ops/scaleshift.hpp>
 #include <legacy/ngraph_ops/power.hpp>
 #include <legacy/ngraph_ops/relu_ie.hpp>
+#include <legacy/ngraph_ops/scaleshift.hpp>
+#include <memory>
+#include <ngraph/opsets/opset7.hpp>
+#include <ngraph/opsets/opset8.hpp>
+#include <ngraph/opsets/opset9.hpp>
+#include <transformations/rt_info/gna_transpose_fusable.hpp>
+#include <transformations/utils/utils.hpp>
+#include <vector>
 
 #include "backend/gna_limitations.hpp"
 #include "layers/gna_permute.hpp"
-#include <transformations/utils/utils.hpp>
-#include <transformations/rt_info/gna_transpose_fusable.hpp>
-
 #include "ops/copy.hpp"
 #include "ops/identity.hpp"
 #include "ops/pwl.hpp"
@@ -44,11 +40,11 @@ static bool get_constant_value(std::tuple<>&&, const std::shared_ptr<ngraph::ops
     return false;
 }
 
-template<typename T, typename ...Types>
+template <typename T, typename... Types>
 static bool get_constant_value(std::tuple<T, Types...>&&,
-                  const std::shared_ptr<ngraph::opset8::Constant>& constant, std::vector<double>& values) {
-    return constant->get_element_type() == T::value &&
-           get_constant_value<T>(constant, values) ||
+                               const std::shared_ptr<ngraph::opset8::Constant>& constant,
+                               std::vector<double>& values) {
+    return constant->get_element_type() == T::value && get_constant_value<T>(constant, values) ||
            get_constant_value(std::tuple<Types...>(), constant, values);
 }
 
@@ -81,10 +77,11 @@ static bool get_constant_value(const std::shared_ptr<ngraph::opset8::Constant>& 
 static bool is_aligned_split(const std::shared_ptr<ngraph::Node> input_op, size_t input_op_out_index) {
     size_t offset = 0;
 
-    if (std::dynamic_pointer_cast<ngraph::opset8::Split>(input_op) || std::dynamic_pointer_cast<ngraph::opset8::VariadicSplit>(input_op)) {
+    if (std::dynamic_pointer_cast<ngraph::opset8::Split>(input_op) ||
+        std::dynamic_pointer_cast<ngraph::opset8::VariadicSplit>(input_op)) {
         for (size_t index = 0; index < input_op_out_index; index++) {
             size_t outputSize = ngraph::shape_size(input_op->get_output_shape(index));
-            offset += outputSize * GNAPluginNS::GNALimitations::bytesPerSplitElement;
+            offset += outputSize * limitations::bytesPerSplitElement;
         }
     }
     return (offset == ALIGN64(offset));
@@ -93,7 +90,7 @@ static bool is_aligned_split(const std::shared_ptr<ngraph::Node> input_op, size_
 static bool is_crop_affined(std::shared_ptr<ngraph::Node> node) {
     auto crop = std::dynamic_pointer_cast<ngraph::op::CropIE>(node);
     if (crop != nullptr && !crop->offset.empty()) {
-        return GNAPluginNS::GNALimitations::isCropAffinedOffset(crop->offset.back());
+        return limitations::isCropAffinedOffset(crop->offset.back());
     }
     return false;
 }
@@ -101,27 +98,31 @@ static bool is_crop_affined(std::shared_ptr<ngraph::Node> node) {
 // this not only mathematically trivial
 static bool is_trivial_transpose(std::shared_ptr<ngraph::Node> node) {
     auto transpose = std::dynamic_pointer_cast<ngraph::opset8::Transpose>(node);
-    if (!transpose) return false;
+    if (!transpose)
+        return false;
 
     if (transpose->get_input_size() == 0)
-        return false; // unsupported case
+        return false;  // unsupported case
 
     if (ov::intel_gna::rt_info::is_transpose_fusable(transpose))
         return true;
 
-    auto transpose_const = std::dynamic_pointer_cast<ngraph::op::Constant>(transpose->input_value(1).get_node_shared_ptr());
-    if (!transpose_const) return false;
+    auto transpose_const =
+        std::dynamic_pointer_cast<ngraph::op::Constant>(transpose->input_value(1).get_node_shared_ptr());
+    if (!transpose_const)
+        return false;
 
     auto node_order = transpose_const->cast_vector<int64_t>();
 
     auto input = transpose->input(0).get_source_output().get_node_shared_ptr();
     auto input_order = transpose->get_input_shape(0);
 
-    return GNAPluginNS::isTrivialPermute(node_order, input_order);
+    return permute::isTrivialPermute(node_order, input_order);
 }
 
-inline std::shared_ptr<ov::Node> get_prev_node_skipping_certain(const std::shared_ptr<ngraph::Node>& node,
-                                                                const std::function<bool(std::shared_ptr<ngraph::Node>)>& skip) {
+inline std::shared_ptr<ov::Node> get_prev_node_skipping_certain(
+    const std::shared_ptr<ngraph::Node>& node,
+    const std::function<bool(std::shared_ptr<ngraph::Node>)>& skip) {
     auto current_node = node;
     while (skip(current_node)) {
         current_node = current_node->get_input_node_shared_ptr(0);
@@ -129,8 +130,9 @@ inline std::shared_ptr<ov::Node> get_prev_node_skipping_certain(const std::share
     return current_node;
 }
 
-inline std::shared_ptr<ov::Node> get_next_node_skipping_certain(const std::shared_ptr<ngraph::Node>& node,
-                                                                const std::function<bool(std::shared_ptr<ngraph::Node>)>& skip) {
+inline std::shared_ptr<ov::Node> get_next_node_skipping_certain(
+    const std::shared_ptr<ngraph::Node>& node,
+    const std::function<bool(std::shared_ptr<ngraph::Node>)>& skip) {
     auto current_node = node;
     while (skip(current_node)) {
         current_node = current_node->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
@@ -140,13 +142,14 @@ inline std::shared_ptr<ov::Node> get_next_node_skipping_certain(const std::share
 
 inline bool is_gna_non_functional_node(const std::shared_ptr<ngraph::Node>& node) {
     return std::dynamic_pointer_cast<ngraph::opset8::Reshape>(node) ||
-            std::dynamic_pointer_cast<ngraph::opset8::Squeeze>(node) ||
-            std::dynamic_pointer_cast<ngraph::opset8::Unsqueeze>(node) ||
-            is_trivial_transpose(node);
+           std::dynamic_pointer_cast<ngraph::opset8::Squeeze>(node) ||
+           std::dynamic_pointer_cast<ngraph::opset8::Unsqueeze>(node) || is_trivial_transpose(node);
 }
 
 inline bool is_one_dim_shape(const ov::Shape& dims) {
-    return std::count_if(std::begin(dims), std::end(dims), [](size_t dim) { return dim != 1; }) <= 1;
+    return std::count_if(std::begin(dims), std::end(dims), [](size_t dim) {
+               return dim != 1;
+           }) <= 1;
 }
 
 inline bool is_one_dim_shapes(const ov::Shape& in_dims, const ov::Shape& out_dims) {
@@ -159,7 +162,7 @@ static bool is_power_activation(const ov::Node* node) noexcept {
         if (!const_node)
             return false;
         float value;
-        if (!ngraph::op::util::get_single_value(const_node, value)) {
+        if (!ov::op::util::get_single_value(const_node, value)) {
             return true;
         }
         return (1.0f != value);
@@ -175,13 +178,15 @@ static bool is_power_activation(const std::shared_ptr<ngraph::Node>& node) noexc
 
 static bool is_eltwise_mul(const std::shared_ptr<ngraph::Node>& node) {
     auto eltwise = std::dynamic_pointer_cast<ngraph::op::Eltwise>(node);
-    if (!eltwise) return false;
+    if (!eltwise)
+        return false;
     return eltwise->eltwise_type == ELTWISE_TYPE::Prod;
 }
 
 static bool is_eltwise_add(const std::shared_ptr<ngraph::Node>& node) {
     auto eltwise = std::dynamic_pointer_cast<ngraph::op::Eltwise>(node);
-    if (!eltwise) return false;
+    if (!eltwise)
+        return false;
     return eltwise->eltwise_type == ELTWISE_TYPE::Sum;
 }
 
@@ -221,8 +226,7 @@ static bool is_activation(const ov::Node* node) noexcept {
             (dynamic_cast<const ngraph::opset9::Log*>(node) != nullptr) ||
             (dynamic_cast<const ngraph::opset9::Sign*>(node) != nullptr) ||
             (dynamic_cast<const ngraph::opset9::Abs*>(node) != nullptr) ||
-            (dynamic_cast<const ngraph::opset9::SoftSign*>(node) != nullptr) ||
-            is_power_activation(node) ||
+            (dynamic_cast<const ngraph::opset9::SoftSign*>(node) != nullptr) || is_power_activation(node) ||
             (dynamic_cast<const ngraph::opset9::FakeQuantize*>(node) != nullptr) ||
             (dynamic_cast<const ov::intel_gna::op::Pwl*>(node) != nullptr) ||
             (dynamic_cast<const ov::intel_gna::op::Identity*>(node) != nullptr));
@@ -246,12 +250,10 @@ static bool is_gna_precision_agnostic(std::shared_ptr<ngraph::Node> node) {
 }
 
 static bool has_8bit_or_16_bit_output(const std::shared_ptr<ngraph::Node>& node) noexcept {
-    return ((ngraph::op::is_parameter(node)) ||
-            (ngraph::op::is_constant(node)) ||
+    return ((ngraph::op::is_parameter(node)) || (ngraph::op::is_constant(node)) ||
             (std::dynamic_pointer_cast<ngraph::opset9::ReadValue>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Assign>(node) != nullptr) ||
-            (is_activation(node) && (!is_32bit_fq(node))) ||
-            (is_8bit_fq(node) || (is_16bit_fq(node))) ||
+            (is_activation(node) && (!is_32bit_fq(node))) || (is_8bit_fq(node) || (is_16bit_fq(node))) ||
             is_gna_precision_agnostic(node));
 }
 
@@ -263,17 +265,15 @@ static bool has_32bit_output(const std::shared_ptr<ngraph::Node>& node) {
             (std::dynamic_pointer_cast<ngraph::opset9::Add>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Multiply>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::op::Eltwise>(node) != nullptr) ||
-            (std::dynamic_pointer_cast<ngraph::op::ScaleShiftIE>(node) != nullptr) ||
-            is_pooling(node) ||
+            (std::dynamic_pointer_cast<ngraph::op::ScaleShiftIE>(node) != nullptr) || is_pooling(node) ||
             ((std::dynamic_pointer_cast<ngraph::opset9::Power>(node) != nullptr) && !is_power_activation(node)) ||
             ((std::dynamic_pointer_cast<ngraph::op::PowerIE>(node) != nullptr) && !is_power_activation(node)) ||
-            is_crop_affined(node) ||
-            is_32bit_fq(node));
+            is_crop_affined(node) || is_32bit_fq(node));
 }
 
 inline bool has_32bit_input(const std::shared_ptr<ngraph::Node>& node) {
     return is_activation(node) || is_pooling(node);
 }
-} // namespace ngraph_util
-} // namespace intel_gna
-} // namespace ov
+}  // namespace ngraph_util
+}  // namespace intel_gna
+}  // namespace ov

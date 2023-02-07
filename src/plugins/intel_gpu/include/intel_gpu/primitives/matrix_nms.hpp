@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <vector>
 
@@ -10,12 +9,6 @@
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Performs matrix nms of input boxes and returns indices of selected boxes.
 struct matrix_nms : public primitive_base<matrix_nms> {
@@ -99,10 +92,10 @@ struct matrix_nms : public primitive_base<matrix_nms> {
     /// @param third_output primitive id.
     /// @param attrs attributes.
     matrix_nms(const primitive_id& id,
-               const primitive_id& boxes,
-               const primitive_id& scores,
-               const primitive_id& second_output,
-               const primitive_id& third_output,
+               const input_info& boxes,
+               const input_info& scores,
+               const input_info& second_output,
+               const input_info& third_output,
                const matrix_nms::attributes& attrs)
         : primitive_base(id, {boxes, scores, second_output, third_output}),
           attribs(attrs) {}
@@ -115,15 +108,30 @@ struct matrix_nms : public primitive_base<matrix_nms> {
     /// @param third_output primitive id.
     /// @param attrs operation attributes.
     matrix_nms(const primitive_id& id,
-               const primitive_id& boxes,
-               const primitive_id& scores,
-               const primitive_id& second_output,
-               const primitive_id& third_output,
+               const input_info& boxes,
+               const input_info& scores,
+               const input_info& second_output,
+               const input_info& third_output,
                const ngraph::op::v8::MatrixNms::Attributes& attrs)
         : primitive_base(id, {boxes, scores, second_output, third_output}),
           attribs(attrs) {}
 
     attributes attribs;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, attribs.sort_type);
+        seed = hash_combine(seed, attribs.sort_result_across_batch);
+        seed = hash_combine(seed, attribs.score_threshold);
+        seed = hash_combine(seed, attribs.nms_top_k);
+        seed = hash_combine(seed, attribs.keep_top_k);
+        seed = hash_combine(seed, attribs.background_class);
+        seed = hash_combine(seed, attribs.decay);
+        seed = hash_combine(seed, attribs.gaussian_sigma);
+        seed = hash_combine(seed, attribs.post_threshold);
+        seed = hash_combine(seed, attribs.normalized);
+        return seed;
+    }
 
 private:
     static cldnn::matrix_nms::decay_function from(ngraph::op::v8::MatrixNms::DecayFunction decay) {
@@ -148,7 +156,4 @@ private:
         }
     }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <gtest/gtest.h>
@@ -16,8 +16,6 @@ extern const char* xml;
 extern const char* bin;
 extern const char* input_image;
 extern const char* input_image_nv12;
-
-extern const char* plugins_xml;
 
 #define OV_EXPECT_OK(...)           EXPECT_EQ(ov_status_e::OK, __VA_ARGS__)
 #define OV_ASSERT_OK(...)           ASSERT_EQ(ov_status_e::OK, __VA_ARGS__)

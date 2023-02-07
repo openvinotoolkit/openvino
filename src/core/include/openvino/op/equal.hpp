@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,6 @@ namespace v1 {
 class OPENVINO_API Equal : public util::BinaryElementwiseComparison {
 public:
     OPENVINO_OP("Equal", "opset1", op::util::BinaryElementwiseComparison, 1);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs an equal operation.
     Equal() : util::BinaryElementwiseComparison(AutoBroadcastType::NUMPY) {}
     /// \brief Constructs an equal operation.

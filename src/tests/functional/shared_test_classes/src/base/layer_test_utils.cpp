@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/core_config.hpp"
+#include "ie_icore.hpp"
 
 namespace LayerTestsUtils {
 
@@ -78,7 +79,7 @@ void LayerTestsCommon::Run() {
 void LayerTestsCommon::Serialize(ngraph::pass::Serialize::Version ir_version) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    std::string output_name = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + GetTimestamp();
+    std::string output_name = CommonTestUtils::generateTestFilePrefix();
 
     std::string out_xml_path = output_name + ".xml";
     std::string out_bin_path = output_name + ".bin";
@@ -122,7 +123,7 @@ void LayerTestsCommon::QueryNetwork() {
             ASSERT_EQ(res.second, ctx->getDeviceName());
         } catch (...) {
             // otherwise, compare with originally used device name
-            ASSERT_EQ(res.second, targetDevice);
+            ASSERT_EQ(InferenceEngine::DeviceIDParser(res.second).getDeviceName(), targetDevice);
         }
         actual.insert(res.first);
     }

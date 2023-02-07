@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ namespace node {
 
 class FullyConnected : public Node {
 public:
-    FullyConnected(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    FullyConnected(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape &dims) const override;
     void getSupportedDescriptors() override;
@@ -42,6 +42,7 @@ public:
 
     void initSupportedPrimitiveDescriptors() override;
     void initOptimalPrimitiveDescriptor() override;
+    // void createPrimitive() override;
     std::shared_ptr<MemoryDesc> getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
     std::shared_ptr<MemoryDesc> getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 
@@ -106,6 +107,13 @@ private:
 
     bool canBeExecutedInConv1x1() const;
     MemoryPtr prepareWeightMemory(const DnnlMemoryDescPtr weightDesc);
+
+    // sparse weights
+    bool useSparseWeights = false;
+    int nnzCount = -1;
+    float minSparseRate = 1.f;
+    float weiSparseRate = 0.f;
+    bool useSparseWeightsDecompression();
 };
 
 }   // namespace node

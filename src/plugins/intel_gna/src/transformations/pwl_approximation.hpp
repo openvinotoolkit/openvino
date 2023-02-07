@@ -4,20 +4,19 @@
 
 #pragma once
 
-#include <vector>
-#include <memory>
 #include <cmath>
-#include <stdexcept>
-
-#include <transformations_visibility.hpp>
-
-#include <ngraph/ngraph.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
-#include "ngraph/pattern/matcher.hpp"
-#include <ngraph/opsets/opset9.hpp>
-#include <ngraph/opsets/opset8.hpp>
 #include <legacy/ngraph_ops/power.hpp>
+#include <memory>
+#include <ngraph/ngraph.hpp>
+#include <ngraph/opsets/opset8.hpp>
+#include <ngraph/opsets/opset9.hpp>
+#include <ngraph/pass/graph_rewrite.hpp>
+#include <stdexcept>
+#include <transformations_visibility.hpp>
+#include <vector>
+
 #include "common/numerical_utils.hpp"
+#include "ngraph/pattern/matcher.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -46,12 +45,12 @@ struct Pwl {
     double b;
     double alpha;
     double beta;
-}; // struct Pwl
+};  // struct Pwl
 
-template<typename T>
+template <typename T>
 struct Function;
 
-template<>
+template <>
 struct Function<ngraph::opset8::Sigmoid> {
     static const char* name() {
         return "sigmoid";
@@ -80,9 +79,9 @@ struct Function<ngraph::opset8::Sigmoid> {
     static double max_value() {
         return 1;
     }
-}; // struct Function<ngraph::opset8::Sigmoid>
+};  // struct Function<ngraph::opset8::Sigmoid>
 
-template<>
+template <>
 struct Function<ngraph::opset8::Tanh> {
     static const char* name() {
         return "tanh";
@@ -111,9 +110,9 @@ struct Function<ngraph::opset8::Tanh> {
     static double max_value() {
         return 1;
     }
-}; // struct Function<ngraph::opset8::Tanh>
+};  // struct Function<ngraph::opset8::Tanh>
 
-template<>
+template <>
 struct Function<ngraph::opset8::Exp> {
     static const char* name() {
         return "exp";
@@ -142,9 +141,9 @@ struct Function<ngraph::opset8::Exp> {
     static double max_value() {
         return INT16_MAX;
     }
-}; // struct Function<ngraph::opset8::Exp>
+};  // struct Function<ngraph::opset8::Exp>
 
-template<>
+template <>
 struct Function<ngraph::opset8::Log> {
     static const char* name() {
         return "log";
@@ -173,9 +172,9 @@ struct Function<ngraph::opset8::Log> {
     static double max_value() {
         return INT16_MAX;
     }
-}; // struct Function<ngraph::opset8::Log>
+};  // struct Function<ngraph::opset8::Log>
 
-template<>
+template <>
 struct Function<ngraph::opset9::SoftSign> {
     static const char* name() {
         return "softsign";
@@ -204,20 +203,18 @@ struct Function<ngraph::opset9::SoftSign> {
     static double max_value() {
         return 1;
     }
-}; // struct Function<ngraph::opset9::SoftSign>
+};  // struct Function<ngraph::opset9::SoftSign>
 
-template<>
+template <>
 struct Function<ngraph::op::PowerIE> {
     static const char* name() {
         return "power";
     }
-}; // struct Function<ngraph::op::PowerIE>
+};  // struct Function<ngraph::op::PowerIE>
 
-template<>
+template <>
 struct Function<ngraph::opset8::Power> {
-    Function(double exponent, double scale, double shift) :
-        m_exponent(exponent), m_scale(scale), m_shift(shift) {
-    }
+    Function(double exponent, double scale, double shift) : m_exponent(exponent), m_scale(scale), m_shift(shift) {}
 
     static const char* name() {
         return "power";
@@ -232,116 +229,111 @@ struct Function<ngraph::opset8::Power> {
     }
 
     static double lower_bound(double exponent) {
-        return common::fp32eq(fmod(exponent, 1.0), 0.0f) ? -16 : 0;
+        return common::AreFpEq(fmod(exponent, 1.0), 0.0) ? -16.0 : 0.0;
     }
 
     static double upper_bound() {
-        return 16;
+        return 16.0;
     }
 
     const double m_exponent;
     const double m_scale;
     const double m_shift;
-}; // struct Function<ngraph::opset8::Power>
+};  // struct Function<ngraph::opset8::Power>
 
-template<typename T>
+template <typename T>
 double lower_bound(std::true_type) {
     return Function<T>::lower_bound();
 }
 
-template<typename T>
+template <typename T>
 double lower_bound(std::false_type) {
     throw std::runtime_error("Not supported");
 }
 
-template<typename T>
+template <typename T>
 double lower_bound() {
-    return lower_bound<T>(std::integral_constant<bool,
-        std::is_same<T, ngraph::opset8::Log>::value ||
-        std::is_same<T, ngraph::opset8::Exp>::value ||
-        std::is_same<T, ngraph::opset8::Tanh>::value ||
-        std::is_same<T, ngraph::opset8::Sigmoid>::value ||
-        std::is_same<T, ngraph::opset9::SoftSign>::value>());
+    return lower_bound<T>(std::integral_constant < bool,
+                          std::is_same<T, ngraph::opset8::Log>::value || std::is_same<T, ngraph::opset8::Exp>::value ||
+                              std::is_same<T, ngraph::opset8::Tanh>::value ||
+                              std::is_same<T, ngraph::opset8::Sigmoid>::value ||
+                              std::is_same<T, ngraph::opset9::SoftSign>::value > ());
 }
 
-template<typename T>
+template <typename T>
 double lower_bound(std::true_type, double exponent) {
     return Function<ngraph::opset8::Power>::lower_bound(exponent);
 }
 
-template<typename T>
+template <typename T>
 double lower_bound(std::false_type, double exponent) {
     throw std::runtime_error("Not supported");
 }
 
-template<typename T>
+template <typename T>
 double lower_bound(double exponent) {
-    return lower_bound<T>(std::integral_constant<bool,
-        std::is_same<T, ngraph::opset8::Power>::value ||
-        std::is_same<T, ngraph::op::PowerIE>::value>(), exponent);
+    return lower_bound<T>(
+        std::integral_constant < bool,
+        std::is_same<T, ngraph::opset8::Power>::value || std::is_same<T, ngraph::op::PowerIE>::value > (),
+        exponent);
 }
 
-template<typename T>
+template <typename T>
 double upper_bound(std::true_type) {
     return Function<T>::upper_bound();
 }
 
-template<typename T>
+template <typename T>
 double upper_bound(std::false_type) {
     throw std::runtime_error("Not supported");
 }
 
-template<typename T>
+template <typename T>
 double upper_bound() {
-    return upper_bound<T>(std::integral_constant<bool,
-        std::is_same<T, ngraph::opset8::Log>::value ||
-        std::is_same<T, ngraph::opset8::Exp>::value ||
-        std::is_same<T, ngraph::opset8::Tanh>::value ||
-        std::is_same<T, ngraph::opset8::Power>::value ||
-        std::is_same<T, ngraph::op::PowerIE>::value ||
-        std::is_same<T, ngraph::opset8::Sigmoid>::value ||
-        std::is_same<T, ngraph::opset9::SoftSign>::value>());
+    return upper_bound<T>(
+        std::integral_constant < bool,
+        std::is_same<T, ngraph::opset8::Log>::value || std::is_same<T, ngraph::opset8::Exp>::value ||
+            std::is_same<T, ngraph::opset8::Tanh>::value || std::is_same<T, ngraph::opset8::Power>::value ||
+            std::is_same<T, ngraph::op::PowerIE>::value || std::is_same<T, ngraph::opset8::Sigmoid>::value ||
+            std::is_same<T, ngraph::opset9::SoftSign>::value > ());
 }
 
-template<typename T>
+template <typename T>
 const char* name(std::true_type) {
     return Function<T>::name();
 }
 
-template<typename T>
+template <typename T>
 const char* name(std::false_type) {
     throw std::runtime_error("Not supported");
 }
 
-template<typename T>
+template <typename T>
 const char* name() {
-    return name<T>(std::integral_constant<bool,
-        std::is_same<T, ngraph::opset8::Exp>::value ||
-        std::is_same<T, ngraph::opset8::Tanh>::value ||
-        std::is_same<T, ngraph::opset8::Sigmoid>::value ||
-        std::is_same<T, ngraph::opset8::Power>::value ||
-        std::is_same<T, ngraph::op::PowerIE>::value ||
-        std::is_same<T, ngraph::opset8::Log>::value ||
-        std::is_same<T, ngraph::opset9::SoftSign>::value>());
+    return name<T>(std::integral_constant < bool,
+                   std::is_same<T, ngraph::opset8::Exp>::value || std::is_same<T, ngraph::opset8::Tanh>::value ||
+                       std::is_same<T, ngraph::opset8::Sigmoid>::value ||
+                       std::is_same<T, ngraph::opset8::Power>::value || std::is_same<T, ngraph::op::PowerIE>::value ||
+                       std::is_same<T, ngraph::opset8::Log>::value ||
+                       std::is_same<T, ngraph::opset9::SoftSign>::value > ());
 }
 
-template<typename T>
+template <typename T>
 int max_segments_number() {
     return 128;
 }
 
-template<typename T>
+template <typename T>
 inline int max_iterations() {
     return 2000;
 }
 
-template<>
+template <>
 inline int max_iterations<ngraph::opset8::Log>() {
     return 5000;
 }
 
-} // namespace details
-} // namespace pass
-} // namespace intel_gna
-} // namespace ov
-
+}  // namespace details
+}  // namespace pass
+}  // namespace intel_gna
+}  // namespace ov

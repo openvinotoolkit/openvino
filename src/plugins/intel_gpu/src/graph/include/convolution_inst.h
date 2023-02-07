@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/convolution.hpp"
 #include "primitive_inst.h"
@@ -21,8 +20,6 @@ struct typed_program_node<convolution> : public typed_program_node_base<convolut
 public:
     typed_program_node(std::shared_ptr<primitive> prim, program& prog)
         : parent(prim, prog),
-          split(this->get_primitive()->split()),
-          depthwise_sep_opt(false),
           transposed(false),
           groups(this->get_primitive()->groups),
           deformable_groups(this->get_primitive()->deformable_groups),
@@ -30,19 +27,11 @@ public:
         support_padding_all(true);
     }
 
-    void set_split(int32_t node_split) { split = node_split; }
-    int32_t get_split() const { return split; }
-
-    void set_depthwise_sep_opt(bool node_depthwise_sep_opt) { depthwise_sep_opt = node_depthwise_sep_opt; }
-    bool get_depthwise_sep_opt() const { return depthwise_sep_opt; }
-
     void set_transposed(bool node_transposed) { transposed = node_transposed; }
     bool get_transposed() const { return transposed; }
 
-    void set_groups(uint32_t node_groups) { groups = node_groups; }
     uint32_t get_groups() const { return groups; }
 
-    void set_deformable_groups(uint32_t node_deformable_groups) { deformable_groups = node_deformable_groups; }
     uint32_t get_deformable_groups() const { return deformable_groups; }
 
     int32_t get_deform_conv_dep_offset() const {
@@ -54,41 +43,24 @@ public:
 
     program_node& input() const { return get_dependency(0); }
 
-    program_node& weights(size_t idx = 0) const {
-        if (static_cast<int32_t>(idx) >= this->get_split())
-            throw std::range_error("weights offset too big");
-
-        return get_dependency(1 + idx + get_deform_conv_dep_offset());
+    program_node& weights() const {
+        return get_dependency(1 + get_deform_conv_dep_offset());
     }
 
-    program_node& bias(size_t idx = 0) const {
-        if (static_cast<int32_t>(idx) >= this->get_split())
-            throw std::range_error("bias offset too big");
-
-        return get_dependency(1 + this->get_split() + idx + get_deform_conv_dep_offset());
+    program_node& bias() const {
+        return get_dependency(2 + get_deform_conv_dep_offset());
     }
 
-    program_node& weights_zero_points(size_t idx = 0) const {
-        if (static_cast<int32_t>(idx) >= this->get_split())
-            throw std::range_error("weights zero points offset too big");
-
-        return get_dependency(1 + (1 + 1 * bias_term()) * this->get_split() + idx + get_deform_conv_dep_offset());
+    program_node& weights_zero_points() const {
+        return get_dependency(2 + (1 * bias_term()) + get_deform_conv_dep_offset());
     }
 
-    program_node& activations_zero_points(size_t idx = 0) const {
-        if (static_cast<int32_t>(idx) >= this->get_split())
-            throw std::range_error("activations zero points offset too big");
-
-        return get_dependency(1 + (1 + 1 * bias_term() + 1 * weights_zero_points_term()) * this->get_split() + idx +
-                              get_deform_conv_dep_offset());
+    program_node& activations_zero_points() const {
+        return get_dependency(2 + (1 * bias_term() + 1 * weights_zero_points_term()) + get_deform_conv_dep_offset());
     }
 
-    program_node& compensation(size_t idx = 0) const {
-        if (static_cast<int32_t>(idx) >= this->get_split())
-            throw std::range_error("activations zero points offset too big");
-
-        return get_dependency(1 + (1 + 1 * bias_term() + 1 * weights_zero_points_term() + 1*activations_zero_points_term()) * this->get_split()
-                              + idx + get_deform_conv_dep_offset());
+    program_node& compensation() const {
+        return get_dependency(2 + (1 * bias_term() + 1 * weights_zero_points_term() + 1*activations_zero_points_term()) + get_deform_conv_dep_offset());
     }
 
     program_node& trans() const {
@@ -120,6 +92,9 @@ public:
     bool compensation_term() const { return get_primitive()->compensation.size() > 0; }
     bool activations_zero_points_term() const { return get_primitive()->activations_zero_points.size() > 0; }
 
+    // Currently convolution with constant weight is only supported for dynamic shape
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+
     using parent::get_kernel_impl_params;
     std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const override {
         auto params = parent::get_kernel_impl_params(in_layouts, out_layouts);
@@ -135,9 +110,12 @@ public:
         return params;
     }
 
+    void calculate_hash() override {
+        parent::calculate_hash();
+        seed = hash_combine(seed, transposed);
+    }
+
 private:
-    int32_t split;
-    bool depthwise_sep_opt;
     bool transposed;
     uint32_t groups;
     uint32_t deformable_groups;
@@ -160,31 +138,19 @@ public:
 public:
     typed_primitive_inst(network& network, convolution_node const& node);
 
-    memory::ptr weights_memory(size_t index) const {
+    memory::ptr weights_memory() const {
         if (is_dynamic() && _impl_params->reordered_weights != nullptr) {
             return _impl_params->reordered_weights;
-        } else if (_groups == 1) {
-            if (static_cast<int32_t>(index) >= _split)
-                throw std::range_error("weights offset too big");
-            return dep_memory_ptr(1 + index + _deform_conv_dep_offset);
         } else {  // all weights are in one buffer
             return dep_memory_ptr(1 + _deform_conv_dep_offset);
         }
     }
 
-    memory::ptr bias_memory(size_t index) const {
-        if (_groups == 1) {
-            if (static_cast<int32_t>(index) >= _split)
-                throw std::range_error("bias offset too big");
-            return dep_memory_ptr(1 + _split + index + _deform_conv_dep_offset);
-        } else {  // all bias are in one buffer
-            return dep_memory_ptr(2 + _deform_conv_dep_offset);
-        }
+    memory::ptr bias_memory() const {
+        return dep_memory_ptr(2 + _deform_conv_dep_offset);
     }
 
-    memory::ptr weights_zero_points_memory(size_t) const {
-        if (_split > 1)
-            throw std::range_error("Split is unsupported for quantized convolutions");
+    memory::ptr weights_zero_points_memory() const {
         return dep_memory_ptr(2 + 1 * bias_term() + _deform_conv_dep_offset);
     }
 
@@ -194,16 +160,12 @@ public:
         return dep_memory_ptr(1);
     }
 
-    memory::ptr activations_zero_points_memory(size_t) const {
-        if (_split > 1)
-            throw std::range_error("Split is unsupported for quantized convolutions");
+    memory::ptr activations_zero_points_memory() const {
         return dep_memory_ptr(2 + 1 * bias_term() + 1 * weights_zero_points_term()
                               + _deform_conv_dep_offset);
     }
 
-    memory::ptr compensation_memory(size_t) const {
-        if (_split > 1)
-            throw std::range_error("Split is unsupported for quantized convolutions");
+    memory::ptr compensation_memory() const {
         return dep_memory_ptr(2 + 1 * bias_term()
                               + 1 * weights_zero_points_term()
                               + 1 * activations_zero_points_term()
@@ -220,8 +182,6 @@ public:
     void load(cldnn::BinaryInputBuffer& ib) override;
 
 private:
-    uint32_t _groups;
-    int32_t _split;
     int32_t _deform_conv_dep_offset;
 };
 

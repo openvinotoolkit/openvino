@@ -1,20 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "primitive.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
+
 
 #define CLDNN_ROI_VECTOR_SIZE 5
 
@@ -22,9 +16,9 @@ struct proposal : public primitive_base<proposal> {
     CLDNN_DECLARE_PRIMITIVE(proposal)
 
     proposal(const primitive_id& id,
-             const primitive_id& cls_scores,
-             const primitive_id& bbox_pred,
-             const primitive_id& image_info,
+             const input_info& cls_scores,
+             const input_info& bbox_pred,
+             const input_info& image_info,
              int max_proposals,
              float iou_threshold,
              int min_bbox_size,
@@ -34,7 +28,7 @@ struct proposal : public primitive_base<proposal> {
              const std::vector<float>& ratios_param,
              const std::vector<float>& scales_param,
              const padding& output_padding = padding())
-        : primitive_base(id, {cls_scores, bbox_pred, image_info}, output_padding),
+        : primitive_base(id, {cls_scores, bbox_pred, image_info}, {output_padding}),
           max_proposals(max_proposals),
           iou_threshold(iou_threshold),
           base_bbox_size(16),
@@ -57,9 +51,9 @@ struct proposal : public primitive_base<proposal> {
           normalize(false) {}
 
     proposal(const primitive_id& id,
-             const primitive_id& cls_scores,
-             const primitive_id& bbox_pred,
-             const primitive_id& image_info,
+             const input_info& cls_scores,
+             const input_info& bbox_pred,
+             const input_info& image_info,
              int max_proposals,
              float iou_threshold,
              int base_bbox_size,
@@ -81,7 +75,7 @@ struct proposal : public primitive_base<proposal> {
              bool shift_anchors,
              bool normalize,
              const padding& output_padding = padding())
-        : primitive_base(id, {cls_scores, bbox_pred, image_info}, output_padding),
+        : primitive_base(id, {cls_scores, bbox_pred, image_info}, {output_padding}),
           max_proposals(max_proposals),
           iou_threshold(iou_threshold),
           base_bbox_size(base_bbox_size),
@@ -104,10 +98,10 @@ struct proposal : public primitive_base<proposal> {
           normalize(normalize) {}
 
     proposal(const primitive_id& id,
-             const primitive_id& cls_scores,
-             const primitive_id& bbox_pred,
-             const primitive_id& image_info,
-             const primitive_id& second_output,
+             const input_info& cls_scores,
+             const input_info& bbox_pred,
+             const input_info& image_info,
+             const input_info& second_output,
              int max_proposals,
              float iou_threshold,
              int base_bbox_size,
@@ -129,7 +123,7 @@ struct proposal : public primitive_base<proposal> {
              bool shift_anchors,
              bool normalize,
              const padding& output_padding = padding())
-            : primitive_base(id, {cls_scores, bbox_pred, image_info, second_output}, output_padding),
+            : primitive_base(id, {cls_scores, bbox_pred, image_info, second_output}, {output_padding}),
               max_proposals(max_proposals),
               iou_threshold(iou_threshold),
               base_bbox_size(base_bbox_size),
@@ -171,9 +165,31 @@ struct proposal : public primitive_base<proposal> {
     bool round_ratios;
     bool shift_anchors;
     bool normalize;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, max_proposals);
+        seed = hash_combine(seed, iou_threshold);
+        seed = hash_combine(seed, base_bbox_size);
+        seed = hash_combine(seed, min_bbox_size);
+        seed = hash_combine(seed, feature_stride);
+        seed = hash_combine(seed, pre_nms_topn);
+        seed = hash_combine(seed, post_nms_topn);
+        seed = hash_range(seed, ratios.begin(), ratios.end());
+        seed = hash_range(seed, scales.begin(), scales.end());
+        seed = hash_combine(seed, coordinates_offset);
+        seed = hash_combine(seed, box_coordinate_scale);
+        seed = hash_combine(seed, box_size_scale);
+        seed = hash_combine(seed, for_deformable);
+        seed = hash_combine(seed, swap_xy);
+        seed = hash_combine(seed, initial_clip);
+        seed = hash_combine(seed, clip_before_nms);
+        seed = hash_combine(seed, clip_after_nms);
+        seed = hash_combine(seed, round_ratios);
+        seed = hash_combine(seed, shift_anchors);
+        seed = hash_combine(seed, normalize);
+        return seed;
+    }
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

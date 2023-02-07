@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -14,7 +14,7 @@ ov_add_test_target(
             gtest_main_manifest 
             frontend_shared_test_classes 
             openvino_tensorflow_frontend 
-            openvino_tensorflow_frontend_static_tests
+            openvino_tensorflow_common
         ADD_CLANG_FORMAT
         LABELS
             OV
@@ -22,10 +22,11 @@ ov_add_test_target(
 )
 
 # Test model generating
-ov_check_pip_package(REQUIREMENT tensorflow
-                     MESSAGE_MODE WARNING
-                     WARNING_MESSAGE "TensorFlow frontend unit tests will be skipped"
-                     RESULT_VAR tensorflow_FOUND)
+
+ov_check_pip_packages(REQUIREMENTS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/requirements.txt"
+                      MESSAGE_MODE WARNING
+                      WARNING_MESSAGE "TensorFlow frontend unit tests will be skipped"
+                      RESULT_VAR tensorflow_FOUND)
 
 set(TEST_TENSORFLOW_MODELS_DIRNAME test_model_zoo/tensorflow_test_models)
 target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_TENSORFLOW_MODELS_DIRNAME=\"${TEST_TENSORFLOW_MODELS_DIRNAME}/\")

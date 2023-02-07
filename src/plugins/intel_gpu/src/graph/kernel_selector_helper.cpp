@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,24 @@
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
+
+#include "intel_gpu/primitives/concatenation.hpp"
+#include "intel_gpu/primitives/convolution.hpp"
+#include "intel_gpu/primitives/crop.hpp"
+#include "intel_gpu/primitives/eltwise.hpp"
+#include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/primitives/normalize.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/reshape.hpp"
+#include "intel_gpu/primitives/roi_pooling.hpp"
+#include "intel_gpu/primitives/softmax.hpp"
+#include "intel_gpu/primitives/depth_to_space.hpp"
+#include "intel_gpu/primitives/shuffle_channels.hpp"
+#include "intel_gpu/primitives/strided_slice.hpp"
+#include "intel_gpu/primitives/cum_sum.hpp"
+#include "intel_gpu/primitives/reverse_sequence.hpp"
+#include "intel_gpu/primitives/embedding_bag.hpp"
+#include "intel_gpu/primitives/extract_image_patches.hpp"
 
 #include <string>
 #include <vector>
@@ -819,24 +837,7 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
     }
 }
 
-kernel_selector::tuning_mode to_tuning_mode(cldnn::tuning_mode mode) {
-    switch (mode) {
-        case cldnn::tuning_mode::tuning_disabled:
-            return kernel_selector::tuning_mode::TUNING_DISABLED;
-        case cldnn::tuning_mode::tuning_use_cache:
-            return kernel_selector::tuning_mode::TUNING_USE_CACHE;
-        case cldnn::tuning_mode::tuning_tune_and_cache:
-            return kernel_selector::tuning_mode::TUNING_TUNE_AND_CACHE;
-        case cldnn::tuning_mode::tuning_use_and_update:
-            return kernel_selector::tuning_mode::TUNING_USE_AND_UPDATE;
-        case cldnn::tuning_mode::tuning_retune_and_cache:
-            return kernel_selector::tuning_mode::TUNING_RETUNE_AND_CACHE;
-        default:
-            return kernel_selector::tuning_mode::TUNING_DISABLED;
-    }
-}
-
-kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split, const tensor view_offset) {
+kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor view_offset) {
     const auto& pad = l.data_padding;
     const auto& vals_original = l.get_partial_shape();
 
@@ -874,10 +875,6 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split
         pitch *= (reserved_in_mem_count + lp + up);
     }
 
-    const int feature_index =
-        kernel_selector::DataTensor::Channelndex(ks_layout, kernel_selector::Tensor::DataChannelName::FEATURE);
-    vec[feature_index].v /= split;
-
     return kernel_selector::data_tensor(vec, to_data_type(l.data_type), ks_layout);
 }
 
@@ -892,6 +889,7 @@ kernel_selector::weights_tensor convert_weights_tensor(const layout& l, bool is_
         const auto d = t[tensor_index];
         vec[i] = static_cast<size_t>(d);
     }
+
     return kernel_selector::weights_tensor(vec, ks_type, ks_layout);
 }
 
@@ -1011,19 +1009,95 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
     }
 }
 
+void convert_fused_ops_to_legacy_activations(const kernel_impl_params& param_info, std::vector<kernel_selector::base_activation_params>& activations) {
+    auto op_desc = param_info.fused_desc[0].typed_desc<activation>();
+    auto func = op_desc->activation_function;
+    auto params = op_desc->additional_params;
+
+    activations.push_back({get_kernel_selector_activation_param(func), params.a, params.b});
+}
+
+bool use_legacy_fused_ops(const kernel_impl_params& param_info) {
+    const auto& fused_ops = param_info.fused_desc;
+    if (fused_ops.size() != 1)
+        return false;
+
+    const auto& fused_op = fused_ops[0];
+    if (!fused_op.is_type<activation>())
+        return false;
+
+    if (!fused_op.deps.empty())
+        return false;
+
+
+    std::vector<primitive_type_id> legacy_fusion_list = {
+        concatenation::type_id(),
+        convolution::type_id(),
+        crop::type_id(),
+        eltwise::type_id(),
+        fully_connected::type_id(),
+        normalize::type_id(),
+        reorder::type_id(),
+        reshape::type_id(),
+        roi_pooling::type_id(),
+        softmax::type_id(),
+        depth_to_space::type_id(),
+        shuffle_channels::type_id(),
+        strided_slice::type_id(),
+        cum_sum::type_id(),
+        reverse_sequence::type_id(),
+        embedding_bag::type_id(),
+        extract_image_patches::type_id()
+    };
+
+    if (std::find(legacy_fusion_list.begin(), legacy_fusion_list.end(), param_info.desc->type) == legacy_fusion_list.end()) {
+        return false;
+    }
+
+    // Limit legacy activations fusions usage only with old kernels w/o modern fusions support. Otherwise for any single
+    // fused activation we will try to use legacy mechanism even if it's not implemented in the kernel.
+    // The main distinguishing characteristic of old kernels is plain and winograd formats, so do fallback to legacy
+    // only if this criteria is met.
+    if (convolution::type_id() == param_info.desc->type) {
+        bool has_plain_formats = format::is_simple_data_format(param_info.get_input_layout().format) &&
+                                 format::is_simple_data_format(param_info.get_output_layout().format);
+        bool has_winograd_formats = format::is_winograd(param_info.get_input_layout().format) ||
+                                    format::is_winograd(param_info.get_output_layout().format);
+        if (!has_plain_formats && !has_winograd_formats)
+            return false;
+    }
+
+    return true;
+}
+
+bool is_shape_agnostic(const kernel_impl_params& param_info) {
+    const auto& program = param_info.prog;
+    const auto& node = program->get_node(param_info.desc->id);
+
+    if (node.is_dynamic())
+        return true;
+
+    return false;
+}
+
 void set_params(const kernel_impl_params& param_info, kernel_selector::params& params) {
     const auto& program = param_info.prog;
     const auto& device_info = program->get_engine().get_device_info();
 
     params.uniqueID = std::to_string(param_info.unique_id);
-    params.engineInfo.bSubGroupSupport = device_info.supports_subgroups;
-    params.engineInfo.bSubGroupShortSupport = device_info.supports_subgroups_short;
-    params.engineInfo.bSubGroupCharSupport = device_info.supports_subgroups_char;
-    params.engineInfo.bFP16Support = device_info.supports_fp16;
-    params.engineInfo.bFP64Support = device_info.supports_fp64;
-    params.engineInfo.bIMADSupport = device_info.supports_imad != 0;
-    params.engineInfo.bIMMADSupport = device_info.supports_immad != 0;
-    params.engineInfo.bImageSupport = device_info.supports_image != 0;
+    params.engineInfo.supports_fp16 = device_info.supports_fp16;
+    params.engineInfo.supports_fp64 = device_info.supports_fp64;
+    params.engineInfo.supports_fp16_denorms = device_info.supports_fp16_denorms;
+    params.engineInfo.supports_khr_subgroups = device_info.supports_khr_subgroups;
+    params.engineInfo.supports_intel_subgroups = device_info.supports_intel_subgroups;
+    params.engineInfo.supports_intel_subgroups_short = device_info.supports_intel_subgroups_short;
+    params.engineInfo.supports_intel_subgroups_char = device_info.supports_intel_subgroups_char;
+    params.engineInfo.supports_intel_required_subgroup_size = device_info.supports_intel_required_subgroup_size;
+    params.engineInfo.supports_image = device_info.supports_image;
+
+    params.engineInfo.supports_imad = device_info.supports_imad;
+    params.engineInfo.supports_immad = device_info.supports_immad;
+    params.engineInfo.enable_sub_groups_emulation = true;
     params.engineInfo.bOptHintsSupport = false;
 
     params.engineInfo.bLocalBlockIOSupport = device_info.supports_local_block_io && program->is_local_block_io_supported();
@@ -1035,12 +1109,11 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.computeUnitsCount = device_info.execution_units_count;
     params.engineInfo.maxThreadsPerExecutionUnit = device_info.num_threads_per_eu > 0 ? device_info.num_threads_per_eu : 7;
     params.engineInfo.maxThreadsPerDevice = params.engineInfo.maxThreadsPerExecutionUnit * device_info.execution_units_count;
-    params.engineInfo.deviceCache = program->get_tuning_cache();
     params.engineInfo.driverVersion = device_info.driver_version;
     params.engineInfo.supportedSimdSizes = device_info.supported_simd_sizes;
+    params.engineInfo.vendor_id = device_info.vendor_id;
 
-    auto impl_forcing_bo = program->get_options().get<build_option_type::force_implementations>();
-    const auto& impl_forcing = impl_forcing_bo->forcing;
+    auto impl_forcing = program->get_config().get_property(ov::intel_gpu::force_implementations);
 
     if (impl_forcing.count(param_info.desc->id) != 0) {
         params.forceImplementation = impl_forcing.at(param_info.desc->id).kernel_name;
@@ -1049,14 +1122,10 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
 
 void set_optional_params(const program& program, kernel_selector::optional_params& params) {
     params.meaningfulKernelsNames = false;
-    params.allowStaticInputReordering = program.get_options().get<build_option_type::optimize_data>()->enabled() ||
-                                        program.get_options().get<build_option_type::allow_static_input_reorder>()->enabled();
+    params.allowStaticInputReordering = program.get_config().get_property(ov::intel_gpu::optimize_data) ||
+                                        program.get_config().get_property(ov::intel_gpu::allow_static_input_reorder);
     params.allowInputReordering = false;
     params.allowOutputReordering = false;
-
-    const auto& tuning_config = program.get_options().get<build_option_type::tuning_config>();
-    params.tuningParams.mode = to_tuning_mode(tuning_config->config.mode);
-    params.tuningParams.cacheFilePath = tuning_config->config.cache_file_path;
 }
 
 void kernel_impl_params::save(BinaryOutputBuffer& ob) const {
@@ -1116,6 +1185,8 @@ void kernel_impl_params::save(BinaryOutputBuffer& ob) const {
 }
 
 void kernel_impl_params::load(BinaryInputBuffer& ib) {
+    prog = nullptr;
+    desc = nullptr;
     ib >> has_runtime_layouts;
     ib >> unique_id;
     ib >> input_layouts;

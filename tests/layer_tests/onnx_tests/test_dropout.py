@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -77,7 +77,7 @@ class TestDropout(OnnxRuntimeLayerTest):
         from onnx import helper
         from onnx import TensorProto
 
-        constant = np.random.randint(-127, 127, shape).astype(np.float)
+        constant = np.random.randint(-127, 127, shape).astype(float)
 
         concat_axis = 0
         output_shape = shape.copy()

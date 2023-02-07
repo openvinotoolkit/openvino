@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,14 +6,13 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset8.hpp>
+#include <ngraph/pass/constant_folding.hpp>
+#include <ngraph/pass/manager.hpp>
 #include <transformations/common_optimizations/concat_reduce_fusion.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/init_node_info.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <ngraph/pass/constant_folding.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-
 
 using namespace testing;
 using namespace ov;
@@ -38,7 +37,7 @@ TEST_F(TransformationTestsF, ConcatReduceMaxFusionDynamicShape) {
             std::make_shared<opset8::ReduceMax>(concat, opset8::Constant::create(element::i64, Shape{}, {reduce_axis}));
 
         function = std::make_shared<Model>(NodeVector{reduce_max}, ParameterVector{left_input, right_input});
-        manager.register_pass<ngraph::pass::ConcatReduceFusion>();
+        manager.register_pass<ov::pass::ConcatReduceFusion>();
     }
     {
         auto left_input = std::make_shared<opset8::Parameter>(element::f32, shape);
@@ -65,10 +64,12 @@ TEST_F(TransformationTestsF, ConcatReduceMaxFusionKeepDimsDynamicShape) {
         auto concat = std::make_shared<opset8::Concat>(NodeVector{left_unsqueeze, right_unsqueeze}, reduce_axis);
 
         auto reduce_max =
-            std::make_shared<opset8::ReduceMax>(concat, opset8::Constant::create(element::i64, Shape{}, {reduce_axis}), true);
+            std::make_shared<opset8::ReduceMax>(concat,
+                                                opset8::Constant::create(element::i64, Shape{}, {reduce_axis}),
+                                                true);
 
         function = std::make_shared<Model>(NodeVector{reduce_max}, ParameterVector{left_input, right_input});
-        manager.register_pass<ngraph::pass::ConcatReduceFusion>();
+        manager.register_pass<ov::pass::ConcatReduceFusion>();
     }
     {
         auto left_input = std::make_shared<ov::opset8::Parameter>(element::f32, shape);
@@ -105,7 +106,7 @@ TEST_F(TransformationTestsF, ConcatReduceMaxFusionDynamicRank) {
             std::make_shared<opset8::ReduceMax>(concat, opset8::Constant::create(element::i64, Shape{}, {reduce_axis}));
 
         function = std::make_shared<Model>(NodeVector{reduce_max}, ParameterVector{left_input, right_input});
-        manager.register_pass<ngraph::pass::ConcatReduceFusion>();
+        manager.register_pass<ov::pass::ConcatReduceFusion>();
     }
     {
         auto left_input = std::make_shared<opset8::Parameter>(element::f32, shape);
@@ -135,7 +136,7 @@ TEST_F(TransformationTestsF, ConcatReduceMinFusionDynamicShape) {
             std::make_shared<opset8::ReduceMin>(concat, opset8::Constant::create(element::i64, Shape{}, {reduce_axis}));
 
         function = std::make_shared<Model>(NodeVector{reduce_max}, ParameterVector{left_input, right_input});
-        manager.register_pass<ngraph::pass::ConcatReduceFusion>();
+        manager.register_pass<ov::pass::ConcatReduceFusion>();
     }
     {
         auto left_input = std::make_shared<opset8::Parameter>(element::f32, shape);
@@ -165,7 +166,7 @@ TEST_F(TransformationTestsF, ConcatReduceMinFusionDynamicRank) {
             std::make_shared<opset8::ReduceMin>(concat, opset8::Constant::create(element::i64, Shape{}, {reduce_axis}));
 
         function = std::make_shared<Model>(NodeVector{reduce_max}, ParameterVector{left_input, right_input});
-        manager.register_pass<ngraph::pass::ConcatReduceFusion>();
+        manager.register_pass<ov::pass::ConcatReduceFusion>();
     }
     {
         auto left_input = std::make_shared<opset8::Parameter>(element::f32, shape);
@@ -191,7 +192,7 @@ TEST_F(TransformationTestsF, PullSqueezeThroughEltwiseStaticShape) {
         auto squeeze = std::make_shared<opset8::Squeeze>(add, opset8::Constant::create(element::i64, Shape{}, {0}));
 
         function = std::make_shared<Model>(NodeVector{squeeze}, ParameterVector{left_input, right_input});
-        manager.register_pass<ngraph::pass::PullSqueezeThroughEltwise>();
+        manager.register_pass<ov::pass::PullSqueezeThroughEltwise>();
     }
     {
         auto left_input = std::make_shared<opset8::Parameter>(element::f32, shape);
@@ -229,7 +230,7 @@ TEST_F(TransformationTestsF, PullSqueezeThroughEltwiseSqueezeEliminationStaticSh
         auto squeeze = std::make_shared<opset8::Squeeze>(add, opset8::Constant::create(element::i64, Shape{}, {0}));
 
         function = std::make_shared<Model>(NodeVector{squeeze}, ParameterVector{left_input, right_input});
-        manager.register_pass<ngraph::pass::ConcatReduceFusion>();
+        manager.register_pass<ov::pass::ConcatReduceFusion>();
     }
     {
         auto left_input = std::make_shared<opset8::Parameter>(element::f32, shape);
@@ -257,7 +258,7 @@ TEST_F(TransformationTestsF, PullSqueezeThroughEltwiseSqueezeEliminationDynamicS
         auto squeeze = std::make_shared<opset8::Squeeze>(add, opset8::Constant::create(element::i64, Shape{}, {0}));
 
         function = std::make_shared<Model>(NodeVector{squeeze}, ParameterVector{left_input, right_input});
-        manager.register_pass<ngraph::pass::ConcatReduceFusion>();
+        manager.register_pass<ov::pass::ConcatReduceFusion>();
     }
     {
         auto left_input = std::make_shared<opset8::Parameter>(element::f32, shape);
@@ -285,7 +286,7 @@ TEST_F(TransformationTestsF, PullSqueezeThroughEltwiseSqueezeEliminationDynamicR
         auto squeeze = std::make_shared<opset8::Squeeze>(add, opset8::Constant::create(element::i64, Shape{}, {0}));
 
         function = std::make_shared<Model>(NodeVector{squeeze}, ParameterVector{left_input, right_input});
-        manager.register_pass<ngraph::pass::ConcatReduceFusion>();
+        manager.register_pass<ov::pass::ConcatReduceFusion>();
     }
     {
         auto left_input = std::make_shared<opset8::Parameter>(element::f32, shape);

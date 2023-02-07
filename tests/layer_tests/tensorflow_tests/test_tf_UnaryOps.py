@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -39,7 +39,7 @@ class TestUnaryOps(CommonTFLayerTest):
 
         for input in inputs_dict.keys():
             if self.current_op_type in logical_type:
-                inputs_dict[input] = np.random.randint(0, 1, inputs_dict[input]).astype(np.bool)
+                inputs_dict[input] = np.random.randint(0, 1, inputs_dict[input]).astype(bool)
             else:
                 inputs_dict[input] = np.random.uniform(lower, upper, inputs_dict[input]).astype(
                     np.float32)

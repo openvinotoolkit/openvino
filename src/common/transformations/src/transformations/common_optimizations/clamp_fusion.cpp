@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@
 
 ov::pass::ClampFusion::ClampFusion() {
     MATCHER_SCOPE(ClampFusion);
-    auto data_pattern = ngraph::pattern::any_input();
+    auto data_pattern = pass::pattern::any_input();
     auto min_const_pattern = ngraph::pattern::wrap_type<opset5::Constant>();
     auto max_const_pattern = ngraph::pattern::wrap_type<opset5::Constant>();
     auto max_pattern1 =

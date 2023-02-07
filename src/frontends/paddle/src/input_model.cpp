@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -93,6 +93,7 @@ void InputModel::InputModelImpl::loadPlaces() {
 
         for (const auto& op : block.ops()) {
             auto op_place = std::make_shared<OpPlace>(m_input_model, op);
+            op_place->set_decoder(std::make_shared<DecoderProto>(op_place));
 
             if (m_telemetry) {
                 op_statistics[op.type()]++;
@@ -363,7 +364,7 @@ void InputModel::InputModelImpl::createTempConsts() {
             var_place->set_element_type(type);
             var_place->set_partial_shape(tensor_ps);
 
-            Shape shape(tensor_ps.size());
+            Shape shape(tensor_ps.size(), 0);
             for (auto i = 0; i < tensor_ps.size(); i++) {
                 const auto& dim = tensor_ps[i];
                 if (dim.is_static()) {
@@ -372,7 +373,10 @@ void InputModel::InputModelImpl::createTempConsts() {
             }
 
             if (tensor_ps.is_static()) {
-                shape[1] = 0;
+                // this tensorarray tensor originally could be scalar, then
+                // tensor_ps size would be 1 after unsqueeze.
+                auto idx = tensor_ps.size() > 1 ? 1 : 0;
+                shape[idx] = 0;
             }
 
             auto node = opset7::Constant::create(type, shape, {0});

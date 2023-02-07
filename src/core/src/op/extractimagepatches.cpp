@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,6 @@ using namespace std;
 using namespace ngraph;
 
 // ExtractImagePatches v3
-
-BWDCMP_RTTI_DEFINITION(op::v3::ExtractImagePatches);
 
 op::v3::ExtractImagePatches::ExtractImagePatches(const Output<Node>& image,
                                                  const ov::Shape& sizes,

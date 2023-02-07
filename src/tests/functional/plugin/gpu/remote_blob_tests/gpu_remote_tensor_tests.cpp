@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,6 @@
 #include <utility>
 #include <vector>
 #include <memory>
-
-#define OV_GPU_USE_OPENCL_HPP
 
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 #include "openvino/runtime/core.hpp"
@@ -845,9 +843,9 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_ConvertTranspose) {
     using namespace ov::preprocess;
     auto p = PrePostProcessor(fn_ptr_remote);
     p.input().tensor().set_element_type(ov::element::u8)
-                      .set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
+                      .set_color_format(ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
                       .set_memory_type(GPU_CONFIG_KEY(SURFACE));
-    p.input().preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+    p.input().preprocess().convert_color(ColorFormat::BGR);
     p.input().model().set_layout("NCHW");
     auto function = p.build();
 
@@ -910,9 +908,9 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_ConvertTranspose) {
     using namespace ov::preprocess;
     auto p_reg = PrePostProcessor(fn_ptr_regular);
     p_reg.input().tensor().set_element_type(ov::element::u8)
-                          .set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
+                          .set_color_format(ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
                           .set_memory_type(GPU_CONFIG_KEY(BUFFER));
-    p_reg.input().preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+    p_reg.input().preprocess().convert_color(ColorFormat::BGR);
     p_reg.input().model().set_layout("NCHW");
     auto function_regular = p_reg.build();
 
@@ -933,7 +931,97 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_ConvertTranspose) {
     FuncTestUtils::compare_tensor(output_tensor_shared, output_tensor_regular, thr);
 }
 
-TEST_F(OVRemoteTensor_Test, NV12toBGR_image) {
+TEST_F(OVRemoteTensor_Test, NV12toBGR_image_single_plane) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    const int height = 16;
+    const int width = 16;
+
+    // ------------------------------------------------------
+    // Prepare input data
+    ov::Tensor fake_image_data_yuv = FuncTestUtils::create_and_fill_tensor(ov::element::u8, {1, 1, height * 3 / 2, width}, 50);
+
+    auto ie = ov::Core();
+
+    // ------------------------------------------------------
+    // inference using remote tensor
+    auto fn_ptr_remote = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, height, width});
+
+    using namespace ov::preprocess;
+    auto p = PrePostProcessor(fn_ptr_remote);
+    p.input().tensor().set_element_type(ov::element::u8)
+                      .set_color_format(ColorFormat::NV12_SINGLE_PLANE)
+                      .set_memory_type(GPU_CONFIG_KEY(SURFACE));
+    p.input().preprocess().convert_color(ColorFormat::BGR);
+    p.input().model().set_layout("NCHW");
+    auto function = p.build();
+
+    auto param_input_yuv = fn_ptr_remote->get_parameters().at(0);
+
+    auto exec_net_b = ie.compile_model(function, CommonTestUtils::DEVICE_GPU);
+    auto inf_req_remote = exec_net_b.create_infer_request();
+
+    auto cldnn_context = exec_net_b.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    cl_context ctx = cldnn_context.get();
+    auto ocl_instance = std::make_shared<OpenCL>(ctx);
+    cl_int err;
+
+    cl_image_format image_format;
+    cl_image_desc image_desc = { 0 };
+    image_format.image_channel_order = CL_R;
+    image_format.image_channel_data_type = CL_UNORM_INT8;
+    image_desc.image_type = CL_MEM_OBJECT_IMAGE2D;
+    image_desc.image_width = width;
+    image_desc.image_height = height * 3 / 2;
+    cl_mem nv12_image_plane_yuv = clCreateImage(ocl_instance->_context.get(), CL_MEM_READ_WRITE, &image_format, &image_desc, NULL, &err);
+    ASSERT_EQ(err, 0);
+
+    size_t origin[3] = { 0, 0, 0 };
+    size_t yuv_region[3] = { (size_t)width, (size_t)height * 3 / 2, 1 };
+
+    err = clEnqueueWriteImage(ocl_instance->_queue.get(), nv12_image_plane_yuv,
+        true, origin, yuv_region, 0, 0, fake_image_data_yuv.data(), 0, NULL, NULL);
+    ASSERT_EQ(err, 0);
+
+    cl::Image2D img_yuv = cl::Image2D(nv12_image_plane_yuv);
+    auto tensor_remote_yuv = cldnn_context.create_tensor(param_input_yuv->get_element_type(), fake_image_data_yuv.get_shape(), img_yuv);
+
+    inf_req_remote.set_tensor(*param_input_yuv->output(0).get_tensor().get_names().begin(), tensor_remote_yuv);
+    inf_req_remote.infer();
+
+    auto output_tensor_shared = inf_req_remote.get_tensor(function->get_results().at(0));
+
+    // ------------------------------------------------------
+    // regular inference
+    auto fn_ptr_regular = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, height, width});
+
+    using namespace ov::preprocess;
+    auto p_reg = PrePostProcessor(fn_ptr_regular);
+    p_reg.input().tensor().set_element_type(ov::element::u8)
+                          .set_color_format(ColorFormat::NV12_SINGLE_PLANE)
+                          .set_memory_type(GPU_CONFIG_KEY(BUFFER));
+    p_reg.input().preprocess().convert_color(ColorFormat::BGR);
+    p_reg.input().model().set_layout("NCHW");
+    auto function_regular = p_reg.build();
+
+    auto exec_net_regular = ie.compile_model(function_regular, CommonTestUtils::DEVICE_GPU);
+    auto inf_req_regular = exec_net_regular.create_infer_request();
+    inf_req_regular.set_tensor(param_input_yuv, fake_image_data_yuv);
+
+    inf_req_regular.infer();
+    auto output_tensor_regular = inf_req_regular.get_tensor(exec_net_regular.output());
+
+    // ------------------------------------------------------
+    // compare results
+    ASSERT_EQ(output_tensor_regular.get_size(), output_tensor_shared.get_size());
+    ASSERT_NO_THROW(output_tensor_regular.data());
+    ASSERT_NO_THROW(output_tensor_shared.data());
+    float thr = 0.1;
+    FuncTestUtils::compare_tensor(output_tensor_shared, output_tensor_regular, thr);
+}
+
+TEST_F(OVRemoteTensor_Test, NV12toBGR_image_two_planes) {
 #if defined(ANDROID)
     GTEST_SKIP();
 #endif
@@ -954,9 +1042,9 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image) {
     using namespace ov::preprocess;
     auto p = PrePostProcessor(fn_ptr_remote);
     p.input().tensor().set_element_type(ov::element::u8)
-                      .set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
+                      .set_color_format(ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
                       .set_memory_type(GPU_CONFIG_KEY(SURFACE));
-    p.input().preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+    p.input().preprocess().convert_color(ColorFormat::BGR);
     p.input().model().set_layout("NCHW");
     auto function = p.build();
 
@@ -1019,9 +1107,9 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image) {
     using namespace ov::preprocess;
     auto p_reg = PrePostProcessor(fn_ptr_regular);
     p_reg.input().tensor().set_element_type(ov::element::u8)
-                          .set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
+                          .set_color_format(ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
                           .set_memory_type(GPU_CONFIG_KEY(BUFFER));
-    p_reg.input().preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+    p_reg.input().preprocess().convert_color(ColorFormat::BGR);
     p_reg.input().model().set_layout("NCHW");
     auto function_regular = p_reg.build();
 
@@ -1061,9 +1149,9 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_buffer) {
     using namespace ov::preprocess;
     auto p = PrePostProcessor(fn_ptr_remote);
     p.input().tensor().set_element_type(ov::element::u8)
-                      .set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
+                      .set_color_format(ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
                       .set_memory_type(GPU_CONFIG_KEY(BUFFER));
-    p.input().preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+    p.input().preprocess().convert_color(ColorFormat::BGR);
     p.input().model().set_layout("NCHW");
     auto function = p.build();
 
@@ -1142,7 +1230,113 @@ protected:
     std::vector<std::shared_ptr<ngraph::Function>> fn_ptrs;
 };
 
-TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image) {
+TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_single_plane) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    const int height = 16;
+    const int width = 16;
+
+    // ------------------------------------------------------
+    // Prepare input data
+    std::vector<ov::Tensor> fake_image_data_yuv;
+    for (int i = 0; i < num_batch; i++) {
+        fake_image_data_yuv.push_back(FuncTestUtils::create_and_fill_tensor(ov::element::u8, {1, 1, height * 3 / 2, width}, 50, 0, 1, i));
+    }
+
+    auto ie = ov::Core();
+
+    // ------------------------------------------------------
+    // inference using remote tensor
+    auto fn_ptr_remote = ngraph::builder::subgraph::makeConvPoolRelu({num_batch, 3, height, width});
+
+    using namespace ov::preprocess;
+    auto p = PrePostProcessor(fn_ptr_remote);
+    p.input().tensor().set_element_type(ov::element::u8)
+                      .set_color_format(ColorFormat::NV12_SINGLE_PLANE)
+                      .set_memory_type(GPU_CONFIG_KEY(SURFACE));
+    p.input().preprocess().convert_color(ColorFormat::BGR);
+    p.input().model().set_layout("NCHW");
+    auto function = p.build();
+
+    auto param_input_yuv = fn_ptr_remote->get_parameters().at(0);
+
+    auto exec_net_b = ie.compile_model(function, CommonTestUtils::DEVICE_GPU);
+    auto inf_req_remote = exec_net_b.create_infer_request();
+
+    auto cldnn_context = exec_net_b.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    cl_context ctx = cldnn_context.get();
+    auto ocl_instance = std::make_shared<OpenCL>(ctx);
+    cl_int err;
+
+    std::vector<cl_mem> nv12_image_plane_yuv;
+    std::vector<cl::Image2D> img_yuv;
+    std::vector<ov::Tensor> tensor_remote_yuv;
+
+    for (size_t i = 0; i < num_batch; ++i) {
+        cl_image_format image_format;
+        cl_image_desc image_desc = { 0 };
+        image_format.image_channel_order = CL_R;
+        image_format.image_channel_data_type = CL_UNORM_INT8;
+        image_desc.image_type = CL_MEM_OBJECT_IMAGE2D;
+        image_desc.image_width = width;
+        image_desc.image_height = height * 3 / 2;
+        nv12_image_plane_yuv.emplace_back(clCreateImage(ocl_instance->_context.get(), CL_MEM_READ_WRITE, &image_format, &image_desc, NULL, &err));
+        ASSERT_EQ(err, 0);
+
+        size_t origin[3] = { 0, 0, 0 };
+        size_t yuv_region[3] = { (size_t)width, (size_t)height * 3 / 2, 1 };
+
+        err = clEnqueueWriteImage(ocl_instance->_queue.get(), nv12_image_plane_yuv[i],
+            true, origin, yuv_region, 0, 0, fake_image_data_yuv[i].data(), 0, NULL, NULL);
+        ASSERT_EQ(err, 0);
+
+        img_yuv.emplace_back(nv12_image_plane_yuv[i]);
+
+        tensor_remote_yuv.emplace_back(cldnn_context.create_tensor(param_input_yuv->get_element_type(), fake_image_data_yuv[i].get_shape(), img_yuv[i]));
+    }
+
+    for (size_t i = 0; i < 5; ++i) {    // to test repeating set_tensors/infer functionality
+        inf_req_remote.set_tensors(*param_input_yuv->output(0).get_tensor().get_names().begin(), tensor_remote_yuv);
+        inf_req_remote.infer();
+    }
+
+    auto output_tensor_shared = inf_req_remote.get_tensor(function->get_results().at(0));
+    ASSERT_NO_THROW(output_tensor_shared.data());
+
+    // ------------------------------------------------------
+    // regular inference
+    auto fn_ptr_regular = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, height, width});
+
+    using namespace ov::preprocess;
+    auto p_reg = PrePostProcessor(fn_ptr_regular);
+    p_reg.input().tensor().set_element_type(ov::element::u8)
+                          .set_color_format(ColorFormat::NV12_SINGLE_PLANE)
+                          .set_memory_type(GPU_CONFIG_KEY(BUFFER));
+    p_reg.input().preprocess().convert_color(ColorFormat::BGR);
+    p_reg.input().model().set_layout("NCHW");
+    auto function_regular = p_reg.build();
+
+    auto param_input_yuv_reg = fn_ptr_regular->get_parameters().at(0);
+
+    auto exec_net_regular = ie.compile_model(function_regular, CommonTestUtils::DEVICE_GPU);
+    auto inf_req_regular = exec_net_regular.create_infer_request();
+
+    for (size_t i = 0; i < num_batch; ++i) {
+        inf_req_regular.set_tensor(param_input_yuv_reg, fake_image_data_yuv[i]);
+        inf_req_regular.infer();
+        auto output_tensor_regular = inf_req_regular.get_tensor(exec_net_regular.output());
+
+        ASSERT_EQ(output_tensor_regular.get_size() * num_batch, output_tensor_shared.get_size());
+        float thr = 0.1;
+
+        FuncTestUtils::compareRawBuffers<float>(static_cast<float*>(output_tensor_shared.data()) + i * output_tensor_regular.get_size(),
+                                                static_cast<float*>(output_tensor_regular.data()),
+                                                output_tensor_regular.get_size(), output_tensor_regular.get_size(), thr);
+    }
+}
+
+TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_two_planes) {
 #if defined(ANDROID)
     GTEST_SKIP();
 #endif
@@ -1166,9 +1360,9 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image) {
     using namespace ov::preprocess;
     auto p = PrePostProcessor(fn_ptr_remote);
     p.input().tensor().set_element_type(ov::element::u8)
-                      .set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
+                      .set_color_format(ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
                       .set_memory_type(GPU_CONFIG_KEY(SURFACE));
-    p.input().preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+    p.input().preprocess().convert_color(ColorFormat::BGR);
     p.input().model().set_layout("NCHW");
     auto function = p.build();
 
@@ -1240,9 +1434,9 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image) {
     using namespace ov::preprocess;
     auto p_reg = PrePostProcessor(fn_ptr_regular);
     p_reg.input().tensor().set_element_type(ov::element::u8)
-                          .set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
+                          .set_color_format(ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
                           .set_memory_type(GPU_CONFIG_KEY(BUFFER));
-    p_reg.input().preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+    p_reg.input().preprocess().convert_color(ColorFormat::BGR);
     p_reg.input().model().set_layout("NCHW");
     auto function_regular = p_reg.build();
 
@@ -1409,9 +1603,9 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_buffer) {
     using namespace ov::preprocess;
     auto p = PrePostProcessor(fn_ptr_remote);
     p.input().tensor().set_element_type(ov::element::u8)
-                      .set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
+                      .set_color_format(ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
                       .set_memory_type(GPU_CONFIG_KEY(BUFFER));
-    p.input().preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+    p.input().preprocess().convert_color(ColorFormat::BGR);
     p.input().model().set_layout("NCHW");
     auto function = p.build();
 
@@ -1511,9 +1705,9 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_buffer) {
     using namespace ov::preprocess;
     auto p_reg = PrePostProcessor(fn_ptr_regular);
     p_reg.input().tensor().set_element_type(ov::element::u8)
-                          .set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
+                          .set_color_format(ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
                           .set_memory_type(GPU_CONFIG_KEY(BUFFER));
-    p_reg.input().preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+    p_reg.input().preprocess().convert_color(ColorFormat::BGR);
     p_reg.input().model().set_layout("NCHW");
     auto function_regular = p_reg.build();
 
@@ -1540,6 +1734,52 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_buffer) {
 
 const std::vector<size_t> num_batches{ 1, 2, 4 };
 INSTANTIATE_TEST_SUITE_P(smoke_RemoteTensor, OVRemoteTensorBatched_Test, ::testing::ValuesIn(num_batches), OVRemoteTensorBatched_Test::getTestCaseName);
+
+static void check_contexts_are_same(const ov::RemoteContext& c1, const ov::RemoteContext& c2) {
+    ASSERT_EQ(c1.get_device_name(), c2.get_device_name());
+
+    // If we support other context type this check must be replaced
+    ASSERT_TRUE(c1.is<ov::intel_gpu::ocl::ClContext>());
+    ASSERT_TRUE(c2.is<ov::intel_gpu::ocl::ClContext>());
+
+    auto c1_casted = c1.as<ov::intel_gpu::ocl::ClContext>();
+    auto c2_casted = c2.as<ov::intel_gpu::ocl::ClContext>();
+
+    ASSERT_EQ(c1_casted.get(), c2_casted.get());
+}
+
+TEST(OVRemoteContextGPU, smoke_CustomContextDeviceNames) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    auto core = ov::Core();
+    std::vector<std::string> gpuDevices;
+    std::vector<std::string> availableDevices = core.get_available_devices();
+
+    std::for_each(availableDevices.begin(), availableDevices.end(), [&](const std::string& device){
+        if (device.find(CommonTestUtils::DEVICE_GPU) != std::string::npos)
+            gpuDevices.push_back(device);
+    });
+
+    for (size_t i = 0; i < gpuDevices.size(); i++) {
+        auto device_name = "GPU." + std::to_string(i);
+        auto ctx = core.get_default_context(device_name).as<ov::intel_gpu::ocl::ClContext>();
+        cl::Context original_ctx_handle = ctx;
+        std::vector<cl::Device> devices = original_ctx_handle.getInfo<CL_CONTEXT_DEVICES>();
+        cl::Context new_ctx_handle(devices);
+        ASSERT_NE(new_ctx_handle.get(), original_ctx_handle.get());
+        auto remote_context = ov::intel_gpu::ocl::ClContext(core, new_ctx_handle.get(), 0);
+        ASSERT_EQ(remote_context.get_device_name(), device_name);
+
+        // Check that ctx_device_id doesn't impact device name reported by context
+        cl::Context new_ctx_handle_md({devices.front(), devices.front()});
+        ASSERT_NE(original_ctx_handle.get(), new_ctx_handle_md.get());
+        auto remote_context0 = ov::intel_gpu::ocl::ClContext(core, new_ctx_handle_md.get(), 0);
+        auto remote_context1 = ov::intel_gpu::ocl::ClContext(core, new_ctx_handle_md.get(), 1);
+        ASSERT_EQ(remote_context0.get_device_name(), device_name);
+        ASSERT_EQ(remote_context1.get_device_name(), device_name);
+    }
+}
 
 TEST(OVRemoteContextGPU, smoke_RemoteContextPerDevice) {
 #if defined(ANDROID)
@@ -1597,8 +1837,7 @@ TEST(OVRemoteContextGPU, smoke_RemoteContextCaching) {
     auto defaultContextFirst = core.get_default_context(gpuDeviceFirst).as<ov::intel_gpu::ocl::ClContext>();
     // Check devices names
     ASSERT_EQ(defaultContextFirst.get_device_name(), gpuDeviceFirst);
-    // Check underlying OpenCL context handles
-    ASSERT_EQ(compiledModelFirstContext.get(), defaultContextFirst.get());
+    check_contexts_are_same(compiledModelFirstContext, defaultContextFirst);
 
     auto defaultContextSecond = core.get_default_context(gpuDeviceSecond).as<ov::intel_gpu::ocl::ClContext>();
     // Check devices names
@@ -1608,4 +1847,50 @@ TEST(OVRemoteContextGPU, smoke_RemoteContextCaching) {
 
     // Expect different contexts for different devices
     ASSERT_NE(compiledModelFirstContext.get(), compiledModelSecondContext.get());
+}
+
+TEST(OVRemoteContextGPU, smoke_RemoteContextSingleDevice) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    auto core = ov::Core();
+
+    auto default_ctx = core.get_default_context(CommonTestUtils::DEVICE_GPU).as<ov::intel_gpu::ocl::ClContext>();
+
+    // Same context returned for multple calls
+    check_contexts_are_same(default_ctx, core.get_default_context(CommonTestUtils::DEVICE_GPU));
+
+    // Set some properties which could impact engine config and check context again
+    core.set_property(CommonTestUtils::DEVICE_GPU, ov::streams::num(2));
+    core.set_property(CommonTestUtils::DEVICE_GPU, ov::intel_gpu::hint::queue_throttle(ov::intel_gpu::hint::ThrottleLevel::LOW));
+    core.set_property(CommonTestUtils::DEVICE_GPU, ov::enable_profiling(true));
+    check_contexts_are_same(default_ctx,  core.get_default_context(CommonTestUtils::DEVICE_GPU));
+
+    // Ensure compiled model uses default context too
+    auto model = ngraph::builder::subgraph::makeConvertTranspose();
+    auto compiled_model = core.compile_model(model, CommonTestUtils::DEVICE_GPU);
+    check_contexts_are_same(default_ctx, compiled_model.get_context());
+    ASSERT_EQ(2, compiled_model.get_property(ov::streams::num));
+
+    auto ocl_instance = std::make_shared<OpenCL>();
+    cl::Context default_ctx_handle = default_ctx;
+    auto default_devices = default_ctx_handle.getInfo<CL_CONTEXT_DEVICES>();
+    ASSERT_EQ(default_devices.size(), 1);
+    cl::Device default_device_handle(default_devices[0]);
+    // OCL instance looks for intel GPUs, so skip this part if CommonTestUtils::DEVICE_GPU points to GPU from other vendor
+    if (default_device_handle.getInfo<CL_DEVICE_VENDOR_ID>() == 0x8086) {
+        ov::intel_gpu::ocl::ClContext custom_ctx(core, ocl_instance->_queue.get());
+        auto compiled_model_custom_ctx = core.compile_model(model, custom_ctx, ov::streams::num(1));
+        auto model_ctx = compiled_model_custom_ctx.get_context().as<ov::intel_gpu::ocl::ClContext>();
+
+        // Check that compiled model uses custom context
+        check_contexts_are_same(custom_ctx, model_ctx);
+        ASSERT_EQ(1, compiled_model_custom_ctx.get_property(ov::streams::num));
+
+        // Check that handle differs in default context and compiled model created with custom ctx
+        ASSERT_NE(default_ctx.get(), model_ctx.get());
+
+        // Check that default ctx is untouched
+        check_contexts_are_same(default_ctx, core.get_default_context(CommonTestUtils::DEVICE_GPU));
+    }
 }

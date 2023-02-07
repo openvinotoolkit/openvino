@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -431,7 +431,7 @@ layout prior_box_inst::calc_output_layout(prior_box_node const& node, kernel_imp
     if (primitive->is_clustered()) {
         number = primitive->widths.size();
     }
-    const auto output_type = primitive->output_data_type ? *primitive->output_data_type : data_types::f32;
+    const auto output_type = primitive->output_data_types[0].value_or(data_types::f32);
     const auto output_shape = get_output_shape(primitive->output_size.spatial[1], primitive->output_size.spatial[0], number);
 
     return {output_type, impl_param.get_input_layout().format, output_shape};

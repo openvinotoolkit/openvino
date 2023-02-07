@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,23 +8,22 @@
 KERNEL(kernel_name)(
     const __global INPUT0_TYPE *conv_input,
     __global OUTPUT_TYPE *output,
-    const __global FILTER_TYPE *weights,
+    const __global FILTER_TYPE *weights
 #if BIAS_TERM
-    const __global BIAS_TYPE *biases,
+    , const __global BIAS_TYPE *biases
 #endif
 #if ASYMMETRIC_WEIGHTS_QUANTIZATION
-    const __global WEIGHTS_ZERO_POINTS_TYPE *weights_zp,
+    , const __global WEIGHTS_ZERO_POINTS_TYPE *weights_zp
 #endif
 #if ASYMMETRIC_DATA_QUANTIZATION
-    const __global ACTIVATIONS_ZERO_POINTS_TYPE *activations_zp,
+    , const __global ACTIVATIONS_ZERO_POINTS_TYPE *activations_zp
 #endif
 #if COMPENSATION_TERM
-    const __global COMPENSATION_TYPE *comp,
+    , const __global COMPENSATION_TYPE *comp
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-    uint split_idx
     )
 {
     // Convolution part.
@@ -53,7 +52,7 @@ KERNEL(kernel_name)(
     const int input_z = 0;
 #endif
 
-#if DEPTHWISE_SEPARABLE_OPT || GROUPED
+#if GROUPED
     const uint g = (f / FILTER_OFM_NUM);
     const uint of = (f % FILTER_OFM_NUM);
 #else
@@ -113,7 +112,7 @@ KERNEL(kernel_name)(
     }
 
 #if BIAS_TERM
-    #if GROUPED || DEPTHWISE_SEPARABLE_OPT
+    #if GROUPED
         const uint bias_offset = 0;
     #else
         const uint bias_offset = 0;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -591,7 +591,7 @@ bool call(const HostTensorVector& func_outputs,
         op->validate_and_infer_types();
         OPENVINO_SUPPRESS_DEPRECATED_START
         if (!op->evaluate(op_outputs, op_inputs)) {
-            auto evaluates_map = ngraph::runtime::interpreter::get_evaluators_map();
+            const auto& evaluates_map = ngraph::runtime::interpreter::get_evaluators_map();
             auto it = evaluates_map.find(op->get_type_info());
             if (!it->second(op, op_outputs, op_inputs)) {
                 return false;
@@ -3010,6 +3010,9 @@ bool evaluate(const shared_ptr<op::v1::ConvertLike>& op,
     case element::Type_t::f32:
         convert_like_v1::evaluate<element::Type_t::f32, OUT_ET>(op, outputs, inputs);
         break;
+    case element::Type_t::f64:
+        convert_like_v1::evaluate<element::Type_t::f64, OUT_ET>(op, outputs, inputs);
+        break;
     default:
         return false;
     }
@@ -4201,7 +4204,7 @@ bool evaluate(const shared_ptr<op::v9::SoftSign>& op, const HostTensorVector& ou
     return true;
 }
 
-template <typename Data_t, typename Index_t>
+template <typename Data_t, typename Index_t, typename Count_t>
 void execute_unique(const HostTensorVector& outputs,
                     const HostTensorVector& inputs,
                     const shared_ptr<op::v10::Unique>& op) {
@@ -4217,10 +4220,10 @@ void execute_unique(const HostTensorVector& outputs,
     };
 
     const auto unique_elements =
-        runtime::reference::find_unique_elements<Data_t, Index_t>(inputs[0]->get_data_ptr<Data_t>(),
-                                                                  inputs[0]->get_shape(),
-                                                                  maybe_extract_axis(),
-                                                                  op->get_sorted());
+        runtime::reference::find_unique_elements<Data_t, Index_t, Count_t>(inputs[0]->get_data_ptr<Data_t>(),
+                                                                           inputs[0]->get_shape(),
+                                                                           maybe_extract_axis(),
+                                                                           op->get_sorted());
     const auto tensor_shapes =
         runtime::reference::make_tensor_shapes(unique_elements, inputs[0]->get_shape(), maybe_extract_axis());
 
@@ -4237,7 +4240,7 @@ void execute_unique(const HostTensorVector& outputs,
     runtime::reference::unique(out_unique_elements->get_data_ptr<Data_t>(),
                                out_indices->get_data_ptr<Index_t>(),
                                out_rev_indices->get_data_ptr<Index_t>(),
-                               out_counts->get_data_ptr<int64_t>(),
+                               out_counts->get_data_ptr<Count_t>(),
                                inputs[0]->get_data_ptr<Data_t>(),
                                inputs[0]->get_shape(),
                                std::get<0>(tensor_shapes),
@@ -4247,10 +4250,14 @@ void execute_unique(const HostTensorVector& outputs,
 template <element::Type_t Data_ET>
 bool evaluate(const shared_ptr<op::v10::Unique>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     using Data_t = typename element_type_traits<Data_ET>::value_type;
-    if (op->get_index_element_type() == element::i32) {
-        execute_unique<Data_t, int32_t>(outputs, inputs, op);
-    } else if (op->get_index_element_type() == element::i64) {
-        execute_unique<Data_t, int64_t>(outputs, inputs, op);
+    if (op->get_index_element_type() == element::i32 && op->get_count_element_type() == element::i32) {
+        execute_unique<Data_t, int32_t, int32_t>(outputs, inputs, op);
+    } else if (op->get_index_element_type() == element::i64 && op->get_count_element_type() == element::i64) {
+        execute_unique<Data_t, int64_t, int64_t>(outputs, inputs, op);
+    } else if (op->get_index_element_type() == element::i32 && op->get_count_element_type() == element::i64) {
+        execute_unique<Data_t, int32_t, int64_t>(outputs, inputs, op);
+    } else if (op->get_index_element_type() == element::i64 && op->get_count_element_type() == element::i32) {
+        execute_unique<Data_t, int64_t, int32_t>(outputs, inputs, op);
     } else {
         return false;
     }

@@ -1,10 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "include/batch_headers/common.cl"
-#include "include/batch_headers/data_types.cl"
-
 
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
 KERNEL (softmax_gpu_continuous_bfyx)(

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,11 +66,19 @@ public:
 
     // Apply callback to materialize RIC inside graph
     void materialize(Input<Node> input, const ov::NodeVector& nodes) const {
-        if (get_axis() >= input.get_partial_shape().size()) {
+        const auto& input_pshape = input.get_partial_shape();
+        const auto input_rank = input_pshape.rank();
+        if (input_rank.is_dynamic()) {
+            NGRAPH_DEBUG << "Axis calculated to materialize RIC on input: input rank is dynamic";
+            return;
+        }
+        const auto axis = get_axis();
+        // Despite of m_axis is signed integer this transformartion does not handle negative axes values
+        if (axis < 0 || axis >= static_cast<int64_t>(input_pshape.size())) {
             NGRAPH_DEBUG << "Axis calculated to materialize RIC on input: " << input << " is out of range";
             return;
         }
-        const auto& axis_dim = input.get_partial_shape()[get_axis()];
+        const auto& axis_dim = input_pshape[axis];
         if (axis_dim.is_dynamic()) {
             NGRAPH_DEBUG << "Axis calculated to materialize RIC on input: " << input << " is dynamic";
             return;

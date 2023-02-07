@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,6 @@ namespace v5 {
 class OPENVINO_API HSigmoid : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("HSigmoid", "opset5", op::util::UnaryElementwiseArithmetic, 5);
-    BWDCMP_RTTI_DECLARATION;
     HSigmoid() = default;
 
     /// \brief Constructs a HSigmoid operation.

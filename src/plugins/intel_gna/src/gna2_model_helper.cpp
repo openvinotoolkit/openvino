@@ -1,17 +1,19 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #if defined __INTEL_COMPILER || defined _MSC_VER
-#include <malloc.h>
+#    include <malloc.h>
 #else
-#include <mm_malloc.h>
+#    include <mm_malloc.h>
 #endif
 
-#include <map>
 #include <gna2-model-api.h>
-#include "log/debug.hpp"
+
+#include <map>
+
 #include "gna2_model_helper.hpp"
+#include "log/debug.hpp"
 
 Gna2DataType Gna2DataTypeFromBytes(uint32_t num_bytes_per_input) {
     if (num_bytes_per_input == 1)
@@ -41,31 +43,29 @@ Gna2Tensor HelperGna2TensorInit1D(uint32_t x, Gna2DataType dataType, void* data)
     Gna2Tensor t{};
     t.Type = dataType;
     t.Data = data;
-    t.Shape = { 1, {x} };
+    t.Shape = {1, {x}};
     return t;
 }
 
 Gna2Tensor HelperGna2TensorInit2D(uint32_t x, uint32_t y, Gna2DataType dataType, void* data) {
     auto t = HelperGna2TensorInit1D(x, dataType, data);
-    t.Shape = { 2, {x, y} };
+    t.Shape = {2, {x, y}};
     return t;
 }
 
 Gna2Tensor HelperGna2TensorInit3D(uint32_t x, uint32_t y, uint32_t z, Gna2DataType dataType, void* data) {
     auto t = HelperGna2TensorInit1D(x, dataType, data);
-    t.Shape = { 3, {x, y, z} };
+    t.Shape = {3, {x, y, z}};
     return t;
 }
 
 namespace {
 
 Gna2DataType FromOvDataType(OvGnaType t) {
-    static const std::map< OvGnaType, Gna2DataType> m = {
-        {OvGnaTypeInt8, Gna2DataTypeInt8},
-        {OvGnaTypeInt16, Gna2DataTypeInt16},
-        {OvGnaTypeInt32, Gna2DataTypeInt32},
-        {OvGnaTypePwl, Gna2DataTypePwlSegment}
-    };
+    static const std::map<OvGnaType, Gna2DataType> m = {{OvGnaTypeInt8, Gna2DataTypeInt8},
+                                                        {OvGnaTypeInt16, Gna2DataTypeInt16},
+                                                        {OvGnaTypeInt32, Gna2DataTypeInt32},
+                                                        {OvGnaTypePwl, Gna2DataTypePwlSegment}};
     const auto r = m.find(t);
     if (r != m.end()) {
         return r->second;
@@ -85,16 +85,16 @@ Gna2Tensor HelperGna2TensorInit(OvGnaTensor tensor, void* data) {
     return t;
 }
 
-} // namespace
+}  // namespace
 
-Gna2Tensor * createGna2Tensor1D(uint32_t x, uint32_t byteSize, void* data) {
+Gna2Tensor* createGna2Tensor1D(uint32_t x, uint32_t byteSize, void* data) {
     const auto input = reinterpret_cast<Gna2Tensor*>(gnaUserAllocator(sizeof(Gna2Tensor)));
     IE_ASSERT(input != nullptr);
     *input = HelperGna2TensorInit1D(x, Gna2DataTypeFromBytes(byteSize), data);
     return input;
 }
 
-Gna2Tensor * createGna2TensorPwl(uint32_t x, void* data) {
+Gna2Tensor* createGna2TensorPwl(uint32_t x, void* data) {
     auto ret = createGna2Tensor1D(x, 1, data);
     ret->Type = Gna2DataTypePwlSegment;
     if (data == nullptr)
@@ -102,7 +102,7 @@ Gna2Tensor * createGna2TensorPwl(uint32_t x, void* data) {
     return ret;
 }
 
-Gna2Tensor * createGna2BiasTensor1D(uint32_t x, uint32_t byteSize, void* data) {
+Gna2Tensor* createGna2BiasTensor1D(uint32_t x, uint32_t byteSize, void* data) {
     const auto input = reinterpret_cast<Gna2Tensor*>(gnaUserAllocator(sizeof(Gna2Tensor)));
     IE_ASSERT(input != nullptr);
     if (byteSize == 8) {
@@ -113,7 +113,7 @@ Gna2Tensor * createGna2BiasTensor1D(uint32_t x, uint32_t byteSize, void* data) {
     return input;
 }
 
-Gna2Tensor * createGna2Tensor2D(uint32_t x, uint32_t y, uint32_t byteSize, void* data) {
+Gna2Tensor* createGna2Tensor2D(uint32_t x, uint32_t y, uint32_t byteSize, void* data) {
     const auto input = reinterpret_cast<Gna2Tensor*>(gnaUserAllocator(sizeof(Gna2Tensor)));
     IE_ASSERT(input != nullptr);
     *input = HelperGna2TensorInit2D(x, y, Gna2DataTypeFromBytes(byteSize), data);
@@ -127,7 +127,7 @@ Gna2Tensor* createGna2Tensor(OvGnaTensor tensor, void* data) {
     return input;
 }
 
-Gna2Tensor * createGna2Tensor3D(uint32_t x, uint32_t y, uint32_t z, uint32_t byteSize, void* data) {
+Gna2Tensor* createGna2Tensor3D(uint32_t x, uint32_t y, uint32_t z, uint32_t byteSize, void* data) {
     const auto input = reinterpret_cast<Gna2Tensor*>(gnaUserAllocator(sizeof(Gna2Tensor)));
     IE_ASSERT(input != nullptr);
     *input = HelperGna2TensorInit3D(x, y, z, Gna2DataTypeFromBytes(byteSize), data);
@@ -182,20 +182,22 @@ void freeGna2Operation(Gna2Operation& operation) {
     operation.Type = Gna2OperationTypeNone;
 }
 
-void HelperGna2OperationInit(Gna2Operation * operation, Gna2OperationType type) {
+void HelperGna2OperationInit(Gna2Operation* operation, Gna2OperationType type) {
     operation->Type = type;
     operation->NumberOfOperands = 0;
     operation->NumberOfParameters = 0;
 }
 
-void HelperGna2OperationSetOperand(Gna2Operation * operation,
-    Gna2UserAllocator userAllocator, GnaUserFree userFree,
-    uint32_t index, Gna2Tensor * inputs) {
+void HelperGna2OperationSetOperand(Gna2Operation* operation,
+                                   Gna2UserAllocator userAllocator,
+                                   GnaUserFree userFree,
+                                   uint32_t index,
+                                   Gna2Tensor* inputs) {
     if (index >= GNA_MAX_OP_PARAM) {
         THROW_GNA_EXCEPTION << "HelperGna2OperationSetOperand: index >= GNA_MAX_OP_PARAM";
     }
     if (operation->NumberOfOperands <= index) {
-        const auto o = reinterpret_cast<Gna2Tensor const **>(userAllocator(sizeof(Gna2Tensor*) * (index + 1)));
+        const auto o = reinterpret_cast<Gna2Tensor const**>(userAllocator(sizeof(Gna2Tensor*) * (index + 1)));
         for (unsigned i = 0; i < operation->NumberOfOperands; i++) {
             o[i] = operation->Operands[i];
         }
@@ -209,14 +211,17 @@ void HelperGna2OperationSetOperand(Gna2Operation * operation,
     operation->Operands[index] = inputs;
 }
 
-void HelperGna2OperationSetParameter(Gna2Operation * operation,
-    Gna2UserAllocator userAllocator, GnaUserFree userFree,
-    uint32_t index, void * param) {
+void HelperGna2OperationSetParameter(Gna2Operation* operation,
+                                     Gna2UserAllocator userAllocator,
+                                     GnaUserFree userFree,
+                                     uint32_t index,
+                                     void* param) {
     if (index >= GNA_MAX_OP_PARAM) {
-        THROW_GNA_EXCEPTION << "HelperGna2OperationSetParameter: (index >= GNA_MAX_OP_PARAM) index=" << index <<" GNA_MAX_OP_PARAM=" << GNA_MAX_OP_PARAM;
+        THROW_GNA_EXCEPTION << "HelperGna2OperationSetParameter: (index >= GNA_MAX_OP_PARAM) index=" << index
+                            << " GNA_MAX_OP_PARAM=" << GNA_MAX_OP_PARAM;
     }
     if (operation->NumberOfParameters <= index) {
-        const auto p = reinterpret_cast<void **>(userAllocator(sizeof(void *) * (index + 1)));
+        const auto p = reinterpret_cast<void**>(userAllocator(sizeof(void*) * (index + 1)));
         for (unsigned i = 0; i < operation->NumberOfParameters; i++) {
             p[i] = operation->Parameters[i];
         }
@@ -230,11 +235,14 @@ void HelperGna2OperationSetParameter(Gna2Operation * operation,
     operation->Parameters[index] = param;
 }
 
-void HelperGna2OperationInitElementWiseAffine(Gna2Operation * operation,
-    Gna2UserAllocator userAllocator, GnaUserFree userFree,
-    Gna2Tensor * inputs, Gna2Tensor * outputs,
-    Gna2Tensor * weights, Gna2Tensor * biases,
-    Gna2Tensor * activation) {
+void HelperGna2OperationInitElementWiseAffine(Gna2Operation* operation,
+                                              Gna2UserAllocator userAllocator,
+                                              GnaUserFree userFree,
+                                              Gna2Tensor* inputs,
+                                              Gna2Tensor* outputs,
+                                              Gna2Tensor* weights,
+                                              Gna2Tensor* biases,
+                                              Gna2Tensor* activation) {
     HelperGna2OperationInit(operation, Gna2OperationTypeElementWiseAffine);
     HelperGna2OperationSetOperand(operation, userAllocator, userFree, InOpIdx, inputs);
     HelperGna2OperationSetOperand(operation, userAllocator, userFree, OutOpIdx, outputs);
@@ -243,67 +251,101 @@ void HelperGna2OperationInitElementWiseAffine(Gna2Operation * operation,
     HelperGna2OperationSetOperand(operation, userAllocator, userFree, PwlOpIdx, activation);
 }
 
-void HelperGna2OperationInitFullyConnectedAffine(Gna2Operation * operation,
-    Gna2UserAllocator userAllocator, GnaUserFree userFree,
-    Gna2Tensor * inputs, Gna2Tensor * outputs,
-    Gna2Tensor * weights, Gna2Tensor * biases,
-    Gna2Tensor * activation) {
+void HelperGna2OperationInitFullyConnectedAffine(Gna2Operation* operation,
+                                                 Gna2UserAllocator userAllocator,
+                                                 GnaUserFree userFree,
+                                                 Gna2Tensor* inputs,
+                                                 Gna2Tensor* outputs,
+                                                 Gna2Tensor* weights,
+                                                 Gna2Tensor* biases,
+                                                 Gna2Tensor* activation) {
     HelperGna2OperationInitElementWiseAffine(operation,
-        userAllocator, userFree,
-        inputs, outputs, weights, biases, activation);
+                                             userAllocator,
+                                             userFree,
+                                             inputs,
+                                             outputs,
+                                             weights,
+                                             biases,
+                                             activation);
     operation->Type = Gna2OperationTypeFullyConnectedAffine;
     // TODO: GNA2: remove when GNA2 library does not expect optional operands/parameters to be provided
     HelperGna2OperationSetOperand(operation, userAllocator, userFree, WeightScaleFactorOpIdx, nullptr);
     HelperGna2OperationSetParameter(operation, userAllocator, userFree, BiasModeFCAffineParamIdx, nullptr);
 }
 
-void HelperGna2OperationInitRecurrent(Gna2Operation * operation,
-    Gna2UserAllocator userAllocator, GnaUserFree userFree,
-    Gna2Tensor * inputs, Gna2Tensor * outputs,
-    Gna2Tensor * weights, Gna2Tensor * biases,
-    Gna2Tensor * activation,
-    uint32_t * delay) {
-    HelperGna2OperationInitElementWiseAffine(operation, userAllocator, userFree, inputs, outputs, weights, biases, activation);
+void HelperGna2OperationInitRecurrent(Gna2Operation* operation,
+                                      Gna2UserAllocator userAllocator,
+                                      GnaUserFree userFree,
+                                      Gna2Tensor* inputs,
+                                      Gna2Tensor* outputs,
+                                      Gna2Tensor* weights,
+                                      Gna2Tensor* biases,
+                                      Gna2Tensor* activation,
+                                      uint32_t* delay) {
+    HelperGna2OperationInitElementWiseAffine(operation,
+                                             userAllocator,
+                                             userFree,
+                                             inputs,
+                                             outputs,
+                                             weights,
+                                             biases,
+                                             activation);
     operation->Type = Gna2OperationTypeRecurrent;
     HelperGna2OperationSetParameter(operation, userAllocator, userFree, DelayParamIdx, delay);
 }
 
-void HelperGna2OperationInitConvolution(Gna2Operation * operation,
-    Gna2UserAllocator userAllocator, GnaUserFree userFree,
-    Gna2Tensor * inputs, Gna2Tensor * outputs,
-    Gna2Tensor * filters, Gna2Tensor * biases,
-    Gna2Tensor * activation,
-    Gna2Shape * convolutionStride,
-    Gna2BiasMode * biasMode,
-    Gna2Shape* zeroPadding) {
-    HelperGna2OperationInitElementWiseAffine(operation, userAllocator, userFree, inputs, outputs, filters, biases, activation);
+void HelperGna2OperationInitConvolution(Gna2Operation* operation,
+                                        Gna2UserAllocator userAllocator,
+                                        GnaUserFree userFree,
+                                        Gna2Tensor* inputs,
+                                        Gna2Tensor* outputs,
+                                        Gna2Tensor* filters,
+                                        Gna2Tensor* biases,
+                                        Gna2Tensor* activation,
+                                        Gna2Shape* convolutionStride,
+                                        Gna2BiasMode* biasMode,
+                                        Gna2Shape* zeroPadding) {
+    HelperGna2OperationInitElementWiseAffine(operation,
+                                             userAllocator,
+                                             userFree,
+                                             inputs,
+                                             outputs,
+                                             filters,
+                                             biases,
+                                             activation);
     operation->Type = Gna2OperationTypeConvolution;
     HelperGna2OperationSetParameter(operation, userAllocator, userFree, ConvStrideParamIdx, convolutionStride);
     HelperGna2OperationSetParameter(operation, userAllocator, userFree, BiasModeCnnParamIdx, biasMode);
     HelperGna2OperationSetParameter(operation, userAllocator, userFree, ZeroPaddingParamIdx, zeroPadding);
 }
 
-void HelperGna2OperationInitCopy(Gna2Operation * operation,
-    Gna2UserAllocator userAllocator, GnaUserFree userFree,
-    Gna2Tensor * inputs, Gna2Tensor * outputs,
-    Gna2Shape * copyShape) {
+void HelperGna2OperationInitCopy(Gna2Operation* operation,
+                                 Gna2UserAllocator userAllocator,
+                                 GnaUserFree userFree,
+                                 Gna2Tensor* inputs,
+                                 Gna2Tensor* outputs,
+                                 Gna2Shape* copyShape) {
     HelperGna2OperationInit(operation, Gna2OperationTypeCopy);
     HelperGna2OperationSetOperand(operation, userAllocator, userFree, InOpIdx, inputs);
     HelperGna2OperationSetOperand(operation, userAllocator, userFree, OutOpIdx, outputs);
     HelperGna2OperationSetParameter(operation, userAllocator, userFree, CopyShapeParamIdx, copyShape);
 }
 
-void HelperGna2OperationInitInterleave(Gna2Operation * operation,
-    Gna2UserAllocator userAllocator, GnaUserFree userFree,
-    Gna2Tensor * inputs, Gna2Tensor * outputs) {
+void HelperGna2OperationInitInterleave(Gna2Operation* operation,
+                                       Gna2UserAllocator userAllocator,
+                                       GnaUserFree userFree,
+                                       Gna2Tensor* inputs,
+                                       Gna2Tensor* outputs) {
     HelperGna2OperationInit(operation, Gna2OperationTypeTransposition);
     HelperGna2OperationSetOperand(operation, userAllocator, userFree, InOpIdx, inputs);
     HelperGna2OperationSetOperand(operation, userAllocator, userFree, OutOpIdx, outputs);
 }
 
-void HelperGna2OperationInitDeInterleave(Gna2Operation * operation,
-    Gna2UserAllocator userAllocator, GnaUserFree userFree,
-    Gna2Tensor * inputs, Gna2Tensor * outputs) {
+void HelperGna2OperationInitDeInterleave(Gna2Operation* operation,
+                                         Gna2UserAllocator userAllocator,
+                                         GnaUserFree userFree,
+                                         Gna2Tensor* inputs,
+                                         Gna2Tensor* outputs) {
     HelperGna2OperationInit(operation, Gna2OperationTypeTransposition);
     HelperGna2OperationSetOperand(operation, userAllocator, userFree, InOpIdx, inputs);
     HelperGna2OperationSetOperand(operation, userAllocator, userFree, OutOpIdx, outputs);

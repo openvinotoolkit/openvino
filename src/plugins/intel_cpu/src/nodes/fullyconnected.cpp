@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "fullyconnected.h"
 #include "eltwise.h"
+#include "input.h"
 #include "fake_quantize.h"
 #include "input.h"
 #include "reorder.h"
@@ -22,6 +23,7 @@
 #include <common/primitive_desc.hpp>
 #include <common/primitive_desc_iface.hpp>
 #include "onednn/dnnl.h"
+#include "cpu/x64/cpu_isa_traits.hpp"
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -81,6 +83,53 @@ bool FCKey::operator==(const FCKey &rhs) const {
     return retVal;
 }
 
+class FCShapeInfer : public ShapeInferEmptyPads {
+public:
+    FCShapeInfer(size_t outPut_rank) : out_rank(outPut_rank) {}
+    std::vector<VectorDims> infer(
+        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        const VectorDims& activationShape = input_shapes[0].get();
+        const VectorDims& weightShape = input_shapes[1].get();
+        size_t activationRank = activationShape.size();
+        size_t channelRank = weightShape.size() - 1;
+
+        // activation   weight    output_shape
+        // NCHW         CoCHW     NCo
+        // TNC          CoC       TNCo
+        // NC           CoC       NCo
+        VectorDims outputShape(out_rank, 1);
+        // set Co
+        outputShape.back() = weightShape[0];
+        // set batch dims
+        size_t batchRank = activationRank - channelRank;
+        size_t startIdx = out_rank - batchRank - 1;
+        for (size_t i = 0; i < batchRank; i++) {
+            outputShape[i + startIdx] = activationShape[i];
+        }
+
+        return {outputShape};
+    }
+
+    port_mask_t get_port_mask() const override {
+        return EMPTY_PORT_MASK;
+    }
+
+private:
+    size_t out_rank = 0;
+};
+
+class FCShapeInferFactory : public ShapeInferFactory {
+public:
+    FCShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
+    ShapeInferPtr makeShapeInfer() const override {
+        return std::make_shared<FCShapeInfer>(m_op->get_output_partial_shape(0).rank().get_length());
+    }
+
+private:
+    std::shared_ptr<const ngraph::Node> m_op;
+};
+
 } // namespace
 
 bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
@@ -111,13 +160,16 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ngraph::No
     return true;
 }
 
-FullyConnected::FullyConnected(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache), withBiases(false) {
+FullyConnected::FullyConnected(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+        : Node(op, context, FCShapeInferFactory(op)), withBiases(false) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "FullyConnected node with name '" + getName() + "'";
 
         withBiases = inputShapes.size() == 3;
+
+        if (context->getConfig().fcSparseWeiDecompressionRate < 1.0f)
+            minSparseRate = context->getConfig().fcSparseWeiDecompressionRate;
     } else {
         IE_THROW(NotImplemented) << errorMessage;
     }
@@ -171,6 +223,8 @@ void FullyConnected::getSupportedDescriptors() {
         IE_THROW() << errorPrefix << " has incorrect number of input edges";
     if (getChildEdges().empty())
         IE_THROW()<< errorPrefix << " has incorrect number of output edges";
+
+    useSparseWeights = useSparseWeightsDecompression();
 
     auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(DATA_ID));
     outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalOutputPrecisionAtPort(DATA_ID));
@@ -326,7 +380,7 @@ void FullyConnected::prepareParams() {
         return execPtr;
     };
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
 
     if (!result.first) {
@@ -360,6 +414,10 @@ void FullyConnected::prepareParams() {
         }
         // changed shapes may also cause the kernel type changed
         selected_pd->setImplementationType(execPtr->getImplementationType());
+        // WA: We update implType to know whether weights decompression was used inside the kernel
+        if (selected_pd->getImplementationType() == ov::intel_cpu::brgemm_avx512_amx && useSparseWeights) {
+            selected_pd->setImplementationType(ov::intel_cpu::brgemm_sparse_avx512_amx);
+        }
         // maybe expected 1x1 conv is not created, update the flag depends on the real type
         useConv1x1 = execPtr->getImplementationType() == brgconv_avx512_1x1;
 
@@ -503,6 +561,7 @@ bool FullyConnected::created() const {
 const std::vector<impl_desc_type>& FullyConnected::getPrimitivesPriority() {
     std::vector<impl_desc_type> priorities = {
             impl_desc_type::unknown,
+            impl_desc_type::brgemm_sparse_avx512_amx,
             impl_desc_type::brgemm_avx512_amx,
             impl_desc_type::brgemm_avx512,
             impl_desc_type::gemm_blas,
@@ -578,9 +637,15 @@ void FullyConnected::createDescriptorInternal(const dnnl::memory::desc &inputDes
                                          DnnlExtensionUtils::GetPlainFormatByRank(normalizedOutDims.size()));
     }
 
-    dnnl::memory::desc wgh_candidate(DnnlExtensionUtils::convertToDnnlDims(getInputShapeAtPort(WEIGHTS_ID).getStaticDims()),
-                                       wdt, dnnl::memory::format_tag::any);
-
+    // We need to explicitly specify the memory descriptor to use sparse weights decompression
+    dnnl::memory::desc wgh_candidate;
+    if (useSparseWeights) {
+        wgh_candidate = { DnnlExtensionUtils::convertToDnnlDims(getInputShapeAtPort(WEIGHTS_ID).getStaticDims()),
+                wdt, memory::desc::packed(nnzCount) };
+    } else {
+        wgh_candidate = { DnnlExtensionUtils::convertToDnnlDims(getInputShapeAtPort(WEIGHTS_ID).getStaticDims()),
+                                        wdt, dnnl::memory::format_tag::any };
+    }
     if (withBiases) {
         dnnl::memory::desc bias_candidate(DnnlExtensionUtils::convertToDnnlDims(getInputShapeAtPort(BIAS_ID).getStaticDims()), bdt,
                                             dnnl::memory::format_tag::any);
@@ -634,7 +699,7 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
                 portConfig.inPlace(-1);
                 portConfig.constant(false);
                 auto desc = getSrcMemDesc(itpd, i);
-                if (supportsUndefStridesAndOffset()) {
+                if (supportsUndefStridesAndOffset() && !(i == WEIGHTS_ID && useSparseWeights)) {
                     portConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
                 } else {
                     portConfig.setMemDesc(desc);
@@ -802,12 +867,22 @@ bool FullyConnected::canBeExecutedInConv1x1() const {
         const auto& srcDims = srcMemPtr->getStaticDims();
         auto weightMemPtr = getParentEdgesAtPort(1)[0]->getMemoryPtr();
         const auto& weightDims = weightMemPtr->getStaticDims();
-        Dim M, N, K;
-        M = srcDims[inRank - 2];
+        // for original inner product semantics:
+        //  when input is 2D tensor
+        //    M in oneDNN will map to widthInConv
+        //  when input is 3D tensor
+        //    M in oneDNN will map to widthInConv*minibatch
+        // currently nwc mapping in brg:
+        //  when input is 2D tensor
+        //    widthInConv will map to 'w', 'n' will be 1
+        //  when input is 3D tensor
+        //    widthInConv will map to 'w', 'n' will be minibatch
+        Dim widthInConv, N, K;
+        widthInConv = srcDims[inRank - 2];
         K = srcDims[inRank - 1];
         N = weightDims[0];
 
-        if (!(M >= 49 && M <= 3136 &&
+        if (!(widthInConv >= 2 && widthInConv <= 3136 &&
               K >= 96 && K <= 4096 &&
               N >= 96 && N <= K * 4))
             retVal = false;
@@ -842,7 +917,7 @@ MemoryPtr FullyConnected::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
 
         MemoryPtr _ptr = std::make_shared<Memory>(getEngine());
         _ptr->Create(weightDesc);
-        node::Reorder::reorderData(srcMemory, *_ptr, getRuntimeCache());
+        node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache());
 
         return _ptr;
     };
@@ -853,6 +928,7 @@ MemoryPtr FullyConnected::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
     if (privateWeightCache.end() != itr) {
         ptr = itr->second;
     } else {
+        auto weightCache = context->getWeightsCache();
         if (weightCache != nullptr) {
             const std::string string_hash = getName() + "_" + format
                                             + "_" + std::to_string(blob->GetSize())
@@ -866,6 +942,65 @@ MemoryPtr FullyConnected::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
     }
 
     return ptr;
+}
+
+bool FullyConnected::useSparseWeightsDecompression() {
+    // minSparseRate == 1 means that sparse feature is switched off
+    if (minSparseRate == 1.f) {
+        return false;
+    }
+
+    if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx))
+        return false;
+
+    auto weiDims = getInputShapeAtPort(WEIGHTS_ID).getStaticDims();
+    if (weiDims.size() != 2 || weiDims[0] % 64 != 0 || weiDims[1] % 64 != 0) {
+        return false;
+    }
+
+    auto inputPrecision = getOriginalInputPrecisionAtPort(DATA_ID);
+    auto weightsPrecision = getOriginalInputPrecisionAtPort(WEIGHTS_ID);
+    if (!one_of(inputPrecision , Precision::U8, Precision::I8) || weightsPrecision != Precision::I8) {
+        return false;
+    }
+
+    // calculate sparse rate
+    const auto constNode = std::dynamic_pointer_cast<Input>(getParentEdgeAt(WEIGHTS_ID)->getParent());
+    if (!constNode) {
+        return false;
+    }
+    auto blb = constNode->getMemoryPtr();
+    if (blb == nullptr)
+        IE_THROW() << "Cannot get const blob for node " << getName() << ".";
+
+    auto weightsData = reinterpret_cast<const int8_t*>(blb->GetPtr());
+    auto elementsCount = blb->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+    size_t zerosCounts = 0;
+    for (int i = 0; i < elementsCount; i++) {
+        if (weightsData[i] == 0) {
+            zerosCounts++;
+        }
+    }
+    nnzCount = elementsCount - zerosCounts;
+
+    DEBUG_LOG(getName(), ", weightsData.size() = ", elementsCount, ", zerosCounts = ",
+        zerosCounts, ", nnzCount = ", nnzCount);
+
+    weiSparseRate = static_cast<float>(zerosCounts) / static_cast<float>(elementsCount);
+
+    // [av] WA: there is no point in using sparse decompression when the sparse rate is low
+    // todo: add heuristic
+    if (minSparseRate < 0.5)
+        minSparseRate = 0.5;
+
+    DEBUG_LOG(getName(), " | sparse rate = ", weiSparseRate * 100, "%, min sparse rate = ",
+        minSparseRate * 100, "%, use sparse weights = ", weiSparseRate >= minSparseRate);
+
+    if (weiSparseRate < minSparseRate) {
+        return false;
+    }
+
+    return true;
 }
 
 }   // namespace node

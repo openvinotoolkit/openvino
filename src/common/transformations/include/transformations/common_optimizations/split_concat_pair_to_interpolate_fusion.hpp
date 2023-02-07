@@ -1,16 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
 #include <openvino/pass/graph_rewrite.hpp>
+#include <openvino/pass/pattern/matcher.hpp>
 #include <transformations_visibility.hpp>
 #include <vector>
-
-#include "ngraph/pattern/matcher.hpp"
 
 namespace ov {
 namespace pass {
@@ -30,9 +28,3 @@ public:
     OPENVINO_RTTI("SplitConcatPairToInterpolateFusion", "0");
     SplitConcatPairToInterpolateFusion(bool use_shape_for_elimination = true);
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::SplitConcatPairToInterpolateFusion;
-}  // namespace pass
-}  // namespace ngraph

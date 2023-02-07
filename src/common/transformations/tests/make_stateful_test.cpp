@@ -1,19 +1,17 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-#include <queue>
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
-
-#include <transformations/init_node_info.hpp>
 #include <openvino/pass/make_stateful.hpp>
+#include <queue>
+#include <string>
+#include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -121,16 +119,14 @@ TEST(TransformationTests, make_stateful_by_tensor_name) {
         std::map<std::string, std::string> tensor_names = {{"x", "res0"}, {"y", "res1"}};
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::MakeStateful>(tensor_names);
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
-    {
-        f_ref = get_ref_model(true, false);
-    }
+    { f_ref = get_ref_model(true, false); }
     auto res = compare_functions(f, f_ref);
     EXPECT_TRUE(res.first) << res.second;
 }
@@ -143,15 +139,13 @@ TEST(TransformationTests, make_stateful_by_param_res) {
                                                            {f->get_parameters()[1], f->get_results()[1]}};
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::MakeStateful>(pairs);
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
-    {
-        f_ref = get_ref_model(true, true);
-    }
+    { f_ref = get_ref_model(true, true); }
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
@@ -176,7 +170,7 @@ TEST(TransformationTests, make_stateful_dynamic_shapes) {
         f->validate_nodes_and_infer_types();
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::MakeStateful>(pair_names);
 
         try {
@@ -196,16 +190,14 @@ TEST(TransformationTests, make_stateful_one_out_to_several_results_by_tensor_nam
         std::map<std::string, std::string> tensor_names = {{"x", "res0"}, {"y", "res1"}};
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::MakeStateful>(tensor_names);
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
-    {
-        f_ref = get_ref_model(false, false);
-    }
+    { f_ref = get_ref_model(false, false); }
     auto res = compare_functions(f, f_ref);
     EXPECT_TRUE(res.first) << res.second;
 }
@@ -218,15 +210,13 @@ TEST(TransformationTests, make_stateful_one_out_to_several_results_by_param_res)
                                                            {f->get_parameters()[1], f->get_results()[1]}};
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::MakeStateful>(pairs);
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
-    {
-        f_ref = get_ref_model(false, true);
-    }
+    { f_ref = get_ref_model(false, true); }
     auto res = compare_functions(f, f_ref);
     EXPECT_TRUE(res.first) << res.second;
 }

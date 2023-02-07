@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
@@ -10,7 +10,6 @@ from tests import (
     skip_rng_tests,
     xfail_issue_33488,
     xfail_issue_33581,
-    xfail_issue_33589,
     xfail_issue_33595,
     xfail_issue_33596,
     xfail_issue_33606,
@@ -50,6 +49,7 @@ from tests import (
     xfail_issue_90649,
     xfail_issue_91151,
     xfail_issue_91490,
+    xfail_issue_101965,
 )
 from tests.test_onnx.utils.onnx_backend import OpenVinoTestBackend
 
@@ -184,11 +184,8 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_33595,
-        "OnnxBackendNodeModelTest.test_unique_not_sorted_without_axis_cpu",
         "OnnxBackendNodeModelTest.test_unique_sorted_with_negative_axis_cpu",
-        "OnnxBackendNodeModelTest.test_unique_sorted_with_axis_cpu",
         "OnnxBackendNodeModelTest.test_unique_sorted_with_axis_3d_cpu",
-        "OnnxBackendNodeModelTest.test_unique_sorted_without_axis_cpu",
     ),
     (
         xfail_issue_33651,
@@ -222,13 +219,6 @@ tests_expected_to_fail = [
         xfail_issue_33488,
         "OnnxBackendNodeModelTest.test_maxunpool_export_with_output_shape_cpu",
         "OnnxBackendNodeModelTest.test_maxunpool_export_without_output_shape_cpu",
-    ),
-    (
-        xfail_issue_33589,
-        "OnnxBackendNodeModelTest.test_isnan_cpu",
-        "OnnxBackendNodeModelTest.test_isinf_positive_cpu",
-        "OnnxBackendNodeModelTest.test_isinf_negative_cpu",
-        "OnnxBackendNodeModelTest.test_isinf_cpu",
     ),
     (xfail_issue_38724, "OnnxBackendNodeModelTest.test_resize_tf_crop_and_resize_cpu"),
     (
@@ -385,9 +375,6 @@ tests_expected_to_fail = [
         xfail_issue_90649,
         "OnnxBackendNodeModelTest.test_blackmanwindow_cpu",
         "OnnxBackendNodeModelTest.test_blackmanwindow_symmetric_cpu",
-        "OnnxBackendNodeModelTest.test_dft_axis_cpu",
-        "OnnxBackendNodeModelTest.test_dft_cpu",
-        "OnnxBackendNodeModelTest.test_dft_inverse_cpu",
         "OnnxBackendNodeModelTest.test_hammingwindow_cpu",
         "OnnxBackendNodeModelTest.test_hammingwindow_symmetric_cpu",
         "OnnxBackendNodeModelTest.test_hannwindow_cpu",
@@ -406,6 +393,12 @@ tests_expected_to_fail = [
         xfail_issue_91151,
         "OnnxBackendNodeModelTest.test_castlike_BFLOAT16_to_FLOAT_cpu",
         "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_cpu",
+    ),
+    (
+        xfail_issue_101965,
+        "OnnxBackendNodeModelTest.test_dft_axis_cpu",
+        "OnnxBackendNodeModelTest.test_dft_cpu",
+        "OnnxBackendNodeModelTest.test_dft_inverse_cpu",
     ),
 ]
 

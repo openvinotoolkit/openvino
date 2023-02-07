@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "behavior/ov_executable_network/exec_graph_info.hpp"
@@ -33,6 +33,6 @@ INSTANTIATE_TEST_SUITE_P(ov_compiled_model,
                          ::testing::Combine(
                                  ::testing::ValuesIn(ovExecGraphInfoElemTypes),
                                  ::testing::ValuesIn(return_all_possible_device_combination()),
-                                 ::testing::Values(ov_config)),
+                                 ::testing::Values(pluginConfig)),
                          OVExecGraphImportExportTest::getTestCaseName);
 }  // namespace

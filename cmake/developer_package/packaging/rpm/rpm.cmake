@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -121,7 +121,7 @@ ov_rpm_specific_settings()
 
 # needed to add triggers for packages with libraries
 set(def_triggers "${OpenVINO_BINARY_DIR}/_CPack_Packages/triggers")
-set(triggers_content "/sbin/ldconfig\n")
+set(triggers_content "# /bin/sh -p\n/sbin/ldconfig\n")
 file(WRITE "${def_triggers}" "${triggers_content}")
 
 #
@@ -186,7 +186,7 @@ function(ov_rpm_add_rpmlint_suppression comp)
         message(FATAL_ERROR "RPM: Unsupported architecture ${CMAKE_SYSTEM_PROCESSOR}")
     endif()
 
-    set(package_file_name "${package_name}-${OpenVINO_VERSION}-1.${arch}.rpm")
+    set(package_file_name "${package_name}-${CPACK_PACKAGE_VERSION}-1.${arch}.rpm")
     set(rpmlint_override_file "${OpenVINO_BINARY_DIR}/_CPack_Packages/rpmlint/${package_file_name}.rpmlintrc")
     file(REMOVE ${rpmlint_override_file})
     file(WRITE ${rpmlint_override_file} ${content})

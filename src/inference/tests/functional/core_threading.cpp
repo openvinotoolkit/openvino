@@ -1,28 +1,27 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_core.hpp>
-#include <ie_plugin_config.hpp>
+#include <gtest/gtest.h>
 #include <ie_extension.h>
 
-#include "openvino/util/file_util.hpp"
-#include <ngraph_functions/subgraph_builders.hpp>
-#include <functional_test_utils/test_model/test_model.hpp>
+#include <atomic>
+#include <chrono>
 #include <common_test_utils/file_utils.hpp>
 #include <common_test_utils/test_assertions.hpp>
-
-#include <gtest/gtest.h>
-#include <thread>
-#include <atomic>
-#include <mutex>
-#include <chrono>
 #include <fstream>
+#include <functional_test_utils/test_model/test_model.hpp>
+#include <ie_core.hpp>
+#include <ie_plugin_config.hpp>
+#include <mutex>
+#include <thread>
+
+#include "openvino/util/file_util.hpp"
 #ifdef __GLIBC__
-#include <gnu/libc-version.h>
-#if __GLIBC_MINOR__  >= 34
-    #define OV_TEST_GLIBC_VERSION_GREATER_2_34
-#endif
+#    include <gnu/libc-version.h>
+#    if __GLIBC_MINOR__ >= 34
+#        define OV_TEST_GLIBC_VERSION_GREATER_2_34
+#    endif
 #endif
 
 class CoreThreadingTests : public ::testing::Test {
@@ -31,6 +30,9 @@ protected:
 
 public:
     void SetUp() override {
+        auto prefix = CommonTestUtils::generateTestFilePrefix();
+        modelName = prefix + modelName;
+        weightsName = prefix + weightsName;
         FuncTestUtils::TestModel::generateTestModel(modelName, weightsName);
     }
 
@@ -43,27 +45,27 @@ public:
                      const unsigned int threadsNum = 8) {
         std::vector<std::thread> threads(threadsNum);
 
-        for (auto & thread : threads) {
-            thread = std::thread([&](){
+        for (auto& thread : threads) {
+            thread = std::thread([&]() {
                 for (unsigned int i = 0; i < iterations; ++i) {
                     func();
                 }
             });
         }
 
-        for (auto & thread : threads) {
+        for (auto& thread : threads) {
             if (thread.joinable())
                 thread.join();
         }
     }
 
-    void safeAddExtension(InferenceEngine::Core & ie) {
+    void safeAddExtension(InferenceEngine::Core& ie) {
         try {
             auto extension = std::make_shared<InferenceEngine::Extension>(
                 ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
-                    std::string("template_extension") + IE_BUILD_POSTFIX));
+                                                   std::string("template_extension") + IE_BUILD_POSTFIX));
             ie.AddExtension(extension);
-        } catch (const InferenceEngine::Exception & ex) {
+        } catch (const InferenceEngine::Exception& ex) {
             ASSERT_STR_CONTAINS(ex.what(), "name: custom_opset. Opset");
         }
     }
@@ -73,12 +75,13 @@ public:
 TEST_F(CoreThreadingTests, SetConfigPluginDoesNotExist) {
     InferenceEngine::Core ie;
     std::map<std::string, std::string> localConfig = {
-        { CONFIG_KEY(PERF_COUNT), InferenceEngine::PluginConfigParams::YES }
-    };
+        {CONFIG_KEY(PERF_COUNT), InferenceEngine::PluginConfigParams::YES}};
 
-    runParallel([&] () {
-        ie.SetConfig(localConfig);
-    }, 10000);
+    runParallel(
+        [&]() {
+            ie.SetConfig(localConfig);
+        },
+        10000);
 }
 
 // TODO: CVS-68982
@@ -88,13 +91,16 @@ TEST_F(CoreThreadingTests, SetConfigPluginDoesNotExist) {
 TEST_F(CoreThreadingTests, RegisterPlugin) {
     InferenceEngine::Core ie;
     std::atomic<int> index{0};
-    runParallel([&] () {
-        const std::string deviceName = std::to_string(index++);
-        ie.RegisterPlugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
-            std::string("mock_engine") + IE_BUILD_POSTFIX), deviceName);
-        ie.GetVersions(deviceName);
-        ie.UnregisterPlugin(deviceName);
-    }, 4000);
+    runParallel(
+        [&]() {
+            const std::string deviceName = std::to_string(index++);
+            ie.RegisterPlugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+                                                                 std::string("mock_engine") + IE_BUILD_POSTFIX),
+                              deviceName);
+            ie.GetVersions(deviceName);
+            ie.UnregisterPlugin(deviceName);
+        },
+        4000);
 }
 
 // tested function: RegisterPlugins
@@ -102,7 +108,7 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
     InferenceEngine::Core ie;
     std::atomic<unsigned int> index{0};
 
-    auto getPluginXml = [&] () -> std::tuple<std::string, std::string> {
+    auto getPluginXml = [&]() -> std::tuple<std::string, std::string> {
         std::string indexStr = std::to_string(index++);
         std::string pluginsXML = "test_plugins" + indexStr + ".xml";
         std::ofstream file(pluginsXML);
@@ -124,38 +130,42 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
         return std::tie(pluginsXML, indexStr);
     };
 
-    runParallel([&] () {
-        std::string fileName, deviceName;
-        std::tie(fileName, deviceName) = getPluginXml();
-        ie.RegisterPlugins(fileName);
-        ie.GetVersions(deviceName);
-        ASSERT_EQ(0, std::remove(fileName.c_str()));
-    }, 1000);
+    runParallel(
+        [&]() {
+            std::string fileName, deviceName;
+            std::tie(fileName, deviceName) = getPluginXml();
+            ie.RegisterPlugins(fileName);
+            ie.GetVersions(deviceName);
+            ASSERT_EQ(0, std::remove(fileName.c_str()));
+        },
+        1000);
 }
 
-#endif // !OPENVINO_STATIC_LIBRARY
+#endif  // !OPENVINO_STATIC_LIBRARY
 
 // tested function: GetAvailableDevices, UnregisterPlugin
 // TODO: some initialization (e.g. thread/dlopen) sporadically fails during such stress-test scenario
 TEST_F(CoreThreadingTests, GetAvailableDevices) {
-    #ifndef OV_TEST_GLIBC_VERSION_GREATER_2_34
-        GTEST_SKIP();
-    #endif
+#ifndef OV_TEST_GLIBC_VERSION_GREATER_2_34
+    GTEST_SKIP();
+#endif
     InferenceEngine::Core ie;
-    runParallel([&] () {
-        std::vector<std::string> devices = ie.GetAvailableDevices();
+    runParallel(
+        [&]() {
+            std::vector<std::string> devices = ie.GetAvailableDevices();
 
-        // unregister all the devices
-        for (auto && deviceName : devices) {
-            try {
-                ie.UnregisterPlugin(deviceName);
-            } catch (const InferenceEngine::Exception & ex) {
-                // if several threads unload plugin at once, the first thread does this
-                // while all others will throw an exception that plugin is not registered
-                ASSERT_STR_CONTAINS(ex.what(), "name is not registered in the");
+            // unregister all the devices
+            for (auto&& deviceName : devices) {
+                try {
+                    ie.UnregisterPlugin(deviceName);
+                } catch (const InferenceEngine::Exception& ex) {
+                    // if several threads unload plugin at once, the first thread does this
+                    // while all others will throw an exception that plugin is not registered
+                    ASSERT_STR_CONTAINS(ex.what(), "name is not registered in the");
+                }
             }
-        }
-    }, 30);
+        },
+        30);
 }
 
 #if defined(ENABLE_OV_IR_FRONTEND)
@@ -164,9 +174,12 @@ TEST_F(CoreThreadingTests, ReadNetwork) {
     InferenceEngine::Core ie;
     auto network = ie.ReadNetwork(modelName, weightsName);
 
-    runParallel([&] () {
-        safeAddExtension(ie);
-        (void)ie.ReadNetwork(modelName, weightsName);
-    }, 100, 12);
+    runParallel(
+        [&]() {
+            safeAddExtension(ie);
+            (void)ie.ReadNetwork(modelName, weightsName);
+        },
+        100,
+        12);
 }
-#endif //defined(ENABLE_OV_IR_FRONTEND)
+#endif  // defined(ENABLE_OV_IR_FRONTEND)

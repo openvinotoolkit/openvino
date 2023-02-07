@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,13 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
 #include "ov_ops/type_relaxed.hpp"
+#include "transformations/common_optimizations/align_mixed_fp32_fp16_types.hpp"
+#include "transformations/common_optimizations/mark_subgraphs_to_keep_in_mixed_precision.hpp"
+#include "transformations/enable_decompression_convert_constant_folding.hpp"
+#include "transformations/rt_info/disable_fp16_compression.hpp"
 
 using namespace ov;
 
@@ -57,9 +63,8 @@ bool fuse_type_to_binary_comparision(const std::shared_ptr<ngraph::Node>& node, 
         type_relaxed->set_overridden_output_type(to);
         return true;
     } else if (auto casted = std::dynamic_pointer_cast<T>(node)) {
-        auto relaxed_op = std::make_shared<ngraph::op::TypeRelaxed<T>>(*casted,
-                                                                       ov::element::TypeVector{},
-                                                                       ov::element::TypeVector{to});
+        auto relaxed_op =
+            std::make_shared<ov::op::TypeRelaxed<T>>(*casted, ov::element::TypeVector{}, ov::element::TypeVector{to});
         replace_node(node, relaxed_op);
         return true;
     }
@@ -74,7 +79,7 @@ bool fuse_type_to_logical(const std::shared_ptr<ngraph::Node>& node, ngraph::ele
         type_relaxed->set_origin_input_type(ov::element::boolean, 1);
         return true;
     } else if (auto casted = std::dynamic_pointer_cast<T>(node)) {
-        auto relaxed_op = std::make_shared<ngraph::op::TypeRelaxed<T>>(
+        auto relaxed_op = std::make_shared<ov::op::TypeRelaxed<T>>(
             *casted,
             ov::element::TypeVector{ov::element::boolean, ov::element::boolean},
             ov::element::TypeVector{to});
@@ -91,9 +96,9 @@ bool fuse_type_to_reduce_logical(const std::shared_ptr<ngraph::Node>& node, ngra
         type_relaxed->set_origin_input_type(ov::element::boolean, 0);
         return true;
     } else if (auto casted = std::dynamic_pointer_cast<T>(node)) {
-        auto relaxed_op = std::make_shared<ngraph::op::TypeRelaxed<T>>(*casted,
-                                                                       ov::element::TypeVector{ov::element::boolean},
-                                                                       ov::element::TypeVector{to});
+        auto relaxed_op = std::make_shared<ov::op::TypeRelaxed<T>>(*casted,
+                                                                   ov::element::TypeVector{ov::element::boolean},
+                                                                   ov::element::TypeVector{to});
         replace_node(node, relaxed_op);
         return true;
     }
@@ -101,6 +106,7 @@ bool fuse_type_to_reduce_logical(const std::shared_ptr<ngraph::Node>& node, ngra
 }
 
 namespace {
+
 void validate_nodes_and_infer_types(const std::vector<std::shared_ptr<Node>>& ops) {
     for (auto& node : ops) {
         node->revalidate_and_infer_types();
@@ -112,7 +118,8 @@ bool convert_precision(ov::pass::PassBase& pass,
                        const type_to_fuse_map& type_to_fuse,
                        const type_to_fuse_map& type_to_extend,
                        ov::element::Type from,
-                       ov::element::Type to) {
+                       ov::element::Type to,
+                       bool skip_precision_sensitive = false) {
     // As Constant operations can be shared between multiple nGraph Functions so before
     // changing precision we need to understand which Constant consumers belongs
     // to the current nGraph Function
@@ -130,24 +137,24 @@ bool convert_precision(ov::pass::PassBase& pass,
     };
 
     auto convert_node_output_precision = [&](const std::shared_ptr<ngraph::Node>& node) {
+        bool res = false;
+        // Handle case with Constants as they can have consumers from other nGraph Function object
+        const auto constant = ov::as_type_ptr<opset10::Constant>(node);
+        const auto it = const_to_internal_output.find(node.get());
+        if (constant && constant->get_output_element_type(0) == from && it != const_to_internal_output.end()) {
+            return fuse_type_to_constant(node, to, it->second);
+        }
+
         for (const auto& output : node->outputs()) {
             if (output.get_element_type() == from) {
-                // Handle case with Constants as they can have consumers from other nGraph
-                // Function object
-                auto it = const_to_internal_output.find(node.get());
-                if (it != const_to_internal_output.end()) {
-                    return fuse_type_to_constant(node, to, it->second);
-                }
-
                 // Check that node type exists in map and we can fuse type into node
-                auto t2f_it = type_to_fuse.find(node->get_type_info());
-                if (t2f_it != type_to_fuse.end() && t2f_it->second(node, to, output.get_index())) {
-                    // We need to break if original node was replaced
-                    return true;
+                const auto t2f_it = type_to_fuse.find(node->get_type_info());
+                if (t2f_it != type_to_fuse.end()) {
+                    res |= t2f_it->second(node, to, output.get_index());
                 }
             }
         }
-        return false;
+        return res;
     };
 
     auto convert_node_input_precision = [&](const std::shared_ptr<ngraph::Node>& node) {
@@ -173,7 +180,9 @@ bool convert_precision(ov::pass::PassBase& pass,
             // If output type mismatch given type we try to fuse type into this operation
             // otherwise we insert Convert operation.
             for (auto& node : ops) {
-                pass.transformation_callback(node);
+                if (skip_precision_sensitive && fp16_compression_is_disabled(node) && to == element::f16)
+                    continue;
+
                 // Recursively apply transformation for sub-graph based operations
                 if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(node)) {
                     size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
@@ -197,7 +206,7 @@ bool convert_precision(ov::pass::PassBase& pass,
 
             for (auto& node : ops) {
                 // skip precision sensitive nodes
-                if (pass.transformation_callback(node))
+                if (skip_precision_sensitive && fp16_compression_is_disabled(node) && to == element::f16)
                     continue;
                 is_output_precision_changed |= convert_node_output_precision(node);
             }
@@ -215,6 +224,8 @@ bool convert_precision(ov::pass::PassBase& pass,
                 // Convert elimination here
                 for (auto& node : ops) {
                     if (auto convert = std::dynamic_pointer_cast<opset4::Convert>(node)) {
+                        if (pass::constant_folding_is_disabled(node))
+                            continue;
                         // WA for topK, dont remove fake convert
                         if (convert->input(0).get_element_type() == convert->get_convert_element_type() &&
                             convert->input_value(0).get_node_shared_ptr()->get_output_size() == 1) {
@@ -246,7 +257,7 @@ precisions_set_t find_all_used_precisions(const std::shared_ptr<ngraph::Function
         for (const auto& output : node->outputs()) {
             used_precisions.emplace(output.get_element_type());
         }
-        if (auto sub_graph_node = std::dynamic_pointer_cast<ngraph::op::util::MultiSubGraphOp>(node)) {
+        if (auto sub_graph_node = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node)) {
             size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
             for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
                 auto sub_graph_precisions =
@@ -289,12 +300,28 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::Func
         {opset4::LogicalOr::get_type_info_static(), fuse_type_to_logical<opset4::LogicalOr>},
         {opset4::LogicalXor::get_type_info_static(), fuse_type_to_logical<opset4::LogicalXor>},
         {opset4::LogicalNot::get_type_info_static(), fuse_type_to_logical<opset4::LogicalNot>},
+        {opset1::Xor::get_type_info_static(), fuse_type_to_logical<opset1::Xor>},
         {opset4::ReduceLogicalAnd::get_type_info_static(), fuse_type_to_reduce_logical<opset4::ReduceLogicalAnd>},
         {opset4::ReduceLogicalOr::get_type_info_static(), fuse_type_to_reduce_logical<opset4::ReduceLogicalOr>},
         {opset1::ShapeOf::get_type_info_static(), fuse_type_to_shapeof_v0},
         {opset4::Range::get_type_info_static(), fuse_type_to_range_v4},
         {opset10::Unique::get_type_info_static(), fuse_type_to_unique_v10},
         {opset8::RandomUniform::get_type_info_static(), fuse_type_to_random_uniform_v8}};
+
+    std::pair<ov::element::Type, ov::element::Type> compress_f16_pair = {ov::element::f32, ov::element::f16};
+    bool has_compress_f16 = std::count(m_precisions.begin(), m_precisions.end(), compress_f16_pair) > 0;
+
+    if (m_keep_precision_sensitive_in_fp32 && has_compress_f16) {
+        pass::Manager manager(get_pass_config());
+        // Mark subgraphs with disable_fp16_compression to keep them in FP32
+        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+        manager.register_pass<pass::AlignMixedFP32FP16Types>();
+        manager.run_passes(f);
+    }
+
+    for (const auto& it : m_additional_type_to_fuse_map) {
+        type_to_fuse[it.first] = it.second;
+    }
 
     type_to_fuse.insert(m_additional_type_to_fuse_map.begin(), m_additional_type_to_fuse_map.end());
 
@@ -309,7 +336,20 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::Func
 
     for (auto const& p : m_precisions) {
         if (used_precisions.count(p.first))
-            is_changed = is_changed | convert_precision(*this, f, type_to_fuse, type_to_extend, p.first, p.second);
+            is_changed = is_changed | convert_precision(*this,
+                                                        f,
+                                                        type_to_fuse,
+                                                        type_to_extend,
+                                                        p.first,
+                                                        p.second,
+                                                        m_keep_precision_sensitive_in_fp32);
+    }
+
+    // to remove extra converts
+    if (m_keep_precision_sensitive_in_fp32) {
+        pass::Manager manager(get_pass_config());
+        manager.register_pass<pass::EnableDecompressionConvertConstantFolding>();
+        manager.register_pass<pass::ConstantFolding>();
     }
 
     (void)is_changed;  // ignored
@@ -342,17 +382,19 @@ bool fuse_type_to_random_uniform_v8(const std::shared_ptr<ngraph::Node>& node, o
 }
 
 bool fuse_type_to_unique_v10(const std::shared_ptr<Node>& node, ov::element::Type to, size_t idx) {
+    bool res = false;
     if (auto unique = ov::as_type_ptr<opset10::Unique>(node)) {
         if (to == ov::element::i32 || to == ov::element::i64) {
             if (idx == 1 || idx == 2) {
                 unique->set_index_element_type(to);
+                res = true;
             } else if (idx == 3) {
                 unique->set_count_element_type(to);
+                res = true;
             }
         }
     }
-    // No node replacement, so always return false
-    return false;
+    return res;
 }
 
 bool fuse_type_to_range_v4(const std::shared_ptr<ngraph::Node>& node, ov::element::Type to, size_t idx) {
@@ -427,9 +469,8 @@ bool fuse_type_to_nms5(const std::shared_ptr<ngraph::Node>& node, ngraph::elemen
         output_types.emplace_back(output.get_element_type());
     }
     output_types[idx] = to;
-    auto relaxed_op = std::make_shared<ngraph::op::TypeRelaxed<opset5::NonMaxSuppression>>(*nms,
-                                                                                           ov::element::TypeVector{},
-                                                                                           output_types);
+    auto relaxed_op =
+        std::make_shared<ov::op::TypeRelaxed<opset5::NonMaxSuppression>>(*nms, ov::element::TypeVector{}, output_types);
     replace_node(node, relaxed_op);
     return true;
 }
@@ -455,9 +496,8 @@ bool fuse_type_to_nms9(const std::shared_ptr<ngraph::Node>& node, ngraph::elemen
         output_types.emplace_back(output.get_element_type());
     }
     output_types[idx] = to;
-    auto relaxed_op = std::make_shared<ngraph::op::TypeRelaxed<opset9::NonMaxSuppression>>(*nms,
-                                                                                           ov::element::TypeVector{},
-                                                                                           output_types);
+    auto relaxed_op =
+        std::make_shared<ov::op::TypeRelaxed<opset9::NonMaxSuppression>>(*nms, ov::element::TypeVector{}, output_types);
     replace_node(node, relaxed_op);
     return true;
 }
@@ -570,9 +610,9 @@ bool fuse_type_to_shapeof_v0(const std::shared_ptr<ngraph::Node>& node, ngraph::
         type_relaxed->set_overridden_output_type(to);
         return true;
     } else if (auto casted = std::dynamic_pointer_cast<opset1::ShapeOf>(node)) {
-        auto relaxed_op = std::make_shared<ngraph::op::TypeRelaxed<opset1::ShapeOf>>(*casted,
-                                                                                     ov::element::TypeVector{},
-                                                                                     ov::element::TypeVector{to});
+        auto relaxed_op = std::make_shared<ov::op::TypeRelaxed<opset1::ShapeOf>>(*casted,
+                                                                                 ov::element::TypeVector{},
+                                                                                 ov::element::TypeVector{to});
         replace_node(node, relaxed_op);
         return true;
     }

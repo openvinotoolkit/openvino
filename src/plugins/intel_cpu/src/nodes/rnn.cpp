@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 #include <dnnl_extension_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include <common/primitive_hashing_utils.hpp>
+#include <utils/shape_inference/shape_inference_ngraph.hpp>
 
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
@@ -232,6 +233,10 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
                 errorMessage = "Node expects constants as W, R, B inputs.";
                 return false;
             }
+            if (ov::is_type<ov::op::v0::LSTMCell>(op) && op->get_input_size() != 6) {
+                errorMessage = "Node expects 6 inputs. Actual: " + std::to_string(op->get_input_size());
+                return false;
+            }
         } else if (one_of(op->get_type_info(),
                 ov::op::v0::LSTMSequence::get_type_info_static(),
                 ov::op::v5::LSTMSequence::get_type_info_static())) {
@@ -274,8 +279,71 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
     return true;
 }
 
-RNN::RNN(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache) {
+bool RNN::isCell(const std::shared_ptr<const ngraph::Node>& op) {
+    return one_of(op->get_type_info(),
+            ov::op::v0::RNNCell::get_type_info_static(),
+            ov::op::v3::GRUCell::get_type_info_static(),
+            ov::op::internal::AUGRUCell::get_type_info_static(),
+            ov::op::v0::LSTMCell::get_type_info_static(),
+            ov::op::v4::LSTMCell::get_type_info_static());
+}
+
+bool RNN::testNativeOrder(const std::shared_ptr<const ngraph::Node>& op) {
+    if (isCell(op)) {
+        return true;
+    }
+    const auto& rtInfo = op->get_rt_info();
+    if (rtInfo.count("seqAxis")) {
+        return rtInfo.at("seqAxis").as<int64_t>() == 0;
+    }
+    return false;
+}
+
+namespace {
+/**
+ * Extends Rnn ngraph shape inference implementation. The main purpose of this class is to do the trick with 
+ * dimentions permutation, necessary due to the mismatch between the ngrpah and the oneDNN RNN node descriptions.
+ *  
+ */
+class RnnShapeInfer : public NgraphShapeInfer {
+public:
+    RnnShapeInfer(std::shared_ptr<ov::Node> op) :
+        NgraphShapeInfer(make_shape_inference(op), EMPTY_PORT_MASK) {
+            is_sequence = !(RNN::isCell(op));
+
+            native_order = RNN::testNativeOrder(op);
+        }
+
+    std::vector<VectorDims> infer(
+        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        auto originOutputShapes = NgraphShapeInfer::infer(input_shapes, data_dependency);
+
+        // Graph optimizer makes the same optimization. So this is required to make shapes compatible.
+        if (is_sequence && !native_order && originOutputShapes[0].size() == 4lu && originOutputShapes[0][1] == 1lu) {
+            originOutputShapes[0].erase(originOutputShapes[0].begin() + 1);
+        }
+        return originOutputShapes;
+    }
+
+private:
+    bool is_sequence = false;
+    bool native_order = true;
+};
+class RnnShapeInferFactory final : public ShapeInferFactory {
+public:
+    RnnShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
+    ShapeInferPtr makeShapeInfer() const override {
+        return std::make_shared<RnnShapeInfer>(m_op);
+    }
+private:
+    std::shared_ptr<ov::Node> m_op;
+};
+
+} // namespace
+
+RNN::RNN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
+        Node(op, context, RnnShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -285,12 +353,7 @@ RNN::RNN(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSh
             ov::op::internal::AUGRUCell::get_type_info_static(),
             ov::op::internal::AUGRUSequence::get_type_info_static());
 
-    is_cell = one_of(op->get_type_info(),
-            ov::op::v0::RNNCell::get_type_info_static(),
-            ov::op::v3::GRUCell::get_type_info_static(),
-            ov::op::internal::AUGRUCell::get_type_info_static(),
-            ov::op::v0::LSTMCell::get_type_info_static(),
-            ov::op::v4::LSTMCell::get_type_info_static());
+    is_cell = isCell(op);
 
     if (one_of(op->get_type_info(),
                ov::op::v0::RNNCell::get_type_info_static(),
@@ -349,10 +412,7 @@ RNN::RNN(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSh
     } else {
         direction = ieDirection2dnnl(op);
 
-        nativeOrder = false;
-        if (rtInfo.count("seqAxis")) {
-            nativeOrder = rtInfo.at("seqAxis").as<int64_t>() == 0;
-        }
+        nativeOrder = testNativeOrder(op);
 
         initSequence();
     }
@@ -928,6 +988,9 @@ void RNN::prepareParams() {
         if (!memPtr || !memPtr->isAllocated())
             THROW_ERROR << "has uninitialized memory at port " << i;
     }
+    if ((is_cell && DC != getParentEdgesAtPort(0)[0]->getMemory().getDesc().getShape().getStaticDims()[1]) ||
+        (!is_cell && DC != getParentEdgesAtPort(0)[0]->getMemory().getDesc().getShape().getStaticDims()[2]))
+            THROW_ERROR << "has incorrect input size value in the first input.";
 
     auto dataMemPtr = getParentEdgesAtPort(0).front()->getMemoryPtr();
     const size_t B = dataMemPtr->GetShape().getStaticDims()[0];
@@ -998,7 +1061,7 @@ void RNN::prepareParams() {
         }
     };
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
 
     if (!result.first) {
@@ -1085,20 +1148,6 @@ void RNN::execute(dnnl::stream strm) {
 
 void RNN::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
-}
-
-std::vector<VectorDims> RNN::shapeInfer() const {
-    if ((is_cell && DC != getParentEdgesAtPort(0)[0]->getMemory().getDesc().getShape().getStaticDims()[1]) ||
-            (!is_cell && DC != getParentEdgesAtPort(0)[0]->getMemory().getDesc().getShape().getStaticDims()[2]))
-        THROW_ERROR << "has incorrect input size value in the first input.";
-
-    auto originOutputShapes = Node::shapeInfer();
-
-    // Graph optimizer makes the same optimization. So this is required to make shapes compatible.
-    if (getType() == Type::RNNSeq && !hasNativeOrder() && originOutputShapes[0].size() == 4lu && originOutputShapes[0][1] == 1lu) {
-        originOutputShapes[0].erase(originOutputShapes[0].begin() + 1);
-    }
-    return originOutputShapes;
 }
 
 void RNN::cleanup() {

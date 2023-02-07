@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "pooling_inst.h"
 #include "primitive_inst.h"
@@ -15,6 +13,8 @@
 #include "resample_inst.h"
 #include "loop_inst.h"
 #include "non_max_suppression_inst.h"
+#include "experimental_detectron_roi_feature_extractor_inst.hpp"
+#include "border_inst.h"
 
 #include "pass_manager.h"
 #include "program_helpers.h"
@@ -65,13 +65,11 @@ struct concat_in_place_optimization : pattern_match_optimization_typed<concat_in
 };
 
 bool concat_noop_optimization::match(concatenation_node& node) {
-    if (node.is_output() && !get_program().is_debug_build())
+    if (node.is_output())
         return false;
     if (node.is_dynamic())
         return false;
-    return node.get_dependencies().size() == 1 &&
-        !node.has_fused_primitives() &&
-        node.get_fused_activations_funcs().empty();
+    return node.get_dependencies().size() == 1 && !node.has_fused_primitives();
 }
 
 bool concat_noop_optimization::optimize(concatenation_node& node) {
@@ -84,9 +82,9 @@ bool concat_noop_optimization::optimize(concatenation_node& node) {
 }
 
 bool concat_in_place_optimization::match(concatenation_node& node) {
-    if (node.is_output() && !get_program().is_debug_build())
+    if (node.is_output())
         return false;
-    if (node.has_fused_primitives() || !node.get_fused_activations_funcs().empty())
+    if (node.has_fused_primitives())
         return false;
     if (node.is_dynamic())
         return false;
@@ -94,9 +92,9 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
     bool is_onednn_impl = false;
 
     for (auto& input : node.get_dependencies()) {
-        if (input->get_preferred_impl_type() == impl_types::onednn) {
-            for (auto& fused_op : input->get_fused_primitives()) {
-                auto add_type = onednn_add_fusing_helpers::get_add_fusing_type(*input, fused_op);
+        if (input.first->get_preferred_impl_type() == impl_types::onednn) {
+            for (auto& fused_op : input.first->get_fused_primitives()) {
+                auto add_type = onednn_add_fusing_helpers::get_add_fusing_type(*input.first, fused_op);
                 if (add_type == add_fusing_type::sum)
                     return false;
                 else
@@ -104,7 +102,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
             }
 
             // Optimized-out input node is no longer onednn impl.
-            if (!input->can_be_optimized())
+            if (!input.first->can_be_optimized())
                 is_onednn_impl = true;
         }
     }
@@ -144,11 +142,11 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
 
     size_t idx = 0;
     for (auto& input : node.get_dependencies()) {
-        if (input->is_type<reshape>())
+        if (input.first->is_type<reshape>())
             // reshapes should be optimized out.
             return false;
 
-        layout l = input->get_output_layout();
+        layout l = input.first->get_output_layout();
 
         if (output_format != l.format || output_datatype != l.data_type)
             return false;
@@ -184,34 +182,33 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
         // reverted condition - if any of this node's inputs is used by more than one primitive
         // and is not optimized concatenation then do not fuse buffers
         // todo: we need add padding support for all optimized kernels to remove this condition
-        if (!input->is_type<pooling>() && !input->is_type<convolution>() && !input->is_type<quantize>() &&
-            !input->is_type<activation>() && !input->is_type<deconvolution>() &&
-            !input->is_type<concatenation>() && !input->is_type<crop>() && !input->is_type<eltwise>() &&
-            !input->is_type<resample>())
+        if (!input.first->is_type<pooling>() && !input.first->is_type<convolution>() && !input.first->is_type<quantize>() &&
+            !input.first->is_type<activation>() && !input.first->is_type<deconvolution>() &&
+            !input.first->is_type<concatenation>() && !input.first->is_type<crop>() && !input.first->is_type<eltwise>() &&
+            !input.first->is_type<resample>())
             return false;
 
         // if an input is marked as network output, prevent optimizations
         // which would affect a form of its output (unless debug flag is set),
         // we also need to restrict input types to those which support padding on all axis
-        if ((input->is_output() && !get_program().is_debug_build()) ||
-            !input->is_padding_supported(concat_axis, lower_padd_in_axis))
+        if (input.first->is_output() || !input.first->is_padding_supported(concat_axis, lower_padd_in_axis))
             return false;
 
         // TODO: Investigate if this condition is needed
-        if (input->get_users().size() > 2)
+        if (input.first->get_users().size() > 2)
             return false;
 
         // Check that input isn't optimized out concatenation along different axis.
-        if (input->is_type<concatenation>() && input->can_be_optimized() &&
-            input->as<concatenation>().get_primitive()->axis != concat_axis)
+        if (input.first->is_type<concatenation>() && input.first->can_be_optimized() &&
+            input.first->as<concatenation>().get_primitive()->axis != concat_axis)
             return false;
 
         // Check that input isn't optimized out non-concatenation.
-        if (!input->is_type<concatenation>() && input->can_be_optimized())
+        if (!input.first->is_type<concatenation>() && input.first->can_be_optimized())
             return false;
 
         size_t concat_users = 0;
-        for (auto& user : input->get_users())
+        for (auto& user : input.first->get_users())
             if (user->is_type<concatenation>())
                 concat_users += 1;
 
@@ -219,7 +216,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
         if (concat_users != 1)
             return false;
 
-        auto input_padd = input->get_output_layout().data_padding;
+        auto input_padd = input.first->get_output_layout().data_padding;
 
         // Check that there isn't already some padding between inputs in concat axis.
         // If node has already been optimized we skip this check - this is just cascade adjustment.
@@ -230,7 +227,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
                 return false;
         }
 
-        lower_padd_in_axis += input->get_output_layout().get_tensor().sizes(def_fmt)[concat_axis];
+        lower_padd_in_axis += input.first->get_output_layout().get_tensor().sizes(def_fmt)[concat_axis];
         idx += 1;
     }
 
@@ -254,7 +251,7 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
     // Select output padding by propagating all required input paddings.
     auto padd = out_layout.data_padding;
     for (auto input : node.get_dependencies()) {
-        auto inputPadding = input->get_output_layout().data_padding;
+        auto inputPadding = input.first->get_output_layout().data_padding;
         padd = padding::max(padd, inputPadding);
     }
 
@@ -273,10 +270,10 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
 
     // apply concatenation in place optimization
     for (auto input : node.get_dependencies()) {
-        auto input_length = input->get_output_layout().get_dims()[concat_axis];
+        auto input_length = input.first->get_output_layout().get_dims()[concat_axis];
 
-        if (input->is_type<concatenation>() && input->can_be_optimized())
-            need_reoptimization.push_back(&input->as<concatenation>());
+        if (input.first->is_type<concatenation>() && input.first->can_be_optimized())
+            need_reoptimization.push_back(&input.first->as<concatenation>());
 
         // shrink upper pad so it points at the end of the input's buffer
         //
@@ -285,7 +282,7 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
         upper_padd[concat_axis_legacy] -= input_length;
 
         // set new padding for input
-        input->set_output_padding(padding(lower_padd, upper_padd));
+        input.first->set_output_padding(padding(lower_padd, upper_padd));
 
         // move lower padd further
         //
@@ -303,12 +300,11 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
 }  // namespace
 
 static bool can_reshape_be_optimized(const reshape_node& node) {
-    return node.is_in_place() && node.get_fused_activations_funcs().empty();
+    return node.is_in_place() && !node.has_fused_primitives();
 }
 
 // ToDo remove friendship relation from  program_node
 void prepare_buffer_fusing::run(program& p) {
-    bool is_debug = p.get_options().get<build_option_type::debug>()->enabled();
     /*
     We need to take care of proper ordering by types.
     1. Concats
@@ -323,10 +319,14 @@ void prepare_buffer_fusing::run(program& p) {
                          node->get_output_layout().format == format::bfzyx ||
                          node->get_output_layout().format == format::bfwzyx;
         bool no_pad = !node->get_output_layout().data_padding && !node->get_input_layouts().empty() && !node->get_input_layouts()[0].data_padding;
-        if (node->is_type<reshape>() && is_dynamic && is_planar && no_pad && !node->is_output() && node->get_fused_activations_funcs().empty())
-            return false;
+        // The condition below check only output layout as cases like
+        // (dyn_shape) -> reshape -> (static_shape) -> some_static_primitive
+        // may have invalid set_arguments call as output memory of reshape won't be available until reshape primitive is executed
+        if (node->is_type<reshape>() && is_dynamic && is_planar && no_pad && !node->is_output() && !node->has_fused_primitives()) {
+            return true;
+        }
 
-        if (is_dynamic || node->is_output() || (!node->get_fused_activations_funcs().empty())) {
+        if (node->is_dynamic() || node->is_output() || node->has_fused_primitives()) {
             return false;
         }
         return true;
@@ -346,10 +346,10 @@ void prepare_buffer_fusing::run(program& p) {
         if (!can_optimize(node))
             continue;
         // zero copy
-        program_helpers::do_for_types<crop>(*node, [&p, is_debug](crop_node& node) {
+        program_helpers::do_for_types<crop>(*node, [&p](crop_node& node) {
             // if the node is marked as network output, prevent optimizations which would affect a form of its output,
             // unless debug flag is set
-            if (node.is_output() && !is_debug)
+            if (node.is_output())
                 return;
 
             // do not optimize when next node is concatenation which is not output
@@ -363,6 +363,8 @@ void prepare_buffer_fusing::run(program& p) {
                     if (can_reshape_be_optimized(reshape_node))
                         return;
                 }
+                if (user->is_type<experimental_detectron_roi_feature_extractor>() && user->get_dependency_index(node) == 0)
+                    return;
             }
 
             if (node.get_dependencies().size() == 1 && node.get_users().size() > 0) {
@@ -378,8 +380,8 @@ void prepare_buffer_fusing::run(program& p) {
                 auto input_layout = node.get_dependency(0).get_output_layout();
                 const auto& crop_size = crop_layout.get_tensor();
                 const auto& out_padd = crop_layout.data_padding;
-                const auto opt_lower_pad = crop_prim->offsets.feature[0];
-                const auto opt_upper_pad = input_layout.feature() - crop_prim->offsets.feature[0] - crop_size.feature[0];
+                auto opt_lower_pad = crop_prim->offsets.feature[0];
+                auto opt_upper_pad = input_layout.feature() - crop_prim->offsets.feature[0] - crop_size.feature[0];
 
                 // do not optimize crop if paddings are not properly aligned
                 for (auto& usr : node.get_users()) {
@@ -416,6 +418,20 @@ void prepare_buffer_fusing::run(program& p) {
                     //  In-place crop
                     //  crop output buffer
                     //  |_low_pad_|__data_size__|___|<-upper pad
+
+                    //  feature num of pad should be accumulated if dep has been optimized out.
+                    auto& dep = node.get_dependency(0);
+                    if (dep.is_type<crop>() && dep.can_be_optimized()) {
+                        auto dep_pad = dep.get_output_layout().data_padding;
+                        OPENVINO_ASSERT(
+                            dep_pad.lower_size().batch[0] == 0 && dep_pad.upper_size().batch[0] == 0 &&
+                            dep_pad.lower_size().spatial[0] == 0 && dep_pad.upper_size().spatial[0] == 0 &&
+                            dep_pad.lower_size().spatial[1] == 0 && dep_pad.upper_size().spatial[1] == 0,
+                            "batch, y, x of pad should be aligned to 0.");
+
+                        opt_lower_pad += dep_pad.lower_size().feature[0];
+                        opt_upper_pad += dep_pad.upper_size().feature[0];
+                    }
 
                     node.set_output_padding(
                         padding({out_padd.lower_size().batch[0],

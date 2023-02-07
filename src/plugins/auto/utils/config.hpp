@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -129,11 +129,17 @@ struct PluginConfig {
                         << " for key: " << kvp.first;
                 }
             } else if (kvp.first == ov::hint::allow_auto_batching) {
-                if (kvp.second == PluginConfigParams::NO) _disableAutoBatching = true;
-                else if (kvp.second == PluginConfigParams::YES) _disableAutoBatching = false;
-                else
+                if (kvp.second == PluginConfigParams::NO) {
+                    _disableAutoBatching = true;
+                    // temp flag, to be removed when unify this key to ie core
+                    _isBatchConfigSet = true;
+                } else if (kvp.second == PluginConfigParams::YES) {
+                    _disableAutoBatching = false;
+                    _isBatchConfigSet = true;
+                } else {
                     IE_THROW() << "Unsupported config value: " << kvp.second
                             << " for key: " << kvp.first;
+                }
             } else if (kvp.first == ov::auto_batch_timeout) {
                 try {
                     auto batchTimeout = std::stoi(kvp.second);
@@ -158,6 +164,7 @@ struct PluginConfig {
                 _devicePriority = kvp.second;
             } else if (std::find(perf_hints_configs.begin(), perf_hints_configs.end(), kvp.first) != perf_hints_configs.end()) {
                 _perfHintsConfig.SetConfig(kvp.first, kvp.second);
+                // if first level property has perf_hint setting
                 if (kvp.first == ov::hint::performance_mode.name())
                     _isSetPerHint = true;
             } else if (_availableDevices.end() != std::find(_availableDevices.begin(),
@@ -166,9 +173,6 @@ struct PluginConfig {
                 // AUTO and MULTI can accept secondary properites on calling both core::comile_model() and
                 // core::set_property().
                 _passThroughConfig.emplace(kvp.first, kvp.second);
-                // Not setting performance mode to 'THROUGHPUT' as the default value if any secondary properties
-                // appears in the configuration.
-                _isSetPerHint = true;
             } else if (kvp.first.find("AUTO_") == 0) {
                 _passThroughConfig.emplace(kvp.first, kvp.second);
             } else if (kvp.first == ov::cache_dir.name()) {
@@ -188,37 +192,37 @@ struct PluginConfig {
             _keyConfigMap.clear();
         adjustKeyMapValues();
     }
+    bool isSupportedDevice(const std::string& deviceName) const {
+        if (deviceName.empty())
+            return false;
+        auto realDevName = deviceName[0] != '-' ? deviceName : deviceName.substr(1);
+        if (realDevName.empty()) {
+            return false;
+        }
+        realDevName = DeviceIDParser(realDevName).getDeviceName();
+        std::string::size_type realEndPos = 0;
+        if ((realEndPos = realDevName.find('(')) != std::string::npos) {
+            realDevName = realDevName.substr(0, realEndPos);
+        }
+        if (_availableDevices.end() == std::find(_availableDevices.begin(), _availableDevices.end(), realDevName)) {
+            return false;
+        }
+        return true;
+    }
     std::vector<std::string> ParsePrioritiesDevices(const std::string& priorities, const char separator = ',') const {
         std::vector<std::string> devices;
         std::string::size_type pos = 0;
         std::string::size_type endpos = 0;
-        auto isAvailableDevice = [&](std::string& deviceName) -> bool {
-            if (deviceName.empty())
-                return false;
-            auto realDevName = deviceName[0] != '-' ? deviceName : deviceName.substr(1);
-            if (realDevName.empty()) {
-                return false;
-            }
-            realDevName = DeviceIDParser(realDevName).getDeviceName();
-            std::string::size_type realEndPos = 0;
-            if ((realEndPos = realDevName.find('(')) != std::string::npos) {
-                realDevName = realDevName.substr(0, realEndPos);
-            }
-            if (_availableDevices.end() == std::find(_availableDevices.begin(), _availableDevices.end(), realDevName)) {
-                return false;
-            }
-            return true;
-        };
         while ((endpos = priorities.find(separator, pos)) != std::string::npos) {
             auto subStr = priorities.substr(pos, endpos - pos);
-            if (!isAvailableDevice(subStr)) {
+            if (!isSupportedDevice(subStr)) {
                 IE_THROW() << "Unavailable device name: " << subStr;
             }
             devices.push_back(subStr);
             pos = endpos + 1;
         }
         auto subStr = priorities.substr(pos, priorities.length() - pos);
-        if (!isAvailableDevice(subStr)) {
+        if (!isSupportedDevice(subStr)) {
             IE_THROW() << "Unavailable device name: " << subStr;
         }
         devices.push_back(subStr);
@@ -282,21 +286,10 @@ struct PluginConfig {
     // Add this flag to check if user app sets hint with none value that is equal to the default value of hint.
     bool _isSetPerHint = false;
     bool _isSetCacheDir = false;
+    bool _isBatchConfigSet = false;
     std::map<std::string, std::string> _passThroughConfig;
     std::map<std::string, std::string> _keyConfigMap;
-    const std::set<std::string> _availableDevices = {"AUTO",
-                                                     "CPU",
-                                                     "GPU",
-                                                     "GNA",
-                                                     "TEMPLATE",
-                                                     "MYRIAD",
-                                                     "HDDL",
-                                                     "VPUX",
-                                                     "MULTI",
-                                                     "HETERO",
-                                                     "CUDA",
-                                                     "NVIDIA",
-                                                     "HPU_GOYA",
-                                                     "mock"};
+    const std::set<std::string> _availableDevices =
+        {"AUTO", "CPU", "GPU", "TEMPLATE", "MYRIAD", "VPUX", "MULTI", "HETERO", "mock"};
 };
 } // namespace MultiDevicePlugin

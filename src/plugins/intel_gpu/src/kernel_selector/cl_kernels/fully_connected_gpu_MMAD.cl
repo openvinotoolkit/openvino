@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/fetch_weights.cl"
 #include "include/mmad.cl"
@@ -12,12 +11,12 @@
 #define INPUT_PACKED_TYPE_VEC   CAT(INPUT_PACKED_TYPE, SUB_GROUP_SIZE)
 #define FILTER_PACKED_TYPE_VEC  CAT(FILTER_PACKED_TYPE, SUB_GROUP_SIZE)
 
-#define BLOCK_READ(ptr)         intel_sub_group_block_read((const __global uint*)(ptr))
-#define BLOCK_READ_8(ptr)       intel_sub_group_block_read8((const __global uint*)(ptr))
+#define BLOCK_READ(ptr)         _sub_group_block_read((const __global uint*)(ptr))
+#define BLOCK_READ_8(ptr)       _sub_group_block_read8((const __global uint*)(ptr))
 
 #define MMAD                    CAT(MMAD_, SUB_GROUP_SIZE)
 
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 KERNEL(fully_connected_gpu_MMAD)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
@@ -133,8 +132,7 @@ KERNEL(fully_connected_gpu_MMAD)(
             INPUT_PACKED_TYPE input_data[UNROLL_FACTOR];
             FILTER_PACKED_TYPE_VEC weights_data[UNROLL_FACTOR];
 
-            __attribute__((opencl_unroll_hint))
-            for (uint kb = 0; kb < UNROLL_FACTOR; kb++) {
+            unroll_for (uint kb = 0; kb < UNROLL_FACTOR; kb++) {
                 input_data[kb] = AS_TYPE(INPUT_PACKED_TYPE, BLOCK_READ(input + input_idx + kb * MMAD_INPUT_FBLOCK_PITCH));
 #if SUB_GROUP_SIZE == 8
                 weights_data[kb] = AS_TYPE(FILTER_PACKED_TYPE_8, BLOCK_READ_8(weights + filter_idx + kb * MMAD_FILTER_FBLOCK_PITCH));
@@ -144,8 +142,7 @@ KERNEL(fully_connected_gpu_MMAD)(
 #endif // SUB_GROUP_SIZE
             }
 
-            __attribute__((opencl_unroll_hint))
-            for (uint kb = 0; kb < UNROLL_FACTOR; kb++) {
+            unroll_for (uint kb = 0; kb < UNROLL_FACTOR; kb++) {
                 INPUT_PACKED_TYPE_VEC in;
 
                 in.s0 = sub_group_broadcast(input_data[kb], 0);
@@ -177,8 +174,7 @@ KERNEL(fully_connected_gpu_MMAD)(
     barrier(CLK_LOCAL_MEM_FENCE);
 
     if (feature_block == 0) {
-        __attribute__((opencl_unroll_hint))
-        for (uint i = 1; i < SLM_DIV_FACTOR; i++)
+        unroll_for(uint i = 1; i < SLM_DIV_FACTOR; i++)
             dotProd += partial_summ[lid0 % feature_per_wg + i * feature_per_wg];
 #endif // SLM_DIV_FACTOR > 1
 

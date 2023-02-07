@@ -19,9 +19,9 @@ Basic OpenVINO™ Runtime API is covered by [Hello Classification Python* Sample
 
 | Options                    | Values                                                                                                                                         |
 | :------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------- |
-| Validated Models           | Acoustic model based on Kaldi* neural models (see [Model Preparation](#model-preparation) section)                                           |
+| Validated Models           | Acoustic model based on Kaldi* neural models (see [Model Preparation](#model-preparation-speech-python) section)                                           |
 | Model Format               | OpenVINO™ toolkit Intermediate Representation (.xml + .bin)                                                                                     |
-| Supported devices          | See [Execution Modes](#execution-modes) section below and [List Supported Devices](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
+| Supported devices          | See [Execution Modes](#execution-modes-speech-python) section below and [List Supported Devices](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 | Other language realization | [C++](../../../samples/cpp/speech_sample/README.md)                                                                                            |
 
 ## How It Works
@@ -51,13 +51,13 @@ model.
 > - It is not always possible to use 8-bit weights due to GNA hardware limitations. For example, convolutional layers always use 16-bit weights (GNA hardware version 1 and 2).  This limitation will be removed in GNA hardware version 3 and higher.
 >
 
-### Execution Modes
+### <a name="execution-modes-speech-python"></a> Execution Modes
 
 Several execution modes are supported via the `-d` flag:
 
 - `CPU` - All calculation are performed on CPU device using CPU Plugin.
 - `GPU` - All calculation are performed on GPU device using GPU Plugin.
-- `MYRIAD` - All calculation are performed on Intel® Neural Compute Stick 2 device using VPU MYRIAD Plugin.
+- `VPUX` - All calculation are performed on VPUX device using VPUX Plugin.
 - `GNA_AUTO` - GNA hardware is used if available and the driver is installed. Otherwise, the GNA device is emulated in fast-but-not-bit-exact mode.
 - `GNA_HW` - GNA hardware is used if available and the driver is installed. Otherwise, an error will occur.
 - `GNA_SW` - Deprecated. The GNA device is emulated in fast-but-not-bit-exact mode.
@@ -108,7 +108,7 @@ Options:
   -r REFERENCE, --reference REFERENCE
                         Optional. Read reference score file and compare scores.
   -d DEVICE, --device DEVICE
-                        Optional. Specify a target device to infer on. CPU, GPU, MYRIAD, GNA_AUTO, GNA_HW, GNA_SW_FP32,   
+                        Optional. Specify a target device to infer on. CPU, GPU, VPUX, GNA_AUTO, GNA_HW, GNA_SW_FP32,   
                         GNA_SW_EXACT and HETERO with combination of GNA as the primary device and CPU as a secondary (e.g.   
                         HETERO:GNA,CPU) are supported. The sample will look for a suitable plugin for device specified.      
                         Default value is CPU.
@@ -151,7 +151,7 @@ Options:
                         default value is 1.0.
 ```
 
-## Model Preparation
+## <a name="model-preparation-speech-python"></a> Model Preparation
 
 You can use the following model optimizer command to convert a Kaldi nnet1 or nnet2 neural model to OpenVINO™ toolkit Intermediate Representation format:
 
@@ -161,9 +161,9 @@ mo --framework kaldi --input_model wsj_dnn5b.nnet --counts wsj_dnn5b.counts --re
 
 The following pre-trained models are available:
 
-- wsj_dnn5b_smbr
-- rm_lstm4f
 - rm_cnn4a_smbr
+- rm_lstm4f
+- wsj_dnn5b_smbr
 
 All of them can be downloaded from [https://storage.openvinotoolkit.org/models_contrib/speech/2021.2](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2).
 
@@ -335,19 +335,19 @@ The sample application logs each step in a standard output stream.
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 
-<!-- [openvino.runtime.Core.import_model]:
-[openvino.runtime.CompiledModel.export_model]:
-[openvino.runtime.Model.add_outputs]:
-[openvino.runtime.set_batch]:
-[openvino.runtime.CompiledModel.inputs]:
-[openvino.runtime.CompiledModel.outputs]:
-[openvino.runtime.ConstOutput.any_name]:
-[openvino.runtime.CompiledModel.create_infer_request]:
-[openvino.runtime.InferRequest.infer]:
-[openvino.runtime.InferRequest.get_input_tensor]:
-[openvino.runtime.InferRequest.model_outputs]:
-[openvino.runtime.InferRequest.model_inputs]:
-[openvino.runtime.InferRequest.query_state]:
-[openvino.runtime.VariableState.reset]:
-[openvino.runtime.InferRequest.profiling_info]:
-[openvino.runtime.ProfilingInfo.real_time]: -->
+[openvino.runtime.Core.import_model]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Core.html#openvino.runtime.Core.import_model
+[openvino.runtime.CompiledModel.export_model]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.CompiledModel.html#openvino.runtime.CompiledModel.export_model
+[openvino.runtime.Model.add_outputs]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.add_outputs
+[openvino.runtime.set_batch]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.html#openvino.runtime.set_batch
+[openvino.runtime.CompiledModel.inputs]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.CompiledModel.html#openvino.runtime.CompiledModel.inputs
+[openvino.runtime.CompiledModel.outputs]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.CompiledModel.html#openvino.runtime.CompiledModel.outputs
+[openvino.runtime.ConstOutput.any_name]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.ConstOutput.html#openvino.runtime.ConstOutput.any_name
+[openvino.runtime.CompiledModel.create_infer_request]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.CompiledModel.html#openvino.runtime.CompiledModel.create_infer_request
+[openvino.runtime.InferRequest.infer]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.InferRequest.html#openvino.runtime.InferRequest.infer
+[openvino.runtime.InferRequest.model_outputs]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.InferRequest.html#openvino.runtime.InferRequest.model_outputs
+[openvino.runtime.InferRequest.model_inputs]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.InferRequest.html#openvino.runtime.InferRequest.model_inputs
+[openvino.runtime.InferRequest.query_state]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.InferRequest.html#openvino.runtime.InferRequest.query_state
+[openvino.runtime.VariableState.reset]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.inference_engine.VariableState.html#openvino.inference_engine.VariableState.reset
+[openvino.runtime.InferRequest.profiling_info]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.InferRequest.html#openvino.runtime.InferRequest.profiling_info
+[openvino.runtime.ProfilingInfo.real_time]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.ProfilingInfo.html#openvino.runtime.ProfilingInfo.real_time
+[openvino.runtime.InferRequest.get_input_tensor]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.InferRequest.html#openvino.runtime.InferRequest.get_input_tensor

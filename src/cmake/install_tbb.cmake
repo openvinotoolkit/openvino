@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -92,7 +92,13 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         set(tbb_custom ON)
     endif()
 
-    if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$" AND NOT ENABLE_SYSTEM_TBB AND NOT LINUX_OS_NAME STREQUAL "CentOS 7")
+    if(OV_GLIBC_VERSION VERSION_LESS_EQUAL 2.26)
+        set(_ov_system_tbb_is_obsolete ON)
+    endif()
+
+    if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$" AND
+        NOT ENABLE_SYSTEM_TBB AND
+        NOT _ov_system_tbb_is_obsolete)
         message(FATAL_ERROR "Debian | RPM | Conda-forge | Brew packages can be built only with system TBB. Use -DENABLE_SYSTEM_TBB=ON")
     endif()
 

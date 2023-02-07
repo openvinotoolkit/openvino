@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,7 @@
 
 #include "ie_parallel.hpp"
 #include "utils/general_utils.h"
+#include <utils/shape_inference/shape_inference_internal_dyn.hpp>
 
 using namespace InferenceEngine;
 
@@ -31,7 +32,7 @@ bool MultiClassNms::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
         if (!one_of(op->get_type_info(),
                 ov::op::v9::MulticlassNms::get_type_info_static(),
                 ov::op::v8::MulticlassNms::get_type_info_static(),
-                ngraph::op::internal::MulticlassNmsIEInternal::get_type_info_static())) {
+                ov::op::internal::MulticlassNmsIEInternal::get_type_info_static())) {
             errorMessage = "Node is not an instance of MulticlassNms from opset v8 or v9.";
             return false;
         }
@@ -41,8 +42,8 @@ bool MultiClassNms::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
     return true;
 }
 
-MultiClassNms::MultiClassNms(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr& cache)
-    : Node(op, eng, cache) {
+MultiClassNms::MultiClassNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

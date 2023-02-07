@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "eltwise_inst.h"
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
@@ -29,7 +27,7 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node, kernel_impl_pa
     }
     auto input_node_layout = impl_param.get_non_padded_input_layout(primary_input_idx);
     auto desc = impl_param.typed_desc<eltwise>();
-    auto output_type = desc->output_data_type ? *desc->output_data_type : input_node_layout.data_type;
+    auto output_type = desc->output_data_types[0].value_or(input_node_layout.data_type);
 
     auto size = input_node_layout.get_tensor();
     auto format = input_node_layout.format;
@@ -86,8 +84,8 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node, kernel_impl_pa
         output_layout.data_type = data_types::i8;
     }
 
-    if (desc->output_data_type) {
-        output_layout.data_type = *desc->output_data_type;
+    if (desc->output_data_types[0]) {
+        output_layout.data_type = *desc->output_data_types[0];
     }
 
     if (node.has_fused_primitives()) {
@@ -111,7 +109,7 @@ template<typename ShapeType>
 std::vector<layout> eltwise_inst::calc_output_layouts(eltwise_node const& /*node*/, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<eltwise>();
     auto input_layout = impl_param.get_non_padded_input_layout(impl_param.primary_input_idx);
-    auto out_data_type = desc->output_data_type.value_or(input_layout.data_type);
+    auto out_data_type = desc->output_data_types[0].value_or(input_layout.data_type);
 
     auto get_output_layout = [&]() {
         auto out_pshape = input_layout.get<ShapeType>();
@@ -189,7 +187,7 @@ std::vector<layout> eltwise_inst::calc_output_layouts(eltwise_node const& /*node
         output_layout.data_type = data_types::i8;
     }
 
-    output_layout.data_type = desc->output_data_type.value_or(output_layout.data_type);
+    output_layout.data_type = desc->output_data_types[0].value_or(output_layout.data_type);
 
     if (impl_param.has_fused_primitives()) {
         output_layout.data_type = impl_param.get_fused_output_layout().data_type;

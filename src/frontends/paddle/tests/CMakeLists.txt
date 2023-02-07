@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -12,11 +12,12 @@ ov_add_test_target(
             openvino_paddle_frontend
             paddle_fe_standalone_build_test
         LINK_LIBRARIES
-            cnpy 
+            cnpy
             frontend_shared_test_classes
-            openvino_paddle_frontend 
-            openvino::runtime 
+            openvino_paddle_frontend
+            openvino::runtime
             gtest_main_manifest
+            funcTestUtils
         ADD_CLANG_FORMAT
         LABELS
             OV

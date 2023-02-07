@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,11 +6,14 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <numeric>
+#include <openvino/core/validation_util.hpp>
+#include <openvino/op/util/op_types.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset2.hpp>
 #include <openvino/opsets/opset3.hpp>
 #include <openvino/opsets/opset7.hpp>
 #include <openvino/opsets/opset8.hpp>
+#include <openvino/pass/manager.hpp>
 #include <transformations/common_optimizations/eliminate_unsqueeze_gather.hpp>
 #include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
 #include <transformations/utils/utils.hpp>
@@ -131,10 +134,10 @@ ov::pass::GroupedGatherElimination::GroupedGatherElimination() {
 
 ov::pass::GatherNopElimination::GatherNopElimination() {
     MATCHER_SCOPE(GatherNopElimination);
-    const auto gather_label = ngraph::pattern::wrap_type<ngraph::op::util::GatherBase>(
-        {ngraph::pattern::any_input(pattern::has_static_shape()),
-         ngraph::pattern::wrap_type<ngraph::op::Constant>(),
-         ngraph::pattern::wrap_type<ngraph::op::Constant>()});
+    const auto gather_label =
+        ngraph::pattern::wrap_type<op::util::GatherBase>({pass::pattern::any_input(pattern::has_static_shape()),
+                                                          ngraph::pattern::wrap_type<opset1::Constant>(),
+                                                          ngraph::pattern::wrap_type<opset1::Constant>()});
 
     ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto gather = m.get_match_root();
@@ -247,7 +250,7 @@ ov::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
 
         auto data = m.get_pattern_value_map().at(input);
         if (is_type<opset8::FakeQuantize>(data.get_node_shared_ptr()) ||
-            ngraph::op::is_unary_elementwise_arithmetic(data.get_node_shared_ptr())) {
+            op::util::is_unary_elementwise_arithmetic(data.get_node_shared_ptr())) {
             data = data.get_node_shared_ptr()->input_value(0);
         }
 

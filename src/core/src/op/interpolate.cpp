@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v0::Interpolate);
 
 op::v0::Interpolate::Interpolate(const Output<Node>& image, const Output<Node>& output_shape, const Attributes& attrs)
     : Op({image, output_shape}),
@@ -77,15 +75,9 @@ EnumNames<ngraph::op::v0::Interpolate::InterpolateMode>::get() {
          {"area", ngraph::op::v0::Interpolate::InterpolateMode::AREA}});
     return enum_names;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v0::Interpolate::InterpolateMode>);
-
 }  // namespace ov
 
 // Interpolate v4
-
-BWDCMP_RTTI_DEFINITION(op::v4::Interpolate);
-
 op::v4::Interpolate::Interpolate(const Output<Node>& image,
                                  const Output<Node>& output_shape,
                                  const Output<Node>& scales,
@@ -202,7 +194,7 @@ void op::v4::Interpolate::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this,
                           input_et == element::f32 || input_et == element::f16 || input_et == element::i8 ||
                               input_et == element::bf16 || input_et == element::u8 || input_et == element::i64 ||
-                              input_et == element::i32,
+                              input_et == element::i32 || input_et == element::dynamic,
                           "Input element type must be f32, f16, bf16, i8, u8, i64, i32");
 
     element::Type sizes_et = get_input_element_type(1);
@@ -504,8 +496,6 @@ EnumNames<ngraph::op::v4::Interpolate::InterpolateMode>::get() {
     return enum_names;
 }
 
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v4::Interpolate::InterpolateMode>);
-
 template <>
 NGRAPH_API EnumNames<ngraph::op::v4::Interpolate::ShapeCalcMode>&
 EnumNames<ngraph::op::v4::Interpolate::ShapeCalcMode>::get() {
@@ -515,7 +505,6 @@ EnumNames<ngraph::op::v4::Interpolate::ShapeCalcMode>::get() {
          {"scales", ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES}});
     return enum_names;
 }
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v4::Interpolate::ShapeCalcMode>);
 
 template <>
 NGRAPH_API EnumNames<ngraph::op::v4::Interpolate::CoordinateTransformMode>&
@@ -530,8 +519,6 @@ EnumNames<ngraph::op::v4::Interpolate::CoordinateTransformMode>::get() {
     return enum_names;
 }
 
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v4::Interpolate::CoordinateTransformMode>);
-
 template <>
 NGRAPH_API EnumNames<ngraph::op::v4::Interpolate::NearestMode>&
 EnumNames<ngraph::op::v4::Interpolate::NearestMode>::get() {
@@ -544,8 +531,6 @@ EnumNames<ngraph::op::v4::Interpolate::NearestMode>::get() {
          {"simple", ngraph::op::v4::Interpolate::NearestMode::SIMPLE}});
     return enum_names;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v4::Interpolate::NearestMode>);
 
 std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::InterpolateMode& type) {
     return s << as_string(type);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,8 +58,8 @@ struct pooling_impl : typed_primitive_impl_ocl<pooling> {
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<pooling>& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
+    kernel_arguments_data get_arguments(const typed_primitive_inst<pooling>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
         return args;
     }
 
@@ -168,7 +168,7 @@ public:
 namespace detail {
 
 attach_pooling_impl::attach_pooling_impl() {
-    std::set<implementation_map<resample>::key_type> keys;
+    std::set<implementation_map<pooling>::key_type> keys;
 
     auto types = { data_types::f16, data_types::f32, data_types::i8, data_types::u8 };
     auto formats = { format::bfyx,

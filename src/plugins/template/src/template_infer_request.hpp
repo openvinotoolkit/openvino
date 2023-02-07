@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,19 +19,16 @@
 namespace TemplatePlugin {
 
 // forward declaration
-class ExecutableNetwork;
+class CompiledModel;
 
 // ! [infer_request:header]
 class TemplateInferRequest : public InferenceEngine::IInferRequestInternal {
 public:
     typedef std::shared_ptr<TemplateInferRequest> Ptr;
 
-    TemplateInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
-                         const InferenceEngine::OutputsDataMap& networkOutputs,
-                         const std::shared_ptr<ExecutableNetwork>& executableNetwork);
     TemplateInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                          const std::vector<std::shared_ptr<const ov::Node>>& outputs,
-                         const std::shared_ptr<ExecutableNetwork>& executableNetwork);
+                         const std::shared_ptr<const TemplatePlugin::CompiledModel>& compiled_model);
     ~TemplateInferRequest();
 
     void InferImpl() override;
@@ -55,7 +52,7 @@ private:
 
     enum { Preprocess, Postprocess, StartPipeline, WaitPipeline, numOfStages };
 
-    std::shared_ptr<ExecutableNetwork> _executableNetwork;
+    std::shared_ptr<const CompiledModel> m_compiled_model;
     std::array<openvino::itt::handle_t, numOfStages> _profilingTask;
     // for performance counters
     std::array<std::chrono::duration<float, std::micro>, numOfStages> _durations;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,6 @@ namespace v1 {
 class OPENVINO_API DeformableConvolution : public op::util::DeformableConvolutionBase {
 public:
     OPENVINO_OP("DeformableConvolution", "opset1", op::util::DeformableConvolutionBase, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a conversion operation.
     DeformableConvolution() = default;
@@ -64,7 +63,6 @@ namespace v8 {
 class OPENVINO_API DeformableConvolution : public op::util::DeformableConvolutionBase {
 public:
     OPENVINO_OP("DeformableConvolution", "opset8", op::util::DeformableConvolutionBase);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a conversion operation.
     DeformableConvolution() = default;

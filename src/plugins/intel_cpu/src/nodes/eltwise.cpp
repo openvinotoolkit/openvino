@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -91,6 +91,67 @@ struct EltwiseEmitter<jit_power_static_emitter> {
     void operator()(EltwiseEmitterContext & ctx) {
         ctx.emitter = std::make_shared<jit_power_static_emitter>(ctx.host, ctx.host_isa, ctx.opData.alpha,
                                                                  ctx.opData.beta, ctx.opData.gamma, ctx.exec_prc);
+    }
+};
+
+template<>
+struct EltwiseEmitter<jit_is_inf_emitter> {
+    void operator()(EltwiseEmitterContext & ctx) {
+        ctx.emitter = std::make_shared<jit_is_inf_emitter>(ctx.host, ctx.host_isa, ctx.exec_prc, ctx.opData.alpha, ctx.opData.beta);
+    }
+};
+
+/**
+ * Implements Eltwise shape inference algorithm. The algorithm is based on broadcasting all the input shapes
+ * according to the NUMPY broadcast rule. This implementation is more lightweight than the ngraph one.
+ * 
+ */
+class EltwiseShapeInfer : public ShapeInferEmptyPads {
+public:
+    std::vector<VectorDims> infer(
+        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        size_t max_rank = 0;
+        size_t max_rank_idx = 0;
+        for (size_t i = 0; i < input_shapes.size(); ++i) {
+            auto item_rank = input_shapes[i].get().size();
+            if (item_rank > max_rank) {
+                max_rank = item_rank;
+                max_rank_idx = i;
+            }
+        }
+        auto output_shape = input_shapes[max_rank_idx].get();
+        // use NUMPY broadcast rule
+        for (size_t i = 0; i < input_shapes.size(); i++) {
+            if (i == max_rank_idx)
+                continue;
+
+            auto& input_shape = input_shapes[i].get();
+            if (input_shape.size() > output_shape.size()) {
+                IE_THROW() << "Eltwise shape infer input and output shapes rank mismatch";
+            }
+            size_t offset = output_shape.size() - input_shape.size();
+            for (size_t j = 0; j < input_shape.size(); ++j) {
+                if (input_shape[j] != output_shape[offset + j]) {
+                    if (output_shape[offset + j] == 1) {
+                        output_shape[offset + j] = input_shape[j];
+                    } else {
+                        if (input_shape[j] != 1) IE_THROW() << "Eltwise shape infer input shapes dim index: " << j << " mismatch";
+                    }
+                }
+            }
+        }
+        return { output_shape };
+    }
+    port_mask_t get_port_mask() const override {
+        return EMPTY_PORT_MASK;
+    }
+};
+
+class EltwiseShapeInferFactory : public ShapeInferFactory {
+public:
+    ShapeInferPtr makeShapeInfer() const override {
+        return std::make_shared<EltwiseShapeInfer>();
     }
 };
 
@@ -464,7 +525,10 @@ private:
         OV_CASE(Algorithm::EltwisePowerStatic, jit_power_static_emitter),
         OV_CASE(Algorithm::EltwisePrelu, jit_prelu_emitter),
         OV_CASE(Algorithm::EltwiseErf, jit_erf_emitter),
-        OV_CASE(Algorithm::EltwiseSoftSign, jit_soft_sign_emitter));
+        OV_CASE(Algorithm::EltwiseSoftSign, jit_soft_sign_emitter),
+        OV_CASE(Algorithm::EltwiseIsFinite, jit_is_finite_emitter),
+        OV_CASE(Algorithm::EltwiseIsInf, jit_is_inf_emitter),
+        OV_CASE(Algorithm::EltwiseIsNaN, jit_is_nan_emitter));
 
         if (precisions.empty())
             IE_THROW() << "Unsupported operation type for Eltwise emitter";
@@ -522,7 +586,10 @@ private:
         OV_CASE(Algorithm::EltwisePowerStatic, jit_power_static_emitter),
         OV_CASE(Algorithm::EltwisePrelu, jit_prelu_emitter),
         OV_CASE(Algorithm::EltwiseErf, jit_erf_emitter),
-        OV_CASE(Algorithm::EltwiseSoftSign, jit_soft_sign_emitter));
+        OV_CASE(Algorithm::EltwiseSoftSign, jit_soft_sign_emitter),
+        OV_CASE(Algorithm::EltwiseIsFinite, jit_is_finite_emitter),
+        OV_CASE(Algorithm::EltwiseIsInf, jit_is_inf_emitter),
+        OV_CASE(Algorithm::EltwiseIsNaN, jit_is_nan_emitter));
 
         if (!ctx.emitter)
             IE_THROW() << "Unsupported operation type for Eltwise emitter";
@@ -885,6 +952,18 @@ const std::map<const ngraph::DiscreteTypeInfo, Eltwise::Initializer> Eltwise::in
     }},
     {ngraph::op::v1::NotEqual::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseNotEqual;
+    }},
+    {ov::op::v10::IsFinite::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+        node.algorithm = Algorithm::EltwiseIsFinite;
+    }},
+    {ov::op::v10::IsInf::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+        node.algorithm = Algorithm::EltwiseIsInf;
+        const auto& attributes = ov::as_type_ptr<ov::op::v10::IsInf>(op)->get_attributes();
+        node.alpha = attributes.detect_negative;
+        node.beta  = attributes.detect_positive;
+    }},
+    {ov::op::v10::IsNaN::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+        node.algorithm = Algorithm::EltwiseIsNaN;
     }},
     {ngraph::op::v1::Greater::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseGreater;
@@ -1508,6 +1587,12 @@ public:
                     case Algorithm::EltwisePrelu:             *dst_ptr_f = src_f[0] > 0 ? src_f[0] : src_f[0] * src_f[1]; break;
                     case Algorithm::EltwiseErf:               *dst_ptr_f = std::erf(src_f[0]); break;
                     case Algorithm::EltwiseSoftSign:          *dst_ptr_f = src_f[0] / (1 + std::fabs(src_f[0])); break;
+                    case Algorithm::EltwiseIsFinite:          *dst_ptr_f = std::isfinite(src_f[0]); break;
+                    case Algorithm::EltwiseIsInf:
+                        *dst_ptr_f = _opData.alpha && (src_f[0] == -std::numeric_limits<float>::infinity()) ||
+                                     _opData.beta  && (src_f[0] == std::numeric_limits<float>::infinity());
+                        break;
+                    case Algorithm::EltwiseIsNaN:             *dst_ptr_f = std::isnan(src_f[0]); break;
                     default: IE_THROW() << "Unsupported operation type for Eltwise executor";
                 }
             }
@@ -1581,8 +1666,8 @@ bool Eltwise::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-Eltwise::Eltwise(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-    Node(op, eng, cache), broadcastingPolicy(Undefined) {
+Eltwise::Eltwise(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+    Node(op, context, EltwiseShapeInferFactory()), broadcastingPolicy(Undefined) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -1592,6 +1677,9 @@ Eltwise::Eltwise(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& en
 
 size_t Eltwise::getOpInputsNum() const {
     switch (getAlgorithm()) {
+        case Algorithm::EltwiseIsFinite:
+        case Algorithm::EltwiseIsInf:
+        case Algorithm::EltwiseIsNaN:
         case Algorithm::EltwiseRelu:
         case Algorithm::EltwiseGelu:
         case Algorithm::EltwiseElu:
@@ -1885,27 +1973,6 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     currentInBlkDims.resize(inputNum);
 }
 
-std::vector<VectorDims> Eltwise::shapeInfer() const {
-    ov::PartialShape outShape = getParentEdgesAtPort(0)[0]->getMemory().GetShape().toPartialShape();
-    for (size_t i = 1; i < getParentEdges().size(); i++) {
-        ov::PartialShape::broadcast_merge_into(outShape, getParentEdgesAtPort(i)[0]->getMemory().GetShape().toPartialShape(),
-        ov::op::AutoBroadcastType::NUMPY);
-    }
-
-    if (outShape.is_dynamic()) {
-        std::ostringstream errorMessage;
-        errorMessage << "Can't compute static output shape for Eltwise node with name: " << getName();
-        errorMessage << ". Input shapes = ( ";
-        for (size_t i = 0; i < getParentEdges().size(); i++) {
-            errorMessage << i << " port = " << getParentEdgesAtPort(i)[0]->getMemory().GetShape().toString() << ", ";
-        }
-        errorMessage << "). Output shape = ( " << outShape << " )";
-        OPENVINO_ASSERT(false, errorMessage.str());
-    }
-
-    return {outShape.get_shape()};
-}
-
 void Eltwise::prepareParams() {
     if (memPtrs.empty()) {
         for (auto i = 0; i < inputNum; i++)
@@ -1983,7 +2050,7 @@ void Eltwise::prepareParams() {
         }
     }
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, buildExecutor);
     execPtr = result.first;
 }

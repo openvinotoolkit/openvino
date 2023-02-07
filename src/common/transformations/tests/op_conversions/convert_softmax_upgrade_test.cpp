@@ -1,18 +1,17 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <transformations/op_conversions/convert_softmax_upgrade.hpp>
+#include <string>
 #include <transformations/init_node_info.hpp>
+#include <transformations/op_conversions/convert_softmax_upgrade.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -25,7 +24,7 @@ TEST_F(TransformationTestsF, ConvertSoftMax1ToSoftMax8) {
         auto softmax_1 = std::make_shared<ngraph::opset1::Softmax>(data, axis);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{softmax_1}, ngraph::ParameterVector{data});
-        manager.register_pass<ngraph::pass::ConvertSoftMax1ToSoftMax8>();
+        manager.register_pass<ov::pass::ConvertSoftMax1ToSoftMax8>();
     }
 
     {
@@ -44,7 +43,7 @@ TEST_F(TransformationTestsF, ConvertSoftMax1ToSoftMax8_dynamic_rank) {
         auto softmax_1 = std::make_shared<ngraph::opset1::Softmax>(data, axis);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{softmax_1}, ngraph::ParameterVector{data});
-        manager.register_pass<ngraph::pass::ConvertSoftMax1ToSoftMax8>();
+        manager.register_pass<ov::pass::ConvertSoftMax1ToSoftMax8>();
     }
 
     {

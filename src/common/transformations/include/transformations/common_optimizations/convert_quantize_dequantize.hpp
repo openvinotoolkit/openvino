@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,9 +33,3 @@ public:
     OPENVINO_RTTI("ConvertQuantizeDequantize", "0");
     ConvertQuantizeDequantize();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertQuantizeDequantize;
-}  // namespace pass
-}  // namespace ngraph

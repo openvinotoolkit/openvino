@@ -30,14 +30,13 @@ ov::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolate4()
         std::vector<size_t> axes{attrsV0.axes.begin(), attrsV0.axes.end()};
         const auto& out_dims = std::make_shared<opset1::Convert>(interpolationV0->input_value(1), element::f32);
         const auto& in_dims = std::make_shared<opset1::Convert>(
-            ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_source(interpolationV0->input_value(0),
-                                                                                   axes),
+            ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(interpolationV0->input_value(0), axes),
             element::f32);
 
         std::shared_ptr<Node> scales = std::make_shared<opset1::Divide>(out_dims, in_dims);
         if (const auto& constant = ov::get_constant_from_source(scales))
             scales = constant;
-        auto axisConstant = ngraph::op::Constant::create(ngraph::element::i64, {axes.size()}, axes);
+        auto axisConstant = opset1::Constant::create(ngraph::element::i64, {axes.size()}, axes);
 
         ov::opset4::Interpolate::InterpolateAttrs attrsV4;
         auto input_shape_rank = interpolationV0->get_input_partial_shape(0).rank().get_length();

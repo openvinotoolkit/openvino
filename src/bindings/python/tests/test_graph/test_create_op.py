@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -11,8 +11,7 @@ from openvino.runtime.utils.types import make_constant_node
 
 import openvino.runtime.opset1 as ov_opset1
 import openvino.runtime.opset5 as ov_opset5
-import openvino.runtime.opset9 as ov
-import openvino.runtime.opset10 as ov_opset10
+import openvino.runtime.opset10 as ov
 from openvino.runtime import Type
 
 np_types = [np.float32, np.int32]
@@ -64,12 +63,8 @@ def test_binary_convolution(dtype):
     mode = "xnor-popcount"
     pad_value = 0.0
 
-    input0_shape = [1, 1, 9, 9]
-    input1_shape = [1, 1, 3, 3]
-    expected_shape = [1, 1, 7, 7]
-
-    parameter_input0 = ov.parameter(input0_shape, name="Input0", dtype=dtype)
-    parameter_input1 = ov.parameter(input1_shape, name="Input1", dtype=dtype)
+    parameter_input0 = ov.parameter([1, 1, 9, 9], name="Input0", dtype=dtype)
+    parameter_input1 = ov.parameter([1, 1, 3, 3], name="Input1", dtype=dtype)
 
     node = ov.binary_convolution(
         parameter_input0, parameter_input1, strides, pads_begin, pads_end, dilations, mode, pad_value,
@@ -77,14 +72,13 @@ def test_binary_convolution(dtype):
 
     assert node.get_type_name() == "BinaryConvolution"
     assert node.get_output_size() == 1
-    assert list(node.get_output_shape(0)) == expected_shape
+    assert list(node.get_output_shape(0)) == [1, 1, 7, 7]
 
 
 @pytest.mark.parametrize("dtype", np_types)
 def test_ctc_greedy_decoder(dtype):
     input0_shape = [20, 8, 128]
     input1_shape = [20, 8]
-    expected_shape = [8, 20, 1, 1]
 
     parameter_input0 = ov.parameter(input0_shape, name="Input0", dtype=dtype)
     parameter_input1 = ov.parameter(input1_shape, name="Input1", dtype=dtype)
@@ -93,7 +87,7 @@ def test_ctc_greedy_decoder(dtype):
 
     assert node.get_type_name() == "CTCGreedyDecoder"
     assert node.get_output_size() == 1
-    assert list(node.get_output_shape(0)) == expected_shape
+    assert list(node.get_output_shape(0)) == [8, 20, 1, 1]
 
 
 @pytest.mark.parametrize(
@@ -118,16 +112,12 @@ def test_ctc_greedy_decoder(dtype):
     ],
 )
 def test_ctc_greedy_decoder_seq_len(fp_dtype, int_dtype, int_ci, int_sl, merge_repeated, blank_index):
-    input0_shape = [8, 20, 128]
-    input1_shape = [8]
-    input2_shape = [1]
-    expected_shape = [8, 20]
 
-    parameter_input0 = ov.parameter(input0_shape, name="Input0", dtype=fp_dtype)
-    parameter_input1 = ov.parameter(input1_shape, name="Input1", dtype=int_dtype)
+    parameter_input0 = ov.parameter([8, 20, 128], name="Input0", dtype=fp_dtype)
+    parameter_input1 = ov.parameter([8], name="Input1", dtype=int_dtype)
     parameter_input2 = None
     if blank_index:
-        parameter_input2 = ov.parameter(input2_shape, name="Input2", dtype=int_dtype)
+        parameter_input2 = ov.parameter([1], name="Input2", dtype=int_dtype)
 
     node = ov.ctc_greedy_decoder_seq_len(
         parameter_input0, parameter_input1, parameter_input2, merge_repeated, int_ci, int_sl,
@@ -135,7 +125,7 @@ def test_ctc_greedy_decoder_seq_len(fp_dtype, int_dtype, int_ci, int_sl, merge_r
 
     assert node.get_type_name() == "CTCGreedyDecoderSeqLen"
     assert node.get_output_size() == 2
-    assert list(node.get_output_shape(0)) == expected_shape
+    assert list(node.get_output_shape(0)) == [8, 20]
 
 
 @pytest.mark.parametrize("dtype", np_types)
@@ -145,14 +135,9 @@ def test_deformable_convolution_opset1(dtype):
     pads_end = np.array([0, 0])
     dilations = np.array([1, 1])
 
-    input0_shape = [1, 1, 9, 9]
-    input1_shape = [1, 18, 7, 7]
-    input2_shape = [1, 1, 3, 3]
-    expected_shape = [1, 1, 7, 7]
-
-    parameter_input0 = ov.parameter(input0_shape, name="Input0", dtype=dtype)
-    parameter_input1 = ov.parameter(input1_shape, name="Input1", dtype=dtype)
-    parameter_input2 = ov.parameter(input2_shape, name="Input2", dtype=dtype)
+    parameter_input0 = ov.parameter([1, 1, 9, 9], name="Input0", dtype=dtype)
+    parameter_input1 = ov.parameter([1, 18, 7, 7], name="Input1", dtype=dtype)
+    parameter_input2 = ov.parameter([1, 1, 3, 3], name="Input2", dtype=dtype)
 
     node = ov_opset1.deformable_convolution(
         parameter_input0, parameter_input1, parameter_input2, strides, pads_begin, pads_end, dilations,
@@ -160,7 +145,7 @@ def test_deformable_convolution_opset1(dtype):
 
     assert node.get_type_name() == "DeformableConvolution"
     assert node.get_output_size() == 1
-    assert list(node.get_output_shape(0)) == expected_shape
+    assert list(node.get_output_shape(0)) == [1, 1, 7, 7]
 
 
 @pytest.mark.parametrize("dtype", np_types)
@@ -170,14 +155,9 @@ def test_deformable_convolution(dtype):
     pads_end = np.array([0, 0])
     dilations = np.array([1, 1])
 
-    input0_shape = [1, 1, 9, 9]
-    input1_shape = [1, 18, 7, 7]
-    input2_shape = [1, 1, 3, 3]
-    expected_shape = [1, 1, 7, 7]
-
-    parameter_input0 = ov.parameter(input0_shape, name="Input0", dtype=dtype)
-    parameter_input1 = ov.parameter(input1_shape, name="Input1", dtype=dtype)
-    parameter_input2 = ov.parameter(input2_shape, name="Input2", dtype=dtype)
+    parameter_input0 = ov.parameter([1, 1, 9, 9], name="Input0", dtype=dtype)
+    parameter_input1 = ov.parameter([1, 18, 7, 7], name="Input1", dtype=dtype)
+    parameter_input2 = ov.parameter([1, 1, 3, 3], name="Input2", dtype=dtype)
 
     node = ov.deformable_convolution(
         parameter_input0, parameter_input1, parameter_input2, strides, pads_begin, pads_end, dilations,
@@ -185,7 +165,7 @@ def test_deformable_convolution(dtype):
 
     assert node.get_type_name() == "DeformableConvolution"
     assert node.get_output_size() == 1
-    assert list(node.get_output_shape(0)) == expected_shape
+    assert list(node.get_output_shape(0)) == [1, 1, 7, 7]
 
 
 @pytest.mark.parametrize("dtype", np_types)
@@ -195,16 +175,10 @@ def test_deformable_convolution_mask(dtype):
     pads_end = np.array([0, 0])
     dilations = np.array([1, 1])
 
-    input0_shape = [1, 1, 9, 9]
-    input1_shape = [1, 18, 7, 7]
-    input2_shape = [1, 1, 3, 3]
-    input3_shape = [1, 9, 7, 7]
-    expected_shape = [1, 1, 7, 7]
-
-    parameter_input0 = ov.parameter(input0_shape, name="Input0", dtype=dtype)
-    parameter_input1 = ov.parameter(input1_shape, name="Input1", dtype=dtype)
-    parameter_input2 = ov.parameter(input2_shape, name="Input2", dtype=dtype)
-    parameter_input3 = ov.parameter(input3_shape, name="Input3", dtype=dtype)
+    parameter_input0 = ov.parameter([1, 1, 9, 9], name="Input0", dtype=dtype)
+    parameter_input1 = ov.parameter([1, 18, 7, 7], name="Input1", dtype=dtype)
+    parameter_input2 = ov.parameter([1, 1, 3, 3], name="Input2", dtype=dtype)
+    parameter_input3 = ov.parameter([1, 9, 7, 7], name="Input3", dtype=dtype)
 
     node = ov.deformable_convolution(
         parameter_input0, parameter_input1, parameter_input2, strides,
@@ -213,7 +187,7 @@ def test_deformable_convolution_mask(dtype):
 
     assert node.get_type_name() == "DeformableConvolution"
     assert node.get_output_size() == 1
-    assert list(node.get_output_shape(0)) == expected_shape
+    assert list(node.get_output_shape(0)) == [1, 1, 7, 7]
 
 
 @pytest.mark.parametrize("dtype", np_types)
@@ -227,14 +201,9 @@ def test_deformable_psroi_pooling(dtype):
     trans_std = 0.1
     part_size = 7
 
-    input0_shape = [1, 392, 38, 63]
-    input1_shape = [300, 5]
-    input2_shape = [300, 2, 7, 7]
-    expected_shape = [300, 8, 7, 7]
-
-    parameter_input0 = ov.parameter(input0_shape, name="Input0", dtype=dtype)
-    parameter_input1 = ov.parameter(input1_shape, name="Input1", dtype=dtype)
-    parameter_input2 = ov.parameter(input2_shape, name="Input2", dtype=dtype)
+    parameter_input0 = ov.parameter([1, 392, 38, 63], name="Input0", dtype=dtype)
+    parameter_input1 = ov.parameter([300, 5], name="Input1", dtype=dtype)
+    parameter_input2 = ov.parameter([300, 2, 7, 7], name="Input2", dtype=dtype)
 
     node = ov.deformable_psroi_pooling(
         parameter_input0,
@@ -252,43 +221,33 @@ def test_deformable_psroi_pooling(dtype):
 
     assert node.get_type_name() == "DeformablePSROIPooling"
     assert node.get_output_size() == 1
-    assert list(node.get_output_shape(0)) == expected_shape
+    assert list(node.get_output_shape(0)) == [300, 8, 7, 7]
 
 
 @pytest.mark.parametrize("dtype", np_types)
 def test_floor_mod(dtype):
-    input0_shape = [8, 1, 6, 1]
-    input1_shape = [7, 1, 5]
-    expected_shape = [8, 7, 6, 5]
-
-    parameter_input0 = ov.parameter(input0_shape, name="Input0", dtype=dtype)
-    parameter_input1 = ov.parameter(input1_shape, name="Input1", dtype=dtype)
+    parameter_input0 = ov.parameter([8, 1, 6, 1], name="Input0", dtype=dtype)
+    parameter_input1 = ov.parameter([7, 1, 5], name="Input1", dtype=dtype)
 
     node = ov.floor_mod(parameter_input0, parameter_input1)
 
     assert node.get_type_name() == "FloorMod"
     assert node.get_output_size() == 1
-    assert list(node.get_output_shape(0)) == expected_shape
+    assert list(node.get_output_shape(0)) == [8, 7, 6, 5]
 
 
 @pytest.mark.parametrize("dtype", np_types)
 def test_gather_tree(dtype):
-    input0_shape = [100, 1, 10]
-    input1_shape = [100, 1, 10]
-    input2_shape = [1]
-    input3_shape = []
-    expected_shape = [100, 1, 10]
-
-    parameter_input0 = ov.parameter(input0_shape, name="Input0", dtype=dtype)
-    parameter_input1 = ov.parameter(input1_shape, name="Input1", dtype=dtype)
-    parameter_input2 = ov.parameter(input2_shape, name="Input2", dtype=dtype)
-    parameter_input3 = ov.parameter(input3_shape, name="Input3", dtype=dtype)
+    parameter_input0 = ov.parameter([100, 1, 10], name="Input0", dtype=dtype)
+    parameter_input1 = ov.parameter([100, 1, 10], name="Input1", dtype=dtype)
+    parameter_input2 = ov.parameter([1], name="Input2", dtype=dtype)
+    parameter_input3 = ov.parameter([], name="Input3", dtype=dtype)
 
     node = ov.gather_tree(parameter_input0, parameter_input1, parameter_input2, parameter_input3)
 
     assert node.get_type_name() == "GatherTree"
     assert node.get_output_size() == 1
-    assert list(node.get_output_shape(0)) == expected_shape
+    assert list(node.get_output_shape(0)) == [100, 1, 10]
 
 
 @pytest.mark.parametrize("dtype", [np.float32, np.float64])
@@ -311,16 +270,14 @@ def test_lstm_cell_operator(dtype):
     parameter_r = ov.parameter(r_shape, name="R", dtype=dtype)
     parameter_b = ov.parameter(b_shape, name="B", dtype=dtype)
 
-    expected_shape = [1, 128]
-
     node_default = ov.lstm_cell(
         parameter_x, parameter_h_t, parameter_c_t, parameter_w, parameter_r, parameter_b, hidden_size,
     )
 
     assert node_default.get_type_name() == "LSTMCell"
     assert node_default.get_output_size() == 2
-    assert list(node_default.get_output_shape(0)) == expected_shape
-    assert list(node_default.get_output_shape(1)) == expected_shape
+    assert list(node_default.get_output_shape(0)) == [1, 128]
+    assert list(node_default.get_output_shape(1)) == [1, 128]
 
     activations = ["tanh", "Sigmoid", "RELU"]
     activation_alpha = [1.0, 2.0, 3.0]
@@ -343,8 +300,8 @@ def test_lstm_cell_operator(dtype):
 
     assert node_param.get_type_name() == "LSTMCell"
     assert node_param.get_output_size() == 2
-    assert list(node_param.get_output_shape(0)) == expected_shape
-    assert list(node_param.get_output_shape(1)) == expected_shape
+    assert list(node_param.get_output_shape(0)) == [1, 128]
+    assert list(node_param.get_output_shape(1)) == [1, 128]
 
 
 @pytest.mark.parametrize("dtype", [np.float32, np.float64])
@@ -367,16 +324,14 @@ def test_lstm_cell_operator_opset1(dtype):
     parameter_r = ov.parameter(r_shape, name="R", dtype=dtype)
     parameter_b = ov.parameter(b_shape, name="B", dtype=dtype)
 
-    expected_shape = [1, 128]
-
     node_default = ov_opset1.lstm_cell(
         parameter_x, parameter_h_t, parameter_c_t, parameter_w, parameter_r, parameter_b, hidden_size,
     )
 
     assert node_default.get_type_name() == "LSTMCell"
     assert node_default.get_output_size() == 2
-    assert list(node_default.get_output_shape(0)) == expected_shape
-    assert list(node_default.get_output_shape(1)) == expected_shape
+    assert list(node_default.get_output_shape(0)) == [1, 128]
+    assert list(node_default.get_output_shape(1)) == [1, 128]
 
     activations = ["tanh", "Sigmoid", "RELU"]
     activation_alpha = [1.0, 2.0, 3.0]
@@ -399,8 +354,8 @@ def test_lstm_cell_operator_opset1(dtype):
 
     assert node_param.get_type_name() == "LSTMCell"
     assert node_param.get_output_size() == 2
-    assert list(node_param.get_output_shape(0)) == expected_shape
-    assert list(node_param.get_output_shape(1)) == expected_shape
+    assert list(node_param.get_output_shape(0)) == [1, 128]
+    assert list(node_param.get_output_shape(1)) == [1, 128]
 
 
 @pytest.mark.parametrize("dtype", [np.float32, np.float64])
@@ -617,13 +572,11 @@ def test_gru_cell_operator():
     parameter_r = ov.parameter(r_shape, name="R", dtype=np.float32)
     parameter_b = ov.parameter(b_shape, name="B", dtype=np.float32)
 
-    expected_shape = [1, 128]
-
     node_default = ov.gru_cell(parameter_x, parameter_h_t, parameter_w, parameter_r, parameter_b, hidden_size)
 
     assert node_default.get_type_name() == "GRUCell"
     assert node_default.get_output_size() == 1
-    assert list(node_default.get_output_shape(0)) == expected_shape
+    assert list(node_default.get_output_shape(0)) == [1, 128]
 
     activations = ["tanh", "relu"]
     activations_alpha = [1.0, 2.0]
@@ -651,7 +604,7 @@ def test_gru_cell_operator():
 
     assert node_param.get_type_name() == "GRUCell"
     assert node_param.get_output_size() == 1
-    assert list(node_param.get_output_shape(0)) == expected_shape
+    assert list(node_param.get_output_shape(0)) == [1, 128]
 
 
 def test_gru_sequence():
@@ -1027,11 +980,10 @@ def test_interpolate_opset1(dtype):
     image_node = ov.parameter(image_shape, dtype, name="Image")
 
     node = ov_opset1.interpolate(image_node, output_shape, attributes)
-    expected_shape = [1, 3, 64, 64]
 
     assert node.get_type_name() == "Interpolate"
     assert node.get_output_size() == 1
-    assert list(node.get_output_shape(0)) == expected_shape
+    assert list(node.get_output_shape(0)) == [1, 3, 64, 64]
 
 
 @pytest.mark.parametrize(
@@ -2193,9 +2145,9 @@ def test_interpolate_opset10(dtype, expected_shape, shape_calculation_mode):
     axes = [2, 3]
     mode = "cubic"
 
-    node = ov_opset10.interpolate(image=image_node, output_shape=output_shape, scales=scales,
-                                  axes=axes, mode=mode,
-                                  shape_calculation_mode=shape_calculation_mode)
+    node = ov.interpolate(image=image_node, output_shape=output_shape, scales=scales,
+                          axes=axes, mode=mode,
+                          shape_calculation_mode=shape_calculation_mode)
     assert node.get_type_name() == "Interpolate"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == expected_shape
@@ -2203,8 +2155,8 @@ def test_interpolate_opset10(dtype, expected_shape, shape_calculation_mode):
 
 def test_is_finite_opset10():
     input_shape = [1, 2, 3, 4]
-    input_node = ov.parameter(input_shape, np.float, name="InputData")
-    node = ov_opset10.is_finite(input_node)
+    input_node = ov.parameter(input_shape, np.float32, name="InputData")
+    node = ov.is_finite(input_node)
 
     assert node.get_type_name() == "IsFinite"
     assert node.get_output_size() == 1
@@ -2214,8 +2166,8 @@ def test_is_finite_opset10():
 
 def test_is_inf_opset10_default():
     input_shape = [2, 2, 2, 2]
-    input_node = ov.parameter(input_shape, dtype=np.float, name="InputData")
-    node = ov_opset10.is_inf(input_node)
+    input_node = ov.parameter(input_shape, dtype=np.float32, name="InputData")
+    node = ov.is_inf(input_node)
 
     assert node.get_type_name() == "IsInf"
     assert node.get_output_size() == 1
@@ -2228,11 +2180,11 @@ def test_is_inf_opset10_default():
 
 def test_is_inf_opset10_custom_attribute():
     input_shape = [2, 2, 2]
-    input_node = ov.parameter(input_shape, dtype=np.float, name="InputData")
+    input_node = ov.parameter(input_shape, dtype=np.float32, name="InputData")
     attributes = {
         "detect_positive": False,
     }
-    node = ov_opset10.is_inf(input_node, attributes)
+    node = ov.is_inf(input_node, attributes)
 
     assert node.get_type_name() == "IsInf"
     assert node.get_output_size() == 1
@@ -2245,12 +2197,12 @@ def test_is_inf_opset10_custom_attribute():
 
 def test_is_inf_opset10_custom_all_attributes():
     input_shape = [2, 2, 2]
-    input_node = ov.parameter(input_shape, dtype=np.float, name="InputData")
+    input_node = ov.parameter(input_shape, dtype=np.float32, name="InputData")
     attributes = {
         "detect_negative": False,
         "detect_positive": True,
     }
-    node = ov_opset10.is_inf(input_node, attributes)
+    node = ov.is_inf(input_node, attributes)
 
     assert node.get_type_name() == "IsInf"
     assert node.get_output_size() == 1
@@ -2263,8 +2215,8 @@ def test_is_inf_opset10_custom_all_attributes():
 
 def test_is_nan_opset10():
     input_shape = [1, 2, 3, 4]
-    input_node = ov.parameter(input_shape, np.float, name="InputData")
-    node = ov_opset10.is_nan(input_node)
+    input_node = ov.parameter(input_shape, np.float32, name="InputData")
+    node = ov.is_nan(input_node)
 
     assert node.get_type_name() == "IsNaN"
     assert node.get_output_size() == 1
@@ -2274,10 +2226,10 @@ def test_is_nan_opset10():
 
 def test_unique_opset10():
     input_shape = [1, 2, 3, 4]
-    input_node = ov.parameter(input_shape, np.float, name="input_data")
+    input_node = ov.parameter(input_shape, np.float32, name="input_data")
     axis = ov.constant([1], np.int32, [1])
 
-    node = ov_opset10.unique(input_node, axis, False, "i32")
+    node = ov.unique(input_node, axis, False, "i32")
 
     assert node.get_type_name() == "Unique"
     assert node.get_sorted() is False
@@ -2294,7 +2246,7 @@ def test_unique_opset10():
     assert node.get_output_element_type(3) == Type.i64
 
     # Axis default, means flattened result
-    node = ov_opset10.unique(input_node, None, False, "i32", "i32")
+    node = ov.unique(input_node, None, False, "i32", "i32")
 
     assert node.get_type_name() == "Unique"
     assert node.get_sorted() is False
@@ -2311,7 +2263,7 @@ def test_unique_opset10():
     assert node.get_output_element_type(3) == Type.i32
 
     # All arguments default
-    node = ov_opset10.unique(input_node)
+    node = ov.unique(input_node)
 
     assert node.get_type_name() == "Unique"
     assert node.get_output_size() == 4

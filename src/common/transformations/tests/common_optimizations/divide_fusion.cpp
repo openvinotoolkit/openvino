@@ -1,19 +1,18 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-#include <queue>
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/pass/manager.hpp>
+#include <queue>
+#include <string>
+#include <transformations/common_optimizations/divide_fusion.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <transformations/common_optimizations/divide_fusion.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -31,8 +30,8 @@ TEST(TransformationTests, DivideFusion) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{data1, data2});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::DivideFusion>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::DivideFusion>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -46,9 +45,9 @@ TEST(TransformationTests, DivideFusion) {
     }
 
     const auto res = FunctionsComparator::with_default()
-            .enable(FunctionsComparator::CONST_VALUES)
-            .enable(FunctionsComparator::ATTRIBUTES)
-            .compare(f, f_ref);
+                         .enable(FunctionsComparator::CONST_VALUES)
+                         .enable(FunctionsComparator::ATTRIBUTES)
+                         .compare(f, f_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
 
@@ -64,8 +63,8 @@ TEST(TransformationTests, DivideFusionNegative) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{data1, data2});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::DivideFusion>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::DivideFusion>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -81,8 +80,8 @@ TEST(TransformationTests, DivideFusionNegative) {
     }
 
     const auto res = FunctionsComparator::with_default()
-            .enable(FunctionsComparator::CONST_VALUES)
-            .enable(FunctionsComparator::ATTRIBUTES)
-            .compare(f, f_ref);
+                         .enable(FunctionsComparator::CONST_VALUES)
+                         .enable(FunctionsComparator::ATTRIBUTES)
+                         .compare(f, f_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }

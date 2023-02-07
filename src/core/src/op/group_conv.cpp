@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,9 @@
 
 #include <convolution_shape_inference.hpp>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/validation_util.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
@@ -17,8 +17,6 @@ using namespace ngraph;
 //------------------------------------------------------------------------------
 //                        v1::GroupConvolution
 //------------------------------------------------------------------------------
-
-BWDCMP_RTTI_DEFINITION(op::v1::GroupConvolution);
 
 shared_ptr<Node> op::v1::GroupConvolution::get_default_value() const {
     return op::v0::Constant::create(get_element_type(), get_shape(), {0});
@@ -116,8 +114,6 @@ shared_ptr<Node> op::v1::GroupConvolution::clone_with_new_inputs(const OutputVec
 //------------------------------------------------------------------------------
 //                        v1::GroupConvolutionBackpropData
 //------------------------------------------------------------------------------
-
-BWDCMP_RTTI_DEFINITION(op::v1::GroupConvolutionBackpropData);
 
 op::v1::GroupConvolutionBackpropData::GroupConvolutionBackpropData()
     : Op(),

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "test_utils.h"
@@ -38,10 +38,10 @@ public:
         topology.add(data("start", start_));
         topology.add(data("stop", stop_));
         topology.add(data("step", step_));
-        std::vector<primitive_id> inputs {"input", "start", "stop", "step"};
+        std::vector<input_info> inputs { input_info("input"), input_info("start"), input_info("stop"), input_info("step") };
         if (axes_) {
             topology.add(data("axes", axes_));
-            inputs.push_back("axes");
+            inputs.push_back(input_info("axes"));
         }
         topology.add(slice("slice", inputs, tensor{output_shape_}));
 
@@ -51,8 +51,8 @@ public:
 
         auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "slice");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "slice");
 
         auto output = outputs.at("slice").get_memory();
 
@@ -60,7 +60,7 @@ public:
 
         ASSERT_EQ(output_ptr.size(), expected_output_.size());
         for (size_t i = 0; i < output_ptr.size(); ++i)
-            EXPECT_TRUE(are_equal(expected_output_[i], output_ptr[i], 2e-3));
+            ASSERT_TRUE(are_equal(expected_output_[i], output_ptr[i], 2e-3));
     }
 
     data_types DataType() const;

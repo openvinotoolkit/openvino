@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ namespace ov {
 namespace pass {
 
 /**
- * @brief This transformation is an entry point for nGraph transformations that
+ * @brief This transformation is an entry point for OpenVINO transformations that
  * will be applied inside MOC. This transformations container is filled with
  * legacy transformations to reach parity between legacy front-ends and new
  * frontends calling from the Model Optimizer. It contains transformations to

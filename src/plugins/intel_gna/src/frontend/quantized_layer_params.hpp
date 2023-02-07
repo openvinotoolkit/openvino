@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@ public:
     bool IsStatsSet() const {
         return !input_min_values.empty() && !input_max_values.empty();
     }
-    void SetMinValues(const std::vector<float> &min, bool input = true) {
+    void SetMinValues(const std::vector<float>& min, bool input = true) {
         if (input) {
             input_min_values.clear();
             input_min_values.insert(input_min_values.end(), min.begin(), min.end());
@@ -69,7 +69,7 @@ public:
 
         return output_max_values;
     }
-    void CopyStats(QuantizationParams &src) {
+    void CopyStats(QuantizationParams& src) {
         levels = src.GetLevels();
         SetMinValues(src.GetMinValues(true), true);
         SetMaxValues(src.GetMaxValues(true), true);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -70,18 +70,9 @@
 #endif
 
 #include <windows.h>
-#include <Shlwapi.h>
 
 namespace ov {
 namespace util {
-std::shared_ptr<void> load_shared_object_safely(const char* path) {
-    if (path == nullptr)
-        throw std::runtime_error("Cannot load library: path isn't specified.");
-    if (!PathIsRelativeA(path))
-        return load_shared_object(path);
-    throw std::runtime_error("Cannot load library: path '" + static_cast<std::string>(path) + "' is not absolute.");
-}
-
 std::shared_ptr<void> load_shared_object(const char* path) {
     void* shared_object = nullptr;
     using GetDllDirectoryA_Fnc = DWORD (*)(DWORD, LPSTR);
@@ -133,14 +124,6 @@ std::shared_ptr<void> load_shared_object(const char* path) {
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-std::shared_ptr<void> load_shared_object_safely(const wchar_t* path) {
-    if (path == nullptr)
-        throw std::runtime_error("Cannot load library: path isn't specified.");
-    if (!PathIsRelativeW(path))
-        return load_shared_object(path);
-    throw std::runtime_error("Cannot load library: path '" + ov::util::wstring_to_string(std::wstring(path)) + "' is not absolute.");
-}
-
 std::shared_ptr<void> load_shared_object(const wchar_t* path) {
     void* shared_object = nullptr;
     using GetDllDirectoryW_Fnc = DWORD (*)(DWORD, LPWSTR);

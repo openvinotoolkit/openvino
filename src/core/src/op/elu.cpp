@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v0::Elu);
 
 op::Elu::Elu(const Output<Node>& data, const double alpha) : util::UnaryElementwiseArithmetic(data), m_alpha{alpha} {
     constructor_validate_and_infer_types();

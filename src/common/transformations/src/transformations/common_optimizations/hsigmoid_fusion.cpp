@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@
 ov::pass::HSigmoidFusionWithReluDiv::HSigmoidFusionWithReluDiv() {
     MATCHER_SCOPE(HSigmoidFusionWithReluDiv);
     // Replaces a sub-graph ((min(Relu(x + 3), 6)) / 6 with a HSigmoid op.
-    auto input = ngraph::pattern::any_input();
+    auto input = pass::pattern::any_input();
     auto add_constant = ngraph::pattern::wrap_type<opset7::Constant>();
     auto add = ngraph::pattern::wrap_type<opset7::Add>({input, add_constant});
     auto relu = ngraph::pattern::wrap_type<opset7::Relu>({add});
@@ -65,7 +65,7 @@ ov::pass::HSigmoidFusionWithReluDiv::HSigmoidFusionWithReluDiv() {
 ov::pass::HSigmoidFusionWithReluMul::HSigmoidFusionWithReluMul() {
     MATCHER_SCOPE(HSigmoidFusionWithReluMul);
     // Replaces a sub-graph ((min(Relu(x + 3), 6)) * const(1/6) with a HSigmoid op.
-    auto input = ngraph::pattern::any_input();
+    auto input = pass::pattern::any_input();
     auto add_constant = ngraph::pattern::wrap_type<opset7::Constant>();
     auto add = ngraph::pattern::wrap_type<opset7::Add>({input, add_constant});
     auto relu = ngraph::pattern::wrap_type<opset7::Relu>({add});
@@ -112,7 +112,7 @@ ov::pass::HSigmoidFusionWithReluMul::HSigmoidFusionWithReluMul() {
 ov::pass::HSigmoidFusionWithoutRelu::HSigmoidFusionWithoutRelu() {
     MATCHER_SCOPE(HSigmoidFusionWithoutRelu);
     // Replaces a sub-graph (min(max(x + 3, 0), 6) / 6) with a HSigmoid op.
-    auto input = ngraph::pattern::any_input();
+    auto input = pass::pattern::any_input();
     auto add_constant = ngraph::pattern::wrap_type<opset7::Constant>();
     auto add = ngraph::pattern::wrap_type<opset7::Add>({input, add_constant});
     auto max_constant = ngraph::pattern::wrap_type<opset7::Constant>();
@@ -164,7 +164,7 @@ ov::pass::HSigmoidFusionWithoutRelu::HSigmoidFusionWithoutRelu() {
 ov::pass::HSigmoidFusionWithClampMul::HSigmoidFusionWithClampMul() {
     MATCHER_SCOPE(HSigmoidFusionWithClampMul);
     // Replaces a sub-graph (Clamp(x + 3, 0, 6) * const(1/6)) with a HSigmoid op.
-    auto input = ngraph::pattern::any_input();
+    auto input = pass::pattern::any_input();
     auto add_constant = ngraph::pattern::wrap_type<opset7::Constant>();
     auto add = ngraph::pattern::wrap_type<opset7::Add>({input, add_constant});
     auto clamp = ngraph::pattern::wrap_type<opset7::Clamp>({add});
@@ -209,7 +209,7 @@ ov::pass::HSigmoidFusionWithClampMul::HSigmoidFusionWithClampMul() {
 ov::pass::HSigmoidFusionWithClampDiv::HSigmoidFusionWithClampDiv() {
     MATCHER_SCOPE(HSigmoidFusionWithClampDiv);
     // Replaces a sub-graph (Clamp(x + 3, 0, 6) / 6) with a HSigmoid op.
-    auto input = ngraph::pattern::any_input();
+    auto input = pass::pattern::any_input();
     auto add_constant = ngraph::pattern::wrap_type<opset7::Constant>();
     auto add = ngraph::pattern::wrap_type<opset7::Add>({input, add_constant});
     auto clamp = ngraph::pattern::wrap_type<opset7::Clamp>({add});

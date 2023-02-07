@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/common.cl"
 #include "include/detection_output_common.cl"
 
@@ -56,7 +55,6 @@
 // LOCAL_BATCHES_NUM     - number of batch that can be process per work-group
 // =================================================================================================================
 
-#define unroll_for __attribute__((opencl_unroll_hint)) for
 #define NUM_CLASSES_ACC (NUM_CLASSES + 2)
 
 typedef struct __attribute__((__packed__)) {

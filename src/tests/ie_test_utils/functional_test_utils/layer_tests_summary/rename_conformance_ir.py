@@ -1,20 +1,43 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 
 from argparse import ArgumentParser
 from pathlib import Path
 from hashlib import sha256
-from utils import utils
+from utils.conformance_utils import get_logger, set_env_variable
+from utils.constants import PY_OPENVINO, LD_LIB_PATH_NAME, PYTHON_NAME
+from utils.file_utils import get_ov_path, find_latest_dir
 
-from openvino.runtime import Core
+import os
+
+logger = get_logger('rename_conformance_ir')
+
+try:
+    from openvino.runtime import Core
+except:
+    script_dir, _ = os.path.split(os.path.abspath(__file__))
+    ov_bin_path = get_ov_path(script_dir, None, True)
+    if PY_OPENVINO in os.listdir(ov_bin_path):
+        env = os.environ
+        py_ov = os.path.join(ov_bin_path, PY_OPENVINO)
+        py_ov = os.path.join(py_ov, find_latest_dir(py_ov))
+
+        env = set_env_variable(env, "PYTHONPATH", py_ov)
+        env = set_env_variable(env, LD_LIB_PATH_NAME, ov_bin_path)
+        logger.warning("Set the following env varibles to rename conformance ir based on hash: ")
+        logger.warning(f'PYTHONPATH={env["PYTHONPATH"]}')
+        logger.warning(f'{LD_LIB_PATH_NAME}={env[LD_LIB_PATH_NAME]}')
+        exit(0)
+    else:
+        print(f'Impossible to run the tool! PyOpenVINO was not built!')
+        exit(-1)
+    
 
 XML_EXTENSION = ".xml"
 BIN_EXTENSION = ".bin"
 META_EXTENSION = ".meta"
-
-logger = utils.get_logger('Rename Conformance IRs using hash')
 
 
 def parse_arguments():
@@ -44,17 +67,29 @@ def create_hash(in_dir_path: Path):
         check_file(meta_path)
 
         str_to_hash = str()
-        model = core.read_model(model_path)
-        for node in model.get_ordered_ops():
-            for input in node.inputs():
-                input_node = input.get_node()
-                str_to_hash += str(len(input.get_partial_shape())) + str(input.get_element_type().get_type_name()) + str(input.get_partial_shape().is_dynamic) + \
-                     str(input_node.get_type_info().name) + str(input_node.get_type_info().version)
-            for output in node.outputs():
-                output_node = output.get_node()
-                str_to_hash += str(len(output.get_partial_shape())) + str(output.get_element_type().get_type_name()) + str(output.get_partial_shape().is_dynamic) + \
-                     str(output_node.get_type_info().name) + str(output_node.get_type_info().version)
-        
+        try:
+            model = core.read_model(model_path)
+            for node in model.get_ordered_ops():
+                for input in node.inputs():
+                    input_node = input.get_node()
+                    len_shape = None
+                    try:
+                        len_shape = len(input.get_partial_shape())
+                    except:
+                        logger.error(f"Impossible to get input_shape for {input_node.name}")
+                    str_to_hash += str(len_shape) + str(input.get_element_type().get_type_name()) + str(input.get_partial_shape().is_dynamic) + \
+                        str(input_node.get_type_info().name) + str(input_node.get_type_info().version)
+                for output in node.outputs():
+                    output_node = output.get_node()
+                    len_shape = None
+                    try:
+                        len_shape = len(output.get_partial_shape())
+                    except:
+                        logger.error(f"Impossible to get output_shape for {output.names.pop()}")
+                    str_to_hash += str(len_shape) + str(output.get_element_type().get_type_name()) + str(output.get_partial_shape().is_dynamic) + \
+                        str(output_node.get_type_info().name) + str(output_node.get_type_info().version)
+        except:
+            logger.error(f"Impossible to create hash for {model_path}")
         ports_info = ET.parse(meta_path).getroot().find("ports_info")
         str_to_hash += ET.tostring(ports_info).decode('utf8').replace('\t', '')
 
@@ -65,7 +100,7 @@ def create_hash(in_dir_path: Path):
         meta_path.rename(Path(meta_path.parent, new_name + META_EXTENSION))
         bin_path.rename(Path(bin_path.parent, new_name + BIN_EXTENSION))
 
-        logger.info(f"{old_name} -> {new_name}")
+        # logger.info(f"{old_name} -> {new_name}")
 
 if __name__=="__main__":
     args = parse_arguments()

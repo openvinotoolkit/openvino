@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -230,4 +230,14 @@ TEST(type_prop, pad_v1_any_dim_for_padding_edge) {
 
     auto pad = make_shared<op::v1::Pad>(arg, pads_begin, pads_end, op::PadMode::EDGE);
     ASSERT_TRUE(pad->get_output_partial_shape(0).same_scheme(PartialShape{2, 53, Dimension::dynamic(), 1}));
+}
+
+TEST(type_prop, pad_v1_dynamic_input_type_with_static_value) {
+    auto arg = make_shared<op::Parameter>(element::dynamic, Shape{1, 2, 3});
+    auto pads_begin = make_shared<op::Parameter>(element::i32, Shape{1});
+    auto pads_end = make_shared<op::Parameter>(element::i32, Shape{1});
+    auto arg_pad_value = op::Constant::create(element::f32, Shape{}, {0});
+
+    auto pad = make_shared<op::v1::Pad>(arg, pads_begin, pads_end, arg_pad_value, op::PadMode::CONSTANT);
+    ASSERT_EQ(pad->get_output_element_type(0), element::f32);
 }

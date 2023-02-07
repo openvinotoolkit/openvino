@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,6 @@ namespace v0 {
 class OPENVINO_API Ceiling : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Ceiling", "opset1", util::UnaryElementwiseArithmetic);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a ceiling operation.
     Ceiling() = default;
     /// \brief Constructs a ceiling operation.

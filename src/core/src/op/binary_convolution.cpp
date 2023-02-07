@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,6 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-
-BWDCMP_RTTI_DEFINITION(ov::op::v1::BinaryConvolution);
 
 ov::op::v1::BinaryConvolution::BinaryConvolution(const Output<Node>& data,
                                                  const Output<Node>& kernel,
@@ -125,8 +123,6 @@ EnumNames<ngraph::op::v1::BinaryConvolution::BinaryConvolutionMode>::get() {
         {{"xnor-popcount", ngraph::op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT}});
     return enum_names;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v1::BinaryConvolution::BinaryConvolutionMode>);
 }  // namespace ov
 
 std::ostream& ov::operator<<(std::ostream& s, const ov::op::v1::BinaryConvolution::BinaryConvolutionMode& type) {

@@ -1,44 +1,41 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <cstdint>
-#include <memory>
-#include <mutex>
-#include <string>
-#include <map>
-#include <set>
-#include <vector>
-#include <thread>
-#include <list>
-
 #include <ie_common.h>
 
-#include "gna2_model_export_helper.hpp"
-#include "memory/gna_mem_requests.hpp"
+#include <cstdint>
+#include <list>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <set>
+#include <string>
+#include <thread>
+#include <vector>
 
 #include "gna2-common-api.h"
 #include "gna2-inference-api.h"
 #include "gna2-instrumentation-api.h"
-
 #include "gna2-memory-api.h"
 #include "gna2-model-api.h"
 #include "gna2-model-export-api.h"
 #include "gna2-model-suecreek-header.h"
-
+#include "gna2_model_export_helper.hpp"
 #include "gna_device_allocation.hpp"
 #include "gna_device_interface.hpp"
+#include "memory/gna_mem_requests.hpp"
 
 /**
  * holds gna - style handle in RAII way
  */
-class GNADeviceHelper : public GNAPluginNS::GNADevice {
+class GNADeviceHelper : public ov::intel_gna::GNADevice {
     using UnwaitedRequestIds = std::set<uint32_t>;
     static std::mutex acrossPluginsSync;
     static std::string decoratedGnaLibVersion() {
-        static std::string gnaLibraryVersion{ ", GNA library version: " + GNADeviceHelper::GetGnaLibraryVersion() };
+        static std::string gnaLibraryVersion{", GNA library version: " + GNADeviceHelper::GetGnaLibraryVersion()};
         return gnaLibraryVersion;
     }
     std::string modeOfOperation = "default";
@@ -54,7 +51,7 @@ class GNADeviceHelper : public GNAPluginNS::GNADevice {
     static const uint32_t TotalGna2InstrumentationPoints = 2;
     Gna2InstrumentationPoint gna2InstrumentationPoints[TotalGna2InstrumentationPoints] = {
         Gna2InstrumentationPointHwTotalCycles,
-        Gna2InstrumentationPointHwStallCycles };
+        Gna2InstrumentationPointHwStallCycles};
 
     uint64_t instrumentationResults[TotalGna2InstrumentationPoints] = {};
     uint64_t instrumentationTotal[TotalGna2InstrumentationPoints] = {};
@@ -79,7 +76,7 @@ public:
                              bool deviceEmbedded = false);
 
     GNADeviceHelper(const GNADeviceHelper&) = delete;
-    GNADeviceHelper& operator= (const GNADeviceHelper&) = delete;
+    GNADeviceHelper& operator=(const GNADeviceHelper&) = delete;
     GNADeviceHelper(GNADeviceHelper&&) = delete;
     GNADeviceHelper& operator=(GNADeviceHelper&&) = delete;
     ~GNADeviceHelper() override;
@@ -91,8 +88,8 @@ public:
      */
     void dumpAllAllocations(uint64_t idx, const std::string& infix) const;
 
-    uint8_t *alloc(uint32_t size_requested, uint32_t *size_granted);
-    void tagMemoryRegion(void* memPtr, const GNAPluginNS::memory::rRegion memoryTag);
+    uint8_t* alloc(uint32_t size_requested, uint32_t* size_granted);
+    void tagMemoryRegion(void* memPtr, const ov::intel_gna::memory::rRegion memoryTag);
 
     void releaseModel(const uint32_t model_id);
     static uint32_t getNumberOfGnaDevices();
@@ -115,7 +112,7 @@ public:
         std::shared_ptr<void> model;
     };
 
-    const void * dumpXNNROPtr = nullptr;
+    const void* dumpXNNROPtr = nullptr;
     uint32_t dumpXNNROSize = 0;
 
     DumpResult dumpXnn(const uint32_t modelId);
@@ -125,11 +122,10 @@ public:
                                  const std::vector<GnaEndpoint>& inputsContainer,
                                  const std::vector<GnaEndpoint>& outputsContainer);
 
-    void free(void * ptr);
+    void free(void* ptr);
 
     void updateGnaPerfCounters();
-    void getGnaPerfCounters(std::map<std::string,
-                        InferenceEngine::InferenceEngineProfileInfo>& retPerfCounters);
+    void getGnaPerfCounters(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& retPerfCounters);
     static std::string GetGnaLibraryVersion();
     std::string GetCompileTarget() const;
 
@@ -155,44 +151,44 @@ public:
     /**
      * @see GNADevice::waitForRequest()
      */
-    GNAPluginNS::RequestStatus waitForRequest(uint32_t requestID, int64_t timeoutMilliseconds = MAX_TIMEOUT) override;
+    ov::intel_gna::RequestStatus waitForRequest(uint32_t requestID, int64_t timeoutMilliseconds = MAX_TIMEOUT) override;
 
     /**
      * @see GNADevice::maxLayersCount()
      */
-     uint32_t maxLayersCount() const override;
+    uint32_t maxLayersCount() const override;
 
-     /**
-      * @brief close the device
-      **/
-     void close() override;
+    /**
+     * @brief close the device
+     **/
+    void close() override;
 
- private:
-     void open();
+private:
+    void open();
 
-     uint32_t retrieveMaxLayersCount();
+    uint32_t retrieveMaxLayersCount();
 
-     static std::string getGnaLibraryVersionPrivate();
-     static const std::map<Gna2ItemType, const std::string> errorTypes;
-     static const std::map<Gna2ErrorType, const std::string> errorReasons;
-     static const std::map<Gna2OperationType, const std::string> operationTypes;
-     static const std::map<const std::pair<Gna2OperationType, int32_t>, const std::string> operandTypes;
+    static std::string getGnaLibraryVersionPrivate();
+    static const std::map<Gna2ItemType, const std::string> errorTypes;
+    static const std::map<Gna2ErrorType, const std::string> errorReasons;
+    static const std::map<Gna2OperationType, const std::string> operationTypes;
+    static const std::map<const std::pair<Gna2OperationType, int32_t>, const std::string> operandTypes;
 
-     static void enforceLegacyCnns(Gna2Model& gnaModel);
-     static void enforceLegacyCnnsWhenNeeded(Gna2Model& gnaModel);
-     static Gna2DeviceVersion parseTarget(const std::string& target);
-     Gna2DeviceVersion getDefaultTarget() const;
-     Gna2DeviceVersion getTargetDevice(bool execTarget) const;
+    static void enforceLegacyCnns(Gna2Model& gnaModel);
+    static void enforceLegacyCnnsWhenNeeded(Gna2Model& gnaModel);
+    static Gna2DeviceVersion parseTarget(const std::string& target);
+    Gna2DeviceVersion getDefaultTarget() const;
+    Gna2DeviceVersion getTargetDevice(bool execTarget) const;
 
-     void createVirtualDevice(Gna2DeviceVersion devVersion);
-     void updateGnaDeviceVersion();
+    void createVirtualDevice(Gna2DeviceVersion devVersion);
+    void updateGnaDeviceVersion();
 
-     void initGnaPerfCounters() {
-         std::unique_lock<std::mutex> lockGnaCalls{acrossPluginsSync};
-         const auto status = Gna2InstrumentationConfigCreate(TotalGna2InstrumentationPoints,
-                                                             gna2InstrumentationPoints,
-                                                             instrumentationResults,
-                                                             &instrumentationConfigId);
-         checkGna2Status(status, "Gna2InstrumentationConfigCreate");
+    void initGnaPerfCounters() {
+        std::unique_lock<std::mutex> lockGnaCalls{acrossPluginsSync};
+        const auto status = Gna2InstrumentationConfigCreate(TotalGna2InstrumentationPoints,
+                                                            gna2InstrumentationPoints,
+                                                            instrumentationResults,
+                                                            &instrumentationConfigId);
+        checkGna2Status(status, "Gna2InstrumentationConfigCreate");
     }
 };  // NOLINT

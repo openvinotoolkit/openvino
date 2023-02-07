@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -50,6 +50,12 @@ endif()
 
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
+
+    # TODO: remove together we GNA plugin
+    # for static linkage the dependencies are in opposite order
+    if(TARGET inference_engine_ir_v7_reader)
+        target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_ir_v7_reader)
+    endif()
 endif()
 
 if(WIN32)
@@ -87,8 +93,6 @@ add_library(${TARGET_NAME}_dev INTERFACE)
 add_library(openvino::runtime::dev ALIAS ${TARGET_NAME}_dev)
 
 target_include_directories(${TARGET_NAME}_dev INTERFACE
-    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/transformations/include>
-    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/dev_api>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/dev_api>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include>
     $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_INCLUDE_DIRECTORIES>)
@@ -96,7 +100,7 @@ target_include_directories(${TARGET_NAME}_dev INTERFACE
 target_compile_definitions(${TARGET_NAME}_dev INTERFACE
     $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_COMPILE_DEFINITIONS>)
 
-target_link_libraries(${TARGET_NAME}_dev INTERFACE ${TARGET_NAME} openvino::itt openvino::util)
+target_link_libraries(${TARGET_NAME}_dev INTERFACE ${TARGET_NAME} openvino::core::dev)
 
 set_ie_threading_interface_for(${TARGET_NAME}_dev)
 set_target_properties(${TARGET_NAME}_dev PROPERTIES EXPORT_NAME runtime::dev)
@@ -195,13 +199,16 @@ install(FILES "${CMAKE_BINARY_DIR}/share/OpenVINOConfig.cmake"
 # Generate and install openvino.pc pkg-config file
 
 if(ENABLE_PKGCONFIG_GEN)
+    # fill in PKGCONFIG_OpenVINO_DEFINITIONS
+    get_target_property(openvino_defs openvino INTERFACE_COMPILE_DEFINITIONS)
+    foreach(openvino_def IN LISTS openvino_defs)
+        set(PKGCONFIG_OpenVINO_DEFINITIONS "${PKGCONFIG_OpenVINO_DEFINITIONS} -D${openvino_def}")
+    endforeach()
+
     # fill in PKGCONFIG_OpenVINO_FRONTENDS
     get_target_property(PKGCONFIG_OpenVINO_FRONTENDS_LIST ov_frontends MANUALLY_ADDED_DEPENDENCIES)
     if(ENABLE_OV_IR_FRONTEND)
         list(REMOVE_ITEM PKGCONFIG_OpenVINO_FRONTENDS_LIST openvino_ir_frontend)
-    endif()
-    if(ENABLE_OV_TF_FRONTEND)
-        list(REMOVE_ITEM PKGCONFIG_OpenVINO_FRONTENDS_LIST openvino_tensorflow_frontend)
     endif()
 
     foreach(frontend IN LISTS PKGCONFIG_OpenVINO_FRONTENDS_LIST)

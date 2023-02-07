@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,8 +17,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v0::FakeQuantize);
 
 op::FakeQuantize::FakeQuantize() : Op(), m_levels() {}
 
@@ -88,6 +86,8 @@ bool evaluate(const HostTensorPtr& arg0,
               const ngraph::op::FakeQuantize* parent) {
     OV_OP_SCOPE(v0_FakeQuantize_evaluate);
     using T = typename element_type_traits<ET>::value_type;
+    out->set_shape(arg0->get_shape());
+    out->set_element_type(arg0->get_element_type());
     runtime::reference::fake_quantize<T>(arg0->get_data_ptr<const T>(),
                                          arg1->get_data_ptr<const T>(),
                                          arg2->get_data_ptr<const T>(),

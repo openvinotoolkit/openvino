@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
 
 #ifdef CPU_DEBUG_CAPS
 
-#define CPU_DEBUG_CAP_ENABLE(_x) _x;
+#define CPU_DEBUG_CAP_ENABLE(...) __VA_ARGS__
 #define CPU_DEBUG_CAPS_ALWAYS_TRUE(x) true
 
 #include <string>
@@ -42,14 +42,6 @@ public:
     operator bool() const { return enabled; }
     void break_at(const std::string & log);
 };
-
-static inline std::ostream& write_all_to_stream(std::ostream& os) {
-    return os;
-}
-template <typename T, typename... TS>
-static inline std::ostream& write_all_to_stream(std::ostream& os, const T& arg, TS&&... args) {
-    return ov::intel_cpu::write_all_to_stream(os << arg, std::forward<TS>(args)...);
-}
 
 class NodeDesc;
 class MemoryDesc;
@@ -125,6 +117,14 @@ std::ostream & operator<<(std::ostream & os, const PrintableVector<T>& vec) {
     return os;
 }
 
+static inline std::ostream& write_all_to_stream(std::ostream& os) {
+    return os;
+}
+template <typename T, typename... TS>
+static inline std::ostream& write_all_to_stream(std::ostream& os, const T& arg, TS&&... args) {
+    return ov::intel_cpu::write_all_to_stream(os << arg, std::forward<TS>(args)...);
+}
+
 }   // namespace intel_cpu
 }   // namespace ov
 
@@ -147,7 +147,7 @@ std::ostream & operator<<(std::ostream & os, const PrintableVector<T>& vec) {
 
 #else // !CPU_DEBUG_CAPS
 
-#define CPU_DEBUG_CAP_ENABLE(_x)
+#define CPU_DEBUG_CAP_ENABLE(...)
 #define CPU_DEBUG_CAPS_ALWAYS_TRUE(x) x
 
 #define DEBUG_LOG(...)

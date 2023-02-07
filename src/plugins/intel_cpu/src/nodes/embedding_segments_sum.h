@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ namespace node {
 
 class EmbeddingSegmentsSum : public Node, public EmbeddingBagSum {
 public:
-    EmbeddingSegmentsSum(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    EmbeddingSegmentsSum(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -30,7 +30,6 @@ public:
 protected:
     void prepareParams() override;
     bool needShapeInfer() const override;
-    std::vector<VectorDims> shapeInfer() const override;
     void executeDynamicImpl(dnnl::stream strm) override;
 
 private:
@@ -38,8 +37,8 @@ private:
     void getIndices(int embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) override;
     int32_t getNumSegments() const;
 
-    const size_t SEGMENT_ID_IDX = 2lu;
-    const size_t NUM_SEGMENTS_IDX = 3lu;
+    static constexpr size_t SEGMENT_ID_IDX = 2lu;
+    static constexpr size_t NUM_SEGMENTS_IDX = 3lu;
 
     int lastNumSegments_ = 0;
 

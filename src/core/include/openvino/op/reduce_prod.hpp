@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,6 @@ namespace v1 {
 class OPENVINO_API ReduceProd : public util::ArithmeticReductionKeepDims {
 public:
     OPENVINO_OP("ReduceProd", "opset1", util::ArithmeticReductionKeepDims, 1);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a product reduction operation.
     ReduceProd() = default;
     /// \brief Constructs a product reduction operation.
@@ -37,10 +36,8 @@ public:
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate_lower(const HostTensorVector& outputs) const override;
-    bool evaluate_upper(const HostTensorVector& outputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate_lower(TensorVector& outputs) const override;
+    bool evaluate_upper(TensorVector& outputs) const override;
 };
 }  // namespace v1
 }  // namespace op

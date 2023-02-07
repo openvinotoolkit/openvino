@@ -6,6 +6,7 @@
 #include <ie_ngraph_utils.hpp>
 #include <utils/bfloat16.hpp>
 #include <ie_parallel.hpp>
+#include <utils/shape_inference/shape_inference_ngraph.hpp>
 
 #define THROW_ERROR IE_THROW() << NameFromType(getType()) << " node with name '" << getName() << "' "
 
@@ -29,8 +30,25 @@ bool Eye::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
     return true;
 }
 
-Eye::Eye(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng,
-                                     WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+namespace {
+class EyeShapeInferFactory : public ShapeInferFactory {
+public:
+    EyeShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
+    ShapeInferPtr makeShapeInfer() const override {
+        IShapeInfer::port_mask_t port_mask = EMPTY_PORT_MASK;
+        if (m_op->get_input_size() == 4) {
+            port_mask =  PortMask(Eye::ROWS_NUM, Eye::COLS_NUM, Eye::DIAGONAL_INDEX, Eye::BATCH_SHAPE);
+        } else {
+            port_mask =  PortMask(Eye::ROWS_NUM, Eye::COLS_NUM, Eye::DIAGONAL_INDEX);
+        }
+        return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), port_mask);
+    }
+private:
+    std::shared_ptr<ov::Node> m_op;
+};
+} // namespace
+
+Eye::Eye(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) : Node(op, context, EyeShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
             IE_THROW(NotImplemented) << errorMessage;

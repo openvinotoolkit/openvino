@@ -1,21 +1,29 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
 import os
 import csv
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
+from defusedxml import defuse_stdlib
 
 from jinja2 import Environment, FileSystemLoader
 
-from utils import utils
+from utils.conformance_utils import get_logger
+from utils import stat_update_utils
+
+# defuse_stdlib provide patched version of xml.etree.ElementTree which allows to use objects from xml.etree.ElementTree
+# in a safe manner without including unsafe xml.etree.ElementTree
+ET_defused = defuse_stdlib()[ET]
+Element = ET_defused.Element
+SubElement = ET_defused.SubElement
 
 NOT_RUN = "NOT RUN"
 NA = "N/A"
 
 STATUS_CSV_ORDER = ["implemented", "passed", "failed", "skipped", "crashed", "hanged", "passrate"]
 
-logger = utils.get_logger('Summarize')
+logger = get_logger('conformance_summary')
 
 
 def parse_arguments():
@@ -50,10 +58,10 @@ def parse_arguments():
 def merge_xmls(xml_paths: list):
     logger.info("Merging XML files is started")
 
-    summary = ET.Element("report")
+    summary = Element("report")
     timestamp = None
-    summary_results = ET.SubElement(summary, "results")
-    ops_list = ET.SubElement(summary, "ops_list")
+    summary_results = SubElement(summary, "results")
+    ops_list = SubElement(summary, "ops_list")
     for xml_path in xml_paths:
         try:
             xml_root = ET.parse(xml_path).getroot()
@@ -67,7 +75,7 @@ def merge_xmls(xml_paths: list):
 
         for op in xml_root.find("ops_list"):
             if ops_list.find(op.tag) is None:
-                ET.SubElement(ops_list, op.tag)
+                SubElement(ops_list, op.tag)
 
         for device in xml_root.find("results"):
             device_results = summary_results.find(device.tag)
@@ -97,13 +105,13 @@ def merge_xmls(xml_paths: list):
                                 device_results.find(current_op_res.tag).set(attr_name, str(xml_value))
                     else:
                         device_results.append(op_result)
-    utils.update_passrates(summary_results)
+    stat_update_utils.update_passrates(summary_results)
     summary.set("timestamp", timestamp)
     logger.info("Merging XML files is competed")
     return summary
 
 
-def collect_statistic(root: ET.Element, is_conformance_mode: bool):
+def collect_statistic(root: Element, is_conformance_mode: bool):
     logger.info("Statistic collecting is started")
     trusted_ops = dict()
     pass_rate_avg = dict()
@@ -218,11 +226,11 @@ def serialize_to_csv(report_filename: str, output_dir: os.path, op_list: list, d
     logger.info(f'Final CSV report is saved to {csv_filename}')
 
 
-def create_summary(summary_root: ET.Element, output_folder: os.path, expected_devices:list, report_tag: str, report_version: str,
+def create_summary(summary_root: Element, output_folder: os.path, expected_devices:list, report_tag: str, report_version: str,
                    is_conformance_mode: bool,  is_serialize_to_csv: bool, output_filename='report'):
     if is_conformance_mode:
-        utils.update_conformance_test_counters(summary_root, logger)
-        utils.update_passrates(summary_root.find("results"))
+        stat_update_utils.update_conformance_test_counters(summary_root)
+        stat_update_utils.update_passrates(summary_root.find("results"))
     device_list, results, general_pass_rate, pass_rate_avg, general_test_count, trusted_ops, covered_ops = \
         collect_statistic(summary_root, is_conformance_mode)
 
