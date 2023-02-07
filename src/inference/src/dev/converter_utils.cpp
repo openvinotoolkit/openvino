@@ -531,7 +531,7 @@ namespace InferenceEngine {
 class IAsyncInferRequestWrapper : public ov::IAsyncInferRequest {
 public:
     IAsyncInferRequestWrapper(const std::shared_ptr<InferenceEngine::IInferRequestInternal>& request)
-        : ov::IAsyncInferRequest(nullptr, nullptr, nullptr),
+        : ov::IAsyncInferRequest(),
           m_request(request) {
         if (m_request->getPointerToExecutableNetworkInternal())
             m_compiled_model =

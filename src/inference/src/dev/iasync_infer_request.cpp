@@ -28,6 +28,8 @@ ov::IAsyncInferRequest::~IAsyncInferRequest() {
     stop_and_wait();
 }
 
+ov::IAsyncInferRequest::IAsyncInferRequest() = default;
+
 ov::IAsyncInferRequest::IAsyncInferRequest(const std::shared_ptr<IInferRequest>& request,
                                            const InferenceEngine::ITaskExecutor::Ptr& task_executor,
                                            const InferenceEngine::ITaskExecutor::Ptr& callback_executor)
