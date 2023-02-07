@@ -551,7 +551,7 @@ public:
     void wait() override {
         try {
             m_request->Wait(InferenceEngine::InferRequest::RESULT_READY);
-        } catch (const ov::Cancelled& e) {
+        } catch (const ov::Cancelled&) {
             throw;
         } catch (const InferenceEngine::InferCancelled& e) {
             throw ov::Cancelled{e.what()};
