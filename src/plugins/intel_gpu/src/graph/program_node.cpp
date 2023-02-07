@@ -930,19 +930,12 @@ void program_node::init_onednn_primitive_attributes() {
                 post_ops.append_prelu(1 << oc_dim);
                 update_onednn_post_op_list(onednn_post_op_type::binary_relu, dep_idx);
             } else if (fused_desc->activation_function == cldnn::activation_func::hard_sigmoid) {
-                // Splits hard_sigmoid activation into eltwise_linear, min and max.
-                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear,
-                    fused_desc->additional_params.a, fused_desc->additional_params.b);
-                post_ops.append_eltwise(dnnl::algorithm::eltwise_clip, 0.0f, 1.0f);
+                post_ops.append_eltwise(dnnl::algorithm::eltwise_hardsigmoid, fused_desc->additional_params.a, fused_desc->additional_params.b);
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
-                update_onednn_post_op_list(onednn_post_op_type::eltwise_clip, empty_mem);
             } else if (fused_desc->activation_function == cldnn::activation_func::hsigmoid) {
-                // Unsupported hsigmoid oneDNN gpu, splits hsigmoid activation min(max(val + 3, 0), 6) / 6
-                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, 1.f, 3.f);
-                post_ops.append_eltwise(dnnl::algorithm::eltwise_clip, 0.f, 6.f);
-                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, 1 / 6.f, 0.f);
-                update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
-                update_onednn_post_op_list(onednn_post_op_type::eltwise_clip, empty_mem);
+                // hard_sigmoid(x,a,b) = clamp(ax+b, 0, 1)
+                // hsigmoid(x) = clamp(val+3, 0, 6) / 6 = clamp(val/6+0.5, 0, 1) = hard_sigmoid(val, 1/6, 1/2)
+                post_ops.append_eltwise(dnnl::algorithm::eltwise_hardsigmoid, 1./6, 1./2);
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
             } else if (fused_desc->activation_function == cldnn::activation_func::negative) {
                 post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, -1, 0);
