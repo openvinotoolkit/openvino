@@ -301,6 +301,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::zeros", op::translate_zeros},
         {"aten::zeros_like", op::translate_zeros_like},
         {"prim::Constant", op::translate_constant},
+        {"prim::device", op::skip_node},  // In openvino how tensors are stored in memory is internal plugin detail,
+                                          //   we don't differentiate used devices in model graph.
         {"prim::GetAttr", op::translate_get_attr},
         {"prim::If", op::translate_if},
         {"prim::is_cuda", op::return_false_scalar},
