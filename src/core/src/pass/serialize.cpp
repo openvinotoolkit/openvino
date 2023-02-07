@@ -397,11 +397,11 @@ public:
             size_t body_id;
             if (id_pos != std::string::npos) {
                 id_str.erase(id_pos, id.length());
-                std::stoi(id_str, &body_id);
+                (void)std::stoi(id_str, &body_id);
                 is_body_target = true;
             } else if (od_pos != std::string::npos) {
                 id_str.erase(od_pos, od.length());
-                std::stoi(id_str, &body_id);
+                (void)std::stoi(id_str, &body_id);
                 is_body_target = true;
             }
             if (is_body_target) {

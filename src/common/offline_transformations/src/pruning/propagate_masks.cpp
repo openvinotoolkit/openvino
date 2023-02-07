@@ -1504,7 +1504,7 @@ public:
             int64_t total_lengths = 0;
             for (size_t i = 0; i < split_lengths.size(); i++) {
                 if (split_lengths[i] == -1) {
-                    minus_one_length_idx = i;
+                    minus_one_length_idx = static_cast<int>(i);
                     continue;
                 }
                 total_lengths += split_lengths[i];

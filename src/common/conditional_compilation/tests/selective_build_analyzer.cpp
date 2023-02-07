@@ -58,7 +58,8 @@ struct TestNode : public TestNodeBase {
 }  // namespace
 
 TEST(ConditionalCompilationTests, SimpleScopeAnalysys) {
-    (void)SIMPLE_CCTests;
+    auto func = SIMPLE_CCTests;
+    (void)func;
 
     int n = 0;
 

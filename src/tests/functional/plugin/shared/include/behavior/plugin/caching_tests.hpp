@@ -91,5 +91,7 @@ protected:
         std::replace(test_name.begin(), test_name.end(), '\\', '_');
         cache_path = "LoadNetwork" + test_name + "_cache";
     }
+
+    using BehaviorTestsUtils::IEPluginTestBase::TearDown;
 };
 } // namespace LayerTestsDefinitions
