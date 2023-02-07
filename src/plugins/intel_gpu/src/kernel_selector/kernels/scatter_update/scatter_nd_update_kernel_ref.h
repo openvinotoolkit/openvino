@@ -32,7 +32,7 @@ public:
     ScatterNDUpdateKernelRef() : KernelBaseOpenCL("scatter_nd_update_ref") {}
     virtual ~ScatterNDUpdateKernelRef() {}
     virtual JitConstants GetJitConstants(const scatter_nd_update_params& params) const;
-    virtual DispatchData SetDefault(const scatter_nd_update_params& params, const optional_params&, bool is_second) const;
+    virtual DispatchData SetDefault(const scatter_nd_update_params& params, bool is_second) const;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
