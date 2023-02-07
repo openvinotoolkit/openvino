@@ -107,10 +107,6 @@ inline OutputVector return_false_scalar(NodeContext& context) {
     return {context.mark_node(ov::op::v0::Constant::create(element::boolean, Shape{}, {false}))};
 }
 
-inline OutputVector return_true_scalar(NodeContext& context) {
-    return {context.mark_node(ov::op::v0::Constant::create(element::boolean, Shape{}, {true}))};
-}
-
 inline OutputVector skip_node(NodeContext& context) {
     return {context.get_input(0).get_node_shared_ptr()};
 }
