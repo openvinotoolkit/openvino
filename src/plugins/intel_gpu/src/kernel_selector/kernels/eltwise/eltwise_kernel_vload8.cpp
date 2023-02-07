@@ -39,29 +39,31 @@ bool EltwiseKernel_vload8::Validate(const Params& params, const optional_params&
         return false;
     }
 
-        for (size_t i = 0; i < ewParams.inputs.size(); i++) {
-            const auto input_layout = ewParams.inputs[i].GetLayout();
-            const auto batch_size = ewParams.inputs[i].Batch().v;
-            const auto feature_size = ewParams.inputs[i].Feature().v;
-            if ((input_layout == DataLayout::b_fs_yx_fsv16 && feature_size % 16 != 0) ||
-                (input_layout == DataLayout::b_fs_yx_fsv32 && feature_size % 32 != 0) ||
-                (input_layout == DataLayout::b_fs_zyx_fsv16 && feature_size % 16 != 0) ||
-                (input_layout == DataLayout::b_fs_yx_fsv4 && feature_size % 8 != 0) ||
-                input_layout == DataLayout::fs_b_yx_fsv32 ||
-                (input_layout == DataLayout::bs_fs_yx_bsv32_fsv16 && (feature_size % 16 != 0 || batch_size % 32 != 0)) ||
-                (input_layout == DataLayout::bs_fs_yx_bsv32_fsv32 && (feature_size % 32 != 0 || batch_size % 32 != 0)))
-                return false;
-        }
-        if ((ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 && ewParams.outputs[0].Feature().v % 16 != 0) ||
-            (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv32 && ewParams.outputs[0].Feature().v % 32 != 0) ||
-            (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 && ewParams.outputs[0].Feature().v % 16 != 0) ||
-            (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv4 && ewParams.outputs[0].Feature().v % 8 != 0) ||
-            ewParams.outputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32 ||
-            (ewParams.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 &&
-                (ewParams.outputs[0].Feature().v % 16 != 0 || ewParams.outputs[0].Batch().v % 32 != 0)) ||
-            (ewParams.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 &&
-                (ewParams.outputs[0].Feature().v % 32 != 0 || ewParams.outputs[0].Batch().v % 32 != 0)))
+    for (size_t i = 0; i < ewParams.inputs.size(); i++) {
+        const auto input_layout = ewParams.inputs[i].GetLayout();
+        const auto batch_size = ewParams.inputs[i].Batch().v;
+        const auto feature_size = ewParams.inputs[i].Feature().v;
+        if ((input_layout == DataLayout::b_fs_yx_fsv16 && feature_size % 16 != 0) ||
+            (input_layout == DataLayout::b_fs_yx_fsv32 && feature_size % 32 != 0) ||
+            (input_layout == DataLayout::b_fs_zyx_fsv16 && feature_size % 16 != 0) ||
+            (input_layout == DataLayout::b_fs_yx_fsv4 && feature_size % 8 != 0) ||
+            (input_layout == DataLayout::fs_b_yx_fsv32 && feature_size % 32 != 0)||
+            (input_layout == DataLayout::bs_fs_yx_bsv32_fsv16 && (feature_size % 16 != 0 || batch_size % 32 != 0)) ||
+            (input_layout == DataLayout::bs_fs_yx_bsv32_fsv32 && (feature_size % 32 != 0 || batch_size % 32 != 0)))
             return false;
+    }
+
+    if ((ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 && ewParams.outputs[0].Feature().v % 16 != 0) ||
+        (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv32 && ewParams.outputs[0].Feature().v % 32 != 0) ||
+        (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 && ewParams.outputs[0].Feature().v % 16 != 0) ||
+        (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv4 && ewParams.outputs[0].Feature().v % 8 != 0) ||
+        (ewParams.outputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32 && ewParams.outputs[0].Feature().v % 32 != 0)||
+        (ewParams.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 &&
+            (ewParams.outputs[0].Feature().v % 16 != 0 || ewParams.outputs[0].Batch().v % 32 != 0)) ||
+        (ewParams.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 &&
+            (ewParams.outputs[0].Feature().v % 32 != 0 || ewParams.outputs[0].Batch().v % 32 != 0))) {
+        return false;
+    }
 
     const auto& output = ewParams.outputs[0];
     const auto count = output.PhysicalSize();
@@ -141,7 +143,7 @@ KernelsData EltwiseKernel_vload8::GetKernelsData(const Params& params, const opt
     return {kd};
 }
 
-KernelsPriority EltwiseKernel_vload8::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
-    return FORCE_PRIORITY_8;
+KernelsPriority EltwiseKernel_vload8::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_1;
 }
 }  // namespace kernel_selector

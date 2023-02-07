@@ -4289,3 +4289,38 @@ INSTANTIATE_TEST_SUITE_P(eltwise_smoke_bsv_fsv,
                             .simple_params(data_types::i8, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32)
                             .simple_params(data_types::u8, format::bs_fs_yx_bsv16_fsv32, format::bs_fs_yx_bsv16_fsv32)
                         ));
+
+struct eltwise_fs_b_yx_f32_random_test_generator : std::vector<eltwise_random_test_params> {
+    eltwise_fs_b_yx_f32_random_test_generator& add(eltwise_random_test_params params) {
+        push_back(params);
+        return *this;
+    }
+
+    eltwise_fs_b_yx_f32_random_test_generator& broadcast_params(data_types type, format::type input_format, format::type output_format) {
+        push_back(eltwise_random_test_params{ type, {1, 1, 48, 64},  {1, 10, 48, 64}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 16, 48, 64}, {1, 1, 48, 64},  input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 36, 4, 4},   {1, 1, 4, 4},    input_format, input_format, output_format, eltwise_mode::sum, false });
+        return *this;
+    }
+
+    eltwise_fs_b_yx_f32_random_test_generator& simple_params(data_types type, format::type input_format, format::type output_format) {
+        push_back(eltwise_random_test_params{ type, {1, 10, 5, 5},   {1, 10, 5, 5},   input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 5, 16, 16},  {1, 5, 16, 16},  input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 32, 16, 16}, {1, 32, 16, 16}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        return *this;
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(eltwise_smoke_fs_b_yx_fsv32,
+                        eltwise_random_test,
+                        testing::ValuesIn(
+                            eltwise_fs_b_yx_f32_random_test_generator()
+                            .broadcast_params(data_types::f32, format::fs_b_yx_fsv32, format::fs_b_yx_fsv32)
+                            .broadcast_params(data_types::f16, format::fs_b_yx_fsv32, format::fs_b_yx_fsv32)
+                            .broadcast_params(data_types::i8, format::fs_b_yx_fsv32, format::fs_b_yx_fsv32)
+                            .broadcast_params(data_types::u8, format::fs_b_yx_fsv32, format::fs_b_yx_fsv32)
+                            .simple_params(data_types::f32, format::fs_b_yx_fsv32, format::fs_b_yx_fsv32)
+                            .simple_params(data_types::f16, format::fs_b_yx_fsv32, format::fs_b_yx_fsv32)
+                            .simple_params(data_types::i8, format::fs_b_yx_fsv32, format::fs_b_yx_fsv32)
+                            .simple_params(data_types::u8, format::fs_b_yx_fsv32, format::fs_b_yx_fsv32)
+                        ));

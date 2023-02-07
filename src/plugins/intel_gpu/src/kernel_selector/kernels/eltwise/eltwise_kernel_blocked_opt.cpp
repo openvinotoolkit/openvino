@@ -31,6 +31,8 @@ ParamsKey EltwiseKernel_blocked_opt::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv32);
+    k.EnableInputLayout(DataLayout::fs_b_yx_fsv32);
+    k.EnableOutputLayout(DataLayout::fs_b_yx_fsv32);
     k.EnableInputLayout(DataLayout::b_fs_zyx_fsv32);
     k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv32);
     k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
@@ -347,6 +349,7 @@ static inline int GetFeatureBlockSizeFromFormat(const eltwise_params& arg, size_
         return 4;
     case DataLayout::b_fs_yx_fsv16:
     case DataLayout::b_fs_yx_fsv32:
+    case DataLayout::fs_b_yx_fsv32:
     case DataLayout::b_fs_zyx_fsv16:
     case DataLayout::b_fs_zyx_fsv32:
     case DataLayout::bs_fs_yx_bsv32_fsv32:
