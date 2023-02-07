@@ -100,7 +100,7 @@ class BroadcastTest(unittest.TestCase):
         if axes_mapping is not None:
             nodes.update(**valued_const_with_data('axes_mapping', int64_array(axes_mapping)))
             edges.append(('axes_mapping', 'axes_mapping_d'))
-            edges.append(('axes_mapping', 'broadcast'))
+            edges.append(('axes_mapping_d', 'broadcast'))
         graph = build_graph(nodes, edges)
 
         broadcast_node = Node(graph, 'broadcast')
