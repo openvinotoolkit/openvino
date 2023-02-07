@@ -202,6 +202,7 @@
    Tile-1 <openvino_docs_ops_movement_Tile_1>
    TopK-1 <openvino_docs_ops_sort_TopK_1>
    TopK-3 <openvino_docs_ops_sort_TopK_3>
+   TopK-4 <openvino_docs_ops_sort_TopK_4>
    Transpose-1 <openvino_docs_ops_movement_Transpose_1>
    Unique-10 <openvino_docs_ops_movement_Unique_10>
    Unsqueeze-1 <openvino_docs_ops_shape_Unsqueeze_1>
