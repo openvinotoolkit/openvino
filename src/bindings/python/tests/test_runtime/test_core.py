@@ -133,7 +133,7 @@ def test_read_model_from_onnx_as_path():
     assert isinstance(model, Model)
 
 
-def test_read_net_from_buffer():
+def test_read_model_from_buffer():
     core = Core()
     with open(test_net_bin, "rb") as f:
         weights = f.read()
@@ -143,7 +143,7 @@ def test_read_net_from_buffer():
     assert isinstance(model, Model)
 
 
-def test_net_from_buffer_valid():
+def test_model_from_buffer_valid():
     core = Core()
     with open(test_net_bin, "rb") as f:
         weights = f.read()

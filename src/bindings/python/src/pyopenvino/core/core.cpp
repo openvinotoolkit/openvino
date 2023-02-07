@@ -363,14 +363,14 @@ void regclass_Core(py::module m) {
 
             GIL is released while running this function.
 
-            :param model: A string with model in IR / ONNX / PDPD format.
-            :type model: str
+            :param model: A path to a model in IR / ONNX / PDPD format or a model itself wrapped in io.ByesIO format.
+            :type model: Union[pathlib.Path, io.BytesIO]
             :param weights: A path to a data file For IR format (*.bin): if path is empty,
                             it tries to read a bin file with the same name as xml and if the bin
                             file with the same name was not found, loads IR without weights.
                             For ONNX format (*.onnx): weights parameter is not used.
                             For PDPD format (*.pdmodel) weights parameter is not used.
-            :type weights: str
+            :type weights: pathlib.Path
             :return: A model.
             :rtype: openvino.runtime.Model
         )");
