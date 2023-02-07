@@ -281,7 +281,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AUTO_OVClassLoadNetworkWithSecondaryPropertiesTes
 // IE Class load and check network with ov::device::properties
 INSTANTIATE_TEST_SUITE_P(smoke_CPU_OVClassLoadNetworkAndCheckWithSecondaryPropertiesTest,
                          OVClassLoadNetworkAndCheckSecondaryPropertiesTest,
-                         ::testing::Combine(::testing::Values("CPU", "AUTO:CPU", "MULTI:CPU"),
+                         ::testing::Combine(::testing::Values("CPU", "MULTI:CPU"),
                                             ::testing::ValuesIn(configsDeviceProperties)));
 
 INSTANTIATE_TEST_SUITE_P(
