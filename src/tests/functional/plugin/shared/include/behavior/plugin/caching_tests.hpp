@@ -66,7 +66,6 @@ class LoadNetworkCompiledKernelsCacheTest : virtual public LayerTestsUtils::Laye
                                             public testing::WithParamInterface<compileKernelsCacheParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<compileKernelsCacheParams> obj);
-    using BehaviorTestsUtils::IEPluginTestBase::TearDown;
 protected:
     std::string test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
     std::string cache_path;
