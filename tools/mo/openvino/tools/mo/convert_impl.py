@@ -341,9 +341,6 @@ def update_fallback_with_conversion_error(use_new_frontend: bool, is_tf: bool, e
         "LoopCond", "Enter", "NextIteration", "Exit",
         # corresponds to TF1 If and TF1 While operations
         "Switch", "Merge",
-        # corresponds to TF2 While operations
-        "TensorListLength", "TensorListReserve", "TensorListFromTensor",
-        "TensorListSetItem", "TensorListStack",
         # corresponds to operations with complex tensors
         "FFT", "FFT2D", "FFT3D", "IFFT", "IFFT2D", "IFFT3D",
         "RFFT", "RFFT2D", "RFFT3D", "IRFFT", "IRFFT2D", "IRFFT3D",
@@ -941,7 +938,7 @@ def remove_tmp_onnx_model(out_dir):
 def _convert(cli_parser: argparse.ArgumentParser, framework, args):
     if 'help' in args and args['help']:
         show_mo_convert_help()
-        return None
+        return None, None
 
     telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=get_simplified_mo_version())
     telemetry.start_session('mo')
@@ -976,13 +973,17 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
                 args['onnx_opset_version'] = None
 
                 try:
-                    ov_model = _convert(cli_parser, framework, args)
+                    ov_model, argv = _convert(cli_parser, framework, args)
                 except Exception as e:
                     remove_tmp_onnx_model(out_dir)
                     raise e
 
                 remove_tmp_onnx_model(out_dir)
-                return ov_model
+                return ov_model, argv
+
+        # Initialize logger with 'ERROR' as default level to be able to form nice messages
+        # before arg parser deliver log_level requested by user
+        init_logger('ERROR', False)
 
         argv = pack_params_to_args_namespace(args, cli_parser)
 
@@ -1009,10 +1010,6 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
                         model_framework))
             else:
                 argv.framework = model_framework
-
-        # Initialize logger with 'ERROR' as default level to be able to form nice messages
-        # before arg parser deliver log_level requested by user
-        init_logger('ERROR', False)
 
         argv.feManager = FrontEndManager()
         ov_model, legacy_path = driver(argv, {"conversion_parameters": non_default_params})

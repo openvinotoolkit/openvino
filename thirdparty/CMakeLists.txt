@@ -2,6 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+# Android toolchain does not provide pkg-config file. So, cmake mistakenly uses
+# build system pkg-config executable, which finds packages on build system. Such
+# libraries cannot be linked into Android binaries.
+if(NOT ANDROID)
+    find_package(PkgConfig QUIET)
+endif()
+
 if(SUGGEST_OVERRIDE_SUPPORTED)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
 endif()
@@ -19,29 +26,104 @@ if(ENABLE_SAMPLES OR ENABLE_TESTS)
     add_subdirectory(cnpy EXCLUDE_FROM_ALL)
 endif()
 
-if(ENABLE_INTEL_GPU)
-    add_subdirectory(ocl)
-endif()
-
 add_subdirectory(xbyak EXCLUDE_FROM_ALL)
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS xbyak)
 ov_install_static_lib(xbyak ${OV_CPACK_COMP_CORE})
+
+#
+# OpenCL
+#
+
+if(ENABLE_INTEL_GPU)
+    if(ENABLE_SYSTEM_OPENCL)
+        # try to find system OpenCL (installed via 'brew install opencl-icd-loader')
+        find_package(OpenCLICDLoader QUIET)
+
+        if(OpenCLICDLoader_FOUND)
+            # 'brew install opencl-headers'
+            find_package(OpenCLHeaders QUIET)
+            if(NOT OpenCLHeaders_FOUND)
+                message(FATAL_ERROR "OpenCLHeaders not found, but OpenCLICDLoader is installed. Please, install OpenCL headers")
+            else()
+                set_target_properties(OpenCL::Headers PROPERTIES IMPORTED_GLOBAL ON)
+            endif()
+        else()
+            # try to find system OpenCL:
+            # - 'sudo -E apt-get install opencl-headers ocl-icd-opencl-dev'
+            # - 'sudo -E yum install ocl-icd-devel opencl-headers'
+            # - 'conda install khronos-opencl-icd-loader -c conda-forge'
+            find_package(OpenCL QUIET)
+        endif()
+    endif()
+
+    if(TARGET OpenCL::OpenCL)
+        set_target_properties(OpenCL::OpenCL PROPERTIES IMPORTED_GLOBAL ON)
+
+        # try to find CL/opencl.hpp
+        find_file(OpenCL_HPP
+                  NAMES CL/opencl.hpp OpenCL/opencl.hpp
+                  HINTS ${OpenCL_INCLUDE_DIRS}
+                  DOC "Path to CL/opencl.hpp")
+
+        # add definition to select proper header and suppress warnings
+        if(OpenCL_HPP)
+            set_target_properties(OpenCL::OpenCL PROPERTIES
+                INTERFACE_COMPILE_DEFINITIONS OV_GPU_USE_OPENCL_HPP)
+        endif()
+
+        # set variables for onednn_gpu
+        if(OpenCLHeaders_FOUND)
+            set(OpenCL_INCLUDE_DIR "$<TARGET_PROPERTY:OpenCL::Headers,INTERFACE_INCLUDE_DIRECTORIES>" PARENT_SCOPE)
+            set(OpenCL_LIBRARY "$<TARGET_PROPERTY:OpenCL::OpenCL,IMPORTED_LOCATION_RELEASE>" PARENT_SCOPE)
+        elseif(OpenCL_FOUND)
+            # find_package(OpenCL) already defines OpenCL_INCLUDE_DIR and OpenCL_LIBRARY
+            # see https://cmake.org/cmake/help/latest/module/FindOpenCL.html
+            message(STATUS "Found OpenCL (ver. ${OpenCL_VERSION_STRING}, include dirs ${OpenCL_INCLUDE_DIRS})")
+        else()
+            message(FATAL_ERROR "Internal error: cannot find OpenCL headers")
+        endif()
+    else()
+        add_subdirectory(ocl)
+
+        set(OpenCL_INCLUDE_DIR "${OpenCL_INCLUDE_DIR}" PARENT_SCOPE)
+        set(OpenCL_LIBRARY "${OpenCL_LIBRARY}" PARENT_SCOPE)
+    endif()
+
+    # cmake cannot set properties for imported targets
+    get_target_property(opencl_target OpenCL::OpenCL ALIASED_TARGET)
+    if(NOT TARGET ${opencl_target})
+        set(opencl_target OpenCL::OpenCL)
+    endif()
+
+    if(SUGGEST_OVERRIDE_SUPPORTED)
+        set_target_properties(${opencl_target} PROPERTIES INTERFACE_COMPILE_OPTIONS "-Wno-suggest-override")
+    endif()
+
+    # used in tests
+    add_library(opencl_new_headers INTERFACE)
+    add_library(OpenCL::NewHeaders ALIAS opencl_new_headers)
+    foreach(opencl_dir "${CMAKE_CURRENT_SOURCE_DIR}/ocl/clhpp_headers/include" "${CMAKE_CURRENT_SOURCE_DIR}/ocl/cl_headers")
+        if(EXISTS "${opencl_dir}")
+            set_property(TARGET opencl_new_headers APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+                $<BUILD_INTERFACE:${opencl_dir}>)
+            set_target_properties(opencl_new_headers PROPERTIES
+                INTERFACE_COMPILE_DEFINITIONS OV_GPU_USE_OPENCL_HPP)
+        endif()
+    endforeach()
+endif()
 
 #
 # zlib
 #
 
 if(ENABLE_SAMPLES OR ENABLE_TESTS)
-    if(NOT ANDROID)
-        find_package(PkgConfig QUIET)
-        if(PkgConfig_FOUND)
-            pkg_search_module(zlib QUIET
-                              IMPORTED_TARGET GLOBAL
-                              zlib)
-            if(zlib_FOUND)
-                add_library(zlib::zlib ALIAS PkgConfig::zlib)
-                message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
-            endif()
+    if(PkgConfig_FOUND)
+        pkg_search_module(zlib QUIET
+                          IMPORTED_TARGET GLOBAL
+                          zlib)
+        if(zlib_FOUND)
+            add_library(zlib::zlib ALIAS PkgConfig::zlib)
+            message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
         endif()
     endif()
 
@@ -55,7 +137,6 @@ endif()
 #
 
 if(ENABLE_SYSTEM_PUGIXML)
-    find_package(PkgConfig QUIET)
     # try system pugixml first
     find_package(PugiXML QUIET)
     if(PugiXML_FOUND)
@@ -79,7 +160,7 @@ if(ENABLE_SYSTEM_PUGIXML)
         endif()
         # to property generate OpenVINO Developer packages files
         set(PugiXML_FOUND ${PugiXML_FOUND} CACHE BOOL "" FORCE)
-    elseif(PkgConfig_FOUND AND NOT ANDROID)
+    elseif(PkgConfig_FOUND)
         # U18 case when cmake interface is not available
         pkg_search_module(pugixml QUIET
                           IMPORTED_TARGET GLOBAL
