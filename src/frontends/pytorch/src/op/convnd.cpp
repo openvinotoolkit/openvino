@@ -36,14 +36,13 @@ OutputVector translate_convnd(NodeContext& context) {
                                                       dilations,
                                                       pad_type);
     } else {
-        conv = std::make_shared<opset10::GroupConvolution>(
-            context.get_input(0),
-            reshape_kernel_for_group(context, context.get_input(0), context.get_input(1), groups),
-            strides,
-            pads,
-            pads,
-            dilations,
-            pad_type);
+        conv = std::make_shared<opset10::GroupConvolution>(context.get_input(0),
+                                                           reshape_kernel_for_group(context, context.get_input(1), groups),
+                                                           strides,
+                                                           pads,
+                                                           pads,
+                                                           dilations,
+                                                           pad_type);
     }
     if (!context.input_is_none(2)) {
         auto bias = context.get_input(2);
