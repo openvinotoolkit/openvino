@@ -99,51 +99,48 @@ struct conv_activation_onednn_test_params {
     size_t expected_not_fused_primitives;
 };
 
-template<class T_param>
-class ConvFusingTestBase : public BaseFusingTest<T_param> {
+class ConvFusingTest : public BaseFusingTest<convolution_test_params> {
 public:
-    void execute(T_param& p, int min=0, int max=0) {
-        if(this->engine.get_device_info().supports_immad)
+    void execute(convolution_test_params& p, int min=0, int max=0) {
+        if(engine.get_device_info().supports_immad)
             p.expected_fused_primitives = p.expected_fused_primitives_onednn;
         cldnn::memory::ptr input_prim;
         if (min == max) {
-            input_prim = this->get_mem(get_input_layout(p));
+            input_prim = get_mem(get_input_layout(p));
         } else {
-            input_prim = this->get_mem(get_input_layout(p), min, max);
+            input_prim = get_mem(get_input_layout(p), min, max);
         }
-        network network_not_fused(this->engine, this->topology_non_fused, this->cfg_not_fused);
-        network network_fused(this->engine, this->topology_fused, this->cfg_fused);
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
 
-        this->compare(network_not_fused, network_fused, p);
+        compare(network_not_fused, network_fused, p);
         auto find_conv = [](primitive_info& p) -> bool {
             if (p.original_id == "conv_prim")
                 return true;
             return false;
         };
-
         auto pi_fused = network_fused.get_primitives_info();
         auto info_fused = std::find_if(pi_fused.begin(), pi_fused.end(), find_conv);
         if (info_fused != pi_fused.end())
             std::cout << "kernel: " << info_fused->kernel_id << std::endl;
     }
 
-    layout get_input_layout(T_param& p) {
+    layout get_input_layout(convolution_test_params& p) {
         auto pad = p.pad;
         std::vector<int> pad_ = { 0, 0, static_cast<int>(pad[1]), static_cast<int>(pad[0]) };
         return layout{ p.data_type, p.input_format, p.in_shape, padding{ pad_ } };
     }
 
-    layout get_per_channel_layout(T_param& p) {
+    layout get_per_channel_layout(convolution_test_params& p) {
         return layout{ p.default_type, p.default_format, tensor{1, p.out_shape.feature[0], 1, 1} };
     }
 
-    layout get_prelu_slope_layout(T_param& p) {
+    layout get_prelu_slope_layout(convolution_test_params& p) {
         return layout{ p.default_type, p.input_format, tensor{1, p.out_shape.feature[0], p.out_shape.spatial[0], 1} };
     }
 };
-using ConvFusingTest=ConvFusingTestBase<convolution_test_params>;
 
 class ConvReorderFusingTest : public BaseFusingTest<convolution_test_params> {
 public:
@@ -302,6 +299,49 @@ public:
     }
 };
 #endif  // ENABLE_ONEDNN_FOR_GPU
+
+class ConvActivationTestOnednn : public BaseFusingTest<conv_activation_onednn_test_params> {
+public:
+    void execute(conv_activation_onednn_test_params& p, int min=0, int max=0) {
+        if(engine.get_device_info().supports_immad)
+            p.expected_fused_primitives = p.expected_fused_primitives_onednn;
+        cldnn::memory::ptr input_prim;
+        if (min == max) {
+            input_prim = get_mem(get_input_layout(p));
+        } else {
+            input_prim = get_mem(get_input_layout(p), min, max);
+        }
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
+        network_fused.set_input_data("input", input_prim);
+        network_not_fused.set_input_data("input", input_prim);
+
+        compare(network_not_fused, network_fused, p);
+        auto find_conv = [](primitive_info& p) -> bool {
+            if (p.original_id == "conv_prim")
+                return true;
+            return false;
+        };
+        auto pi_fused = network_fused.get_primitives_info();
+        auto info_fused = std::find_if(pi_fused.begin(), pi_fused.end(), find_conv);
+        if (info_fused != pi_fused.end())
+            std::cout << "kernel: " << info_fused->kernel_id << std::endl;
+    }
+
+    layout get_input_layout(conv_activation_onednn_test_params& p) {
+        auto pad = p.pad;
+        std::vector<int> pad_ = { 0, 0, static_cast<int>(pad[1]), static_cast<int>(pad[0]) };
+        return layout{ p.data_type, p.input_format, p.in_shape, padding{ pad_ } };
+    }
+
+    layout get_per_channel_layout(conv_activation_onednn_test_params& p) {
+        return layout{ p.default_type, p.default_format, tensor{1, p.out_shape.feature[0], 1, 1} };
+    }
+
+    layout get_prelu_slope_layout(conv_activation_onednn_test_params& p) {
+        return layout{ p.default_type, p.input_format, tensor{1, p.out_shape.feature[0], p.out_shape.spatial[0], 1} };
+    }
+};
 
 }  // namespace
 
@@ -2930,8 +2970,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp16_scale, ::testing::ValuesIn(std::
     bc_force_kernel_params{ CASE_CONV_FP16_15, 2, 3, "convolution_gpu_bfyx_f16_depthwise" },
 }));
 
-//
-class conv_activation_onednn : public ConvFusingTestBase<conv_activation_onednn_test_params> {};
+class conv_activation_onednn : public ConvActivationTestOnednn {};
 TEST_P(conv_activation_onednn, basic) {
     if (!engine.get_device_info().supports_immad)
         return;
