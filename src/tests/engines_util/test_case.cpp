@@ -86,8 +86,8 @@ std::pair<testing::AssertionResult, size_t> TestCase::compare_results(size_t tol
 
         if (exp_shape != res_shape) {
             res = testing::AssertionFailure();
-            res << "Computed data shape(" << res_shape << ") does not match the expected shape("
-                            << exp_shape << ") for output " << output_idx << std::endl;
+            res << "Computed data shape(" << res_shape << ") does not match the expected shape(" << exp_shape
+                << ") for output " << output_idx << std::endl;
             break;
         }
 
@@ -132,8 +132,7 @@ std::pair<testing::AssertionResult, size_t> TestCase::compare_results(size_t tol
             res = compare_values<char>(exp_result, result_tensor, tolerance_bits);
             break;
         default:
-            res = testing::AssertionFailure()
-                              << "Unsupported data type encountered in 'res' method";
+            res = testing::AssertionFailure() << "Unsupported data type encountered in 'res' method";
         }
         if (res == testing::AssertionFailure())
             break;
