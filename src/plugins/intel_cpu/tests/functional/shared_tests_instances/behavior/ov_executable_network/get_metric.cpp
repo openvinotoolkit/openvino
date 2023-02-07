@@ -140,5 +140,6 @@ const std::vector<ov::AnyMap> multiPerformanceHintConfigs = {
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassExecutableNetworkGetMetricTest,
                          OVClassExecutableNetworkGetMetricTest_PERFORMANCE_HINT,
                          ::testing::Combine(::testing::Values("AUTO:CPU"),
-                                            ::testing::ValuesIn(multiPerformanceHintConfigs)));
+                                            ::testing::ValuesIn(multiPerformanceHintConfigs)),
+                         OVClassExecutableNetworkGetMetricTest_PERFORMANCE_HINT::getTestCaseName);
 } // namespace

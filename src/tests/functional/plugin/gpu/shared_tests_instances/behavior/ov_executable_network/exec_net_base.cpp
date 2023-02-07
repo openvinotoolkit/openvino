@@ -20,10 +20,12 @@ auto autoBatchConfigs = []() {
          {CONFIG_KEY(AUTO_BATCH_TIMEOUT), "0 "}}};
 };
 
-const std::vector<ov::AnyMap> multiConfigs = {
-        {ov::device::priorities(CommonTestUtils::DEVICE_GPU)},
-        {ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU)},
-        {ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU)}
+const std::vector<ov::AnyMap> autoConfigs = {
+    {ov::device::priorities(CommonTestUtils::DEVICE_GPU)},
+#ifdef ENABLE_INTEL_CPU
+    {ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU)},
+    {ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU)},
+#endif
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVExecutableNetworkBaseTest,
@@ -41,6 +43,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatchBehaviorTests, OVExecutableNetworkBaseTe
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
                          OVAutoExecutableNetworkTest,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                            ::testing::ValuesIn(multiConfigs)),
+                                            ::testing::ValuesIn(autoConfigs)),
                          OVExecutableNetworkBaseTest::getTestCaseName);
 }  // namespace

@@ -128,7 +128,8 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
         if (validDevices.size() == 1) {
             // When the hint is ctput and there is only one device, the single-device logic is used instead of
             // the MULTI logic
-            _autoSContext->_performanceHint = IE::PluginConfigParams::THROUGHPUT;
+            //  can not change _autoSContext->_performanceHint to THROUGHPUT, because GetMetric needs to return CTPUT
+            _autoSContext->_isCTPUTSingleDev = true;
             _loadContext[ACTUALDEVICE].deviceInfo = validDevices.front();
             _loadContext[ACTUALDEVICE].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] =
                 IE::PluginConfigParams::THROUGHPUT;
@@ -532,7 +533,7 @@ IInferPtr AutoSchedule::CreateInferRequest() {
         syncRequestImpl = CreateInferRequestImpl(execNetwork->_networkInputs, execNetwork->_networkOutputs);
     syncRequestImpl->setPointerToExecutableNetworkInternal(execNetwork);
     bool isCumulative = (_autoSContext->_performanceHint == IE::PluginConfigParams::CUMULATIVE_THROUGHPUT) ? true : false;
-    if (_passthroughExeNet && !isCumulative) {
+    if ((_passthroughExeNet && !isCumulative) || _autoSContext->_isCTPUTSingleDev) {
         std::string perfmode;
         try {
             perfmode = _passthroughExeNet->GetConfig(
