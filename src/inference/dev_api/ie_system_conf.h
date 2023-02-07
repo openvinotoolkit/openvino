@@ -192,6 +192,13 @@ typedef enum {
     CPU_MAP_TABLE_SIZE = 6
 } column_of_cpu_mapping_table;
 
+typedef enum {
+    NUMBER_OF_STREAMS = 0,   //!< All processors, regardless of backend cpu
+    PROC_TYPE = 1,           //!< Processor based on physical core of Intel Performance-cores
+    THREADS_PER_STREAM = 2,  //!< Processor based on logical core of Intel Performance-cores
+    CPU_STREAMS_TABLE_SIZE = 3
+} cpu_streams_table;
+
 #ifdef __linux__
 /**
  * @brief      Parse processors infomation on Linux

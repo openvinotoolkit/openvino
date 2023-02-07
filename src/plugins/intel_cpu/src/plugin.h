@@ -37,6 +37,11 @@ public:
     InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel,
                                                      const std::map<std::string, std::string>& config) override;
 
+    std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
+                                                         const int input_threads,
+                                                         const int model_prefer_threads,
+                                                         const std::vector<std::vector<int>> proc_type_table) const;
+
 private:
     bool isLegacyAPI() const;
 
