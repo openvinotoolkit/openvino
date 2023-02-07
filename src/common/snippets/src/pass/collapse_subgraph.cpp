@@ -647,8 +647,6 @@ TokenizeSnippets::TokenizeSnippets() {
                     << " inputs and " << subgraph->outputs().size()
                     << " outputs and " << subgraph->body_ptr()->get_ops().size() << " ops total\n";
 
-        // std::cout << "TokenizeSnippets:true" << std::endl;
-
         return true;
     };
     auto matcher = std::make_shared<ov::pass::pattern::Matcher>(label, matcher_name);
