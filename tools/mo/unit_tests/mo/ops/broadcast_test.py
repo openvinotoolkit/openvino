@@ -83,7 +83,7 @@ class BroadcastTest(unittest.TestCase):
         ([1], [3], None, 'bidirectional', undefined_shape_of_rank(3)),
         ([1, 7], [4], [1, 2], 'explicit', undefined_shape_of_rank(4)),
         ([1, 2], [3], None, 'numpy', undefined_shape_of_rank(3)),
-        ([1, 1], [2], None, 'bidirectional', undefined_shape_of_rank(3)),
+        ([1, 1], [2], None, 'bidirectional', undefined_shape_of_rank(2)),
         ([1, 1], [2, 1], None, 'numpy', None, True),
     ])
     def test_broadcast_dynamic(self, data, target_shape_shape, axes_mapping=None, mode='numpy', ref_out_shape=None, test_raising=False):
