@@ -141,6 +141,9 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
     jitters[ngraph::snippets::op::LoopBegin::get_type_info_static()] = CREATE_EMITTER(LoopBeginEmitter);
     jitters[ngraph::snippets::op::LoopEnd::get_type_info_static()] = CREATE_EMITTER(LoopEndEmitter);
     jitters[ov::intel_cpu::BrgemmCPU::get_type_info_static()] = CREATE_EMITTER(BrgemmEmitter);
+    jitters[ov::intel_cpu::BrgemmIndependentCPU::get_type_info_static()] = CREATE_EMITTER(BrgemmEmitter);
+    jitters[ov::intel_cpu::BrgemmWithCompensationsCPU::get_type_info_static()] = CREATE_EMITTER(BrgemmWithScratchEmitter);
+    jitters[ov::intel_cpu::BrgemmAMXCPU::get_type_info_static()] = CREATE_EMITTER(BrgemmWithScratchEmitter);
     jitters[ov::intel_cpu::BrgemmCopyB::get_type_info_static()] = CREATE_EMITTER(BrgemmCopyBEmitter);
 }
 
@@ -165,8 +168,7 @@ code ov::intel_cpu::CPUTargetMachine::get_snippet() const {
 }
 
 ngraph::snippets::TargetMachine::opRegType ov::intel_cpu::CPUTargetMachine::get_specific_op_reg_type(const std::shared_ptr<ov::Node>& op) const {
-    if (std::dynamic_pointer_cast<ov::intel_cpu::BrgemmCPU>(op) ||
-        std::dynamic_pointer_cast<ov::intel_cpu::BrgemmCopyB>(op))
+    if (std::dynamic_pointer_cast<ov::intel_cpu::BrgemmCopyB>(op))
         return gpr2gpr;
     else
         return vec2vec;

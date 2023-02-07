@@ -57,6 +57,9 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         NGRAPH_OP(StoreConvertSaturation, ov::intel_cpu)
         NGRAPH_OP(StoreConvertTruncation, ov::intel_cpu)
         NGRAPH_OP(BrgemmCPU, ov::intel_cpu)
+        NGRAPH_OP(BrgemmIndependentCPU, ov::intel_cpu)
+        NGRAPH_OP(BrgemmWithCompensationsCPU, ov::intel_cpu)
+        NGRAPH_OP(BrgemmAMXCPU, ov::intel_cpu)
         NGRAPH_OP(BrgemmCopyB, ov::intel_cpu)
 #undef NGRAPH_OP
 

@@ -317,17 +317,14 @@ private:
     std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
 };
 
-class BrgemmEmitter : public jit_emitter {
-public:
-    BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
+// Base class for Brgemm emitters with common interface
+class BrgemmBaseEmitter : public jit_emitter {
+protected:
+    BrgemmBaseEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
 
-    size_t get_inputs_num() const override {return 2;}
-
-private:
     void emit_impl(const std::vector<size_t>& in,
                    const std::vector<size_t>& out) const override;
 
-    std::vector<size_t> io_data_size {};
     struct brgemmCtx {
         size_t M, N, K, LDA, LDB, LDC;
         dnnl_data_type_t dt_in0, dt_in1;
@@ -336,16 +333,19 @@ private:
         bool is_with_comp;
         float beta;
     };
-    void initBrgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel, bool use_amx) const;
-    void callBrgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel,
-                    const void* pin0, const void* pin1, void* pout, void* wsp) const;
-    size_t getBrgIdx(size_t mIdx, size_t kIdx, size_t nIdx) const;
 
-    void emit_brgemm_kernel_call(const dnnl::impl::cpu::x64::brgemm_kernel_t *brg_kernel, const brgemmCtx& ctx,
-                                 Xbyak::Reg64 addr_A, Xbyak::Reg64 addr_B, Xbyak::Reg64 scratch, Xbyak::Reg64 addr_C,
-                                 const size_t in0_kernel_offset, const size_t in1_kernel_offset,
-                                 const size_t in2_kernel_offset, const size_t out0_kernel_offset) const;
-    static void kernel_execute(const dnnl::impl::cpu::x64::brgemm_kernel_t *brg_kernel, const void *A, const void *B, void *C, void *scratch, int with_comp);
+    size_t get_brg_idx(size_t mIdx, size_t kIdx, size_t nIdx) const;
+    OutputVector get_io_values(const std::shared_ptr<ov::Node>& n) const;
+    void init_brgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel, bool use_amx) const;
+    virtual std::vector<size_t> init_kernel_offsets(size_t mb, size_t M_blk, size_t LDA, size_t LDC,
+                                                    size_t k, size_t K0_step0, size_t K0_step1,
+                                                    size_t n, size_t N0_step0, size_t N0_step1) const = 0;
+
+    void emit_brgemm_kernel_call(const brgemm_kernel_t *brg_kernel, const brgemmCtx& ctx,
+                                 const std::vector<Reg64>& regs, const std::vector<size_t>& offsets) const;
+    virtual void kernel_preparation(const brgemmCtx& ctx) const {}
+    virtual void kernel_call(const brgemm_kernel_t *brg_kernel, const std::vector<Reg64>& regs, const std::vector<size_t>& offsets) const = 0;
+    static void kernel_execute(const brgemm_kernel_t *brg_kernel, const void *A, const void *B, void *C, void *scratch, int with_comp);
 
     static constexpr size_t BRGEMM_KERNELS_NUM = 8;
     static constexpr size_t matmulOptimalM = 32;
@@ -357,14 +357,44 @@ private:
     size_t N, N_blk, N_tail;
     size_t brg0VnniFactor;
 
-    bool with_scratch = false;
-    bool with_comp = false;
+    std::vector<size_t> io_data_size {};
 
     size_t load_offset_a = 0lu;
     size_t load_offset_b = 0lu;
-    size_t load_offset_scratch = 0lu;
     size_t store_offset_c = 0lu;
+
+    bool is_amx = false;
+    bool with_comp = false;
 };
+
+class BrgemmEmitter : public BrgemmBaseEmitter {
+public:
+    BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
+
+    size_t get_inputs_num() const override {return 2;}
+protected:
+    std::vector<size_t> init_kernel_offsets(size_t mb, size_t M_blk, size_t LDA, size_t LDC,
+                                            size_t k, size_t K0_step0, size_t K0_step1,
+                                            size_t n, size_t N0_step0, size_t N0_step1) const override;
+    void kernel_call(const brgemm_kernel_t *brg_kernel, const std::vector<Reg64>& regs, const std::vector<size_t>& offsets) const override;
+};
+
+class BrgemmWithScratchEmitter : public BrgemmBaseEmitter {
+public:
+    BrgemmWithScratchEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
+
+    size_t get_inputs_num() const override {return 3;}
+protected:
+    std::vector<size_t> init_kernel_offsets(size_t mb, size_t M_blk, size_t LDA, size_t LDC,
+                                            size_t k, size_t K0_step0, size_t K0_step1,
+                                            size_t n, size_t N0_step0, size_t N0_step1) const override;
+    void kernel_preparation(const brgemmCtx& ctx) const override;
+    void kernel_call(const brgemm_kernel_t *brg_kernel, const std::vector<Reg64>& regs, const std::vector<size_t>& offsets) const override;
+
+private:
+    size_t load_offset_scratch = 0;
+};
+
 
 class BrgemmCopyBEmitter : public jit_emitter {
 public:
