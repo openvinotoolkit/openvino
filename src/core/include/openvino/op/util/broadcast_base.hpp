@@ -63,10 +63,8 @@ protected:
 
     bool evaluate_broadcast(const HostTensorPtr& arg0, const HostTensorPtr& out, const AxisSet& broadcast_axes) const;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate_lower(const HostTensorVector& outputs) const override;
-    bool evaluate_upper(const HostTensorVector& outputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate_lower(TensorVector& outputs) const override;
+    bool evaluate_upper(TensorVector& outputs) const override;
 
     PartialShape get_result_shape_pdpd(const PartialShape& arg0_shape,
                                        const PartialShape& target_shape,

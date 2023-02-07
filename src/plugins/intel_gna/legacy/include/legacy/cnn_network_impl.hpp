@@ -4,6 +4,10 @@
 
 #pragma once
 
+#include <cpp/ie_cnn_network.h>
+#include <legacy/ie_layers.h>
+
+#include <ie_icnn_network.hpp>
 #include <map>
 #include <memory>
 #include <string>
@@ -14,10 +18,6 @@
 #include "ie_common.h"
 #include "ie_data.h"
 #include "ie_input_info.hpp"
-#include <ie_icnn_network.hpp>
-#include <cpp/ie_cnn_network.h>
-
-#include <legacy/ie_layers.h>
 
 namespace InferenceEngine {
 
@@ -28,7 +28,7 @@ IE_SUPPRESS_DEPRECATED_START
 class CNNNetworkImpl final : public ICNNNetwork {
 public:
     CNNNetworkImpl();
-    explicit CNNNetworkImpl(const CNNNetwork & ngraphImpl);
+    explicit CNNNetworkImpl(const CNNNetwork& ngraphImpl);
     ~CNNNetworkImpl();
 
     std::shared_ptr<::ngraph::Function> getFunction() noexcept override {
@@ -122,11 +122,9 @@ public:
     StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
         noexcept override;
 
-    StatusCode serialize(std::ostream& xmlBuf, std::ostream& binBuf, ResponseDesc* resp) const
-        noexcept override;
+    StatusCode serialize(std::ostream& xmlBuf, std::ostream& binBuf, ResponseDesc* resp) const noexcept override;
 
-    StatusCode serialize(std::ostream& xmlBuf, Blob::Ptr& binBlob, ResponseDesc* resp) const
-        noexcept override;
+    StatusCode serialize(std::ostream& xmlBuf, Blob::Ptr& binBlob, ResponseDesc* resp) const noexcept override;
 
 protected:
     std::map<std::string, DataPtr> _data;

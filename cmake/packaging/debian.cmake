@@ -90,8 +90,9 @@ macro(ov_cpack_settings)
         # 2022 release series
         # - 2022.1.0 is the last public release with debian packages from Intel install team
         # - 2022.1.1, 2022.2 do not have debian packages enabled, distributed only as archives
-        # - 2022.3 is the first release where Debian updated packages are introduced
-        2022.3.0)
+        # - 2022.3 is the first release where Debian updated packages are introduced, others 2022.3.X are LTS
+        2022.3.0 2022.3.1 2022.3.2 2022.3.3 2022.3.4 2022.3.5
+        )
 
     #
     # core: base dependency for each component
@@ -274,6 +275,19 @@ macro(ov_cpack_settings)
         set(pytorch_copyright "generic")
     endif()
 
+    if(ENABLE_OV_TF_LITE_FRONTEND)
+        set(CPACK_COMPONENT_TENSORFLOW_LITE_DESCRIPTION "OpenVINO TensorFlow Lite Frontend")
+        set(CPACK_COMPONENT_TENSORFLOW_LITE_DEPENDS "${OV_CPACK_COMP_CORE}")
+        set(CPACK_DEBIAN_TENSORFLOW_LITE_PACKAGE_NAME "libopenvino-tensorflow-lite-frontend-${cpack_name_ver}")
+        # since we TF Lite FE is linkable target, we need to call ldconfig (i.e. `def_triggers`)
+        set(CPACK_DEBIAN_TENSORFLOW_LITE_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
+        ov_debian_add_lintian_suppression(tensorflow_lite
+            # we have different package name strategy; it suggests libopenvino-tensorflow-lite-frontend202230
+            "package-name-doesnt-match-sonames")
+        list(APPEND frontends tensorflow_lite)
+        set(tensorflow_lite_copyright "generic")
+    endif()
+
     #
     # core_dev: depends on core and frontends (since frontends don't want to provide its own dev packages)
     #
@@ -321,6 +335,7 @@ macro(ov_cpack_settings)
 
     set(samples_build_deps "cmake, g++, gcc, libc6-dev, make, pkg-config")
     set(samples_build_deps_suggest "libopencv-core-dev, libopencv-imgproc-dev, libopencv-imgcodecs-dev")
+    set(samples_opencl_suggest "ocl-icd-opencl-dev, opencl-headers")
     if(OV_GLIBC_VERSION VERSION_LESS_EQUAL 2.27)
         # Ubuntu 18.04, Debian 9 cases
         set(json_library "nlohmann-json-dev")
@@ -332,11 +347,12 @@ macro(ov_cpack_settings)
     set(CPACK_COMPONENT_SAMPLES_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit C / C++ Samples")
     set(CPACK_COMPONENT_SAMPLES_DEPENDS "${OV_CPACK_COMP_CORE_DEV}")
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_NAME "openvino-samples-${cpack_name_ver}")
-    set(CPACK_DEBIAN_SAMPLES_PACKAGE_SUGGESTS "${samples_build_deps_suggest}, ${all_plugins_suggest}")
+    set(CPACK_DEBIAN_SAMPLES_PACKAGE_SUGGESTS "${samples_build_deps_suggest}, ${samples_opencl_suggest}, ${all_plugins_suggest}")
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_DEPENDS "libgflags-dev, zlib1g-dev, ${json_library}")
     # can be skipped with --no-install-recommends
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_RECOMMENDS "${samples_build_deps}")
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_ARCHITECTURE "all")
+    ov_debian_generate_conflicts(${OV_CPACK_COMP_CPP_SAMPLES} ${conflicting_versions})
     set(samples_copyright "generic")
 
     # python_samples

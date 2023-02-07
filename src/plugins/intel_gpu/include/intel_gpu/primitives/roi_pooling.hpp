@@ -80,6 +80,22 @@ struct roi_pooling : public primitive_base<roi_pooling> {
     int group_size;
     int spatial_bins_x;
     int spatial_bins_y;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, mode);
+        seed = hash_combine(seed, position_sensitive);
+        seed = hash_combine(seed, pooled_width);
+        seed = hash_combine(seed, pooled_height);
+        seed = hash_combine(seed, spatial_scale);
+        seed = hash_combine(seed, trans_std);
+        seed = hash_combine(seed, no_trans);
+        seed = hash_combine(seed, part_size);
+        seed = hash_combine(seed, group_size);
+        seed = hash_combine(seed, spatial_bins_x);
+        seed = hash_combine(seed, spatial_bins_y);
+        return seed;
+    }
 };
 
 }  // namespace cldnn

@@ -17,7 +17,12 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
 #include "ov_ops/type_relaxed.hpp"
+#include "transformations/common_optimizations/align_mixed_fp32_fp16_types.hpp"
+#include "transformations/common_optimizations/mark_subgraphs_to_keep_in_mixed_precision.hpp"
+#include "transformations/enable_decompression_convert_constant_folding.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 
 using namespace ov;
@@ -118,6 +123,7 @@ bool convert_precision(ov::pass::PassBase& pass,
                        const type_to_fuse_map& type_to_fuse,
                        const type_to_fuse_map& type_to_extend,
                        const precisions_map& precisions,
+                       bool has_fp16_compression,
                        bool skip_precision_sensitive = false) {
     // As Constant operations can be shared between multiple nGraph Functions so before
     // changing precision we need to understand which Constant consumers belongs
@@ -197,7 +203,7 @@ bool convert_precision(ov::pass::PassBase& pass,
             // If output type mismatch given type we try to fuse type into this operation
             // otherwise we insert Convert operation.
             for (auto& node : ops) {
-                if (skip_precision_sensitive && fp16_compression_is_disabled(node))
+                if (skip_precision_sensitive && fp16_compression_is_disabled(node) && has_fp16_compression)
                     continue;
                 is_changed |= convert_node_input_precision(node, precisions);
             }
@@ -211,7 +217,7 @@ bool convert_precision(ov::pass::PassBase& pass,
 
             for (auto& node : ops) {
                 // skip precision sensitive nodes
-                if (skip_precision_sensitive && fp16_compression_is_disabled(node))
+                if (skip_precision_sensitive && fp16_compression_is_disabled(node) && has_fp16_compression)
                     continue;
                 // Recursively apply transformation for sub-graph based operations
                 if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(node)) {
@@ -235,6 +241,8 @@ bool convert_precision(ov::pass::PassBase& pass,
                 // Convert elimination here
                 for (auto& node : ops) {
                     if (auto convert = std::dynamic_pointer_cast<opset4::Convert>(node)) {
+                        if (pass::constant_folding_is_disabled(node))
+                            continue;
                         // WA for topK, dont remove fake convert
                         if (convert->input(0).get_element_type() == convert->get_convert_element_type() &&
                             convert->input_value(0).get_node_shared_ptr()->get_output_size() == 1) {
@@ -275,6 +283,27 @@ precisions_set_t find_all_used_precisions(const std::shared_ptr<ngraph::Function
 }  // namespace
 
 bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+    const auto used_precisions_set = find_all_used_precisions(f);
+    precisions_map used_precisions;
+    for (const auto& p : used_precisions_set) {
+        auto it = m_precisions.find(p);
+        if (it != m_precisions.end())
+            used_precisions.insert(*it);
+    }
+
+    if (used_precisions.empty())
+        return false;
+
+    bool has_fp16_compression = m_precisions.count(element::f32) > 0 && m_precisions[element::f32] == element::f16;
+
+    if (m_keep_precision_sensitive_in_fp32 && has_fp16_compression) {
+        pass::Manager manager(get_pass_config());
+        // Mark subgraphs with disable_fp16_compression to keep them in FP32
+        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+        manager.register_pass<pass::AlignMixedFP32FP16Types>();
+        manager.run_passes(f);
+    }
+
     type_to_fuse_map type_to_fuse{
         {opset4::Parameter::get_type_info_static(), fuse_type_to_parameter},
         {opset4::Convert::get_type_info_static(), fuse_type_to_convert},
@@ -321,16 +350,16 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::Func
         {opset1::Reverse::get_type_info_static(), extend_reverse_type},
     };
 
-    const auto used_precisions_set = find_all_used_precisions(f);
-    precisions_map used_precisions;
-    for (const auto& p : used_precisions_set) {
-        auto it = m_precisions.find(p);
-        if (it != m_precisions.end())
-            used_precisions.insert(*it);
+    bool is_changed =
+        convert_precision(*this, f, type_to_fuse, type_to_extend, used_precisions, has_fp16_compression, m_keep_precision_sensitive_in_fp32);
+
+    // to remove extra converts
+    if (m_keep_precision_sensitive_in_fp32) {
+        pass::Manager manager(get_pass_config());
+        manager.register_pass<pass::EnableDecompressionConvertConstantFolding>();
+        manager.register_pass<pass::ConstantFolding>();
     }
 
-    bool is_changed =
-        convert_precision(*this, f, type_to_fuse, type_to_extend, used_precisions, m_keep_precision_sensitive_in_fp32);
     (void)is_changed;  // ignored
 
     // Returning value is false because pass::Manager always apply Validation pass

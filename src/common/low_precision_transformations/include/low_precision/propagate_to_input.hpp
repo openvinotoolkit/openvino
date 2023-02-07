@@ -96,7 +96,7 @@ public:
                             res_attr = parentAttribute;
                         } else {
                             std::vector<ov::Any> toMerge = {parentAttribute};
-                            res_attr.template as<AttributeType>().merge(toMerge);
+                            res_attr.template as<AttributeType>().merge_attributes(toMerge);
 
                             auto& attributes =
                                 parentAttribute.template as<AttributeType>().attribute->sharedValue->getAttributes();
