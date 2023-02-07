@@ -931,12 +931,12 @@ void program_node::init_onednn_primitive_attributes() {
                 update_onednn_post_op_list(onednn_post_op_type::binary_relu, dep_idx);
             } else if (fused_desc->activation_function == cldnn::activation_func::hard_sigmoid) {
                 post_ops.append_eltwise(dnnl::algorithm::eltwise_hardsigmoid, fused_desc->additional_params.a, fused_desc->additional_params.b);
-                update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
+                update_onednn_post_op_list(onednn_post_op_type::eltwise_hardsigmoid, empty_mem);
             } else if (fused_desc->activation_function == cldnn::activation_func::hsigmoid) {
                 // hard_sigmoid(x,a,b) = clamp(ax+b, 0, 1)
                 // hsigmoid(x) = clamp(val+3, 0, 6) / 6 = clamp(val/6+0.5, 0, 1) = hard_sigmoid(val, 1/6, 1/2)
                 post_ops.append_eltwise(dnnl::algorithm::eltwise_hardsigmoid, 1./6, 1./2);
-                update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
+                update_onednn_post_op_list(onednn_post_op_type::eltwise_hardsigmoid, empty_mem);
             } else if (fused_desc->activation_function == cldnn::activation_func::negative) {
                 post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, -1, 0);
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);

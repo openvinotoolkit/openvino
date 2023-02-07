@@ -50,6 +50,7 @@ enum class onednn_post_op_type : uint32_t {
     eltwise_clip,
     eltwise_linear,
     eltwise_round,
+    eltwise_hardsigmoid,
     binary_mul,
     binary_add,
     binary_sub,
