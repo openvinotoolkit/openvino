@@ -2638,6 +2638,20 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_top_k_repeating_axis_0) {
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_top_k_repeating_unsorted) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/top_k_repeating_unsorted.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<int32_t>(Shape{3, 6}, {100, 1, 1, 2, 0, 2, 1, 2, 3, 4, 5, 6, 7, 1, 2, 0, 2, 1});
+    test_case.add_input<int64_t>({3});
+
+    test_case.add_expected_output<int32_t>(Shape{3, 3}, {1, 1, 0, 3, 2, 1, 1, 1, 0});
+    test_case.add_expected_output<int64_t>(Shape{3, 3}, {2, 1, 4, 2, 1, 0, 5, 1, 3});
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_acosh) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/acosh.onnx"));
