@@ -108,7 +108,7 @@ TEST(FrontEndManagerTest, testFEMDestroy_OVModelHolder_Clone) {
         EXPECT_EQ(model->get_friendly_name(), "mock1_model");
         EXPECT_TRUE(model->get_rt_info().count("mock_test"));
         EXPECT_EQ(model->get_rt_info()["mock_test"].as<std::string>(), std::string(1024, 't'));
-        model_clone = ov::clone_model(*model);
+        model_clone = model->clone();
     }
     EXPECT_EQ(model_clone->get_rt_info()["mock_test"].as<std::string>(), std::string(1024, 't'));
     EXPECT_EQ(model_clone->get_friendly_name(), "mock1_model");

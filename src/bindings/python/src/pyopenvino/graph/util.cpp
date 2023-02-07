@@ -40,7 +40,7 @@ void regmodule_graph_util(py::module m) {
     mod.def(
         "clone_model",
         [](ov::Model& model) {
-            return ov::clone_model(model);
+            return model.clone();
         },
         py::arg("model"),
         R"(

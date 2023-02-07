@@ -115,6 +115,8 @@ public:
         return m_rt_info;
     }
 
+    void clone_from(const Tensor& old);
+
 protected:
     element::Type m_element_type;
 
