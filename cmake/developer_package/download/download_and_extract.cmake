@@ -175,6 +175,7 @@ function (CheckOrDownloadAndExtract component RELATIVE_URL archive_name unpacked
     set(URL "https://download.01.org/opencv/master/openvinotoolkit/${RELATIVE_URL}")
   endif()
 
+
   #no message on recursive calls
   if (${use_alternatives})
     set(DEP_INFO "${component}=${URL}")
