@@ -55,11 +55,8 @@ bool op::v0::Tile::evaluate_tile(const HostTensorVector& outputs, const HostTens
     auto repeats_val = read_index_vector(axis);
     const auto repeats_rank = repeats_val.size();
 
-    auto axis_tensor = Tensor(axis->get_element_type(), axis->get_shape(), axis->get_data_ptr());
-    auto const_map = std::map<size_t, std::reference_wrapper<const Tensor>>{{1, axis_tensor}};
-
     const auto input_shapes = std::vector<ov::PartialShape>{data->get_shape(), axis->get_shape()};
-    const auto& output_shape = shape_infer(this, input_shapes, const_map).front().to_shape();
+    const auto& output_shape = shape_infer(this, input_shapes, make_tensor_accessor(inputs)).front().to_shape();
     if (!output->get_is_allocated()) {
         output->set_shape(output_shape);
     }
@@ -84,8 +81,7 @@ bool op::v0::Tile::evaluate(ov::TensorVector& output_values, const ov::TensorVec
 
     std::vector<ov::PartialShape> input_shapes = {data.get_shape(), axis.get_shape()};
 
-    auto const_map = std::map<size_t, std::reference_wrapper<const Tensor>>{{1, axis}};
-    const auto& output_shape = shape_infer(this, input_shapes, const_map).front().to_shape();
+    const auto& output_shape = shape_infer(this, input_shapes, make_tensor_accessor(input_values)).front().to_shape();
     output.set_shape(output_shape);
     repeats_val.insert(repeats_val.begin(), output_shape.size() - repeats_rank, 1);
     ngraph::runtime::reference::tile(static_cast<const char*>(data.data()),

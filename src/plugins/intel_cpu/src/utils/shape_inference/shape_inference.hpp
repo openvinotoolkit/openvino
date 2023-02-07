@@ -9,6 +9,7 @@
 #include <openvino/core/node.hpp>
 
 #include "static_shape.hpp"
+#include "tensor_accessor.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -32,9 +33,8 @@ public:
 
 class IStaticShapeInfer : public IShapeInferCommon {
 public:
-    virtual std::vector<StaticShape> infer(
-        const std::vector<StaticShape>& input_shapes,
-        const std::map<size_t, std::reference_wrapper<const Tensor>>& constant_data) = 0;
+    virtual std::vector<StaticShape> infer(const std::vector<StaticShape>& input_shapes,
+                                           get_tensor_func_t get_tensor) = 0;
 };
 
 template <class TShapeInferIface = IShapeInferCommon>

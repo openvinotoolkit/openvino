@@ -398,21 +398,12 @@ public:
     std::vector<StaticShape> infer(const std::vector<StaticShape>& input_shapes,
                                    const std::map<size_t, HostTensorPtr>& constant_data) override {
         // For backward compatibility, create ov tensors and run shape inference.
-        TensorVector tensors;
-        tensors.reserve(constant_data.size());
-
-        std::map<size_t, std::reference_wrapper<const Tensor>> const_tensor_map;
-        for (const auto& c : constant_data) {
-            tensors.emplace_back(c.second->get_element_type(), c.second->get_shape(), c.second->get_data_ptr());
-            const_tensor_map.emplace(c.first, tensors.back());
-        }
-        return infer(input_shapes, const_tensor_map);
+        return infer(input_shapes, make_tensor_accessor(constant_data));
     }
 
-    std::vector<StaticShape> infer(
-        const std::vector<StaticShape>& input_shapes,
-        const std::map<size_t, std::reference_wrapper<const Tensor>>& constant_data) override {
-        return shape_infer(static_cast<TOp*>(m_node.get()), input_shapes, constant_data);
+    std::vector<StaticShape> infer(const std::vector<StaticShape>& input_shapes,
+                                   get_tensor_func_t get_tensor) override {
+        return shape_infer(static_cast<TOp*>(m_node.get()), input_shapes, std::move(get_tensor));
     }
 
     const ov::CoordinateDiff& get_pads_begin() override {

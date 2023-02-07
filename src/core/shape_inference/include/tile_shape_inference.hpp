@@ -14,7 +14,7 @@ namespace v0 {
 template <class T>
 std::vector<T> shape_infer(const Tile* op,
                            const std::vector<T>& input_shapes,
-                           const std::map<size_t, std::reference_wrapper<const ov::Tensor>>& constant_data = {}) {
+                           get_tensor_func_t get_tensor = null_tensor_accessor) {
     using TDim = typename T::value_type;
     using TDimValue = typename TDim::value_type;
 
@@ -31,7 +31,7 @@ std::vector<T> shape_infer(const Tile* op,
         return std::max<TDimValue>(0, ov::util::InTypeRange<TDimValue>()(v));
     };
 
-    auto repeats = get_input_const_data_as_shape<T>(op, 1, constant_data, negative_repeats_to_zero);
+    auto repeats = get_input_const_data_as_shape<T>(op, 1, get_tensor, negative_repeats_to_zero);
 
     const auto& arg_rank = arg_shape.rank();
     if (arg_rank.is_static() && repeats) {

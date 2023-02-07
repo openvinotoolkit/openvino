@@ -56,14 +56,22 @@ std::vector<layout> tile_inst::calc_output_layouts(tile_node const& /*node*/, co
         auto repeats_mem = constant_mem.at(1);
         cldnn::mem_lock<uint8_t, mem_lock_type::read> repeats_lock(repeats_mem, impl_param.prog->get_stream());
         const auto& layout = repeats_mem->get_layout();
-        const auto repeats_tensor =
-            ov::Tensor(data_type_to_element_type(layout.data_type), layout.get_shape(), repeats_lock.data());
-        output_shapes = ov::op::v0::shape_infer(&op, input_shapes, {{1, repeats_tensor}});
+        output_shapes = ov::op::v0::shape_infer(&op, input_shapes, [&repeats_lock, &layout](size_t i) -> ov::Tensor {
+            if (i == 1) {
+                return {data_type_to_element_type(layout.data_type), layout.get_shape(), repeats_lock.data()};
+            } else {
+                return {};
+            }
+        });
     } else {
         auto repeats_data = desc->repeats;
-        const auto repeats_tensor =
-            ov::Tensor(data_type_to_element_type(data_types::i64), repeats_shape.to_shape(), repeats_data.data());
-        output_shapes = ov::op::v0::shape_infer(&op, input_shapes, {{1, repeats_tensor}});
+        output_shapes = ov::op::v0::shape_infer(&op, input_shapes, [&repeats_data](size_t i) -> ov::Tensor {
+            if (i == 1) {
+                return {ov::element::Type_t::i64, ov::Shape{repeats_data.size()}, repeats_data.data()};
+            } else {
+                return {};
+            }
+        });
     }
 
     format output_format = format::adjust_to_rank(input0_layout.format, output_shapes[0].size());
