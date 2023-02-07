@@ -302,30 +302,30 @@ jobs:
     displayName: 'List install test files'
   
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
-  # - script: |
-  #     export LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$(LD_LIBRARY_PATH)
-  #     python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph $(PYTHON_STATIC_ARGS) \
-  #       --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
-  #       --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py \
-  #       --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
-  #   displayName: 'nGraph and IE Python Bindings Tests'
-  # 
-  #   # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
-  # - script: |
-  #     # For python imports to import pybind_mock_frontend
-  #     export LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$(LD_LIBRARY_PATH)
-  #     export PYTHONPATH=$(INSTALL_TEST_DIR):$(INSTALL_DIR)/python/python3.8:$PYTHONPATH
-  #     python3 -m pytest -sv $(INSTALL_TEST_DIR)/pyopenvino $(PYTHON_STATIC_ARGS) \
-  #       --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
-  #       --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py \
-  #       --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_zoo_models.py \
-  #       --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_backend.py
-  #   displayName: 'Python API 2.0 Tests'
-  # 
-  # - script: |
-  #     export LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$(LD_LIBRARY_PATH)
-  #     python3 -m pytest -s $(INSTALL_TEST_DIR)/mo/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-ModelOptimizer.xml
-  #   displayName: 'Model Optimizer UT'
+  - script: |
+      export LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$(LD_LIBRARY_PATH)
+      python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph $(PYTHON_STATIC_ARGS) \
+        --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
+        --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py \
+        --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
+    displayName: 'nGraph and IE Python Bindings Tests'
+
+    # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
+  - script: |
+      # For python imports to import pybind_mock_frontend
+      export LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$(LD_LIBRARY_PATH)
+      export PYTHONPATH=$(INSTALL_TEST_DIR):$(INSTALL_DIR)/python/python3.8:$PYTHONPATH
+      python3 -m pytest -sv $(INSTALL_TEST_DIR)/pyopenvino $(PYTHON_STATIC_ARGS) \
+        --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
+        --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py \
+        --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_zoo_models.py \
+        --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_backend.py
+    displayName: 'Python API 2.0 Tests'
+
+  - script: |
+      export LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$(LD_LIBRARY_PATH)
+      python3 -m pytest -s $(INSTALL_TEST_DIR)/mo/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-ModelOptimizer.xml
+    displayName: 'Model Optimizer UT'
 
   - script: |
       sudo apt-get install libtbb-dev libpugixml-dev -y
@@ -389,26 +389,26 @@ jobs:
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_conditional_compilation_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ConditionalCompilation.xml
     displayName: 'Conditional Compilation Tests'
 
-  # - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-PaddleTests.xml
-  #   displayName: 'Paddle Tests'
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-PaddleTests.xml
+    displayName: 'Paddle Tests'
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-IRFrontend.xml
     displayName: 'IR Frontend Tests'
 
-  # - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXFrontend.xml
-  #   displayName: 'ONNX Frontend Tests'
-  # 
-  # - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
-  #   displayName: 'Paddle Frontend UT'
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXFrontend.xml
+    displayName: 'ONNX Frontend Tests'
 
-  # - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
-  #   displayName: 'TensorFlow Frontend Unit Tests'
-  # 
-  # - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_tensorflow_common_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-TensorflowCommon.xml
-  #   displayName: 'TensorFlow Common Unit Tests'
-  # 
-  # - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-TensorflowLite.xml
-  #   displayName: 'TensorFlow Lite Frontend Unit Tests'
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
+    displayName: 'Paddle Frontend UT'
+
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
+    displayName: 'TensorFlow Frontend Unit Tests'
+
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_tensorflow_common_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-TensorflowCommon.xml
+    displayName: 'TensorFlow Common Unit Tests'
+
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-TensorflowLite.xml
+    displayName: 'TensorFlow Lite Frontend Unit Tests'
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_lp_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-LpTransformations.xml
     displayName: 'Low Precision Transformations Tests'
