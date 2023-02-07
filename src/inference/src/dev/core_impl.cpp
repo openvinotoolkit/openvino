@@ -183,13 +183,6 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             plugin.set_core(mutableCore);
         }
 
-        // Add registered extensions to new plugin
-        allowNotImplemented([&]() {
-            for (const auto& ext : extensions) {
-                plugin.add_extension(ext);
-            }
-        });
-
         // configuring
         {
             if (device_supports_cache_dir(plugin)) {
@@ -220,12 +213,6 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                     }
                 }
                 plugin.set_property(desc.defaultConfig);
-            });
-
-            allowNotImplemented([&]() {
-                for (auto&& extensionLocation : desc.listOfExtentions) {
-                    plugin.add_extension(std::make_shared<InferenceEngine::Extension>(extensionLocation));
-                }
             });
         }
 
@@ -972,14 +959,6 @@ void ov::CoreImpl::AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& exte
         if (opsetNames.find(it.first) != opsetNames.end())
             IE_THROW() << "Cannot add opset with name: " << it.first << ". Opset with the same name already exists.";
         opsetNames.insert(it.first);
-    }
-
-    // add extensions for already created plugins
-    for (auto& plugin : plugins) {
-        try {
-            plugin.second.add_extension(extension);
-        } catch (...) {
-        }
     }
     extensions.emplace_back(extension);
 }

@@ -126,13 +126,6 @@ public:
                                     const ov::AnyMap& properties) const override;
 
     /**
-     * @brief Register legacy Inference Engine Extension for the plugin
-     *
-     * @param extension legacy Inference Engine Extension
-     */
-    void add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension) override;
-
-    /**
      * @brief Returns the instance of the legacy plugin
      *
      * @return Legacy InferenceEngine::IInferencePlugin object

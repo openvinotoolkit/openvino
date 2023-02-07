@@ -201,12 +201,6 @@ public:
                                                               const std::map<std::string, std::string>& config);
 
     /**
-     * @brief Registers extension within plugin
-     * @param extension - pointer to already loaded extension
-     */
-    virtual void AddExtension(const std::shared_ptr<IExtension>& extension);
-
-    /**
      * @brief Sets configuration for plugin, acceptable keys can be found in ie_plugin_config.hpp
      * @param config string-string map of config parameters
      */

@@ -91,7 +91,6 @@ public:
 
     bool Infer(const InferenceEngine::BlobMap& input, InferenceEngine::BlobMap& result);
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts();
-    void AddExtension(const InferenceEngine::IExtensionPtr& extension) override;
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
     bool Infer(const InferenceEngine::Blob& input, InferenceEngine::Blob& result);

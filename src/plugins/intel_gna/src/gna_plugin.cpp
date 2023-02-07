@@ -1780,8 +1780,6 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GNAPlugin::Ge
     }
 }
 
-void GNAPlugin::AddExtension(const InferenceEngine::IExtensionPtr& extension) {}
-
 void GNAPlugin::SetConfig(const std::map<std::string, std::string>& config_map) {
     config.UpdateFromMap(config_map);
     UpdateFieldsFromConfig();

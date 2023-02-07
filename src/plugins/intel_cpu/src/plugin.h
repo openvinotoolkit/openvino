@@ -23,8 +23,6 @@ public:
     LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
                        const std::map<std::string, std::string> &config) override;
 
-    void AddExtension(const InferenceEngine::IExtensionPtr& extension) override;
-
     void SetConfig(const std::map<std::string, std::string> &config) override;
 
     InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;

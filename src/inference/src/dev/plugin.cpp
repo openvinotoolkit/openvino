@@ -45,12 +45,6 @@ const ov::Version ov::Plugin::get_version() const {
     OV_PLUGIN_CALL_STATEMENT(return m_ptr->get_version());
 }
 
-void ov::Plugin::add_extension(const ie::IExtensionPtr& extension) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    OV_PLUGIN_CALL_STATEMENT(m_ptr->add_extension(extension));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
-
 void ov::Plugin::set_property(const ov::AnyMap& config) {
     OV_PLUGIN_CALL_STATEMENT(m_ptr->set_property(config));
 }

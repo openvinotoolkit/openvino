@@ -203,10 +203,6 @@ ov::SoPtr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(const std::s
     return GetCore()->LoadNetwork(cnnNet, GetName(), config);
 }
 
-void IInferencePlugin::AddExtension(const std::shared_ptr<IExtension>&) {
-    IE_THROW(NotImplemented);
-}
-
 void IInferencePlugin::SetConfig(const std::map<std::string, std::string>&) {
     IE_THROW(NotImplemented);
 }

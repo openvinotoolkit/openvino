@@ -158,15 +158,6 @@ public:
                                             const ov::AnyMap& properties) const = 0;
 
     /**
-     * @deprecated This method allows to load legacy Inference Engine Extensions and will be removed in 2024.0 release
-     * @brief Registers legacy extension within plugin
-     * @param extension - pointer to already loaded legacy extension
-     */
-    OPENVINO_DEPRECATED(
-        "This method allows to load legacy Inference Engine Extensions and will be removed in 2024.0 release")
-    virtual void add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension);
-
-    /**
      * @brief Sets pointer to ICore interface
      * @param core Pointer to Core interface
      */

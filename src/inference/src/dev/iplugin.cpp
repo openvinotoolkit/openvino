@@ -22,10 +22,6 @@ const std::string& ov::IPlugin::get_device_name() const {
     return m_plugin_name;
 }
 
-void ov::IPlugin::add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension) {
-    OPENVINO_NOT_IMPLEMENTED;
-}
-
 void ov::IPlugin::set_core(const std::weak_ptr<ov::ICore>& core) {
     OPENVINO_ASSERT(!core.expired());
     m_core = core;

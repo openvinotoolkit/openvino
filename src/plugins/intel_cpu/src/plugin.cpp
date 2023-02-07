@@ -637,10 +637,6 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
     return GetMetricLegacy(name, options);
 }
 
-void Engine::AddExtension(const InferenceEngine::IExtensionPtr& extension) {
-    extensionManager->AddExtension(extension);
-}
-
 QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) const {
     QueryNetworkResult res;
 
