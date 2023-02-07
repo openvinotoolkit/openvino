@@ -29,10 +29,6 @@
 #define NOMINMAX_DEFINED_CTX_UT
 #endif
 
-#ifndef OV_GPU_USE_OPENCL_HPP
-# define OV_GPU_USE_OPENCL_HPP
-#endif
-
 #include <gpu/gpu_context_api_dx.hpp>
 #include <openvino/runtime/intel_gpu/ocl/dx.hpp>
 #include <atlbase.h>
