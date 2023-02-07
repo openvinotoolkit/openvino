@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_op_table.hpp"
 #include "input_model.hpp"
-#include "op_table.hpp"
 #include "openvino/opsets/opset10.hpp"
 
 using namespace std;
@@ -44,6 +44,16 @@ OutputVector translate_while_op(const NodeContext& node) {
     for (int input_ind = 0; input_ind < input_size; ++input_ind) {
         ov_inputs.push_back(node.get_input(input_ind));
     }
+
+    auto cond_params = cond_model->get_parameters();
+    // type setting for body graph parameters is needed for TensorList support since DT_VARIANT type is present
+    // also for more accurate execution_condition variable shape deducing we need shape inference for condition graph
+    for (int input_ind = 0; input_ind < input_size; ++input_ind) {
+        cond_params[input_ind]->set_element_type(node.get_input(input_ind).get_element_type());
+        cond_params[input_ind]->set_partial_shape(node.get_input(input_ind).get_partial_shape());
+    }
+    cond_model->validate_nodes_and_infer_types();
+
     auto cond_prior = cond_model->clone();
     ov::OutputVector ov_outputs;
     translate_session->inject_body_model(cond_prior, node.get_name() + "/cond", ov_inputs, ov_outputs);
@@ -61,7 +71,6 @@ OutputVector translate_while_op(const NodeContext& node) {
     // that is why condition graph is stitched to the body results
     auto body_params = body_model->get_parameters();
     auto body_results = body_model->get_results();
-    auto cond_params = cond_model->get_parameters();
     auto cond_results = cond_model->get_results();
     auto cond_params_size = cond_params.size();
     TENSORFLOW_OP_VALIDATION(node,
@@ -87,6 +96,11 @@ OutputVector translate_while_op(const NodeContext& node) {
         "[TensorFlow Frontend] Internal error or inconsistent model: condition body must contain one Result node.");
     auto body_condition_output_idx = static_cast<int64_t>(body_results.size());
     body_model->add_results(cond_results);
+
+    // type setting for body graph parameters is needed for TensorList support since DT_VARIANT type is present
+    for (int input_ind = 0; input_ind < input_size; ++input_ind) {
+        body_params[input_ind]->set_element_type(node.get_input(input_ind).get_element_type());
+    }
 
     // set data for the Loop node
     loop->set_function(body_model);

@@ -3,18 +3,16 @@
 //
 
 #include <gtest/gtest.h>
+#include <ie_system_conf.h>
 
 #include "any_copy.hpp"
-#include <ie_system_conf.h>
-#include "ngraph_functions/builders.hpp"
-
 #include "gna_executable_network.hpp"
 #include "gna_plugin.hpp"
 #include "memory/gna_memory.hpp"
+#include "ngraph_functions/builders.hpp"
 
 using namespace ov::intel_gna;
 using namespace InferenceEngine;
-
 
 class GNAPluginForNetworkMetricsTest : public GNAPlugin {
 public:
@@ -53,7 +51,6 @@ protected:
     const ngraph::Shape shape = {1, 10};
 };
 
-
 TEST_F(GnaExecutableNetworkMetricsTest, TestNetworkName) {
     Run(ov::model_name.name(), "MatMul");
 }
@@ -61,9 +58,9 @@ TEST_F(GnaExecutableNetworkMetricsTest, TestNetworkName) {
 TEST_F(GnaExecutableNetworkMetricsTest, TestSupportedProperties) {
     std::string supportedProperties =
         "SUPPORTED_PROPERTIES AVAILABLE_DEVICES OPTIMAL_NUMBER_OF_INFER_REQUESTS RANGE_FOR_ASYNC_INFER_REQUESTS "
-        "OPTIMIZATION_CAPABILITIES FULL_DEVICE_NAME GNA_LIBRARY_FULL_VERSION GNA_SCALE_FACTOR_PER_INPUT "
-        "GNA_FIRMWARE_MODEL_IMAGE GNA_DEVICE_MODE GNA_HW_EXECUTION_TARGET GNA_HW_COMPILE_TARGET "
-        "GNA_PWL_DESIGN_ALGORITHM GNA_PWL_MAX_ERROR_PERCENT PERFORMANCE_HINT INFERENCE_PRECISION_HINT "
-        "PERFORMANCE_HINT_NUM_REQUESTS LOG_LEVEL EXECUTION_DEVICES";
+        "OPTIMIZATION_CAPABILITIES FULL_DEVICE_NAME GNA_LIBRARY_FULL_VERSION CACHING_PROPERTIES "
+        "GNA_DEVICE_MODE PERFORMANCE_HINT LOG_LEVEL EXECUTION_DEVICES CACHE_DIR "
+        "GNA_SCALE_FACTOR_PER_INPUT GNA_FIRMWARE_MODEL_IMAGE GNA_HW_EXECUTION_TARGET GNA_HW_COMPILE_TARGET "
+        "GNA_PWL_DESIGN_ALGORITHM GNA_PWL_MAX_ERROR_PERCENT INFERENCE_PRECISION_HINT PERFORMANCE_HINT_NUM_REQUESTS";
     Run(ov::supported_properties.name(), supportedProperties);
 }

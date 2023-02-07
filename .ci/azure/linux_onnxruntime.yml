@@ -12,6 +12,7 @@ trigger:
     - '*/layer_tests_summary/*'
     - '*/conformance/*'
     - 'tools/*'
+    - 'tests/layer_tests/*'
 
 pr:
   drafts: 'false'
@@ -28,6 +29,10 @@ pr:
     - '*/layer_tests_summary/*'
     - '*/conformance/*'
     - 'tools/*'
+    - 'tests/layer_tests/*'
+
+variables:
+  - group: github
 
 jobs:
 - job: onnxruntime
@@ -50,8 +55,23 @@ jobs:
     BUILD_DIR: $(WORK_DIR)/build
     ONNXRUNTIME_UTILS: $(REPO_DIR)/.ci/azure/ci_utils/onnxruntime
     ONNXRUNTIME_BUILD_DIR: $(ONNXRUNTIME_REPO_DIR)/build
+    LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib:$LD_LIBRARY_PATH
+    OV_PYTHON_VERSION: 3.10.9 # Newest version of Python 3.10. Full version of Python its required for LD_LIBRARY_PATH and required for successful Task setupPython
 
   steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.10'
+      addToPath: true
+      disableDownloadFromRegistry: false
+      architecture: 'x64'
+      githubToken: $(auth_token)
+    displayName: Setup Python 3.10
+    name: setupPython
+  - bash: |
+      #!/bin/bash
+      python -V
+      
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
@@ -107,7 +127,6 @@ jobs:
         -GNinja
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
-        -DENABLE_INTEL_MYRIAD_COMMON=OFF
         -DENABLE_INTEL_GNA=OFF
         -DENABLE_INTEL_GPU=OFF
         -DENABLE_CPPLINT=OFF
@@ -116,6 +135,7 @@ jobs:
         -DENABLE_COMPILE_TOOL=OFF
         -DENABLE_OV_TF_FRONTEND=OFF
         -DENABLE_OV_PADDLE_FRONTEND=OFF
+        -DENABLE_OV_PYTORCH_FRONTEND=OFF
         -DENABLE_OPENVINO_DEBUG=OFF
         -S $(REPO_DIR)
         -B $(BUILD_DIR)

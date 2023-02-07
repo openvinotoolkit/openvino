@@ -30,7 +30,7 @@ for model training or creation; or installation into a new environment.
 
 ### Installation into an Existing Environment with the Source Deep Learning Framework
 
-To install OpenVINO Development Tools (see the [What's in the Package](#whats-in-the-package) section of this article) into an existing environment
+To install OpenVINO Development Tools (see the [Install the Package](#install-the-package) section of this article) into an existing environment
 with the deep learning framework used for the model training or creation, run the following command:
 
 ```sh
@@ -96,7 +96,7 @@ Make sure `pip` is installed in your environment and upgrade it to the latest ve
 python -m pip install --upgrade pip
 ```
 
-#### Step 4. Install the Package
+#### Step 4. <a name="install-the-package"></a> Install the Package
 
 To install and configure the components of the development package together with validated versions of specific frameworks, use the commands below.
 
@@ -105,7 +105,7 @@ pip install openvino-dev[extras]
 ```
 
 where the `extras` parameter specifies the source deep learning framework for the input model
-and has the following values:  `caffe`, `kaldi`, `mxnet`, `onnx`, `pytorch`, `tensorflow`, `tensorflow2`. 
+and is one or more of the following values separated with "," :  `caffe`, `kaldi`, `mxnet`, `onnx`, `pytorch`, `tensorflow`, `tensorflow2`. 
 
 For example, to install and configure dependencies required for working with TensorFlow 2.x and ONNX models, use the following command:
 
@@ -161,3 +161,4 @@ Visit the [Samples](../OV_Runtime_UG/Samples_Overview.md) page for other C++ exa
 
 - Intel® Distribution of OpenVINO™ toolkit home page: <https://software.intel.com/en-us/openvino-toolkit>
 - For IoT Libraries & Code Samples, see [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).
+- [OpenVINO Installation Selector Tool](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html)

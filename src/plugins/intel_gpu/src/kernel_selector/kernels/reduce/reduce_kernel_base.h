@@ -39,7 +39,7 @@ public:
 protected:
     bool Validate(const Params&, const optional_params&) const override;
     virtual JitConstants GetJitConstants(const reduce_params& params) const;
-    virtual CommonDispatchData SetDefault(const reduce_params& params, const optional_params&) const = 0;
+    virtual CommonDispatchData SetDefault(const reduce_params& params) const = 0;
     Datatype GetAccumulatorType(const reduce_params& p) const;
     Datatype GetFinalAccumulatorType(const reduce_params& p) const;
     Datatype GetActivationType(const reduce_params& params) const;

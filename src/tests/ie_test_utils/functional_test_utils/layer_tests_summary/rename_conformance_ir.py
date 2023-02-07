@@ -6,15 +6,38 @@ import defusedxml.ElementTree as ET
 from argparse import ArgumentParser
 from pathlib import Path
 from hashlib import sha256
-from utils import utils
+from utils.conformance_utils import get_logger, set_env_variable
+from utils.constants import PY_OPENVINO, LD_LIB_PATH_NAME, PYTHON_NAME
+from utils.file_utils import get_ov_path, find_latest_dir
 
-from openvino.runtime import Core
+import os
+
+logger = get_logger('rename_conformance_ir')
+
+try:
+    from openvino.runtime import Core
+except:
+    script_dir, _ = os.path.split(os.path.abspath(__file__))
+    ov_bin_path = get_ov_path(script_dir, None, True)
+    if PY_OPENVINO in os.listdir(ov_bin_path):
+        env = os.environ
+        py_ov = os.path.join(ov_bin_path, PY_OPENVINO)
+        py_ov = os.path.join(py_ov, find_latest_dir(py_ov))
+
+        env = set_env_variable(env, "PYTHONPATH", py_ov)
+        env = set_env_variable(env, LD_LIB_PATH_NAME, ov_bin_path)
+        logger.warning("Set the following env varibles to rename conformance ir based on hash: ")
+        logger.warning(f'PYTHONPATH={env["PYTHONPATH"]}')
+        logger.warning(f'{LD_LIB_PATH_NAME}={env[LD_LIB_PATH_NAME]}')
+        exit(0)
+    else:
+        print(f'Impossible to run the tool! PyOpenVINO was not built!')
+        exit(-1)
+    
 
 XML_EXTENSION = ".xml"
 BIN_EXTENSION = ".bin"
 META_EXTENSION = ".meta"
-
-logger = utils.get_logger('Rename Conformance IRs using hash')
 
 
 def parse_arguments():
@@ -77,7 +100,7 @@ def create_hash(in_dir_path: Path):
         meta_path.rename(Path(meta_path.parent, new_name + META_EXTENSION))
         bin_path.rename(Path(bin_path.parent, new_name + BIN_EXTENSION))
 
-        logger.info(f"{old_name} -> {new_name}")
+        # logger.info(f"{old_name} -> {new_name}")
 
 if __name__=="__main__":
     args = parse_arguments()
