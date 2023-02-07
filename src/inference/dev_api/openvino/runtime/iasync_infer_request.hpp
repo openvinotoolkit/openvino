@@ -19,10 +19,6 @@
 #include "openvino/runtime/tensor.hpp"
 #include "threading/ie_itask_executor.hpp"
 
-namespace InferenceEngine {
-class IAsyncInferRequestWrapper;
-}
-
 namespace ov {
 
 class OPENVINO_RUNTIME_API IAsyncInferRequest : public IInferRequest {
@@ -163,8 +159,6 @@ private:
         m_sync_callback_executor;  //!< Used to run post inference callback in synchronous pipline
     mutable std::mutex m_mutex;
     std::function<void(std::exception_ptr)> m_callback;
-    IAsyncInferRequest();
-    friend InferenceEngine::IAsyncInferRequestWrapper;
 };
 
 }  // namespace ov

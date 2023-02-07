@@ -28,22 +28,20 @@ ov::IAsyncInferRequest::~IAsyncInferRequest() {
     stop_and_wait();
 }
 
-ov::IAsyncInferRequest::IAsyncInferRequest() = default;
-
 ov::IAsyncInferRequest::IAsyncInferRequest(const std::shared_ptr<IInferRequest>& request,
                                            const InferenceEngine::ITaskExecutor::Ptr& task_executor,
                                            const InferenceEngine::ITaskExecutor::Ptr& callback_executor)
-    : m_pipeline{{m_request_executor,
-                  [this] {
-                      m_sync_request->infer();
-                  }}},
-      m_sync_pipeline{{std::make_shared<InferenceEngine::ImmediateExecutor>(),
-                       [this] {
-                           m_sync_request->infer();
-                       }}},
-      m_sync_request(request),
+    : m_sync_request(request),
       m_request_executor(task_executor),
       m_callback_executor(callback_executor) {
+    if (m_request_executor && m_sync_request)
+        m_pipeline = {{m_request_executor, [this] {
+                           m_sync_request->infer();
+                       }}};
+    if (m_sync_request)
+        m_sync_pipeline = {{std::make_shared<InferenceEngine::ImmediateExecutor>(), [this] {
+                                m_sync_request->infer();
+                            }}};
     auto streams_executor = std::dynamic_pointer_cast<InferenceEngine::IStreamsExecutor>(m_request_executor);
     if (streams_executor != nullptr) {
         m_sync_pipeline = {{std::make_shared<ImmediateStreamsExecutor>(std::move(streams_executor)), [this] {
