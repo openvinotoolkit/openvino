@@ -215,6 +215,11 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
     }
     ON_CALL(*plugin, SelectDevice(_, _, _)).WillByDefault(Return(metaDevices[1]));
     ON_CALL(*plugin, ParseMetaDevices(_, _)).WillByDefault(Return(metaDevices));
+    ON_CALL(*plugin, GetValidDevice)
+        .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
+            std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
+            return devices;
+        });
     EXPECT_CALL(*plugin, ParseMetaDevices(_, _)).Times(1);
     EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(1);
 

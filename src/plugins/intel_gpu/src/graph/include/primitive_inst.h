@@ -185,7 +185,7 @@ public:
     bool is_dynamic() const { return _is_dynamic; }
     bool can_share_buffer() const { return _can_share_buffer; }
     bool is_constant() const { return _is_constant; }
-
+    bool is_output_event() const { return _is_output_event; }
 
     void allocate_internal_buffers();
     static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node& _node,
@@ -277,6 +277,7 @@ protected:
     bool _can_be_optimized = false;
     bool _can_share_buffer = true;
     bool _is_constant = false;
+    bool _is_output_event = false;
 
     size_t max_output_layout_size = 0;
     std::vector<size_t> max_intermediates_memory_sizes;

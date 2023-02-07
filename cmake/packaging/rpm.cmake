@@ -297,6 +297,7 @@ macro(ov_cpack_settings)
     set(CPACK_RPM_SAMPLES_PACKAGE_SUGGESTS "${samples_build_deps_suggest}, ${samples_opencl_deps_suggest}, ${plugin_packages}")
     set(CPACK_RPM_SAMPLES_PACKAGE_REQUIRES "${core_dev_package}, ${samples_build_deps}, gflags-devel, json-devel, zlib-devel")
     set(CPACK_RPM_SAMPLES_PACKAGE_ARCHITECTURE "noarch")
+    ov_rpm_generate_conflicts(${OV_CPACK_COMP_CPP_SAMPLES} ${conflicting_versions})
 
     ov_rpm_add_rpmlint_suppression("${OV_CPACK_COMP_CPP_SAMPLES}"
         # contains samples source codes
