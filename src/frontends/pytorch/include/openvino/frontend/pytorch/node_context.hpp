@@ -87,6 +87,7 @@ public:
     }
 
     std::shared_ptr<Node> mark_node(std::shared_ptr<Node> ov_node) const {
+        ov_node->set_friendly_name(m_decoder->get_op_type());
         return m_decoder->mark_node(ov_node);
     }
 

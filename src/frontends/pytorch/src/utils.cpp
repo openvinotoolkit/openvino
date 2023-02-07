@@ -173,7 +173,6 @@ OutputVector make_framework_node(NodeContext* context) {
         // We create additional output for such nodes. It contains new tensor that represents input that was changed.
         auto fw_node =
             std::make_shared<PtFrameworkNode>(context->get_decoder(), context->inputs(), context->num_of_outputs() + 1);
-        fw_node->set_friendly_name(context->get_op_type());
         auto outputs = fw_node->outputs();
         // Usually mutated input index is 0, because it is usually "self" input, so we need to replace this tensor with
         // output we created.
@@ -232,7 +231,6 @@ OutputVector make_framework_node(NodeContext* context) {
     auto fw_node = std::make_shared<PtFrameworkNode>(context->get_decoder(),
                                                      context->inputs(),
                                                      context->num_of_outputs() - num_body_outs + num_skip_body_outputs);
-    fw_node->set_friendly_name(context->get_op_type());
     for (size_t i = 0; i < bodies.size(); ++i) {
         fw_node->set_function(i, bodies[i]);
     }
@@ -288,6 +286,8 @@ OutputVector convert_node(NodeContext* context) {
         OPENVINO_DEBUG << "Some exception happened during conversion of node of type: " << context->get_op_type()
                        << '\n';
     }
+    OPENVINO_DEBUG << "No translator found for: " << context->get_op_type() << " with schema " << context->get_schema()
+                   << '\n';
     // Create PtFrameworkNode for everything that wasn't able to be converted normally
     return make_framework_node(context);
 }
