@@ -579,4 +579,9 @@ setup(
     package_dir={"": get_package_dir(PY_INSTALL_CFG)},
     package_data=package_data,
     zip_safe=False,
+    entry_points={
+                   'console_scripts': [
+                       'mo = openvino.tools.mo_lite.__main__:main',
+                   ],
+               },
 )
