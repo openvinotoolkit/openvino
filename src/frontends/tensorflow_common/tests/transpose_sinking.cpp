@@ -408,7 +408,7 @@ TEST(TransposeSinkingTest, SinkingThroughPreLUWithScalarSlope) {
                                make_shared<Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 2, 3, 1}));
 
     auto prelu = make_shared<PRelu>(transpose_before,
-                                    make_shared<Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{0.8}));
+                                    make_shared<Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{0.8f}));
     auto transpose_after =
         make_shared<Transpose>(prelu,
                                make_shared<Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 3, 1, 2}));
@@ -434,7 +434,7 @@ TEST(TransposeSinkingTest, SinkingThroughPreLUWithNonScalarSlope) {
 
     auto prelu =
         make_shared<PRelu>(transpose_before,
-                           make_shared<Constant>(ov::element::f32, ov::Shape{3}, std::vector<float>{0.8, 0.7, 0.1}));
+                           make_shared<Constant>(ov::element::f32, ov::Shape{3}, std::vector<float>{0.8f, 0.7f, 0.1f}));
     auto transpose_after =
         make_shared<Transpose>(prelu,
                                make_shared<Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 3, 1, 2}));
