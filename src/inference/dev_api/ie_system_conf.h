@@ -133,32 +133,9 @@ INFERENCE_ENGINE_API_CPP(bool) with_cpu_x86_avx512_core_amx_bf16();
  */
 INFERENCE_ENGINE_API_CPP(bool) with_cpu_x86_avx512_core_amx();
 
-#if (defined(_WIN32) || defined(_WIN64))
 /**
-
- * @brief      Parse processors infomation on Windows
- * @ingroup    ie_dev_api_system_conf
- * @param[in]  base_ptr buffer object pointer of Windows system infomation
- * @param[in]  len buffer object length of Windows system infomation
- * @param[in]  _processors total number for processors in system.
- * @param[out] _sockets total number for sockets in system
- * @param[out] _cores total number for physical CPU cores in system
- * @param[out] _proc_type_table summary table of number of processors per type
- * @param[out] _cpu_mapping_table CPU mapping table for each processor
- * @return
- */
-INFERENCE_ENGINE_API_CPP(void)
-parse_processor_info_win(const char* base_ptr,
-                         const unsigned long len,
-                         const int _processors,
-                         int& _sockets,
-                         int& _cores,
-                         std::vector<std::vector<int>>& _proc_type_table,
-                         std::vector<std::vector<int>>& _cpu_mapping_table);
-#endif
-
- * @enum cpu_core_type_of_processor
- * @brief This enum contains defination of processor based on specific cpu core types.
+ * @enum       enum cpu_core_type_of_processor
+ * @brief      This enum contains defination of processor based on specific cpu core types.
  * Will extend to support other CPU core type like ARM.
  *
  * This enum are also defination of each columns in processor type table. Below are two example of processor type table.
@@ -233,6 +210,29 @@ void parse_processor_info_linux(const int _processors,
                                 int& _cores,
                                 std::vector<std::vector<int>>& _proc_type_table,
                                 std::vector<std::vector<int>>& _cpu_mapping_table);
+#endif
+
+#if (defined(_WIN32) || defined(_WIN64))
+/**
+
+ * @brief      Parse processors infomation on Windows
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  base_ptr buffer object pointer of Windows system infomation
+ * @param[in]  len buffer object length of Windows system infomation
+ * @param[in]  _processors total number for processors in system.
+ * @param[out] _sockets total number for sockets in system
+ * @param[out] _cores total number for physical CPU cores in system
+ * @param[out] _proc_type_table summary table of number of processors per type
+ * @param[out] _cpu_mapping_table CPU mapping table for each processor
+ * @return
+ */
+void parse_processor_info_win(const char* base_ptr,
+                              const unsigned long len,
+                              const int _processors,
+                              int& _sockets,
+                              int& _cores,
+                              std::vector<std::vector<int>>& _proc_type_table,
+                              std::vector<std::vector<int>>& _cpu_mapping_table);
 #endif
 
 }  // namespace InferenceEngine

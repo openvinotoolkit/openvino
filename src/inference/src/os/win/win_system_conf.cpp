@@ -51,7 +51,7 @@ void parse_processor_info_win(const char* base_ptr,
                               int& _cores,
                               std::vector<std::vector<int>>& _proc_type_table,
                               std::vector<std::vector<int>>& _cpu_mapping_table) {
-    _cpu_mapping_table.resize(_processors, std::vector<int>(CPU_MAP_USED_FLAG + 1, -1));
+    _cpu_mapping_table.resize(_processors, std::vector<int>(CPU_MAP_TABLE_SIZE, -1));
 
     std::vector<int> list;
 
@@ -82,6 +82,8 @@ void parse_processor_info_win(const char* base_ptr,
         return;
     };
 
+    std::vector<int> line_value_0(PROC_TYPE_TABLE_SIZE, 0);
+
     for (; info_ptr < base_ptr + len; info_ptr += (DWORD)info->Size) {
         info = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)info_ptr;
 
@@ -90,10 +92,10 @@ void parse_processor_info_win(const char* base_ptr,
             MaskToList(info->Processor.GroupMask->Mask);
             mask_len = list_len;
             if (0 == _sockets) {
-                _proc_type_table.push_back({0, 0, 0, 0});
+                _proc_type_table.push_back(line_value_0);
             } else {
                 _proc_type_table.push_back(_proc_type_table[0]);
-                _proc_type_table[0] = {0, 0, 0, 0};
+                _proc_type_table[0] = line_value_0;
             }
         } else if (info->Relationship == RelationProcessorCore) {
             MaskToList(info->Processor.GroupMask->Mask);
@@ -157,7 +159,7 @@ void parse_processor_info_win(const char* base_ptr,
     _sockets++;
     if (_sockets > 1) {
         _proc_type_table.push_back(_proc_type_table[0]);
-        _proc_type_table[0] = {0, 0, 0, 0};
+        _proc_type_table[0] = line_value_0;
 
         for (int m = 1; m <= _sockets; m++) {
             for (int n = 0; n <= EFFICIENT_CORE_PROC; n++) {
