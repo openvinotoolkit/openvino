@@ -330,9 +330,6 @@ def update_fallback_with_conversion_error(use_new_frontend: bool, is_tf: bool, e
         "LoopCond", "Enter", "NextIteration", "Exit",
         # corresponds to TF1 If and TF1 While operations
         "Switch", "Merge",
-        # corresponds to TF2 While operations
-        "TensorListLength", "TensorListReserve", "TensorListFromTensor",
-        "TensorListSetItem", "TensorListStack",
         # corresponds to operations with complex tensors
         "FFT", "FFT2D", "FFT3D", "IFFT", "IFFT2D", "IFFT3D",
         "RFFT", "RFFT2D", "RFFT3D", "IRFFT", "IRFFT2D", "IRFFT3D",
