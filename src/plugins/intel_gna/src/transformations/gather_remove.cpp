@@ -90,7 +90,7 @@ void RemoveSingleInputNodeFromFunction(std::shared_ptr<ngraph::Node> node) {
  */
 Function CopySingleInputNodeFromFunction(NodePtr node) {
     const ngraph::Shape & input_shape = node->get_input_shape(0);
-    const ngraph::element::Type& input_elem_type = ngraph::element::Type_t::undefined;
+    const ngraph::element::Type& input_elem_type = ngraph::element::Type_t::f32;
 
     auto input_params = std::make_shared<ngraph::opset9::Parameter>(input_elem_type, input_shape);
     auto input_nodes = node->input_values();
