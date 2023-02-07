@@ -79,6 +79,9 @@ void MultiDeviceInferRequest::SetBlobsToAnotherRequest(const SoIInferRequestInte
         auto &name = it.first;
         // this request is already in BUSY state, so using the internal functions safely
         auto blob = GetBlob(name);
+        auto dim = blob->getTensorDesc().getDims();
+        if (std::count(dim.begin(), dim.end(), 0))
+            continue;
         if (req->GetBlob(name) != blob)
             req->SetBlob(name, blob);
     }
@@ -99,10 +102,16 @@ void MultiDeviceInferRequest::SetBlob(const std::string& name, const Blob::Ptr& 
 }
 
 InferenceEngine::Blob::Ptr MultiDeviceInferRequest::GetBlob(const std::string& name) {
-    if (_sharedRequest)
+    if (_sharedRequest) {
         return _sharedRequest->GetBlob(name);
-    else
-        return IInferRequestInternal::GetBlob(name);
+    } else {
+        if (_scheduledRequest)
+            // when with dynamic outputs, safe to get output from hardware request
+            // if not dynamic output, the output is same for multi and hardware
+            return _scheduledRequest->GetBlob(name);
+        else
+            return IInferRequestInternal::GetBlob(name);
+    }
 }
 
 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> MultiDeviceInferRequest::GetPerformanceCounts() const {
