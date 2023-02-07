@@ -11,10 +11,11 @@
 using namespace cldnn;
 using namespace ::tests;
 
-template <typename DataType, cldnn::format::type l>
+template <typename DataType, cldnn::format::type l, bool c>
 struct TypeWithLayoutFormat {
     using Type = DataType;
     static const cldnn::format::type layout = l;
+    static const bool is_caching_test = c;
 };
 
 template <typename TypeWithLayout>
@@ -111,25 +112,40 @@ struct non_max_suppression_basic : public testing::Test {
     }
 
     static const format::type layout_format = TypeWithLayout::layout;
-
+    static const bool is_caching_test = TypeWithLayout::is_caching_test;
     static const data_types data_type = type_to_data_type<DataType>::value;
 
     const int pad = -1;
 };
 
-using nms_types = testing::Types<TypeWithLayoutFormat<float, cldnn::format::bfyx>,
-                                 TypeWithLayoutFormat<float, cldnn::format::b_fs_yx_fsv32>,
-                                 TypeWithLayoutFormat<float, cldnn::format::b_fs_yx_fsv16>,
-                                 TypeWithLayoutFormat<float, cldnn::format::bs_fs_yx_bsv32_fsv16>,
-                                 TypeWithLayoutFormat<float, cldnn::format::bs_fs_yx_bsv16_fsv16>,
-                                 TypeWithLayoutFormat<float, cldnn::format::bs_fs_yx_bsv32_fsv32>,
+using nms_types = testing::Types<TypeWithLayoutFormat<float, cldnn::format::bfyx, false>,
+                                 TypeWithLayoutFormat<float, cldnn::format::b_fs_yx_fsv32, false>,
+                                 TypeWithLayoutFormat<float, cldnn::format::b_fs_yx_fsv16, false>,
+                                 TypeWithLayoutFormat<float, cldnn::format::bs_fs_yx_bsv32_fsv16, false>,
+                                 TypeWithLayoutFormat<float, cldnn::format::bs_fs_yx_bsv16_fsv16, false>,
+                                 TypeWithLayoutFormat<float, cldnn::format::bs_fs_yx_bsv32_fsv32, false>,
 
-                                 TypeWithLayoutFormat<half_t, cldnn::format::bfyx>,
-                                 TypeWithLayoutFormat<half_t, cldnn::format::b_fs_yx_fsv32>,
-                                 TypeWithLayoutFormat<half_t, cldnn::format::b_fs_yx_fsv16>,
-                                 TypeWithLayoutFormat<half_t, cldnn::format::bs_fs_yx_bsv32_fsv16>,
-                                 TypeWithLayoutFormat<half_t, cldnn::format::bs_fs_yx_bsv16_fsv16>,
-                                 TypeWithLayoutFormat<half_t, cldnn::format::bs_fs_yx_bsv32_fsv32>>;
+                                 TypeWithLayoutFormat<half_t, cldnn::format::bfyx, false>,
+                                 TypeWithLayoutFormat<half_t, cldnn::format::b_fs_yx_fsv32, false>,
+                                 TypeWithLayoutFormat<half_t, cldnn::format::b_fs_yx_fsv16, false>,
+                                 TypeWithLayoutFormat<half_t, cldnn::format::bs_fs_yx_bsv32_fsv16, false>,
+                                 TypeWithLayoutFormat<half_t, cldnn::format::bs_fs_yx_bsv16_fsv16, false>,
+                                 TypeWithLayoutFormat<half_t, cldnn::format::bs_fs_yx_bsv32_fsv32, false>,
+                                 
+                                 TypeWithLayoutFormat<float, cldnn::format::bfyx, true>,
+                                 TypeWithLayoutFormat<float, cldnn::format::b_fs_yx_fsv32, true>,
+                                 TypeWithLayoutFormat<float, cldnn::format::b_fs_yx_fsv16, true>,
+                                 TypeWithLayoutFormat<float, cldnn::format::bs_fs_yx_bsv32_fsv16, true>,
+                                 TypeWithLayoutFormat<float, cldnn::format::bs_fs_yx_bsv16_fsv16, true>,
+                                 TypeWithLayoutFormat<float, cldnn::format::bs_fs_yx_bsv32_fsv32, true>,
+
+                                 TypeWithLayoutFormat<half_t, cldnn::format::bfyx, true>,
+                                 TypeWithLayoutFormat<half_t, cldnn::format::b_fs_yx_fsv32, true>,
+                                 TypeWithLayoutFormat<half_t, cldnn::format::b_fs_yx_fsv16, true>,
+                                 TypeWithLayoutFormat<half_t, cldnn::format::bs_fs_yx_bsv32_fsv16, true>,
+                                 TypeWithLayoutFormat<half_t, cldnn::format::bs_fs_yx_bsv16_fsv16, true>,
+                                 TypeWithLayoutFormat<half_t, cldnn::format::bs_fs_yx_bsv32_fsv32, true>>;
+
 TYPED_TEST_SUITE(non_max_suppression_basic, nms_types);
 
 TYPED_TEST(non_max_suppression_basic, basic) {
@@ -146,15 +162,32 @@ TYPED_TEST(non_max_suppression_basic, basic) {
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
 
-    cldnn::network net{engine, topo, config};
+    cldnn::network::ptr net;
+
+    if (this->is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topo, config);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, get_test_engine());
+            net = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
+        }
+    } else {
+        net = std::make_shared<cldnn::network>(engine, topo, config);
+    }
 
     auto boxes_mem = this->get_boxes_memory(engine);
     auto scores_mem = this->get_scores_memory(engine);
 
-    net.set_input_data("boxes", boxes_mem);
-    net.set_input_data("scores", scores_mem);
+    net->set_input_data("boxes", boxes_mem);
+    net->set_input_data("scores", scores_mem);
 
-    auto result = net.execute();
+    auto result = net->execute();
 
     std::vector<int> expected_out = {this->pad,
                                      this->pad,
@@ -207,15 +240,32 @@ TYPED_TEST(non_max_suppression_basic, num_per_class) {
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
 
-    cldnn::network net{engine, topo, config};
+    cldnn::network::ptr net;
+
+    if (this->is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topo, config);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, get_test_engine());
+            net = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
+        }
+    } else {
+        net = std::make_shared<cldnn::network>(engine, topo, config);
+    }
 
     auto boxes_mem = this->get_boxes_memory(engine);
     auto scores_mem = this->get_scores_memory(engine);
 
-    net.set_input_data("boxes", boxes_mem);
-    net.set_input_data("scores", scores_mem);
+    net->set_input_data("boxes", boxes_mem);
+    net->set_input_data("scores", scores_mem);
 
-    auto result = net.execute();
+    auto result = net->execute();
 
     std::vector<int> expected_out = {
         0,
@@ -278,15 +328,32 @@ TYPED_TEST(non_max_suppression_basic, optional_outputs) {
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
 
-    cldnn::network net{engine, topo, config};
+    cldnn::network::ptr net;
+
+    if (this->is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topo, config);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, get_test_engine());
+            net = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
+        }
+    } else {
+        net = std::make_shared<cldnn::network>(engine, topo, config);
+    }
 
     auto boxes_mem = this->get_boxes_memory(engine);
     auto scores_mem = this->get_scores_memory(engine);
 
-    net.set_input_data("boxes", boxes_mem);
-    net.set_input_data("scores", scores_mem);
+    net->set_input_data("boxes", boxes_mem);
+    net->set_input_data("scores", scores_mem);
 
-    auto result = net.execute();
+    auto result = net->execute();
 
     std::vector<int> expected_out = {
         0,
@@ -326,6 +393,9 @@ TYPED_TEST(non_max_suppression_basic, optional_outputs) {
     for (size_t i = 0; i < expected_out.size(); ++i) {
         ASSERT_EQ(expected_out[i], out_ptr[i]) << "at i = " << i;
     }
+
+    if (this->is_caching_test)
+        return;
 
     topology second_output_topology;
     second_output_topology.add(input_layout("selected_scores", this->selected_scores_layout));
@@ -394,15 +464,32 @@ TYPED_TEST(non_max_suppression_basic, multiple_outputs) {
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
-    cldnn::network net{engine, topo, config};
+    cldnn::network::ptr net;
+
+    if (this->is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topo, config);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, get_test_engine());
+            net = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
+        }
+    } else {
+        net = std::make_shared<cldnn::network>(engine, topo, config);
+    }
 
     auto boxes_mem = this->get_boxes_memory(engine);
     auto scores_mem = this->get_scores_memory(engine);
 
-    net.set_input_data("boxes", boxes_mem);
-    net.set_input_data("scores", scores_mem);
+    net->set_input_data("boxes", boxes_mem);
+    net->set_input_data("scores", scores_mem);
 
-    auto result = net.execute();
+    auto result = net->execute();
 
     std::vector<int> expected_out = {
         0,
@@ -503,15 +590,32 @@ TYPED_TEST(non_max_suppression_basic, iou_threshold) {
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
 
-    cldnn::network net{engine, topo, config};
+    cldnn::network::ptr net;
+
+    if (this->is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topo, config);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, get_test_engine());
+            net = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
+        }
+    } else {
+        net = std::make_shared<cldnn::network>(engine, topo, config);
+    }
 
     auto boxes_mem = this->get_boxes_memory(engine);
     auto scores_mem = this->get_scores_memory(engine);
 
-    net.set_input_data("boxes", boxes_mem);
-    net.set_input_data("scores", scores_mem);
+    net->set_input_data("boxes", boxes_mem);
+    net->set_input_data("scores", scores_mem);
 
-    auto result = net.execute();
+    auto result = net->execute();
 
     std::vector<int> expected_out = {
         0,         0,         2,         0,         1,         0,         1,         0,         2,
@@ -560,15 +664,32 @@ TYPED_TEST(non_max_suppression_basic, score_threshold) {
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
 
-    cldnn::network net{engine, topo, config};
+    cldnn::network::ptr net;
+
+    if (this->is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topo, config);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, get_test_engine());
+            net = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
+        }
+    } else {
+        net = std::make_shared<cldnn::network>(engine, topo, config);
+    }
 
     auto boxes_mem = this->get_boxes_memory(engine);
     auto scores_mem = this->get_scores_memory(engine);
 
-    net.set_input_data("boxes", boxes_mem);
-    net.set_input_data("scores", scores_mem);
+    net->set_input_data("boxes", boxes_mem);
+    net->set_input_data("scores", scores_mem);
 
-    auto result = net.execute();
+    auto result = net->execute();
 
     std::vector<int> expected_out = {
         0,         0,         2,         0,         1,         0,         1,         0,         2,
@@ -621,15 +742,32 @@ TYPED_TEST(non_max_suppression_basic, soft_nms_sigma) {
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
 
-    cldnn::network net{engine, topo, config};
+    cldnn::network::ptr net;
+
+    if (this->is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topo, config);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, get_test_engine());
+            net = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
+        }
+    } else {
+        net = std::make_shared<cldnn::network>(engine, topo, config);
+    }
 
     auto boxes_mem = this->get_boxes_memory(engine);
     auto scores_mem = this->get_scores_memory(engine);
 
-    net.set_input_data("boxes", boxes_mem);
-    net.set_input_data("scores", scores_mem);
+    net->set_input_data("boxes", boxes_mem);
+    net->set_input_data("scores", scores_mem);
 
-    auto result = net.execute();
+    auto result = net->execute();
 
     std::vector<int> expected_out = {
         0,         0,         2,         0,         1,         0,         1,         0,         2,
