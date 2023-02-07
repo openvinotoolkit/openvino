@@ -662,65 +662,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                            reshape_required);
 }
 
-#ifdef USE_OPENCV
-void dump_config(const std::string& filename, const std::map<std::string, ov::AnyMap>& config) {
-    slog::warn << "YAML and XML formats for config file won't be supported soon." << slog::endl;
-    auto plugin_to_opencv_format = [](const std::string& str) -> std::string {
-        if (str.find("_") != std::string::npos) {
-            slog::warn
-                << "Device name contains \"_\" and will be changed during loading of configuration due to limitations."
-                   "This configuration file could not be loaded correctly."
-                << slog::endl;
-        }
-        std::string new_str(str);
-        auto pos = new_str.find(".");
-        if (pos != std::string::npos) {
-            new_str.replace(pos, 1, "_");
-        }
-        return new_str;
-    };
-    cv::FileStorage fs(filename, cv::FileStorage::WRITE);
-    if (!fs.isOpened())
-        throw std::runtime_error("Error: Can't open config file : " + filename);
-    for (auto device_it = config.begin(); device_it != config.end(); ++device_it) {
-        fs << plugin_to_opencv_format(device_it->first) << "{:";
-        std::stringstream strm;
-        for (auto param_it = device_it->second.begin(); param_it != device_it->second.end(); ++param_it) {
-            strm << param_it->first;
-            param_it->second.print(strm);
-        }
-        fs << strm.str();
-        fs << "}";
-    }
-    fs.release();
-}
 
-void load_config(const std::string& filename, std::map<std::string, ov::AnyMap>& config) {
-    slog::warn << "YAML and XML formats for config file won't be supported soon." << slog::endl;
-    auto opencv_to_plugin_format = [](const std::string& str) -> std::string {
-        std::string new_str(str);
-        auto pos = new_str.find("_");
-        if (pos != std::string::npos) {
-            new_str.replace(pos, 1, ".");
-        }
-        return new_str;
-    };
-    cv::FileStorage fs(filename, cv::FileStorage::READ);
-    if (!fs.isOpened())
-        throw std::runtime_error("Error: Can't load config file : " + filename);
-    cv::FileNode root = fs.root();
-    for (auto it = root.begin(); it != root.end(); ++it) {
-        auto device = *it;
-        if (!device.isMap()) {
-            throw std::runtime_error("Error: Can't parse config file : " + filename);
-        }
-        for (auto iit = device.begin(); iit != device.end(); ++iit) {
-            auto item = *iit;
-            config[opencv_to_plugin_format(device.name())][item.name()] = item.string();
-        }
-    }
-}
-#else
 void dump_config(const std::string& filename, const std::map<std::string, ov::AnyMap>& config) {
     nlohmann::json jsonConfig;
     for (const auto& item : config) {
@@ -794,7 +736,7 @@ void load_config(const std::string& filename, std::map<std::string, ov::AnyMap>&
         }
     }
 }
-#endif
+// #endif
 
 #ifdef USE_OPENCV
 const std::vector<std::string> supported_image_extensions =
