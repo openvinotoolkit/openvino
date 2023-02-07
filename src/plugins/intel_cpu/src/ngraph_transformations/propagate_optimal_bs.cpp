@@ -79,9 +79,11 @@ bool PropagateOptimalBS::run_on_model(const std::shared_ptr<ov::Model>& model) {
                             ". Optimal batch size: ",
                             parent_props.opt_bs);
 
-            size_t n_splits = in_shape[in_batch_idx].get_length() / parent_props.opt_bs;
-            props = std::max(props, Properties(parent_props.opt_bs, n_splits));
             propagate_props = true;
+            if (!props.is_set()) {
+                size_t n_splits = in_shape[in_batch_idx].get_length() / parent_props.opt_bs;
+                props = Properties(parent_props.opt_bs, n_splits);
+            }
         }
 
         if (propagate_props && props.is_set()) {
