@@ -164,6 +164,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::conv_transpose2d", op::translate_conv_transposend},
         {"aten::conv_transpose3d", op::translate_conv_transposend},
         {"aten::convolution", op::translate_convolution},
+        {"aten::copy", op::skip_node},
         {"aten::cos", op::translate_1to1_match_1_inputs<opset10::Cos>},
         {"aten::cos_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Cos>>},
         {"aten::cosh", op::translate_1to1_match_1_inputs<opset10::Cosh>},
