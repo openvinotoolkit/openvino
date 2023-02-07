@@ -40,9 +40,8 @@ private:
     ov::intel_gna::header_latest::ModelHeader model_header_;
     GNAVersionSerializer version_;
 
-    void ImportInputs(std::istream& is, void* basePtr, ov::intel_gna::GnaInputs& inputs);
-
-    void ImportOutputs(std::istream& is, void* basePtr, ov::intel_gna::GnaOutputs& outputs);
+    template <class T>
+    void ImportNodes(std::istream &is, void* basePtr, T &inputs);   //inputs or outputs
 
     void ImportTranspositionInfo(std::istream& is,
                                  std::string& name,
