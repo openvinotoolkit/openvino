@@ -134,8 +134,8 @@ INFERENCE_ENGINE_API_CPP(bool) with_cpu_x86_avx512_core_amx_bf16();
 INFERENCE_ENGINE_API_CPP(bool) with_cpu_x86_avx512_core_amx();
 
 /**
- * @enum       enum cpu_core_type_of_processor
- * @brief      This enum contains defination of processor based on specific cpu core types.
+ * @enum cpu_core_type_of_processor
+ * @brief This enum contains defination of processor based on specific cpu core types.
  * Will extend to support other CPU core type like ARM.
  *
  * This enum are also defination of each columns in processor type table. Below are two example of processor type table.
@@ -214,7 +214,6 @@ void parse_processor_info_linux(const int _processors,
 
 #if (defined(_WIN32) || defined(_WIN64))
 /**
-
  * @brief      Parse processors infomation on Windows
  * @ingroup    ie_dev_api_system_conf
  * @param[in]  base_ptr buffer object pointer of Windows system infomation
