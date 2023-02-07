@@ -140,7 +140,7 @@ void ov::descriptor::Tensor::clone_from(const ov::descriptor::Tensor& old) {
     std::lock_guard<std::mutex> guard(m_mutex);
     set_names(old.get_names());
     m_element_type = old.get_element_type();
-    m_shape = old.get_shape();
+    m_shape = old.m_shape;
     m_partial_shape = old.get_partial_shape();
     m_lower_value = old.get_lower_value();
     m_upper_value = old.get_upper_value();
