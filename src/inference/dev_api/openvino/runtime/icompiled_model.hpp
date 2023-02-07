@@ -73,7 +73,7 @@ public:
     /**
      * @brief Create infer request
      *
-     * @return Infer request interface
+     * @return Asynchronous infer request interface
      */
     virtual std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const;
 
@@ -149,7 +149,7 @@ protected:
      * @tparam AsyncInferRequestType Async infer request type. InferenceEngine::AsyncInferRequestThreadSafeDefault by
      * default
      *
-     * @return Async infer request
+     * @return Asynchronous infer request
      */
     template <typename AsyncInferRequestType = ov::IAsyncInferRequest>
     std::shared_ptr<ov::IAsyncInferRequest> create_async_infer_request() const {

@@ -254,9 +254,6 @@ void ov::IAsyncInferRequest::check_tensors() const {
     m_sync_request->check_tensors();
 }
 
-const ov::IAsyncInferRequest::InferState& ov::IAsyncInferRequest::get_state() const {
-    return m_state;
-}
 const std::shared_ptr<ov::ICompiledModel>& ov::IAsyncInferRequest::get_compiled_model() const {
     return m_sync_request->get_compiled_model();
 }

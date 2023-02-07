@@ -30,8 +30,6 @@ class IExtension;
 
 namespace ov {
 
-class ICore;
-
 /**
  * @brief OpenVINO Plugin Interface 2.0
  */
