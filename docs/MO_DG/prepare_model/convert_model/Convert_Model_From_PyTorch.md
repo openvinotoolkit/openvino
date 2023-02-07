@@ -6,6 +6,19 @@ The PyTorch framework is supported through export to the ONNX format. Model Opti
 
 To convert a PyTorch model using `convert_model()`, provide the `input_shape` or `example_input`.
 
+`input_shape` is used to set shapes of model inputs, including dynamic shapes or shapes with boundaries.
+`example_input` is used to provide model input example.
+
+PyTorch model exporting to ONNX requires providing a dummy input to `torch.onnx.export()`. 
+If `example_input` is set then it is used as a dummy input, otherwise `input_shape` is used to construct a dummy input.
+
+If `input_shape` is set and provided shape is static then zero-filled float `torch.Tensor` is created with the specified shape, and it is used as dummy input for `torch.onnx.export()`. 
+If dynamic shape is specified then for creating a dummy input all fully dynamic dimensions are replaced with ones, dimensions with boundaries are replaced with lower bound or upper bound if lower bound is not set.
+After exporting to ONNX the model is converted with original dynamic shape from `input_shape` parameter.
+
+If both `input_shape` and `example_input` are set then `example_input` is used as dummy input for exporting model to ONNX and then the model is converted with the shape from `input_shape` parameter.
+
+
 ```sh
 import torchvision
 import torch
