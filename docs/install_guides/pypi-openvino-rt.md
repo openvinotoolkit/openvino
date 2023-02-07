@@ -5,23 +5,12 @@ Intel® Distribution of OpenVINO™ toolkit is an open-source toolkit for optimi
 If you have already finished developing your models and converting them to the OpenVINO model format, you can install OpenVINO Runtime to deploy your applications on various devices. The [OpenVINO™ Runtime](https://docs.openvino.ai/2022.3/openvino_docs_OV_UG_OV_Runtime_User_Guide.html) Python package includes a set of libraries for an easy inference integration with your products.
 
 ## System Requirements
-Before you start the installation, check the supported operating systems and required Python* versions. The complete list of supported hardware is available in the [Release Notes](https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-relnotes.html).
 
-| Supported Operating System                                   | [Python* Version (64-bit)](https://www.python.org/) |
-| :------------------------------------------------------------| :---------------------------------------------------|
-|   Ubuntu* 18.04 long-term support (LTS) x86, 64-bit          | 3.7, 3.8, 3.9, 3.10                                 |
-|   Ubuntu* 20.04 long-term support (LTS) x86, 64-bit          | 3.7, 3.8, 3.9, 3.10                                 |
-|   Red Hat* Enterprise Linux* 8 x86, 64-bit                   | 3.7, 3.8, 3.9, 3.10                                 |
-|   CentOS 7 x86, 64-bit                                       | 3.7, 3.8, 3.9, 3.10                                 |
-|   macOS* 10.15 and higher versions, x86, 64-bit              | 3.7, 3.8, 3.9, 3.10                                 |
-|   macOS* 11 and higher versions, arm64                       | 3.7, 3.8, 3.9, 3.10                                 |
-|   Windows 10* and higher versions, x86, 64-bit               | 3.7, 3.8, 3.9, 3.10                                 |
+Before you start the installation, check the supported operating systems and required Python* versions. The complete list of supported hardware is available in the [System Requirements](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html).
 
 **C++ libraries** are also required for the installation on Windows*. To install that, you can [download the Visual Studio Redistributable file (.exe)](https://aka.ms/vs/17/release/vc_redist.x64.exe).
 
 > **NOTE**: This package can be installed on other versions of Linux and Windows OSes, but only the specific versions above are fully validated.
-
-> **NOTE**: The current version of the OpenVINO™ Runtime for macOS* supports inference on Intel® CPUs only.
 
 ## Install the OpenVINO™ Runtime Package
 
@@ -109,8 +98,9 @@ sudo apt-get install libpython3.7
 - [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/en-us/openvino-toolkit)
 - [OpenVINO™ Documentation](https://docs.openvino.ai/)
 - [OpenVINO™ Notebooks](https://github.com/openvinotoolkit/openvino_notebooks)
+- [OpenVINO Installation Selector Tool](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html)
 
-Copyright © 2018-2022 Intel Corporation
+Copyright © 2018-2023 Intel Corporation
 > **LEGAL NOTICE**: Your use of this software and any required dependent software (the
 “Software Package”) is subject to the terms and conditions of the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0.html) for the Software Package, which may also include notices, disclaimers, or
 license terms for third party or open source software included in or with the Software Package, and your use indicates your acceptance of all such terms. Please refer to the “third-party-programs.txt” or other similarly-named text file included with the Software Package for additional details.

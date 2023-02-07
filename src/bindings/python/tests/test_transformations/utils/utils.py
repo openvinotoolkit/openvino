@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.runtime import Model, PartialShape, opset8
 from openvino.runtime.passes import ModelPass, Matcher, MatcherPass, WrapType
 
 
-def get_test_model():
+def get_relu_model():
     # Parameter->Relu->Result
     param = opset8.parameter(PartialShape([1, 3, 22, 22]), name="parameter")
     relu = opset8.relu(param.output(0))

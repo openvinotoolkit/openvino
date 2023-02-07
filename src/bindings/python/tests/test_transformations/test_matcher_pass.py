@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 from openvino.runtime import opset8
 from openvino.runtime.passes import Manager, Matcher, MatcherPass, WrapType
 from openvino.runtime.utils import replace_node
 
-from tests.test_transformations.utils.utils import count_ops, get_test_model, PatternReplacement
+from tests.test_transformations.utils.utils import count_ops, get_relu_model, PatternReplacement
 
 
 def test_simple_pattern_replacement():
@@ -27,7 +27,7 @@ def test_simple_pattern_replacement():
 
         return Matcher(relu, "SimpleReplacement"), callback
 
-    model = get_test_model()
+    model = get_relu_model()
 
     manager = Manager()
     manager.register_pass(MatcherPass(*pattern_replacement()))
@@ -37,7 +37,7 @@ def test_simple_pattern_replacement():
 
 
 def test_matcher_pass():
-    model = get_test_model()
+    model = get_relu_model()
 
     manager = Manager()
     # check that register pass returns pass instance
@@ -49,7 +49,7 @@ def test_matcher_pass():
 
 
 def test_matcher_pass_apply():
-    model = get_test_model()
+    model = get_relu_model()
 
     pattern_replacement = PatternReplacement()
     pattern_replacement.apply(model.get_result().input_value(0).get_node())

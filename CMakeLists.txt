@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -107,7 +107,10 @@ endif()
 
 add_subdirectory(thirdparty)
 add_subdirectory(src)
-add_subdirectory(samples)
+
+if(ENABLE_SAMPLES OR ENABLE_TESTS OR ENABLE_COMPILE_TOOL)
+    add_subdirectory(samples)
+endif()
 
 # Enable interpreter backend for tests
 if (ENABLE_TESTS OR ENABLE_TEMPLATE)

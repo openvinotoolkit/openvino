@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ie_metric_helpers.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
+#include "intel_gpu/graph/serialization/utils.hpp"
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/itt.hpp"
 #include "intel_gpu/plugin/infer_request.hpp"
@@ -64,29 +65,6 @@ CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network, std::shared_p
     }
 }
 
-static InferenceEngine::Layout layout_from_string(const std::string & name) {
-    static const std::unordered_map<std::string, InferenceEngine::Layout> layouts = {
-        { "ANY", InferenceEngine::Layout::ANY },
-        { "NCHW", InferenceEngine::Layout::NCHW },
-        { "NHWC", InferenceEngine::Layout::NHWC },
-        { "NCDHW", InferenceEngine::Layout::NCDHW },
-        { "NDHWC", InferenceEngine::Layout::NDHWC },
-        { "OIHW", InferenceEngine::Layout::OIHW },
-        { "C", InferenceEngine::Layout::C },
-        { "CHW", InferenceEngine::Layout::CHW },
-        { "HWC", InferenceEngine::Layout::HWC },
-        { "HW", InferenceEngine::Layout::HW },
-        { "NC", InferenceEngine::Layout::NC },
-        { "CN", InferenceEngine::Layout::CN },
-        { "BLOCKED", InferenceEngine::Layout::BLOCKED }
-    };
-    auto it = layouts.find(name);
-    if (it != layouts.end()) {
-        return it->second;
-    }
-    IE_THROW(NetworkNotRead) << "Unknown layout with name '" << name << "'";
-}
-
 CompiledModel::CompiledModel(std::istream& networkModel, std::shared_ptr<InferenceEngine::RemoteContext> context, Config config) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{[&]() -> InferenceEngine::ITaskExecutor::Ptr {
         if (config.exclusiveAsyncRequests) {
@@ -126,7 +104,7 @@ CompiledModel::CompiledModel(std::istream& networkModel, std::shared_ptr<Inferen
             ib >> precision;
             ib >> layout;
 
-            DataPtr input = std::make_shared<Data>(name, Precision::FromStr(precision), layout_from_string(layout));
+            DataPtr input = std::make_shared<Data>(name, Precision::FromStr(precision), cldnn::layout_from_string(layout));
             InputInfo::Ptr infoNew = std::make_shared<InputInfo>();
             infoNew->setInputData(input);
             inputs.emplace(std::make_pair(name, infoNew));
@@ -145,7 +123,7 @@ CompiledModel::CompiledModel(std::istream& networkModel, std::shared_ptr<Inferen
             ib >> precision;
             ib >> layout;
 
-            DataPtr output = std::make_shared<Data>(name, Precision::FromStr(precision), layout_from_string(layout));
+            DataPtr output = std::make_shared<Data>(name, Precision::FromStr(precision), cldnn::layout_from_string(layout));
             outputs.emplace(std::make_pair(name, output));
         }
 

@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 from openvino.runtime import opset8
 from openvino.runtime.passes import Manager, GraphRewrite, MatcherPass, WrapType, Matcher
 
-from tests.test_transformations.utils.utils import count_ops, get_test_model, PatternReplacement
+from tests.test_transformations.utils.utils import count_ops, get_relu_model, PatternReplacement
 
 
 def test_graph_rewrite():
-    model = get_test_model()
+    model = get_relu_model()
 
     manager = Manager()
     # check that register pass returns pass instance
@@ -68,7 +68,7 @@ def test_register_new_node():
     manager = Manager()
     ins = manager.register_pass(InsertExp())
     rem = manager.register_pass(RemoveExp())
-    manager.run_passes(get_test_model())
+    manager.run_passes(get_relu_model())
 
     assert ins.model_changed
     assert rem.model_changed

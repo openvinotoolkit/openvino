@@ -18,10 +18,11 @@ Users in China might encounter errors while downloading sources via PIP during O
    pip install openvino-dev[tensorflow2] -i https://mirrors.aliyun.com/pypi/simple/
    ```
 
-* For C++ developers, if you have installed OpenVINO Runtime via APT, YUM, or the installer, and then installed OpenVINO Development Tools via PyPI, you may run into issues. To resolve that, install the components in ``requirements.txt`` by using the following command: 
+* For C++ developers, if you have installed OpenVINO Runtime via APT, YUM, or the archive file, and then installed OpenVINO Development Tools via PyPI, you may run into issues. To resolve that, install the components in ``requirements.txt`` by using the following command: 
    ``` sh
    pip install -r <INSTALL_DIR>/tools/requirements.txt
    ```
+  For APT and YUM users, replace the `INSTALL_DIR` with `/usr/share/openvino`.
 
 <!-- this part was from Docker installation -->
 
@@ -205,7 +206,8 @@ sudo apt install mokutil
 sudo mokutil --disable-validation
 ```
 
-## <a name="yocto-install-issues"></a>Issues with Creating a Yocto Image for OpenVINO
+@anchor yocto-install-issues
+## Issues with Creating a Yocto Image for OpenVINO
 
 ### Error while adding "meta-intel" layer
 

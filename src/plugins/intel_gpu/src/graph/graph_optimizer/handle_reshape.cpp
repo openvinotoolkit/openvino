@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -93,15 +93,15 @@ void handle_reshape::run(program& p) {
                 // vector for storing reshape nodes to connect to new reorder nodes (if needed)
                 std::vector<program_node*> reorder_reshape_nodes;
 
-                bool skip_first_user = false;
+                bool found_one = false;
                 auto reshape_users = node->get_users();
                 for (const auto& user : reshape_users) {
                     // reshape node for first user will be the orginal reshape from the graph
-                    if (!skip_first_user) {
-                        if (std::find(reorder_node_to_split.begin(), reorder_node_to_split.end(), user) !=
-                            reorder_node_to_split.end())
+                    if (!found_one) {
+                        if ((std::find(reorder_node_to_split.begin(), reorder_node_to_split.end(), user) !=
+                            reorder_node_to_split.end()) && (user->get_output_layout().get_rank() == node->get_output_layout().get_rank()))
                             reorder_reshape_nodes.push_back(node);
-                        skip_first_user = true;
+                        found_one = true;
                         continue;
                     }
 
@@ -117,6 +117,9 @@ void handle_reshape::run(program& p) {
                         reorder_reshape_nodes.push_back(&new_reshape_node);
                     }
                 }
+
+                if (reorder_reshape_nodes.size() == 0)
+                    continue;
 
                 // add new reorder nodes to proper reshape node
                 auto reshape_reorder_id = 0;

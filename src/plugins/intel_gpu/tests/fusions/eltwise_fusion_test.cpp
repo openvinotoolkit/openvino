@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -235,6 +235,30 @@ TEST_P(eltwise_fp32_fsv16, add_per_element) {
         input_layout("input", get_input_layout(p)),
         input_layout("input2", get_input_layout2(p)),
         data("add_data", get_mem(get_input_layout(p), -10, 10)),
+        eltwise("eltwise", { input_info("input"), input_info("input2") }, p.mode, p.default_type),
+        eltwise("add", { input_info("eltwise"), input_info("add_data") }, eltwise_mode::sum),
+        activation("activation", input_info("add"), activation_func::negative),
+        reorder("out", input_info("activation"), p.default_format, data_types::f32)
+    );
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives++;
+
+    implementation_desc eltw_impl = { format::b_fs_yx_fsv16, "eltwise_b_fs_yx_fsv16" };
+    bo_fused.set_option(build_option::force_implementations({ { "eltwise", eltw_impl } }));
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+TEST_P(eltwise_fp32_fsv16, add_broadcast) {
+    auto p = GetParam();
+    auto eltwise2_layout = layout{ p.default_type, p.default_format, tensor{ 1, 1, get_input_layout(p).spatial(0), 1 } };
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        input_layout("input2", get_input_layout2(p)),
+        data("add_data", get_mem(eltwise2_layout, -10, 10)),
         eltwise("eltwise", { input_info("input"), input_info("input2") }, p.mode, p.default_type),
         eltwise("add", { input_info("eltwise"), input_info("add_data") }, eltwise_mode::sum),
         activation("activation", input_info("add"), activation_func::negative),

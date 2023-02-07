@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,50 +28,53 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
 
         // first_inference_latency = time_to_inference + first_inference
         {
-            SCOPED_TIMER(time_to_inference);
+            SCOPED_TIMER(first_inference_latency);
             {
-                SCOPED_TIMER(load_plugin);
-                TimeTest::setPerformanceConfig(ie, device);
-                ie.GetVersions(device);
+                SCOPED_TIMER(time_to_inference);
+                {
+                    SCOPED_TIMER(load_plugin);
+                    TimeTest::setPerformanceConfig(ie, device);
+                    ie.GetVersions(device);
 
-                if (isCacheEnabled)
-                    ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "models_cache"}});
-            }
-            {
-                SCOPED_TIMER(create_exenetwork);
-                if (!isCacheEnabled) {
-                    if (TimeTest::fileExt(model) == "blob") {
-                        SCOPED_TIMER(import_network);
-                        exeNetwork = ie.ImportNetwork(model, device);
+                    if (isCacheEnabled)
+                        ie.SetConfig({ {CONFIG_KEY(CACHE_DIR), "models_cache"} });
+                }
+                {
+                    SCOPED_TIMER(create_exenetwork);
+                    if (!isCacheEnabled) {
+                        if (TimeTest::fileExt(model) == "blob") {
+                            SCOPED_TIMER(import_network);
+                            exeNetwork = ie.ImportNetwork(model, device);
+                        }
+                        else {
+                            {
+                                SCOPED_TIMER(read_network);
+                                cnnNetwork = ie.ReadNetwork(model);
+                                batchSize = cnnNetwork.getBatchSize();
+                            }
+                            {
+                                SCOPED_TIMER(load_network);
+                                exeNetwork = ie.LoadNetwork(cnnNetwork, device);
+                            }
+                        }
                     }
                     else {
-                        {
-                            SCOPED_TIMER(read_network);
-                            cnnNetwork = ie.ReadNetwork(model);
-                            batchSize = cnnNetwork.getBatchSize();
-                        }
-                        {
-                            SCOPED_TIMER(load_network);
-                            exeNetwork = ie.LoadNetwork(cnnNetwork, device);
-                        }
+                        SCOPED_TIMER(load_network_cache);
+                        exeNetwork = ie.LoadNetwork(model, device);
                     }
                 }
-                else {
-                    SCOPED_TIMER(load_network_cache);
-                    exeNetwork = ie.LoadNetwork(model, device);
-                }
+                inferRequest = exeNetwork.CreateInferRequest();
             }
-            inferRequest = exeNetwork.CreateInferRequest();
-        }
-        {
-            SCOPED_TIMER(first_inference);
             {
-                SCOPED_TIMER(fill_inputs);
-                const InferenceEngine::ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
-                batchSize = batchSize != 0 ? batchSize : 1;
-                fillBlobs(inferRequest, inputsInfo, batchSize);
+                SCOPED_TIMER(first_inference);
+                {
+                    SCOPED_TIMER(fill_inputs);
+                    const InferenceEngine::ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
+                    batchSize = batchSize != 0 ? batchSize : 1;
+                    fillBlobs(inferRequest, inputsInfo, batchSize);
+                }
+                inferRequest.Infer();
             }
-            inferRequest.Infer();
         }
     };
 

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -107,7 +107,7 @@ struct broadcast : public primitive_base<broadcast> {
           target_shape(target_shape),
           axes_mapping(axes_mapping),
           broadcast_mode(broadcast_spec),
-          broadcast_sizes({}),
+          broadcast_sizes(target_shape.empty() ? tensor(1) : tensor(0)),
           broadcast_axes({}) {}
 
     /// @brief Constructs broadcast primitive / layer with dynamic target_shape.

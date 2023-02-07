@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1957,24 +1957,32 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
 
     // Fsv16 Eltwise whcih requires f axis broadcast such as input[1,1,z,1,1], output[b,f,z,y,x] need to use LT unligned read.
     // In this case, intel_sub_group_block_read() introduces increasing index in feature block.
-    bool f_axis_broadcast = ((input_tensor.Feature().v != prim_output.Feature().v) && (input_tensor.Feature().v == 1) && (vec_size == 1));
+    bool f_axis_broadcast = (input_tensor.Feature().v != prim_output.Feature().v) && (input_tensor.Feature().v == 1);
     // Change JitLoad to ignore LT_ALIGNED_READ LoadType if this input tensor has a planar format(SimpleLayout)
-    if (desc.GetType() == KernelType::ELTWISE && input_tensor.SimpleLayout() && input_tensor.GetLayout() != orig_output_layout &&
+    if (desc.GetType() == KernelType::ELTWISE &&
         conf.load_type == FusedOpsConfiguration::LoadType::LT_ALIGNED_READ &&
-        (input_tensor.SameDimsSizes(prim_output) || f_axis_broadcast) && input_tensor.LogicalSize() != 1) {
+        ((input_tensor.SimpleLayout() && input_tensor.GetLayout() != orig_output_layout) || f_axis_broadcast) &&
+        (input_tensor.SameDimsSizes(prim_output) || f_axis_broadcast) &&
+        input_tensor.LogicalSize() != 1) {
         std::string sub_group_local_id_str = "get_sub_group_local_id";
         size_t found_sub = conf.bfzyx_idx_order[1].rfind(sub_group_local_id_str);
-        if (found_sub != std::string::npos) {
-            throw std::runtime_error("[clDNN] LT ALIGNED LoadType is used with get_sub_group_local_id.");
-        }
+        OPENVINO_ASSERT(found_sub == std::string::npos, "[GPU] LT_ALIGNED_READ LoadType is used with get_sub_group_local_id.");
 
         auto new_idx_order = conf.bfzyx_idx_order;
         new_idx_order[1] = "(" + conf.bfzyx_idx_order[1] + " + " + sub_group_local_id_str + "()" + ")";
-
-        std::string new_index_func_call = GetIdx(input_id, idx_desc{new_idx_order, desc.tensors[input_id]}, safe_load);
         if (vec_size > 1) {
-            throw std::runtime_error("[clDNN] Mixed layouts of input tensors are supported only if vector size is 1 :"
-                                        "[" + toString_v2(input_tensor) + "/" + toString_v2(prim_output));
+            auto vec_axis_idx = conf.GetDimIndexFromOrder(conf.vec_axis);
+            OPENVINO_ASSERT(vec_axis_idx != -1, "[GPU] Incorrect vec_axis value ", static_cast<int>(conf.vec_axis),
+                                                " for bfzyx_idx_order order");
+            new_idx_order[vec_axis_idx] = "((" + conf.bfzyx_idx_order[vec_axis_idx] + ") + loop_var)";
+        }
+        std::string new_index_func_call = GetIdx(input_id, idx_desc{new_idx_order, desc.tensors[input_id]}, safe_load);
+
+        if (vec_size > 1) {
+            std::string load_str = "0;"; // Assign zero to initial variable (GetInputVarName(input_id)) and modify it in the loop below
+            load_str += "for (uint loop_var = 0; loop_var < " + std::to_string(vec_size)  + "; loop_var++) { ";
+            load_str += GetInputVarName(input_id) + "[loop_var] = " + GetInputPtrName(input_id) + "[" + new_index_func_call + "]; }";
+            return load_str;
         } else {
             return GetInputPtrName(input_id) + "[" + new_index_func_call + "]";
         }

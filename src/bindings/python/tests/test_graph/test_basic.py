@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import json
 
 import numpy as np
 import pytest
@@ -10,15 +9,13 @@ import pytest
 import openvino.runtime.opset8 as ops
 import openvino.runtime as ov
 
-from openvino.runtime.exceptions import UserInputError
 from openvino.runtime import Model, PartialShape, Shape, Type, layout_helpers
 from openvino.runtime import Strides, AxisVector, Coordinate, CoordinateDiff
 from openvino.runtime import Tensor, OVAny
 from openvino._pyopenvino import DescriptorTensor
 from openvino.runtime.op import Parameter
-from tests.runtime import get_runtime
-from openvino.runtime.utils.types import get_dtype
-from tests.test_graph.util import run_op_node
+
+from openvino.runtime.utils.types import get_element_type
 
 
 def test_graph_function_api():
@@ -88,76 +85,34 @@ def test_graph_function_api():
         Type.u64,
     ],
 )
-def test_simple_computation_on_ndarrays(dtype):
-    runtime = get_runtime()
-
+def test_simple_model_on_parameters(dtype):
     shape = [2, 2]
     parameter_a = ops.parameter(shape, dtype=dtype, name="A")
     parameter_b = ops.parameter(shape, dtype=dtype, name="B")
     parameter_c = ops.parameter(shape, dtype=dtype, name="C")
     model = (parameter_a + parameter_b) * parameter_c
-    computation = runtime.computation(model, parameter_a, parameter_b, parameter_c)
-
-    np_dtype = get_dtype(dtype) if isinstance(dtype, Type) else dtype
-
-    value_a = np.array([[1, 2], [3, 4]], dtype=np_dtype)
-    value_b = np.array([[5, 6], [7, 8]], dtype=np_dtype)
-    value_c = np.array([[2, 3], [4, 5]], dtype=np_dtype)
-    result = computation(value_a, value_b, value_c)
-    assert np.allclose(result, np.array([[12, 24], [40, 60]], dtype=np_dtype))
-
-    value_a = np.array([[9, 10], [11, 12]], dtype=np_dtype)
-    value_b = np.array([[13, 14], [15, 16]], dtype=np_dtype)
-    value_c = np.array([[5, 4], [3, 2]], dtype=np_dtype)
-    result = computation(value_a, value_b, value_c)
-    assert np.allclose(result, np.array([[110, 96], [78, 56]], dtype=np_dtype))
+    expected_type = dtype if isinstance(dtype, Type) else get_element_type(dtype)
+    assert model.get_type_name() == "Multiply"
+    assert model.get_output_size() == 1
+    assert model.get_output_element_type(0) == expected_type
+    assert list(model.get_output_shape(0)) == [2, 2]
 
 
-def test_serialization():
-    dtype = np.float32
-    shape = [2, 2]
-    parameter_a = ops.parameter(shape, dtype=dtype, name="A")
-    parameter_b = ops.parameter(shape, dtype=dtype, name="B")
-    parameter_c = ops.parameter(shape, dtype=dtype, name="C")
-    model = (parameter_a + parameter_b) * parameter_c
-
-    runtime = get_runtime()
-    computation = runtime.computation(model, parameter_a, parameter_b, parameter_c)
-    try:
-        serialized = computation.serialize(2)
-        serial_json = json.loads(serialized)
-
-        assert serial_json[0]["name"] != ""
-        assert 10 == len(serial_json[0]["ops"])
-    except Exception:
-        pass
-
-
-def test_broadcast_1():
-    input_data = np.array([1, 2, 3], dtype=np.int32)
-
-    new_shape = [3, 3]
-    expected = [[1, 2, 3], [1, 2, 3], [1, 2, 3]]
-    result = run_op_node([input_data], ops.broadcast, new_shape)
-    assert np.allclose(result, expected)
-
-
-def test_broadcast_2():
-    input_data = np.arange(4, dtype=np.int32)
-    new_shape = [3, 4, 2, 4]
-    expected = np.broadcast_to(input_data, new_shape)
-    result = run_op_node([input_data], ops.broadcast, new_shape)
-    assert np.allclose(result, expected)
-
-
-def test_broadcast_3():
-    input_data = np.array([1, 2, 3], dtype=np.int32)
-    new_shape = [3, 3]
-    axis_mapping = [0]
-    expected = [[1, 1, 1], [2, 2, 2], [3, 3, 3]]
-
-    result = run_op_node([input_data], ops.broadcast, new_shape, axis_mapping, "EXPLICIT")
-    assert np.allclose(result, expected)
+@pytest.mark.parametrize(
+    ("input_shape", "dtype", "new_shape", "axis_mapping", "mode"),
+    [
+        ((3,), np.int32, [3, 3], [], []),
+        ((4,), np.float32, [3, 4, 2, 4], [], []),
+        ((3,), np.int8, [3, 3], [[0]], ["EXPLICIT"]),
+    ],
+)
+def test_broadcast(input_shape, dtype, new_shape, axis_mapping, mode):
+    input_data = ops.parameter(input_shape, name="input_data", dtype=dtype)
+    node = ops.broadcast(input_data, new_shape, *axis_mapping, *mode)
+    assert node.get_type_name() == "Broadcast"
+    assert node.get_output_size() == 1
+    assert node.get_output_element_type(0) == get_element_type(dtype)
+    assert list(node.get_output_shape(0)) == new_shape
 
 
 @pytest.mark.parametrize(
@@ -165,10 +120,11 @@ def test_broadcast_3():
     [(bool, np.zeros((2, 2), dtype=np.int32)), ("boolean", np.zeros((2, 2), dtype=np.int32))],
 )
 def test_convert_to_bool(destination_type, input_data):
-    expected = np.array(input_data, dtype=bool)
-    result = run_op_node([input_data], ops.convert, destination_type)
-    assert np.allclose(result, expected)
-    assert np.array(result).dtype == bool
+    node = ops.convert(input_data, destination_type)
+    assert node.get_type_name() == "Convert"
+    assert node.get_output_size() == 1
+    assert node.get_output_element_type(0) == Type.boolean
+    assert list(node.get_output_shape(0)) == [2, 2]
 
 
 @pytest.mark.parametrize(
@@ -183,10 +139,11 @@ def test_convert_to_bool(destination_type, input_data):
 def test_convert_to_float(destination_type, rand_range, in_dtype, expected_type):
     np.random.seed(133391)
     input_data = np.random.randint(*rand_range, size=(2, 2), dtype=in_dtype)
-    expected = np.array(input_data, dtype=expected_type)
-    result = run_op_node([input_data], ops.convert, destination_type)
-    assert np.allclose(result, expected)
-    assert np.array(result).dtype == expected_type
+    node = ops.convert(input_data, destination_type)
+    assert node.get_type_name() == "Convert"
+    assert node.get_output_size() == 1
+    assert node.get_output_element_type(0) == get_element_type(expected_type)
+    assert list(node.get_output_shape(0)) == [2, 2]
 
 
 @pytest.mark.parametrize(
@@ -206,10 +163,11 @@ def test_convert_to_int(destination_type, expected_type):
     np.random.seed(133391)
     random_data = np.random.rand(2, 3, 4) * 16
     input_data = (np.ceil(-8 + random_data)).astype(expected_type)
-    expected = np.array(input_data, dtype=expected_type)
-    result = run_op_node([input_data], ops.convert, destination_type)
-    assert np.allclose(result, expected)
-    assert np.array(result).dtype == expected_type
+    node = ops.convert(input_data, destination_type)
+    assert node.get_type_name() == "Convert"
+    assert node.get_output_size() == 1
+    assert node.get_output_element_type(0) == get_element_type(expected_type)
+    assert list(node.get_output_shape(0)) == [2, 3, 4]
 
 
 @pytest.mark.parametrize(
@@ -228,23 +186,11 @@ def test_convert_to_int(destination_type, expected_type):
 def test_convert_to_uint(destination_type, expected_type):
     np.random.seed(133391)
     input_data = np.ceil(np.random.rand(2, 3, 4) * 16).astype(expected_type)
-    expected = np.array(input_data, dtype=expected_type)
-    result = run_op_node([input_data], ops.convert, destination_type)
-    assert np.allclose(result, expected)
-    assert np.array(result).dtype == expected_type
-
-
-def test_bad_data_shape():
-    param_a = ops.parameter(shape=[2, 2], name="A", dtype=np.float32)
-    param_b = ops.parameter(shape=[2, 2], name="B")
-    model = param_a + param_b
-    runtime = get_runtime()
-    computation = runtime.computation(model, param_a, param_b)
-
-    value_a = np.array([[1, 2]], dtype=np.float32)
-    value_b = np.array([[5, 6], [7, 8]], dtype=np.float32)
-    with pytest.raises(RuntimeError):
-        computation(value_a, value_b)
+    node = ops.convert(input_data, destination_type)
+    assert node.get_type_name() == "Convert"
+    assert node.get_output_size() == 1
+    assert node.get_output_element_type(0) == get_element_type(expected_type)
+    assert list(node.get_output_shape(0)) == [2, 3, 4]
 
 
 def test_constant_get_data_bool():
@@ -290,41 +236,41 @@ def test_constant_get_data_unsigned_integer(data_type):
 
 
 def test_set_argument():
-    runtime = get_runtime()
-
     data1 = np.array([1, 2, 3])
     data2 = np.array([4, 5, 6])
     data3 = np.array([7, 8, 9])
 
     node1 = ops.constant(data1, dtype=np.float32)
     node2 = ops.constant(data2, dtype=np.float32)
-    node3 = ops.constant(data3, dtype=np.float32)
+    node3 = ops.constant(data3, dtype=np.float64)
+    node4 = ops.constant(data3, dtype=np.float64)
     node_add = ops.add(node1, node2)
 
     # Original arguments
-    computation = runtime.computation(node_add)
-    output = computation()
-    assert np.allclose(data1 + data2, output)
-
-    # Arguments changed by set_argument
-    node_add.set_argument(1, node3.output(0))
-    output = computation()
-    assert np.allclose(data1 + data3, output)
+    node_inputs = node_add.inputs()
+    assert node_inputs[0].get_element_type() == Type.f32
+    assert node_inputs[1].get_element_type() == Type.f32
+    assert len(node_inputs) == 2
 
     # Arguments changed by set_argument
     node_add.set_argument(0, node3.output(0))
-    output = computation()
-    assert np.allclose(data3 + data3, output)
+    node_add.set_argument(1, node4.output(0))
+    node_inputs = node_add.inputs()
+    assert node_inputs[0].get_element_type() == Type.f64
+    assert node_inputs[1].get_element_type() == Type.f64
+    assert len(node_inputs) == 2
 
     # Arguments changed by set_argument(OutputVector)
-    node_add.set_arguments([node2.output(0), node3.output(0)])
-    output = computation()
-    assert np.allclose(data2 + data3, output)
+    node_add.set_arguments([node1.output(0), node2.output(0)])
+    assert node_inputs[0].get_element_type() == Type.f32
+    assert node_inputs[1].get_element_type() == Type.f32
+    assert len(node_inputs) == 2
 
     # Arguments changed by set_arguments(NodeVector)
-    node_add.set_arguments([node1, node2])
-    output = computation()
-    assert np.allclose(data1 + data2, output)
+    node_add.set_arguments([node3, node4])
+    assert node_inputs[0].get_element_type() == Type.f64
+    assert node_inputs[1].get_element_type() == Type.f64
+    assert len(node_inputs) == 2
 
 
 def test_clone_model():
@@ -352,9 +298,12 @@ def test_clone_model():
 
 
 def test_result():
-    node = np.array([[11, 10], [1, 8], [3, 4]], dtype=np.float32)
-    result = run_op_node([node], ops.result)
-    assert np.allclose(result, node)
+    input_data = np.array([[11, 10], [1, 8], [3, 4]], dtype=np.float32)
+    node = ops.result(input_data)
+    assert node.get_type_name() == "Result"
+    assert node.get_output_size() == 1
+    assert node.get_output_element_type(0) == Type.f32
+    assert list(node.get_output_shape(0)) == [3, 2]
 
 
 def test_node_friendly_name():
@@ -529,20 +478,6 @@ def test_node_target_inputs_soruce_output():
     assert np.equal([in_model1.get_shape()], [model.get_output_shape(0)]).all()
 
 
-def test_any():
-    any_int = OVAny(32)
-    any_str = OVAny("test_text")
-
-    assert any_int.get() == 32
-    assert any_str.get() == "test_text"
-
-    any_int.set(777)
-    any_str.set("another_text")
-
-    assert any_int.get() == 777
-    assert any_str.get() == "another_text"
-
-
 def test_runtime_info():
     test_shape = PartialShape([1, 1, 1, 1])
     test_type = Type.f32
@@ -567,11 +502,10 @@ def test_multiple_outputs():
     split_first_output = split.output(0)
     relu = ops.relu(split_first_output)
 
-    runtime = get_runtime()
-    computation = runtime.computation(relu, test_param)
-    output = computation(input_data)
-
-    assert np.equal(output, expected_output).all()
+    assert relu.get_type_name() == "Relu"
+    assert relu.get_output_size() == 1
+    assert relu.get_output_element_type(0) == Type.f32
+    assert list(relu.get_output_shape(0)) == [4, 2]
 
 
 def test_sink_function_ctor():

@@ -12,12 +12,12 @@ The instructions on this page show how to install OpenVINO Development Tools. If
 
 In both cases, Python 3.7 - 3.10 needs to be installed on your machine before starting.
 
-> **NOTE**: From the 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI. 
+> **NOTE**: From the 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI.
 
 ## <a name="python-developers"></a>For Python Developers
 
-If you are a Python developer, follow the steps in the <a href="openvino_docs_install_guides_install_dev_tools.html#install-dev-tools">Installing OpenVINO Development Tools</a> section on this page to install it. Installing OpenVINO Development Tools will also install OpenVINO Runtime as a dependency, so you don’t need to install OpenVINO Runtime separately. This option is recommended for new users.
-   
+If you are a Python developer, follow the steps in the <a href="#install-dev-tools">Installing OpenVINO Development Tools</a> section on this page to install it. Installing OpenVINO Development Tools will also install OpenVINO Runtime as a dependency, so you don’t need to install OpenVINO Runtime separately. This option is recommended for new users.
+
 ## <a name="cpp-developers"></a>For C++ Developers
 If you are a C++ developer, you must first install OpenVINO Runtime separately to set up the C++ libraries, sample code, and dependencies for building applications with OpenVINO. These files are not included with the PyPI distribution. See the [Install OpenVINO Runtime](./installing-openvino-runtime.md) page to install OpenVINO Runtime from an archive file for your operating system.
 
@@ -35,16 +35,16 @@ Create a virtual Python environment to avoid dependency conflicts. To create a v
 .. tab:: Linux and macOS
 
    .. code-block:: sh
-   
+
       python3 -m venv openvino_env
-   
+
 .. tab:: Windows
 
    .. code-block:: sh
-   
+
       python -m venv openvino_env
-     
-     
+
+
 @endsphinxdirective
 
 
@@ -147,7 +147,7 @@ Note that the commands are different for a Python installation and a C++ install
 
       pip install openvino-dev[EXTRAS]==2022.3.0
 
-   where the EXTRAS parameter specifies one or more deep learning frameworks via these values: caffe, kaldi, mxnet, onnx, pytorch, tensorflow, tensorflow2. Make sure that you install the corresponding frameworks for your models. For example: 
+   where the EXTRAS parameter specifies one or more deep learning frameworks via these values: caffe, kaldi, mxnet, onnx, pytorch, tensorflow, tensorflow2. Make sure that you install the corresponding frameworks for your models. For example:
 
    .. code-block:: sh
 
@@ -162,7 +162,7 @@ Note that the commands are different for a Python installation and a C++ install
 
 For more details on the openvino-dev PyPI package, see https://pypi.org/project/openvino-dev/.
 
-### Step 4. Test the Installation
+### Step 5. Test the Installation
 
 To verify the package is properly installed, run the command below (this may take a few seconds):
 
@@ -206,3 +206,4 @@ Visit the [Samples](../OV_Runtime_UG/Samples_Overview.md) page for other C++ exa
 
 - Intel® Distribution of OpenVINO™ toolkit home page: <https://software.intel.com/en-us/openvino-toolkit>
 - For IoT Libraries & Code Samples, see [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).
+- [OpenVINO Installation Selector Tool](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html)
