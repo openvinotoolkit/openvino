@@ -6,6 +6,7 @@
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/map_serializer.hpp"
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
+#include "intel_gpu/graph/serialization/set_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/runtime/profiling.hpp"
@@ -77,6 +78,11 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, RemoteContextImpl::Ptr context, const
     }
 
     ib >> m_program->inputLayouts;
+    Program::variables_state_info_map variablesStateInfoMap;
+    ib >> variablesStateInfoMap;
+    for (const auto& variablesStateInfo : variablesStateInfoMap) {
+        m_program->AddVariableStateInfo(variablesStateInfo.first, *variablesStateInfo.second.begin());
+    }
     ib >> primitiveIDs;
     ib >> outputDims;
 
@@ -492,6 +498,7 @@ void Graph::Export(cldnn::BinaryOutputBuffer &ob) {
     ob << need_onednn_engine;
 
     ob << m_program->inputLayouts;
+    ob << m_program->GetVariablesStatesInfo();
     ob << primitiveIDs;
     ob << outputDims;
 
