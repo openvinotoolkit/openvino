@@ -301,6 +301,14 @@ public:
     }
 
     static std::unique_ptr<primitive_impl> create(const gemm_node& arg, const kernel_impl_params& impl_params) {
+        bool full_tensor_or_per_tensor = true;
+        for (auto prim : arg.get_fused_primitives()) {
+            full_tensor_or_per_tensor &=
+                prim.input_layout.count() == prim.output_layout.count() || prim.input_layout.count() == 1;
+        }
+        if (!full_tensor_or_per_tensor) {
+            IE_THROW() << "Unimplemented: per channel binary post-operation is not supported for onednn gemm. Refer PR(#15353) message.";
+        }
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
         auto attr = arg.get_onednn_primitive_attributes();
