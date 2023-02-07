@@ -231,6 +231,8 @@ void InferRequest::wait() {
     OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized.");
     try {
         _impl->wait();
+    } catch (const ov::Cancelled& e) {
+        throw;
     } catch (const ie::InferCancelled& e) {
         throw Cancelled{e.what()};
     } catch (const std::exception& ex) {

@@ -551,10 +551,12 @@ public:
     void wait() override {
         try {
             m_request->Wait(InferenceEngine::InferRequest::RESULT_READY);
+        } catch (const ov::Cancelled& e) {
+            throw;
         } catch (const InferenceEngine::InferCancelled& e) {
             throw ov::Cancelled{e.what()};
         } catch (const std::exception& ex) {
-            throw Exception(ex.what());
+            throw ov::Exception(ex.what());
         } catch (...) {
             OPENVINO_UNREACHABLE("Unexpected exception");
         }
