@@ -36,13 +36,13 @@ TEST_F(CTCGreedyDecoderSeqLenV6StaticShapeInferenceTest, default_ctor) {
 
     // Two inputs
     input_shapes = {StaticShape{4, 100, 1200}, StaticShape{4}};
-    shape_infer(op.get(), input_shapes, output_shapes);
+    shape_inference(op.get(), input_shapes, output_shapes);
     EXPECT_EQ(output_shapes[0], StaticShape({4, 100}));
     EXPECT_EQ(output_shapes[1], StaticShape({4}));
 
     // Three inputs (the last one is optional)
     input_shapes = {StaticShape{4, 100, 1200}, StaticShape{4}, {}};
-    shape_infer(op.get(), input_shapes, output_shapes);
+    shape_inference(op.get(), input_shapes, output_shapes);
     EXPECT_EQ(output_shapes[0], StaticShape({4, 100}));
     EXPECT_EQ(output_shapes[1], StaticShape({4}));
 }
