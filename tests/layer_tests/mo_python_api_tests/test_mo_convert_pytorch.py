@@ -522,8 +522,7 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
                                    temp_dir, use_new_frontend, use_old_api):
         fw_model, graph_ref, mo_params = create_model(temp_dir)
 
-        test_params = {'input_model': fw_model}
+        test_params = {'input_model': fw_model, 'compress_to_fp16': False}
         if mo_params is not None:
             test_params.update(mo_params)
-        test_params.update({"compress_to_fp16": False})
         self._test_by_ref_graph(temp_dir, test_params, graph_ref, compare_tensor_names=False)
