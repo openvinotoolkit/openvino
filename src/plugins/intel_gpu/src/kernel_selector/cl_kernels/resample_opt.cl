@@ -227,7 +227,6 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
 #endif
     const int f_block = get_group_id(1);
     const int b = get_global_id(2);
-    const int feature_num = f_block * FEATURE_SLICE_SIZE + get_sub_group_local_id();
     const uint feature_block = f_block * FEATURE_SLICE_SIZE;
 
     typedef IN_VEC_TYPE in_vec_t;
