@@ -78,11 +78,15 @@ class BroadcastTest(unittest.TestCase):
             self.assertTrue(np.array_equal(broadcast_node.out_node().shape, np.array(target_shape)))
 
     @generate(*[
-        ([1], [3], 'numpy', undefined_shape_of_rank(3)),
-        ([1], [3], 'explicit', undefined_shape_of_rank(3)),
-        ([1, 2], [3], 'numpy', None, True),
+        ([1], [3], [0], 'explicit', undefined_shape_of_rank(3)),
+        ([1], [3], None, 'numpy', undefined_shape_of_rank(3)),
+        ([1], [3], None, 'bidirectional', undefined_shape_of_rank(3)),
+        ([1, 7], [4], [1, 2], 'explicit', undefined_shape_of_rank(4)),
+        ([1, 2], [3], None, 'numpy', undefined_shape_of_rank(3)),
+        ([1, 1], [2], None, 'bidirectional', undefined_shape_of_rank(2)),
+        ([1, 1], [2, 1], None, 'numpy', None, True),
     ])
-    def test_broadcast_dynamic(self, data, target_shape_shape, mode='numpy', ref_out_shape=None, test_raising=False):
+    def test_broadcast_dynamic(self, data, target_shape_shape, axes_mapping=None, mode='numpy', ref_out_shape=None, test_raising=False):
         nodes = {
             **shaped_data('data', int64_array(data)),
             **shaped_data('target_shape', int64_array(target_shape_shape)),
@@ -93,6 +97,10 @@ class BroadcastTest(unittest.TestCase):
                  ('target_shape', 'broadcast'),
                  ('broadcast', 'broadcast_d')]
 
+        if axes_mapping is not None:
+            nodes.update(**valued_const_with_data('axes_mapping', int64_array(axes_mapping)))
+            edges.append(('axes_mapping', 'axes_mapping_d'))
+            edges.append(('axes_mapping_d', 'broadcast'))
         graph = build_graph(nodes, edges)
 
         broadcast_node = Node(graph, 'broadcast')
