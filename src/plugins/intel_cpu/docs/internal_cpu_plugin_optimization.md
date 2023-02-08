@@ -47,7 +47,27 @@ class nodeB2,nodeB3,nodeB5, steel1
 
 A combination of Pooling and FakeQuantize layers results in a single fused layer called *Pooling*:  
 
-![pooling_fakequant_01](https://user-images.githubusercontent.com/26419192/159540321-41e7988a-f8a2-41f8-a2fe-17a3a55a00f0.png)
+```mermaid
+flowchart TD
+    subgraph subgraphA1[Runtime Graph]
+    direction TB
+    nodeA1(Input) --> nodeA2(Pooling)
+    nodeA2(Pooling) --> nodeA3(Output)
+    end
+    subgraph subgraphB1[Original Graph]
+    direction TB
+    nodeB1(Input) --> nodeB2("Pooling [Average]")
+    nodeB2("Pooling [Average]") --> nodeB3(Fake Quantize)
+    nodeB3(Fake Quantize) --> nodeB4(Output)
+    end
+classDef no-bg-color fill:none,stroke-width:0px
+classDef moss1 fill:#D7F3A2, stroke: #B1D272, color: #262626
+classDef steel1 fill:#B9D6E5, stroke: #86B3CA, color: #262626
+classDef daisy1 fill:#FFE17A, stroke: #FEC91B, color: #262626
+class subgraphA1,subgraphB1 no-bg-color
+class nodeA2 daisy1
+class nodeB1,nodeB4,nodeA1,nodeA3 moss1
+class nodeB2,nodeB3 steel1
 
 ## Fusing FullyConnected and Activation Layers
 
