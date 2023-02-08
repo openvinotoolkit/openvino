@@ -61,14 +61,14 @@ OutputVector translate_if(NodeContext& context) {
     const auto else_results = else_body->get_results();
     FRONT_END_OP_CONVERSION_CHECK(then_results.size() >= num_outs && else_results.size() >= num_outs,
                                   "Else or then body have less outputs than prim::If requires.");
-    for (int i = 0; i < num_outs; i++) {
+    for (size_t i = 0; i < num_outs; i++) {
         res.push_back(if_node->set_output(then_results[i], else_results[i]));
     }
     // Each body can have mutated outputs that are not included into pytorch node outputs.
     std::map<size_t, std::shared_ptr<opset10::Result>> extra_then_body_results;
     std::map<size_t, std::shared_ptr<opset10::Result>> extra_else_body_results;
     std::set<size_t> extra_output_idxs;
-    for (int i = num_outs; i < then_results.size(); i++) {
+    for (size_t i = num_outs; i < then_results.size(); i++) {
         const auto result = then_results[i];
         const auto name = result->input(0).get_tensor().get_any_name();
         size_t output_idx = (size_t)std::stoll(name);
@@ -82,7 +82,7 @@ OutputVector translate_if(NodeContext& context) {
         extra_then_body_results[output_idx] = result;
         extra_output_idxs.insert(output_idx);
     }
-    for (int i = num_outs; i < else_results.size(); i++) {
+    for (size_t i = num_outs; i < else_results.size(); i++) {
         const auto result = else_results[i];
         const auto name = result->input(0).get_tensor().get_any_name();
         size_t output_idx = (size_t)std::stoll(name);

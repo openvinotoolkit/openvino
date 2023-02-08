@@ -48,7 +48,7 @@ public:
 };
 
 // @brief Returns sizes of split outputs to split the input tensor to aligned parts not greater than the specified size
-static std::vector<uint32_t> GetAlignedSplitSizes(uint32_t totalSize,
+inline std::vector<uint32_t> GetAlignedSplitSizes(uint32_t totalSize,
                                                   uint32_t maxSplitSize,
                                                   uint32_t alignment = limitations::inputByteAlignment) {
     std::vector<uint32_t> splitSizes;
@@ -64,7 +64,7 @@ static std::vector<uint32_t> GetAlignedSplitSizes(uint32_t totalSize,
 
 // @brief Returns pair of axis and sizes of split outputs to split the input tensor to aligned parts, taking into
 // account GNA HW limitations
-static std::pair<int64_t, std::vector<uint32_t>> AlignedSplitSizesPerAxis(InferenceEngine::SizeVector dims) {
+inline std::pair<int64_t, std::vector<uint32_t>> AlignedSplitSizesPerAxis(InferenceEngine::SizeVector dims) {
     std::vector<uint32_t> splitSizes = {};
     auto totalElementsSize = InferenceEngine::details::product(std::begin(dims), std::end(dims));
     auto firstValuableDim = std::find_if(std::begin(dims), std::end(dims), [](size_t val) {

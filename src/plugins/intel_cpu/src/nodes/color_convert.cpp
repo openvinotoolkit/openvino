@@ -175,7 +175,7 @@ void jit_uni_converter::yuv_to_rgb(const variable<float[N]> & y,
             std::array<uint8_t, N> mask {};
             for (uint8_t i = 0; i < mask.size(); ++i)
                 mask[(i * 3 + offset) % mask.size()] = i;
-            return std::move(mask);
+            return mask;
         };
 
         r.permute(genPermutationMask(0));
@@ -282,7 +282,7 @@ ColorConvert::Converter::PrimitiveDescs supportedPrimitiveDescs(Node *node) {
                             : impl_desc_type::ref,
                         true);
 
-    return std::move(descs);
+    return descs;
 }
 
 template<typename T, impl_desc_type I>
@@ -528,7 +528,7 @@ const jit_uni_converter & jit_converter_create() {
             IE_THROW() << "Can't create jit color converter kernel";
         }
 
-        return std::move(kernel);
+        return kernel;
     };
 
     static auto kernel = createKernel();
@@ -631,7 +631,7 @@ ColorConvert::Converter::PrimitiveDescs supportedPrimitiveDescs(Node *node) {
                             : impl_desc_type::ref,
                         true);
 
-    return std::move(descs);
+    return descs;
 }
 
 template<typename T, impl_desc_type I>
@@ -877,7 +877,7 @@ const jit_uni_converter & jit_converter_create() {
             IE_THROW() << "Can't create jit color converter kernel";
         }
 
-        return std::move(kernel);
+        return kernel;
     };
 
     static auto kernel = createKernel();

@@ -57,8 +57,8 @@ static int get_aux_regs_as_temp(const size_t byte_size, const bool is_fill = fal
 jit_load_emitter::jit_load_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                                    Precision src_prc, Precision dst_prc, int load_num, Precision exec_prc,
                                    bool is_fill, std::string fill_value, emitter_in_out_map in_out_type)
-: jit_emitter(host, host_isa, exec_prc, in_out_type), load_num_(load_num), src_prc_(src_prc), dst_prc_(dst_prc),
-    is_fill_(is_fill), fill_value_(fill_value), name_("unknown") {
+: jit_emitter(host, host_isa, exec_prc, in_out_type), name_("unknown"), load_num_(load_num), src_prc_(src_prc),
+    dst_prc_(dst_prc), is_fill_(is_fill), fill_value_(fill_value) {
     prepare_table();
     load_size_ = load_num * src_prc.size();
     v_len_elt_ = get_vec_length() / exec_prc.size();
@@ -564,7 +564,7 @@ void jit_load_emitter::register_table_entries() {
 jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                                      Precision src_prc, Precision dst_prc, int store_num, arithmetic_mode mode, Precision exec_prc,
                                      emitter_in_out_map in_out_type)
-    : jit_emitter(host, host_isa, exec_prc, in_out_type), store_num_(store_num), src_prc_(src_prc), dst_prc_(dst_prc), mode_(mode), name_("unknown") {
+    : jit_emitter(host, host_isa, exec_prc, in_out_type), name_("unknown"), store_num_(store_num), src_prc_(src_prc), dst_prc_(dst_prc), mode_(mode) {
     prepare_table();
     v_len_elt_ = get_vec_length() / exec_prc.size();
     store_size_ = store_num * dst_prc.size();

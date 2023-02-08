@@ -27,7 +27,6 @@ struct gather_tree_impl : typed_primitive_impl_ocl<gather_tree> {
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
-        const auto& primitive = impl_param.typed_desc<gather_tree>();
         auto params = get_default_params<kernel_selector::gather_tree_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::gather_tree_optional_params>(impl_param.get_program());
 

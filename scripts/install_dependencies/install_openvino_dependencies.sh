@@ -8,7 +8,7 @@ set -e
 #===================================================================================================
 # Option parsing
 
-all_comp=(core dev python)
+all_comp=(core dev gpu python)
 os=${os:-auto}
 
 # public options
@@ -117,12 +117,14 @@ if [ "$os" == "raspbian9" ] || [ "$os" == "debian9" ] ; then
     # which are not supported by OpenVINO
 
     pkgs_core=(libpugixml1v5)
+    pkgs_gpu=()
     pkgs_python=()
     pkgs_dev=(pkg-config g++ gcc libc6-dev libgflags-dev zlib1g-dev nlohmann-json-dev make curl sudo)
 
 elif [ "$os" == "ubuntu18.04" ] ; then
 
     pkgs_core=(libtbb2 libpugixml1v5)
+    pkgs_gpu=()
     pkgs_python=(python3.8 libpython3.8 python3.8-venv python3-pip)
     pkgs_dev=(cmake pkg-config g++ gcc libc6-dev libgflags-dev zlib1g-dev nlohmann-json-dev make curl sudo)
 
@@ -131,6 +133,7 @@ elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "debian10" ] || [ "$os" == "raspbi
      [ "$os" == "ubuntu22.10" ] || [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ]; then
 
     pkgs_core=(libpugixml1v5)
+    pkgs_gpu=()
     pkgs_python=(python3 python3-venv python3-pip)
     pkgs_dev=(cmake pkg-config g++ gcc libc6-dev libgflags-dev zlib1g-dev nlohmann-json3-dev make curl sudo)
 
@@ -163,6 +166,7 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
     fi
 
     pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake3 "json-devel.$arch" "zlib-devel.$arch" sudo)
+    pkgs_gpu=()
 
     if [ "$os" == "centos7" ] || [ "$os" == "amzn2" ] ; then
         pkgs_dev+=(pkgconfig)
@@ -192,6 +196,9 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
             "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/tbb-2018.2-9.el8.$arch.rpm"
             "https://download-ib01.fedoraproject.org/pub/epel/8/Everything/$arch/Packages/p/pugixml-1.13-1.el8.$arch.rpm"
             "https://vault.centos.org/centos/8/PowerTools/$arch/os/Packages/gflags-2.1.2-6.el8.$arch.rpm"
+        )
+        pkgs_gpu+=(
+            "http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/ocl-icd-2.2.12-1.el8.x86_64.rpm"
         )
         pkgs_python+=(python38 python38-pip)
         pkgs_dev+=(

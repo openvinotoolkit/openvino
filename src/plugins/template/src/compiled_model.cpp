@@ -81,8 +81,8 @@ TemplatePlugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& m
                                              const InferenceEngine::ITaskExecutor::Ptr& task_executor,
                                              const Configuration& cfg)
     : ov::ICompiledModel(model, plugin, task_executor),  // Disable default threads creation
-      m_model(model),
-      _cfg(cfg) {
+      _cfg(cfg),
+      m_model(model) {
     // TODO: if your plugin supports device ID (more that single instance of device can be on host machine)
     // you should select proper device based on KEY_DEVICE_ID or automatic behavior
     // In this case, _waitExecutor should also be created per device.

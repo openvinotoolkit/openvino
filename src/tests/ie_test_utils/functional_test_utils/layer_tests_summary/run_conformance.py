@@ -30,9 +30,8 @@ API_CONFORMANCE_BIN_NAME = "apiConformanceTests"
 OP_CONFORMANCE_BIN_NAME = "conformanceTests"
 SUBGRAPH_DUMPER_BIN_NAME = "subgraphsDumper"
 
-NO_MODEL_CONSTANT = "http://ov-share-03.sclab.intel.com/Shares/conformance_ir/dlb/master/2022.3.0-8953-8c3425ff698.tar"
-
 SCRIPT_DIR_PATH, SCRIPT_NAME = os.path.split(os.path.abspath(__file__))
+NO_MODEL_CONSTANT = os.path.join(SCRIPT_DIR_PATH, "data", "models.lst")
 
 def get_default_working_dir():
     path = Path(__file__).parent.resolve()
@@ -41,7 +40,7 @@ def get_default_working_dir():
 def parse_arguments():
     parser = ArgumentParser()
 
-    models_path_help = "Path to the directory/ies containing models to dump subgraph (the default way is to download conformance IR). It may be directory, archieve file, .lst file or http link to download something . If --s=0, specify the Conformance IRs directory"
+    models_path_help = "Path to the directory/ies containing models to dump subgraph (the default way is to download conformance IR). It may be directory, archieve file, .lst file with model to download or http link to download something . If --s=0, specify the Conformance IRs directory"
     device_help = " Specify the target device. The default value is CPU"
     ov_help = "OV repo path. The default way is try to find the absolute path of OV repo (by using script path)"
     working_dir_help = "Specify a working directory to save all artifacts, such as reports, models, conformance_irs, etc."
@@ -86,20 +85,24 @@ class Conformance:
             exit(-1)
         self._ov_config_path = ov_config_path
 
-    def __download_conformance_ir(self):
-        _, file_name = os.path.split(urlparse(self._model_path).path)
-        model_archieve_path = os.path.join(self._working_dir, file_name)
+    def __download_models(self, url_to_download, path_to_save):
+        _, file_name = os.path.split(urlparse(url_to_download).path)
+        download_path = os.path.join(path_to_save, file_name)
         try:
-            logger.info(f"Conformance IRs will be downloaded from {self._model_path} to {model_archieve_path}")
-            ur.urlretrieve(self._model_path, filename=model_archieve_path)
+            logger.info(f"Conformance IRs will be downloaded from {url_to_download} to {download_path}")
+            ur.urlretrieve(url_to_download, filename=download_path)
         except:
-            logger.error(f"Please verify URL: {self._model_path}. Looks like that is incorrect")
+            logger.error(f"Please verify URL: {url_to_download}. Looks like that is incorrect")
             exit(-1)
-        logger.info(f"Conformance IRs were downloaded from {self._model_path} to {model_archieve_path}")
-        if not file_utils.is_archieve(model_archieve_path):
-            logger.error(f"The file {model_archieve_path} is not archieve! It should be the archieve!")
-            exit()
-        self._model_path = file_utils.unzip_archieve(model_archieve_path, self._working_dir)
+        logger.info(f"Conformance IRs were downloaded from {url_to_download} to {download_path}")
+        if not os.path.isfile(download_path):
+            logger.error(f"{download_path} is not a file. Exit!")
+            exit(-1)
+        if file_utils.is_archieve(download_path):
+            logger.info(f"The file {download_path} is archieve. Should be unzip to {path_to_save}")
+            return file_utils.unzip_archieve(download_path, path_to_save)
+        return download_path
+        
 
     def __dump_subgraph(self):
         subgraph_dumper_path = os.path.join(self._ov_bin_path, f'{SUBGRAPH_DUMPER_BIN_NAME}{constants.OS_BIN_FILE_EXT}')
@@ -111,6 +114,7 @@ class Conformance:
             logger.info(f"Remove directory {conformance_ir_path}")
             rmtree(conformance_ir_path)
         os.mkdir(conformance_ir_path)
+        self._model_path = file_utils.prepare_filelist(self._model_path, ["*.onnx", "*.pdmodel", "*.__model__", "*.pb", "*.xml", "*.tflite"])
         logger.info(f"Stating model dumping from {self._model_path}")
         cmd = f'{subgraph_dumper_path} --input_folders="{self._model_path}" --output_folder="{conformance_ir_path}"'
         process = Popen(cmd, shell=True)
@@ -195,8 +199,16 @@ class Conformance:
         logger.info(f"[ARGUMENTS] --ov_config_path = {self._ov_config_path}")
         logger.info(f"[ARGUMENTS] --dump_conformance = {dump_models}")
 
-        if self._model_path == NO_MODEL_CONSTANT or file_utils.is_url(self._model_path):
-            self.__download_conformance_ir()
+        if file_utils.is_url(self._model_path):
+            self._model_path = self.__download_models(self._model_path, self._working_dir)
+        if self._model_path == NO_MODEL_CONSTANT or os.path.splitext(self._model_path)[1] == ".lst":
+            with open(self._model_path, "r") as model_list_file:
+                model_dir = os.path.join(self._working_dir, "models")
+                if not os.path.isdir(model_dir):
+                    os.mkdir(model_dir)
+                for model in model_list_file.readlines():
+                    self.__download_models(model, model_dir)
+                self._model_path = model_dir
         if dump_models:
             self.__dump_subgraph()
         if not os.path.exists(self._model_path):

@@ -61,19 +61,12 @@ std::shared_ptr<Node> get_rank_node(const Output<Node>& node) {
     return std::make_shared<opset10::ShapeOf>(shape);
 }
 
-Output<Node> reshape_kernel_for_group(const NodeContext& context,
-                                      const Output<Node>& input,
-                                      const Output<Node>& kernel,
-                                      int64_t groups) {
+Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<Node>& kernel, int64_t groups) {
     using std::make_shared;
 
-    auto in_shape = std::make_shared<opset10::ShapeOf>(input);
-    auto c_in_idx = opset10::Constant::create(element::i64, Shape{}, {1});
     auto axis_0 = opset10::Constant::create(element::i64, Shape{}, {0});
-    auto in_shape_1 = make_shared<opset10::Gather>(in_shape, c_in_idx, axis_0);
-    auto in_shape_1_uns = make_shared<opset10::Unsqueeze>(in_shape_1, axis_0);
     auto groups_const = opset10::Constant::create(element::i64, Shape{1}, {groups});
-    auto c_in_value = make_shared<opset10::Divide>(in_shape_1_uns, groups_const);
+    auto neg_1_const = opset10::Constant::create(element::i64, Shape{1}, {-1});
 
     auto kernel_shape = std::make_shared<opset10::ShapeOf>(kernel);
     auto c_out_idx = opset10::Constant::create(element::i64, Shape{}, {0});
@@ -87,14 +80,9 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context,
     auto remaining_shape = make_shared<opset10::Slice>(kernel_shape, start, stop, step);
 
     auto new_kernel_shape =
-        make_shared<opset10::Concat>(OutputVector{groups_const, c_out_value, c_in_value, remaining_shape}, 0);
-    context.mark_nodes({in_shape,
-                        c_in_idx,
-                        axis_0,
-                        in_shape_1,
-                        in_shape_1_uns,
+        make_shared<opset10::Concat>(OutputVector{groups_const, c_out_value, neg_1_const, remaining_shape}, 0);
+    context.mark_nodes({axis_0,
                         groups_const,
-                        c_in_value,
                         kernel_shape,
                         c_out_idx,
                         kernel_shape_0,
@@ -215,7 +203,7 @@ OutputVector make_framework_node(NodeContext* context) {
         }
         // Some bodies may have mutated inputs which we need to propagate to external context
         auto body_results = body->get_results();
-        for (int i = num_body_outs; i < body_results.size(); i++) {
+        for (size_t i = num_body_outs; i < body_results.size(); i++) {
             auto name = body_results[i]->input(0).get_tensor().get_any_name();
             size_t out_idx = (size_t)std::stoll(name);
             FRONT_END_OP_CONVERSION_CHECK(extra_outputs_map.count(out_idx) == 0,
@@ -253,12 +241,12 @@ OutputVector make_framework_node(NodeContext* context) {
     if (fw_node->get_internal_subgraphs_size() > 0) {
         auto first_body_results = fw_node->get_function(0)->get_results();
         std::vector<ResultVector> outputs;
-        for (int i = num_skip_body_outputs; i < num_body_outs; i++) {
+        for (size_t i = num_skip_body_outputs; i < num_body_outs; i++) {
             outputs.push_back({first_body_results[i]});
         }
-        for (int i = 1; i < fw_node->get_internal_subgraphs_size(); i++) {
+        for (size_t i = 1; i < fw_node->get_internal_subgraphs_size(); i++) {
             auto current_body_results = fw_node->get_function(i)->get_results();
-            for (int i = num_skip_body_outputs; i < num_body_outs; i++) {
+            for (size_t i = num_skip_body_outputs; i < num_body_outs; i++) {
                 outputs[i].push_back(current_body_results[i]);
             }
         }
@@ -308,7 +296,7 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<TorchDecoder> p
 
         //  Go over all pytorch_model inputs and register them in the tensor map:
         auto inputs = pytorch_model->inputs();
-        for (int i = 0; i < inputs.size(); ++i) {
+        for (size_t i = 0; i < inputs.size(); ++i) {
             PartialShape ps = pytorch_model->get_input_shape(i);
             auto type = simplified_type_interpret(pytorch_model->get_input_type(i));
             // TODO: Use special API to set custom type detalization
@@ -320,7 +308,7 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<TorchDecoder> p
                 FRONT_END_GENERAL_CHECK(ps.is_static(), "Shape must be static.");  // TODO: make dynamic
                 auto sh = ps.get_shape();
                 Shape new_shape(sh.size());
-                for (int i = 0; i < sh.size(); i++) {
+                for (size_t i = 0; i < sh.size(); i++) {
                     new_shape[order[i]] = sh[i];
                 }
                 auto shape_const = opset10::Constant::create(element::i64, {new_shape.size()}, new_shape);

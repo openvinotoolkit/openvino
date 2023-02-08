@@ -21,10 +21,10 @@ OutputVector translate_pad(NodeContext& context) {
     auto reduced_rank = context.mark_node(std::make_shared<opset10::Squeeze>(rank));
     auto zero = context.mark_node(opset10::Constant::create(element::i32, Shape{}, {0}));
     auto zero_f = context.mark_node(opset10::Constant::create(element::f32, Shape{}, {0}));
-    auto pad_size_half = paddings.size() / 2;
+    size_t pad_size_half = paddings.size() / 2;
     std::vector<int64_t> pad_b(pad_size_half, 0);
     std::vector<int64_t> pad_e(pad_size_half, 0);
-    for (int i = 0; i < pad_size_half; i++) {
+    for (size_t i = 0; i < pad_size_half; i++) {
         pad_b[i] = paddings[paddings.size() - 2 - 2 * i];
         pad_e[i] = paddings[paddings.size() - 1 - 2 * i];
     }
@@ -46,7 +46,7 @@ OutputVector translate_pad(NodeContext& context) {
         auto pad_last_id = paddings.size();
         auto cur = data.get_node_shared_ptr();
         auto step = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {1}));
-        for (auto i = 0; i < pad_size_half; i++) {
+        for (size_t i = 0; i < pad_size_half; i++) {
             ov::NodeVector tensors;
             pad_r = paddings[pad_last_id - (2 * i + 1)];
             pad_l = paddings[pad_last_id - (2 * i + 2)];

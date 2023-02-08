@@ -179,10 +179,8 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
 
         inputLowConst_f32 = fold<opset1::Divide>(inputLowConst_f32, value);
         inputHighConst_f32 = fold<opset1::Divide>(inputHighConst_f32, value);
-        const auto resultLow = ov::as_type_ptr<opset1::Constant>(inputLowConst_f32)->cast_vector<float>();
-        const auto resultHigh = ov::as_type_ptr<opset1::Constant>(inputHighConst_f32)->cast_vector<float>();
-        if (std::any_of(resultLow.begin(), resultLow.end(), [](const float value){ return std::isinf(value); }) ||
-            std::any_of(resultHigh.begin(), resultHigh.end(), [](const float value){ return std::isinf(value); })) {
+        if (!NetworkHelper::checkConstantOnInf(inputLowConst_f32) ||
+            !NetworkHelper::checkConstantOnInf(inputHighConst_f32)) {
             return nullptr;
         }
 
