@@ -68,14 +68,14 @@ std::vector<TShape> shape_infer(const Pad* op,
             NODE_VALIDATION_CHECK(op,
                                   pads_begin_coord->size() == static_cast<size_t>(arg_rank_len),
                                   "length of pads_begin mismatches with rank of input, expect ",
-                                  arg_shape_rank.get_length(),
+                                  arg_rank_len,
                                   ", but got ",
                                   pads_begin_coord->size());
 
             NODE_VALIDATION_CHECK(op,
                                   pads_end_coord->size() == static_cast<size_t>(arg_rank_len),
                                   "length of pads_end mismatches with rank of input, expect ",
-                                  arg_shape_rank.get_length(),
+                                  arg_rank_len,
                                   ", but got ",
                                   pads_end_coord->size());
 
