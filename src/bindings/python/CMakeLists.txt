@@ -141,7 +141,7 @@ if(LINUX)
 endif()
 
 if(CMAKE_VERSION VERSION_LESS 3.15)
-    message(${message_mode} "Cmake version 3.15 and higher is required. Provided version ${CMAKE_VERSION}")
+    message(${message_mode} "Cmake version 3.15 and higher is required to build 'openvino' wheel. Provided version ${CMAKE_VERSION}")
     set(ENABLE_WHEEL_DEFAULT OFF)
 endif()
 

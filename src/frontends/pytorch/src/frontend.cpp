@@ -10,16 +10,18 @@
 #include "openvino/util/log.hpp"
 #include "pt_framework_node.hpp"
 #include "transformations/common_optimizations/push_constant_to_subgraph.hpp"
+#include "transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
 #include "transforms.hpp"
 #include "transforms/append_list_unpack_replacer.hpp"
 #include "transforms/aten_cat_replacer.hpp"
 #include "transforms/aten_getitem_replacer.hpp"
-#include "transforms/listconstruct_reshape_replacer.hpp"
-#include "transforms/max_prim_list_construct_replacer.hpp"
+#include "transforms/aten_stack_list_construct_replacer.hpp"
+#include "transforms/listconstruct_replacer.hpp"
+#include "transforms/min_max_prim_list_construct_replacer.hpp"
 #include "transforms/prim_list_construct_pad.hpp"
+#include "transforms/prim_list_tuple_construct_replacer.hpp"
 #include "transforms/prim_list_unpack_replacer.hpp"
-#include "transforms/prim_tuple_construct_replacer.hpp"
 
 namespace ov {
 namespace frontend {
@@ -86,12 +88,14 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::pass::UnrollIf>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenCatToConcat>();
     manager.register_pass<ov::frontend::pytorch::pass::AppendListUnpackReplacer>();
+    manager.register_pass<ov::frontend::pytorch::pass::AtenStackListConstructReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::PrimListUnpackReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenGetItemReplacer>();
-    manager.register_pass<ov::frontend::pytorch::pass::MaxPrimListConstructReplacer>();
-    manager.register_pass<ov::frontend::pytorch::pass::ListConstructReshapeReplacer>();
+    manager.register_pass<ov::frontend::pytorch::pass::ListConstructReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::PrimListConstructPadReplacer>();
-    manager.register_pass<ov::frontend::pytorch::pass::DecomposeTupleResults>();
+    manager.register_pass<ov::frontend::pytorch::pass::MinMaxPrimListConstructReplacer>();
+    manager.register_pass<ov::frontend::pytorch::pass::DecomposeListTupleResults>();
+    manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParams>();
 
     manager.run_passes(model);
 
