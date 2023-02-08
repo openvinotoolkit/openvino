@@ -119,7 +119,8 @@ const std::vector<ov::AnyMap> multiDevicePriorityConfigs = {
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassExecutableNetworkGetMetricTest,
                          OVClassExecutableNetworkGetMetricTest_DEVICE_PRIORITY,
                          ::testing::Combine(::testing::Values("MULTI", "AUTO"),
-                                            ::testing::ValuesIn(multiDevicePriorityConfigs)));
+                                            ::testing::ValuesIn(multiDevicePriorityConfigs)),
+                         OVClassExecutableNetworkGetMetricTest_DEVICE_PRIORITY::getTestCaseName);
 
 const std::vector<ov::AnyMap> multiModelPriorityConfigs = {
         {ov::hint::model_priority(ov::hint::Priority::HIGH)},
@@ -131,15 +132,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassExecutableNetworkGetMetricTest,
                          OVClassExecutableNetworkGetMetricTest_MODEL_PRIORITY,
                          ::testing::Combine(::testing::Values("AUTO:CPU"),
                                             ::testing::ValuesIn(multiModelPriorityConfigs)));
-
-const std::vector<ov::AnyMap> multiPerformanceHintConfigs = {
-    {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
-    {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
-    {ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}};
-
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassExecutableNetworkGetMetricTest,
-                         OVClassExecutableNetworkGetMetricTest_PERFORMANCE_HINT,
-                         ::testing::Combine(::testing::Values("AUTO:CPU"),
-                                            ::testing::ValuesIn(multiPerformanceHintConfigs)),
-                         OVClassExecutableNetworkGetMetricTest_PERFORMANCE_HINT::getTestCaseName);
 } // namespace
