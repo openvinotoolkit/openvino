@@ -105,19 +105,105 @@ A combination of a group of a Convolution (or Binary Convolution) layer and simp
 layer and simple layers results in a single layer called *Convolution* (or *Binary Convolution*):
 > **NOTE**: Depthwise convolution layers should have the same values for the `group`, input channels, and output channels parameters.
 
-![conv_depth_01](https://user-images.githubusercontent.com/26419192/159540640-d386ceea-30a8-4b43-9a0f-cfae03ba8dcf.png)
+```mermaid
+flowchart TD
+    subgraph subgraphA1[Runtime Graph]
+    direction TB
+    nodeA1(Input) --> nodeA2(Convolution)
+    nodeA2(Convolution) --> nodeA3(Output)
+    end
+    subgraph subgraphB1[Original Graph]
+    direction TB
+    nodeB1(Input) --> nodeB2(Convolution)
+    nodeB2(Convolution) --> nodeB3(Simple Layer)
+    nodeB3(Simple Layer) --> nodeB4(...)
+    nodeB4(...) --> nodeB5(Simple Layer)
+    nodeB5(Simple Layer) --> nodeB6(Depthwise \n Convolution)
+    nodeB6(Depthwise \n Convolution) --> nodeB7(Simple Layer)
+    nodeB7(Simple Layer) --> nodeB8(...)
+    nodeB8(...) --> nodeB9(Simple Layer)
+    nodeB9(Simple Layer) --> nodeB10(Output)
+    end
+classDef no-bg-color fill:none,stroke-width:0px
+classDef moss1 fill:#D7F3A2, stroke: #B1D272, color: #262626
+classDef steel1 fill:#B9D6E5, stroke: #86B3CA, color: #262626
+classDef daisy1 fill:#FFE17A, stroke: #FEC91B, color: #262626
+class subgraphA1,subgraphB1,nodeB4,nodeB8 no-bg-color
+class nodeA2 daisy1
+class nodeB1,nodeA1,nodeA3,nodeB10 moss1
+class nodeB2,nodeB3,nodeB5,nodeB6,nodeB7,nodeB9 steel1
 
 ## Fusing Convolution and Sum Layers
 
 A combination of convolution, simple, and Eltwise layers with the sum operation results in a single layer called *Convolution*:  
 
-![conv_sum_relu_01](https://user-images.githubusercontent.com/26419192/159540705-7ff914c4-5097-454f-8231-da8623a1a607.png)
+```mermaid
+flowchart TD
+    subgraph subgraphA1[Runtime Graph]
+    direction TB
+    nodeA1(Input) --> nodeA4(Any Layer)
+    nodeA4(Any Layer) --> nodeA2(Convolution)
+    nodeA5(Input2) ---> nodeA2(Convolution)
+    nodeA2(Convolution) --> nodeA3(Output)
+    end
+    subgraph subgraphB1[Original Graph]
+    direction TB
+    nodeB1(Input1) --> nodeB7(Any Layer)
+    nodeB7(Any Layer) -----> nodeB2("Eltwise[op=sum]")
+    nodeB8(Input) --> nodeB9(Convolution)
+    nodeB9(Convolution) --> nodeB10(Simple Layer)
+    nodeB10(Simple Layer) --> nodeB11(...)
+    nodeB11(...) --> nodeB12(Simple Layer)
+    nodeB12(Simple Layer) --> nodeB2("Eltwise[op=sum]")
+    nodeB2("Eltwise[op=sum]") --> nodeB3(Simple Layer)
+    nodeB3(Simple Layer) --> nodeB4(...)
+    nodeB4(...) --> nodeB5(Simple Layer)
+    nodeB5(Simple Layer) --> nodeB6(Output)
+    end
+classDef no-bg-color fill:none,stroke-width:0px
+classDef moss1 fill:#D7F3A2, stroke: #B1D272, color: #262626
+classDef steel1 fill:#B9D6E5, stroke: #86B3CA, color: #262626
+classDef daisy1 fill:#FFE17A, stroke: #FEC91B, color: #262626
+classDef coral1 fill:#FFB6B9, stroke: #FF848A, color: #262626
+class subgraphA1,subgraphB1,nodeB4,nodeB11 no-bg-color
+class nodeA2 daisy1
+class nodeB1,nodeA5,nodeA1,nodeA3,nodeB6,nodeB8 moss1
+class nodeB3,nodeB5,nodeA4,nodeB7,nodeB9,nodeB10,nodeB12 steel1
+class nodeB2 coral1
 
 ## Fusing a Group of Convolutions
 
 If a topology contains the following pipeline, a CPU plugin merges split, convolution, and concatenation layers into a single convolution layer with the group parameter:   
 
-![group_convolutions_01](https://user-images.githubusercontent.com/26419192/159540783-85e15dd2-f656-4287-9c1c-083cfb176903.png)
+```mermaid
+flowchart TD
+    subgraph subgraphA1[Runtime Graph]
+    direction TB
+    nodeA1(Input) --> nodeA2(Convolution)
+    nodeA2(Convolution) --> nodeA3(Output)
+    end
+    subgraph subgraphB1[Original Graph]
+    direction TB
+    nodeB1(Input) --> nodeB2(Split)
+    nodeB2(Split) --> nodeB6(Convolution1)
+    nodeB6(Convolution1) --> nodeB4(Concatenation)
+    nodeB2(Split) --> nodeB3(Convolution3)
+    nodeB2(Split) --> nodeB7(Convolution2)
+    nodeB7(Convolution2) --> nodeB4(Concatenation)
+    nodeB3(Convolution3) --> nodeB4(Concatenation)
+    nodeB4(Concatenation) --> nodeB5(Output)
+
+    end
+classDef no-bg-color fill:none,stroke-width:0px
+classDef moss1 fill:#D7F3A2, stroke: #B1D272, color: #262626
+classDef steel1 fill:#B9D6E5, stroke: #86B3CA, color: #262626
+classDef daisy1 fill:#FFE17A, stroke: #FEC91B, color: #262626
+classDef coral-tint-2 fill:#FFB6B9, stroke: #FF848A, color: #262626
+class subgraphA1,subgraphB1 no-bg-color
+class nodeB4,nodeB2 coral-tint-2
+class nodeA2 daisy1
+class nodeB1,nodeA1,nodeA3,nodeB5 moss1
+class nodeB3,nodeB6,nodeB7 steel1
 
 > **NOTE**: Parameters of the convolution layers must coincide.
 

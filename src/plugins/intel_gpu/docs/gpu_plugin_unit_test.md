@@ -159,7 +159,32 @@ GPU unit tests are using 2 types of test macros(**TEST** and **TEST_P**)  in  [G
   - The new fusing test class should create `execute()` method which creates fused / non fused networks and calls *`compare`* method after setting input
 - Create test case using **TEST_P**
   - You can make the desired networks using create_topologies. 
-  ![image-20220326010242344](https://user-images.githubusercontent.com/30511605/160246105-36b01baf-1811-40ee-a497-778f23961649.png)
+```mermaid
+flowchart LR
+    nodeA1(bias) --> nodeA2(conv_prim)
+    nodeA3(input) --> nodeA2(conv_prim)
+    nodeA4(weights) --> nodeA2(conv_prim)
+    nodeA2(conv_prim) --> nodeA5(eltwise2_mul)
+    nodeA6(eltwise1_data) --> nodeA7(eltwise1_add)
+    nodeA2(conv_prim) --> nodeA7(eltwise1_add)
+    nodeA7(eltwise1_add) --> nodeA8(activation)
+    nodeA8(activation) --> nodeA5(eltwise2_mul)
+    nodeA9(eltwise2_data) --> nodeA10(eltwise3_div)
+    nodeA11(eltwise4_data) --> nodeA12(eltwise4_add)
+    nodeA5(eltwise2_mul) --> nodeA10(eltwise3_div)
+    nodeA10(eltwise3_div) --> nodeA12(eltwise4_add)
+    nodeA12(eltwise4_add) --> nodeA13(reorder_bfyx)
+classDef no-bg-color fill:none,stroke-width:0px
+classDef moss1 fill:#D7F3A2, stroke: #B1D272, color: #262626
+classDef steel1 fill:#B9D6E5, stroke: #86B3CA, color: #262626
+classDef daisy1 fill:#FFE17A, stroke: #FEC91B, color: #262626
+classDef coral1 fill:#FFB6B9, stroke: #FF848A, color: #262626
+classDef carbon1 fill:#E9E9E9, stroke: #AEAEAE, color: #262626
+class nodeA7,nodeA5,nodeA10,nodeA12 coral1
+class nodeA2,nodeA13 daisy1
+class nodeA3 moss1
+class nodeA8 steel1
+class nodeA4,nodeA1,nodeA6,nodeA9,nodeA11 carbon1
 
   - For example, if you design the networks like the one above, you can make the test code as follow
 
