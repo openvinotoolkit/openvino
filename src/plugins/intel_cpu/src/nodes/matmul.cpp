@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <algorithm>
 #include "common/cpu_memcpy.h"
 #include <ngraph/opsets/opset1.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
@@ -110,8 +111,101 @@ bool MatMul::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
     return true;
 }
 
+class MMShapeInfer : public ShapeInferEmptyPads {
+public:
+    MMShapeInfer(const std::shared_ptr<const ngraph::opset1::MatMul>& op) : m_matmul(op) {
+        m_out_rank = m_matmul->get_output_partial_shape(0).rank().get_length();
+        m_YShape = VectorDims(m_out_rank, 1); // for output and cache
+    }
+    std::vector<VectorDims> infer(
+        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        VectorDims AShape = input_shapes[0].get();
+        VectorDims BShape = input_shapes[1].get();
+        const size_t& Aranks = AShape.size();
+        const size_t& Branks = BShape.size();
+
+        // 0. Needn't assert the scalar type since the matmul_shape_inference has checked.
+        // 1. 1-D x 1-D
+        if (Aranks == 1 && Branks == 1) {
+            return {m_YShape};
+        }
+
+        // transpose
+        const bool& transpose_a = m_matmul->get_transpose_a();
+        const bool& transpose_b = m_matmul->get_transpose_b();
+
+        // 2. 1-D x N-D or N-D x 1-D
+        if (Aranks == 1) {
+            if (transpose_b) {
+                BShape.erase(BShape.end()-1, BShape.end());
+            } else {
+                BShape.erase(BShape.end()-2, BShape.end()-1);
+            }
+            m_YShape.swap(BShape);
+            return {m_YShape};
+        }
+
+        if (Branks == 1) {
+            if (transpose_a) {
+                AShape.erase(AShape.end()-1, AShape.end());
+            } else {
+                AShape.erase(AShape.end()-2, AShape.end()-1);
+            }
+            m_YShape.swap(AShape);
+            return {m_YShape};
+        }
+
+        // 3. N-D x N-D
+        m_YShape.at(m_out_rank-2) = transpose_a ? AShape[Aranks-1] : AShape[Aranks-2];
+        m_YShape.at(m_out_rank-1) = transpose_b ? BShape[Branks-2] : BShape[Branks-1];
+
+        // 3.1. fast path for 2-D x 2-D
+        if (Aranks == 2 && Branks == 2) {
+            return {m_YShape};
+        }
+        // common case
+        if (Aranks < Branks) {
+            AShape.insert(AShape.begin(), Branks-Aranks, 1);
+        } else if (Aranks > Branks) {
+            BShape.insert(BShape.begin(), Aranks-Branks, 1);
+        }
+
+        for (size_t i=0; i < m_out_rank-2; ++i) {
+            size_t min = std::min(AShape.at(i), BShape.at(i));
+            if ((AShape.at(i) == BShape.at(i)) || (min == 1)) {
+                m_YShape[i] = min;
+            } else {
+                std::runtime_error("Shape cant be not broadcast");
+            }
+        }
+
+        return {m_YShape};
+    }
+
+    port_mask_t get_port_mask() const override {
+        return EMPTY_PORT_MASK;
+    }
+
+private:
+    const std::shared_ptr<const ngraph::opset1::MatMul> m_matmul;
+    VectorDims m_YShape;
+    size_t m_out_rank;
+};
+
+class MMShapeInferFactory : public ShapeInferFactory {
+public:
+    MMShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
+    ShapeInferPtr makeShapeInfer() const override {
+        const auto m_matmul = std::dynamic_pointer_cast<const ngraph::opset1::MatMul>(m_op);
+        return std::make_shared<MMShapeInfer>(m_matmul);
+    }
+private:
+    std::shared_ptr<ngraph::Node> m_op;
+};
+
 MatMul::MatMul(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
-    Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)), withBiases(false) {
+    Node(op, context, MMShapeInferFactory(op)), withBiases(false) {
     std::string errorMessage;
     errorPrefix = "MatMul node with name '" + getName() + "'";
 
