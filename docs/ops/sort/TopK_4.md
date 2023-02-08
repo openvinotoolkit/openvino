@@ -31,7 +31,7 @@
 
 * *stable*
 
-  * **Description**: Specifies whether the equivalent elements should maintain their relative order from the input tensor. Takes effect only if sort is set to `value` or `index`.
+  * **Description**: Specifies whether the equivalent elements should maintain their relative order from the input tensor. Takes effect only if the `sort` attribute is set to `value` or `index`.
   * **Range of values**: `true` of `false`
   * **Type**: `boolean`
   * **Default value**: `false`
@@ -50,7 +50,7 @@
 
 *   **1**: tensor with arbitrary rank and type *T*. **Required.**
 
-*   **2**: *k* -- a scalar of any integer type that specifies how many elements from the input tensor should be selected. **Required.**
+*   **2**: The value of *K* -- a scalar of any integer type that specifies how many elements from the input tensor should be selected. **Required.**
 
 **Outputs**:
 
