@@ -620,3 +620,52 @@ TEST(GraphComparatorTests, CheckAccuracyNotEnabled) {
     auto res = comparator.compare(function, function_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
+
+TEST(GraphComparatorTests, CheckConsumersCountPositive) {
+    FunctionsComparator comparator(FunctionsComparator::no_default());
+    std::shared_ptr<ov::Model> function, function_ref;
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ngraph::element::i64, ov::Shape{1});
+        auto constant = ov::opset8::Constant::create(ngraph::element::i64, {1}, {0});
+        auto add_1 = std::make_shared<ov::opset8::Add>(input, constant);
+        auto add_2 = std::make_shared<ov::opset8::Add>(input, constant);
+        auto mul = std::make_shared<ov::opset8::Multiply>(add_1, add_2);
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ mul }, ngraph::ParameterVector{ input });
+    }
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ngraph::element::i64, ov::Shape{1});
+        auto constant = ov::opset8::Constant::create(ngraph::element::i64, {1}, {0});
+        auto add_1 = std::make_shared<ov::opset8::Add>(input, constant);
+        auto add_2 = std::make_shared<ov::opset8::Add>(input, constant);
+        auto mul = std::make_shared<ov::opset8::Multiply>(add_1, add_2);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ mul }, ngraph::ParameterVector{ input });
+    }
+    comparator.enable(FunctionsComparator::NODES).enable(FunctionsComparator::CONSUMERS_COUNT);
+    auto res = comparator.compare(function, function_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
+
+TEST(GraphComparatorTests, CheckConsumersCountNegative) {
+    FunctionsComparator comparator(FunctionsComparator::no_default());
+    std::shared_ptr<ov::Model> function, function_ref;
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ngraph::element::i64, ov::Shape{1});
+        auto constant = ov::opset8::Constant::create(ngraph::element::i64, {1}, {0});
+        auto add_1 = std::make_shared<ov::opset8::Add>(input, constant);
+        auto add_2 = std::make_shared<ov::opset8::Add>(input, constant);
+        auto mul = std::make_shared<ov::opset8::Multiply>(add_1, add_2);
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ mul }, ngraph::ParameterVector{ input });
+    }
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ngraph::element::i64, ov::Shape{1});
+        auto constant_1 = ov::opset8::Constant::create(ngraph::element::i64, {1}, {0});
+        auto constant_2 = ov::opset8::Constant::create(ngraph::element::i64, {1}, {0});
+        auto add_1 = std::make_shared<ov::opset8::Add>(input, constant_1);
+        auto add_2 = std::make_shared<ov::opset8::Add>(input, constant_2);
+        auto mul = std::make_shared<ov::opset8::Multiply>(add_1, add_2);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ mul }, ngraph::ParameterVector{ input });
+    }
+    comparator.enable(FunctionsComparator::NODES).enable(FunctionsComparator::CONSUMERS_COUNT);
+    auto res = comparator.compare(function, function_ref);
+    ASSERT_FALSE(res.valid) << res.message;
+}
