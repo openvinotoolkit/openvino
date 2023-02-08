@@ -49,7 +49,7 @@ struct TestTensor {
 //      2                           tensor of scalar with value 2
 //      Shape{2,2}                  tensor of shape [2,2] and value unknown
 //      {Shape{2,2}, {1,2,3,4}}     tensor of shape [2,2] and values (1,2,3,4)
-static void check_static_shape(ov::Node* op,
+inline void check_static_shape(ov::Node* op,
                                std::initializer_list<TestTensor> inputs,
                                std::initializer_list<ov::intel_cpu::StaticShape> expect_shapes) {
     std::vector<ov::intel_cpu::StaticShape> output_shapes;
@@ -76,7 +76,7 @@ static void check_static_shape(ov::Node* op,
     }
 }
 
-static void check_output_shape(ov::Node* op, std::initializer_list<ov::PartialShape> expect_shapes) {
+inline void check_output_shape(ov::Node* op, std::initializer_list<ov::PartialShape> expect_shapes) {
     int id = 0;
     EXPECT_EQ(op->outputs().size(), expect_shapes.size());
     for (auto& shape : expect_shapes) {

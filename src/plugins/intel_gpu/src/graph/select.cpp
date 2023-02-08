@@ -174,7 +174,7 @@ select_inst::typed_primitive_inst(network& network, select_node const& node) : p
             }
         }
     } else {
-        CLDNN_ERROR_MESSAGE(node.id(), "Unsupported broadcast_type: " + static_cast<int>(node.get_primitive()->broadcast_spec.m_type));
+        CLDNN_ERROR_MESSAGE(node.id(), "Unsupported broadcast_type: " + std::to_string(static_cast<int>(node.get_primitive()->broadcast_spec.m_type)));
     }
 }
 }  // namespace cldnn

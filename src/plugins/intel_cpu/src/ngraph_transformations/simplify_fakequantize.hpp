@@ -76,7 +76,7 @@ inline std::vector<float> simplifyToScale(const std::shared_ptr<ov::opset8::Fake
                     }) &&
         std::all_of(osc.cbegin(),
                     osc.cend(),
-                    [&threshold](float val) {
+                    [](float val) {
                         return val == 1.f;
                     }) &&
         std::all_of(osh.cbegin(), osh.cend(), [&threshold](float val) {

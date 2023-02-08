@@ -188,7 +188,7 @@ ngraph::pass::ConvertMatMulToGemm::ConvertMatMulToGemm() {
         {pattern::any_input(pattern::has_static_shape()), pattern::any_input(pattern::has_static_shape())},
         pattern::has_static_shape());
 
-    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto matmul = std::dynamic_pointer_cast<ngraph::opset1::MatMul>(m.get_match_root());
         if (!matmul) {
             return false;

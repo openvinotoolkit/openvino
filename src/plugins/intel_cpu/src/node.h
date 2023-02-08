@@ -197,7 +197,7 @@ public:
 
     virtual void fuseInto(NodePtr& parentNode) {
         // The graph supports fusing only of consecutive nodes and some graph logic requires to know through which input port a node was fused into parent one.
-        for (int i = 0; i < getParentEdges().size(); i++) {
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
             if (getParentEdgesAtPort(i)[0]->getParent().get() == parentNode.get()) {
                 setFusingPort(i);
                 break;
@@ -206,7 +206,7 @@ public:
 
         auto parentFusedNodes = parentNode->getFusedWith();
         if (getFusingPort() < 0 && !parentFusedNodes.empty()) {
-            for (int i = 0; i < getParentEdges().size(); i++) {
+            for (size_t i = 0; i < getParentEdges().size(); i++) {
                 if (getParentEdgesAtPort(i)[0]->getParent().get() == parentFusedNodes[parentFusedNodes.size() - 1].get()) {
                     setFusingPort(i);
                     break;
@@ -266,14 +266,14 @@ public:
 
     inline const NodeDesc* getSelectedPrimitiveDescriptor() const {
         if (selectedPrimitiveDescriptorIndex < 0 ||
-            selectedPrimitiveDescriptorIndex >= supportedPrimitiveDescriptors.size())
+            static_cast<size_t>(selectedPrimitiveDescriptorIndex) >= supportedPrimitiveDescriptors.size())
             return nullptr;
         return &supportedPrimitiveDescriptors[selectedPrimitiveDescriptorIndex];
     }
 
     inline NodeDesc* getSelectedPrimitiveDescriptor() {
         if (selectedPrimitiveDescriptorIndex < 0 ||
-            selectedPrimitiveDescriptorIndex >= supportedPrimitiveDescriptors.size())
+            static_cast<size_t>(selectedPrimitiveDescriptorIndex) >= supportedPrimitiveDescriptors.size())
             return nullptr;
         return &supportedPrimitiveDescriptors[selectedPrimitiveDescriptorIndex];
     }
@@ -317,7 +317,7 @@ public:
     std::shared_ptr<T> getOutputMemDescAtPort(size_t portNum) const;
 
     void selectPrimitiveDescriptorByIndex(int index) {
-        if (index < 0 || index >= supportedPrimitiveDescriptors.size())
+        if (index < 0 || static_cast<size_t>(index) >= supportedPrimitiveDescriptors.size())
             selectedPrimitiveDescriptorIndex = -1;
         else
             selectedPrimitiveDescriptorIndex = index;

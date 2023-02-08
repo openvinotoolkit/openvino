@@ -164,7 +164,7 @@ inline T* WriteToBuff(CRecorder& recorder, const T& value) {
 
 namespace sea {
 
-extern int64_t g_nRingBuffer;
+extern uint64_t g_nRingBuffer;
 
 extern std::shared_ptr<std::string> g_spCutName;
 
@@ -199,7 +199,7 @@ inline CRecorder* GetFile(const SRecord& record) {
         // And if it's the same we work with the old path.
         // but if it's changed we will lock and access the value below
         bool bSameCut = pRecorder->SameCut(g_spCutName.get());
-        if (bSameCut && (!g_nRingBuffer || (diff < g_nRingBuffer))) {
+        if (bSameCut && (!g_nRingBuffer || (static_cast<uint64_t>(diff) < g_nRingBuffer))) {
             pThreadRecord->pLastRecorder = pRecorder;
             return pRecorder;  // normal flow
         }

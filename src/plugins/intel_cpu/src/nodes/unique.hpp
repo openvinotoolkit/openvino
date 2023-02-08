@@ -53,8 +53,6 @@ private:
     int64_t dataTypeSize = 1;
     size_t uniqueLen = 1;
 
-    int threadsNum = 1;
-
     static constexpr size_t IN_DATA = 0;
     static constexpr size_t AXIS    = 1;
     static constexpr size_t UNIQUE_DATA       = 0;

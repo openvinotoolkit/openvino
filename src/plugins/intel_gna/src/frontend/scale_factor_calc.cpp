@@ -21,8 +21,6 @@ constexpr float activation_scale_factor = 2048.f;
 constexpr float low_prec_activation_scale_factor = 4.f;
 constexpr float identity_scale_factor = 2049.0f;
 constexpr float max_activation_scale_factor = 4096.0f;
-constexpr float k = 5;
-constexpr float k_identity = 6;
 constexpr double pow_domain = 16;
 constexpr float min_search_weights_val = 1.0f;
 constexpr float max_search_weights_val = 1024.0f;
@@ -637,7 +635,7 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerCNN(InferenceEngine::CNNLayer* cn
                     (fake_quantized && quantSibling->_dst_quant.IsScaleSet() &&
                      !AreFpEq(quantSibling->_dst_quant.GetScale(), 1.0f) &&
                      quantSibling->_dst_quant.GetScale() < inputQuant->_dst_quant.GetScale()) ||
-                    quantSibling->_dst_quant.IsScaleSet() && infiniteLoopCount > 0) {
+                    (quantSibling->_dst_quant.IsScaleSet() && infiniteLoopCount > 0)) {
                     // means we already restarted propagation input memory layer
                     // need to search for requantiseable layer prior memory output layer
                     InferenceEngine::CNNLayerPtr restartedLayer;
@@ -663,7 +661,7 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerCNN(InferenceEngine::CNNLayer* cn
                             log::debug() << "... OK,  need requantize\n";
                         },
                         true,
-                        [&restartedLayer, &cnnLayer](InferenceEngine::CNNLayer* from) {
+                        [&restartedLayer](InferenceEngine::CNNLayer* from) {
                             // aborting UFS once found suitable layer
                             return make_upstream_order(restartedLayer == nullptr ? from : nullptr);
                         });

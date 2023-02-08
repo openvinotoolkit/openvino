@@ -778,7 +778,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         }
     };
 
-    const auto reorder_convolution = [&p, &lo, &rf](typed_program_node<convolution>& conv_node) {
+    const auto reorder_convolution = [&p, &rf](typed_program_node<convolution>& conv_node) {
         {
             // reorder weights convolution
             auto& weights = conv_node.weights();
@@ -873,7 +873,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         }
     };
 
-    const auto reorder_input_fully_connected = [&p, &lo, &rf](typed_program_node<fully_connected>& fc_node) {
+    const auto reorder_input_fully_connected = [&p, &rf](typed_program_node<fully_connected>& fc_node) {
         auto& weights = fc_node.weights();
         auto& input = fc_node.input();
         auto input_layout = input.get_output_layout();

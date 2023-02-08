@@ -21,7 +21,7 @@ VariableState::VariableState(const std::string &name,
     , engine_(engine) { }
 
 void VariableState::Reset() {
-    IterateOverStates([this](cldnn::network::VariableState &state) {
+    IterateOverStates([](cldnn::network::VariableState &state) {
         state.is_set = false;
     });
 }

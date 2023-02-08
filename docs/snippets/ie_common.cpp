@@ -99,5 +99,6 @@ int main() {
     //! [ie:load_old_extension]
     core.AddExtension(std::make_shared<InferenceEngine::Extension>("path_to_extension_library.so"));
     //! [ie:load_old_extension]
+    (void)status;
     return 0;
 }

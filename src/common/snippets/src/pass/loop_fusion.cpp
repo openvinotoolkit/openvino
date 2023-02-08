@@ -25,19 +25,20 @@ auto can_be_merged(const std::shared_ptr<ngraph::snippets::op::LoopEnd>& loop_en
         loop_end_down->get_increment() != loop_end_up->get_increment())
         return false;
 
-    // If between Loops there are common dependencies (for example, reducing operations), we cannot merge these Loops
-    // Example, when there is HorizonMax op between Loops:
-    //                    Data
-    //  VectorBuffer    LoopBegin
-    //         \          Load |  \
-    //           Maximum       |  /
-    //              /    LoopEnd
-    //       HorizonMax     |
-    //             \   LoopBegin
-    //              \     Load \
-    //               Subtract   |
-    //                Store    /
-    //               LoopEnd
+    /* If between Loops there are common dependencies (for example, reducing operations), we cannot merge these Loops
+     * Example, when there is HorizonMax op between Loops:
+     *                    Data
+     *  VectorBuffer    LoopBegin
+     *         \          Load |  \
+     *           Maximum       |  /
+     *              /    LoopEnd
+     *       HorizonMax     |
+     *             \   LoopBegin
+     *              \     Load \
+     *               Subtract   |
+     *                Store    /
+     *               LoopEnd
+     */
     auto up_dependent_ptrs = loop_end_up->get_control_dependents();
     ov::NodeVector up_dependents(up_dependent_ptrs.size(), nullptr);
     std::transform(up_dependent_ptrs.begin(), up_dependent_ptrs.end(), up_dependents.begin(), [](ngraph::Node* node) { return node->shared_from_this(); });
@@ -65,7 +66,7 @@ auto get_buffer_and_loop_end(const std::shared_ptr<ngraph::snippets::op::LoopBeg
             continue;
 
         // We can fuse Loops even LoopBegin has several the same inputs (the common Buffer/LoopEnd)
-        if (buffer && buffer == parent_shared || !buffer && loop_end_up && loop_end_up == parent_shared)
+        if ((buffer && buffer == parent_shared) || (!buffer && loop_end_up && loop_end_up == parent_shared))
             continue;
 
         loop_end_up = ngraph::as_type_ptr<ngraph::snippets::op::LoopEnd>(parent_shared);

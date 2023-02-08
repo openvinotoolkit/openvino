@@ -71,7 +71,7 @@ protected:
         }
 
         auto rm_iter = axes_to_remove.begin();
-        size_t rm_idx = 0;
+        int64_t rm_idx = 0;
         auto exp_labels = in_labels;
         exp_labels.erase(std::remove_if(exp_labels.begin(),
                                         exp_labels.end(),

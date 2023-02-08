@@ -35,7 +35,7 @@ std::string LSTMCellBasicTest::getTestCaseName(const testing::TestParamInfo<LSTM
     result << "clip=" << clip << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice << "_";
-    for (const auto configEntry : additionalConfig) {
+    for (const auto& configEntry : additionalConfig) {
         result << configEntry.first << ", " << configEntry.second << ";";
     }
     return result.str();

@@ -4,13 +4,6 @@
 
 enable_testing()
 
-if(NOT MSVC)
-    ie_add_compiler_flags(-Wno-missing-declarations)
-    ie_add_compiler_flags(-Wno-sign-compare)
-    ie_add_compiler_flags(-Wno-odr)
-    ie_add_compiler_flags(-Wno-all)
-endif()
-
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd4244)
     ie_add_compiler_flags(/wd4267)
@@ -19,6 +12,12 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd4661)
     ie_add_compiler_flags(/wd4018)
     ie_add_compiler_flags(/wd4334)
+    ie_add_compiler_flags(/wd4250)
+else()
+    ie_add_compiler_flags(-Wno-missing-declarations)
+    ie_add_compiler_flags(-Wno-sign-compare)
+    ie_add_compiler_flags(-Wno-odr)
+    ie_add_compiler_flags(-Wno-all)
 endif()
 
 if(ENABLE_TESTS)

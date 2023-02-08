@@ -196,7 +196,7 @@ public:
         if (size() < mask->size())
             resize(mask->size());
         for (size_t i = 0; i < size(); i++) {
-            if (i == axis) {
+            if (static_cast<int64_t>(i) == axis) {
                 std::set<uint64_t> dst_set;
                 const auto& src_set = mask->at(i);
                 auto it = src_set.lower_bound(split_start);

@@ -32,7 +32,7 @@ public:
     std::shared_ptr<Function> fnPtr;
     SizeVector inputShapes;
     std::map<string, string> expectedPrecisions;
-    float threshold = 7e-2;
+    float threshold = 7e-2f;
     Precision netPrecision;
     size_t kernel;
     CoordinateDiff pads;

@@ -397,11 +397,11 @@ public:
             size_t body_id;
             if (id_pos != std::string::npos) {
                 id_str.erase(id_pos, id.length());
-                std::stoi(id_str, &body_id);
+                (void)std::stoi(id_str, &body_id);
                 is_body_target = true;
             } else if (od_pos != std::string::npos) {
                 id_str.erase(od_pos, od.length());
-                std::stoi(id_str, &body_id);
+                (void)std::stoi(id_str, &body_id);
                 is_body_target = true;
             }
             if (is_body_target) {
@@ -729,15 +729,6 @@ bool is_exec_graph(const ngraph::Function& f) {
     for (const auto& op : f.get_ops()) {
         const auto& rtInfo = op->get_rt_info();
         if (rtInfo.find("execTimeMcs") != rtInfo.end()) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool has_dynamic_output(const std::shared_ptr<Node>& n) {
-    for (size_t i = 0; i < n->get_output_size(); i++) {
-        if (n->get_output_partial_shape(i).is_dynamic()) {
             return true;
         }
     }

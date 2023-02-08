@@ -102,15 +102,15 @@ void ParsePreProcess(pugi::xml_node& root,
         mean_scalar_shape = {inputDims[1], 1, 1, 1};
         mean_shape = {1, inputDims[2], inputDims[3], inputDims[4]};
     }
-    const int64_t channels = mean_scalar_shape[0];
+    const size_t channels = mean_scalar_shape[0];
 
-    int64_t next_channel_id{0};
-    std::set<std::pair<int64_t, float>> mean_scalar_values;
-    std::set<std::pair<int64_t, std::pair<int64_t, int64_t>>> mean_values;
+    uint64_t next_channel_id{0};
+    std::set<std::pair<size_t, float>> mean_scalar_values;
+    std::set<std::pair<size_t, std::pair<int64_t, int64_t>>> mean_values;
 
     auto input_type = input_node->get_output_element_type(0);
     FOREACH_CHILD (chan, ppNode, "channel") {
-        int chanNo = XMLParseUtils::GetIntAttr(chan, "id", static_cast<int>(next_channel_id++));
+        auto chanNo = XMLParseUtils::GetUInt64Attr(chan, "id", next_channel_id++);
 
         auto meanNode = chan.child("mean");
         if (!meanNode.empty()) {
@@ -121,8 +121,8 @@ void ParsePreProcess(pugi::xml_node& root,
                 mean_scalar_values.insert({chanNo, XMLParseUtils::GetFloatAttr(meanNode, "value")});
             }
             if (meanNode.attribute("size") && meanNode.attribute("offset")) {
-                auto const_size = XMLParseUtils::GetIntAttr(meanNode, "size");
-                auto const_offset = XMLParseUtils::GetIntAttr(meanNode, "offset");
+                auto const_size = XMLParseUtils::GetUInt64Attr(meanNode, "size");
+                auto const_offset = XMLParseUtils::GetUInt64Attr(meanNode, "offset");
                 if (shape_size(mean_shape) * input_type.size() != const_size) {
                     IE_THROW() << "mean blob size mismatch expected input, got: " << const_size << " expecting "
                                << mean_shape << " x " << input_type.size();

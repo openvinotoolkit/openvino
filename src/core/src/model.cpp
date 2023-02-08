@@ -490,12 +490,12 @@ namespace {
 inline ov::Tensor create_tmp_tensor(const ngraph::HostTensorPtr& tensor) {
     if (tensor->get_partial_shape().is_static()) {
         ov::Shape shape = tensor->get_shape();
-        return std::move(ov::Tensor(tensor->get_element_type(), shape, tensor->get_data_ptr()));
+        return ov::Tensor(tensor->get_element_type(), shape, tensor->get_data_ptr());
     } else {
         if (tensor->get_element_type().is_dynamic()) {
-            return std::move(ov::Tensor());
+            return {};
         } else {
-            return std::move(ov::Tensor(tensor->get_element_type(), {0}));
+            return ov::Tensor(tensor->get_element_type(), {0});
         }
     }
 }
@@ -505,7 +505,7 @@ inline ov::TensorVector create_tmp_tensors(const ngraph::HostTensorVector& tenso
     for (const auto& tensor : tensors) {
         result.emplace_back(create_tmp_tensor(tensor));
     }
-    return std::move(result);
+    return result;
 }
 
 inline void update_output_tensors(const ngraph::HostTensorVector& output_values, const ov::TensorVector& outputs) {

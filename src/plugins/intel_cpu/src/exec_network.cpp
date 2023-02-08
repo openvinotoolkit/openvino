@@ -68,9 +68,9 @@ ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
                          const std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{nullptr, nullptr},
     extensionManager(extMgr),
+    _network(network),
     _cfg{cfg},
-    _name{network.getName()},
-    _network(network) {
+    _name{network.getName()} {
     SetPointerToPlugin(plugin);
     auto function = network.getFunction();
     if (function == nullptr) {

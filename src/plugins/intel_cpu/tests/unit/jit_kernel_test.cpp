@@ -12,7 +12,7 @@ using namespace Xbyak;
 
 namespace {
 
-#define TEST_JIT_SCALAR_EXPRESSION (c << 5) * b | (a & b - c) | (b - a) >> 2
+#define TEST_JIT_SCALAR_EXPRESSION (c << 5) * b | ((a & b) - c) | (b - a) >> 2
 
 template<typename Params>
 struct jit_test_kernel : public jit_kernel {

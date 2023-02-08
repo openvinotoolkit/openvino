@@ -45,7 +45,7 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     , _kernels({})
     , _kernel_id(other._kernel_id) {
         for (const auto& kernel : other._kernels) {
-            _kernels.emplace_back(std::move(kernel->clone()));
+            _kernels.emplace_back(kernel->clone());
         }
     }
 
@@ -57,7 +57,7 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     }
 
     void init_kernels(const kernels_cache& kernels_cache) override {
-        _kernels.emplace_back(std::move(kernels_cache.get_kernel(_kernel_id)));
+        _kernels.emplace_back(kernels_cache.get_kernel(_kernel_id));
     }
 
     void set_arguments_impl(custom_gpu_primitive_inst& instance) override {

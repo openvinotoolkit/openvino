@@ -310,10 +310,6 @@ static bool isPowerOfTwo(size_t n) {
     return (n != 0) && (n & (n - 1)) == 0;
 }
 
-static size_t dftSimdSize(int vlen) {
-    return vlen / (2 * sizeof(float));
-}
-
 bool RDFTExecutor::canUseFFT(size_t dim) {
     return isPowerOfTwo(dim) && dim > 1;
 }

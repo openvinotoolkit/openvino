@@ -16,7 +16,7 @@ TEST_F(TransformationTestsF, ConvolutionReverseInfer) {
     {
         auto data = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
         auto weights =
-            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1));
+            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<opset10::Convolution>(data,
                                                            weights,
                                                            Strides{2, 2},
@@ -30,7 +30,7 @@ TEST_F(TransformationTestsF, ConvolutionReverseInfer) {
     {
         auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic(4));
         auto weights =
-            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1));
+            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<opset10::Convolution>(data,
                                                            weights,
                                                            Strides{2, 2},
@@ -46,7 +46,7 @@ TEST_F(TransformationTestsF, ConvolutionBackpropDataReverseInfer) {
     {
         auto data = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
         auto weights =
-            opset10::Constant::create(element::f32, Shape{20, 10, 3, 3}, std::vector<float>(20 * 10 * 3 * 3, 0.1));
+            opset10::Constant::create(element::f32, Shape{20, 10, 3, 3}, std::vector<float>(20 * 10 * 3 * 3, 0.1f));
         auto conv = std::make_shared<opset10::ConvolutionBackpropData>(data,
                                                                        weights,
                                                                        Strides{2, 2},
@@ -60,7 +60,7 @@ TEST_F(TransformationTestsF, ConvolutionBackpropDataReverseInfer) {
     {
         auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic(4));
         auto weights =
-            opset10::Constant::create(element::f32, Shape{20, 10, 3, 3}, std::vector<float>(20 * 10 * 3 * 3, 0.1));
+            opset10::Constant::create(element::f32, Shape{20, 10, 3, 3}, std::vector<float>(20 * 10 * 3 * 3, 0.1f));
         auto conv = std::make_shared<opset10::ConvolutionBackpropData>(data,
                                                                        weights,
                                                                        Strides{2, 2},
@@ -76,7 +76,7 @@ TEST_F(TransformationTestsF, GroupConvolutionReverseInfer) {
     {
         auto data = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
         auto weights =
-            opset10::Constant::create(element::f32, Shape{3, 2, 3, 7, 7}, std::vector<float>(3 * 2 * 3 * 7 * 7, 0.1));
+            opset10::Constant::create(element::f32, Shape{3, 2, 3, 7, 7}, std::vector<float>(3 * 2 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<opset10::GroupConvolution>(data,
                                                                 weights,
                                                                 Strides{1, 1},
@@ -90,7 +90,7 @@ TEST_F(TransformationTestsF, GroupConvolutionReverseInfer) {
     {
         auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic(4));
         auto weights =
-            opset10::Constant::create(element::f32, Shape{3, 2, 3, 7, 7}, std::vector<float>(3 * 2 * 3 * 7 * 7, 0.1));
+            opset10::Constant::create(element::f32, Shape{3, 2, 3, 7, 7}, std::vector<float>(3 * 2 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<opset10::GroupConvolution>(data,
                                                                 weights,
                                                                 Strides{1, 1},
@@ -107,7 +107,7 @@ TEST_F(TransformationTestsF, GroupConvolutionBackpropDataReverseInfer) {
     {
         auto data = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
         auto weights =
-            opset10::Constant::create(element::f32, Shape{4, 5, 2, 3, 3}, std::vector<float>(4 * 5 * 2 * 3 * 3, 0.1));
+            opset10::Constant::create(element::f32, Shape{4, 5, 2, 3, 3}, std::vector<float>(4 * 5 * 2 * 3 * 3, 0.1f));
         auto conv = std::make_shared<opset10::GroupConvolutionBackpropData>(data,
                                                                             weights,
                                                                             Strides{2, 2},
@@ -121,7 +121,7 @@ TEST_F(TransformationTestsF, GroupConvolutionBackpropDataReverseInfer) {
     {
         auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic(4));
         auto weights =
-            opset10::Constant::create(element::f32, Shape{4, 5, 2, 3, 3}, std::vector<float>(4 * 5 * 2 * 3 * 3, 0.1));
+            opset10::Constant::create(element::f32, Shape{4, 5, 2, 3, 3}, std::vector<float>(4 * 5 * 2 * 3 * 3, 0.1f));
         auto conv = std::make_shared<opset10::GroupConvolutionBackpropData>(data,
                                                                             weights,
                                                                             Strides{2, 2},
@@ -139,7 +139,7 @@ TEST_F(TransformationTestsF, DeformableConvolutionReverseInfer) {
         auto data = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
         auto offsets = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
         auto weights =
-            opset10::Constant::create(element::f32, Shape{64, 4, 5, 5}, std::vector<float>(64 * 4 * 5 * 5, 0.1));
+            opset10::Constant::create(element::f32, Shape{64, 4, 5, 5}, std::vector<float>(64 * 4 * 5 * 5, 0.1f));
         auto mask = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
         auto conv = std::make_shared<opset10::DeformableConvolution>(data,
                                                                      offsets,
@@ -157,7 +157,7 @@ TEST_F(TransformationTestsF, DeformableConvolutionReverseInfer) {
         auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic(4));
         auto offsets = std::make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic(4));
         auto weights =
-            opset10::Constant::create(element::f32, Shape{64, 4, 5, 5}, std::vector<float>(64 * 4 * 5 * 5, 0.1));
+            opset10::Constant::create(element::f32, Shape{64, 4, 5, 5}, std::vector<float>(64 * 4 * 5 * 5, 0.1f));
         auto mask = std::make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic(4));
         auto conv = std::make_shared<opset10::DeformableConvolution>(data,
                                                                      offsets,
@@ -199,7 +199,7 @@ TEST_F(TransformationTestsF, ActivationReverseInfer) {
         auto data = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
         auto relu = std::make_shared<opset10::Relu>(data);
         auto weights =
-            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1));
+            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<opset10::Convolution>(relu,
                                                            weights,
                                                            Strides{2, 2},
@@ -214,7 +214,7 @@ TEST_F(TransformationTestsF, ActivationReverseInfer) {
         auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic(4));
         auto relu = std::make_shared<opset10::Relu>(data);
         auto weights =
-            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1));
+            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<opset10::Convolution>(relu,
                                                            weights,
                                                            Strides{2, 2},
@@ -232,7 +232,7 @@ TEST_F(TransformationTestsF, EltwiseScalarRightReverseInfer) {
         auto add_const = opset10::Constant::create(element::f32, Shape{}, {1});
         auto add = std::make_shared<opset10::Add>(data, add_const);
         auto weights =
-            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1));
+            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<opset10::Convolution>(add,
                                                            weights,
                                                            Strides{2, 2},
@@ -248,7 +248,7 @@ TEST_F(TransformationTestsF, EltwiseScalarRightReverseInfer) {
         auto add_const = opset10::Constant::create(element::f32, Shape{}, {1});
         auto add = std::make_shared<opset10::Add>(data, add_const);
         auto weights =
-            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1));
+            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<opset10::Convolution>(add,
                                                            weights,
                                                            Strides{2, 2},
@@ -266,7 +266,7 @@ TEST_F(TransformationTestsF, EltwiseScalarLeftReverseInfer) {
         auto add_const = opset10::Constant::create(element::f32, Shape{}, {1});
         auto add = std::make_shared<opset10::Add>(add_const, data);
         auto weights =
-            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1));
+            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<opset10::Convolution>(add,
                                                            weights,
                                                            Strides{2, 2},
@@ -282,7 +282,7 @@ TEST_F(TransformationTestsF, EltwiseScalarLeftReverseInfer) {
         auto add_const = opset10::Constant::create(element::f32, Shape{}, {1});
         auto add = std::make_shared<opset10::Add>(add_const, data);
         auto weights =
-            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1));
+            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<opset10::Convolution>(add,
                                                            weights,
                                                            Strides{2, 2},

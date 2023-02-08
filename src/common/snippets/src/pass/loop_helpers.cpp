@@ -16,7 +16,7 @@ std::shared_ptr<LoopBegin> insertLoopBeginAfterOutputs(const OutputVector& origi
 
     auto loop_begin = std::make_shared<LoopBegin>(originalOutputs);
 
-    for (int i = 0; i < originalChildInputs.size(); i++) {
+    for (size_t i = 0; i < originalChildInputs.size(); i++) {
         for (auto& input : originalChildInputs[i]) {
             input.replace_source_output(loop_begin->output(i));
         }
@@ -37,7 +37,7 @@ std::shared_ptr<LoopEnd> insertLoopEndBeforeInputs(const std::vector<Input<Node>
     auto loop_end = std::make_shared<LoopEnd>(originalParentOutputs, work_amount, increment,
                                              std::move(apply_increment), std::move(finalization_offsets));
 
-    for (int i = 0; i < originalInputs.size(); i++) {
+    for (size_t i = 0; i < originalInputs.size(); i++) {
         originalInputs[i].replace_source_output(loop_end->output(i));
     }
     return loop_end;

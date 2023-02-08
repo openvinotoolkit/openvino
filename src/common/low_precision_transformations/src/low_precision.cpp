@@ -273,7 +273,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_p
 bool ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(const std::shared_ptr<const ngraph::Function>& function) {
     std::set<std::shared_ptr<ngraph::Node>> handledNodes;
     std::deque<std::shared_ptr<ngraph::Node>> nodes;
-    for (const auto result : function->get_results()) {
+    for (const auto& result : function->get_results()) {
         nodes.push_front(result);
     }
 
@@ -294,7 +294,7 @@ bool ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(const std::s
                 }
             } else if (const auto multiSubGraph = ov::as_type_ptr<ngraph::op::util::MultiSubGraphOp>(parent)) {
                 // Look inside subraph operations, such as TensorIterator, Loop, If, etc
-                for (int i = 0; i < multiSubGraph->get_internal_subgraphs_size(); i++) {
+                for (size_t i = 0; i < multiSubGraph->get_internal_subgraphs_size(); i++) {
                     if (isFunctionQuantized(multiSubGraph->get_function(i))) {
                         return true;
                     }

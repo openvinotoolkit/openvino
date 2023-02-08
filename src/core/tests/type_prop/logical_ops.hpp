@@ -116,7 +116,6 @@ TYPED_TEST_P(LogicalOperatorTypeProp, inputs_have_inconsistent_shapes) {
 
 TYPED_TEST_P(LogicalOperatorTypeProp, shape_broadcast) {
     using namespace ngraph;
-    using OP_Type = typename TypeParam::op_type;
     const auto exp_dtype = TypeParam::element_type;
 
     const auto a = std::make_shared<op::Parameter>(element::boolean, Shape{1, 1, 6});
@@ -132,7 +131,6 @@ TYPED_TEST_P(LogicalOperatorTypeProp, shape_broadcast) {
 TYPED_TEST_P(LogicalOperatorTypeProp, partial_shape_no_broadcast) {
     using namespace ngraph;
     using namespace testing;
-    using OP_Type = typename TypeParam::op_type;
 
     auto shape_a = PartialShape{1, {2, 4}, {2, 5}, 4, -1};
     auto shape_b = PartialShape{1, 3, {1, 6}, 4, {-1, 5}};
@@ -153,7 +151,6 @@ TYPED_TEST_P(LogicalOperatorTypeProp, partial_shape_no_broadcast) {
 TYPED_TEST_P(LogicalOperatorTypeProp, partial_shape_numpy_broadcast) {
     using namespace ngraph;
     using namespace testing;
-    using OP_Type = typename TypeParam::op_type;
 
     auto shape_a = PartialShape{1, {2, 4}, {2, 5}, 4, -1};
     auto shape_b = PartialShape{1, 3, {1, 6}, 4};

@@ -1,8 +1,11 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include "ov_test.hpp"
 #include "test_model_repo.hpp"
+
+namespace {
 
 TEST(ov_version, api_version) {
     ov_version_t version;
@@ -559,3 +562,5 @@ TEST_P(ov_core, ov_core_compile_model_from_file_unicode) {
     ov_core_free(core);
 }
 #endif
+
+}  // namespace

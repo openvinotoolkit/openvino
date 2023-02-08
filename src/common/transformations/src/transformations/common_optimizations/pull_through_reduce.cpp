@@ -54,13 +54,13 @@ const std::vector<int64_t> adjust_axes(const std::vector<int64_t>& axes_to_align
 std::vector<int64_t> try_get_unsqueeze_axes_from_reshape(const ov::Shape& target_shape, const ov::Shape& input_shape) {
     std::vector<int64_t> result;
     if (input_shape.size() == 0) {  // scalar case - can be reshaped only to [1,..,1] shape
-        result.resize(target_shape.size());
+        result.resize(target_shape.size(), 0);
         std::iota(std::begin(result), std::end(result), 0);
         return result;
     }
-    auto cur_input_shape_elem_idx = 0;
+    size_t cur_input_shape_elem_idx = 0;
     auto cur_input_shape_elem = input_shape[cur_input_shape_elem_idx];
-    auto target_shape_idx = 0;
+    size_t target_shape_idx = 0;
     for (; target_shape_idx < target_shape.size(); ++target_shape_idx) {
         if (cur_input_shape_elem == target_shape[target_shape_idx] &&
             cur_input_shape_elem_idx + 1 < input_shape.size()) {

@@ -36,7 +36,7 @@ std::set<std::string> get_unconverted_types_from_model(const std::shared_ptr<Mod
             unconverted_ops_types.insert(op_type);
         }
         if (const auto& fw_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
-            for (int i = 0; i < fw_node->get_internal_subgraphs_size(); i++) {
+            for (size_t i = 0; i < fw_node->get_internal_subgraphs_size(); i++) {
                 auto internal_types = get_unconverted_types_from_model(fw_node->get_function(i));
                 unconverted_ops_types.insert(internal_types.begin(), internal_types.end());
             }

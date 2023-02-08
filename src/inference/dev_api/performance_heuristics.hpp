@@ -13,6 +13,8 @@ struct MemBandwidthPressure {
     float max_mem_tolerance = UNKNOWN;
     float ratio_compute_convs = 0;
     float ratio_mem_limited_convs = 0;
+    float ratio_mem_limited_deconvs = 0;
+    float ratio_mem_limited_gemms = 0;
     float ratio_compute_deconvs = 0;
 
     static constexpr float UNKNOWN = FLT_MAX;
@@ -131,6 +133,8 @@ static MemBandwidthPressure MemBandwidthPressureTolerance(
     MemBandwidthPressure res;
     res.max_mem_tolerance = worst_case;
     res.ratio_mem_limited_convs = total_convs ? static_cast<float>(mem_limited_convs) / total_convs : 0;
+    res.ratio_mem_limited_deconvs = total_deconvs ? static_cast<float>(mem_limited_deconvs) / total_deconvs : 0;
+    res.ratio_mem_limited_gemms = total_gemms ? static_cast<float>(mem_limited_gemms) / total_gemms : 0;
     res.ratio_compute_convs = total_convs ? static_cast<float>(compute_convs) / total_convs : 0;
     res.ratio_compute_deconvs = total_deconvs ? static_cast<float>(compute_deconvs) / total_deconvs : 0;
     return res;

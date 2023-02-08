@@ -30,7 +30,7 @@ void BroadcastToMoveBroadcastTests::SetUp() {
     std::tie(inputShapes[0], inputShapes[1], broadcast_shape) = this->GetParam();
     snippets_function = std::make_shared<BroadcastAddLoweredFunction>(inputShapes, broadcast_shape);
     master_shape = {};
-    for (int i = 0; i < inputShapes[0].size(); i++)
+    for (size_t i = 0; i < inputShapes[0].size(); i++)
         master_shape.push_back(static_cast<int64_t>(std::max(inputShapes[0].get_shape()[i], inputShapes[1].get_shape()[i])));
 }
 

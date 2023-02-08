@@ -156,11 +156,6 @@ public:
 
 namespace {
 
-std::string GetFinalNodeName(std::shared_ptr<ov::Model> model, int index = 0) {
-    NodePtr result_node = model->get_results()[index];
-    return result_node->get_input_node_ptr(0)->get_friendly_name();
-}
-
 std::shared_ptr<ov::Model> CreateFunctionTransposeBefore(UnaryFactoryPtr unary_factory,
                                                          size_t num_unary_ops,
                                                          const Shape& input_shape,

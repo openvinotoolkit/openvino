@@ -236,10 +236,10 @@ bool InsertLoops::run_on_model(const std::shared_ptr<ov::Model> &model) {
         const auto& new_shapes = plugin_shapes->second.as<std::vector<std::vector<size_t>>>();
         if (new_shapes.size() != commonResults.size() + commonParams.size())
             throw ngraph_error("InsertLoops got invalid number of plugin-overriden shapes");
-        for (int i = 0; i < commonParams.size(); i++)
+        for (size_t i = 0; i < commonParams.size(); i++)
             ioShapes.emplace_back(new_shapes[i]);
         // reverse overriden_shapes for results since commonResults are reversed with respect to model->get_parameters()
-        for (int i = 0; i < commonResults.size(); i++)
+        for (size_t i = 0; i < commonResults.size(); i++)
             ioShapes.emplace_back(new_shapes[new_shapes.size() - 1 - i]);
     }
 

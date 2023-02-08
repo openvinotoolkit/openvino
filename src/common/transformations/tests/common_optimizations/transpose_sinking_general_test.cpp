@@ -360,8 +360,8 @@ NodePtr MakeAllNodesSubgraph(NodePtr parent, size_t split_axis, size_t concat_ax
                                          SplitFactory::createFactory(split_axis),
                                          ConcatFactory::createFactory(concat_axis)};
     NodePtr in_op = parent;
-    for (int i = 0; i < factories.size(); ++i) {
-        for (int j = 0; j < factories.size(); ++j) {
+    for (size_t i = 0; i < factories.size(); ++i) {
+        for (size_t j = 0; j < factories.size(); ++j) {
             in_op = CreateNodePair(factories[i], factories[j], in_op, split_axis, concat_axis);
         }
     }

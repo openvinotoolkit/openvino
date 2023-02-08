@@ -175,10 +175,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
                 auto reshaped_input = std::make_shared<opset10::Reshape>(input, const_neg_1, false);
                 auto shape = std::make_shared<opset10::ShapeOf>(reshaped_input);
                 cat_shapes.push_back(shape);
-                NodeVector cat_inputs{};
-                for (int i = 0; i < meshgrid_inputs.size(); i++) {
-                    cat_inputs.push_back(const_1);
-                }
+                NodeVector cat_inputs(meshgrid_inputs.size(), const_1);
                 cat_inputs[input_idx] = shape;
                 input_idx++;
                 auto input_cat = std::make_shared<opset10::Concat>(cat_inputs, 0);

@@ -36,9 +36,9 @@ struct ReduceToPoolParams {
     ReduceToPoolParams(const std::vector<int64_t>& begin,
                        const ngraph::Shape& pooling_kernel,
                        const std::vector<int64_t>& end)
-        : pooling_kernel(pooling_kernel),
-          reshape_begin(begin),
-          reshape_end(end) {}
+        : reshape_begin(begin),
+          reshape_end(end),
+          pooling_kernel(pooling_kernel) {}
 };
 
 class ConvertReduceToPoolingTests

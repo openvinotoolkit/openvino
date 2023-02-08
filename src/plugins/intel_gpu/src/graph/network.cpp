@@ -313,7 +313,7 @@ network::network(program::ptr program, const ExecutionConfig& config, stream::pt
                                                                           kernel_selector::KernelBase::get_db().get_batch_header_str()));
         _impls_cache = std::unique_ptr<ImplementationsCache>(new ImplementationsCache(_impls_cache_capacity));
         _in_mem_kernels_cache = std::unique_ptr<KernelsCache>(new KernelsCache(_in_mem_kernels_cache_capacity));
-        _compilation_context = std::move(ICompilationContext::create(program->get_engine(), program->get_config(), program->get_id()));
+        _compilation_context = ICompilationContext::create(program->get_engine(), program->get_config(), program->get_id());
     }
 }
 

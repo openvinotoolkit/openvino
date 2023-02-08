@@ -23,7 +23,7 @@ TEST(ov_tensor, ov_tensor_create_from_host_ptr) {
     ov_element_type_e type = ov_element_type_e::U8;
     ov_shape_t shape;
     setup_4d_shape(&shape, 1, 3, 4, 4);
-    uint8_t host_ptr[1][3][4][4] = {0};
+    uint8_t host_ptr[1][3][4][4] = {{{{0}}}};
     ov_tensor_t* tensor = nullptr;
     OV_EXPECT_OK(ov_tensor_create_from_host_ptr(type, shape, &host_ptr, &tensor));
     EXPECT_NE(nullptr, tensor);

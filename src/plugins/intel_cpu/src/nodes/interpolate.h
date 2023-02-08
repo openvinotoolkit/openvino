@@ -214,8 +214,9 @@ private:
             InterpolateRefExecutor(const InterpolateAttrs& interpAttrs,
                                    const VectorDims &srcDims,
                                    const VectorDims &dstDims,
-                                   const std::vector<float> &_dataScales) : dataScales(_dataScales), antialias(interpAttrs.antialias),
-                InterpolateExecutor(interpAttrs, srcDims, dstDims, _dataScales) {}
+                                   const std::vector<float> &_dataScales) :
+                InterpolateExecutor(interpAttrs, srcDims, dstDims, _dataScales),
+                antialias(interpAttrs.antialias), dataScales(_dataScales) {}
 
             void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) override;
 

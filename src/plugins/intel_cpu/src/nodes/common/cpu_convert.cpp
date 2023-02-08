@@ -463,13 +463,6 @@ struct ConvertPrecision<std::tuple<ov::float16, ov::float16>> {
     }
 };
 
-bool isConversionTruncatesRange(const Precision & from, const Precision & to) {
-    return to.bitsSize() < from.bitsSize()
-            || (from.is_float() && !to.is_float())      // float -> integral
-            || (from.isSigned() != to.isSigned())       // signed <-> unsigned
-            || (to == Precision::BOOL && from != to);   // T -> bool
-}
-
 }   // namespace
 
 #define INTEL_CPU_CVT(ST, DT) OV_CASE2(Precision::ST, Precision::DT, PrecisionInfo<Precision::ST>::value_type, PrecisionInfo<Precision::DT>::value_type)

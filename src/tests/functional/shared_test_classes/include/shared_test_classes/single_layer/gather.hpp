@@ -29,6 +29,8 @@ typedef std::tuple<
 > gatherParamsTuple;
 
 class GatherLayerTestBase : virtual public LayerTestsUtils::LayerTestsCommon {
+public:
+    using ::testing::Test::SetUp;
 protected:
     void SetUp(const gatherParamsTuple& params);
 };

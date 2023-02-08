@@ -51,10 +51,10 @@ void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_p
                                        ov::Tensor* values) {
     auto val_lastsaved = static_cast<T>(0);
     auto values_data = values->data<T>();
-    for (auto i = 0; i < values->get_size(); i++) {
+    for (size_t i = 0; i < values->get_size(); i++) {
         if (val_size == 0) {
             values_data[i] = static_cast<T>(0);
-        } else if (i < val_size) {
+        } else if (static_cast<int64_t>(i) < val_size) {
             auto val_i = static_cast<T>(0);
             switch (values->get_element_type()) {
             // TODO: there are more element types to support here

@@ -17,6 +17,12 @@ file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/ie_api.pyx
 file(GLOB PYX_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.pyx)
 set_source_files_properties(${PYX_SOURCES} PROPERTIES CYTHON_IS_CXX ON)
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # 'argument': conversion from 'size_t' to 'int', possible loss of data
+    ie_add_compiler_flags(/wd4267)
+    ie_add_compiler_flags(/wd4244)
+endif()
+
 # create target
 
 cython_add_module(${TARGET_NAME} ${SOURCES})
@@ -45,13 +51,13 @@ if(COMMAND ie_add_vs_version_file)
     endforeach()
 endif()
 
-function(python_disable_deprecated_warnings)
-    disable_deprecated_warnings()
+function(python_ov_disable_deprecated_warnings)
+    ov_disable_deprecated_warnings()
     set(pyx_file "${CMAKE_CURRENT_BINARY_DIR}/ie_api.cxx" "${CMAKE_CURRENT_BINARY_DIR}/constants.cxx")
     set_source_files_properties(${pyx_file} PROPERTIES COMPILE_OPTIONS ${ie_c_cxx_deprecated})
 endfunction()
 
-python_disable_deprecated_warnings()
+python_ov_disable_deprecated_warnings()
 ie_python_minimal_api(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

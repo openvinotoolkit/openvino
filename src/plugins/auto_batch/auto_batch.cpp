@@ -505,7 +505,7 @@ std::pair<AutoBatchExecutableNetwork::WorkerInferRequest&, int> AutoBatchExecuta
         workerRequestPtr->_batchSize = _device.batchForDevice;
         workerRequestPtr->_completionTasks.resize(workerRequestPtr->_batchSize);
         workerRequestPtr->_inferRequestBatched->SetCallback(
-            [workerRequestPtr, this](std::exception_ptr exceptionPtr) mutable {
+            [workerRequestPtr](std::exception_ptr exceptionPtr) mutable {
                 if (exceptionPtr)
                     workerRequestPtr->_exceptionPtr = exceptionPtr;
                 IE_ASSERT(workerRequestPtr->_completionTasks.size() == (size_t)workerRequestPtr->_batchSize);

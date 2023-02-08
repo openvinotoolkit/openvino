@@ -322,7 +322,7 @@ public:
         std::ostringstream result;
         result << "IS:(";
         result << "InputPartialShape:" << CommonTestUtils::partialShape2str({p.inputPartialShape});
-        for (const auto inputShape : p.inputShapes) {
+        for (const auto& inputShape : p.inputShapes) {
             result << CommonTestUtils::vec2str(inputShape);
         }
         result << "_InputLayoutType:" << layoutName(p.srcLayout) << ".";

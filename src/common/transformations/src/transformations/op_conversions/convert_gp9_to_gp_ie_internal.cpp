@@ -14,7 +14,7 @@
 #include "transformations/utils/utils.hpp"
 
 ov::pass::ConvertGP9ToGPIEInternal::ConvertGP9ToGPIEInternal() {
-    matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
+    matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
         const auto root = m.get_match_root();
         const auto old_node = std::dynamic_pointer_cast<ov::opset9::GenerateProposals>(root);
         if (!old_node) {

@@ -24,9 +24,9 @@ using namespace ov;
 
 static std::shared_ptr<opset8::FakeQuantize> createFQ(const std::shared_ptr<ov::Node>& input) {
     auto input_low = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{0});
-    auto input_high = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{49.4914});
+    auto input_high = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{49.4914f});
     auto output_low = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{0});
-    auto output_high = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{49.4914});
+    auto output_high = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{49.4914f});
     return std::make_shared<opset8::FakeQuantize>(input, input_low, input_high, output_low, output_high, 256);
 }
 

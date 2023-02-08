@@ -527,7 +527,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                 }
 
                 info.dataShape = ov::Shape(info.partialShape.size(), 0);
-                for (int i = 0; i < info.partialShape.size(); i++) {
+                for (size_t i = 0; i < info.partialShape.size(); i++) {
                     auto& dim = info.partialShape[i];
                     if (dim.is_static()) {
                         info.dataShape[i] = dim.get_length();

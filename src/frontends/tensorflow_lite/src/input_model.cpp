@@ -160,8 +160,8 @@ void InputModel::InputModelTFLiteImpl::loadModel() {
 
 InputModel::InputModelTFLiteImpl::InputModelTFLiteImpl(const GraphIteratorFlatBuffer::Ptr& graph_iterator,
                                                        const ov::frontend::InputModel& input_model)
-    : m_input_model(input_model),
-      m_graph_iterator(graph_iterator) {
+    : m_graph_iterator(graph_iterator),
+      m_input_model(input_model) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
     loadModel();
 }
@@ -169,8 +169,8 @@ InputModel::InputModelTFLiteImpl::InputModelTFLiteImpl(const GraphIteratorFlatBu
 InputModel::InputModelTFLiteImpl::InputModelTFLiteImpl(const GraphIteratorFlatBuffer::Ptr& graph_iterator,
                                                        const ov::frontend::InputModel& input_model,
                                                        const std::shared_ptr<TelemetryExtension>& telemetry)
-    : m_input_model(input_model),
-      m_graph_iterator(graph_iterator),
+    : m_graph_iterator(graph_iterator),
+      m_input_model(input_model),
       m_telemetry(telemetry) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
     loadModel();

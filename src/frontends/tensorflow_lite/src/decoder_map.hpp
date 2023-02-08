@@ -20,8 +20,8 @@ public:
                const std::map<std::string, ov::Any>& attrs,
                bool empty_name = false)
         : ov::frontend::DecoderBase(),
-          m_decoder(std::move(decoder)),
           m_attrs(attrs),
+          m_decoder(std::move(decoder)),
           m_empty_name(empty_name) {}
 
     DecoderMap(std::shared_ptr<ov::frontend::DecoderBase> decoder,
@@ -29,8 +29,8 @@ public:
                std::string type,
                bool empty_name = false)
         : ov::frontend::DecoderBase(),
-          m_decoder(std::move(decoder)),
           m_attrs(attrs),
+          m_decoder(std::move(decoder)),
           m_type(type),
           m_empty_name(empty_name) {}
 

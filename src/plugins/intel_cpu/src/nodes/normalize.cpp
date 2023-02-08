@@ -913,8 +913,7 @@ void NormalizeL2::prepareParams() {
 
     NormalizeKey key = {attrs, kernel_attrs, dims};
 
-    auto engine = getEngine();
-    auto builder = [&engine](const NormalizeKey& key) -> std::shared_ptr<NormalizeL2::NormalizeL2Executor> {
+    auto builder = [](const NormalizeKey& key) -> std::shared_ptr<NormalizeL2::NormalizeL2Executor> {
         return NormalizeL2Executor::getNormalizeL2Executor(key.attrs, key.kernel_attrs, key.dims);
     };
 
@@ -1305,7 +1304,7 @@ template <typename in_data_t, typename out_data_t>
 class NormalizeL2::NormalizeL2ReferenceExecutor : public NormalizeL2::NormalizeL2Executor {
 public:
     NormalizeL2ReferenceExecutor(const NormalizeL2Attrs& attrs, const dnnl::primitive_attr& kernel_attrs, const VectorDims& dims) :
-        attrs(attrs), kernel_attrs(kernel_attrs), dims(dims) {
+        dims(dims), kernel_attrs(kernel_attrs), attrs(attrs) {
         if (attrs.layout != LayoutType::ncsp) {
             IE_THROW() << "Reference Executor of 'NormalizeL2' supports only ncsp layout!";
         }

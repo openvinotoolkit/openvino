@@ -718,7 +718,7 @@ inline ngraph::HostTensorVector create_tmp_tensors(const ov::TensorVector& tenso
                                                                               tensor.data()));
         }
     }
-    return std::move(result);
+    return result;
 }
 
 inline void update_output_tensors(ov::TensorVector& output_values, const ngraph::HostTensorVector& outputs) {

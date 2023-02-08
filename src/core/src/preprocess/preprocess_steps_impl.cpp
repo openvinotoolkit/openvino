@@ -262,7 +262,7 @@ void PreStepsList::add_convert_layout_impl(const Layout& layout) {
                 dims.push_back(add_cnt);
                 Shape const_shape(dims);
                 std::vector<int64_t> vals(add_cnt);
-                for (auto i = 0; i < add_cnt; i++) {
+                for (size_t i = 0; i < add_cnt; i++) {
                     vals[i] = i;
                 }
                 auto axes = op::v0::Constant::create<int64_t>(element::i64, const_shape, vals);
@@ -494,7 +494,7 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
                 } else if (dst_format == ColorFormat::BGR) {
                     auto cut = cut_last_channel(nodes, function, context);
                     auto reverse = reverse_channels(std::get<0>(cut), function, context);
-                    bool updated = std::get<1>(cut) | std::get<1>(reverse);
+                    bool updated = std::get<1>(cut) || std::get<1>(reverse);
                     context.color_format() = dst_format;
                     return std::make_tuple(std::get<0>(reverse), updated);
                 }
@@ -507,7 +507,7 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
                 } else if (dst_format == ColorFormat::RGB) {
                     auto cut = cut_last_channel(nodes, function, context);
                     auto reverse = reverse_channels(std::get<0>(cut), function, context);
-                    bool updated = std::get<1>(cut) | std::get<1>(reverse);
+                    bool updated = std::get<1>(cut) || std::get<1>(reverse);
                     context.color_format() = dst_format;
                     return std::make_tuple(std::get<0>(reverse), updated);
                 }

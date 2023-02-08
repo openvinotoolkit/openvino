@@ -215,7 +215,7 @@ OutputVector make_framework_node(NodeContext* context) {
         }
         // Some bodies may have mutated inputs which we need to propagate to external context
         auto body_results = body->get_results();
-        for (int i = num_body_outs; i < body_results.size(); i++) {
+        for (size_t i = num_body_outs; i < body_results.size(); i++) {
             auto name = body_results[i]->input(0).get_tensor().get_any_name();
             size_t out_idx = (size_t)std::stoll(name);
             FRONT_END_OP_CONVERSION_CHECK(extra_outputs_map.count(out_idx) == 0,
@@ -253,12 +253,12 @@ OutputVector make_framework_node(NodeContext* context) {
     if (fw_node->get_internal_subgraphs_size() > 0) {
         auto first_body_results = fw_node->get_function(0)->get_results();
         std::vector<ResultVector> outputs;
-        for (int i = num_skip_body_outputs; i < num_body_outs; i++) {
+        for (size_t i = num_skip_body_outputs; i < num_body_outs; i++) {
             outputs.push_back({first_body_results[i]});
         }
-        for (int i = 1; i < fw_node->get_internal_subgraphs_size(); i++) {
+        for (size_t i = 1; i < fw_node->get_internal_subgraphs_size(); i++) {
             auto current_body_results = fw_node->get_function(i)->get_results();
-            for (int i = num_skip_body_outputs; i < num_body_outs; i++) {
+            for (size_t i = num_skip_body_outputs; i < num_body_outs; i++) {
                 outputs[i].push_back(current_body_results[i]);
             }
         }
@@ -308,7 +308,7 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<TorchDecoder> p
 
         //  Go over all pytorch_model inputs and register them in the tensor map:
         auto inputs = pytorch_model->inputs();
-        for (int i = 0; i < inputs.size(); ++i) {
+        for (size_t i = 0; i < inputs.size(); ++i) {
             PartialShape ps = pytorch_model->get_input_shape(i);
             auto type = simplified_type_interpret(pytorch_model->get_input_type(i));
             // TODO: Use special API to set custom type detalization
@@ -320,7 +320,7 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<TorchDecoder> p
                 FRONT_END_GENERAL_CHECK(ps.is_static(), "Shape must be static.");  // TODO: make dynamic
                 auto sh = ps.get_shape();
                 Shape new_shape(sh.size());
-                for (int i = 0; i < sh.size(); i++) {
+                for (size_t i = 0; i < sh.size(); i++) {
                     new_shape[order[i]] = sh[i];
                 }
                 auto shape_const = opset10::Constant::create(element::i64, {new_shape.size()}, new_shape);

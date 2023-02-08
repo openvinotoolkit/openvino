@@ -117,6 +117,7 @@ int main() {
     core.add_extension(std::make_shared<InferenceEngine::Extension>("path_to_extension_library.so"));
     //! [ov_api_2_0:load_old_extension]
     OPENVINO_SUPPRESS_DEPRECATED_END
+    (void)status;
 
     return 0;
 }

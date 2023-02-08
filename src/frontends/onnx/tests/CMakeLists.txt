@@ -9,6 +9,8 @@ ov_try_use_gold_linker()
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd4244)
     ie_add_compiler_flags(/wd4267)
+    ie_add_compiler_flags(/wd4305)
+    ie_add_compiler_flags(/wd4756)
 endif()
 
 message(STATUS "ONNX frontend test enabled")

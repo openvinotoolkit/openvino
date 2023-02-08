@@ -34,7 +34,6 @@ constexpr size_t image_width = 200;
 constexpr float image_scale = 4.0f;
 constexpr size_t height = 2;
 constexpr size_t width = 6;
-constexpr size_t number_of_channels = 3;
 constexpr size_t number_of_anchors = 3;
 
 const std::vector<float> im_info{image_height, image_width, image_scale, image_height, image_width, image_scale};

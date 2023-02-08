@@ -1036,7 +1036,7 @@ TEST(pre_post_process, preprocess_convert_layout_same_various) {
         auto p = PrePostProcessor(f);
         std::stringstream stream;
         stream << "[0";
-        for (auto j = 1; j < i; j++) {
+        for (size_t j = 1; j < i; j++) {
             stream << "," << std::to_string(j);
         }
         stream << "]";

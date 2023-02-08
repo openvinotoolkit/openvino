@@ -438,7 +438,7 @@ std::vector<size_t> NetworkHelper::updateReshapeValues(
             }
         }
     }
-    return updatedReshapeValues;
+    return std::move(updatedReshapeValues);
 }
 
 std::shared_ptr<ngraph::opset1::Multiply> NetworkHelper::optimizeMultipliesAfter(std::shared_ptr<Node> node) {
