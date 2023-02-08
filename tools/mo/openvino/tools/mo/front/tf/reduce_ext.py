@@ -1,7 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.ops.ReduceOps import ReduceProd, ReduceAnd, ReduceMax, ReduceMean, ReduceSum, ReduceL2, ReduceMin
+from openvino.tools.mo.ops.ReduceOps import ReduceProd, ReduceAnd, ReduceMax, ReduceMean, ReduceSum, ReduceL2, \
+    ReduceMin, ReduceLogicalOr
 from openvino.tools.mo.front.extractor import FrontExtractorOp
 from openvino.tools.mo.graph.graph import Node
 
@@ -14,6 +15,16 @@ class AllFrontExtractor(FrontExtractorOp):
     def extract(cls, node: Node):
         keep_dims = node.pb.attr['keep_dims'].b
         ReduceAnd.update_node_stat(node, {'keep_dims': keep_dims})
+        return cls.enabled
+
+
+class AnyExtractor(FrontExtractorOp):
+    op = 'Any'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        ReduceLogicalOr.update_node_stat(node, {'keep_dims':  node.pb.attr['keep_dims'].b})
         return cls.enabled
 
 

@@ -38,7 +38,7 @@ OutputVector translate_conv_transposend(NodeContext& context) {
     } else {
         conv = std::make_shared<ov::op::v1::GroupConvolutionBackpropData>(
             context.get_input(0),
-            reshape_kernel_for_group(context, context.get_input(0), context.get_input(1), groups),
+            reshape_kernel_for_group(context, context.get_input(1), groups),
             strides,
             pads,
             pads,
@@ -50,7 +50,7 @@ OutputVector translate_conv_transposend(NodeContext& context) {
         auto bias = context.get_input(2);
         auto bias_rank = bias.get_partial_shape().rank();
         if (bias_rank == 1) {
-            bias = reshape_conv_bias(context, bias, conv);
+            bias = reshape_channelwise(context, bias, conv);
         }
         conv = context.mark_node(std::make_shared<ov::op::v1::Add>(conv, bias));
     }

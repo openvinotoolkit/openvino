@@ -26,7 +26,6 @@ struct range_impl : typed_primitive_impl_ocl<range> {
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
-        const auto& primitive = impl_param.typed_desc<range>();
         auto params = get_default_params<kernel_selector::range_params>(impl_param);
         for (int i : {1, 2})
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));

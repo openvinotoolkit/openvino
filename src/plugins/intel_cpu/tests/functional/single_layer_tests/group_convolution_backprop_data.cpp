@@ -250,7 +250,6 @@ private:
     InferenceEngine::SizeVector dilation;
     std::vector<ptrdiff_t> padBegin, padEnd, outPadding;
     size_t convOutChannels, groupNum;
-    ngraph::helpers::InputLayerType outShapeType;
     std::vector<std::vector<int32_t>> outShapeData;
     size_t inferRequestNum = 0;
 };

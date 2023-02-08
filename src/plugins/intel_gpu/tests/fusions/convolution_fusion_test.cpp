@@ -2039,6 +2039,34 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_activation_eltwise_quantize, ::t
     convolution_test_params{ CASE_CONV_S8S8_8, 2, 4, 5 },
 }));
 
+class conv_int8_activation : public ConvFusingTest {};
+TEST_P(conv_int8_activation, fsv16) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        convolution("conv_prim", input_info("input"), { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", input_info("conv_prim"), activation_func::negative),
+        reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
+    );
+
+    if (p.default_format.dimension() == 4) {
+        ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "convolution_gpu_b_fs_zyx_fsv16_imad" };
+        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
+    } else {
+        // TODO Add 5D int8 optimized convolution implementations
+        return;
+    }
+
+    tolerance = default_tolerance(p.default_type);
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_activation, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 3 },
+}));
+
 class conv_int8_activation_eltwise : public ConvFusingTest {};
 TEST_P(conv_int8_activation_eltwise, fsv16) {
     auto p = GetParam();
@@ -4053,5 +4081,125 @@ TEST_P(implicit_crop_concat_bfyx_input_tensor, basic) {
 INSTANTIATE_TEST_SUITE_P(implicit_crop_concat_conv_fusings_gpu, implicit_crop_concat_bfyx_input_tensor, ::testing::ValuesIn(std::vector<implicit_crop_concat_convolution_test_params>{
     implicit_crop_concat_convolution_test_params{ CASE_CROP_FQ_CONCAT_1, 5, 9 },
 }));
+
+
+class PermuteOptimizingTestOnednn : public BaseFusingTest<convolution_test_params> {
+public:
+    void execute(convolution_test_params& p) {
+        if (!engine.get_device_info().supports_immad)
+            return;
+
+        p.expected_fused_primitives = p.expected_fused_primitives_onednn;
+
+        cldnn::memory::ptr input_prim = get_mem(get_input_layout(p));
+        cfg_fused.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+        cfg_not_fused.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
+        network_fused.set_input_data("input", input_prim);
+        network_not_fused.set_input_data("input", input_prim);
+
+        compare(network_not_fused, network_fused, p);
+        auto find_conv = [](primitive_info& p) -> bool {
+            if (p.original_id == "conv_prim")
+                return true;
+            return false;
+        };
+
+        auto pi_fused = network_fused.get_primitives_info();
+        auto info_fused = std::find_if(pi_fused.begin(), pi_fused.end(), find_conv);
+        if (info_fused != pi_fused.end())
+            std::cout << "kernel: " << info_fused->kernel_id << std::endl;
+
+        auto permute_prim = std::find_if(pi_fused.begin(), pi_fused.end(), [](primitive_info& p) -> bool {
+            if (p.original_id == "permute")
+                return true;
+            return false;
+        });
+
+        ASSERT_TRUE(permute_prim != pi_fused.end());
+        ASSERT_TRUE(permute_prim->kernel_id == "undef");
+    }
+
+    layout get_input_layout(convolution_test_params& p) {
+        auto pad = p.pad;
+        std::vector<int> pad_ = { 0, 0, static_cast<int>(pad[1]), static_cast<int>(pad[0]) };
+        return layout{ p.data_type, p.input_format, p.in_shape, padding{ pad_ } };
+    }
+
+    layout get_per_channel_layout(convolution_test_params& p) {
+        return layout{ p.default_type, p.default_format, tensor{1, p.out_shape.feature[0], 1, 1} };
+    }
+
+    layout get_prelu_slope_layout(convolution_test_params& p) {
+        return layout{ p.default_type, p.input_format, tensor{1, p.out_shape.feature[0], p.out_shape.spatial[0], 1} };
+    }
+};
+
+
+#define CASE_CONV_FP16_PERMUTE_1 { 1, 4, 3, 5 }, { 1, 30, 2, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_CONV_FP16_PERMUTE_2 { 1, 15, 4, 5 }, { 1, 30, 2, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+
+class conv_after_permute_optimizing : public PermuteOptimizingTestOnednn {};
+TEST_P(conv_after_permute_optimizing, basic) {
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    auto p = GetParam();
+
+    auto weights_layout = cldnn::layout { p.weights_type, p.weights_format,
+                                        cldnn::tensor(batch(p.out_shape.feature[0]), feature(p.in_shape.spatial[0]),
+                                        spatial(p.kernel.spatial[0], p.kernel.spatial[1], p.kernel.spatial[2])) };
+
+    auto bias_layout = cldnn::layout{ p.default_type, format::bfyx, tensor{1, p.out_shape.feature[0], 1, 1} };
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(weights_layout)),
+        data("bias", get_mem(bias_layout)),
+        permute("permute", input_info("input"), {0, 3, 1, 2}),
+        convolution("conv_prim", input_info("permute"), { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", input_info("conv_prim"), activation_func::abs),
+        reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
+    );
+
+    tolerance = default_tolerance(p.default_type);
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_after_permute_optimizing, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_FP16_PERMUTE_1, 3, 2, 4 },
+}));
+
+class conv_before_permute_optimizing : public PermuteOptimizingTestOnednn {};
+TEST_P(conv_before_permute_optimizing, basic) {
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    auto p = GetParam();
+
+    ov::intel_gpu::ImplementationDesc conv_impl = { cldnn::format::type::any, "", impl_types::onednn };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        convolution("conv_prim", input_info("input"), { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", input_info("conv_prim"), activation_func::abs),
+        permute("permute", input_info("activation"), {0, 2, 3, 1}),
+        reorder("reorder_bfyx", input_info("permute"), p.default_format, data_types::f32)
+    );
+
+    tolerance = default_tolerance(p.default_type);
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_before_permute_optimizing, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_FP16_PERMUTE_2, 3, 2, 4 },
+}));
+
+
 
 #endif  // ENABLE_ONEDNN_FOR_GPU

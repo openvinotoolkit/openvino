@@ -3,27 +3,28 @@
 //
 
 #include "transformations/insert_reshape_around_matmul.hpp"
-#include <openvino/cc/ngraph/itt.hpp>
-#include <ngraph/rt_info.hpp>
+
+#include <ie/ie_common.h>
+
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+#include <openvino/cc/ngraph/itt.hpp>
 #include <transformations/utils/utils.hpp>
-#include <ie/ie_common.h>
 
 #include "log/debug.hpp"
 
 using namespace ov::intel_gna::pass;
 
-static bool InsertReshape(
-    ngraph::pattern::Matcher &matcher,
-    const std::shared_ptr<ngraph::Node>& input,
-    const std::shared_ptr<ngraph::Node>& matmul1,
-    const std::shared_ptr<ngraph::Node>& matmul2,
-    const std::shared_ptr<ngraph::Node>& add1 = nullptr,
-    const std::shared_ptr<ngraph::Node>& add2 = nullptr,
-    const std::shared_ptr<ngraph::Node>& fake_quantize = nullptr,
-    const std::shared_ptr<ngraph::Node>& transpose = nullptr) {
+static bool InsertReshape(ngraph::pattern::Matcher& matcher,
+                          const std::shared_ptr<ngraph::Node>& input,
+                          const std::shared_ptr<ngraph::Node>& matmul1,
+                          const std::shared_ptr<ngraph::Node>& matmul2,
+                          const std::shared_ptr<ngraph::Node>& add1 = nullptr,
+                          const std::shared_ptr<ngraph::Node>& add2 = nullptr,
+                          const std::shared_ptr<ngraph::Node>& fake_quantize = nullptr,
+                          const std::shared_ptr<ngraph::Node>& transpose = nullptr) {
     const auto& pattern_map = matcher.get_pattern_value_map();
     size_t matmul_input_index = 1;
     auto iter = pattern_map.find(matmul1);
@@ -47,7 +48,8 @@ static bool InsertReshape(
     std::shared_ptr<ngraph::Node> add_node = nullptr;
     if (iter != pattern_map.end()) {
         add_node = iter->second.get_node_shared_ptr();
-        add_input_index = std::dynamic_pointer_cast<ngraph::opset8::MatMul>(add_node->get_input_node_shared_ptr(0)) ? 1 : 0;
+        add_input_index =
+            std::dynamic_pointer_cast<ngraph::opset8::MatMul>(add_node->get_input_node_shared_ptr(0)) ? 1 : 0;
     }
 
     // If there is an Add layer, check if it doesn't require inserting a Reshape
@@ -57,8 +59,12 @@ static bool InsertReshape(
         if (add_input->get_output_shape(0).size() != 2) {
             auto consumers = add_input->output(0).get_target_inputs();
             std::vector<int> before_shape = {-1, static_cast<int>(add_input->get_output_shape(0).back())};
-            auto reshape_add_input = ov::op::util::make_try_fold<ngraph::opset8::Reshape>(add_input,
-                std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{before_shape.size()}, before_shape), false);
+            auto reshape_add_input = ov::op::util::make_try_fold<ngraph::opset8::Reshape>(
+                add_input,
+                std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
+                                                           ngraph::Shape{before_shape.size()},
+                                                           before_shape),
+                false);
             reshape_add_input->set_friendly_name(reshape_add_input->get_friendly_name() + "/reshape_before_add");
             ngraph::copy_runtime_info(add_node, reshape_add_input);
             for (auto& consumer : consumers) {
@@ -67,7 +73,7 @@ static bool InsertReshape(
         }
     }
 
-    std::vector<std::shared_ptr<ngraph::Node>> nodes = { matmul_node };
+    std::vector<std::shared_ptr<ngraph::Node>> nodes = {matmul_node};
     for (auto& node : {add2, add1, fake_quantize, transpose}) {
         iter = pattern_map.find(node);
         if (iter != pattern_map.end()) {
@@ -81,10 +87,12 @@ static bool InsertReshape(
     if (need_reshape_before) {
         std::vector<int> before_shape = {-1, static_cast<int>(first_node->get_output_shape(0).back())};
         auto reshape_before_node_const = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
-            ngraph::Shape{before_shape.size()}, before_shape);
-        auto reshape_before_node = std::make_shared<ngraph::opset8::Reshape>(first_node, reshape_before_node_const, false);
+                                                                                    ngraph::Shape{before_shape.size()},
+                                                                                    before_shape);
+        auto reshape_before_node =
+            std::make_shared<ngraph::opset8::Reshape>(first_node, reshape_before_node_const, false);
         reshape_before_node->set_friendly_name(matmul_node->get_friendly_name() + "/reshape_before_matmul");
-        ngraph::copy_runtime_info(first_node, { reshape_before_node, reshape_before_node_const });
+        ngraph::copy_runtime_info(first_node, {reshape_before_node, reshape_before_node_const});
         matmul_node->input(matmul_input_index).replace_source_output(reshape_before_node->output(0));
         if (auto transpose_node = std::dynamic_pointer_cast<ngraph::opset8::Transpose>(nodes.back())) {
             nodes.pop_back();
@@ -97,17 +105,22 @@ static bool InsertReshape(
             }
 
             auto transpose_input_shape = transpose_node->input_values()[0].get_node_shared_ptr()->get_output_shape(0);
-            auto transpose_constant_shape = transpose_node->input_values()[1].get_node_shared_ptr()->get_output_shape(0);
-            if (std::count_if(transpose_input_shape.begin(), transpose_input_shape.end(), [](size_t n) { return n > 1; }) > 2) {
+            auto transpose_constant_shape =
+                transpose_node->input_values()[1].get_node_shared_ptr()->get_output_shape(0);
+            if (std::count_if(transpose_input_shape.begin(), transpose_input_shape.end(), [](size_t n) {
+                    return n > 1;
+                }) > 2) {
                 THROW_GNA_EXCEPTION << "The number of dimensions that are greater than 1 is greater than 2"
-                    << " for Transpose layer (" << transpose_node->get_friendly_name() << ")."
-                    << " For this reason, there is no way to determine permutation shape.";
+                                    << " for Transpose layer (" << transpose_node->get_friendly_name() << ")."
+                                    << " For this reason, there is no way to determine permutation shape.";
             }
             std::vector<int> permutation_shape = {1, 0};
-            auto transpose_node_copy_const = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
-                    ngraph::Shape{permutation_shape.size()}, permutation_shape);
-            auto transpose_node_copy = transpose_node->clone_with_new_inputs(
-                {transpose_node->input_values()[0], transpose_node_copy_const });
+            auto transpose_node_copy_const =
+                std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
+                                                           ngraph::Shape{permutation_shape.size()},
+                                                           permutation_shape);
+            auto transpose_node_copy =
+                transpose_node->clone_with_new_inputs({transpose_node->input_values()[0], transpose_node_copy_const});
             ngraph::copy_runtime_info(transpose_node, {transpose_node_copy, transpose_node_copy_const});
             ngraph::replace_node(transpose_node, transpose_node_copy);
             nodes.push_back(transpose_node_copy);
@@ -125,11 +138,14 @@ static bool InsertReshape(
     }
 
     if (need_reshape_after) {
-        auto reshape_after_node_const = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
-                ngraph::Shape{last_node_shape.size()}, last_node_shape);
-        auto reshape_after_node = std::make_shared<ngraph::opset8::Reshape>(nodes.back(), reshape_after_node_const, false);
+        auto reshape_after_node_const =
+            std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
+                                                       ngraph::Shape{last_node_shape.size()},
+                                                       last_node_shape);
+        auto reshape_after_node =
+            std::make_shared<ngraph::opset8::Reshape>(nodes.back(), reshape_after_node_const, false);
         reshape_after_node->set_friendly_name(nodes.back()->get_friendly_name());
-        ngraph::copy_runtime_info(nodes.back(), { reshape_after_node, reshape_after_node_const});
+        ngraph::copy_runtime_info(nodes.back(), {reshape_after_node, reshape_after_node_const});
         for (auto consumer : consumers) {
             consumer.replace_source_output(reshape_after_node);
         }
@@ -142,17 +158,23 @@ static std::shared_ptr<ngraph::Node> CreateMatmulPattern(
     std::shared_ptr<ngraph::Node>& input,
     std::shared_ptr<ngraph::Node>& matmul1,
     std::shared_ptr<ngraph::Node>& matmul2,
-    const ngraph::pattern::op::ValuePredicate& pred = [](const ngraph::Output<ngraph::Node>& output) { return true; }) {
+    const ngraph::pattern::op::ValuePredicate& pred = [](const ngraph::Output<ngraph::Node>& output) {
+        return true;
+    }) {
     auto constant = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
-    auto fake_quantize = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({constant,
-        ngraph::pattern::wrap_type<ngraph::opset8::Constant>(),
-        ngraph::pattern::wrap_type<ngraph::opset8::Constant>(),
-        ngraph::pattern::wrap_type<ngraph::opset8::Constant>(),
-        ngraph::pattern::wrap_type<ngraph::opset8::Constant>()});
+    auto fake_quantize = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>(
+        {constant,
+         ngraph::pattern::wrap_type<ngraph::opset8::Constant>(),
+         ngraph::pattern::wrap_type<ngraph::opset8::Constant>(),
+         ngraph::pattern::wrap_type<ngraph::opset8::Constant>(),
+         ngraph::pattern::wrap_type<ngraph::opset8::Constant>()});
     auto matmul_input = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{constant, fake_quantize});
     input = ngraph::pattern::any_input([](const ngraph::Output<ngraph::Node>& node) {
         auto shape = node.get_node_shared_ptr()->get_output_shape(0);
-        return shape.size() > 2 && std::count_if(shape.begin(), shape.end(), [](size_t e) { return e > 1; }) <= 2; });
+        return shape.size() > 2 && std::count_if(shape.begin(), shape.end(), [](size_t e) {
+                                       return e > 1;
+                                   }) <= 2;
+    });
     matmul1 = ngraph::pattern::wrap_type<ngraph::opset8::MatMul>({matmul_input, input}, pred);
     matmul2 = ngraph::pattern::wrap_type<ngraph::opset8::MatMul>({input, matmul_input}, pred);
     return std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{matmul1, matmul2});
@@ -169,10 +191,9 @@ InsertReshapeAroundMatmul::InsertReshapeAroundMatmul() {
         }
 
         auto next_node = inputs.begin()->get_node();
-        return outputs.size() != 1 ||
-            !dynamic_cast<ngraph::opset8::Transpose*>(next_node) &&
-            !dynamic_cast<ngraph::opset8::FakeQuantize*>(next_node) &&
-            !dynamic_cast<ngraph::opset8::Add*>(next_node);
+        return outputs.size() != 1 || (!dynamic_cast<ngraph::opset8::Transpose*>(next_node) &&
+                                       !dynamic_cast<ngraph::opset8::FakeQuantize*>(next_node) &&
+                                       !dynamic_cast<ngraph::opset8::Add*>(next_node));
     };
 
     std::shared_ptr<ngraph::Node> input;
@@ -180,7 +201,7 @@ InsertReshapeAroundMatmul::InsertReshapeAroundMatmul() {
     std::shared_ptr<ngraph::Node> matmul2;
     auto matmul = CreateMatmulPattern(input, matmul1, matmul2, pred);
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &matcher) {
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& matcher) {
         return InsertReshape(matcher, input, matmul1, matmul2);
     };
 
@@ -199,9 +220,8 @@ InsertReshapeAroundMatmulWithAdd::InsertReshapeAroundMatmulWithAdd() {
         }
 
         auto next_node = inputs.begin()->get_node();
-        return outputs.size() != 1 ||
-            !dynamic_cast<ngraph::opset8::Transpose*>(next_node) &&
-            !dynamic_cast<ngraph::opset8::FakeQuantize*>(next_node);
+        return outputs.size() != 1 || (!dynamic_cast<ngraph::opset8::Transpose*>(next_node) &&
+                                       !dynamic_cast<ngraph::opset8::FakeQuantize*>(next_node));
     };
 
     std::shared_ptr<ngraph::Node> input;
@@ -213,7 +233,7 @@ InsertReshapeAroundMatmulWithAdd::InsertReshapeAroundMatmulWithAdd() {
     auto add2 = ngraph::pattern::wrap_type<ngraph::opset8::Add>({add_input, matmul}, pred);
     auto add = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{add1, add2});
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &matcher) {
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& matcher) {
         return InsertReshape(matcher, input, matmul1, matmul2, add1, add2);
     };
 
@@ -232,8 +252,12 @@ InsertReshapeAroundMatmulWithFq::InsertReshapeAroundMatmulWithFq() {
     auto add1 = ngraph::pattern::wrap_type<ngraph::opset8::Add>({matmul, add_input});
     auto add2 = ngraph::pattern::wrap_type<ngraph::opset8::Add>({add_input, matmul});
     auto fq_input = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{matmul, add1, add2});
-    auto fake_quantize2 = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({fq_input, ngraph::pattern::any_input(),
-        ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input()},
+    auto fake_quantize2 = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>(
+        {fq_input,
+         ngraph::pattern::any_input(),
+         ngraph::pattern::any_input(),
+         ngraph::pattern::any_input(),
+         ngraph::pattern::any_input()},
         [](const ngraph::Output<ngraph::Node>& node) {
             const auto& outputs = node.get_node_shared_ptr()->outputs();
             const auto& inputs = outputs[0].get_target_inputs();
@@ -242,11 +266,10 @@ InsertReshapeAroundMatmulWithFq::InsertReshapeAroundMatmulWithFq() {
             }
 
             auto next_node = inputs.begin()->get_node();
-            return outputs.size() != 1 ||
-                !dynamic_cast<ngraph::opset8::Transpose*>(next_node);
+            return outputs.size() != 1 || !dynamic_cast<ngraph::opset8::Transpose*>(next_node);
         });
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &matcher) {
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& matcher) {
         return InsertReshape(matcher, input, matmul1, matmul2, add1, add2, fake_quantize2);
     };
 
@@ -265,12 +288,16 @@ InsertReshapeAroundMatmulWithTranspose::InsertReshapeAroundMatmulWithTranspose()
     auto add1 = ngraph::pattern::wrap_type<ngraph::opset8::Add>({matmul, add_input});
     auto add2 = ngraph::pattern::wrap_type<ngraph::opset8::Add>({add_input, matmul});
     auto fq_input = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{matmul, add1, add2});
-    auto fake_quantize2 = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({fq_input, ngraph::pattern::any_input(),
-        ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input()});
+    auto fake_quantize2 = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({fq_input,
+                                                                                    ngraph::pattern::any_input(),
+                                                                                    ngraph::pattern::any_input(),
+                                                                                    ngraph::pattern::any_input(),
+                                                                                    ngraph::pattern::any_input()});
     auto transpose_input = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{fq_input, fake_quantize2});
-    auto transpose = ngraph::pattern::wrap_type<ngraph::opset8::Transpose>({transpose_input, ngraph::pattern::any_input()});
+    auto transpose =
+        ngraph::pattern::wrap_type<ngraph::opset8::Transpose>({transpose_input, ngraph::pattern::any_input()});
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &matcher) {
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& matcher) {
         return InsertReshape(matcher, input, matmul1, matmul2, add1, add2, fake_quantize2, transpose);
     };
 

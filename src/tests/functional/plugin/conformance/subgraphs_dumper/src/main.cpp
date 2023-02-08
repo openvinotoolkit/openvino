@@ -33,6 +33,12 @@ static std::vector<std::regex> getRegexByFrontend() {
 #ifdef ENABLE_OV_IR_FRONTEND
     result.push_back(std::regex(R"(.*\.xml)"));
 #endif
+#ifdef ENABLE_OV_TF_LITE_FRONTEND
+    result.push_back(std::regex(R"(.*\.tflite)"));
+#endif
+#ifdef ENABLE_OV_PYTORCH_FRONTEND
+    result.push_back(std::regex(R"(.*\.pt)"));
+#endif
     return result;
 }
 

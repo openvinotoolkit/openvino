@@ -1,10 +1,15 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include "ov_test.hpp"
 
+namespace {
+
 class ov_compiled_model : public ::testing::TestWithParam<std::string> {};
+
 INSTANTIATE_TEST_SUITE_P(device_name, ov_compiled_model, ::testing::Values("CPU"));
+
 TEST_P(ov_compiled_model, ov_compiled_model_inputs_size) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
@@ -181,14 +186,14 @@ TEST_P(ov_compiled_model, create_compiled_model_with_property) {
     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
     EXPECT_NE(nullptr, model);
 
-    const char* key = ov_property_key_hint_num_requests;
-    const char* num = "9";
+    const char* key = ov_property_key_hint_performance_mode;
+    const char* num = "LATENCY";
     ov_compiled_model_t* compiled_model = nullptr;
     OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 2, &compiled_model, key, num));
     EXPECT_NE(nullptr, compiled_model);
     char* result = nullptr;
     OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &result));
-    EXPECT_STREQ(result, "9");
+    EXPECT_STREQ(result, "LATENCY");
     ov_free(result);
 
     ov_compiled_model_free(compiled_model);
@@ -394,3 +399,5 @@ TEST_P(ov_compiled_model, create_infer_request_error_handling) {
     ov_model_free(model);
     ov_core_free(core);
 }
+
+}  // namespace

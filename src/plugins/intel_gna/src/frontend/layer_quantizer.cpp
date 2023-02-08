@@ -3,10 +3,11 @@
 //
 
 #include "layer_quantizer.hpp"
-#include "weights_converter.hpp"
+
 #include "backend/gna_types.hpp"
 #include "common/gna_target.hpp"
 #include "gna_graph_tools.hpp"
+#include "weights_converter.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -61,8 +62,8 @@ InferenceEngine::Blob::Ptr LayerQuantizer::FP32ToPrecisionBlob(InferenceEngine::
 }
 
 InferenceEngine::Blob::Ptr LayerQuantizer::FP32ToPrecisionBlob(InferenceEngine::Blob::Ptr fp32_blob,
-                                               InferenceEngine::Precision precision,
-                                               QuantizationParams& dst_quant_params) {
+                                                               InferenceEngine::Precision precision,
+                                                               QuantizationParams& dst_quant_params) {
     InferenceEngine::Blob::Ptr result_ptr = nullptr;
     switch (precision) {
     case InferenceEngine::Precision::FP32:
@@ -134,8 +135,7 @@ void LayerQuantizer::QuantizeWeightsPrep(InferenceEngine::WeightableLayer& wl, Q
 
     if (int_weights->buffer() == nullptr) {
         IE_THROW(NotAllocated) << "[GNAPlugin] in function " << __PRETTY_FUNCTION__ << ": "
-                               << "cannot copy weights for layer :" << wl.name << " of size"
-                               << int_weights->byteSize();
+                               << "cannot copy weights for layer :" << wl.name << " of size" << int_weights->byteSize();
     }
 
     common_data.scale_factor = InferenceEngine::getInjectedData<QuantizedLayerParams>(wl)->_weights_quant.GetScale();
@@ -234,8 +234,7 @@ void LayerQuantizer::QuantizeWeightsBiases(InferenceEngine::WeightableLayer& wl)
         auto quant_data_for_input_layer =
             InferenceEngine::getInjectedData<QuantizedLayerParams>(InferenceEngine::CNNNetPrevLayer(&wl));
         input_scale_factor = quant_data_for_input_layer->_dst_quant.GetScale();
-        if (std::isnan(input_scale_factor) ||
-            std::isinf(input_scale_factor)) {
+        if (std::isnan(input_scale_factor) || std::isinf(input_scale_factor)) {
             IE_THROW() << "Unsupported input scale factor value " << input_scale_factor;
         }
     }
@@ -247,12 +246,7 @@ void LayerQuantizer::QuantizeWeightsBiases(InferenceEngine::WeightableLayer& wl)
 
     auto quant_layer_params = InferenceEngine::getInjectedData<QuantizedLayerParams>(wl);
 
-    QuantizationData common_data{
-        num_rows,
-        num_columns,
-        kScaleFactorDefault,
-        quant_layer_params->_weights_quant
-    };
+    QuantizationData common_data{num_rows, num_columns, kScaleFactorDefault, quant_layer_params->_weights_quant};
 
     auto bias_prec = GetBiasesPrecision(LayerInfo(wl), *quant_layer_params, gna_config);
     auto weight_prec = GetWeightsPrecision(LayerInfo(wl), *quant_layer_params, gna_config);
@@ -261,7 +255,7 @@ void LayerQuantizer::QuantizeWeightsBiases(InferenceEngine::WeightableLayer& wl)
     QuantizeWeightsPrep(weight_prec, wl, common_data);
 
     // Correct precision for outdata
-    for (auto &&outData : wl.outData) {
+    for (auto&& outData : wl.outData) {
         outData->setPrecision(GetOutputPrecision());
     }
 }
@@ -270,8 +264,8 @@ void LayerQuantizer::SetLayerOutputPrecision(InferenceEngine::CNNLayer& cnn_laye
     // Set scale factor for input layers
     if (cnn_layer.insData.empty() || LayerInfo(cnn_layer).isCrop() || LayerInfo(cnn_layer).isConcat() ||
         LayerInfo(cnn_layer).isSplit() || LayerInfo(cnn_layer).isActivation() || LayerInfo(cnn_layer).isCopy() ||
-        LayerInfo(cnn_layer).isNonFunctional() || LayerInfo(cnn_layer).isPermute() ||
-        LayerInfo(cnn_layer).isConst() || LayerInfo(cnn_layer).isMaxPooling()) {
+        LayerInfo(cnn_layer).isNonFunctional() || LayerInfo(cnn_layer).isPermute() || LayerInfo(cnn_layer).isConst() ||
+        LayerInfo(cnn_layer).isMaxPooling()) {
         // Precision of activation and pooling layers is always equal input precision
         for (auto&& out_data : cnn_layer.outData) {
             out_data->setPrecision(GetInputPrecision());
@@ -357,8 +351,9 @@ InferenceEngine::Precision GetInputPrecision() {
 InferenceEngine::Precision GetWeightsPrecision(const LayerInfo& layer_info,
                                                const QuantizedLayerParams& quant_layer_params,
                                                const Config& gna_config) {
-    if ((layer_info.isConvolution() || layer_info.isConvolutionFilter())
-        && gna_config.gnaCompileTarget != common::kGnaTarget3_5 || layer_info.isScaleShift()) {
+    if (((layer_info.isConvolution() || layer_info.isConvolutionFilter()) &&
+         gna_config.gnaCompileTarget != common::kGnaTarget3_5) ||
+        layer_info.isScaleShift()) {
         return InferenceEngine::Precision::I16;
     }
 
