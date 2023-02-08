@@ -18,8 +18,7 @@ class SparseTensor {
 public:
     SparseTensor() = delete;
     explicit SparseTensor(const ONNX_NAMESPACE::SparseTensorProto& sparse_tensor, const std::string& model_dir)
-        : m_sparse_tensor_proto{&sparse_tensor},
-          m_values{sparse_tensor.values(), model_dir},
+        : m_values{sparse_tensor.values(), model_dir},
           m_indices{sparse_tensor.indices(), model_dir},
           m_shape{std::begin(sparse_tensor.dims()), std::end(sparse_tensor.dims())} {
         if (m_shape == Shape{0}) {
@@ -57,7 +56,6 @@ public:
     }
 
 private:
-    const ONNX_NAMESPACE::SparseTensorProto* m_sparse_tensor_proto;
     Tensor m_values;
     Tensor m_indices;
     Shape m_shape;

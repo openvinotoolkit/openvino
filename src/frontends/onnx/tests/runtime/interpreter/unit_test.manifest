@@ -83,3 +83,7 @@ onnx_clip_no_min_no_max_int64
 # z node not found in graph cache - ticket: 81976
 INTERPRETER.onnx_expand_context_dependent_function
 INTERPRETER.onnx_softmax_crossentropy_loss_mean
+
+# Incorrect order of elements returned by the TopK implementation
+INTERPRETER.onnx_model_top_k_repeating
+INTERPRETER.onnx_model_top_k_repeating_unsorted

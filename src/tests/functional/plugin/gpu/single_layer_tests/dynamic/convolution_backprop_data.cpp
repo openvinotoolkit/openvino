@@ -79,7 +79,7 @@ public:
             result << ")_";
         }
         result << "config=(";
-        for (const auto configEntry : additionalConfig) {
+        for (const auto& configEntry : additionalConfig) {
             result << configEntry.first << ", " << configEntry.second << ":";
         }
         result << ")_";
@@ -229,7 +229,6 @@ private:
     InferenceEngine::SizeVector kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd, outPadding;
     size_t convOutChannels;
-    ngraph::helpers::InputLayerType outShapeType;
     std::vector<std::vector<int32_t>> outShapeData;
     size_t inferRequestNum = 0;
 };

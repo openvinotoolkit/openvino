@@ -201,7 +201,7 @@ event::ptr gpu_image2d::fill(stream& stream, unsigned char pattern) {
     auto& cl_stream = downcast<ocl_stream>(stream);
     auto ev = stream.create_base_event();
     cl::Event& ev_ocl = downcast<ocl_event>(ev.get())->get();
-    cl_uint4 pattern_uint4 = {pattern, pattern, pattern, pattern};
+    cl_uint4 pattern_uint4 = {{pattern, pattern, pattern, pattern}};
     cl_stream.get_cl_queue().enqueueFillImage(_buffer, pattern_uint4, {0, 0, 0}, {_width, _height, 1}, 0, &ev_ocl);
 
     // TODO: do we need sync here?
@@ -530,7 +530,6 @@ std::vector<cl_mem> ocl_surfaces_lock::get_handles(std::vector<memory::ptr> mem)
 
 ocl_surfaces_lock::ocl_surfaces_lock(std::vector<memory::ptr> mem, const stream& stream)
     : surfaces_lock()
-    , _stream(stream)
     , _handles(get_handles(mem))
     , _lock(nullptr) {
     cl_int err = CL_SUCCESS;

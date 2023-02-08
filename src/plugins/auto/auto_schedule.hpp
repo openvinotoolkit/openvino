@@ -67,7 +67,6 @@ private:
     std::promise<void>                       _firstLoadPromise;
     bool                                     _exitFlag = {false};
     size_t                                   _cpuHelpInferCount = 0;
-    std::atomic_size_t                       _numRequestsCreated = {0};
     AutoScheduleContext::Ptr                 _autoSContext;
 };
 

@@ -90,7 +90,7 @@ public:
         result << "iouThr=" << iouThr << "_scoreThr=" << scoreThr << "_softNmsSigma=" << softNmsSigma << "_";
         result << "boxEncoding=" << boxEncoding << "_sortResDescend=" << sortResDescend << "_outType=" << outType << "_";
         result << "config=(";
-        for (const auto configEntry : additionalConfig) {
+        for (const auto& configEntry : additionalConfig) {
             result << configEntry.first << ", " << configEntry.second << ":";
         }
         result << ")_";

@@ -259,6 +259,8 @@ public:
 
     static ov::Output<ov::Node> getSingleConsumerConstant(const ov::Output<ov::Node>& output);
 
+    static bool checkConstantOnInf(const std::shared_ptr<Node> constant_node);
+
 private:
     static std::shared_ptr<Node> foldFakeQuantize(
             const std::shared_ptr<opset1::FakeQuantize>& fq,
