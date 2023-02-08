@@ -59,7 +59,7 @@ OpenVINO™ 提供了两种节点替换方法：通过 OpenVINO™ 辅助函数�
 
 `ov::replace_output_update_name()` 如果成功替换，它会自动保存友好名称和运行时信息。
 
-## 转换类型<a name="transformations_types"></a>
+## 转换类型<a name="transformations_types_zh_CN"></a>
 
 OpenVINO™ 运行时有三种主要转换类型：
 
@@ -76,7 +76,7 @@ OpenVINO™ 运行时有三种主要转换类型：
 * `MATCHER_SCOPE(region)` - 如果不使用匹配器，允许禁用匹配器传递。该区域名称应具有唯一性。此宏创建一个局部变量 `matcher_name`，您应该将其用作匹配器名称。
 * `RUN_ON_MODEL_SCOPE(region)` - 如果未使用，允许禁用 run_on_model 传递。该区域名称应具有唯一性。
 
-## 转换编写基本知识<a name="transformation_writing_essentials"></a>
+## 转换编写基本知识<a name="transformation_writing_essentials_zh_CN"></a>
 
 在开发转换时，您需要遵循这些转换规则：
 
@@ -114,7 +114,7 @@ OpenVINO™ 运行时有三种主要转换类型：
 
 @snippet src/transformations/template_pattern_transformation.cpp manual_constant_folding
 
-## 转换中的常见错误<a name="common_mistakes"></a>
+## 转换中的常见错误<a name="common_mistakes_zh_CN"></a>
 
 在转换开发流程中：
 
@@ -125,7 +125,7 @@ OpenVINO™ 运行时有三种主要转换类型：
 * 如果您不开发降级转换传递，请使用最新的 OpSet。
 * 为 `ov::pass::MatcherPass` 开发回调时，不要更改拓扑顺序中根节点之后的节点。
 
-## 使用传递管理器<a name="using_pass_manager"></a>
+## 使用传递管理器<a name="using_pass_manager_zh_CN"></a>
 
 `ov::pass::Manager` 是一个容器类，可以存储转换列表并执行转换。此类的主要目的是为分组的转换列表提供高级别表示。
 它可以在模型上注册和应用任何[转换传递](#transformations-types)。
@@ -139,7 +139,7 @@ OpenVINO™ 运行时有三种主要转换类型：
 
 @snippet src/transformations/template_pattern_transformation.cpp matcher_pass:manager2
 
-## 如何调试转换<a name="how-to-debug-transformations"></a>
+## 如何调试转换<a name="how-to-debug-transformations_zh_CN"></a>
 
 如果您使用 `ngraph::pass::Manager` 运行转换序列，则可以通过使用以下环境变量获得额外的调试功能：
 
