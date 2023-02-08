@@ -87,7 +87,7 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
         auto data_shape = extractShape(params.inputs[0]);
         std::vector<std::int32_t> axes(data_shape.size());
         if (inputs.size() == InputIndices::kInputsNum)
-            axes = std::move(extractIntegerData(inputs[InputIndices::kAxes].first->as<data>(), stream));
+            axes = extractIntegerData(inputs[InputIndices::kAxes].first->as<data>(), stream);
         else
             std::iota(axes.begin(), axes.end(), 0);
         std::vector<std::int32_t> selected_start(data_shape.size(), 0);

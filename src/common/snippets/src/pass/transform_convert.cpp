@@ -22,8 +22,7 @@ ngraph::snippets::pass::TransformConvertToConvertTruncation::TransformConvertToC
         });
 
     register_matcher(std::make_shared<ngraph::pattern::Matcher>(
-        ngraph::pattern::wrap_type<ngraph::opset1::Convert>(), matcher_name),
-            [this](ngraph::pattern::Matcher &m) {
+        ngraph::pattern::wrap_type<ngraph::opset1::Convert>(), matcher_name), [](ngraph::pattern::Matcher &m) {
             OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::TransformConvertToConvertTruncation")
             const auto root = m.get_match_root();
             const auto convert = ngraph::as_type_ptr<ngraph::opset1::Convert>(root);

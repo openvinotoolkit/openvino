@@ -87,6 +87,7 @@ public:
     std::string GetName() const noexcept override;
     void SetName(const std::string& pluginName) noexcept override;
 
+    using InferenceEngine::IInferencePlugin::LoadNetwork;
     void LoadNetwork(const InferenceEngine::CNNNetwork& network);
 
     bool Infer(const InferenceEngine::BlobMap& input, InferenceEngine::BlobMap& result);

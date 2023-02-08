@@ -83,7 +83,6 @@ namespace v9 {
 
 template <class T>
 void shape_infer(const ov::op::v9::ROIAlign* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
-    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 3 && output_shapes.size() == 1);
 
     ov::op::v3::infer_roi_align_shape(op, input_shapes, output_shapes);

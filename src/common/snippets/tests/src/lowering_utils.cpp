@@ -12,7 +12,7 @@ namespace test {
 namespace snippets {
 
 DummyTargetMachine::DummyTargetMachine() {
-    auto dummy_functor = [this](const std::shared_ptr<ngraph::Node>& n) {
+    auto dummy_functor = [](const std::shared_ptr<ngraph::Node>& n) {
         return std::make_shared<DummyEmitter>();
     };
     jitters[op::v0::Parameter::get_type_info_static()] = dummy_functor;
