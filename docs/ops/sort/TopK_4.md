@@ -1,33 +1,41 @@
-# TopK  {#openvino_docs_ops_sort_TopK_4}
+`# TopK  {#openvino_docs_ops_sort_TopK_4}
 
 **Versioned name**: *TopK-4*
 
 **Category**: *Sorting and maximization*
 
-**Short description**: *TopK* computes indices and values of the *k* maximum/minimum values for each slice along specified axis.
+**Short description**: *TopK* computes indices and values of the *k* maximum/minimum values for each slice along a specified axis.
 
 **Attributes**
 
 * *axis*
 
   * **Description**: Specifies the axis along which the values are retrieved.
-  * **Range of values**: An integer. Negative value means counting dimension from the end.
+  * **Range of values**: An integer. Negative values means counting dimension from the back.
   * **Type**: `int`
   * **Required**: *yes*
 
 * *mode*
 
-  * **Description**: Specifies which operation is used to select the biggest element of two.
-  * **Range of values**: `min`, `max`
+  * **Description**: Specifies whether TopK selects the largest or the smallest elements from each slice.
+  * **Range of values**: "min", "max"
   * **Type**: `string`
   * **Required**: *yes*
 
 * *sort*
 
-  * **Description**: Specifies order of output elements and/or indices.
+  * **Description**: Specifies the order of corresponding elements of the output tensor.
   * **Range of values**: `value`, `index`, `none`
   * **Type**: `string`
   * **Required**: *yes*
+
+* *stable*
+
+  * **Description**: Specifies whether the equivalent elements should maintain their relative order from the input tensor. Takes effect only if sort is set to `value` or `index`.
+  * **Range of values**: `true` of `false`
+  * **Type**: `boolean`
+  * **Default value**: `false`
+  * **Required**: *no*
 
 * *index_element_type*
 
@@ -40,15 +48,15 @@
 
 **Inputs**:
 
-*   **1**: tensor of arbitrary rank of type *T*. **Required.**
+*   **1**: tensor with arbitrary rank and type *T*. **Required.**
 
-*   **2**: *k* -- scalar of any integer type specifies how many maximum/minimum elements should be computed. **Required.**
+*   **2**: *k* -- a scalar of any integer type that specifies how many elements from the input tensor should be selected. **Required.**
 
 **Outputs**:
 
-*   **1**: Output tensor of type *T* with top *k* values from the input tensor along specified dimension *axis*. The shape of the tensor is `[input1.shape[0], ..., input1.shape[axis-1], k, input1.shape[axis+1], ...]`.
+*   **1**: Output tensor of type *T* with at most *k* values from the input tensor along specified dimension *axis*. The shape of the tensor is `[input1.shape[0], ..., input1.shape[axis-1], 1..k, input1.shape[axis+1], ..., input1.shape[input1.rank - 1]]`.
 
-*   **2**: Output tensor with top *k* indices for each slice along *axis* dimension of type *T_IND*. The shape of the tensor is the same as for the 1st output, that is `[input1.shape[0], ..., input1.shape[axis-1], k, input1.shape[axis+1], ...]`.
+*   **2**: Output tensor containing indices of the corresponding elements(values) from the first output tensor. The indices point to the location of selected values in the original input tensor. The shape of this output tensor is the same as the shape of the 1st output, that is `[input1.shape[0], ..., input1.shape[axis-1], 1..k, input1.shape[axis+1], ..., input1.shape[input1.rank - 1]]`. The type of this tensor *T_IND* is controlled by the `index_element_type` attribute.
 
 **Types**
 
@@ -58,11 +66,11 @@
 
 **Detailed Description**
 
-Output tensor is populated by values computes in the following way:
+The output tensor is populated by values computed in the following way:
 
     output[i1, ..., i(axis-1), j, i(axis+1) ..., iN] = top_k(input[i1, ...., i(axis-1), :, i(axis+1), ..., iN]), k, sort, mode)
 
-So for each slice `input[i1, ...., i(axis-1), :, i(axis+1), ..., iN]` which represents 1D array, *TopK* value is computed individually.
+So for each slice `input[i1, ...., i(axis-1), :, i(axis+1), ..., iN]` *TopK* values are computed individually.
 
 Sorting and minimum/maximum are controlled by `sort` and `mode` attributes:
   * *mode*=`max`, *sort*=`value` - descending by value
@@ -72,35 +80,36 @@ Sorting and minimum/maximum are controlled by `sort` and `mode` attributes:
   * *mode*=`min`, *sort*=`index` - ascending by index
   * *mode*=`min`, *sort*=`none`  - undefined
 
-If there are several elements with the same value then their output order is not determined.
+The relative order of equivalent elements in a given slice is only preserved if the *stable* attribute is set to `true`. This makes the implementation use stable sorting algorithm during the computation of TopK elements. Otherwise the output order is undefined.
 
 **Example**
 
+This example assumes that `K` is equal to 10:
+
 ```xml
 <layer ... type="TopK" ... >
-    <data axis="1" mode="max" sort="value" index_element_type="i64"/>
+    <data axis="3" mode="max" sort="value" stable="true" index_element_type="i64"/>
     <input>
         <port id="0">
-            <dim>6</dim>
-            <dim>12</dim>
-            <dim>10</dim>
-            <dim>24</dim>
+            <dim>1</dim>
+            <dim>3</dim>
+            <dim>224</dim>
+            <dim>224</dim>
         </port>
         <port id="1">
-            <!-- k = 3 -->
         </port>
     <output>
         <port id="2">
-            <dim>6</dim>
+            <dim>1</dim>
             <dim>3</dim>
             <dim>10</dim>
-            <dim>24</dim>
+            <dim>224</dim>
         </port>
         <port id="3">
-            <dim>6</dim>
+            <dim>1</dim>
             <dim>3</dim>
             <dim>10</dim>
-            <dim>24</dim>
+            <dim>224</dim>
         </port>
     </output>
 </layer>
