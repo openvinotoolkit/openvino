@@ -11,6 +11,8 @@
 #include <string>
 #include <vector>
 
+namespace InferenceEngine {
+    
 #ifdef __linux__
 /**
  * @brief      Parse processors infomation on Linux
