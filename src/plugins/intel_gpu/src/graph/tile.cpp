@@ -13,6 +13,28 @@
 #include <string>
 
 namespace cldnn {
+
+class DataAdapter : public ov::ITensorDataAdapter {
+public:
+    DataAdapter(cldnn::memory::ptr ptr, const cldnn::stream& stream) : m_ptr{ptr}, m_ptr_lock{ptr, stream} {}
+
+    ov::element::Type_t get_element_type() const override {
+        return data_type_to_element_type(m_ptr->get_layout().data_type);
+    }
+
+    size_t get_size() const override {
+        return ov::shape_size(m_ptr->get_layout().get_shape());
+    };
+
+    const void* data() const override {
+        return m_ptr_lock.data();
+    }
+
+private:
+    cldnn::memory::ptr m_ptr;
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> m_ptr_lock;
+};
+
 GPU_DEFINE_PRIMITIVE_TYPE_ID(tile)
 
 layout tile_inst::calc_output_layout(tile_node const& node, kernel_impl_params const& impl_param) {
@@ -45,34 +67,25 @@ std::vector<layout> tile_inst::calc_output_layouts(tile_node const& /*node*/, co
     ShapeType repeats_shape = impl_param.input_layouts.size() == 2 ? impl_param.get_input_layout(1).get<ShapeType>()
                                                                    : ov::Shape{ desc->repeats.size() };
     ov::op::v0::Tile op;
-    std::vector<ShapeType> output_shapes;
     std::vector<ShapeType> input_shapes = {
         input0_layout.get<ShapeType>(),
         repeats_shape
     };
 
-    auto& constant_mem = impl_param.memory_deps;
-    if (constant_mem.count(1)) {
-        auto repeats_mem = constant_mem.at(1);
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> repeats_lock(repeats_mem, impl_param.prog->get_stream());
-        const auto& layout = repeats_mem->get_layout();
-        output_shapes = ov::op::v0::shape_infer(&op, input_shapes, [&repeats_lock, &layout](size_t i) -> ov::Tensor {
-            if (i == 1) {
-                return {data_type_to_element_type(layout.data_type), layout.get_shape(), repeats_lock.data()};
-            } else {
-                return {};
-            }
-        });
-    } else {
-        auto repeats_data = desc->repeats;
-        output_shapes = ov::op::v0::shape_infer(&op, input_shapes, [&repeats_data](size_t i) -> ov::Tensor {
-            if (i == 1) {
-                return {ov::element::Type_t::i64, ov::Shape{repeats_data.size()}, repeats_data.data()};
-            } else {
-                return {};
-            }
-        });
-    }
+    auto repeats_data = desc->repeats;
+    auto get_tensor_data = [&impl_param, &repeats_data](size_t i) -> ov::ITensorDataAdapterPtr {
+        const auto mem_it = impl_param.memory_deps.find(i);
+        if (mem_it != impl_param.memory_deps.cend()) {
+            return std::unique_ptr<DataAdapter>(new DataAdapter{mem_it->second, impl_param.prog->get_stream()});
+        } else if (i == 1) {
+            return std::unique_ptr<ov::ContainerDataAdapter<std::vector<int64_t>>>(
+                new ov::ContainerDataAdapter<std::vector<int64_t>>{repeats_data});
+        } else {
+            return nullptr;
+        }
+    };
+
+    std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes, get_tensor_data);
 
     format output_format = format::adjust_to_rank(input0_layout.format, output_shapes[0].size());
 

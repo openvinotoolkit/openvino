@@ -205,6 +205,14 @@ TResult get_tensor_data_as(const Tensor& t, UnaryOperation&& func) {
                                        std::forward<UnaryOperation>(func));
 }
 
+template <class T, class TResult = std::vector<T>, class UnaryOperation>
+TResult get_tensor_data_as(const ITensorDataAdapter& t, UnaryOperation&& func) {
+    return get_raw_data_as<T, TResult>(t.get_element_type(),
+                                       t.data(),
+                                       t.get_size(),
+                                       std::forward<UnaryOperation>(func));
+}
+
 namespace op {
 /**
  * \brief Get the operator's input const as pointer to vector of specified type.
@@ -234,7 +242,7 @@ std::unique_ptr<TRes> get_input_const_data_as(const ov::Node* op,
                                               get_tensor_func_t get_tensor,
                                               UnaryOperation&& func = ov::util::Cast<TData>()) {
     if (auto t = get_tensor(idx)) {
-        return std::unique_ptr<TRes>(new TRes(get_tensor_data_as<TData, TRes>(t, std::forward<UnaryOperation>(func))));
+        return std::unique_ptr<TRes>(new TRes(get_tensor_data_as<TData, TRes>(*t, std::forward<UnaryOperation>(func))));
     } else {
         const auto& constant = ov::as_type_ptr<ov::opset1::Constant>(op->get_input_node_shared_ptr(idx));
         NODE_VALIDATION_CHECK(op, constant != nullptr, "Static shape inference lacks constant data on port ", idx);
@@ -275,7 +283,7 @@ std::unique_ptr<TRes> get_input_const_data_as(const ov::Node* op,
                                               get_tensor_func_t get_tensor,
                                               UnaryOperation&& func = ov::util::Cast<TData>()) {
     if (auto t = get_tensor(idx)) {
-        return std::unique_ptr<TRes>(new TRes(get_tensor_data_as<TData, TRes>(t, std::forward<UnaryOperation>(func))));
+        return std::unique_ptr<TRes>(new TRes(get_tensor_data_as<TData, TRes>(*t, std::forward<UnaryOperation>(func))));
     } else if (const auto& constant = ov::get_constant_from_source(op->input_value(idx))) {
         const auto& et = constant->get_element_type();
         const auto& shape = constant->get_shape();
