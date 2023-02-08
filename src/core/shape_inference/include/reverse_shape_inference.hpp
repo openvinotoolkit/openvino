@@ -41,7 +41,6 @@ std::vector<TShape> shape_infer(const Reverse* op,
                                 const std::vector<TShape>& input_shapes,
                                 const std::map<size_t, std::reference_wrapper<const ov::Tensor>>& constant_data = {}) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2);
-    using DimType = typename TShape::value_type;
 
     const auto& data_shape = input_shapes[0];
     const auto& data_rank = data_shape.rank();
