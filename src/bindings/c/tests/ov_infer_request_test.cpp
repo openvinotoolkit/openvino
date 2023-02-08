@@ -5,6 +5,8 @@
 
 #include "ov_test.hpp"
 
+namespace {
+
 inline void get_tensor_info(ov_model_t* model, bool input, char** name, ov_shape_t* shape, ov_element_type_e* type) {
     ov_output_const_port* port = nullptr;
     if (input) {
@@ -398,3 +400,5 @@ TEST_P(ov_infer_request, get_profiling_info) {
 
     ov_profiling_info_list_free(&profiling_infos);
 }
+
+}  // namespace

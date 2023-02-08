@@ -17,7 +17,7 @@ ngraph::snippets::pass::ConvertConstantsToScalars::ConvertConstantsToScalars() {
                                                     [](std::shared_ptr<Node> n) {
                                                         return ngraph::is_type<ov::op::v0::Constant>(n);
                                                     });
-    ngraph::graph_rewrite_callback callback = [this](ngraph::pattern::Matcher &m) {
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher &m) {
         OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::ConvertConstantsToScalars")
         auto constant = as_type_ptr<ov::op::v0::Constant>(m.get_match_root());
         if (ov::shape_size(constant->get_output_shape(0)) != 1)

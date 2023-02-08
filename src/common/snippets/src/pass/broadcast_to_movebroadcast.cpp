@@ -18,7 +18,7 @@ ngraph::snippets::pass::BroadcastToMoveBroadcast::BroadcastToMoveBroadcast() {
 
     auto m_broadcast = ngraph::pattern::wrap_type<ngraph::op::v1::Broadcast, ngraph::op::v3::Broadcast>();
 
-    auto callback = [this](ngraph::pattern::Matcher &m) {
+    auto callback = [](ngraph::pattern::Matcher &m) {
         OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::BroadcastToMoveBroadcast")
         auto root = m.get_match_root();
         if (auto broadcast_v1 = ov::as_type_ptr<const ov::op::v1::Broadcast>(root)) {

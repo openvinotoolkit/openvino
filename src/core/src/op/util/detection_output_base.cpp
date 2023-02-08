@@ -81,7 +81,7 @@ ov::Dimension DetectionOutputBase::compute_num_classes(const AttributesBase& att
                           get_input_size());
 
     std::vector<ov::PartialShape> input_shapes;
-    for (auto input_idx = 0; input_idx < get_input_size(); input_idx++)
+    for (size_t input_idx = 0; input_idx < get_input_size(); input_idx++)
         input_shapes.push_back(get_input_partial_shape(input_idx));
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
 

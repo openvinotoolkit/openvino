@@ -1388,7 +1388,7 @@ TEST(ie_blob_make_memory_from_preallocated, makeMemoryfromPreallocated) {
     tensor.dims = dim_t ;
     tensor.precision = precision_e::U8;
     tensor.layout = layout_e::NCHW;
-    uint8_t array[1][3][4][4]= {0};
+    uint8_t array[1][3][4][4]= {{{{0}}}};
 
     size_t size = 48;
     ie_blob_t *blob = nullptr;

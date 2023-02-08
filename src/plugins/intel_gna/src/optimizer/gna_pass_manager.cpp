@@ -150,12 +150,6 @@ static CNNLayerPtr InsertCopyLayer(CNNLayerPtr prevLayer,
     return copyWithQuant;
 }
 
-static bool hasNextFuncLayer(const CNNLayerPtr layer) {
-    return CNNNetHasNextLayerSkipCertain(layer, 0, 0, [](CNNLayerPtr layer) {
-        return LayerInfo(layer).isNonFunctional();
-    });
-}
-
 static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayerPtr l,
                                                                   std::shared_ptr<IPassManager> passmanager,
                                                                   bool skipFq = false) {
@@ -170,7 +164,7 @@ static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayer
 
     auto PrevFunctionalLayer = [skipFq](CNNLayerPtr l, int idx = 0) {
         auto prevLayer = CNNNetPrevLayerSkipCertain(l, idx, [skipFq](CNNLayerPtr ptr) {
-            return LayerInfo(ptr).isNonFunctional() || skipFq && LayerInfo(ptr).isFakeQuantize();
+            return LayerInfo(ptr).isNonFunctional() || (skipFq && LayerInfo(ptr).isFakeQuantize());
         });
         log::debug() << "CNNNetPrevLayerSkipCertain for :: " << l->name << "returned: " << prevLayer->name << std::endl;
         return prevLayer;
@@ -1081,7 +1075,7 @@ void InsertCopyLayerPass::run() {
         bool bNeedInsertCopyLayer = true;
         CNNNetDFS(
             l,
-            [&l, &bNeedInsertCopyLayer](CNNLayerPtr layer) {
+            [&bNeedInsertCopyLayer](CNNLayerPtr layer) {
                 if (!(LayerInfo(layer).isNonFunctional() || LayerInfo(layer).isSplit() || LayerInfo(layer).isCrop() ||
                       LayerInfo(layer).isInput())) {
                     bNeedInsertCopyLayer = false;

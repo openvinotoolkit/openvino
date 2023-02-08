@@ -27,7 +27,7 @@ public:
     class LP_TRANSFORMATIONS_API SharedValueAttribute : public std::enable_shared_from_this<SharedValueAttribute> {
     public:
         struct LP_TRANSFORMATIONS_API SharedValue : public std::enable_shared_from_this<SharedValue> {
-            SharedValue() = default;
+            SharedValue() {}
             SharedValue(const T& value) : value{value} {}
             T value = {};
             void addAttribute(std::weak_ptr<SharedValueAttribute> attribute) {

@@ -81,6 +81,7 @@ public:
      * @return the result of the compatibility check
      */
     virtual bool isCompatible(const BlockedMemoryDesc &rhs, CmpMask cmpMask) const = 0;
+    using MemoryDesc::isCompatible;
 
     virtual ~BlockedMemoryDesc() = default;
 
