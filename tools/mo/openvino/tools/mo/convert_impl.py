@@ -217,16 +217,18 @@ def arguments_post_parsing(argv: argparse.Namespace):
         raise_ie_not_found()
 
     if 'compress_to_fp16' in argv and argv.compress_to_fp16 and \
-            'data_type' in argv and argv.data_type in ['half', "FP16"]:
+            'data_type' in argv and argv.data_type in ['float', 'FP32']:
         raise Error(f"Both --compress_to_fp16 and --data_type={argv.data_type} are defined. "
                     f"Specify either --compress_to_fp16 or --data_type")
 
-    if ('data_type' in argv and argv.data_type in ['FP16', 'half']) or \
-            ('compress_to_fp16' in argv and argv.compress_to_fp16 is True):
-        argv.data_type = 'FP32'
-        argv.compress_fp16 = True
-    else:
+    # Turn off compression only if it's disabled explicitly by --compress_to_fp16=False or --data_type=FP32.
+    # By default, in all other cases compression is enabled
+    if ('data_type' in argv and argv.data_type in ['FP32', 'float']) or \
+            ('compress_to_fp16' in argv and argv.compress_to_fp16 is False):
         argv.compress_fp16 = False
+    else:
+        argv.compress_fp16 = True
+    argv.data_type = 'FP32'
 
     # This is just to check that transform key is valid and transformations are available
     check_available_transforms(parse_transform(argv.transform))
