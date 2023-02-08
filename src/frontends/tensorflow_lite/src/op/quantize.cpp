@@ -5,6 +5,8 @@
 #include "common_op_table.hpp"
 #include "op_translation_utils.hpp"
 #include "utils.hpp"
+#include "tflite_ops/tflite_quantize.hpp"
+#include "transformations/rt_info/disable_constant_folding.hpp"
 
 using namespace std;
 
@@ -14,12 +16,17 @@ namespace tensorflow_lite {
 namespace op {
 
 OutputVector quantize(const ov::frontend::tensorflow_lite::NodeContext& node) {
-    return node.get_inputs();
+    auto decoder = get_decoder(node);
+    auto convert = make_shared<opset10::Convert>(node.get_input(0), element::f32);
+    disable_constant_folding(convert);
+    convert->set_friendly_name(node.get_name());
+    return convert->outputs();
 }
 
 OutputVector dequantize(const ov::frontend::tensorflow_lite::NodeContext& node) {
     auto decoder = get_decoder(node);
     auto convert = make_shared<opset10::Convert>(node.get_input(0), decoder->get_output_tensor_type(0));
+    disable_constant_folding(convert);
     convert->set_friendly_name(node.get_name());
     return convert->outputs();
 }

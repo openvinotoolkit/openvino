@@ -76,6 +76,14 @@ OutputVector translate_unary(const ov::frontend::tensorflow_lite::NodeContext& n
     return ov::frontend::tensorflow::op::translate_unary_op<OV_TYPE>(context);
 }
 
+template <typename OV_TYPE>
+OutputVector translate_binary(const ov::frontend::tensorflow_lite::NodeContext& node) {
+    auto inputs = node.get_inputs();
+    ov::frontend::tensorflow_lite::dequantize_inputs(inputs);
+    auto context = ov::frontend::tensorflow_lite::NodeContext(node.get_decoder(), inputs);
+    return ov::frontend::tensorflow::op::translate_binary_op<OV_TYPE>(context);
+}
+
 }  // namespace op
 }  // namespace tensorflow_lite
 }  // namespace frontend

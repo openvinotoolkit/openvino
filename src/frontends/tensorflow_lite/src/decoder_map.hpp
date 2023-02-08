@@ -39,8 +39,10 @@ public:
     /// \param name Attribute name
     /// \return Shared pointer to appropriate value converted to openvino data type if it exists, 'nullptr' otherwise
     ov::Any get_attribute(const std::string& name) const override {
-        FRONT_END_GENERAL_CHECK(m_attrs.count(name), "DecoderMap was requested attribute that doesn't exist: ", name);
-        return m_attrs.at(name);
+        if (m_attrs.count(name))
+            return m_attrs.at(name);
+        else
+            return {};
     }
 
     /// \brief Get a number of inputs

@@ -25,7 +25,7 @@ public:
 // Replaces TFLQuantize operation with FQ or sub-mul pattern if necessary
 class TFLQuantizeReplacer : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::tensorflow_lite::pass::TFLQuantizeConvert");
+    OPENVINO_RTTI("ov::frontend::tensorflow_lite::pass::TFLQuantizeReplacer");
     TFLQuantizeReplacer();
 };
 

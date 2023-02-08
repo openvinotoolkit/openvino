@@ -68,26 +68,26 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         // DENSIFY
         {"DEPTH_TO_SPACE", DEQUANTIZE_INPUTS(depth_to_space)},
         {"DEPTHWISE_CONV_2D", DEQUANTIZE_INPUTS(depthwise_conv2d)},
-        {"DEQUANTIZE", DEQUANTIZE_INPUTS(dequantize)}, // TODO: ?
+        {"DEQUANTIZE", DEQUANTIZE_INPUTS(dequantize)},
         {"DIV", translate_binary_op_with_activation<opset10::Divide, tflite::DivOptions>},
         // DYNAMIC_UPDATE_SLICE
         {"ELU", DEQUANTIZE_INPUTS(translate_elu_op)},
         // EMBEDDING_LOOKUP
         // EMBEDDING_LOOKUP_SPARSE
-        {"EQUAL", translate_binary_op<opset8::Equal>},
+        {"EQUAL", translate_binary<opset8::Equal>},
         {"EXP", translate_unary<opset8::Exp>},
         {"EXPAND_DIMS", DEQUANTIZE_INPUTS(translate_expand_dims_op)},
         // FAKE_QUANT
         {"FILL", DEQUANTIZE_INPUTS(translate_fill_op)},
         {"FLOOR", translate_unary<opset8::Floor>},
         {"FLOOR_DIV", DEQUANTIZE_INPUTS(translate_floor_div_op)},
-        {"FLOOR_MOD", translate_binary_op<opset8::FloorMod>},
+        {"FLOOR_MOD", translate_binary<opset8::FloorMod>},
         {"FULLY_CONNECTED", DEQUANTIZE_INPUTS(fully_connected)},
         {"GATHER", DEQUANTIZE_INPUTS(gather)},
         {"GATHER_ND", DEQUANTIZE_INPUTS(translate_gather_nd_op)},
         // GELU
-        {"GREATER", translate_binary_op<opset8::Greater>},
-        {"GREATER_EQUAL", translate_binary_op<opset8::GreaterEqual>},
+        {"GREATER", translate_binary<opset8::Greater>},
+        {"GREATER_EQUAL", translate_binary<opset8::GreaterEqual>},
         {"HARD_SWISH", translate_unary<opset8::HSwish>},
         // HASHTABLE
         // HASHTABLE_FIND
@@ -99,36 +99,36 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         {"L2_NORMALIZATION", DEQUANTIZE_INPUTS(l2_normalization)},
         // L2_POOL_2D
         {"LEAKY_RELU", DEQUANTIZE_INPUTS(leaky_relu)},
-        {"LESS", translate_binary_op<opset8::Less>},
-        {"LESS_EQUAL", translate_binary_op<opset8::LessEqual>},
+        {"LESS", translate_binary<opset8::Less>},
+        {"LESS_EQUAL", translate_binary<opset8::LessEqual>},
         // LOCAL_RESPONSE_NORMALIZATION
         {"LOG", translate_unary<opset8::Log>},
         {"LOG_SOFTMAX", DEQUANTIZE_INPUTS(translate_log_softmax_op)},
-        {"LOGICAL_AND", translate_binary_op<opset8::LogicalAnd>},
+        {"LOGICAL_AND", translate_binary<opset8::LogicalAnd>},
         {"LOGICAL_NOT", translate_unary<opset8::LogicalNot>},
-        {"LOGICAL_OR", translate_binary_op<opset8::LogicalOr>},
+        {"LOGICAL_OR", translate_binary<opset8::LogicalOr>},
         {"LOGISTIC", translate_unary<opset10::Sigmoid>},
         // LSH_PROJECTION
         // LSTM
         {"MATRIX_DIAG", DEQUANTIZE_INPUTS(translate_matrix_diag_op)},
         // MATRIX_SET_DIAG
         {"MAX_POOL_2D", DEQUANTIZE_INPUTS(max_pool_2d)},
-        {"MAXIMUM", translate_binary_op<opset8::Maximum>},
+        {"MAXIMUM", translate_binary<opset8::Maximum>},
         {"MEAN", translate_reduce_op<opset8::ReduceMean>},
-        {"MINIMUM", translate_binary_op<opset8::Minimum>},
+        {"MINIMUM", translate_binary<opset8::Minimum>},
         {"MIRROR_PAD", DEQUANTIZE_INPUTS(mirror_pad)},
         {"MUL", translate_binary_op_with_activation<opset10::Multiply, tflite::MulOptions>},
         // MULTINOMIAL
         {"NEG", translate_unary<opset8::Negative>},
         // NON_MAX_SUPPRESSION_V4
         // NON_MAX_SUPPRESSION_V5
-        {"NOT_EQUAL", translate_binary_op<opset8::NotEqual>},
+        {"NOT_EQUAL", translate_binary<opset8::NotEqual>},
         {"ONE_HOT", DEQUANTIZE_INPUTS(one_hot)},
         {"PACK", DEQUANTIZE_INPUTS(pack)},
         {"PAD", OP_CONVERT_TYPE_RENAME(translate_pad_op, "Pad")},
         {"PADV2", OP_CONVERT_TYPE_RENAME(translate_padv2_op, "PadV2")},
-        {"POW", translate_binary_op<opset8::Power>},
-        {"PRELU", translate_binary_op<opset10::PRelu>},
+        {"POW", translate_binary<opset8::Power>},
+        {"PRELU", translate_binary<opset10::PRelu>},
         {"QUANTIZE", quantize}, // TODO: ???
         // RANDOM_STANDARD_NORMAL
         // RANDOM_UNIFORM
@@ -171,7 +171,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         {"SPLIT_V", DEQUANTIZE_INPUTS(translate_split_v_op)},
         {"SQRT", DEQUANTIZE_INPUTS(translate_sqrt_op)},
         {"SQUARE", DEQUANTIZE_INPUTS(translate_square_op)},
-        {"SQUARED_DIFFERENCE", translate_binary_op<opset8::SquaredDifference>},
+        {"SQUARED_DIFFERENCE", translate_binary<opset8::SquaredDifference>},
         {"SQUEEZE", DEQUANTIZE_INPUTS(squeeze)},
         {"STRIDED_SLICE", DEQUANTIZE_INPUTS(strided_slice)},
         {"SUB", translate_binary_op_with_activation<opset10::Subtract, tflite::SubOptions>},

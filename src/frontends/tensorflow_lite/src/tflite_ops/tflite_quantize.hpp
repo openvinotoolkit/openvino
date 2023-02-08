@@ -44,15 +44,6 @@ public:
     }
 
     void validate_and_infer_types() override {
-//        NODE_VALIDATION_CHECK(this,
-//                              get_input_element_type(0).compatible(m_type),
-//                              "Type inconsistency with TensorFlow Lite quantized tensor: tflite type is ",
-//                              m_type,
-//                              ", OV inferred type is ",
-//                              get_input_element_type(0));
-        NODE_VALIDATION_CHECK(this,
-                              m_info != nullptr,
-                              "Internal operation TFLQuantized representing quantized tensor doesn't have quantization details");
         set_output_type(0, m_type, get_input_partial_shape(0));
     }
 private:

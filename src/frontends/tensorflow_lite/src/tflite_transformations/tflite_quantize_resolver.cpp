@@ -10,6 +10,7 @@
 #include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/rt_info/disable_constant_folding.hpp"
 #include "utils.hpp"
 
 using namespace std;
@@ -79,7 +80,6 @@ void fuse_zp_to_weights(ov::Output<ov::Node>& output, std::vector<int64_t>& zero
         auto weight = constant->cast_vector<int64_t>()[0];
         return std::all_of(zero_point.begin(), zero_point.end(), [&](const int64_t& zp) {
             auto new_value = weight - zp;
-            std::cout << new_value << std::endl;
             return new_value >= -128 && new_value <= 127;
         });
     };
@@ -91,8 +91,9 @@ void fuse_zp_to_weights(ov::Output<ov::Node>& output, std::vector<int64_t>& zero
     output = std::make_shared<ov::opset10::Convert>(output, ov::element::i8);
     output = ov::get_constant_from_source(output); // TODO: Check Me
     zero_point = {0};
-    std::cout << "I am i8 now!" << std::endl;
 }
+
+
 
 pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
     auto tfl_quantize_label = wrap_type<tensorflow_lite::TFLQuantize>();
@@ -111,7 +112,7 @@ pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
         auto is_constant = ov::is_type<Constant>(tfl_quantize->get_input_node_shared_ptr(0)); // for Constant case
 
         FRONT_END_GENERAL_CHECK(in_type == out_type || in_type == element::f32 || out_type == element::f32,
-                                "TFLQuantized types do not match: in_type=", in_type, "out_type=", out_type);
+                                "TFLQuantized types do not match: in_type = ", in_type, " out_type = ", out_type);
 
         // non constant case -- FQ case
         Output<Node> output = tfl_quantize->get_input_source_output(0);
@@ -129,14 +130,16 @@ pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
         if (is_constant) {
             fuse_zp_to_weights(output, zp, zp_shape);
             output = make_shared<Convert>(output, element::f32);
+            disable_constant_folding(output.get_node_shared_ptr());
             if (std::any_of(zp.begin(), zp.end(), [](const int64_t& i) { return i != 0; }))
                 output = std::make_shared<ov::opset10::Subtract>(output, zp_node);
             output = std::make_shared<ov::opset10::Multiply>(output, scale_node);
             tfl_quantize->output(0).replace(output);
             return true;
         }
-        if (in_type != element::f32)
+        if (in_type != element::f32) {
             output = make_shared<Convert>(output, element::f32);
+        }
 
         auto levels = 1 << tfl_quantize->get_original_type().bitwidth();
         auto is_signed = tfl_quantize->get_original_type().is_signed();
@@ -156,7 +159,12 @@ pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
             input_low = output_low;
             input_high = output_high;
         }
-
+        if (out_type != element::f32) {
+            auto low = is_signed ? (-levels / 2) : 0;
+            auto high = levels - low - 1;
+            output_low = ov::opset10::Constant::create(element::f32, {}, {low});
+            output_high = ov::opset10::Constant::create(element::f32, {}, {high});
+        }
         input_low = get_constant_from_source(input_low);
         input_high = get_constant_from_source(input_high);
         output_low = get_constant_from_source(output_low);

@@ -20,14 +20,15 @@ OutputVector reshape(const ov::frontend::tensorflow_lite::NodeContext& node) {
                             input_size,
                             ", for node ",
                             node.get_op_type());
-
+    const auto& decoder = get_decoder(node);
+    bool has_attribute = decoder->has_attribute(&tflite::ReshapeOptions::new_shape);
     Output<Node> shape;
-    if (input_size == 1) {
-        const auto& decoder = get_decoder(node);
+    if (has_attribute) {
         auto reshape_new_shape = decoder->get_attribute(&tflite::ReshapeOptions::new_shape);
         const auto new_shape = std::vector<int64_t>(reshape_new_shape->begin(), reshape_new_shape->end());
         shape = opset10::Constant::create(element::i64, ov::Shape{new_shape.size()}, new_shape);
     } else {
+        FRONT_END_GENERAL_CHECK(input_size == 2, "Unexpected Reshape operation configuration. No new_shape attribute and no second input");
         shape = node.get_input(1);
     }
     auto reshape = std::make_shared<opset10::Reshape>(node.get_input(0), shape, false);
