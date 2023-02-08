@@ -1892,7 +1892,7 @@ TEST(model, clone_model_function) {
     auto input1 = model->input(0);
     auto input2 = model->input("data1");
 
-    auto cloned_model = ov::clone_model(*model);
+    auto cloned_model = model->clone();
 
     const auto fc = FunctionsComparator::with_default()
                         .enable(FunctionsComparator::ATTRIBUTES)

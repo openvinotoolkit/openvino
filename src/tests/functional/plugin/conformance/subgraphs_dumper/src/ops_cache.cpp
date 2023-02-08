@@ -180,6 +180,9 @@ OPCache::serialize_function(const std::pair<std::shared_ptr<ov::Node>, LayerTest
         }
         ov::ResultVector results;
         for (auto &out : op.first->outputs()) {
+            if (out.get_partial_shape().is_dynamic()) {
+                is_dynamic = true;
+            }
             results.push_back(std::make_shared<ov::op::v0::Result>(out));
         }
         auto function = std::make_shared<ov::Model>(results, params);
