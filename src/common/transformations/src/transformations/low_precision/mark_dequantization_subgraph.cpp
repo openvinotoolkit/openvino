@@ -10,23 +10,25 @@
 #include <transformations/rt_info/dequantization_node.hpp>
 #include <transformations/rt_info/disable_constant_folding.hpp>
 
-static bool is_constfoldable(const std::shared_ptr<ov::Node>& node) {
-    if (ov::is_type<ov::opset10::Constant>(node))
-        return true;
+static bool is_constfoldable(const ov::Output<ov::Node>& output) {
+    auto status = true;
+    std::deque<ov::Node*> nodes_to_calculate = {output.get_node()};
 
-    const auto num_inputs = node->get_input_size();
-    if (num_inputs == 0)
-        return false;
+    while (status && !nodes_to_calculate.empty()) {
+        auto current_node = nodes_to_calculate.front();
+        nodes_to_calculate.pop_front();
 
-    if (!node->has_evaluate() || ov::constant_folding_is_disabled(node))
-        return false;
-
-    for (size_t i = 0; i < num_inputs; i++) {
-        const auto& input = node->get_input_node_shared_ptr(i);
-        if (!is_constfoldable(input))
-            return false;
+        if (current_node->get_input_size() == 0 && !ov::is_type<ov::op::v0::Constant>(current_node)) {
+            status = false;
+        } else {
+            // not a leaf, not a shape_of -- continue to search
+            for (const auto& input_value : current_node->input_values()) {
+                const auto& input_node = input_value.get_node();
+                nodes_to_calculate.push_front(input_node);
+            }
+        }
     }
-    return true;
+    return status;
 }
 
 ov::pass::MarkDequantizationSubgraph::MarkDequantizationSubgraph(const element::TypeVector& precisions) {
