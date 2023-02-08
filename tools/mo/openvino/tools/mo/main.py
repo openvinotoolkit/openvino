@@ -38,7 +38,7 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
         ngraph_function, argv = _convert(cli_parser, framework, {})
         is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
         if ('compress_to_fp16' in argv and argv.compress_to_fp16) \
-                or ('data_type' in argv or argv.data_type in ['half', 'FP16']):
+                or ('data_type' in argv and argv.data_type in ['half', 'FP16']):
             print(get_compression_message())
 
         ov_update_message = get_ov_update_message()
