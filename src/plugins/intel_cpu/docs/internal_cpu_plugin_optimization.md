@@ -18,7 +18,29 @@ Merge of a convolution layer and any of the simple layers listed below:
 A combination of a convolution layer and simple layers results in a single fused layer called 
 *Convolution*:
 
-![conv_simple_01](https://user-images.githubusercontent.com/26419192/159540184-62d3b3f6-74d8-4135-ba8e-c84da42922d3.png)
+```mermaid
+flowchart TD
+    subgraph subgraphA1[Runtime Graph]
+    direction TB
+    nodeA1(Input) --> nodeA2(Convolution)
+    nodeA2(Convolution) --> nodeA3(Output)
+    end
+    subgraph subgraphB1[Original Graph]
+    direction TB
+    nodeB1(Input) --> nodeB2(Convolution)
+    nodeB2(Convolution) --> nodeB3(Simple Layer)
+    nodeB3(Simple Layer) --> nodeB4(...)
+    nodeB4(...) --> nodeB5(Simple Layer)
+    nodeB5(Simple Layer) --> nodeB6(Output)
+    end
+classDef no-bg-color fill:none,stroke-width:0px
+classDef moss1 fill:#D7F3A2, stroke: #B1D272, color: #262626
+classDef steel1 fill:#B9D6E5, stroke: #86B3CA, color: #262626
+classDef daisy1 fill:#FFE17A, stroke: #FEC91B, color: #262626
+class subgraphA1,subgraphB1,nodeB4 no-bg-color
+class nodeA2 daisy1
+class nodeB1,nodeB6,nodeA1,nodeA3 moss1
+class nodeB2,nodeB3,nodeB5, steel1
 
 
 ## Fusing Pooling and FakeQuantize Layers
