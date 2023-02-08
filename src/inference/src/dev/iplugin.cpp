@@ -53,3 +53,11 @@ std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::string
     auto model = core->read_model(model_path, std::string());
     return compile_model(model, properties);
 }
+
+void ov::IPlugin::set_property(const ov::AnyMap& properties) {
+    m_properties.set(properties);
+}
+
+ov::Any ov::IPlugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
+    return m_properties.get(name, arguments);
+}

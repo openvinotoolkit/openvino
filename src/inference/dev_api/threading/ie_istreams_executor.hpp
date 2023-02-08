@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "ie_parameter.hpp"
+#include "openvino/runtime/property_supervisor.hpp"
 #include "threading/ie_itask_executor.hpp"
 
 namespace InferenceEngine {
@@ -133,15 +134,9 @@ public:
                int threadBindingStep = 1,
                int threadBindingOffset = 0,
                int threads = 0,
-               PreferredCoreType threadPreferredCoreType = PreferredCoreType::ANY)
-            : _name{name},
-              _streams{streams},
-              _threadsPerStream{threadsPerStream},
-              _threadBindingType{threadBindingType},
-              _threadBindingStep{threadBindingStep},
-              _threadBindingOffset{threadBindingOffset},
-              _threads{threads},
-              _threadPreferredCoreType(threadPreferredCoreType) {}
+               PreferredCoreType threadPreferredCoreType = PreferredCoreType::ANY);
+
+        ov::PropertySupervisor properties;
     };
 
     /**

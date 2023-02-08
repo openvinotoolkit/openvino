@@ -9,7 +9,9 @@
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_plugin_config.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/property_supervisor.hpp"
 #include "template/config.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
@@ -35,6 +37,21 @@ Plugin::Plugin() {
 
     // create default stream executor with a given name
     _waitExecutor = get_executor_manager()->getIdleCPUStreamsExecutor({wait_executor_name});
+
+    // Add plugin specific properties
+    m_properties.set_name(get_device_name())
+        .add(ov::common_property(ov::device::architecture), get_device_name())
+        .add(ov::common_property(ov::device::capabilities),
+             {ov::device::capability::EXPORT_IMPORT, ov::device::capability::FP32})
+        .add(ov::common_property(ov::range_for_async_infer_requests), std::make_tuple(uint{1}, uint{1}, uint{1}));
+
+    // Add common read write properties used in template plugin and template compiled model
+    m_properties.add(rw_properties.m_properties);
+
+    // If plugin has several devices we can add property for each device
+    for (auto device_id : {"0"}) {
+        m_properties.add(device_id, ov::PropertySupervisor{}.add(ov::device::full_name, "Template Device Full Name"));
+    }
 }
 // ! [plugin:ctor]
 
@@ -88,9 +105,9 @@ std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::compile_model(const 
                                                                           const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::compile_model");
 
-    auto fullConfig = Configuration{properties, _cfg};
+    auto fullConfig = m_properties.merge(properties);
     auto streamsExecutorConfig =
-        InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(fullConfig._streamsExecutorConfig);
+        InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(rw_properties._streamsExecutorConfig);
     streamsExecutorConfig._name = stream_executor_name;
     auto compiled_model =
         std::make_shared<CompiledModel>(model->clone(),
@@ -112,7 +129,8 @@ std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::import_model(std::is
                                                                          const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::import_model");
 
-    auto fullConfig = Configuration{properties, _cfg};
+    auto fullConfig = rw_properties;
+    auto config = fullConfig.m_properties.merge(properties);
     // read XML content
     std::string xmlString;
     std::uint64_t dataSize = 0;
@@ -136,7 +154,7 @@ std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::import_model(std::is
         std::make_shared<CompiledModel>(ov_model,
                                         shared_from_this(),
                                         get_executor_manager()->getIdleCPUStreamsExecutor(streamsExecutorConfig),
-                                        fullConfig);
+                                        config);
     return compiled_model;
 }
 
@@ -152,7 +170,7 @@ ov::SupportedOpsMap TemplatePlugin::Plugin::query_model(const std::shared_ptr<co
                                                         const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::query_model");
 
-    Configuration fullConfig{properties, _cfg, false};
+    auto fullConfig = m_properties.merge(properties);
 
     OPENVINO_ASSERT(model, "OpenVINO Model is empty!");
 
@@ -191,92 +209,6 @@ ov::SupportedOpsMap TemplatePlugin::Plugin::query_model(const std::shared_ptr<co
     return res;
 }
 // ! [plugin:query_network]
-
-// ! [plugin:set_config]
-void TemplatePlugin::Plugin::set_property(const ov::AnyMap& properties) {
-    _cfg = Configuration{properties, _cfg};
-}
-// ! [plugin:set_config]
-
-// ! [plugin:get_config]
-ov::Any TemplatePlugin::Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
-    const auto& add_ro_properties = [](const std::string& name, std::vector<ov::PropertyName>& properties) {
-        properties.emplace_back(ov::PropertyName{name, ov::PropertyMutability::RO});
-    };
-    const auto& default_ro_properties = []() {
-        std::vector<ov::PropertyName> ro_properties{ov::available_devices,
-                                                    ov::supported_properties,
-                                                    ov::device::full_name,
-                                                    ov::device::architecture,
-                                                    ov::device::capabilities,
-                                                    ov::range_for_async_infer_requests};
-        return ro_properties;
-    };
-    const auto& default_rw_properties = []() {
-        std::vector<ov::PropertyName> rw_properties{ov::device::id,
-                                                    ov::enable_profiling,
-                                                    ov::hint::performance_mode,
-                                                    ov::template_plugin::throughput_streams};
-        return rw_properties;
-    };
-    const auto& to_string_vector = [](const std::vector<ov::PropertyName>& properties) {
-        std::vector<std::string> ret;
-        for (const auto& property : properties) {
-            ret.emplace_back(property);
-        }
-        return ret;
-    };
-    if (METRIC_KEY(SUPPORTED_METRICS) == name) {
-        auto metrics = default_ro_properties();
-
-        add_ro_properties(METRIC_KEY(SUPPORTED_METRICS), metrics);
-        add_ro_properties(METRIC_KEY(SUPPORTED_CONFIG_KEYS), metrics);
-        add_ro_properties(METRIC_KEY(IMPORT_EXPORT_SUPPORT), metrics);
-        return to_string_vector(metrics);
-    } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        auto configs = default_rw_properties();
-        auto streamExecutorConfigKeys = InferenceEngine::IStreamsExecutor::Config{}.SupportedKeys();
-        for (auto&& configKey : streamExecutorConfigKeys) {
-            if (configKey != InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) {
-                configs.emplace_back(configKey);
-            }
-        }
-        return to_string_vector(configs);
-    } else if (ov::supported_properties == name) {
-        auto ro_properties = default_ro_properties();
-        auto rw_properties = default_rw_properties();
-
-        std::vector<ov::PropertyName> supported_properties;
-        supported_properties.reserve(ro_properties.size() + rw_properties.size());
-        supported_properties.insert(supported_properties.end(), ro_properties.begin(), ro_properties.end());
-        supported_properties.insert(supported_properties.end(), rw_properties.begin(), rw_properties.end());
-        return decltype(ov::supported_properties)::value_type(supported_properties);
-    } else if (ov::available_devices == name) {
-        // TODO: fill list of available devices
-        std::vector<std::string> available_devices = {""};
-        return decltype(ov::available_devices)::value_type(available_devices);
-    } else if (ov::device::full_name == name) {
-        std::string device_name = "Template Device Full Name";
-        return decltype(ov::device::full_name)::value_type(device_name);
-    } else if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
-        return true;
-    } else if (ov::device::architecture == name) {
-        // TODO: return device architecture for device specified by DEVICE_ID config
-        std::string arch = "TEMPLATE";
-        return decltype(ov::device::architecture)::value_type(arch);
-    } else if (ov::device::capabilities == name) {
-        // TODO: fill actual list of supported capabilities: e.g. Template device supports only FP32
-        std::vector<std::string> capabilities = {ov::device::capability::FP32};
-        return decltype(ov::device::capabilities)::value_type(capabilities);
-    } else if (ov::range_for_async_infer_requests == name) {
-        // TODO: fill with actual values
-        using uint = unsigned int;
-        return decltype(ov::range_for_async_infer_requests)::value_type(std::make_tuple(uint{1}, uint{1}, uint{1}));
-    } else {
-        return _cfg.Get(name);
-    }
-}
-// ! [plugin:get_config]
 
 // ! [plugin:create_plugin_engine]
 static const ov::Version version = {CI_BUILD_NUMBER, "openvino_template_plugin"};

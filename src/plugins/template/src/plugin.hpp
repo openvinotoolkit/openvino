@@ -8,7 +8,7 @@
 #include "compiled_model.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
-#include "template_config.hpp"
+#include "rw_properties.hpp"
 
 //! [plugin:header]
 namespace TemplatePlugin {
@@ -26,10 +26,6 @@ public:
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                       const ov::AnyMap& properties,
                                                       const ov::RemoteContext& context) const override;
-
-    void set_property(const ov::AnyMap& properties) override;
-
-    ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override;
 
     ov::RemoteContext create_context(const ov::AnyMap& remote_properties) const override;
 
@@ -49,8 +45,8 @@ private:
     friend class TemplateInferRequest;
 
     std::shared_ptr<ngraph::runtime::Backend> _backend;
-    Configuration _cfg;
     InferenceEngine::ITaskExecutor::Ptr _waitExecutor;
+    RwProperties rw_properties;
 };
 
 }  // namespace TemplatePlugin

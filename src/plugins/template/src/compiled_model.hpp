@@ -22,7 +22,7 @@ public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const InferenceEngine::ITaskExecutor::Ptr& task_executor,
-                  const Configuration& cfg);
+                  const ov::AnyMap& cfg);
 
     // Methods from a base class ov::ICompiledModel
     void export_model(std::ostream& model) const override;

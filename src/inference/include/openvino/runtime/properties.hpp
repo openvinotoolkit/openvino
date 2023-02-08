@@ -75,10 +75,8 @@ using GetPropertyType = typename P::value_type;
 template <typename T, PropertyMutability mutability_ = PropertyMutability::RW>
 struct BaseProperty : public PropertyTag {
     friend class NamedProperties;
-    using value_type = T;  //!< Property type
-    constexpr static PropertyMutability mutability() {
-        return mutability_;
-    }
+    using value_type = T;                                  //!< Property type
+    constexpr static const auto mutability = mutability_;  //!< Property readability
 
     /**
      * @brief Constructs property access variable
@@ -194,8 +192,7 @@ struct PropertyName : public std::string {
           _mutability{mutability} {}
 
     template <class T, typename std::enable_if<std::is_base_of<ov::util::PropertyTag, T>::value, bool>::type = true>
-    PropertyName(const T& property) : std::string{property.name()},
-                                      _mutability{property.mutability} {}
+    PropertyName(const T& property) : PropertyName(property.name(), property.mutability) {}
 
     /**
      * @brief check property mutability
@@ -304,7 +301,7 @@ struct NamedProperties : public util::PropertyTag {
      * @return property object with prefix
      */
     template <typename P>
-    inline util::EnableIfPropertyT<P, util::PrefixedProperty<util::GetPropertyType<P>, P::mutability()>> operator()(
+    inline util::EnableIfPropertyT<P, util::PrefixedProperty<util::GetPropertyType<P>, P::mutability>> operator()(
         const P& property) const {
         return {_name, property.name()};
     }

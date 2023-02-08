@@ -61,7 +61,7 @@ public:
      *
      * @param properties map with configuration properties
      */
-    void set_property(const ov::AnyMap& properties) override;
+    void set_property(const ov::AnyMap& properties);
 
     /**
      * @brief Returns the property
@@ -71,7 +71,7 @@ public:
      *
      * @return ov::Any object which contains property value
      */
-    ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override;
+    ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const;
 
     /**
      * @brief Create remote context

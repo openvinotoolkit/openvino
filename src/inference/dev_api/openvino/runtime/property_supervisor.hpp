@@ -4,7 +4,7 @@
 
 /**
  * @brief Provides unique access to properties
- * @file property_supervisor.hpp
+ * @file openvino/runtime/property_supervisor.hpp
  */
 
 #pragma once
@@ -302,8 +302,8 @@ public:
     typename std::enable_if<std::is_base_of<util::PropertyTag, P>::value && IsGetter<G>::value,
                             PropertySupervisor>::type&
     add(const P& property, G get, Args&&... args) {
-        static_assert(((P::mutability() == PropertyMutability::RO) && (sizeof...(Args) == 0)) ||
-                          (P::mutability() == PropertyMutability::RW),
+        static_assert(((P::mutability == PropertyMutability::RO) && (sizeof...(Args) == 0)) ||
+                          (P::mutability == PropertyMutability::RW),
                       "Could not add RO property with setter and precondition");
         return add(property.name(), std::move(get), std::move(args)...);
     }
@@ -354,7 +354,7 @@ public:
     template <typename P>
     util::EnableIfPropertyT<P, PropertySupervisor&> add(const P& property,
                                                         typename P::value_type deafault_value = {},
-                                                        const PropertyMutability mutability = P::mutability()) {
+                                                        const PropertyMutability mutability = P::mutability) {
         return add(property.name(), deafault_value, mutability);
     }
 
@@ -371,7 +371,7 @@ public:
     util::EnableIfPropertyT<Pr, PropertySupervisor&> add(const P& property,
                                                          typename Pr::value_type deafault_value,
                                                          P precondition) {
-        static_assert(Pr::mutability() == PropertyMutability::RW,
+        static_assert(Pr::mutability == PropertyMutability::RW,
                       "Could not add property with Set precondition to no RW value");
         return add(property.name(), deafault_value, std::move(precondition));
     }
@@ -417,7 +417,7 @@ public:
      */
     template <typename P, typename R>
     util::EnableIfPropertyT<P, PropertySupervisor&> add(const P& property, std::reference_wrapper<R> ref) {
-        find_or_create(property.name()) = std::make_shared<Ref<util::GetPropertyType<P>, R>>(ref, P::mutability());
+        find_or_create(property.name()) = std::make_shared<Ref<util::GetPropertyType<P>, R>>(ref, P::mutability);
         return *this;
     }
 
@@ -434,7 +434,7 @@ public:
     util::EnableIfPropertyT<Pr, PropertySupervisor&> add(const Pr& property,
                                                          std::reference_wrapper<R> ref,
                                                          P precondition) {
-        static_assert(Pr::mutability() == PropertyMutability::RW,
+        static_assert(Pr::mutability == PropertyMutability::RW,
                       "Could not add property with Set precondition to no RW value");
         find_or_create(property.name()) =
             std::make_shared<Ref<util::GetPropertyType<Pr>, R, P>>(ref, std::move(precondition));

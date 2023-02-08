@@ -18,6 +18,7 @@
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/icore.hpp"
+#include "openvino/runtime/property_supervisor.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "threading/ie_executor_manager.hpp"
 
@@ -97,7 +98,7 @@ public:
      * @brief Sets properties for plugin, acceptable keys can be found in openvino/runtime/properties.hpp
      * @param properties ov::AnyMap of properties
      */
-    virtual void set_property(const ov::AnyMap& properties) = 0;
+    void set_property(const ov::AnyMap& properties);
 
     /**
      * @brief Gets properties related to plugin behaviour.
@@ -107,7 +108,7 @@ public:
      *
      * @return Value of a property corresponding to the property name.
      */
-    virtual ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const = 0;
+    ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const;
 
     /**
      * @brief Creates a remote context instance based on a map of properties
@@ -194,6 +195,7 @@ public:
 
 protected:
     IPlugin();
+    ov::PropertySupervisor m_properties;  //!< Property supervisor
 
 private:
     friend ::InferenceEngine::IPluginWrapper;
