@@ -140,7 +140,7 @@ Layout::Layout(const std::string& layout_str) {
     auto dynamic_start = layout.find(ELLIPSIS);
     bool backward = false;
     int64_t index = -1;
-    for (auto i = 0; i < layout.length(); i++) {
+    for (size_t i = 0; i < layout.length(); i++) {
         index++;
         auto c = std::toupper(layout[i]);
         if (c == '?') {
@@ -294,7 +294,7 @@ std::vector<int64_t> LayoutUtils::find_permutation(const Layout& src_layout,
     auto rank = src_shape.rank();
     auto check_trivial = [](std::vector<int64_t>& res) -> std::vector<int64_t>& {
         size_t i = 0;
-        while (i < res.size() && res[i] == i) {
+        while (i < res.size() && res[i] == static_cast<int64_t>(i)) {
             i++;
         }
         if (i == res.size()) {
@@ -412,7 +412,7 @@ std::tuple<PartialShape, Layout> LayoutUtils::find_squeeze(const Layout& src_lay
 
     // Don't allow conversions like model_layout=NC??, tensor_layout=HWC
     // Though in future such conversions may be possible to implement
-    OPENVINO_ASSERT(src_layout.m_left_size == src_layout.m_index_map.size(),
+    OPENVINO_ASSERT(src_layout.m_left_size == static_cast<int64_t>(src_layout.m_index_map.size()),
                     "Layout conversion ",
                     dst_layout.to_string(),
                     " <-> ",
@@ -421,7 +421,7 @@ std::tuple<PartialShape, Layout> LayoutUtils::find_squeeze(const Layout& src_lay
                     src_layout.to_string());
 
     // Don't allow conversions like model_layout=NCHW, tensor_layout=?HW
-    OPENVINO_ASSERT(dst_layout.m_left_size == dst_layout.m_index_map.size(),
+    OPENVINO_ASSERT(dst_layout.m_left_size == static_cast<int64_t>(dst_layout.m_index_map.size()),
                     "Layout conversion ",
                     dst_layout.to_string(),
                     " <-> ",

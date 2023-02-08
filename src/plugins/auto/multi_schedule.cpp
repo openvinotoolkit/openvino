@@ -90,12 +90,12 @@ Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInf
             // as the scheduling algo may select any device, this stage accepts the scheduling decision (actual workerRequest)
             // then sets the device-agnostic blobs to the actual (device-specific) request
             Stage {
-                /*TaskExecutor*/std::dynamic_pointer_cast<IE::ITaskExecutor>(shared_from_this()), /*task*/ [this, &syncInferRequest, workerInferRequest]() {
+                /*TaskExecutor*/std::dynamic_pointer_cast<IE::ITaskExecutor>(shared_from_this()), /*task*/ [&syncInferRequest, workerInferRequest]() {
                     *workerInferRequest = _thisWorkerInferRequest;
                     auto multiSyncInferRequest = std::dynamic_pointer_cast<MultiDeviceInferRequest>(syncInferRequest);
                     multiSyncInferRequest->SetBlobsToAnotherRequest(_thisWorkerInferRequest->_inferRequest);
                     INFO_RUN([workerInferRequest]() {
-                        (*workerInferRequest)->_startTimes.push_back(std::move(std::chrono::steady_clock::now()));
+                        (*workerInferRequest)->_startTimes.push_back(std::chrono::steady_clock::now());
                 });
                 }},
             // final task in the pipeline:
@@ -111,7 +111,7 @@ Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInf
                             (*workerInferRequest)->_inferRequest;
                     }
                     INFO_RUN([workerInferRequest]() {
-                    (*workerInferRequest)->_endTimes.push_back(std::move(std::chrono::steady_clock::now()));
+                    (*workerInferRequest)->_endTimes.push_back(std::chrono::steady_clock::now());
                     });
                 }}
         };

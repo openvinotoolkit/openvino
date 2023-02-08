@@ -58,6 +58,7 @@ public:
 
 protected:
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    using WeightBiasKernelBase::GetJitConstants;
     virtual JitConstants GetJitConstants(const deconvolution_params& params) const;
     virtual DispatchData SetDefault(const deconvolution_params& params) const;
     virtual WeightsLayout GetPreferredWeightsLayout(const deconvolution_params &params) const {

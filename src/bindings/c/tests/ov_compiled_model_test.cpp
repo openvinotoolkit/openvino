@@ -1,10 +1,15 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include "ov_test.hpp"
 
+namespace {
+
 class ov_compiled_model : public ::testing::TestWithParam<std::string> {};
+
 INSTANTIATE_TEST_SUITE_P(device_name, ov_compiled_model, ::testing::Values("CPU"));
+
 TEST_P(ov_compiled_model, ov_compiled_model_inputs_size) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
@@ -394,3 +399,5 @@ TEST_P(ov_compiled_model, create_infer_request_error_handling) {
     ov_model_free(model);
     ov_core_free(core);
 }
+
+}  // namespace

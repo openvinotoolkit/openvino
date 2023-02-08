@@ -322,8 +322,8 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologicall
 
 InputModel::InputModelTFImpl::InputModelTFImpl(const GraphIterator::Ptr& graph_iterator,
                                                const ov::frontend::InputModel& input_model)
-    : m_input_model(input_model),
-      m_graph_iterator(graph_iterator) {
+    : m_graph_iterator(graph_iterator),
+      m_input_model(input_model) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
     loadPlaces();
 }
@@ -340,8 +340,8 @@ std::shared_ptr<InputModel> InputModel::InputModelTFImpl::get_body_input_model(
 InputModel::InputModelTFImpl::InputModelTFImpl(const GraphIterator::Ptr& graph_iterator,
                                                const ov::frontend::InputModel& input_model,
                                                const std::shared_ptr<TelemetryExtension>& telemetry)
-    : m_input_model(input_model),
-      m_graph_iterator(graph_iterator),
+    : m_graph_iterator(graph_iterator),
+      m_input_model(input_model),
       m_telemetry(telemetry) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
     m_input_names = graph_iterator->get_input_names();

@@ -67,7 +67,7 @@ const std::vector<std::string> epsMode = {
 };
 
 const std::vector<float> epsilonF = {
-    0.0001
+    0.0001f
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_MVN_5D, Mvn6LayerTest,

@@ -34,7 +34,8 @@
 
 #define INDICES_MAX_DIM 6
 
-KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
+KERNEL(scatter_nd_update_ref)(OPTIONAL_SHAPE_INFO_ARG
+                   const __global INPUT0_TYPE* data,
                    const __global INPUT1_TYPE* indices,
                    const __global INPUT2_TYPE* updates,
                    __global OUTPUT_TYPE* output
@@ -43,7 +44,6 @@ KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
 #endif
 )
 {
-
     const uint dim0 = get_global_id(0);
     const uint dim1 = get_global_id(1);
     const uint dim2 = get_global_id(2);
