@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -158,6 +158,23 @@ struct pooling : public primitive_base<pooling> {
     /// @brief type of index output
     data_types index_element_type = data_types::i32;
     bool maxPoolOpset8Features{false};
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, mode);
+        seed = hash_range(seed, size.begin(), size.end());
+        seed = hash_range(seed, stride.begin(), stride.end());
+        seed = hash_range(seed, pads_begin.begin(), pads_begin.end());
+        seed = hash_range(seed, dilation.begin(), dilation.end());
+        seed = hash_range(seed, pads_end.begin(), pads_end.end());
+        seed = hash_combine(seed, auto_pad);
+        seed = hash_combine(seed, rounding_type);
+        seed = hash_combine(seed, axis);
+        seed = hash_combine(seed, index_element_type);
+        seed = hash_combine(seed, maxPoolOpset8Features);
+        seed = hash_combine(seed, indices_output.empty());
+        return seed;
+    }
 
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {

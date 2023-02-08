@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -124,5 +124,15 @@ struct crop : public primitive_base<crop> {
     size_t num_splits = 1;
     /// @brief original ngraph operation type
     crop_ngraph_op_mode op_mode;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, reference_input.hash());
+        seed = hash_combine(seed, offsets.hash());
+        seed = hash_combine(seed, output_idx);
+        seed = hash_combine(seed, num_splits);
+        seed = hash_combine(seed, op_mode);
+        return seed;
+    }
 };
 }  // namespace cldnn

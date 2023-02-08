@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ngraph {
 namespace runtime {
@@ -26,7 +27,11 @@ using HostTensorPtr = std::shared_ptr<runtime::HostTensor>;
 
 namespace ov {
 class Node;
-using TensorLabel = std::vector<size_t>;
+/// \brief Alias for label tensor.
+using TensorLabel = std::vector<label_t>;
+/// \brief Alias for vector of label tensors.
+using TensorLabelVector = std::vector<TensorLabel>;
+
 namespace pass {
 class ReverseShapeAndTypeInfer;
 }
@@ -70,9 +75,9 @@ public:
     void set_partial_shape(const PartialShape& partial_shape);
 
     /// \brief sets lower bound value description
-    void set_lower_value(const ngraph::HostTensorPtr& value);
+    void set_lower_value(const ov::Tensor& value);
     /// \brief sets upper bound value description
-    void set_upper_value(const ngraph::HostTensorPtr& value);
+    void set_upper_value(const ov::Tensor& value);
     /// \brief sets value label description
     void set_value_label(const TensorLabel& value_label);
     /// \brief unsets bound value descriptions
@@ -86,11 +91,11 @@ public:
         return m_partial_shape;
     }
     /// \brief gets lower bound value description
-    ngraph::HostTensorPtr get_lower_value() const {
+    const ov::Tensor& get_lower_value() const {
         return m_lower_value;
     }
     /// \brief gets upper bound value description
-    ngraph::HostTensorPtr get_upper_value() const {
+    const ov::Tensor& get_upper_value() const {
         return m_upper_value;
     }
     /// \brief gets upper bound value description
@@ -99,7 +104,7 @@ public:
     }
     /// \brief checks if lower and upper bound are set and point to the same HostTensor
     bool has_and_set_bound() const {
-        return m_upper_value != nullptr && m_upper_value == m_lower_value;
+        return m_upper_value && m_lower_value && m_upper_value.data() == m_lower_value.data();
     }
     size_t size() const;
 
@@ -109,6 +114,8 @@ public:
     const RTMap& get_rt_info() const {
         return m_rt_info;
     }
+
+    void clone_from(const Tensor& old);
 
 protected:
     element::Type m_element_type;
@@ -129,7 +136,7 @@ protected:
     // TODO: end
 
     PartialShape m_partial_shape;
-    ngraph::HostTensorPtr m_lower_value, m_upper_value;
+    ov::Tensor m_lower_value, m_upper_value;
     TensorLabel m_value_label;
     std::string m_legacy_name;
 

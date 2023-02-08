@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -166,6 +166,12 @@ struct loop : public primitive_base<loop> {
     std::vector<backedge_mapping> back_edges;
 
     int64_t max_iteration;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, id);
+        return seed;
+    }
 
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {

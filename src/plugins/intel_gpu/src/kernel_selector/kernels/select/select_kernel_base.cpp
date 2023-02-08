@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -129,13 +129,21 @@ KernelsData SelectKernelBase::GetCommonKernelsData(const Params& params, const o
 
     DispatchData dispatchData = SetDefault(newParams);
 
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const select_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+    };
+
     auto& kernel = kd.kernels[0];
-
-    kernel.params.workGroups.global = dispatchData.gws;
-    kernel.params.workGroups.local = dispatchData.lws;
-
-    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, EXE_MODE_DEFAULT);
-    kernel.params.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(), false, false);
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
+                     "", false, false,
+                     (uint32_t)newParams.inputs.size(),
+                     0,
+                     1,
+                     newParams.outputs[0].is_dynamic());
 
     return {kd};
 }

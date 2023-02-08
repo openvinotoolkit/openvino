@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,6 +41,16 @@ struct region_yolo : public primitive_base<region_yolo> {
     uint32_t num;
     uint32_t mask_size;
     bool do_softmax;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, coords);
+        seed = hash_combine(seed, classes);
+        seed = hash_combine(seed, num);
+        seed = hash_combine(seed, mask_size);
+        seed = hash_combine(seed, do_softmax);
+        return seed;
+    }
 };
 }  // namespace cldnn
 #pragma once

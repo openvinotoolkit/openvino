@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -79,7 +79,6 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DDNNL_LIBRARY_TYPE=STATIC"
                 "-DOpenCL_LIBRARY=${OpenCL_LIBRARY}"
                 "-DOpenCL_INCLUDE_DIR=${OpenCL_INCLUDE_DIR}"
-                "-DOPENCL_VERSION_2_2=${OPENCL_VERSION_2_2}"
         )
         add_library(onednn_gpu_tgt INTERFACE)
         set_target_properties(onednn_gpu_tgt PROPERTIES

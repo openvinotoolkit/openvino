@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/strided_slice.hpp>
 #include <intel_gpu/primitives/data.hpp>
+#include "strided_slice_inst.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -1605,6 +1606,11 @@ TEST(strided_slice_gpu, test_2x2x2x1x1_2_negative_all_dynamic) {
 
     network.set_input_data("input", input);
 
+    auto inst = network.get_primitive("strided_slice");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
     auto outputs = network.execute();
 
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -1648,6 +1654,11 @@ TEST(strided_slice_gpu, test_2x2x2x1x1_2_negative_all_dynamic_begin) {
     network network(engine, topology, config);
 
     network.set_input_data("input2", begin);
+
+    auto inst = network.get_primitive("strided_slice");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
 
     auto outputs = network.execute();
 

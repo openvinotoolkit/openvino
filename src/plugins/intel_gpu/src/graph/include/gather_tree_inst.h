@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,17 @@
 #include <memory>
 
 namespace cldnn {
+template <>
+struct typed_program_node<gather_tree> : public typed_program_node_base<gather_tree> {
+    using parent = typed_program_node_base<gather_tree>;
+    typed_program_node(const std::shared_ptr<gather_tree> prim, program& prog) : parent(prim, prog) {}
+
+public:
+    using parent::parent;
+
+    program_node& input(size_t index = 0) const { return get_dependency(index); }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+};
 
 using gather_tree_node = typed_program_node<gather_tree>;
 

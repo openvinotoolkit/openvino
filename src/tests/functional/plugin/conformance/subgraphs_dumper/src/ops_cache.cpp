@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -180,6 +180,9 @@ OPCache::serialize_function(const std::pair<std::shared_ptr<ov::Node>, LayerTest
         }
         ov::ResultVector results;
         for (auto &out : op.first->outputs()) {
+            if (out.get_partial_shape().is_dynamic()) {
+                is_dynamic = true;
+            }
             results.push_back(std::make_shared<ov::op::v0::Result>(out));
         }
         auto function = std::make_shared<ov::Model>(results, params);
@@ -196,10 +199,9 @@ OPCache::serialize_function(const std::pair<std::shared_ptr<ov::Node>, LayerTest
         }
         std::replace(op_name.begin(), op_name.end(), '/', '_');
         std::replace(op_name.begin(), op_name.end(), '\\', '_');
-        auto filePrefix = CommonTestUtils::generateTestFilePrefix();
-        auto xml_path = current_op_folder + CommonTestUtils::FileSeparator + filePrefix + op_name + ".xml";
-        auto bin_path = current_op_folder + CommonTestUtils::FileSeparator + filePrefix + op_name + ".bin";
-        auto meta_info = current_op_folder + CommonTestUtils::FileSeparator + filePrefix + op_name + ".meta";
+        auto xml_path = current_op_folder + CommonTestUtils::FileSeparator + op_name + ".xml";
+        auto bin_path = current_op_folder + CommonTestUtils::FileSeparator + op_name + ".bin";
+        auto meta_info = current_op_folder + CommonTestUtils::FileSeparator + op_name + ".meta";
         auto cnn_net = InferenceEngine::CNNNetwork(function);
         cnn_net.serialize(xml_path, bin_path);
         serialize_meta_info(op.second, meta_info);

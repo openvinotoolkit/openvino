@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,6 +48,14 @@ struct split : public primitive_base<split> {
     std::vector<tensor> output_offsets;
     /// @brief List of output_ids.
     const primitive_id_arr output_ids;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        for (auto& offset : output_offsets) {
+            seed = hash_combine(seed, offset.hash());
+        }
+        return seed;
+    }
 
 protected:
     static std::vector<primitive_id> extract_primitive_vector(

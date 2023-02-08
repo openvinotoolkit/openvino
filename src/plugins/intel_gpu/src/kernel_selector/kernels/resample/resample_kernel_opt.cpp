@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -73,13 +73,24 @@ ParamsKey ResampleKernelOpt::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableReampleType(ResampleType::BILINEAR_INTERP);
     k.EnableReampleType(ResampleType::NEAREST_NEIGHBOR);
-    k.EnableReampleType(ResampleType::LINEAR_ONNX);
     k.EnableReampleType(ResampleType::CAFFE_BILINEAR_INTERP);
     return k;
 }
 
 DeviceFeaturesKey ResampleKernelOpt::get_required_device_features_key(const Params& params, const optional_params& options) const {
     return get_common_subgroups_device_features_key(params, options);
+}
+
+static size_t get_vec_size(const resample_params &params) {
+    if (params.inputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32) {
+        return 2;
+    } else {
+        return 1;
+    }
+}
+
+static int get_feature_slice_size(const resample_params &params) {
+    return 16 * get_vec_size(params);
 }
 
 ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_selector::resample_params &arg) const {
@@ -111,7 +122,7 @@ ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_sele
         } else {
             dispatchData.gws[0] = CeilDiv(out.X().v, opt_x_block_size) * out.Y().v;
         }
-        dispatchData.gws[1] = Align(out.Feature().v, sub_group_size);
+        dispatchData.gws[1] = Align(CeilDiv(out.Feature().v, get_vec_size(arg)), sub_group_size);
         dispatchData.gws[2] = arg.outputs[0].Batch().v;
 
         dispatchData.lws[0] = 1;
@@ -140,30 +151,16 @@ bool ResampleKernelOpt::Validate(const Params& p, const optional_params& o) cons
     if (!Parent::Validate(p, o))
         return false;
 
-    if (p.GetType() != KernelType::RESAMPLE || o.GetType() != KernelType::RESAMPLE)
-        return false;
-
-    if (params.inputs.empty())
-        return false;
-
     const auto& input = params.inputs[0];
-    const auto & output = params.outputs[0];
 
     if ((input.GetDType() == Datatype::UINT8 || input.GetDType() == Datatype::INT8) &&
         params.resampleType != ResampleType::NEAREST_NEIGHBOR &&
-        params.resampleType != ResampleType::BILINEAR_INTERP &&
-        params.resampleType != ResampleType::LINEAR_ONNX)
+        params.resampleType != ResampleType::BILINEAR_INTERP)
         return false;
 
-    // in the case of 5D support only NEAREST_NEIGHBOR and partially LINEAR_ONNX (interpolate X and Y axes)
-    if (input.Dimentions() == 5 &&
-         params.resampleType != ResampleType::NEAREST_NEIGHBOR &&
-         !(params.resampleType == ResampleType::LINEAR_ONNX &&
-           input.Batch().v == output.Batch().v &&
-           input.Feature().v == output.Feature().v &&
-           input.Z().v == output.Z().v))
+    // in the case of 5D support only NEAREST_NEIGHBOR
+    if (input.Dimentions() == 5 && params.resampleType != ResampleType::NEAREST_NEIGHBOR)
         return false;
-
 
     return true;
 }
@@ -180,19 +177,17 @@ JitConstants ResampleKernelOpt::GetJitConstants(const resample_params &params) c
     jit.AddConstant(MakeJitConstant("X_BLOCKS", CeilDiv(params.outputs[0].X().v, opt_x_block_size)));
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
 
-    size_t vec_size = 0;
-    if (params.inputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32) {
-        vec_size = 2;
-        jit.AddConstant(MakeJitConstant("FEATURE_SLICE_SIZE", 32));
-    } else {
-        vec_size = 1;
-        jit.AddConstant(MakeJitConstant("FEATURE_SLICE_SIZE", 16));
-    }
+    const size_t vec_size = get_vec_size(params);
+    jit.AddConstant(MakeJitConstant("FEATURE_SLICE_SIZE", get_feature_slice_size(params)));
     jit.AddConstant(MakeJitConstant("VEC_SIZE", vec_size));
 
     if (!params.fused_ops.empty()) {
         if (params.resampleType != ResampleType::CAFFE_BILINEAR_INTERP) {
-            std::vector<std::string> idx_order = {"b", "feature_block", "y", "(x + out_x)"};
+            std::vector<std::string> idx_order;
+            if (params.inputs[0].Dimentions() == 5)
+                idx_order = {"b", "feature_block", "z", "y", "(x + out_x)"};
+            else
+                idx_order = {"b", "feature_block", "y", "(x + out_x)"};
             FusedOpsConfiguration conf = {"", idx_order, "res", GetAccumulatorType(params), vec_size, LoadType::LT_ALIGNED_READ};
             conf.SetVectorAxis(Tensor::DataChannelName::FEATURE);
             jit.Merge(MakeFusedOpsJitConstants(params, {conf}));

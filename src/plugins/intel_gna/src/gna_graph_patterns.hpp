@@ -1,14 +1,16 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <legacy/graph_tools.hpp>
 #include <legacy/details/ie_cnn_network_tools.h>
+
+#include <legacy/graph_tools.hpp>
+
 #include "gna_data_types.hpp"
 #include "gna_graph_tools.hpp"
-#include "log/debug.hpp"
 #include "gna_upstream_iterator.hpp"
 #include "layers/gna_layer_info.hpp"
+#include "log/debug.hpp"
 #include "ops/util/util.hpp"
 
 namespace ov {
@@ -73,8 +75,8 @@ inline bool IsReshapeFrom3dTo4d(InferenceEngine::CNNLayerPtr layer) {
  * @param layer convolution layer
  * @return the found permutations before and after convolution
  */
-inline std::pair<InferenceEngine::CNNLayerPtr, InferenceEngine::CNNLayerPtr> FindPermutationsAroundConvolutionInNHWCModel(
-    InferenceEngine::CNNLayerPtr layer) {
+inline std::pair<InferenceEngine::CNNLayerPtr, InferenceEngine::CNNLayerPtr>
+FindPermutationsAroundConvolutionInNHWCModel(InferenceEngine::CNNLayerPtr layer) {
     // Skip a convolution which doesn't have previous or next layers
     if (layer->outData.size() != 1) {
         return std::make_pair(nullptr, nullptr);
@@ -90,13 +92,14 @@ inline std::pair<InferenceEngine::CNNLayerPtr, InferenceEngine::CNNLayerPtr> Fin
 
     auto next = getInputTo(layer->outData.front()).begin()->second;
     // Permute is inserted before Reshape by MO in NHWC models, so we need to find either permute, or reshape, or output
-    while (!LayerInfo(next).isPermute() && !LayerInfo(next).isPermuteViaReshape() &&
-           !LayerInfo(next).isOutput() && next->outData.size() == 1) {
+    while (!LayerInfo(next).isPermute() && !LayerInfo(next).isPermuteViaReshape() && !LayerInfo(next).isOutput() &&
+           next->outData.size() == 1) {
         if (LayerInfo(next).isNonFunctional() && !IsReshapeFrom4dTo3d(next) && !IsReshapeFrom3dTo4d(next)) {
             break;
         }
         auto input_to = getInputTo(next->outData.front());
-        if (input_to.size() != 1) break;
+        if (input_to.size() != 1)
+            break;
         next = input_to.begin()->second;
     }
 
@@ -106,7 +109,7 @@ inline std::pair<InferenceEngine::CNNLayerPtr, InferenceEngine::CNNLayerPtr> Fin
         const auto order = next->GetParamAsInts("order");
         if (layout != InferenceEngine::Layout::NCHW && layout != InferenceEngine::Layout::CHW ||
             order != permute::GetPermuteOrder(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC) &&
-            order != std::vector<int32_t>{0, 2, 1} /* NCW to NWC */) {
+                order != std::vector<int32_t>{0, 2, 1} /* NCW to NWC */) {
             return std::make_pair(nullptr, nullptr);
         }
     } else if (LayerInfo(next).isReshape()) {
@@ -118,11 +121,10 @@ inline std::pair<InferenceEngine::CNNLayerPtr, InferenceEngine::CNNLayerPtr> Fin
         auto output_dims = next->outData[0]->getDims();
         auto out_dims_size = output_dims.size();
         if (in_dims_size == 4 && out_dims_size == 4) {
-            if (!LayerInfo(next).isPermuteViaReshape() ||
-                (input_dims[0] != output_dims[0]) || // N
-                (input_dims[1] != output_dims[3]) || // C
-                (input_dims[2] != output_dims[1]) || // H
-                (input_dims[3] != output_dims[2])) { // W
+            if (!LayerInfo(next).isPermuteViaReshape() || (input_dims[0] != output_dims[0]) ||  // N
+                (input_dims[1] != output_dims[3]) ||                                            // C
+                (input_dims[2] != output_dims[1]) ||                                            // H
+                (input_dims[3] != output_dims[2])) {                                            // W
                 return std::make_pair(nullptr, nullptr);
             }
         } else {
@@ -144,8 +146,8 @@ inline std::pair<InferenceEngine::CNNLayerPtr, InferenceEngine::CNNLayerPtr> Fin
     // Permute is inserted after Reshape by MO in NHWC models, so we need to find either permute, or reshape, or input
     auto parent = InferenceEngine::CNNNetPrevLayer(layer);
     auto prev = parent;
-    while (!LayerInfo(prev).isPermute() && !LayerInfo(prev).isPermuteViaReshape() &&
-           !LayerInfo(prev).isInput() && InferenceEngine::CNNNetHasPrevLayer(prev.get())) {
+    while (!LayerInfo(prev).isPermute() && !LayerInfo(prev).isPermuteViaReshape() && !LayerInfo(prev).isInput() &&
+           InferenceEngine::CNNNetHasPrevLayer(prev.get())) {
         if (LayerInfo(prev).isNonFunctional() && !IsReshapeFrom4dTo3d(prev) && !IsReshapeFrom3dTo4d(prev)) {
             break;
         }
@@ -157,7 +159,7 @@ inline std::pair<InferenceEngine::CNNLayerPtr, InferenceEngine::CNNLayerPtr> Fin
         const auto order = prev->GetParamAsInts("order");
         if (layout != InferenceEngine::Layout::NCHW && layout != InferenceEngine::Layout::CHW ||
             order != permute::GetPermuteOrder(InferenceEngine::Layout::NHWC, InferenceEngine::Layout::NCHW) &&
-            order != std::vector<int32_t>{0, 2, 1} /* NWC to NCW */) {
+                order != std::vector<int32_t>{0, 2, 1} /* NWC to NCW */) {
             return std::make_pair(nullptr, nullptr);
         }
     } else if (LayerInfo(prev).isReshape()) {
@@ -167,11 +169,10 @@ inline std::pair<InferenceEngine::CNNLayerPtr, InferenceEngine::CNNLayerPtr> Fin
         auto out_dims_size = output_dims.size();
 
         if (in_dims_size == 4 && out_dims_size == 4) {
-            if (!LayerInfo(prev).isPermuteViaReshape() ||
-               (input_dims[0] != output_dims[0]) || // N
-               (input_dims[1] != output_dims[2]) || // H
-               (input_dims[2] != output_dims[3]) || // W
-               (input_dims[3] != output_dims[1])) { // C
+            if (!LayerInfo(prev).isPermuteViaReshape() || (input_dims[0] != output_dims[0]) ||  // N
+                (input_dims[1] != output_dims[2]) ||                                            // H
+                (input_dims[2] != output_dims[3]) ||                                            // W
+                (input_dims[3] != output_dims[1])) {                                            // C
                 return std::make_pair(nullptr, nullptr);
             }
         } else {
@@ -185,7 +186,9 @@ inline std::pair<InferenceEngine::CNNLayerPtr, InferenceEngine::CNNLayerPtr> Fin
             out_dims_size = out_dims.size();
             IE_ASSERT(out_dims_size == 3 || out_dims_size == 4);
             size_t channels = InferenceEngine::GetDimFromFront(out_dims, 1);
-            size_t height = out_dims_size == 3 ? 1 : InferenceEngine::GetDataDimByName(parent->outData[0], InferenceEngine::DataDimName::H);
+            size_t height = out_dims_size == 3 ? 1
+                                               : InferenceEngine::GetDataDimByName(parent->outData[0],
+                                                                                   InferenceEngine::DataDimName::H);
             size_t width = InferenceEngine::GetDimFromBack(out_dims, 3);
             if (in_dims_size < 3 || channels != 1 && (height != 1 || width != 1)) {
                 return std::make_pair(nullptr, nullptr);
@@ -216,9 +219,10 @@ inline InferenceEngine::CNNLayerPtr FindPermutationAfterConvolutionInKaldiModel(
      * so we need to fing either permute, or fullyconnected, or scaleshift, or output, or reshape to 2D
      */
     auto next = getInputTo(layer->outData.front()).begin()->second;
-    while (!LayerInfo(next).isPermute() && !LayerInfo(next).isFullyConnected() && !LayerInfo(next).isScaleShift() &&
-           !LayerInfo(next).isOutput() &&
-           (!LayerInfo(next).isNonFunctional() || next->outData[0]->getDims().size() == next->input()->getDims().size())) {
+    while (
+        !LayerInfo(next).isPermute() && !LayerInfo(next).isFullyConnected() && !LayerInfo(next).isScaleShift() &&
+        !LayerInfo(next).isOutput() &&
+        (!LayerInfo(next).isNonFunctional() || next->outData[0]->getDims().size() == next->input()->getDims().size())) {
         next = getInputTo(next->outData.front()).begin()->second;
     }
 
@@ -234,13 +238,15 @@ inline InferenceEngine::CNNLayerPtr FindPermutationAfterConvolutionInKaldiModel(
  * @brief identifies if a model must be converted to NHWC, it must not be neither NHWC, nor Kaldi
  * @param layers model sorted layers
  */
-inline bool MustBeConvertedFromNCHWToNHWC(const std::vector<InferenceEngine::CNNLayerPtr> &layers) {
+inline bool MustBeConvertedFromNCHWToNHWC(const std::vector<InferenceEngine::CNNLayerPtr>& layers) {
     for (auto& l : layers) {
-        if (!LayerInfo(l).isConvolution()) continue;
+        if (!LayerInfo(l).isConvolution())
+            continue;
 
         InferenceEngine::CNNLayerPtr next;
         std::tie(std::ignore, next) = FindPermutationsAroundConvolutionInNHWCModel(l);
-        if (next != nullptr) return false;
+        if (next != nullptr)
+            return false;
         // If a convolution has only 1-dimension input and output we should skip it
         auto in_dims = l->insData.begin()->lock()->getDims();
         auto out_dims = l->outData.front()->getDims();
@@ -289,9 +295,9 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromPrevLayers(Infere
             return findTranspositionInfoRecursive(input1);
         }
 
-        /* If it's a concat along not channel axis and its inputs are transposed the whole concat output must be transposed,
-         * otherwise every part corresponding to some input must be transposed separately */
-        if (LayerInfo(layer).isConcat() && !layer->insData.empty())  {
+        /* If it's a concat along not channel axis and its inputs are transposed the whole concat output must be
+         * transposed, otherwise every part corresponding to some input must be transposed separately */
+        if (LayerInfo(layer).isConcat() && !layer->insData.empty()) {
             auto concatLayer = LayerInfo(layer).as<InferenceEngine::ConcatLayer*>();
             IE_ASSERT(concatLayer != nullptr);
             if (concatLayer->_axis > 1) {
@@ -313,10 +319,14 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromPrevLayers(Infere
                 int nonConstInputIx = 0;
                 for (int i = 0; InferenceEngine::CNNNetHasPrevLayer(layer.get(), i); ++i) {
                     auto input = InferenceEngine::CNNNetPrevLayer(layer, i);
-                    if (LayerInfo(input).isConst()) continue;
+                    if (LayerInfo(input).isConst())
+                        continue;
                     auto transpositionInfo = FindTranspositionInfoFromPrevLayers(input);
-                    auto partToTranspose = std::find_if(std::begin(transpositionInfo), std::end(transpositionInfo),
-                        [](const TranspositionInfo &infoPart) { return infoPart.transpose; });
+                    auto partToTranspose = std::find_if(std::begin(transpositionInfo),
+                                                        std::end(transpositionInfo),
+                                                        [](const TranspositionInfo& infoPart) {
+                                                            return infoPart.transpose;
+                                                        });
                     bool inputTranspose = (partToTranspose != std::end(transpositionInfo));
                     if (nonConstInputIx == 0) {
                         transpose = inputTranspose;
@@ -331,12 +341,14 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromPrevLayers(Infere
 
         std::vector<TranspositionInfo> transpositionInfo;
         for (int idx = 0; idx < layer->insData.size(); ++idx) {
-            if (!InferenceEngine::CNNNetHasPrevLayer(layer.get(), idx)) continue;
+            if (!InferenceEngine::CNNNetHasPrevLayer(layer.get(), idx))
+                continue;
             auto inputLayer = InferenceEngine::CNNNetPrevLayer(layer, idx);
             if (LayerInfo(inputLayer).isSplit()) {
                 // If we found split it's not possible to rotate data
                 auto in_dims = layer->insData[idx].lock()->getDims();
-                transpositionInfo.push_back({false, 1, InferenceEngine::details::product(std::begin(in_dims), std::end(in_dims))});
+                transpositionInfo.push_back(
+                    {false, 1, InferenceEngine::details::product(std::begin(in_dims), std::end(in_dims))});
             } else if (LayerInfo(layer).isConcat() && LayerInfo(inputLayer).isConst()) {
                 auto in_dims = layer->insData[idx].lock()->getDims();
                 // We should keep its size to skip this part during transposition
@@ -367,23 +379,24 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromNextLayers(Infere
             return {{true, rows, columns}};
         }
 
-        /* If a fullyconnected or output layers are reached, it means that transposition isn't needed, but we should keep
-         * its input size to skip this part during transposition if transposed layer is splitting */
+        /* If a fullyconnected or output layers are reached, it means that transposition isn't needed, but we should
+         * keep its input size to skip this part during transposition if transposed layer is splitting */
         if (LayerInfo(layer).isFullyConnected() || layer->outData.empty()) {
             auto in_dims = layer->input()->getDims();
             return {{false, 1, InferenceEngine::details::product(std::begin(in_dims), std::end(in_dims))}};
         }
 
         std::vector<TranspositionInfo> transpositionInfo;
-        for (const auto &output : layer->outData) {
+        for (const auto& output : layer->outData) {
             if (getInputTo(output).empty()) {
                 auto out_dims = output->getDims();
-                transpositionInfo.push_back({false, 1, InferenceEngine::details::product(std::begin(out_dims), std::end(out_dims))});
+                transpositionInfo.push_back(
+                    {false, 1, InferenceEngine::details::product(std::begin(out_dims), std::end(out_dims))});
                 continue;
             }
             std::vector<TranspositionInfo> results;
             // Return transposition info from the first branch where convolution is found
-            for (const auto &inputTo : getInputTo(output)) {
+            for (const auto& inputTo : getInputTo(output)) {
                 if (LayerInfo(inputTo.second).isConcat()) {
                     // If we found concat it's not possible to rotate data
                     auto out_dims = output->getDims();
@@ -391,10 +404,11 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromNextLayers(Infere
                 } else {
                     results = findTranspositionInfoRecursive(inputTo.second);
                 }
-                auto found = std::find_if(std::begin(results), std::end(results), [](const TranspositionInfo & result) {
+                auto found = std::find_if(std::begin(results), std::end(results), [](const TranspositionInfo& result) {
                     return result.transpose;
                 });
-                if (found != std::end(results)) break;
+                if (found != std::end(results))
+                    break;
             }
             if (results.empty()) {
                 THROW_GNA_EXCEPTION << layer->name << " Failed to find transposition info";
@@ -411,7 +425,8 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromNextLayers(Infere
             size_t crop_out_size = 1;
             bool first_cropped_dim = true;
             for (int i = 0; i < crop_layer->axis.size(); ++i) {
-                if (crop_layer->offset[i] == 0 && crop_layer->dim[i] == in_dims[i]) continue;
+                if (crop_layer->offset[i] == 0 && crop_layer->dim[i] == in_dims[i])
+                    continue;
                 crop_offset *= first_cropped_dim ? crop_layer->offset[i] : crop_layer->dim[i];
                 crop_out_size *= crop_layer->dim[i];
                 first_cropped_dim = false;

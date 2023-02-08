@@ -1,10 +1,12 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 if (NOT ENABLE_INTEL_GNA)
     return()
 endif()
+
+add_subdirectory(legacy)
 
 set(TARGET_NAME "openvino_intel_gna_plugin")
 
@@ -53,7 +55,8 @@ find_package(libGNA REQUIRED
 
 ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "GNA"
-              SOURCES ${SOURCES} ${HEADERS})
+              SOURCES ${SOURCES} ${HEADERS}
+              ADD_CLANG_FORMAT)
 
 # Enable support of CC for the plugin
 ie_mark_target_as_cc(${TARGET_NAME})
@@ -90,7 +93,6 @@ target_include_directories(${TARGET_NAME}_test_static
         $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
     PRIVATE
         $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
-set_target_properties(${TARGET_NAME}_test_static PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_test_static)
 
 set_target_properties(${TARGET_NAME} ${TARGET_NAME}_test_static
                       PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})

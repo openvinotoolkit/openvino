@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,5 +28,11 @@ struct scatter_elements_update : public primitive_base<scatter_elements_update> 
 
     /// @brief ScatterElementsUpdate axis
     int64_t axis;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, axis);
+        return seed;
+    }
 };
 }  // namespace cldnn

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -38,8 +38,6 @@ macro(ov_cpack_settings)
            NOT item STREQUAL OV_CPACK_COMP_PYTHON_WHEELS AND
            # see ticket # 82605
            NOT item STREQUAL "gna" AND
-           # myriad is EOL in 2023.0
-           NOT item STREQUAL "myriad" AND
            # even for case of system TBB we have installation rules for wheels packages
            # so, need to skip this explicitly
            NOT item MATCHES "^tbb(_dev)?$" AND
@@ -78,8 +76,8 @@ macro(ov_cpack_settings)
         # 2022 release series
         # - 2022.1.0 is the last public release with rpm packages from Intel install team
         # - 2022.1.1, 2022.2 do not have rpm packages enabled, distributed only as archives
-        # - 2022.3 is the first release where RPM updated packages are introduced
-        2022.3.0
+        # - 2022.3 is the first release where RPM updated packages are introduced, others 2022.3.X are LTS
+        2022.3.0 2022.3.1 2022.3.2 2022.3.3 2022.3.4 2022.3.5
         )
 
     find_host_program(rpmlint_PROGRAM NAMES rpmlint DOC "Path to rpmlint")
@@ -179,15 +177,6 @@ macro(ov_cpack_settings)
         set(gpu_copyright "generic")
     endif()
 
-    # intel-myriad
-    if(ENABLE_INTEL_MYRIAD AND "myriad" IN_LIST CPACK_COMPONENTS_ALL)
-        set(CPACK_COMPONENT_MYRIAD_DESCRIPTION "Intel® Movidius™ VPU")
-        set(CPACK_RPM_MYRIAD_PACKAGE_REQUIRES "${core_package}")
-        set(CPACK_RPM_MYRIAD_PACKAGE_NAME "libopenvino-intel-vpu-plugin-${cpack_name_ver}")
-        _ov_add_package(plugin_packages myriad)
-        set(myriad_copyright "generic")
-    endif()
-
     # intel-gna
     if(ENABLE_INTEL_GNA AND "gna" IN_LIST CPACK_COMPONENTS_ALL)
         set(CPACK_COMPONENT_GNA_DESCRIPTION "Intel® Gaussian Neural Accelerator")
@@ -237,6 +226,24 @@ macro(ov_cpack_settings)
         set(paddle_copyright "generic")
     endif()
 
+    if(ENABLE_OV_PYTORCH_FRONTEND)
+        set(CPACK_COMPONENT_PYTORCH_DESCRIPTION "OpenVINO PyTorch Frontend")
+        set(CPACK_RPM_PYTORCH_PACKAGE_NAME "libopenvino-pytorch-frontend-${cpack_name_ver}")
+        set(CPACK_RPM_PYTORCH_POST_INSTALL_SCRIPT_FILE "${def_triggers}")
+        set(CPACK_RPM_PYTORCH_POST_UNINSTALL_SCRIPT_FILE "${def_triggers}")
+        _ov_add_package(frontend_packages pytorch)
+        set(pytorch_copyright "generic")
+    endif()
+
+    if(ENABLE_OV_TF_LITE_FRONTEND)
+        set(CPACK_COMPONENT_TENSORFLOW_LITE_DESCRIPTION "OpenVINO TensorFlow Lite Frontend")
+        set(CPACK_RPM_TENSORFLOW_LITE_PACKAGE_NAME "libopenvino-tensorflow-lite-frontend-${cpack_name_ver}")
+        set(CPACK_RPM_TENSORFLOW_LITE_POST_INSTALL_SCRIPT_FILE "${def_triggers}")
+        set(CPACK_RPM_TENSORFLOW_LITE_POST_UNINSTALL_SCRIPT_FILE "${def_triggers}")
+        _ov_add_package(frontend_packages tensorflow_lite)
+        set(tensorflow_lite_copyright "generic")
+    endif()
+
     #
     # core_dev: depends on core and frontends (since frontends don't want to provide its own dev packages)
     #
@@ -279,6 +286,7 @@ macro(ov_cpack_settings)
 
     set(samples_build_deps "cmake3, gcc-c++, gcc, glibc-devel, make, pkgconf-pkg-config")
     set(samples_build_deps_suggest "opencv-devel >= 3.0")
+    set(samples_opencl_deps_suggest "ocl-icd-devel, opencl-headers")
 
     # c_samples / cpp_samples
     set(CPACK_COMPONENT_SAMPLES_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit C / C++ Samples")
@@ -286,9 +294,10 @@ macro(ov_cpack_settings)
     set(samples_package "${CPACK_RPM_SAMPLES_PACKAGE_NAME} = ${cpack_full_ver}")
     # SUGGESTS may be unsupported, it's part of RPM 4.12.0 (Sep 16th 2014) only
     # see https://rpm.org/timeline.html
-    set(CPACK_RPM_SAMPLES_PACKAGE_SUGGESTS "${samples_build_deps_suggest}, ${plugin_packages}")
+    set(CPACK_RPM_SAMPLES_PACKAGE_SUGGESTS "${samples_build_deps_suggest}, ${samples_opencl_deps_suggest}, ${plugin_packages}")
     set(CPACK_RPM_SAMPLES_PACKAGE_REQUIRES "${core_dev_package}, ${samples_build_deps}, gflags-devel, json-devel, zlib-devel")
     set(CPACK_RPM_SAMPLES_PACKAGE_ARCHITECTURE "noarch")
+    ov_rpm_generate_conflicts(${OV_CPACK_COMP_CPP_SAMPLES} ${conflicting_versions})
 
     ov_rpm_add_rpmlint_suppression("${OV_CPACK_COMP_CPP_SAMPLES}"
         # contains samples source codes

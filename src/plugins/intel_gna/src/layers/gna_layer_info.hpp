@@ -1,24 +1,26 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <string>
-#include <memory>
-#include <vector>
 #include <legacy/ie_layers.h>
-#include "caseless.hpp"
-#include "ie_algorithm.hpp"
-#include "backend/gna_types.hpp"
-#include "gna_permute.hpp"
-#include "gna_lib_ver_selector.hpp"
-#include "gna_copy_layer.hpp"
+
 #include <legacy/ngraph_ops/power.hpp>
+#include <memory>
 #include <ngraph/opsets/opset8.hpp>
-#include "ops/pwl.hpp"
-#include "layers/gna_crop_layer.hpp"
+#include <string>
+#include <vector>
+
 #include "backend/gna_limitations.hpp"
+#include "backend/gna_types.hpp"
+#include "caseless.hpp"
+#include "gna_copy_layer.hpp"
+#include "gna_lib_ver_selector.hpp"
+#include "gna_permute.hpp"
+#include "ie_algorithm.hpp"
+#include "layers/gna_crop_layer.hpp"
+#include "ops/pwl.hpp"
 #include "transformations/rt_info/gna_transpose_fusable.hpp"
 
 namespace ov {
@@ -29,33 +31,26 @@ namespace intel_gna {
  * @tparam T
  */
 template <class T>
-struct is_const_pointer : public std::false_type{
-};
+struct is_const_pointer : public std::false_type {};
 
 template <class T>
-struct is_const_pointer<const T *> : public std::true_type{
-};
-
+struct is_const_pointer<const T*> : public std::true_type {};
 
 /**
- * similar to type traits determined in standard library this trait provides details per layer type, with some attributes specific for GNA
- * we don't need to have compile time performance for this yet
+ * similar to type traits determined in standard library this trait provides details per layer type, with some
+ * attributes specific for GNA we don't need to have compile time performance for this yet
  */
 class LayerInfo {
-    InferenceEngine::CNNLayer * layer;
+    InferenceEngine::CNNLayer* layer;
 
-#define IS_VALID() if (nullptr == layer) return false
+#define IS_VALID()        \
+    if (nullptr == layer) \
+    return false
 
- public:
-    explicit LayerInfo(InferenceEngine::CNNLayer & layer)
-        : LayerInfo(&layer) {
-    }
-    explicit LayerInfo(const InferenceEngine::CNNLayerPtr & layer)
-        : LayerInfo(layer.get()) {
-    }
-    explicit LayerInfo(InferenceEngine::CNNLayer * layer)
-        : layer(layer) {
-    }
+public:
+    explicit LayerInfo(InferenceEngine::CNNLayer& layer) : LayerInfo(&layer) {}
+    explicit LayerInfo(const InferenceEngine::CNNLayerPtr& layer) : LayerInfo(layer.get()) {}
+    explicit LayerInfo(InferenceEngine::CNNLayer* layer) : layer(layer) {}
     bool hasMultipleInputs() const noexcept {
         IS_VALID();
         return layer->insData.size() > 1;
@@ -65,29 +60,50 @@ class LayerInfo {
     // and when in 16-bit input mode, they have 16-bit outputs
     bool has8BOr16BOutput() const {
         IS_VALID();
-        static InferenceEngine::details::caseless_set<std::string> layersWith8BOr16BOutputs = {"memory", "input", "split", "slice", "concat", "copy", "const"};
-        return layersWith8BOr16BOutputs.find(layer->type) != layersWith8BOr16BOutputs.end() ||
-               isActivation() ||
-               (isCrop() && !isCropAffined()) ||
-               isPermute();
+        static InferenceEngine::details::caseless_set<std::string> layersWith8BOr16BOutputs =
+            {"memory", "input", "split", "slice", "concat", "copy", "const"};
+        return layersWith8BOr16BOutputs.find(layer->type) != layersWith8BOr16BOutputs.end() || isActivation() ||
+               (isCrop() && !isCropAffined()) || isPermute();
     }
     bool has32BOutput() const {
         IS_VALID();
         std::vector<std::function<bool()>> has32BOutputsProbes = {
-            [this]() { return isFullyConnected(); },
-            [this]() { return isAffineFilter(); },
-            [this]() { return isConcatAlignFilter(); },
-            [this]() { return isConvolutionFilter(); },
-            [this]() { return isEltwise(); },
-            [this]() { return isScaleShift(); },
-            [this]() { return isConvolution(); },
-            [this]() { return isPooling(); },
-            [this]() { return isPower(); },
-            [this]() { return isCropAffined(); },
-            [this]() { return isGemm(); },
+            [this]() {
+                return isFullyConnected();
+            },
+            [this]() {
+                return isAffineFilter();
+            },
+            [this]() {
+                return isConcatAlignFilter();
+            },
+            [this]() {
+                return isConvolutionFilter();
+            },
+            [this]() {
+                return isEltwise();
+            },
+            [this]() {
+                return isScaleShift();
+            },
+            [this]() {
+                return isConvolution();
+            },
+            [this]() {
+                return isPooling();
+            },
+            [this]() {
+                return isPower();
+            },
+            [this]() {
+                return isCropAffined();
+            },
+            [this]() {
+                return isGemm();
+            },
         };
 
-        for (auto && has32BOutputs : has32BOutputsProbes) {
+        for (auto&& has32BOutputs : has32BOutputsProbes) {
             if (has32BOutputs()) {
                 return true;
             }
@@ -127,24 +143,23 @@ class LayerInfo {
 
     bool isActivation() const noexcept {
         IS_VALID();
-        static InferenceEngine::details::caseless_set<std::string> activations =
-            {"clamp",
-             "sigmoid",
-             "identity",
-             "relu",
-             "leakyrelu",
-             "tanh",
-             "prelu",
-             "exp",
-             "log",
-             "sign",
-             "abs",
-             "neglog",
-             "neghalflog",
-             "softsign",
-             "power",
-             "fakequantize",
-             "pwl"};
+        static InferenceEngine::details::caseless_set<std::string> activations = {"clamp",
+                                                                                  "sigmoid",
+                                                                                  "identity",
+                                                                                  "relu",
+                                                                                  "leakyrelu",
+                                                                                  "tanh",
+                                                                                  "prelu",
+                                                                                  "exp",
+                                                                                  "log",
+                                                                                  "sign",
+                                                                                  "abs",
+                                                                                  "neglog",
+                                                                                  "neghalflog",
+                                                                                  "softsign",
+                                                                                  "power",
+                                                                                  "fakequantize",
+                                                                                  "pwl"};
 
         if (isOfType("power")) {
             auto powerLayer = as<const InferenceEngine::PowerLayer*>();
@@ -219,28 +234,31 @@ class LayerInfo {
     }
     bool isEltwiseSum() const noexcept {
         IS_VALID();
-        if (!isEltwise()) return false;
+        if (!isEltwise())
+            return false;
         // dynamic_cast<const InferenceEngine::EltwiseLayer *>(layer) is validated in isEltwise function
         // coverity[var_deref_op]
-        return dynamic_cast<const InferenceEngine::EltwiseLayer *>(layer)->_operation ==
+        return dynamic_cast<const InferenceEngine::EltwiseLayer*>(layer)->_operation ==
                InferenceEngine::EltwiseLayer::Sum;
     }
     bool isEltwiseSub() const noexcept {
         IS_VALID();
-        if (!isEltwise()) return false;
+        if (!isEltwise())
+            return false;
         // dynamic_cast<const InferenceEngine::EltwiseLayer *>(layer) is validated in isEltwise function
         // coverity[var_deref_op]
-        return dynamic_cast<const InferenceEngine::EltwiseLayer *>(layer)->_operation ==
-            InferenceEngine::EltwiseLayer::Sub;
+        return dynamic_cast<const InferenceEngine::EltwiseLayer*>(layer)->_operation ==
+               InferenceEngine::EltwiseLayer::Sub;
     }
 
     bool isEltwiseMul() const noexcept {
         IS_VALID();
-        if (!isEltwise()) return false;
+        if (!isEltwise())
+            return false;
         // dynamic_cast<const InferenceEngine::EltwiseLayer *>(layer) is validated in isEltwise function
         // coverity[var_deref_op]
         return dynamic_cast<const InferenceEngine::EltwiseLayer*>(layer)->_operation ==
-            InferenceEngine::EltwiseLayer::Prod;
+               InferenceEngine::EltwiseLayer::Prod;
     }
     bool isAbs() const noexcept {
         return isOfType("abs");
@@ -288,10 +306,12 @@ class LayerInfo {
         return isOfType("permute");
     }
     bool isPermuteFusable() const noexcept {
-        return isPermute() && (layer->params.count(ov::intel_gna::rt_info::GNATransposeFusable::get_type_info_static()) > 0);
+        return isPermute() &&
+               (layer->params.count(ov::intel_gna::rt_info::GNATransposeFusable::get_type_info_static()) > 0);
     }
     bool isPermuteViaReshape() const {
-        if (!isOfType("reshape")) return false;
+        if (!isOfType("reshape"))
+            return false;
 
         auto input_dims = layer->insData[0].lock()->getDims();
         auto output_dims = layer->outData[0]->getDims();
@@ -311,9 +331,11 @@ class LayerInfo {
 
     // @brief this not only mathematically trivial, has some WA for kaldi case
     bool isTrivialPermute() const {
-        if (!isPermute()) return false;
+        if (!isPermute())
+            return false;
 
-        if (isPermuteFusable()) return true;
+        if (isPermuteFusable())
+            return true;
 
         auto layerOrder = layer->GetParamAsInts("order");
         if (layer->insData.empty()) {
@@ -322,8 +344,7 @@ class LayerInfo {
         auto inputs = layer->insData.begin()->lock();
         auto inputsOrder = inputs->getTensorDesc().getDims();
 
-        return permute::isTrivialPermute(std::vector<int64_t>{begin(layerOrder), end(layerOrder)},
-            inputsOrder);
+        return permute::isTrivialPermute(std::vector<int64_t>{begin(layerOrder), end(layerOrder)}, inputsOrder);
     }
     bool isNonValuesChangable() const {
         return isNonFunctional() || isSplit() || isSlice() || isConcat();
@@ -333,7 +354,8 @@ class LayerInfo {
     }
     bool isMaxPooling() const noexcept {
         IS_VALID();
-        if (!isPooling()) return false;
+        if (!isPooling())
+            return false;
         return as<const InferenceEngine::PoolingLayer*>()->_type == InferenceEngine::PoolingLayer::MAX;
     }
     bool isMemory() const noexcept {
@@ -354,7 +376,7 @@ class LayerInfo {
         return isOfType("crop");
     }
     bool isCropAffined() const {
-        auto cropLayer = dynamic_cast<InferenceEngine::CropLayer *> (layer);
+        auto cropLayer = dynamic_cast<InferenceEngine::CropLayer*>(layer);
         if (cropLayer != nullptr && !cropLayer->offset.empty()) {
             const auto crop_params = GetCropParams(cropLayer);
             return limitations::isCropAffinedOffset(crop_params.start_offset);
@@ -380,9 +402,9 @@ class LayerInfo {
 
     size_t paddingSize() const {
         static InferenceEngine::details::caseless_set<std::string> layersWithPossiblePadding = {"FullyConnected",
-                                                                        "InnerProduct",
-                                                                             "Pooling",
-                                                                         "Convolution"};
+                                                                                                "InnerProduct",
+                                                                                                "Pooling",
+                                                                                                "Convolution"};
         if (layersWithPossiblePadding.find(layer->type) != layersWithPossiblePadding.end()) {
             size_t size_without_padding = 0;
             IE_ASSERT(!layer->insData.empty());
@@ -403,25 +425,25 @@ class LayerInfo {
     typename std::enable_if<is_const_pointer<T>::value, T>::type as() const noexcept {
         return dynamic_cast<T>(layer);
     }
-    operator InferenceEngine::CNNLayer *() noexcept {
+    operator InferenceEngine::CNNLayer*() noexcept {
         return layer;
     }
-    operator const InferenceEngine::CNNLayer *() const noexcept {
+    operator const InferenceEngine::CNNLayer*() const noexcept {
         return layer;
     }
-    operator InferenceEngine::CNNLayerPtr () const noexcept {
-        return std::shared_ptr<InferenceEngine::CNNLayer>(layer, [] (InferenceEngine::CNNLayer * p) {});
+    operator InferenceEngine::CNNLayerPtr() const noexcept {
+        return std::shared_ptr<InferenceEngine::CNNLayer>(layer, [](InferenceEngine::CNNLayer* p) {});
     }
 
- protected:
-    bool isOfType(const std::string & type) const noexcept {
+protected:
+    bool isOfType(const std::string& type) const noexcept {
         IS_VALID();
         return InferenceEngine::details::CaselessEq<std::string>()(layer->type, type);
     }
-    #undef IS_VALID
+#undef IS_VALID
 };
 
-inline std::ostream & operator <<(std::ostream &os, const LayerInfo & info) {
+inline std::ostream& operator<<(std::ostream& os, const LayerInfo& info) {
     os << static_cast<const InferenceEngine::CNNLayer*>(info)->name;
     return os;
 }

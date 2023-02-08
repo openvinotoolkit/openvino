@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -202,12 +202,16 @@ void GridSample::prepareParams() {
 
         auto& p = execParamsPerThread[ithr];
 
+        p.workAmount = dstEnd - dstStart;
+        if (p.workAmount == 0lu) {
+            return;
+        }
+
         p.batchNum      = srcDataShape[0];
         p.channelsNum   = srcDataShape[1];
         p.srcHeightF[0] = srcDataShape[2];
         p.srcWidthF[0]  = srcDataShape[3];
 
-        p.workAmount = dstEnd - dstStart;
         p.gridStartB = dstStart * 2 * gridTypeSize;
         p.dstStartB  = dstStart * dataTypeSize;
 

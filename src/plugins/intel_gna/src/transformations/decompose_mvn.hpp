@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,6 @@
 namespace ov {
 namespace intel_gna {
 namespace pass {
-
 
 /**
  * @brief Decompose MVN operation
@@ -24,6 +23,6 @@ public:
     DecomposeMVN();
 };
 
-} // namespace pass
-} // namespace intel_gna
-} // namespace ov
+}  // namespace pass
+}  // namespace intel_gna
+}  // namespace ov

@@ -1,13 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "backend/gna_limitations.hpp"
-#include "common/gna_target.hpp"
 
 #include <gtest/gtest.h>
 
 #include <utility>
+
+#include "common/gna_target.hpp"
 
 using namespace ov::intel_gna::limitations;
 using ov::intel_gna::common::kGnaTarget3_0;
@@ -49,13 +50,13 @@ const std::vector<uint32_t> kInvaliddH_35 = {0, 2, 2049};
 const std::vector<uint32_t> kInvaliddW_30 = {0, 2, 400};
 const std::vector<uint32_t> kInvaliddW_35 = {0, 2, 2049};
 
-const GNACnn2DValidatorTestParam target_30 {
+const GNACnn2DValidatorTestParam target_30{
     kGnaTarget3_0,
     "inH",
     kInvalidH_30,
 };
 
-const GNACnn2DValidatorTestParam target_35 {
+const GNACnn2DValidatorTestParam target_35{
     kGnaTarget3_5,
     "inH",
     kInvalidH_35,
@@ -215,7 +216,6 @@ const GNACnn2DValidatorTestParam target_35_psW{
     kInvalidPoolingRange35,
 };
 
-
 struct Validatecnn2dParams {
     std::map<std::string, uint32_t> parameters;
     OvGnaType precission;
@@ -248,26 +248,27 @@ struct Validatecnn2dParams {
 
     bool Validatecnn2d(const cnn2d::AbstractValidator& validator) {
         return validator.ValidateCnn2D({},
-            parameters["inH"],
-            parameters["inW"],
-            parameters["inC"],
-            parameters["kH"],
-            parameters["kW"],
-            parameters["kN"],
-            parameters["sH"],
-            parameters["sW"],
-            parameters["dH"],
-            parameters["dW"],
-            precission, exceptionMode);
+                                       parameters["inH"],
+                                       parameters["inW"],
+                                       parameters["inC"],
+                                       parameters["kH"],
+                                       parameters["kW"],
+                                       parameters["kN"],
+                                       parameters["sH"],
+                                       parameters["sW"],
+                                       parameters["dH"],
+                                       parameters["dW"],
+                                       precission,
+                                       exceptionMode);
     }
 
     bool ValidatePooling2D(const cnn2d::AbstractValidator& validator) {
         return validator.ValidatePooling2D({},
-            parameters["windowH"],
-            parameters["windowW"],
-            parameters["strideH"],
-            parameters["strideW"],
-            exceptionMode);
+                                           parameters["windowH"],
+                                           parameters["windowW"],
+                                           parameters["strideH"],
+                                           parameters["strideW"],
+                                           exceptionMode);
     }
 
     void set(const std::string& what, const uint32_t value) {
@@ -281,7 +282,7 @@ struct Validatecnn2dParams {
 
 class GNAcnn2dValidatorTest : public ::testing::TestWithParam<GNACnn2DValidatorTestParam> {
 protected:
-    void SetUp() override  {
+    void SetUp() override {
         validator = cnn2d::AbstractValidator::Create(GetParam().target);
         ASSERT_TRUE(validator != nullptr);
     }
@@ -344,8 +345,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GNAcnn2dValidatorTest,
                                          target_35_sH,
                                          target_35_sW,
                                          target_35_dH,
-                                         target_35_dW)
-);
+                                         target_35_dW));
 
 INSTANTIATE_TEST_SUITE_P(smoke_GNAcnn2dValidatorTestPooling2D,
                          GNAcnn2dValidatorTestPooling2D,

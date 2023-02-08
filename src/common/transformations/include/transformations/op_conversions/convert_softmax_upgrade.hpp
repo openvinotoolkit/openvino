@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,9 +25,3 @@ public:
     OPENVINO_RTTI("ConvertSoftMax1ToSoftMax8", "0");
     ConvertSoftMax1ToSoftMax8();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertSoftMax1ToSoftMax8;
-}  // namespace pass
-}  // namespace ngraph

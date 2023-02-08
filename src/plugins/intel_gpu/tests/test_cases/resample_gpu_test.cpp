@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -2041,7 +2041,6 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
 
         ExecutionConfig config_opt;
         config_opt.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"resample_opt", "res_to_bfyx"}));
-        config_opt.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"resample_opt", {params.in_format, kernel}} }));
 
         network net_opt(engine, topo_opt, config_opt);
 
@@ -2213,11 +2212,20 @@ INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_nearest,
                             }
                         ));
 
-INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_linear_onnx,
+INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_linear_onnx_4d_padding,
                          resample_opt_random_test,
                          testing::ValuesIn(
                             std::vector<resample_opt_random_test_params>{
-                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {}},
+                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {0, 0, 1, 1}, {0, 0, 1, 1}},
+                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {0, 0, 0, 0}, {0, 0, 1, 1}},
+                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {0, 0, 1, 1}, {0, 0, 0, 0}},
+                            }
+                        ));
+
+INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_linear_onnx_4d_simple,
+                         resample_opt_random_test,
+                         testing::ValuesIn(
+                            std::vector<resample_opt_random_test_params>{
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {}},
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}},
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}},
@@ -2298,5 +2306,26 @@ INSTANTIATE_TEST_SUITE_P(resample_opt_perf_linear_5_nearest,
                                 { data_types::f16, {1, 128, 16, 16, 16}, {1, 128, 32, 32, 32}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
                                 { data_types::f16, {1, 128, 32, 32, 32}, {1, 128, 64, 64, 64}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
                                 { data_types::f16, {1, 128, 64, 64, 64}, {1, 128, 128, 128, 128}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
+                            }
+                        ));
+INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_linear_onnx_5d_3axes_padding,
+                         resample_opt_random_test,
+                         testing::ValuesIn(
+                            std::vector<resample_opt_random_test_params>{
+                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {0, 0, 1, 1, 1}, {0, 0, 1, 1, 1}},
+                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {0, 0, 0, 0, 0}, {0, 0, 1, 1, 1}},
+                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {0, 0, 1, 1, 1}, {0, 0, 0, 0, 0}},
+                            }
+                        ));
+
+INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_linear_onnx_5d_3axes_simple,
+                         resample_opt_random_test,
+                         testing::ValuesIn(
+                            std::vector<resample_opt_random_test_params>{
+                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
+                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {}},
+                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}},
+                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}},
+                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32, {}, {}},
                             }
                         ));

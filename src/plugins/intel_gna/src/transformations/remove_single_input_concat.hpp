@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,10 +27,10 @@ namespace pass {
  */
 class RemoveSingleInputConcat : public ngraph::pass::MatcherPass {
 public:
-  OPENVINO_RTTI("RemoveSingleInputConcat", "0");
-  RemoveSingleInputConcat();
+    OPENVINO_RTTI("RemoveSingleInputConcat", "0");
+    RemoveSingleInputConcat();
 };
 
-} // namespace pass
-} // namespace intel_gna
-} // namespace ov
+}  // namespace pass
+}  // namespace intel_gna
+}  // namespace ov

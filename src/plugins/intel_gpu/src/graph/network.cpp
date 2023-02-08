@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -285,6 +285,7 @@ network::network(program::ptr program, const ExecutionConfig& config, stream::pt
     , _memory_pool(new memory_pool(program->get_engine()))
     , _internal(is_internal)
     , _is_primary_stream(is_primary_stream)
+    , _enable_profiling(config.get_property(ov::enable_profiling))
     , _reset_arguments(true) {
     if (!_internal) {
         net_id = get_unique_net_id();
@@ -432,6 +433,14 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
         prim_inst->set_output_memory(new_mem);
     }
 
+    size_t num_variable_state_primitives;
+    ib >> num_variable_state_primitives;
+    for (size_t i = 0; i < num_variable_state_primitives; i++) {
+        primitive_id p_inst_id;
+        ib >> p_inst_id;
+        _variable_state_primitives.emplace_back(_primitives.at(p_inst_id));
+    }
+
     add_default_output_chains();
 }
 
@@ -511,6 +520,11 @@ void network::save(cldnn::BinaryOutputBuffer& ob) {
     }
 
     ob << reuse_map;
+
+    ob << _variable_state_primitives.size();
+    for (const auto& p_inst : _variable_state_primitives) {
+        ob << p_inst->id();
+    }
 }
 
 network::ptr network::allocate_network(stream::ptr stream, program::ptr program, bool is_internal, bool is_primary_stream) {
@@ -752,14 +766,6 @@ std::string network::get_implementation_info(const primitive_id& id) const {
     return _program->get_implementation_info(id);
 }
 
-memory::ptr network::get_output_memory(const primitive_id& output_id) {
-    return get_primitive(output_id)->output_memory_ptr();
-}
-
-layout network::get_output_layout(const primitive_id& output_id) const {
-    return get_primitive(output_id)->get_output_layout();
-}
-
 layout network::get_node_output_layout(const primitive_id& output_id) const {
     auto res = std::find_if(_outputs.begin(), _outputs.end(), [&](const std::shared_ptr<primitive_inst>& v) {
         return v->id() == output_id;
@@ -767,6 +773,14 @@ layout network::get_node_output_layout(const primitive_id& output_id) const {
     OPENVINO_ASSERT(res != _outputs.end(), "[GPU] Couldn't get output layout for ", output_id, ". Output with such name is not found in the outputs list");
 
     return (*res)->get_node_output_layout();
+}
+
+memory::ptr network::get_output_memory(const primitive_id& output_id) {
+    return get_primitive(output_id)->output_memory_ptr();
+}
+
+layout network::get_output_layout(const primitive_id& output_id) const {
+    return get_primitive(output_id)->get_output_layout();
 }
 
 void network::allocate_primitives() {
@@ -780,14 +794,25 @@ void network::allocate_primitives() {
     std::sort(nodes_to_allocate.begin(),
               nodes_to_allocate.end(),
               [&po](std::shared_ptr<program_node> const& lhs, std::shared_ptr<program_node> const& rhs) {
-                    if (rhs->get_output_layout().is_dynamic() && lhs->get_output_layout().is_dynamic())
+                    auto lhs_layout = lhs->get_output_layout();
+                    auto rhs_layout = rhs->get_output_layout();
+                    if (lhs_layout.is_dynamic() && lhs_layout.has_upper_bound()) {
+                        lhs_layout.set_tensor(lhs_layout.get_tensor());
+                    }
+                    if (rhs_layout.is_dynamic() && rhs_layout.has_upper_bound()) {
+                        rhs_layout.set_tensor(rhs_layout.get_tensor());
+                    }
+
+                    if (rhs_layout.is_dynamic() && !rhs_layout.has_upper_bound() && lhs_layout.is_dynamic() && !lhs_layout.has_upper_bound()) {
                         return po.get_processing_number(lhs.get()) < po.get_processing_number(rhs.get());
-                    if (rhs->get_output_layout().is_dynamic())
+                    }
+
+                    if (rhs_layout.is_dynamic())
                         return true;
-                    if (lhs->get_output_layout().is_dynamic())
+                    if (lhs_layout.is_dynamic())
                         return false;
 
-                    return (lhs->get_output_layout().bytes_count() > rhs->get_output_layout().bytes_count());
+                    return (lhs_layout.bytes_count() > rhs_layout.bytes_count());
               });
 
     for (auto const& node : nodes_to_allocate) {
@@ -973,7 +998,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     }
 
     // Store events only in case of OOO queue or enabled Profiling
-    auto store_events = get_stream().get_queue_type() == QueueTypes::out_of_order || _config.get_property(ov::enable_profiling);
+    auto store_events = get_stream().get_queue_type() == QueueTypes::out_of_order || _enable_profiling;
     if (store_events) {
         if (_program != nullptr) {
         for (auto& inst : _program->get_processing_order()) {
@@ -1122,8 +1147,7 @@ void network::execute_primitive(const std::shared_ptr<primitive_inst>& primitive
     event::ptr ev = primitive->execute(events);
 
     // Collect events only for OOO queue and Profiling mode
-    if (get_stream().get_queue_type() == QueueTypes::out_of_order ||
-        get_config().get_property(ov::enable_profiling)) {
+    if (get_stream().get_queue_type() == QueueTypes::out_of_order || _enable_profiling) {
         auto id = primitive->id();
         _events.insert({id, ev});
     }
@@ -1195,6 +1219,9 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
         return;
 
     if (!get_engine().supports_allocation(allocation_type::usm_device))
+        return;
+
+    if (get_engine().get_device_info().dev_type != device_type::discrete_gpu)
         return;
 
     if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {

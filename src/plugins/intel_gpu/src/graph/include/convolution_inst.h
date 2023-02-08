@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -92,6 +92,9 @@ public:
     bool compensation_term() const { return get_primitive()->compensation.size() > 0; }
     bool activations_zero_points_term() const { return get_primitive()->activations_zero_points.size() > 0; }
 
+    // Currently convolution with constant weight is only supported for dynamic shape
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+
     using parent::get_kernel_impl_params;
     std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const override {
         auto params = parent::get_kernel_impl_params(in_layouts, out_layouts);
@@ -105,6 +108,11 @@ public:
         if (compensation_term())
             params->compensation_layout = optional_layout(compensation().get_output_layout());
         return params;
+    }
+
+    void calculate_hash() override {
+        parent::calculate_hash();
+        seed = hash_combine(seed, transposed);
     }
 
 private:

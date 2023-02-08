@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ public:
 
     void CompareSerialized(std::function<void(const std::shared_ptr<ov::Model>&)> serializer) {
         auto expected = ov::test::readModel(m_model_path, m_binary_path);
-        auto orig = ov::clone_model(*expected);
+        auto orig = expected->clone();
         serializer(expected);
         auto result = ov::test::readModel(m_out_xml_path, m_out_bin_path);
         const auto fc = FunctionsComparator::with_default()

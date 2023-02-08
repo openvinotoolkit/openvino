@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ TEST_F(TransformationTestsF, ConvertMaxPool8ToMaxPool1) {
         auto result = std::make_shared<ngraph::opset1::Result>(maxpool_8->output(0));
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{result}, ngraph::ParameterVector{data});
-        manager.register_pass<ngraph::pass::ConvertMaxPool8ToMaxPool1>();
+        manager.register_pass<ov::pass::ConvertMaxPool8ToMaxPool1>();
     }
 
     {

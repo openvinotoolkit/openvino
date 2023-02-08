@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -261,7 +261,7 @@ protected:
                 auto users = instance.node->get_users();
                 is_output_event = is_any_user_cpu(users) || instance.node->is_output();
             } else {
-                is_output_event = instance.is_output();
+                is_output_event = instance.is_output_event();
             }
 
             kernel_arguments_data args;

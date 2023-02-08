@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <numeric>
 
+#include "bound_evaluate.hpp"
 #include "compare.hpp"
 #include "itt.hpp"
 #include "ngraph/runtime/reference/slice.hpp"
@@ -127,16 +128,16 @@ bool op::v1::VariadicSplit::has_axis_and_splits_bound_set() const {
     return true;
 }
 
-bool op::v1::VariadicSplit::evaluate_lower(const HostTensorVector& output_values) const {
+bool op::v1::VariadicSplit::evaluate_lower(ov::TensorVector& output_values) const {
     OV_OP_SCOPE(v1_Split_evaluate_lower);
 
-    return has_evaluate() && has_axis_and_splits_bound_set() && default_lower_bound_evaluator(this, output_values);
+    return has_axis_and_splits_bound_set() && default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v1::VariadicSplit::evaluate_upper(const HostTensorVector& output_values) const {
+bool op::v1::VariadicSplit::evaluate_upper(ov::TensorVector& output_values) const {
     OV_OP_SCOPE(v1_Split_evaluate_upper);
 
-    return has_evaluate() && has_axis_and_splits_bound_set() && default_upper_bound_evaluator(this, output_values);
+    return has_axis_and_splits_bound_set() && default_upper_bound_evaluator(this, output_values);
 }
 
 bool op::v1::VariadicSplit::evaluate_label(TensorLabelVector& output_labels) const {

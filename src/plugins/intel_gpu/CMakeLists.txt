@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -44,8 +44,6 @@ add_subdirectory(src/graph)
 
 file(GLOB_RECURSE PLUGIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_gpu/plugin/*.hpp)
 
-addVersionDefines(src/plugin/plugin.cpp CI_BUILD_NUMBER)
-
 ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "GPU"
               SOURCES ${PLUGIN_SOURCES}
@@ -62,7 +60,7 @@ target_include_directories(${TARGET_NAME} PRIVATE
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # Workaround to avoid warnings during LTO build
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+if(CMAKE_COMPILER_IS_GNUCXX)
   set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS_RELEASE "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized"
                                                   LINK_FLAGS_RELWITHDEBINFO "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized")
 endif()

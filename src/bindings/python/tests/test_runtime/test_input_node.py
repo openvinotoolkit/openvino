@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -11,8 +11,7 @@ import openvino.runtime.opset8 as ops
 
 from openvino.runtime import Core, OVAny
 
-is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
-test_net_xml, test_net_bin = model_path(is_myriad)
+test_net_xml, test_net_bin = model_path()
 
 
 def test_input_type(device):

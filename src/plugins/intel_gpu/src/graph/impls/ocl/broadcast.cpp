@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,6 +46,104 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
             } else {
                 params.input_order.push_back(input_index);
                 ++input_index;
+            }
+        }
+
+        // Extend input dimensions with ones
+        auto i_layout = impl_param.input_layouts[0];
+        auto o_layout = impl_param.output_layouts[0];
+        if (i_layout.is_static() && o_layout.is_static()) {
+            auto data_shape = i_layout.get_shape();
+            auto output_shape = o_layout.get_shape();
+
+            if (primitive->axes_mapping.empty()) {
+                auto broadcastable = [&](layout a, layout b) {
+                    auto dims_a = a.get_dims();
+                    auto dims_b = b.get_dims();
+                    size_t min_size = (dims_a.size() < dims_b.size()) ? dims_a.size(): dims_b.size();
+
+                    for (size_t i = 0; i < min_size; i++) {
+                        if (!(dims_a[i] == 1 || dims_b[i] == 1 || dims_a[i] == dims_b[i])) {
+                            return false;
+                        }
+                    }
+                    return true;
+                };
+
+                auto input_rank = data_shape.size();
+                auto output_rank = output_shape.size();
+
+                if (!broadcastable(i_layout, o_layout)) {
+                    data_shape.insert(data_shape.begin(), output_rank - input_rank, 1ul);
+                }
+            } else {
+                // If axis_mapping is specified, then ones are inserted according to it.
+                ov::Shape tmp_shape;
+                int prev_axis = -1;
+                int next_axis = -1;
+                size_t currentRank = 0;
+                int axe_idx = 0;
+                for (auto& axis : primitive->axes_mapping) {
+                    prev_axis = next_axis;
+                    next_axis = static_cast<int>(axis);
+
+                    int ones_count = std::max(next_axis - prev_axis - 1, 0);
+                    tmp_shape.insert(tmp_shape.begin() + currentRank, ones_count, 1ul);
+                    tmp_shape.push_back(data_shape[axe_idx]); // Consider the Broadcast kernel 'broadcast' input to output shape
+
+                    currentRank += ones_count + 1;
+                    axe_idx += 1;
+                }
+
+                if (o_layout.get_rank() > tmp_shape.size()) {
+                    tmp_shape.insert(tmp_shape.end(), o_layout.get_rank() - tmp_shape.size(), 1ul);
+                }
+                data_shape = tmp_shape;
+            }
+
+            layout new_layout = i_layout;
+            new_layout.format = format::adjust_to_rank(i_layout.format, data_shape.size());
+            new_layout.set_partial_shape(data_shape);
+            params.inputs[0] = convert_data_tensor(new_layout);
+        } else {
+            // dynamic input
+            if (primitive->axes_mapping.empty()) {
+                ov::PartialShape i_shape = i_layout.get_partial_shape();
+                ov::PartialShape o_shape = o_layout.get_partial_shape();
+
+                auto i_rank = i_shape.size();
+                auto o_rank = o_shape.size();
+                i_shape.insert(i_shape.begin(), o_rank - i_rank, 1ul);
+
+                layout new_layout = i_layout;
+                new_layout.format = format::adjust_to_rank(i_layout.format, i_shape.size());
+                new_layout.set_partial_shape(i_shape);
+                params.inputs[0] = convert_data_tensor(new_layout);
+            } else {
+                // insert 1 to extend dimensions by axes_mapping
+                ov::Shape tmp_shape;
+                size_t idx = 0;
+                for (auto& axis : primitive->axes_mapping) {
+                    if (idx == axis) {
+                        tmp_shape.insert(tmp_shape.begin() + idx, 1, -1);
+                        idx += 1;
+                    } else {
+                        tmp_shape.insert(tmp_shape.begin() + idx, axis - idx, 1);
+                        idx = axis;
+                        tmp_shape.insert(tmp_shape.begin() + idx, 1, -1);
+                        idx += 1;
+                    }
+                }
+
+                // insert 1 to match with output shape
+                if (o_layout.get_rank() > tmp_shape.size()) {
+                    tmp_shape.insert(tmp_shape.end(), o_layout.get_rank() - tmp_shape.size(), 1ul);
+                }
+
+                layout new_layout = i_layout;
+                new_layout.format = format::adjust_to_rank(i_layout.format, tmp_shape.size());
+                new_layout.set_partial_shape(tmp_shape);
+                params.inputs[0] = convert_data_tensor(new_layout);
             }
         }
 

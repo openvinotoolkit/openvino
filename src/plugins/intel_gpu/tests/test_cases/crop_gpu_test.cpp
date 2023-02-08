@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "test_utils.h"
@@ -1496,4 +1496,50 @@ TEST(crop_gpu, static_split_batch) {
 
     for (size_t i = 0; i < out3.size(); i++)
         ASSERT_EQ(output_ptr_3[i], out3[i]);
+}
+
+TEST(crop_gpu, optimized_out_crop) {
+    auto& engine = get_test_engine();
+
+    auto input_actual_layout = layout{ ov::PartialShape{5, 6, 1, 1}, data_types::f32, format::bfyx };
+    auto input_mem = engine.allocate_memory(input_actual_layout);
+    std::vector<int32_t> input_vec = {
+        0, 1, 2, 3, 4, 5,
+        0, 1, 2, 3, 4, 5,
+        0, 1, 2, 3, 4, 5,
+        0, 1, 2, 3, 4, 5,
+        0, 1, 2, 3, 4, 5,
+    };
+    set_values(input_mem, input_vec);
+
+    std::vector<int32_t> out_vec = {
+        0, 1, 2, 3,
+        0, 1, 2, 3,
+        0, 1, 2, 3,
+        0, 1, 2, 3,
+        0, 1, 2, 3,
+    };
+
+    topology topology;
+    topology.add(input_layout("input", input_actual_layout));
+    topology.add(crop("crop1", { input_info("input") }, tensor(5, 5, 1, 1), { tensor(0, 0, 0, 0) }, padding({0, 0, 0, 0}, {0, 0, 0, 0})));
+    topology.add(crop("crop2", { input_info("crop1") }, tensor(5, 4, 1, 1), { tensor(0, 0, 0, 0) }, padding({0, 0, 0, 0}, {0, 0, 0, 0})));
+    topology.add(reorder("reorder_out", input_info("crop2"), layout{ ov::PartialShape{5, 4, 1, 1}, data_types::f32, format::bfyx }));
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("reorder_out").get_memory();
+    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < out_vec.size(); i++)
+        ASSERT_EQ(output_ptr[i], out_vec[i]);
+
+    auto all_primitives = network.get_all_primitives();
+    ASSERT_TRUE(all_primitives["crop1"] == "_optimized_");
+    ASSERT_TRUE(all_primitives["crop2"] == "_optimized_");
 }

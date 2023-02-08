@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -80,6 +80,8 @@ public:
         return get_dependency(offset);
     }
     bool use_multiple_outputs() const { return get_primitive()->output_size() == 3; }
+
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {2}; }
 };
 
 using non_max_suppression_node = typed_program_node<non_max_suppression>;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,5 +47,11 @@ struct mutable_data : public primitive_base<mutable_data> {
 
     /// @brief Specifies function which will be used to fill weights.
     filler_type fill_type;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, id);
+        return seed;
+    }
 };
 }  // namespace cldnn

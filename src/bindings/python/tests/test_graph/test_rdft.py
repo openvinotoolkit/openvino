@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import openvino.runtime.opset9 as ov
+import openvino.runtime.opset10 as ov
 from openvino.runtime import Shape, Type
 import numpy as np
 import pytest

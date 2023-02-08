@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -174,9 +174,10 @@ def test_fused_names_cleanup():
     (False, False),
 ],
 )
-def test_serialize_pass_v2(request, is_path_xml, is_path_bin):
+def test_serialize_pass_v2(request, tmp_path, is_path_xml, is_path_bin):
     core = Core()
     xml_path, bin_path = create_filename_for_test(request.node.name,
+                                                  tmp_path,
                                                   is_path_xml,
                                                   is_path_bin)
     shape = [100, 100, 2]
@@ -219,9 +220,10 @@ def test_compress_model_transformation():
     (False, False),
 ],
 )
-def test_version_default(request, is_path_xml, is_path_bin):
+def test_version_default(request, tmp_path, is_path_xml, is_path_bin):
     core = Core()
     xml_path, bin_path = create_filename_for_test(request.node.name,
+                                                  tmp_path,
                                                   is_path_xml,
                                                   is_path_bin)
     shape = [100, 100, 2]
@@ -248,8 +250,9 @@ def test_version_default(request, is_path_xml, is_path_bin):
     (False, False),
 ],
 )
-def test_serialize_default_bin(request, is_path_xml, is_path_bin):
+def test_serialize_default_bin(request, tmp_path, is_path_xml, is_path_bin):
     xml_path, bin_path = create_filename_for_test(request.node.name,
+                                                  tmp_path,
                                                   is_path_xml,
                                                   is_path_bin)
     model = get_relu_model()
@@ -260,9 +263,9 @@ def test_serialize_default_bin(request, is_path_xml, is_path_bin):
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_version_ir_v10(request):
+def test_version_ir_v10(request, tmp_path):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name)
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     shape = [100, 100, 2]
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
@@ -280,9 +283,9 @@ def test_version_ir_v10(request):
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_version_ir_v11(request):
+def test_version_ir_v11(request, tmp_path):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name)
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     shape = [100, 100, 2]
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")

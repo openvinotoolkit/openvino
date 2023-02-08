@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,51 +75,45 @@ bool Program::IsDynBatchModel(const std::shared_ptr<ov::Model>& model,
             return false;
         }
         ov::PartialShape pshape = param->get_output_partial_shape(0);
-        int dynCount = 0;
-        int64_t batch_idx = -1;
-        for (size_t i = 0; i < pshape.size(); i++) {
+        bool only_batch_dynamic = pshape.size() && pshape[0].is_dynamic();
+        for (size_t i = 1; i < pshape.size(); i++) {
             if (pshape[i].is_dynamic()) {
-                dynCount++;
-                if (batch_idx < 0) {
-                    batch_idx = i;
-                }
+                // only support 0th dimension for legacy dynamic batch
+                return false;
             }
         }
-        switch (dynCount) {
-            case 1:
-                // exactly one dynamic dim
-                {
-                    int64_t max_b = pshape[batch_idx].get_max_length();
-                    if (max_b > 1) {
-                        batch_dim[pname].first = batch_idx;
-                        batch_dim[pname].second = max_b;
-                        pshape[batch_idx] = 1;
-                    }
-                }
-            case 0:
-                // no dynamic dims - possible legacy case
-                shapes[pname] = pshape;
-                break;
-            default:
-                break;
+        if (only_batch_dynamic) {
+            int64_t max_b = pshape[0].get_max_length();
+            if (max_b > 1) {
+                batch_dim[pname].first = 0;
+                batch_dim[pname].second = max_b;
+                pshape[0] = 1;
+            } else {
+                // unbounded dynamic shape should be handled with new dynamic shape path
+                return false;
+            }
         }
+        shapes[pname] = pshape;
     }
     if (batch_dim.empty())
         return false;
+
     bool dyn_shape_batch_found = false;
     // detect 1st dyn dim, mark it and continue
     auto bitr = batch_dim.begin();
-    dyn_shape_batch_found = bitr->second.first >= 0;
+    dyn_shape_batch_found = (bitr->second.first == 0);
     auto batch_val_1st = bitr->second.second;
     bitr++;
     for (; bitr != batch_dim.end(); bitr++) {
-        if (bitr->second.first >= 0) {
+        if (bitr->second.first == 0) {
             if (bitr->second.second != batch_val_1st) {
                 dyn_shape_batch_found = false;
                 break;
             } else {
                 dyn_shape_batch_found = true;
             }
+        } else {
+            return false;
         }
     }
     return dyn_shape_batch_found;
@@ -206,7 +200,7 @@ Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, co
 
             // clone the source model, find the batch dim
             // and reshape the model to next batch size
-            auto new_func = ov::clone_model(*func);
+            auto new_func = func->clone();
             std::map<ov::Output<ov::Node>, ngraph::PartialShape> new_shapes;
             for (const auto& param : new_func->get_parameters()) {
                 ov::PartialShape pshape = param->get_output_partial_shape(0);
@@ -255,7 +249,7 @@ Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, co
             // recompute maximal dynamic batch inputs/outputs for infer request
             // and store them into internal maps
             // same operations as above, but for maximum batch
-            auto new_func = ov::clone_model(*func);
+            auto new_func = func->clone();
             std::map<ov::Output<ov::Node>, ngraph::PartialShape> new_shapes;
             for (const auto& param : new_func->get_parameters()) {
                 ov::PartialShape pshape = param->get_output_partial_shape(0);

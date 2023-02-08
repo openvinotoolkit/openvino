@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,6 +35,12 @@ struct generic_layer : public primitive_base<generic_layer> {
     /// @brief Requested memory layout.
     layout output_layout;
     const kernel_selector::generic_kernel_params generic_params;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, id);
+        return seed;
+    }
 
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override { return {}; }

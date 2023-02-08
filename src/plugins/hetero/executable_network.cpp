@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -482,7 +482,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
             if (!InferenceEngine::details::contains(externalOutputsData, output.first)) {
                 for (auto&& result : subgraph._results) {
                     auto source_output = result->input_value(0);
-                    auto output_name = ngraph::op::util::create_ie_output_name(source_output);
+                    auto output_name = ov::op::util::create_ie_output_name(source_output);
                     if (output_name == output.first) {
                         output.second->setPrecision(
                             InferenceEngine::details::convertPrecision(toLegacyType(source_output.get_element_type())));
@@ -675,7 +675,7 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
     const auto serializeNode = [&](const std::shared_ptr<const ov::Node>& node, pugi::xml_node& xml_node) {
         const bool is_result = ov::is_type<ov::op::v0::Result>(node);
         const std::string name =
-            is_result ? ngraph::op::util::create_ie_output_name(node->input_value(0)) : node->get_friendly_name();
+            is_result ? ov::op::util::create_ie_output_name(node->input_value(0)) : node->get_friendly_name();
         xml_node.append_attribute("operation_name").set_value(name.c_str());
         xml_node.append_attribute("element_type").set_value(node->get_output_element_type(0).get_type_name().c_str());
 
@@ -833,57 +833,11 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetConfig(const std::string&
         IE_ASSERT(it != _config.end());
         result = it->second == YES ? true : false;
     } else {
-        // find config key among plugin config keys
-        for (auto&& desc : _networks) {
-            auto execNetwork = desc._network;
-            auto param = execNetwork->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-            for (auto&& configKey : param.as<std::vector<std::string>>()) {
-                if (configKey == name) {
-                    return execNetwork->GetConfig(configKey);
-                }
-            }
-        }
-
         IE_THROW() << "Unsupported ExecutableNetwork config key: " << name;
     }
 
     return result;
 }
-
-using Metrics = std::map<std::string, Parameter>;
-
-namespace {
-
-void collectPluginMetrics(std::vector<std::string>& baseMetrics, const std::vector<::Metrics> pluginMetrics) {
-    // check whether the metric has unique name and value among all the plugins
-    auto isMetricValueUnique = [&](const std::string& key, const Parameter& value) -> bool {
-        if (std::find(baseMetrics.begin(), baseMetrics.end(), key) != baseMetrics.end())
-            return false;
-
-        for (auto&& metrics : pluginMetrics) {
-            for (auto&& metric : metrics)
-                if (key == metric.first && value != metric.second)
-                    return false;
-        }
-
-        return true;
-    };
-
-    // collect only unique metrics
-    std::vector<std::string> uniqueMetrics;
-    for (auto&& metrics : pluginMetrics) {
-        for (auto&& metric : metrics) {
-            if (isMetricValueUnique(metric.first, metric.second)) {
-                uniqueMetrics.push_back(metric.first);
-            }
-        }
-    }
-
-    // add plugin specific metrics which don't conflict with base ones
-    std::copy(uniqueMetrics.begin(), uniqueMetrics.end(), std::back_inserter(baseMetrics));
-}
-
-}  // namespace
 
 InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string& name) const {
     if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_METRICS) == name) {
@@ -892,44 +846,12 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string&
                                                   METRIC_KEY(SUPPORTED_CONFIG_KEYS),
                                                   ov::optimal_number_of_infer_requests.name(),
                                                   ov::execution_devices.name()};
-
-        {
-            std::vector<::Metrics> pluginMetrics;
-            for (auto&& desc : _networks) {
-                auto execNetwork = desc._network;
-                auto param = execNetwork->GetMetric(METRIC_KEY(SUPPORTED_METRICS));
-                ::Metrics metrics;
-                for (auto&& metricName : param.as<std::vector<std::string>>()) {
-                    metrics[metricName] = execNetwork->GetMetric(metricName);
-                }
-                pluginMetrics.push_back(std::move(metrics));
-            }
-
-            collectPluginMetrics(heteroMetrics, pluginMetrics);
-        }
-
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, heteroMetrics);
     } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         std::vector<std::string> heteroConfigKeys = {"TARGET_FALLBACK",
                                                      ov::device::priorities.name(),
                                                      HETERO_CONFIG_KEY(DUMP_GRAPH_DOT),
                                                      CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)};
-
-        {
-            std::vector<::Metrics> pluginConfigKeys;
-            for (auto&& desc : _networks) {
-                auto execNetwork = desc._network;
-                auto param = execNetwork->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-                ::Metrics configKeys;
-                for (auto&& metricName : param.as<std::vector<std::string>>()) {
-                    configKeys[metricName] = execNetwork->GetConfig(metricName);
-                }
-                pluginConfigKeys.push_back(std::move(configKeys));
-            }
-
-            collectPluginMetrics(heteroConfigKeys, pluginConfigKeys);
-        }
-
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, heteroConfigKeys);
     } else if (ov::model_name == name) {
         return decltype(ov::model_name)::value_type{_name};
@@ -951,17 +873,6 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string&
         }
         return decltype(ov::execution_devices)::value_type{exeDevices};
     } else {
-        // find metric key among plugin metrics
-        for (auto&& desc : _networks) {
-            auto execNetwork = desc._network;
-            auto param = execNetwork->GetMetric(METRIC_KEY(SUPPORTED_METRICS));
-            for (auto&& metricKey : param.as<std::vector<std::string>>()) {
-                if (metricKey == name) {
-                    return execNetwork->GetMetric(metricKey);
-                }
-            }
-        }
-
         IE_THROW() << "Unsupported ExecutableNetwork metric key: " << name;
     }
 }

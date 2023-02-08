@@ -12,6 +12,7 @@ trigger:
     - '*/layer_tests_summary/*'
     - '*/conformance/*'
     - 'tools/*'
+    - 'tests/layer_tests/*'
 
 pr:
   drafts: 'false'
@@ -28,6 +29,7 @@ pr:
     - '*/layer_tests_summary/*'
     - '*/conformance/*'
     - 'tools/*'
+    - 'tests/layer_tests/*'
 
 resources:
   repositories:
@@ -36,6 +38,9 @@ resources:
     endpoint: openvinotoolkit
     name: openvinotoolkit/openvino_contrib
     ref: master
+
+variables:
+  - group: github
 
 jobs:
 - job: linux_arm64
@@ -75,15 +80,28 @@ jobs:
     OPENVINO_CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux_arm64
     OPENCV_CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux_arm64_opencv
     ONETBB_CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux_arm64_onetbb
+    LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib:$LD_LIBRARY_PATH
+    OV_PYTHON_VERSION: 3.10.9 # Newest version of Python 3.10. Full version of Python its required for LD_LIBRARY_PATH and required for successful Task setupPython
 
   steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.10'
+      addToPath: true
+      disableDownloadFromRegistry: false
+      architecture: 'x64'
+      githubToken: $(auth_token)
+    displayName: Setup Python 3.10
+    name: setupPython
+  - bash: |
+      #!/bin/bash
+      python -V
+      
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
       uname -a
-      echo ls /usr/bin/python3.10
-      rm -rf /usr/bin/python3
-      sudo ln -s /usr/bin/python3.10 /usr/bin/python3      echo Python3 info ; which python3 ; python3 --version
+      echo Python3 info ; which python3 ; python3 --version
       echo Python info ; which python ; python --version
       echo Java info ; which java ; java -version
       echo gcc info ; which gcc ; gcc --version
@@ -129,32 +147,32 @@ jobs:
   - script: |
       set -e
       sudo -E $(OPENVINO_REPO_DIR)/install_build_dependencies.sh
-      export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
-      export CCACHE_BASEDIR=$(Pipeline.Workspace)
-      export CCACHE_MAXSIZE=50G
-      export USE_CCACHE=1
-      export OPENCV_CCACHE_DIR=$(OPENCV_CCACHE_DIR)
-      export ONETBB_CCACHE_DIR=$(ONETBB_CCACHE_DIR)
-      export PYTHON_ARM_VERSION=$(PYTHON_ARM_VERSION)
-      export NUM_PROC=$(NUM_PROC)
-      export BUILD_PYTHON=$(BUILD_PYTHON)
-      export WORK_DIR=$(WORK_DIR)
-      export INSTALL_PYTHON=$(INSTALL_PYTHON)
-      export BUILD_TYPE=$(BUILD_TYPE)
-      export OPENVINO_REPO_DIR=$(OPENVINO_REPO_DIR)
-      export BUILD_ONETBB=$(BUILD_ONETBB)
-      export INSTALL_ONETBB=$(INSTALL_ONETBB)
-      export INSTALL_OPENCV=$(INSTALL_OPENCV)
-      export PYTHON_EXEC=$(PYTHON_EXEC)
-      export ONETBB_REPO_DIR=$(ONETBB_REPO_DIR)
-      export OPENCV_REPO_DIR=$(OPENCV_REPO_DIR)
-      export BUILD_OPENCV=$(BUILD_OPENCV)
-      export INSTALL_OPENVINO=$(INSTALL_OPENVINO)
       $(OPENVINO_CONTRIB_REPO_DIR)/modules/arm_plugin/scripts/install_build_dependencies.sh
       python3 -m pip install --upgrade pip
       python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/requirements.txt
       python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
-    workingDirectory: $(BUILD_OPENVINO)
+    env:
+      CCACHE_TEMPDIR: $(TMP_DIR)/ccache
+      CCACHE_BASEDIR: $(Pipeline.Workspace)
+      CCACHE_MAXSIZE: 50G
+      USE_CCACHE: 1
+      OPENCV_CCACHE_DIR: $(OPENCV_CCACHE_DIR)
+      ONETBB_CCACHE_DIR: $(ONETBB_CCACHE_DIR)
+      PYTHON_ARM_VERSION: $(PYTHON_ARM_VERSION)
+      NUM_PROC: $(NUM_PROC)
+      BUILD_PYTHON: $(BUILD_PYTHON)
+      WORK_DIR: $(WORK_DIR)
+      INSTALL_PYTHON: $(INSTALL_PYTHON)
+      BUILD_TYPE: $(BUILD_TYPE)
+      OPENVINO_REPO_DIR: $(OPENVINO_REPO_DIR)
+      BUILD_ONETBB: $(BUILD_ONETBB)
+      INSTALL_ONETBB: $(INSTALL_ONETBB)
+      INSTALL_OPENCV: $(INSTALL_OPENCV)
+      PYTHON_EXEC: $(PYTHON_EXEC)
+      ONETBB_REPO_DIR: $(ONETBB_REPO_DIR)
+      OPENCV_REPO_DIR: $(OPENCV_REPO_DIR)
+      BUILD_OPENCV: $(BUILD_OPENCV)
+      INSTALL_OPENVINO: $(INSTALL_OPENVINO)
     displayName: 'Install dependencies'
 
   - script: |
@@ -165,7 +183,6 @@ jobs:
       source $(CROSSENV_DIR)/bin/activate
       build-pip3 install -U pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
       cross-pip3 install -U pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
-    workingDirectory: $(BUILD_OPENVINO)
     displayName: 'Create crossenv'
 
   - task: CMake@1
@@ -180,7 +197,6 @@ jobs:
         -DENABLE_DATA=OFF
         -DCMAKE_TOOLCHAIN_FILE=$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
-        -DENABLE_INTEL_MYRIAD=OFF
         -DTHREADING=TBB
         -DTBB_DIR=$(INSTALL_ONETBB)/lib/cmake/TBB
         -DCMAKE_VERBOSE_MAKEFILE=ON
@@ -191,22 +207,19 @@ jobs:
         -DCMAKE_C_LINKER_LAUNCHER=ccache
         -DARM_COMPUTE_SCONS_JOBS=$(NUM_PROC)
         -DCMAKE_INSTALL_PREFIX=$(INSTALL_OPENVINO)
-        $(OPENVINO_REPO_DIR)
-      workingDirectory: $(BUILD_OPENVINO)
+        -S $(OPENVINO_REPO_DIR)
+        -B $(BUILD_OPENVINO)
     displayName: 'CMake OpenVINO ARM plugin'
 
-  - script: |
-      export CCACHE_DIR=$(OPENVINO_CCACHE_DIR)
-      export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
-      export CCACHE_BASEDIR=$(Pipeline.Workspace)
-      export CCACHE_MAXSIZE=50G
-      export USE_CCACHE=1
-      ninja
-    workingDirectory: $(BUILD_OPENVINO)
+  - script: cmake --build $(BUILD_OPENVINO) --parallel --config $(BUILD_TYPE)
+    env:
+      CCACHE_DIR: $(OPENVINO_CCACHE_DIR)
+      CCACHE_TEMPDIR: $(TMP_DIR)/ccache
+      CCACHE_BASEDIR: $(Pipeline.Workspace)
+      CCACHE_MAXSIZE: 50G
     displayName: 'Build OpenVINO ARM plugin'
 
-  - script: ninja install
-    workingDirectory: $(BUILD_OPENVINO)
+  - script: cmake --build $(BUILD_OPENVINO) --parallel --config $(BUILD_TYPE) --target install
     displayName: 'Install OpenVINO ARM plugin'
 
   - script: |
@@ -223,18 +236,15 @@ jobs:
       deactivate
     displayName: 'CMake OpenVINO python binding'
 
-  - script: |
-      export CCACHE_DIR=$(OPENVINO_CCACHE_DIR)
-      export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
-      export CCACHE_BASEDIR=$(Pipeline.Workspace)
-      export CCACHE_MAXSIZE=50G
-      export USE_CCACHE=1
-      ninja
-    workingDirectory: $(BUILD_OPENVINO_PYTHON)
+  - script: cmake --build $(BUILD_OPENVINO_PYTHON) --parallel --config $(BUILD_TYPE)
+    env:
+      CCACHE_DIR: $(OPENVINO_CCACHE_DIR)
+      CCACHE_TEMPDIR: $(TMP_DIR)/ccache
+      CCACHE_BASEDIR: $(Pipeline.Workspace)
+      CCACHE_MAXSIZE: 50G
     displayName: 'Build OpenVINO python binding'
 
-  - script: ninja install
-    workingDirectory: $(BUILD_OPENVINO_PYTHON)
+  - script: cmake --build $(BUILD_OPENVINO_PYTHON) --parallel --target install
     displayName: 'Install OpenVINO python binding'
 
   - task: PublishBuildArtifacts@1

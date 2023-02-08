@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,6 +47,8 @@ public:
 
     bool NeedsSave() const { return needsSave; }
 
+    static TuningCache* get();
+
 private:
     Entry LoadKernel_v1(const Params& params, uint32_t computeUnitsCount);
     Entry LoadKernel_v2(const Params& params, uint32_t computeUnitsCount);
@@ -65,21 +67,9 @@ private:
 class AutoTuner {
 public:
     AutoTuner() = default;
-    std::tuple<std::string, int> LoadKernelOnline(const TuningMode tuningMode,
-                                                  const std::string& cacheFilePath,
-                                                  const Params& params);
-    void StoreKernel(const std::string& cacheFilePath,
-                     const Params& params,
-                     std::string implementationName,
-                     const int tuneIndex);
-    void RemoveKernel(const std::string& cacheFilePath,
-                      const Params& params);
-    std::tuple<std::string, int> LoadKernelOffline(TuningCache* cache,
-                                                   const Params& params);
+    std::tuple<std::string, int> LoadKernelOffline(const Params& params);
 
 private:
-    std::string lastCachePath;
-    std::shared_ptr<TuningCache> onlineCache;
     std::mutex mutex;  // Mutex to synchronize cache updates
 
     /*

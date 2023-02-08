@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,7 +63,7 @@ public:
                 std::vector<ov::Any> toMerge = parentRestrictions;
                 // TODO: LPT: handle pointer on itself in IntervalsAlignmentAttribute::merge and remove erase, task #59498
                 toMerge.erase(toMerge.begin());
-                const_cast<AttributeType&>(resultAttribute).merge(toMerge);
+                const_cast<AttributeType&>(resultAttribute).merge_attributes(toMerge);
 
                 for (size_t index = 1ul; index < parentRestrictions.size(); index++) {
                     auto& attributes = parentRestrictions[index].template as<AttributeType>().attribute->sharedValue->getAttributes();

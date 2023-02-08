@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -372,7 +372,7 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationMVNTransformation) {
     auto convert = std::make_shared<opset1::Convert>(input, element::f32);
     auto mul = std::make_shared<opset1::Multiply>(convert, opset1::Constant::create(element::f32, {}, {2.f}));
 
-    auto MVN = std::make_shared<op::TypeRelaxed<op::v0::MVN>>(mul);
+    auto MVN = std::make_shared<ov::op::TypeRelaxed<op::v0::MVN>>(mul);
     auto shapeOf = std::make_shared<opset1::ShapeOf>(MVN);
 
     auto result1 = std::make_shared<opset1::Result>(MVN);

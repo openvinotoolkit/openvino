@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ TEST_F(TransformationTestsF, ConvertMVN1ToMVN6) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mvn}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6>();
+        manager.register_pass<ov::pass::ConvertMVN1ToMVN6>();
     }
 
     {
@@ -45,7 +45,7 @@ TEST_F(TransformationTestsF, ConvertMVN1ToMVN6_across_channels) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mvn}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6>();
+        manager.register_pass<ov::pass::ConvertMVN1ToMVN6>();
     }
 
     {
@@ -65,7 +65,7 @@ TEST_F(TransformationTestsF, ConvertMVN1ToMVN6_5D) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mvn}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6>();
+        manager.register_pass<ov::pass::ConvertMVN1ToMVN6>();
     }
 
     {
@@ -88,7 +88,7 @@ class ConvertMVN1ToMVN6_OutOfFloat32Eps : public testing::WithParamInterface<Con
                                           public TransformationTestsF {};
 
 TEST_P(ConvertMVN1ToMVN6_OutOfFloat32Eps, Limits) {
-    manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6>();
+    manager.register_pass<ov::pass::ConvertMVN1ToMVN6>();
 
     const auto& params = GetParam();
     {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,23 +50,6 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
         if (axis_mapping.empty()) {
             // If axis_mapping is not specified, then we prepend shape with neccesary count of 1-s
             inputShape.insert(inputShape.begin(), output_rank - input_rank, 1ul);
-        } else {
-            // If axis_mapping is specified, then ones are inserted according to it.
-            ngraph::Shape tmp_shape;
-            int prev_axis = -1;
-            int next_axis = -1;
-            size_t currentRank = 0;
-            for (auto& axis : axis_mapping) {
-                prev_axis = next_axis;
-                next_axis = static_cast<int>(axis);
-
-                int ones_count = std::max(next_axis - prev_axis - 1, 0);
-                tmp_shape.insert(tmp_shape.begin() + currentRank, ones_count, 1ul);
-                tmp_shape.push_back(outputShape[axis]);
-
-                currentRank += ones_count + 1;
-            }
-            inputShape = tmp_shape;
         }
 
         auto targetShape = tensor_from_dims(inputShape);

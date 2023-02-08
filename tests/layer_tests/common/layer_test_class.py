@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import itertools
@@ -34,7 +34,6 @@ class CommonLayerTest:
                                                        Example: "transform_1,transform_2"
         """
         model_path = self.produce_model_path(framework_model=framework_model, save_path=temp_dir)
-
         self.use_new_frontend = use_new_frontend
         self.use_old_api = use_old_api
         # TODO Pass environment variables via subprocess environment
@@ -77,9 +76,10 @@ class CommonLayerTest:
         #     assert flag, '\n'.join(resp)
 
         config = None
-        # GPU default execution precision is FP16, so if we want to check FP32 inference we need to set explicit precision hint
+        # GPU default execution precision is FP16, so if we want to check FP32 inference
+        # we need to set explicit precision hint
         if ie_device == 'GPU' and precision == 'FP32':
-            config = {'INFERENCE_PRECISION_HINT' : 'f32'}
+            config = {'INFERENCE_PRECISION_HINT': 'f32'}
 
         if self.use_old_api:
             ie_engine = IEInfer(model=path_to_xml,

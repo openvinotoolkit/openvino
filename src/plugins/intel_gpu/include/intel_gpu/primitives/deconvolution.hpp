@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -375,6 +375,17 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @brief List of primitive ids containing bias data.
     const primitive_id_arr bias;
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_range(seed, pad.begin(), pad.end());
+        seed = hash_range(seed, stride.begin(), stride.end());
+        seed = hash_combine(seed, groups);
+        seed = hash_combine(seed, grouped_weights_shape);
+        seed = hash_combine(seed, weights.size());
+        seed = hash_combine(seed, bias.size());
+        seed = hash_combine(seed, output_shape_id.empty());
+        return seed;
+    }
 
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {

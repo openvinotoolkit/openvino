@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,7 @@ bool MultiClassNms::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
         if (!one_of(op->get_type_info(),
                 ov::op::v9::MulticlassNms::get_type_info_static(),
                 ov::op::v8::MulticlassNms::get_type_info_static(),
-                ngraph::op::internal::MulticlassNmsIEInternal::get_type_info_static())) {
+                ov::op::internal::MulticlassNmsIEInternal::get_type_info_static())) {
             errorMessage = "Node is not an instance of MulticlassNms from opset v8 or v9.";
             return false;
         }

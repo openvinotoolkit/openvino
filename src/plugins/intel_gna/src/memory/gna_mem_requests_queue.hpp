@@ -1,20 +1,21 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <list>
-#include <vector>
-#include <algorithm>
-#include <functional>
-#include <memory>
-
 #include <ie_api.h>
 #include <legacy/ie_layers.h>
-#include "log/log.hpp"
-#include "gna_mem_requests.hpp"
+
+#include <algorithm>
+#include <functional>
+#include <list>
+#include <memory>
+#include <vector>
+
 #include "gna_lib_ver_selector.hpp"
+#include "gna_mem_requests.hpp"
+#include "log/log.hpp"
 #include "memory_solver.hpp"
 
 using namespace ov::intel_gna;
@@ -24,8 +25,8 @@ namespace intel_gna {
 namespace memory {
 
 /**
-* @brief get layer id from legacy CNNLayer
-*/
+ * @brief get layer id from legacy CNNLayer
+ */
 inline uint16_t getCNNLayerId(InferenceEngine::CNNLayerPtr layer) {
     IE_SUPPRESS_DEPRECATED_START
     return layer->userValue.v_int;
@@ -37,8 +38,7 @@ inline uint16_t getCNNLayerId(InferenceEngine::CNNLayerPtr layer) {
  */
 class GNAMemRequestsQueue {
 public:
-    explicit GNAMemRequestsQueue(rRegion region) : _region_type(region) {
-    }
+    explicit GNAMemRequestsQueue(rRegion region) : _region_type(region) {}
     virtual ~GNAMemRequestsQueue() {}
 
     rRegion _region_type;
@@ -55,9 +55,9 @@ public:
      * @param alignment
      */
     void push_initializer(InferenceEngine::CNNLayerPtr layer,
-                          void *ptr_out,
+                          void* ptr_out,
                           size_t num_bytes,
-                          std::function<void(void * data, size_t size)> initializer,
+                          std::function<void(void* data, size_t size)> initializer,
                           size_t alignment = 1) {
         futureHeap().push_back({regionType(), ptr_out, num_bytes, initializer, REQUEST_INITIALIZER, alignment});
         if (layer != nullptr) {
@@ -66,8 +66,8 @@ public:
     }
 
     void push_ptr(InferenceEngine::CNNLayerPtr layer,
-                  void *ptr_out,
-                  const void *ptr_in,
+                  void* ptr_out,
+                  const void* ptr_in,
                   size_t num_bytes,
                   size_t alignment = 1) {
         futureHeap().push_back({regionType(), REQUEST_STORE, ptr_out, ptr_in, 1, num_bytes, alignment});
@@ -83,13 +83,14 @@ public:
      * @param num_bytes
      */
     void push_local_ptr(InferenceEngine::CNNLayerPtr layer,
-                        void *ptr_out,
-                        const void *ptr_in,
+                        void* ptr_out,
+                        const void* ptr_in,
                         size_t num_bytes,
                         size_t alignment = 1) {
-        localStorage().emplace_back(reinterpret_cast<const uint8_t *>(ptr_in),
-                                    reinterpret_cast<const uint8_t *>(ptr_in) + num_bytes);
-        futureHeap().push_back({regionType(), REQUEST_STORE, ptr_out, &localStorage().back().front(), 1, num_bytes, alignment});
+        localStorage().emplace_back(reinterpret_cast<const uint8_t*>(ptr_in),
+                                    reinterpret_cast<const uint8_t*>(ptr_in) + num_bytes);
+        futureHeap().push_back(
+            {regionType(), REQUEST_STORE, ptr_out, &localStorage().back().front(), 1, num_bytes, alignment});
         if (layer != nullptr) {
             futureHeap().back()._life_limits = {0, getCNNLayerId(layer)};
         }
@@ -100,10 +101,7 @@ public:
      * @param ptr_out
      * @param num_bytes
      */
-    void reserve_ptr(InferenceEngine::CNNLayerPtr layer,
-                     void *ptr_out,
-                     size_t num_bytes,
-                     size_t alignment = 1)  {
+    void reserve_ptr(InferenceEngine::CNNLayerPtr layer, void* ptr_out, size_t num_bytes, size_t alignment = 1) {
         futureHeap().push_back({regionType(), REQUEST_ALLOCATE, ptr_out, nullptr, 1, num_bytes, alignment});
         if (layer != nullptr) {
             futureHeap().back()._life_limits = {getCNNLayerId(layer), getCNNLayerId(layer)};
@@ -119,10 +117,10 @@ public:
      *      if that happens - reserved request parameters will be updated before committing memory
      */
     void bind_ptr(InferenceEngine::CNNLayerPtr layer,
-                  void *source,
-                  const void *dest,
+                  void* source,
+                  const void* dest,
                   size_t offset = 0,
-                  size_t num_bytes = 0)  {
+                  size_t num_bytes = 0) {
         futureHeap().push_back({regionType(), REQUEST_BIND, source, dest, 1, num_bytes, 1, offset});
         if (layer != nullptr) {
             futureHeap().back()._life_limits = {getCNNLayerId(layer), getCNNLayerId(layer)};
@@ -135,8 +133,8 @@ public:
      * @param initializer - initialisation routine to be called on allocated memory
      */
     void bind_initializer(InferenceEngine::CNNLayerPtr layer,
-                          void *ptr_out,
-                          std::function<void(void * data, size_t size)> initializer) {
+                          void* ptr_out,
+                          std::function<void(void* data, size_t size)> initializer) {
         futureHeap().push_back({regionType(), ptr_out, 0, initializer, REQUEST_BIND, 1});
         if (layer != nullptr) {
             futureHeap().back()._life_limits = {0, getCNNLayerId(layer)};
@@ -146,9 +144,9 @@ public:
     /**
      * @brief allocates buffer and set all its values to T value
      */
-    template<class T>
+    template <class T>
     void push_value(InferenceEngine::CNNLayerPtr layer,
-                    void *ptr_out,
+                    void* ptr_out,
                     T value,
                     size_t num_elements,
                     size_t alignment = 1) {
@@ -165,18 +163,19 @@ public:
         return _region_type;
     }
 
-    std::vector<MemRequest> & futureHeap()  {
+    std::vector<MemRequest>& futureHeap() {
         return _mem_requests;
     }
 
-    std::list<std::vector<char>> &localStorage() {
+    std::list<std::vector<char>>& localStorage() {
         return _local_storage;
     }
 
     virtual size_t calcSize(bool isCompact = false) {
         _size = 0;
-        for (auto &re : _mem_requests) {
-            if (re._type == REQUEST_BIND || re._ptr_out == nullptr) continue;
+        for (auto& re : _mem_requests) {
+            if (re._type == REQUEST_BIND || re._ptr_out == nullptr)
+                continue;
             _size += ALIGN(re._num_elements * re._element_size + re._padding, re._alignment);
         }
         return _size;
@@ -186,11 +185,11 @@ public:
         return _size;
     }
 
-    void *getBasePtr() const {
+    void* getBasePtr() const {
         return _basePtr.get();
     }
 
-    std::pair<bool, uint32_t> getOffset(void * ptr) const {
+    std::pair<bool, uint32_t> getOffset(void* ptr) const {
         auto ptrBegin = static_cast<uint8_t*>(getBasePtr());
         auto size = getSize();
         if (ptr >= ptrBegin && ptr < ptrBegin + size) {
@@ -200,14 +199,15 @@ public:
         return {false, 0};
     }
 
-    template<class T>
-    void iterate_binded(memory::MemRequest & reference, const T & visitor) {
-        for (auto &re : _mem_requests) {
+    template <class T>
+    void iterate_binded(memory::MemRequest& reference, const T& visitor) {
+        for (auto& re : _mem_requests) {
             if ((re._type & REQUEST_BIND) && (re._ptr_in == reference._ptr_out)) {
-                log::trace() << "  [binded=" << re._type << ", ptr=" << re._ptr_out <<"]\n";
+                log::trace() << "  [binded=" << re._type << ", ptr=" << re._ptr_out << "]\n";
                 visitor(reference, re);
                 // primitive loop check
-                if (re._ptr_in == re._ptr_out) continue;
+                if (re._ptr_in == re._ptr_out)
+                    continue;
                 // TODO: no circular dependency checking, only tree-style dependency with loops supported
                 iterate_binded(re, visitor);
             }
@@ -217,20 +217,17 @@ public:
 
 class GNAMemRequestsInputsQueue : public GNAMemRequestsQueue {
 public:
-    explicit GNAMemRequestsInputsQueue() : GNAMemRequestsQueue(REGION_INPUTS) {
-    }
+    explicit GNAMemRequestsInputsQueue() : GNAMemRequestsQueue(REGION_INPUTS) {}
 };
 
 class GNAMemRequestsOutputsQueue : public GNAMemRequestsQueue {
 public:
-    explicit GNAMemRequestsOutputsQueue() : GNAMemRequestsQueue(REGION_OUTPUTS) {
-    }
+    explicit GNAMemRequestsOutputsQueue() : GNAMemRequestsQueue(REGION_OUTPUTS) {}
 };
 
 class GNAMemRequestsScratchQueue : public GNAMemRequestsQueue {
 public:
-    explicit GNAMemRequestsScratchQueue() : GNAMemRequestsQueue(REGION_SCRATCH) {
-    }
+    explicit GNAMemRequestsScratchQueue() : GNAMemRequestsQueue(REGION_SCRATCH) {}
     /**
      * @brief optimize memory region by reusing buffers
      */
@@ -244,8 +241,9 @@ public:
                     continue;
                 }
 
-                auto original_with_pad = ALIGN(_mem_requests[i]._num_elements * _mem_requests[i]._element_size + _mem_requests[i]._padding,
-                                                _mem_requests[i]._alignment);
+                auto original_with_pad =
+                    ALIGN(_mem_requests[i]._num_elements * _mem_requests[i]._element_size + _mem_requests[i]._padding,
+                          _mem_requests[i]._alignment);
                 int start = _mem_requests[i]._life_limits.first;
                 int stop = _mem_requests[i]._life_limits.second;
 
@@ -256,7 +254,7 @@ public:
             _size = memSolver.solve();
 
             // setting offsets
-            for (auto const & box : boxes) {
+            for (auto const& box : boxes) {
                 _mem_requests[box.id]._offset = memSolver.getOffset(box.id);
             }
             return _size;
@@ -268,20 +266,17 @@ public:
 
 class GNAMemRequestsReadOnlyQueue : public GNAMemRequestsQueue {
 public:
-    explicit GNAMemRequestsReadOnlyQueue() : GNAMemRequestsQueue(REGION_RO) {
-    }
+    explicit GNAMemRequestsReadOnlyQueue() : GNAMemRequestsQueue(REGION_RO) {}
 };
 
 class GNAMemRequestsStatesQueue : public GNAMemRequestsQueue {
 public:
-    explicit GNAMemRequestsStatesQueue() : GNAMemRequestsQueue(REGION_STATES) {
-    }
+    explicit GNAMemRequestsStatesQueue() : GNAMemRequestsQueue(REGION_STATES) {}
 };
 
 class GNAMemRequestsBindingsQueue : public GNAMemRequestsQueue {
 public:
-    explicit GNAMemRequestsBindingsQueue() : GNAMemRequestsQueue(REGION_AUTO) {
-    }
+    explicit GNAMemRequestsBindingsQueue() : GNAMemRequestsQueue(REGION_AUTO) {}
 };
 
 }  // namespace memory

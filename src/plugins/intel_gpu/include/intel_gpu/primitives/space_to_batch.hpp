@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,5 +60,13 @@ struct space_to_batch : public primitive_base<space_to_batch> {
     tensor pads_begin;
     tensor pads_end;
     tensor out_size;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, block_shape.hash());
+        seed = hash_combine(seed, pads_begin.hash());
+        seed = hash_combine(seed, pads_end.hash());
+        return seed;
+    }
 };
 }  // namespace cldnn

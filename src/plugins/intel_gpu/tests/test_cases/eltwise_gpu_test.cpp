@@ -1,7 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/runtime/layout.hpp"
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -3932,6 +3933,14 @@ struct eltwise_layout_test_params {
 #define CASE_ELTWISE_TEST9  eltwise_mode::eq,  {4, 2, 4, 4}, {1, 1, 1, 1}, format::b_fs_yx_fsv16, format::bfyx, "generic_eltwise_ref"
 
 class eltwise_layout_test : public BaseEltwiseTest<eltwise_layout_test_params> {
+public:
+    std::string PrintToString(const eltwise_layout_test_params& params) {
+        std::string res;
+        res += " format1 (" + format::traits(params.input0_format).str + ")";
+        res += " format2 (" + format::traits(params.input1_format).str + ")";
+
+        return res;
+    }
 };
 
 class eltwise_test_mixed_layout : public eltwise_layout_test {};
@@ -4027,6 +4036,15 @@ struct eltwise_random_test_params {
 
 struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
 {
+    static std::string PrintToString(const eltwise_random_test_params& params) {
+        std::string res = " data (" + cldnn::data_type_traits::name(params.input_type) + "), ";
+        res += " format (" + format::traits(params.in_format).str + ") input1 : ";
+        res += params.first_input_size.to_string() + " / input2 : ";
+        res += params.second_input_size.to_string() + "\n";
+
+        return res;
+    }
+
     template <typename T>
     void fill_random_typed(memory::ptr mem, int min, int max, int k) {
         auto l = mem->get_layout();
@@ -4188,15 +4206,17 @@ struct eltwise_random_test_param_generator : std::vector<eltwise_random_test_par
     eltwise_random_test_param_generator& broadcast_params(data_types type, format::type input_format, format::type output_format) {
         push_back(eltwise_random_test_params{ type, {1, 1, 48, 64},  {1, 10, 48, 64}, input_format, input_format, output_format, eltwise_mode::sum, false });
         push_back(eltwise_random_test_params{ type, {1, 16, 48, 64}, {1, 1, 48, 64},  input_format, input_format, output_format, eltwise_mode::sum, false });
-        push_back(eltwise_random_test_params{ type, {1, 5, 4, 4},    {1, 1, 4, 4},    input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 36, 48, 64}, {1, 1, 48, 64},  input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 36, 4, 4},   {1, 1, 4, 4},    input_format, input_format, output_format, eltwise_mode::sum, false });
         push_back(eltwise_random_test_params{ type, {1, 8, 4, 4},    {1, 1, 1, 1},    input_format, format::bfyx, output_format, eltwise_mode::sum, false });
         return *this;
     }
 
     eltwise_random_test_param_generator& simple_params(data_types type, format::type input_format, format::type output_format) {
         push_back(eltwise_random_test_params{ type, {1, 10, 10, 10}, {1, 10, 10, 10}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 20, 10, 10}, {1, 20, 10, 10}, input_format, input_format, output_format, eltwise_mode::sum, false });
         push_back(eltwise_random_test_params{ type, {1, 5, 4, 4},    {1, 5, 4, 4},    input_format, input_format, output_format, eltwise_mode::sum, false });
-        push_back(eltwise_random_test_params{ type, {1, 20, 16, 16}, {1, 20, 16, 16}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 32, 16, 16}, {1, 32, 16, 16}, input_format, input_format, output_format, eltwise_mode::sum, false });
         return *this;
     }
 };
@@ -4227,3 +4247,45 @@ INSTANTIATE_TEST_SUITE_P(export_import,
                             .add(eltwise_random_test_params{ data_types::f16, {1, 1, 48, 64}, {1, 10, 48, 64}, format::b_fs_yx_fsv4,
                                                              format::b_fs_yx_fsv4, format::b_fs_yx_fsv4, eltwise_mode::sum, true })
                          ));
+
+INSTANTIATE_TEST_SUITE_P(eltwise_smoke_fsv16,
+                        eltwise_random_test,
+                        testing::ValuesIn(
+                            eltwise_random_test_param_generator()
+                            .broadcast_params(data_types::f32, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .broadcast_params(data_types::f16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .broadcast_params(data_types::i8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .broadcast_params(data_types::u8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .simple_params(data_types::f32, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .simple_params(data_types::f16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .simple_params(data_types::i8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .simple_params(data_types::u8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                        ));
+
+INSTANTIATE_TEST_SUITE_P(eltwise_smoke_fsv32,
+                        eltwise_random_test,
+                        testing::ValuesIn(
+                            eltwise_random_test_param_generator()
+                            .broadcast_params(data_types::f32, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+                            .broadcast_params(data_types::f16, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+                            .broadcast_params(data_types::i8, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+                            .broadcast_params(data_types::u8, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+                            .simple_params(data_types::f32, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+                            .simple_params(data_types::f16, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+                            .simple_params(data_types::i8, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+                            .simple_params(data_types::u8, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+                        ));
+
+INSTANTIATE_TEST_SUITE_P(eltwise_smoke_bsv_fsv,
+                        eltwise_random_test,
+                        testing::ValuesIn(
+                            eltwise_random_test_param_generator()
+                            .broadcast_params(data_types::f32, format::bs_fs_yx_bsv16_fsv16, format::bs_fs_yx_bsv16_fsv16)
+                            .broadcast_params(data_types::f16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16)
+                            .broadcast_params(data_types::i8, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32)
+                            .broadcast_params(data_types::u8, format::bs_fs_yx_bsv16_fsv32, format::bs_fs_yx_bsv16_fsv32)
+                            .simple_params(data_types::f32, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16)
+                            .simple_params(data_types::f16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16)
+                            .simple_params(data_types::i8, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32)
+                            .simple_params(data_types::u8, format::bs_fs_yx_bsv16_fsv32, format::bs_fs_yx_bsv16_fsv32)
+                        ));

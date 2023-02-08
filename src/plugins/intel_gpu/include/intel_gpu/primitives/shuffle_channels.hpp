@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,5 +29,12 @@ struct shuffle_channels : public primitive_base<shuffle_channels> {
     int32_t group;
     /// @brief The index of the channel dimension (default is 1).
     int32_t axis;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, group);
+        seed = hash_combine(seed, axis);
+        return seed;
+    }
 };
 }  // namespace cldnn

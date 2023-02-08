@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,6 +54,13 @@ struct normalize : public primitive_base<normalize> {
     bool across_spatial;
     /// @brief Epsilon for not dividing by zero while normalizing.
     float epsilon;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, across_spatial);
+        seed = hash_combine(seed, epsilon);
+        return seed;
+    }
 
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override { return {scale_input}; }

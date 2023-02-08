@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "gna_convolution_layer.hpp"
+
+#include <legacy/ie_layers.h>
 
 #include <algorithm>
 #include <cmath>
@@ -10,7 +12,6 @@
 #include <utility>
 #include <vector>
 
-#include <legacy/ie_layers.h>
 #include "gna_graph_tools.hpp"
 #include "log/debug.hpp"
 

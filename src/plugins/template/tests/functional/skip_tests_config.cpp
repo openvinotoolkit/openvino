@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-#include <string>
-
 #include "functional_test_utils/skip_tests_config.hpp"
+
+#include <string>
+#include <vector>
 
 std::vector<std::string> disabledTestPatterns() {
     std::vector<std::string> retVector{
@@ -19,7 +19,7 @@ std::vector<std::string> disabledTestPatterns() {
         // CVS-51758
         R"(.*InferRequestPreprocessConversionTest.*oLT=(NHWC|NCHW).*)",
         R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*oPRC=0.*oLT=1.*)",
-        //Not Implemented
+        // Not Implemented
         R"(.*Behavior.*ExecutableNetworkBaseTest.*(canSetConfigToExecNet|canSetConfigToExecNetAndCheckConfigAndCheck).*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*(CheckExecGraphInfoBeforeExecution|CheckExecGraphInfoAfterExecution|CheckExecGraphInfoSerialization).*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
@@ -43,17 +43,17 @@ std::vector<std::string> disabledTestPatterns() {
 
         // CVS-64094
         R"(.*ReferenceLogSoftmaxLayerTest.*4.*iType=f16.*axis=.*1.*)",
-        //CVS-64012
+        // CVS-64012
         R"(.*ReferenceDeformableConvolutionLayerTest.*f16.*real_offset_padding_stride_dialation.*)",
         R"(.*ReferenceDeformableConvolutionLayerTest.*bf16.*)",
         R"(.*ReferenceDeformableConvolutionV8LayerTest.*f16.*real_offset_padding_stride_dialation.*)",
         R"(.*ReferenceDeformableConvolutionV8LayerTest.*bf16.*)",
         R"(.*ReferenceDeformableConvolutionV8LayerTest.*f64.*mask.*)",
-        //CVS-63973
+        // CVS-63973
         R"(.*ReferencePSROIPoolingLayerTest.*bf16.*)",
-        //CVS-63977
+        // CVS-63977
         R"(.*ReferenceProposalV1LayerTest.*f16.*)",
-        //CVS-64082
+        // CVS-64082
         R"(.*ReferenceProposalV4LayerTest.*f16.*)",
         // CVS-64101
         R"(.*ReferenceExperimentalGPLayerTest.*bf16.*)",
@@ -112,11 +112,21 @@ std::vector<std::string> disabledTestPatterns() {
         // CVS-95608
         R"(.*CachingSupportCase.*CompileModelCacheTestBase.*)",
         R"(.*OVClassLoadNetworkTest.*QueryNetworkMULTIWithHETERONoThrow_V10.*)",
+        // New plugin API doesn't support legacy NV12 I420 preprocessing
+        R"(.*ConvertNV12WithLegacyTest.*)",
+        R"(.*ConvertI420WithLegacyTest.*)",
+        // Plugin version was changed to ov::Version
+        R"(.*VersionTest.*pluginCurrentVersionIsCorrect.*)",
+        // New plugin doesn't support dynamic preprocessing, here we set blob with changed layout
+        R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*_iPRC=0.*_iLT=1.*)",
+        // New plugin API doesn't support changes of pre-processing
+        R"(.*InferRequestPreprocessTest.*SetPreProcessToInputInfo.*)",
+        R"(.*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
     };
 
 #ifdef _WIN32
     // CVS-63989
-     retVector.emplace_back(R"(.*ReferenceSigmoidLayerTest.*u64.*)");
+    retVector.emplace_back(R"(.*ReferenceSigmoidLayerTest.*u64.*)");
     // CVS-64054
     retVector.emplace_back(R"(.*ReferenceTopKTest.*topk_max_sort_none)");
     retVector.emplace_back(R"(.*ReferenceTopKTest.*topk_min_sort_none)");

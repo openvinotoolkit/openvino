@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <vector>
+
 #include "gna_data_types.hpp"
 #include "gna_plugin_config.hpp"
 #include "layers/gna_layer_info.hpp"
@@ -25,12 +26,12 @@ enum class QuantizedDataType { input, output, weights, bias };
 float GetScaleFactor(InferenceEngine::CNNLayerPtr layer, QuantizedDataType data_type);
 
 /**
-* @brief Calculates a scale factor from FakeQuantize statistics according to the formula:
-* scale factor = max representable value / max absolute input value
-* @param levels Number of integer quants
-* @param minValue Minimum value to be quantized
-* @param maxValue Maximum value to be quantized
-*/
+ * @brief Calculates a scale factor from FakeQuantize statistics according to the formula:
+ * scale factor = max representable value / max absolute input value
+ * @param levels Number of integer quants
+ * @param minValue Minimum value to be quantized
+ * @param maxValue Maximum value to be quantized
+ */
 float CalculateScaleFactorFromStats(size_t levels, float minValue, float maxValue);
 
 struct ScaleFactorUpdateResult {
@@ -98,7 +99,7 @@ class ScaleFactorCalculator {
                                        int infiniteLoopCount,
                                        const Config& gna_config) const;
 
- public:
+public:
     ScaleFactorCalculator(Cnt& net, const Config& gna_config, const bool fake_quantized)
         : net(net),
           gna_config(gna_config),
@@ -124,9 +125,9 @@ class ScaleFactorCalculator {
 
         if (layer_info.isConcat()) {
             if (!ScaleFactorPerLayerConcat(dynamic_cast<InferenceEngine::ConcatLayer*>(layer_ptr.get()),
-                                            result,
-                                            infiniteLoopCount,
-                                            gna_config)) {
+                                           result,
+                                           infiniteLoopCount,
+                                           gna_config)) {
                 return false;
             }
         } else if (layer_info.isEltwise()) {

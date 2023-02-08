@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,5 +30,11 @@ struct quantize : public primitive_base<quantize> {
 
     /// @brief levels The number of quantization levels.
     int levels;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = cldnn::hash_combine(seed, levels);
+        return seed;
+    }
 };
 }  // namespace cldnn

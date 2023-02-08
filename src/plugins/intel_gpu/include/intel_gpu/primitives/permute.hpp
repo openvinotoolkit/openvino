@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,5 +31,11 @@ struct permute : public primitive_base<permute> {
 
     /// @brief Array of permuted output order in bfyx format.
     std::vector<uint16_t> permute_order;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_range(seed, permute_order.begin(), permute_order.end());
+        return seed;
+    }
 };
 }  // namespace cldnn
