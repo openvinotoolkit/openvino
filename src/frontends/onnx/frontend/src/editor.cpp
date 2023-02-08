@@ -226,8 +226,8 @@ void graph_topological_sort(GraphProto* graph) {
             }
             return nullptr;
         };
-        for (const auto& node : graph->node()) {
-            nodes_to_process.push(&node);
+        for (const auto& output : graph->output()) {
+            nodes_to_process.push(get_node_by_out_name(output.name()));
         }
 
         while (nodes_to_process.size() > 0) {
