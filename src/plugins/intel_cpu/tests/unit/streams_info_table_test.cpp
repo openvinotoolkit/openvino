@@ -237,7 +237,7 @@ StreamsCalculationTestCase _1sockets_10cores_latency_1 = {
     0,
     0,
     {{{12}, {2}, {8}, {2}}},
-    {{{1}, {ALL_PROC}, {10}}},
+    {{{1}, {ALL_PROC}, {10}}, {{0}, {MAIN_CORE_PROC}, {2}}, {{0}, {EFFICIENT_CORE_PROC}, {8}}},
 };
 
 StreamsCalculationTestCase _1sockets_10cores_latency_2 = {
@@ -245,7 +245,7 @@ StreamsCalculationTestCase _1sockets_10cores_latency_2 = {
     8,
     0,
     {{{12}, {2}, {8}, {2}}},
-    {{{1}, {ALL_PROC}, {8}}},
+    {{{1}, {ALL_PROC}, {8}}, {{0}, {MAIN_CORE_PROC}, {2}}, {{0}, {EFFICIENT_CORE_PROC}, {6}}},
 };
 
 StreamsCalculationTestCase _1sockets_10cores_tput_1 = {

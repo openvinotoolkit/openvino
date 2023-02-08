@@ -363,19 +363,38 @@ std::vector<std::vector<int>> Engine::get_streams_info_table(
             ((6 > proc_type_table[0][MAIN_CORE_PROC]) &&
              (proc_type_table[0][MAIN_CORE_PROC] * 2 <= proc_type_table[0][EFFICIENT_CORE_PROC]))) {
             stream_info[PROC_TYPE] = ALL_PROC;
-            stream_info[THREADS_PER_STREAM] =
-                (input_threads == 0)
-                    ? (proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC])
-                    : std::min((proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC]),
-                               input_threads);
+            int n_threads = std::accumulate(proc_type_table[0].begin() + MAIN_CORE_PROC,
+                                            proc_type_table[0].begin() + HYPER_THREADING_PROC,
+                                            0);
+            stream_info[THREADS_PER_STREAM] = (input_threads == 0) ? n_threads : std::min(n_threads, input_threads);
+            streams_info_table.push_back(stream_info);
+
+            stream_info[NUMBER_OF_STREAMS] = 0;
+            n_threads = stream_info[THREADS_PER_STREAM];
+            for (int n = MAIN_CORE_PROC; n < HYPER_THREADING_PROC; n++) {
+                if (0 != proc_type_table[0][n]) {
+                    stream_info[PROC_TYPE] = n;
+                    if (n_threads <= proc_type_table[0][n]) {
+                        stream_info[THREADS_PER_STREAM] = n_threads;
+                        streams_info_table.push_back(stream_info);
+                        break;
+                    } else {
+                        stream_info[THREADS_PER_STREAM] = proc_type_table[0][n];
+                        streams_info_table.push_back(stream_info);
+                        n_threads -= proc_type_table[0][n];
+                    }
+                }
+            }
         } else {
             stream_info[PROC_TYPE] = MAIN_CORE_PROC;
             stream_info[THREADS_PER_STREAM] = (input_threads == 0)
                                                   ? proc_type_table[0][MAIN_CORE_PROC]
                                                   : std::min(proc_type_table[0][MAIN_CORE_PROC], input_threads);
+            streams_info_table.push_back(stream_info);
         }
-        streams_info_table.push_back(stream_info);
+
         return streams_info_table;
+
     } else {
         int n_streams = 0;
         int n_threads = 0;

@@ -134,11 +134,11 @@ INFERENCE_ENGINE_API_CPP(bool) with_cpu_x86_avx512_core_amx_bf16();
 INFERENCE_ENGINE_API_CPP(bool) with_cpu_x86_avx512_core_amx();
 
 /**
- * @enum cpu_core_type_of_processor
- * @brief This enum contains defination of processor based on specific cpu core types.
- * Will extend to support other CPU core type like ARM.
+ * @enum       column_of_processor_type_table
+ * @brief      This enum contains defination of each columns in processor type table which bases on cpu core types. Will
+ * extend to support other CPU core type like ARM.
  *
- * This enum are also defination of each columns in processor type table. Below are two example of processor type table.
+ * The following are two example of processor type table.
  *  1. Processor table of two socket CPUs XEON server
  *
  *  ALL_PROC | MAIN_CORE_PROC | EFFICIENT_CORE_PROC | HYPER_THREADING_PROC
@@ -156,31 +156,31 @@ typedef enum {
     MAIN_CORE_PROC = 1,        //!< Processor based on physical core of Intel Performance-cores
     EFFICIENT_CORE_PROC = 2,   //!< Processor based on Intel Efficient-cores
     HYPER_THREADING_PROC = 3,  //!< Processor based on logical core of Intel Performance-cores
-    PROC_TYPE_TABLE_SIZE = 4
-} cpu_core_type_of_processor;
+    PROC_TYPE_TABLE_SIZE = 4   //!< Size of processor type table 
+} column_of_processor_type_table;
 
 /**
- * @enum column_of_cpu_mapping_table
- * @brief This enum contains defination of each columns in CPU mapping table which use processor id as index.
+ * @enum       column_of_cpu_mapping_table
+ * @brief      This enum contains defination of each columns in CPU mapping table which use processor id as index.
  *
  * GROUP_ID is generated according to the following rules.
  *  1. If one MAIN_CORE_PROC and one HYPER_THREADING_PROC are based on same Performance-cores, they are in one group.
  *  2. If some EFFICIENT_CORE_PROC share one L2 cachle, they are in one group.
  *  3. There are no duplicate group IDs in the system
  *
- * Below is the example of CPU mapping table.
+ * The following is the example of CPU mapping table.
  *  1. Four processors of two Pcore
  *  2. Four processors of four Ecores shared L2 cache
  *
  *  PROCESSOR_ID | SOCKET_ID | CORE_ID | CORE_TYPE | GROUP_ID | Used
- *       0             0          0          2          0        0
+ *       0             0          0          3          0        0
  *       1             0          0          1          0        0
- *       2             0          1          2          1        0
+ *       2             0          1          3          1        0
  *       3             0          1          1          1        0
- *       4             0          2          3          2        0
- *       5             0          3          3          2        0
- *       6             0          4          3          2        0
- *       7             0          5          3          2        0
+ *       4             0          2          2          2        0
+ *       5             0          3          2          2        0
+ *       6             0          4          2          2        0
+ *       7             0          5          2          2        0
  */
 typedef enum {
     CPU_MAP_PROCESSOR_ID = 0,  //!< column for processor id of the processor
@@ -189,15 +189,34 @@ typedef enum {
     CPU_MAP_CORE_TYPE = 3,     //!< column for CPU core type corresponding to the processor
     CPU_MAP_GROUP_ID = 4,      //!< column for group id to the processor. Processors in one group have dependency.
     CPU_MAP_USED_FLAG = 5,     //!< column for resource management of the processor
-    CPU_MAP_TABLE_SIZE = 6
+    CPU_MAP_TABLE_SIZE = 6     //!< Size of CPU mapping table 
 } column_of_cpu_mapping_table;
 
+/**
+ * @enum       column_of_cpu_streams_info_table
+ * @brief      This enum contains defination of each columns in cpu streams infomation table.
+ *
+ * The following are two example of processor type table.
+ *  1. 8 streams on hybrid platform which has 4 threads per stream.
+ *
+ *  NUMBER_OF_STREAMS | PROC_TYPE | THREADS_PER_STREAM 
+ *          2               1                4          // 2 streams on physical core of Intel Performance-cores
+ *          4               2                4          // 4 streams on Intel Efficient-cores
+ *          2               3                4          // 2 streams on logic core of Intel Performance-cores
+ *
+ * 2. 1 stream on hybrid platform which has 2 threads on physical core and 8 threads on Ecore.
+ *
+ *  NUMBER_OF_STREAMS | PROC_TYPE | THREADS_PER_STREAM 
+ *          1               0               10          // 2 streams on physical core of Intel Performance-cores
+ *          0               1                2          // 4 streams on Intel Efficient-cores
+ *          0               2                8          // 2 streams on logic core of Intel Performance-cores
+ */
 typedef enum {
-    NUMBER_OF_STREAMS = 0,   //!< All processors, regardless of backend cpu
-    PROC_TYPE = 1,           //!< Processor based on physical core of Intel Performance-cores
-    THREADS_PER_STREAM = 2,  //!< Processor based on logical core of Intel Performance-cores
-    CPU_STREAMS_TABLE_SIZE = 3
-} cpu_streams_table;
+    NUMBER_OF_STREAMS = 0,      //!< Number of streams on specific CPU core tpye
+    PROC_TYPE = 1,              //!< Core type of current streams
+    THREADS_PER_STREAM = 2,     //!< Number of threads per stream of current streams
+    CPU_STREAMS_TABLE_SIZE = 3  //!< Size of streams info table 
+} column_of_cpu_streams_info_table;
 
 #ifdef __linux__
 /**
