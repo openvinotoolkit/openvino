@@ -41,7 +41,7 @@ static cldnn::tensor getConstTensor(const ngraph::Shape constDims) {
         break;
     case 2: constTensor = cldnn::tensor(TensorValue(constDims[0]), TensorValue(constDims[1]), 1, 1);
         break;
-    case 1: constTensor = cldnn::tensor(1, TensorValue(constDims[0]), 1, 1);
+    case 1: constTensor = cldnn::tensor(TensorValue(constDims[0]), 1, 1, 1);
         break;
     case 0: constTensor = cldnn::tensor(1, 1, 1, 1);
         break;
