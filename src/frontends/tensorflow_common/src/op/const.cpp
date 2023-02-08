@@ -7,7 +7,7 @@
 #include "openvino/opsets/opset8.hpp"
 
 #include "openvino/core/type/non_tensor_type.hpp"
-#include "helper_ops/str_ops.hpp"
+#include "openvino/op/str_ops.hpp"
 
 
 using namespace std;

@@ -9,7 +9,7 @@
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino_conversions.hpp"
-#include "helper_ops/str_ops.hpp"
+#include "openvino/op/str_ops.hpp"
 
 using namespace ov;
 using namespace ov::op;
@@ -302,39 +302,4 @@ Output<Node> ov::frontend::tensorflow::compute_subgraph_scalar_rank(const Output
         return make_shared<opset10::Squeeze>(rank_of);
     }
     return rank_of;
-}
-
-using namespace ov;
-using namespace ov::frontend::tensorflow;
-
-void StructuralTypeAttribute::copy (const Node::RTMap& src, Node::RTMap& dst) {
-    Any st = get(src);
-    if(!st.empty()) {
-        dst["structural_type"] = StructuralTypeAttribute(st);
-    }
-}
-
-
-ov::Any StructuralTypeAttribute::get (const Node::RTMap& src) {
-    auto pstructural_type = src.find("structural_type");
-    if(pstructural_type != src.end()) {
-        return pstructural_type->second.as<StructuralTypeAttribute>().value;
-    } else {
-        return Any();
-    }
-}
-
-
-bool StructuralTypeAttribute::has_type (const Node::RTMap& rt_info, const ov::Any& type) {
-    Any st = get(rt_info);
-    return !st.empty() && type == st;
-}
-
-
-void StructuralTypeAttribute::move_to_original (Node::RTMap& rt_info) {
-    auto pstructural_type = rt_info.find("structural_type");
-    if(pstructural_type != rt_info.end()) {
-        rt_info["orig_structural_type"] = pstructural_type->second;
-        rt_info.erase(pstructural_type);
-    }
 }

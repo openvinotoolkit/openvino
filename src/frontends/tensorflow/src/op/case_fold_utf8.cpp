@@ -4,7 +4,7 @@
 
 #include "op_table.hpp"
 #include "openvino/opsets/opset8.hpp"
-#include "helper_ops/str_ops.hpp"
+#include "openvino/op/str_ops.hpp"
 
 using namespace std;
 using namespace ov::opset8;

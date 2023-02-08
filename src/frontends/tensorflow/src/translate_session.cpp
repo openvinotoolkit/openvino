@@ -8,7 +8,7 @@
 #include "openvino/opsets/opset10.hpp"
 #include "tf_framework_node.hpp"
 #include "utils.hpp"
-#include "helper_ops/str_ops.hpp"
+#include "openvino/op/str_ops.hpp"
 
 using namespace ov::frontend::tensorflow;
 
@@ -194,6 +194,16 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 ov_inputs.push_back(input_outputs_vector.at(0));
             } else if (ng_op_map.count(producer_name)) {
                 const auto& input_outputs_vector = ng_op_map.at(producer_name);
+                if(input_outputs_vector.size() <= producer_port_idx) {
+                    auto producer_node = input_outputs_vector[0].get_node_shared_ptr();
+                    if(std::dynamic_pointer_cast<FrameworkNode>(producer_node)) {
+                        // FrameworkNode node doesn't know in advance how many output ports will be used
+                        // so we can increase number of outputs by demand
+                        producer_node->set_output_type(producer_port_idx, element::dynamic, PartialShape::dynamic());
+                        // update output vector in node map
+                        ng_op_map[producer_name] = producer_node->outputs();
+                    }
+                }
                 FRONT_END_GENERAL_CHECK(input_outputs_vector.size() > producer_port_idx,
                                         "Input created with pruning must have one output");
                 ov_inputs.push_back(input_outputs_vector.at(producer_port_idx));

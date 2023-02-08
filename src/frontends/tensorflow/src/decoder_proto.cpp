@@ -9,7 +9,7 @@
 #include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/frontend/tensorflow/special_types.hpp"
 #include "openvino/core/type/non_tensor_type.hpp"
-#include "helper_ops/str_ops.hpp"
+#include "openvino/op/str_ops.hpp"
 #include "types.pb.h"
 
 namespace ov {

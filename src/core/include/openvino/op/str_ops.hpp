@@ -8,7 +8,7 @@
 #include <vector>
 #include <cassert>
 
-#include "helper_ops/internal_operation.hpp"
+//#include "helper_ops/internal_operation.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/core/type/non_tensor_type.hpp"
@@ -150,7 +150,7 @@ inline std::vector<std::shared_ptr<Base>> structural_input_types (const std::vec
 }
 
 
-class FRONTEND_API StructuralTypeMapAttribute : public ov::RuntimeAttribute {
+class OPENVINO_API StructuralTypeMapAttribute : public ov::RuntimeAttribute {
 public:
     OPENVINO_RTTI("structural_type_mapX", "0");
 
@@ -219,7 +219,7 @@ public:
 
 }
 
-class FRONTEND_API StructuralTypeAttribute : public ov::RuntimeAttribute {
+class OPENVINO_API StructuralTypeAttribute : public ov::RuntimeAttribute {
 public:
     OPENVINO_RTTI("structural_type", "0");
 
@@ -350,7 +350,7 @@ bool evaluate_helper (Node* node, ov::TensorVector& outputs, const ov::TensorVec
 }
 
 
-class StructuralTypedOp : public ov::op::Op {
+class OPENVINO_API StructuralTypedOp : public ov::op::Op {
 public:
     OPENVINO_OP("StructuralTypedOp", "0", Op);
 
@@ -364,7 +364,7 @@ public:
 };
 
 // https://www.tensorflow.org/text/api_docs/python/text/case_fold_utf8
-class CaseFoldUTF8 : public StructuralTypedOp {
+class OPENVINO_API CaseFoldUTF8 : public StructuralTypedOp {
 public:
     OPENVINO_OP("CaseFoldUTF8", "0", StructuralTypedOp);
 
@@ -399,7 +399,7 @@ public:
 };
 
 
-class NormalizeUTF8 : public StructuralTypedOp {
+class OPENVINO_API NormalizeUTF8 : public StructuralTypedOp {
 public:
     OPENVINO_OP("NormalizeUTF8", "0", StructuralTypedOp);
 
@@ -444,7 +444,7 @@ private:
 };
 
 
-class StaticRegexReplace : public StructuralTypedOp {
+class OPENVINO_API StaticRegexReplace : public StructuralTypedOp {
 public:
     OPENVINO_OP("StaticRegexReplace", "0", StructuralTypedOp);
 
@@ -491,7 +491,7 @@ private:
 };
 
 
-class RegexSplitWithOffsets : public StructuralTypedOp {
+class OPENVINO_API RegexSplitWithOffsets : public StructuralTypedOp {
 public:
     OPENVINO_OP("RegexSplitWithOffsets", "0", StructuralTypedOp);
 
@@ -612,7 +612,7 @@ public:
     }
 };
 
-class WordpieceTokenizeWithOffsets : public StructuralTypedOp {
+class OPENVINO_API WordpieceTokenizeWithOffsets : public StructuralTypedOp {
 public:
     OPENVINO_OP("WordpieceTokenizeWithOffsets", "0", StructuralTypedOp);
 
@@ -752,7 +752,7 @@ inline Any replace_stuctural_type_recursively (Any st, Any target, Any replaceme
 }
 
 
-class LookupTableFindV2 : public StructuralTypedOp {
+class OPENVINO_API LookupTableFindV2 : public StructuralTypedOp {
 public:
     OPENVINO_OP("LookupTableFindV2", "0", StructuralTypedOp);
 
@@ -874,7 +874,7 @@ public:
 };
 
 
-class StructPack : public ov::op::Op {
+class OPENVINO_API StructPack : public ov::op::Op {
 public:
     OPENVINO_OP("INTERNAL::StructPack");
 
@@ -908,7 +908,7 @@ public:
     PartialShape m_res_shape;
 };
 
-class SpyOp : public ov::op::Op {
+class OPENVINO_API SpyOp : public ov::op::Op {
 public:
     OPENVINO_OP("SpyOp", "0", ov::op::Op);
 

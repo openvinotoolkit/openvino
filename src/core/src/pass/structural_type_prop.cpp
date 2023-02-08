@@ -2,23 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "structural_type_prop.hpp"
-
 #include <memory>
 #include <vector>
 #include <numeric>
 #include <fstream>
 #include <string>
 
-#include "helper_ops/str_ops.hpp"
+#include <openvino/op/str_ops.hpp>
 
-#include "openvino/frontend/tensorflow/frontend.hpp"
+#include <openvino/pass/structural_type_prop.hpp>
+
 #include <ngraph/opsets/opset8.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/pattern/op/or.hpp>
-#include "openvino/core/type/non_tensor_type.hpp"
+#include <openvino/core/rt_info.hpp>
+#include <openvino/pass/pattern/op/wrap_type.hpp>
+#include <openvino/pass/pattern/op/or.hpp>
+#include <openvino/pass/manager.hpp>
+#include <openvino/core/type/non_tensor_type.hpp>
 #include <openvino/opsets/opset9.hpp>
+#include <openvino/op/util/framework_node.hpp>
 
 using std::make_shared;
 using std::shared_ptr;
@@ -26,26 +27,26 @@ using std::shared_ptr;
 namespace {
     // TODO: Remove this duplicate: CPU transforms has it, copied and pasted here
 
-    bool is_data_movement_operation(const std::shared_ptr<ngraph::Node>& node) {
-        return ov::is_type<ngraph::op::v0::Squeeze>(node) ||
+    bool is_data_movement_operation(const std::shared_ptr<ov::Node>& node) {
+        return ov::is_type<ov::op::v0::Squeeze>(node) ||
                ov::is_type<ov::op::v1::StridedSlice>(node) ||
-               ov::is_type<ngraph::op::v0::Unsqueeze>(node) ||
-               ov::is_type<ngraph::op::v1::Reshape>(node) ||
-               ov::is_type<ngraph::op::v1::Transpose>(node) ||
-               ov::is_type<ngraph::op::v0::ShuffleChannels>(node) ||
-               ov::is_type<ngraph::op::v7::Roll>(node) ||
-               ov::is_type<ngraph::op::v0::ReverseSequence>(node) ||
-               ov::is_type<ngraph::op::v0::DepthToSpace>(node) ||
-               ov::is_type<ngraph::op::v1::BatchToSpace>(node) ||
-               ov::is_type<ngraph::op::v1::Broadcast>(node) ||
-               ov::is_type<ngraph::op::v3::Broadcast>(node) ||
-               ov::is_type<ngraph::op::v1::Gather>(node) ||
-               ov::is_type<ngraph::op::v7::Gather>(node) ||
-               ov::is_type<ngraph::op::v8::Gather>(node) ||
-               ov::is_type<ngraph::op::v0::Parameter>(node);
+               ov::is_type<ov::op::v0::Unsqueeze>(node) ||
+               ov::is_type<ov::op::v1::Reshape>(node) ||
+               ov::is_type<ov::op::v1::Transpose>(node) ||
+               ov::is_type<ov::op::v0::ShuffleChannels>(node) ||
+               ov::is_type<ov::op::v7::Roll>(node) ||
+               ov::is_type<ov::op::v0::ReverseSequence>(node) ||
+               ov::is_type<ov::op::v0::DepthToSpace>(node) ||
+               ov::is_type<ov::op::v1::BatchToSpace>(node) ||
+               ov::is_type<ov::op::v1::Broadcast>(node) ||
+               ov::is_type<ov::op::v3::Broadcast>(node) ||
+               ov::is_type<ov::op::v1::Gather>(node) ||
+               ov::is_type<ov::op::v7::Gather>(node) ||
+               ov::is_type<ov::op::v8::Gather>(node) ||
+               ov::is_type<ov::op::v0::Parameter>(node);
     }
 
-    bool is_str_operation(const std::shared_ptr<ngraph::Node>& node) {
+    bool is_str_operation(const std::shared_ptr<ov::Node>& node) {
         return ov::is_type<ov::frontend::tensorflow::CaseFoldUTF8>(node) ||
                ov::is_type<ov::frontend::tensorflow::NormalizeUTF8>(node) ||
                ov::is_type<ov::frontend::tensorflow::StaticRegexReplace>(node) ||
@@ -54,16 +55,16 @@ namespace {
                ov::is_type<ov::frontend::tensorflow::RegexSplitWithOffsets>(node);
     }
 
-    bool is_scalar_like(const std::shared_ptr<ngraph::Node>& node) {
-        auto constantNode = std::dynamic_pointer_cast<ngraph::opset8::Constant>(node);
+    bool is_scalar_like(const std::shared_ptr<ov::Node>& node) {
+        auto constantNode = std::dynamic_pointer_cast<ov::opset9::Constant>(node);
         return constantNode != nullptr && shape_size(constantNode->get_shape()) == 1;
     }
 
-    std::shared_ptr<ov::frontend::tensorflow::FrameworkNode> as_tf_op_type(
-        const std::shared_ptr<ngraph::Node>& node,
+    std::shared_ptr<ov::op::util::FrameworkNode> as_tf_op_type(
+        const std::shared_ptr<ov::Node>& node,
         const std::string& tf_op_type)
     {
-        auto fw_node = std::dynamic_pointer_cast<ov::frontend::tensorflow::FrameworkNode>(node);
+        auto fw_node = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(node);
         if(!fw_node) {
             return nullptr;
         }
@@ -82,12 +83,50 @@ namespace {
 namespace ov {
 namespace frontend {
 namespace tensorflow {
+
+
+using namespace ov;
+using namespace ov::frontend::tensorflow;
+
+void StructuralTypeAttribute::copy (const Node::RTMap& src, Node::RTMap& dst) {
+    Any st = get(src);
+    if(!st.empty()) {
+        dst["structural_type"] = StructuralTypeAttribute(st);
+    }
+}
+
+
+ov::Any StructuralTypeAttribute::get (const Node::RTMap& src) {
+    auto pstructural_type = src.find("structural_type");
+    if(pstructural_type != src.end()) {
+        return pstructural_type->second.as<StructuralTypeAttribute>().value;
+    } else {
+        return Any();
+    }
+}
+
+
+bool StructuralTypeAttribute::has_type (const Node::RTMap& rt_info, const ov::Any& type) {
+    Any st = get(rt_info);
+    return !st.empty() && type == st;
+}
+
+
+void StructuralTypeAttribute::move_to_original (Node::RTMap& rt_info) {
+    auto pstructural_type = rt_info.find("structural_type");
+    if(pstructural_type != rt_info.end()) {
+        rt_info["orig_structural_type"] = pstructural_type->second;
+        rt_info.erase(pstructural_type);
+    }
+}
+
+
 namespace pass {
 
 StructuralTypeProp::StructuralTypeProp() {
-    //auto data_movement = ngraph::pattern::wrap_type<ov::op::Op>(
+    //auto data_movement = ov::pattern::wrap_type<ov::op::Op>(
     //    ov::pass::pattern::op::as_value_predicate(is_data_movement_operation));
-    auto data_movement = ngraph::pattern::wrap_type<ov::op::Op>(
+    auto data_movement = ov::pass::pattern::wrap_type<ov::op::Op>(
         ov::pass::pattern::op::as_value_predicate([] (std::shared_ptr<Node>) -> bool { return true; }));
     std::cerr << "[ INFO TF FE ] Registering StructuralTypeProp\n";
 
@@ -126,7 +165,7 @@ StructuralTypeProp::StructuralTypeProp() {
 
 
 ReplaceStrByU81D::ReplaceStrByU81D() {
-    auto str_tensor = ngraph::pattern::wrap_type<ov::op::Op>(
+    auto str_tensor = ov::pass::pattern::wrap_type<ov::op::Op>(
         ov::pass::pattern::op::ValuePredicate([](ov::Output<ov::Node> x) {
             std::cerr << "get_rt_info: " << x.get_tensor().get_rt_info().size() << "\n";
             //return false;
@@ -440,9 +479,9 @@ ThroughStrOpsProp::ThroughStrOpsProp() {
 ThroughReshapeProp::ThroughReshapeProp() {
     // Should better match node that has at least one StructPack at least at one inputs
     auto input = wrap_type<StructPack>();
-    auto node = make_shared<ngraph::pattern::op::Or>(OutputVector{
-        ngraph::pattern::wrap_type<ov::opset9::Reshape>(OutputVector{input, any_input()}),
-        ngraph::pattern::wrap_type<ov::opset9::Unsqueeze>(OutputVector{input, any_input()})});
+    auto node = make_shared<ov::pass::pattern::op::Or>(OutputVector{
+        ov::pass::pattern::wrap_type<ov::opset9::Reshape>(OutputVector{input, any_input()}),
+        ov::pass::pattern::wrap_type<ov::opset9::Unsqueeze>(OutputVector{input, any_input()})});
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto node = m.get_match_root();
@@ -459,14 +498,14 @@ ThroughReshapeProp::ThroughReshapeProp() {
             auto input_inputs = get_inputs(input.get_source_output().get_node_shared_ptr());
 
             auto rank = input.get_partial_shape().rank();
-            FRONT_END_GENERAL_CHECK(rank.is_static(), "Rank is dynamic, not supported");
-            FRONT_END_GENERAL_CHECK(target_shape.rank().is_static(), "Expected static rank after Reshape op");
+            OPENVINO_ASSERT(rank.is_static(), "Rank is dynamic, not supported");
+            OPENVINO_ASSERT(target_shape.rank().is_static(), "Expected static rank after Reshape op");
             auto target_rank = target_shape.rank().get_length();
             if(rank.get_length() == 0) {
                 std::cerr << "[ 2 ]\n";
                 // Scalar case, represented as a single input tensor of rank 1
-                FRONT_END_GENERAL_CHECK(input_inputs.size() == 1, "Expected one input to StructPack when output type is scalar Str");
-                FRONT_END_GENERAL_CHECK(std::dynamic_pointer_cast<ov::opset9::Reshape>(node), "Unsqueezing from a scalar with string element is now unsupported");
+                OPENVINO_ASSERT(input_inputs.size() == 1, "Expected one input to StructPack when output type is scalar Str");
+                OPENVINO_ASSERT(std::dynamic_pointer_cast<ov::opset9::Reshape>(node), "Unsqueezing from a scalar with string element is now unsupported");
 
                 if(target_rank == 0) {
                     // Nothing to do as we are converting scalar to scalar
@@ -485,10 +524,10 @@ ThroughReshapeProp::ThroughReshapeProp() {
                 return true;
             } else {
                 // Not a scalar case, represented as three input tensors: (begins, ends, elements)
-                FRONT_END_GENERAL_CHECK(input_inputs.size() == 3, "Expected three inputs to StructPack when output type is not a scalar Str");
+                OPENVINO_ASSERT(input_inputs.size() == 3, "Expected three inputs to StructPack when output type is not a scalar Str");
 
                 if(target_rank == 0) {
-                    FRONT_END_GENERAL_CHECK(false, "Not a scalar to scalar reshape for Str tensors is not supported");
+                    OPENVINO_ASSERT(false, "Not a scalar to scalar reshape for Str tensors is not supported");
                     return false;
                 } else {
                     // Just Reshape indices shape in the same way as this Reshape works
@@ -524,7 +563,7 @@ ThroughNotEqualProp::ThroughNotEqualProp() {
     // Should better match node that has at least one StructPack at least at one inputs
     auto input1 = wrap_type<StructPack>();
     auto input2 = wrap_type<StructPack>();
-    auto node = ngraph::pattern::wrap_type<ov::opset9::NotEqual>(OutputVector{input1, input2});
+    auto node = ov::pass::pattern::wrap_type<ov::opset9::NotEqual>(OutputVector{input1, input2});
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto node = m.get_match_root();
@@ -610,7 +649,7 @@ bool ReplaceParameterByVocab::run_on_model(const std::shared_ptr<Model>& model) 
 ThroughTensorListSetItem::ThroughTensorListSetItem() {
     // Should better match node that has at least one StructPack at least at one inputs
     //auto list = wrap_type<StructPack>();
-    auto node = wrap_type<tensorflow::FrameworkNode>(OutputVector{any_input(), any_input(), any_input()});
+    auto node = wrap_type<ov::op::util::FrameworkNode>(OutputVector{any_input(), any_input(), any_input()});
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         using namespace opset10;
@@ -938,7 +977,7 @@ ThroughWhileProp::ThroughWhileProp() {
 ThroughTensorListStack::ThroughTensorListStack() {
     // Should better match node that has at least one StructPack at least at one inputs
     //auto list = wrap_type<StructPack>();
-    auto node = wrap_type<tensorflow::FrameworkNode>(OutputVector{any_input(), any_input()});
+    auto node = wrap_type<ov::op::util::FrameworkNode>(OutputVector{any_input(), any_input()});
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         using namespace opset10;

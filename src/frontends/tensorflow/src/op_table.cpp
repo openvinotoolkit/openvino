@@ -3,7 +3,7 @@
 //
 
 #include "op_table.hpp"
-#include "helper_ops/str_ops.hpp"
+#include "openvino/op/str_ops.hpp"
 
 #include "common_op_table.hpp"
 #include "openvino/opsets/opset10.hpp"
