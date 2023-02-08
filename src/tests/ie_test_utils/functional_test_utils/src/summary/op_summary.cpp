@@ -48,7 +48,8 @@ void OpSummary::updateOPsStats(const ov::NodeTypeInfo &op, const PassRate::Statu
     auto &passrate = opsStats[op];
     if (isCrashReported) {
         isCrashReported = false;
-        passrate.crashed--;
+        if (passrate.crashed > 0)
+            passrate.crashed--;
     }
     if (isHangReported) {
         isHangReported = false;
@@ -70,7 +71,7 @@ void OpSummary::updateOPsStats(const ov::NodeTypeInfo &op, const PassRate::Statu
         case PassRate::CRASHED: {
             passrate.crashed++;
             isCrashReported = true;
-            return;
+            break;
         }
         case PassRate::HANGED: {
             passrate.hanged++;

@@ -47,7 +47,7 @@ static void SwapAndTransposeInputs(std::shared_ptr<ngraph::opset8::MatMul> matmu
         return transpose;
     };
 
-    auto transpose_matmul_input = [matmul_node, &new_ops, create_transpose](size_t ix) {
+    auto transpose_matmul_input = [matmul_node, create_transpose](size_t ix) {
         std::shared_ptr<ngraph::Node> matmul_input = matmul_node->input_value(ix).get_node_shared_ptr();
         auto input_transpose = std::dynamic_pointer_cast<ngraph::opset8::Transpose>(matmul_input);
         if (input_transpose != nullptr) {
@@ -175,8 +175,8 @@ static std::shared_ptr<ngraph::Node> CreateMatmuls(std::shared_ptr<ngraph::Node>
             auto matmul_node = std::dynamic_pointer_cast<ngraph::opset8::MatMul>(node.get_node_shared_ptr());
             IE_ASSERT(matmul_node != nullptr);
             auto input_shape = matmul_node->get_input_shape(0);
-            return input_shape.size() == 2 && (!matmul_node->get_transpose_a() && input_shape[0] > 8 ||
-                                               matmul_node->get_transpose_a() && input_shape[1] > 8);
+            return input_shape.size() == 2 && ((!matmul_node->get_transpose_a() && input_shape[0] > 8) ||
+                                               (matmul_node->get_transpose_a() && input_shape[1] > 8));
         });
     matmul2 = CreateMatmul(
         false,
@@ -191,8 +191,8 @@ static std::shared_ptr<ngraph::Node> CreateMatmuls(std::shared_ptr<ngraph::Node>
                                     first_input_shape.end());
             auto second_input_shape = matmul_node->get_input_shape(1);
             return node.get_partial_shape().is_static() && second_input_shape.size() == 2 &&
-                   (!matmul_node->get_transpose_b() && second_input_shape[1] <= 8 ||
-                    matmul_node->get_transpose_b() && second_input_shape[0] <= 8) &&
+                   ((!matmul_node->get_transpose_b() && second_input_shape[1] <= 8) ||
+                    (matmul_node->get_transpose_b() && second_input_shape[0] <= 8)) &&
                    first_input_shape.size() == 2 && first_input_shape[0] > 8;
         });
     return std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{matmul1, matmul2});

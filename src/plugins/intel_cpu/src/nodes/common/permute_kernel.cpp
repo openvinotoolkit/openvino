@@ -76,7 +76,7 @@ struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_ge
         Xbyak::Label exit_label;
 
         if (n + 1 == jcp.ndims) {
-            if (jcp.src_strides[n] == jcp.dst_strides[n] == 1) {
+            if (jcp.src_strides[n] == 1 && jcp.dst_strides[n] == 1) {
                 uint32_t step = vlen / jcp.data_size;
 
                 L(main_loop_label);

@@ -73,7 +73,7 @@ Any::~Any() {
     _impl = {};
 }
 
-Any::Any(const Any& other, const std::vector<std::shared_ptr<void>>& so) : _impl{other._impl}, _so{so} {}
+Any::Any(const Any& other, const std::vector<std::shared_ptr<void>>& so) : _so{so}, _impl{other._impl} {}
 
 Any::Any(const char* str) : Any(std::string{str}) {}
 
