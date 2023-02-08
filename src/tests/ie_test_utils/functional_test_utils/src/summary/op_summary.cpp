@@ -139,13 +139,19 @@ void OpSummary::updateOPsStats(const std::shared_ptr<ngraph::Function> &function
     if (function->get_parameters().empty()) {
         return;
     }
-    bool isFunctionalGraph = false;
+    bool isFunctionalGraph = false, isReportConvert = true;
     for (const auto &op : function->get_ordered_ops()) {
         if (!ngraph::is_type<ngraph::op::Parameter>(op) &&
             !ngraph::is_type<ngraph::op::Constant>(op) &&
             !ngraph::is_type<ngraph::op::Result>(op)) {
+            if (!std::dynamic_pointer_cast<ov::op::v0::Convert>(op)) {
+                isReportConvert = false;
+            }
             isFunctionalGraph = true;
-            break;
+            // find all features
+            if (!isReportConvert && isFunctionalGraph) {
+                break;
+            }
         }
     }
 
@@ -153,6 +159,9 @@ void OpSummary::updateOPsStats(const std::shared_ptr<ngraph::Function> &function
         if ((ngraph::is_type<ngraph::op::Parameter>(op) ||
              ngraph::is_type<ngraph::op::Constant>(op) ||
              ngraph::is_type<ngraph::op::Result>(op)) && isFunctionalGraph) {
+            continue;
+        }
+        if (!isReportConvert && std::dynamic_pointer_cast<ov::op::v0::Convert>(op)) {
             continue;
         }
         if (extractBody) {
