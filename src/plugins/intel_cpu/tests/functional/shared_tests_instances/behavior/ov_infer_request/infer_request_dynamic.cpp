@@ -22,6 +22,10 @@ const std::vector<ov::AnyMap> AutoConfigs = {
     {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}
 };
 
+const std::vector<std::string> TargetDevices = {
+    CommonTestUtils::DEVICE_AUTO, CommonTestUtils::DEVICE_MULTI
+};
+
 std::shared_ptr<ngraph::Function> getFunction1() {
     const std::vector<size_t> inputShape = {1, 4, 20, 20};
     const ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32;
@@ -100,7 +104,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestDynamicTests,
                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
                                     {{1, 4, 20, 20}, {1, 2, 20, 40}},
                                     {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
-                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                ::testing::ValuesIn(TargetDevices),
                                 ::testing::ValuesIn(AutoConfigs)),
                         OVInferRequestDynamicTests::getTestCaseName);
 

@@ -16,8 +16,17 @@ auto configs = []() {
 };
 
 auto AutoConfigs = []() {
-    return std::vector<ov::AnyMap>{{ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU)},
+    return std::vector<ov::AnyMap>{
+                                   {ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU)},
+                                   {ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU)},
                                    {}};
+};
+
+auto MultiConfigs = []() {
+    return std::vector<ov::AnyMap>{
+                                   {ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU)},
+                                   {ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU)}
+                                   };
 };
 
 auto AutoNotSupportConfigs = []() {
@@ -94,5 +103,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVNotSupportRequestDynamicTes
                                     {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                 ::testing::ValuesIn(AutoNotSupportConfigs())),
+                        OVInferRequestDynamicTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestDynamicTests,
+                        ::testing::Combine(
+                                ::testing::Values(getFunction2()),
+                                ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
+                                    {{1, 4, 20, 20}, {1, 2, 20, 40}},
+                                    {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
+                                ::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                                ::testing::ValuesIn(MultiConfigs())),
                         OVInferRequestDynamicTests::getTestCaseName);
 }  // namespace

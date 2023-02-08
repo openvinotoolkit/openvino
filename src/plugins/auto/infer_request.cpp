@@ -79,8 +79,7 @@ void MultiDeviceInferRequest::SetBlobsToAnotherRequest(const SoIInferRequestInte
         auto &name = it.first;
         // this request is already in BUSY state, so using the internal functions safely
         auto blob = GetBlob(name);
-        auto dim = blob->getTensorDesc().getDims();
-        if (std::count(dim.begin(), dim.end(), 0))
+        if (blob->size() == 0)
             continue;
         if (req->GetBlob(name) != blob)
             req->SetBlob(name, blob);
