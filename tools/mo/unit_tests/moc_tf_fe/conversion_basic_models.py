@@ -300,3 +300,13 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
         with self.assertRaisesRegex(Exception, "Internal error: No translator found for Enter node"):
             self.basic("ctc_model_based.pbtxt", None, None, None, None,
                        None, None, True, True, True, False)
+
+    @unittest.skip("92590: Expect auto-pruning by TF FE. It is broken in legacy FE now.")
+    def test_conversion_model_oneshot_iterator_default(self):
+        self.basic("model_oneshot_iterator.pbtxt", None, None, None, None,
+                   None, None, True, True, False, False)
+
+    def test_conversion_model_oneshot_iterator_use_new_frontend(self):
+        with self.assertRaisesRegex(Exception, "Internal error: No translator found for OneShotIterator node"):
+            self.basic("model_oneshot_iterator.pbtxt", None, None, None, None,
+                       None, None, True, True, True, False)
