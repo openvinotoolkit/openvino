@@ -128,6 +128,12 @@ endif()\n")
     ov_dev_package_no_errors()
     ov_deprecated_no_errors()
 
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        # 'argument': conversion from 'size_t' to 'int', possible loss of data
+        ie_add_compiler_flags(/wd4267)
+        ie_add_compiler_flags(/wd4244)
+    endif()
+
     # add each extra module
     foreach(module_path IN LISTS extra_modules)
         if(module_path)
