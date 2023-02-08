@@ -51,7 +51,7 @@
 
 **Detailed Description**
 
-Output tensor is populated by values computes in the following way:
+The output tensor is populated by values computed in the following way:
 
     output[i1, ..., i(axis-1), j, i(axis+1) ..., iN] = top_k(input[i1, ...., i(axis-1), :, i(axis+1), ..., iN]), k, sort, mode)
 
