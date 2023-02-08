@@ -28,7 +28,6 @@ from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_
 from openvino.tools.mo.pipeline.common import prepare_emit_ir
 from openvino.tools.mo.pipeline.unified import unified_pipeline
 from openvino.tools.mo.utils import import_extensions
-from openvino.tools.mo.utils.get_ov_update_message import get_compression_message
 from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
     get_advanced_cli_options, get_available_front_ends, get_caffe_cli_options, \
     get_common_cli_options, get_freeze_placeholder_values, get_kaldi_cli_options, get_layout_values, \
@@ -218,14 +217,9 @@ def arguments_post_parsing(argv: argparse.Namespace):
         raise_ie_not_found()
 
     if 'compress_to_fp16' in argv and argv.compress_to_fp16 and \
-            'data_type' in argv and argv.data_type in ['FP32', 'float']:
+            'data_type' in argv and argv.data_type:
         raise Error(f"Both --compress_to_fp16 and --data_type={argv.data_type} are defined. "
-                    f"Specify either compress_to_fp16 or data_type={argv.data_type}")
-
-    if ('compress_to_fp16' not in argv or argv.compress_to_fp16 is None) \
-            and ('data_type' not in argv or argv.data_type is None):
-        argv.compress_to_fp16 = True
-        print(get_compression_message())
+                    f"Specify either --compress_to_fp16 or --data_type")
 
     if ('data_type' in argv and argv.data_type in ['FP16', 'half']) or \
             ('compress_to_fp16' in argv and argv.compress_to_fp16 is True):

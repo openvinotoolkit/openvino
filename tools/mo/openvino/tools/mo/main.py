@@ -10,10 +10,9 @@ try:
     import openvino_telemetry as tm
 except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
-
+from openvino.tools.mo.utils.get_ov_update_message import get_compression_message
 from openvino.tools.mo.convert_impl import _convert
 from openvino.tools.mo.pipeline.common import get_ir_version
-from openvino.tools.mo.utils.cli_parser import get_model_name_from_args
 from openvino.tools.mo.utils.logger import init_logger
 from openvino.tools.mo.utils.error import Error, FrameworkError
 import traceback
@@ -38,6 +37,10 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
     try:
         ngraph_function, argv = _convert(cli_parser, framework, {})
         is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
+        if ('compress_to_fp16' in argv and argv.compress_to_fp16) \
+                or ('data_type' in argv or argv.data_type in ['half', 'FP16']):
+            print(get_compression_message())
+
         ov_update_message = get_ov_update_message()
         ov_api20_message = get_ov_api20_message()
         if ov_update_message is not None:
