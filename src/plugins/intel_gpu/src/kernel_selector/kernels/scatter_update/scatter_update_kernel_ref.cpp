@@ -48,6 +48,7 @@ ParamsKey ScatterUpdateKernelRef::GetSupportedKey() const {
     k.EnableTensorPitches();
     k.EnableBatching();
     k.EnableDifferentTypes();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 
@@ -89,7 +90,7 @@ static std::string GetUpdatesIndexOrder(const scatter_update_params& params) {
     return GetOrderString(default_order);
 }
 
-CommonDispatchData ScatterUpdateKernelRef::SetDefault(const scatter_update_params& params, const optional_params&, bool is_second) const {
+CommonDispatchData ScatterUpdateKernelRef::SetDefault(const scatter_update_params& params, bool is_second) const {
     CommonDispatchData dispatchData;
     const auto& output = params.outputs[0];
     const auto rank = output.GetDims().size();
@@ -179,50 +180,87 @@ static std::string GetSecondIterOutputIndexOrder(const scatter_update_params& pa
     return GetOrderString(output_order);
 }
 
-static std::vector<size_t> GetPlanarPitches(const Tensor::NDims& dims) {
+static std::vector<std::string> GetPlanarPitches(const Tensor::NDims& dims) {
     const auto ndims = dims.size();
-    std::vector<size_t> pitches(ndims);
+    std::vector<std::string> pitches(ndims);
     size_t pitch = 1;
     for (size_t i = 0; i < ndims; ++i) {
-        pitches[i] = pitch;
+        pitches[i] = std::to_string(pitch);
         pitch *= dims[i].v;
     }
     std::reverse(pitches.begin(), pitches.end());
     return pitches;
 }
 
+static std::vector<std::string> GetDynamicPitches(const Tensor::NDims& dims, size_t tensor_idx) {
+    std::vector<std::string> pitches(dims.size());
+    size_t shape_info_rank = 6;
+    std::string pitch = "1";
+    for (size_t i = 0; i < pitches.size(); ++i) {
+        size_t bf_idx = dims.size() - i - 1;
+        size_t dim_offset = bf_idx > 1 ? shape_info_rank - i - 1 : bf_idx;
+
+        pitches[i] = pitch;
+        pitch += "*" + toCodeString(dims[i], tensor_idx * shape_info_rank + dim_offset);
+    }
+    std::reverse(pitches.begin(), pitches.end());
+    return pitches;
+}
+
 JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params& params) const {
+    JitConstants jit = MakeBaseParamsJitConstants(params);
     size_t axis_value = GetScatterUpdateChannelIndex(params);
 
-    JitConstants jit = MakeBaseParamsJitConstants(params);
-
-    const auto blocked_layout = !(SimpleLayout(params.inputs[0].GetLayout())
-                                    && SimpleLayout(params.inputs[1].GetLayout())
-                                    && SimpleLayout(params.inputs[2].GetLayout()));
+    const auto blocked_layout = !(SimpleLayout(params.inputs[0].GetLayout()) &&
+                                  SimpleLayout(params.inputs[1].GetLayout()) &&
+                                  SimpleLayout(params.inputs[2].GetLayout()));
 
     if (blocked_layout) {
         jit.AddConstant(MakeJitConstant("BLOCKED_LAYOUT", "1"));
     }
 
-    const auto pitches = GetPlanarPitches(params.outputs[0].GetDims());
-
     jit.AddConstant(MakeJitConstant("UPDATES_INDEX_ORDER", GetUpdatesIndexOrder(params)));
     jit.AddConstant(MakeJitConstant("SECOND_ITER_OUTPUT_INDEX_ORDER", GetSecondIterOutputIndexOrder(params, GetScatterUpdateChannelIndex(params))));
     jit.AddConstant(MakeJitConstant("OUTPUT_INDEX_ON_AXIS", GetOutputIndexOnAxis(params, GetScatterUpdateChannelIndex(params))));
     jit.AddConstant(MakeJitConstant("AXIS_VALUE", axis_value));
-    jit.AddConstant(MakeJitConstant("INDICES_SIZE", params.inputs[1].LogicalSize()));
 
-    auto default_order = GetDefaultOrder(params.outputs[0].GetDims().size());
+    const auto& input1 = params.inputs[1];
+    if (input1.is_dynamic()) {
+        const auto& input1_dims = input1.GetDims();
+        size_t input_offset = 6;
+        std::string indices_size = "(";
+
+        for (size_t i = 0; i < input1_dims.size(); ++i) {
+            size_t bf_idx = input1_dims.size() - i - 1;
+            size_t dim_offset = bf_idx > 1 ? input_offset - i - 1 : bf_idx;
+
+            indices_size += toCodeString(input1_dims[i], input_offset + dim_offset) + "*";
+        }
+        indices_size.back() = ')';
+        jit.AddConstant(MakeJitConstant("INDICES_SIZE", indices_size));
+    } else {
+        jit.AddConstant(MakeJitConstant("INDICES_SIZE", params.inputs[1].LogicalSize()));
+    }
+
+    std::vector<std::string> pitches;
+    const auto& output = params.outputs[0];
+    if (output.is_dynamic()) {
+        pitches = GetDynamicPitches(output.GetDims(), params.inputs.size() + GetFusedPrimitiveInputsCount(params));
+    } else {
+        pitches = GetPlanarPitches(output.GetDims());
+    }
+    auto default_order = GetDefaultOrder(output.GetDims().size());
+
     size_t dims = default_order.size();
     std::string get_update_idx = "(INPUT2_OFFSET)";
     for (size_t i = 0; i < dims; ++i) {
         if (i >= axis_value) {
             std::string def_pitch = "UPDATES_" + GetAxisName(dims, i) + "_PITCH";
-            std::string src_pitch = "(" + std::to_string(pitches[i]) + ")";
+            std::string src_pitch = "(" + pitches[i] + ")";
             jit.AddConstant(MakeJitConstant(def_pitch, src_pitch));
         } else if (i == (axis_value - 1)) {
             std::string def_pitch = "UPDATES_" + GetAxisName(dims, i) + "_PITCH";
-            std::string src_pitch = "(" + std::to_string(pitches[i + 1]) + " * INDICES_SIZE)";
+            std::string src_pitch = "(" + pitches[i + 1] + " * INDICES_SIZE)";
             jit.AddConstant(MakeJitConstant(def_pitch, src_pitch));
         } else { // i < axis_value - 1
             std::string def_pitch = "UPDATES_" + GetAxisName(dims, i) + "_PITCH" + "";
@@ -239,7 +277,7 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
     jit.AddConstant(MakeJitConstant("GET_UPDATES_INDEX(idx_order)", get_update_idx));
 
     if (!params.fused_ops.empty()) {
-        FusedOpsConfiguration conf1 = { "_FIRST_KERNEL", GetDefaultOrder(params.outputs[0].GetDims().size()), "val", params.inputs[0].GetDType() };
+        FusedOpsConfiguration conf1 = { "_FIRST_KERNEL", GetDefaultOrder(output.GetDims().size()), "val", params.inputs[0].GetDType() };
         FusedOpsConfiguration conf2 = { "_SECOND_KERNEL", GetVectorSecondOutputIndexOrder(params, GetScatterUpdateChannelIndex(params)),
                                         "val", params.inputs[0].GetDType() };
         jit.Merge(MakeFusedOpsJitConstants(params, {conf1, conf2}));
@@ -269,21 +307,35 @@ KernelsData ScatterUpdateKernelRef::GetKernelsData(const Params& params, const o
     }
 
     const scatter_update_params& orgParams = static_cast<const scatter_update_params&>(params);
-    const size_t indices_size = orgParams.inputs[1].LogicalSize();
-    int start_with_iteration = 0;
+    const auto& input0 = orgParams.inputs[0];
+    const auto& input1 = orgParams.inputs[1];
 
-    // if dim of output along axis is equal to logical size of indices, we miss copying kernel
-    if (orgParams.inputs[0].Extract(orgParams.inputs[0].GetLayout(), Tensor::DataChannelName(orgParams.axis),
-                                    orgParams.inputs[0].GetDims()).v == indices_size) {
-        start_with_iteration = 1;
+    int start_with_iteration = 0;
+    if (!orgParams.has_dynamic_inputs()) {
+        // if dim of output along axis is equal to logical size of indices, we miss copying kernel
+        const size_t indices_size = input1.LogicalSize();
+        if (input0.Extract(input0.GetLayout(), Tensor::DataChannelName(orgParams.axis), input0.GetDims()).v == indices_size) {
+            start_with_iteration = 1;
+        }
     }
 
     KernelData kd = KernelData::Default<scatter_update_params>(params, (2 - start_with_iteration));
     scatter_update_params& newParams = *static_cast<scatter_update_params*>(kd.params.get());
     auto cldnn_jit = GetJitConstants(newParams);
 
-    for (int i = start_with_iteration; i < 2; i++) {
-        auto dispatchData = SetDefault(newParams, options, (i == 1));
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const scatter_update_params&>(params);
+        OPENVINO_ASSERT(kd.kernels.size() == 2, "[GPU] Invalid kernels size for update dispatch data func");
+
+        for (size_t i = 0; i < 2; ++i) {
+            auto dispatchData = SetDefault(prim_params, i == 1);
+            kd.kernels[i].params.workGroups.global = dispatchData.gws;
+            kd.kernels[i].params.workGroups.local = dispatchData.lws;
+        }
+    };
+
+    for (size_t i = start_with_iteration; i < 2; ++i) {
+        auto dispatchData = SetDefault(newParams, (i == 1));
         auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options, i);
 
         if (i == 1) {
@@ -293,7 +345,8 @@ KernelsData ScatterUpdateKernelRef::GetKernelsData(const Params& params, const o
 
         clKernelData& kernel = kd.kernels[i - start_with_iteration];
 
-        FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, "", false, false, 3, GetFusedPrimitiveInputsCount(params));
+        FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
+                         "", false, false, 3, GetFusedPrimitiveInputsCount(params), 1, newParams.has_dynamic_tensors());
     }
 
     return {kd};

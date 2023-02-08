@@ -86,7 +86,8 @@ inline void FUNC(planar_to_bfwzyx)(const uint planar_index,
 #endif // INPUT2_DIMS
 #endif // BLOCKED_LAYOUT
 
-KERNEL(scatter_update_ref)(const __global INPUT0_TYPE* dictionary,
+KERNEL(scatter_update_ref)(OPTIONAL_SHAPE_INFO_ARG
+                   const __global INPUT0_TYPE* dictionary,
                    const __global INPUT1_TYPE* indices,
                    const __global INPUT2_TYPE* updates,
                    __global OUTPUT_TYPE* output
