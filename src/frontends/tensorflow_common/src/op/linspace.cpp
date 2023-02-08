@@ -27,10 +27,15 @@ OutputVector translate_linspace_op(const NodeContext& node) {
     Output<Node> delta = make_shared<Subtract>(stop, start);
     delta = make_shared<Divide>(delta, num_minus_one);
 
+    // generate a range of numbers [0, 1, ..., num)
+    // to have exact numbers of elements equal to num
+    auto const_zero = make_shared<Constant>(num.get_element_type(), Shape{}, 0);
+    auto range0_n = make_shared<Range>(const_zero, num, const_one, start.get_element_type());
+
     // compute the result
-    auto stop_plus_delta = make_shared<Add>(stop, delta);
-    auto linspace = make_shared<Range>(start, stop_plus_delta, delta, start.get_element_type());
-    set_node_name(node.get_name(), linspace);
+    Output<Node> linspace = make_shared<Multiply>(range0_n, delta);
+    linspace = make_shared<Add>(linspace, start);
+    set_node_name(node.get_name(), linspace.get_node_shared_ptr());
     return {linspace};
 }
 }  // namespace op

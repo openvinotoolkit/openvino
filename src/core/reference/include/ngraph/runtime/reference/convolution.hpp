@@ -150,13 +150,13 @@ void infer_forward_conv_output_shape(const Shape& in_spatial_shape,
     }
 }
 
-void validate_convolution_parameters(const Shape& in_shape,
-                                     const Shape& f_shape,
-                                     const Shape& out_shape,
-                                     const Strides& strides,
-                                     const Strides& dilations,
-                                     const CoordinateDiff& pads_begin,
-                                     const CoordinateDiff& pads_end) {
+inline void validate_convolution_parameters(const Shape& in_shape,
+                                            const Shape& f_shape,
+                                            const Shape& out_shape,
+                                            const Strides& strides,
+                                            const Strides& dilations,
+                                            const CoordinateDiff& pads_begin,
+                                            const CoordinateDiff& pads_end) {
     // this implementation supports 1D, 2D and 3D convolutions
     NGRAPH_CHECK(in_shape.size() >= 3 && in_shape.size() <= 5, "Unsupported input rank: ", in_shape);
 

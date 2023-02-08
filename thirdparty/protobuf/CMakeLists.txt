@@ -8,15 +8,9 @@
 
 set(BUILD_SHARED_LIBS OFF)
 
-if(SUGGEST_OVERRIDE_SUPPORTED)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
-endif()
-
-if(OV_COMPILER_IS_CLANG)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-inconsistent-missing-override")
-endif()
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+    ie_add_compiler_flags(-Wno-all)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # protobuf\src\google\protobuf\descriptor.cc(822) : error C4703: potentially uninitialized local pointer variable 'to_use' used
     add_definitions("/wd4703")
 endif()

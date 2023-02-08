@@ -26,10 +26,6 @@ if(TARGET ittnotify)
     endif()
 endif()
 
-if(CMAKE_COMPILER_IS_GNUCXX)
-    target_compile_options(${TARGET_NAME} PRIVATE -Wall)
-endif()
-
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 

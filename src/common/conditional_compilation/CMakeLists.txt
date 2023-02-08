@@ -30,6 +30,8 @@ elseif(SELECTIVE_BUILD STREQUAL "ON")
         # After disabling a block of code, some variables might be unused.
         target_compile_options(${TARGET_NAME} INTERFACE
                                 -Wno-unused-function
+                                -Wno-unused-variable
+                                -Wno-unused-but-set-variable
                                 -Wno-unused-parameter
                                 -Wno-unused-local-typedefs)
     endif()
