@@ -23,6 +23,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "common/cpu_memcpy.h"
 #include <common/primitive_hashing_utils.hpp>
+#include <utils/shape_inference/shape_inference_pass_through.hpp>
 
 #include <ngraph/opsets/opset1.hpp>
 #include "utils/ngraph_utils.hpp"
@@ -59,132 +60,132 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
     };
 
     void generate() override {
-        this->preamble();
+        // this->preamble();
 
-        mov(reg_from, ptr[param + GET_OFF(from)]);
-        mov(reg_to, ptr[param + GET_OFF(to)]);
-        mov(reg_thresholds, ptr[param + GET_OFF(thresholds)]);
-        mov(reg_output_mask, ptr[param + GET_OFF(output_mask)]);
-        mov(reg_work_amount, ptr[param + GET_OFF(work_amount)]);
+        // mov(reg_from, ptr[param + GET_OFF(from)]);
+        // mov(reg_to, ptr[param + GET_OFF(to)]);
+        // mov(reg_thresholds, ptr[param + GET_OFF(thresholds)]);
+        // mov(reg_output_mask, ptr[param + GET_OFF(output_mask)]);
+        // mov(reg_work_amount, ptr[param + GET_OFF(work_amount)]);
 
-        const int nbits = 8;
-        int simd_w = isa == avx512_core ? 16 : 8;
-        const int C = jqp_.c;
-        const int tail_size = C % simd_w;
+        // const int nbits = 8;
+        // int simd_w = isa == avx512_core ? 16 : 8;
+        // const int C = jqp_.c;
+        // const int tail_size = C % simd_w;
 
-        Label unrolled_loop_label;
-        Label main_loop_label;
-        Label tail_label;
-        Label exit_label;
+        // Label unrolled_loop_label;
+        // Label main_loop_label;
+        // Label tail_label;
+        // Label exit_label;
 
-        L(unrolled_loop_label); {
-            int step = isa == cpu::x64::sse41 ? nbits / 2 : isa == cpu::x64::avx2 ? nbits : 2 * nbits;
-            const int ur_ch = isa == cpu::x64::sse41 ? nbits : isa == cpu::x64::avx2 ? nbits / 2 : nbits / 4;
-            const int unrolled_loop_step = ur_ch * step;
+        // L(unrolled_loop_label); {
+        //     int step = isa == cpu::x64::sse41 ? nbits / 2 : isa == cpu::x64::avx2 ? nbits : 2 * nbits;
+        //     const int ur_ch = isa == cpu::x64::sse41 ? nbits : isa == cpu::x64::avx2 ? nbits / 2 : nbits / 4;
+        //     const int unrolled_loop_step = ur_ch * step;
 
-            cmp(reg_work_amount, unrolled_loop_step);
-            jl(main_loop_label, T_NEAR);
+        //     cmp(reg_work_amount, unrolled_loop_step);
+        //     jl(main_loop_label, T_NEAR);
 
-            xor_(reg_bin_32, reg_bin_32);
-            for (int ch = 0; ch < ur_ch; ch++) {
-                uni_vmovups(vmm_src(0), ptr[reg_from + ch*step*sizeof(float)]);
-                uni_vmovups(vmm_wei(0), ptr[reg_thresholds + ch*step*sizeof(float)]);
-                uni_vmovups(vmm_mask(0), ptr[reg_output_mask + ch*step*sizeof(float)]);
-                if (isa == avx512_core) {
-                    vcmpps(k_mask0, vmm_src(0), vmm_wei(0), _cmp_gt_os);
-                    vptestmd(k_mask1, vmm_mask(0), vmm_mask(0));
-                    kxnorw(k_mask0, k_mask0, k_mask1);
-                    kmovw(reg_src_32, k_mask0);
-                } else {
-                    uni_vcmpgtps(vmm_src(0), vmm_src(0), vmm_wei(0));
-                    uni_vpcmpeqd(vmm_src(0), vmm_src(0), vmm_mask(0));
-                    uni_vmovmskps(reg_src_32, vmm_src(0));
-                }
-                shl(reg_src_32, ch * step);
-                or_(reg_bin_32, reg_src_32);
-            }
-            mov(ptr[reg_to], reg_bin_32);
+        //     xor_(reg_bin_32, reg_bin_32);
+        //     for (int ch = 0; ch < ur_ch; ch++) {
+        //         uni_vmovups(vmm_src(0), ptr[reg_from + ch*step*sizeof(float)]);
+        //         uni_vmovups(vmm_wei(0), ptr[reg_thresholds + ch*step*sizeof(float)]);
+        //         uni_vmovups(vmm_mask(0), ptr[reg_output_mask + ch*step*sizeof(float)]);
+        //         if (isa == avx512_core) {
+        //             vcmpps(k_mask0, vmm_src(0), vmm_wei(0), _cmp_gt_os);
+        //             vptestmd(k_mask1, vmm_mask(0), vmm_mask(0));
+        //             kxnorw(k_mask0, k_mask0, k_mask1);
+        //             kmovw(reg_src_32, k_mask0);
+        //         } else {
+        //             uni_vcmpgtps(vmm_src(0), vmm_src(0), vmm_wei(0));
+        //             uni_vpcmpeqd(vmm_src(0), vmm_src(0), vmm_mask(0));
+        //             uni_vmovmskps(reg_src_32, vmm_src(0));
+        //         }
+        //         shl(reg_src_32, ch * step);
+        //         or_(reg_bin_32, reg_src_32);
+        //     }
+        //     mov(ptr[reg_to], reg_bin_32);
 
-            add(reg_from, unrolled_loop_step*sizeof(float));
-            add(reg_thresholds, unrolled_loop_step*sizeof(float));
-            add(reg_output_mask, unrolled_loop_step*sizeof(float));
-            add(reg_to, sizeof(uint32_t));
-            sub(reg_work_amount, unrolled_loop_step);
+        //     add(reg_from, unrolled_loop_step*sizeof(float));
+        //     add(reg_thresholds, unrolled_loop_step*sizeof(float));
+        //     add(reg_output_mask, unrolled_loop_step*sizeof(float));
+        //     add(reg_to, sizeof(uint32_t));
+        //     sub(reg_work_amount, unrolled_loop_step);
 
-            jmp(unrolled_loop_label, T_NEAR);
-        }
+        //     jmp(unrolled_loop_label, T_NEAR);
+        // }
 
-        L(main_loop_label); {
-            int repeats = isa == cpu::x64::sse41 ? 2 : 1;
-            int step = isa == cpu::x64::sse41 ? nbits / 2 : isa == cpu::x64::avx2 ? nbits : nbits * 2;
-            const int main_loop_step = step * repeats;
+        // L(main_loop_label); {
+        //     int repeats = isa == cpu::x64::sse41 ? 2 : 1;
+        //     int step = isa == cpu::x64::sse41 ? nbits / 2 : isa == cpu::x64::avx2 ? nbits : nbits * 2;
+        //     const int main_loop_step = step * repeats;
 
-            cmp(reg_work_amount, main_loop_step);
-            jl(tail_label, T_NEAR);
+        //     cmp(reg_work_amount, main_loop_step);
+        //     jl(tail_label, T_NEAR);
 
-            xor_(reg_bin_32, reg_bin_32);
-            for (int i = 0; i < repeats; i++) {
-                uni_vmovups(vmm_src(0), ptr[reg_from + i*step*sizeof(float)]);
-                uni_vmovups(vmm_wei(0), ptr[reg_thresholds + i*step*sizeof(float)]);
-                uni_vmovups(vmm_mask(0), ptr[reg_output_mask + i*step*sizeof(float)]);
-                if (isa == avx512_core) {
-                    vcmpps(k_mask0, vmm_src(0), vmm_wei(0), _cmp_gt_os);
-                    vptestmd(k_mask1, vmm_mask(0), vmm_mask(0));
-                    kxnorw(k_mask0, k_mask0, k_mask1);
-                    kmovw(reg_src_32, k_mask0);
-                } else {
-                    uni_vcmpgtps(vmm_src(0), vmm_src(0), vmm_wei(0));
-                    uni_vpcmpeqd(vmm_src(0), vmm_src(0), vmm_mask(0));
-                    uni_vmovmskps(reg_src_32, vmm_src(0));
-                }
-                shl(reg_src_32, i * step);
-                or_(reg_bin_32, reg_src_32);
-            }
-            if (isa == avx512_core)
-                mov(ptr[reg_to], reg_bin_16);
-            else
-                mov(ptr[reg_to], reg_bin_8);
+        //     xor_(reg_bin_32, reg_bin_32);
+        //     for (int i = 0; i < repeats; i++) {
+        //         uni_vmovups(vmm_src(0), ptr[reg_from + i*step*sizeof(float)]);
+        //         uni_vmovups(vmm_wei(0), ptr[reg_thresholds + i*step*sizeof(float)]);
+        //         uni_vmovups(vmm_mask(0), ptr[reg_output_mask + i*step*sizeof(float)]);
+        //         if (isa == avx512_core) {
+        //             vcmpps(k_mask0, vmm_src(0), vmm_wei(0), _cmp_gt_os);
+        //             vptestmd(k_mask1, vmm_mask(0), vmm_mask(0));
+        //             kxnorw(k_mask0, k_mask0, k_mask1);
+        //             kmovw(reg_src_32, k_mask0);
+        //         } else {
+        //             uni_vcmpgtps(vmm_src(0), vmm_src(0), vmm_wei(0));
+        //             uni_vpcmpeqd(vmm_src(0), vmm_src(0), vmm_mask(0));
+        //             uni_vmovmskps(reg_src_32, vmm_src(0));
+        //         }
+        //         shl(reg_src_32, i * step);
+        //         or_(reg_bin_32, reg_src_32);
+        //     }
+        //     if (isa == avx512_core)
+        //         mov(ptr[reg_to], reg_bin_16);
+        //     else
+        //         mov(ptr[reg_to], reg_bin_8);
 
-            add(reg_from, main_loop_step*sizeof(float));
-            add(reg_thresholds, main_loop_step*sizeof(float));
-            add(reg_output_mask, main_loop_step*sizeof(float));
-            add(reg_to, isa == avx512_core ? sizeof(uint16_t) : sizeof(uint8_t));
-            sub(reg_work_amount, main_loop_step);
+        //     add(reg_from, main_loop_step*sizeof(float));
+        //     add(reg_thresholds, main_loop_step*sizeof(float));
+        //     add(reg_output_mask, main_loop_step*sizeof(float));
+        //     add(reg_to, isa == avx512_core ? sizeof(uint16_t) : sizeof(uint8_t));
+        //     sub(reg_work_amount, main_loop_step);
 
-            jmp(main_loop_label, T_NEAR);
-        }
+        //     jmp(main_loop_label, T_NEAR);
+        // }
 
-        L(tail_label); {
-            if (tail_size != 0) {
-                xor_(reg_bin_32, reg_bin_32);
-                mov(reg_mask, 1);
-                for (int c = 0; c < tail_size; c++) {
-                    uni_vpxor(xmm_src(0), xmm_src(0), xmm_src(0));
-                    uni_vpxor(xmm_wei(0), xmm_wei(0), xmm_wei(0));
-                    uni_vpxor(xmm_mask(0), xmm_mask(0), xmm_mask(0));
+        // L(tail_label); {
+        //     if (tail_size != 0) {
+        //         xor_(reg_bin_32, reg_bin_32);
+        //         mov(reg_mask, 1);
+        //         for (int c = 0; c < tail_size; c++) {
+        //             uni_vpxor(xmm_src(0), xmm_src(0), xmm_src(0));
+        //             uni_vpxor(xmm_wei(0), xmm_wei(0), xmm_wei(0));
+        //             uni_vpxor(xmm_mask(0), xmm_mask(0), xmm_mask(0));
 
-                    uni_vmovss(xmm_src(0), ptr[reg_from + c * sizeof(float)]);
-                    uni_vmovss(xmm_wei(0), ptr[reg_thresholds + c * sizeof(float)]);
-                    uni_vmovss(xmm_mask(0), ptr[reg_output_mask + c * sizeof(float)]);
-                    uni_vcmpgtps(xmm_src(0), xmm_src(0), xmm_wei(0));
-                    uni_vpcmpeqd(xmm_src(0), xmm_src(0), xmm_mask(0));
-                    uni_vmovmskps(reg_src_32, xmm_src(0));
+        //             uni_vmovss(xmm_src(0), ptr[reg_from + c * sizeof(float)]);
+        //             uni_vmovss(xmm_wei(0), ptr[reg_thresholds + c * sizeof(float)]);
+        //             uni_vmovss(xmm_mask(0), ptr[reg_output_mask + c * sizeof(float)]);
+        //             uni_vcmpgtps(xmm_src(0), xmm_src(0), xmm_wei(0));
+        //             uni_vpcmpeqd(xmm_src(0), xmm_src(0), xmm_mask(0));
+        //             uni_vmovmskps(reg_src_32, xmm_src(0));
 
-                    shl(reg_src_32, c);
-                    and_(reg_src_32, reg_mask);
-                    or_(reg_bin_32, reg_src_32);
-                    shl(reg_mask, 1);
-                }
-                if (isa == avx512_core && tail_size > nbits)
-                    mov(ptr[reg_to], reg_bin_16);
-                else
-                    mov(ptr[reg_to], reg_bin_8);
-            }
-        }
+        //             shl(reg_src_32, c);
+        //             and_(reg_src_32, reg_mask);
+        //             or_(reg_bin_32, reg_src_32);
+        //             shl(reg_mask, 1);
+        //         }
+        //         if (isa == avx512_core && tail_size > nbits)
+        //             mov(ptr[reg_to], reg_bin_16);
+        //         else
+        //             mov(ptr[reg_to], reg_bin_8);
+        //     }
+        // }
 
-        L(exit_label);
+        // L(exit_label);
 
-        this->postamble();
+        // this->postamble();
     }
 
 private:
@@ -280,6 +281,7 @@ private:
     Reg64 reg_dst_step = rsi;
     Reg64 reg_block_size = r11;
     Reg64 reg_work_amount = r12;
+    Reg64 reg_channel_size = reg_block_size;
 
     Reg8 reg_tmp_8 = r9b;
     Reg32 reg_tmp_32 = r9d;
@@ -430,10 +432,10 @@ private:
         if (isa == cpu::x64::avx512_core)
             uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
-        int simd_w = isa == cpu::x64::avx512_core ? 16 : 8;
-        int tail8_simd_w = 8;
-        int tail4_simd_w = 4;
-        int repeats = isa == cpu::x64::sse41 ? 2 : 1;
+        constexpr unsigned tail8_simd_w = 8;
+        constexpr unsigned tail4_simd_w = 4;
+        constexpr unsigned simd_w = isa == cpu::x64::avx512_core ? 16 : 8;
+        constexpr unsigned repeats = isa == cpu::x64::sse41 ? 2 : 1;
 
         Label main_loop_label;
         Label tail_blk8_label;
@@ -602,27 +604,48 @@ private:
         L(tail_loop_label); {
             cmp(reg_work_amount, 0);
             jle(exit_label, T_NEAR);
+            Label end_unroll;
+            mov(reg_channel_size, ptr[param + GET_OFF(channel_size)]);
+            and_(reg_channel_size, tail4_simd_w - 1); // reg_channel_size % tail4_simd_w == reg_channel_size & (tail4_simd_w - 1)
 
-            for (int i = 0; i < jqp_.c % tail4_simd_w; i++) {
-                uni_vmovss(xmm_crop_low(0), ptr[reg_crop_low + i * wei_type_size]);
-                uni_vmovss(xmm_crop_high(0), ptr[reg_crop_high + i * wei_type_size]);
-                uni_vmovss(xmm_input_scale(0), ptr[reg_input_scale + i * wei_type_size]);
-                uni_vmovss(xmm_input_shift(0), ptr[reg_input_shift + i * wei_type_size]);
-                if (do_dequantization) {
-                    uni_vmovss(xmm_output_scale(0), ptr[reg_output_scale + i * wei_type_size]);
-                    uni_vmovss(xmm_output_shift(0), ptr[reg_output_shift + i * wei_type_size]);
+            auto tail_unroll = [&](size_t iter) {
+                for (int i = 0; i < iter; i++) {
+                    uni_vmovss(xmm_crop_low(0), ptr[reg_crop_low + i * wei_type_size]);
+                    uni_vmovss(xmm_crop_high(0), ptr[reg_crop_high + i * wei_type_size]);
+                    uni_vmovss(xmm_input_scale(0), ptr[reg_input_scale + i * wei_type_size]);
+                    uni_vmovss(xmm_input_shift(0), ptr[reg_input_shift + i * wei_type_size]);
+                    if (do_dequantization) {
+                        uni_vmovss(xmm_output_scale(0), ptr[reg_output_scale + i * wei_type_size]);
+                        uni_vmovss(xmm_output_shift(0), ptr[reg_output_shift + i * wei_type_size]);
+                    }
+
+                    load_scalar(xmm_val(0), ptr[aux_reg_from + i * src_type_size], jqp_.src_prc);
+
+                    uni_vminps(xmm_val(0), xmm_val(0), xmm_crop_high(0));
+                    uni_vmaxps(xmm_val(0), xmm_val(0), xmm_crop_low(0));
+                    uni_vfmadd213ps(xmm_val(0), xmm_input_scale(0), xmm_input_shift(0));
+                    if (do_rounding) uni_vroundps(xmm_val(0), xmm_val(0), 0);
+                    if (do_dequantization) uni_vfmadd213ps(xmm_val(0), xmm_output_scale(0), xmm_output_shift(0));
+
+                    store_scalar(ptr[aux_reg_to + i * dst_type_size], xmm_val(0), jqp_.dst_prc);
+                    jmp(end_unroll, T_NEAR);
                 }
+            };
 
-                load_scalar(xmm_val(0), ptr[aux_reg_from + i * src_type_size], jqp_.src_prc);
-
-                uni_vminps(xmm_val(0), xmm_val(0), xmm_crop_high(0));
-                uni_vmaxps(xmm_val(0), xmm_val(0), xmm_crop_low(0));
-                uni_vfmadd213ps(xmm_val(0), xmm_input_scale(0), xmm_input_shift(0));
-                if (do_rounding) uni_vroundps(xmm_val(0), xmm_val(0), 0);
-                if (do_dequantization) uni_vfmadd213ps(xmm_val(0), xmm_output_scale(0), xmm_output_shift(0));
-
-                store_scalar(ptr[aux_reg_to + i * dst_type_size], xmm_val(0), jqp_.dst_prc);
+            std::array<Label, tail4_simd_w> unroll_labels;
+            cmp(reg_channel_size, 0);
+            je(end_unroll);
+            for (size_t i = 1; i < tail4_simd_w; ++i) {
+                cmp(reg_channel_size, i);
+                je(unroll_labels[i]);
             }
+
+            for (size_t i = 1; i < tail4_simd_w; ++i) {
+                L(unroll_labels[i]);
+                tail_unroll(i);
+            }
+
+            L(end_unroll);
 
             dec(reg_work_amount);
             add(aux_reg_from, reg_src_step);
@@ -896,28 +919,25 @@ struct FakeQuantKey {
     jit_quantize_params jqp;
     size_t hash() const {
         size_t seed = 0;
-        seed = hash_combine(seed, jqp.c);
         seed = hash_combine(seed, jqp.is_planar);
         seed = hash_combine(seed, jqp.src_prc.getPrecVal());
         seed = hash_combine(seed, jqp.wei_prc.getPrecVal());
         seed = hash_combine(seed, jqp.dst_prc.getPrecVal());
-        seed = dnnl::impl::primitive_hashing::get_vector_hash(seed, jqp.s_str);
-        seed = dnnl::impl::primitive_hashing::get_vector_hash(seed, jqp.d_str);
         seed = hash_combine(seed, jqp.op_type);
         return seed;
     }
 
     bool operator==(const FakeQuantKey& rhs) const {
-        bool result = jqp.c == rhs.jqp.c && jqp.is_planar == rhs.jqp.is_planar && jqp.src_prc == rhs.jqp.src_prc &&
+        bool result = jqp.is_planar == rhs.jqp.is_planar && jqp.src_prc == rhs.jqp.src_prc &&
                       jqp.wei_prc == rhs.jqp.wei_prc && jqp.dst_prc == rhs.jqp.dst_prc &&
-                      jqp.op_type == rhs.jqp.op_type && jqp.s_str == rhs.jqp.s_str && jqp.d_str == rhs.jqp.d_str;
+                      jqp.op_type == rhs.jqp.op_type;
         return result;
     }
 };
 }  // namespace
 
 FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
-        Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+        Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         algorithm = Algorithm::FQCommon;
@@ -1319,11 +1339,11 @@ bool FakeQuantize::needPrepareParams() const {
     if (!selectedPrimitiveDescriptor)
         IE_THROW() << "CPU quantize node with name '" << getName() << "' doesn't have primitive descriptors.";
 
-    if (internalBlobMemory.empty() || (selectedPrimitiveDescriptor->getImplementationType() != impl_desc_type::ref && inputShapesModified())) {
+    if (internalBlobMemory.empty()) {
         return true;
     }
 
-    const auto axisSize = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()[getAxis()];
+    const auto axisSize = getParentEdgeAt(0)->getMemory().getStaticDims()[getAxis()];
     const auto newPaddedSize = rnd_up(axisSize, 16);
     const auto currPaddedSize = rnd_up(currentAxisSize, 16);
 
@@ -1332,7 +1352,7 @@ bool FakeQuantize::needPrepareParams() const {
 }
 
 void FakeQuantize::prepareParams() {
-    const size_t axisSize = getParentEdgesAtPort(0)[0]->getMemory().GetShape().getStaticDims()[getAxis()];
+    const size_t axisSize = getParentEdgeAt(0)->getMemory().GetShape().getStaticDims()[getAxis()];
     const size_t newPaddedSize = rnd_up(axisSize, 16);
     IE_ASSERT(newPaddedSize != 0);
 
@@ -1413,26 +1433,25 @@ void FakeQuantize::prepareParams() {
         }
     }
     currentAxisSize = axisSize;
+}
 
+void FakeQuantize::createPrimitive() {
+    Node::createPrimitive();
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
         IE_THROW() << "CPU quantize node with name '" << getName() << "' doesn't have primitive descriptors.";
     if (selectedPrimitiveDescriptor->getImplementationType() != impl_desc_type::ref) {
         const auto& config = getSelectedPrimitiveDescriptor()->getConfig();
-        const auto& inDims = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
+
         //Form FakeQuanKey
         FakeQuantKey key = {};
-        key.jqp.c = inDims.size() > 1 ? inDims[1] : 1;
         key.jqp.src_prc = config.inConfs[0].getMemDesc()->getPrecision();
         key.jqp.wei_prc = Precision::FP32;
         key.jqp.dst_prc = config.outConfs[0].getMemDesc()->getPrecision();
 
-        auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-        key.jqp.s_str = srcDesc->getStrides();
-        auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+        auto& srcDesc = getParentEdgeAt(0)->getMemory().getDesc();
 
-        key.jqp.d_str = dstDesc->getStrides();
-        key.jqp.is_planar = srcDesc->hasLayoutType(LayoutType::ncsp) && one_of(srcDesc->getShape().getRank(), 3u, 4u, 5u);
+        key.jqp.is_planar = srcDesc.hasLayoutType(LayoutType::ncsp) && one_of(srcDesc.getShape().getRank(), 3, 4, 5);
         key.jqp.op_type = getAlgorithm();
 
         auto cache = context->getParamsCache();
@@ -1573,8 +1592,8 @@ void FakeQuantize::executeBinarization(const std::unique_ptr<jit_uni_quantize_ke
 
     auto src_dims = srcMemory->getStaticDims();
 
-    const auto &jqp = pKernel->jqp_;
-    std::vector<size_t> s_str = jqp.s_str;
+    auto srcMemDesc = srcMemory->GetDescWithType<BlockedMemoryDesc>();
+    std::vector<size_t> s_str = srcMemDesc->getStrides();
     size_t tmp = s_str[s_str.size() - 1];
     for (int i = s_str.size() - 1; i > 1; i--) {
         s_str[i] = s_str[i - 1];
@@ -1626,7 +1645,8 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
     auto src_type_size = jqp.src_prc.size();
     auto dst_type_size = jqp.dst_prc.size();
 
-    auto s_str = jqp.s_str;
+    auto srcMemDesc = srcMemory->GetDescWithType<BlockedMemoryDesc>();
+    auto s_str = srcMemDesc->getStrides();
 
     if (is_blk_format) {
         s_str[1] /= blk_size;

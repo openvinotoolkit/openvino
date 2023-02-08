@@ -18,15 +18,11 @@ namespace intel_cpu {
 namespace node {
 
 struct jit_quantize_params {
-    int c;
     bool is_planar;
 
     InferenceEngine::Precision src_prc;
     InferenceEngine::Precision wei_prc;
     InferenceEngine::Precision dst_prc;
-
-    std::vector<size_t> s_str;
-    std::vector<size_t> d_str;
 
     Algorithm op_type;
 };
@@ -48,6 +44,7 @@ struct jit_quantize_call_args {
     size_t dst_step;
     size_t block_size;
     size_t work_amount;
+    size_t channel_size;
 };
 
 struct jit_uni_quantize_kernel {
@@ -82,6 +79,7 @@ public:
 
     bool needPrepareParams() const override;
     void prepareParams() override;
+    void createPrimitive() override;
 
     const float* getBinarizationTresholdsPtr() const { return &binarizationThresholds[0]; }
     const float* getBinarizationOutputMaskPtr() const { return reinterpret_cast<const float*>(&binarizationOutputMask[0]); }
