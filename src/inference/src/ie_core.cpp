@@ -96,6 +96,8 @@ std::string findPluginXML(const std::string& xmlFile) {
     return xmlConfigFile_;
 }
 
+#endif
+
 std::string resolve_extension_path(const std::string& path) {
     std::string retvalue;
     try {
@@ -106,8 +108,6 @@ std::string resolve_extension_path(const std::string& path) {
     }
     return retvalue;
 }
-
-#endif
 
 ov::util::FilePath getPluginPath(const std::string& pluginName, bool needAddSuffixes = false) {
     const auto ieLibraryPath = ie::getInferenceEngineLibraryPath();
