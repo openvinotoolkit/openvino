@@ -117,8 +117,9 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 | | `ov::execution_devices`      | | Lists the runtime target devices on which the inferences are being |
 | |                              | | executed.                                                          |
 | |                              | | Examples of returning results could be `CPU_HELP`(`CPU_HELP` is a  |
-| |                              | | temporary device, indicating that CPU is used for acceleration at the model   |
-| |                              | | compilation stage), `CPU`, `GPU`, `CPU GPU`, `GPU.0`, etc.         |
+| |                              | | temporary device, indicating that CPU is used for acceleration at  |
+| |                              | | the model compilation stage), `CPU`, `GPU`, `CPU GPU`, `GPU.0`,    |
+| |                              | | etc.                                                               |
 +--------------------------------+----------------------------------------------------------------------+
 
 @endsphinxdirective
