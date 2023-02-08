@@ -163,7 +163,7 @@ The following layers are supported by the plugins:
 | Eltwise-Greater                | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       |
 | Eltwise-GreaterEqual           | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       |
 | Eltwise-Less                   | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported\*     |
-| Eltwise-LessEqual              | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported\*     |
+| Eltwise-LessEqual              | Supported     |Supported\*\*\*| Not Supported | Not Supported | Supported\*     |
 | Eltwise-LogicalAnd             | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       |
 | Eltwise-LogicalOr              | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       |
 | Eltwise-LogicalXor             | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       |
@@ -181,7 +181,7 @@ The following layers are supported by the plugins:
 | FakeQuantize                   | Not Supported | Supported     | Not Supported | Not Supported | Supported\*     |
 | Fill                           | Not Supported | Supported\*\* | Not Supported | Not Supported | Not Supported   |
 | Flatten                        | Supported     | Supported     | Supported     | Not Supported | Not Supported   |
-| Floor                          | Supported     | Supported\*\* | Supported     | Not Supported | Supported       |
+| Floor                          | Supported     | Supported\*\* | Supported\*   | Not Supported | Supported       |
 | FullyConnected (Inner Product) | Supported     |Supported\*\*\*| Supported     | Supported     | Supported       |
 | Gather                         | Supported     | Supported\*\* | Supported     | Not Supported | Supported\*     |
 | GatherTree                     | Not Supported | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*|
@@ -240,7 +240,7 @@ The following layers are supported by the plugins:
 | Select                         | Supported     | Supported     | Supported     | Not Supported | Supported       |
 | Selu                           | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*|
 | ShuffleChannels                | Supported     | Supported\*\* | Not Supported | Not Supported | Supported       |
-| Sign                           | Supported     | Supported\*\* | Supported     | Not Supported | Supported       |
+| Sign                           | Supported     | Supported\*\* | Not Supported | Not Supported | Supported       |
 | Sin                            | Supported     | Supported\*\* | Not Supported | Not Supported | Supported       |
 | Sinh                           | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*|
 | SimplerNMS                     | Supported     | Supported\*\* | Not Supported | Not Supported | Not Supported   |
