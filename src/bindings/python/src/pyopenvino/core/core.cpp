@@ -326,8 +326,8 @@ void regclass_Core(py::module m) {
     cls.def(
         "read_model",
         [](ov::Core& self, py::object model_path, py::object weights_path) {
-            std::stringstream _stream;
             if (py::isinstance(model_path, pybind11::module::import("io").attr("BytesIO"))) {
+                std::stringstream _stream;
                 model_path.attr("seek")(0);  // Always rewind stream!
                 _stream << model_path
                                .attr("read")()  // alternative: model_path.attr("get_value")()
@@ -346,7 +346,8 @@ void regclass_Core(py::module m) {
                 }
                 py::gil_scoped_release release;
                 return self.read_model(_stream.str(), tensor);
-            } else {
+            } else if (py::isinstance(model_path, py::module_::import("pathlib").attr("Path")) ||
+                       py::isinstance<py::str>(model_path)) {
                 const std::string model_path_cpp{py::str(model_path)};
                 std::string weights_path_cpp;
                 if (!py::isinstance<py::none>(weights_path)) {
@@ -355,6 +356,10 @@ void regclass_Core(py::module m) {
                 py::gil_scoped_release release;
                 return self.read_model(model_path_cpp, weights_path_cpp);
             }
+
+            std::stringstream str;
+            str << "Provided python object type " << model_path.get_type().str() << " isn't supported.";
+            throw ov::Exception(str.str());
         },
         py::arg("model"),
         py::arg("weights") = py::none(),

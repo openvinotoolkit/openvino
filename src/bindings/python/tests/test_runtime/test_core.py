@@ -109,6 +109,13 @@ def test_read_model_from_tensor():
     assert isinstance(model, Model)
 
 
+def test_read_model_with_wrong_input():
+    core = Core()
+    with pytest.raises(RuntimeError) as e:
+        core.read_model(model=3, weights=3)
+    assert "Provided python object type <class 'int'> isn't supported." in str(e.value)
+
+
 def test_read_model_as_path():
     core = Core()
     model = core.read_model(model=Path(test_net_xml), weights=Path(test_net_bin))
