@@ -17,7 +17,6 @@
 #include "file_utils.h"
 #include "ie_itt.hpp"
 #include "ngraph/opsets/opset6.hpp"
-#include "ngraph/variant.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/fix_rt_info.hpp"
 #include "transformations/hash.hpp"

@@ -22,7 +22,6 @@
 #include <exec_graph_info.hpp>
 
 #include <ie_ngraph_utils.hpp>
-#include <ngraph/variant.hpp>
 
 #include <list>
 #include <set>
@@ -37,7 +36,6 @@
 #include <sys/stat.h>
 #include <exec_graph_info.hpp>
 #include <ie_ngraph_utils.hpp>
-#include <ngraph/variant.hpp>
 #include <ngraph/ngraph.hpp>
 
 using namespace InferenceEngine;

@@ -1,9 +1,6 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include "ngraph/variant.hpp"  // ngraph::Variant
-
 #include <pybind11/pybind11.h>
 
 #include "pyngraph/variant.hpp"

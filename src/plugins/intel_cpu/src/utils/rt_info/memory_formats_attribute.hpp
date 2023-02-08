@@ -8,7 +8,6 @@
 #include <set>
 
 #include <ngraph/node.hpp>
-#include <ngraph/variant.hpp>
 #include "openvino/op/util/op_types.hpp"
 
 namespace ov {

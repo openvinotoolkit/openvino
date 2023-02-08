@@ -8,7 +8,6 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 #include "openvino/core/any.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_END
 
-#include <ngraph/variant.hpp>
 #include <string>
 
 #include "gtest/gtest.h"
@@ -396,71 +395,6 @@ TEST_F(AnyTests, PrintToMapOfAnys) {
         Any p = refMap;
         ASSERT_NO_THROW(p.print(stream));
         ASSERT_EQ(stream.str(), std::string{"testParamInt 4 testParamString test"});
-    }
-}
-
-TEST_F(AnyTests, constructFromVariantImpl) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto parameter = Any{4};
-    auto get_impl = [&] {
-        return std::make_shared<ngraph::VariantImpl<int>>();
-    };
-    auto other_parameter = Any{get_impl()};
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
-
-TEST_F(AnyTests, dynamicPointerCastToVariantWrapper) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    Any p = std::make_shared<ngraph::VariantWrapper<std::string>>("42");
-    auto str_variant = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::string>>(p);
-    ASSERT_EQ("42", str_variant->get());
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
-
-TEST_F(AnyTests, asTypePtrToVariantWrapper) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    Any p = std::make_shared<ngraph::VariantWrapper<std::string>>("42");
-    auto str_variant = ov::as_type_ptr<ngraph::VariantWrapper<std::string>>(p);
-    ASSERT_EQ("42", str_variant->get());
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
-
-TEST_F(AnyTests, castToVariantWrapper) {
-    {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        Any p = std::make_shared<ngraph::VariantWrapper<std::string>>("42");
-        std::shared_ptr<ngraph::VariantWrapper<std::string>> str_variant = p;
-        ASSERT_EQ("42", str_variant->get());
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    }
-    {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        Any p = std::make_shared<ngraph::VariantWrapper<std::string>>("42");
-        auto f = [](const std::shared_ptr<ngraph::VariantWrapper<std::string>>& str_variant) {
-            ASSERT_EQ("42", str_variant->get());
-        };
-        f(p);
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    }
-    {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        Any p = std::make_shared<ngraph::VariantWrapper<std::string>>("42");
-        auto f = [](std::shared_ptr<ngraph::VariantWrapper<std::string>>& str_variant) {
-            ASSERT_EQ("42", str_variant->get());
-        };
-        f(p);
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    }
-    {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        std::shared_ptr<RuntimeAttribute> v = std::make_shared<ngraph::VariantWrapper<std::string>>("42");
-        Any p = v;
-        auto f = [](std::shared_ptr<ngraph::VariantWrapper<std::string>>& str_variant) {
-            ASSERT_NE(nullptr, str_variant);
-            ASSERT_EQ("42", str_variant->get());
-        };
-        f(p);
-        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 }
 

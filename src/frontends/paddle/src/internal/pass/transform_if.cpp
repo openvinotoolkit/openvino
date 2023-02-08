@@ -9,7 +9,6 @@
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <ngraph/variant.hpp>
 #include <transformations/common_optimizations/fold_subgraph_empty_inputs.hpp>
 
 #include "default_opset.hpp"

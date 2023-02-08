@@ -58,7 +58,6 @@
 #include "ngraph/type.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/validation_util.hpp"
-#include "ngraph/variant.hpp"
 
 // nGraph opsets
 #include "ngraph/opsets/opset.hpp"

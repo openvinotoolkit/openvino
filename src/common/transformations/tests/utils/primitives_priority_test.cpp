@@ -11,7 +11,6 @@
 #include <memory>
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph/variant.hpp>
 #include <queue>
 #include <sstream>
 #include <string>

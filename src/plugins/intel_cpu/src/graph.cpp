@@ -46,7 +46,6 @@
 
 #include <ngraph/node.hpp>
 #include <ngraph/function.hpp>
-#include <ngraph/variant.hpp>
 #include <ngraph/ops.hpp>
 #include <transformations/utils/utils.hpp>
 #include <low_precision/low_precision.hpp>

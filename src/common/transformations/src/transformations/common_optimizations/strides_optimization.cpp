@@ -5,7 +5,6 @@
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/validation_util.hpp>
-#include <ngraph/variant.hpp>
 #include <numeric>
 #include <openvino/opsets/opset7.hpp>
 #include <transformations/common_optimizations/strides_optimization.hpp>

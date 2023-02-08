@@ -6,7 +6,6 @@
 
 #include "ngraph/log.hpp"
 #include "ngraph/rt_info.hpp"
-#include "ngraph/variant.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/parameter.hpp"
 
