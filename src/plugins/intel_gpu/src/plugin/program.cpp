@@ -200,7 +200,7 @@ Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, co
 
             // clone the source model, find the batch dim
             // and reshape the model to next batch size
-            auto new_func = ov::clone_model(*func);
+            auto new_func = func->clone();
             std::map<ov::Output<ov::Node>, ngraph::PartialShape> new_shapes;
             for (const auto& param : new_func->get_parameters()) {
                 ov::PartialShape pshape = param->get_output_partial_shape(0);
@@ -249,7 +249,7 @@ Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, co
             // recompute maximal dynamic batch inputs/outputs for infer request
             // and store them into internal maps
             // same operations as above, but for maximum batch
-            auto new_func = ov::clone_model(*func);
+            auto new_func = func->clone();
             std::map<ov::Output<ov::Node>, ngraph::PartialShape> new_shapes;
             for (const auto& param : new_func->get_parameters()) {
                 ov::PartialShape pshape = param->get_output_partial_shape(0);
