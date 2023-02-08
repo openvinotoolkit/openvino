@@ -65,6 +65,7 @@ IInferRequestInternal::IInferRequestInternal(const std::vector<std::shared_ptr<c
 
     for (const auto& param : _parameters) {
         const auto& input = create_old_input_data(param->output(0));
+        input->setName(param->get_friendly_name());
         _networkInputs[input->name()] = input;
     }
 

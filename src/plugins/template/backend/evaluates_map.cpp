@@ -3673,13 +3673,10 @@ bool evaluate(const shared_ptr<op::v9::GenerateProposals>& op,
               const HostTensorVector& inputs) {
     const auto& attrs = op->get_attrs();
 
-    size_t post_nms_count = 0;
     if (attrs.post_nms_count < 0) {
         throw ngraph_error("The attribute post_nms_count of the operation "
                            "GenerateProposals must be a "
                            "nonnegative integer.");
-    } else {
-        post_nms_count = static_cast<size_t>(attrs.post_nms_count);
     }
 
     const auto& output_type = op->get_input_element_type(0);

@@ -85,7 +85,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassExecutableNetworkGetMetricTest,
 // TODO: this metric is not supported by the plugin
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassExecutableNetworkGetMetricTest,
                          OVClassExecutableNetworkGetMetricTest_NETWORK_NAME,
-                         ::testing::Values("GNA", "MULTI:GNA", "HETERO:GNA"));
+                         ::testing::Values("GNA", /* "MULTI:GNA", */ "HETERO:GNA"));
 
 // TODO: Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassExecutableNetworkGetMetricTest,

@@ -17,7 +17,7 @@ ov::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
     MATCHER_SCOPE(ConvertPadToGroupConvolution);
     auto neg = ngraph::pattern::wrap_type<opset4::Pad>(pattern::has_static_dim(1));
 
-    matcher_pass_callback callback = [this](pattern::Matcher& m) {
+    matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto pad = std::dynamic_pointer_cast<ov::opset4::Pad>(m.get_match_root());
         if (!pad) {
             return false;

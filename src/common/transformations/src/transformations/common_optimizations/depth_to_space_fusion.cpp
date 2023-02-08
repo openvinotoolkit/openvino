@@ -126,7 +126,7 @@ ov::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
     auto permute = ngraph::pattern::wrap_type<opset3::Transpose>({reshape_before, input2}, pattern::consumers_count(1));
     auto reshape_after = ngraph::pattern::wrap_type<opset3::Reshape>({permute, input3});
 
-    ov::matcher_pass_callback callback = [this](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto reshape_after = std::dynamic_pointer_cast<opset3::Reshape>(m.get_match_root());
         if (!reshape_after) {
             return false;

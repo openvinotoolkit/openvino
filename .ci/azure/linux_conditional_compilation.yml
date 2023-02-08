@@ -36,6 +36,9 @@ resources:
     endpoint: openvinotoolkit
     name: openvinotoolkit/testdata
 
+variables:
+  - group: github
+
 jobs:
 - job: LinCC
   # About 150% of total time
@@ -55,8 +58,22 @@ jobs:
     BUILD_DIR: $(WORK_DIR)/build
     INSTALL_DIR: $(WORK_DIR)/install_pkg
     SETUPVARS: $(INSTALL_DIR)/setupvars.sh
+    LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib:$LD_LIBRARY_PATH
+    OV_PYTHON_VERSION: 3.10.9 # Newest version of Python 3.10. Full version of Python its required for LD_LIBRARY_PATH and required for successful Task setupPython
 
   steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.10'
+      addToPath: true
+      disableDownloadFromRegistry: false
+      architecture: 'x64'
+      githubToken: $(auth_token)
+    displayName: Setup Python 3.10
+    name: setupPython
+  - bash: |
+      #!/bin/bash
+      python -V
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
@@ -109,30 +126,18 @@ jobs:
       cmakeArgs: >
         -GNinja
         -DENABLE_CPPLINT=OFF
+        -DENABLE_GAPI_PREPROCESSING=OFF
         -DCMAKE_VERBOSE_MAKEFILE=ON
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_FASTER_BUILD=ON
         -DENABLE_PROFILING_ITT=ON
         -DSELECTIVE_BUILD=COLLECT
-        -DENABLE_INTEL_GPU=OFF
-        -DENABLE_INTEL_GNA=OFF
-        -DENABLE_MULTI=OFF
-        -DENABLE_AUTO=OFF
-        -DENABLE_AUTO_BATCH=OFF
-        -DENABLE_HETERO=OFF
-        -DENABLE_TEMPLATE=OFF
-        -DENABLE_OV_ONNX_FRONTEND=OFF
-        -DENABLE_OV_PADDLE_FRONTEND=OFF
-        -DENABLE_OV_PYTORCH_FRONTEND=OFF
-        -DENABLE_OV_TF_FRONTEND=OFF
         -S $(REPO_DIR)
         -B $(BUILD_DIR)
     displayName: 'Cmake CC COLLECT'
 
-  - script: |
-      cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
-      cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE) --target sea_itt_lib
+  - script: cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE) --target openvino_intel_cpu_plugin openvino_ir_frontend benchmark_app sea_itt_lib
     displayName: 'Build CC COLLECT'
 
   - script: ls -alR $(REPO_DIR)/bin/
@@ -155,7 +160,7 @@ jobs:
         -B $(BUILD_DIR)
     displayName: 'CMake CC ON'
 
-  - script: cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
+  - script: cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE) --target openvino_intel_cpu_plugin openvino_ir_frontend
     displayName: 'Build CC ON'
 
   - script: ls -alR $(REPO_DIR)/bin/

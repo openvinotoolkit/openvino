@@ -173,6 +173,14 @@ void ReadIRTest::SetUp() {
             break;
         }
     }
+    if (!hasDynamic) {
+        for (const auto& result : function->get_results()) {
+            if (result->get_output_partial_shape(0).is_dynamic()) {
+                hasDynamic = true;
+                break;
+            }
+        }
+    }
     if (hasDynamic && ov::test::subgraph::shapeMode == ov::test::subgraph::ShapeMode::STATIC) {
         GTEST_SKIP() << "Dynamic cases are skipped according `shape_mode`";
     } else if (!hasDynamic && ov::test::subgraph::shapeMode == ov::test::subgraph::ShapeMode::DYNAMIC) {
