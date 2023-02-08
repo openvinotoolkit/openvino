@@ -7,6 +7,7 @@
 #include <common_test_utils/test_common.hpp>
 
 #include "ie_system_conf.h"
+#include "streams_executor.hpp"
 
 using namespace testing;
 using namespace InferenceEngine;

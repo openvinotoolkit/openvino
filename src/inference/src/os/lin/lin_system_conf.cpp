@@ -15,6 +15,7 @@
 
 #include "ie_common.h"
 #include "ie_system_conf.h"
+#include "streams_executor.hpp"
 #include "threading/ie_parallel_custom_arena.hpp"
 
 namespace InferenceEngine {
