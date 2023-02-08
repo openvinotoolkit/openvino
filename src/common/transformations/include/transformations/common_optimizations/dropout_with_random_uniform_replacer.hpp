@@ -39,9 +39,3 @@ public:
     OPENVINO_RTTI("DropoutWithRandomUniformReplacer", "0");
     DropoutWithRandomUniformReplacer();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::DropoutWithRandomUniformReplacer;
-}  // namespace pass
-}  // namespace ngraph

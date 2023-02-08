@@ -61,7 +61,7 @@ void snippets::op::Subgraph::init_config() {
         config.m_is_quantized = config.m_is_quantized ||
             ov::is_type<ov::op::v0::FakeQuantize>(op);
         config.m_has_type_relaxed_ops = config.m_has_type_relaxed_ops ||
-            std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(op);
+            std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(op);
         config.m_is_needed_to_align_precision = config.m_is_needed_to_align_precision ||
             is_quantized() ||
             has_type_relaxed_ops() ||
@@ -93,7 +93,7 @@ snippets::op::Subgraph::Subgraph(const NodeVector& args, std::shared_ptr<ov::Mod
 
 std::shared_ptr<Node> snippets::op::Subgraph::clone_with_new_inputs(const OutputVector& inputs) const {
     INTERNAL_OP_SCOPE(Subgraph);
-    return make_shared<Subgraph>(inputs, ov::clone_model(body()));
+    return make_shared<Subgraph>(inputs, body().clone());
 }
 
 std::vector<PartialShape> snippets::op::Subgraph::reshape_body(const std::vector<PartialShape>& input_shapes) {
@@ -225,7 +225,7 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Nod
 void snippets::op::Subgraph::fill_empty_output_names(const Output<Node>& target_output_node, const Output<Node>& replacement_output_node) {
     NGRAPH_SUPPRESS_DEPRECATED_START
     auto& out_tensor = target_output_node.get_tensor();
-    const std::string new_name = ngraph::op::util::get_ie_output_name(replacement_output_node);
+    const std::string new_name = ov::op::util::get_ie_output_name(replacement_output_node);
     if (ov::descriptor::get_ov_tensor_legacy_name(out_tensor).empty()) {
         ov::descriptor::set_ov_tensor_legacy_name(out_tensor, new_name);
     }
@@ -391,11 +391,11 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
     ngraph::pass::Manager manager;
     if (config.m_is_needed_to_align_precision) {
         manager.register_pass<snippets::pass::AlignElementType>(execution_element_type);
-        manager.register_pass<ngraph::pass::ConstantFolding>();
+        manager.register_pass<ov::pass::ConstantFolding>();
         // TODO [100041] : In some cases AlignElementType pass can insert extra Convert because
         //                 the pass doesn't know real precisions in real time.
         //                 We call EliminateConverts pass to remove them
-        manager.register_pass<ngraph::pass::EliminateConvert>();
+        manager.register_pass<ov::pass::EliminateConvert>();
     }
     manager.run_passes(body_ptr());
 }

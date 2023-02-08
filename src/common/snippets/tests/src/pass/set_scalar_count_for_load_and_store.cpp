@@ -42,7 +42,7 @@ TEST(TransformationTests, SetScalarCountForLoad) {
         f = std::make_shared<Function>(NodeVector{store}, ParameterVector{data});
 
         pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<snippets::pass::SetScalarCountForLoad>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -76,7 +76,7 @@ TEST(TransformationTests, SetScalarCountForStore) {
         f = std::make_shared<Function>(NodeVector{store}, ParameterVector{data});
 
         pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<snippets::pass::SetScalarCountForStore>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));

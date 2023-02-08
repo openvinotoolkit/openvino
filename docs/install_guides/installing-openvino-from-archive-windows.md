@@ -42,7 +42,7 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
 
 ## Installing OpenVINO Runtime
 
-### <a name="install-openvino"></a>Step 1: Download and Install OpenVINO Core Components
+### <a name="install-openvino-archive-windows"></a>Step 1: Download and Install OpenVINO Core Components
 
 1. Create an `Intel` folder in the `C:\Program Files (x86)\` directory. Skip this step if the folder already exists.
    
@@ -81,7 +81,7 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
 
 Congratulations, you finished the installation! The `C:\Program Files (x86)\Intel\openvino_2022` folder now contains the core components for OpenVINO. If you used a different path in Step 1, you will find the `openvino_2022` folder there. The path to the `openvino_2022` directory is also referred as `<INSTALL_DIR>` throughout the OpenVINO documentation.
 
-### <a name="set-the-environment-variables"></a>Step 2: Configure the Environment
+### <a name="set-the-environment-variables-windows"></a>Step 2: Configure the Environment
 
 You must update several environment variables before you can compile and run OpenVINO™ applications. Open the Command Prompt, and run the `setupvars.bat` batch file to temporarily set your environment variables. If your <INSTALL_DIR> is not `C:\Program Files (x86)\Intel\openvino_2022`, use the correct directory instead.
 
@@ -95,7 +95,7 @@ You must update several environment variables before you can compile and run Ope
 
 The environment variables are set. Continue to the next section if you want to download any additional components.
 
-### <a name="model-optimizer">Step 3 (Optional): Install Additional Components</a>
+### <a name="model-optimizer-windows">Step 3 (Optional): Install Additional Components</a>
 
 OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you install OpenVINO Runtime using archive files, OpenVINO Development Tools must be installed separately.
 
@@ -103,7 +103,7 @@ See the [Install OpenVINO Development Tools](installing-model-dev-tools.md) page
 
 OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the [instructions on GitHub](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO).
 
-### <a name="optional-steps"></a>Step 4 (Optional): Configure Inference on non-CPU Devices
+### <a name="optional-steps-windows"></a>Step 4 (Optional): Configure Inference on non-CPU Devices
 OpenVINO Runtime has a plugin architecture that enables you to run inference on multiple devices without rewriting your code. Supported devices include integrated GPUs, discrete GPUs and GNAs. See the instructions below to set up OpenVINO on these devices.
 
 @sphinxdirective
@@ -117,7 +117,7 @@ OpenVINO Runtime has a plugin architecture that enables you to run inference on 
    
 @endsphinxdirective
 
-## <a name="get-started"></a>What's Next?
+## <a name="get-started-windows"></a>What's Next?
 Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications! Learn more about how to integrate a model in OpenVINO applications by trying out the following tutorials.
 
 @sphinxdirective
@@ -148,13 +148,15 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
 
 @endsphinxdirective
 
-## <a name="uninstall"></a>Uninstalling OpenVINO Runtime
+## <a name="uninstall-from-windows"></a>Uninstalling OpenVINO Runtime
 
 To uninstall OpenVINO, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
 
 ## Additional Resources
 
 ## Additional Resources
+
+@sphinxdirective
 
 * :ref:`Troubleshooting Guide for OpenVINO Installation & Configuration <troubleshooting guide for install>`
 * Converting models for use with OpenVINO™: :ref:`Model Optimizer Developer Guide <deep learning model optimizer>`
@@ -174,3 +176,7 @@ To uninstall OpenVINO, follow the steps on the [Uninstalling page](uninstalling-
 .. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
 
 @endsphinxdirective
+
+## Additional Resources
+
+- [OpenVINO Installation Selector Tool](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html)
