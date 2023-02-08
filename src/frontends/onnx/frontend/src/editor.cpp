@@ -231,27 +231,23 @@ void graph_topological_sort(GraphProto* graph) {
         }
 
         while (nodes_to_process.size() > 0) {
-            auto* node = nodes_to_process.top();
-            if (processed_nodes.count(node) == 0) {
-                bool can_add = true;
-                for (const auto& in_name : node->input()) {
-                    const auto* in_node = get_node_by_out_name(in_name);
-                    if (in_node == nullptr) {  // can be an initializer or an model's input
-                        continue;
-                    }
-                    if (processed_nodes.count(in_node) == 0) {
-                        can_add = false;
-                        nodes_to_process.push(in_node);
-                    }
+        auto* node = nodes_to_process.top();
+            bool can_add = true;
+            for (const auto& in_name : node->input()) {
+                const auto* in_node = get_node_by_out_name(in_name);
+                if (in_node == nullptr) {  // can be an initializer or an model's input
+                    continue;
                 }
-                if (can_add) {
-                    auto* new_node = result.add_node();
-                    new_node->MergeFrom(*node);
-                    nodes_to_process.pop();
-                    processed_nodes.insert(node);
+                if (processed_nodes.count(in_node) == 0) {
+                    can_add = false;
+                    nodes_to_process.push(in_node);
                 }
-            } else {
+            }
+            if (can_add) {
+                auto* new_node = result.add_node();
+                new_node->MergeFrom(*node);
                 nodes_to_process.pop();
+                processed_nodes.insert(node);
             }
         }
         graph->mutable_node()->Clear();
