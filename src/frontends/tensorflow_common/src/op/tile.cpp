@@ -14,12 +14,13 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_tile_op(const NodeContext& node) {
-    auto data = node.get_input(0);
-    auto repeats = node.get_input(1);
+    default_op_checks(node, 2, {"Tile", "TILE"});
+    auto input = node.get_input(0);
+    auto multiples = node.get_input(1);
 
-    auto res = make_shared<Tile>(data, repeats);
-    set_node_name(node.get_name(), res);
-    return res->outputs();
+    auto tile = make_shared<Tile>(input, multiples);
+    set_node_name(node.get_name(), tile);
+    return {tile};
 }
 
 }  // namespace op
