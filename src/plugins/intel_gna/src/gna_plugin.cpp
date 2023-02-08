@@ -719,8 +719,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         fake_quantized = ov::op::util::has_op_with_type<ngraph::opset7::FakeQuantize>(graph);
         // In OV API 2.0(IRv10) default convertion to fp32 (inputs, outputs and weights) is disabled
         // and we need to run the ConvertPrecision transformation to support old networks.
-        manager.register_pass<ov::pass::ConvertPrecision>(
-            precisions_map{{ngraph::element::f16, ngraph::element::f32}});
+        manager.register_pass<ov::pass::ConvertPrecision>(precisions_map{{ngraph::element::f16, ngraph::element::f32}});
         manager.register_pass<ov::pass::ConvertMVN1ToMVN6>();
         manager.register_pass<ov::intel_gna::pass::DecomposeMVN>();
         manager.register_pass<ov::pass::CommonOptimizations>();

@@ -179,10 +179,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Add conversion from unsupported FP data types to f32 if we don't have a conversion to something valid already in the list
         for (auto& et : fp_element_types) {
             if (!fp_precision_supported(et)) {
-                auto et_pair = std::make_pair(et, fallback_precision);
                 bool has_valid_conversion = fp_convert_precision_map.count(et) && fp_precision_supported(fp_convert_precision_map[et]);
                 if (!has_valid_conversion) {
-                    fp_convert_precision_map.push_back(et_pair);
+                    fp_convert_precision_map.insert(std::make_pair(et, fallback_precision));
                 }
             }
         }
