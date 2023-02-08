@@ -34,12 +34,6 @@ public:
         cfg_fused.set_property(ov::intel_gpu::optimize_data(true));
         cfg_not_fused.set_property(ov::intel_gpu::optimize_data(false));
         cfg_not_fused.set_property(ov::intel_gpu::allow_static_input_reorder(true));
-
-        if (engine.get_device_info().supports_immad) {
-            cfg_fused.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
-            cfg_not_fused.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
-            engine.create_onednn_engine(cfg_fused);
-        }
     }
 
     void compare(network& not_fused, network& fused, T& p, bool count_reorder = false) {
