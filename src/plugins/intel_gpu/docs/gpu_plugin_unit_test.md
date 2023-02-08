@@ -185,7 +185,7 @@ class nodeA2,nodeA13 daisy1
 class nodeA3 moss1
 class nodeA8 steel1
 class nodeA4,nodeA1,nodeA6,nodeA9,nodeA11 carbon1
-
+```
   - For example, if you design the networks like the one above, you can make the test code as follow
 
     ```c++

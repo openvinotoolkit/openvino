@@ -41,7 +41,7 @@ class subgraphA1,subgraphB1,nodeB4 no-bg-color
 class nodeA2 daisy1
 class nodeB1,nodeB6,nodeA1,nodeA3 moss1
 class nodeB2,nodeB3,nodeB5, steel1
-
+```
 
 ## Fusing Pooling and FakeQuantize Layers
 
@@ -68,7 +68,7 @@ class subgraphA1,subgraphB1 no-bg-color
 class nodeA2 daisy1
 class nodeB1,nodeB4,nodeA1,nodeA3 moss1
 class nodeB2,nodeB3 steel1
-
+```
 ## Fusing FullyConnected and Activation Layers
 
 A combination of FullyConnected and Activation layers results in a single fused layer called 
@@ -95,7 +95,7 @@ class subgraphA1,subgraphB1 no-bg-color
 class nodeA2 daisy1
 class nodeB1,nodeB4,nodeA1,nodeA3 moss1
 class nodeB2,nodeB3 steel1
-
+```
 ## Fusing Convolution and Depthwise Convolution Layers Grouped with Simple Layers
 
 > **NOTE**: This pattern is possible only on CPUs with support of Streaming SIMD Extensions 4.2 
@@ -132,7 +132,7 @@ class subgraphA1,subgraphB1,nodeB4,nodeB8 no-bg-color
 class nodeA2 daisy1
 class nodeB1,nodeA1,nodeA3,nodeB10 moss1
 class nodeB2,nodeB3,nodeB5,nodeB6,nodeB7,nodeB9 steel1
-
+```
 ## Fusing Convolution and Sum Layers
 
 A combination of convolution, simple, and Eltwise layers with the sum operation results in a single layer called *Convolution*:  
@@ -170,7 +170,7 @@ class nodeA2 daisy1
 class nodeB1,nodeA5,nodeA1,nodeA3,nodeB6,nodeB8 moss1
 class nodeB3,nodeB5,nodeA4,nodeB7,nodeB9,nodeB10,nodeB12 steel1
 class nodeB2 coral1
-
+```
 ## Fusing a Group of Convolutions
 
 If a topology contains the following pipeline, a CPU plugin merges split, convolution, and concatenation layers into a single convolution layer with the group parameter:   
@@ -204,7 +204,7 @@ class nodeB4,nodeB2 coral-tint-2
 class nodeA2 daisy1
 class nodeB1,nodeA1,nodeA3,nodeB5 moss1
 class nodeB3,nodeB6,nodeB7 steel1
-
+```
 > **NOTE**: Parameters of the convolution layers must coincide.
 
 
