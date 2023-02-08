@@ -15,6 +15,7 @@
 
 namespace ov {
 namespace frontend {
+class FrontEnd;
 /// \brief InputModel class represents an original, not yet converted model graph in a
 /// framework format given services to find places of interest in a graph or specialize/edit
 /// the model before conversion.
@@ -38,7 +39,7 @@ namespace frontend {
 class FRONTEND_API InputModel {
     std::shared_ptr<void> m_shared_object;
     std::shared_ptr<InputModel> m_actual;
-    friend class FrontEnd;
+    friend class ::ov::frontend::FrontEnd;
 
 public:
     using Ptr = std::shared_ptr<InputModel>;

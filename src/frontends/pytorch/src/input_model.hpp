@@ -12,7 +12,7 @@ namespace frontend {
 namespace pytorch {
 
 class InputModel : public ov::frontend::InputModel {
-    friend class FrontEnd;
+    friend class ::ov::frontend::pytorch::FrontEnd;
     std::shared_ptr<TorchDecoder> m_model;
 
 public:

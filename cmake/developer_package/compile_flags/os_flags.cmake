@@ -192,7 +192,10 @@ macro(ie_arm_neon_optimization_flags flags)
         endif()
     else()
         if(AARCH64)
-            set(${flags} -O2 -ftree-vectorize)
+            set(${flags} -O2)
+            if(NOT CMAKE_CL_64)
+                list(APPEND ${flags} -ftree-vectorize)
+            endif()
         elseif(ARM)
             set(${flags} -mfpu=neon -Wno-unused-command-line-argument)
         endif()
@@ -217,7 +220,9 @@ function(ov_disable_all_warnings)
             if(target_type STREQUAL "SHARED_LIBRARY" OR target_type STREQUAL "EXECUTABLE")
                 set(link_interface LINK_OPTIONS)
             endif()
-            set_target_properties(${target} PROPERTIES ${link_interface} "-Wno-error=maybe-uninitialized;-Wno-maybe-uninitialized")
+            if(CMAKE_COMPILER_IS_GNUCXX)
+                set_target_properties(${target} PROPERTIES ${link_interface} "-Wno-error=maybe-uninitialized;-Wno-maybe-uninitialized")
+            endif()
         elseif(UNIX AND CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
             # 193: zero used for undefined preprocessing identifier "XXX"
             # 1011: missing return statement at end of non-void function "XXX"
@@ -407,11 +412,6 @@ else()
     # Warn if an undefined identifier is evaluated in an #if directive. Such identifiers are replaced with zero.
     ie_add_compiler_flags(-Wundef)
 
-    # TODO
-    if(OV_COMPILER_IS_CLANG)
-        ie_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
-    endif()
-
     check_cxx_compiler_flag("-Wsuggest-override" SUGGEST_OVERRIDE_SUPPORTED)
     if(SUGGEST_OVERRIDE_SUPPORTED)
         set(CMAKE_CXX_FLAGS "-Wsuggest-override ${CMAKE_CXX_FLAGS}")
@@ -463,6 +463,10 @@ endif()
 # if(OV_COMPILER_IS_CLANG)
 #     ie_add_compiler_flags(-Wshorten-64-to-32)
 # endif()
+# TODO
+if(OV_COMPILER_IS_CLANG)
+    ie_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
+endif()
 
 #
 # link_system_libraries(target <PUBLIC | PRIVATE | INTERFACE> <lib1 [lib2 lib3 ...]>)
