@@ -46,7 +46,6 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
         const auto N = *dimsMatMulIn1.rbegin();
 
         const auto element_type_a = brgemm->get_input_element_type(0);
-        const auto element_type_b = brgemm->get_input_element_type(1);
         const auto brgemmVNNIFactor = 4 / element_type_a.size();
         const bool isAMXSupported = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx);
         const bool with_amx = isAMXSupported && element_type_a != ov::element::f32 && (K % brgemmVNNIFactor == 0) && (N % brgemmVNNIFactor == 0);
@@ -63,7 +62,12 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
                                                      offset_a, offset_b, offset_c);
         } else {
             const auto layoutIn1 = ngraph::snippets::utils::get_node_output_layout(brgemm->input_value(1).get_node_shared_ptr());
-            const auto brgemmRepackIn1 = std::make_shared<BrgemmCopyB>(brgemm->input_value(1), element_type_a, with_comp, offset_b);
+            std::shared_ptr<ov::Node> brgemmRepackIn1 = nullptr;
+            if (with_comp) {
+                brgemmRepackIn1 = std::make_shared<BrgemmCopyBWithCompensations>(brgemm->input_value(1), element_type_a, offset_b);
+            } else {
+                brgemmRepackIn1 = std::make_shared<BrgemmCopyB>(brgemm->input_value(1), element_type_a, offset_b);
+            }
             const auto buffer = std::make_shared<ngraph::snippets::op::IntermediateBuffer>(brgemmRepackIn1->output(0));
 
             if (with_amx) {

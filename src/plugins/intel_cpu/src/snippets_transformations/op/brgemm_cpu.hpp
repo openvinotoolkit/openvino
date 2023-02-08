@@ -58,7 +58,7 @@ public:
     OPENVINO_OP("BrgemmWithRepackingCPU", "SnippetsOpset", ngraph::snippets::op::Brgemm);
     BrgemmWithRepackingCPU() = default;
 
-    std::shared_ptr<BrgemmCopyB> get_brgemm_copy() const;
+    std::shared_ptr<BrgemmCopyBBase> get_brgemm_copy() const;
 
 protected:
     void validate_output();
