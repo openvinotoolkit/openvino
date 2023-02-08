@@ -187,13 +187,6 @@ bool convert_precision(ov::pass::PassBase& pass,
                 if (it != type_to_extend.end()) {
                     res = it->second(node, precisions);
                 }
-                if ((is_changed || res) && !node_is_replaced(node)) {
-                    if (res) {
-                        node->revalidate_and_infer_types();
-                    } else {
-                        node->validate_and_infer_types();
-                    }
-                }
                 return res;
             };
 
@@ -350,8 +343,13 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::Func
         {opset1::Reverse::get_type_info_static(), extend_reverse_type},
     };
 
-    bool is_changed =
-        convert_precision(*this, f, type_to_fuse, type_to_extend, used_precisions, has_fp16_compression, m_keep_precision_sensitive_in_fp32);
+    bool is_changed = convert_precision(*this,
+                                        f,
+                                        type_to_fuse,
+                                        type_to_extend,
+                                        used_precisions,
+                                        has_fp16_compression,
+                                        m_keep_precision_sensitive_in_fp32);
 
     // to remove extra converts
     if (m_keep_precision_sensitive_in_fp32) {
