@@ -15,10 +15,6 @@ const auto configs = []() {
 const auto Multiconfigs = []() {
     return std::vector<ov::AnyMap>{
         {ov::device::priorities(CommonTestUtils::DEVICE_GPU)},
-#ifdef ENABLE_INTEL_CPU
-        {ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU)},
-        {ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU)},
-#endif
     };
 };
 
@@ -27,7 +23,6 @@ const auto Autoconfigs = []() {
         {ov::device::priorities(CommonTestUtils::DEVICE_GPU)},
 #ifdef ENABLE_INTEL_CPU
         {ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU)},
-        {ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU)},
 #endif
     };
 };
@@ -58,10 +53,23 @@ const auto MulticonfigTests = []() {
     };
 };
 
+const auto AutoconfigTests = []() {
+    return std::vector<ov::AnyMap>{
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU)},
+    };
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
                          OVInferRequestQueryStateExceptionTest,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                             ::testing::ValuesIn(MulticonfigTests())),
                          OVInferRequestQueryStateExceptionTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
+                         OVInferRequestQueryStateExceptionTest,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                            ::testing::ValuesIn(AutoconfigTests())),
+                         OVInferRequestQueryStateExceptionTest::getTestCaseName);
+
 #endif
 }  // namespace
