@@ -73,5 +73,5 @@ class TestEmptyBoolean(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_empty(self, ie_device, precision, ir_version, ):
+    def test_empty_bool(self, ie_device, precision, ir_version, ):
         self._test(*self.create_model(), ie_device, precision, ir_version)
