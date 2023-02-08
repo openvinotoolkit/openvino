@@ -30,10 +30,6 @@ inline const float& clamp(const float& v, const float& lower, const float& upper
     return std::max(lower, std::min(v, upper));
 }
 
-inline bool hasSingleBatchOutput(const program_node& node) {
-    return node.get_output_layout().batch() == 1;
-}
-
 struct roi_t {
     float x0, y0, x1, y1;
 };

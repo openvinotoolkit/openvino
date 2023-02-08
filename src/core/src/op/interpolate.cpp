@@ -138,15 +138,6 @@ std::vector<int64_t> op::v4::Interpolate::get_axes() const {
 
 static constexpr float epsilon = 1.0e-6f;
 
-namespace {
-int64_t multiply_bound_and_scale(int64_t bound, float scale) {
-    if (bound == -1) {
-        return bound;
-    }
-    return static_cast<int64_t>(static_cast<float>(bound) * scale);
-}
-}  // namespace
-
 void op::v4::Interpolate::infer_using_scales(ov::PartialShape& output_shape,
                                              const std::vector<int64_t>& axes,
                                              const std::vector<float>& scales,

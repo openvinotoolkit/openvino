@@ -458,7 +458,7 @@ void prepare_buffer_fusing::run(program& p) {
         if (!can_optimize(node))
             continue;
 
-        program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node) {
+        program_helpers::do_for_types<reshape>(*node, [](reshape_node& node) {
             node.get_output_layout();
             node.can_be_optimized(can_reshape_be_optimized(node));
         });

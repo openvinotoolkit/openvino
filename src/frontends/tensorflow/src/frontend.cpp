@@ -8,6 +8,7 @@
 #include "helper_transforms/block_lstm_replacer.hpp"
 #include "helper_transforms/embedding_segments_feature_fusing.hpp"
 #include "helper_transforms/gru_block_cell_replacer.hpp"
+#include "helper_transforms/unsupported_const_to_result_remover.hpp"
 #include "input_model.hpp"
 #include "op_table.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
@@ -19,6 +20,7 @@
 #include "so_extension.hpp"
 #include "tf_framework_node.hpp"
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
+#include "transformations/common_optimizations/transpose_sinking_general.hpp"
 #include "translate_session.hpp"
 #include "utils.hpp"
 
@@ -250,9 +252,9 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
     manager.register_pass<pass::EmbeddingSegmentSingleFeatureFusion>();
     manager.register_pass<pass::BlockLSTMReplacer>();
     manager.register_pass<pass::GRUBlockCellReplacer>();
+    manager.register_pass<pass::UnsupportedConstToResultRemover>();
 
-    // TODO: reimplement TransposeSinking that does not corrupt filters for Convolution
-    manager.register_pass<ov::frontend::tensorflow::pass::TransposeSinking>();
+    manager.register_pass<ov::pass::TransposeSinkingGeneral>();
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
     manager.run_passes(function);
 }

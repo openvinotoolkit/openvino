@@ -92,7 +92,7 @@ ov::PartialShape get_reordered_planar_shape(const ov::PartialShape& shape, const
     // Note that it can be smaller though, for example tensor shape can be prepended with 1 for scheduling purposes
     if (std::any_of(layout.begin(), layout.end(), [=](size_t x) {return x >= rank;}))
         throw ngraph_error("Invalid layout detected: all layout indexes must be smaller than the tensor rank");
-    for (int i = 0; i < layout.size(); i++)
+    for (size_t i = 0; i < layout.size(); i++)
         reordered_shape[i] = shape[layout[i]];
     return reordered_shape;
 }

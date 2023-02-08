@@ -24,13 +24,13 @@ namespace backend {
 class AMIntelDNN {
 public:
     AMIntelDNN()
-        : ptr_active_outputs_(NULL),
-          num_active_outputs_(0),
-          input_scale_factor_(1.0),
-          do_rotate_input(false),
+        : do_rotate_input(false),
           num_rotate_rows(0),
           num_rotate_columns(0),
-          compute_precision_(kDnnNumNumberType) {}
+          ptr_active_outputs_(NULL),
+          num_active_outputs_(0),
+          compute_precision_(kDnnNumNumberType),
+          input_scale_factor_(1.0) {}
 
     ~AMIntelDNN();
 

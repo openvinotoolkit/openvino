@@ -76,13 +76,13 @@ void fill_output_info(const ov::Output<ov::Node>& output, InferenceEngine::DataP
 }  // namespace ov
 
 // ! [executable_network:ctor_cnnnetwork]
-TemplatePlugin::CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
+TemplatePlugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
                                              const InferenceEngine::ITaskExecutor::Ptr& task_executor,
                                              const Configuration& cfg)
     : ov::ICompiledModel(model, plugin, task_executor),  // Disable default threads creation
-      m_model(model->clone()),
-      _cfg(cfg) {
+      _cfg(cfg),
+      m_model(model) {
     // TODO: if your plugin supports device ID (more that single instance of device can be on host machine)
     // you should select proper device based on KEY_DEVICE_ID or automatic behavior
     // In this case, _waitExecutor should also be created per device.

@@ -6,22 +6,24 @@ include(ProcessorCount)
 include(CheckCXXCompilerFlag)
 
 #
-# disable_deprecated_warnings()
+# ov_disable_deprecated_warnings()
 #
 # Disables deprecated warnings generation in current scope (directory, function)
 # Defines ie_c_cxx_deprecated varaible which contains C / C++ compiler flags
 #
-macro(disable_deprecated_warnings)
+macro(ov_disable_deprecated_warnings)
     if(WIN32)
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
             set(ie_c_cxx_deprecated "/Qdiag-disable:1478,1786")
         elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
             set(ie_c_cxx_deprecated "/wd4996")
+        elseif(OV_COMPILER_IS_CLANG)
+            set(ie_c_cxx_deprecated "-Wno-deprecated-declarations")
         endif()
     else()
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
             set(ie_c_cxx_deprecated "-diag-disable=1478,1786")
-        else()
+        elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX)
             set(ie_c_cxx_deprecated "-Wno-deprecated-declarations")
         endif()
     endif()
@@ -36,36 +38,61 @@ macro(disable_deprecated_warnings)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ie_c_cxx_deprecated}")
 endmacro()
 
+macro(disable_deprecated_warnings)
+    ov_disable_deprecated_warnings()
+endmacro()
+
 #
-# ie_deprecated_no_errors()
+# ov_deprecated_no_errors()
 #
 # Don't threat deprecated warnings as errors in current scope (directory, function)
 # Defines ie_c_cxx_deprecated_no_errors varaible which contains C / C++ compiler flags
 #
-macro(ie_deprecated_no_errors)
+macro(ov_deprecated_no_errors)
     if(WIN32)
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
             set(ie_c_cxx_deprecated_no_errors "/Qdiag-warning:1478,1786")
         elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
             # show 4996 only for /w4
             set(ie_c_cxx_deprecated_no_errors "/wd4996")
+        elseif(OV_COMPILER_IS_CLANG)
+            set(ie_c_cxx_deprecated_no_errors "-Wno-error=deprecated-declarations")
         endif()
     else()
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
             set(ie_c_cxx_deprecated_no_errors "-diag-warning=1478,1786")
-        else()
+        elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX)
             set(ie_c_cxx_deprecated_no_errors "-Wno-error=deprecated-declarations")
         endif()
+    endif()
 
-        if(NOT ie_c_cxx_deprecated_no_errors)
-            message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
-        endif()
+    if(NOT ie_c_cxx_deprecated_no_errors)
+        message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
     endif()
 
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${ie_c_cxx_deprecated_no_errors}")
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${ie_c_cxx_deprecated_no_errors}")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ie_c_cxx_deprecated_no_errors}")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ie_c_cxx_deprecated_no_errors}")
+endmacro()
+
+#
+# ov_dev_package_no_errors()
+#
+# Exports flags for 3rdparty modules, but without errors
+#
+macro(ov_dev_package_no_errors)
+    if(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX)
+        set(ie_c_cxx_dev_no_errors "-Wno-all")
+        if(SUGGEST_OVERRIDE_SUPPORTED)
+            set(ie_cxx_dev_no_errors "${ie_c_cxx_dev_no_errors} -Wno-error=suggest-override")
+        endif()
+    endif()
+
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${ie_c_cxx_dev_no_errors} ${ie_cxx_dev_no_errors}")
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${ie_c_cxx_dev_no_errors}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ie_c_cxx_dev_no_errors} ${ie_cxx_dev_no_errors}")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ie_c_cxx_dev_no_errors}")
 endmacro()
 
 #
@@ -238,6 +265,21 @@ function(ov_force_include target scope header_file)
     endif()
 endfunction()
 
+# 
+# ie_python_minimal_api(<target>)
+#
+# Set options to use only Python Limited API
+#
+function(ie_python_minimal_api target)
+    # pybind11 uses a lot of API which is not a part of minimal python API subset
+    # Ref 1: https://docs.python.org/3.11/c-api/stable.html
+    # Ref 2: https://github.com/pybind/pybind11/issues/1755
+    # target_compile_definitions(${target} PRIVATE Py_LIMITED_API=0x03090000)
+    # if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    #     target_compile_options(${target} PRIVATE "-Wno-unused-variable")
+    # endif()
+endfunction()
+
 #
 # Compilation and linker flags
 #
@@ -262,34 +304,53 @@ if(ENABLE_COVERAGE)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --coverage")
 endif()
 
-if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    ie_add_compiler_flags(-fsigned-char)
-endif()
-
 # Honor visibility properties for all target types
 set(CMAKE_POLICY_DEFAULT_CMP0063 NEW)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_C_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 
-function(ie_python_minimal_api target)
-    # pybind11 uses a lot of API which is not a part of minimal python API subset
-    # Ref 1: https://docs.python.org/3.11/c-api/stable.html
-    # Ref 2: https://github.com/pybind/pybind11/issues/1755
-    # target_compile_definitions(${target} PRIVATE Py_LIMITED_API=0x03090000)
-    # if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    #     target_compile_options(${target} PRIVATE "-Wno-unused-variable")
-    # endif()
-endfunction()
+if(CMAKE_CL_64)
+    # Default char Type Is unsigned
+    # ie_add_compiler_flags(/J)
+else()
+    ie_add_compiler_flags(-fsigned-char)
+endif()
 
 if(WIN32)
-    ie_add_compiler_flags(-D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS)
-    ie_add_compiler_flags(/EHsc) # no asynchronous structured exception handling
-    ie_add_compiler_flags(/Gy) # remove unreferenced functions: function level linking
+    #
+    # Common options / warnings enabled
+    #
+
+    ie_add_compiler_flags(/D_CRT_SECURE_NO_WARNINGS /D_SCL_SECURE_NO_WARNINGS)
+     # no asynchronous structured exception handling
+    ie_add_compiler_flags(/EHsc)
+    # Allows the compiler to package individual functions in the form of packaged functions (COMDATs).
+    ie_add_compiler_flags(/Gy)
+    # This option helps ensure the fewest possible hard-to-find code defects. Similar to -Wall on GNU / Clang
+    ie_add_compiler_flags(/W3)
+
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        # Increase Number of Sections in .Obj file
+        ie_add_compiler_flags(/bigobj)
+        # Build with multiple processes
+        ie_add_compiler_flags(/MP)
+
+        if(AARCH64 AND NOT MSVC_VERSION LESS 1930)
+            # otherwise, _ARM64_EXTENDED_INTRINSICS is defined, which defines 'mvn' macro
+            ie_add_compiler_flags(/D_ARM64_DISTINCT_NEON_TYPES)
+        endif()
+    endif()
+
+    # Handle Large Addresses
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /LARGEADDRESSAWARE")
 
-    if (CMAKE_COMPILE_WARNING_AS_ERROR)
-        if (CMAKE_VERSION VERSION_LESS 3.24)
+    #
+    # Warnings as errors
+    #
+
+    if(CMAKE_COMPILE_WARNING_AS_ERROR)
+        if(CMAKE_VERSION VERSION_LESS 3.24)
             ie_add_compiler_flags(/WX)
         endif()
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /WX")
@@ -300,26 +361,16 @@ if(WIN32)
         endif()
     endif()
 
-    if(AARCH64 AND CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND NOT MSVC_VERSION LESS 1930)
-        # otherwise, _ARM64_EXTENDED_INTRINSICS is defined, which defines 'mvn' macro
-        ie_add_compiler_flags(-D_ARM64_DISTINCT_NEON_TYPES)
-    endif()
-
-    # Compiler specific flags
-
-    ie_add_compiler_flags(/bigobj)
-    ie_add_compiler_flags(/MP)
-
+    #
     # Disable noisy warnings
+    #
 
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         # C4251 needs to have dll-interface to be used by clients of class
         ie_add_compiler_flags(/wd4251)
         # C4275 non dll-interface class used as base for dll-interface class
         ie_add_compiler_flags(/wd4275)
-    endif()
-
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         # 161: unrecognized pragma
         # 177: variable was declared but never referenced
         # 556: not matched type of assigned function pointer
@@ -342,41 +393,50 @@ if(WIN32)
     string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
     string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 else()
-    if(CMAKE_COMPILE_WARNING_AS_ERROR AND CMAKE_VERSION VERSION_LESS 3.24)
-        # TODO: enable for C sources as well
-        # ie_add_compiler_flags(-Werror)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
-    endif()
+    #
+    # Common enabled warnings
+    #
+
+    # allow linker eliminating the unused code and data from the final executable
     ie_add_compiler_flags(-ffunction-sections -fdata-sections)
+    # emits text showing the command-line option controlling a diagnostic
     ie_add_compiler_flags(-fdiagnostics-show-option)
-    ie_add_compiler_flags(-Wundef)
-    ie_add_compiler_flags(-Wreturn-type)
-    ie_add_compiler_flags(-Wunused-variable)
 
-    if(OV_COMPILER_IS_APPLECLANG)
-        ie_add_compiler_flags(-Wswitch)
-    else()
-        ie_add_compiler_flags(-Wuninitialized -Winit-self)
-        if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-            ie_add_compiler_flags(-Winconsistent-missing-override
-                                  -Wstring-plus-int)
-        else()
-            ie_add_compiler_flags(-Wmaybe-uninitialized)
-            check_cxx_compiler_flag("-Wsuggest-override" SUGGEST_OVERRIDE_SUPPORTED)
-            if(SUGGEST_OVERRIDE_SUPPORTED)
-                set(CMAKE_CXX_FLAGS "-Wsuggest-override ${CMAKE_CXX_FLAGS}")
-            endif()
-        endif()
+    # This enables all the warnings about constructions that some users consider questionable, and that are easy to avoid
+    ie_add_compiler_flags(-Wall)
+    # Warn if an undefined identifier is evaluated in an #if directive. Such identifiers are replaced with zero.
+    ie_add_compiler_flags(-Wundef)
+
+    # TODO
+    if(OV_COMPILER_IS_CLANG)
+        ie_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
     endif()
 
+    check_cxx_compiler_flag("-Wsuggest-override" SUGGEST_OVERRIDE_SUPPORTED)
+    if(SUGGEST_OVERRIDE_SUPPORTED)
+        set(CMAKE_CXX_FLAGS "-Wsuggest-override ${CMAKE_CXX_FLAGS}")
+    endif()
+
+    #
+    # Warnings as errors
+    #
+
+    if(CMAKE_COMPILE_WARNING_AS_ERROR AND CMAKE_VERSION VERSION_LESS 3.24)
+        ie_add_compiler_flags(-Werror)
+    endif()
+
+    #
     # Disable noisy warnings
+    #
 
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         # 177: function "XXX" was declared but never referenced
         ie_add_compiler_flags(-diag-disable=remark,177,2196)
     endif()
 
+    #
     # Linker flags
+    #
 
     if(APPLE)
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-dead_strip")
@@ -399,6 +459,10 @@ else()
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--gc-sections")
     endif()
 endif()
+
+# if(OV_COMPILER_IS_CLANG)
+#     ie_add_compiler_flags(-Wshorten-64-to-32)
+# endif()
 
 #
 # link_system_libraries(target <PUBLIC | PRIVATE | INTERFACE> <lib1 [lib2 lib3 ...]>)
