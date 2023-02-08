@@ -35,7 +35,7 @@ add_library(openvino::util ALIAS ${TARGET_NAME})
 target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS})
 if (WIN32)
     target_link_libraries(${TARGET_NAME} PRIVATE Shlwapi)
-    target_link_libraries(${TARGET_NAME} PRIVATE Wintrust)  # TODO: add under CMAKE flag and for Release only
+    target_link_libraries(${TARGET_NAME} PRIVATE Wintrust Crypt32)  # TODO: add under CMAKE flag and for Release only
 endif()
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>)

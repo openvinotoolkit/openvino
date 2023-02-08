@@ -73,50 +73,308 @@
 #include <wintrust.h>
 #include <Softpub.h>
 
-// #include <wincrypt.h>
+#include <wincrypt.h>
+
+
+#define ENCODING (X509_ASN_ENCODING | PKCS_7_ASN_ENCODING)
+
+
+
+#include <tchar.h>
+#include <string>
+#include <iostream>
 // #include <wintrust.h>
 
 // #pragma comment (lib, "wintrust")
 
 namespace {
-bool verify_embedded_signature(LPCWSTR pwszSourceFile)
+
+DWORD getSignerInfo(
+	std::wstring aFileName,
+	std::shared_ptr<CMSG_SIGNER_INFO> &aSignerInfo,
+	HCERTSTORE &aCertStore)
 {
-	GUID WintrustVerifyGuid = WINTRUST_ACTION_GENERIC_VERIFY_V2;
+	BOOL lRetVal = TRUE;
+	DWORD lEncoding = 0;
+	DWORD lContentType = 0;
+	DWORD lFormatType = 0;
+	HCERTSTORE lStoreHandle = NULL;
+	HCRYPTMSG lCryptMsgHandle = NULL;
 
-	WINTRUST_DATA wd = { 0 };
-	WINTRUST_FILE_INFO wfi = { 0 };
+	CERT_INFO CertInfo = { 0 };
 
-	memset(&wfi, 0, sizeof(wfi));
-	wfi.cbStruct = sizeof(WINTRUST_FILE_INFO);
-	wfi.pcwszFilePath = pwszSourceFile;
-	wfi.hFile = NULL;
-	wfi.pgKnownSubject = NULL;
+	DWORD lSignerInfoSize = 0;
 
-	memset(&wd, 0, sizeof(wd));
-	wd.cbStruct = sizeof(WINTRUST_DATA);
-	wd.dwUnionChoice = WTD_CHOICE_FILE;
-	wd.pFile = &wfi;
-	wd.dwUIChoice = WTD_UI_NONE;
-	wd.fdwRevocationChecks = WTD_REVOKE_NONE;
-	wd.dwStateAction = WTD_STATEACTION_VERIFY;
-	wd.hWVTStateData = NULL;
-	wd.pwszURLReference = NULL;
-	wd.pPolicyCallbackData = NULL;
-	wd.pSIPClientData = NULL;
-	wd.dwUIContext = 0;
+	lRetVal = CryptQueryObject(CERT_QUERY_OBJECT_FILE,
+		aFileName.data(),
+		CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED_EMBED,
+		CERT_QUERY_FORMAT_FLAG_BINARY,
+		0,
+		&lEncoding,
+		&lContentType,
+		&lFormatType,
+		&lStoreHandle,
+		&lCryptMsgHandle,
+		NULL);
 
-    auto status = WinVerifyTrust(NULL, &WintrustVerifyGuid, &wd);
+	if (!lRetVal)
+	{
+		return GetLastError();
+	}
 
-    // Any hWVTStateData must be released by a call with close.
-    wd.dwStateAction = WTD_STATEACTION_CLOSE;
-    std::ignore = WinVerifyTrust(NULL, &WintrustVerifyGuid, &wd);
+	lRetVal = CryptMsgGetParam(lCryptMsgHandle,
+		CMSG_SIGNER_INFO_PARAM,
+		0,
+		NULL,
+		&lSignerInfoSize);
 
-	return status == ERROR_SUCCESS;
+	if (!lRetVal)
+	{
+		return GetLastError();
+	}
+
+	PCMSG_SIGNER_INFO lSignerInfoPtr = (PCMSG_SIGNER_INFO) new BYTE[lSignerInfoSize];
+
+	// Get Signer Information.
+	lRetVal = CryptMsgGetParam(lCryptMsgHandle,
+		CMSG_SIGNER_INFO_PARAM,
+		0,
+		(PVOID)lSignerInfoPtr,
+		&lSignerInfoSize);
+
+	if (!lRetVal)
+	{
+		delete lSignerInfoPtr;
+		return GetLastError();
+	}
+
+	aSignerInfo = std::shared_ptr<CMSG_SIGNER_INFO>(lSignerInfoPtr);
+	aCertStore = lStoreHandle;
+
+	return ERROR_SUCCESS;
 }
 
-bool verify_embedded_signature(const char* path) {
-    return verify_embedded_signature(ov::util::string_to_wstring(path).c_str());
+DWORD getCertificateSerialNumber(
+	PCCERT_CONTEXT aCertContext,
+	std::wstring &aSerialNumberWstr)
+{
+	if (!aCertContext)
+	{
+		return ERROR_INVALID_PARAMETER;
+	}
+
+	const int lBufferSize = 3;
+
+	wchar_t lTempBuffer[lBufferSize] = { 0 };
+
+	aSerialNumberWstr = L"";
+
+	auto lDataBytesCount = aCertContext->pCertInfo->SerialNumber.cbData;
+	for (DWORD n = 0; n < lDataBytesCount; n++)
+	{
+
+		auto lSerialByte = aCertContext->pCertInfo->SerialNumber.pbData[lDataBytesCount - (n + 1)];
+
+		swprintf(lTempBuffer, lBufferSize*2, L"%02x", lSerialByte);
+
+		aSerialNumberWstr += std::wstring(lTempBuffer, 2);
+
+	}
+
+	return ERROR_SUCCESS;
 }
+
+DWORD getCertificateContext(
+	std::shared_ptr<CMSG_SIGNER_INFO> aSignerInfo,
+	HCERTSTORE aCertStore,
+	PCCERT_CONTEXT &aCertContextPtr)
+{
+
+	PCCERT_CONTEXT pCertContext = NULL;
+	CERT_INFO CertInfo = { 0 };
+
+	CertInfo.Issuer = aSignerInfo->Issuer;
+	CertInfo.SerialNumber = aSignerInfo->SerialNumber;
+	
+	pCertContext = CertFindCertificateInStore(
+		aCertStore,
+		ENCODING,
+		0,
+		CERT_FIND_SUBJECT_CERT,
+		(PVOID)&CertInfo,
+		NULL);
+
+	if (!pCertContext)
+	{
+		return GetLastError();
+	}
+
+	aCertContextPtr = pCertContext;
+
+	return ERROR_SUCCESS;
+}
+
+DWORD queryCertificateInfo(
+	PCCERT_CONTEXT aCertContext,
+	DWORD aType,
+	std::wstring &aOutputName)
+{
+
+	DWORD lNameLength;
+
+	lNameLength = CertGetNameString(aCertContext,
+		CERT_NAME_SIMPLE_DISPLAY_TYPE,
+		aType,
+		NULL,
+		NULL,
+		0);
+
+	if (!lNameLength)
+	{
+		return GetLastError();
+	}
+
+	std::vector<wchar_t> lNameVector;
+	lNameVector.reserve(lNameLength);
+
+	// Get Issuer name.
+	lNameLength = CertGetNameStringW(aCertContext,
+		CERT_NAME_SIMPLE_DISPLAY_TYPE,
+		aType,
+		NULL,
+		lNameVector.data(),
+		lNameLength);
+
+	if (!lNameLength)
+	{
+		return GetLastError();
+	}
+
+	aOutputName.assign(lNameVector.data(), lNameLength);
+
+	return ERROR_SUCCESS;
+}
+
+
+class SignerInfo
+{
+
+public:
+	SignerInfo() {};
+	virtual ~SignerInfo() {};
+
+	virtual void PrintCertificateInfo()
+	{
+		std::wcout << "Serial number: " << serialNumber.c_str() << std::endl;
+		std::wcout << "Issuer name: " << issuerName.c_str() << std::endl;
+		std::wcout << "Subject name: " << subjectName.c_str() << std::endl;
+		std::wcout << "Signing algorithm: " << signAlgorithm.c_str() << std::endl;
+	};
+
+public:
+	std::wstring serialNumber;
+	std::wstring subjectName;
+	std::wstring issuerName;
+	std::wstring signAlgorithm;
+
+};
+
+bool verify_embedded_signature2(LPCWSTR aFileName) {
+    aFileName = L"C:\\Users\\vurusovs\\Downloads\\w_openvino_toolkit_windows_2023.0.0.dev20230205_x86_64\\w_openvino_toolkit_windows_2023.0.0.dev20230205_x86_64\\runtime\\bin\\intel64\\Release\\openvino_intel_cpu_plugin.dll";
+    HCERTSTORE lCertStore;
+	std::shared_ptr<CMSG_SIGNER_INFO> lSignerInfo;
+	DWORD lRetVal = ERROR_SUCCESS;
+	PCCERT_CONTEXT lCertContexPtr = NULL;
+
+	lRetVal = getSignerInfo(aFileName, lSignerInfo, lCertStore);
+	if (lRetVal != ERROR_SUCCESS)
+	{
+		return lRetVal;
+	}
+
+	lRetVal = getCertificateContext(lSignerInfo, lCertStore, lCertContexPtr);
+	if (lRetVal != ERROR_SUCCESS)
+	{
+		return lRetVal;
+	}
+
+	auto aCertInfo = std::make_shared<SignerInfo>();
+
+	std::wstring lSerialNumber;
+	lRetVal = getCertificateSerialNumber(lCertContexPtr, lSerialNumber);
+	if (lRetVal == ERROR_SUCCESS)
+	{
+		aCertInfo->serialNumber = lSerialNumber;
+	}
+
+	std::wstring lIssuerName;
+	lRetVal = queryCertificateInfo(lCertContexPtr, CERT_NAME_ISSUER_FLAG, lIssuerName);
+	if (lRetVal == ERROR_SUCCESS)
+	{
+		aCertInfo->issuerName = lIssuerName;
+	}
+
+	std::wstring lSubjectName;
+	lRetVal = queryCertificateInfo(lCertContexPtr, 0, lSubjectName);
+	if (lRetVal == ERROR_SUCCESS)
+	{
+		aCertInfo->subjectName = lSubjectName;
+	}
+
+	// std::wstring lSignAlgorithm;
+	// lRetVal = getSignatureAlgoWstring(&lCertContexPtr->pCertInfo->SignatureAlgorithm, lSignAlgorithm);
+	// if (lRetVal == ERROR_SUCCESS)
+	// {
+	// 	aCertInfo->signAlgorithm = lSignAlgorithm;
+	// }
+
+    // aFileName = L"C:\\work\\openvino\\bin\\intel64\\Debug\\openvino_intel_gna_plugind.dll";
+    aFileName = L"C:\\Users\\vurusovs\\Downloads\\openvino_2022.3.0\\w_openvino_toolkit_windows_2022.3.0.9052.9752fafe8eb_x86_64\\runtime\\bin\\intel64\\Release\\openvino_intel_gna_plugin.dll";
+
+    lRetVal = getSignerInfo(aFileName, lSignerInfo, lCertStore);
+	if (lRetVal != ERROR_SUCCESS)
+	{
+		return lRetVal;
+	}
+
+	lRetVal = getCertificateContext(lSignerInfo, lCertStore, lCertContexPtr);
+	if (lRetVal != ERROR_SUCCESS)
+	{
+		return lRetVal;
+	}
+
+    auto aCertInfo2 = std::make_shared<SignerInfo>();
+
+	lRetVal = getCertificateSerialNumber(lCertContexPtr, lSerialNumber);
+	if (lRetVal == ERROR_SUCCESS)
+	{
+		aCertInfo2->serialNumber = lSerialNumber;
+	}
+
+	lRetVal = queryCertificateInfo(lCertContexPtr, CERT_NAME_ISSUER_FLAG, lIssuerName);
+	if (lRetVal == ERROR_SUCCESS)
+	{
+		aCertInfo2->issuerName = lIssuerName;
+	}
+
+	lRetVal = queryCertificateInfo(lCertContexPtr, 0, lSubjectName);
+	if (lRetVal == ERROR_SUCCESS)
+	{
+		aCertInfo2->subjectName = lSubjectName;
+	}
+
+	if (lCertContexPtr)
+	{
+		CertFreeCertificateContext(lCertContexPtr);
+	}
+	
+	return ERROR_SUCCESS;
+}
+
+bool verify_embedded_signature2(const char* aFileName) {
+    return verify_embedded_signature2(ov::util::string_to_wstring(aFileName).c_str());
+}
+
 }  // namespace
 
 namespace ov {
@@ -129,7 +387,7 @@ std::shared_ptr<void> load_shared_object(const char* path, const bool& verify_si
             ss << "Cannot verify signature of library '" << path << "': path isn't absolute.";
             throw std::runtime_error(ss.str());
         }
-        if (!verify_embedded_signature(path)) {
+        if (!verify_embedded_signature2(path)) {
             std::stringstream ss;
             ss << "Signature verification of library '" << path << "' failed";
             throw std::runtime_error(ss.str());
@@ -197,7 +455,7 @@ std::shared_ptr<void> load_shared_object(const wchar_t* path, const bool& verify
             ss << "Cannot verify signature of library '" << ov::util::wstring_to_string(std::wstring(path)) << "': path isn't absolute.";
             throw std::runtime_error(ss.str());
         }
-        if (!verify_embedded_signature(path)) {
+        if (!verify_embedded_signature2(path)) {
             std::stringstream ss;
             ss << "Signature verification of library '" << ov::util::wstring_to_string(std::wstring(path)) << "' failed";
             throw std::runtime_error(ss.str());
