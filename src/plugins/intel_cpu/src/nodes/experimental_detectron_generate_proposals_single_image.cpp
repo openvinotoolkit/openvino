@@ -41,12 +41,12 @@ struct Indexer4d {
     }
 };
 
-static void refine_anchors(const float* deltas, const float* scores, const float* anchors,
-                           float* proposals, const int anchors_num, const int bottom_H,
-                           const int bottom_W, const float img_H, const float img_W,
-                           const float min_box_H, const float min_box_W,
-                           const float max_delta_log_wh,
-                           float coordinates_offset) {
+void refine_anchors(const float* deltas, const float* scores, const float* anchors,
+                    float* proposals, const int anchors_num, const int bottom_H,
+                    const int bottom_W, const float img_H, const float img_W,
+                    const float min_box_H, const float min_box_W,
+                    const float max_delta_log_wh,
+                    float coordinates_offset) {
     Indexer4d delta_idx(anchors_num, 4, bottom_H, bottom_W);
     Indexer4d score_idx(anchors_num, 1, bottom_H, bottom_W);
     Indexer4d proposal_idx(bottom_H, bottom_W, anchors_num, 5);
@@ -404,7 +404,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute(dnnl::stream str
                            reinterpret_cast<float *>(&proposals_[0]), anchors_num, bottom_H,
                            bottom_W, img_H, img_W,
                            min_box_H, min_box_W,
-                           static_cast<const float>(std::log(1000. / 16.)),
+                           static_cast<const float>(log(1000. / 16.)),
                            1.0f);
             std::partial_sort(proposals_.begin(), proposals_.begin() + pre_nms_topn, proposals_.end(),
                               [](const ProposalBox &struct1, const ProposalBox &struct2) {
