@@ -570,17 +570,22 @@ void network::set_arguments() {
 }
 
 void network::reset_execution(bool wait) {
-    if (wait && _events.size() > 0) {
-        std::vector<event::ptr> events;
-        for (auto& pair : _events) {
-            auto& ev = pair.second;
-            if (ev->is_set())
-                continue;
+    if (wait) {
+        auto queue_type = get_config().get_property(ov::intel_gpu::queue_type);
+        if (queue_type == QueueTypes::in_order) {
+            get_stream().finish();
+        } else if (queue_type == QueueTypes::out_of_order && _events.size() > 0) {
+            std::vector<event::ptr> events;
+            for (auto& pair : _events) {
+                auto& ev = pair.second;
+                if (ev->is_set())
+                    continue;
 
-            events.push_back(ev);
+                events.push_back(ev);
+            }
+
+            get_stream().wait_for_events(events);
         }
-
-        get_stream().wait_for_events(events);
     }
     _events.clear();
 }
