@@ -37,33 +37,6 @@ enum class PropertyMutability {
     RW,  //!< Read/Write property key may change readability in runtime
 };
 
-/**
- * @brief This class is used to return property name and its mutability attribute
- */
-struct PropertyName : public std::string {
-    using std::string::string;
-
-    /**
-     * @brief Constructs property name object
-     * @param str property name
-     * @param mutability property mutability
-     */
-    PropertyName(const std::string& str, PropertyMutability mutability = PropertyMutability::RW)
-        : std::string{str},
-          _mutability{mutability} {}
-
-    /**
-     * @brief check property mutability
-     * @return true if property is mutable
-     */
-    bool is_mutable() const {
-        return _mutability == PropertyMutability::RW;
-    }
-
-private:
-    PropertyMutability _mutability = PropertyMutability::RW;
-};
-
 /** @cond INTERNAL */
 namespace util {
 
@@ -203,6 +176,37 @@ public:
     inline std::pair<std::string, Any> operator()(Args&&... args) const {
         return {this->name(), Any::make<T>(Forward<Args>{std::forward<Args>(args)}...)};
     }
+};
+
+/**
+ * @brief This class is used to return property name and its mutability attribute
+ */
+struct PropertyName : public std::string {
+    using std::string::string;
+
+    /**
+     * @brief Constructs property name object
+     * @param str property name
+     * @param mutability property mutability
+     */
+    PropertyName(const std::string& str, PropertyMutability mutability = PropertyMutability::RW)
+        : std::string{str},
+          _mutability{mutability} {}
+
+    template <class T, typename std::enable_if<std::is_base_of<ov::util::PropertyTag, T>::value, bool>::type = true>
+    PropertyName(const T& property) : std::string{property.name()},
+                                      _mutability{property.mutability} {}
+
+    /**
+     * @brief check property mutability
+     * @return true if property is mutable
+     */
+    bool is_mutable() const {
+        return _mutability == PropertyMutability::RW;
+    }
+
+private:
+    PropertyMutability _mutability = PropertyMutability::RW;
 };
 
 /**

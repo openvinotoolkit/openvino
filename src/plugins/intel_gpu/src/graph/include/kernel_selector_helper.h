@@ -28,7 +28,6 @@ using namespace cldnn;
 
 namespace cldnn {
 enum class data_types : size_t;
-enum class tuning_mode;
 struct format;
 struct layout;
 struct program;
@@ -65,7 +64,6 @@ using softmax_dim = kernel_selector::SoftmaxDim;
 using mean_subtruct_mode = kernel_selector::MeanSubtractMode;
 using mean_op = kernel_selector::MeanOp;
 using concat_axis = kernel_selector::ConcatAxis;
-using tuning_mode = kernel_selector::TuningMode;
 using sample_type = kernel_selector::ResampleType;
 using coordinate_transformation_mode = kernel_selector::CoordinateTransformationMode;
 using nearest_mode = kernel_selector::NearestMode;
@@ -101,7 +99,6 @@ kernel_selector::data_layout to_data_layout(format f);
 cldnn::format from_data_layout(kernel_selector::data_layout l);
 kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped);
 cldnn::format::type from_weights_layout(kernel_selector::weights_layout l);
-kernel_selector::tuning_mode to_tuning_mode(ov::intel_gpu::TuningMode mode);
 kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor view_offset = tensor {});
 kernel_selector::weights_tensor convert_weights_tensor(const layout& l, bool is_grouped = false);
 layout from_weights_tensor(const kernel_selector::weights_tensor& t);
@@ -204,6 +201,7 @@ kernel_selector::dim_tensor<T> convert_dim_vector(const tensor& t) {
 
 void convert_fused_ops_to_legacy_activations(const kernel_impl_params& param_info, std::vector<kernel_selector::base_activation_params>& activations);
 bool use_legacy_fused_ops(const kernel_impl_params& param_info);
+bool is_shape_agnostic(const kernel_impl_params& param_info);
 
 void set_params(const kernel_impl_params& param_info, kernel_selector::params& params);
 
@@ -218,6 +216,9 @@ inline params_t get_default_params(const kernel_impl_params& param_info) {
 
     params.inputs[0] = convert_data_tensor(input_layout);
     params.outputs[0] = convert_data_tensor(output_layout);
+    if (is_shape_agnostic(param_info)) {
+        params.is_shape_agnostic = true;
+    }
     params.layerID = param_info.desc->id;
 
     if (use_legacy_fused_ops(param_info)) {

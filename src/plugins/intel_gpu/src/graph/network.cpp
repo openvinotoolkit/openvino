@@ -433,6 +433,14 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
         prim_inst->set_output_memory(new_mem);
     }
 
+    size_t num_variable_state_primitives;
+    ib >> num_variable_state_primitives;
+    for (size_t i = 0; i < num_variable_state_primitives; i++) {
+        primitive_id p_inst_id;
+        ib >> p_inst_id;
+        _variable_state_primitives.emplace_back(_primitives.at(p_inst_id));
+    }
+
     add_default_output_chains();
 }
 
@@ -512,6 +520,11 @@ void network::save(cldnn::BinaryOutputBuffer& ob) {
     }
 
     ob << reuse_map;
+
+    ob << _variable_state_primitives.size();
+    for (const auto& p_inst : _variable_state_primitives) {
+        ob << p_inst->id();
+    }
 }
 
 network::ptr network::allocate_network(stream::ptr stream, program::ptr program, bool is_internal, bool is_primary_stream) {
@@ -557,17 +570,22 @@ void network::set_arguments() {
 }
 
 void network::reset_execution(bool wait) {
-    if (wait && _events.size() > 0) {
-        std::vector<event::ptr> events;
-        for (auto& pair : _events) {
-            auto& ev = pair.second;
-            if (ev->is_set())
-                continue;
+    if (wait) {
+        auto queue_type = get_config().get_property(ov::intel_gpu::queue_type);
+        if (queue_type == QueueTypes::in_order) {
+            get_stream().finish();
+        } else if (queue_type == QueueTypes::out_of_order && _events.size() > 0) {
+            std::vector<event::ptr> events;
+            for (auto& pair : _events) {
+                auto& ev = pair.second;
+                if (ev->is_set())
+                    continue;
 
-            events.push_back(ev);
+                events.push_back(ev);
+            }
+
+            get_stream().wait_for_events(events);
         }
-
-        get_stream().wait_for_events(events);
     }
     _events.clear();
 }
@@ -781,14 +799,25 @@ void network::allocate_primitives() {
     std::sort(nodes_to_allocate.begin(),
               nodes_to_allocate.end(),
               [&po](std::shared_ptr<program_node> const& lhs, std::shared_ptr<program_node> const& rhs) {
-                    if (rhs->get_output_layout().is_dynamic() && lhs->get_output_layout().is_dynamic())
+                    auto lhs_layout = lhs->get_output_layout();
+                    auto rhs_layout = rhs->get_output_layout();
+                    if (lhs_layout.is_dynamic() && lhs_layout.has_upper_bound()) {
+                        lhs_layout.set_tensor(lhs_layout.get_tensor());
+                    }
+                    if (rhs_layout.is_dynamic() && rhs_layout.has_upper_bound()) {
+                        rhs_layout.set_tensor(rhs_layout.get_tensor());
+                    }
+
+                    if (rhs_layout.is_dynamic() && !rhs_layout.has_upper_bound() && lhs_layout.is_dynamic() && !lhs_layout.has_upper_bound()) {
                         return po.get_processing_number(lhs.get()) < po.get_processing_number(rhs.get());
-                    if (rhs->get_output_layout().is_dynamic())
+                    }
+
+                    if (rhs_layout.is_dynamic())
                         return true;
-                    if (lhs->get_output_layout().is_dynamic())
+                    if (lhs_layout.is_dynamic())
                         return false;
 
-                    return (lhs->get_output_layout().bytes_count() > rhs->get_output_layout().bytes_count());
+                    return (lhs_layout.bytes_count() > rhs_layout.bytes_count());
               });
 
     for (auto const& node : nodes_to_allocate) {
@@ -1195,6 +1224,9 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
         return;
 
     if (!get_engine().supports_allocation(allocation_type::usm_device))
+        return;
+
+    if (get_engine().get_device_info().dev_type != device_type::discrete_gpu)
         return;
 
     if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {

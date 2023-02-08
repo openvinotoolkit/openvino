@@ -11,7 +11,6 @@
 #include <ie_system_conf.h>
 
 #include "kernel_selector_helper.h"
-#include "device_cache_reader.h"
 #include "auto_tuner.h"
 #include "layout_optimizer.h"
 #include "pass_manager.h"
@@ -108,7 +107,6 @@ program::program(engine& engine_ref,
       _stream(_engine.create_stream(config)),
       _config(config),
       processing_order(),
-      tuning_cache(nullptr),
       is_body_program(is_body_program),
       is_subgroup_local_block_io_supported(-1) {
     init_primitives();
@@ -129,6 +127,7 @@ program::program(engine& engine_ref,
     } else {
         build_program(is_internal);
     }
+    calc_nodes_hash();
 }
 
 program::program(engine& engine_ref,
@@ -141,7 +140,6 @@ program::program(engine& engine_ref,
       _config(config),
       _task_executor(task_executor),
       processing_order(),
-      tuning_cache(nullptr),
       is_subgroup_local_block_io_supported(-1) {
     init_primitives();
     set_options();
@@ -154,6 +152,7 @@ program::program(engine& engine_ref,
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(nodes);
     build_program(is_internal);
+    calc_nodes_hash();
 }
 
 program::program(engine& engine)
@@ -161,7 +160,6 @@ program::program(engine& engine)
       _stream(_engine.create_stream({})),
       _config(),
       processing_order(),
-      tuning_cache(nullptr),
       is_subgroup_local_block_io_supported(-1) { }
 program::~program() {
     query_local_block_io_supported();
@@ -228,16 +226,6 @@ void program::init_kernels() {
             n->get_selected_impl()->init_kernels(*_kernels_cache);
             n->get_selected_impl()->reset_kernels_source();
         }
-    }
-}
-
-void program::load_tuning_cache() {
-    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "ProgramImpl::LoadTuningCache");
-    GPU_DEBUG_DEFINE_MEM_LOGGER("ProgramImpl::LoadTuningCache");
-    try {
-        tuning_cache = kernel_selector::CreateTuningCacheFromFile("cache.json");
-    } catch (...) {
-        tuning_cache = std::make_shared<kernel_selector::TuningCache>();
     }
 }
 
@@ -553,6 +541,12 @@ void program::query_local_block_io_supported() {
     }
 }
 
+void program::calc_nodes_hash() {
+    for (auto& node : processing_order) {
+        node->calculate_hash();
+    }
+}
+
 void program::build_program(bool is_internal) {
     init_graph();
     { pre_optimize_graph(is_internal); }
@@ -577,7 +571,8 @@ void program::build_program(bool is_internal) {
 
     if (!is_internal) {
         prim_info = get_current_stage_info();
-        transfer_memory_to_device();
+        if (get_engine().get_device_info().dev_type == device_type::discrete_gpu)
+            transfer_memory_to_device();
     }
 
     cleanup();
@@ -596,9 +591,6 @@ void program::run_graph_compilation() { apply_opt_pass<compile_graph>(); }
 
 void program::pre_optimize_graph(bool is_internal) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "ProgramImpl::PreOptimizeGraph");
-
-    if (!is_internal)
-        load_tuning_cache();
 
     // trim to outputs
     apply_opt_pass<trim_to_outputs>();  // ToDo remove hidden dependencies from trimm pass
@@ -746,13 +738,15 @@ void program::transfer_memory_to_device() {
         return;
 
     for (auto& node : processing_order) {
+        if (node->is_shape_infer_dep()) {
+            continue;
+        }
         if (node->is_type<data>() && !node->need_lockable_memory()) {
             auto& data_node = node->as<data>();
             auto data_node_layout = data_node.get_output_layout();
             auto& mem = data_node.get_attached_memory();
             auto mem_layout = mem.get_layout();
             auto alloc_type = mem.get_allocation_type();
-
             if (!mem_layout.compatible(data_node_layout)) {
                 std::string err_str("Node and memory layouts are incompatible, error occurred for " + node->id() + " node");
                 throw std::invalid_argument(err_str);

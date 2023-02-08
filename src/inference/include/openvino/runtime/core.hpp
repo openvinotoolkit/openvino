@@ -576,13 +576,13 @@ public:
      *
      * @tparam T Type of a returned value.
      * @tparam M Property mutability.
-     * @param deviceName  Name of a device to get a property value.
+     * @param device_name  Name of a device to get a property value.
      * @param property  Property object.
      * @return Property value.
      */
     template <typename T, PropertyMutability M>
-    T get_property(const std::string& deviceName, const ov::Property<T, M>& property) const {
-        return get_property(deviceName, property.name(), {}).template as<T>();
+    T get_property(const std::string& device_name, const ov::Property<T, M>& property) const {
+        return get_property(device_name, property.name(), {}).template as<T>();
     }
 
     /**
@@ -593,14 +593,14 @@ public:
      *
      * @tparam T Type of a returned value.
      * @tparam M Property mutability.
-     * @param deviceName  Name of a device to get a property value.
+     * @param device_name  Name of a device to get a property value.
      * @param property  Property object.
      * @param arguments  Additional arguments to get a property.
      * @return Property value.
      */
     template <typename T, PropertyMutability M>
-    T get_property(const std::string& deviceName, const ov::Property<T, M>& property, const AnyMap& arguments) const {
-        return get_property(deviceName, property.name(), arguments).template as<T>();
+    T get_property(const std::string& device_name, const ov::Property<T, M>& property, const AnyMap& arguments) const {
+        return get_property(device_name, property.name(), arguments).template as<T>();
     }
 
     /**
@@ -612,16 +612,16 @@ public:
      * @tparam T Type of a returned value.
      * @tparam M Property mutability.
      * @tparam Args Set of additional arguments ended with property object variable.
-     * @param deviceName  Name of a device to get a property value.
+     * @param device_name  Name of a device to get a property value.
      * @param property  Property object.
      * @param args Optional pack of pairs: (argument name, argument value) ended with property object.
      * @return Property value.
      */
     template <typename T, PropertyMutability M, typename... Args>
-    util::EnableIfAllStringAny<T, Args...> get_property(const std::string& deviceName,
+    util::EnableIfAllStringAny<T, Args...> get_property(const std::string& device_name,
                                                         const ov::Property<T, M>& property,
                                                         Args&&... args) const {
-        return get_property(deviceName, property.name(), AnyMap{std::forward<Args>(args)...}).template as<T>();
+        return get_property(device_name, property.name(), AnyMap{std::forward<Args>(args)...}).template as<T>();
     }
 
     /**
@@ -638,17 +638,19 @@ public:
     /**
      * @brief Register a new device and plugin that enables this device inside OpenVINO Runtime.
      *
-     * @param plugin_name Name of a plugin. Depending on platform, `plugin_name` is wrapped with shared library suffix
-     * and prefix to identify library full name.
+     * @param plugin Path (absolute or relative) or name of a plugin. Depending on platform, `plugin` is wrapped with
+     * shared library suffix and prefix to identify library full name.
      * For example, on Linux platform, plugin name specified as `plugin_name` will be wrapped as `libplugin_name.so`.
      * Plugin search algorithm:
-     * - If plugin is located in the same directory as OpenVINO runtime library, it will be used.
-     * - If no, plugin is tried to be loaded from paths pointed by PATH/LD_LIBRARY_PATH/DYLD_LIBRARY_PATH
+     * - If `plugin` points to an exact library path (absolute or relative), it will be used.
+     * - If `plugin` specifies file name (`libplugin_name.so`) or plugin name (`plugin_name`), it will be searched by
+     *   file name (`libplugin_name.so`) in CWD or in paths pointed by PATH/LD_LIBRARY_PATH/DYLD_LIBRARY_PATH
      *   environment variables depending on the platform.
+     * @note For security purposes it suggested to specify absolute path to register plugin.
      *
      * @param device_name Device name to register a plugin for.
      */
-    void register_plugin(const std::string& plugin_name, const std::string& device_name);
+    void register_plugin(const std::string& plugin, const std::string& device_name);
 
     /**
      * @brief Unloads the previously loaded plugin identified by @p device_name from OpenVINO Runtime.
@@ -681,10 +683,11 @@ public:
      *
      * - `name` identifies name of a device enabled by a plugin.
      * - `location` specifies absolute path to dynamic library with a plugin.
-     *    The path can also be relative to inference engine shared library. It allows having common config
+     *    The path can also be relative to XML file directory. It allows having common config
      *    for different systems with different configurations.
      * - `properties` are set to a plugin via the ov::Core::set_property method.
      * - `extensions` are set to a plugin via the ov::Core::add_extension method.
+     * @note For security purposes it suggested to specify absolute path to register plugin.
      *
      * @param xml_config_file A path to .xml file with plugins to register.
      */

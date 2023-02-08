@@ -11,19 +11,6 @@ std::string bin_std = TestDataHelpers::generate_model_path("test_model", "test_m
 const char* xml = xml_std.c_str();
 const char* bin = bin_std.c_str();
 
-#ifdef _WIN32
-#    ifdef __MINGW32__
-std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins_mingw.xml");
-#    else
-std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins_win.xml");
-#    endif
-#elif defined __APPLE__
-std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins_apple.xml");
-#else
-std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins.xml");
-#endif
-const char* plugins_xml = plugins_xml_std.c_str();
-
 std::map<ov_element_type_e, size_t> element_type_size_map = {{ov_element_type_e::BOOLEAN, 8},
                                                              {ov_element_type_e::BF16, 16},
                                                              {ov_element_type_e::F16, 16},

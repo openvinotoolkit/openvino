@@ -29,9 +29,8 @@ public:
      *
      * @return shared pointer to compiled model interface
      */
-    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> compile_model(
-        const std::shared_ptr<const ov::Model>& model,
-        const ov::AnyMap& properties) const override;
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                      const ov::AnyMap& properties) const override;
 
     /**
      * @brief Create compiled model based on model and properties
@@ -41,9 +40,8 @@ public:
      *
      * @return shared pointer to compiled model interface
      */
-    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> compile_model(
-        const std::string& model_path,
-        const ov::AnyMap& properties) const override;
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::string& model_path,
+                                                      const ov::AnyMap& properties) const override;
 
     /**
      * @brief Create compiled model based on model and properties
@@ -54,10 +52,9 @@ public:
      *
      * @return shared pointer to compiled model interface
      */
-    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> compile_model(
-        const std::shared_ptr<const ov::Model>& model,
-        const ov::AnyMap& properties,
-        const ov::RemoteContext& context) const override;
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                      const ov::AnyMap& properties,
+                                                      const ov::RemoteContext& context) const override;
 
     /**
      * @brief Specifies some plugin properties
@@ -102,9 +99,7 @@ public:
      *
      * @return shared pointer to compiled model interface
      */
-    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> import_model(
-        std::istream& model,
-        const ov::AnyMap& properties) const override;
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override;
 
     /**
      * @brief Import model to the plugin
@@ -115,8 +110,9 @@ public:
      *
      * @return shared pointer to compiled model interface
      */
-    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
-    import_model(std::istream& model, const ov::RemoteContext& context, const ov::AnyMap& properties) const override;
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                     const ov::RemoteContext& context,
+                                                     const ov::AnyMap& properties) const override;
 
     /**
      * @brief query model
@@ -139,7 +135,7 @@ public:
     /**
      * @brief Returns the instance of the legacy plugin
      *
-     * @return Legacy InferenceEngine::InferencePlugin object
+     * @return Legacy InferenceEngine::IInferencePlugin object
      */
     const std::shared_ptr<InferenceEngine::IInferencePlugin>& get_plugin() const;
 
@@ -161,6 +157,9 @@ public:
 
 private:
     std::shared_ptr<InferenceEngine::IInferencePlugin> m_old_plugin;
+
+    const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& update_exec_network(
+        const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& network) const;
 };
 
 }  // namespace InferenceEngine

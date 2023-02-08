@@ -206,7 +206,7 @@ void SubgraphBaseTest::compile_model() {
 
     configure_model();
     if (functionRefs == nullptr) {
-        functionRefs = ov::clone_model(*function);
+        functionRefs = function->clone();
     }
 
     // Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
@@ -285,7 +285,7 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
 
     using InputsMap = std::map<std::shared_ptr<ov::Node>, ov::Tensor>;
 
-    auto functionToProcess = ov::clone_model(*functionRefs);
+    auto functionToProcess = functionRefs->clone();
     //TODO: remove this conversions as soon as function interpreter fully support bf16 and f16
     precisions_array precisions = {
             { ngraph::element::bf16, ngraph::element::f32 }
@@ -306,7 +306,7 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
         precisions.push_back({ ngraph::element::f16, ngraph::element::f32});
     }
     pass::Manager manager;
-    manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
+    manager.register_pass<ov::pass::ConvertPrecision>(precisions);
     manager.run_passes(functionToProcess);
     functionToProcess->validate_nodes_and_infer_types();
 

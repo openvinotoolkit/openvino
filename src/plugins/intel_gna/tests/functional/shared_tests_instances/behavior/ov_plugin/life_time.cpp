@@ -7,12 +7,14 @@
 using namespace ov::test::behavior;
 namespace {
 
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVHoldersTest,
-            ::testing::Values(CommonTestUtils::DEVICE_GNA),
-            OVHoldersTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         OVHoldersTest,
+                         ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                         OVHoldersTest::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVHoldersTestOnImportedNetwork,
-            ::testing::Values(CommonTestUtils::DEVICE_GNA),
-            OVHoldersTestOnImportedNetwork::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         OVHoldersTestOnImportedNetwork,
+                         ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                         OVHoldersTestOnImportedNetwork::getTestCaseName);
 
 }  // namespace

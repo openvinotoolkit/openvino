@@ -24,7 +24,7 @@ TEST_F(TransformationTestsF, SoftPlusDecompositionFP32) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{softplus}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::SoftPlusDecomposition>();
+        manager.register_pass<ov::pass::SoftPlusDecomposition>();
     }
 
     {
@@ -46,7 +46,7 @@ TEST_F(TransformationTestsF, SoftPlusDecompositionFP16) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{softplus}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::SoftPlusDecomposition>();
+        manager.register_pass<ov::pass::SoftPlusDecomposition>();
     }
 
     {
