@@ -191,7 +191,7 @@ TEST(proposal, scores_fp16_im_info_fp32) {
 TEST(proposal, scores_fp32_im_info_fp16) {
     test_proposal_basic_two_types<float, FLOAT16>({ 1, 3, 1, 1 }, false);
 }
-#ifdef ENABLE_ALL_MODEL_CACHING_TESTS
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
 TEST(proposal, basic_cached) {
     test_proposal_basic<float>({ 1, 3, 1, 1 }, true);
 }
@@ -211,7 +211,7 @@ TEST(proposal, img_info_batch_only_cached) {
 TEST(proposal, scores_fp16_im_info_fp32_cached) {
     test_proposal_basic_two_types<FLOAT16, float>({ 1, 3, 1, 1 }, true);
 }
-#endif // ENABLE_ALL_MODEL_CACHING_TESTS
+#endif // RUN_ALL_MODEL_CACHING_TESTS
 TEST(proposal, scores_fp32_im_info_fp16_cached) {
     test_proposal_basic_two_types<float, FLOAT16>({ 1, 3, 1, 1 }, true);
 }

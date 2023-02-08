@@ -4,6 +4,8 @@
 
 #pragma once
 
+#define RUN_ALL_MODEL_CACHING_TESTS
+
 #include <unordered_map>
 #include "ie/ie_common.h"
 

@@ -1072,7 +1072,7 @@ TYPED_TEST(detection_output_test, test_forward_no_share_location_top_k_input_pad
 TYPED_TEST(detection_output_test, test_forward_no_share_location_top_k_faster_rcnn_case) {
     this->test_forward_no_share_location_top_k_faster_rcnn_case(false);
 }
-#ifdef ENABLE_ALL_MODEL_CACHING_TESTS
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
 TYPED_TEST(detection_output_test, test_setup_basic_cached) {
     this->setup_basic(true);
 }
@@ -1120,7 +1120,7 @@ TYPED_TEST(detection_output_test, test_forward_no_share_location_neg_0_top_k_cac
 TYPED_TEST(detection_output_test, test_forward_no_share_location_top_k_input_padding_cached) {
     this->forward_no_share_location_top_k_input_padding(true);
 }
-#endif // ENABLE_ALL_MODEL_CACHING_TESTS
+#endif // RUN_ALL_MODEL_CACHING_TESTS
 TYPED_TEST(detection_output_test, test_forward_no_share_location_top_k_faster_rcnn_case_cached) {
     this->test_forward_no_share_location_top_k_faster_rcnn_case(true);
 }

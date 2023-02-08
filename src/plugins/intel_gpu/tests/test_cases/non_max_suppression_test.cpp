@@ -799,7 +799,7 @@ TYPED_TEST(non_max_suppression_basic, score_threshold) {
 TYPED_TEST(non_max_suppression_basic, soft_nms_sigma) {
     this->test_soft_nms_sigma(false);
 }
-#ifdef ENABLE_ALL_MODEL_CACHING_TESTS
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
 TYPED_TEST(non_max_suppression_basic, basic_cached) {
     this->test_basic(true);
 }
@@ -823,7 +823,7 @@ TYPED_TEST(non_max_suppression_basic, score_threshold_cached) {
 TYPED_TEST(non_max_suppression_basic, soft_nms_sigma_cached) {
     this->test_soft_nms_sigma(true);
 }
-#endif // ENABLE_ALL_MODEL_CACHING_TESTS
+#endif // RUN_ALL_MODEL_CACHING_TESTS
 TYPED_TEST(non_max_suppression_basic, multiple_outputs_cached) {
     this->test_multiple_outputs(true);
 }

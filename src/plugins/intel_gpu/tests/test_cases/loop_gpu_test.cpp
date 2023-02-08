@@ -435,7 +435,7 @@ void test_loop_gpu_basic_concat_nested(bool is_caching_test)
 TEST(loop_gpu, basic_concat_nested) {
     test_loop_gpu_basic_concat_nested<float>(false);
 }
-#ifdef ENABLE_ALL_MODEL_CACHING_TESTS
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
 TEST(loop_gpu, basic_no_concat_cached) {
     test_loop_gpu_basic_no_concat<float>(true);
 }
@@ -443,7 +443,7 @@ TEST(loop_gpu, basic_no_concat_cached) {
 TEST(loop_gpu, basic_concat_cached) {
     test_loop_gpu_basic_concat<float>(true);
 }
-#endif // ENABLE_ALL_MODEL_CACHING_TESTS
+#endif // RUN_ALL_MODEL_CACHING_TESTS
 TEST(loop_gpu, basic_concat_nested_cached) {
     test_loop_gpu_basic_concat_nested<float>(true);
 }
