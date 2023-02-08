@@ -79,6 +79,16 @@ public:
     layout get_input_layout(permute_reorder_params& p) {
         return layout{ p.permute_type, p.permute_format, p.in_shape, padding{} };
     }
+
+    layout get_elt_input_layout(permute_reorder_params&p) {
+        ov::Shape output_shape;
+        auto input_shape = get_input_layout(p).get_dims();
+        for (int32_t o = 0; o < static_cast<int32_t>(p.permute_order1.size()); ++o) {
+            output_shape.push_back(input_shape[p.permute_order1[o]]);
+        }
+        return layout{ ov::PartialShape(output_shape), p.permute_type, p.permute_format, padding{} };
+    }
+
 };
 }  // namespace
 
@@ -500,6 +510,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_scale_eltwise_actv_scale_actv, ::t
 #define CASE_PERMUTE_REORDER_TILED_F16_9 { 1, 24, 2, 3, 256 }, { 0, 2, 3, 4, 1 }, { 0, 3, 1, 2 },  data_types::f16, data_types::f32, format::bfzyx, format::bfyx
 #define CASE_PERMUTE_REORDER_TILED_F16_10 { 1, 35, 3, 253 }, { 0, 2, 3, 1 }, { 0, 4, 1, 3, 2 },  data_types::f16, data_types::f32, format::bfyx, format::bfzyx
 #define CASE_PERMUTE_REORDER_TILED_F16_11 { 1, 32, 3, 253 }, { 0, 2, 3, 1 }, { 0, 5, 1, 4, 2, 3 },  data_types::f16, data_types::f32, format::bfyx, format::bfwzyx
+#define CASE_PERMUTE_REORDER_TILED_F16_12 { 1, 768, 32, 32 }, { 0, 2, 3, 1 }, { 0, 4, 1, 3, 2},  data_types::f16, data_types::f32, format::bfyx, format::bfzyx
 
 class permute_redundant_reorder : public PermuteReorderFusingTest {};
 TEST_P(permute_redundant_reorder, basic) {
@@ -589,4 +600,31 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_act_reorder, ::testing::ValuesIn(s
     permute_reorder_params{ CASE_PERMUTE_REORDER_TILED_F16_9, 3, 5 },
     permute_reorder_params{ CASE_PERMUTE_REORDER_TILED_F16_10, 3, 5 },
     permute_reorder_params{ CASE_PERMUTE_REORDER_TILED_F16_11, 3, 5 },
+}));
+
+class permute_eltwise_reorder : public PermuteReorderFusingTest {};
+
+TEST_P(permute_eltwise_reorder, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("elt_data", get_mem(get_elt_input_layout(p))),
+        permute("permute1", input_info("input"), p.permute_order1),
+        eltwise("elt", { input_info("permute1"), input_info("elt_data") }, eltwise_mode::sum, p.permute_type),
+        reorder("reorder1", input_info("elt"), p.output_format, p.output_type),  // to be fused to prev permute
+        permute("permute2", input_info("reorder1"), p.permute_order2)            // dummy last op to make reorder fused
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+// Tiled opt kernel should not be fused with eltwise + reorder. Currently permute_ref will be selected and fused with eltwise + reorder
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_eltwise_reorder, ::testing::ValuesIn(std::vector<permute_reorder_params>{
+    permute_reorder_params{ CASE_PERMUTE_REORDER_TILED_F16_7, 3, 5 },
+    permute_reorder_params{ CASE_PERMUTE_REORDER_TILED_F16_8, 3, 5 },
+    permute_reorder_params{ CASE_PERMUTE_REORDER_TILED_F16_9, 3, 5 },
+    permute_reorder_params{ CASE_PERMUTE_REORDER_TILED_F16_10, 3, 5 },
+    permute_reorder_params{ CASE_PERMUTE_REORDER_TILED_F16_11, 3, 5 },
+    permute_reorder_params{ CASE_PERMUTE_REORDER_TILED_F16_12, 3, 5 },
 }));
