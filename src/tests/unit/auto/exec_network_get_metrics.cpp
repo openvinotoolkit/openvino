@@ -189,17 +189,17 @@ public:
     }
 };
 
-using ConfigParams1 = std::tuple<bool,          // is New API
-                                 bool,          // if Actual device sleep, cpu device will load slow
-                                 std::string,   // Actual Device Name
-                                 std::string,   // performance mode
-                                 IE::Parameter  // model Priority
-                                 >;
+using modelPrioPerfHintTestParams = std::tuple<bool,          // is New API
+                                               bool,          // if Actual device sleep, cpu device will load slow
+                                               std::string,   // Actual Device Name
+                                               std::string,   // performance mode
+                                               IE::Parameter  // model Priority
+                                               >;
 
 class ExecNetworkGetMetricOtherTest : public ExecNetworkGetMetricBase,
-                                               public ::testing::WithParamInterface<ConfigParams1> {
+                                               public ::testing::WithParamInterface<modelPrioPerfHintTestParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams1> obj) {
+    static std::string getTestCaseName(testing::TestParamInfo<modelPrioPerfHintTestParams> obj) {
         bool isNewAPI;
         bool actualSleep;
         std::string actualDeviceName;
@@ -253,10 +253,13 @@ TEST_P(ExecNetworkGetMetricOptimalNumInferReq, OPTIMAL_NUMBER_OF_INFER_REQUESTS)
         metaDevices.push_back({actualDeviceName, {{CONFIG_KEY(PERFORMANCE_HINT),
                     InferenceEngine::PluginConfigParams::THROUGHPUT}}, actualCustomerNum, ""});
         // enable autoBatch
-        IE_SET_METRIC(OPTIMAL_BATCH_SIZE, optimalBatchNum, 8);
+        IE_SET_METRIC(OPTIMAL_BATCH_SIZE, gpuOptimalBatchNum, 8);
+        IE_SET_METRIC(OPTIMAL_BATCH_SIZE, keembayOptimalBatchNum, 1);
         IE_SET_METRIC(RANGE_FOR_STREAMS, rangeOfStreams, std::make_tuple<unsigned int, unsigned int>(1, 3));
         ON_CALL(*core.get(), GetMetric(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(METRIC_KEY(OPTIMAL_BATCH_SIZE)), _))
-            .WillByDefault(RETURN_MOCK_VALUE(optimalBatchNum));
+            .WillByDefault(RETURN_MOCK_VALUE(gpuOptimalBatchNum));
+        ON_CALL(*core.get(), GetMetric(StrEq(CommonTestUtils::DEVICE_KEEMBAY), StrEq(METRIC_KEY(OPTIMAL_BATCH_SIZE)), _))
+            .WillByDefault(RETURN_MOCK_VALUE(keembayOptimalBatchNum));
         ON_CALL(*core.get(), GetMetric(_, StrEq(METRIC_KEY(RANGE_FOR_STREAMS)), _))
             .WillByDefault(RETURN_MOCK_VALUE(rangeOfStreams));
         ON_CALL(*core.get(), GetConfig(_, StrEq(CONFIG_KEY(PERFORMANCE_HINT))))
@@ -271,6 +274,7 @@ TEST_P(ExecNetworkGetMetricOptimalNumInferReq, OPTIMAL_NUMBER_OF_INFER_REQUESTS)
     } else {
         metaDevices.push_back({CommonTestUtils::DEVICE_CPU, {}, cpuCustomerNum, ""});
         metaDevices.push_back({actualDeviceName, {}, actualCustomerNum, ""});
+        ON_CALL(*core, GetConfig(_, StrEq(GPU_CONFIG_KEY(MAX_NUM_THREADS)))).WillByDefault(Return(8));
     }
     ON_CALL(*plugin, SelectDevice(_, _, _)).WillByDefault(Return(metaDevices[1]));
     ON_CALL(*plugin, ParseMetaDevices(_, _)).WillByDefault(Return(metaDevices));
@@ -381,7 +385,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
                          ::testing::ValuesIn(testConfigs),
                          ExecNetworkGetMetricOptimalNumInferReq::getTestCaseName);
 
-TEST_P(ExecNetworkGetMetricOtherTest, otherTest) {
+TEST_P(ExecNetworkGetMetricOtherTest, modelPriority_perfHint_exclusiveAsyncReq_test) {
     unsigned int cpuOptimalNum = 3;
     unsigned int actualOptimalNum = 2;
     bool isNewAPI;
@@ -409,9 +413,15 @@ TEST_P(ExecNetworkGetMetricOtherTest, otherTest) {
 
     ON_CALL(*plugin, SelectDevice(_, _, _)).WillByDefault(Return(metaDevices[1]));
     ON_CALL(*plugin, ParseMetaDevices(_, _)).WillByDefault(Return(metaDevices));
+    ON_CALL(*plugin, GetValidDevice)
+        .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
+            std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
+            return devices;
+        });
     EXPECT_CALL(*plugin, ParseMetaDevices(_, _)).Times(1);
     EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(1);
 
+    ON_CALL(*core, GetConfig(_, StrEq(GPU_CONFIG_KEY(MAX_NUM_THREADS)))).WillByDefault(Return(8));
     ON_CALL(*core,
             LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                         ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)),
@@ -459,68 +469,69 @@ TEST_P(ExecNetworkGetMetricOtherTest, otherTest) {
     }
 }
 
-const std::vector<ConfigParams1> testConfigs1 = {ConfigParams1{false,
-                                                               true,
-                                                               CommonTestUtils::DEVICE_GPU,
-                                                               InferenceEngine::PluginConfigParams::THROUGHPUT,
-                                                               CONFIG_VALUE(MODEL_PRIORITY_LOW)},
-                                                 ConfigParams1{false,
-                                                               true,
-                                                               CommonTestUtils::DEVICE_GPU,
-                                                               InferenceEngine::PluginConfigParams::LATENCY,
-                                                               CONFIG_VALUE(MODEL_PRIORITY_LOW)},
-                                                 ConfigParams1{false,
-                                                               true,
-                                                               CommonTestUtils::DEVICE_GPU,
-                                                               InferenceEngine::PluginConfigParams::THROUGHPUT,
-                                                               CONFIG_VALUE(MODEL_PRIORITY_MED)},
-                                                 ConfigParams1{false,
-                                                               true,
-                                                               CommonTestUtils::DEVICE_GPU,
-                                                               InferenceEngine::PluginConfigParams::LATENCY,
-                                                               CONFIG_VALUE(MODEL_PRIORITY_MED)},
-                                                 ConfigParams1{false,
-                                                               true,
-                                                               CommonTestUtils::DEVICE_GPU,
-                                                               CONFIG_VALUE(THROUGHPUT),
-                                                               CONFIG_VALUE(MODEL_PRIORITY_HIGH)},
-                                                 ConfigParams1{false,
-                                                               true,
-                                                               CommonTestUtils::DEVICE_GPU,
-                                                               InferenceEngine::PluginConfigParams::LATENCY,
-                                                               CONFIG_VALUE(MODEL_PRIORITY_HIGH)},
-                                                 ConfigParams1{true,
-                                                               true,
-                                                               CommonTestUtils::DEVICE_GPU,
-                                                               InferenceEngine::PluginConfigParams::THROUGHPUT,
-                                                               CONFIG_VALUE(MODEL_PRIORITY_LOW)},
-                                                 ConfigParams1{true,
-                                                               true,
-                                                               CommonTestUtils::DEVICE_GPU,
-                                                               InferenceEngine::PluginConfigParams::LATENCY,
-                                                               CONFIG_VALUE(MODEL_PRIORITY_LOW)},
-                                                 ConfigParams1{true,
-                                                               true,
-                                                               CommonTestUtils::DEVICE_GPU,
-                                                               InferenceEngine::PluginConfigParams::THROUGHPUT,
-                                                               CONFIG_VALUE(MODEL_PRIORITY_MED)},
-                                                 ConfigParams1{true,
-                                                               true,
-                                                               CommonTestUtils::DEVICE_GPU,
-                                                               InferenceEngine::PluginConfigParams::LATENCY,
-                                                               CONFIG_VALUE(MODEL_PRIORITY_MED)},
-                                                 ConfigParams1{true,
-                                                               true,
-                                                               CommonTestUtils::DEVICE_GPU,
-                                                               InferenceEngine::PluginConfigParams::THROUGHPUT,
-                                                               CONFIG_VALUE(MODEL_PRIORITY_HIGH)},
-                                                 ConfigParams1{true,
-                                                               true,
-                                                               CommonTestUtils::DEVICE_GPU,
-                                                               InferenceEngine::PluginConfigParams::LATENCY,
-                                                               CONFIG_VALUE(MODEL_PRIORITY_HIGH)}};
+const std::vector<modelPrioPerfHintTestParams> modelPrioPerfHintConfig = {
+    modelPrioPerfHintTestParams{false,
+                                true,
+                                CommonTestUtils::DEVICE_GPU,
+                                InferenceEngine::PluginConfigParams::THROUGHPUT,
+                                CONFIG_VALUE(MODEL_PRIORITY_LOW)},
+    modelPrioPerfHintTestParams{false,
+                                true,
+                                CommonTestUtils::DEVICE_GPU,
+                                InferenceEngine::PluginConfigParams::LATENCY,
+                                CONFIG_VALUE(MODEL_PRIORITY_LOW)},
+    modelPrioPerfHintTestParams{false,
+                                true,
+                                CommonTestUtils::DEVICE_GPU,
+                                InferenceEngine::PluginConfigParams::THROUGHPUT,
+                                CONFIG_VALUE(MODEL_PRIORITY_MED)},
+    modelPrioPerfHintTestParams{false,
+                                true,
+                                CommonTestUtils::DEVICE_GPU,
+                                InferenceEngine::PluginConfigParams::LATENCY,
+                                CONFIG_VALUE(MODEL_PRIORITY_MED)},
+    modelPrioPerfHintTestParams{false,
+                                true,
+                                CommonTestUtils::DEVICE_GPU,
+                                CONFIG_VALUE(THROUGHPUT),
+                                CONFIG_VALUE(MODEL_PRIORITY_HIGH)},
+    modelPrioPerfHintTestParams{false,
+                                true,
+                                CommonTestUtils::DEVICE_GPU,
+                                InferenceEngine::PluginConfigParams::LATENCY,
+                                CONFIG_VALUE(MODEL_PRIORITY_HIGH)},
+    modelPrioPerfHintTestParams{true,
+                                true,
+                                CommonTestUtils::DEVICE_GPU,
+                                InferenceEngine::PluginConfigParams::THROUGHPUT,
+                                CONFIG_VALUE(MODEL_PRIORITY_LOW)},
+    modelPrioPerfHintTestParams{true,
+                                true,
+                                CommonTestUtils::DEVICE_GPU,
+                                InferenceEngine::PluginConfigParams::LATENCY,
+                                CONFIG_VALUE(MODEL_PRIORITY_LOW)},
+    modelPrioPerfHintTestParams{true,
+                                true,
+                                CommonTestUtils::DEVICE_GPU,
+                                InferenceEngine::PluginConfigParams::THROUGHPUT,
+                                CONFIG_VALUE(MODEL_PRIORITY_MED)},
+    modelPrioPerfHintTestParams{true,
+                                true,
+                                CommonTestUtils::DEVICE_GPU,
+                                InferenceEngine::PluginConfigParams::LATENCY,
+                                CONFIG_VALUE(MODEL_PRIORITY_MED)},
+    modelPrioPerfHintTestParams{true,
+                                true,
+                                CommonTestUtils::DEVICE_GPU,
+                                InferenceEngine::PluginConfigParams::THROUGHPUT,
+                                CONFIG_VALUE(MODEL_PRIORITY_HIGH)},
+    modelPrioPerfHintTestParams{true,
+                                true,
+                                CommonTestUtils::DEVICE_GPU,
+                                InferenceEngine::PluginConfigParams::LATENCY,
+                                CONFIG_VALUE(MODEL_PRIORITY_HIGH)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
                          ExecNetworkGetMetricOtherTest,
-                         ::testing::ValuesIn(testConfigs1),
+                         ::testing::ValuesIn(modelPrioPerfHintConfig),
                          ExecNetworkGetMetricOtherTest::getTestCaseName);
