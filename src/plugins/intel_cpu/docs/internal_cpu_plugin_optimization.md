@@ -74,7 +74,27 @@ class nodeB2,nodeB3 steel1
 A combination of FullyConnected and Activation layers results in a single fused layer called 
 *FullyConnected*:
 
-![fullyconnected_activation_01](https://user-images.githubusercontent.com/26419192/159540492-fd1aa3fc-ebb6-41d0-b1e0-3ec1d73da414.png)
+```mermaid
+flowchart TD
+    subgraph subgraphA1[Runtime Graph]
+    direction TB
+    nodeA1(Input) --> nodeA2(FullyConnected)
+    nodeA2(FullyConnected) --> nodeA3(Output)
+    end
+    subgraph subgraphB1[Original Graph]
+    direction TB
+    nodeB1(Input) --> nodeB2(FullyConnected)
+    nodeB2(FullyConnected) --> nodeB3("Activation [ReLU]")
+    nodeB3("Activation [ReLU]") --> nodeB4(Output)
+    end
+classDef no-bg-color fill:none,stroke-width:0px
+classDef moss1 fill:#D7F3A2, stroke: #B1D272, color: #262626
+classDef steel1 fill:#B9D6E5, stroke: #86B3CA, color: #262626
+classDef daisy1 fill:#FFE17A, stroke: #FEC91B, color: #262626
+class subgraphA1,subgraphB1 no-bg-color
+class nodeA2 daisy1
+class nodeB1,nodeB4,nodeA1,nodeA3 moss1
+class nodeB2,nodeB3 steel1
 
 ## Fusing Convolution and Depthwise Convolution Layers Grouped with Simple Layers
 
