@@ -90,67 +90,60 @@ private:
 
     class CoreConfig final {
     public:
-        struct CacheConfig {
-            std::string _cacheDir;
+        struct CoreConfigCache {
+            ov::AnyMap _properties;
             std::shared_ptr<InferenceEngine::ICacheManager> _cacheManager;
         };
 
-        // Set core properties with input config map, it will update core properties data.
-        void set_core_config(ov::AnyMap& config);
+        // Set core config with input config map, it will update core config data.
+        void set_core_config(ov::AnyMap& config, const std::string& plugin_name = {});
+
+        ov::Any get_core_config(const std::string& config_name, const std::string& device_name = {}) const;
 
         // Return whether this config belongs to core config
         bool is_core_config(const std::string& config_name) const;
 
-        // Check whether this core config is supported by plugin, and the coresponding propertie will be removed
-        // from plugin.set_property().
+        // Check whether this core config is supported by plugin.
         bool core_config_supported(const ov::Plugin& plugin, const std::string& config_name) const;
 
-        // Intercept core config that will be set to plugin by calling plugin.set_property().
-        // Put it into global config map if this plugin supported
-        void intercept_core_config(ov::Plugin& plugin, ov::AnyMap& config);
-
-        // Clean up global config for input config.
-        void cleanup_core_config(ov::Plugin& plugin, ov::AnyMap& config) const;
+        // Clean up core config for input config.
+        // If 'update' is true, this core config will be update into config cache.
+        void remove_core_config(const ov::Plugin& plugin, ov::AnyMap& config, const bool update = false) const;
 
         // Update input config with the help of core_plugins_properties:
         //  1. Remove the core config that this plugin doesn't support
         //  2. Don't overwritten this config if they have been in input config
         //  3. Add default core config into input config if it doesn't have.
         template <typename T>
-        void update_config(ov::Plugin& plugin, std::map<std::string, T>& config) const;
+        void update_input_config(ov::Plugin& plugin, std::map<std::string, T>& config) const;
 
-        ov::Any get_core_config(const std::string& name) const;
-        ov::AnyMap query_core_config() const;
-
-        void set_cache_dir_for_device(const std::string& dir, const std::string& name);
+        std::set<std::string> query_core_config_keys() const;
 
         // Creating thread-safe copy of config including shared_ptr to ICacheManager
         // Passing empty or not-existing name will return global cache config
-        CacheConfig get_cache_config_for_device(const std::string& device_name,
-                                                bool device_supports_cache_dir,
-                                                ov::AnyMap& parsedConfig) const;
+        CoreConfigCache get_cache_config_for_device(const ov::Plugin& plugin,
+                                                    const std::string& config_name,
+                                                    ov::AnyMap& parsedConfig) const;
 
-        CacheConfig get_cache_config_for_device(const std::string& device_name) const;
+        // Debug code, will remove later.
+        void print_core_properties() const;
 
     private:
-        static void fill_config(CacheConfig& config, const std::string& dir);
+        static void fill_config(CoreConfigCache& config, const std::string& key, const std::string& value);
 
-        mutable std::mutex _cacheConfigMutex;
-        CacheConfig _cacheConfig;
-        std::map<std::string, CacheConfig> _cacheConfigPerDevice;
+        mutable std::mutex _CoreConfigCacheMutex;
+        mutable std::map<std::string, CoreConfigCache> _core_properties_cache_per_device;
 
-        mutable std::mutex _core_property_mutex;
-        // Core global properties, which will not set to any plugins.
+        // Core global properties, which will not be set to any plugins.
         // It will be updated if core.set_property() without device name is called.
-        mutable ov::AnyMap _core_global_properties = {
-            {ov::force_tbb_terminate.name(), ov::Any(false)}};
+        mutable CoreConfigCache _core_global_properties = {{{ov::force_tbb_terminate.name(), ov::Any(false)}}, nullptr};
 
-        // Core plugins properties, which will set to specified or all plugins.
-        // It will be updated if core.set_property() without device name is called.
-        mutable ov::AnyMap _core_plugins_properties = {
-            {ov::cache_dir.name(), ""},
-            {ov::hint::allow_auto_batching.name(), ov::Any(true)},
-            {ov::auto_batch_timeout.name(), "1000"}};
+        // Core plugins properties, which will be set to all plugins.
+        // It will be updated if core.set_property() is called.
+        mutable CoreConfigCache _core_plugin_properties = {{{ov::cache_dir.name(), ""},
+                                                            {ov::hint::allow_auto_batching.name(), ov::Any(true)},
+                                                            {ov::auto_batch_timeout.name(), "1000"}},
+                                                           nullptr};
     };
 
     struct CacheContent {

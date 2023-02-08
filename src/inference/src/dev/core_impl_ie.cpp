@@ -258,12 +258,7 @@ std::map<std::string, std::string> ov::CoreImpl::GetSupportedConfig(const std::s
 }
 
 std::set<std::string> ov::CoreImpl::QueryCoreSupportedConfig() const {
-    std::set<std::string> keys;
-    auto configs = coreConfig.query_core_config();
-    for (auto& it : configs) {
-        keys.insert(it.first);
-    }
-    return keys;
+    return coreConfig.query_core_config_keys();
 }
 
 std::map<std::string, InferenceEngine::Version> ov::CoreImpl::GetVersions(const std::string& deviceName) const {

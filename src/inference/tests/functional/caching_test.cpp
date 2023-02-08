@@ -550,7 +550,7 @@ TEST_P(CachingTest, TestLoad_by_device_name) {
             EXPECT_CALL(net, Export(_)).Times(1);
         });
         testLoad([&](Core& ie) {
-            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}}, "mock");
             m_testFunction(ie);
         });
         EXPECT_EQ(networks.size(), 1);
@@ -565,7 +565,7 @@ TEST_P(CachingTest, TestLoad_by_device_name) {
             EXPECT_CALL(*net, Export(_)).Times(0);  // No more 'Export' for existing networks
         }
         testLoad([&](Core& ie) {
-            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}}, "mock");
             m_testFunction(ie);
         });
         EXPECT_EQ(networks.size(), 1);
@@ -832,7 +832,7 @@ TEST_P(CachingTest, TestNoCacheMetricSupported_by_device_name) {
             EXPECT_CALL(net, Export(_)).Times(0);
         });
         testLoad([&](Core& ie) {
-            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}}, "mock");
             m_testFunction(ie);
         });
     }
@@ -918,7 +918,7 @@ TEST_P(CachingTest, TestNoCacheMetric_hasCacheDirConfig_by_device_name) {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(m_type == TestLoadType::EModelName ? 1 : 0);
         ASSERT_NO_THROW(testLoad([&](Core& ie) {
-            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}}, "mock");
             m_testFunction(ie);
         }));
     }
@@ -1185,7 +1185,7 @@ TEST_P(CachingTest, TestLoadChangeCacheDirOneCore_by_device_name) {
             m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
                 EXPECT_CALL(net, Export(_)).Times(1);
             });
-            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}}, "mock");
             m_testFunction(ie);
             m_post_mock_net_callbacks.pop_back();
             m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
@@ -1193,7 +1193,7 @@ TEST_P(CachingTest, TestLoadChangeCacheDirOneCore_by_device_name) {
             });
             std::string newCacheDir = m_cacheDir + "2";
             MkDirGuard dir(newCacheDir);
-            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), newCacheDir}});
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), newCacheDir}}, "mock");
             m_testFunction(ie);
         });
     }
@@ -1231,7 +1231,7 @@ TEST_P(CachingTest, TestLoadChangeCacheDirOneCore_by_device_name_supports_cache_
             m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
                 EXPECT_CALL(net, Export(_)).Times(0);
             });
-            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}}, "mock");
             m_testFunction(ie);
             m_post_mock_net_callbacks.pop_back();
             m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
@@ -1239,7 +1239,7 @@ TEST_P(CachingTest, TestLoadChangeCacheDirOneCore_by_device_name_supports_cache_
             });
             std::string newCacheDir = m_cacheDir + "2";
             MkDirGuard dir(newCacheDir);
-            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), newCacheDir}});
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), newCacheDir}}, "mock");
             m_testFunction(ie);
         });
     }
