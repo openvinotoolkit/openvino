@@ -950,6 +950,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork
         for (int i = 0; i < model->outputs().size() ; i++) {
             if (model->output(i).get_partial_shape().is_dynamic()) {
             // any output is dynamic
+                LOG_INFO_TAG("dynamic output model");
                 return true;
             }
         }
