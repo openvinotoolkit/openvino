@@ -189,6 +189,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Roll", translate_roll_op},
         {"Round", translate_round_op},
         {"Rsqrt", translate_rsqrt_op},
+        {"SaveV2", translate_no_op},
         {"ScatterNd", translate_scatter_nd_op},
         {"SegmentSum", translate_segment_sum_op},
         {"SparseToDense", translate_sparse_to_dense_op},

@@ -19,7 +19,7 @@ OutputVector translate_const_op(const NodeContext& node) {
     auto ov_type = node.get_attribute<element::Type>("dtype");
     std::shared_ptr<Node> const_node;
     if (ov_type == element::undefined) {
-        const_node = std::make_shared<UnsupportedConstant>();
+        const_node = std::make_shared<UnsupportedConstant>(node.get_decoder());
     } else {
         auto tensor = node.get_attribute<Tensor>("value");
         const_node = std::make_shared<Constant>(tensor.get_element_type(), tensor.get_shape(), tensor.data());
