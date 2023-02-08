@@ -41,8 +41,7 @@ NGRAPH_TEST(onnx_editor, topological_sort_completely_unsorted_2) {
 }
 
 NGRAPH_TEST(onnx_editor, topological_sort_constant_node_in_the_graph) {
-    const std::string rel_path_to_model =
-        "onnx/model_editor/topological_sort/add_abc_const_node_unsorted.onnx";
+    const std::string rel_path_to_model = "onnx/model_editor/topological_sort/add_abc_const_node_unsorted.onnx";
     ONNXModelEditor editor{
         ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, rel_path_to_model)};
 
@@ -50,8 +49,7 @@ NGRAPH_TEST(onnx_editor, topological_sort_constant_node_in_the_graph) {
 }
 
 NGRAPH_TEST(onnx_editor, topological_sort_multioutput_node) {
-    const std::string rel_path_to_model =
-        "onnx/model_editor/topological_sort/multioutput_split_unsorted.onnx";
+    const std::string rel_path_to_model = "onnx/model_editor/topological_sort/multioutput_split_unsorted.onnx";
     ONNXModelEditor editor{
         ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, rel_path_to_model)};
 

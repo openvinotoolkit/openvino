@@ -231,7 +231,7 @@ void graph_topological_sort(GraphProto* graph) {
         }
 
         while (nodes_to_process.size() > 0) {
-        auto* node = nodes_to_process.top();
+            auto* node = nodes_to_process.top();
             bool can_add = true;
             for (const auto& in_name : node->input()) {
                 const auto* in_node = get_node_by_out_name(in_name);
