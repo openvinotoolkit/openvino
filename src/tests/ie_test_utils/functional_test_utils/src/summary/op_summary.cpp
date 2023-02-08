@@ -134,16 +134,16 @@ void OpSummary::updateOPsStats(const std::shared_ptr<ov::Model> &model, const Pa
     }
     bool isFunctionalGraph = false;
     for (const auto &op : model->get_ordered_ops()) {
-        if (!(std::dynamic_pointer_cast<ov::op::v0::Parameter> ||
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(op) ||
-            std::dynamic_pointer_cast<ov::op::v0::Result>(op))) {
+        if (!std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) &&
+            !std::dynamic_pointer_cast<ov::op::v0::Constant>(op) &&
+            !std::dynamic_pointer_cast<ov::op::v0::Result>(op)) {
             isFunctionalGraph = true;
             break;
         }
     }
 
     for (const auto &op : model->get_ordered_ops()) {
-        if (std::dynamic_pointer_cast<ov::op::v0::Parameter> ||
+        if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) ||
             std::dynamic_pointer_cast<ov::op::v0::Constant>(op) ||
             std::dynamic_pointer_cast<ov::op::v0::Result>(op) || isFunctionalGraph) {
             continue;
@@ -179,9 +179,9 @@ void OpSummary::updateOPsImplStatus(const std::shared_ptr<ov::Model> &model, con
     }
     bool isFunctionalGraph = false;
     for (const auto &op : model->get_ordered_ops()) {
-        if (!(std::dynamic_pointer_cast<ov::op::v0::Parameter> ||
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(op) ||
-            std::dynamic_pointer_cast<ov::op::v0::Result>(op))) {
+        if (!std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) &&
+            !std::dynamic_pointer_cast<ov::op::v0::Constant>(op) &&
+            !std::dynamic_pointer_cast<ov::op::v0::Result>(op)) {
             isFunctionalGraph = true;
             break;
         }
