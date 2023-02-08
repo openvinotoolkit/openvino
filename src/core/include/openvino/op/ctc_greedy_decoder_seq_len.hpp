@@ -58,6 +58,14 @@ public:
     bool get_merge_repeated() const {
         return m_merge_repeated;
     }
+    /// \brief Set merge_repeated attribute
+    ///
+    /// \param merge_repeated A new value for the attribute
+    ///
+    void set_merge_repeated(bool merge_repeated) {
+        m_merge_repeated = merge_repeated;
+    }
+
     /// \brief Get classes_index_type attribute
     ///
     /// \return Current value of classes_index_type attribute

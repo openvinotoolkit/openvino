@@ -103,7 +103,7 @@ void GatherND::prepareParams() {
     execPtr = std::make_shared<GatherNDExecutor>(attrs);
 }
 
-GatherND::GatherNDExecutor::GatherNDExecutor(const GatherNDAttributes& attrs) : dataSize(attrs.dataSize), sliceRank(attrs.sliceRank) {
+GatherND::GatherNDExecutor::GatherNDExecutor(const GatherNDAttributes& attrs) : sliceRank(attrs.sliceRank), dataSize(attrs.dataSize) {
     batchSize = std::accumulate(attrs.srcDims.begin(), attrs.srcDims.begin() + attrs.batchDims, size_t(1), std::multiplies<size_t>());
     dataLength = std::accumulate(attrs.srcDims.begin() + sliceRank + attrs.batchDims, attrs.srcDims.end(), size_t(1),
                                  std::multiplies<size_t>());
