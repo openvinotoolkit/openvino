@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+
 #include <pugixml.hpp>
 
 
@@ -28,17 +30,6 @@ void OpSummaryDestroyer::initialize(OpSummary *p) {
 
 OpSummary::OpSummary() {
     reportFilename = CommonTestUtils::OP_REPORT_FILENAME;
-    // TODO: replace to get_available_opsets()
-    opsets.push_back(ov::get_opset1());
-    opsets.push_back(ov::get_opset2());
-    opsets.push_back(ov::get_opset3());
-    opsets.push_back(ov::get_opset4());
-    opsets.push_back(ov::get_opset5());
-    opsets.push_back(ov::get_opset6());
-    opsets.push_back(ov::get_opset7());
-    opsets.push_back(ov::get_opset8());
-    opsets.push_back(ov::get_opset9());
-    opsets.push_back(ov::get_opset10());
 }
 
 OpSummary &OpSummary::getInstance() {
@@ -102,12 +93,13 @@ void OpSummary::updateOPsImplStatus(const ov::NodeTypeInfo &op, const bool implS
 }
 
 std::string OpSummary::getOpVersion(const ov::NodeTypeInfo &type_info) {
-    for (size_t i = 0; i < opsets.size(); i++) {
-        if (opsets[i].contains_type(type_info)) {
-            return std::to_string(i+1);
-        }
+    std::string opset_name = "opset", version = type_info.get_version();
+    auto pos = version.find(opset_name);
+    if (pos == std::string::npos) {
+        return "undefined";
+    } else {
+        return version.substr(pos + opset_name.size());
     }
-    return "undefined";
 }
 
 std::map<std::string, PassRate> OpSummary::getStatisticFromReport() {
@@ -136,24 +128,24 @@ std::map<std::string, PassRate> OpSummary::getStatisticFromReport() {
     return oldOpsStat;
 }
 
-void OpSummary::updateOPsStats(const std::shared_ptr<ov::Model> &Model, const PassRate::Statuses &status) {
-    if (Model->get_parameters().empty()) {
+void OpSummary::updateOPsStats(const std::shared_ptr<ov::Model> &model, const PassRate::Statuses &status) {
+    if (model->get_parameters().empty()) {
         return;
     }
     bool isFunctionalGraph = false;
-    for (const auto &op : Model->get_ordered_ops()) {
-        if (!std::dynamic_pointer_cast<ov::op::v0::Parameter> &&
-            !std::dynamic_pointer_cast<ov::op::v0::Constant>(op) &&
-            !std::dynamic_pointer_cast<ov::op::v0::Result>(op)) {
+    for (const auto &op : model->get_ordered_ops()) {
+        if (!(std::dynamic_pointer_cast<ov::op::v0::Parameter> ||
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(op) ||
+            std::dynamic_pointer_cast<ov::op::v0::Result>(op))) {
             isFunctionalGraph = true;
             break;
         }
     }
 
-    for (const auto &op : Model->get_ordered_ops()) {
-        if (std::dynamic_pointer_cast<ov::op::v0::Parameter> &&
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(op) &&
-            std::dynamic_pointer_cast<ov::op::v0::Result>(op) && isFunctionalGraph) {
+    for (const auto &op : model->get_ordered_ops()) {
+        if (std::dynamic_pointer_cast<ov::op::v0::Parameter> ||
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(op) ||
+            std::dynamic_pointer_cast<ov::op::v0::Result>(op) || isFunctionalGraph) {
             continue;
         }
         if (extractBody) {
@@ -181,21 +173,21 @@ void OpSummary::updateOPsStats(const std::shared_ptr<ov::Model> &Model, const Pa
     }
 }
 
-void OpSummary::updateOPsImplStatus(const std::shared_ptr<ov::Model> &Model, const bool implStatus) {
-    if (Model->get_parameters().empty()) {
+void OpSummary::updateOPsImplStatus(const std::shared_ptr<ov::Model> &model, const bool implStatus) {
+    if (model->get_parameters().empty()) {
         return;
     }
     bool isFunctionalGraph = false;
-    for (const auto &op : Model->get_ordered_ops()) {
-        if (!std::dynamic_pointer_cast<ov::op::v0::Parameter> &&
-            !std::dynamic_pointer_cast<ov::op::v0::Constant>(op) &&
-            !std::dynamic_pointer_cast<ov::op::v0::Result>(op)) {
+    for (const auto &op : model->get_ordered_ops()) {
+        if (!(std::dynamic_pointer_cast<ov::op::v0::Parameter> ||
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(op) ||
+            std::dynamic_pointer_cast<ov::op::v0::Result>(op))) {
             isFunctionalGraph = true;
             break;
         }
     }
 
-    for (const auto &op : Model->get_ordered_ops()) {
+    for (const auto &op : model->get_ordered_ops()) {
         if ((std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) ||
              std::dynamic_pointer_cast<ov::op::v0::Constant>(op) ||
              std::dynamic_pointer_cast<ov::op::v0::Result>(op)) && isFunctionalGraph) {
@@ -250,7 +242,9 @@ void OpSummary::saveReport() {
     std::string outputFilePath = outputFolder + std::string(CommonTestUtils::FileSeparator) + filename;
 
     std::set<ov::NodeTypeInfo> opsInfo;
-    for (const auto &opset : opsets) {
+    for (const auto &opset_pair : get_available_opsets()) {
+        std::string opset_version = opset_pair.first;
+        const ov::OpSet& opset = opset_pair.second();
         const auto &type_info_set = opset.get_type_info_set();
         opsInfo.insert(type_info_set.begin(), type_info_set.end());
     }

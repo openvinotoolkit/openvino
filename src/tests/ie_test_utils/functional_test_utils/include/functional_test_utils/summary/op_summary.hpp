@@ -29,7 +29,6 @@ class OpSummary : public virtual Summary {
 private:
     static OpSummary *p_instance;
     static bool extractBody;
-    std::vector<ov::OpSet> opsets;
     std::map<ov::NodeTypeInfo, PassRate> opsStats = {};
 
     std::string getOpVersion(const ov::NodeTypeInfo &type_info);
@@ -44,18 +43,14 @@ public:
 
     std::map<ov::NodeTypeInfo, PassRate> getOPsStats() { return opsStats; }
 
-    std::vector<ov::OpSet> getOpSets() {
-        return opsets;
-    }
-
     static void setExtractBody(bool val) { extractBody = val; }
     static bool getExtractBody() { return extractBody; }
 
     std::map<std::string, PassRate> getStatisticFromReport();
     void saveReport() override;
 
-    void updateOPsStats(const std::shared_ptr<ov::Model> &function, const PassRate::Statuses &status);
-    void updateOPsImplStatus(const std::shared_ptr<ov::Model> &function, const bool implStatus);
+    void updateOPsStats(const std::shared_ptr<ov::Model> &model, const PassRate::Statuses &status);
+    void updateOPsImplStatus(const std::shared_ptr<ov::Model> &model, const bool implStatus);
 
     void updateOPsStats(const ov::NodeTypeInfo &op, const PassRate::Statuses &status);
     void updateOPsImplStatus(const ov::NodeTypeInfo &op, const bool implStatus);
