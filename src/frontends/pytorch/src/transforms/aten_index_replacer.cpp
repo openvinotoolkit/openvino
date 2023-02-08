@@ -20,6 +20,7 @@
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/strided_slice.hpp"
+#include "openvino/op/gather_elements.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
@@ -97,6 +98,7 @@ AtenIndexToSelect::AtenIndexToSelect() {
             // After gather, reshape and transpose back.
             auto ids = list_indicies->input_values();
             std::vector<size_t> advanced_ids;
+            std::vector<bool> is_masked_bool;
             OutputVector masked_indicies;
             // for case when index is bool e.g. x[x>0], replace index with non_zero
             for (size_t i = 0; i < ids.size(); i++) {
@@ -106,17 +108,21 @@ AtenIndexToSelect::AtenIndexToSelect() {
                     const auto& attrs = const_input->get_attrs();
                     if (attrs.find("none_value") != attrs.end()) {
                         masked_indicies.push_back(ids[i]);
+                        is_masked_bool.push_back(false);
                         continue;
                     }
                 }
                 auto id_dtype = ids[i].get_node_shared_ptr()->get_element_type();
                 if (id_dtype == element::boolean || id_dtype == element::u8) {
-                    auto nonzero = std::make_shared<ov::op::v3::NonZero>(ids[i]);
+                    auto idx = std::make_shared<ov::op::v0::Convert>(ids[i], element::u8);
+                    auto nonzero = std::make_shared<ov::op::v3::NonZero>(idx);
                     auto one = ov::op::v0::Constant::create(element::i64, Shape{}, {1});
                     auto masked_id = std::make_shared<ov::op::v0::Squeeze>(nonzero, one);
-                    masked_indicies.push_back(nonzero);
+                    masked_indicies.push_back(masked_id);
+                    is_masked_bool.push_back(true);
                 } else {
                     masked_indicies.push_back(ids[i]);
+                    is_masked_bool.push_back(false);
                 }
                 advanced_ids.push_back(i);
             }
@@ -132,6 +138,12 @@ AtenIndexToSelect::AtenIndexToSelect() {
                 auto index = masked_indicies[advanced_ids[0]];
                 index = std::make_shared<ov::op::v0::Convert>(index, element::i64);
                 auto dim = ov::op::v0::Constant::create(element::i64, Shape{}, {advanced_ids[0]});
+                if (is_masked_bool[advanced_ids[0]]){
+                    auto gather = std::make_shared<ov::op::v8::GatherND>(input_node, index);
+                    copy_runtime_info({index_op, input_node, indicies}, gather);
+                    replace_node(index_op, gather);
+                    return true;
+                }
                 auto gather = std::make_shared<ov::op::v8::Gather>(input_node, index, dim);
                 copy_runtime_info({index_op, input_node, indicies}, gather);
                 replace_node(index_op, gather);
@@ -146,7 +158,7 @@ AtenIndexToSelect::AtenIndexToSelect() {
             auto zero = ov::op::v0::Constant::create(element::i64, Shape{}, {0});
             auto input_dims = std::make_shared<ov::op::v1::Split>(input_shape, zero, rank.get_length());
             std::vector<size_t> non_used_dims;
-            for (size_t i = 0; i < rank.get_length(); i++) {
+            for (auto i = 0; i < rank.get_length(); i++) {
                 if (std::find(advanced_ids.begin(), advanced_ids.end(), i) == advanced_ids.end()) {
                     non_used_dims.push_back(i);
                 }
@@ -236,7 +248,10 @@ AtenIndexToSelect::AtenIndexToSelect() {
                 auto nonzero = std::make_shared<ov::op::v3::NonZero>(indicies);
                 auto one = ov::op::v0::Constant::create(element::i64, Shape{}, {1});
                 indicies = std::make_shared<ov::op::v0::Squeeze>(nonzero, one);
-                index_dtype = indicies->get_output_element_type(0);
+                auto gather = std::make_shared<ov::op::v8::GatherND>(input_node, indicies);
+                copy_runtime_info({index_op, input_node, indicies}, gather);
+                replace_node(index_op, gather);
+                return true;
             }
             if (index_dtype != element::i32 && index_dtype != element::i64) {
                 indicies = std::make_shared<ov::op::v0::Convert>(indicies, element::i64);
