@@ -132,7 +132,10 @@ ExecutableNetwork::ExecutableNetwork(
     _inputInfo  = std::move(compiledGraph->inputInfo);
     _outputInfo = std::move(compiledGraph->outputInfo);
 
-    const auto& networkName = network.getName();
+    std::string networkName = network.getName();
+    for (auto dev : devicePool) {
+        networkName += "_" + std::to_string(dev->_deviceIdx) + "_" + dev->_name;
+    }
     if (_config.get<ExclusiveAsyncRequestsOption>()) {
         _taskExecutor = executorManager()->getExecutor("MYRIAD");
     }
@@ -169,6 +172,9 @@ void ExecutableNetwork::Import(std::istream& strm, std::vector<DevicePtr> &devic
     strm.read(&_graphBlob[0], blobSize);
 
     std::string networkName = importedNetworkName;
+    for (auto dev : devicePool) {
+        networkName += "_" + std::to_string(dev->_deviceIdx) + "_" + dev->_name;
+    }
 
     BlobReader blobReader;
     blobReader.parse(_graphBlob);
@@ -268,7 +274,7 @@ InferenceEngine::Parameter ExecutableNetwork::GetConfig(const std::string &name)
 
 std::shared_ptr<ngraph::Function> ExecutableNetwork::GetExecGraphInfo() {
     auto perfInfo = _executor->getPerfTimeInfo(_graphDesc._graphHandle);
-    if (_graphDesc._name == importedNetworkName)
+    if (_graphDesc._name.find(importedNetworkName) != std::string::npos)
         IE_THROW() <<
         "GetExecGraphInfo() can't be called for ExecutableNetwork that was imported from a compiled blob as far getting"
         " original stage names, types, and topological order from the compiled blob is not implemented for now.";
