@@ -452,10 +452,9 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromNextLayers(Infere
 inline bool IsOneDimLayer(InferenceEngine::CNNLayerPtr layer) {
     auto dims = layer->insData[0].lock()->getDims();
     return std::count_if(std::begin(dims), std::end(dims), [](size_t dim) {
-        return dim > 1;
-    }) <= 1;
+               return dim > 1;
+           }) <= 1;
 }
-
 
 }  // namespace intel_gna
 }  // namespace ov

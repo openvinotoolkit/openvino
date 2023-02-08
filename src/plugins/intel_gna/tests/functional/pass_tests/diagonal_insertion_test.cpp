@@ -2,11 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <gtest/gtest.h>
+
 #include <ie_core.hpp>
 #include <memory>
 #include <string>
 #include <tuple>
 #include <vector>
+
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
@@ -14,7 +17,6 @@
 #include "ngraph_functions/pass/convert_prc.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include <gtest/gtest.h>
 
 namespace DiagonalInsertionTestNs {
 
@@ -25,10 +27,9 @@ using namespace ngraph::op;
 using namespace ngraph::opset9;
 using namespace std;
 
-using DiagonalInsertionTestParams = tuple<
-    map<string, string>,                //Configuration
-    vector<vector<float>>               //FakeQuantize min/max params
->;
+using DiagonalInsertionTestParams = tuple<map<string, string>,   // Configuration
+                                          vector<vector<float>>  // FakeQuantize min/max params
+                                          >;
 
 constexpr uint16_t fq_levels = numeric_limits<uint16_t>::max();
 
@@ -41,7 +42,7 @@ constexpr uint16_t fq_levels = numeric_limits<uint16_t>::max();
 //                        \     /
 //                        MatMul
 //                          |
-//          Const       Squeeze
+//          Const       Reshape
 //            |          /
 //       FakeQuantize   /
 //               \     /
@@ -55,7 +56,8 @@ constexpr uint16_t fq_levels = numeric_limits<uint16_t>::max();
 // The above network should cause the FuseFullyConnectedWithEltwisePass to be fired
 // The final network should have only one functional layer - FullyConnected
 
-class DiagonalInsertionTest: public testing::WithParamInterface<DiagonalInsertionTestParams>, public LayerTestsUtils::LayerTestsCommon {
+class DiagonalInsertionTest : public testing::WithParamInterface<DiagonalInsertionTestParams>,
+                              public LayerTestsUtils::LayerTestsCommon {
     const int32_t seed = 7235346;
 
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
@@ -67,10 +69,10 @@ class DiagonalInsertionTest: public testing::WithParamInterface<DiagonalInsertio
     }
 
     shared_ptr<FakeQuantize> CreateFQNode(const Type& type,
-                                            const shared_ptr<ov::Node>& node,
-                                            float fq_min,
-                                            float fq_max,
-                                            std::size_t levels) {
+                                          const shared_ptr<ov::Node>& node,
+                                          float fq_min,
+                                          float fq_max,
+                                          std::size_t levels) {
         //
         auto fq_inp_min = makeConstant<float>(type, {1}, {fq_min});
         auto fq_inp_max = makeConstant<float>(type, {1}, {fq_max});
@@ -80,17 +82,15 @@ class DiagonalInsertionTest: public testing::WithParamInterface<DiagonalInsertio
     }
 
     std::shared_ptr<Reshape> CreateReshapeNode(element::Type in_type,
-                                                shared_ptr<Node> input_node,
-                                                std::vector<size_t> target_shape_vect) {
+                                               shared_ptr<Node> input_node,
+                                               std::vector<size_t> target_shape_vect) {
         //
-        const auto target_shape_const =
-            Constant::create(in_type, Shape{target_shape_vect.size()}, target_shape_vect);
+        const auto target_shape_const = Constant::create(in_type, Shape{target_shape_vect.size()}, target_shape_vect);
         return std::make_shared<Reshape>(input_node, target_shape_const, false);
     }
 
     bool IsDebugEnabled(map<string, string>& configuration) {
-        return configuration.find("LOG_LEVEL") != configuration.end()
-            && configuration["LOG_LEVEL"] == "LOG_DEBUG";
+        return configuration.find("LOG_LEVEL") != configuration.end() && configuration["LOG_LEVEL"] == "LOG_DEBUG";
     }
 
 public:
@@ -120,7 +120,7 @@ protected:
         const size_t height = 512;
         const size_t width = 1024;
         const auto precision = ::ngraph::element::Type_t::f32;
-        const vector<std::size_t> input_shape = { width };
+        const vector<std::size_t> input_shape = {width};
 
         // Receive test params
         vector<vector<float>> fq_min_max;
@@ -128,19 +128,19 @@ protected:
 
         // Create network
 
-        auto input_vect = makeParams(precision, { input_shape });
+        auto input_vect = makeParams(precision, {input_shape});
         auto input_fq = CreateFQNode(precision, input_vect[0], fq_min_max[0][0], fq_min_max[0][1], fq_levels);
 
-        auto reshape = CreateReshapeNode(ngraph::element::Type_t::i32, input_fq, { width, 1 });
+        auto reshape = CreateReshapeNode(ngraph::element::Type_t::i32, input_fq, {width, 1});
 
-        auto mm_const = makeConstant<float>(precision, { height, width }, { }, true, 10.0f, 0.0f);
+        auto mm_const = makeConstant<float>(precision, {height, width}, {}, true);
         auto mm_const_fq = CreateFQNode(precision, mm_const, fq_min_max[1][0], fq_min_max[1][1], fq_levels);
 
         auto matmul = makeMatMul(mm_const_fq, reshape);
         auto matmul_fq = CreateFQNode(precision, matmul, fq_min_max[2][0], fq_min_max[2][1], fq_levels);
         auto add_mm_reshape = CreateReshapeNode(ngraph::element::Type_t::i32, matmul, {height});
 
-        auto add_const = makeConstant<float>(precision, { height }, {}, true, 10.0f, 0.0f);
+        auto add_const = makeConstant<float>(precision, {height}, {}, true);
         auto add_const_fq = CreateFQNode(precision, add_const, fq_min_max[3][0], fq_min_max[3][1], fq_levels);
 
         auto add = make_shared<Add>(add_const_fq, add_mm_reshape);
@@ -164,43 +164,41 @@ const vector<map<string, string>> configs = {
     },
 };
 
-vector<vector<float>> fq_mm1 = {
-    { -19.38653564453125, 19.38653564453125 }, { -4.872922897338867, 4.872922897338867 },
-    { -633.115478515625, 633.115478515625}, { -3.2157254219055176, 3.2157254219055176 },
-    { -633.0288696289062, 633.0288696289062 }
-};
+vector<vector<float>> fq_mm1 = {{-19.38653564453125, 19.38653564453125},
+                                {-4.872922897338867, 4.872922897338867},
+                                {-633.115478515625, 633.115478515625},
+                                {-3.2157254219055176, 3.2157254219055176},
+                                {-633.0288696289062, 633.0288696289062}};
 
-vector<vector<float>> fq_mm2 = {
-    { -1.38653564453125, 1.38653564453125 }, { -0.872922897338867, 0.872922897338867 },
-    { -63.115478515625, 63.115478515625}, { -0.2157254219055176, 0.2157254219055176 },
-    { -63.0288696289062, 63.0288696289062}
-};
+vector<vector<float>> fq_mm2 = {{-1.38653564453125, 1.38653564453125},
+                                {-0.872922897338867, 0.872922897338867},
+                                {-63.115478515625, 63.115478515625},
+                                {-0.2157254219055176, 0.2157254219055176},
+                                {-63.0288696289062, 63.0288696289062}};
 
-vector<vector<float>> fq_mm3 = {
-    { -0.1938653564453125, 0.1938653564453125 }, {-0.04872922897338867, 0.04872922897338867 },
-    { -6.33115478515625, 6.33115478515625 }, { -0.032157254219055176, 0.032157254219055176 },
-    { -6.330288696289062, 6.330288696289062 }
-};
+vector<vector<float>> fq_mm3 = {{-0.1938653564453125, 0.1938653564453125},
+                                {-0.04872922897338867, 0.04872922897338867},
+                                {-6.33115478515625, 6.33115478515625},
+                                {-0.032157254219055176, 0.032157254219055176},
+                                {-6.330288696289062, 6.330288696289062}};
 
-vector<vector<float>> fq_mm4 = {
-    { -4.38653564453125, 4.38653564453125 }, { -48.72922897338867, 48.72922897338867 },
-    { -3.115478515625, 3.115478515625 }, { -32.157254219055176, 32.157254219055176 },
-    { -30.0288696289062, 30.0288696289062 }
-};
+vector<vector<float>> fq_mm4 = {{-4.38653564453125, 4.38653564453125},
+                                {-48.72922897338867, 48.72922897338867},
+                                {-3.115478515625, 3.115478515625},
+                                {-32.157254219055176, 32.157254219055176},
+                                {-30.0288696289062, 30.0288696289062}};
 
-vector<vector<float>> fq_mm5 = {
-    { -390.38653564453125, 390.38653564453125 }, {-400.872922897338867, 400.872922897338867},
-    { -633.115478515625, 633.115478515625}, {-399.2157254219055176, 399.2157254219055176},
-    { -633.0288696289062, 633.0288696289062}
-};
+vector<vector<float>> fq_mm5 = {{-390.38653564453125, 390.38653564453125},
+                                {-400.872922897338867, 400.872922897338867},
+                                {-633.115478515625, 633.115478515625},
+                                {-399.2157254219055176, 399.2157254219055176},
+                                {-633.0288696289062, 633.0288696289062}};
 
-vector<vector<vector<float>>> fq_min_max = { fq_mm1, fq_mm2, fq_mm3, fq_mm4, fq_mm5 };
+vector<vector<vector<float>>> fq_min_max = {fq_mm1, fq_mm2, fq_mm3, fq_mm4, fq_mm5};
 
 INSTANTIATE_TEST_SUITE_P(smoke_DiagonalInsertion,
-    DiagonalInsertionTest,
-    ::testing::Combine(
-        ::testing::ValuesIn(configs),
-        ::testing::ValuesIn(fq_min_max)),
-    DiagonalInsertionTest::getTestCaseName);
+                         DiagonalInsertionTest,
+                         ::testing::Combine(::testing::ValuesIn(configs), ::testing::ValuesIn(fq_min_max)),
+                         DiagonalInsertionTest::getTestCaseName);
 
 }  // namespace DiagonalInsertionTestNs

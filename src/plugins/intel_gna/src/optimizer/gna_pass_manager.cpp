@@ -62,21 +62,49 @@ std::shared_ptr<IPassManager> BasePass::getPassManager() {
     return sharedMgr;
 }
 
-static bool DoNotSkip(CNNLayerPtr layer) {
-    return false;
-};
-
 /**
  * @brief Perform addition of two blobs values
  */
-static void SumBlobs(Blob::Ptr& src_blob, Blob::Ptr& dst_blob) {
+template <class T>
+static void SumBlobs_t(Blob::Ptr& src_blob, Blob::Ptr& dst_blob) {
     IE_ASSERT(src_blob != nullptr);
     IE_ASSERT(dst_blob != nullptr);
     IE_ASSERT(src_blob->size() == dst_blob->size());
+    IE_ASSERT(src_blob->getTensorDesc().getPrecision() == dst_blob->getTensorDesc().getPrecision());
 
-    float* src_blob_buf = src_blob->buffer().as<float*>();
-    float* dst_blob_buf = dst_blob->buffer().as<float*>();
-    std::transform(dst_blob_buf, dst_blob_buf + dst_blob->size(), src_blob_buf, dst_blob_buf, std::plus<float>());
+    T* src_blob_buf = src_blob->buffer().as<T*>();
+    T* dst_blob_buf = dst_blob->buffer().as<T*>();
+    std::transform(dst_blob_buf, dst_blob_buf + dst_blob->size(), src_blob_buf, dst_blob_buf, std::plus<T>());
+}
+
+static void SumBlobs(Blob::Ptr& src_blob, Blob::Ptr& dst_blob) {
+    IE_ASSERT(src_blob != nullptr);
+
+    switch (src_blob->getTensorDesc().getPrecision()) {
+#define CASE(x) \
+    case x:     \
+        return SumBlobs_t<PrecisionTrait<x>::value_type>(src_blob, dst_blob);
+        CASE(InferenceEngine::Precision::FP32);
+        CASE(InferenceEngine::Precision::FP64);
+        CASE(InferenceEngine::Precision::FP16);
+        CASE(InferenceEngine::Precision::BF16);
+        CASE(InferenceEngine::Precision::I4);
+        CASE(InferenceEngine::Precision::I8);
+        CASE(InferenceEngine::Precision::I16);
+        CASE(InferenceEngine::Precision::I32);
+        CASE(InferenceEngine::Precision::I64);
+        CASE(InferenceEngine::Precision::U4);
+        CASE(InferenceEngine::Precision::U8);
+        CASE(InferenceEngine::Precision::U16);
+        CASE(InferenceEngine::Precision::U32);
+        CASE(InferenceEngine::Precision::U64);
+        CASE(InferenceEngine::Precision::Q78);
+        CASE(InferenceEngine::Precision::BIN);
+        CASE(InferenceEngine::Precision::BOOL);
+#undef CASE
+    default:
+        IE_THROW() << "Wrong precision specified: " << src_blob->getTensorDesc().getPrecision().name();
+    }
 }
 
 static Blob::Ptr convertToRWBlob(const Blob::Ptr& readOnlyBlob, const std::string& name = {}) {
@@ -2593,9 +2621,10 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
 
 void FuseFullyConnectedWithEltwisePass::run() {
     // This legacy pass removes the Eltwise (only if it performs SUM op) from between FC and Any.
-    // The Const layer blob data is added to biases blob data of FC layer.
-    // Finally Const is also removed
-    // Reshape (if exists) is moved after Any to keep output shape unchanged.
+    // The blob data of Const layer attached to Eltwise is added to biases blob data of FC layer.
+    // Finally Const is also removed.
+    // Permute and Reshape layers existing between FC and Eltwise remain in the network in order
+    // to keep final data shape unchanged.
     //
     // This operation can be illustrated as follows:
     //
@@ -2604,6 +2633,9 @@ void FuseFullyConnectedWithEltwisePass::run() {
     //
     //    FC                         FC              (Eltwise)
     //    |                          |               (Const)
+    //  Permute                   Permute
+    // (optional)           (if exists in Original)
+    //    |                          |
     //  Reshape                   Reshape
     // (optional)  Const    (if exists in Original)
     //    |       /                  |
@@ -2615,68 +2647,61 @@ void FuseFullyConnectedWithEltwisePass::run() {
     // NOTE: This pass is implemented to prevent unnecessary roundtrip to memory (additional layer).
     // It can be fully removed if corresponding LPT transformation is already implemented.
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "FuseFullyConnectedWithEltwisePass");
+
+    auto skipPermuteAndReshape = [](CNNLayerPtr layer) {
+        if (IsOneDimLayer(layer)) {
+            if (LayerInfo(layer).isPermute() || LayerInfo(layer).isReshape()) {
+                return true;
+            }
+        }
+        return false;
+    };
+
     for (auto& layer : *pLayers) {
         if (!LayerInfo(layer).isFullyConnected() || !layer->outData.size()) {
             continue;
         }
+        CNNLayerPtr next = nullptr;
+
         auto& fully_connected = layer;
 
-        auto reshape = CNNNetGetNextLayerSkipCertain(fully_connected, 0, 0, DoNotSkip).first;
-
-        if (!reshape) {
-            continue;
-        }
-
-        // Find Eltwise - two cases are supported:
-        // 1. There is Reshape between FC and Eltwise
-        // 2. Eltwise is right after FC
-        auto eltwise = LayerInfo(reshape).isReshape() 
-            ? CNNNetGetNextLayerSkipCertain(reshape, 0, 0, DoNotSkip).first
-            : reshape;
+        // Find Eltwise skipping Premutes and Reshapes
+        auto eltwise = CNNNetCheckNextLayerSkipCertain(fully_connected, 0, 0, true, skipPermuteAndReshape).first;
 
         // If the layer is not Eltwise or does not perform 'sum' operation, we should skip the pass
-        if (!eltwise ||
-            !LayerInfo(eltwise).isEltwise() ||
-            !eltwise->outData.size() ||
-            eltwise->params["operation"] != "sum") {
+        if (!eltwise || !LayerInfo(eltwise).isEltwiseSum()) {
             continue;
         }
 
-        // Find Const layer attached to Eltwise - needed for getting blob data
-
-        auto eltwise_const = CNNNetHasPrevLayer(eltwise.get(), 0)
-            ? CNNNetPrevLayerSkipCertain(eltwise, 0, [](CNNLayerPtr layer) {
-                return !LayerInfo(layer).isConst();
-              })
-            : nullptr;
-
-        if (!eltwise_const) {
+        // Get the Eltwise's input layers
+        CNNLayerPtr eltwise_const = nullptr;
+        CNNLayerPtr eltwise_input = nullptr;
+        for (size_t i = 0; i < eltwise->insData.size(); i++) {
+            // Get Eltwise's prev layer and check its kind
+            auto before_eltwise =
+                CNNNetHasPrevLayer(eltwise.get(), 0) ? CNNNetPrevLayerSkipCertain(eltwise, i, DoNotSkip) : nullptr;
+            if (LayerInfo(before_eltwise).isConst()) {
+                eltwise_const = before_eltwise;
+            } else {
+                eltwise_input = before_eltwise;
+            }
+        }
+        if (!eltwise_const || !eltwise_input) {
             continue;
         }
 
         // Find (any) layer after Eltwise
-        auto any_layer = CNNNetGetNextLayerSkipCertain(eltwise, 0, 0, DoNotSkip).first;
-
-        if (LayerInfo(reshape).isReshape()) {
-            // Connect FC with Eltwise if Reshape exists (Reshape will be removed)
-            if (!IsOneDimLayer(reshape) || !CNNRemoveAndConnect(reshape)) {
-                continue;
-            }
+        auto any_layer = CNNNetCheckNextLayerSkipCertain(eltwise, 0, 0, true, DoNotSkip).first;
+        if (!any_layer) {
+            continue;
         }
 
         // Connect FC with layer after Eltwise (Eltwise and Const will be removed)
-        if (CNNRemoveAndConnect(eltwise)) {
+        if (CNNRemoveAndConnect(eltwise_input, eltwise)) {
             // Add data from Const "custom" blob to FC "biases" blob
             auto& const_blob = eltwise_const->blobs.find("custom")->second;
             auto& fc_blob = fully_connected->blobs.find("biases")->second;
             SumBlobs(const_blob, fc_blob);
-
-            if (LayerInfo(reshape).isReshape() && IsOneDimLayer(reshape)) {
-                // Create Reshape using tensor description of reshape and insert it between FC and Any/ReLU
-                auto new_reshape =
-                    CNNNetworkCreateReshape(reshape->outData[0]->getTensorDesc(), reshape->name, true);
-                CNNNetworkInsertLayer(fully_connected, any_layer, new_reshape);
-            }
         }
     }
 }
