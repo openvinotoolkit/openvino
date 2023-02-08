@@ -4,6 +4,7 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;
@@ -105,4 +106,65 @@ TEST(type_prop, scatter_nd_update_fail_indices_last_dim) {
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
+}
+
+using namespace ov::opset10;
+using namespace testing;
+
+class TypePropScatterUpdateNDV3Test : public TypePropOpTest<op::v3::ScatterNDUpdate> {
+protected:
+    void SetUp() override {
+        set_shape_labels(data_3d_dynamic, 10);
+    }
+    PartialShape data_3d_dynamic{{2, 5}, 2, {4, 10}};
+};
+
+TEST_F(TypePropScatterUpdateNDV3Test, data_input_partial_shape_and_labels_propagation) {
+    const auto d = std::make_shared<Parameter>(element::f32, data_3d_dynamic);
+    const auto i = std::make_shared<Parameter>(element::i32, PartialShape{3, 2});
+    const auto u = std::make_shared<Parameter>(element::f32, PartialShape{3, 5});
+
+    const auto op = make_op(d, i, u);
+
+    EXPECT_EQ(op->get_input_size(), 3);
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), data_3d_dynamic);
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, 12));
+}
+
+TEST_F(TypePropScatterUpdateNDV3Test, indicies_input_is_dynamic) {
+    const auto d = std::make_shared<Parameter>(element::f64, data_3d_dynamic);
+    const auto i = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
+    const auto u = std::make_shared<Parameter>(element::f64, PartialShape{3, 5});
+
+    const auto op = make_op(d, i, u);
+
+    EXPECT_EQ(op->get_output_element_type(0), element::f64);
+    EXPECT_EQ(op->get_output_partial_shape(0), data_3d_dynamic);
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, 12));
+}
+
+TEST_F(TypePropScatterUpdateNDV3Test, updates_input_is_dynamic) {
+    const auto d = std::make_shared<Parameter>(element::f64, data_3d_dynamic);
+    const auto i = std::make_shared<Parameter>(element::i32, PartialShape{3, 2});
+    const auto u = std::make_shared<Parameter>(element::f64, PartialShape::dynamic());
+
+    const auto op = make_op(d, i, u);
+
+    EXPECT_EQ(op->get_output_element_type(0), element::f64);
+    EXPECT_EQ(op->get_output_partial_shape(0), data_3d_dynamic);
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, 12));
+}
+
+TEST_F(TypePropScatterUpdateNDV3Test, indicies_input_has_interval_dimensions) {
+    const auto d = std::make_shared<Parameter>(element::i64, data_3d_dynamic);
+    const auto i = std::make_shared<Parameter>(element::i32, PartialShape{{0, 3}, 1});
+    const auto u = std::make_shared<Parameter>(element::i64, PartialShape{3, 2, {8, 10}});
+
+    const auto op = make_op(d, i, u);
+
+    EXPECT_EQ(op->get_output_element_type(0), element::i64);
+    EXPECT_EQ(op->get_output_partial_shape(0), data_3d_dynamic);
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, 12));
 }
