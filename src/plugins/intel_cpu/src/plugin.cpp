@@ -481,7 +481,7 @@ std::vector<std::vector<int>> Engine::get_streams_info_table(
                 if (1 == stream_info[THREADS_PER_STREAM]) {
                     return streams_info_table;
                 } else {
-                    stream_info[THREADS_PER_STREAM] - 1;
+                    stream_info[THREADS_PER_STREAM] -= 1;
                     std::vector<std::vector<int>>().swap(streams_info_table);
                 }
             }
