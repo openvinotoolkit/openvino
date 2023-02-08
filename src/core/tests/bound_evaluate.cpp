@@ -36,7 +36,7 @@ protected:
 };
 
 // Simulate scenarios in pytorch when eval bounds for node PtFrameworkNode which inherits from FrameworkNode
-TEST_F(EvaluateBoundTest, no_exception_wehen_node_has_output_with_dynamic_rank) {
+TEST_F(EvaluateBoundTest, no_exception_when_node_has_output_with_dynamic_rank) {
     fn_op->set_output_type(0, element::i32, PartialShape::dynamic());
     fn_op->set_output_type(1, element::i32, PartialShape{{1, 4}});
     fn_op->validate_and_infer_types();
@@ -44,7 +44,7 @@ TEST_F(EvaluateBoundTest, no_exception_wehen_node_has_output_with_dynamic_rank) 
     EXPECT_NO_THROW(evaluate_both_bounds(fn_op));
 }
 
-TEST_F(EvaluateBoundTest, no_exception_wehen_node_has_output_with_dynamic_element_type) {
+TEST_F(EvaluateBoundTest, no_exception_when_node_has_output_with_dynamic_element_type) {
     fn_op->set_output_type(0, element::dynamic, PartialShape{4});
     fn_op->set_output_type(1, element::dynamic, PartialShape{4});
     fn_op->validate_and_infer_types();

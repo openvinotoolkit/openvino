@@ -89,7 +89,7 @@ ov::Tensor evaluate_bound(const Output<Node>& output, bool is_upper, bool invali
                 } else if (out_shape.rank().is_static()) {
                     outputs.emplace_back(out_et, Shape(out_shape.rank().get_length()));
                 } else {
-                    outputs.emplace_back(out_et, Shape{0, std::numeric_limits<size_t>::max()});
+                    outputs.emplace_back(out_et, Shape{0});
                 }
             }
 
