@@ -15,6 +15,7 @@ OutputVector translate_rsub(NodeContext& context) {
     auto self = context.get_input(0);
     auto other = context.get_input(1);
     auto alpha = context.get_input(2);
+    align_eltwise_input_types(context, self, other);
     // reverse aten::sub other - self * alpha
     auto alpha_casted = context.mark_node(std::make_shared<opset10::ConvertLike>(alpha, self));
     auto alpha_mul = context.mark_node(std::make_shared<opset10::Multiply>(self, alpha_casted));
