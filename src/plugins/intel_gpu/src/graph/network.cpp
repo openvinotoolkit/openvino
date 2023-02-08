@@ -295,12 +295,7 @@ network::network(program::ptr program, const ExecutionConfig& config, stream::pt
     GPU_DEBUG_IF(debug_config->after_proc.size() != 0) {
         wait_for_the_turn();
     }
-    if (get_engine().get_device_info().supports_immad && config.get_property(ov::intel_gpu::queue_type) != QueueTypes::in_order) {
-        _config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
-        GPU_DEBUG_IF(debug_config->verbose >= 1) {
-            std::cout << "[WARNING]: Set queue_type to in_order automatically because DG2 have to use in_order queue." << std::endl;
-        }
-    }
+    _config.apply_user_properties(_engine.get_device_info());
 
     allocate_primitives();
     configure_primitives_second_output();
