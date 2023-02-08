@@ -272,22 +272,68 @@ VVVVVVF<T> generate_random_6d(size_t a, size_t b, size_t c, size_t d, size_t e, 
 template <class T> void set_value(T* ptr, uint32_t index, T value) { ptr[index] = value; }
 template <class T> T    get_value(T* ptr, uint32_t index) { return ptr[index]; }
 
-template<typename T>
-void set_values(cldnn::memory::ptr mem, std::initializer_list<T> args) {
+enum class FillType{
+    All,
+    OnlyInsideShape,
+};
+template <typename T>
+void set_values(cldnn::memory::ptr mem, std::initializer_list<T> args, FillType ft = FillType::All) {
     cldnn::mem_lock<T> ptr(mem, get_test_stream());
-
-    auto it = ptr.begin();
-    for(auto x : args)
-        *it++ = x;
+    auto lay = mem->get_layout();
+    if (ft == FillType::All) {
+        if(args.size() > ptr.size())
+            IE_THROW() << "Too many values.";
+        if(args.size() < ptr.size())
+            IE_THROW() << "Too few values.";
+        auto it = ptr.begin();
+        for (auto x : args)
+            *it++ = x;
+    } else {
+        if(args.size() > lay.count())
+            IE_THROW() << "Too many values.";
+        if(args.size() < lay.count())
+            IE_THROW() << "Too few values.";
+        auto it = args.begin();
+        for(int bi = 0; bi < lay.batch(); bi++)
+        for(int fi = 0; fi < lay.feature(); fi++)
+        for(int wi = 0; wi < lay.spatial(3); wi++)
+        for(int zi = 0; zi < lay.spatial(2); zi++)
+        for(int yi = 0; yi < lay.spatial(1); yi++)
+        for(int xi = 0; xi < lay.spatial(0); xi++){
+            int idx = lay.get_linear_offset(tensor(batch(bi), feature(fi), spatial(xi, yi, zi, wi)));
+            ptr[idx] = *it++;
+        }
+    }
 }
 
 template<typename T>
-void set_values(cldnn::memory::ptr mem, std::vector<T> args) {
+void set_values(cldnn::memory::ptr mem, std::vector<T> args, FillType ft = FillType::All) {
     cldnn::mem_lock<T> ptr(mem, get_test_stream());
-
-    auto it = ptr.begin();
-    for (auto x : args)
-        *it++ = x;
+    auto lay = mem->get_layout();
+    if (ft == FillType::All) {
+        if(args.size() > ptr.size())
+            IE_THROW() << "Too many values. " << args.size() << ", " << lay.count();
+        if(args.size() < ptr.size())
+            IE_THROW() << "Too few values. " << args.size() << ", " << lay.count();
+        auto it = ptr.begin();
+        for (auto x : args)
+            *it++ = x;
+    } else {
+        if(args.size() > lay.count())
+            IE_THROW() << "Too many values. " << args.size() << ", " << lay.count();
+        if(args.size() < lay.count())
+            IE_THROW() << "Too few values. " << args.size() << ", " << lay.count();
+        auto it = args.begin();
+        for(int bi = 0; bi < lay.batch(); bi++)
+        for(int fi = 0; fi < lay.feature(); fi++)
+        for(int wi = 0; wi < lay.spatial(3); wi++)
+        for(int zi = 0; zi < lay.spatial(2); zi++)
+        for(int yi = 0; yi < lay.spatial(1); yi++)
+        for(int xi = 0; xi < lay.spatial(0); xi++){
+            int idx = lay.get_linear_offset(tensor(batch(bi), feature(fi), spatial(xi, yi, zi, wi)));
+            ptr[idx] = *it++;
+        }
+    }
 }
 
 template<typename T>

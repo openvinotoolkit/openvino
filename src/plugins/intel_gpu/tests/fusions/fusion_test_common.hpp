@@ -109,60 +109,51 @@ public:
         }
     }
 
-    cldnn::memory::ptr get_mem(cldnn::layout l) {
+    cldnn::memory::ptr get_mem(cldnn::layout l, FillType ft = FillType::OnlyInsideShape) {
         auto prim = engine.allocate_memory(l);
+        int cnt_base = ft == FillType::All ? prim->size() / data_type_traits::size_of(l.data_type) : l.count();
         if (l.data_type == data_types::bin) {
-            VF<int32_t> rnd_vec = generate_random_1d<int32_t>(prim->size() / 32, min_random, max_random);
-            set_values(prim, rnd_vec);
+            set_values(prim, generate_random_1d<int32_t>(cnt_base / 32, min_random, max_random), ft);
         } else if (l.data_type == data_types::i8 || l.data_type == data_types::u8) {
-            VF<uint8_t> rnd_vec = generate_random_1d<uint8_t>(prim->size() / sizeof(uint8_t), min_random, max_random);
-            set_values(prim, rnd_vec);
+            set_values(prim, generate_random_1d<uint8_t>(cnt_base, min_random, max_random), ft);
         } else if (l.data_type == data_types::f16) {
-            VF<FLOAT16> rnd_vec = generate_random_1d<FLOAT16>(prim->size() / sizeof(FLOAT16), -1, 1);
-            set_values(prim, rnd_vec);
+            set_values(prim, generate_random_1d<FLOAT16>(cnt_base, -1, 1), ft);
         } else if (l.data_type == data_types::f32) {
-            VF<float> rnd_vec = generate_random_1d<float>(prim->size() / sizeof(float), -1, 1);
-            set_values(prim, rnd_vec);
+            set_values(prim, generate_random_1d<float>(cnt_base, -1, 1), ft);
         } else {
             IE_THROW() << "Unimplemented data_types";
         }
         return prim;
     }
 
-    cldnn::memory::ptr get_mem(cldnn::layout l, float fill_value) {
+    cldnn::memory::ptr get_mem(cldnn::layout l, float fill_value, FillType ft = FillType::OnlyInsideShape) {
         auto prim = engine.allocate_memory(l);
+        int cnt_base = ft == FillType::All ? prim->size() / data_type_traits::size_of(l.data_type) : l.count();
         if (l.data_type == data_types::bin) {
-            VF<int32_t> rnd_vec(prim->size() / 32, fill_value);
-            set_values(prim, rnd_vec);
+            set_values(prim, VF<int32_t>(cnt_base / 32, fill_value), ft);
         } else if (l.data_type == data_types::i8 || l.data_type == data_types::u8) {
-            VF<uint8_t> rnd_vec(prim->size() / sizeof(uint8_t), fill_value);
-            set_values(prim, rnd_vec);
+            set_values(prim, VF<uint8_t>(cnt_base, fill_value), ft);
         } else if (l.data_type == data_types::f16) {
-            VF<FLOAT16> rnd_vec(prim->size() / sizeof(FLOAT16), fill_value);
-            set_values(prim, rnd_vec);
+            set_values(prim, VF<FLOAT16>(cnt_base, fill_value), ft);
         } else if (l.data_type == data_types::f32) {
-            VF<float> rnd_vec(prim->size() / sizeof(float), fill_value);
-            set_values(prim, rnd_vec);
+            set_values(prim, VF<float>(cnt_base, fill_value), ft);
         } else {
             IE_THROW() << "Unimplemented data_types";
         }
         return prim;
     }
 
-    cldnn::memory::ptr get_repeatless_mem(cldnn::layout l, int min, int max) {
+    cldnn::memory::ptr get_repeatless_mem(cldnn::layout l, int min, int max, FillType ft = FillType::OnlyInsideShape) {
         auto prim = engine.allocate_memory(l);
+        int cnt_base = ft == FillType::All ? prim->size() / data_type_traits::size_of(l.data_type) : l.count();
         if (l.data_type == data_types::f32) {
-            VF<float> rnd_vec = generate_random_norepetitions_1d<float>(prim->size() / sizeof(float), min, max);
-            set_values(prim, rnd_vec);
+            set_values(prim, generate_random_norepetitions_1d<float>(cnt_base, min, max), ft);
         } else if (l.data_type == data_types::f16) {
-            VF<FLOAT16> rnd_vec = generate_random_norepetitions_1d<FLOAT16>(prim->size() / sizeof(FLOAT16), min, max);
-            set_values(prim, rnd_vec);
+            set_values(prim, generate_random_norepetitions_1d<FLOAT16>(cnt_base, min, max), ft);
         } else if (l.data_type == data_types::i8) {
-            VF<int8_t> rnd_vec = generate_random_norepetitions_1d<int8_t>(prim->size() / sizeof(int8_t), min, max);
-            set_values(prim, rnd_vec);
+            set_values(prim, generate_random_norepetitions_1d<int8_t>(cnt_base, min, max), ft);
         } else if (l.data_type == data_types::bin) {
-            VF<int32_t> rnd_vec = generate_random_norepetitions_1d<int32_t>(prim->size() / 32, min, max);
-            set_values(prim, rnd_vec);
+            set_values(prim, generate_random_norepetitions_1d<int32_t>(cnt_base / 32, min, max), ft);
         } else {
             IE_THROW() << "Unimplemented data_types";
         }
@@ -170,23 +161,19 @@ public:
         return prim;
     }
 
-    cldnn::memory::ptr get_mem(cldnn::layout l, int min, int max) {
+    cldnn::memory::ptr get_mem(cldnn::layout l, int min, int max, FillType ft = FillType::OnlyInsideShape) {
         auto prim = engine.allocate_memory(l);
+        int cnt_base = ft == FillType::All ? prim->size() / data_type_traits::size_of(l.data_type) : l.count();
         if (l.data_type == data_types::f32) {
-            VF<float> rnd_vec = generate_random_1d<float>(prim->size() / sizeof(float), min, max);
-            set_values(prim, rnd_vec);
+            set_values(prim, generate_random_1d<float>(cnt_base, min, max), ft);
         } else if (l.data_type == data_types::f16) {
-            VF<FLOAT16> rnd_vec = generate_random_1d<FLOAT16>(prim->size() / sizeof(FLOAT16), min, max);
-            set_values(prim, rnd_vec);
+            set_values(prim, generate_random_1d<FLOAT16>(cnt_base, min, max), ft);
         } else if (l.data_type == data_types::i8) {
-            VF<int8_t> rnd_vec = generate_random_1d<int8_t>(prim->size() / sizeof(int8_t), min, max);
-            set_values(prim, rnd_vec);
+            set_values(prim, generate_random_1d<int8_t>(cnt_base, min, max), ft);
         } else if (l.data_type == data_types::u8) {
-            VF<uint8_t> rnd_vec = generate_random_1d<uint8_t>(prim->size() / sizeof(uint8_t), min, max);
-            set_values(prim, rnd_vec);
+            set_values(prim, generate_random_1d<uint8_t>(cnt_base, min, max), ft);
         } else if (l.data_type == data_types::bin) {
-            VF<int32_t> rnd_vec = generate_random_1d<int32_t>(prim->size() / 32, min, max);
-            set_values(prim, rnd_vec);
+            set_values(prim, generate_random_1d<int32_t>(cnt_base / 32, min, max), ft);
         } else {
             IE_THROW() << "Unimplemented data_types";
         }
