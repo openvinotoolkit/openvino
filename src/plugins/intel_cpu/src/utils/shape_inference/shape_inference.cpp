@@ -52,6 +52,7 @@
 #include "region_yolo_shape_inference.hpp"
 #include "reorg_yolo_shape_inference.hpp"
 #include "reverse_sequence_shape_inference.hpp"
+#include "reverse_shape_inference.hpp"
 #include "roi_align_shape_inference.hpp"
 #include "roll_shape_inference.hpp"
 #include "scatter_elements_update_shape_inference.hpp"
@@ -644,6 +645,8 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     // Default opset
     _OV_OP_SHAPE_INFER_REG(Tile, ShapeInferBase),
     // Operators shape inferences for specific opset version should be specified below
+    // opset1
+    _OV_OP_SHAPE_INFER_REG(opset1::Reverse, ShapeInferBase),
 };
 
 #undef _OV_OP_NON_TEMPLATE_SHAPE_INFER_REG
