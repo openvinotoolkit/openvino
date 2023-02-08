@@ -156,7 +156,7 @@ typedef enum {
     MAIN_CORE_PROC = 1,        //!< Processor based on physical core of Intel Performance-cores
     EFFICIENT_CORE_PROC = 2,   //!< Processor based on Intel Efficient-cores
     HYPER_THREADING_PROC = 3,  //!< Processor based on logical core of Intel Performance-cores
-    PROC_TYPE_TABLE_SIZE = 4   //!< Size of processor type table 
+    PROC_TYPE_TABLE_SIZE = 4   //!< Size of processor type table
 } column_of_processor_type_table;
 
 /**
@@ -189,7 +189,7 @@ typedef enum {
     CPU_MAP_CORE_TYPE = 3,     //!< column for CPU core type corresponding to the processor
     CPU_MAP_GROUP_ID = 4,      //!< column for group id to the processor. Processors in one group have dependency.
     CPU_MAP_USED_FLAG = 5,     //!< column for resource management of the processor
-    CPU_MAP_TABLE_SIZE = 6     //!< Size of CPU mapping table 
+    CPU_MAP_TABLE_SIZE = 6     //!< Size of CPU mapping table
 } column_of_cpu_mapping_table;
 
 /**
@@ -199,14 +199,14 @@ typedef enum {
  * The following are two example of processor type table.
  *  1. 8 streams on hybrid platform which has 4 threads per stream.
  *
- *  NUMBER_OF_STREAMS | PROC_TYPE | THREADS_PER_STREAM 
+ *  NUMBER_OF_STREAMS | PROC_TYPE | THREADS_PER_STREAM
  *          2               1                4          // 2 streams on physical core of Intel Performance-cores
  *          4               2                4          // 4 streams on Intel Efficient-cores
  *          2               3                4          // 2 streams on logic core of Intel Performance-cores
  *
  * 2. 1 stream on hybrid platform which has 2 threads on physical core and 8 threads on Ecore.
  *
- *  NUMBER_OF_STREAMS | PROC_TYPE | THREADS_PER_STREAM 
+ *  NUMBER_OF_STREAMS | PROC_TYPE | THREADS_PER_STREAM
  *          1               0               10          // 2 streams on physical core of Intel Performance-cores
  *          0               1                2          // 4 streams on Intel Efficient-cores
  *          0               2                8          // 2 streams on logic core of Intel Performance-cores
@@ -215,7 +215,7 @@ typedef enum {
     NUMBER_OF_STREAMS = 0,      //!< Number of streams on specific CPU core tpye
     PROC_TYPE = 1,              //!< Core type of current streams
     THREADS_PER_STREAM = 2,     //!< Number of threads per stream of current streams
-    CPU_STREAMS_TABLE_SIZE = 3  //!< Size of streams info table 
+    CPU_STREAMS_TABLE_SIZE = 3  //!< Size of streams info table
 } column_of_cpu_streams_info_table;
 
 #ifdef __linux__
