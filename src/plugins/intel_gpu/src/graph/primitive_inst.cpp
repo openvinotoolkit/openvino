@@ -1265,7 +1265,7 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
             if (!_mem_allocated) {
                 std::string dep_id;
                 ib >> dep_id;
-                if (dep_id.compare("NOT_FOUND") != 0) {
+                if (dep_id.compare("NOT_FOUND") != 0 && get_network().get_primitive(dep_id)->output_memory_ptr() != nullptr) {
                     _outputs[i] = get_network().get_engine().reinterpret_buffer(get_network().get_primitive(dep_id)->output_memory(), output_layouts[i]);
                 } else if (type() == cldnn::mutable_data::type_id()) {
                     _outputs[i] = get_network().get_engine().allocate_memory(output_layouts[i], allocation_types[i]);

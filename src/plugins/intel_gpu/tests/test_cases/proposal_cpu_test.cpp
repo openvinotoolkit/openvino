@@ -154,32 +154,16 @@ TEST(proposal, basic) {
     test_proposal_basic<float>({ 1, 3, 1, 1 }, false);
 }
 
-TEST(export_import_proposal, basic) {
-    test_proposal_basic<float>({ 1, 3, 1, 1 }, true);
-}
-
 TEST(proposal, fp16) {
     test_proposal_basic<FLOAT16>({ 1, 3, 1, 1 }, false);
-}
-
-TEST(export_import_proposal, fp16) {
-    test_proposal_basic<FLOAT16>({ 1, 3, 1, 1 }, true);
 }
 
 TEST(proposal, img_info_batched) {
     test_proposal_basic<float>({ 2, 3, 1, 1 }, false);
 }
 
-TEST(export_import_proposal, img_info_batched) {
-    test_proposal_basic<float>({ 2, 3, 1, 1 }, true);
-}
-
 TEST(proposal, img_info_batch_only) {
     test_proposal_basic<float>({ 3, 1, 1, 1 }, false);
-}
-
-TEST(export_import_proposal, img_info_batch_only) {
-    test_proposal_basic<float>({ 3, 1, 1, 1 }, true);
 }
 
 template <typename Dtype, typename ImInfoType>
@@ -204,14 +188,30 @@ TEST(proposal, scores_fp16_im_info_fp32) {
     test_proposal_basic_two_types<FLOAT16, float>({ 1, 3, 1, 1 }, false);
 }
 
-TEST(export_import_proposal, scores_fp16_im_info_fp32) {
-    test_proposal_basic_two_types<FLOAT16, float>({ 1, 3, 1, 1 }, true);
-}
-
 TEST(proposal, scores_fp32_im_info_fp16) {
     test_proposal_basic_two_types<float, FLOAT16>({ 1, 3, 1, 1 }, false);
 }
+#ifdef ENABLE_ALL_MODEL_CACHING_TESTS
+TEST(proposal, basic_cached) {
+    test_proposal_basic<float>({ 1, 3, 1, 1 }, true);
+}
 
-TEST(export_import_proposal, scores_fp32_im_info_fp16) {
+TEST(proposal, fp16_cached) {
+    test_proposal_basic<FLOAT16>({ 1, 3, 1, 1 }, true);
+}
+
+TEST(proposal, img_info_batched_cached) {
+    test_proposal_basic<float>({ 2, 3, 1, 1 }, true);
+}
+
+TEST(proposal, img_info_batch_only_cached) {
+    test_proposal_basic<float>({ 3, 1, 1, 1 }, true);
+}
+
+TEST(proposal, scores_fp16_im_info_fp32_cached) {
+    test_proposal_basic_two_types<FLOAT16, float>({ 1, 3, 1, 1 }, true);
+}
+#endif // ENABLE_ALL_MODEL_CACHING_TESTS
+TEST(proposal, scores_fp32_im_info_fp16_cached) {
     test_proposal_basic_two_types<float, FLOAT16>({ 1, 3, 1, 1 }, true);
 }
