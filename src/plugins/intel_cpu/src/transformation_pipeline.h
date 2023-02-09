@@ -26,12 +26,14 @@ public:
                     const bool                        enableLpt,
                     const bool                        enableBF16,
                     const bool                        isLegacyApi,
-                    Config::SnippetsMode&             snippetsMode)
+                    Config::SnippetsMode&             snippetsMode,
+                    const Config&                     config)
         : model(initialModel),
           enableLpt(enableLpt),
           enableBF16(enableBF16),
           isLegacyApi(isLegacyApi),
-          snippetsMode(snippetsMode) {}
+          snippetsMode(snippetsMode),
+          config(config) {}
 
     void UpToCpuSpecificOpSet();
     void CpuSpecificOpSet(void);
@@ -41,6 +43,7 @@ private:
     const bool    enableLpt;
     const bool    enableBF16;
     const bool    isLegacyApi;
+    const Config& config;
     const Config::SnippetsMode snippetsMode;
 
     void PreLpt(const std::vector<ov::element::Type>& defaultPrecisions, const bool isLegacyApi);
