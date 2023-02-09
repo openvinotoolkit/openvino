@@ -502,15 +502,14 @@ private:
                                           Type != element::Type_t::i4,
                                       bool>::type = true>
     void fill_data(const T& value) {
-#ifdef __GNUC__
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wsign-compare"
-#endif
 #ifdef __clang__
 #    pragma clang diagnostic push
 #    pragma clang diagnostic ignored "-Wimplicit-const-int-float-conversion"
-#endif
-#if defined(_MSC_VER)
+#elif defined(__GNUC__)
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wsign-compare"
+#    pragma GCC diagnostic ignored "-Wbool-compare"
+#elif defined(_MSC_VER)
 #    pragma warning(push)
 #    pragma warning(disable : 4018)
 #    pragma warning(disable : 4804)
@@ -522,11 +521,9 @@ private:
         }
 #if defined(_MSC_VER)
 #    pragma warning(pop)
-#endif
-#ifdef __clang__
+#elif defined(__clang__)
 #    pragma clang diagnostic pop
-#endif
-#ifdef __GNUC__
+#elif defined(__GNUC__)
 #    pragma GCC diagnostic pop
 #endif
 
