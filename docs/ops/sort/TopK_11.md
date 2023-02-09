@@ -1,6 +1,6 @@
-`# TopK  {#openvino_docs_ops_sort_TopK_4}
+`# TopK  {#openvino_docs_ops_sort_TopK_11}
 
-**Versioned name**: *TopK-4*
+**Versioned name**: *TopK-11*
 
 **Category**: *Sorting and maximization*
 

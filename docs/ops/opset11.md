@@ -180,7 +180,7 @@ declared in `namespace opset11`.
 * [Tanh](arithmetic/Tanh_1.md)
 * [TensorIterator](infrastructure/TensorIterator_1.md)
 * [Tile](movement/Tile_1.md)
-* [TopK](sort/TopK_4.md)
+* [TopK](sort/TopK_11.md)
 * [Transpose](movement/Transpose_1.md)
 * [Unique](movement/Unique_10.md)
 * [Unsqueeze](shape/Unsqueeze_1.md)
