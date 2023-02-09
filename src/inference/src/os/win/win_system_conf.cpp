@@ -60,7 +60,6 @@ void parse_processor_info_win(const char* base_ptr,
     int list_len = 0;
     int base_proc = 0;
     int proc_count = 0;
-    int mask_len = 0;
     int group = 0;
     _sockets = -1;
 
@@ -91,7 +90,6 @@ void parse_processor_info_win(const char* base_ptr,
         if (info->Relationship == RelationProcessorPackage) {
             _sockets++;
             MaskToList(info->Processor.GroupMask->Mask);
-            mask_len = list_len;
             if (0 == _sockets) {
                 _proc_type_table.push_back(line_value_0);
             } else {
