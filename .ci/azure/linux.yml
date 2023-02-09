@@ -102,7 +102,7 @@ jobs:
   steps:
   - task: UsePythonVersion@0
     inputs:
-      versionSpec: 'OV_PYTHON_VERSION'
+      versionSpec: '3.10'
       addToPath: true
       disableDownloadFromRegistry: false
       architecture: 'x64'
