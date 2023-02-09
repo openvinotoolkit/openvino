@@ -975,20 +975,7 @@ void ov::CoreImpl::CoreConfig::set_core_config(ov::AnyMap& config, const std::st
 ov::Any ov::CoreImpl::CoreConfig::get_core_config(const std::string& config_name,
                                                   const std::string& device_name) const {
     std::lock_guard<std::mutex> lock(_CoreConfigCacheMutex);
-    if (!is_core_config(config_name)) {
-        IE_THROW() << "Exception: unsupported core property name: '" << config_name << "'";
-    }
-    if (device_name.empty()) {
-        auto item = _core_global_properties._properties.find(config_name);
-        if (item != _core_global_properties._properties.end()) {
-            return item->second;
-        }
-
-        item = _core_plugin_properties._properties.find(config_name);
-        if (item != _core_plugin_properties._properties.end()) {
-            return item->second;
-        }
-    } else {
+    if (!device_name.empty()) {
         if (_core_properties_cache_per_device.count(device_name) > 0) {
             auto& cache_config = _core_properties_cache_per_device.at(device_name);
             auto item = cache_config._properties.find(config_name);
@@ -997,7 +984,22 @@ ov::Any ov::CoreImpl::CoreConfig::get_core_config(const std::string& config_name
             }
         }
     }
-    return _core_plugin_properties._properties[config_name];
+
+    auto item = _core_plugin_properties._properties.find(config_name);
+    if (item != _core_plugin_properties._properties.end()) {
+        return item->second;
+    }
+
+    item = _core_global_properties._properties.find(config_name);
+    if (item != _core_global_properties._properties.end()) {
+        if (config_name == ov::force_tbb_terminate.name()) {
+            const auto flag = InferenceEngine::executorManager()->getTbbFlag();
+            return flag ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
+        }
+        return item->second;
+    }
+
+    IE_THROW() << "Exception: unsupported core property name: '" << config_name << "'";
 }
 
 void ov::CoreImpl::CoreConfig::print_core_properties() const {
@@ -1121,8 +1123,6 @@ void ov::CoreImpl::CoreConfig::fill_config(CoreConfigCache& config, const std::s
     if (key == ov::cache_dir) {
         if (!value.empty()) {
             FileUtils::createDirectoryRecursive(value);
-            // Debug code, will remove later.
-            std::cout << "create cache dir: " << value.c_str() << std::endl;
             config._cacheManager = std::make_shared<InferenceEngine::FileStorageCacheManager>(value);
         } else {
             config._cacheManager = nullptr;
