@@ -61,19 +61,12 @@ std::shared_ptr<Node> get_rank_node(const Output<Node>& node) {
     return std::make_shared<opset10::ShapeOf>(shape);
 }
 
-Output<Node> reshape_kernel_for_group(const NodeContext& context,
-                                      const Output<Node>& input,
-                                      const Output<Node>& kernel,
-                                      int64_t groups) {
+Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<Node>& kernel, int64_t groups) {
     using std::make_shared;
 
-    auto in_shape = std::make_shared<opset10::ShapeOf>(input);
-    auto c_in_idx = opset10::Constant::create(element::i64, Shape{}, {1});
     auto axis_0 = opset10::Constant::create(element::i64, Shape{}, {0});
-    auto in_shape_1 = make_shared<opset10::Gather>(in_shape, c_in_idx, axis_0);
-    auto in_shape_1_uns = make_shared<opset10::Unsqueeze>(in_shape_1, axis_0);
     auto groups_const = opset10::Constant::create(element::i64, Shape{1}, {groups});
-    auto c_in_value = make_shared<opset10::Divide>(in_shape_1_uns, groups_const);
+    auto neg_1_const = opset10::Constant::create(element::i64, Shape{1}, {-1});
 
     auto kernel_shape = std::make_shared<opset10::ShapeOf>(kernel);
     auto c_out_idx = opset10::Constant::create(element::i64, Shape{}, {0});
@@ -87,14 +80,9 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context,
     auto remaining_shape = make_shared<opset10::Slice>(kernel_shape, start, stop, step);
 
     auto new_kernel_shape =
-        make_shared<opset10::Concat>(OutputVector{groups_const, c_out_value, c_in_value, remaining_shape}, 0);
-    context.mark_nodes({in_shape,
-                        c_in_idx,
-                        axis_0,
-                        in_shape_1,
-                        in_shape_1_uns,
+        make_shared<opset10::Concat>(OutputVector{groups_const, c_out_value, neg_1_const, remaining_shape}, 0);
+    context.mark_nodes({axis_0,
                         groups_const,
-                        c_in_value,
                         kernel_shape,
                         c_out_idx,
                         kernel_shape_0,

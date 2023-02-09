@@ -31,10 +31,7 @@ Output<ov::Node> reshape_channelwise(const NodeContext& context,
 
 std::shared_ptr<ov::Node> get_rank_node(const Output<Node>& node);
 
-Output<Node> reshape_kernel_for_group(const NodeContext& context,
-                                      const Output<Node>& input,
-                                      const Output<Node>& kernel,
-                                      int64_t groups);
+Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<Node>& kernel, int64_t groups);
 
 std::shared_ptr<Node> get_axes_range(const NodeContext& context, size_t input_id);
 
