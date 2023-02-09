@@ -120,6 +120,17 @@ static const char custom_extensions_library_message[] =
 static const char custom_cldnn_message[] =
     "Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.";
 
+static constexpr char inference_only_message[] =
+    "Optional. Measure only inference stage. Default option for static models. Dynamic models"
+    " are measured in full mode which includes inputs setup stage,"
+    " inference only mode available for them with single input data shape only."
+    " To enable full mode for static models pass \"false\" value to this argument:"
+    " ex. \"-inference_only=false\".";
+
+// @brief message for exec_graph_path option
+static const char exec_graph_path_message[] =
+    "Optional. Path to a file where to store executable graph information serialized.";
+
 static constexpr char inputs_precision_message[] = "Optional. Specifies precision for all input layers of the model.";
 
 static constexpr char outputs_precision_message[] = "Optional. Specifies precision for all output layers of the model.";
@@ -148,17 +159,6 @@ static constexpr char scale_values_message[] =
     "The exact meaning and order of channels depend on how the original model was trained. If both --mean_values and "
     "--scale_values are specified, the mean is subtracted first and then scale is applied regardless of the order of "
     "options in command line. Applying the values affects performance and may cause type conversion";
-
-static constexpr char inference_only_message[] =
-    "Optional. Measure only inference stage. Default option for static models. Dynamic models"
-    " are measured in full mode which includes inputs setup stage,"
-    " inference only mode available for them with single input data shape only."
-    " To enable full mode for static models pass \"false\" value to this argument:"
-    " ex. \"-inference_only=false\".";
-
-// @brief message for exec_graph_path option
-static const char exec_graph_path_message[] =
-    "Optional. Path to a file where to store executable graph information serialized.";
 
 /// @brief message for #threads for CPU inference
 static const char infer_num_threads_message[] = "Optional. Number of threads to use for inference on the CPU "
@@ -321,6 +321,12 @@ DEFINE_uint64(nireq, 0, infer_requests_count_message);
 /// @brief The percentile which will be reported in latency metric
 DEFINE_uint64(latency_percentile, 50, infer_latency_percentile_message);
 
+/// @brief Define flag for inference only mode <br>
+DEFINE_bool(inference_only, true, inference_only_message);
+
+/// @brief Path to a file where to store executable graph information serialized
+DEFINE_string(exec_graph_path, "", exec_graph_path_message);
+
 /// @brief Specify precision for all input layers of the network
 DEFINE_string(ip, "", inputs_precision_message);
 
@@ -338,12 +344,6 @@ DEFINE_string(mean_values, "", mean_values_message);
 
 /// @brief Define flag for using input image scale <br>
 DEFINE_string(scale_values, "", scale_values_message);
-
-/// @brief Define flag for inference only mode <br>
-DEFINE_bool(inference_only, true, inference_only_message);
-
-/// @brief Path to a file where to store executable graph information serialized
-DEFINE_string(exec_graph_path, "", exec_graph_path_message);
 
 /// @brief Number of threads to use for inference on the CPU in throughput mode (also affects Hetero
 /// cases)
@@ -417,13 +417,15 @@ static void show_usage() {
     std::cout << "    -latency_percentile           " << infer_latency_percentile_message << std::endl;
     std::cout << "    -api <sync/async>             " << api_message << std::endl;
     std::cout << "    -nireq  <integer>             " << infer_requests_count_message << std::endl;
+    std::cout << "    -inference_only         " << inference_only_message << std::endl;
+    std::cout << "    -exec_graph_path        " << exec_graph_path_message << std::endl;
+    std::cout << std::endl;
+    std::cout << "Preprocessing options:" << std::endl;
     std::cout << "    -ip   <value>           " << inputs_precision_message << std::endl;
     std::cout << "    -op   <value>           " << outputs_precision_message << std::endl;
     std::cout << "    -iop  <value>           " << iop_message << std::endl;
     std::cout << "    -mean_values   [R,G,B]  " << mean_values_message << std::endl;
     std::cout << "    -scale_values  [R,G,B]  " << scale_values_message << std::endl;
-    std::cout << "    -inference_only         " << inference_only_message << std::endl;
-    std::cout << "    -exec_graph_path        " << exec_graph_path_message << std::endl;
     std::cout << std::endl;
     std::cout << "Device-specific performance options:" << std::endl;
     std::cout << "    -nstreams  <integer>          " << infer_num_streams_message << std::endl;

@@ -99,27 +99,29 @@ def parse_args():
                       help='Optional. Number of infer requests. Default value is determined automatically for device.')
     advs.add_argument('-latency_percentile', '--latency_percentile', type=int, required=False, default=50,
                       help='Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).')
-    advs.add_argument('-ip', '--input_precision', type=str, required=False, choices=['u8', 'U8', 'f16','FP16', 'f32','FP32'],
-                      help='Optional. Specifies precision for all input layers of the model.')
-    advs.add_argument('-op', '--output_precision', type=str, required=False, choices=['u8', 'U8', 'f16','FP16', 'f32','FP32'],
-                      help='Optional. Specifies precision for all output layers of the model.')
-    advs.add_argument('-iop', '--input_output_precision', type=str, required=False,
-                      help='Optional. Specifies precision for input and output layers by name. Example: -iop "input:f16, output:f16". Notice that quotes are required. Overwrites precision from ip and op options for specified layers.')
-    advs.add_argument('--mean_values', type=str, required=False, default='', metavar='[R,G,B]',
-                      help='Optional. Mean values to be used for the input image per channel. Values to be provided in the [R,G,B] format. Can be defined for '
-                           'desired input of the model, for example: "--mean_values data[255,255,255],info[255,255,255]". The exact meaning and order of '
-                           'channels depend on how the original model was trained. Applying the values affects performance and may cause type conversion')
-    advs.add_argument('--scale_values', type=str, required=False, default='', metavar='[R,G,B]',
-                      help='Optional. Scale values to be used for the input image per channel. Values are provided in the [R,G,B] format. Can be defined for '
-                           'desired input of the model, for example: "--scale_values data[255,255,255],info[255,255,255]". The exact meaning and order of '
-                           'channels depend on how the original model was trained. If both --mean_values and --scale_values are specified, the mean is '
-                           'subtracted first and then scale is applied regardless of the order of options in command line. Applying the values affects '
-                           'performance and may cause type conversion')
     advs.add_argument('-inference_only', '--inference_only', type=str2bool, required=False, default=None, nargs='?', const=True,
                       help='Optional. If true inputs filling only once before measurements (default for static models), '
                                      'else inputs filling is included into loop measurement (default for dynamic models)', )
     advs.add_argument('-exec_graph_path', '--exec_graph_path', type=str, required=False,
                       help='Optional. Path to a file where to store executable graph information serialized.')
+
+    prpr = parser.add_argument_group('Preprocessing options')
+    prpr.add_argument('-ip', '--input_precision', type=str, required=False, choices=['u8', 'U8', 'f16','FP16', 'f32','FP32'],
+                      help='Optional. Specifies precision for all input layers of the model.')
+    prpr.add_argument('-op', '--output_precision', type=str, required=False, choices=['u8', 'U8', 'f16','FP16', 'f32','FP32'],
+                      help='Optional. Specifies precision for all output layers of the model.')
+    prpr.add_argument('-iop', '--input_output_precision', type=str, required=False,
+                      help='Optional. Specifies precision for input and output layers by name. Example: -iop "input:f16, output:f16". Notice that quotes are required. Overwrites precision from ip and op options for specified layers.')
+    prpr.add_argument('--mean_values', type=str, required=False, default='', metavar='[R,G,B]',
+                      help='Optional. Mean values to be used for the input image per channel. Values to be provided in the [R,G,B] format. Can be defined for '
+                           'desired input of the model, for example: "--mean_values data[255,255,255],info[255,255,255]". The exact meaning and order of '
+                           'channels depend on how the original model was trained. Applying the values affects performance and may cause type conversion')
+    prpr.add_argument('--scale_values', type=str, required=False, default='', metavar='[R,G,B]',
+                      help='Optional. Scale values to be used for the input image per channel. Values are provided in the [R,G,B] format. Can be defined for '
+                           'desired input of the model, for example: "--scale_values data[255,255,255],info[255,255,255]". The exact meaning and order of '
+                           'channels depend on how the original model was trained. If both --mean_values and --scale_values are specified, the mean is '
+                           'subtracted first and then scale is applied regardless of the order of options in command line. Applying the values affects '
+                           'performance and may cause type conversion')
 
     devp = parser.add_argument_group('Device-specific performance options')
     devp.add_argument('-nstreams', '--number_streams', type=str, required=False, default=None,

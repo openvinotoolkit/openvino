@@ -109,12 +109,11 @@ Running the application with the `-h` or `--help` option yields the following us
 usage: benchmark_app.py [-h [HELP]] [-i PATHS_TO_INPUT [PATHS_TO_INPUT ...]] -m PATH_TO_MODEL [-d TARGET_DEVICE]
                         [-hint {throughput,cumulative_throughput,latency,none}] [-niter NUMBER_ITERATIONS] [-t TIME] [-b BATCH_SIZE] [-shape SHAPE]
                         [-data_shape DATA_SHAPE] [-layout LAYOUT] [-extensions EXTENSIONS] [-c PATH_TO_CLDNN_CONFIG] [-cdir CACHE_DIR] [-lfile [LOAD_FROM_FILE]]
-                        [-api {sync,async}] [-nireq NUMBER_INFER_REQUESTS] [-latency_percentile LATENCY_PERCENTILE] [-ip {u8,U8,f16,FP16,f32,FP32}]
-                        [-op {u8,U8,f16,FP16,f32,FP32}] [-iop INPUT_OUTPUT_PRECISION] [--mean_values [R,G,B]] [--scale_values [R,G,B]]
-                        [-inference_only [INFERENCE_ONLY]] [-exec_graph_path EXEC_GRAPH_PATH] [-nstreams NUMBER_STREAMS] [-nthreads NUMBER_THREADS]
-                        [-pin {YES,NO,NUMA,HYBRID_AWARE}] [-infer_precision INFER_PRECISION] [-report_type {no_counters,average_counters,detailed_counters}]
-                        [-report_folder REPORT_FOLDER] [-pc [PERF_COUNTS]] [-pcsort {no_sort,sort,simple_sort}] [-pcseq [PCSEQ]] [-dump_config DUMP_CONFIG]
-                        [-load_config LOAD_CONFIG]
+                        [-api {sync,async}] [-nireq NUMBER_INFER_REQUESTS] [-latency_percentile LATENCY_PERCENTILE] [-inference_only [INFERENCE_ONLY]]
+                        [-exec_graph_path EXEC_GRAPH_PATH] [-ip {u8,U8,f16,FP16,f32,FP32}] [-op {u8,U8,f16,FP16,f32,FP32}] [-iop INPUT_OUTPUT_PRECISION]
+                        [--mean_values [R,G,B]] [--scale_values [R,G,B]] [-nstreams NUMBER_STREAMS] [-nthreads NUMBER_THREADS] [-pin {YES,NO,NUMA,HYBRID_AWARE}]
+                        [-infer_precision INFER_PRECISION] [-report_type {no_counters,average_counters,detailed_counters}] [-report_folder REPORT_FOLDER]
+                        [-pc [PERF_COUNTS]] [-pcsort {no_sort,sort,simple_sort}] [-pcseq [PCSEQ]] [-dump_config DUMP_CONFIG] [-load_config LOAD_CONFIG]
 
 Options:
   -h [HELP], --help [HELP]
@@ -182,6 +181,15 @@ Advanced options:
   -latency_percentile LATENCY_PERCENTILE, --latency_percentile LATENCY_PERCENTILE
                         Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).
 
+  -inference_only [INFERENCE_ONLY], --inference_only [INFERENCE_ONLY]
+                        Optional. If true inputs filling only once before measurements (default for static models), else inputs filling is included into loop
+                        measurement (default for dynamic models)
+
+  -exec_graph_path EXEC_GRAPH_PATH, --exec_graph_path EXEC_GRAPH_PATH
+                        Optional. Path to a file where to store executable graph information serialized.
+
+
+Preprocessing options:
   -ip {u8,U8,f16,FP16,f32,FP32}, --input_precision {u8,U8,f16,FP16,f32,FP32}
                         Optional. Specifies precision for all input layers of the model.
 
@@ -202,13 +210,6 @@ Advanced options:
                         of the model, for example: "--scale_values data[255,255,255],info[255,255,255]". The exact meaning and order of channels depend on how the
                         original model was trained. If both --mean_values and --scale_values are specified, the mean is subtracted first and then scale is applied
                         regardless of the order of options in command line. Applying the values affects performance and may cause type conversion
-
-  -inference_only [INFERENCE_ONLY], --inference_only [INFERENCE_ONLY]
-                        Optional. If true inputs filling only once before measurements (default for static models), else inputs filling is included into loop
-                        measurement (default for dynamic models)
-
-  -exec_graph_path EXEC_GRAPH_PATH, --exec_graph_path EXEC_GRAPH_PATH
-                        Optional. Path to a file where to store executable graph information serialized.
 
 
 Device-specific performance options:
