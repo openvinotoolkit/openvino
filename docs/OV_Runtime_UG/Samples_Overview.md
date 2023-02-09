@@ -162,8 +162,9 @@ build_samples_msvc.bat
 By default, the script automatically detects the highest Microsoft Visual Studio version installed on the machine and uses it to create and build a solution for a sample code
 
 Once the build is completed, you can find sample binaries in the following folders:
-* C samples: `C:\Users\<user>\Documents\Intel\OpenVINO\openvino_c_samples_build\intel64\Release`
-* C++ samples: `C:\Users\<user>\Documents\Intel\OpenVINO\openvino_cpp_samples_build\intel64\Release`
+* C samples: `C:\Users\<user>\Documents\Intel\OpenVINO\openvino_c_samples_build\<architecture>\Release`
+* C++ samples: `C:\Users\<user>\Documents\Intel\OpenVINO\openvino_cpp_samples_build\<architecture>\Release`
+where the <architecture> is the output of `echo %PROCESSOR_ARCHITECTURE%`, for example, `intel64` (AMD64), or `arm64`.
 
 You can also build a generated solution manually. For example, if you want to build C++ sample binaries in Debug configuration, run the appropriate version of the
 Microsoft Visual Studio and open the generated solution file from the `C:\Users\<user>\Documents\Intel\OpenVINO\openvino_cpp_samples_build\Samples.sln`

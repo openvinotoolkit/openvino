@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -373,6 +373,11 @@ static constexpr Property<bool> enable_profiling{"PERF_COUNT"};
  */
 namespace log {
 
+#ifdef DEBUG
+#    define _OV_WAS_DEBUG DEBUG
+#    undef DEBUG
+#endif
+
 /**
  * @brief Enum to define possible log levels
  * @ingroup ov_runtime_cpp_prop_api
@@ -433,6 +438,11 @@ inline std::istream& operator>>(std::istream& is, Level& level) {
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<Level> level{"LOG_LEVEL"};
+
+#ifdef _OV_WAS_DEBUG
+#    define DEBUG _OV_WAS_DEBUG
+#    undef _OV_WAS_DEBUG
+#endif
 }  // namespace log
 
 /**

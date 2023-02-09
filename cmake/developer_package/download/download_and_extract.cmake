@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -31,7 +31,15 @@ function (GetNameAndUrlToDownload name url archive_name_unified archive_name_win
     endif()
 
     set (${name} ${archive_name} PARENT_SCOPE)
-    set (${url}  "thirdparty/${PLATFORM_FOLDER}/${archive_name}" PARENT_SCOPE)
+
+    set(HDDL_DEPENDENCIES "")
+    string(REGEX MATCH "hddl_.*_19.*" HDDL_DEPENDENCIES ${archive_name})
+
+    if(NOT ${HDDL_DEPENDENCIES} EQUAL "")
+      set (${url}  "${archive_name}" PARENT_SCOPE)
+    else()
+      set (${url}  "thirdparty/${PLATFORM_FOLDER}/${archive_name}" PARENT_SCOPE)
+    endif()
   endif()
 endfunction(GetNameAndUrlToDownload)
 
