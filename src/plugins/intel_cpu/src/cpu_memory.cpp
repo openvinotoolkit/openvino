@@ -155,9 +155,6 @@ void Memory::Create(const MemoryDesc &desc, DnnlMemoryMngrPtr memMgr) {
 }
 
 void Memory::Create(MemoryDescPtr desc, DnnlMemoryMngrPtr memMgr) {
-    mgrHandle = DnnlMemMngrHandle(memMgr, this);
-    bool memAllocated = mgrHandle->getRawPtr();
-
     Create(desc, nullptr);
 }
 
