@@ -49,7 +49,7 @@ $ ./benchmark_app –d CPU –m <model> -i <input>
 - 适用时，请利用[动态形状支持](../../OV_Runtime_UG/ov_dynamic_shapes_zh_CN.md)。
 - 如果可能，应要求达到相同的精度。例如，TensorFlow 支持执行 `FP16`。因此在进行比较时，确保也使用 `FP16` 来测试 OpenVINO™ 运行时。
 
-## 来自内部推理性能计数器和执行图的数据<a name="performance-counters"></a>
+## 来自内部推理性能计数器和执行图的数据<a name="performance-counters-zh-CN"></a>
 可以通过设备特定的性能计数器和/或执行图获得有关推理性能分解的更详细的洞察。
 [C++](../../../../samples/cpp/benchmark_app/README.md) 和 [Python](../../../../tools/benchmark_tool/README.md) 版本的 `benchmark_app` 都支持输出内部执行分解的 `-pc` 命令行参数。
 
