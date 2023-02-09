@@ -42,10 +42,5 @@ OpenVINO™ 文档
 .. toctree::
    :maxdepth: 2
    :hidden:
-   
-   ../get_started
+
    ../documentation_zh_CN
-   ../tutorials
-   ../api/api_reference
-   ../model_zoo
-   ../resources 

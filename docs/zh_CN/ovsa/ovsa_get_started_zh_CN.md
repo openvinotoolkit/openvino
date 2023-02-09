@@ -100,7 +100,7 @@ OpenVINO™ 安全附加组件包括三个组件，这些组件在基于内核�
 <br>
 **OpenVINO™ 安全附加组件适合模型开发和部署的情况**
 
-![安全附加组件图表](../../ovsa/ovsa_diagram.png)
+![安全附加组件图表](../../ovsa/ovsa_diagram.svg)
 
 [本文档](https://github.com/openvinotoolkit/security_addon/blob/master/docs/fingerprint-changes.md)介绍了 SWTPM（访客 VM 中使用的 vTPM）和 HW TPM（主机上的 TPM）之间的关系
 
@@ -120,7 +120,7 @@ OpenVINO™ 安全附加组件包括三个组件，这些组件在基于内核�
 | 访客 VM | 模型开发人员使用访客 VM 来启用对已完成模型的访问控制。<br>独立软件开发商使用访客 VM 托管许可服务。<br>用户使用访客 VM 与许可服务联系并运行访问控制模型。 |
 
 
-## 必备条件<a name="prerequisites"></a>
+## 必备条件<a name="prerequisites-zh-CN"></a>
 
 **硬件**
 * 英特尔® 酷睿™ 或至强® 处理器<br>
@@ -134,13 +134,13 @@ OpenVINO™ 安全附加组件包括三个组件，这些组件在基于内核�
 * 独立软件开发商必须有权访问执行在线证书状态协议 (OCSP) 的证书颁发机构 (CA)，从而支持椭圆曲线加密 (ECC) 证书以进行部署。
 * 本文档中的示例使用自签名证书。
 
-## 如何准备主机<a name="setup-host"></a>
+## 如何准备主机<a name="setup-host-zh-CN"></a>
 
 本部分适用于模型开发人员和独立软件开发商的组合角色和单独的用户角色。
 
-### 步骤 1：在主机上设置程序包<a name="setup-packages"></a>
+### 步骤 1：在主机上设置程序包<a name="setup-packages-zh-CN"></a>
 
-在满足 <a href="#prerequisites">必备条件</a>的英特尔® 酷睿™ 或至强® 处理器设备上开始执行此步骤。
+在满足 <a href="#prerequisites-zh-CN">必备条件</a>的英特尔® 酷睿™ 或至强® 处理器设备上开始执行此步骤。
 
 > **NOTE**: 作为手动执行步骤 1-11 的替代方法，您可以在 OpenVINO™ 安全附加组件存储库下的 `Scripts/reference directory` 中运行脚本 `install_host_deps.sh`。如果脚本发现任何问题，它会停止并显示错误消息。如果脚本由于错误而停止，请更正导致错误的问题并重新启动脚本。脚本运行几分钟，并提供进度信息。
 
@@ -152,7 +152,7 @@ OpenVINO™ 安全附加组件包括三个组件，这些组件在基于内核�
    * `/dev/tpm0`
    * `/dev/tpmrm0`
    
-   如果您没有看到此信息，则说明您的系统不满足 使用 OpenVINO™ 安全附加组件的<a href="#prerequisites">必备条件</a>。
+   如果您没有看到此信息，则说明您的系统不满足 使用 OpenVINO™ 安全附加组件的<a href="#prerequisites-zh-CN">必备条件</a>。
 2. 确保在 BIOS 中启用了硬件虚拟化支持：
    ```sh
    kvm-ok 
@@ -195,7 +195,7 @@ OpenVINO™ 安全附加组件包括三个组件，这些组件在基于内核�
 	
 您已经准备好为网络配置主机。
 
-### 步骤 2：在主机上设置网络<a name="setup-networking"></a>
+### 步骤 2：在主机上设置网络<a name="setup-networking-zh-CN"></a>
 
 此步骤适用于模型开发人员和独立软件开发商的组合角色。如果模型用户 VM 在不同的物理主机上运行，则还要在该主机上重复以下步骤。
 
@@ -303,7 +303,7 @@ sudo netplan apply
 下载 [OpenVINO™ 安全附加组件](https://github.com/openvinotoolkit/security_addon)。
 
 
-### 步骤 4：为模型开发人员和独立软件开发商的组合角色设置一个访客 VM<a name="dev-isv-vm"></a>
+### 步骤 4：为模型开发人员和独立软件开发商的组合角色设置一个访客 VM<a name="dev-isv-vm-zh-CN"></a>
 
 您必须为您扮演的每个单独角色准备一个名为访客 VM 的虚拟机。因为在本版本中，模型开发人员和独立软件开发商角色组合在一起，这些指令可以引导您设置名为 `ovsa_isv` 的访客 VM。
 
@@ -406,7 +406,7 @@ sudo netplan apply
 
 1. 选择其中**一个**选项以创建适用于用户角色的访客 VM：<br>
    **选项 1：复制和重命名 ovsa_isv_dev_vm_disk.qcow2 磁盘映像**
-   1. 将 `ovsa_isv_dev_vm_disk.qcow2` 磁盘映像复制到名为 `ovsa_runtime_vm_disk.qcow2` 的新映像。您已经创建了 `ovsa_isv_dev_vm_disk.qcow2` 磁盘映像 <a  href="#dev-isv-vm">步骤 4</a>。
+   1. 将 `ovsa_isv_dev_vm_disk.qcow2` 磁盘映像复制到名为 `ovsa_runtime_vm_disk.qcow2` 的新映像。您已经创建了 `ovsa_isv_dev_vm_disk.qcow2` 磁盘映像 <a  href="#dev-isv-vm-zh-CN">步骤 4</a>。
    2. 启动新映像。
    3. 将主机名从 `ovsa_isv_dev` 更改为 `ovsa_runtime`。
    ```sh 
@@ -511,7 +511,7 @@ sudo netplan apply
    使用命令中的 QEMU 运行时选项更改分配给此访客 VM 的内存量或 CPU。
 5. 使用 VNC 客户端登录到地址为 `<host-ip-address>:<x>` 的访客 VM。其中 `<x>` 对应于 `start_ovsa_isv_vm.sh` 中或步骤 8 中的 vnc 编号。
 
-## 如何构建和安装 OpenVINO™ 安全附加组件软件<a name="install-ovsa"></a>
+## 如何构建和安装 OpenVINO™ 安全附加组件软件<a name="install-ovsa-zh-CN"></a>
 
 按照以下步骤在主机和不同的 VM 上构建和安装 OpenVINO™ 安全附加组件。
 
@@ -635,7 +635,7 @@ sudo netplan apply
 
 ## 如何使用 OpenVINO™ 安全附加组件
 
-本节需要模型开发人员/独立软件开发商和用户之间进行交互。所有角色必须完成所有适用的 <a href="#setup-host">设置步骤</a>和 <a href="#ovsa-install">安装步骤</a>之后才能开始学习本节。
+本节需要模型开发人员/独立软件开发商和用户之间进行交互。所有角色必须完成所有适用的 <a href="#setup-host-zh-CN">设置步骤</a>和 <a href="#ovsa-install-zh-CN">安装步骤</a>之后才能开始学习本节。
 
 本文档以 [face-detection-retail-0004](@ref omz_models_model_face_detection_retail_0044) 模型为例。
 
@@ -643,7 +643,7 @@ sudo netplan apply
 
 > **TIP**: 模型开发人员/独立软件开发商和用户角色与虚拟机的使用相关，一个人可以填补多个角色所需完成的任务。在本文档中，模型开发人员和独立软件开发商的任务进行组合，并使用名为 `ovsa_isv` 的访客 VM。在同一台主机上可以设置所有角色。
 
-![OpenVINO™ 安全附加组件示例图表](../../ovsa/ovsa_example.png)
+![OpenVINO™ 安全附加组件示例图表](../../ovsa/ovsa_example.svg)
 
 ### 模型开发人员指令
 
