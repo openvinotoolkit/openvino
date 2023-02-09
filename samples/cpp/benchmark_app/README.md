@@ -138,11 +138,11 @@ Advanced options
     -c  <absolute_path>           Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.
     -cache_dir  <path>            Optional. Enables caching of loaded models to specified directory. List of devices which support caching is shown at the end of this message.
     -load_from_file               Optional. Loads model from file directly without read_model. All CNNNetwork options (like re-shape) will be ignored
-    -latency_percentile           Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).
     -api <sync/async>             Optional (deprecated). Enable Sync/Async API. Default value is "async".
     -nireq  <integer>             Optional. Number of infer requests. Default value is determined automatically for device.
+    -nstreams  <integer>          Optional. Number of streams to use for inference on the CPU or GPU devices (for HETERO and MULTI device cases use format <dev1>:<nstreams1>,<dev2>:<nstreams2> or just <nstreams>). Default value is determined automatically for a device.Please note that although the automatic selection usually provides a reasonable performance, it still may be non - optimal for some cases, especially for very small models. See sample's README for more details. Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency estimations the number of streams should be set to 1.
     -inference_only         Optional. Measure only inference stage. Default option for static models. Dynamic models are measured in full mode which includes inputs setup stage, inference only mode available for them with single input data shape only. To enable full mode for static models pass "false" value to this argument: ex. "-inference_only=false".
-    -exec_graph_path        Optional. Path to a file where to store executable graph information serialized.
+    -infer_precision        Optional. Specifies the inference precision. Example #1: '-infer_precision bf16'. Example #2: '-infer_precision CPU:bf16,GPU:f32'
 
 Preprocessing options:
     -ip   <value>           Optional. Specifies precision for all input layers of the model.
@@ -155,22 +155,22 @@ Preprocessing options:
     -scale_values  [R,G,B]  Optional. Scale values to be used for the input image per channel. Values are provided in the [R,G,B] format. Can be defined for desired input of the model, for example: "--scale_values data[255,255,255],info[255,255,255]". The exact meaning and order of channels depend on how the original model was trained. If both --mean_values and --scale_values are specified, the mean is subtracted first and then scale is applied regardless of the order of options in command line. Applying the values affects performance and may cause type conversion
 
 Device-specific performance options:
-    -nstreams  <integer>          Optional. Number of streams to use for inference on the CPU or GPU devices (for HETERO and MULTI device cases use format <dev1>:<nstreams1>,<dev2>:<nstreams2> or just <nstreams>). Default value is determined automatically for a device.Please note that although the automatic selection usually provides a reasonable performance, it still may be non - optimal for some cases, especially for very small models. See sample's README for more details. Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency estimations the number of streams should be set to 1.
     -nthreads  <integer>          Optional. Number of threads to use for inference on the CPU (including HETERO and MULTI cases).
     -pin  <string>  ("YES"|"CORE") / "HYBRID_AWARE" / ("NO"|"NONE") / "NUMA"  Optional. Explicit inference threads binding options (leave empty to let the OpenVINO make a choice):
                                 enabling threads->cores pinning("YES", which is already default for any conventional CPU),
                                 letting the runtime to decide on the threads->different core types("HYBRID_AWARE", which is default on the hybrid CPUs)
                                 threads->(NUMA)nodes("NUMA") or
                                 completely disable("NO") CPU inference threads pinning
-    -infer_precision        Optional. Specifies the inference precision. Example #1: '-infer_precision bf16'. Example #2: '-infer_precision CPU:bf16,GPU:f32'
 
 Statistics dumping options:
+    -latency_percentile     Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).
     -report_type  <type>    Optional. Enable collecting statistics report. "no_counters" report contains configuration options specified, resulting FPS and latency. "average_counters" report extends "no_counters" report and additionally includes average PM counters values for each layer from the model. "detailed_counters" report extends "average_counters" report and additionally includes per-layer PM counters and latency for each executed infer request.
     -report_folder          Optional. Path to a folder where statistics report is stored.
     -json_stats             Optional. Enables JSON-based statistics output (by default reporting system will use CSV format). Should be used together with -report_folder option.
     -pc                     Optional. Report performance counters.
     -pcsort                 Optional. Report performance counters and analysis the sort hotpoint opts.  "sort" Analysis opts time cost, print by hotpoint order  "no_sort" Analysis opts time cost, print by normal order  "simple_sort" Analysis opts time cost, only print EXECUTED opts by normal order
     -pcseq                  Optional. Report latencies for each shape in -data_shape sequence.
+    -exec_graph_path        Optional. Path to a file where to store executable graph information serialized.
     -dump_config            Optional. Path to JSON file to dump IE parameters, which were set by application.
     -load_config            Optional. Path to JSON file to load custom IE parameters. Please note, command line parameters have higher priority then parameters from configuration file.
                               Example 1: a simple JSON file for HW device with primary properties.

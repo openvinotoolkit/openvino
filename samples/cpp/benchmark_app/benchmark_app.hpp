@@ -95,14 +95,22 @@ static const char layout_message[] =
 /// @brief message for execution mode
 static const char api_message[] = "Optional (deprecated). Enable Sync/Async API. Default value is \"async\".";
 
+/// @brief message for #streams for CPU inference
+static const char infer_num_streams_message[] =
+    "Optional. Number of streams to use for inference on the CPU or GPU devices "
+    "(for HETERO and MULTI device cases use format <dev1>:<nstreams1>,<dev2>:<nstreams2> or just "
+    "<nstreams>). "
+    "Default value is determined automatically for a device.Please note that although the "
+    "automatic selection "
+    "usually provides a reasonable performance, it still may be non - optimal for some cases, "
+    "especially for "
+    "very small models. See sample's README for more details. "
+    "Also, using nstreams>1 is inherently throughput-oriented option, "
+    "while for the best-latency estimations the number of streams should be set to 1.";
+
 /// @brief message for requests count
 static const char infer_requests_count_message[] =
     "Optional. Number of infer requests. Default value is determined automatically for device.";
-
-/// @brief message for latency percentile settings
-static const char infer_latency_percentile_message[] =
-    "Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value "
-    "is 50 (median).";
 
 /// @brief message for enforcing of BF16 execution where it is possible
 static const char enforce_bf16_message[] =
@@ -127,9 +135,10 @@ static constexpr char inference_only_message[] =
     " To enable full mode for static models pass \"false\" value to this argument:"
     " ex. \"-inference_only=false\".";
 
-// @brief message for exec_graph_path option
-static const char exec_graph_path_message[] =
-    "Optional. Path to a file where to store executable graph information serialized.";
+// @brief message for inference_precision
+static const char inference_precision_message[] =
+    "Optional. Specifies the inference precision. Example #1: '-infer_precision bf16'. Example #2: '-infer_precision "
+    "CPU:bf16,GPU:f32'";
 
 static constexpr char inputs_precision_message[] = "Optional. Specifies precision for all input layers of the model.";
 
@@ -164,19 +173,6 @@ static constexpr char scale_values_message[] =
 static const char infer_num_threads_message[] = "Optional. Number of threads to use for inference on the CPU "
                                                 "(including HETERO and MULTI cases).";
 
-/// @brief message for #streams for CPU inference
-static const char infer_num_streams_message[] =
-    "Optional. Number of streams to use for inference on the CPU or GPU devices "
-    "(for HETERO and MULTI device cases use format <dev1>:<nstreams1>,<dev2>:<nstreams2> or just "
-    "<nstreams>). "
-    "Default value is determined automatically for a device.Please note that although the "
-    "automatic selection "
-    "usually provides a reasonable performance, it still may be non - optimal for some cases, "
-    "especially for "
-    "very small models. See sample's README for more details. "
-    "Also, using nstreams>1 is inherently throughput-oriented option, "
-    "while for the best-latency estimations the number of streams should be set to 1.";
-
 // @brief message for CPU threads pinning option
 static const char infer_threads_pinning_message[] =
     "Optional. Explicit inference threads binding options (leave empty to let the OpenVINO make a choice):\n"
@@ -186,16 +182,16 @@ static const char infer_threads_pinning_message[] =
     "\t\t\t\tthreads->(NUMA)nodes(\"NUMA\") or \n"
     "\t\t\t\tcompletely disable(\"NO\") CPU inference threads pinning";
 
-// @brief message for inference_precision
-static const char inference_precision_message[] =
-    "Optional. Specifies the inference precision. Example #1: '-infer_precision bf16'. Example #2: '-infer_precision "
-    "CPU:bf16,GPU:f32'";
-
 #ifdef HAVE_DEVICE_MEM_SUPPORT
 // @brief message for switching memory allocation type option
 static const char use_device_mem_message[] =
     "Optional. Switch between host and device memory allocation for input and output buffers.";
 #endif
+
+/// @brief message for latency percentile settings
+static const char infer_latency_percentile_message[] =
+    "Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value "
+    "is 50 (median).";
 
 // @brief message for report_type option
 static const char report_type_message[] =
@@ -226,6 +222,14 @@ static const char pc_sort_message[] =
 // @brief message for performance counters for sequence option
 static const char pcseq_message[] = "Optional. Report latencies for each shape in -data_shape sequence.";
 
+// @brief message for exec_graph_path option
+static const char exec_graph_path_message[] =
+    "Optional. Path to a file where to store executable graph information serialized.";
+
+// @brief message for dump config option
+static const char dump_config_message[] =
+    "Optional. Path to JSON file to dump IE parameters, which were set by application.";
+
 // @brief message for load config option
 static const char load_config_message[] =
     "Optional. Path to JSON file to load custom IE parameters."
@@ -251,11 +255,7 @@ static const char load_config_message[] =
     "                                                       }\n"
     "                                                   }\n"
     "                                               }\n"
-    "                                       }\n";
-
-// @brief message for dump config option
-static const char dump_config_message[] =
-    "Optional. Path to JSON file to dump IE parameters, which were set by application.";
+    "                                       }";
 
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
@@ -318,14 +318,14 @@ DEFINE_string(api, "async", api_message);
 /// @brief Number of infer requests in parallel
 DEFINE_uint64(nireq, 0, infer_requests_count_message);
 
-/// @brief The percentile which will be reported in latency metric
-DEFINE_uint64(latency_percentile, 50, infer_latency_percentile_message);
+/// @brief Number of streams to use for inference on the CPU (also affects Hetero cases)
+DEFINE_string(nstreams, "", infer_num_streams_message);
 
 /// @brief Define flag for inference only mode <br>
 DEFINE_bool(inference_only, true, inference_only_message);
 
-/// @brief Path to a file where to store executable graph information serialized
-DEFINE_string(exec_graph_path, "", exec_graph_path_message);
+/// @brief Define flag for inference precision
+DEFINE_string(infer_precision, "", inference_precision_message);
 
 /// @brief Specify precision for all input layers of the network
 DEFINE_string(ip, "", inputs_precision_message);
@@ -349,19 +349,16 @@ DEFINE_string(scale_values, "", scale_values_message);
 /// cases)
 DEFINE_uint64(nthreads, 0, infer_num_threads_message);
 
-/// @brief Number of streams to use for inference on the CPU (also affects Hetero cases)
-DEFINE_string(nstreams, "", infer_num_streams_message);
-
 // @brief Enable plugin messages
 DEFINE_string(pin, "", infer_threads_pinning_message);
-
-/// @brief Define flag for inference precision
-DEFINE_string(infer_precision, "", inference_precision_message);
 
 #ifdef HAVE_DEVICE_MEM_SUPPORT
 /// @brief Define flag for switching beetwen host and device memory allocation for input and output buffers
 DEFINE_bool(use_device_mem, false, use_device_mem_message);
 #endif
+
+/// @brief The percentile which will be reported in latency metric
+DEFINE_uint64(latency_percentile, 50, infer_latency_percentile_message);
 
 /// @brief Enables statistics report collecting
 DEFINE_string(report_type, "", report_type_message);
@@ -380,6 +377,9 @@ DEFINE_string(pcsort, "", pc_sort_message);
 
 /// @brief Define flag for showing performance sequence counters <br>
 DEFINE_bool(pcseq, false, pcseq_message);
+
+/// @brief Path to a file where to store executable graph information serialized
+DEFINE_string(exec_graph_path, "", exec_graph_path_message);
 
 /// @brief Define flag for loading configuration file <br>
 DEFINE_string(load_config, "", load_config_message);
@@ -414,11 +414,11 @@ static void show_usage() {
     std::cout << "    -c  <absolute_path>           " << custom_cldnn_message << std::endl;
     std::cout << "    -cache_dir  <path>            " << cache_dir_message << std::endl;
     std::cout << "    -load_from_file               " << load_from_file_message << std::endl;
-    std::cout << "    -latency_percentile           " << infer_latency_percentile_message << std::endl;
     std::cout << "    -api <sync/async>             " << api_message << std::endl;
     std::cout << "    -nireq  <integer>             " << infer_requests_count_message << std::endl;
+    std::cout << "    -nstreams  <integer>          " << infer_num_streams_message << std::endl;
     std::cout << "    -inference_only         " << inference_only_message << std::endl;
-    std::cout << "    -exec_graph_path        " << exec_graph_path_message << std::endl;
+    std::cout << "    -infer_precision        " << inference_precision_message << std::endl;
     std::cout << std::endl;
     std::cout << "Preprocessing options:" << std::endl;
     std::cout << "    -ip   <value>           " << inputs_precision_message << std::endl;
@@ -428,22 +428,22 @@ static void show_usage() {
     std::cout << "    -scale_values  [R,G,B]  " << scale_values_message << std::endl;
     std::cout << std::endl;
     std::cout << "Device-specific performance options:" << std::endl;
-    std::cout << "    -nstreams  <integer>          " << infer_num_streams_message << std::endl;
     std::cout << "    -nthreads  <integer>          " << infer_num_threads_message << std::endl;
     std::cout << "    -pin  <string>  (\"YES\"|\"CORE\") / \"HYBRID_AWARE\" / (\"NO\"|\"NONE\") / \"NUMA\"  "
               << infer_threads_pinning_message << std::endl;
-    std::cout << "    -infer_precision        " << inference_precision_message << std::endl;
 #ifdef HAVE_DEVICE_MEM_SUPPORT
     std::cout << "    -use_device_mem           " << use_device_mem_message << std::endl;
 #endif
     std::cout << std::endl;
     std::cout << "Statistics dumping options:" << std::endl;
+    std::cout << "    -latency_percentile     " << infer_latency_percentile_message << std::endl;
     std::cout << "    -report_type  <type>    " << report_type_message << std::endl;
     std::cout << "    -report_folder          " << report_folder_message << std::endl;
     std::cout << "    -json_stats             " << json_stats_message << std::endl;
     std::cout << "    -pc                     " << pc_message << std::endl;
     std::cout << "    -pcsort                 " << pc_sort_message << std::endl;
     std::cout << "    -pcseq                  " << pcseq_message << std::endl;
+    std::cout << "    -exec_graph_path        " << exec_graph_path_message << std::endl;
     std::cout << "    -dump_config            " << dump_config_message << std::endl;
     std::cout << "    -load_config            " << load_config_message << std::endl;
 }

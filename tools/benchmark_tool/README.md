@@ -109,11 +109,12 @@ Running the application with the `-h` or `--help` option yields the following us
 usage: benchmark_app.py [-h [HELP]] [-i PATHS_TO_INPUT [PATHS_TO_INPUT ...]] -m PATH_TO_MODEL [-d TARGET_DEVICE]
                         [-hint {throughput,cumulative_throughput,latency,none}] [-niter NUMBER_ITERATIONS] [-t TIME] [-b BATCH_SIZE] [-shape SHAPE]
                         [-data_shape DATA_SHAPE] [-layout LAYOUT] [-extensions EXTENSIONS] [-c PATH_TO_CLDNN_CONFIG] [-cdir CACHE_DIR] [-lfile [LOAD_FROM_FILE]]
-                        [-api {sync,async}] [-nireq NUMBER_INFER_REQUESTS] [-latency_percentile LATENCY_PERCENTILE] [-inference_only [INFERENCE_ONLY]]
-                        [-exec_graph_path EXEC_GRAPH_PATH] [-ip {u8,U8,f16,FP16,f32,FP32}] [-op {u8,U8,f16,FP16,f32,FP32}] [-iop INPUT_OUTPUT_PRECISION]
-                        [--mean_values [R,G,B]] [--scale_values [R,G,B]] [-nstreams NUMBER_STREAMS] [-nthreads NUMBER_THREADS] [-pin {YES,NO,NUMA,HYBRID_AWARE}]
-                        [-infer_precision INFER_PRECISION] [-report_type {no_counters,average_counters,detailed_counters}] [-report_folder REPORT_FOLDER]
-                        [-pc [PERF_COUNTS]] [-pcsort {no_sort,sort,simple_sort}] [-pcseq [PCSEQ]] [-dump_config DUMP_CONFIG] [-load_config LOAD_CONFIG]
+                        [-api {sync,async}] [-nireq NUMBER_INFER_REQUESTS] [-nstreams NUMBER_STREAMS] [-inference_only [INFERENCE_ONLY]]
+                        [-infer_precision INFER_PRECISION] [-ip {u8,U8,f16,FP16,f32,FP32}] [-op {u8,U8,f16,FP16,f32,FP32}] [-iop INPUT_OUTPUT_PRECISION]
+                        [--mean_values [R,G,B]] [--scale_values [R,G,B]] [-nthreads NUMBER_THREADS] [-pin {YES,NO,NUMA,HYBRID_AWARE}]
+                        [-latency_percentile LATENCY_PERCENTILE] [-report_type {no_counters,average_counters,detailed_counters}] [-report_folder REPORT_FOLDER]
+                        [-pc [PERF_COUNTS]] [-pcsort {no_sort,sort,simple_sort}] [-pcseq [PCSEQ]] [-exec_graph_path EXEC_GRAPH_PATH] [-dump_config DUMP_CONFIG]
+                        [-load_config LOAD_CONFIG]
 
 Options:
   -h [HELP], --help [HELP]
@@ -178,12 +179,19 @@ Advanced options:
   -nireq NUMBER_INFER_REQUESTS, --number_infer_requests NUMBER_INFER_REQUESTS
                         Optional. Number of infer requests. Default value is determined automatically for device.
 
-  -latency_percentile LATENCY_PERCENTILE, --latency_percentile LATENCY_PERCENTILE
-                        Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).
+  -nstreams NUMBER_STREAMS, --number_streams NUMBER_STREAMS
+                        Optional. Number of streams to use for inference on the CPU/GPU (for HETERO and MULTI device cases use format
+                        <device1>:<nstreams1>,<device2>:<nstreams2> or just <nstreams>). Default value is determined automatically for a device. Please note that
+                        although the automatic selection usually provides a reasonable performance, it still may be non - optimal for some cases, especially for very
+                        small models. Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency estimations the number of streams
+                        should be set to 1. See samples README for more details.
 
   -inference_only [INFERENCE_ONLY], --inference_only [INFERENCE_ONLY]
                         Optional. If true inputs filling only once before measurements (default for static models), else inputs filling is included into loop
                         measurement (default for dynamic models)
+
+  -infer_precision INFER_PRECISION
+                        Optional. Specifies the inference precision. Example #1: '-infer_precision bf16'. Example #2: '-infer_precision CPU:bf16,GPU:f32'
 
   -exec_graph_path EXEC_GRAPH_PATH, --exec_graph_path EXEC_GRAPH_PATH
                         Optional. Path to a file where to store executable graph information serialized.
@@ -213,13 +221,6 @@ Preprocessing options:
 
 
 Device-specific performance options:
-  -nstreams NUMBER_STREAMS, --number_streams NUMBER_STREAMS
-                        Optional. Number of streams to use for inference on the CPU/GPU (for HETERO and MULTI device cases use format
-                        <device1>:<nstreams1>,<device2>:<nstreams2> or just <nstreams>). Default value is determined automatically for a device. Please note that
-                        although the automatic selection usually provides a reasonable performance, it still may be non - optimal for some cases, especially for very
-                        small models. Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency estimations the number of streams
-                        should be set to 1. See samples README for more details.
-
   -nthreads NUMBER_THREADS, --number_threads NUMBER_THREADS
                         Number of threads to use for inference on the CPU, GNA (including HETERO and MULTI cases).
 
@@ -228,11 +229,11 @@ Device-specific performance options:
                         threads->appropriate core types ('HYBRID_AWARE', which is OpenVINO runtime's default for Hybrid CPUs) or completely disable ('NO') CPU threads
                         pinning for CPU-involved inference.
 
-  -infer_precision INFER_PRECISION
-                        Optional. Specifies the inference precision. Example #1: '-infer_precision bf16'. Example #2: '-infer_precision CPU:bf16,GPU:f32'
-
 
 Statistics dumping options:
+  -latency_percentile LATENCY_PERCENTILE, --latency_percentile LATENCY_PERCENTILE
+                        Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).
+
   -report_type {no_counters,average_counters,detailed_counters}, --report_type {no_counters,average_counters,detailed_counters}
                         Optional. Enable collecting statistics report. "no_counters" report contains configuration options specified, resulting FPS and latency.
                         "average_counters" report extends "no_counters" report and additionally includes average PM counters values for each layer from the model.
