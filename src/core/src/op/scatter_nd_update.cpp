@@ -112,12 +112,12 @@ bool op::v3::ScatterNDUpdate::has_evaluate() const {
     return true;
 }
 
-bool op::v3::ScatterNDUpdate::evaluate_lower(TensorVector& output_values) const {
+bool op::v3::ScatterNDUpdate::evaluate_lower(ov::TensorVector& output_values) const {
     OV_OP_SCOPE(v3_ScatterNDUpdate_evaluate_lower);
     return get_input_tensor(1).has_and_set_bound() && ov::default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v3::ScatterNDUpdate::evaluate_upper(TensorVector& output_values) const {
+bool op::v3::ScatterNDUpdate::evaluate_upper(ov::TensorVector& output_values) const {
     OV_OP_SCOPE(v3_ScatterNDUpdate_evaluate_upper);
     return get_input_tensor(1).has_and_set_bound() && ov::default_upper_bound_evaluator(this, output_values);
 }
