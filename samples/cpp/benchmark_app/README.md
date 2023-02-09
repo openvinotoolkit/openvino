@@ -109,18 +109,15 @@ Running the application with the `-h` or `--help` option yields the following us
 ```
 [Step 1/11] Parsing and validating input arguments
 [ INFO ] Parsing input parameters
-
 benchmark_app [OPTION]
-Options:
 
+Options:
     -h, --help                    Print the usage message
     -m  <path>                    Required. Path to an .xml/.onnx file with a trained model or to a .blob files with a trained compiled model.
     -i  <path>                    Optional. Path to a folder with images and/or binaries or to specific image or binary file.
                               In case of dynamic shapes models with several inputs provide the same number of files for each input (except cases with single file for any input):"input1:1.jpg input2:1.bin", "input1:1.bin,2.bin input2:3.bin input3:4.bin,5.bin ". Also you can pass specific keys for inputs: "random" - for fillling input with random data, "image_info" - for filling input with image size.
                               You should specify either one files set to be used for all inputs (without providing input names) or separate files sets for every input of model (providing inputs names).
     -d  <device>                  Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU. Use "-d HETERO:<comma-separated_devices_list>" format to specify HETERO plugin. Use "-d MULTI:<comma-separated_devices_list>" format to specify MULTI plugin. The application looks for a suitable plugin for the specified device.
-    -extensions  <absolute_path>  Required for custom layers (extensions). Absolute path to a shared library with the kernels implementations.
-    -c  <absolute_path>           Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.
     -hint  <performance hint> (latency or throughput or cumulative_throughput or none)   Optional. Performance hint allows the OpenVINO device to select the right model-specific settings.
                                'throughput' or 'tput': device performance mode will be set to THROUGHPUT.
                                'cumulative_throughput' or 'ctput': device performance mode will be set to CUMULATIVE_THROUGHPUT.
@@ -129,9 +126,13 @@ Options:
                               Using explicit 'nstreams' or other device-specific options, please set hint to 'none'
     -api <sync/async>             Optional (deprecated). Enable Sync/Async API. Default value is "async".
     -niter  <integer>             Optional. Number of iterations. If not specified, the number of iterations is calculated depending on a device.
-    -nireq  <integer>             Optional. Number of infer requests. Default value is determined automatically for device.
     -b  <integer>                 Optional. Batch size value. If not specified, the batch size value is determined from Intermediate Representation.
     -t                            Optional. Time in seconds to execute topology.
+
+Advanced options
+    -extensions  <absolute_path>  Required for custom layers (extensions). Absolute path to a shared library with the kernels implementations.
+    -c  <absolute_path>           Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.
+    -nireq  <integer>             Optional. Number of infer requests. Default value is determined automatically for device.
     -shape                        Optional. Set shape for model input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size. This parameter affect model input shape and can be dynamic. For dynamic dimensions use symbol `?` or '-1'. Ex. [?,3,?,?]. For bounded dimensions specify range 'min..max'. Ex. [1..10,3,?,?].
     -data_shape                   Required for models with dynamic shapes. Set shape for input blobs. In case of one input size: "[1,3,224,224]" or "input1[1,3,224,224],input2[1,4]". In case of several input sizes provide the same number for each input (except cases with single shape for any input): "[1,3,128,128][3,3,128,128][1,3,320,320]", "input1[1,1,128,128][1,1,256,256],input2[80,1]" or "input1[1,192][1,384],input2[1,192][1,384],input3[1,192][1,384],input4[1,192][1,384]". If model shapes are all static specifying the option will cause an exception.
     -layout                       Optional. Prompts how model layouts should be treated by application. For example, "input1[NCHW],input2[NC]" or "[NCHW]" in case of one input size.
@@ -164,20 +165,20 @@ Options:
                                        }
                               Example 2: a simple JSON file for meta device(AUTO/MULTI) with HW device properties.
                                        {
-                                            "AUTO": {
-                                                    "PERFORMANCE_HINT": "",
-                                                    "PERF_COUNT": "NO",
-                                                    "DEVICE_PROPERTIES": {
-                                                    "CPU": {
-                                                        "INFERENCE_PRECISION_HINT": "f32",
-                                                        "NUM_STREAMS": "3"
-                                                    },
-                                                    "GPU": {
-                                                        "INFERENCE_PRECISION_HINT": "f32",
-                                                        "NUM_STREAMS": "5"
-                                                    }
-                                                }
-                                            }
+                                               "AUTO": {
+                                                       "PERFORMANCE_HINT": "",
+                                                       "PERF_COUNT": "NO",
+                                                       "DEVICE_PROPERTIES": {
+                                                       "CPU": {
+                                                           "INFERENCE_PRECISION_HINT": "f32",
+                                                           "NUM_STREAMS": "3"
+                                                       },
+                                                       "GPU": {
+                                                           "INFERENCE_PRECISION_HINT": "f32",
+                                                           "NUM_STREAMS": "5"
+                                                       }
+                                                   }
+                                               }
                                        }
 
     -infer_precision        Optional. Specifies the inference precision. Example #1: '-infer_precision bf16'. Example #2: '-infer_precision CPU:bf16,GPU:f32'

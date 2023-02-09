@@ -169,20 +169,20 @@ static const char load_config_message[] =
     "                              Example 2: a simple JSON file for meta device(AUTO/MULTI) with HW device "
     "properties.\n"
     "                                       {\n"
-    "                                       	    \"AUTO\": {\n"
-    "                                       	            \"PERFORMANCE_HINT\": \"\",\n"
-    "                                       	            \"PERF_COUNT\": \"NO\",\n"
-    "                                       	            \"DEVICE_PROPERTIES\": {\n"
-    "                                       	            \"CPU\": {\n"
-    "                                       	            	\"INFERENCE_PRECISION_HINT\": \"f32\",\n"
-    "                                       	            	\"NUM_STREAMS\": \"3\"\n"
-    "                                       	            },\n"
-    "                                       	            \"GPU\": {\n"
-    "                                       	            	\"INFERENCE_PRECISION_HINT\": \"f32\",\n"
-    "                                       	            	\"NUM_STREAMS\": \"5\"\n"
-    "                                       	            }\n"
-    "                                       	    	}\n"
-    "                                       	    }\n"
+    "                                               \"AUTO\": {\n"
+    "                                                       \"PERFORMANCE_HINT\": \"\",\n"
+    "                                                       \"PERF_COUNT\": \"NO\",\n"
+    "                                                       \"DEVICE_PROPERTIES\": {\n"
+    "                                                       \"CPU\": {\n"
+    "                                                           \"INFERENCE_PRECISION_HINT\": \"f32\",\n"
+    "                                                           \"NUM_STREAMS\": \"3\"\n"
+    "                                                       },\n"
+    "                                                       \"GPU\": {\n"
+    "                                                           \"INFERENCE_PRECISION_HINT\": \"f32\",\n"
+    "                                                           \"NUM_STREAMS\": \"5\"\n"
+    "                                                       }\n"
+    "                                                   }\n"
+    "                                               }\n"
     "                                       }\n";
 
 // @brief message for dump config option
@@ -280,14 +280,6 @@ DEFINE_string(api, "async", api_message);
 /// @brief device the target device to infer on <br>
 DEFINE_string(d, "CPU", target_device_message);
 
-/// @brief Absolute path to extensions library with user layers <br>
-/// It is a required parameter
-DEFINE_string(extensions, "", custom_extensions_library_message);
-
-/// @brief Define parameter for clDNN custom kernels path <br>
-/// Default is ./lib
-DEFINE_string(c, "", custom_cldnn_message);
-
 /// @brief Iterations count (default 0)
 /// Sync mode: iterations count
 /// Async mode: StartAsync counts
@@ -295,6 +287,14 @@ DEFINE_uint64(niter, 0, iterations_count_message);
 
 /// @brief Time to execute topology in seconds
 DEFINE_uint64(t, 0, execution_time_message);
+
+/// @brief Absolute path to extensions library with user layers <br>
+/// It is a required parameter
+DEFINE_string(extensions, "", custom_extensions_library_message);
+
+/// @brief Define parameter for clDNN custom kernels path <br>
+/// Default is ./lib
+DEFINE_string(c, "", custom_cldnn_message);
 
 /// @brief Number of infer requests in parallel
 DEFINE_uint64(nireq, 0, infer_requests_count_message);
@@ -391,23 +391,24 @@ DEFINE_bool(inference_only, true, inference_only_message);
  * @brief This function show a help message
  */
 static void show_usage() {
-    std::cout << std::endl;
     std::cout << "benchmark_app [OPTION]" << std::endl;
-    std::cout << "Options:" << std::endl;
     std::cout << std::endl;
+    std::cout << "Options:" << std::endl;
     std::cout << "    -h, --help                    " << help_message << std::endl;
     std::cout << "    -m  <path>                    " << model_message << std::endl;
     std::cout << "    -i  <path>                    " << input_message << std::endl;
     std::cout << "    -d  <device>                  " << target_device_message << std::endl;
-    std::cout << "    -extensions  <absolute_path>  " << custom_extensions_library_message << std::endl;
-    std::cout << "    -c  <absolute_path>           " << custom_cldnn_message << std::endl;
     std::cout << "    -hint  <performance hint> (latency or throughput or cumulative_throughput or none)   "
               << hint_message << std::endl;
     std::cout << "    -api <sync/async>             " << api_message << std::endl;
     std::cout << "    -niter  <integer>             " << iterations_count_message << std::endl;
-    std::cout << "    -nireq  <integer>             " << infer_requests_count_message << std::endl;
     std::cout << "    -b  <integer>                 " << batch_size_message << std::endl;
     std::cout << "    -t                            " << execution_time_message << std::endl;
+    std::cout << std::endl;
+    std::cout << "Advanced options" << std::endl;
+    std::cout << "    -extensions  <absolute_path>  " << custom_extensions_library_message << std::endl;
+    std::cout << "    -c  <absolute_path>           " << custom_cldnn_message << std::endl;
+    std::cout << "    -nireq  <integer>             " << infer_requests_count_message << std::endl;
     std::cout << "    -shape                        " << shape_message << std::endl;
     std::cout << "    -data_shape                   " << data_shape_message << std::endl;
     std::cout << "    -layout                       " << layout_message << std::endl;
