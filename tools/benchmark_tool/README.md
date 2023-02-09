@@ -107,13 +107,14 @@ Running the application with the `-h` or `--help` option yields the following us
 [Step 1/11] Parsing and validating input arguments
 [ INFO ] Parsing input parameters
 usage: benchmark_app.py [-h [HELP]] [-i PATHS_TO_INPUT [PATHS_TO_INPUT ...]] -m PATH_TO_MODEL [-d TARGET_DEVICE]
-                        [-hint {throughput,cumulative_throughput,latency,none}] [-api {sync,async}] [-niter NUMBER_ITERATIONS] [-b BATCH_SIZE] [-t TIME]
-                        [-extensions EXTENSIONS] [-c PATH_TO_CLDNN_CONFIG] [-nireq NUMBER_INFER_REQUESTS] [-shape SHAPE] [-data_shape DATA_SHAPE] [-layout LAYOUT]
-                        [-nstreams NUMBER_STREAMS] [-latency_percentile LATENCY_PERCENTILE] [-nthreads NUMBER_THREADS] [-pin {YES,NO,NUMA,HYBRID_AWARE}]
-                        [-exec_graph_path EXEC_GRAPH_PATH] [-pc [PERF_COUNTS]] [-pcsort {no_sort,sort,simple_sort}] [-pcseq [PCSEQ]] [-inference_only [INFERENCE_ONLY]]
-                        [-report_type {no_counters,average_counters,detailed_counters}] [-report_folder REPORT_FOLDER] [-dump_config DUMP_CONFIG]
-                        [-load_config LOAD_CONFIG] [-infer_precision INFER_PRECISION] [-ip {u8,U8,f16,FP16,f32,FP32}] [-op {u8,U8,f16,FP16,f32,FP32}]
-                        [-iop INPUT_OUTPUT_PRECISION] [-cdir CACHE_DIR] [-lfile [LOAD_FROM_FILE]] [--mean_values [R,G,B]] [--scale_values [R,G,B]]
+                        [-hint {throughput,cumulative_throughput,latency,none}] [-niter NUMBER_ITERATIONS] [-t TIME] [-b BATCH_SIZE] [-shape SHAPE]
+                        [-data_shape DATA_SHAPE] [-layout LAYOUT] [-extensions EXTENSIONS] [-c PATH_TO_CLDNN_CONFIG] [-cdir CACHE_DIR] [-lfile [LOAD_FROM_FILE]]
+                        [-api {sync,async}] [-nireq NUMBER_INFER_REQUESTS] [-nstreams NUMBER_STREAMS] [-latency_percentile LATENCY_PERCENTILE]
+                        [-nthreads NUMBER_THREADS] [-pin {YES,NO,NUMA,HYBRID_AWARE}] [-infer_precision INFER_PRECISION] [-ip {u8,U8,f16,FP16,f32,FP32}]
+                        [-op {u8,U8,f16,FP16,f32,FP32}] [-iop INPUT_OUTPUT_PRECISION] [--mean_values [R,G,B]] [--scale_values [R,G,B]]
+                        [-inference_only [INFERENCE_ONLY]] [-exec_graph_path EXEC_GRAPH_PATH] [-report_type {no_counters,average_counters,detailed_counters}]
+                        [-report_folder REPORT_FOLDER] [-pc [PERF_COUNTS]] [-pcsort {no_sort,sort,simple_sort}] [-pcseq [PCSEQ]] [-dump_config DUMP_CONFIG]
+                        [-load_config LOAD_CONFIG]
 
 Options:
   -h [HELP], --help [HELP]
@@ -137,27 +138,18 @@ Options:
                         mode will be set to CUMULATIVE_THROUGHPUT. 'latency': device performance mode will be set to LATENCY. 'none': no device performance mode will
                         be set. Using explicit 'nstreams' or other device-specific options, please set hint to 'none'
 
-  -api {sync,async}, --api_type {sync,async}
-                        Optional. Enable using sync/async API. Default value is async.
-
   -niter NUMBER_ITERATIONS, --number_iterations NUMBER_ITERATIONS
                         Optional. Number of iterations. If not specified, the number of iterations is calculated depending on a device.
 
-  -b BATCH_SIZE, --batch_size BATCH_SIZE
-                        Optional. Batch size value. If not specified, the batch size value is determined from Intermediate Representation
-
   -t TIME, --time TIME  Optional. Time in seconds to execute topology.
 
+  -api {sync,async}, --api_type {sync,async}
+                        Optional. Enable using sync/async API. Default value is async.
 
-Advanced options:
-  -extensions EXTENSIONS, --extensions EXTENSIONS
-                        Optional. Path or a comma-separated list of paths to libraries (.so or .dll) with extensions.
 
-  -c PATH_TO_CLDNN_CONFIG, --path_to_cldnn_config PATH_TO_CLDNN_CONFIG
-                        Optional. Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.
-
-  -nireq NUMBER_INFER_REQUESTS, --number_infer_requests NUMBER_INFER_REQUESTS
-                        Optional. Number of infer requests. Default value is determined automatically for device.
+Input shapes:
+  -b BATCH_SIZE, --batch_size BATCH_SIZE
+                        Optional. Batch size value. If not specified, the batch size value is determined from Intermediate Representation
 
   -shape SHAPE          Optional. Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size. This parameter
                         affect model Parameter shape, can be dynamic. For dynamic dimesions use symbol `?`, `-1` or range `low.. up`.
@@ -169,6 +161,23 @@ Advanced options:
 
   -layout LAYOUT        Optional. Prompts how model layouts should be treated by application. For example, "input1[NCHW],input2[NC]" or "[NCHW]" in case of one input
                         size.
+
+
+Advanced options:
+  -extensions EXTENSIONS, --extensions EXTENSIONS
+                        Optional. Path or a comma-separated list of paths to libraries (.so or .dll) with extensions.
+
+  -c PATH_TO_CLDNN_CONFIG, --path_to_cldnn_config PATH_TO_CLDNN_CONFIG
+                        Optional. Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.
+
+  -cdir CACHE_DIR, --cache_dir CACHE_DIR
+                        Optional. Enable model caching to specified directory
+
+  -lfile [LOAD_FROM_FILE], --load_from_file [LOAD_FROM_FILE]
+                        Optional. Loads model from file directly without read_model.
+
+  -nireq NUMBER_INFER_REQUESTS, --number_infer_requests NUMBER_INFER_REQUESTS
+                        Optional. Number of infer requests. Default value is determined automatically for device.
 
   -nstreams NUMBER_STREAMS, --number_streams NUMBER_STREAMS
                         Optional. Number of streams to use for inference on the CPU/GPU (for HETERO and MULTI device cases use format
@@ -188,8 +197,47 @@ Advanced options:
                         threads->appropriate core types ('HYBRID_AWARE', which is OpenVINO runtime's default for Hybrid CPUs) or completely disable ('NO') CPU threads
                         pinning for CPU-involved inference.
 
+  -infer_precision INFER_PRECISION
+                        Optional. Specifies the inference precision. Example #1: '-infer_precision bf16'. Example #2: '-infer_precision CPU:bf16,GPU:f32'
+
+  -ip {u8,U8,f16,FP16,f32,FP32}, --input_precision {u8,U8,f16,FP16,f32,FP32}
+                        Optional. Specifies precision for all input layers of the model.
+
+  -op {u8,U8,f16,FP16,f32,FP32}, --output_precision {u8,U8,f16,FP16,f32,FP32}
+                        Optional. Specifies precision for all output layers of the model.
+
+  -iop INPUT_OUTPUT_PRECISION, --input_output_precision INPUT_OUTPUT_PRECISION
+                        Optional. Specifies precision for input and output layers by name. Example: -iop "input:f16, output:f16". Notice that quotes are required.
+                        Overwrites precision from ip and op options for specified layers.
+
+  --mean_values [R,G,B]
+                        Optional. Mean values to be used for the input image per channel. Values to be provided in the [R,G,B] format. Can be defined for desired input
+                        of the model, for example: "--mean_values data[255,255,255],info[255,255,255]". The exact meaning and order of channels depend on how the
+                        original model was trained. Applying the values affects performance and may cause type conversion
+
+  --scale_values [R,G,B]
+                        Optional. Scale values to be used for the input image per channel. Values are provided in the [R,G,B] format. Can be defined for desired input
+                        of the model, for example: "--scale_values data[255,255,255],info[255,255,255]". The exact meaning and order of channels depend on how the
+                        original model was trained. If both --mean_values and --scale_values are specified, the mean is subtracted first and then scale is applied
+                        regardless of the order of options in command line. Applying the values affects performance and may cause type conversion
+
+  -inference_only [INFERENCE_ONLY], --inference_only [INFERENCE_ONLY]
+                        Optional. If true inputs filling only once before measurements (default for static models), else inputs filling is included into loop
+                        measurement (default for dynamic models)
+
   -exec_graph_path EXEC_GRAPH_PATH, --exec_graph_path EXEC_GRAPH_PATH
                         Optional. Path to a file where to store executable graph information serialized.
+
+
+Statistics dumping options:
+  -report_type {no_counters,average_counters,detailed_counters}, --report_type {no_counters,average_counters,detailed_counters}
+                        Optional. Enable collecting statistics report. "no_counters" report contains configuration options specified, resulting FPS and latency.
+                        "average_counters" report extends "no_counters" report and additionally includes average PM counters values for each layer from the model.
+                        "detailed_counters" report extends "average_counters" report and additionally includes per-layer PM counters and latency for each executed
+                        infer request.
+
+  -report_folder REPORT_FOLDER, --report_folder REPORT_FOLDER
+                        Optional. Path to a folder where statistics report is stored.
 
   -pc [PERF_COUNTS], --perf_counts [PERF_COUNTS]
                         Optional. Report performance counters.
@@ -200,19 +248,6 @@ Advanced options:
 
   -pcseq [PCSEQ], --pcseq [PCSEQ]
                         Optional. Report latencies for each shape in -data_shape sequence.
-
-  -inference_only [INFERENCE_ONLY], --inference_only [INFERENCE_ONLY]
-                        Optional. If true inputs filling only once before measurements (default for static models), else inputs filling is included into loop
-                        measurement (default for dynamic models)
-
-  -report_type {no_counters,average_counters,detailed_counters}, --report_type {no_counters,average_counters,detailed_counters}
-                        Optional. Enable collecting statistics report. "no_counters" report contains configuration options specified, resulting FPS and latency.
-                        "average_counters" report extends "no_counters" report and additionally includes average PM counters values for each layer from the model.
-                        "detailed_counters" report extends "average_counters" report and additionally includes per-layer PM counters and latency for each executed
-                        infer request.
-
-  -report_folder REPORT_FOLDER, --report_folder REPORT_FOLDER
-                        Optional. Path to a folder where statistics report is stored.
 
   -dump_config DUMP_CONFIG
                         Optional. Path to JSON file to dump OpenVINO parameters, which were set by application.
@@ -241,36 +276,6 @@ Advanced options:
                                              }
                                         }
                                      }
-
-  -infer_precision INFER_PRECISION
-                        Optional. Specifies the inference precision. Example #1: '-infer_precision bf16'. Example #2: '-infer_precision CPU:bf16,GPU:f32'
-
-  -ip {u8,U8,f16,FP16,f32,FP32}, --input_precision {u8,U8,f16,FP16,f32,FP32}
-                        Optional. Specifies precision for all input layers of the model.
-
-  -op {u8,U8,f16,FP16,f32,FP32}, --output_precision {u8,U8,f16,FP16,f32,FP32}
-                        Optional. Specifies precision for all output layers of the model.
-
-  -iop INPUT_OUTPUT_PRECISION, --input_output_precision INPUT_OUTPUT_PRECISION
-                        Optional. Specifies precision for input and output layers by name. Example: -iop "input:f16, output:f16". Notice that quotes are required.
-                        Overwrites precision from ip and op options for specified layers.
-
-  -cdir CACHE_DIR, --cache_dir CACHE_DIR
-                        Optional. Enable model caching to specified directory
-
-  -lfile [LOAD_FROM_FILE], --load_from_file [LOAD_FROM_FILE]
-                        Optional. Loads model from file directly without read_model.
-
-  --mean_values [R,G,B]
-                        Optional. Mean values to be used for the input image per channel. Values to be provided in the [R,G,B] format. Can be defined for desired input
-                        of the model, for example: "--mean_values data[255,255,255],info[255,255,255]". The exact meaning and order of channels depend on how the
-                        original model was trained. Applying the values affects performance and may cause type conversion
-
-  --scale_values [R,G,B]
-                        Optional. Scale values to be used for the input image per channel. Values are provided in the [R,G,B] format. Can be defined for desired input
-                        of the model, for example: "--scale_values data[255,255,255],info[255,255,255]". The exact meaning and order of channels depend on how the
-                        original model was trained. If both --mean_values and --scale_values are specified, the mean is subtracted first and then scale is applied
-                        regardless of the order of options in command line. Applying the values affects performance and may cause type conversion
 ```
 
 Running the application with the empty list of options yields the usage message given above and an error message.
