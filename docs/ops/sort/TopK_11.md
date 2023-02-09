@@ -17,7 +17,7 @@
 
 * *mode*
 
-  * **Description**: Specifies whether TopK selects the largest or the smallest elements from each slice.
+  * **Description**: Specifies whether *TopK* selects the largest or the smallest elements from each slice.
   * **Range of values**: "min", "max"
   * **Type**: `string`
   * **Required**: *yes*
@@ -31,7 +31,7 @@
 
 * *stable*
 
-  * **Description**: Specifies whether the equivalent elements should maintain their relative order from the input tensor. Takes effect only if the `sort` attribute is set to `value` or `index`.
+  * **Description**: Specifies whether the equivalent elements should maintain their relative order from the input tensor. Takes effect only if the `sort` attribute is set to `value`.
   * **Range of values**: `true` of `false`
   * **Type**: `boolean`
   * **Default value**: `false`
@@ -72,13 +72,15 @@ The output tensor is populated by values computed in the following way:
 
 So for each slice `input[i1, ...., i(axis-1), :, i(axis+1), ..., iN]` *TopK* values are computed individually.
 
-Sorting and minimum/maximum are controlled by `sort` and `mode` attributes:
-  * *mode*=`max`, *sort*=`value` - descending by value
-  * *mode*=`max`, *sort*=`index` - ascending by index
-  * *mode*=`max`, *sort*=`none`  - undefined
-  * *mode*=`min`, *sort*=`value` - ascending by value
-  * *mode*=`min`, *sort*=`index` - ascending by index
-  * *mode*=`min`, *sort*=`none`  - undefined
+Sorting and minimum/maximum are controlled by `sort` and `mode` attributes with additional configurability provided by `stable`:
+  * *sort*=`value`, *mode*=`max`, *stable*=`false` - descending by value, relative order of equal elements not guaranteed to be maintained
+  * *sort*=`value`, *mode*=`max`, *stable*=`true`  - descending by value, relative order of equal elements guaranteed to be maintained
+  * *sort*=`value`, *mode*=`min`, *stable*=`false` - ascending by value, relative order of equal elements not guaranteed to be maintained
+  * *sort*=`value`, *mode*=`min`, *stable*=`true`  - ascending by value, relative order of equal elements guaranteed to be maintained
+  * *sort*=`index`, *mode*=`max` - descending by index
+  * *sort*=`index`, *mode*=`min` - ascending by index
+  * *sort*=`none` , *mode*=`max` - undefined
+  * *sort*=`none` , *mode*=`min` - undefined
 
 The relative order of equivalent elements in a given slice is only preserved if the *stable* attribute is set to `true`. This makes the implementation use stable sorting algorithm during the computation of TopK elements. Otherwise the output order is undefined.
 
