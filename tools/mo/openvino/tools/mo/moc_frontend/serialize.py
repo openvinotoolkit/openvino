@@ -18,17 +18,18 @@ def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
         example_inputs = getattr(argv, "example_input", None)
         input_signature = getattr(argv, "input_signature", None)
         provide_shapes = argv.input_shape is not None
-        print(input_signature)
         if example_inputs is not None:
-            print(example_inputs)
             inputs = [example_inputs] if isinstance(example_inputs, torch.Tensor) else example_inputs
             if input_signature is not None and isinstance(inputs, dict):
                 ordered_inputs = []
+                upd_sign = []
                 for key in input_signature:
                     if key not in inputs:
                         continue
                     ordered_inputs.append(inputs[key])
+                    upd_sign.append(key)
                 inputs = ordered_inputs
+                input_signature = upd_sign
             for idx, input_tensor in enumerate(ngraph_function.inputs):
                 if isinstance(inputs, (list, tuple)):
                     input_data = inputs[idx]
@@ -40,6 +41,11 @@ def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
                     raise f"Unknown input dtype {pt_dtype}"
 
                 input_tensor.get_node().set_element_type(dtype)
+                if input_signature is not None:
+                    tensor = input_tensor.get_tensor()
+                    input_names = tensor.names
+                    input_names.update(input_signature[idx])
+                    tensor.set_names(input_names)
                 if not provide_shapes:
                     # prevent dynamic rank issue
                     shape = [-1] * len(input_data.shape)
