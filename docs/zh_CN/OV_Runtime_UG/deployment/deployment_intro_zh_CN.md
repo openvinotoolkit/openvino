@@ -41,4 +41,4 @@
 
 > **NOTE**: 根据您的目标 OpenVINO™ 器件，已部署机器可能需要以下配置：[针对 GPU 的配置](../../../install_guides/configurations-for-intel-gpu.md)、[针对 GNA 的配置](../../../install_guides/configurations-for-intel-gna.md)、[针对 NCS2 的配置](../../../install_guides/configurations-for-ncs2.md)、[针对 VPU 的配置](../../../install_guides/configurations-for-ivad-vpu.md)。
 
-[deployment_simplified]: ../../../img/deployment_simplified.png
+[deployment_simplified]: ../../../img/deployment_simplified.svg
