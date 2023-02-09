@@ -193,3 +193,19 @@ TEST_F(TypePropScatterUpdateNDV3Test, default_ctor) {
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, 3, 5, 1}));
     EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(ov::no_label));
 }
+
+TEST_F(TypePropScatterUpdateNDV3Test, preserve_partial_values_and_labels_via_evaluates_bounds) {
+    const auto d = Constant::create(element::i64, Shape{4}, {2, 3, 15, 4});
+    const auto i = Constant::create(element::i64, Shape{2, 1}, {2, 0});
+    auto u_shape = PartialShape{{10, 20}, {3, 4}};
+    set_shape_labels(u_shape, 20);
+
+    const auto shape_of_u = std::make_shared<op::ShapeOf>(std::make_shared<Parameter>(element::i64, u_shape));
+    const auto op = make_op(d, i, shape_of_u);
+
+    auto param = std::make_shared<op::Parameter>(element::f32, PartialShape{1});
+    auto bc = std::make_shared<op::v3::Broadcast>(param, op, op::BroadcastType::BIDIRECTIONAL);
+
+    EXPECT_EQ(bc->get_output_partial_shape(0), PartialShape({{3, 4}, 3, {10, 20}, 4}));
+    EXPECT_THAT(get_shape_labels(bc->get_output_partial_shape(0)), ElementsAre(21, ov::no_label, 20, ov::no_label));
+}

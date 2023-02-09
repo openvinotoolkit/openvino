@@ -4,6 +4,7 @@
 
 #include "bound_evaluate.hpp"
 
+#include "dimension_tracker.hpp"
 #include "ngraph/validation_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset10.hpp"
@@ -407,4 +408,59 @@ bool ov::has_and_set_equal_bounds(const Output<Node>& source) {
 
     auto bounds = ov::evaluate_both_bounds(source);
     return are_same_tensor(bounds.first, bounds.second);
+}
+
+bool ov::default_label_evaluator(const Node* node,
+                                 std::initializer_list<size_t> labeled_inputs,
+                                 TensorLabelVector& output_labels) {
+    bool has_any_input_labels = false;
+    const auto& inputs_count = node->get_input_size();
+
+    TensorVector inputs;
+    inputs.reserve(inputs_count);
+
+    for (size_t i = 0; i < inputs_count; ++i) {
+        if (std::find(labeled_inputs.begin(), labeled_inputs.end(), i) != labeled_inputs.end()) {
+            auto labels = node->get_input_tensor(i).get_value_label();
+            if (!has_no_labels(labels) && !has_any_input_labels) {
+                has_any_input_labels = true;
+            }
+
+            if (node->get_input_partial_shape(i).is_static()) {
+                labels.resize(shape_size(node->get_input_shape(i)), no_label);
+                inputs.emplace_back(element::from<label_t>(), node->get_input_shape(i));
+                std::copy(labels.begin(), labels.end(), inputs.back().data<label_t>());
+            } else {
+                return false;
+            }
+        } else {
+            if (node->get_input_tensor(i).has_and_set_bound()) {
+                inputs.push_back(node->get_input_tensor(i).get_lower_value());
+            } else {
+                return false;
+            }
+        }
+    }
+
+    if (has_any_input_labels) {
+        const auto& outputs_count = node->get_output_size();
+        TensorVector outputs;
+        outputs.reserve(outputs_count);
+
+        for (size_t i = 0; i < outputs_count; ++i) {
+            const auto& partial_shape = node->get_output_partial_shape(i);
+            // Set shape for static or Shape{0} for dynamic to postpone memory allocation
+            auto shape = partial_shape.is_static() ? partial_shape.to_shape() : Shape{0};
+            outputs.emplace_back(element::from<label_t>(), shape);
+        }
+
+        if (node->evaluate(outputs, inputs)) {
+            std::transform(outputs.cbegin(), outputs.cend(), output_labels.begin(), [](const Tensor& t) {
+                // Return empty label tensor if input tensor not valid (can have Shape{0})
+                return t ? TensorLabel(t.data<label_t>(), t.data<label_t>() + t.get_size()) : TensorLabel();
+            });
+            return true;
+        }
+    }
+    return false;
 }

@@ -43,4 +43,16 @@ bool interval_bound_evaluator(const Node* node, TensorVector& lower_output_value
 /// only on pointers comparison.
 bool has_and_set_equal_bounds(const Output<Node>& source);
 
+/// \brief Propagates value label from given inputs list to the only output through an operation.
+/// Not applicable for operations which require values interaction (example: mathematical
+/// operations). Could be used for movement operations (example: gathering, shape change)
+///
+/// \param node Operation to be performed
+/// \param labeled_inputs List of node inputs to propagate labels.
+/// \param output_labels Vector of TensorLabel objects representing resulting value labels
+/// \return boolean status if label evaluation was successful.
+bool default_label_evaluator(const Node* node,
+                             std::initializer_list<size_t> labeled_inputs,
+                             TensorLabelVector& output_labels);
+
 }  // namespace ov
