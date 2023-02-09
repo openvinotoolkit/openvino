@@ -88,7 +88,7 @@ html_theme_options = {
 
 html_context = {
     'current_language': '简体中文',
-    'languages': (('English', '/latest'), ('中文', '/cn/latest')),
+    'languages': (('English', '/latest'), ('简体中文', '/cn/latest')),
     'doxygen_mapping_file': '',
     'doxygen_snippet_root': '/mnt/c/Users/kputnam/work_dir/git_repos/openvino'
 }
