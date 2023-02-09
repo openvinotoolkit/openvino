@@ -27,15 +27,13 @@ function(get_lib_path OUTPUT_DIR FINAL_OUTPUT_DIR)
 endfunction()
 
 # for icd_loader project we need to override path to OpenCL C headers
-set(OPENCL_ICD_LOADER_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cl_headers/"
+set(OPENCL_ICD_LOADER_HEADERS_DIR "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/cl_headers>"
     CACHE PATH "Path to OCL includes" FORCE)
 
 # Reset compilation options for ICD loader as default OpenVINO cmake options lead to removing a lot of symbols from the library
 unset(CMAKE_C_VISIBILITY_PRESET)
 unset(CMAKE_DEBUG_POSTFIX)
 
-# OpenCL has absolute paths to include directories
-set(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION OFF)
 if(NOT DEFINED USE_DYNAMIC_VCXX_RUNTIME)
     set(USE_DYNAMIC_VCXX_RUNTIME ON)
 endif()
