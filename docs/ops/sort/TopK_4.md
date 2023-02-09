@@ -102,14 +102,14 @@ This example assumes that `K` is equal to 10:
         <port id="2">
             <dim>1</dim>
             <dim>3</dim>
-            <dim>10</dim>
             <dim>224</dim>
+            <dim>10</dim>
         </port>
         <port id="3">
             <dim>1</dim>
             <dim>3</dim>
-            <dim>10</dim>
             <dim>224</dim>
+            <dim>10</dim>
         </port>
     </output>
 </layer>
