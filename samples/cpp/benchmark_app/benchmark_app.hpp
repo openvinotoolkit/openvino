@@ -99,23 +99,6 @@ static const char api_message[] = "Optional (deprecated). Enable Sync/Async API.
 static const char infer_requests_count_message[] =
     "Optional. Number of infer requests. Default value is determined automatically for device.";
 
-/// @brief message for #threads for CPU inference
-static const char infer_num_threads_message[] = "Optional. Number of threads to use for inference on the CPU "
-                                                "(including HETERO and MULTI cases).";
-
-/// @brief message for #streams for CPU inference
-static const char infer_num_streams_message[] =
-    "Optional. Number of streams to use for inference on the CPU or GPU devices "
-    "(for HETERO and MULTI device cases use format <dev1>:<nstreams1>,<dev2>:<nstreams2> or just "
-    "<nstreams>). "
-    "Default value is determined automatically for a device.Please note that although the "
-    "automatic selection "
-    "usually provides a reasonable performance, it still may be non - optimal for some cases, "
-    "especially for "
-    "very small models. See sample's README for more details. "
-    "Also, using nstreams>1 is inherently throughput-oriented option, "
-    "while for the best-latency estimations the number of streams should be set to 1.";
-
 /// @brief message for latency percentile settings
 static const char infer_latency_percentile_message[] =
     "Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value "
@@ -136,20 +119,6 @@ static const char custom_extensions_library_message[] =
 /// @brief message for clDNN custom kernels desc
 static const char custom_cldnn_message[] =
     "Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.";
-
-// @brief message for CPU threads pinning option
-static const char infer_threads_pinning_message[] =
-    "Optional. Explicit inference threads binding options (leave empty to let the OpenVINO make a choice):\n"
-    "\t\t\t\tenabling threads->cores pinning(\"YES\", which is already default for any conventional CPU), \n"
-    "\t\t\t\tletting the runtime to decide on the threads->different core types(\"HYBRID_AWARE\", which is default on "
-    "the hybrid CPUs) \n"
-    "\t\t\t\tthreads->(NUMA)nodes(\"NUMA\") or \n"
-    "\t\t\t\tcompletely disable(\"NO\") CPU inference threads pinning";
-
-// @brief message for inference_precision
-static const char inference_precision_message[] =
-    "Optional. Specifies the inference precision. Example #1: '-infer_precision bf16'. Example #2: '-infer_precision "
-    "CPU:bf16,GPU:f32'";
 
 static constexpr char inputs_precision_message[] = "Optional. Specifies precision for all input layers of the model.";
 
@@ -191,6 +160,43 @@ static constexpr char inference_only_message[] =
 static const char exec_graph_path_message[] =
     "Optional. Path to a file where to store executable graph information serialized.";
 
+/// @brief message for #threads for CPU inference
+static const char infer_num_threads_message[] = "Optional. Number of threads to use for inference on the CPU "
+                                                "(including HETERO and MULTI cases).";
+
+/// @brief message for #streams for CPU inference
+static const char infer_num_streams_message[] =
+    "Optional. Number of streams to use for inference on the CPU or GPU devices "
+    "(for HETERO and MULTI device cases use format <dev1>:<nstreams1>,<dev2>:<nstreams2> or just "
+    "<nstreams>). "
+    "Default value is determined automatically for a device.Please note that although the "
+    "automatic selection "
+    "usually provides a reasonable performance, it still may be non - optimal for some cases, "
+    "especially for "
+    "very small models. See sample's README for more details. "
+    "Also, using nstreams>1 is inherently throughput-oriented option, "
+    "while for the best-latency estimations the number of streams should be set to 1.";
+
+// @brief message for CPU threads pinning option
+static const char infer_threads_pinning_message[] =
+    "Optional. Explicit inference threads binding options (leave empty to let the OpenVINO make a choice):\n"
+    "\t\t\t\tenabling threads->cores pinning(\"YES\", which is already default for any conventional CPU), \n"
+    "\t\t\t\tletting the runtime to decide on the threads->different core types(\"HYBRID_AWARE\", which is default on "
+    "the hybrid CPUs) \n"
+    "\t\t\t\tthreads->(NUMA)nodes(\"NUMA\") or \n"
+    "\t\t\t\tcompletely disable(\"NO\") CPU inference threads pinning";
+
+// @brief message for inference_precision
+static const char inference_precision_message[] =
+    "Optional. Specifies the inference precision. Example #1: '-infer_precision bf16'. Example #2: '-infer_precision "
+    "CPU:bf16,GPU:f32'";
+
+#ifdef HAVE_DEVICE_MEM_SUPPORT
+// @brief message for switching memory allocation type option
+static const char use_device_mem_message[] =
+    "Optional. Switch between host and device memory allocation for input and output buffers.";
+#endif
+
 // @brief message for report_type option
 static const char report_type_message[] =
     "Optional. Enable collecting statistics report. \"no_counters\" report contains "
@@ -219,12 +225,6 @@ static const char pc_sort_message[] =
 
 // @brief message for performance counters for sequence option
 static const char pcseq_message[] = "Optional. Report latencies for each shape in -data_shape sequence.";
-
-#ifdef HAVE_DEVICE_MEM_SUPPORT
-// @brief message for switching memory allocation type option
-static const char use_device_mem_message[] =
-    "Optional. Switch between host and device memory allocation for input and output buffers.";
-#endif
 
 // @brief message for load config option
 static const char load_config_message[] =
@@ -318,21 +318,8 @@ DEFINE_string(api, "async", api_message);
 /// @brief Number of infer requests in parallel
 DEFINE_uint64(nireq, 0, infer_requests_count_message);
 
-/// @brief Number of threads to use for inference on the CPU in throughput mode (also affects Hetero
-/// cases)
-DEFINE_uint64(nthreads, 0, infer_num_threads_message);
-
-/// @brief Number of streams to use for inference on the CPU (also affects Hetero cases)
-DEFINE_string(nstreams, "", infer_num_streams_message);
-
 /// @brief The percentile which will be reported in latency metric
 DEFINE_uint64(latency_percentile, 50, infer_latency_percentile_message);
-
-// @brief Enable plugin messages
-DEFINE_string(pin, "", infer_threads_pinning_message);
-
-/// @brief Define flag for inference precision
-DEFINE_string(infer_precision, "", inference_precision_message);
 
 /// @brief Specify precision for all input layers of the network
 DEFINE_string(ip, "", inputs_precision_message);
@@ -358,6 +345,24 @@ DEFINE_bool(inference_only, true, inference_only_message);
 /// @brief Path to a file where to store executable graph information serialized
 DEFINE_string(exec_graph_path, "", exec_graph_path_message);
 
+/// @brief Number of threads to use for inference on the CPU in throughput mode (also affects Hetero
+/// cases)
+DEFINE_uint64(nthreads, 0, infer_num_threads_message);
+
+/// @brief Number of streams to use for inference on the CPU (also affects Hetero cases)
+DEFINE_string(nstreams, "", infer_num_streams_message);
+
+// @brief Enable plugin messages
+DEFINE_string(pin, "", infer_threads_pinning_message);
+
+/// @brief Define flag for inference precision
+DEFINE_string(infer_precision, "", inference_precision_message);
+
+#ifdef HAVE_DEVICE_MEM_SUPPORT
+/// @brief Define flag for switching beetwen host and device memory allocation for input and output buffers
+DEFINE_bool(use_device_mem, false, use_device_mem_message);
+#endif
+
 /// @brief Enables statistics report collecting
 DEFINE_string(report_type, "", report_type_message);
 
@@ -375,11 +380,6 @@ DEFINE_string(pcsort, "", pc_sort_message);
 
 /// @brief Define flag for showing performance sequence counters <br>
 DEFINE_bool(pcseq, false, pcseq_message);
-
-#ifdef HAVE_DEVICE_MEM_SUPPORT
-/// @brief Define flag for switching beetwen host and device memory allocation for input and output buffers
-DEFINE_bool(use_device_mem, false, use_device_mem_message);
-#endif
 
 /// @brief Define flag for loading configuration file <br>
 DEFINE_string(load_config, "", load_config_message);
@@ -417,12 +417,6 @@ static void show_usage() {
     std::cout << "    -latency_percentile           " << infer_latency_percentile_message << std::endl;
     std::cout << "    -api <sync/async>             " << api_message << std::endl;
     std::cout << "    -nireq  <integer>             " << infer_requests_count_message << std::endl;
-    std::cout << std::endl << "  device-specific performance options:" << std::endl;
-    std::cout << "    -nstreams  <integer>          " << infer_num_streams_message << std::endl;
-    std::cout << "    -nthreads  <integer>          " << infer_num_threads_message << std::endl;
-    std::cout << "    -pin  <string>  (\"YES\"|\"CORE\") / \"HYBRID_AWARE\" / (\"NO\"|\"NONE\") / \"NUMA\"  "
-              << infer_threads_pinning_message << std::endl;
-    std::cout << "    -infer_precision        " << inference_precision_message << std::endl;
     std::cout << "    -ip   <value>           " << inputs_precision_message << std::endl;
     std::cout << "    -op   <value>           " << outputs_precision_message << std::endl;
     std::cout << "    -iop  <value>           " << iop_message << std::endl;
@@ -430,6 +424,13 @@ static void show_usage() {
     std::cout << "    -scale_values  [R,G,B]  " << scale_values_message << std::endl;
     std::cout << "    -inference_only         " << inference_only_message << std::endl;
     std::cout << "    -exec_graph_path        " << exec_graph_path_message << std::endl;
+    std::cout << std::endl;
+    std::cout << "Device-specific performance options:" << std::endl;
+    std::cout << "    -nstreams  <integer>          " << infer_num_streams_message << std::endl;
+    std::cout << "    -nthreads  <integer>          " << infer_num_threads_message << std::endl;
+    std::cout << "    -pin  <string>  (\"YES\"|\"CORE\") / \"HYBRID_AWARE\" / (\"NO\"|\"NONE\") / \"NUMA\"  "
+              << infer_threads_pinning_message << std::endl;
+    std::cout << "    -infer_precision        " << inference_precision_message << std::endl;
 #ifdef HAVE_DEVICE_MEM_SUPPORT
     std::cout << "    -use_device_mem           " << use_device_mem_message << std::endl;
 #endif

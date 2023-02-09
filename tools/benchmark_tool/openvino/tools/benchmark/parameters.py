@@ -97,28 +97,8 @@ def parse_args():
                       help='Optional. Enable using sync/async API. Default value is async.')
     advs.add_argument('-nireq', '--number_infer_requests', type=check_positive, required=False, default=0,
                       help='Optional. Number of infer requests. Default value is determined automatically for device.')
-    advs.add_argument('-nstreams', '--number_streams', type=str, required=False, default=None,
-                      help='Optional. Number of streams to use for inference on the CPU/GPU '
-                           '(for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> '
-                           'or just <nstreams>). '
-                           'Default value is determined automatically for a device. Please note that although the automatic selection '
-                           'usually provides a reasonable performance, it still may be non - optimal for some cases, especially for very small models. '
-                           'Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency '
-                           'estimations the number of streams should be set to 1. '
-                           'See samples README for more details.')
     advs.add_argument('-latency_percentile', '--latency_percentile', type=int, required=False, default=50,
                       help='Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).')
-    advs.add_argument('-nthreads', '--number_threads', type=int, required=False, default=None,
-                      help='Number of threads to use for inference on the CPU, GNA '
-                           '(including HETERO and MULTI cases).')
-    advs.add_argument('-pin', '--infer_threads_pinning', type=str, required=False,  choices=['YES', 'NO', 'NUMA', 'HYBRID_AWARE'],
-                      help='Optional. Enable  threads->cores (\'YES\' which is OpenVINO runtime\'s default for conventional CPUs), '
-                           'threads->(NUMA)nodes (\'NUMA\'), '
-                           'threads->appropriate core types (\'HYBRID_AWARE\', which is OpenVINO runtime\'s default for Hybrid CPUs) '
-                           'or completely disable (\'NO\') '
-                           'CPU threads pinning for CPU-involved inference.')
-    advs.add_argument('-infer_precision', type=str, required=False,
-                      help='Optional. Specifies the inference precision. Example #1: \'-infer_precision bf16\'. Example #2: \'-infer_precision CPU:bf16,GPU:f32\'')
     advs.add_argument('-ip', '--input_precision', type=str, required=False, choices=['u8', 'U8', 'f16','FP16', 'f32','FP32'],
                       help='Optional. Specifies precision for all input layers of the model.')
     advs.add_argument('-op', '--output_precision', type=str, required=False, choices=['u8', 'U8', 'f16','FP16', 'f32','FP32'],
@@ -140,6 +120,28 @@ def parse_args():
                                      'else inputs filling is included into loop measurement (default for dynamic models)', )
     advs.add_argument('-exec_graph_path', '--exec_graph_path', type=str, required=False,
                       help='Optional. Path to a file where to store executable graph information serialized.')
+
+    devp = parser.add_argument_group('Device-specific performance options')
+    devp.add_argument('-nstreams', '--number_streams', type=str, required=False, default=None,
+                      help='Optional. Number of streams to use for inference on the CPU/GPU '
+                           '(for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> '
+                           'or just <nstreams>). '
+                           'Default value is determined automatically for a device. Please note that although the automatic selection '
+                           'usually provides a reasonable performance, it still may be non - optimal for some cases, especially for very small models. '
+                           'Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency '
+                           'estimations the number of streams should be set to 1. '
+                           'See samples README for more details.')
+    devp.add_argument('-nthreads', '--number_threads', type=int, required=False, default=None,
+                      help='Number of threads to use for inference on the CPU, GNA '
+                           '(including HETERO and MULTI cases).')
+    devp.add_argument('-pin', '--infer_threads_pinning', type=str, required=False,  choices=['YES', 'NO', 'NUMA', 'HYBRID_AWARE'],
+                      help='Optional. Enable  threads->cores (\'YES\' which is OpenVINO runtime\'s default for conventional CPUs), '
+                           'threads->(NUMA)nodes (\'NUMA\'), '
+                           'threads->appropriate core types (\'HYBRID_AWARE\', which is OpenVINO runtime\'s default for Hybrid CPUs) '
+                           'or completely disable (\'NO\') '
+                           'CPU threads pinning for CPU-involved inference.')
+    devp.add_argument('-infer_precision', type=str, required=False,
+                      help='Optional. Specifies the inference precision. Example #1: \'-infer_precision bf16\'. Example #2: \'-infer_precision CPU:bf16,GPU:f32\'')
 
     stat = parser.add_argument_group('Statistics dumping options')
     stat.add_argument('-report_type', '--report_type', type=str, required=False,
