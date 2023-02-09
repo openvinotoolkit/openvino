@@ -56,12 +56,12 @@ jobs:
     ONNXRUNTIME_UTILS: $(REPO_DIR)/.ci/azure/ci_utils/onnxruntime
     ONNXRUNTIME_BUILD_DIR: $(ONNXRUNTIME_REPO_DIR)/build
     LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib:$LD_LIBRARY_PATH
-    OV_PYTHON_VERSION: 3.10.9 # Newest version of Python 3.10. Full version of Python its required for LD_LIBRARY_PATH and required for successful Task setupPython
+    OV_PYTHON_VERSION: 3.10.10 # Newest version of Python 3.10. Full version of Python its required for LD_LIBRARY_PATH and required for successful Task setupPython
 
   steps:
   - task: UsePythonVersion@0
     inputs:
-      versionSpec: '3.10'
+      versionSpec: 'OV_PYTHON_VERSION'
       addToPath: true
       disableDownloadFromRegistry: false
       architecture: 'x64'
