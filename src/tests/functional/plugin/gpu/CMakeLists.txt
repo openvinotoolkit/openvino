@@ -11,6 +11,7 @@ addIeTargetTest(
             ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}
+            $<TARGET_PROPERTY:openvino_intel_gpu_plugin,SOURCE_DIR>/include/
         DEPENDENCIES
             openvino_intel_gpu_plugin
         LINK_LIBRARIES
