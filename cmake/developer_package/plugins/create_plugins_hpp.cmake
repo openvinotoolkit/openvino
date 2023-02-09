@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-foreach(var IE_DEVICE_MAPPING IE_PLUGINS_HPP_HEADER IE_PLUGINS_HPP_HEADER_IN)
+foreach(var IE_DEVICE_MAPPING IE_PLUGIN_MAPPING IE_PLUGINS_HPP_HEADER IE_PLUGINS_HPP_HEADER_IN)
     if(NOT DEFINED ${var})
         message(FATAL_ERROR "${var} is required, but not defined")
     endif()
@@ -53,6 +53,19 @@ IE_DEFINE_EXTENSION_CREATE_FUNCTION_DECLARATION(${_IE_CREATE_EXTENSION_FUNC});")
 endforeach()
 
 set(IE_PLUGINS_MAP_DEFINITION "${IE_PLUGINS_MAP_DEFINITION}
+    };\n")
+
+
+set(IE_PLUGINS_COMPILED
+    "    static const std::map<Key, Value> plugins_hpp = {")
+foreach(plugin IN LISTS IE_PLUGIN_MAPPING)
+    string(REPLACE ":" ";" plugin "${plugin}")
+    list(GET plugin 0 key)
+    list(GET plugin 1 value)
+    set(IE_PLUGINS_COMPILED       "${IE_PLUGINS_COMPILED}
+        { \"${key}\", \"${value}\" },")
+endforeach()
+set(IE_PLUGINS_COMPILED       "${IE_PLUGINS_COMPILED}
     };\n")
 
 configure_file("${IE_PLUGINS_HPP_HEADER_IN}" "${IE_PLUGINS_HPP_HEADER}" @ONLY)

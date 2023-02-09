@@ -11,9 +11,7 @@
 #include "ie_itt.hpp"
 #include "so_extension.hpp"
 
-#ifdef OPENVINO_STATIC_LIBRARY
-#    include "ie_plugins.hpp"
-#endif
+#include "ie_plugins.hpp"
 
 namespace {
 std::string resolve_extension_path(const std::string& path) {

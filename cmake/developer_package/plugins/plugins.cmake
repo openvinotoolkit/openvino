@@ -282,12 +282,9 @@ endfunction()
 # ie_generate_plugins_hpp()
 #
 function(ie_generate_plugins_hpp)
-    if(BUILD_SHARED_LIBS)
-        return()
-    endif()
-
     set(device_mapping)
     set(device_configs)
+    set(plugin_mapping)
     set(as_extension)
     foreach(name IN LISTS PLUGIN_FILES)
         string(REPLACE ":" ";" name "${name}")
@@ -296,7 +293,7 @@ function(ie_generate_plugins_hpp)
             message(FATAL_ERROR "Unexpected error, please, contact developer of this script")
         endif()
 
-        # create device mapping: preudo device => actual device
+        # create device mapping: pseudo device => actual device
         list(GET name 0 device_name)
         if(${device_name}_PSEUDO_PLUGIN_FOR)
             list(APPEND device_mapping "${device_name}:${${device_name}_PSEUDO_PLUGIN_FOR}")
@@ -315,6 +312,10 @@ function(ie_generate_plugins_hpp)
             string(REPLACE ";" "@" config "${${device_name}_CONFIG}")
             list(APPEND device_configs -D "${device_name}_CONFIG=${config}")
         endif()
+
+        list(GET name 1 library_name)
+        ie_plugin_get_file_name(${library_name} library_name)
+        list(APPEND plugin_mapping "${device_name}:${library_name}")
     endforeach()
 
     # add plugins to libraries including ie_plugins.hpp
@@ -330,6 +331,7 @@ function(ie_generate_plugins_hpp)
                        COMMAND
                         "${CMAKE_COMMAND}"
                         -D "IE_DEVICE_MAPPING=${device_mapping}"
+                        -D "IE_PLUGIN_MAPPING=${plugin_mapping}"
                         -D "IE_PLUGINS_HPP_HEADER_IN=${plugins_hpp_in}"
                         -D "IE_PLUGINS_HPP_HEADER=${ie_plugins_hpp}"
                         ${device_configs}

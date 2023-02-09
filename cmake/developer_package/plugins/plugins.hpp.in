@@ -4,6 +4,8 @@
 
 #pragma once
 
+#ifdef OPENVINO_STATIC_LIBRARY
+
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 
 namespace {
@@ -24,3 +26,20 @@ const std::map<Key, Value> getStaticPluginsRegistry() {
 }
 
 } // namespace
+
+#else
+
+namespace {
+
+using Key = std::string;
+using Value = std::string;
+using PluginsCompiledRegistry = std::map<Key, Value>;
+
+const std::map<Key, Value> getCompiledPluginsRegistry() {
+@IE_PLUGINS_COMPILED@
+    return plugins_hpp;
+}
+
+} // namespace
+
+#endif

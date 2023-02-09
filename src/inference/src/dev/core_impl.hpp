@@ -23,9 +23,7 @@
 #include "openvino/runtime/icompiled_model.hpp"
 #include "threading/ie_executor_manager.hpp"
 
-#ifdef OPENVINO_STATIC_LIBRARY
-#    include "ie_plugins.hpp"
-#endif
+#include "ie_plugins.hpp"
 
 namespace ov {
 
@@ -230,8 +228,6 @@ public:
      */
     void register_plugins_in_registry(const std::string& xml_config_file, const bool& by_abs_path = false);
 
-    void register_compile_time_plugins();
-
     void apply_auto_batching(const std::shared_ptr<const ov::Model>& model,
                              std::string& deviceName,
                              ov::AnyMap& config) const;
@@ -258,6 +254,29 @@ public:
             PluginDescriptor desc{value.m_create_plugin_func, config, value.m_create_extension_func};
             pluginRegistry[deviceName] = desc;
             add_mutex(deviceName);
+        }
+    }
+
+#else
+
+    /*
+     * @brief Register plugins according to the build configuration in the shared library case
+     */
+    void register_compile_time_plugins() {
+        std::lock_guard<std::mutex> lock(get_mutex());
+
+        std::map<std::string, std::string> plugins = getCompiledPluginsRegistry();
+
+        for (const auto& plugin : plugins) {
+            const auto& deviceName = plugin.first;
+            const auto& pluginPath = ov::util::get_plugin_path(plugin.second);
+
+            if (pluginRegistry.find(deviceName) == pluginRegistry.end() && FileUtils::fileExist(pluginPath)) {
+std::cerr << "Adding " << deviceName << " at path: " << pluginPath.c_str() << std::endl;
+                PluginDescriptor desc{pluginPath};
+                pluginRegistry[deviceName] = desc;
+                add_mutex(deviceName);
+            }
         }
     }
 
