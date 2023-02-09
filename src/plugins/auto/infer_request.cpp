@@ -106,7 +106,6 @@ InferenceEngine::Blob::Ptr MultiDeviceInferRequest::GetBlob(const std::string& n
     } else {
         if (_scheduledRequest)
             // when with dynamic outputs, safe to get output from hardware request in the callback function
-            // if not dynamic output, the output is same for multi and hardware
             return _scheduledRequest->GetBlob(name);
         else
             return IInferRequestInternal::GetBlob(name);

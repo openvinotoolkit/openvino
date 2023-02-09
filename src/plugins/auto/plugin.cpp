@@ -941,19 +941,20 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork
     };
 
     auto isOutputDynamic = [&]() {
-        for (int i = 0; i < model->inputs().size() ; i++) {
+        for (size_t i = 0; i < model->inputs().size() ; i++) {
             if (model->input(i).get_partial_shape().is_dynamic()) {
             // any input is dynamic
                 return false;
             }
         }
-        for (int i = 0; i < model->outputs().size() ; i++) {
+        for (size_t i = 0; i < model->outputs().size() ; i++) {
             if (model->output(i).get_partial_shape().is_dynamic()) {
             // any output is dynamic
                 LOG_INFO_TAG("dynamic output model");
                 return true;
             }
         }
+        return false;
     };
 
     // Check if CPU is in candidate list

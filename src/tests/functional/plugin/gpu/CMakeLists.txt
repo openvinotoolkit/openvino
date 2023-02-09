@@ -43,6 +43,7 @@ if (ENABLE_INTEL_CPU)
     set_source_files_properties(
         "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_plugin/life_time.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_plugin/properties_tests.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_infer_request/infer_request_dynamic.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/multi/gpu_remote_blob_tests.cpp"
         PROPERTIES COMPILE_DEFINITIONS ENABLE_INTEL_CPU=1)
 endif()

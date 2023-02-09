@@ -6,6 +6,7 @@
 
 #include "behavior/ov_infer_request/infer_request_dynamic.hpp"
 #include "behavior/ov_infer_request/inference_chaining.hpp"
+#include "openvino/op/util/multiclass_nms_base.hpp"
 
 using namespace ov::test::behavior;
 
@@ -17,15 +18,19 @@ auto configs = []() {
 
 auto AutoConfigs = []() {
     return std::vector<ov::AnyMap>{
+                                #ifdef ENABLE_INTEL_CPU
                                    {ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU)},
                                    {ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU)},
+                                #endif
                                    {}};
 };
 
 auto MultiConfigs = []() {
-    return std::vector<ov::AnyMap>{
+    return std::vector<ov::AnyMap>{{ov::device::priorities(CommonTestUtils::DEVICE_GPU)},
+                                #ifdef ENABLE_INTEL_CPU
                                    {ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU)},
                                    {ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU)}
+                                #endif
                                    };
 };
 
@@ -68,6 +73,24 @@ std::shared_ptr<ngraph::Function> getFunction2() {
     concat->get_output_tensor(0).set_names({"concat"});
 
     return std::make_shared<ngraph::Function>(concat, params, "SplitAddConcat");
+}
+
+std::shared_ptr<ngraph::Function> getFunction_DynamicOutput() {
+    auto boxes = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 4});
+    boxes->set_friendly_name("param_1");
+    boxes->get_output_tensor(0).set_names({"input_tensor_1"});
+    auto scores = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 2});
+    scores->set_friendly_name("param_2");
+    scores->get_output_tensor(0).set_names({"input_tensor_2"});
+    auto max_output_boxes_per_class = ov::op::v0::Constant::create(ov::element::i64,  ov::Shape{}, {10});
+    auto iou_threshold = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.75});
+    auto score_threshold = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.7});
+    auto nms = std::make_shared<ov::op::v9::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
+                                                                                  iou_threshold, score_threshold);
+    auto res = std::make_shared<ov::op::v0::Result>(nms);
+    res->get_output_tensor(0).set_names({"output_dynamic"});
+    auto func = std::make_shared<ngraph::Function>(ov::NodeVector{nms}, ngraph::ParameterVector{boxes, scores});
+    return func;
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_1, OVInferRequestDynamicTests,
@@ -113,5 +136,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestDynamicTests,
                                     {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
                                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                 ::testing::ValuesIn(MultiConfigs())),
+                        OVInferRequestDynamicTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestDynamicOutputTests,
+                        ::testing::Combine(
+                                ::testing::Values(getFunction_DynamicOutput()),
+                                ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
+                                    {}}),
+                                ::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                                ::testing::ValuesIn(MultiConfigs())),
+                        OVInferRequestDynamicTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestDynamicOutputTests,
+                        ::testing::Combine(
+                                ::testing::Values(getFunction_DynamicOutput()),
+                                ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
+                                    {}}),
+                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                ::testing::ValuesIn(AutoConfigs())),
                         OVInferRequestDynamicTests::getTestCaseName);
 }  // namespace

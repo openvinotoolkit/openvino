@@ -545,6 +545,53 @@ TEST_P(OVNotSupportRequestDynamicTests, InferDynamicNotSupported) {
     ov::CompiledModel execNet;
     ASSERT_THROW((execNet = ie->compile_model(function, target_device, configuration)), ov::Exception);
 }
+
+TEST_P(OVInferRequestDynamicOutputTests, InferDynamicOutputNetwork2Times) {
+    const std::string inputname = function->input(0).get_any_name();
+    const std::string inputname_1 = function->input(1).get_any_name();
+    const std::string outputname = function->outputs().back().get_any_name();
+    // Load ov::Model to target plugins
+    ov::CompiledModel execNet;
+    execNet = ie->compile_model(function, target_device, configuration);
+    // Create InferRequest
+    ov::InferRequest req;
+    float in_boxes[8] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0};
+    float in_scores[8] = {1.0, 0.1, 1.0, 0.5, 1.0, 0.1, 1.0, 0.5};
+    ov::runtime::Tensor tensor, tensor_1;
+    OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
+    tensor = ov::Tensor(element::f32, req.get_tensor(inputname).get_shape(), in_boxes);
+    tensor_1 = ov::Tensor(element::f32, req.get_tensor(inputname_1).get_shape(), in_scores);
+    OV_ASSERT_NO_THROW(req.set_tensor(inputname, tensor));
+    OV_ASSERT_NO_THROW(req.set_tensor(inputname_1, tensor_1));
+    OV_ASSERT_NO_THROW(req.infer());
+    OV_ASSERT_NO_THROW(req.get_tensor(outputname));
+    OV_ASSERT_NO_THROW(req.infer());
+    OV_ASSERT_NO_THROW(req.get_tensor(outputname));
+}
+
+TEST_P(OVInferRequestDynamicOutputTests, InferDynamicOutputNetworkAsync2Times) {
+    const std::string inputname = function->input(0).get_any_name();
+    const std::string inputname_1 = function->input(1).get_any_name();
+    const std::string outputname = function->outputs().back().get_any_name();
+    // Load ov::Model to target plugins
+    ov::CompiledModel execNet;
+    execNet = ie->compile_model(function, target_device, configuration);
+    // Create InferRequest
+    auto req1 = execNet.create_infer_request();
+    auto req2 = execNet.create_infer_request();
+    std::thread t1([&] {
+        OV_ASSERT_NO_THROW(req1.start_async());
+        OV_ASSERT_NO_THROW(req1.wait());
+        OV_ASSERT_NO_THROW(req1.get_tensor(outputname));
+    });
+    std::thread t2([&] {
+        OV_ASSERT_NO_THROW(req2.start_async());
+        OV_ASSERT_NO_THROW(req2.wait());
+        OV_ASSERT_NO_THROW(req2.get_tensor(outputname));
+    });
+    t1.join();
+    t2.join();
+}
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
