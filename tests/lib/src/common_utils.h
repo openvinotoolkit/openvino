@@ -89,7 +89,7 @@ ov::Tensor fillTensorRandom(T &input) {
     std::vector<U> values(ov::shape_size(input.get_shape()));
 
     for (size_t i = 0; i < values.size(); ++i)
-        values[i] = 1 + static_cast<U> (rand()) / (static_cast<U> (RAND_MAX / (std::numeric_limits<U>::max() - 1)));
+        values[i] = 1 + static_cast<U>(rand()) / (static_cast<U>(RAND_MAX / (std::numeric_limits<U>::max() - 1) + 1));
 
     std::memcpy(tensor.data(), values.data(), sizeof(U) * values.size());
 
