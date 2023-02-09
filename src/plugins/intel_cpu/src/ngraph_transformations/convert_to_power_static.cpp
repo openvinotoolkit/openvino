@@ -109,7 +109,7 @@ ov::intel_cpu::ConvertToPowerStatic::ConvertToPowerStatic() {
     auto mult = ngraph::pattern::wrap_type<ngraph::opset1::Multiply>(twoInputs);
     const auto candidate = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{power, add, sub, mult});
 
-    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
         auto node = m.get_match_root();
 
         std::shared_ptr<ngraph::Node> toReplace = node;
