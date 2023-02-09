@@ -20,7 +20,7 @@ def deduce_legacy_frontend_by_namespace(argv: Namespace):
         else:
             argv.framework = guess_framework_by_ext(argv.input_model)
 
-    return map(lambda x: argv.framework == x, ['tf', 'caffe', 'mxnet', 'kaldi', 'onnx', "pytorch"])
+    return map(lambda x: argv.framework == x, ['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'])
 
 
 def guess_framework_by_ext(input_model_path: str) -> int:

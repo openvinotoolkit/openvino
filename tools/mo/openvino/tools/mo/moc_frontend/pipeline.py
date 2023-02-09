@@ -213,4 +213,48 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
             input_model.set_partial_shape(place, new_partial_shape)
 
     ngraph_function = moc_front_end.convert(input_model)
+    if argv.framework == "pytorch":
+        pytorch_process_after_convert(argv, ngraph_function)
+    return ngraph_function
+
+
+def pytorch_process_after_convert(argv, ngraph_function):
+    import torch
+    from openvino.frontend.pytorch.decoder import pt_to_ov_type_map
+    example_inputs = getattr(argv, "example_input", None)
+    input_signature = getattr(argv, "input_signature", None)
+    provide_shapes = argv.input_shape is not None
+    if example_inputs is not None:
+        inputs = [example_inputs] if isinstance(example_inputs, torch.Tensor) else example_inputs
+        if input_signature is not None and isinstance(inputs, dict):
+            ordered_inputs = []
+            upd_sign = []
+            for key in input_signature:
+                if key not in inputs:
+                    continue
+                ordered_inputs.append(inputs[key])
+                upd_sign.append(key)
+            inputs = ordered_inputs
+            input_signature = upd_sign
+        for idx, input_tensor in enumerate(ngraph_function.inputs):
+            if isinstance(inputs, (list, tuple)):
+                input_data = inputs[idx]
+            else:
+                input_data = list(inputs.values())[idx]
+            pt_dtype = input_data.dtype if isinstance(input_data, torch.Tensor) else type(input_data)
+            dtype = pt_to_ov_type_map.get(str(pt_dtype))
+            if dtype is None:
+                raise f"Unknown input dtype {pt_dtype}"
+
+            input_tensor.get_node().set_element_type(dtype)
+            if input_signature is not None:
+                tensor = input_tensor.get_tensor()
+                input_names = tensor.names
+                input_names.update(input_signature[idx])
+                tensor.set_names(input_names)
+            if not provide_shapes:
+                # prevent dynamic rank issue
+                shape = [-1] * len(input_data.shape)
+                input_tensor.get_node().set_partial_shape(PartialShape(shape))
+        ngraph_function.validate_nodes_and_infer_types() 
     return ngraph_function

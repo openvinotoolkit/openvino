@@ -146,8 +146,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
                     'try to convert the model without specifying --use_new_frontend option.')
 
     is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx = \
-        deduce_legacy_frontend_by_namespace(argv) if not moc_front_end else [
-            False, False, False, False, False, False]
+        deduce_legacy_frontend_by_namespace(argv) if not moc_front_end else [False, False, False, False, False]
 
     is_legacy_frontend = any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx])
     if not is_legacy_frontend and use_legacy_frontend:
@@ -1066,8 +1065,7 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
                 argv.framework = model_framework
 
         argv.feManager = FrontEndManager()
-        ov_model, legacy_path = driver(
-            argv, {"conversion_parameters": non_default_params})
+        ov_model, legacy_path = driver(argv, {"conversion_parameters": non_default_params})
 
         # add MO meta data to model
         ov_model.set_rt_info(get_version(), "MO_version")
