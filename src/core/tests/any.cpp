@@ -32,7 +32,7 @@ public:
         constructorCount++;
     }
 
-    ~DestructorTest() {
+    virtual ~DestructorTest() {
         destructorCount++;
     }
 
@@ -226,6 +226,13 @@ TEST_F(AnyTests, CompareAnysWithoutEqualOperator) {
     class TestClass {
     public:
         TestClass(int test, int* testPtr) : test(test), testPtr(testPtr) {}
+
+        int get_test() {
+            return test;
+        }
+        int* get_test_ptr() {
+            return testPtr;
+        }
 
     private:
         int test;

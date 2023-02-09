@@ -54,7 +54,7 @@ void LoopBegin::validate_and_infer_types_except_LoopEnd() {
     const size_t num_inputs = get_input_size();
     set_output_size(num_inputs + 1);
     // All outputs are by-passed from inputs, except for the last one - it connects LoopBegin and LoopEnd
-    for (int i = 0; i < num_inputs; i++)
+    for (size_t i = 0; i < num_inputs; i++)
         get_output_descriptor(i).set_tensor_ptr(get_input_descriptor(i).get_output().get_tensor_ptr());
     set_output_type(num_inputs, element::f32, ov::PartialShape{ov::Shape{}});
 }
@@ -81,8 +81,10 @@ std::shared_ptr<LoopEnd> LoopBegin::get_loop_end() {
 
 LoopEnd::LoopEnd(const std::vector<Output<Node>> &args, size_t work_amount, size_t work_amount_increment,
                  std::vector<bool> apply_increments, std::vector<int64_t> finalization_offsets)
-        : LoopBase(args, work_amount, work_amount_increment), finalization_offsets(std::move(finalization_offsets)),
-        has_outer_loop(true), loop_io_size(0) {
+        : LoopBase(args, work_amount, work_amount_increment),
+        has_outer_loop(true),
+        finalization_offsets(std::move(finalization_offsets)),
+        loop_io_size(0) {
         ptr_increments.resize(apply_increments.size());
         std::transform(apply_increments.begin(), apply_increments.end(), ptr_increments.begin(),
                        [work_amount_increment](bool apply) {
@@ -93,8 +95,11 @@ LoopEnd::LoopEnd(const std::vector<Output<Node>> &args, size_t work_amount, size
 
 LoopEnd::LoopEnd(const std::vector<Output<Node>> &args, size_t work_amount, size_t work_amount_increment,
                  std::vector<int64_t> ptr_increments, std::vector<int64_t> finalization_offsets)
-        : LoopBase(args, work_amount, work_amount_increment), ptr_increments(std::move(ptr_increments)),
-          finalization_offsets(std::move(finalization_offsets)), has_outer_loop(true), loop_io_size(0) {
+        : LoopBase(args, work_amount, work_amount_increment),
+          has_outer_loop(true),
+          ptr_increments(std::move(ptr_increments)),
+          finalization_offsets(std::move(finalization_offsets)),
+          loop_io_size(0) {
     constructor_validate_and_infer_types();
 }
 
@@ -172,7 +177,7 @@ void LoopEnd::validate_and_infer_types() {
         finalization_offsets.resize(loop_io_size, 0);
     set_output_size(num_inputs - 1);
     // All outputs are by-passed from inputs, except for the last one - it connects LoopBegin and LoopEnd
-    for (int i = 0; i < num_inputs - 1; i++)
+    for (size_t i = 0; i < num_inputs - 1; i++)
         get_output_descriptor(i).set_tensor_ptr(get_input_descriptor(i).get_output().get_tensor_ptr());
 }
 

@@ -204,7 +204,7 @@ void Transpose::prepareParams() {
     }
 
     auto engine = getEngine();
-    auto builder = [&engine](const PermuteParams& key) -> std::shared_ptr<TransposeJitExecutor> {
+    auto builder = [](const PermuteParams& key) -> std::shared_ptr<TransposeJitExecutor> {
         return std::make_shared<TransposeJitExecutor>(key);
     };
 
