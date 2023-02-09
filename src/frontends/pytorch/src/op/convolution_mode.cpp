@@ -34,7 +34,7 @@ OutputVector translate_convolution_mode(NodeContext& context) {
     } else {
         conv = context.mark_node(std::make_shared<opset10::GroupConvolution>(
             context.get_input(0),
-            context.mark_output(reshape_kernel_for_group(context, context.get_input(0), context.get_input(1), groups)),
+            context.mark_output(reshape_kernel_for_group(context, context.get_input(1), groups)),
             strides,
             pad_const,
             pad_const,
