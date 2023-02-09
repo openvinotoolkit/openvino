@@ -100,7 +100,7 @@ OpenVINO™ 安全附加组件包括三个组件，这些组件在基于内核�
 <br>
 **OpenVINO™ 安全附加组件适合模型开发和部署的情况**
 
-![安全附加组件图表](../../ovsa/ovsa_diagram.png)
+![安全附加组件图表](../../ovsa/ovsa_diagram.svg)
 
 [本文档](https://github.com/openvinotoolkit/security_addon/blob/master/docs/fingerprint-changes.md)介绍了 SWTPM（访客 VM 中使用的 vTPM）和 HW TPM（主机上的 TPM）之间的关系
 
@@ -643,7 +643,7 @@ sudo netplan apply
 
 > **TIP**: 模型开发人员/独立软件开发商和用户角色与虚拟机的使用相关，一个人可以填补多个角色所需完成的任务。在本文档中，模型开发人员和独立软件开发商的任务进行组合，并使用名为 `ovsa_isv` 的访客 VM。在同一台主机上可以设置所有角色。
 
-![OpenVINO™ 安全附加组件示例图表](../../ovsa/ovsa_example.png)
+![OpenVINO™ 安全附加组件示例图表](../../ovsa/ovsa_example.svg)
 
 ### 模型开发人员指令
 
