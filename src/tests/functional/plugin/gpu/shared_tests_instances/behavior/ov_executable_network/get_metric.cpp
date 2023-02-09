@@ -67,6 +67,8 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassExecutableNetworkGetMetricTest,
                          ::testing::Combine(::testing::Values("AUTO"),
                                             ::testing::ValuesIn(multiModelPriorityConfigs())),
                          OVClassExecutableNetworkGetMetricTest_MODEL_PRIORITY::getTestCaseName);
+
+
 //
 // Executable Network GetConfig / SetConfig
 //

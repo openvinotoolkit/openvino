@@ -137,7 +137,6 @@ public:
     std::string                 _performanceHint;
     std::mutex                  _confMutex;
     MultiDeviceInferencePlugin* _plugin;
-    bool                        _isCTPUTSingleDev = false;
     virtual ~AutoScheduleContext() = default;
 };
 
