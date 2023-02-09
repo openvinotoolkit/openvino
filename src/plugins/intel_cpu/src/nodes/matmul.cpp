@@ -113,7 +113,7 @@ bool MatMul::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
 class MMShapeInfer : public ShapeInferEmptyPads {
 public:
     MMShapeInfer(const size_t& out_rank, const bool& transpose_a, const bool& transpose_b) : m_out_rank(out_rank), m_transpose_a(transpose_a), m_transpose_b(transpose_b) {
-        m_YShape = VectorDims(m_out_rank, 1); // for output and cache
+        m_shapeY = VectorDims(m_out_rank, 1); // for output and cache
     }
     std::vector<VectorDims> infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
@@ -130,25 +130,26 @@ public:
         // 4. transpose is necessary
         // 5. Just support the same rank of matmul
         // 6. simplify the broadcast check
-        if (rankA == 1 && rankB == 1 && shapeA.at(0) == shapeB.at(0)) {
-            return {m_YShape};
+        if (rankA == 1 && rankB == 1 && shapeA[0] == shapeB[0]) {
+            return {m_shapeY};
         }
 
-        m_YShape.at(m_out_rank-2) = m_transpose_a ? shapeA.at(rankA-1) : shapeA.at(rankA-2);
-        m_YShape.at(m_out_rank-1) = m_transpose_b ? shapeB.at(rankB-2) : shapeB.at(rankB-1);
+        m_shapeY[m_out_rank-2] = m_transpose_a ? shapeA[rankA-1] : shapeA[rankA-2];
+        m_shapeY[m_out_rank-1] = m_transpose_b ? shapeB[rankB-2] : shapeB[rankB-1];
 
         for (size_t i=0; i < m_out_rank-2; ++i) {
-            size_t max = std::max(shapeA.at(i), shapeB.at(i));
-            size_t min = std::min(shapeA.at(i), shapeB.at(i));
-            if ((shapeA.at(i) == shapeB.at(i)) || (min == 1)) {
-                m_YShape.at(i) = max;
-            } else {
-                IE_THROW() << "Incompatible MatMul batch dimension. Cant merge the first input dimension=" <<
-                              shapeA[i] << " with second input dimension=" << shapeB[i] << " at index=" << i;
+            if (shapeA[i] != shapeB[i]) {
+                if (shapeB[i] == 1) {
+                    m_shapeY[i] = shapeA[i];
+                } else if (shapeA[i] != 1){
+                    IE_THROW() << "Incompatible MatMul batch dimension. Cant merge the first input dimension=" <<
+                                  shapeA[i] << " with second input dimension=" << shapeB[i] << " at index=" << i;
+                }
             }
+            m_shapeY[i] = shapeB[i];
         }
 
-        return {m_YShape};
+        return {m_shapeY};
     }
 
     port_mask_t get_port_mask() const override {
@@ -157,7 +158,7 @@ public:
 
 private:
     const std::shared_ptr<const ngraph::opset1::MatMul> m_matmul;
-    VectorDims m_YShape;
+    VectorDims m_shapeY;
     const size_t m_out_rank;
     const bool m_transpose_a;
     const bool m_transpose_b;
