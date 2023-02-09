@@ -6,6 +6,10 @@
 
 #include "summary.hpp"
 
+#include "openvino/opsets/opset.hpp"
+#include "openvino/openvino.hpp"
+#include "openvino/opsets/opset10.hpp"
+
 namespace ov {
 namespace test {
 namespace utils {
@@ -25,10 +29,9 @@ class OpSummary : public virtual Summary {
 private:
     static OpSummary *p_instance;
     static bool extractBody;
-    std::vector<ngraph::OpSet> opsets;
-    std::map<ngraph::NodeTypeInfo, PassRate> opsStats = {};
+    std::map<ov::NodeTypeInfo, PassRate> opsStats = {};
 
-    std::string getOpVersion(const ngraph::NodeTypeInfo &type_info);
+    std::string getOpVersion(const ov::NodeTypeInfo &type_info);
 
 protected:
     OpSummary();
@@ -38,11 +41,7 @@ protected:
 public:
     static OpSummary &getInstance();
 
-    std::map<ngraph::NodeTypeInfo, PassRate> getOPsStats() { return opsStats; }
-
-    std::vector<ngraph::OpSet> getOpSets() {
-        return opsets;
-    }
+    std::map<ov::NodeTypeInfo, PassRate> getOPsStats() { return opsStats; }
 
     static void setExtractBody(bool val) { extractBody = val; }
     static bool getExtractBody() { return extractBody; }
@@ -50,11 +49,11 @@ public:
     std::map<std::string, PassRate> getStatisticFromReport();
     void saveReport() override;
 
-    void updateOPsStats(const std::shared_ptr<ngraph::Function> &function, const PassRate::Statuses &status);
-    void updateOPsImplStatus(const std::shared_ptr<ngraph::Function> &function, const bool implStatus);
+    void updateOPsStats(const std::shared_ptr<ov::Model> &model, const PassRate::Statuses &status);
+    void updateOPsImplStatus(const std::shared_ptr<ov::Model> &model, const bool implStatus);
 
-    void updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::Statuses &status);
-    void updateOPsImplStatus(const ngraph::NodeTypeInfo &op, const bool implStatus);
+    void updateOPsStats(const ov::NodeTypeInfo &op, const PassRate::Statuses &status);
+    void updateOPsImplStatus(const ov::NodeTypeInfo &op, const bool implStatus);
 };
 
 }  // namespace utils

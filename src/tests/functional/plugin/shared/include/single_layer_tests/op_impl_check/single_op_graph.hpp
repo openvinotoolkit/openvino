@@ -16,10 +16,12 @@ OpGenerator getOpGeneratorMap();
 
 static const std::vector<std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Model>>> createFunctions() {
     std::vector<std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Model>>> res;
-    auto opsets = ov::test::utils::OpSummary::getInstance().getOpSets();
+    auto opsets = ov::get_available_opsets();
     auto opGenerator = getOpGeneratorMap();
     std::set<ngraph::NodeTypeInfo> opsInfo;
-    for (const auto& opset : opsets) {
+    for (const auto& opset_pair : opsets) {
+        std::string opset_version = opset_pair.first;
+        const ov::OpSet& opset = opset_pair.second();
         const auto &type_info_set = opset.get_type_info_set();
         opsInfo.insert(type_info_set.begin(), type_info_set.end());
     }
