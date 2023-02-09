@@ -109,7 +109,7 @@ Running the application with the `-h` or `--help` option yields the following us
 ```
 [Step 1/11] Parsing and validating input arguments
 [ INFO ] Parsing input parameters
-benchmark_app [OPTION]
+usage: benchmark_app [OPTION]
 
 Options:
     -h, --help                    Print the usage message

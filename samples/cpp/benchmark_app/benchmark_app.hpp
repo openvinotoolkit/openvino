@@ -391,7 +391,7 @@ DEFINE_bool(inference_only, true, inference_only_message);
  * @brief This function show a help message
  */
 static void show_usage() {
-    std::cout << "benchmark_app [OPTION]" << std::endl;
+    std::cout << "usage: benchmark_app [OPTION]" << std::endl;
     std::cout << std::endl;
     std::cout << "Options:" << std::endl;
     std::cout << "    -h, --help                    " << help_message << std::endl;
