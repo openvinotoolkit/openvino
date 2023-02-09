@@ -274,7 +274,7 @@ void GNAModelSerial::Import(void* basePointer,
                 (model_header_.version.minor >= 3) ? readString(is) : std::string("input" + std::to_string(inputIndex));
             inputs[name] = InputDesc(name);
         }
-        if (model_header_.version.minor >= 5) {
+        if (model_header_.version.minor >= 5 && model_header_.version.minor <= 8) {
             // 3. Read transposition input info
             for (int inputIx = 0; inputIx < model_header_.nTransposeInputs; ++inputIx) {
                 std::string inputName;
@@ -468,10 +468,8 @@ void GNAModelSerial::Export(const GnaAllocations& allocations, std::ostream& os)
         // Write the input name
         writeString(input.name, os);
     }
-    // 3. Write transposition input info
-    ExportTranspositionInfo(os, inputs_transpose_info_);
-    // 4. Write transposition output info
-    ExportTranspositionInfo(os, outputs_transpose_info_);
+    // 3. Write transposition input info - removed in v.2.9
+    // 4. Write transposition output info - removed in v.2.9
     // 5. Write input endpoints and tensor names
     for (const auto& input : inputs_.Get()) {
         // write RuntimeEndPoint
@@ -672,19 +670,6 @@ void GNAModelSerial::ImportTranspositionInfo(std::istream& is,
         TranspositionInfo fragmentTranspositionInfo;
         readNBytes(&fragmentTranspositionInfo, sizeof(TranspositionInfo), is);
         transpositionInfo.push_back(fragmentTranspositionInfo);
-    }
-}
-
-void GNAModelSerial::ExportTranspositionInfo(std::ostream& os, const TranspositionInfoMap& transpositionInfoMap) const {
-    for (const auto& transpositionInfo : transpositionInfoMap) {
-        auto nameSize = strlen(transpositionInfo.first.c_str());
-        writeBits(static_cast<uint32_t>(nameSize), os);
-        writeNBytes(transpositionInfo.first.c_str(), nameSize, os);
-        auto fragmentsNum = transpositionInfo.second.size();
-        writeBits(static_cast<uint32_t>(fragmentsNum), os);
-        for (const auto& transposeFragmentInfo : transpositionInfo.second) {
-            writeNBytes(&transposeFragmentInfo, sizeof(TranspositionInfo), os);
-        }
     }
 }
 

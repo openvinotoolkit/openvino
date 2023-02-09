@@ -12,7 +12,8 @@
 namespace ov {
 namespace intel_gna {
 
-std::shared_ptr<ov::Model> to_pre_post_process_model(const InferenceEngine::SizeVector& input_dims, const size_t& c_size, const size_t& hw_size);
+std::shared_ptr<ov::Model> to_pre_post_process_model(const TranspositionInfo& t_info);
+std::shared_ptr<ov::Model> to_pre_post_process_model(const std::vector<TranspositionInfo>& transposes);
 
 void ConvertToInt16(int16_t* ptr_dst,
                     const float* ptr_src,

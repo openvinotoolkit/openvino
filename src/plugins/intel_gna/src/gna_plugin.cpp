@@ -615,14 +615,6 @@ void GNAPlugin::FillInputsAndOutputsTranspositionInfo(const InferenceEngine::CNN
         transpose_inputs_info.insert({inputLayer->name, transpositionInfo});
         log::debug() << "Input " << inputLayer->name << " transposition info: \n";
         printTranspositionInfo(transpositionInfo);
-
-        // find transpose info
-        auto transp_it = transpose_inputs_info.find(inputLayer->name);
-        if (transp_it != transpose_inputs_info.end() && !transp_it->second.empty()) {
-            const TranspositionInfo& t_info = transp_it->second.front();
-            (*inputs_ptr_).at(inputLayer->name).pre_post_process_model =
-                to_pre_post_process_model(inputLayer->outData[0]->getDims(), t_info.num_transpose_rows, t_info.num_transpose_columns);
-    }
     }
 
     auto outputsMap = net.getOutputsInfo();
@@ -644,14 +636,6 @@ void GNAPlugin::FillInputsAndOutputsTranspositionInfo(const InferenceEngine::CNN
         transpose_outputs_info.insert({outLayer->name, transpositionInfo});
         log::debug() << "Output " << outLayer->name << " transposition info: \n";
         printTranspositionInfo(transpositionInfo);
-
-        // find transpose info
-        auto transp_it = transpose_outputs_info.find(outLayer->name);
-        if (transp_it != transpose_outputs_info.end() && !transp_it->second.empty()) {
-            const TranspositionInfo& t_info = transp_it->second.front();
-            outputs_.at(outLayer->name).pre_post_process_model =
-                to_pre_post_process_model(outLayer->outData[0]->getDims(), t_info.num_transpose_rows, t_info.num_transpose_columns);
-        }
     }
 }
 
@@ -1002,6 +986,15 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
                  {TranspositionInfo{dnn->do_rotate_input, dnn->num_rotate_rows, dnn->num_rotate_columns}}});
         }
     }
+
+    //TODO: Need to remove this conversation when ngraph NCHW<->NHWC transformation is enabled
+    if (!transpose_inputs_info.empty()) {
+        convert_transpose_map_to_model(transpose_inputs_info, inputs_ptr_->Get());
+    }
+    if (!transpose_outputs_info.empty()) {
+        convert_transpose_map_to_model(transpose_outputs_info, outputs_.Get());
+    }
+
     DumpXNNToFile();
 
 #ifdef PLOT
@@ -1541,6 +1534,14 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
             transpose_outputs_info.insert(
                 {output.first, {{header.doRotateOutput, header.nRotateOutputRows, header.nRotateOutputColumns}}});
         }
+    }
+
+    //TODO: Need to remove this conversation when ngraph NCHW<->NHWC transformation is enabled
+    if(!transpose_inputs_info.empty()) {
+        convert_transpose_map_to_model(transpose_inputs_info, inputs_ptr_->Get());
+    }
+    if(!transpose_outputs_info.empty()) {
+        convert_transpose_map_to_model(transpose_outputs_info, outputs_.Get());
     }
 
     for (auto&& memory : mt) {

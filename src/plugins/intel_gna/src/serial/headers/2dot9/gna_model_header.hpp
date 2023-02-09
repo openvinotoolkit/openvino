@@ -164,10 +164,6 @@ struct RuntimeEndPoint {
      * Number of tensor names
      */
     uint8_t tensor_names_count = 0;
-    /**
-     * Memory required to store pre/post processing ngraph model
-     */
-    uint64_t sub_model_size = 0ull;
 
     intel_dnn_orientation_t orientation = kDnnUnknownOrientation;
 
