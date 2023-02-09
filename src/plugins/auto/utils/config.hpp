@@ -162,7 +162,18 @@ struct PluginConfig {
                 if (!kvp.second.empty())
                     ParsePrioritiesDevices(kvp.second);
                 _devicePriority = kvp.second;
-            } else if (std::find(perf_hints_configs.begin(), perf_hints_configs.end(), kvp.first) != perf_hints_configs.end()) {
+            } else if (kvp.first == ov::hint::execution_mode.name()) {
+                if (kvp.second == "UNDEFINED") {
+                    _executionMode = 1;
+                } else if (kvp.second == "PERFORMANCE") {
+                    _executionMode = 2;
+                } else if (kvp.second == "ACCURACY") {
+                    _executionMode = 3;
+                } else {
+                    IE_THROW() << "Unsupported config value: " << kvp.second << " for key: " << kvp.first;
+                }
+            } else if (std::find(perf_hints_configs.begin(), perf_hints_configs.end(), kvp.first) !=
+                       perf_hints_configs.end()) {
                 _perfHintsConfig.SetConfig(kvp.first, kvp.second);
                 // if first level property has perf_hint setting
                 if (kvp.first == ov::hint::performance_mode.name())
@@ -248,6 +259,17 @@ struct PluginConfig {
                 priority = ov::util::to_string(ov::hint::Priority::LOW);
             _keyConfigMap[ov::hint::model_priority.name()] = priority;
         }
+        switch (_executionMode) {
+        case 1:
+            _keyConfigMap[ov::hint::execution_mode.name()] = ov::util::to_string(ov::hint::ExecutionMode::UNDEFINED);
+            break;
+        case 2:
+            _keyConfigMap[ov::hint::execution_mode.name()] = ov::util::to_string(ov::hint::ExecutionMode::PERFORMANCE);
+            break;
+        case 3:
+            _keyConfigMap[ov::hint::execution_mode.name()] = ov::util::to_string(ov::hint::ExecutionMode::ACCURACY);
+            break;
+        }
         _keyConfigMap[PluginConfigParams::KEY_PERFORMANCE_HINT] = _perfHintsConfig.ovPerfHint;
         _keyConfigMap[PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS] = std::to_string(_perfHintsConfig.ovPerfHintNumRequests);
 
@@ -280,6 +302,7 @@ struct PluginConfig {
     std::string _batchTimeout;
     std::string _devicePriority;
     int _modelPriority;
+    int _executionMode = 0;
     bool _deviceBindBuffer;
     std::string _logLevel;
     PerfHintsConfig  _perfHintsConfig;
