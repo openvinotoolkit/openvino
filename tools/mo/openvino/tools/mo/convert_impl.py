@@ -60,23 +60,28 @@ def load_extensions(argv: argparse.Namespace, is_tf: bool, is_caffe: bool, is_mx
         extensions = argv.extensions
     if is_tf:
         from openvino.tools.mo.front.tf.register_custom_ops import get_front_classes
-        import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
+        import_extensions.load_dirs(
+            argv.framework, extensions, get_front_classes)
     elif is_caffe:
         send_framework_info('caffe')
         from openvino.tools.mo.front.caffe.register_custom_ops import get_front_classes
-        import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
+        import_extensions.load_dirs(
+            argv.framework, extensions, get_front_classes)
     elif is_mxnet:
         send_framework_info('mxnet')
         from openvino.tools.mo.front.mxnet.register_custom_ops import get_front_classes
-        import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
+        import_extensions.load_dirs(
+            argv.framework, extensions, get_front_classes)
     elif is_kaldi:
         send_framework_info('kaldi')
         from openvino.tools.mo.front.kaldi.register_custom_ops import get_front_classes
-        import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
+        import_extensions.load_dirs(
+            argv.framework, extensions, get_front_classes)
     elif is_onnx:
         send_framework_info('onnx')
         from openvino.tools.mo.front.onnx.register_custom_ops import get_front_classes
-        import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
+        import_extensions.load_dirs(
+            argv.framework, extensions, get_front_classes)
 
 
 def replace_ext(name: str, old: str, new: str):
@@ -118,7 +123,8 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
         lines.append(framework_specifics_map[key])
         for (op, desc) in props[key].items():
             if isinstance(desc, list):
-                lines.append('\t{}: \t{}'.format(desc[0], desc[1](getattr(argv, op, 'NONE'))))
+                lines.append('\t{}: \t{}'.format(
+                    desc[0], desc[1](getattr(argv, op, 'NONE'))))
             else:
                 if op == 'k':
                     default_path = os.path.join(os.path.dirname(sys.argv[0]),
@@ -126,7 +132,8 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
                     if getattr(argv, op, 'NONE') == default_path:
                         lines.append('\t{}: \t{}'.format(desc, 'Default'))
                         continue
-                lines.append('\t{}: \t{}'.format(desc, getattr(argv, op, 'NONE')))
+                lines.append('\t{}: \t{}'.format(
+                    desc, getattr(argv, op, 'NONE')))
     print('\n'.join(lines), flush=True)
 
 
@@ -146,7 +153,8 @@ def arguments_post_parsing(argv: argparse.Namespace):
                     'try to convert the model without specifying --use_new_frontend option.')
 
     is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx = \
-        deduce_legacy_frontend_by_namespace(argv) if not moc_front_end else [False, False, False, False, False]
+        deduce_legacy_frontend_by_namespace(argv) if not moc_front_end else [
+            False, False, False, False, False]
 
     is_legacy_frontend = any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx])
     if not is_legacy_frontend and use_legacy_frontend:
@@ -179,7 +187,8 @@ def arguments_post_parsing(argv: argparse.Namespace):
         raise Error('Path to input model or input symbol or pretrained_model_name is required: use --input_model or '
                     '--input_symbol or --pretrained_model_name')
     elif is_caffe and not argv.input_model and not argv.input_proto:
-        raise Error('Path to input model or input proto is required: use --input_model or --input_proto')
+        raise Error(
+            'Path to input model or input proto is required: use --input_model or --input_proto')
     elif (is_kaldi or is_onnx) and not argv.input_model:
         raise Error('Path to input model is required: use --input_model.')
 
@@ -190,7 +199,8 @@ def arguments_post_parsing(argv: argparse.Namespace):
     # if --input_proto is not provided, try to retrieve another one
     # by suffix substitution from model file name
     if is_caffe and not argv.input_proto:
-        argv.input_proto = replace_ext(argv.input_model, '.caffemodel', '.prototxt')
+        argv.input_proto = replace_ext(
+            argv.input_model, '.caffemodel', '.prototxt')
 
         if not argv.input_proto:
             raise Error("Cannot find prototxt file: for Caffe please specify --input_proto - a " +
@@ -200,7 +210,8 @@ def arguments_post_parsing(argv: argparse.Namespace):
         log.info('Deduced name for prototxt: {}'.format(argv.input_proto))
 
     if not argv.silent:
-        print_argv(argv, is_caffe, is_tf, is_mxnet, is_kaldi, is_onnx, argv.model_name)
+        print_argv(argv, is_caffe, is_tf, is_mxnet,
+                   is_kaldi, is_onnx, argv.model_name)
 
     # This try-except is additional reinsurance that the IE
     # dependency search does not break the MO pipeline
@@ -230,9 +241,11 @@ def arguments_post_parsing(argv: argparse.Namespace):
     if moc_front_end:
         ret_code = check_requirements(silent=argv.silent)
     else:
-        ret_code = check_requirements(framework=argv.framework, silent=argv.silent)
+        ret_code = check_requirements(
+            framework=argv.framework, silent=argv.silent)
     if ret_code:
-        raise Error('check_requirements exited with return code {}'.format(ret_code))
+        raise Error(
+            'check_requirements exited with return code {}'.format(ret_code))
 
     if hasattr(argv, 'tensorflow_use_custom_operations_config') and \
             argv.tensorflow_use_custom_operations_config is not None:
@@ -255,7 +268,8 @@ def arguments_post_parsing(argv: argparse.Namespace):
     if is_tf:
         if argv.saved_model_tags is not None:
             if ' ' in argv.saved_model_tags:
-                raise Error('Incorrect saved model tag was provided. Specify --saved_model_tags with no spaces in it')
+                raise Error(
+                    'Incorrect saved model tag was provided. Specify --saved_model_tags with no spaces in it')
             argv.saved_model_tags = argv.saved_model_tags.split(',')
 
     argv.output = argv.output.split(',') if argv.output else None
@@ -266,9 +280,11 @@ def arguments_post_parsing(argv: argparse.Namespace):
 
     mean_values = parse_tuple_pairs(argv.mean_values)
     scale_values = parse_tuple_pairs(argv.scale_values)
-    mean_scale = get_mean_scale_dictionary(mean_values, scale_values, argv.input)
+    mean_scale = get_mean_scale_dictionary(
+        mean_values, scale_values, argv.input)
     argv.mean_scale_values = mean_scale
-    argv.layout_values = get_layout_values(argv.layout, argv.source_layout, argv.target_layout)
+    argv.layout_values = get_layout_values(
+        argv.layout, argv.source_layout, argv.target_layout)
 
     if not os.path.exists(argv.output_dir):
         try:
@@ -306,7 +322,8 @@ def check_fallback(argv: argparse.Namespace):
     fallback_reasons['transformations_config'] = legacy_transformations_config_used
     fallback_reasons['tensorflow_custom_operations_config_update'] = tensorflow_custom_operations_config_update_used
 
-    reasons = [reason for reason, is_applicable in fallback_reasons.items() if is_applicable(argv)]
+    reasons = [reason for reason,
+               is_applicable in fallback_reasons.items() if is_applicable(argv)]
     return reasons
 
 
@@ -323,7 +340,8 @@ def update_fallback_with_conversion_error(use_new_frontend: bool, is_tf: bool, e
 
     # for TensorFlow FE we have a set of operations that should lead to the fallback to the legacy
     conversion_error_re = r"^(\[TensorFlow\ Frontend\]\ Internal\ error\:\ No\ translator\ found\ for\ )(\w+)(\ node\.)$"
-    conversion_error_match = re.findall(conversion_error_re, ex_msg, re.MULTILINE)
+    conversion_error_match = re.findall(
+        conversion_error_re, ex_msg, re.MULTILINE)
     fallback_operations = [
         # corresponds to TF1 While operation
         "TensorArrayScatterV3", "TensorArrayV3", "TensorArraySizeV3", "TensorArrayGatherV3",
@@ -344,7 +362,8 @@ def update_fallback_with_conversion_error(use_new_frontend: bool, is_tf: bool, e
             conversion_error_match[0][1] not in fallback_operations:
         return False
 
-    fallback_reasons.append("Unsupported operation: " + conversion_error_match[0][1])
+    fallback_reasons.append("Unsupported operation: " +
+                            conversion_error_match[0][1])
     return True
 
 
@@ -394,9 +413,10 @@ def get_moc_frontends(argv: argparse.Namespace):
 def prepare_ir(argv: argparse.Namespace):
     # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
     # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
-    is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
+    is_tf, _, _, _, _, is_pt = deduce_legacy_frontend_by_namespace(argv)
     path_to_aux_pb = None
-    orig_argv_values = {"input_model": argv.input_model, "model_name": argv.model_name}
+    orig_argv_values = {"input_model": argv.input_model,
+                        "model_name": argv.model_name}
     if not argv.use_legacy_frontend and is_tf:
         from openvino.tools.mo.front.tf.loader import convert_to_pb
         path_to_aux_pb = convert_to_pb(argv)
@@ -411,15 +431,23 @@ def prepare_ir(argv: argparse.Namespace):
         fallback_reasons = check_fallback(argv)
         if len(fallback_reasons) == 0:
             try:
-                t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
-                moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
-                moc_front_end.add_extension(ProgressReporterExtension(progress_printer(argv)))
+                t.send_event("mo", "conversion_method",
+                             moc_front_end.get_name() + "_frontend")
+                # pt is not support extensions yet
+                if not is_pt:
+                    moc_front_end.add_extension(TelemetryExtension(
+                        "mo", t.send_event, t.send_error, t.send_stack_trace))
+                    moc_front_end.add_extension(
+                        ProgressReporterExtension(progress_printer(argv)))
                 if legacy_transformations_config_used(argv):
-                    raise Error('Legacy extensions are not supported for the new frontend')
+                    raise Error(
+                        'Legacy extensions are not supported for the new frontend')
                 if legacy_extensions_used(argv):
-                    raise Error('Legacy transformations configuration is not supported for the new frontend')
+                    raise Error(
+                        'Legacy transformations configuration is not supported for the new frontend')
                 if tensorflow_custom_operations_config_update_used(argv) and is_tf:
-                    raise Error('TensorFlow custom operation config is not supported for the new frontend')
+                    raise Error(
+                        'TensorFlow custom operation config is not supported for the new frontend')
                 if new_extensions_used(argv):
                     for extension in argv.extensions:
                         moc_front_end.add_extension(extension)
@@ -468,17 +496,21 @@ def read_model(fem: FrontEndManager, path_to_xml: str):
 
 def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
     NormalizeTI().find_and_replace_pattern(graph)
-    for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
-    for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
+    for_graph_and_each_sub_graph_recursively(
+        graph, RemoveConstOps().find_and_replace_pattern)
+    for_graph_and_each_sub_graph_recursively(
+        graph, CreateConstNodesReplacement().find_and_replace_pattern)
 
     if 'feManager' in argv:
         del argv.feManager
 
     mean_data = deepcopy(graph.graph['mf']) if 'mf' in graph.graph else None
-    input_names = deepcopy(graph.graph['input_names']) if 'input_names' in graph.graph else []
+    input_names = deepcopy(
+        graph.graph['input_names']) if 'input_names' in graph.graph else []
 
     output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
-    orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
+    orig_model_name = os.path.normpath(
+        os.path.join(output_dir, argv.model_name))
 
     def clear_tmp_ir_files():
         for suf in [".xml", ".bin", ".mapping"]:
@@ -620,8 +652,10 @@ def check_model_object(argv):
 
         if isinstance(model, tf.keras.layers.Layer) or isinstance(model, tf.Module):
             assert 'input_shape' in argv and argv['input_shape'] is not None, \
-                "Converting of {} requires providing of input_shape.".format(type(model))
-            assert len(argv['input_shape']) > 0, "Please provide non-empty input shape."
+                "Converting of {} requires providing of input_shape.".format(
+                    type(model))
+            assert len(argv['input_shape']
+                       ) > 0, "Please provide non-empty input shape."
             inputs = []
             for shape_idx, shape in enumerate(parse_input_shapes(argv)):
                 inp_shape = get_static_shape(shape)
@@ -629,7 +663,8 @@ def check_model_object(argv):
                 if len(inp_shape) > 1:
                     batch_size = inp_shape[0]
                     inp_shape = inp_shape[1:]
-                inputs.append(tf.keras.Input(shape=inp_shape, batch_size=batch_size))
+                inputs.append(tf.keras.Input(
+                    shape=inp_shape, batch_size=batch_size))
             outputs = model(*inputs)
             argv['input_model'] = tf.keras.Model(inputs, outputs)
             argv['input_shape'] = None
@@ -668,6 +703,7 @@ def to_torch_tensor(tensor):
         raise Error("Unexpected type of example_input. Supported types torch.Tensor, np.array or ov.Tensor. "
                     "Got {}".format(type(tensor)))
 
+
 def prepare_torch_inputs(example_inputs, input_shape):
     import torch
     if example_inputs is not None:
@@ -684,7 +720,8 @@ def prepare_torch_inputs(example_inputs, input_shape):
         elif isinstance(inputs, dict):
             for name, tensor in inputs.items():
                 assert isinstance(name, str), "Expected dictionary where keys are input names of string type and" \
-                                              " values are tensors. Got key of type {}".format(type(name))
+                                              " values are tensors. Got key of type {}".format(
+                                                  type(name))
                 inputs[name] = to_torch_tensor(tensor)
         else:
             inputs = to_torch_tensor(inputs)
@@ -695,8 +732,10 @@ def prepare_torch_inputs(example_inputs, input_shape):
             inputs.append(torch.zeros(static_shape))
         inputs = tuple(inputs)
     else:
-        raise Error("Please provide input_shape or example_input for converting PyTorch model.")
+        raise Error(
+            "Please provide input_shape or example_input for converting PyTorch model.")
     return inputs
+
 
 def convert_pytorch_to_onnx(model, input_shape, opset_version, example_inputs, output_dir):
     import io
@@ -707,7 +746,8 @@ def convert_pytorch_to_onnx(model, input_shape, opset_version, example_inputs, o
 
     dynamic_dims_dict = {}
     if input_shape is not None and input_names is None:
-        input_names = ["input_{}".format(idx) for idx in range(len(input_shape))]
+        input_names = ["input_{}".format(idx)
+                       for idx in range(len(input_shape))]
         for shape_idx, shape in enumerate(input_shape):
             dynamic_dims = get_dynamic_dims(shape)
             if len(dynamic_dims) > 0:
@@ -732,14 +772,11 @@ def convert_pytorch_to_onnx(model, input_shape, opset_version, example_inputs, o
     return model_onnx
 
 
-def convert_pytorch_model_pytorch_frontend(model, input_shape, example_inputs):
+def get_pytorch_decoder(model, input_shape, example_inputs):
     import torch
     import inspect
     try:
-        from openvino.frontend import FrontEndManager
-        from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder, pt_to_ov_type_map
-        fe_manager = FrontEndManager()
-        fe = fe_manager.load_by_framework('pytorch')
+        from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
     except Exception as e:
         print("PyTorch frontend loading failed")
         raise e
@@ -747,7 +784,8 @@ def convert_pytorch_model_pytorch_frontend(model, input_shape, example_inputs):
     model.eval()
     input_signature = None
     if isinstance(model, torch.nn.Module):
-        input_signature = list(inspect.signature(model.forward).parameters.keys())
+        input_signature = list(inspect.signature(
+            model.forward).parameters.keys())
         try:
             scripted = torch.jit.script(model)
         except:
@@ -760,32 +798,33 @@ def convert_pytorch_model_pytorch_frontend(model, input_shape, example_inputs):
         scripted = model
     f_model = torch.jit.freeze(scripted)
     decoder = TorchScriptPythonDecoder(f_model)
-    im = fe.load(decoder)
-    om = fe.convert(im)
-    provide_shapes = input_shape is not None
-    inputs = [inputs] if isinstance(inputs, torch.Tensor) else inputs
-    if input_signature is not None and isinstance(inputs, dict):
-        ordered_inputs = []
-        for key in input_signature:
-            if key not in inputs:
-                continue
-            ordered_inputs.append(inputs[key])
-        inputs = ordered_inputs
-    for idx, input_tensor in enumerate(om.inputs):
-        if isinstance(inputs, (list, tuple)):
-            input_data = inputs[idx]
-        else:
-            input_data = list(inputs.values)[idx]
-        pt_dtype = input_data.dtype if isinstance(input_data, torch.Tensor) else type(input_data)
-        dtype = pt_to_ov_type_map.get(str(pt_dtype))
-        if dtype is None:
-            raise f"Unknown input dtype {pt_dtype}"
+    # im = fe.load(decoder)
+    # om = fe.convert(im)
+    # provide_shapes = input_shape is not None
+    # inputs = [inputs] if isinstance(inputs, torch.Tensor) else inputs
+    # if input_signature is not None and isinstance(inputs, dict):
+    #     ordered_inputs = []
+    #     for key in input_signature:
+    #         if key not in inputs:
+    #             continue
+    #         ordered_inputs.append(inputs[key])
+    #     inputs = ordered_inputs
+    # for idx, input_tensor in enumerate(om.inputs):
+    #     if isinstance(inputs, (list, tuple)):
+    #         input_data = inputs[idx]
+    #     else:
+    #         input_data = list(inputs.values)[idx]
+    #     pt_dtype = input_data.dtype if isinstance(input_data, torch.Tensor) else type(input_data)
+    #     dtype = pt_to_ov_type_map.get(str(pt_dtype))
+    #     if dtype is None:
+    #         raise f"Unknown input dtype {pt_dtype}"
 
-        input_tensor.get_node().set_element_type(dtype)
-        shape = [-1] * len(input_data.shape) if not provide_shapes else input_shape[idx]
-        input_tensor.get_node().set_partial_shape(PartialShape(shape))
-    om.validate_nodes_and_infer_types()
-    return om
+    #     input_tensor.get_node().set_element_type(dtype)
+    #     shape = [-1] * len(input_data.shape) if not provide_shapes else input_shape[idx]
+    #     input_tensor.get_node().set_partial_shape(PartialShape(shape))
+    # om.validate_nodes_and_infer_types()
+    # return om
+    return decoder
 
 
 def parse_input_shapes(argv):
@@ -799,7 +838,8 @@ def parse_input_shapes(argv):
             is_single_shape = False
             for shape in shapes:
                 if isinstance(shape, str):
-                    _, shape_tuple, _ = get_placeholder_shapes(argv_input=None, argv_input_shape=shape)
+                    _, shape_tuple, _ = get_placeholder_shapes(
+                        argv_input=None, argv_input_shape=shape)
                     input_shapes.append(shape_tuple)
                     if is_single_shape:
                         raise Error("Incorrect format of shape.")
@@ -820,7 +860,8 @@ def parse_input_shapes(argv):
                 if isinstance(shapes, torch.Size):
                     return [shapes]
             except ImportError:
-                raise Error("Unknown type of input shape {}.".format(type(shapes)))
+                raise Error(
+                    "Unknown type of input shape {}.".format(type(shapes)))
 
     return input_shapes
 
@@ -846,10 +887,12 @@ def driver(argv: argparse.Namespace, non_default_params: dict):
 
     if not argv.silent:
         elapsed_time = datetime.datetime.now() - start_time
-        print('[ SUCCESS ] Total execution time: {:.2f} seconds. '.format(elapsed_time.total_seconds()))
+        print('[ SUCCESS ] Total execution time: {:.2f} seconds. '.format(
+            elapsed_time.total_seconds()))
         try:
             import resource
-            mem_usage = round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024)
+            mem_usage = round(resource.getrusage(
+                resource.RUSAGE_SELF).ru_maxrss / 1024)
             if sys.platform == 'darwin':
                 mem_usage = round(mem_usage / 1024)
             print('[ SUCCESS ] Memory consumed: {} MB. '.format(mem_usage))
@@ -935,7 +978,8 @@ def show_mo_convert_help():
             raise Error("Unknown parameters group {}.".format(group_name))
         for param_name in group:
             param_data = group[param_name]
-            text = param_data.description.format(param_data.possible_types_python_api)
+            text = param_data.description.format(
+                param_data.possible_types_python_api)
             text = add_line_breaks(text, 56, "\n\t\t\t")
             print("  --{} {}".format(param_name, text))
         print()
@@ -956,7 +1000,8 @@ def input_model_is_object(argv):
 def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParser):
     if len(args) > 0:
         args_string = params_to_string(**args)
-        argv, _ = cli_parser.parse_known_args(args_dict_to_list(cli_parser, **args_string))
+        argv, _ = cli_parser.parse_known_args(
+            args_dict_to_list(cli_parser, **args_string))
 
         # get list of all available params for convert_model()
         all_params = {}
@@ -985,12 +1030,56 @@ def remove_tmp_onnx_model(out_dir):
             os.remove(tmp_onnx_model)
 
 
+def convert_pytorch_via_onnx(args, example_inputs, cli_parser, framework):
+    opset_version = None
+    if 'onnx_opset_version' in args and args['onnx_opset_version'] is not None:
+        opset_version = args['onnx_opset_version']
+
+    out_dir = args['output_dir'] if 'output_dir' in args else None
+
+    model_onnx = convert_pytorch_to_onnx(args['input_model'],
+                                         parse_input_shapes(args),
+                                         opset_version,
+                                         example_inputs,
+                                         out_dir)
+
+    args['input_model'] = model_onnx
+    if os.environ.get('SAVE_TO_BYTES_IO_ONNX_MODEL'):
+        args['use_legacy_frontend'] = True
+        args['example_input'] = None
+        args['onnx_opset_version'] = None
+
+    try:
+        ov_model = _convert(**args)
+    except Exception as e:
+        remove_tmp_onnx_model(out_dir)
+        raise e
+
+    out_dir = args['output_dir'] if 'output_dir' in args else None
+
+    model_onnx = convert_pytorch_to_onnx(args['input_model'],
+                                         parse_input_shapes(args),
+                                         opset_version,
+                                         example_inputs,
+                                         out_dir)
+
+    try:
+        ov_model, argv = _convert(cli_parser, framework, args)
+    except Exception as e:
+        remove_tmp_onnx_model(out_dir)
+        raise e
+
+    remove_tmp_onnx_model(out_dir)
+    return ov_model, argv
+
+
 def _convert(cli_parser: argparse.ArgumentParser, framework, args):
     if 'help' in args and args['help']:
         show_mo_convert_help()
         return None, None
 
-    telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=get_simplified_mo_version())
+    telemetry = tm.Telemetry(tid=get_tid(
+    ), app_name='Model Optimizer', app_version=get_simplified_mo_version())
     telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', get_simplified_mo_version())
     try:
@@ -999,63 +1088,19 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
         if inp_model_is_object:
             model_framework = check_model_object(args)
             if model_framework == "pytorch":
-                use_pt_fe = os.environ.get('USE_PYTORCH_FRONTEND') or not args.get("use_legacy_frontend", False)
+                use_pt_fe = os.environ.get('USE_PYTORCH_FRONTEND') or not args.get(
+                    "use_legacy_frontend", False)
                 example_inputs = None
                 if 'example_input' in args and args['example_input'] is not None:
                     example_inputs = args['example_input']
-                if use_pt_fe:
-                     ov_model = convert_pytorch_model_pytorch_frontend(args['input_model'], parse_input_shapes(args), example_inputs)
-                     argv = None
-                else:
-                    opset_version = None
-                    if 'onnx_opset_version' in args and args['onnx_opset_version'] is not None:
-                        opset_version = args['onnx_opset_version']
+                if not use_pt_fe:
+                    return convert_pytorch_via_onnx(args, example_inputs, cli_parser, framework)
 
-                    out_dir = args['output_dir'] if 'output_dir' in args else None
-
-                    model_onnx = convert_pytorch_to_onnx(args['input_model'],
-                                                        parse_input_shapes(args),
-                                                        opset_version,
-                                                        example_inputs,
-                                                        out_dir)
-
-                    args['input_model'] = model_onnx
-                    if os.environ.get('SAVE_TO_BYTES_IO_ONNX_MODEL'):
-                        args['use_legacy_frontend'] = True
-                    args['example_input'] = None
-                    args['onnx_opset_version'] = None
-
-                    try:
-                        ov_model = _convert(**args)
-                    except Exception as e:
-                        remove_tmp_onnx_model(out_dir)
-                        raise e
-
-                    out_dir = args['output_dir'] if 'output_dir' in args else None
-
-                    model_onnx = convert_pytorch_to_onnx(args['input_model'],
-                                                        parse_input_shapes(args),
-                                                        opset_version,
-                                                        example_inputs,
-                                                        out_dir)
-
-                    args['input_model'] = model_onnx
-                    if os.environ.get('SAVE_TO_BYTES_IO_ONNX_MODEL'):
-                        args['use_legacy_frontend'] = True
-                    args['example_input'] = None
-                    args['onnx_opset_version'] = None
-
-                try:
-                    ov_model, argv = _convert(cli_parser, framework, args)
-                except Exception as e:
-                    remove_tmp_onnx_model(out_dir)
-                    raise e
-
-                remove_tmp_onnx_model(out_dir)
-                return ov_model, argv
-            else:
-                ov_model = convert_pytorch_pytorch_frontend(args['input_model'], parse_input_shapes(args), example_inputs)
-                return ov_model, argv
+                decoder = get_pytorch_decoder(
+                args['input_model'], parse_input_shapes(args), example_inputs)
+                args['input_model'] = decoder
+                args["framework"] = "pytorch"
+                args.pop("example_input")
 
         # Initialize logger with 'ERROR' as default level to be able to form nice messages
         # before arg parser deliver log_level requested by user
@@ -1081,21 +1126,23 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
                 if argv.framework != model_framework:
                     raise Error("Provided model does not correspond to provided framework. The provided "
                                 "framework is {}, the model type is {} which is expected to be {} framework.".format(
-                        argv.framework,
-                        type(argv.input_model),
-                        model_framework))
+                                    argv.framework,
+                                    type(argv.input_model),
+                                    model_framework))
             else:
                 argv.framework = model_framework
 
         argv.feManager = FrontEndManager()
-        ov_model, legacy_path = driver(argv, {"conversion_parameters": non_default_params})
+        ov_model, legacy_path = driver(
+            argv, {"conversion_parameters": non_default_params})
 
         # add MO meta data to model
         ov_model.set_rt_info(get_version(), "MO_version")
         ov_model.set_rt_info(get_rt_version(), "Runtime_version")
         ov_model.set_rt_info(str(legacy_path), "legacy_frontend")
         for key, value in non_default_params.items():
-            ov_model.set_rt_info(str(value), ["conversion_parameters", str(key)])
+            ov_model.set_rt_info(
+                str(value), ["conversion_parameters", str(key)])
 
         telemetry.send_event('mo', 'conversion_result', 'success')
         telemetry.end_session('mo')
@@ -1105,4 +1152,4 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
         telemetry.send_event('mo', 'conversion_result', 'fail')
         telemetry.end_session('mo')
         telemetry.force_shutdown(1.0)
-        raise e.with_traceback(None)
+        raise e
