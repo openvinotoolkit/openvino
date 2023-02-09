@@ -627,7 +627,7 @@ void ov::CoreImpl::set_property(const std::string& device_name, const AnyMap& pr
                         "set_property do not support ov::device::propreties. "
                         "You can configure the devices through the compile_model()/loadNetwork() API.");
     }
-    set_property_for_devivce(properties, device_name);
+    set_property_for_device(properties, device_name);
 }
 
 ov::Any ov::CoreImpl::get_property_for_core(const std::string& name) const {
@@ -719,7 +719,7 @@ std::vector<std::string> ov::CoreImpl::get_registered_devices() const {
  * @note  `deviceName` is not allowed in form of MULTI:CPU, HETERO:GPU,CPU, AUTO:CPU
  *        just simple forms like CPU, GPU, MULTI, GPU.0, etc
  */
-void ov::CoreImpl::set_property_for_devivce(const ov::AnyMap& configMap, const std::string& deviceName) {
+void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const std::string& deviceName) {
     auto config = configMap;
     if (config.empty()) {
         return;

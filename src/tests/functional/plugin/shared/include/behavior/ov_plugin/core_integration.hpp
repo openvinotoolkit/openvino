@@ -336,6 +336,9 @@ TEST(OVClassBasicTest, smoke_SetConfigDevicePropertiesThrows) {
     ASSERT_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO,
                                  ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::enable_profiling(true))),
                  ov::Exception);
+    ASSERT_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO,
+                                 ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::num_streams(4))),
+                 ov::Exception);
 }
 
 TEST_P(OVClassBasicTestP, SetConfigHeteroTargetFallbackThrows) {
