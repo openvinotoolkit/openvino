@@ -111,9 +111,10 @@ def test_low_latency2():
     (False, False),
 ],
 )
-def test_serialize_pass(request, is_path_xml, is_path_bin):
+def test_serialize_pass(request, tmp_path, is_path_xml, is_path_bin):
     core = Core()
     xml_path, bin_path = create_filename_for_test(request.node.name,
+                                                  tmp_path,
                                                   is_path_xml,
                                                   is_path_bin)
 

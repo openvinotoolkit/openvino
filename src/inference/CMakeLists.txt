@@ -13,6 +13,7 @@ file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dev/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dev/preprocessing/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/threading/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp_interfaces/interface/*.cpp

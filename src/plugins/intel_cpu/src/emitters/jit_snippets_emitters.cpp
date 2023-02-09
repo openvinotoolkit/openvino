@@ -66,25 +66,25 @@ void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool,  
                 if (std::dynamic_pointer_cast<LoopBeginEmitter>(emitter) ||
                     std::dynamic_pointer_cast<LoopEndEmitter>(emitter) ||
                     std::dynamic_pointer_cast<BrgemmEmitter>(emitter))
-                    in_physical_regs = std::move(map_regs(in_abstract_regs, gpr_map_pool));
+                    in_physical_regs = map_regs(in_abstract_regs, gpr_map_pool);
                 else
                     in_physical_regs = std::move(in_abstract_regs);
-                out_physical_regs = std::move(map_regs(out_abstract_regs, gpr_map_pool));
+                out_physical_regs = map_regs(out_abstract_regs, gpr_map_pool);
                 break;
             case gpr_to_vec:
                 // Load Emitters
-                in_physical_regs = std::move(map_regs(in_abstract_regs, gpr_map_pool));
-                out_physical_regs = std::move(map_regs(out_abstract_regs, vec_map_pool));
+                in_physical_regs = map_regs(in_abstract_regs, gpr_map_pool);
+                out_physical_regs = map_regs(out_abstract_regs, vec_map_pool);
                 break;
             case vec_to_gpr:
                 // Store Emitters
-                in_physical_regs = std::move(map_regs(in_abstract_regs, vec_map_pool));
-                out_physical_regs = std::move(map_regs(out_abstract_regs, gpr_map_pool));
+                in_physical_regs = map_regs(in_abstract_regs, vec_map_pool);
+                out_physical_regs = map_regs(out_abstract_regs, gpr_map_pool);
                 break;
             case vec_to_vec:
                 // Regular operations
-                in_physical_regs = std::move(map_regs(in_abstract_regs, vec_map_pool));
-                out_physical_regs = std::move(map_regs(out_abstract_regs, vec_map_pool));
+                in_physical_regs = map_regs(in_abstract_regs, vec_map_pool);
+                out_physical_regs = map_regs(out_abstract_regs, vec_map_pool);
                 break;
             default:
                 IE_THROW() << "Unhandled in_out type";
@@ -563,8 +563,6 @@ void StoreEmitter::emit_impl(const std::vector<size_t>& in,
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void StoreEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
-    using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
-            Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
     if (!store_emitter)
         IE_THROW() << "Store CPU emitter isn't initialized for StoreEmitter!";
     store_emitter->emit_code({in[0], byte_offset}, {out[0]}, aux_vec_idxs, aux_gpr_idxs);
@@ -607,8 +605,6 @@ void LoadEmitter::emit_impl(const std::vector<size_t>& in,
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void LoadEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
-    using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
-            Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
     if (!load_emitter)
         IE_THROW() << "Load CPU emitter isn't initialized for LoadEmitter!";
     load_emitter->emit_code({in[0], byte_offset}, {out[0]}, aux_vec_idxs, aux_gpr_idxs);
@@ -987,7 +983,6 @@ void BrgemmEmitter::kernel_execute(const brgemm_kernel_t *brg_kernel, const void
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void BrgemmEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
-    using Vmm = typename dnnl::impl::utils::conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Reg64 input_0(static_cast<int>(in[0]));
     Reg64 input_1(static_cast<int>(in[1]));
     Reg64 output_0(static_cast<int>(out[0]));

@@ -4,15 +4,17 @@
 
 #pragma once
 
-#include <gna2-inference-api.h>
 #include <gna2-common-api.h>
-#include "openvino/runtime/intel_gna/properties.hpp"
-#include "ie_precision.hpp"
+#include <gna2-inference-api.h>
+
 #include <ie_parameter.hpp>
-#include "descriptions/gna_flags.hpp"
-#include <vector>
 #include <map>
 #include <mutex>
+#include <vector>
+
+#include "descriptions/gna_flags.hpp"
+#include "ie_precision.hpp"
+#include "openvino/runtime/intel_gna/properties.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -70,7 +72,7 @@ struct Config {
     bool swExactMode = true;
 
     std::map<std::string, float> inputScaleFactorsPerInput;
-    std::vector<float> inputScaleFactors; // Legacy one, should be removed with old confg API
+    std::vector<float> inputScaleFactors;  // Legacy one, should be removed with old confg API
     GNAFlags gnaFlags;
 
     mutable std::mutex mtx4keyConfigMap;

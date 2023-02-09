@@ -7,8 +7,13 @@
 #include "snippets/snippets_isa.hpp"
 #include <iterator>
 
+#if defined(__clang__)
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wunused-lambda-capture"
+#endif
+
 namespace {
-static constexpr size_t reg_count = 16lu;
+constexpr size_t reg_count = 16lu;
 }  // namespace
 
 bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr<ov::Model>& f) {
@@ -187,7 +192,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
             auto op = typed_ops[n].second;
             for (const auto& out : op->outputs()) {
                 for (const auto& port : out.get_target_inputs()) {
-                    auto k = std::find(ops.begin(), ops.end(), port.get_node()->shared_from_this()) - ops.begin();
+                    size_t k = std::find(ops.begin(), ops.end(), port.get_node()->shared_from_this()) - ops.begin();
                     if (k == ops.size())
                         throw ngraph_error("assign registers can't find target op in the body");
                     switch (typed_ops[k].first) {
@@ -314,3 +319,6 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
     return false;
 }
 
+#if defined(__clang__)
+#    pragma clang diagnostic pop
+#endif

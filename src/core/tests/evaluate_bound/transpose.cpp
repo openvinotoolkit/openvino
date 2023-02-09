@@ -31,9 +31,9 @@ protected:
         std::generate_n(std::back_inserter(lower_values), shape_size(p_shape.get_min_shape()), SeqGen<int32_t>(-10));
         std::generate_n(std::back_inserter(upper_values), shape_size(p_shape.get_min_shape()), SeqGen<int32_t>(20));
 
-        lower_v_tensor = std::make_shared<HostTensor>(dtype, p_shape.get_min_shape(), lower_values.data());
-        upper_v_tensor = std::make_shared<HostTensor>(dtype, p_shape.get_min_shape(), upper_values.data());
-        axes_v_tensor = std::make_shared<HostTensor>(dtype, Shape{axes_order.size()}, axes_order.data());
+        lower_v_tensor = ov::Tensor(dtype, p_shape.get_min_shape(), lower_values.data());
+        upper_v_tensor = ov::Tensor(dtype, p_shape.get_min_shape(), upper_values.data());
+        axes_v_tensor = ov::Tensor(dtype, Shape{axes_order.size()}, axes_order.data());
 
         arg = std::make_shared<Parameter>(dtype, p_shape);
         order = std::make_shared<Parameter>(dtype, Shape{axes_order.size()});
@@ -43,12 +43,12 @@ protected:
         result = exp_result = TensorVector{Tensor(dtype, {0})};
     }
 
-    void node_set_lower_and_upper(Node* node, const HostTensorPtr& lower, const HostTensorPtr& upper) {
-        if (lower != nullptr) {
+    void node_set_lower_and_upper(Node* node, const ov::Tensor& lower, const ov::Tensor& upper) {
+        if (lower) {
             node->get_output_tensor(0).set_lower_value(lower);
         }
 
-        if (upper != nullptr) {
+        if (upper) {
             node->get_output_tensor(0).set_upper_value(upper);
         }
     }
@@ -58,7 +58,7 @@ protected:
     element::Type label_dtype{element::from<label_t>()};
 
     std::vector<int32_t> axes_order, lower_values, upper_values;
-    HostTensorPtr lower_v_tensor, upper_v_tensor, axes_v_tensor;
+    ov::Tensor lower_v_tensor, upper_v_tensor, axes_v_tensor;
     TensorVector result, exp_result;
     std::shared_ptr<Transpose> transpose;
     std::shared_ptr<Parameter> arg, order;
@@ -92,7 +92,7 @@ TEST_P(TransposeEvalBoundTest, evaluate_lower) {
 }
 
 TEST_P(TransposeEvalBoundTest, evaluate_lower_but_arg_lower_values_not_set) {
-    node_set_lower_and_upper(arg.get(), nullptr, upper_v_tensor);
+    node_set_lower_and_upper(arg.get(), ov::Tensor(), upper_v_tensor);
     node_set_lower_and_upper(order.get(), axes_v_tensor, axes_v_tensor);
 
     ASSERT_FALSE(transpose->evaluate_lower(result));
@@ -119,7 +119,7 @@ TEST_P(TransposeEvalBoundTest, evaluate_upper) {
 }
 
 TEST_P(TransposeEvalBoundTest, evaluate_upper_but_arg_upper_values_not_set) {
-    node_set_lower_and_upper(arg.get(), upper_v_tensor, nullptr);
+    node_set_lower_and_upper(arg.get(), upper_v_tensor, ov::Tensor());
     node_set_lower_and_upper(order.get(), axes_v_tensor, axes_v_tensor);
 
     ASSERT_FALSE(transpose->evaluate_upper(result));

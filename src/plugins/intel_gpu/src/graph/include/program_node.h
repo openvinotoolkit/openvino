@@ -83,6 +83,22 @@ public:
         return res;
     }
 
+    bool is_shape_infer_dep(void) const {
+        if (!myprog.get_config().get_property(ov::intel_gpu::allow_new_shape_infer))
+            return false;
+        for (auto u : users) {
+            for (auto dep_idx : u->get_shape_infer_dependencies()) {
+                if (u->get_dependencies().size() <= dep_idx) {
+                    continue;
+                }
+                if (u->get_dependency(dep_idx).get_unique_id() == unique_id) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     std::map<size_t, memory::ptr> get_const_memory_deps() const;
 
     virtual std::unique_ptr<kernel_impl_params> get_kernel_impl_params() const {
@@ -370,6 +386,9 @@ public:
     void set_preferred_input_fmt(size_t idx, format::type type);
     void set_preferred_output_fmt(size_t idx, format::type type);
 
+    virtual void calculate_hash() {}
+
+    size_t get_hash() const { return seed; }
 
 protected:
     size_t unique_id = 0;
@@ -410,6 +429,8 @@ protected:
     std::vector<fused_primitive_desc> fused_prims;
 
     void invalidate_users() const;
+
+    size_t seed = 0;
 
 private:
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -452,6 +473,16 @@ public:
 
     std::shared_ptr<const PType> get_primitive() const {
         return std::static_pointer_cast<const PType>(program_node::get_primitive());
+    }
+
+    void calculate_hash() override {
+        // hash for primitive
+        seed = get_primitive()->hash();
+
+        // hash for fused prims
+        for (auto& prim : fused_prims) {
+            seed = hash_combine(seed, prim.desc->hash());
+        }
     }
 
 protected:

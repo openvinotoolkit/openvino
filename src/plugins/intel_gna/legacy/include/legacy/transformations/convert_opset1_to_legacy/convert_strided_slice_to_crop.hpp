@@ -4,13 +4,12 @@
 
 #pragma once
 
-#include <vector>
-#include <memory>
-#include <algorithm>
-
 #include <ie_api.h>
 
+#include <algorithm>
+#include <memory>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <vector>
 
 namespace ngraph {
 namespace pass {
@@ -20,7 +19,7 @@ class ConvertStridedSliceToCropMatcher;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertStridedSliceToCropMatcher: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertStridedSliceToCropMatcher : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertStridedSliceToCropMatcher", "0");
     ConvertStridedSliceToCropMatcher();

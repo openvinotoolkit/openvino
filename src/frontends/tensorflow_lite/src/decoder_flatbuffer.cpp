@@ -48,9 +48,15 @@ std::string DecoderFlatBuffer::get_input_tensor_name(size_t idx) const {
     FRONT_END_GENERAL_CHECK(idx < get_input_size(), "Requested input is out-of-range");
     return m_input_info.at(idx).tensor->name()->str();
 }
+
 std::string DecoderFlatBuffer::get_output_tensor_name(size_t idx) const {
     FRONT_END_GENERAL_CHECK(idx < get_output_size(), "Requested output is out-of-range");
     return m_output_info.at(idx).tensor->name()->str();
+}
+
+ov::element::Type DecoderFlatBuffer::get_output_tensor_type(size_t idx) const {
+    FRONT_END_GENERAL_CHECK(idx < get_output_size(), "Requested output is out-of-range");
+    return get_ov_type(m_output_info.at(idx).tensor->type());
 }
 
 std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> DecoderFlatBuffer::decode_input_tensor(

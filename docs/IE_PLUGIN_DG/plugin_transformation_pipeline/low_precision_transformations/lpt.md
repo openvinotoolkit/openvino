@@ -60,6 +60,8 @@ LPT transformations propagate dequantization operations through the following op
 * [Squeeze-1](@ref openvino_docs_ops_shape_Reshape_1)
 * [StridedSlice-1](@ref openvino_docs_ops_movement_StridedSlice_1)
 * [Transpose-1](@ref openvino_docs_ops_movement_Transpose_1)
+* [Gather-7](@ref openvino_docs_ops_movement_Gather_7)
+* [Gather-8](@ref openvino_docs_ops_movement_Gather_8)
 * [Unsqueeze-1](@ref openvino_docs_ops_shape_Unsqueeze_1)
 * [VariadicSplit-1](@ref openvino_docs_ops_movement_VariadicSplit_1)
 
@@ -149,6 +151,7 @@ This step has the most transformations. These transformations can be separated i
 * [FakeQuantizeTransformation](@ref openvino_docs_OV_UG_lpt_FakeQuantizeTransformation)
 * [InterpolateTransformation](@ref openvino_docs_OV_UG_lpt_InterpolateTransformation)
 * [GroupConvolutionTransformation](@ref openvino_docs_OV_UG_lpt_GroupConvolutionTransformation)
+* [GatherTransformation](@ref openvino_docs_OV_UG_lpt_GatherTransformation)
 * [MatMulTransformation](@ref openvino_docs_OV_UG_lpt_MatMulTransformation)
 * [MaxPoolTransformation](@ref openvino_docs_OV_UG_lpt_MaxPoolTransformation)
 * [MultiplyTransformation](@ref openvino_docs_OV_UG_lpt_MultiplyTransformation)

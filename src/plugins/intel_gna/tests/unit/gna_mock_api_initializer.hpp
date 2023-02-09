@@ -3,11 +3,10 @@
 //
 
 #pragma once
-#include "gna_mock_api.hpp"
-
 #include <gna2-common-api.h>
 
 #include "cstdint"
+#include "gna_mock_api.hpp"
 #include "vector"
 
 class GnaMockApiInitializer {
