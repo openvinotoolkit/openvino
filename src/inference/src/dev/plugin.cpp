@@ -52,7 +52,12 @@ void ov::Plugin::add_extension(const ie::IExtensionPtr& extension) {
 }
 
 void ov::Plugin::set_property(const ov::AnyMap& config) {
-    OV_PLUGIN_CALL_STATEMENT(m_ptr->set_property(config));
+    OV_PLUGIN_CALL_STATEMENT({
+        if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(m_ptr))
+            wrapper->set_property(config);
+        else
+            m_ptr->set_property(config);
+    });
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -108,36 +113,40 @@ ov::RemoteContext ov::Plugin::get_default_context(const AnyMap& params) const {
 
 ov::Any ov::Plugin::get_property(const std::string& name, const AnyMap& arguments) const {
     OV_PLUGIN_CALL_STATEMENT({
-        if (ov::supported_properties == name) {
-            try {
-                return {m_ptr->get_property(name, arguments), {m_so}};
-            } catch (const ie::Exception&) {
-                std::vector<ov::PropertyName> supported_properties;
+        if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(m_ptr)) {
+            if (ov::supported_properties == name) {
                 try {
-                    auto ro_properties =
-                        m_ptr->get_property(METRIC_KEY(SUPPORTED_METRICS), arguments).as<std::vector<std::string>>();
-                    for (auto&& ro_property : ro_properties) {
-                        if (ro_property != METRIC_KEY(SUPPORTED_METRICS) &&
-                            ro_property != METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-                            supported_properties.emplace_back(ro_property, PropertyMutability::RO);
+                    return {wrapper->get_property(name, arguments), {m_so}};
+                } catch (const ie::Exception&) {
+                    std::vector<ov::PropertyName> supported_properties;
+                    try {
+                        auto ro_properties = wrapper->get_property(METRIC_KEY(SUPPORTED_METRICS), arguments)
+                                                 .as<std::vector<std::string>>();
+                        for (auto&& ro_property : ro_properties) {
+                            if (ro_property != METRIC_KEY(SUPPORTED_METRICS) &&
+                                ro_property != METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
+                                supported_properties.emplace_back(ro_property, PropertyMutability::RO);
+                            }
                         }
+                    } catch (const ov::Exception&) {
+                    } catch (const ie::Exception&) {
                     }
-                } catch (const ov::Exception&) {
-                } catch (const ie::Exception&) {
-                }
-                try {
-                    auto rw_properties = m_ptr->get_property(METRIC_KEY(SUPPORTED_CONFIG_KEYS), arguments)
-                                             .as<std::vector<std::string>>();
-                    for (auto&& rw_property : rw_properties) {
-                        supported_properties.emplace_back(rw_property, PropertyMutability::RW);
+                    try {
+                        auto rw_properties = wrapper->get_property(METRIC_KEY(SUPPORTED_CONFIG_KEYS), arguments)
+                                                 .as<std::vector<std::string>>();
+                        for (auto&& rw_property : rw_properties) {
+                            supported_properties.emplace_back(rw_property, PropertyMutability::RW);
+                        }
+                    } catch (const ov::Exception&) {
+                    } catch (const ie::Exception&) {
                     }
-                } catch (const ov::Exception&) {
-                } catch (const ie::Exception&) {
+                    supported_properties.emplace_back(ov::supported_properties.name(), PropertyMutability::RO);
+                    return supported_properties;
                 }
-                supported_properties.emplace_back(ov::supported_properties.name(), PropertyMutability::RO);
-                return supported_properties;
             }
+            return {wrapper->get_property(name, arguments), {m_so}};
+        } else {
+            return {m_ptr->get_property(name, arguments), {m_so}};
         }
-        return {m_ptr->get_property(name, arguments), {m_so}};
     });
 }
