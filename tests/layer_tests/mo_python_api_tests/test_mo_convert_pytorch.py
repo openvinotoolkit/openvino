@@ -178,7 +178,7 @@ def create_pytorch_nn_module_compare_convert_paths_case1(tmp_dir):
     onnx_model_path = os.path.join(tmp_dir, 'export.onnx')
     torch.onnx.export(pt_model, sample_input, onnx_model_path, opset_version=16)
 
-    ref_model = convert_model(onnx_model_path, compress_to_fp16=False)
+    ref_model = convert_model(onnx_model_path)
     return pt_model, ref_model, {'example_input': sample_input, 'onnx_opset_version': 16}
 
 
@@ -190,7 +190,7 @@ def create_pytorch_nn_module_compare_convert_paths_case2(tmp_dir):
     onnx_model_path = os.path.join(tmp_dir, 'export.onnx')
     torch.onnx.export(pt_model, sample_input, onnx_model_path, opset_version=16)
 
-    ref_model = convert_model(onnx_model_path, compress_to_fp16=False)
+    ref_model = convert_model(onnx_model_path)
     return pt_model, ref_model, {'example_input': sample_input,
                                  'input_shape': [1, 3, 10, 10],
                                  'onnx_opset_version': 16}
@@ -204,7 +204,7 @@ def create_pytorch_nn_module_compare_convert_paths_case3(tmp_dir):
     onnx_model_path = os.path.join(tmp_dir, 'export.onnx')
     torch.onnx.export(pt_model, sample_input, onnx_model_path, opset_version=16)
 
-    ref_model = convert_model(onnx_model_path, compress_to_fp16=False)
+    ref_model = convert_model(onnx_model_path)
     return pt_model, ref_model, {'input_shape': [1, 3, 10, 10],
                                  'onnx_opset_version': 16}
 
@@ -220,7 +220,7 @@ def create_pytorch_nn_module_compare_convert_paths_case4(tmp_dir):
     onnx_model_path = os.path.join(tmp_dir, 'export.onnx')
     torch.onnx.export(pt_model, sample_input, onnx_model_path, opset_version=16)
 
-    ref_model = convert_model(onnx_model_path, compress_to_fp16=False)
+    ref_model = convert_model(onnx_model_path)
 
     return pt_model, ref_model, {'example_input': sample_input, 'onnx_opset_version': 16}
 
@@ -236,7 +236,7 @@ def create_pytorch_nn_module_compare_convert_paths_case5(tmp_dir):
     onnx_model_path = os.path.join(tmp_dir, 'export.onnx')
     torch.onnx.export(pt_model, sample_input, onnx_model_path, opset_version=16)
 
-    ref_model = convert_model(onnx_model_path, compress_to_fp16=False)
+    ref_model = convert_model(onnx_model_path)
 
     return pt_model, ref_model, {'example_input': sample_input,
                                  'input_shape': [torch.Size([1, 3, 10, 10]), PartialShape([1, 3, 10, 10])],
@@ -254,7 +254,7 @@ def create_pytorch_nn_module_compare_convert_paths_case6(tmp_dir):
     onnx_model_path = os.path.join(tmp_dir, 'export.onnx')
     torch.onnx.export(pt_model, sample_input, onnx_model_path, opset_version=16)
 
-    ref_model = convert_model(onnx_model_path, compress_to_fp16=False)
+    ref_model = convert_model(onnx_model_path)
 
     return pt_model, ref_model, {'input_shape': [torch.Size([1, 3, 10, 10]), torch.Size([1, 3, 10, 10])],
                                  'onnx_opset_version': 16}
@@ -290,7 +290,7 @@ def create_pytorch_nn_module_sample_input_numpy(tmp_dir):
     onnx_model_path = os.path.join(tmp_dir, 'export.onnx')
     torch.onnx.export(pt_model, torch.zeros(1, 3, 10, 10, dtype=torch.int32), onnx_model_path, opset_version=16)
 
-    ref_model = convert_model(onnx_model_path, compress_to_fp16=False)
+    ref_model = convert_model(onnx_model_path)
     return pt_model, ref_model, {'example_input': example_inputs,
                                  'input_shape': [1, 3, 10, 10],
                                  'onnx_opset_version': 16}
@@ -304,7 +304,7 @@ def create_pytorch_nn_module_sample_input_dict(tmp_dir):
     onnx_model_path = os.path.join(tmp_dir, 'export.onnx')
     torch.onnx.export(pt_model, torch.zeros(1, 3, 10, 10, dtype=torch.int32), onnx_model_path, opset_version=16)
 
-    ref_model = convert_model(onnx_model_path, compress_to_fp16=False)
+    ref_model = convert_model(onnx_model_path)
     return pt_model, ref_model, {'example_input': example_inputs,
                                  'onnx_opset_version': 16}
 
@@ -319,7 +319,7 @@ def create_pytorch_nn_module_sample_input_dict_two_inputs(tmp_dir):
     torch.onnx.export(pt_model, {"y": torch.zeros(1, 3, 10, 10, dtype=torch.int32),
                                  "x": torch.zeros(1, 3, 10, 10, dtype=torch.int32)}, onnx_model_path, opset_version=16)
 
-    ref_model = convert_model(onnx_model_path, compress_to_fp16=False)
+    ref_model = convert_model(onnx_model_path)
     return pt_model, ref_model, {'example_input': example_inputs,
                                  'onnx_opset_version': 16}
 
@@ -333,7 +333,7 @@ def create_pytorch_nn_module_sample_list_of_tensors(tmp_dir):
     onnx_model_path = os.path.join(tmp_dir, 'export.onnx')
     torch.onnx.export(pt_model, torch.unsqueeze(example_inputs[0], 0), onnx_model_path, opset_version=16)
 
-    ref_model = convert_model(onnx_model_path, compress_to_fp16=False)
+    ref_model = convert_model(onnx_model_path)
     return pt_model, ref_model, {'example_input': example_inputs,
                                  'onnx_opset_version': 16}
 
@@ -347,7 +347,7 @@ def create_pytorch_nn_module_sample_input_ov_host_tensor(tmp_dir):
     onnx_model_path = os.path.join(tmp_dir, 'export.onnx')
     torch.onnx.export(pt_model, torch.zeros(1, 3, 10, 10, dtype=torch.int32), onnx_model_path, opset_version=16)
 
-    ref_model = convert_model(onnx_model_path, compress_to_fp16=False)
+    ref_model = convert_model(onnx_model_path)
     return pt_model, ref_model, {'example_input': sample_input,
                                  'input_shape': [1, 3, 10, 10],
                                  'onnx_opset_version': 16}
@@ -367,7 +367,7 @@ def create_pytorch_nn_module_sample_input_ov_host_tensor_two_inputs(tmp_dir):
                                        torch.zeros(1, 3, 10, 10, dtype=torch.int32)]),
                       onnx_model_path, opset_version=16)
 
-    ref_model = convert_model(onnx_model_path, compress_to_fp16=False)
+    ref_model = convert_model(onnx_model_path)
 
     return pt_model, ref_model, {'example_input': sample_input,
                                  'onnx_opset_version': 16}
@@ -420,7 +420,57 @@ def create_pytorch_nn_module_mean_list(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
 
     return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]],
+                                 'onnx_opset_version': 11, 'compress_to_fp16': False}
+
+
+def create_pytorch_nn_module_mean_list_default_compression(tmp_dir):
+    # by default compression should be enabled (same as setting 'compress_to_fp16': True)
+    # therefore decompression Converts will be present
+    pt_model = make_pt_model_two_inputs()
+    shape = [1, 10, 10, 3]
+
+    shape = PartialShape(shape)
+    param1 = ov.opset8.parameter(shape)
+    param2 = ov.opset8.parameter(shape)
+    const1 = ov.opset8.constant([[[[0, 0, 0]]]], dtype=np.float16)
+    const1_decompressed = ov.opset8.convert(const1, destination_type=np.float32)
+    const2 = ov.opset8.constant([[[[0, 0, 0]]]], dtype=np.float16)
+    const2_decompressed = ov.opset8.convert(const2, destination_type=np.float32)
+    sub1 = ov.opset8.subtract(param1, const1_decompressed)
+    sub2 = ov.opset8.subtract(param2, const2_decompressed)
+    add = ov.opset8.add(sub1, sub2)
+    relu = ov.opset8.relu(add)
+    sigm = ov.opset8.sigmoid(relu)
+
+    parameter_list = [param1, param2]
+    ref_model = Model([sigm], parameter_list, "test")
+
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]],
                                  'onnx_opset_version': 11}
+
+
+def create_pytorch_nn_module_mean_list_compressin_enabled(tmp_dir):
+    pt_model = make_pt_model_two_inputs()
+    shape = [1, 10, 10, 3]
+
+    shape = PartialShape(shape)
+    param1 = ov.opset8.parameter(shape)
+    param2 = ov.opset8.parameter(shape)
+    const1 = ov.opset8.constant([[[[0, 0, 0]]]], dtype=np.float16)
+    const1_decompressed = ov.opset8.convert(const1, destination_type=np.float32)
+    const2 = ov.opset8.constant([[[[0, 0, 0]]]], dtype=np.float16)
+    const2_decompressed = ov.opset8.convert(const2, destination_type=np.float32)
+    sub1 = ov.opset8.subtract(param1, const1_decompressed)
+    sub2 = ov.opset8.subtract(param2, const2_decompressed)
+    add = ov.opset8.add(sub1, sub2)
+    relu = ov.opset8.relu(add)
+    sigm = ov.opset8.sigmoid(relu)
+
+    parameter_list = [param1, param2]
+    ref_model = Model([sigm], parameter_list, "test")
+
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]],
+                                 'onnx_opset_version': 11, 'compress_to_fp16': True}
 
 
 def create_pytorch_nn_module_scale_list(tmp_dir):
@@ -442,7 +492,57 @@ def create_pytorch_nn_module_scale_list(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
 
     return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]],
+                                 'onnx_opset_version': 11, 'compress_to_fp16': False}
+
+
+def create_pytorch_nn_module_scale_list_default_compression(tmp_dir):
+    # by default compression should be enabled (same as setting 'compress_to_fp16': True)
+    # therefore decompression Converts will be present
+    pt_model = make_pt_model_two_inputs()
+    shape = [1, 10, 10, 3]
+
+    shape = PartialShape(shape)
+    param1 = ov.opset8.parameter(shape)
+    param2 = ov.opset8.parameter(shape)
+    const1 = ov.opset8.constant([[[[1, 1, 1]]]], dtype=np.float16)
+    const1_decompressed = ov.opset8.convert(const1, destination_type=np.float32)
+    const2 = ov.opset8.constant([[[[1, 1, 1]]]], dtype=np.float16)
+    const2_decompressed = ov.opset8.convert(const2, destination_type=np.float32)
+    sub1 = ov.opset8.multiply(param1, const1_decompressed)
+    sub2 = ov.opset8.multiply(param2, const2_decompressed)
+    add = ov.opset8.add(sub1, sub2)
+    relu = ov.opset8.relu(add)
+    sigm = ov.opset8.sigmoid(relu)
+
+    parameter_list = [param1, param2]
+    ref_model = Model([sigm], parameter_list, "test")
+
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]],
                                  'onnx_opset_version': 11}
+
+
+def create_pytorch_nn_module_scale_list_compression_enabled(tmp_dir):
+    pt_model = make_pt_model_two_inputs()
+    shape = [1, 10, 10, 3]
+
+    shape = PartialShape(shape)
+    param1 = ov.opset8.parameter(shape)
+    param2 = ov.opset8.parameter(shape)
+    const1 = ov.opset8.constant([[[[1, 1, 1]]]], dtype=np.float16)
+    const1_decompressed = ov.opset8.convert(const1, destination_type=np.float32)
+    const2 = ov.opset8.constant([[[[1, 1, 1]]]], dtype=np.float16)
+    const2_decompressed = ov.opset8.convert(const2, destination_type=np.float32)
+    sub1 = ov.opset8.multiply(param1, const1_decompressed)
+    sub2 = ov.opset8.multiply(param2, const2_decompressed)
+    add = ov.opset8.add(sub1, sub2)
+    relu = ov.opset8.relu(add)
+    sigm = ov.opset8.sigmoid(relu)
+
+    parameter_list = [param1, param2]
+    ref_model = Model([sigm], parameter_list, "test")
+
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]],
+                                 'onnx_opset_version': 11, 'compress_to_fp16': True}
 
 
 def create_pytorch_nn_module_shapes_list_static(tmp_dir):
@@ -508,7 +608,11 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         create_pytorch_nn_module_layout_list,
         create_pytorch_nn_module_layout_list_case2,
         create_pytorch_nn_module_mean_list,
+        create_pytorch_nn_module_mean_list_default_compression,
+        create_pytorch_nn_module_mean_list_compressin_enabled,
         create_pytorch_nn_module_scale_list,
+        create_pytorch_nn_module_scale_list_default_compression,
+        create_pytorch_nn_module_scale_list_compression_enabled,
         create_pytorch_nn_module_shapes_list_static,
         create_pytorch_nn_module_shapes_list_dynamic,
         create_pytorch_nn_module_shapes_list_dynamic_single_input,
@@ -522,7 +626,7 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
                                    temp_dir, use_new_frontend, use_old_api):
         fw_model, graph_ref, mo_params = create_model(temp_dir)
 
-        test_params = {'input_model': fw_model, 'compress_to_fp16': False}
+        test_params = {'input_model': fw_model}
         if mo_params is not None:
             test_params.update(mo_params)
         self._test_by_ref_graph(temp_dir, test_params, graph_ref, compare_tensor_names=False)
