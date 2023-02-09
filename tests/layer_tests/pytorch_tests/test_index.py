@@ -64,6 +64,10 @@ class TestIndex(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.parametrize("case", ["getitem_with_bool", "list_with_bool"])
     @pytest.mark.parametrize(("input_shape", "idx"), [
-        ((1, 2), np.array([[1, 0]]).astype(bool))])
+        ((1, 2), np.array([[1, 0]]).astype(bool)),
+        ((2, 2, 5), np.zeros([2, 2, 5]).astype(bool)),
+        ((2, 2, 5), np.ones([2, 2, 5]).astype(bool)),
+        ((2, 2, 5), np.random.rand(2, 2, 5) > 0)
+        ])
     def test_index_bool(self, input_shape, idx, case, ie_device, precision, ir_version):
         self._test(*self.create_model(case), ie_device, precision, ir_version, kwargs_to_prepare_input={"input_shape": input_shape, "idx": idx})
