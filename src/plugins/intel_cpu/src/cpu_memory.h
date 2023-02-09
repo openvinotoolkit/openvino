@@ -224,8 +224,8 @@ public:
         return getDesc().getShape();
     }
 
-    void Create(const MemoryDesc& desc, const void* data = nullptr, bool pads_zeroing = true);
-    void Create(MemoryDescPtr desc, const void* data = nullptr, bool pads_zeroing = true);
+    void Create(const MemoryDesc& desc, const void* data = nullptr);
+    void Create(MemoryDescPtr desc, const void* data = nullptr);
 
     void Create(const MemoryDesc& desc, DnnlMemoryMngrPtr memMgr);
     void Create(MemoryDescPtr desc, DnnlMemoryMngrPtr memMgr);
@@ -258,7 +258,7 @@ private:
     friend DnnlMemoryMngr;
 
 private:
-    void Create(const dnnl::memory::desc& desc, const void* data = nullptr, bool pads_zeroing = true);
+    void Create(const dnnl::memory::desc& desc, const void* data = nullptr);
     void update();
 
 private:

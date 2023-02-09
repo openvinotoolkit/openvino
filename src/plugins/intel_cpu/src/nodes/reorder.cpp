@@ -217,10 +217,10 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
 
     const auto engine = getEngine();
     src_blocked = std::make_shared<Memory>(engine);
-    src_blocked->Create(DnnlExtensionUtils::makeDescriptor(srcDesc), srcPtr, false);
+    src_blocked->Create(DnnlExtensionUtils::makeDescriptor(srcDesc), srcPtr);
 
     dst_blocked = std::make_shared<Memory>(engine);
-    dst_blocked->Create(DnnlExtensionUtils::makeDescriptor(dstDesc), dstPtr, false);
+    dst_blocked->Create(DnnlExtensionUtils::makeDescriptor(dstDesc), dstPtr);
 
     auto src_desc = src_blocked->GetPrimitive().get_desc();
     if (!src_permutation.empty()) {
@@ -270,7 +270,7 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
         auto newDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(newDims),
                                             src_blocked->GetDataType(),
                                             newFormat);
-        src_blocked->Create(DnnlExtensionUtils::makeDescriptor(newDesc), srcPtr, false);
+        src_blocked->Create(DnnlExtensionUtils::makeDescriptor(newDesc), srcPtr);
 
         key.src = src_blocked->GetPrimitive().get_desc();
         result = cache->getOrCreate(key, builder);

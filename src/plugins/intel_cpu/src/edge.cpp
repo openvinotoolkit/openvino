@@ -324,7 +324,7 @@ void Edge::allocateCommon(const std::function<void(const MemoryPtr&, const Memor
 
 void Edge::allocate(const void* mem_ptr) {
     auto allocateFunc = [=](const MemoryPtr& memoryPtr, const MemoryDesc& inputDesc) {
-        memoryPtr->Create(inputDesc, mem_ptr, false);  // no pads zeroing
+        memoryPtr->Create(inputDesc, mem_ptr);
     };
 
     allocateCommon(allocateFunc);

@@ -156,13 +156,13 @@ void Transpose::prepareParams() {
 
         dst_blocked->Create(
             DnnlExtensionUtils::makeDescriptor(dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc()),
-            dstMemPtr->GetData(), false);
+            dstMemPtr->GetData());
 
         const auto newDims = dst_blocked->getStaticDims();
         auto newDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(newDims),
                                             dst_blocked->GetDataType(),
                                             memory::format_tag::acdb);
-        src_blocked->Create(DnnlExtensionUtils::makeDescriptor(newDesc), srcMemPtr->GetData(), false);
+        src_blocked->Create(DnnlExtensionUtils::makeDescriptor(newDesc), srcMemPtr->GetData());
 
         impl_desc_type impl_type = getSelectedPrimitiveDescriptor()->getImplementationType();
         TransposeAsReorderKey key = {src_blocked->GetPrimitive().get_desc(), dst_blocked->GetPrimitive().get_desc()};

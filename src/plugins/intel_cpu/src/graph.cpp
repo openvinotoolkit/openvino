@@ -905,7 +905,7 @@ void Graph::PushInputData(const std::string& name, const InferenceEngine::Blob::
             auto ext_tdesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(in->getTensorDesc());
 
             Memory ext_mem(getEngine());
-            ext_mem.Create(ext_tdesc, ext_data_ptr, false);
+            ext_mem.Create(ext_tdesc, ext_data_ptr);
 
             // branch for handling dynamic batch feature in new API
             if (getConfig().isNewApi && getConfig().batchLimit > 0 && ext_mem.getStaticDims()[0] != childEdge->getMemory().getStaticDims()[0]) {
@@ -914,7 +914,7 @@ void Graph::PushInputData(const std::string& name, const InferenceEngine::Blob::
 
                 Memory tmpMem(getEngine());
                 auto newDesc = childEdge->getMemory().getDesc().cloneWithNewDims(newDims, true);
-                tmpMem.Create(newDesc, childEdge->getMemory().GetData(), false);
+                tmpMem.Create(newDesc, childEdge->getMemory().GetData());
 
                 tmpMem.SetData(ext_mem, false);
             } else {
@@ -1006,7 +1006,7 @@ void Graph::PullOutputData(BlobMap &out) {
                                 ? DnnlBlockedMemoryDesc(expectedDesc.getPrecision(), Shape(expectedDesc.getDims()))
                                 : MemoryDescUtils::convertToDnnlBlockedMemoryDesc(expectedDesc);
             Memory outBloMem(getEngine());
-            outBloMem.Create(outBlobDesc, ext_blob_ptr, false);
+            outBloMem.Create(outBlobDesc, ext_blob_ptr);
 
             // branch for handling dynamic batch feature in new API
             if (getConfig().isNewApi && getConfig().batchLimit > 0 && outBloMem.getStaticDims()[0] != intr_blob.getStaticDims()[0]) {
@@ -1015,7 +1015,7 @@ void Graph::PullOutputData(BlobMap &out) {
 
                 Memory tmpMem(getEngine());
                 auto newDesc = intr_blob.getDesc().cloneWithNewDims(newDims, true);
-                tmpMem.Create(newDesc, intr_blob.GetData(), false);
+                tmpMem.Create(newDesc, intr_blob.GetData());
 
                 outBloMem.SetData(tmpMem, false);
             } else {

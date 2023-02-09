@@ -46,7 +46,7 @@ size_t Memory::GetSize() const {
     return size;
 }
 
-void Memory::Create(const dnnl::memory::desc& desc, const void *data, bool pads_zeroing) {
+void Memory::Create(const dnnl::memory::desc& desc, const void *data) {
     // OneDNN accepts not a const data, probably need to remove some level of consteness in a call stack
 
     // ========================
@@ -56,18 +56,15 @@ void Memory::Create(const dnnl::memory::desc& desc, const void *data, bool pads_
     //
     // ========================
     if (data != nullptr) {
-        if (pads_zeroing)
-            prim->set_data_handle(const_cast<void*>(data));
-        else
-            prim->set_data_handle_no_pads_proc(const_cast<void*>(data));
+        prim->set_data_handle(const_cast<void*>(data));
     }
 }
 
-void Memory::Create(const MemoryDesc &desc, const void *data, bool pads_zeroing) {
-    Create(desc.clone(), data, pads_zeroing);
+void Memory::Create(const MemoryDesc &desc, const void *data) {
+    Create(desc.clone(), data);
 }
 
-void Memory::Create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
+void Memory::Create(MemoryDescPtr desc, const void* data) {
     pMemDesc = desc;
 
     size_t memSize = MemoryDesc::UNDEFINED_SIZE;
@@ -84,11 +81,11 @@ void Memory::Create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
     }
 
     if (pMemDesc->isDefined()) {
-        Create(MemoryDescUtils::convertToDnnlMemoryDesc(pMemDesc)->getDnnlDesc(), mgrHandle->getRawPtr(), pads_zeroing);
+        Create(MemoryDescUtils::convertToDnnlMemoryDesc(pMemDesc)->getDnnlDesc(), mgrHandle->getRawPtr());
     } else {
         //delayed dynamic allocation
         DnnlBlockedMemoryDesc dummyDesc(InferenceEngine::Precision::U8, Shape(VectorDims{memSize}));
-        Create(dummyDesc.getDnnlDesc(), mgrHandle->getRawPtr(), false);  // no pads zeroing
+        Create(dummyDesc.getDnnlDesc(), mgrHandle->getRawPtr());
     }
 }
 
@@ -127,7 +124,7 @@ void Memory::redefineDesc(MemoryDescPtr desc) {
         IE_THROW() << "Can not reset descriptor, memory upper bound is unknown.";
     }
 
-    this->Create(desc, nullptr, false);
+    this->Create(desc, nullptr);
 }
 
 template<>
@@ -149,7 +146,7 @@ void Memory::setDataHandle(void *data) {
 
 void Memory::update() {
     if (isAllocated()) {
-        prim->set_data_handle_no_pads_proc(mgrHandle->getRawPtr());
+        prim->set_data_handle(mgrHandle->getRawPtr());
     }
 }
 
@@ -161,7 +158,7 @@ void Memory::Create(MemoryDescPtr desc, DnnlMemoryMngrPtr memMgr) {
     mgrHandle = DnnlMemMngrHandle(memMgr, this);
     bool memAllocated = mgrHandle->getRawPtr();
 
-    Create(desc, nullptr, !memAllocated);
+    Create(desc, nullptr);
 }
 
 template<>
