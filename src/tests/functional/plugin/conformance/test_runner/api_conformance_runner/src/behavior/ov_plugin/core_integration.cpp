@@ -75,16 +75,16 @@ INSTANTIATE_TEST_SUITE_P(
         ov_plugin, OVClassGetConfigTest,
         ::testing::ValuesIn(return_all_possible_device_combination(false)));
 
-// IE Class Query network
+// IE Class Query model
 
 INSTANTIATE_TEST_SUITE_P(
-        ov_plugin, OVClassQueryNetworkTest,
+        ov_plugin, OVClassQueryModelTest,
         ::testing::ValuesIn(return_all_possible_device_combination(false)));
 
 // IE Class Load network
 
 INSTANTIATE_TEST_SUITE_P(
-        ov_plugin, OVClassLoadNetworkTest,
+        ov_plugin, OVClassCompileModelTest,
         ::testing::Values(targetDevice));
 } // namespace
 

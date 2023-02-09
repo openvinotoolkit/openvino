@@ -11,8 +11,8 @@ const std::vector<ov::AnyMap> configs = {
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         OVExecutableNetworkBaseTest,
+                         OVCompiledModelBaseTest,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
-                         OVExecutableNetworkBaseTest::getTestCaseName);
+                         OVCompiledModelBaseTest::getTestCaseName);
 }  // namespace

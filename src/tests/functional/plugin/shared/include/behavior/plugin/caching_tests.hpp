@@ -57,6 +57,10 @@ public:
     static std::vector<nGraphFunctionWithName> getStandardFunctions();
 };
 
+using LoadNetworkCacheTestBaseAnyType = LoadNetworkCacheTestBase;
+using LoadNetworkCacheTestBaseNumeric = LoadNetworkCacheTestBase;
+using LoadNetworkCacheTestBaseFloatingPoint = LoadNetworkCacheTestBase;
+
 using compileKernelsCacheParams = std::tuple<
         std::string,            // device name
         std::pair<std::map<std::string, std::string>, std::string>   // device and cache configuration

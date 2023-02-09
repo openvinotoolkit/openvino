@@ -351,10 +351,10 @@ TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedFwModelPath) {
 
 // IE Class Query network
 
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassQueryNetworkTest, OVClassQueryNetworkTest, ::testing::Values("GNA"));
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassQueryModelTest, OVClassQueryModelTest, ::testing::Values("GNA"));
 
 // IE Class Load network
 
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassLoadNetworkTest, OVClassLoadNetworkTest, ::testing::Values("GNA"));
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompileModelTest, OVClassCompileModelTest, ::testing::Values("GNA"));
 
 }  // namespace

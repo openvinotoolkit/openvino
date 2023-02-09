@@ -58,7 +58,7 @@ INSTANTIATE_TEST_SUITE_P(
 //
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassExecutableNetworkGetConfigTest, OVClassExecutableNetworkGetConfigTest,
+        smoke_CompiledModelPropertyTest, CompiledModelPropertyTest,
         ::testing::Values("CPU"));
 
 INSTANTIATE_TEST_SUITE_P(

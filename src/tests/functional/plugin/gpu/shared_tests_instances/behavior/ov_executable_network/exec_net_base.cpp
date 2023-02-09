@@ -28,21 +28,21 @@ const std::vector<ov::AnyMap> autoConfigs = {
 #endif
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVExecutableNetworkBaseTest,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVCompiledModelBaseTest,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU),
                                 ::testing::ValuesIn(configs())),
-                        OVExecutableNetworkBaseTest::getTestCaseName);
+                        OVCompiledModelBaseTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_AutoBatchBehaviorTests, OVExecutableNetworkBaseTest,
+INSTANTIATE_TEST_SUITE_P(smoke_AutoBatchBehaviorTests, OVCompiledModelBaseTest,
                          ::testing::Combine(
                                  ::testing::Values(CommonTestUtils::DEVICE_BATCH),
                                  ::testing::ValuesIn(autoBatchConfigs())),
-                         OVExecutableNetworkBaseTest::getTestCaseName);
+                         OVCompiledModelBaseTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
-                         OVAutoExecutableNetworkTest,
+                         OVCompiledModelBaseTest,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                             ::testing::ValuesIn(autoConfigs)),
-                         OVExecutableNetworkBaseTest::getTestCaseName);
+                         OVCompiledModelBaseTest::getTestCaseName);
 }  // namespace

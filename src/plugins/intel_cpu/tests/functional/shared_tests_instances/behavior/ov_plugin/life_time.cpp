@@ -6,19 +6,19 @@
 
 using namespace ov::test::behavior;
 namespace {
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVHoldersTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVLifeTimeTest,
             ::testing::Values(CommonTestUtils::DEVICE_CPU),
-            OVHoldersTest::getTestCaseName);
+            OVLifeTimeTest::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_VirtualPlugin_BehaviorTests, OVHoldersTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_VirtualPlugin_BehaviorTests, OVLifeTimeTest,
             ::testing::Values("AUTO:CPU",
                                 "MULTI:CPU",
                                 //CommonTestUtils::DEVICE_BATCH,
                                 "HETERO:CPU"),
-            OVHoldersTest::getTestCaseName);
+            OVLifeTimeTest::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVHoldersTestOnImportedNetwork,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVLifeTimeTestOnImportedNetwork,
             ::testing::Values(CommonTestUtils::DEVICE_CPU),
-            OVHoldersTestOnImportedNetwork::getTestCaseName);
+            OVLifeTimeTestOnImportedNetwork::getTestCaseName);
 
 }  // namespace

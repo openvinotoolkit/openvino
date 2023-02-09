@@ -102,9 +102,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassExecutableNetworkGetMetricTest,
 //
 
 // TODO: Convolution with 3D input is not supported on GNA
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassExecutableNetworkGetConfigTest,
-                         OVClassExecutableNetworkGetConfigTest,
-                         ::testing::Values("GNA"));
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_CompiledModelPropertyTest, CompiledModelPropertyTest, ::testing::Values("GNA"));
 
 // TODO: Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassExecutableNetworkSetConfigTest,

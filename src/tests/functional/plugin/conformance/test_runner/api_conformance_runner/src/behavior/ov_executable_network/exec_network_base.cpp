@@ -11,9 +11,9 @@ namespace {
 using namespace ov::test::behavior;
 using namespace ov::test::conformance;
 
-INSTANTIATE_TEST_SUITE_P(ov_compiled_model, OVExecutableNetworkBaseTest,
+INSTANTIATE_TEST_SUITE_P(ov_compiled_model, OVCompiledModelBaseTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(return_all_possible_device_combination()),
                                 ::testing::Values(pluginConfig)),
-                        OVExecutableNetworkBaseTest::getTestCaseName);
+                        OVCompiledModelBaseTest::getTestCaseName);
 }  // namespace

@@ -8,13 +8,13 @@ using namespace ov::test::behavior;
 namespace {
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         OVHoldersTest,
+                         OVLifeTimeTest,
                          ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                         OVHoldersTest::getTestCaseName);
+                         OVLifeTimeTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         OVHoldersTestOnImportedNetwork,
+                         OVLifeTimeTestOnImportedNetwork,
                          ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                         OVHoldersTestOnImportedNetwork::getTestCaseName);
+                         OVLifeTimeTestOnImportedNetwork::getTestCaseName);
 
 }  // namespace

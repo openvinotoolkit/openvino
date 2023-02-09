@@ -36,27 +36,27 @@ static const std::vector<ov::element::Type> numericPrecisionsTemplate(precisions
 static const std::vector<ov::element::Type> floatingPointPrecisionsTemplate(precisionsTemplate.begin(),
                                                                             precisionsTemplate.begin() + 3);
 
-INSTANTIATE_TEST_SUITE_P(ie_plugin_any_type, LoadNetworkCacheTestBase,
+INSTANTIATE_TEST_SUITE_P(ie_plugin, LoadNetworkCacheTestBaseAnyType,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(LoadNetworkCacheTestBase::getAnyTypeOnlyFunctions()),
+                                 ::testing::ValuesIn(LoadNetworkCacheTestBaseAnyType::getAnyTypeOnlyFunctions()),
                                  ::testing::ValuesIn(precisionsTemplate),
                                  ::testing::ValuesIn(batchSizesTemplate),
                                  ::testing::ValuesIn(return_all_possible_device_combination())),
-                         LoadNetworkCacheTestBase::getTestCaseName);
+                         LoadNetworkCacheTestBaseAnyType::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(ie_plugin_numeric, LoadNetworkCacheTestBase,
+INSTANTIATE_TEST_SUITE_P(ie_plugin, LoadNetworkCacheTestBaseNumeric,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(LoadNetworkCacheTestBase::getNumericTypeOnlyFunctions()),
+                                 ::testing::ValuesIn(LoadNetworkCacheTestBaseNumeric::getNumericTypeOnlyFunctions()),
                                  ::testing::ValuesIn(numericPrecisionsTemplate),
                                  ::testing::ValuesIn(batchSizesTemplate),
                                  ::testing::ValuesIn(return_all_possible_device_combination())),
-                         LoadNetworkCacheTestBase::getTestCaseName);
+                         LoadNetworkCacheTestBaseNumeric::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(ie_plugin_float, LoadNetworkCacheTestBase,
+INSTANTIATE_TEST_SUITE_P(ie_plugin, LoadNetworkCacheTestBaseFloatingPoint,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(LoadNetworkCacheTestBase::getFloatingPointOnlyFunctions()),
+                                 ::testing::ValuesIn(LoadNetworkCacheTestBaseFloatingPoint::getFloatingPointOnlyFunctions()),
                                  ::testing::ValuesIn(floatingPointPrecisionsTemplate),
                                  ::testing::ValuesIn(batchSizesTemplate),
                                  ::testing::ValuesIn(return_all_possible_device_combination())),
-                         LoadNetworkCacheTestBase::getTestCaseName);
+                         LoadNetworkCacheTestBaseFloatingPoint::getTestCaseName);
 } // namespace

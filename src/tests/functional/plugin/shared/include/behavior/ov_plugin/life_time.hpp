@@ -11,7 +11,7 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-class OVHoldersTest : public OVPluginTestBase,
+class OVLifeTimeTest : public OVPluginTestBase,
                       public ::testing::WithParamInterface<std::string> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj);
@@ -23,7 +23,7 @@ protected:
     std::shared_ptr<ngraph::Function> function;
 };
 
-class OVHoldersTestOnImportedNetwork : public OVPluginTestBase,
+class OVLifeTimeTestOnImportedNetwork : public OVPluginTestBase,
                                        public ::testing::WithParamInterface<std::string> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj);
@@ -35,7 +35,7 @@ protected:
     std::string deathTestStyle;
 };
 
-using OVHoldersTestWithConfig = OVHoldersTest;
+using OVLifeTimeTestWithConfig = OVLifeTimeTest;
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

@@ -37,33 +37,33 @@ static const std::vector<ov::element::Type> ovElemAnyFloatingPointTypesTemplate(
                                                                                 ovElemTypesTemplate.begin() + 3);
 
 
-INSTANTIATE_TEST_SUITE_P(ov_plugin, CompileModelCacheTestBase,
+INSTANTIATE_TEST_SUITE_P(ov_plugin, CompileModelCacheTestBaseAnyType,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(CompileModelCacheTestBase::getAnyTypeOnlyFunctions()),
+                                 ::testing::ValuesIn(CompileModelCacheTestBaseAnyType::getAnyTypeOnlyFunctions()),
                                  ::testing::ValuesIn(ovElemTypesTemplate),
                                  ::testing::ValuesIn(ovBatchSizesTemplate),
                                  ::testing::ValuesIn(return_all_possible_device_combination()),
                                  ::testing::Values(ov::AnyMap{})),
-                         CompileModelCacheTestBase::getTestCaseName);
+                         CompileModelCacheTestBaseAnyType::getTestCaseName);
 
 // Convolution/UnaryElementwiseArithmetic/BinaryElementwiseArithmetic is not supported boolean elemnt type
-INSTANTIATE_TEST_SUITE_P(ov_plugin_numeric, CompileModelCacheTestBase,
+INSTANTIATE_TEST_SUITE_P(ov_plugin, CompileModelCacheTestBaseNumeric,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(CompileModelCacheTestBase::getNumericTypeOnlyFunctions()),
+                                 ::testing::ValuesIn(CompileModelCacheTestBaseNumeric::getNumericTypeOnlyFunctions()),
                                  ::testing::ValuesIn(ovElemAnyNumericTypesTemplate),
                                  ::testing::ValuesIn(ovBatchSizesTemplate),
                                  ::testing::ValuesIn(return_all_possible_device_combination()),
                                  ::testing::Values(ov::AnyMap{})),
-                         CompileModelCacheTestBase::getTestCaseName);
+                         CompileModelCacheTestBaseNumeric::getTestCaseName);
 
 // LSTMcell supported floating-point element type
-INSTANTIATE_TEST_SUITE_P(ov_plugin_floating_point, CompileModelCacheTestBase,
+INSTANTIATE_TEST_SUITE_P(ov_plugin, CompileModelCacheTestBaseFloatingPoint,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(CompileModelCacheTestBase::getFloatingPointOnlyFunctions()),
+                                 ::testing::ValuesIn(CompileModelCacheTestBaseFloatingPoint::getFloatingPointOnlyFunctions()),
                                  ::testing::ValuesIn(ovElemAnyFloatingPointTypesTemplate),
                                  ::testing::ValuesIn(ovBatchSizesTemplate),
                                  ::testing::ValuesIn(return_all_possible_device_combination()),
                                  ::testing::Values(ov::AnyMap{})),
-                         CompileModelCacheTestBase::getTestCaseName);
+                         CompileModelCacheTestBaseFloatingPoint::getTestCaseName);
 
 } // namespace

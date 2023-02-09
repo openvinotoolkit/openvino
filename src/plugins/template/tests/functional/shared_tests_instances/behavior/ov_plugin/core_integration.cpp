@@ -93,15 +93,15 @@ TEST(OVClassBasicTest, smoke_TEMPLATEGetSetConfigNoThrow) {
     }
 }
 
-// OV Class Query network
+// OV Class Query model
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassQueryNetworkTest, OVClassQueryNetworkTest,
+        smoke_OVClassQueryModelTest, OVClassQueryModelTest,
         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
-// OV Class Load network
+// OV Class Compile model
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassLoadNetworkTest, OVClassLoadNetworkTest,
+        smoke_OVClassCompileModelTest, OVClassCompileModelTest,
         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 } // namespace

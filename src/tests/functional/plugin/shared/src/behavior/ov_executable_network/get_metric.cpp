@@ -140,7 +140,7 @@ TEST_P(OVClassExecutableNetworkGetMetricTest_ThrowsUnsupported, GetMetricThrow) 
     ASSERT_THROW(compiled_model.get_property("unsupported_property"), ov::Exception);
 }
 
-TEST_P(OVClassExecutableNetworkGetConfigTest, GetConfigNoThrow) {
+TEST_P(CompiledModelPropertyTest, GetConfigNoThrow) {
     ov::Core ie = createCoreWithTemplate();
 
     auto compiled_model = ie.compile_model(simpleNetwork, target_device);
@@ -155,7 +155,7 @@ TEST_P(OVClassExecutableNetworkGetConfigTest, GetConfigNoThrow) {
     }
 }
 
-TEST_P(OVClassExecutableNetworkGetConfigTest, GetConfigThrows) {
+TEST_P(CompiledModelPropertyTest, GetConfigThrows) {
     ov::Core ie = createCoreWithTemplate();
     ov::Any p;
 
@@ -190,7 +190,7 @@ TEST_P(OVClassExecutableNetworkUnsupportedConfigTest, UnsupportedConfigThrows) {
     ASSERT_THROW(compiled_model.set_property({{configKey, configValue}}), ov::Exception);
 }
 
-TEST_P(OVClassExecutableNetworkGetConfigTest, GetConfigNoEmptyNoThrow) {
+TEST_P(CompiledModelPropertyTest, GetConfigNoEmptyNoThrow) {
     ov::Core ie = createCoreWithTemplate();
 
     std::vector<ov::PropertyName> dev_property_names;

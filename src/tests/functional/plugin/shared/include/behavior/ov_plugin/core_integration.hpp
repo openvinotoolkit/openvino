@@ -97,7 +97,7 @@ public:
 };
 
 using OVClassNetworkTestP = OVClassBaseTestP;
-using OVClassQueryNetworkTest = OVClassBaseTestP;
+using OVClassQueryModelTest = OVClassBaseTestP;
 using OVClassImportExportTestP = OVClassBaseTestP;
 using OVClassGetMetricTest_SUPPORTED_METRICS = OVClassBaseTestP;
 using OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS = OVClassBaseTestP;
@@ -115,8 +115,8 @@ using OVClassGetConfigTest = OVClassBaseTestP;
 using OVClassGetConfigTest_ThrowUnsupported = OVClassBaseTestP;
 using OVClassGetAvailableDevices = OVClassBaseTestP;
 using OVClassGetMetricTest_RANGE_FOR_STREAMS = OVClassBaseTestP;
-using OVClassLoadNetworkAfterCoreRecreateTest = OVClassBaseTestP;
-using OVClassLoadNetworkTest = OVClassQueryNetworkTest;
+using OVClassCompileModelAfterCoreRecreateTest = OVClassBaseTestP;
+using OVClassCompileModelTest = OVClassQueryModelTest;
 using OVClassSetGlobalConfigTest = OVClassBaseTestP;
 using OVClassSetModelPriorityConfigTest = OVClassBaseTestP;
 using OVClassSetExecutionModeHintConfigTest = OVClassBaseTestP;
@@ -124,11 +124,11 @@ using OVClassSetTBBForceTerminatePropertyTest = OVClassBaseTestP;
 using OVClassSetLogLevelConfigTest = OVClassBaseTestP;
 using OVClassSpecificDeviceTestSetConfig = OVClassBaseTestP;
 using OVClassSpecificDeviceTestGetConfig = OVClassBaseTestP;
-using OVClassLoadNetworkWithCorrectPropertiesTest = OVClassSetDevicePriorityConfigTest;
-using OVClassLoadNetworkWithCondidateDeviceListContainedMetaPluginTest = OVClassSetDevicePriorityConfigTest;
-using OVClassLoadNetWorkReturnDefaultHintTest = OVClassSetDevicePriorityConfigTest;
-using OVClassLoadNetWorkDoNotReturnDefaultHintTest = OVClassSetDevicePriorityConfigTest;
-using OVClassLoadNetworkAndCheckSecondaryPropertiesTest = OVClassSetDevicePriorityConfigTest;
+using OVClassCompileModelWithCorrectPropertiesTest = OVClassSetDevicePriorityConfigTest;
+using OVClassCompileModelWithCondidateDeviceListContainedMetaPluginTest = OVClassSetDevicePriorityConfigTest;
+using OVClassCompileModelReturnDefaultHintTest = OVClassSetDevicePriorityConfigTest;
+using OVClassCompileModelDoNotReturnDefaultHintTest = OVClassSetDevicePriorityConfigTest;
+using OVClassCompileModelAndCheckSecondaryPropertiesTest = OVClassSetDevicePriorityConfigTest;
 
 class OVClassSeveralDevicesTest : public OVPluginTestBase,
                                   public OVClassNetworkTest,
@@ -145,11 +145,11 @@ public:
     }
 };
 
-using OVClassSeveralDevicesTestLoadNetwork = OVClassSeveralDevicesTest;
-using OVClassSeveralDevicesTestQueryNetwork = OVClassSeveralDevicesTest;
+using OVClassSeveralDevicesTestCompileModel = OVClassSeveralDevicesTest;
+using OVClassSeveralDevicesTestQueryModel = OVClassSeveralDevicesTest;
 using OVClassSeveralDevicesTestDefaultCore = OVClassSeveralDevicesTest;
 
-TEST(OVClassBasicTest, smoke_createDefault) {
+TEST(OVClassBasicTest, createDefault) {
     OV_ASSERT_NO_THROW(ov::Core ie);
 }
 
@@ -167,12 +167,12 @@ TEST_P(OVClassBasicTestP, registerNewPluginNoThrows) {
     OV_ASSERT_NO_THROW(ie.get_property("NEW_DEVICE_NAME", ov::supported_properties));
 }
 
-TEST(OVClassBasicTest, smoke_registerNonExistingPluginFileThrows) {
+TEST(OVClassBasicTest, registerNonExistingPluginFileThrows) {
     ov::Core ie = createCoreWithTemplate();
     ASSERT_THROW(ie.register_plugins("nonExistPlugins.xml"), ov::Exception);
 }
 
-TEST(OVClassBasicTest, smoke_createNonExistingConfigThrows) {
+TEST(OVClassBasicTest, createNonExistingConfigThrows) {
     ASSERT_THROW(ov::Core ie("nonExistPlugins.xml"), ov::Exception);
 }
 
@@ -188,13 +188,13 @@ inline std::string getPluginFile() {
     return filename;
 }
 
-TEST(OVClassBasicTest, smoke_createMockEngineConfigNoThrows) {
+TEST(OVClassBasicTest, createMockEngineConfigNoThrows) {
     const std::string filename = getPluginFile();
     OV_ASSERT_NO_THROW(ov::Core ie(filename));
     CommonTestUtils::removeFile(filename.c_str());
 }
 
-TEST(OVClassBasicTest, smoke_createMockEngineConfigThrows) {
+TEST(OVClassBasicTest, createMockEngineConfigThrows) {
     std::string filename = CommonTestUtils::generateTestFilePrefix() + "_mock_engine.xml";
     std::string content{"<ie><plugins><plugin location=\"libmock_engine.so\"></plugin></plugins></ie>"};
     CommonTestUtils::createFile(filename, content);
@@ -203,7 +203,7 @@ TEST(OVClassBasicTest, smoke_createMockEngineConfigThrows) {
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPOR
-TEST_P(OVClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
+TEST_P(OVClassBasicTestP, registerPluginsXMLUnicodePath) {
     const std::string pluginXML = getPluginFile();
 
     for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
@@ -260,9 +260,12 @@ TEST_P(OVClassBasicTestP, getVersionsByDeviceClassNoThrow) {
     OV_ASSERT_NO_THROW(ie.get_versions(target_device));
 }
 
-TEST_P(OVClassBasicTestP, getVersionsNonEmpty) {
+TEST_P(OVClassBasicTestP, getVersionsTwoPlaginsWihtHeteroNoThrow) {
     ov::Core ie = createCoreWithTemplate();
-    ASSERT_EQ(2, ie.get_versions(CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device).size());
+    if (target_device == CommonTestUtils::DEVICE_HETERO)
+        ASSERT_EQ(1, ie.get_versions(CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device).size());
+    else
+        ASSERT_EQ(2, ie.get_versions(CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device).size());
 }
 
 //
@@ -290,7 +293,7 @@ TEST_P(OVClassBasicTestP, accessToUnregisteredPluginThrows) {
     OV_ASSERT_NO_THROW(ie.unload_plugin(target_device));
 }
 
-TEST(OVClassBasicTest, smoke_unregisterNonExistingPluginThrows) {
+TEST(OVClassBasicTest, unregisterNonExistingPluginThrows) {
     ov::Core ie = createCoreWithTemplate();
     ASSERT_THROW(ie.unload_plugin("unkown_device"), ov::Exception);
 }
@@ -299,7 +302,7 @@ TEST(OVClassBasicTest, smoke_unregisterNonExistingPluginThrows) {
 // SetConfig
 //
 
-TEST_P(OVClassBasicTestP, SetConfigAllThrows) {
+TEST_P(OVClassBasicTestP, SetIncorrectConfigAllThrows) {
     ov::Core ie = createCoreWithTemplate();
     OV_ASSERT_NO_THROW(ie.set_property({{"unsupported_key", "4"}}));
     ASSERT_ANY_THROW(ie.get_versions(target_device));
@@ -310,23 +313,23 @@ TEST_P(OVClassBasicTestP, SetConfigForUnRegisteredDeviceThrows) {
     ASSERT_THROW(ie.set_property("unregistered_device", {{"unsupported_key", "4"}}), ov::Exception);
 }
 
-TEST_P(OVClassBasicTestP, SetConfigNoThrow) {
+TEST_P(OVClassBasicTestP, SetConfigWithoutPluginRegisterNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     OV_ASSERT_NO_THROW(ie.set_property(target_device, ov::enable_profiling(true)));
 }
 
-TEST_P(OVClassBasicTestP, SetConfigAllNoThrow) {
+TEST_P(OVClassBasicTestP, SetConfigAndRegisterPluginNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     OV_ASSERT_NO_THROW(ie.set_property(ov::enable_profiling(true)));
     OV_ASSERT_NO_THROW(ie.get_versions(target_device));
 }
 
-TEST(OVClassBasicTest, smoke_SetConfigHeteroThrows) {
+TEST(OVClassBasicTest, SetConfigHeteroWithoutPluginRegisterNoThrows) {
     ov::Core ie = createCoreWithTemplate();
     OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_HETERO, ov::enable_profiling(true)));
 }
 
-TEST(OVClassBasicTest, smoke_SetConfigDevicePropertiesThrows) {
+TEST(OVClassBasicTest, SetConfigDevicePropertiesThrows) {
     ov::Core ie = createCoreWithTemplate();
     ASSERT_THROW(ie.set_property("", ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::enable_profiling(true))),
                  ov::Exception);
@@ -341,12 +344,12 @@ TEST(OVClassBasicTest, smoke_SetConfigDevicePropertiesThrows) {
                  ov::Exception);
 }
 
-TEST_P(OVClassBasicTestP, SetConfigHeteroTargetFallbackThrows) {
+TEST_P(OVClassBasicTestP, SetConfigHeteroTargetFallbackNoThrows) {
     ov::Core ie = createCoreWithTemplate();
     OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_HETERO, ov::device::priorities(target_device)));
 }
 
-TEST_P(OVClassBasicTestP, smoke_SetConfigHeteroNoThrow) {
+TEST_P(OVClassBasicTestP, SetConfigHeteroAndRegisterPluginNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     std::string value;
 
@@ -359,7 +362,7 @@ TEST_P(OVClassBasicTestP, smoke_SetConfigHeteroNoThrow) {
     ASSERT_EQ(target_device, value);
 }
 
-TEST(OVClassBasicTest, smoke_SetConfigAutoNoThrows) {
+TEST(OVClassBasicTest, SetConfigAutoNoThrows) {
     ov::Core ie = createCoreWithTemplate();
 
     // priority config test
@@ -507,20 +510,20 @@ TEST_P(OVClassSetLogLevelConfigTest, SetConfigNoThrow) {
 }
 
 //
-// QueryNetwork
+// QueryModel
 //
 
-TEST_P(OVClassNetworkTestP, QueryNetworkActualThrows) {
+TEST_P(OVClassNetworkTestP, QueryModelActualTargetDeviceAndHeteroNoThrows) {
     ov::Core ie = createCoreWithTemplate();
     OV_ASSERT_NO_THROW(ie.query_model(actualNetwork, CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device));
 }
 
-TEST_P(OVClassNetworkTestP, QueryNetworkActualNoThrow) {
+TEST_P(OVClassNetworkTestP, QueryModelActualNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     ie.query_model(actualNetwork, target_device);
 }
 
-TEST_P(OVClassNetworkTestP, QueryNetworkWithKSO) {
+TEST_P(OVClassNetworkTestP, QueryModelWithKSO) {
     ov::Core ie = createCoreWithTemplate();
 
     auto rl_map = ie.query_model(ksoNetwork, target_device);
@@ -532,7 +535,7 @@ TEST_P(OVClassNetworkTestP, QueryNetworkWithKSO) {
     }
 }
 
-TEST_P(OVClassSeveralDevicesTestQueryNetwork, QueryNetworkActualSeveralDevicesNoThrow) {
+TEST_P(OVClassSeveralDevicesTestQueryModel, QueryModelActualSeveralDevicesNoThrow) {
     ov::Core ie = createCoreWithTemplate();
 
     std::string clear_target_device;
@@ -617,7 +620,7 @@ TEST_P(OVClassNetworkTestP, SetAffinityWithKSO) {
     auto exeNetwork = ie.compile_model(ksoNetwork, target_device);
 }
 
-TEST_P(OVClassNetworkTestP, QueryNetworkHeteroActualNoThrow) {
+TEST_P(OVClassNetworkTestP, QueryModelHeteroWithDeviceUsingDevicePrioritiesActualNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     ov::SupportedOpsMap res;
     OV_ASSERT_NO_THROW(
@@ -625,12 +628,12 @@ TEST_P(OVClassNetworkTestP, QueryNetworkHeteroActualNoThrow) {
     ASSERT_LT(0, res.size());
 }
 
-TEST_P(OVClassNetworkTestP, QueryNetworkMultiNoThrows) {
+TEST_P(OVClassNetworkTestP, QueryModelMultiNoThrows) {
     ov::Core ie = createCoreWithTemplate();
     ASSERT_NO_THROW(ie.query_model(actualNetwork, CommonTestUtils::DEVICE_MULTI));
 }
 
-TEST(OVClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
+TEST(OVClassBasicTest, GetMetricSupportedMetricsHeteroNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     std::string target_device = CommonTestUtils::DEVICE_HETERO;
 
@@ -645,7 +648,7 @@ TEST(OVClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
     OV_ASSERT_PROPERTY_SUPPORTED(ov::supported_properties);
 }
 
-TEST_P(OVClassBasicTestP, smoke_GetMetricSupportedConfigKeysHeteroThrows) {
+TEST_P(OVClassBasicTestP, GetMetricSupportedConfigKeysHeteroThrows) {
     ov::Core ie = createCoreWithTemplate();
     // TODO: check
     std::string real_target_device = CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device;
@@ -900,9 +903,9 @@ TEST_P(OVClassGetAvailableDevices, GetAvailableDevicesNoThrow) {
 }
 
 //
-// QueryNetwork with HETERO on particular device
+// QueryModel with HETERO on particular device
 //
-TEST_P(OVClassQueryNetworkTest, QueryNetworkHETEROWithDeviceIDNoThrow) {
+TEST_P(OVClassQueryModelTest, QueryModelHETEROWithDeviceIDNoThrow) {
     ov::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, target_device)) {
@@ -917,7 +920,7 @@ TEST_P(OVClassQueryNetworkTest, QueryNetworkHETEROWithDeviceIDNoThrow) {
     }
 }
 
-TEST_P(OVClassQueryNetworkTest, QueryNetworkWithDeviceID) {
+TEST_P(OVClassQueryModelTest, QueryModelWithDeviceID) {
     ov::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, target_device)) {
@@ -927,7 +930,7 @@ TEST_P(OVClassQueryNetworkTest, QueryNetworkWithDeviceID) {
     }
 }
 
-TEST_P(OVClassQueryNetworkTest, QueryNetworkWithBigDeviceIDThrows) {
+TEST_P(OVClassQueryModelTest, QueryModelWithBigDeviceIDThrows) {
     ov::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, target_device)) {
@@ -937,7 +940,7 @@ TEST_P(OVClassQueryNetworkTest, QueryNetworkWithBigDeviceIDThrows) {
     }
 }
 
-TEST_P(OVClassQueryNetworkTest, QueryNetworkWithInvalidDeviceIDThrows) {
+TEST_P(OVClassQueryModelTest, QueryModelWithInvalidDeviceIDThrows) {
     ov::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, target_device)) {
@@ -947,7 +950,7 @@ TEST_P(OVClassQueryNetworkTest, QueryNetworkWithInvalidDeviceIDThrows) {
     }
 }
 
-TEST_P(OVClassQueryNetworkTest, QueryNetworkHETEROWithBigDeviceIDThrows) {
+TEST_P(OVClassQueryModelTest, QueryModelHETEROWithBigDeviceIDThrows) {
     ov::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, target_device)) {
@@ -963,15 +966,15 @@ TEST_P(OVClassQueryNetworkTest, QueryNetworkHETEROWithBigDeviceIDThrows) {
 using OVClassNetworkTestP = OVClassBaseTestP;
 
 //
-// LoadNetwork
+// CompileModel
 //
 
-TEST_P(OVClassNetworkTestP, LoadNetworkActualNoThrow) {
+TEST_P(OVClassNetworkTestP, CompileModelActualNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, target_device));
 }
 
-TEST_P(OVClassNetworkTestP, LoadNetworkMultiWithoutSettingDevicePrioritiesThrows) {
+TEST_P(OVClassNetworkTestP, CompileModelMultiWithoutSettingDevicePrioritiesThrows) {
     ov::Core ie = createCoreWithTemplate();
     try {
         ie.compile_model(actualNetwork, CommonTestUtils::DEVICE_MULTI);
@@ -984,17 +987,17 @@ TEST_P(OVClassNetworkTestP, LoadNetworkMultiWithoutSettingDevicePrioritiesThrows
     }
 }
 
-TEST_P(OVClassNetworkTestP, LoadNetworkActualHeteroDeviceNoThrow) {
+TEST_P(OVClassNetworkTestP, CompileModelActualHeteroAndTargetDeviceNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device));
 }
 
-TEST_P(OVClassNetworkTestP, LoadNetworkActualHeteroDevice2NoThrow) {
+TEST_P(OVClassNetworkTestP, CompileModelActualHeteroUsingDevicePrioritiesNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, CommonTestUtils::DEVICE_HETERO, ov::device::priorities(target_device)));
 }
 
-TEST_P(OVClassNetworkTestP, LoadNetworkActualHeteroDeviceUsingDevicePropertiesNoThrow) {
+TEST_P(OVClassNetworkTestP, CompileModelWithConfigActualHeteroUsingDevicePrioritiesNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork,
         CommonTestUtils::DEVICE_HETERO,
@@ -1003,7 +1006,7 @@ TEST_P(OVClassNetworkTestP, LoadNetworkActualHeteroDeviceUsingDevicePropertiesNo
             ov::enable_profiling(true))));
 }
 
-TEST_P(OVClassNetworkTestP, LoadNetworkCreateDefaultExecGraphResult) {
+TEST_P(OVClassNetworkTestP, CompileModelCreateDefaultExecGraphResult) {
     auto ie = createCoreWithTemplate();
     auto net = ie.compile_model(actualNetwork, target_device);
     auto runtime_function = net.get_runtime_model();
@@ -1032,7 +1035,7 @@ TEST_P(OVClassNetworkTestP, LoadNetworkCreateDefaultExecGraphResult) {
     }
 }
 
-TEST_P(OVClassSeveralDevicesTestLoadNetwork, LoadNetworkActualSeveralDevicesNoThrow) {
+TEST_P(OVClassSeveralDevicesTestCompileModel, CompileModelActualSeveralDevicesNoThrow) {
     ov::Core ie = createCoreWithTemplate();
 
     std::string clear_target_device;
@@ -1058,9 +1061,9 @@ TEST_P(OVClassSeveralDevicesTestLoadNetwork, LoadNetworkActualSeveralDevicesNoTh
 }
 
 //
-// LoadNetwork with HETERO on particular device
+// CompileModel with HETERO on particular device
 //
-TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROWithDeviceIDNoThrow) {
+TEST_P(OVClassCompileModelTest, CompileModelHETEROWithDeviceIDNoThrow) {
     ov::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, target_device)) {
@@ -1075,7 +1078,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROWithDeviceIDNoThrow) {
     }
 }
 
-TEST_P(OVClassLoadNetworkTest, LoadNetworkWithDeviceIDNoThrow) {
+TEST_P(OVClassCompileModelTest, CompileModelWithDeviceIDNoThrow) {
     ov::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, target_device)) {
@@ -1088,7 +1091,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkWithDeviceIDNoThrow) {
     }
 }
 
-TEST_P(OVClassLoadNetworkTest, LoadNetworkWithBigDeviceIDThrows) {
+TEST_P(OVClassCompileModelTest, CompileModelWithBigDeviceIDThrows) {
     ov::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, target_device)) {
@@ -1098,17 +1101,17 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkWithBigDeviceIDThrows) {
     }
 }
 
-TEST_P(OVClassLoadNetworkWithCondidateDeviceListContainedMetaPluginTest, LoadNetworkRepeatedlyWithMetaPluginTestThrow) {
+TEST_P(OVClassCompileModelWithCondidateDeviceListContainedMetaPluginTest, CompileModelRepeatedlyWithMetaPluginTestThrow) {
     ov::Core ie = createCoreWithTemplate();
     ASSERT_THROW(ie.compile_model(actualNetwork, target_device, configuration), ov::Exception);
 }
 
-TEST_P(OVClassLoadNetworkWithCorrectPropertiesTest, LoadNetworkWithCorrectPropertiesTest) {
+TEST_P(OVClassCompileModelWithCorrectPropertiesTest, CompileModelWithCorrectPropertiesTest) {
     ov::Core ie = createCoreWithTemplate();
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, target_device, configuration));
 }
 
-TEST_P(OVClassLoadNetworkAndCheckSecondaryPropertiesTest, LoadNetworkAndCheckSecondaryPropertiesTest) {
+TEST_P(OVClassCompileModelAndCheckSecondaryPropertiesTest, CompileModelAndCheckSecondaryPropertiesTest) {
     ov::Core ie = createCoreWithTemplate();
     ov::CompiledModel model;
     OV_ASSERT_NO_THROW(model = ie.compile_model(actualNetwork, target_device, configuration));
@@ -1120,7 +1123,7 @@ TEST_P(OVClassLoadNetworkAndCheckSecondaryPropertiesTest, LoadNetworkAndCheckSec
     ASSERT_EQ(actual, expect);
 }
 
-TEST_P(OVClassLoadNetWorkReturnDefaultHintTest, LoadNetworkReturnDefaultHintTest) {
+TEST_P(OVClassCompileModelReturnDefaultHintTest, CompileModelReturnDefaultHintTest) {
     ov::Core ie = createCoreWithTemplate();
     ov::CompiledModel model;
     ov::hint::PerformanceMode value;
@@ -1133,7 +1136,7 @@ TEST_P(OVClassLoadNetWorkReturnDefaultHintTest, LoadNetworkReturnDefaultHintTest
     }
 }
 
-TEST_P(OVClassLoadNetWorkDoNotReturnDefaultHintTest, LoadNetworkDoNotReturnDefaultHintTest) {
+TEST_P(OVClassCompileModelDoNotReturnDefaultHintTest, CompileModelDoNotReturnDefaultHintTest) {
     ov::Core ie = createCoreWithTemplate();
     ov::CompiledModel model;
     ov::hint::PerformanceMode value;
@@ -1146,7 +1149,7 @@ TEST_P(OVClassLoadNetWorkDoNotReturnDefaultHintTest, LoadNetworkDoNotReturnDefau
     }
 }
 
-TEST_P(OVClassLoadNetworkTest, LoadNetworkWithInvalidDeviceIDThrows) {
+TEST_P(OVClassCompileModelTest, CompileModelWithInvalidDeviceIDThrows) {
     ov::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, target_device)) {
@@ -1156,7 +1159,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkWithInvalidDeviceIDThrows) {
     }
 }
 
-TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROWithBigDeviceIDThrows) {
+TEST_P(OVClassCompileModelTest, CompileModelHETEROWithBigDeviceIDThrows) {
     ov::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, target_device)) {
@@ -1169,7 +1172,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROWithBigDeviceIDThrows) {
     }
 }
 
-TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROAndDeviceIDThrows) {
+TEST_P(OVClassCompileModelTest, CompileModelHETEROAndDeviceIDThrows) {
     ov::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, target_device)) {
@@ -1184,10 +1187,10 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROAndDeviceIDThrows) {
 }
 
 //
-// LoadNetwork with HETERO on MULTI combinations particular device
+// CompileModel with HETERO on MULTI combinations particular device
 //
 
-TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROwithMULTINoThrow) {
+TEST_P(OVClassCompileModelTest, CompileModelHETEROwithMULTINoThrow) {
     ov::Core ie = createCoreWithTemplate();
     if (supportsDeviceID(ie, target_device) && supportsAvailableDevices(ie, target_device)) {
         std::string devices;
@@ -1210,7 +1213,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROwithMULTINoThrow) {
     }
 }
 
-TEST_P(OVClassLoadNetworkTest, LoadNetworkMULTIwithHETERONoThrow) {
+TEST_P(OVClassCompileModelTest, CompileModelMULTIwithHETERONoThrow) {
     ov::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, target_device) && supportsAvailableDevices(ie, target_device)) {
@@ -1233,10 +1236,10 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkMULTIwithHETERONoThrow) {
 }
 
 //
-// QueryNetwork with HETERO on MULTI combinations particular device
+// QueryModel with HETERO on MULTI combinations particular device
 //
 
-TEST_P(OVClassLoadNetworkTest, QueryNetworkHETEROWithMULTINoThrow_V10) {
+TEST_P(OVClassCompileModelTest, QueryModelHETEROWithMULTINoThrowMultinputNetwork) {
     ov::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, target_device) && supportsAvailableDevices(ie, target_device)) {
@@ -1275,7 +1278,7 @@ TEST_P(OVClassLoadNetworkTest, QueryNetworkHETEROWithMULTINoThrow_V10) {
     }
 }
 
-TEST_P(OVClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
+TEST_P(OVClassCompileModelTest, QueryModelMULTIWithHETERONoThrowMultinputNetwork) {
     ov::Core ie = createCoreWithTemplate();
 
     if (!supportsDeviceID(ie, target_device)) {
@@ -1314,7 +1317,7 @@ TEST_P(OVClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
 }
 
 // TODO: Enable this test with pre-processing
-TEST_P(OVClassLoadNetworkAfterCoreRecreateTest, LoadAfterRecreateCoresAndPlugins) {
+TEST_P(OVClassCompileModelAfterCoreRecreateTest, LoadAfterRecreateCoresAndPlugins) {
     ov::Core ie = createCoreWithTemplate();
     {
         auto versions = ie.get_versions(std::string(CommonTestUtils::DEVICE_MULTI) + ":" + target_device + "," +

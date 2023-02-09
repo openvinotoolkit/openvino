@@ -63,6 +63,10 @@ public:
     static std::vector<ovModelWithName> getStandardFunctions();
 };
 
+using CompileModelCacheTestBaseAnyType = CompileModelCacheTestBase;
+using CompileModelCacheTestBaseNumeric = CompileModelCacheTestBase;
+using CompileModelCacheTestBaseFloatingPoint = CompileModelCacheTestBase;
+
 using compileModelLoadFromFileParams = std::tuple<
         std::string,            // device name
         ov::AnyMap              // device configuration

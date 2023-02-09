@@ -47,7 +47,7 @@ INSTANTIATE_TEST_SUITE_P(
 //
 
 INSTANTIATE_TEST_SUITE_P(
-        ov_compiled_model, OVClassExecutableNetworkGetConfigTest,
+        ov_compiled_model, CompiledModelPropertyTest,
         ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(

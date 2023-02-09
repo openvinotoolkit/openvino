@@ -10,11 +10,11 @@ using namespace ov::test::conformance;
 
 namespace {
 
-INSTANTIATE_TEST_SUITE_P(ov_plugin, OVHoldersTest,
+INSTANTIATE_TEST_SUITE_P(ov_plugin, OVLifeTimeTest,
         ::testing::ValuesIn(return_all_possible_device_combination()),
-        OVHoldersTest::getTestCaseName);
+        OVLifeTimeTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(ov_plugin, OVHoldersTestOnImportedNetwork,
+INSTANTIATE_TEST_SUITE_P(ov_plugin, OVLifeTimeTestOnImportedNetwork,
         ::testing::ValuesIn(return_all_possible_device_combination()),
-        OVHoldersTestOnImportedNetwork::getTestCaseName);
+        OVLifeTimeTestOnImportedNetwork::getTestCaseName);
 }  // namespace

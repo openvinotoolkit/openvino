@@ -18,29 +18,29 @@ namespace {
     const std::vector<ov::AnyMap> heteroConfigs = {
             {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}};
 
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVExecutableNetworkBaseTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVCompiledModelBaseTest,
                             ::testing::Combine(
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                     ::testing::ValuesIn(configs)),
-                            OVExecutableNetworkBaseTest::getTestCaseName);
+                            OVCompiledModelBaseTest::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVExecutableNetworkBaseTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVCompiledModelBaseTest,
                             ::testing::Combine(
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(multiConfigs)),
-                            OVExecutableNetworkBaseTest::getTestCaseName);
+                            OVCompiledModelBaseTest::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVExecutableNetworkBaseTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVCompiledModelBaseTest,
                             ::testing::Combine(
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                     ::testing::ValuesIn(multiConfigs)),
-                            OVExecutableNetworkBaseTest::getTestCaseName);
+                            OVCompiledModelBaseTest::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVExecutableNetworkBaseTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVCompiledModelBaseTest,
                              ::testing::Combine(
                                      ::testing::Values(CommonTestUtils::DEVICE_HETERO),
                                      ::testing::ValuesIn(heteroConfigs)),
-                             OVExecutableNetworkBaseTest::getTestCaseName);
+                             OVCompiledModelBaseTest::getTestCaseName);
 
     const std::vector<InferenceEngine::Precision> netPrecisions = {
             InferenceEngine::Precision::FP32,

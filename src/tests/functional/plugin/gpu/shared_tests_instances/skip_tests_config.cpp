@@ -64,9 +64,11 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*Gather8LayerTest.*)",
             // Not implemented yet:
             R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
+            R"(.*Behavior.*OVCompiledModelBaseTest.*canSetConfigToCompiledModel.*)",
             R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
-            R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
-            R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNetAndCheckConfigAndCheck.*)",
+            R"(.*Behavior.*OVCompiledModelBaseTest.*canExportModel.*)",
+            R"(.*OVCompiledModelBaseTest.*canSetConfigToCompiledModel.*)",
+            R"(.*OVCompiledModelBaseTest.*CanSetConfigToExecNetAndGetConfigAndCheck.*)",
             // TODO: Issue 67408
             R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*CompareWithRefs.*)",
             // Expected behavior. GPU plugin doesn't support i64 for eltwise power operation.
@@ -113,7 +115,7 @@ std::vector<std::string> disabledTestPatterns() {
             // Unsupported 8d tensors
             R"(smoke_Basic/SqueezeUnsqueezeLayerTest.CompareWithRefs/OpType=Unsqueeze_IS=\(1.1.1.1\)_Axes=\((0.1.2|0.2.3|1.2.3|0.1.2.3|)\)_.*)",
             // Issue: 90539
-            R"(smoke_AutoBatch_BehaviorTests/OVInferRequestIOTensorTest.InferStaticNetworkSetInputTensor/targetDevice=BATCH.*)",
+            R"(smoke_AutoBatch_BehaviorTests/OVInferRequestIOTensorTest.InferStaticNetworkReshapeInputTensor/targetDevice=BATCH.*)",
             // TODO: range input with one element should NOT be regarded as dynamic batch model in Program::IsDynBatchModel().
             R"(.*smoke_select_CompareWithRefsNumpy_dynamic_range.*)",
             R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*CompareWithRefImpl.*)",

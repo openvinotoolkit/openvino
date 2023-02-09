@@ -6,16 +6,16 @@
 
 using namespace ov::test::behavior;
 namespace {
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVHoldersTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVLifeTimeTest,
             ::testing::Values(CommonTestUtils::DEVICE_GPU),
-            OVHoldersTest::getTestCaseName);
+            OVLifeTimeTest::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_VirtualPlugin_BehaviorTests, OVHoldersTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_VirtualPlugin_BehaviorTests, OVLifeTimeTest,
                     ::testing::Values("AUTO:GPU",
                                         "MULTI:GPU",
                                         //CommonTestUtils::DEVICE_BATCH,
                                         "HETERO:GPU"),
-            OVHoldersTest::getTestCaseName);
+            OVLifeTimeTest::getTestCaseName);
 
 const std::vector<std::string> device_names_and_priorities = {
         "MULTI:GPU", // GPU via MULTI,
@@ -27,7 +27,7 @@ const std::vector<std::string> device_names_and_priorities = {
         "MULTI:CPU,GPU", // CPU+GPU
 #endif
 };
-    INSTANTIATE_TEST_SUITE_P(smoke_VirtualPlugin_BehaviorTests, OVHoldersTestWithConfig,
+    INSTANTIATE_TEST_SUITE_P(smoke_VirtualPlugin_BehaviorTests, OVLifeTimeTestWithConfig,
                     ::testing::ValuesIn(device_names_and_priorities),
-            OVHoldersTestWithConfig::getTestCaseName);
+            OVLifeTimeTestWithConfig::getTestCaseName);
 }  // namespace

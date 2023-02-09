@@ -707,11 +707,11 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetConfigTest, OVClassGetConfigTest, ::t
 
 // IE Class Query network
 
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassQueryNetworkTest, OVClassQueryNetworkTest, ::testing::Values("GPU"));
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassQueryModelTest, OVClassQueryModelTest, ::testing::Values("GPU"));
 
 // IE Class Load network
 
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassLoadNetworkTest, OVClassLoadNetworkTest, ::testing::Values("GPU"));
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompileModelTest, OVClassCompileModelTest, ::testing::Values("GPU"));
 
 const std::vector<ov::AnyMap> gpuCorrectConfigs = {
         {
@@ -740,18 +740,18 @@ auto gpuCorrectConfigsWithSecondaryProperties = []() {
                                 ov::hint::allow_auto_batching(false))}};
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassLoadNetworkWithCorrectPropertiesAutoBatchingTest, OVClassLoadNetworkWithCorrectPropertiesTest,
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassLoadNetworkWithCorrectPropertiesAutoBatchingTest, OVClassCompileModelWithCorrectPropertiesTest,
                             ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GPU),
                                                 ::testing::ValuesIn(gpuCorrectConfigs)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassLoadNetworkWithCorrectSecondaryPropertiesTest,
-                         OVClassLoadNetworkWithCorrectPropertiesTest,
+                         OVClassCompileModelWithCorrectPropertiesTest,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GPU),
                                             ::testing::ValuesIn(gpuCorrectConfigsWithSecondaryProperties())),
                          ::testing::PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(smoke_AUTO_OVClassLoadNetworkWithCorrectSecondaryPropertiesTest,
-                         OVClassLoadNetworkWithCorrectPropertiesTest,
+                         OVClassCompileModelWithCorrectPropertiesTest,
                          ::testing::Combine(::testing::Values("AUTO:GPU", "MULTI:GPU"),
                                             ::testing::ValuesIn(gpuCorrectConfigsWithSecondaryProperties())));
 
@@ -790,12 +790,12 @@ auto autoCorrectConfigsWithSecondaryProperties = []() {
                                 ov::hint::allow_auto_batching(false))}};
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_OVClassLoadNetworkWithCorrectPropertiesAutoBatchingTest, OVClassLoadNetworkWithCorrectPropertiesTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_OVClassLoadNetworkWithCorrectPropertiesAutoBatchingTest, OVClassCompileModelWithCorrectPropertiesTest,
                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_MULTI, CommonTestUtils::DEVICE_AUTO),
                         ::testing::ValuesIn(autoCorrectConfigs())));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_OVClassLoadNetworkWithCorrectSecondaryPropertiesTest,
-                         OVClassLoadNetworkWithCorrectPropertiesTest,
+                         OVClassCompileModelWithCorrectPropertiesTest,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_MULTI,
                                                               CommonTestUtils::DEVICE_AUTO),
                                             ::testing::ValuesIn(autoCorrectConfigsWithSecondaryProperties())),
@@ -805,12 +805,12 @@ const std::vector<ov::AnyMap> batchCorrectConfigs = {
     {}
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_Batch_OVClassLoadNetworkWithCorrectPropertiesAutoBatchingTest, OVClassLoadNetworkWithCorrectPropertiesTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_Batch_OVClassLoadNetworkWithCorrectPropertiesAutoBatchingTest, OVClassCompileModelWithCorrectPropertiesTest,
                         ::testing::Combine(::testing::Values("BATCH:GPU"),
                         ::testing::ValuesIn(batchCorrectConfigs)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassHeteroExecutableNetworkGetMetricTest,
-        OVClassLoadNetworkAfterCoreRecreateTest,
+        OVClassCompileModelAfterCoreRecreateTest,
         ::testing::Values("GPU"));
 
 using OVClassGetMetricTest_CACHING_PROPERTIES = OVClassBaseTestP;
@@ -872,12 +872,12 @@ INSTANTIATE_TEST_SUITE_P(
 // Several devices case
 
 INSTANTIATE_TEST_SUITE_P(
-        nightly_OVClassSeveralDevicesTest, OVClassSeveralDevicesTestLoadNetwork,
+        nightly_OVClassSeveralDevicesTest, OVClassSeveralDevicesTestCompileModel,
         ::testing::Values(std::vector<std::string>({"GPU.0", "GPU.1"}))
 );
 
 INSTANTIATE_TEST_SUITE_P(
-        nightly_OVClassSeveralDevicesTest, OVClassSeveralDevicesTestQueryNetwork,
+        nightly_OVClassSeveralDevicesTest, OVClassSeveralDevicesTestQueryModel,
         ::testing::Values(std::vector<std::string>({"GPU.0", "GPU.1"}))
 );
 

@@ -259,38 +259,38 @@ TEST(OVClassBasicTest, smoke_SetConfigEnableProfiling) {
 // IE Class Query network
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassQueryNetworkTest, OVClassQueryNetworkTest,
+        smoke_OVClassQueryModelTest, OVClassQueryModelTest,
         ::testing::Values("CPU"));
 
 // IE Class Load network
-INSTANTIATE_TEST_SUITE_P(smoke_CPU_OVClassLoadNetworkWithCorrectSecondaryPropertiesTest,
-                         OVClassLoadNetworkWithCorrectPropertiesTest,
+INSTANTIATE_TEST_SUITE_P(smoke_CPU_OVClassCompileModelWithCorrectSecondaryPropertiesTest,
+                         OVClassCompileModelWithCorrectPropertiesTest,
                          ::testing::Combine(::testing::Values("CPU", "AUTO:CPU", "MULTI:CPU"),
                                             ::testing::ValuesIn(configsWithSecondaryProperties)));
 
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_OVClassLoadNetworkWithSecondaryPropertiesTest,
-                         OVClassLoadNetworkWithCorrectPropertiesTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_OVClassCompileModelWithSecondaryPropertiesTest,
+                         OVClassCompileModelWithCorrectPropertiesTest,
                          ::testing::Combine(::testing::Values("MULTI"),
                                             ::testing::ValuesIn(multiConfigsWithSecondaryProperties)));
 
-INSTANTIATE_TEST_SUITE_P(smoke_AUTO_OVClassLoadNetworkWithSecondaryPropertiesTest,
-                         OVClassLoadNetworkWithCorrectPropertiesTest,
+INSTANTIATE_TEST_SUITE_P(smoke_AUTO_OVClassCompileModelWithSecondaryPropertiesTest,
+                         OVClassCompileModelWithCorrectPropertiesTest,
                          ::testing::Combine(::testing::Values("AUTO"),
                                             ::testing::ValuesIn(autoConfigsWithSecondaryProperties)));
 
 // IE Class load and check network with ov::device::properties
-INSTANTIATE_TEST_SUITE_P(smoke_CPU_OVClassLoadNetworkAndCheckWithSecondaryPropertiesTest,
-                         OVClassLoadNetworkAndCheckSecondaryPropertiesTest,
+INSTANTIATE_TEST_SUITE_P(smoke_CPU_OVClassCompileModelAndCheckWithSecondaryPropertiesTest,
+                         OVClassCompileModelAndCheckSecondaryPropertiesTest,
                          ::testing::Combine(::testing::Values("CPU", "MULTI:CPU"),
                                             ::testing::ValuesIn(configsDeviceProperties)));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassLoadNetworkTest, OVClassLoadNetworkTest,
+        smoke_OVClassCompileModelTest, OVClassCompileModelTest,
         ::testing::Values("CPU"));
 
 const std::vector<ov::AnyMap> auto_multi_default_properties = {{}, {ov::hint::allow_auto_batching(true)}};
 INSTANTIATE_TEST_SUITE_P(smoke_AUTO_MULTI_ReturnDefaultHintTest,
-                         OVClassLoadNetWorkReturnDefaultHintTest,
+                         OVClassCompileModelReturnDefaultHintTest,
                          ::testing::Combine(::testing::Values("AUTO:CPU", "MULTI:CPU"),
                                             ::testing::ValuesIn(auto_multi_default_properties)));
 // For AUTO, User sets perf_hint, AUTO's perf_hint should not return default value LATENCY
@@ -307,11 +307,11 @@ const std::vector<ov::AnyMap> default_multi_properties = {
     {ov::num_streams(ov::streams::AUTO)},
     {ov::inference_num_threads(1)}};
 INSTANTIATE_TEST_SUITE_P(smoke_AUTO_DoNotReturnDefaultHintTest,
-                         OVClassLoadNetWorkDoNotReturnDefaultHintTest,
+                         OVClassCompileModelDoNotReturnDefaultHintTest,
                          ::testing::Combine(::testing::Values("AUTO:CPU"),
                                             ::testing::ValuesIn(default_auto_properties)));
 INSTANTIATE_TEST_SUITE_P(smoke_MULTI_DoNotReturnDefaultHintTest,
-                         OVClassLoadNetWorkDoNotReturnDefaultHintTest,
+                         OVClassCompileModelDoNotReturnDefaultHintTest,
                          ::testing::Combine(::testing::Values("MULTI:CPU"),
                                             ::testing::ValuesIn(default_multi_properties)));
 
@@ -324,13 +324,13 @@ const std::vector<ov::AnyMap> configsWithMetaPlugin = {{ov::device::priorities("
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_MULTI_AUTO_DoNotSupportMetaPluginLoadingItselfRepeatedlyWithEmptyConfigTest,
-    OVClassLoadNetworkWithCondidateDeviceListContainedMetaPluginTest,
+    OVClassCompileModelWithCondidateDeviceListContainedMetaPluginTest,
     ::testing::Combine(::testing::Values("MULTI:AUTO", "AUTO:MULTI", "MULTI:CPU,AUTO", "AUTO:CPU,MULTI"),
                        ::testing::ValuesIn(configsWithEmpty)),
     ::testing::PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(smoke_MULTI_AUTO_DoNotSupportMetaPluginLoadingItselfRepeatedlyTest,
-                         OVClassLoadNetworkWithCondidateDeviceListContainedMetaPluginTest,
+                         OVClassCompileModelWithCondidateDeviceListContainedMetaPluginTest,
                          ::testing::Combine(::testing::Values("MULTI", "AUTO"),
                                             ::testing::ValuesIn(configsWithMetaPlugin)),
                          ::testing::PrintToStringParamName());

@@ -37,11 +37,11 @@ void OVInferRequestIOTensorTest::TearDown() {
     OVInferRequestTests::TearDown();
 }
 
-TEST_P(OVInferRequestIOTensorTest, failToSetNullptrForInput) {
+TEST_P(OVInferRequestIOTensorTest, failSetNullPtrTensorForInput) {
     ASSERT_THROW(req.set_tensor(input, {}), ov::Exception);
 }
 
-TEST_P(OVInferRequestIOTensorTest, failToSetNullptrForOutput) {
+TEST_P(OVInferRequestIOTensorTest, FailSetNullPtrTensorForOutput) {
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     ASSERT_THROW(req.set_tensor(output, {}), ov::Exception);
 }
@@ -99,21 +99,21 @@ TEST_P(OVInferRequestIOTensorTest, canInferWithoutSetAndGetInOutAsync) {
     OV_ASSERT_NO_THROW(req.wait());
 }
 
-TEST_P(OVInferRequestIOTensorTest, secondCallGetInputDoNotReAllocateData) {
+TEST_P(OVInferRequestIOTensorTest, secondCallGetInputDoNotReAllocateDataSync) {
     ov::Tensor tensor1, tensor2;
     OV_ASSERT_NO_THROW(tensor1 = req.get_tensor(input));
     OV_ASSERT_NO_THROW(tensor2 = req.get_tensor(input));
     ASSERT_EQ(tensor1.data(), tensor2.data());
 }
 
-TEST_P(OVInferRequestIOTensorTest, secondCallGetOutputDoNotReAllocateData) {
+TEST_P(OVInferRequestIOTensorTest, secondCallGetOutputDoNotReAllocateDataSync) {
     ov::Tensor tensor1, tensor2;
     OV_ASSERT_NO_THROW(tensor1 = req.get_tensor(output));
     OV_ASSERT_NO_THROW(tensor2 = req.get_tensor(output));
     ASSERT_EQ(tensor1.data(), tensor2.data());
 }
 
-TEST_P(OVInferRequestIOTensorTest, secondCallGetInputAfterInferSync) {
+TEST_P(OVInferRequestIOTensorTest, secondCallGetInputAfterInferAsync) {
     OV_ASSERT_NO_THROW(req.infer());
     OV_ASSERT_NO_THROW(req.start_async());
     OV_ASSERT_NO_THROW(req.wait());
@@ -123,7 +123,7 @@ TEST_P(OVInferRequestIOTensorTest, secondCallGetInputAfterInferSync) {
     ASSERT_EQ(tensor1.data(), tensor2.data());
 }
 
-TEST_P(OVInferRequestIOTensorTest, secondCallGetOutputAfterInferSync) {
+TEST_P(OVInferRequestIOTensorTest, secondCallGetOutputAfterInferAsync) {
     OV_ASSERT_NO_THROW(req.infer());
     OV_ASSERT_NO_THROW(req.start_async());
     OV_ASSERT_NO_THROW(req.wait());
@@ -133,6 +133,25 @@ TEST_P(OVInferRequestIOTensorTest, secondCallGetOutputAfterInferSync) {
     ASSERT_EQ(tensor1.data(), tensor2.data());
 }
 
+<<<<<<< HEAD
+=======
+TEST_P(OVInferRequestIOTensorTest, canSetInputTensorForInferRequest) {
+    auto input_tensor = utils::create_and_fill_tensor(input.get_element_type(), input.get_shape());
+    OV_ASSERT_NO_THROW(req.set_tensor(input, input_tensor));
+    ov::Tensor actual_tensor;
+    OV_ASSERT_NO_THROW(actual_tensor = req.get_tensor(input));
+    ASSERT_EQ(input_tensor.data(), actual_tensor.data());
+}
+
+TEST_P(OVInferRequestIOTensorTest, canSetOutputTensorForInferRequest) {
+    auto output_tensor = utils::create_and_fill_tensor(output.get_element_type(), output.get_shape());
+    OV_ASSERT_NO_THROW(req.set_tensor(output, output_tensor));
+    ov::Tensor actual_tensor;
+    OV_ASSERT_NO_THROW(actual_tensor = req.get_tensor(output));
+    ASSERT_EQ(output_tensor.data(), actual_tensor.data());
+}
+
+>>>>>>> [apiConformance] Fix test names
 TEST_P(OVInferRequestIOTensorTest, canInferWithSetInOutBlobs) {
     auto input_tensor = utils::create_and_fill_tensor(input.get_element_type(), input.get_shape());
     OV_ASSERT_NO_THROW(req.set_tensor(input, input_tensor));
@@ -141,7 +160,7 @@ TEST_P(OVInferRequestIOTensorTest, canInferWithSetInOutBlobs) {
     OV_ASSERT_NO_THROW(req.infer());
 }
 
-TEST_P(OVInferRequestIOTensorTest, canInferWithGetIn) {
+TEST_P(OVInferRequestIOTensorTest, getInputInferGetOutputAsync) {
     ov::Tensor input_tensor;
     OV_ASSERT_NO_THROW(input_tensor = req.get_tensor(input));
     OV_ASSERT_NO_THROW(req.infer());
@@ -170,7 +189,7 @@ TEST_P(OVInferRequestIOTensorTest, canInferAfterIOBlobReallocation) {
     OV_ASSERT_NO_THROW(req.get_tensor(output));
 }
 
-TEST_P(OVInferRequestIOTensorTest, canInferWithGetOut) {
+TEST_P(OVInferRequestIOTensorTest, getOutputInferGetOutputAgain) {
     ov::Tensor output_tensor;
     OV_ASSERT_NO_THROW(output_tensor = req.get_tensor(output));
     OV_ASSERT_NO_THROW(req.infer());
@@ -179,7 +198,7 @@ TEST_P(OVInferRequestIOTensorTest, canInferWithGetOut) {
     OV_ASSERT_NO_THROW(req.get_tensor(output));
 }
 
-TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetInputTensor) {
+TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkReshapeInputTensor) {
     const ov::Shape shape1 = {1, 1, 32, 32};
     const ov::Shape shape2 = {1, 1, 40, 40};
     std::map<std::string, ov::PartialShape> shapes;
@@ -200,7 +219,7 @@ TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetInputTensor) {
     ASSERT_ANY_THROW(req.infer());
 }
 
-TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetOutputTensor) {
+TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkReshapeOutputTensor) {
     const ov::Shape shape1 = {1, 1, 32, 32};
     ov::Shape shape2;
     if (target_device.find(CommonTestUtils::DEVICE_BATCH) == std::string::npos)
@@ -261,7 +280,7 @@ void OVInferRequestIOTensorSetPrecisionTest::TearDown() {
     APIBaseTest::TearDown();
 }
 
-TEST_P(OVInferRequestIOTensorSetPrecisionTest, CanSetInBlobWithDifferentPrecision) {
+TEST_P(OVInferRequestIOTensorSetPrecisionTest, CanSetOutBlobWithDifferentPrecision) {
     for (auto&& output : execNet.outputs()) {
         auto output_tensor = utils::create_and_fill_tensor(element_type, output.get_shape());
         if (output.get_element_type() == element_type) {
@@ -272,7 +291,7 @@ TEST_P(OVInferRequestIOTensorSetPrecisionTest, CanSetInBlobWithDifferentPrecisio
     }
 }
 
-TEST_P(OVInferRequestIOTensorSetPrecisionTest, CanSetOutBlobWithDifferentPrecision) {
+TEST_P(OVInferRequestIOTensorSetPrecisionTest, CanSetInBlobWithDifferentPrecision) {
     for (auto&& input : execNet.inputs()) {
         auto input_tensor = utils::create_and_fill_tensor(element_type, input.get_shape());
         if (input.get_element_type() == element_type) {

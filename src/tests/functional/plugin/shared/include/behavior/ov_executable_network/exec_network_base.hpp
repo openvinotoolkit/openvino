@@ -16,7 +16,7 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-class OVExecutableNetworkBaseTest : public testing::WithParamInterface<InferRequestParams>,
+class OVCompiledModelBaseTest : public testing::WithParamInterface<InferRequestParams>,
                                     public OVCompiledNetworkTestBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
@@ -80,13 +80,13 @@ protected:
     void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_compiled_model; }
 };
 
-using OVAutoExecutableNetworkTest = OVExecutableNetworkBaseTest;
+using OVAutoExecutableNetworkTest = OVCompiledModelBaseTest;
 
-TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutable) {
+TEST_P(OVCompiledModelBaseTest, canCompileModel) {
     EXPECT_NO_THROW(auto execNet = core->compile_model(function, target_device, configuration));
 }
 
-TEST_P(OVExecutableNetworkBaseTest, canLoadNetworkFromMemory) {
+TEST_P(OVCompiledModelBaseTest, canCompileModelFromMemory) {
     std::string model = R"V0G0N(
         <net name="Network" version="10">
             <layers>
@@ -140,35 +140,35 @@ TEST_P(OVExecutableNetworkBaseTest, canLoadNetworkFromMemory) {
     EXPECT_NO_THROW(auto execNet = core->compile_model(model, ov::Tensor(), target_device, configuration));
 }
 
-TEST(OVExecutableNetworkBaseTest, smoke_LoadNetworkToDefaultDeviceNoThrow) {
+TEST(OVCompiledModelBaseTest, canCompileModelToDefaultDevice) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     std::shared_ptr<ov::Model> function = ngraph::builder::subgraph::makeConvPoolRelu();
     EXPECT_NO_THROW(auto execNet = core->compile_model(function));
 }
 
-TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableWithIncorrectConfig) {
+TEST_P(OVCompiledModelBaseTest, failCompileModelWithIncorrectConfig) {
     ov::AnyMap incorrectConfig = {{"abc", "def"}};
     EXPECT_ANY_THROW(auto execNet = core->compile_model(function, target_device, incorrectConfig));
 }
 
-TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCreateInferRequest) {
+TEST_P(OVCompiledModelBaseTest, canCompileModelAndCreateInferRequest) {
     auto execNet = core->compile_model(function, target_device, configuration);
     EXPECT_NO_THROW(auto req = execNet.create_infer_request());
 }
 
-TEST_P(OVExecutableNetworkBaseTest, checkGetExecGraphInfoIsNotNullptr) {
+TEST_P(OVCompiledModelBaseTest, checkGetExecGraphInfoIsNotNullptr) {
     auto execNet = core->compile_model(function, target_device, configuration);
     auto execGraph = execNet.get_runtime_model();
     EXPECT_NE(execGraph, nullptr);
 }
 
-TEST_P(OVExecutableNetworkBaseTest, checkGetMetric) {
+TEST_P(OVCompiledModelBaseTest, checkGetMetric) {
     auto execNet = core->compile_model(function, target_device, configuration);
     EXPECT_NO_THROW(execNet.get_property(ov::supported_properties));
 }
 
-TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCheckConfig) {
+TEST_P(OVCompiledModelBaseTest, canCompileCorrectModelAndCheckConfig) {
     auto execNet = core->compile_model(function, target_device, configuration);
     for (const auto& configItem : configuration) {
         ov::Any param;
@@ -178,7 +178,7 @@ TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCheck
     }
 }
 
-TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNet) {
+TEST_P(OVCompiledModelBaseTest, canSetConfigToCompiledModel) {
     auto execNet = core->compile_model(function, target_device);
     std::map<std::string, ov::Any> config;
     for (const auto& confItem : configuration) {
@@ -187,7 +187,7 @@ TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNet) {
     EXPECT_NO_THROW(execNet.set_property(config));
 }
 
-TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNetWithIncorrectConfig) {
+TEST_P(OVCompiledModelBaseTest, canSetConfigToCompiledModelWithIncorrectConfig) {
     auto execNet = core->compile_model(function, target_device);
     std::map<std::string, std::string> incorrectConfig = {{"abc", "def"}};
     std::map<std::string, ov::Any> config;
@@ -197,7 +197,7 @@ TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNetWithIncorrectConfig) {
     EXPECT_ANY_THROW(execNet.set_property(config));
 }
 
-TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNetAndCheckConfigAndCheck) {
+TEST_P(OVCompiledModelBaseTest, canSetConfigToCompiledModelGetConfigAndCheck) {
     auto execNet = core->compile_model(function, target_device);
     std::map<std::string, ov::Any> config;
     for (const auto& confItem : configuration) {
@@ -212,7 +212,7 @@ TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNetAndCheckConfigAndCheck)
     }
 }
 
-TEST_P(OVExecutableNetworkBaseTest, CanCreateTwoExeNetworks) {
+TEST_P(OVCompiledModelBaseTest, canCreateTwoCompiledModel) {
     std::vector<ov::CompiledModel> vec;
     for (auto i = 0; i < 2; i++) {
         EXPECT_NO_THROW(vec.push_back(core->compile_model(function, target_device, configuration)));
@@ -220,7 +220,7 @@ TEST_P(OVExecutableNetworkBaseTest, CanCreateTwoExeNetworks) {
     }
 }
 
-TEST_P(OVExecutableNetworkBaseTest, CanCreateTwoExeNetworksAndCheckFunction) {
+TEST_P(OVCompiledModelBaseTest, canCreateTwoCompiledModelAndCheckTheir) {
     std::vector<ov::CompiledModel> vec;
     for (auto i = 0; i < 2; i++) {
         EXPECT_NO_THROW(vec.push_back(core->compile_model(function, target_device, configuration)));
@@ -229,17 +229,17 @@ TEST_P(OVExecutableNetworkBaseTest, CanCreateTwoExeNetworksAndCheckFunction) {
     }
 }
 
-TEST_P(OVExecutableNetworkBaseTest, CanGetInputsInfo) {
+TEST_P(OVCompiledModelBaseTest, canGetInputsInfo) {
     auto execNet = core->compile_model(function, target_device, configuration);
     EXPECT_NO_THROW(auto inInfo = execNet.inputs());
 }
 
-TEST_P(OVExecutableNetworkBaseTest, CanGetOutputsInfo) {
+TEST_P(OVCompiledModelBaseTest, canGetOutputsInfo) {
     auto execNet = core->compile_model(function, target_device, configuration);
     EXPECT_NO_THROW(auto outInfo = execNet.outputs());
 }
 
-TEST_P(OVExecutableNetworkBaseTest, CanGetInputsInfoAndCheck) {
+TEST_P(OVCompiledModelBaseTest, canGetInputsInfoAndCheck) {
     auto execNet = core->compile_model(function, target_device, configuration);
     auto inputs = execNet.inputs();
     std::vector<std::string> paramVec;
@@ -253,7 +253,7 @@ TEST_P(OVExecutableNetworkBaseTest, CanGetInputsInfoAndCheck) {
     }
 }
 
-TEST_P(OVExecutableNetworkBaseTest, CanGetOutputsInfoAndCheck) {
+TEST_P(OVCompiledModelBaseTest, canGetOutputsInfoAndCheck) {
     auto execNet = core->compile_model(function, target_device, configuration);
     auto outputs = execNet.outputs();
     std::vector<std::string> resVec;
@@ -267,7 +267,7 @@ TEST_P(OVExecutableNetworkBaseTest, CanGetOutputsInfoAndCheck) {
     }
 }
 
-TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoBeforeExecution) {
+TEST_P(OVCompiledModelBaseTest, checkExecGraphInfoBeforeExecution) {
     std::shared_ptr<const ov::Model> execGraph;
     // Load CNNNetwork to target plugins
     auto execNet = core->compile_model(function, target_device, configuration);
@@ -317,7 +317,7 @@ TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoBeforeExecution) {
     }
 }
 
-TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoAfterExecution) {
+TEST_P(OVCompiledModelBaseTest, checkExecGraphInfoAfterExecution) {
     std::shared_ptr<const ov::Model> execGraph;
     // Load CNNNetwork to target plugins
     auto execNet = core->compile_model(function, target_device, configuration);
@@ -377,7 +377,7 @@ TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoAfterExecution) {
     }
 }
 
-TEST_P(OVExecutableNetworkBaseTest, canExport) {
+TEST_P(OVCompiledModelBaseTest, canExportModel) {
     auto ts = CommonTestUtils::GetTimestamp();
     std::string modelName = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + ts;
     auto execNet = core->compile_model(function, target_device, configuration);
@@ -388,13 +388,13 @@ TEST_P(OVExecutableNetworkBaseTest, canExport) {
     CommonTestUtils::removeFile(modelName);
 }
 
-TEST_P(OVExecutableNetworkBaseTest, pluginDoesNotChangeOriginalNetwork) {
+TEST_P(OVCompiledModelBaseTest, pluginDoesNotChangeOriginalModel) {
     // compare 2 networks
-    auto referenceNetwork = ngraph::builder::subgraph::makeConvPoolRelu();
-    compare_functions(function, referenceNetwork);
+    auto referenceModel = ngraph::builder::subgraph::makeConvPoolRelu();
+    compare_functions(function, referenceModel);
 }
 
-TEST_P(OVExecutableNetworkBaseTest, getInputFromFunctionWithSingleInput) {
+TEST_P(OVCompiledModelBaseTest, getInputFromFunctionWithSingleInput) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel execNet;
@@ -421,7 +421,7 @@ TEST_P(OVExecutableNetworkBaseTest, getInputFromFunctionWithSingleInput) {
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
 }
 
-TEST_P(OVExecutableNetworkBaseTest, getOutputFromFunctionWithSingleInput) {
+TEST_P(OVCompiledModelBaseTest, getOutputFromFunctionWithSingleInput) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel execNet;
@@ -447,7 +447,7 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputFromFunctionWithSingleInput) {
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
 }
 
-TEST_P(OVExecutableNetworkBaseTest, getInputsFromFunctionWithSeveralInputs) {
+TEST_P(OVCompiledModelBaseTest, getInputsFromFunctionWithSeveralInputs) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel execNet;
@@ -518,7 +518,7 @@ TEST_P(OVExecutableNetworkBaseTest, getInputsFromFunctionWithSeveralInputs) {
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
 }
 
-TEST_P(OVExecutableNetworkBaseTest, getOutputsFromFunctionWithSeveralOutputs) {
+TEST_P(OVCompiledModelBaseTest, getOutputsFromFunctionWithSeveralOutputs) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel execNet;
@@ -589,7 +589,7 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputsFromFunctionWithSeveralOutputs) {
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
 }
 
-TEST_P(OVExecutableNetworkBaseTest, getOutputsFromSplitFunctionWithSeveralOutputs) {
+TEST_P(OVCompiledModelBaseTest, getOutputsFromSplitFunctionWithSeveralOutputs) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel execNet;
@@ -657,7 +657,7 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputsFromSplitFunctionWithSeveralOutput
 }
 
 // Load correct network to Plugin to get executable network
-TEST_P(OVExecutableNetworkBaseTest, precisionsAsInOriginalFunction) {
+TEST_P(OVCompiledModelBaseTest, precisionsAsInOriginalFunction) {
     ov::CompiledModel execNet;
     EXPECT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
 
@@ -677,7 +677,7 @@ TEST_P(OVExecutableNetworkBaseTest, precisionsAsInOriginalFunction) {
 }
 
 // Load correct network to Plugin to get executable network
-TEST_P(OVExecutableNetworkBaseTest, precisionsAsInOriginalIR) {
+TEST_P(OVCompiledModelBaseTest, precisionsAsInOriginalIR) {
     auto filePrefix = CommonTestUtils::generateTestFilePrefix();
     const std::string m_out_xml_path_1 = filePrefix + "precisionsAsInOriginalIR.xml";
     const std::string m_out_bin_path_1 = filePrefix + "precisionsAsInOriginalIR.bin";
@@ -702,7 +702,7 @@ TEST_P(OVExecutableNetworkBaseTest, precisionsAsInOriginalIR) {
     EXPECT_EQ(ref_result->get_friendly_name(), actual_result->get_friendly_name());
 }
 
-TEST_P(OVExecutableNetworkBaseTest, getCompiledModelFromInferRequest) {
+TEST_P(OVCompiledModelBaseTest, getCompiledModelFromInferRequest) {
     ov::InferRequest req;
     {
         ov::CompiledModel compiled_model;
@@ -719,7 +719,7 @@ TEST_P(OVExecutableNetworkBaseTest, getCompiledModelFromInferRequest) {
     }
 }
 
-TEST_P(OVExecutableNetworkBaseTest, loadIncorrectV10Model) {
+TEST_P(OVCompiledModelBaseTest, loadIncorrectV10Model) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel execNet;
@@ -741,7 +741,7 @@ TEST_P(OVExecutableNetworkBaseTest, loadIncorrectV10Model) {
     EXPECT_THROW(core->compile_model(function, target_device, configuration), ov::Exception);
 }
 
-TEST_P(OVExecutableNetworkBaseTest, loadIncorrectV11Model) {
+TEST_P(OVCompiledModelBaseTest, loadIncorrectV11Model) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel execNet;

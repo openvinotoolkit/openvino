@@ -140,12 +140,12 @@ TEST_P(OVPropertiesTests, canSetPropertyAndCheckGetProperty) {
     }
 }
 
-TEST_P(OVPropertiesIncorrectTests, SetPropertiesWithIncorrectKey) {
+TEST_P(OVPropertiesIncorrectTests, SetPropertiesWithIncorrectValue) {
     core->get_versions(target_device);
     ASSERT_THROW(core->set_property(target_device, properties), ov::Exception);
 }
 
-TEST_P(OVPropertiesIncorrectTests, CanNotCompileModelWithIncorrectProperties) {
+TEST_P(OVPropertiesIncorrectTests, CanNotCompileModelWithIncorrectPropertiesValue) {
     ASSERT_THROW(core->compile_model(model, target_device, properties), ov::Exception);
 }
 
@@ -414,7 +414,7 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithComplieModelProps::getModelDependce
     return res;
 }
 
-TEST_P(OVCheckChangePropComplieModleGetPropTests_ModelDependceProps, ChangeCorrectDeviceProperties) {
+TEST_P(OVCheckChangePropComplieModleGetPropTests_ModelDependceProps, ChangeCorrectProperties) {
     std::vector<ov::PropertyName> supported_properties;
     OV_ASSERT_NO_THROW(supported_properties = core->get_property(target_device, ov::supported_properties));
     auto supported = util::contains(supported_properties, ov::hint::model);

@@ -34,9 +34,9 @@ using OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS = OVCompiledModelC
 using OVClassExecutableNetworkGetMetricTest_NETWORK_NAME = OVCompiledModelClassBaseTestP;
 using OVClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS = OVCompiledModelClassBaseTestP;
 using OVClassExecutableNetworkGetMetricTest_ThrowsUnsupported = OVCompiledModelClassBaseTestP;
-using OVClassExecutableNetworkGetConfigTest = OVCompiledModelClassBaseTestP;
+using CompiledModelPropertyTest = OVCompiledModelClassBaseTestP;
 using OVClassExecutableNetworkSetConfigTest = OVCompiledModelClassBaseTestP;
-using OVClassExecutableNetworkGetConfigTest = OVCompiledModelClassBaseTestP;
+using CompiledModelPropertyTest = OVCompiledModelClassBaseTestP;
 
 class OVClassExecutableNetworkGetMetricTestForSpecificConfig :
         public OVClassNetworkTest,

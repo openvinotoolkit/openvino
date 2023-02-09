@@ -73,8 +73,8 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassExecutableNetworkGetMetricTest,
 // Executable Network GetConfig / SetConfig
 //
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassExecutableNetworkGetConfigTest,
-                         OVClassExecutableNetworkGetConfigTest,
+INSTANTIATE_TEST_SUITE_P(nightly_CompiledModelPropertyTest,
+                         CompiledModelPropertyTest,
                          ::testing::Values("GPU"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassExecutableNetworkSetConfigTest,

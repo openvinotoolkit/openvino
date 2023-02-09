@@ -11,13 +11,13 @@
 namespace ov {
 namespace test {
 namespace behavior {
-std::string OVHoldersTest::getTestCaseName(testing::TestParamInfo<std::string> obj) {
+std::string OVLifeTimeTest::getTestCaseName(testing::TestParamInfo<std::string> obj) {
     std::string target_device = obj.param;
     std::replace(target_device.begin(), target_device.end(), ':', '.');
     return "target_device=" + target_device;
 }
 
-void OVHoldersTest::SetUp() {
+void OVLifeTimeTest::SetUp() {
     target_device = this->GetParam();
     APIBaseTest::SetUp();
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
@@ -28,7 +28,7 @@ void OVHoldersTest::SetUp() {
     function = ngraph::builder::subgraph::makeConvPoolRelu();
 }
 
-void OVHoldersTest::TearDown() {
+void OVLifeTimeTest::TearDown() {
     ::testing::GTEST_FLAG(death_test_style) = deathTestStyle;
     APIBaseTest::TearDown();
 }
@@ -53,7 +53,7 @@ static void release_order_test(std::vector<std::size_t> order, const std::string
 
 #ifndef __EMSCRIPTEN__
 
-TEST_P(OVHoldersTest, Orders) {
+TEST_P(OVLifeTimeTest, Orders) {
     std::vector<std::string> objects{ "core", "compiled_model", "request"};
     std::vector<std::size_t> order(objects.size());
     std::iota(order.begin(), order.end(), 0);
@@ -68,7 +68,7 @@ TEST_P(OVHoldersTest, Orders) {
 
 #endif // __EMSCRIPTEN__
 
-TEST_P(OVHoldersTest, LoadedState) {
+TEST_P(OVLifeTimeTest, LoadedState) {
     std::vector<ov::VariableState> states;
     {
         ov::Core core = createCoreWithTemplate();
@@ -80,7 +80,7 @@ TEST_P(OVHoldersTest, LoadedState) {
     }
 }
 
-TEST_P(OVHoldersTest, LoadedTensor) {
+TEST_P(OVLifeTimeTest, LoadedTensor) {
     ov::Tensor tensor;
     {
         ov::Core core = createCoreWithTemplate();
@@ -90,7 +90,7 @@ TEST_P(OVHoldersTest, LoadedTensor) {
     }
 }
 
-TEST_P(OVHoldersTest, LoadedAny) {
+TEST_P(OVLifeTimeTest, LoadedAny) {
     ov::Any any;
     {
         ov::Core core = createCoreWithTemplate();
@@ -99,7 +99,7 @@ TEST_P(OVHoldersTest, LoadedAny) {
     }
 }
 
-TEST_P(OVHoldersTest, LoadedRemoteContext) {
+TEST_P(OVLifeTimeTest, LoadedRemoteContext) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::RemoteContext ctx;
@@ -112,7 +112,7 @@ TEST_P(OVHoldersTest, LoadedRemoteContext) {
     }
 }
 
-TEST_P(OVHoldersTestWithConfig, LoadedTensor) {
+TEST_P(OVLifeTimeTestWithConfig, LoadedTensor) {
     ov::Tensor tensor;
     {
         ov::Core core = createCoreWithTemplate();
@@ -126,13 +126,13 @@ TEST_P(OVHoldersTestWithConfig, LoadedTensor) {
     }
 }
 
-std::string OVHoldersTestOnImportedNetwork::getTestCaseName(testing::TestParamInfo<std::string> obj) {
+std::string OVLifeTimeTestOnImportedNetwork::getTestCaseName(testing::TestParamInfo<std::string> obj) {
     std::string target_device = obj.param;
     std::replace(target_device.begin(), target_device.end(), ':', '.');
     return "target_device=" + target_device;
 }
 
-void OVHoldersTestOnImportedNetwork::SetUp() {
+void OVLifeTimeTestOnImportedNetwork::SetUp() {
     target_device = this->GetParam();
     APIBaseTest::SetUp();
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
@@ -143,12 +143,12 @@ void OVHoldersTestOnImportedNetwork::SetUp() {
     function = ngraph::builder::subgraph::makeConvPoolRelu();
 }
 
-void OVHoldersTestOnImportedNetwork::TearDown() {
+void OVLifeTimeTestOnImportedNetwork::TearDown() {
     ::testing::GTEST_FLAG(death_test_style) = deathTestStyle;
     APIBaseTest::TearDown();
 }
 
-TEST_P(OVHoldersTestOnImportedNetwork, LoadedTensor) {
+TEST_P(OVLifeTimeTestOnImportedNetwork, LoadedTensor) {
     ov::Core core = createCoreWithTemplate();
     std::stringstream stream;
     {
@@ -160,7 +160,7 @@ TEST_P(OVHoldersTestOnImportedNetwork, LoadedTensor) {
     ov::Tensor tensor = request.get_input_tensor();
 }
 
-TEST_P(OVHoldersTestOnImportedNetwork, CreateRequestWithCoreRemoved) {
+TEST_P(OVLifeTimeTestOnImportedNetwork, CreateRequestWithCoreRemoved) {
     ov::Core core = createCoreWithTemplate();
     std::stringstream stream;
     {
