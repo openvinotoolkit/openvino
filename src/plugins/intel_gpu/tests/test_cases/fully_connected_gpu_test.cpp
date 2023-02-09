@@ -2282,7 +2282,7 @@ private:
         return type_to_data_type<InputT>::value;
     }
 
-    data_types output_data_type() {
+    data_types weights_data_type() {
         return type_to_data_type<WeightsT>::value;
     }
 
@@ -2322,8 +2322,7 @@ public:
         auto weights_size = tensor(TensorValue(output_f()), TensorValue(input_f()), TensorValue(input_x()), TensorValue(input_y()));
 
         auto input_prim = engine.allocate_memory({ input_data_type(), _fmt, input_size });
-        auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, weights_size });
-        //auto quantization_input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor(feature(output_f())) });
+        auto weights_prim = engine.allocate_memory({ weights_data_type(), format::bfyx, weights_size });
 
         VF<InputT> input_flattened(input_prim->get_layout().get_linear_size());
         for (size_t bi = 0; bi < batch_num(); ++bi)
@@ -2338,7 +2337,7 @@ public:
         set_values(input_prim, input_flattened);
         set_values(weights_prim, flatten_4d(format::bfyx, _weights));
 
-        auto bias_prim = engine.allocate_memory({ data_types::i32, format::bfyx, tensor(feature(output_f())) });
+        auto bias_prim = engine.allocate_memory({ weights_data_type(), format::bfyx, tensor(feature(output_f())) });
         set_values(bias_prim, _bias);
 
         topology topo;
@@ -2425,6 +2424,24 @@ TEST_P(fully_connected_types_f32_f32_test, random) {
     run_random_test();
 }
 
+TEST_P(fully_connected_types_i8_f32_test, random) {
+    run_random_test();
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    basic,
+    fully_connected_types_i8_f32_test,
+    testing::Combine(
+        testing::Values(1, 2),
+        testing::Values(3, 64),
+        testing::Values(1),
+        testing::Values(1),
+        testing::Values(3, 32),
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32)
+    ),
+    fully_connected_types_i8_f32_test::PrintToStringParamName
+);
+
 INSTANTIATE_TEST_SUITE_P(
     basic,
     fully_connected_types_f32_f32_test,
@@ -2436,5 +2453,5 @@ INSTANTIATE_TEST_SUITE_P(
         testing::Values(3, 32),
         testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32)
     ),
-    fully_connected_types_i8_i8_test::PrintToStringParamName
+    fully_connected_types_f32_f32_test::PrintToStringParamName
 );
