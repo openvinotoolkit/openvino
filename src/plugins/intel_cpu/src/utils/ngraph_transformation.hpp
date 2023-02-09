@@ -68,9 +68,7 @@ private:
         ov::pass::Manager serializer;
 
         if (config.dumpIR.format.filter[DebugCapsConfig::IrFormatFilter::XmlBin]) {
-            std::map<std::string, ngraph::OpSet> custom_opsets;
-            auto opset = std::make_shared<Extension>()->getOpSets();
-            custom_opsets.insert(std::begin(opset), std::end(opset));
+            auto custom_opsets = std::make_shared<Extension>()->getOpSets();
             serializer.register_pass<ov::pass::Serialize>(pathAndName + ".xml", "", custom_opsets);
         }
 
