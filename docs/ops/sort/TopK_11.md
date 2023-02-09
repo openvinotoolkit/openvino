@@ -1,4 +1,4 @@
-`# TopK  {#openvino_docs_ops_sort_TopK_11}
+# TopK  {#openvino_docs_ops_sort_TopK_11}
 
 **Versioned name**: *TopK-11*
 
