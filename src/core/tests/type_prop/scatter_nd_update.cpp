@@ -168,3 +168,28 @@ TEST_F(TypePropScatterUpdateNDV3Test, indicies_input_has_interval_dimensions) {
     EXPECT_EQ(op->get_output_partial_shape(0), data_3d_dynamic);
     EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, 12));
 }
+
+TEST_F(TypePropScatterUpdateNDV3Test, updates_input_is_scalar) {
+    const auto d = std::make_shared<Parameter>(element::i8, data_3d_dynamic);
+    const auto i = std::make_shared<Parameter>(element::i32, PartialShape{3});
+    const auto u = std::make_shared<Parameter>(element::i8, PartialShape{});
+
+    const auto op = make_op(d, i, u);
+
+    EXPECT_EQ(op->get_output_element_type(0), element::i8);
+    EXPECT_EQ(op->get_output_partial_shape(0), data_3d_dynamic);
+}
+
+TEST_F(TypePropScatterUpdateNDV3Test, default_ctor) {
+    const auto d = std::make_shared<Parameter>(element::i64, PartialShape{2, 3, 5, 1});
+    const auto i = std::make_shared<Parameter>(element::i32, PartialShape{1, 3});
+    const auto u = std::make_shared<Parameter>(element::i64, PartialShape{1, 1});
+
+    const auto op = make_op();
+    op->set_arguments(OutputVector{d, i, u});
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_output_element_type(0), element::i64);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, 3, 5, 1}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(ov::no_label));
+}
