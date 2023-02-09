@@ -280,7 +280,7 @@ GPU 插件具有以下附加预处理选项：
 
 行为取决于操作的特定参数和硬件配置。
 
-## GPU 性能清单：摘要<a name="gpu-checklist"></a>
+## GPU 性能清单：摘要<a name="gpu-checklist-zh-CN"></a>
 由于 OpenVINO™ 依赖 OpenCL 内核进行 GPU 实现。因此许多通用 OpenCL 提示都适用：
 - `FP16` 推理精度优于 `FP32`，因为模型优化器可以生成两个变体，并且 `FP32` 是默认值。此外，请考虑使用[训练后优化工具](https://docs.openvino.ai/2022.2/pot_introduction.html)。
 - 尝试使用[自动批处理](../../../OV_Runtime_UG/automatic_batching.md)对各个推理作业进行分组。
