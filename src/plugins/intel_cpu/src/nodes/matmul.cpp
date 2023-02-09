@@ -112,17 +112,16 @@ bool MatMul::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
 
 class MMShapeInfer : public ShapeInferEmptyPads {
 public:
-    MMShapeInfer(const std::shared_ptr<const ngraph::opset1::MatMul>& op) : m_matmul(op) {
-        m_out_rank = m_matmul->get_output_partial_shape(0).rank().get_length();
+    MMShapeInfer(const size_t& out_rank, const bool& transpose_a, const bool& transpose_b) : m_out_rank(out_rank), m_transpose_a(transpose_a), m_transpose_b(transpose_b) {
         m_YShape = VectorDims(m_out_rank, 1); // for output and cache
     }
     std::vector<VectorDims> infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        VectorDims AShape = input_shapes[0].get();
-        VectorDims BShape = input_shapes[1].get();
-        const size_t& Aranks = AShape.size();
-        const size_t& Branks = BShape.size();
+        const VectorDims& shapeA = input_shapes[0].get();
+        const VectorDims& shapeB = input_shapes[1].get();
+        const size_t rankA = shapeA.size();
+        const size_t rankB = shapeB.size();
 
         // getSupportedDescriptors has done some shape check.
         // 1. Needn't assert the scalar type since the matmul_shape_inference has checked.
@@ -131,25 +130,21 @@ public:
         // 4. transpose is necessary
         // 5. Just support the same rank of matmul
         // 6. simplify the broadcast check
-        if (Aranks == 1 && Branks == 1 && AShape[0] == BShape[0]) {
+        if (rankA == 1 && rankB == 1 && shapeA.at(0) == shapeB.at(0)) {
             return {m_YShape};
         }
 
-        // transpose
-        const bool& transpose_a = m_matmul->get_transpose_a();
-        const bool& transpose_b = m_matmul->get_transpose_b();
-
-        m_YShape.at(m_out_rank-2) = transpose_a ? AShape[Aranks-1] : AShape[Aranks-2];
-        m_YShape.at(m_out_rank-1) = transpose_b ? BShape[Branks-2] : BShape[Branks-1];
+        m_YShape.at(m_out_rank-2) = m_transpose_a ? shapeA.at(rankA-1) : shapeA.at(rankA-2);
+        m_YShape.at(m_out_rank-1) = m_transpose_b ? shapeB.at(rankB-2) : shapeB.at(rankB-1);
 
         for (size_t i=0; i < m_out_rank-2; ++i) {
-            size_t max = std::max(AShape.at(i), BShape.at(i));
-            size_t min = std::min(AShape.at(i), BShape.at(i));
-            if ((AShape.at(i) == BShape.at(i)) || (min == 1)) {
-                m_YShape[i] = max;
+            size_t max = std::max(shapeA.at(i), shapeB.at(i));
+            size_t min = std::min(shapeA.at(i), shapeB.at(i));
+            if ((shapeA.at(i) == shapeB.at(i)) || (min == 1)) {
+                m_YShape.at(i) = max;
             } else {
                 IE_THROW() << "Incompatible MatMul batch dimension. Cant merge the first input dimension=" <<
-                              AShape[i] << " with second input dimension=" << BShape[i] << " at index=" << i;
+                              shapeA[i] << " with second input dimension=" << shapeB[i] << " at index=" << i;
             }
         }
 
@@ -163,15 +158,20 @@ public:
 private:
     const std::shared_ptr<const ngraph::opset1::MatMul> m_matmul;
     VectorDims m_YShape;
-    size_t m_out_rank;
+    const size_t m_out_rank;
+    const bool m_transpose_a;
+    const bool m_transpose_b;
 };
 
 class MMShapeInferFactory : public ShapeInferFactory {
 public:
-    MMShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
+    MMShapeInferFactory(const std::shared_ptr<ngraph::Node>& op) : m_op(op) {}
     ShapeInferPtr makeShapeInfer() const override {
-        const auto m_matmul = std::dynamic_pointer_cast<const ngraph::opset1::MatMul>(m_op);
-        return std::make_shared<MMShapeInfer>(m_matmul);
+        const auto matmul = std::dynamic_pointer_cast<const ngraph::opset1::MatMul>(m_op);
+        const auto output_rank = matmul->get_output_partial_shape(0).rank().get_length();
+        const bool transpose_a = matmul->get_transpose_a();
+        const bool transpose_b = matmul->get_transpose_b();
+        return std::make_shared<MMShapeInfer>(output_rank, transpose_a, transpose_b);
     }
 private:
     std::shared_ptr<ngraph::Node> m_op;
