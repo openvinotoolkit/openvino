@@ -40,6 +40,9 @@ resources:
     name: openvinotoolkit/testdata
     ref: master
 
+variables:
+  - group: github
+
 jobs:
 - job: Lin
   strategy:
