@@ -39,13 +39,13 @@ In this step, NNCF-related imports are added in the beginning of the training sc
 
 .. tab:: PyTorch
 
-    .. doxygensnippet:: ../../../snippets/pruning_torch.py
+    .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_torch.py
        :language: python
        :fragment: [imports]
 
 .. tab:: TensorFlow 2
 
-    .. doxygensnippet:: ../../../snippets/pruning_tf.py
+    .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_tf.py
        :language: python
        :fragment: [imports]
 
@@ -57,13 +57,13 @@ of optimization methods (`"compression"` section).
 
 .. tab:: PyTorch
 
-    .. doxygensnippet:: ../../../snippets/pruning_torch.py
+    .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_torch.py
        :language: python
        :fragment: [nncf_congig]
 
 .. tab:: TensorFlow 2
 
-    .. doxygensnippet:: ../../../snippets/pruning_tf.py
+    .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_tf.py
        :language: python
        :fragment: [nncf_congig]
 
@@ -89,13 +89,13 @@ optimization.
 
 .. tab:: PyTorch
 
-    .. doxygensnippet:: ../../../snippets/pruning_torch.py
+    .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_torch.py
        :language: python
        :fragment: [wrap_model]
 
 .. tab:: TensorFlow 2
 
-    .. doxygensnippet:: ../../../snippets/pruning_tf.py
+    .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_tf.py
        :language: python
        :fragment: [wrap_model]
 
@@ -110,13 +110,13 @@ of original model.
 
 .. tab:: PyTorch
 
-    .. doxygensnippet:: ../../../snippets/pruning_torch.py
+    .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_torch.py
        :language: python
        :fragment: [tune_model]
 
 .. tab:: TensorFlow 2
 
-    .. doxygensnippet:: ../../../snippets/pruning_tf.py
+    .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_tf.py
        :language: python
        :fragment: [tune_model]
 
@@ -130,13 +130,13 @@ fine-tuning that will inform optimization methods to do some adjustments to func
 
 .. tab:: PyTorch
 
-    .. doxygensnippet:: ../../../snippets/pruning_torch.py
+    .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_torch.py
        :language: python
        :fragment: [distributed]
 
 .. tab:: TensorFlow 2
 
-    .. doxygensnippet:: ../../../snippets/pruning_tf.py
+    .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_tf.py
        :language: python
        :fragment: [distributed]
 
@@ -150,13 +150,13 @@ the case of PyTorch and frozen graph - for TensorFlow 2.
 
 .. tab:: PyTorch
 
-    .. doxygensnippet:: ../../../snippets/pruning_torch.py
+    .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_torch.py
        :language: python
        :fragment: [export]
 
 .. tab:: TensorFlow 2
 
-    .. doxygensnippet:: ../../../snippets/pruning_tf.py
+    .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_tf.py
        :language: python
        :fragment: [export]
 
@@ -173,13 +173,13 @@ To save model checkpoint use the following API:
 
 .. tab:: PyTorch
 
-    .. doxygensnippet:: ../../../snippets/pruning_torch.py
+    .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_torch.py
        :language: python
        :fragment: [save_checkpoint]
 
 .. tab:: TensorFlow 2
 
-    .. doxygensnippet:: ../../../snippets/pruning_tf.py
+    .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_tf.py
        :language: python
        :fragment: [save_checkpoint]
 
@@ -191,13 +191,13 @@ To restore the model from checkpoint you should use the following API:
 
 .. tab:: PyTorch
 
-    .. doxygensnippet:: ../../../snippets/pruning_torch.py
+    .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_torch.py
        :language: python
        :fragment: [load_checkpoint]
 
 .. tab:: TensorFlow 2
 
-    .. doxygensnippet:: ../../../snippets/pruning_tf.py
+    .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_tf.py
        :language: python
        :fragment: [load_checkpoint]
 
