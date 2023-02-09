@@ -21,14 +21,14 @@ namespace ov {
 // It supports both structural type Str as a single input and decomposed Str Tensor
 // represented as regular 3 OV tensors: indices of begins, indices of ends and
 // all strings concatenated as U8 1D tensor
-class OPENVINO_API SentencepieceTokenizerExtensionOp : public StructuralTypedOp {
+class OPENVINO_API SentencepieceTokenizerExtensionOp : public frontend::tensorflow::StructuralTypedOp {
 public:
-    OPENVINO_OP("SentencepieceTokenizerExtensionOp", "0", StructuralTypedOp);
+    OPENVINO_OP("SentencepieceTokenizerExtensionOp", "0",  frontend::tensorflow::StructuralTypedOp);
 
     SentencepieceTokenizerExtensionOp(
         const OutputVector& arguments,
-        const StructuralTypeProxy::BindInputs& bind_inputs = {}
-        // TODO: Add necessary attribute initialization based on TF graph nodes
+        // TODO: Add necessary attribute parameters or extra constant inputs based on TF graph nodes
+        const  frontend::tensorflow::StructuralTypeProxy::BindInputs& bind_inputs = {}
     )
     : StructuralTypedOp(arguments, bind_inputs) {
         constructor_validate_and_infer_types();
@@ -36,17 +36,23 @@ public:
 
     void validate_and_infer_types() override {
 
+        // Handle validation model and evaluatation mode due to CPU bug (see other ops)
+
         // TODO: Move to cpp file
+
+        set_output_type(0, element::i64, PartialShape{Dimension(), Dimension(2)});
+        set_output_type(1, element::i32, PartialShape{Dimension()});
+        set_output_type(2, element::i64, PartialShape{2});
     }
 
     std::shared_ptr<ov::Node> clone_with_new_inputs(const OutputVector& inputs) const override {
         return std::make_shared<SentencepieceTokenizerExtensionOp>(
             inputs,
-            StructuralTypeProxy::StructuralTypeMapAttribute::get_input(get_rt_info()));
+             frontend::tensorflow::StructuralTypeProxy::StructuralTypeMapAttribute::get_input(get_rt_info()));
     }
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override {
-        // Add necessary attributes
+        // Add necessary attributes if any
         return true;
     }
 
@@ -59,7 +65,7 @@ public:
 
         // TODO: Move to cpp file
 
-        return false;
+        return true;
     }
 
     bool has_evaluate() const {

@@ -34,6 +34,7 @@ TF_OP_CONVERTER(translate_while_op);
 // Experimental translator for String/Tokenization/Structural Types
 TF_OP_CONVERTER(translate_case_fold_utf8_op);
 TF_OP_CONVERTER(translate_normalize_utf8_op);
+TF_OP_CONVERTER(translate_sentencepiece_tokenizer_subgraph);
 
 // Save files, put implementations here
 
@@ -183,6 +184,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Placeholder", translate_placeholder_op},
         {"PlaceholderWithDefault", translate_placeholder_with_default_op},
         {"PreventGradient", translate_identity_op},
+        {"RaggedTensorToSparse", translate_sentencepiece_tokenizer_subgraph},
         {"Range", translate_range_op},
         {"Rank", translate_rank_op},
         {"RandomUniform", translate_random_uniform_op},

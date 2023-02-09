@@ -9,6 +9,7 @@
 #include <string>
 
 #include <openvino/op/str_ops.hpp>
+#include <openvino/op/sentencepiece_tokenizer.hpp>
 
 #include <openvino/pass/structural_type_prop.hpp>
 
@@ -52,7 +53,8 @@ namespace {
                ov::is_type<ov::frontend::tensorflow::StaticRegexReplace>(node) ||
                ov::is_type<ov::frontend::tensorflow::WordpieceTokenizeWithOffsets>(node) ||
                ov::is_type<ov::frontend::tensorflow::LookupTableFindV2>(node) ||
-               ov::is_type<ov::frontend::tensorflow::RegexSplitWithOffsets>(node);
+               ov::is_type<ov::frontend::tensorflow::RegexSplitWithOffsets>(node) ||
+               ov::is_type<ov::SentencepieceTokenizerExtensionOp>(node);
     }
 
     bool is_scalar_like(const std::shared_ptr<ov::Node>& node) {
