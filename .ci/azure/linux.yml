@@ -109,7 +109,7 @@ jobs:
       addToPath: true
       disableDownloadFromRegistry: false
       architecture: 'x64'
-      githubToken: $(auth_token)
+      githubToken: 123-test
     displayName: Setup Python 3.10
     name: setupPython
   - bash: |
