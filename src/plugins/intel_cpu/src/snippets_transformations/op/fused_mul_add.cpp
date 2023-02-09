@@ -43,18 +43,5 @@ void FusedMulAdd::validate_and_infer_types() {
                               PartialShape::broadcast_merge_into(pshape, get_input_partial_shape(i), ov::op::AutoBroadcastType::NUMPY),
                               "Argument shapes are inconsistent.");
     }
-
     set_output_type(0, element_type, pshape);
-}
-
-bool FusedMulAdd::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
-    INTERNAL_OP_SCOPE(FusedMulAdd);
-    const HostTensorVector mul_res(1ul);
-    const auto multiply = std::make_shared<ngraph::op::v1::Multiply>();
-    if (!multiply->evaluate(mul_res, { input_values.at(0), input_values.at(1) })) {
-        return false;
-    }
-
-    const auto add = std::make_shared<ngraph::op::v1::Add>();
-    return add->evaluate(output_values, { mul_res.at(0), input_values.at(2) });
 }

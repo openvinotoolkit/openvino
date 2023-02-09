@@ -22,14 +22,8 @@ public:
     FusedMulAdd(const Output<Node>& a, const Output<Node>& b, const Output<Node>& c);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
-
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-
     void validate_and_infer_types() override;
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
 };
 
 } // namespace intel_cpu
