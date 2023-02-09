@@ -58,6 +58,7 @@ class TestKerasRNN(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_tf_fe
     def test_keras_rnn(self, params, ie_device, precision, ir_version, temp_dir, use_old_api,
                        use_new_frontend):
         self._test(*self.create_keras_rnn_net(**params, ir_version=ir_version),

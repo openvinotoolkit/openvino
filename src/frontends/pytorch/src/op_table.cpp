@@ -32,6 +32,7 @@ OP_CONVERTER(translate_convolution_mode);
 OP_CONVERTER(translate_dim);
 OP_CONVERTER(translate_div);
 OP_CONVERTER(translate_elu);
+OP_CONVERTER(translate_empty);
 OP_CONVERTER(translate_embedding);
 OP_CONVERTER(translate_expand);
 OP_CONVERTER(translate_expand_as);
@@ -164,6 +165,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::conv_transpose2d", op::translate_conv_transposend},
         {"aten::conv_transpose3d", op::translate_conv_transposend},
         {"aten::convolution", op::translate_convolution},
+        {"aten::copy", op::skip_node},
         {"aten::cos", op::translate_1to1_match_1_inputs<opset10::Cos>},
         {"aten::cos_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Cos>>},
         {"aten::cosh", op::translate_1to1_match_1_inputs<opset10::Cosh>},
@@ -176,6 +178,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::dropout_", op::skip_node},
         {"aten::elu", op::translate_elu},
         {"aten::embedding", op::translate_embedding},
+        {"aten::empty", op::translate_empty},
         {"aten::eq", op::translate_1to1_match_2_inputs_align_types<opset10::Equal>},
         {"aten::exp", op::translate_1to1_match_1_inputs<opset10::Exp>},
         {"aten::expand", op::translate_expand},

@@ -13,7 +13,7 @@ from . import constants
 from . import conformance_utils
 
 # generates file list file inside directory. Returns path to saved filelist
-def prepare_filelist(input_dir: os.path, pattern: str):
+def prepare_filelist(input_dir: os.path, patterns: list):
     filelist_path = input_dir
     if os.path.isdir(filelist_path):
         filelist_path = os.path.join(input_dir, "conformance_ir_files.lst")
@@ -22,10 +22,13 @@ def prepare_filelist(input_dir: os.path, pattern: str):
         input_dir = head
     if os.path.isfile(filelist_path):
         conformance_utils.UTILS_LOGGER.info(f"{filelist_path} is exists! The script will update it!")
-    xmls = Path(input_dir).rglob(pattern)
+    model_list = list()
+    for pattern in patterns:
+        for model in Path(input_dir).rglob(pattern):
+            model_list.append(model)
     try:
         with open(filelist_path, 'w') as file:
-            for xml in xmls:
+            for xml in model_list:
                 file.write(str(xml) + '\n')
             file.close()
     except:
