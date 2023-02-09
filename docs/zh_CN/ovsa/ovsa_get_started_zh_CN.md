@@ -406,7 +406,7 @@ sudo netplan apply
 
 1. 选择其中**一个**选项以创建适用于用户角色的访客 VM：<br>
    **选项 1：复制和重命名 ovsa_isv_dev_vm_disk.qcow2 磁盘映像**
-   1. 将 `ovsa_isv_dev_vm_disk.qcow2` 磁盘映像复制到名为 `ovsa_runtime_vm_disk.qcow2` 的新映像。您已经创建了 `ovsa_isv_dev_vm_disk.qcow2` 磁盘映像 <a  href="#dev-isv-vm">步骤 4</a>。
+   1. 将 `ovsa_isv_dev_vm_disk.qcow2` 磁盘映像复制到名为 `ovsa_runtime_vm_disk.qcow2` 的新映像。您已经创建了 `ovsa_isv_dev_vm_disk.qcow2` 磁盘映像 <a  href="#dev-isv-vm-zh-CN">步骤 4</a>。
    2. 启动新映像。
    3. 将主机名从 `ovsa_isv_dev` 更改为 `ovsa_runtime`。
    ```sh 
