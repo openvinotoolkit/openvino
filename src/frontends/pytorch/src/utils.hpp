@@ -31,10 +31,7 @@ Output<ov::Node> reshape_channelwise(const NodeContext& context,
 
 std::shared_ptr<ov::Node> get_rank_node(const Output<Node>& node);
 
-Output<Node> reshape_kernel_for_group(const NodeContext& context,
-                                      const Output<Node>& input,
-                                      const Output<Node>& kernel,
-                                      int64_t groups);
+Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<Node>& kernel, int64_t groups);
 
 std::shared_ptr<Node> get_axes_range(const NodeContext& context, size_t input_id);
 
@@ -55,6 +52,11 @@ std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> 
 // TODO: Elimitate the need of this function by implementing more accurate custom data type handling
 Any simplified_type_interpret(Any type);
 
+void align_eltwise_input_types(const NodeContext& context,
+                               ov::Output<ov::Node>& lhs,
+                               ov::Output<ov::Node>& rhs,
+                               bool align_scalars = false);
+
 namespace op {
 template <OutputVector (*T)(NodeContext&), size_t idx = 0>
 OutputVector inplace_op(NodeContext& context) {
@@ -69,7 +71,7 @@ template <typename T>
 OutputVector translate_1to1_match_1_inputs(NodeContext& context) {
     auto inputs = context.inputs();
     FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= 1, "Operation has no inputs.");
-    for (int i = 1; i < inputs.size(); i++) {
+    for (size_t i = 1; i < inputs.size(); i++) {
         FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(i), "Got more inputs than expected.");
     }
     FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0), "Input should not be None.");
@@ -80,11 +82,25 @@ template <typename T>
 OutputVector translate_1to1_match_2_inputs(NodeContext& context) {
     auto inputs = context.inputs();
     FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= 2, "Operation has less then 2 inputs.");
-    for (int i = 2; i < inputs.size(); i++) {
+    for (size_t i = 2; i < inputs.size(); i++) {
         FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(i), "Got more inputs than expected.");
     }
     FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0) && !context.input_is_none(1), "Inputs should not be None.");
     return {context.mark_node(std::make_shared<T>(inputs[0], inputs[1]))};
+}
+
+template <typename T>
+OutputVector translate_1to1_match_2_inputs_align_types(NodeContext& context) {
+    auto inputs = context.inputs();
+    FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= 2, "Operation has less then 2 inputs.");
+    for (size_t i = 2; i < inputs.size(); i++) {
+        FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(i), "Got more inputs than expected.");
+    }
+    FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0) && !context.input_is_none(1), "Inputs should not be None.");
+    auto lhs = inputs[0];
+    auto rhs = inputs[1];
+    align_eltwise_input_types(context, lhs, rhs);
+    return {context.mark_node(std::make_shared<T>(lhs, rhs))};
 }
 
 inline OutputVector return_false_scalar(NodeContext& context) {

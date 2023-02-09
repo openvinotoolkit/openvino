@@ -306,8 +306,6 @@ jobs:
     env:
       # because of static build libgna is needed for python binary and mock_py frontend library
       LD_LIBRARY_PATH: $(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$(INSTALL_TEST_DIR)
-      # For frontend manager to load mock_py library
-      OV_FRONTEND_PATH: $(INSTALL_TEST_DIR)
     displayName: 'Python API 2.0 Tests'
 
   - script: |
@@ -423,7 +421,6 @@ jobs:
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieMultiPluginUnitTests.xml
     displayName: 'MULTI UT'
-    enabled: 'false'
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_template_func_tests --gtest_filter=*smoke* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-templateFuncTests.xml
     displayName: 'TEMPLATE FuncTests'

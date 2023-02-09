@@ -425,3 +425,8 @@ IE_CPU.onnx_softmax_crossentropy_loss_mean
 
 # Cannot find blob with name: Y
 IE_CPU.onnx_bool_init_and
+
+# Incorrect order of elements returned by the TopK implementation
+IE_CPU.onnx_model_top_k_repeating_1D
+IE_CPU.onnx_model_top_k_repeating
+IE_CPU.onnx_model_top_k_repeating_unsorted

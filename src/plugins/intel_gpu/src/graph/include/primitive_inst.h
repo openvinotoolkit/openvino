@@ -185,7 +185,7 @@ public:
     bool is_dynamic() const { return _is_dynamic; }
     bool can_share_buffer() const { return _can_share_buffer; }
     bool is_constant() const { return _is_constant; }
-
+    bool is_output_event() const { return _is_output_event; }
 
     void allocate_internal_buffers();
     static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node& _node,
@@ -277,6 +277,7 @@ protected:
     bool _can_be_optimized = false;
     bool _can_share_buffer = true;
     bool _is_constant = false;
+    bool _is_output_event = false;
 
     size_t max_output_layout_size = 0;
     std::vector<size_t> max_intermediates_memory_sizes;
@@ -413,7 +414,7 @@ public:
     }
 
     static std::vector<size_t> extend_input_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t input_idx) {
-        ov::PartialShape ps =  orig_impl_param.get_input_layout(input_idx).get_partial_shape();
+        ov::PartialShape ps = orig_impl_param.get_input_layout(input_idx).get_partial_shape();
 
         if (ps.size() < 4) {
             ps.insert(ps.end(), 4 - ps.size(), ov::Dimension(1));

@@ -32,6 +32,7 @@ OP_CONVERTER(translate_convolution_mode);
 OP_CONVERTER(translate_dim);
 OP_CONVERTER(translate_div);
 OP_CONVERTER(translate_elu);
+OP_CONVERTER(translate_empty);
 OP_CONVERTER(translate_embedding);
 OP_CONVERTER(translate_expand);
 OP_CONVERTER(translate_expand_as);
@@ -77,6 +78,7 @@ OP_CONVERTER(translate_numel);
 OP_CONVERTER(translate_ones);
 OP_CONVERTER(translate_ones_like);
 OP_CONVERTER(translate_pad);
+OP_CONVERTER(translate_pow);
 OP_CONVERTER(translate_reciprocal);
 OP_CONVERTER(translate_relu6);
 OP_CONVERTER(translate_remainder);
@@ -163,6 +165,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::conv_transpose2d", op::translate_conv_transposend},
         {"aten::conv_transpose3d", op::translate_conv_transposend},
         {"aten::convolution", op::translate_convolution},
+        {"aten::copy", op::skip_node},
         {"aten::cos", op::translate_1to1_match_1_inputs<opset10::Cos>},
         {"aten::cos_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Cos>>},
         {"aten::cosh", op::translate_1to1_match_1_inputs<opset10::Cosh>},
@@ -175,7 +178,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::dropout_", op::skip_node},
         {"aten::elu", op::translate_elu},
         {"aten::embedding", op::translate_embedding},
-        {"aten::eq", op::translate_1to1_match_2_inputs<opset10::Equal>},
+        {"aten::empty", op::translate_empty},
+        {"aten::eq", op::translate_1to1_match_2_inputs_align_types<opset10::Equal>},
         {"aten::exp", op::translate_1to1_match_1_inputs<opset10::Exp>},
         {"aten::expand", op::translate_expand},
         {"aten::expand_as", op::translate_expand_as},
@@ -191,8 +195,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::gelu", op::translate_gelu},
         {"aten::glu", op::translate_glu},
         {"aten::group_norm", op::translate_group_norm},
-        {"aten::ge", op::translate_1to1_match_2_inputs<opset10::GreaterEqual>},
-        {"aten::gt", op::translate_1to1_match_2_inputs<opset10::Greater>},
+        {"aten::ge", op::translate_1to1_match_2_inputs_align_types<opset10::GreaterEqual>},
+        {"aten::gt", op::translate_1to1_match_2_inputs_align_types<opset10::Greater>},
         {"aten::grid_sampler", op::translate_grid_sampler},
         {"aten::hardsigmoid", op::translate_1to1_match_1_inputs<opset10::HSigmoid>},
         {"aten::hardswish", op::translate_1to1_match_1_inputs<opset10::HSwish>},
@@ -209,8 +213,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::leaky_relu_", op::inplace_op<op::translate_1to1_match_2_inputs<opset10::PRelu>>},
         {"aten::len", op::translate_len},
         {"aten::linear", op::translate_linear},
-        {"aten::le", op::translate_1to1_match_2_inputs<opset10::LessEqual>},
-        {"aten::lt", op::translate_1to1_match_2_inputs<opset10::Less>},
+        {"aten::le", op::translate_1to1_match_2_inputs_align_types<opset10::LessEqual>},
+        {"aten::lt", op::translate_1to1_match_2_inputs_align_types<opset10::Less>},
         {"aten::log", op::translate_log},
         {"aten::log_", op::inplace_op<op::translate_log>},
         {"aten::log2", op::translate_log2},
@@ -228,9 +232,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::mm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::bmm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::matmul", op::translate_1to1_match_2_inputs<opset10::MatMul>},
-        {"aten::mul", op::translate_1to1_match_2_inputs<opset10::Multiply>},
-        {"aten::mul_", op::inplace_op<op::translate_1to1_match_2_inputs<opset10::Multiply>>},
-        {"aten::ne", op::translate_1to1_match_2_inputs<opset10::NotEqual>},
+        {"aten::mul", op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>},
+        {"aten::mul_", op::inplace_op<op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>>},
+        {"aten::ne", op::translate_1to1_match_2_inputs_align_types<opset10::NotEqual>},
         {"aten::neg", op::translate_neg},
         {"aten::norm", op::translate_norm},
         {"aten::nonzero", op::translate_nonzero},
@@ -242,7 +246,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::ones_like", op::translate_ones_like},
         {"aten::pad", op::translate_pad},
         {"aten::permute", op::translate_1to1_match_2_inputs<opset10::Transpose>},
-        {"aten::pow", op::translate_1to1_match_2_inputs<opset10::Power>},
+        {"aten::pow", op::translate_pow},
         {"aten::reciprocal", op::translate_reciprocal},
         {"aten::relu", op::translate_1to1_match_1_inputs<opset10::Relu>},
         {"aten::relu_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
