@@ -6,15 +6,15 @@
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/non_zero.hpp>
-#include <intel_gpu/runtime/memory.hpp>
-#include <intel_gpu/graph/topology.hpp>
-#include <intel_gpu/graph/network.hpp>
 #include "ngraph/runtime/reference/non_zero.hpp"
+
+#include "non_zero_inst.h"
 
 #include <cstddef>
 
 using namespace cldnn;
 using namespace ::tests;
+
 template<typename T>
 void test_count_non_zero(layout in_layout, std::vector<T> in_data) {
     auto& engine = get_test_engine();
@@ -72,7 +72,7 @@ void test_gather_non_zero(layout in_layout, std::vector<T> in_data) {
 
     topology topology;
     topology.add(input_layout("InputData", in_layout));
-    topology.add(input_layout("OutputShape", output_shape_layout));
+    topology.add(data("OutputShape", output_shape_mem));
     topology.add(
         gather_nonzero("gather_nonzero", input_info("InputData"), input_info("OutputShape"))
     );
@@ -80,7 +80,6 @@ void test_gather_non_zero(layout in_layout, std::vector<T> in_data) {
     network network(engine, topology);
 
     network.set_input_data("InputData", input_mem);
-    network.set_input_data("OutputShape", output_shape_mem);
     auto outputs = network.execute();
     auto output = outputs.at("gather_nonzero").get_memory();
     cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
@@ -164,6 +163,55 @@ TEST(test_gather_non_zero, 6d_fp16_2_3_1_3_2_4) {
         0.1f,  0.2f, 0.3f, 2.0f,  12.1f, 11.1f,
     };
     test_gather_non_zero<float>(layout{ov::PartialShape{2, 3, 1, 3, 2, 4}, data_types::f32, format::bfwzyx}, in_data);
+}
+
+TEST(non_zero_gpu, dynamic) {
+    auto& engine = get_test_engine();
+    ov::Shape in_shape = { 3, 3 };
+    auto in_layout = layout{ov::PartialShape::dynamic(in_shape.size()), data_types::f32, format::bfyx};
+    auto input = engine.allocate_memory(layout{ov::PartialShape(in_shape), data_types::f32, format::bfyx});
+
+    std::vector<float> input_data = {
+        3.f, 0.f, 0.f,
+        0.f, 4.f, 0.f,
+        5.f, 6.f, 0.f,
+    };
+    set_values(input, input_data);
+
+    std::vector<int32_t> out_data = {
+        0, 1, 2, 2, 0, 1, 0, 1
+    };
+
+    topology topology;
+    topology.add(input_layout("InputData", in_layout));
+    topology.add(count_nonzero("count_nonzero", input_info("InputData")));
+    topology.add(gather_nonzero("gather_nonzero", input_info("InputData"), input_info("count_nonzero")));
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("InputData", input);
+
+    auto count_nonzero_inst = network.get_primitive("count_nonzero");
+    auto count_nonzero_impl = count_nonzero_inst->get_impl();
+    ASSERT_TRUE(count_nonzero_impl != nullptr);
+    ASSERT_TRUE(count_nonzero_impl->is_dynamic());
+
+    auto gather_nonzero_inst = network.get_primitive("gather_nonzero");
+    auto gather_nonzero_impl = gather_nonzero_inst->get_impl();
+    ASSERT_TRUE(gather_nonzero_impl != nullptr);
+    ASSERT_TRUE(gather_nonzero_impl->is_dynamic());
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("gather_nonzero").get_memory();
+    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+
+    ASSERT_EQ(output_ptr.size(), (uint32_t)8);
+    for (uint32_t i = 0; i < out_data.size(); ++i) {
+        ASSERT_FLOAT_EQ(output_ptr[i], out_data[i]);
+    }
 }
 
 template<typename T>

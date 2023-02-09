@@ -6,8 +6,10 @@
 
 #define INPUT0_GET_INDEX1(idx_order) INPUT0_GET_INDEX(idx_order)
 
-KERNEL (count_nonzero_ref)(const __global INPUT0_TYPE* input,
-                           volatile __global OUTPUT_TYPE* output)
+KERNEL (count_nonzero_ref)(
+    OPTIONAL_SHAPE_INFO_ARG
+    const __global INPUT0_TYPE* input,
+    volatile __global OUTPUT_TYPE* output)
 {
     const uint gdim0 = (uint)get_global_id(0);
     const uint gdim1 = (uint)get_global_id(1);
