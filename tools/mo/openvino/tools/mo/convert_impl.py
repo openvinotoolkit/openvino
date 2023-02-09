@@ -145,7 +145,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
                     'Please ensure that your environment contains new frontend for the input model format or '
                     'try to convert the model without specifying --use_new_frontend option.')
 
-    is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx, _  = \
+    is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx = \
         deduce_legacy_frontend_by_namespace(argv) if not moc_front_end else [
             False, False, False, False, False, False]
 
@@ -256,8 +256,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
     if is_tf:
         if argv.saved_model_tags is not None:
             if ' ' in argv.saved_model_tags:
-                raise Error(
-                    'Incorrect saved model tag was provided. Specify --saved_model_tags with no spaces in it')
+                raise Error('Incorrect saved model tag was provided. Specify --saved_model_tags with no spaces in it')
             argv.saved_model_tags = argv.saved_model_tags.split(',')
 
     argv.output = argv.output.split(',') if argv.output else None
@@ -396,7 +395,7 @@ def get_moc_frontends(argv: argparse.Namespace):
 def prepare_ir(argv: argparse.Namespace):
     # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
     # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
-    is_tf, _, _, _, _, is_pt = deduce_legacy_frontend_by_namespace(argv)
+    is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
     path_to_aux_pb = None
     orig_argv_values = {"input_model": argv.input_model, "model_name": argv.model_name}
     if not argv.use_legacy_frontend and is_tf:
@@ -414,8 +413,8 @@ def prepare_ir(argv: argparse.Namespace):
         if len(fallback_reasons) == 0:
             try:
                 t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
-                # pt is not support extensions yet
-                if not is_pt:
+                # PyTorch does not support extensions yet
+                if not moc_front_end.get_name() == "pytorch":
                     moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
                     moc_front_end.add_extension(ProgressReporterExtension(progress_printer(argv)))
                 if legacy_transformations_config_used(argv):
@@ -799,8 +798,7 @@ def parse_input_shapes(argv):
                 if isinstance(shapes, torch.Size):
                     return [shapes]
             except ImportError:
-                raise Error(
-                    "Unknown type of input shape {}.".format(type(shapes)))
+                raise Error("Unknown type of input shape {}.".format(type(shapes)))
 
     return input_shapes
 
@@ -937,8 +935,7 @@ def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParse
     ignored_params = ["example_input", "input_signature"]
     if len(args) > 0:
         args_string = params_to_string(**args)
-        argv, _ = cli_parser.parse_known_args(
-            args_dict_to_list(cli_parser, **args_string))
+        argv, _ = cli_parser.parse_known_args(args_dict_to_list(cli_parser, **args_string))
 
         # get list of all available params for convert_model()
         all_params = {}
