@@ -18,6 +18,10 @@ template <typename T>
 void def_type_dependent_functions(py::class_<ov::Output<T>, std::shared_ptr<ov::Output<T>>>& output) {}
 
 template <>
+void def_type_dependent_functions<const ov::Node>(
+    py::class_<ov::Output<const ov::Node>, std::shared_ptr<ov::Output<const ov::Node>>>& output) {}
+
+template <>
 void def_type_dependent_functions<ov::Node>(
     py::class_<ov::Output<ov::Node>, std::shared_ptr<ov::Output<ov::Node>>>& output) {
     output.def("remove_target_input",

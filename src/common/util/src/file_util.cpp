@@ -416,7 +416,12 @@ std::basic_string<C> get_path_name(const std::basic_string<C>& s) {
     return {};
 }
 
-static std::string get_ov_library_path_a() {
+#if defined __GNUC__ || defined __clang__
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wunused-function"
+#endif
+
+std::string get_ov_library_path_a() {
 #ifdef _WIN32
     CHAR ov_library_path[MAX_PATH];
     HMODULE hm = NULL;
@@ -437,6 +442,10 @@ static std::string get_ov_library_path_a() {
 #    error "Unsupported OS"
 #endif  // _WIN32
 }
+
+#if defined __GNUC__ || defined __clang__
+#    pragma GCC diagnostic pop
+#endif
 
 }  // namespace
 
