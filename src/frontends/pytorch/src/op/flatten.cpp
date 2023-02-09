@@ -7,10 +7,9 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
-#include "openvino/op/squeeze.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
@@ -20,12 +19,14 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_flatten(NodeContext& context) {
+    num_inputs_check(context, 2, 3);
+    auto x = context.get_input(0);
     auto start_dim = context.const_input<int64_t>(1);
     auto end_dim = context.const_input<int64_t>(2);
 
-    auto shape = std::make_shared<v3::ShapeOf>(context.get_input(0), element::i32);
-    auto rank_ = std::make_shared<v3::ShapeOf>(shape, element::i32);
-    auto rank = std::make_shared<v0::Squeeze>(rank_);
+    Output<Node> shape;
+    Output<Node> rank;
+    std::tie(shape, rank) = get_shape_rank(context, x, true);
     // Use opset::If for dim normalization. For now we only have flatten with constant start and end
     auto start_dim_node = context.get_input(1);
     auto end_dim_node = context.get_input(2);
@@ -48,18 +49,7 @@ OutputVector translate_flatten(NodeContext& context) {
     auto slice_end = std::make_shared<v8::Slice>(shape, end_dim_next, int_max, one);
     auto new_shape = std::make_shared<v0::Concat>(OutputVector{slice_begin, neg_1_const, slice_end}, 0);
 
-    context.mark_nodes({shape,
-                        rank_,
-                        rank,
-                        zero,
-                        one,
-                        int_max,
-                        start_dim_u,
-                        end_dim_u,
-                        slice_begin,
-                        slice_end,
-                        neg_1_const,
-                        new_shape});
+    context.mark_nodes({zero, one, int_max, start_dim_u, end_dim_u, slice_begin, slice_end, neg_1_const, new_shape});
 
     return {context.mark_node(std::make_shared<v1::Reshape>(context.get_input(0), new_shape, true))};
 };
