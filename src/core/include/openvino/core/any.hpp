@@ -865,28 +865,6 @@ public:
      */
     template <typename T>
     OPENVINO_DEPRECATED("Please use as() method")
-    operator T&() & {
-        return as<T>();
-    }
-
-    /**
-     * @brief Converts to specified type
-     * @tparam T type
-     * @return casted object
-     */
-    template <typename T>
-    OPENVINO_DEPRECATED("Please use as() method")
-    operator const T&() const& {
-        return as<T>();
-    }
-
-    /**
-     * @brief Converts to specified type
-     * @tparam T type
-     * @return casted object
-     */
-    template <typename T>
-    OPENVINO_DEPRECATED("Please use as() method")
     operator T&() const& {
         return const_cast<Any*>(this)->as<T>();
     }
