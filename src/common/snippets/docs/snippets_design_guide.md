@@ -42,20 +42,21 @@ Subgraph accepts arbitrary numbers of inputs and outputs. There is 1:1 mapping f
 
 Pattern here is an exact subgraph configuration (nodes and edges between them). **The first generation of snippets supports only layout-oblivious operations which may have broadcast on inputs and broadcast-compatible outputs**. For example Shapes `<1, 42, 17, 31>`, `<1, 42, 17, 1>` and `<1, 42, 1, 31>` are considered as broadcast-compatible. Layout-oblivious operation with multiple outputs as a snippet leader and forms a new subgraph. The most beneficial patterns are subgraphs with complex control flow but minimal number of inputs/and outputs. For example, GeLU has a 5x shrinkage factor from original unfused subgraph in number of bytes walked. Subgraph below could be considered as an example of such a subgraph. Leader detection procedure aims to find such subgraphs.
 
-```
-            ...
-             |
-            Add
-             |
-     +-------+-------+
-     |               |
-     |              Add
-     |               |
-     |             Clamp
-     |               |
-     +---Multiply----+
-             |
-            ...
+```mermaid
+ flowchart LR
+    nodeA1(...) --> nodeA2(Add)
+    nodeA2(Add) --> nodeA3(Add)
+    nodeA2(Add) --> nodeA5(Multiply)
+    nodeA3(Add) --> nodeA4(Clamp)
+    nodeA4(Clamp) --> nodeA5(Multiply)
+    nodeA5(Multiply) --> nodeA6(...)
+classDef no-bg-color fill:none,stroke-width:0px
+classDef steel1 fill:#B9D6E5, stroke: #86B3CA, color: #262626
+classDef daisy1 fill:#FFE17A, stroke: #FEC91B, color: #262626
+class nodeA1,nodeA6 no-bg-color
+class nodeA2,nodeA3 daisy1
+class nodeA4,nodeA5 steel1
+class nodeA3 steel1
 ```
 
 Operations are greedily added to the subgraph until
@@ -103,14 +104,18 @@ Snippet or kernel is formed around the subgraph body in a sequence of traversal 
 
 While we extract subgraphs with the tokenization part we explicitly insert Parameters and Results to its body to form a complete nGraph Function.
 
-```
-Parameter       Parameter
-    |               |
-    |               |
-    +------Add------+
-            |
-            |
-         Result
+```mermaid
+flowchart LR
+    nodeA1(Parameter) --> nodeA2(Add)
+    nodeA3(Parameter) --> nodeA2(Add)
+    nodeA2(Add) --> nodeA5(Result)
+classDef moss1 fill:#D7F3A2, stroke: #B1D272, color: #262626
+classDef steel1 fill:#B9D6E5, stroke: #86B3CA, color: #262626
+classDef daisy1 fill:#FFE17A, stroke: #FEC91B, color: #262626
+class nodeA2 daisy1
+class nodeA5 moss1
+class nodeA8 steel1
+class nodeA1,nodeA3 steel1
 ```
 
 This function represents operation dependencies in scalar (similar to OpenCL) notation while shapes of tensors are used to generate schedules. At this point kernel-schedule decomposition is made (similar to Halide/OpenCL/TVM)
@@ -119,20 +124,22 @@ This function represents operation dependencies in scalar (similar to OpenCL) no
 
 As a next step explicit memory operations are placed for each input and output. `InsertLoad` and `InsertStore` passes derived from `MatcherPass`.
 
-```
-Parameter       Parameter
-    |               |
-    |               |
-  Load             Load
-    |               |
-    |               |
-    +------Add------+
-            |
-            |
-          Store
-            |
-            |
-         Result
+```mermaid
+flowchart LR
+    nodeA1(Parameter) --> nodeA6(Load)
+    nodeA6(Load) --> nodeA2(Add)
+    nodeA3(Parameter) --> nodeA7(Load)
+    nodeA7(Load) --> nodeA2(Add)
+    nodeA2(Add) --> nodeA8(Store)
+    nodeA8(Store) --> nodeA5(Result)
+classDef carbon1 fill:#E9E9E9, stroke: #AEAEAE, color: #262626
+classDef moss1 fill:#D7F3A2, stroke: #B1D272, color: #262626
+classDef steel1 fill:#B9D6E5, stroke: #86B3CA, color: #262626
+classDef daisy1 fill:#FFE17A, stroke: #FEC91B, color: #262626
+class nodeA2 daisy1
+class nodeA5 moss1
+class nodeA8 carbon1
+class nodeA1,nodeA3,nodeA6,nodeA7 steel1
 ```
 
 By default, memory operations assumes vector memory access, if scalar access is needed special passes `ReplaceLoadsWithScalarLoads` and `ReplaceStoresWithScalarStores`  should be executed.
@@ -141,41 +148,43 @@ By default, memory operations assumes vector memory access, if scalar access is 
 
 For each operation in body function inputs are checked against broadcasting. In case of parameters to be broadcasted explicit broadcast operation is generated. For example, if for the subgraph above we have `<1, 42, 17, 31>` and `<1, 42, 17, 1>` resulting subgraph is going to be
 
-```
-Parameter <1, 42, 17, 31>    Parameter <1, 42, 17, 1>
-    |                               |
-    |                               |
-  Load <1, 42, 17, 31>          Load <1, 42, 17, 1>
-    |                               |
-    |                               |
-    |                       BroadcastMove <1, 42, 17, 31>
-    |                               |
-    |                               |
-    +--------------Add--------------+
-                    |
-                    |
-                  Store <1, 42, 17, 31>
-                    |  
-                    |
-                 Result <1, 42, 17, 31>
+```mermaid
+flowchart LR
+    nodeA1("Parameter\n<1, 42, 17, 1>") --> node6("Load\n<1, 42, 17, 1>")
+    node6("Load\n<1, 42, 17, 1>") --> nodeA9("BroadcastMove\n<1, 42, 17, 31>")
+    nodeA9("BroadcastMove\n<1, 42, 17, 31>") --> nodeA2(Add)
+    nodeA3("Parameter\n<1, 42, 17, 31>") --> nodeA7("Load\n<1, 42, 17, 31>")
+    nodeA7("Load\n<1, 42, 17, 31>") ---> nodeA2(Add)
+    nodeA2(Add) --> nodeA8("Store\n<1, 42, 17, 31>")
+    nodeA8("Store\n<1, 42, 17, 31>") --> nodeA5("Result\n<1, 42, 17, 31>")
+classDef carbon1 fill:#E9E9E9, stroke: #AEAEAE, color: #262626
+classDef moss1 fill:#D7F3A2, stroke: #B1D272, color: #262626
+classDef steel1 fill:#B9D6E5, stroke: #86B3CA, color: #262626
+classDef daisy1 fill:#FFE17A, stroke: #FEC91B, color: #262626
+class nodeA2 daisy1
+class nodeA5 moss1
+class nodeA8,nodeA9 carbon1
+class nodeA1,nodeA3,node6,nodeA7 steel1
 ```
 
 If load followed by broadcast is detected then this pair is replaced by a single Broadcast load instruction. Like the following
 
-```
-Parameter       Parameter
-    |               |
-    |               |
-  Load        BroadcastLoad
-    |               |
-    |               |
-    +------Add------+
-            |
-            |
-          Store
-            |
-            |
-         Result
+```mermaid
+flowchart LR
+    nodeA1(Parameter) --> nodeA6(BroadcastLoad)
+    nodeA6(BroadcastLoad) --> nodeA2(Add)
+    nodeA3(Parameter) --> nodeA7(Load)
+    nodeA7(Load) --> nodeA2(Add)
+    nodeA2(Add) --> nodeA8(Store)
+    nodeA8(Store) --> nodeA5(Result)
+classDef carbon1 fill:#E9E9E9, stroke: #AEAEAE, color: #262626
+classDef moss1 fill:#D7F3A2, stroke: #B1D272, color: #262626
+classDef steel1 fill:#B9D6E5, stroke: #86B3CA, color: #262626
+classDef daisy1 fill:#FFE17A, stroke: #FEC91B, color: #262626
+class nodeA2 daisy1
+class nodeA5 moss1
+class nodeA8 carbon1
+class nodeA1,nodeA3,nodeA6,nodeA7 steel1
 ```
 
 Broadcast and regular streaming vector load is possible from the same pointer. Broadcast load should always go before streaming load. Broadcast load for non the most varying dimension is not generated, however it affects the generated schedule.
@@ -196,57 +205,42 @@ The goal of this step is to transform subgraphs in a scalar notation into kernel
 
 If we return to example above this comes to a following hierarchical IR. If we limit scope to layout oblivious operations with broadcasting support, tile could be generated as a single loop over the most warning dimension. The second `Tile` is generated to handle tails and can be omitted if not needed. Special pass replaces memory operations on vector to scalar versions for tail subgraph. 
 
-```
-+--------------------------------------------------+
-|                                                  |
-|                      Kernel                      |
-|   +-------------------------------------------+  |
-|   |                                           |  |
-|   |                   Tile                    |  |
-|   |                                           |  |
-|   |         Parameter     Parameter           |  |
-|   |             |             |               |  |
-|   |             |             |               |  |
-|   |           Load          Load              |  |
-|   |             |             |               |  |
-|   |             |             |               |  |
-|   |             +-----Add-----+               |  |
-|   |                    |                      |  |
-|   |                    |                      |  |
-|   |                  Store                    |  |
-|   |                    |                      |  |
-|   |                    |                      |  |
-|   |                 Result                    |  |
-|   |                                           |  |
-|   +-------------------------------------------+  |
-|                                                  |
-|   +-------------------------------------------+  |
-|   |                                           |  |
-|   |                   Tile                    |  |
-|   |                                           |  |
-|   |         Parameter     Parameter           |  |
-|   |             |             |               |  |
-|   |             |             |               |  |
-|   |        ScalarLoad     ScalarLoad          |  |
-|   |             |             |               |  |
-|   |             |             |               |  |
-|   |             +-----Add-----+               |  |
-|   |                    |                      |  |
-|   |                    |                      |  |
-|   |               ScalarStore                 |  |
-|   |                    |                      |  |
-|   |                    |                      |  |
-|   |                 Result                    |  |
-|   |                                           |  |
-|   +-------------------------------------------+  |
-|                                                  |
-+--------------------------------------------------+
-
-+--------------------------------------------------+
-|                                                  |
-|                       Data                       |
-|                                                  |
-+--------------------------------------------------+
+```mermaid
+graph LR
+subgraph subgraphD1[ ]
+nodeD1(Data)
+end
+subgraph subgraphC1[Kernel]
+direction LR
+subgraph subgraphA1[Tile]
+nodeA1(Parameter) --> nodeA6(Load)
+nodeA6(Load) --> nodeA2(Add)
+nodeA3(Parameter) --> nodeA7(Load)
+nodeA7(Load) --> nodeA2(Add)
+nodeA2(Add) --> nodeA8(Store)
+nodeA8(Store) --> nodeA5(Result)
+end
+subgraph subgraphB1[Tile]
+nodeB1(Parameter) --> nodeB6(ScalarLoad)
+nodeB6(ScalarLoad) --> nodeB2(Add)
+nodeB3(Parameter) --> nodeB7(ScalarLoad)
+nodeB7(ScalarLoad) --> nodeB2(Add)
+nodeB2(Add) --> nodeB8(ScalarStore)
+nodeB8(ScalarStore) --> nodeB5(Result)
+end
+end
+classDef no-stroke fill:none,stroke-width:0px
+classDef no-bg-color fill:none,stroke-width:1px,stroke:#86B3CA
+classDef carbon1 fill:#E9E9E9, stroke: #AEAEAE, color: #262626
+classDef moss1 fill:#D7F3A2, stroke: #B1D272, color: #262626
+classDef steel1 fill:#B9D6E5, stroke: #86B3CA, color: #262626
+classDef daisy1 fill:#FFE17A, stroke: #FEC91B, color: #262626
+class subgraphC1,subgraphA1,subgraphB1,subgraphD1 no-bg-color
+class nodeA2,nodeB2 daisy1
+class nodeA5,nodeB5 moss1
+class nodeA8,nodeB8 carbon1
+class nodeA1,nodeA3,nodeA6,nodeA7,nodeB1,nodeB3,nodeB6,nodeB7 steel1
+class nodeD1 no-stroke
 ```
 
 Where
