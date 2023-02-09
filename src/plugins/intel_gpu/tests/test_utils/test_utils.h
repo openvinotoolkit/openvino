@@ -282,26 +282,29 @@ void set_values(cldnn::memory::ptr mem, std::initializer_list<T> args, FillType 
     auto lay = mem->get_layout();
     if (ft == FillType::All) {
         if(args.size() > ptr.size())
-            IE_THROW() << "Too many values.";
+            GPU_DEBUG_LOG << "Too many values.";
         if(args.size() < ptr.size())
-            IE_THROW() << "Too few values.";
-        auto it = ptr.begin();
-        for (auto x : args)
-            *it++ = x;
+            GPU_DEBUG_LOG << "Too few values.";
+        auto it_ptr = ptr.begin();
+        auto it_args = args.begin();
+        while (it_ptr != ptr.end() && it_args != args.end())
+            *it_ptr++ = *it_args++;
     } else {
-        if(args.size() > lay.count())
-            IE_THROW() << "Too many values.";
-        if(args.size() < lay.count())
-            IE_THROW() << "Too few values.";
         auto it = args.begin();
-        for(int bi = 0; bi < lay.batch(); bi++)
-        for(int fi = 0; fi < lay.feature(); fi++)
-        for(int wi = 0; wi < lay.spatial(3); wi++)
-        for(int zi = 0; zi < lay.spatial(2); zi++)
-        for(int yi = 0; yi < lay.spatial(1); yi++)
-        for(int xi = 0; xi < lay.spatial(0); xi++){
-            int idx = lay.get_linear_offset(tensor(batch(bi), feature(fi), spatial(xi, yi, zi, wi)));
-            ptr[idx] = *it++;
+        try {
+            for(int bi = 0; bi < lay.batch(); bi++)
+            for(int fi = 0; fi < lay.feature(); fi++)
+            for(int wi = 0; wi < lay.spatial(3); wi++)
+            for(int zi = 0; zi < lay.spatial(2); zi++)
+            for(int yi = 0; yi < lay.spatial(1); yi++)
+            for(int xi = 0; xi < lay.spatial(0); xi++){
+                int idx = lay.get_linear_offset(tensor(batch(bi), feature(fi), spatial(xi, yi, zi, wi)));
+                ptr[idx] = *it++;
+                if (it == args.end())
+                    return;
+            }
+        } catch (const std::invalid_argument& e) {
+            GPU_DEBUG_LOG << "Error occured during set_values().";
         }
     }
 }
@@ -312,26 +315,33 @@ void set_values(cldnn::memory::ptr mem, std::vector<T> args, FillType ft = FillT
     auto lay = mem->get_layout();
     if (ft == FillType::All) {
         if(args.size() > ptr.size())
-            IE_THROW() << "Too many values. " << args.size() << ", " << lay.count();
+            GPU_DEBUG_LOG << "Too many values.";
         if(args.size() < ptr.size())
-            IE_THROW() << "Too few values. " << args.size() << ", " << lay.count();
-        auto it = ptr.begin();
-        for (auto x : args)
-            *it++ = x;
+            GPU_DEBUG_LOG << "Too few values.";
+        auto it_ptr = ptr.begin();
+        auto it_args = args.begin();
+        while (it_ptr != ptr.end() && it_args != args.end())
+            *it_ptr++ = *it_args++;
     } else {
         if(args.size() > lay.count())
-            IE_THROW() << "Too many values. " << args.size() << ", " << lay.count();
+            GPU_DEBUG_LOG << "Too many values.";
         if(args.size() < lay.count())
-            IE_THROW() << "Too few values. " << args.size() << ", " << lay.count();
+            GPU_DEBUG_LOG << "Too few values.";
         auto it = args.begin();
-        for(int bi = 0; bi < lay.batch(); bi++)
-        for(int fi = 0; fi < lay.feature(); fi++)
-        for(int wi = 0; wi < lay.spatial(3); wi++)
-        for(int zi = 0; zi < lay.spatial(2); zi++)
-        for(int yi = 0; yi < lay.spatial(1); yi++)
-        for(int xi = 0; xi < lay.spatial(0); xi++){
-            int idx = lay.get_linear_offset(tensor(batch(bi), feature(fi), spatial(xi, yi, zi, wi)));
-            ptr[idx] = *it++;
+        try {
+            for(int bi = 0; bi < lay.batch(); bi++)
+            for(int fi = 0; fi < lay.feature(); fi++)
+            for(int wi = 0; wi < lay.spatial(3); wi++)
+            for(int zi = 0; zi < lay.spatial(2); zi++)
+            for(int yi = 0; yi < lay.spatial(1); yi++)
+            for(int xi = 0; xi < lay.spatial(0); xi++){
+                int idx = lay.get_linear_offset(tensor(batch(bi), feature(fi), spatial(xi, yi, zi, wi)));
+                ptr[idx] = *it++;
+                if (it == args.end())
+                    return;
+            }
+        } catch (const std::invalid_argument& e) {
+            GPU_DEBUG_LOG << "Error occured during set_values().";
         }
     }
 }
