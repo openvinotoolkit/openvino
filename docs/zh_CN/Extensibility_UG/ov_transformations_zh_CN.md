@@ -129,7 +129,7 @@ OpenVINO™ 运行时有三种主要转换类型：
 
 `ov::pass::Manager` 是一个容器类，可以存储转换列表并执行转换。此类的主要目的是为分组的转换列表提供高级别表示。
 它可以在模型上注册和应用任何[转换传递](#transformations-types)。
-此外，`ov::pass::Manager` 具有扩展的调试功能（在[如何调试转换](#how-to-debug-transformations)部分中查找更多信息）。
+此外，`ov::pass::Manager` 具有扩展的调试功能（在[如何调试转换](#how-to-debug-transformations_zh_CN)部分中查找更多信息）。
 
 下例显示了 `ov::pass::Manager` 的基本使用情况
 
