@@ -112,7 +112,8 @@ bool MatMul::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
 
 class MMShapeInfer : public ShapeInferEmptyPads {
 public:
-    MMShapeInfer(const size_t& out_rank, const bool& transpose_a, const bool& transpose_b) : m_out_rank(out_rank), m_transpose_a(transpose_a), m_transpose_b(transpose_b) {
+    MMShapeInfer(const size_t& out_rank, const bool& transpose_a, const bool& transpose_b) :
+        m_out_rank(out_rank), m_transpose_a(transpose_a), m_transpose_b(transpose_b) {
         m_shapeY = VectorDims(m_out_rank, 1); // for output and cache
     }
     std::vector<VectorDims> infer(
@@ -141,7 +142,8 @@ public:
             if (shapeA[i] != shapeB[i]) {
                 if (shapeB[i] == 1) {
                     m_shapeY[i] = shapeA[i];
-                } else if (shapeA[i] != 1){
+                    continue;
+                } else if (shapeA[i] != 1) {
                     IE_THROW() << "Incompatible MatMul batch dimension. Cant merge the first input dimension=" <<
                                   shapeA[i] << " with second input dimension=" << shapeB[i] << " at index=" << i;
                 }
