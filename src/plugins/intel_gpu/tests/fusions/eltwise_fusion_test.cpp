@@ -472,9 +472,6 @@ TEST_P(eltwise_fp16_byxf, add) {
         activation("activation", input_info("add"), activation_func::negative),
         reorder("out", input_info("activation"), p.default_format, data_types::f32)
     );
-    // Activation won't be fused because onednn doesn't support negative activation
-    if (engine.get_device_info().supports_immad)
-        p.expected_fused_primitives++;
 
     ov::intel_gpu::ImplementationDesc eltw_impl = { format::byxf, "generic_eltwise_ref" };
     cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "eltwise", eltw_impl } }));
