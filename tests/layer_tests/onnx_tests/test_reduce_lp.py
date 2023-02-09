@@ -122,7 +122,7 @@ class TestReduceL1L2(OnnxRuntimeLayerTest):
         input = helper.make_tensor_value_info('input', TensorProto.FLOAT, output_shape)
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, concat_output_shape)
 
-        constant = np.random.randn(*shape).astype(np.float)
+        constant = np.random.randn(*shape).astype(float)
 
         node_const_def = onnx.helper.make_node(
             'Constant',

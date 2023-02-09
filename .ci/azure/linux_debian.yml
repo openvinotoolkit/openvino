@@ -284,7 +284,7 @@ jobs:
       sudo apt-get install --no-install-recommends gnupg -y
       echo "deb https://apt.repos.intel.com/openvino/2022 focal main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
       sudo apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/intel-openvino-2022.list
-      sudo apt-get install openvino -y
+      sudo apt-get install openvino -y || exit 1
       # install our local one and make sure the conflicts are resolved
       sudo apt-get install --no-install-recommends dpkg-dev -y
       rm -r _CPack_Packages
