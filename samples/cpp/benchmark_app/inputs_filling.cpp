@@ -531,7 +531,7 @@ ov::Tensor get_binary_tensor(const std::vector<std::string>& files,
                                                   inputInfo.second,
                                                   inputInfo.first,
                                                   filenames_used);
-    } else if ((type == ov::element::) || (type == ov::element::boolean)) {
+    } else if ((type == ov::element::u8) || (type == ov::element::boolean)) {
         return create_tensor_from_binary<uint8_t>(files,
                                                   inputId,
                                                   batchSize,
