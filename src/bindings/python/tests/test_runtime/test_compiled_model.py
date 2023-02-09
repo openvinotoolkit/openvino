@@ -210,11 +210,12 @@ def test_infer_tensor_wrong_input_data(device):
     assert "Incompatible key type for input: 0.0" in str(e.value)
 
 
-def test_direct_infer(device):
+@pytest.mark.parametrize("shared_flag", [True, False])
+def test_direct_infer(device, shared_flag):
     compiled_model, img = generate_model_and_image(device)
 
     tensor = Tensor(img)
-    res = compiled_model({"data": tensor})
+    res = compiled_model({"data": tensor}, shared_memory=shared_flag)
     assert np.argmax(res[compiled_model.outputs[0]]) == 531
     ref = compiled_model.infer_new_request({"data": tensor})
     assert np.array_equal(ref[compiled_model.outputs[0]], res[compiled_model.outputs[0]])
@@ -231,4 +232,4 @@ def test_compiled_model_after_core_destroyed(device):
     del core
     del model
     # check compiled and infer request can work properly after core object is destroyed
-    compiled([np.random.normal(size=list(input.shape)) for input in compiled.inputs])
+    compiled([np.random.normal(size=list(input.shape)).astype(dtype=input.get_element_type().to_dtype()) for input in compiled.inputs])

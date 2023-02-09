@@ -11,109 +11,21 @@ import numpy as np
 from openvino._pyopenvino import Model
 from openvino._pyopenvino import Core as CoreBase
 from openvino._pyopenvino import CompiledModel as CompiledModelBase
-from openvino._pyopenvino import InferRequest as InferRequestBase
 from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase
 from openvino._pyopenvino import ConstOutput
 from openvino._pyopenvino import Tensor
 
-
-def tensor_from_file(path: str) -> Tensor:
-    """Create Tensor from file. Data will be read with dtype of unit8."""
-    return Tensor(np.fromfile(path, dtype=np.uint8))  # type: ignore
-
-
-def set_scalar_tensor(request: InferRequestBase, tensor: Tensor, key: Union[str, int, ConstOutput] = None) -> None:
-    if key is None:
-        request.set_input_tensor(tensor)
-    elif isinstance(key, int):
-        request.set_input_tensor(key, tensor)
-    elif isinstance(key, (str, ConstOutput)):
-        request.set_tensor(key, tensor)
-    else:
-        raise TypeError(f"Unsupported key type: {type(key)} for Tensor under key: {key}")
+from openvino.runtime.utils.data_helpers import (
+    _InferRequestWrapper,
+    _data_dispatch,
+    tensor_from_file,
+)
 
 
-@singledispatch
-def update_tensor(
-    inputs: Union[np.ndarray, np.number, int, float],
-    request: InferRequestBase,
-    key: Union[str, int, ConstOutput] = None,
-) -> None:
-    raise TypeError(f"Incompatible input data of type {type(inputs)} under {key} key!")
-
-
-@update_tensor.register(np.ndarray)
-def _(
-    inputs: np.ndarray,
-    request: InferRequestBase,
-    key: Union[str, int, ConstOutput] = None,
-) -> None:
-    # If shape is "empty", assume this is a scalar value
-    if not inputs.shape:
-        set_scalar_tensor(request, Tensor(inputs), key)
-    else:
-        if key is None:
-            tensor = request.get_input_tensor()
-        elif isinstance(key, int):
-            tensor = request.get_input_tensor(key)
-        elif isinstance(key, (str, ConstOutput)):
-            tensor = request.get_tensor(key)
-        else:
-            raise TypeError(f"Unsupported key type: {type(key)} for Tensor under key: {key}")
-        # Update shape if there is a mismatch
-        if tensor.shape != inputs.shape:
-            tensor.shape = inputs.shape
-        # When copying, type should be up/down-casted automatically.
-        tensor.data[:] = inputs[:]
-
-
-@update_tensor.register(np.number)  # type: ignore
-@update_tensor.register(float)
-@update_tensor.register(int)
-def _(
-    inputs: Union[np.number, float, int],
-    request: InferRequestBase,
-    key: Union[str, int, ConstOutput] = None,
-) -> None:
-    set_scalar_tensor(
-        request,
-        Tensor(np.ndarray([], type(inputs), np.array(inputs))),
-        key,
-    )
-
-
-def normalize_inputs(request: InferRequestBase, inputs: dict) -> dict:
-    """Helper function to prepare inputs for inference.
-
-    It creates copy of Tensors or copy data to already allocated Tensors on device
-    if the item is of type `np.ndarray`, `np.number`, `int`, `float` or has numpy __array__ attribute.
-    """
-    # Create new temporary dictionary.
-    # new_inputs will be used to transfer data to inference calls,
-    # ensuring that original inputs are not overwritten with Tensors.
-    new_inputs: Dict[Union[str, int, ConstOutput], Tensor] = {}
-    for key, value in inputs.items():
-        if not isinstance(key, (str, int, ConstOutput)):
-            raise TypeError(f"Incompatible key type for input: {key}")
-        # Copy numpy arrays to already allocated Tensors.
-        if isinstance(value, (np.ndarray, np.number, int, float)):
-            update_tensor(value, request, key)
-        # If value is of Tensor type, put it into temporary dictionary.
-        elif isinstance(value, Tensor):
-            new_inputs[key] = value
-        # If value object has __array__ attribute, load it to Tensor using np.array.
-        elif hasattr(value, "__array__"):
-            update_tensor(np.array(value, copy=True), request, key)
-        # Throw error otherwise.
-        else:
-            raise TypeError(f"Incompatible input data of type {type(value)} under {key} key!")
-    return new_inputs
-
-
-class InferRequest(InferRequestBase):
+class InferRequest(_InferRequestWrapper):
     """InferRequest class represents infer request which can be run in asynchronous or synchronous manners."""
 
-    def infer(self, inputs: Any = None) -> dict:
+    def infer(self, inputs: Any = None, shared_memory: bool = False) -> dict:
         """Infers specified input(s) in synchronous mode.
 
         Blocks all methods of InferRequest while request is running.
@@ -127,48 +39,49 @@ class InferRequest(InferRequestBase):
 
         The allowed types of values in the `inputs` are:
 
-        (1) `numpy.array`
+        (1) `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
         (2) `openvino.runtime.Tensor`
-        (3) array-like object with `__array__` attribute
 
-        Can be called with only one `openvino.runtime.Tensor` or `numpy.array`,
+        Can be called with only one `openvino.runtime.Tensor` or `numpy.ndarray`,
         it will work only with one-input models. When model has more inputs,
         function throws error.
 
         :param inputs: Data to be set on input tensors.
         :type inputs: Any, optional
+        :param shared_memory: Enables `shared_memory` mode.
+
+                              If set to `False` inputs the data dispatcher will safely copy data
+                              to existing Tensors (including up- or down-casting according to data type,
+                              resizing of the input Tensor). Keeps Tensor inputs "as-is".
+
+                              If set to `True` the data dispatcher tries to provide "zero-copy"
+                              Tensors for every input in form of:
+                              * `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
+                              Data that is going to be copied:
+                              * `numpy.ndarray` which are not C contiguous
+                              * inputs which data types are mismatched from Infer Request's inputs
+                              * inputs that should be in `BF16` data type
+                              * scalar inputs (i.e. `np.float_`/`int`/`float`)
+                              Keeps Tensor inputs "as-is".
+                              Note: Use with extra care, shared data can be modified during runtime!
+                              Note: Using `shared_memory` may result in the extra memory overhead.
+
+                              Default value: False
+        :type shared_memory: bool, optional
         :return: Dictionary of results from output tensors with ports as keys.
-        :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
+        :rtype: Dict[openvino.runtime.ConstOutput, numpy.ndarray]
         """
-        # If inputs are empty, pass empty dictionary.
-        if inputs is None:
-            return super().infer({})
-        # If inputs are dict, normalize dictionary and call infer method.
-        elif isinstance(inputs, dict):
-            return super().infer(normalize_inputs(self, inputs))
-        # If inputs are list or tuple, enumarate inputs and save them as dictionary.
-        # It is an extension of above branch with dict inputs.
-        elif isinstance(inputs, (list, tuple)):
-            return super().infer(normalize_inputs(self, {index: input for index, input in enumerate(inputs)}))
-        # If inputs are Tensor, call infer method directly.
-        elif isinstance(inputs, Tensor):
-            return super().infer(inputs)
-        # If inputs are single numpy array or scalars, use helper function to copy them
-        # directly to Tensor or create temporary Tensor to pass into the InferRequest.
-        # Pass empty dictionary to infer method, inputs are already set by helper function.
-        elif isinstance(inputs, (np.ndarray, np.number, int, float)):
-            update_tensor(inputs, self)
-            return super().infer({})
-        elif hasattr(inputs, "__array__"):
-            update_tensor(np.array(inputs, copy=True), self)
-            return super().infer({})
-        else:
-            raise TypeError(f"Incompatible inputs of type: {type(inputs)}")
+        return super().infer(_data_dispatch(
+            self,
+            inputs,
+            is_shared=shared_memory,
+        ))
 
     def start_async(
         self,
         inputs: Any = None,
         userdata: Any = None,
+        shared_memory: bool = False,
     ) -> None:
         """Starts inference of specified input(s) in asynchronous mode.
 
@@ -184,11 +97,10 @@ class InferRequest(InferRequestBase):
 
         The allowed types of values in the `inputs` are:
 
-        (1) `numpy.array`
+        (1) `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
         (2) `openvino.runtime.Tensor`
-        (3) array-like object with `__array__` attribute
 
-        Can be called with only one `openvino.runtime.Tensor` or `numpy.array`,
+        Can be called with only one `openvino.runtime.Tensor` or `numpy.ndarray`,
         it will work only with one-input models. When model has more inputs,
         function throws error.
 
@@ -196,23 +108,35 @@ class InferRequest(InferRequestBase):
         :type inputs: Any, optional
         :param userdata: Any data that will be passed inside the callback.
         :type userdata: Any
+        :param shared_memory: Enables `shared_memory` mode.
+
+                              If set to `False` inputs the data dispatcher will safely copy data
+                              to existing Tensors (including up- or down-casting according to data type,
+                              resizing of the input Tensor). Keeps Tensor inputs "as-is".
+
+                              If set to `True` the data dispatcher tries to provide "zero-copy"
+                              Tensors for every input in form of:
+                              * `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
+                              Data that is going to be copied:
+                              * `numpy.ndarray` which are not C contiguous
+                              * inputs which data types are mismatched from Infer Request's inputs
+                              * inputs that should be in `BF16` data type
+                              * scalar inputs (i.e. `np.float_`/`int`/`float`)
+                              Keeps Tensor inputs "as-is".
+                              Note: Use with extra care, shared data can be modified during runtime!
+                              Note: Using `shared_memory` may result in extra memory overhead.
+
+                              Default value: False
+        :type shared_memory: bool, optional
         """
-        if inputs is None:
-            super().start_async({}, userdata)
-        elif isinstance(inputs, dict):
-            super().start_async(normalize_inputs(self, inputs), userdata)
-        elif isinstance(inputs, (list, tuple)):
-            super().start_async(normalize_inputs(self, {index: input for index, input in enumerate(inputs)}), userdata)
-        elif isinstance(inputs, Tensor):
-            super().start_async(inputs, userdata)
-        elif isinstance(inputs, (np.ndarray, np.number, int, float)):
-            update_tensor(inputs, self)
-            return super().start_async({}, userdata)
-        elif hasattr(inputs, "__array__"):
-            update_tensor(np.array(inputs, copy=True), self)
-            return super().start_async({}, userdata)
-        else:
-            raise TypeError(f"Incompatible inputs of type: {type(inputs)}")
+        super().start_async(
+            _data_dispatch(
+                self,
+                inputs,
+                is_shared=shared_memory,
+            ),
+            userdata,
+        )
 
 
 class CompiledModel(CompiledModelBase):
@@ -221,6 +145,11 @@ class CompiledModel(CompiledModelBase):
     CompiledModel represents Model that is compiled for a specific device by applying
     multiple optimization transformations, then mapping to compute kernels.
     """
+
+    def __init__(self, other: CompiledModelBase) -> None:
+        # Private memeber to store already created InferRequest
+        self._infer_request: Optional[InferRequest] = None
+        super().__init__(other)
 
     def create_infer_request(self) -> InferRequest:
         """Creates an inference request object used to infer the compiled model.
@@ -249,15 +178,15 @@ class CompiledModel(CompiledModelBase):
 
         The allowed types of values in the `inputs` are:
 
-        (1) `numpy.array`
+        (1) `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
         (2) `openvino.runtime.Tensor`
 
-        Can be called with only one `openvino.runtime.Tensor` or `numpy.array`,
+        Can be called with only one `openvino.runtime.Tensor` or `numpy.ndarray`,
         it will work only with one-input models. When model has more inputs,
         function throws error.
 
         :param inputs: Data to be set on input tensors.
-        :type inputs: Union[Dict[keys, values], List[values], Tuple[values], Tensor, numpy.array], optional
+        :type inputs: Union[Dict[keys, values], List[values], Tuple[values], Tensor, numpy.ndarray], optional
         :return: Dictionary of results from output tensors with ports as keys.
         :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
         """
@@ -265,12 +194,70 @@ class CompiledModel(CompiledModelBase):
         # overloaded functions of InferRequest class
         return self.create_infer_request().infer(inputs)
 
-    def __call__(self, inputs: Optional[Union[dict, list]] = None) -> dict:
+    def __call__(self,
+                 inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None,
+                 shared_memory: bool = True) -> dict:
         """Callable infer wrapper for CompiledModel.
 
-        Take a look at `infer_new_request` for reference.
+        Infers specified input(s) in synchronous mode.
+
+        Blocks all methods of CompiledModel while request is running.
+
+        Method creates new temporary InferRequest and run inference on it.
+        It is advised to use a dedicated InferRequest class for performance,
+        optimizing workflows, and creating advanced pipelines.
+
+        This method stores created `InferRequest` inside `CompiledModel` object,
+        which can be later reused in consecutive calls.
+
+        The allowed types of keys in the `inputs` dictionary are:
+
+        (1) `int`
+        (2) `str`
+        (3) `openvino.runtime.ConstOutput`
+
+        The allowed types of values in the `inputs` are:
+
+        (1) `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
+        (2) `openvino.runtime.Tensor`
+
+        Can be called with only one `openvino.runtime.Tensor` or `numpy.ndarray`,
+        it will work only with one-input models. When model has more inputs,
+        function throws error.
+
+        :param inputs: Data to be set on input tensors.
+        :type inputs: Union[Dict[keys, values], List[values], Tuple[values], Tensor, numpy.ndarray], optional
+        :param shared_memory: Enables `shared_memory` mode.
+
+                              If set to `False` inputs the data dispatcher will safely copy data
+                              to existing Tensors (including up- or down-casting according to data type,
+                              resizing of the input Tensor). Keeps Tensor inputs "as-is".
+
+                              If set to `True` the data dispatcher tries to provide "zero-copy"
+                              Tensors for every input in form of:
+                              * `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
+                              Data that is going to be copied:
+                              * `numpy.ndarray` which are not C contiguous
+                              * inputs which data types are mismatched from Infer Request's inputs
+                              * inputs that should be in `BF16` data type
+                              * scalar inputs (i.e. `np.float_`/`int`/`float`)
+                              Keeps Tensor inputs "as-is".
+                              Note: Use with extra care, shared data can be modified during runtime!
+                              Note: Using `shared_memory` may result in extra memory overhead.
+
+                              Default value: True
+        :type shared_memory: bool, optional
+
+        :return: Dictionary of results from output tensors with ports as keys.
+        :rtype: Dict[openvino.runtime.ConstOutput, numpy.ndarray]
         """
-        return self.infer_new_request(inputs)
+        if self._infer_request is None:
+            self._infer_request = self.create_infer_request()
+
+        return self._infer_request.infer(
+            inputs,
+            shared_memory=shared_memory,
+        )
 
 
 class AsyncInferQueue(AsyncInferQueueBase):
@@ -303,6 +290,7 @@ class AsyncInferQueue(AsyncInferQueueBase):
         self,
         inputs: Any = None,
         userdata: Any = None,
+        shared_memory: bool = False,
     ) -> None:
         """Run asynchronous inference using the next available InferRequest from the pool.
 
@@ -314,11 +302,10 @@ class AsyncInferQueue(AsyncInferQueueBase):
 
         The allowed types of values in the `inputs` are:
 
-        (1) `numpy.array`
+        (1) `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
         (2) `openvino.runtime.Tensor`
-        (3) array-like object with `__array__` attribute
 
-        Can be called with only one `openvino.runtime.Tensor` or `numpy.array`,
+        Can be called with only one `openvino.runtime.Tensor` or `numpy.ndarray`,
         it will work only with one-input models. When model has more inputs,
         function throws error.
 
@@ -326,32 +313,34 @@ class AsyncInferQueue(AsyncInferQueueBase):
         :type inputs: Any, optional
         :param userdata: Any data that will be passed to a callback.
         :type userdata: Any, optional
+        :param shared_memory: Enables `shared_memory` mode.
+
+                              If set to `False` inputs the data dispatcher will safely copy data
+                              to existing Tensors (including up- or down-casting according to data type,
+                              resizing of the input Tensor). Keeps Tensor inputs "as-is".
+
+                              If set to `True` the data dispatcher tries to provide "zero-copy"
+                              Tensors for every input in form of:
+                              * `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
+                              Data that is going to be copied:
+                              * `numpy.ndarray` which are not C contiguous
+                              * inputs which data types are mismatched from Infer Request's inputs
+                              * inputs that should be in `BF16` data type
+                              * scalar inputs (i.e. `np.float_`/`int`/`float`)
+                              Keeps Tensor inputs "as-is".
+                              Note: Use with extra care, shared data can be modified during runtime!
+                              Note: Using `shared_memory` may result in extra memory overhead.
+
+                              Default value: False
         """
-        if inputs is None:
-            super().start_async({}, userdata)
-        elif isinstance(inputs, dict):
-            super().start_async(
-                normalize_inputs(self[self.get_idle_request_id()], inputs),
-                userdata,
-            )
-        elif isinstance(inputs, (list, tuple)):
-            super().start_async(
-                normalize_inputs(
-                    self[self.get_idle_request_id()],
-                    {index: input for index, input in enumerate(inputs)},
-                ),
-                userdata,
-            )
-        elif isinstance(inputs, Tensor):
-            super().start_async(inputs, userdata)
-        elif isinstance(inputs, (np.ndarray, np.number, int, float)):
-            update_tensor(inputs, self[self.get_idle_request_id()])
-            super().start_async({}, userdata)
-        elif hasattr(inputs, "__array__"):
-            update_tensor(np.array(inputs, copy=True), self[self.get_idle_request_id()])
-            super().start_async({}, userdata)
-        else:
-            raise TypeError(f"Incompatible inputs of type: {type(inputs)}")
+        super().start_async(
+            _data_dispatch(
+                self[self.get_idle_request_id()],
+                inputs,
+                is_shared=shared_memory,
+            ),
+            userdata,
+        )
 
 
 class Core(CoreBase):
