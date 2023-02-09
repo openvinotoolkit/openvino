@@ -22,7 +22,6 @@ bool ov::pass::FixRtInfo::run_on_model(const std::shared_ptr<ngraph::Function>& 
                 run_on_model(sub_graph);
             }
         }
-        
         auto& rt_info = node->get_rt_info();
         {
             auto it_info = rt_info.find("PrimitivesPriority");
