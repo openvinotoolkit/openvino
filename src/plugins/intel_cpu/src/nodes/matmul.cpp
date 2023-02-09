@@ -13,7 +13,6 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include <algorithm>
 #include "common/cpu_memcpy.h"
 #include <ngraph/opsets/opset1.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
@@ -125,9 +124,14 @@ public:
         const size_t& Aranks = AShape.size();
         const size_t& Branks = BShape.size();
 
-        // 0. Needn't assert the scalar type since the matmul_shape_inference has checked.
-        // 1. 1-D x 1-D
-        if (Aranks == 1 && Branks == 1) {
+        // getSupportedDescriptors has done some shape check.
+        // 1. Needn't assert the scalar type since the matmul_shape_inference has checked.
+        // 2. Needn't check the compatibility of the last two dims
+        // 3. 1-D x 1-D is needed
+        // 4. transpose is necessary
+        // 5. Just support the same rank of matmul
+        // 6. simplify the broadcast check
+        if (Aranks == 1 && Branks == 1 && AShape[0] == BShape[0]) {
             return {m_YShape};
         }
 
@@ -135,48 +139,17 @@ public:
         const bool& transpose_a = m_matmul->get_transpose_a();
         const bool& transpose_b = m_matmul->get_transpose_b();
 
-        // 2. 1-D x N-D or N-D x 1-D
-        if (Aranks == 1) {
-            if (transpose_b) {
-                BShape.erase(BShape.end()-1, BShape.end());
-            } else {
-                BShape.erase(BShape.end()-2, BShape.end()-1);
-            }
-            m_YShape.swap(BShape);
-            return {m_YShape};
-        }
-
-        if (Branks == 1) {
-            if (transpose_a) {
-                AShape.erase(AShape.end()-1, AShape.end());
-            } else {
-                AShape.erase(AShape.end()-2, AShape.end()-1);
-            }
-            m_YShape.swap(AShape);
-            return {m_YShape};
-        }
-
-        // 3. N-D x N-D
         m_YShape.at(m_out_rank-2) = transpose_a ? AShape[Aranks-1] : AShape[Aranks-2];
         m_YShape.at(m_out_rank-1) = transpose_b ? BShape[Branks-2] : BShape[Branks-1];
 
-        // 3.1. fast path for 2-D x 2-D
-        if (Aranks == 2 && Branks == 2) {
-            return {m_YShape};
-        }
-        // common case
-        if (Aranks < Branks) {
-            AShape.insert(AShape.begin(), Branks-Aranks, 1);
-        } else if (Aranks > Branks) {
-            BShape.insert(BShape.begin(), Aranks-Branks, 1);
-        }
-
         for (size_t i=0; i < m_out_rank-2; ++i) {
+            size_t max = std::max(AShape.at(i), BShape.at(i));
             size_t min = std::min(AShape.at(i), BShape.at(i));
             if ((AShape.at(i) == BShape.at(i)) || (min == 1)) {
-                m_YShape[i] = min;
+                m_YShape[i] = max;
             } else {
-                std::runtime_error("Shape cant be not broadcast");
+                IE_THROW() << "Incompatible MatMul batch dimension. Cant merge the first input dimension=" <<
+                              AShape[i] << " with second input dimension=" << BShape[i] << " at index=" << i;
             }
         }
 
