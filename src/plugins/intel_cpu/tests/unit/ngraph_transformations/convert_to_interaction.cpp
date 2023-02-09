@@ -27,9 +27,9 @@ using namespace ov;
 
 static std::shared_ptr<opset8::FakeQuantize> createFQ(const std::shared_ptr<ov::Node>& input) {
     auto input_low = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{0});
-    auto input_high = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{49.4914});
+    auto input_high = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{49.4914f});
     auto output_low = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{0});
-    auto output_high = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{49.4914});
+    auto output_high = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{49.4914f});
     return std::make_shared<opset8::FakeQuantize>(input, input_low, input_high, output_low, output_high, 256);
 }
 
@@ -109,8 +109,8 @@ static std::shared_ptr<ov::Model> makeInteraction(const ov::PartialShape& inputS
     auto concat2 = std::make_shared<opset1::Concat>(NodeVector{dense_feature, reshape4}, 1);
     std::shared_ptr<ov::Model> model;
     if (postFQ) {
-        auto input_low = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{-5.12978});
-        auto input_high = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{5.08965});
+        auto input_low = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{-5.12978f});
+        auto input_high = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{5.08965f});
         auto output_low = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{-128});
         auto output_high = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{127});
         auto fq = std::make_shared<ov::op::TypeRelaxed<opset8::FakeQuantize>>(
