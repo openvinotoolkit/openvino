@@ -79,10 +79,12 @@ void fill_output_info(const ov::Output<ov::Node>& output, InferenceEngine::DataP
 TemplatePlugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
                                              const InferenceEngine::ITaskExecutor::Ptr& task_executor,
+                                             const InferenceEngine::IStreamsExecutor::Config& _streamsExecutorConfig,
                                              const ov::AnyMap& cfg)
     : ov::ICompiledModel(model, plugin, task_executor),  // Disable default threads creation
       _cfg(cfg),
       m_model(model) {
+    _cfg._streamsExecutorConfig = _streamsExecutorConfig;
     // TODO: if your plugin supports device ID (more that single instance of device can be on host machine)
     // you should select proper device based on KEY_DEVICE_ID or automatic behavior
     // In this case, _waitExecutor should also be created per device.

@@ -22,6 +22,7 @@ public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const InferenceEngine::ITaskExecutor::Ptr& task_executor,
+                  const InferenceEngine::IStreamsExecutor::Config& _streamsExecutorConfig,
                   const ov::AnyMap& cfg);
 
     // Methods from a base class ov::ICompiledModel

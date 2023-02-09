@@ -45,13 +45,20 @@ Plugin::Plugin() {
              {ov::device::capability::EXPORT_IMPORT, ov::device::capability::FP32})
         .add(ov::common_property(ov::range_for_async_infer_requests), std::make_tuple(uint{1}, uint{1}, uint{1}));
 
+    m_properties.add(ov::legacy_property(METRIC_KEY(IMPORT_EXPORT_SUPPORT)), [this] {
+        return true;
+    });
+
     // Add common read write properties used in template plugin and template compiled model
     m_properties.add(rw_properties.m_properties);
 
+    m_properties.add(ov::common_property(ov::device::full_name), "Template Device Full Name");
     // If plugin has several devices we can add property for each device
-    for (auto device_id : {"0"}) {
-        m_properties.add(device_id, ov::PropertySupervisor{}.add(ov::device::full_name, "Template Device Full Name"));
-    }
+    // for (auto device_id : {"0"}) {
+    //     m_properties.add(
+    //         device_id,
+    //         ov::PropertySupervisor{}.add(ov::device::full_name, std::string("Template Device ") + device_id));
+    // }
 }
 // ! [plugin:ctor]
 
@@ -113,6 +120,7 @@ std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::compile_model(const 
         std::make_shared<CompiledModel>(model->clone(),
                                         shared_from_this(),
                                         get_executor_manager()->getIdleCPUStreamsExecutor(streamsExecutorConfig),
+                                        rw_properties._streamsExecutorConfig,
                                         fullConfig);
     return compiled_model;
 }
@@ -154,6 +162,7 @@ std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::import_model(std::is
         std::make_shared<CompiledModel>(ov_model,
                                         shared_from_this(),
                                         get_executor_manager()->getIdleCPUStreamsExecutor(streamsExecutorConfig),
+                                        fullConfig._streamsExecutorConfig,
                                         config);
     return compiled_model;
 }
