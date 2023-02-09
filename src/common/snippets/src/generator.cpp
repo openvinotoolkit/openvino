@@ -71,7 +71,7 @@ auto tail_transformations(NodeVector& tail, const size_t tail_size, const ngraph
         if (config.m_need_fill_tail_register &&
             (ov::is_type<ov::op::v1::Maximum>(op) ||
              ov::is_type<ov::op::v1::Add>(op))) {
-            for (auto i = 0; i < op->inputs().size(); ++i) {
+            for (size_t i = 0; i < op->inputs().size(); ++i) {
                 if (auto fill = insertFill(op->input(i))) {
                     updated_tile.push_back(fill);
                 }
@@ -116,7 +116,7 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
             if (force_ptr_increment || loop->has_outer_loop) {
                 std::vector<int64_t> new_finalization_offsets(loop->get_finalization_offsets());
                 const auto& ptr_increments = loop->get_ptr_increments();
-                for (auto i = 0; i < new_finalization_offsets.size(); i++) {
+                for (size_t i = 0; i < new_finalization_offsets.size(); i++) {
                     new_finalization_offsets[i] += ptr_increments[i];
                 }
                 loop->set_finalization_offsets(new_finalization_offsets);

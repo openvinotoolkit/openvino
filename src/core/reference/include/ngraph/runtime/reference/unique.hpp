@@ -57,7 +57,7 @@ std::vector<TensorSlice<Index_t, Count_t>> generate_descriptors(const size_t cou
     std::vector<TensorSlice<Index_t, Count_t>> descriptors;
     descriptors.reserve(count);
 
-    for (Index_t i = 0; i < count; ++i) {
+    for (Index_t i = 0, end = static_cast<Index_t>(count); i < end; ++i) {
         descriptors.emplace_back(i, type);
     }
 
@@ -231,7 +231,7 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
                 tensor_element.rev_idx = existing_unique->rev_idx;
                 existing_unique->count++;
             } else {
-                tensor_element.rev_idx = ret.unique_tensor_elements.size();
+                tensor_element.rev_idx = static_cast<Index_t>(ret.unique_tensor_elements.size());
                 ret.unique_tensor_elements.push_back(tensor_element);
             }
         }
@@ -264,7 +264,7 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
                 tensor_element.rev_idx = existing_unique->rev_idx;
                 existing_unique->count++;
             } else {
-                tensor_element.rev_idx = ret.unique_tensor_elements.size();
+                tensor_element.rev_idx = static_cast<Index_t>(ret.unique_tensor_elements.size());
                 ret.unique_tensor_elements.push_back(tensor_element);
             }
         }

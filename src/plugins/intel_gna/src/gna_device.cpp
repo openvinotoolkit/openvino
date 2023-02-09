@@ -37,12 +37,11 @@ GNADeviceHelper::GNADeviceHelper(std::string executionTargetIn,
                                  bool swExactModeIn,
                                  bool isPerformanceMeasuring,
                                  bool deviceEmbedded)
-    : swExactMode(swExactModeIn),
+    : nGnaDeviceIndex{selectGnaDevice()},
       executionTarget(executionTargetIn),
       compileTarget(compileTargetIn),
-      isPerformanceMeasuring(isPerformanceMeasuring),
-      nGnaDeviceIndex{selectGnaDevice()},
-      useDeviceEmbeddedExport(deviceEmbedded) {
+      useDeviceEmbeddedExport(deviceEmbedded),
+      isPerformanceMeasuring(isPerformanceMeasuring) {
     per_request_diagnostics = log::get_log_level() >= ov::log::Level::TRACE;
     per_model_diagnostics = log::get_log_level() >= ov::log::Level::DEBUG;
     open();

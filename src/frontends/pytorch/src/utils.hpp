@@ -31,10 +31,7 @@ Output<ov::Node> reshape_channelwise(const NodeContext& context,
 
 std::shared_ptr<ov::Node> get_rank_node(const Output<Node>& node);
 
-Output<Node> reshape_kernel_for_group(const NodeContext& context,
-                                      const Output<Node>& input,
-                                      const Output<Node>& kernel,
-                                      int64_t groups);
+Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<Node>& kernel, int64_t groups);
 
 std::shared_ptr<Node> get_axes_range(const NodeContext& context, size_t input_id);
 
@@ -74,7 +71,7 @@ template <typename T>
 OutputVector translate_1to1_match_1_inputs(NodeContext& context) {
     auto inputs = context.inputs();
     FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= 1, "Operation has no inputs.");
-    for (int i = 1; i < inputs.size(); i++) {
+    for (size_t i = 1; i < inputs.size(); i++) {
         FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(i), "Got more inputs than expected.");
     }
     FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0), "Input should not be None.");
@@ -85,7 +82,7 @@ template <typename T>
 OutputVector translate_1to1_match_2_inputs(NodeContext& context) {
     auto inputs = context.inputs();
     FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= 2, "Operation has less then 2 inputs.");
-    for (int i = 2; i < inputs.size(); i++) {
+    for (size_t i = 2; i < inputs.size(); i++) {
         FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(i), "Got more inputs than expected.");
     }
     FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0) && !context.input_is_none(1), "Inputs should not be None.");
@@ -96,7 +93,7 @@ template <typename T>
 OutputVector translate_1to1_match_2_inputs_align_types(NodeContext& context) {
     auto inputs = context.inputs();
     FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= 2, "Operation has less then 2 inputs.");
-    for (int i = 2; i < inputs.size(); i++) {
+    for (size_t i = 2; i < inputs.size(); i++) {
         FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(i), "Got more inputs than expected.");
     }
     FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0) && !context.input_is_none(1), "Inputs should not be None.");
