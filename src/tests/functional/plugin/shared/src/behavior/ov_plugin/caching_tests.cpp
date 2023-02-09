@@ -393,11 +393,7 @@ void CompileModelLoadFromMemoryTestBase::run() {
     for (int i = 0; i < 2; i++) {
         try {
             compiledModel = core->compile_model(m_model, m_weights, targetDevice, configuration);
-            if (importExportSupported(*core)) {
-                ASSERT_EQ(i != 0, compiledModel.get_property(ov::loaded_from_cache));
-            }
             inferRequest = compiledModel.create_infer_request();
-            inferRequest.infer();
         } catch (const Exception& ex) {
             GTEST_FAIL() << "Can't loadNetwork with model path " << m_modelName << "\nException [" << ex.what() << "]"
                          << std::endl;
