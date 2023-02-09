@@ -29,26 +29,26 @@ namespace intel_gna {
 namespace ngraph_util {
 
 template <typename T>
-static bool get_constant_value(const std::shared_ptr<ngraph::opset8::Constant>& constant, std::vector<double>& values) {
+inline bool get_constant_value(const std::shared_ptr<ngraph::opset8::Constant>& constant, std::vector<double>& values) {
     using A = typename ov::element_type_traits<T::value>::value_type;
     const auto& v = constant->get_vector<A>();
     std::copy(v.begin(), v.end(), std::back_inserter(values));
     return true;
 }
 
-static bool get_constant_value(std::tuple<>&&, const std::shared_ptr<ngraph::opset8::Constant>&, std::vector<double>&) {
+inline bool get_constant_value(std::tuple<>&&, const std::shared_ptr<ngraph::opset8::Constant>&, std::vector<double>&) {
     return false;
 }
 
 template <typename T, typename... Types>
-static bool get_constant_value(std::tuple<T, Types...>&&,
+inline bool get_constant_value(std::tuple<T, Types...>&&,
                                const std::shared_ptr<ngraph::opset8::Constant>& constant,
                                std::vector<double>& values) {
-    return constant->get_element_type() == T::value && get_constant_value<T>(constant, values) ||
+    return (constant->get_element_type() == T::value && get_constant_value<T>(constant, values)) ||
            get_constant_value(std::tuple<Types...>(), constant, values);
 }
 
-static bool get_constant_value(const std::shared_ptr<ngraph::opset8::Constant>& constant, std::vector<double>& values) {
+inline bool get_constant_value(const std::shared_ptr<ngraph::opset8::Constant>& constant, std::vector<double>& values) {
     return get_constant_value(std::tuple<std::integral_constant<ov::element::Type_t, ov::element::i32>,
                                          std::integral_constant<ov::element::Type_t, ov::element::i64>,
                                          std::integral_constant<ov::element::Type_t, ov::element::u32>,
@@ -60,7 +60,7 @@ static bool get_constant_value(const std::shared_ptr<ngraph::opset8::Constant>& 
                               values);
 }
 
-static bool get_constant_value(const std::shared_ptr<ngraph::opset8::Constant>& constant, double& value) {
+inline bool get_constant_value(const std::shared_ptr<ngraph::opset8::Constant>& constant, double& value) {
     std::vector<double> values;
     if (!get_constant_value(constant, values)) {
         return false;
@@ -74,7 +74,7 @@ static bool get_constant_value(const std::shared_ptr<ngraph::opset8::Constant>& 
     return true;
 }
 
-static bool is_aligned_split(const std::shared_ptr<ngraph::Node> input_op, size_t input_op_out_index) {
+inline bool is_aligned_split(const std::shared_ptr<ngraph::Node> input_op, size_t input_op_out_index) {
     size_t offset = 0;
 
     if (std::dynamic_pointer_cast<ngraph::opset8::Split>(input_op) ||
@@ -87,7 +87,7 @@ static bool is_aligned_split(const std::shared_ptr<ngraph::Node> input_op, size_
     return (offset == ALIGN64(offset));
 }
 
-static bool is_crop_affined(std::shared_ptr<ngraph::Node> node) {
+inline bool is_crop_affined(std::shared_ptr<ngraph::Node> node) {
     auto crop = std::dynamic_pointer_cast<ngraph::op::CropIE>(node);
     if (crop != nullptr && !crop->offset.empty()) {
         return limitations::isCropAffinedOffset(crop->offset.back());
@@ -96,7 +96,7 @@ static bool is_crop_affined(std::shared_ptr<ngraph::Node> node) {
 }
 
 // this not only mathematically trivial
-static bool is_trivial_transpose(std::shared_ptr<ngraph::Node> node) {
+inline bool is_trivial_transpose(std::shared_ptr<ngraph::Node> node) {
     auto transpose = std::dynamic_pointer_cast<ngraph::opset8::Transpose>(node);
     if (!transpose)
         return false;
@@ -156,7 +156,7 @@ inline bool is_one_dim_shapes(const ov::Shape& in_dims, const ov::Shape& out_dim
     return is_one_dim_shape(in_dims) && is_one_dim_shape(out_dims);
 }
 
-static bool is_power_activation(const ov::Node* node) noexcept {
+inline bool is_power_activation(const ov::Node* node) noexcept {
     if (auto power_op = dynamic_cast<const ngraph::opset9::Power*>(node)) {
         auto const_node = std::dynamic_pointer_cast<ngraph::opset9::Constant>(power_op->get_input_node_shared_ptr(1));
         if (!const_node)
@@ -172,30 +172,30 @@ static bool is_power_activation(const ov::Node* node) noexcept {
     return false;
 }
 
-static bool is_power_activation(const std::shared_ptr<ngraph::Node>& node) noexcept {
+inline bool is_power_activation(const std::shared_ptr<ngraph::Node>& node) noexcept {
     return is_power_activation(node.get());
 }
 
-static bool is_eltwise_mul(const std::shared_ptr<ngraph::Node>& node) {
+inline bool is_eltwise_mul(const std::shared_ptr<ngraph::Node>& node) {
     auto eltwise = std::dynamic_pointer_cast<ngraph::op::Eltwise>(node);
     if (!eltwise)
         return false;
     return eltwise->eltwise_type == ELTWISE_TYPE::Prod;
 }
 
-static bool is_eltwise_add(const std::shared_ptr<ngraph::Node>& node) {
+inline bool is_eltwise_add(const std::shared_ptr<ngraph::Node>& node) {
     auto eltwise = std::dynamic_pointer_cast<ngraph::op::Eltwise>(node);
     if (!eltwise)
         return false;
     return eltwise->eltwise_type == ELTWISE_TYPE::Sum;
 }
 
-static bool is_pooling(const std::shared_ptr<ngraph::Node>& node) {
+inline bool is_pooling(const std::shared_ptr<ngraph::Node>& node) {
     return (std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(node) != nullptr);
 }
 
 template <typename T>
-static bool is_Tbit_fq(const std::shared_ptr<ngraph::Node>& node) {
+inline bool is_Tbit_fq(const std::shared_ptr<ngraph::Node>& node) {
     auto fq_node = std::dynamic_pointer_cast<ngraph::opset9::FakeQuantize>(node);
     if (!fq_node)
         return false;
@@ -203,19 +203,19 @@ static bool is_Tbit_fq(const std::shared_ptr<ngraph::Node>& node) {
     return std::numeric_limits<T>::max() == levels;
 }
 
-static bool is_32bit_fq(const std::shared_ptr<ngraph::Node>& node) {
+inline bool is_32bit_fq(const std::shared_ptr<ngraph::Node>& node) {
     return is_Tbit_fq<uint32_t>(node);
 }
 
-static bool is_16bit_fq(const std::shared_ptr<ngraph::Node>& node) {
+inline bool is_16bit_fq(const std::shared_ptr<ngraph::Node>& node) {
     return is_Tbit_fq<uint16_t>(node);
 }
 
-static bool is_8bit_fq(const std::shared_ptr<ngraph::Node>& node) {
+inline bool is_8bit_fq(const std::shared_ptr<ngraph::Node>& node) {
     return is_Tbit_fq<uint8_t>(node);
 }
 
-static bool is_activation(const ov::Node* node) noexcept {
+inline bool is_activation(const ov::Node* node) noexcept {
     return ((dynamic_cast<const ngraph::opset9::Clamp*>(node) != nullptr) ||
             (dynamic_cast<const ngraph::opset9::Sigmoid*>(node) != nullptr) ||
             (dynamic_cast<const ngraph::opset9::Relu*>(node) != nullptr) ||
@@ -232,11 +232,11 @@ static bool is_activation(const ov::Node* node) noexcept {
             (dynamic_cast<const ov::intel_gna::op::Identity*>(node) != nullptr));
 }
 
-static bool is_activation(const std::shared_ptr<ngraph::Node>& node) noexcept {
+inline bool is_activation(const std::shared_ptr<ngraph::Node>& node) noexcept {
     return is_activation(node.get());
 }
 
-static bool is_gna_precision_agnostic(std::shared_ptr<ngraph::Node> node) {
+inline bool is_gna_precision_agnostic(std::shared_ptr<ngraph::Node> node) {
     return ((std::dynamic_pointer_cast<ngraph::opset9::VariadicSplit>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Split>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Slice>(node) != nullptr) ||
@@ -249,7 +249,7 @@ static bool is_gna_precision_agnostic(std::shared_ptr<ngraph::Node> node) {
             ((std::dynamic_pointer_cast<ngraph::op::CropIE>(node) != nullptr) && !is_crop_affined(node)));
 }
 
-static bool has_8bit_or_16_bit_output(const std::shared_ptr<ngraph::Node>& node) noexcept {
+inline bool has_8bit_or_16_bit_output(const std::shared_ptr<ngraph::Node>& node) noexcept {
     return ((ngraph::op::is_parameter(node)) || (ngraph::op::is_constant(node)) ||
             (std::dynamic_pointer_cast<ngraph::opset9::ReadValue>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Assign>(node) != nullptr) ||
@@ -257,7 +257,7 @@ static bool has_8bit_or_16_bit_output(const std::shared_ptr<ngraph::Node>& node)
             is_gna_precision_agnostic(node));
 }
 
-static bool has_32bit_output(const std::shared_ptr<ngraph::Node>& node) {
+inline bool has_32bit_output(const std::shared_ptr<ngraph::Node>& node) {
     return ((std::dynamic_pointer_cast<ngraph::op::FullyConnected>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::MatMul>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Convolution>(node) != nullptr) ||

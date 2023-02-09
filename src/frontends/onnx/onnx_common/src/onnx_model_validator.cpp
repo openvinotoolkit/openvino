@@ -152,47 +152,6 @@ inline void skip_payload(std::istream& model, uint32_t payload_size) {
     model.seekg(payload_size, std::ios::cur);
 }
 }  // namespace onnx
-
-namespace prototxt {
-bool contains_onnx_model_keys(const std::string& model, const size_t expected_keys_num) {
-    size_t keys_found = 0;
-
-    const std::vector<std::string> onnx_keys = {"ir_version",
-                                                "producer_name",
-                                                "producer_version",
-                                                "domain",
-                                                "model_version",
-                                                "doc_string",
-                                                "graph",
-                                                "opset_import",
-                                                "metadata_props",
-                                                "training_info"};
-
-    size_t search_start_pos = 0;
-
-    while (keys_found < expected_keys_num) {
-        const auto key_finder = [&search_start_pos, &model](const std::string& key) {
-            const auto key_pos = model.find(key, search_start_pos);
-            if (key_pos != model.npos) {
-                // don't search from the beginning each time
-                search_start_pos = key_pos + key.size();
-                return true;
-            } else {
-                return false;
-            }
-        };
-
-        const auto found = std::any_of(std::begin(onnx_keys), std::end(onnx_keys), key_finder);
-        if (!found) {
-            break;
-        } else {
-            ++keys_found;
-        }
-    }
-
-    return keys_found == expected_keys_num;
-}
-}  // namespace prototxt
 }  // namespace
 
 namespace ngraph {

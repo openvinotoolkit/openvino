@@ -8,6 +8,7 @@
  */
 
 #pragma once
+
 #include <openvino/function_name.hpp>
 #include <openvino/util/pp.hpp>
 #include <string>
@@ -34,9 +35,9 @@ namespace openvino
          */
         typedef struct handle_ {} *handle_t;
 
-/**
- * @cond
- */
+        /**
+         * @cond
+         */
         namespace internal
         {
             domain_t domain(char const* name);
@@ -45,9 +46,9 @@ namespace openvino
             void taskEnd(domain_t d);
             void threadName(const char* name);
         }
-/**
- * @endcond
- */
+        /**
+         * @endcond
+         */
 
         /**
          * @fn void threadName(const char* name)
