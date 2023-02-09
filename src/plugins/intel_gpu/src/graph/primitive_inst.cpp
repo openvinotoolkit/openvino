@@ -1222,10 +1222,11 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
     std::vector<allocation_type> allocation_types;
 
     ib >> num_outputs;
+    is_output_null.resize(num_outputs);
     for (size_t i = 0; i < num_outputs; ++i) {
         bool is_null;
         ib >> is_null;
-        is_output_null.emplace_back(is_null);
+        is_output_null[i] = is_null;
         if (!is_null) {
             layout output_layout = layout();
             ib >> output_layout;
