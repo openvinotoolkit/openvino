@@ -140,7 +140,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
         return -1;
     };
 
-    for (const auto op : subgraph->get_ordered_ops()) {
+    for (const auto& op : subgraph->get_ordered_ops()) {
         const NodePtr node {Node::factory().create(op, context)};
 
         graphNodes.push_back(node);
