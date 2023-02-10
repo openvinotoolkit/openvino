@@ -248,16 +248,6 @@ void primitive_inst::realloc_if_needed() {
     // input_layout node is supposed to always use external memory in dynamic case
     if (_node->is_type<input_layout>())
         return;
-#if 0
-    if (actual_layout.bytes_count() == 0) {
-        ov::Shape new_shape;
-        for (auto dim : actual_layout.get_shape()) {
-            new_shape.push_back((dim == 0) ? 1 : dim);
-        }
-        actual_layout = {ov::PartialShape(new_shape), actual_layout.data_type, actual_layout.format};
-        updated_params.output_layouts[0] = actual_layout;
-    }
-    #endif
 
     bool can_reuse_buffer = _outputs[0] && actual_layout.count() <= max_output_layout_size;
 
@@ -355,6 +345,7 @@ bool primitive_inst::update_impl() {
         }
         if (!has_cached_impl) {
             if (_dynamic_impl) {
+                #if 0
                 auto& compilation_context = get_network().get_compilation_context();
                 compilation_context.push_task(impl_key, [this, updated_params, impl_key](kernels_cache& kc) {
                     auto& cache = get_network().get_implementations_cache();
@@ -376,7 +367,7 @@ bool primitive_inst::update_impl() {
                     std::lock_guard<std::mutex> lock(get_network().get_impl_cache_mutex());
                     cache.add(impl_key, impl->clone());
                 });
-
+                #endif
                 _impl = _dynamic_impl->clone();
                 _impl->update_dispatch_data(*_impl_params);
 

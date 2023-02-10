@@ -110,10 +110,6 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
 
         auto& kernel = kd.kernels[i];
         DispatchData dispatchData = SetDefault(newParams);
-        if (dispatchData.GetTotalNumberOfWorkItems() == 0) {
-            kernel.skip_execution = true;
-            continue;
-        }
         auto cldnnJit = GetJitConstants(newParams);
         auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, params, options, i);
         auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
