@@ -203,10 +203,10 @@ InferenceEngine::Parameter TemplatePlugin::CompiledModel::get_property(const std
         return to_string_vector(metrics);
     } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         auto configs = default_rw_properties();
-        auto streamExecutorConfigKeys = InferenceEngine::IStreamsExecutor::Config{}.SupportedKeys();
-        for (auto&& configKey : streamExecutorConfigKeys) {
-            configs.emplace_back(configKey);
-        }
+        // auto streamExecutorConfigKeys = InferenceEngine::IStreamsExecutor::Config{}.SupportedKeys();
+        // for (auto&& configKey : streamExecutorConfigKeys) {
+        //     configs.emplace_back(configKey);
+        // }
         return to_string_vector(configs);
     } else if (ov::model_name == name) {
         auto model_name = m_model->get_friendly_name();

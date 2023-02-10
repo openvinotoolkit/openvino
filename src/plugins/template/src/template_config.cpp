@@ -20,6 +20,8 @@ Configuration::Configuration(const ConfigMap& config, const Configuration& defau
     for (auto&& c : config) {
         const auto& key = c.first;
         const auto& value = c.second;
+        if (key == ov::infer_property.name())
+            continue;
 
         if (ov::template_plugin::throughput_streams == key) {
             _streamsExecutorConfig.SetConfig(CONFIG_KEY(CPU_THROUGHPUT_STREAMS), value.as<std::string>());

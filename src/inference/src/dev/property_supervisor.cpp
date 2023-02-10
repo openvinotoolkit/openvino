@@ -125,12 +125,16 @@ PropertySupervisor::PropertySupervisor() {
                 }
             }
         }
+        if (!mutability) {
+            property_names.emplace_back(METRIC_KEY(SUPPORTED_METRICS));
+            property_names.emplace_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+        }
         return flatten_supported(property_names);
     };
-    add(METRIC_KEY(SUPPORTED_METRICS), [this, get_legacy_properties] {
+    add(METRIC_KEY(SUPPORTED_METRICS), [get_legacy_properties] {
         return get_legacy_properties(false);
     });
-    add(METRIC_KEY(SUPPORTED_CONFIG_KEYS), [this, get_legacy_properties] {
+    add(METRIC_KEY(SUPPORTED_CONFIG_KEYS), [get_legacy_properties] {
         return get_legacy_properties(true);
     });
 }

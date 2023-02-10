@@ -1075,4 +1075,9 @@ static constexpr Property<Affinity> affinity{"AFFINITY"};
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::vector<std::string>, PropertyMutability::RO> execution_devices{"EXECUTION_DEVICES"};
+
+/**
+ * @brief Sub set of properties used for inference
+ */
+static constexpr NamedProperties infer_property{"INFER"};
 }  // namespace ov
