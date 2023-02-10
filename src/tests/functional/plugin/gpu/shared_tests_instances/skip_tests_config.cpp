@@ -97,7 +97,6 @@ std::vector<std::string> disabledTestPatterns() {
             // Not supported yet
             R"(.*CompileModelCacheTestBase.*ConvBias.*)",
             R"(.*CompileModelCacheTestBase.*KSOFunction.*)",
-            R"(.*CompileModelCacheTestBase.*ReadConcatSplitAssign.*)",
             R"(.*LoadNetworkCacheTestBase.*)",
             // Issue: 83014
             R"(.*smoke_RemoteBlob.*canInferOnUserQueue.*)",

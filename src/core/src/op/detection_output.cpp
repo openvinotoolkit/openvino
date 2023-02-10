@@ -97,7 +97,6 @@ void ov::op::v8::DetectionOutput::validate_and_infer_types() {
     const auto input_shapes = get_node_input_partial_shapes(*this);
     auto output_shapes = std::vector<ov::PartialShape>(1);
     shape_infer(this, input_shapes, output_shapes);
-
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
