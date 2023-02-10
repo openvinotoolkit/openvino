@@ -168,6 +168,7 @@ void parse_processor_info_linux(const int _processors,
             } else {
                 core_1 = std::stoi(system_info_table[nproc][0]);
 
+                _cpu_mapping_table[core_1][CPU_MAP_PROCESSOR_ID] = core_1;
                 _cpu_mapping_table[core_1][CPU_MAP_CORE_ID] = _cores;
                 _cpu_mapping_table[core_1][CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
                 _cpu_mapping_table[core_1][CPU_MAP_GROUP_ID] = n_group;
