@@ -272,7 +272,6 @@ public:
             const auto& pluginPath = ov::util::get_plugin_path(plugin.second);
 
             if (pluginRegistry.find(deviceName) == pluginRegistry.end() && FileUtils::fileExist(pluginPath)) {
-std::cerr << "Adding " << deviceName << " at path: " << pluginPath.c_str() << std::endl;
                 PluginDescriptor desc{pluginPath};
                 pluginRegistry[deviceName] = desc;
                 add_mutex(deviceName);
