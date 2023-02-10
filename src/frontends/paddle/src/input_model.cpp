@@ -163,7 +163,7 @@ bool read_tensor(std::istream& is, char* data, size_t len) {
     std::vector<char> dims_struct(dims_len);
     is.read(&dims_struct[0], dims_len);
     is.read(data, len);
-    if (is.gcount() != len)
+    if ((size_t)is.gcount() != len)
         return false;
     return true;
 }
@@ -365,7 +365,7 @@ void InputModel::InputModelImpl::createTempConsts() {
             var_place->set_partial_shape(tensor_ps);
 
             Shape shape(tensor_ps.size(), 0);
-            for (auto i = 0; i < tensor_ps.size(); i++) {
+            for (size_t i = 0; i < tensor_ps.size(); i++) {
                 const auto& dim = tensor_ps[i];
                 if (dim.is_static()) {
                     shape[i] = dim.get_length();
