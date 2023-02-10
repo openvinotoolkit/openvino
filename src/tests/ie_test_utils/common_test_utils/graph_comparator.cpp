@@ -807,6 +807,14 @@ void Comparator::compare_outputs(ngraph::Node* node1, ngraph::Node* node2, std::
             err_log << "Different runtime info detected at output(" << i << ")\n"
                     << name(node1) << " and " << name(node2) << " not equal runtime info." << std::endl;
         }
+
+        if (should_compare(CmpValues::CONSUMERS_COUNT)) {
+            if (node1->output(i).get_target_inputs().size() != node2->output(i).get_target_inputs().size()) {
+                err_log << "Different consumers number detected\n"
+                        << name(node1) << " Output(" << i << ") " << node1->output(i).get_target_inputs().size() << " and "
+                        << name(node2) << " Output(" << i << ") " << node2->output(i).get_target_inputs().size() << std::endl;
+            }
+        }
     }
 }
 
