@@ -704,7 +704,8 @@ mo_convert_params = {
     'example_input': ParamDescription('Sample of model input in original framework. '
                                        'For PyTorch it can be torch.Tensor.', '', '', None),
     'onnx_opset_version': ParamDescription('Version of ONNX opset that is used for converting from PyTorch to ONNX.',
-                                           '', '', None)
+                                           '', '', None),
+    'input_signature': ParamDescription('PyTorch model forward method input signature', '', '', None)
     }
 }
 

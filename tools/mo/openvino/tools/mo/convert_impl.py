@@ -671,8 +671,9 @@ def to_torch_tensor(tensor):
                     "Got {}".format(type(tensor)))
 
 
-def prepare_torch_inputs(example_inputs, input_shape):
+def prepare_torch_inputs(example_inputs, input_shape, allow_none=False):
     import torch
+    inputs = None
     if example_inputs is not None:
         inputs = example_inputs
         if isinstance(inputs, list):
@@ -698,7 +699,8 @@ def prepare_torch_inputs(example_inputs, input_shape):
             inputs.append(torch.zeros(static_shape))
         inputs = tuple(inputs)
     else:
-        raise Error("Please provide input_shape or example_input for converting PyTorch model.")
+        if not allow_none:
+            raise Error("Please provide input_shape or example_input for converting PyTorch model.")
     return inputs
 
 
@@ -744,7 +746,7 @@ def get_pytorch_decoder(model, input_shape, example_inputs):
     except Exception as e:
         print("PyTorch frontend loading failed")
         raise e
-    inputs = prepare_torch_inputs(example_inputs, input_shape)
+    inputs = prepare_torch_inputs(example_inputs, input_shape, allow_none=True)
     model.eval()
     input_signature = None
     if isinstance(model, torch.nn.Module):
@@ -752,12 +754,16 @@ def get_pytorch_decoder(model, input_shape, example_inputs):
             model.forward).parameters.keys())
         try:
             scripted = torch.jit.script(model)
-        except:
-            try:
-                scripted = torch.jit.trace(model, inputs)
-            except Exception as e:
-                print('Both traicing and scripting failed')
-                raise e
+        except Exception as scripting_err:
+            if example_inputs is not None:
+                try:
+                    scripted = torch.jit.trace(model, inputs)
+                except Exception as tracing_e:
+                    print('Both traicing and scripting failed')
+                    raise tracing_e
+            else:
+                print("Model scripting failed")
+                raise scripting_err
     else:
         scripted = model
     f_model = torch.jit.freeze(scripted)
@@ -931,7 +937,6 @@ def input_model_is_object(argv):
 
 
 def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParser):
-    ignored_params = ["example_input", "input_signature"]
     if len(args) > 0:
         args_string = params_to_string(**args)
         argv, _ = cli_parser.parse_known_args(args_dict_to_list(cli_parser, **args_string))
@@ -943,14 +948,12 @@ def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParse
 
         # check that there are no unknown params provided
         for key, value in args_string.items():
-            if key not in argv and key not in all_params.keys() and key not in ignored_params:
+            if key not in argv and key not in all_params.keys():
                 raise Error("Unrecognized argument: {}".format(key))
-            if key in ignored_params:
-                setattr(argv, key, value)
 
             # Non string params like input_model or extensions are ignored by parse_args()
             # so we need to set them in argv separately
-            if value is not None and key not in ignored_params and getattr(argv, key) != value:
+            if value is not None and getattr(argv, key, None) != value:
                 setattr(argv, key, value)
     else:
         argv = cli_parser.parse_args()

@@ -221,6 +221,13 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
 def pytorch_process_after_convert(argv, ngraph_function):
     import torch
     from openvino.frontend.pytorch.decoder import pt_to_ov_type_map
+
+    def add_tensor_name(input_desc, input_name):
+        tensor = input_desc.get_tensor()
+        input_names = tensor.names
+        input_names.update(input_name)
+        tensor.set_names(input_names)
+
     example_inputs = getattr(argv, "example_input", None)
     input_signature = getattr(argv, "input_signature", None)
     provide_shapes = argv.input_shape is not None
@@ -248,13 +255,14 @@ def pytorch_process_after_convert(argv, ngraph_function):
 
             input_tensor.get_node().set_element_type(dtype)
             if input_signature is not None:
-                tensor = input_tensor.get_tensor()
-                input_names = tensor.names
-                input_names.update(input_signature[idx])
-                tensor.set_names(input_names)
+                add_tensor_name(input_tensor, input_signature[idx])
             if not provide_shapes:
                 # prevent dynamic rank issue
                 shape = [-1] * len(input_data.shape)
                 input_tensor.get_node().set_partial_shape(PartialShape(shape))
+            
         ngraph_function.validate_nodes_and_infer_types() 
+    elif input_signature is not None:
+        for idx, input_tensor in enumerate(ngraph_function.inputs):
+            add_tensor_name(input_tensor, input_signature[idx])
     return ngraph_function
