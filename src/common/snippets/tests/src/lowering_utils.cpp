@@ -11,7 +11,7 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-DummyTargetMachine::DummyTargetMachine() {
+DummyTargetMachine::DummyTargetMachine(const std::vector<ov::Node::type_info_t>& custom_nodes) {
     auto dummy_functor = [](const std::shared_ptr<ngraph::Node>& n) {
         return std::make_shared<DummyEmitter>();
     };
@@ -41,6 +41,10 @@ DummyTargetMachine::DummyTargetMachine() {
     jitters[ngraph::snippets::op::Buffer::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::VectorBuffer::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::Fill::get_type_info_static()] = dummy_functor;
+
+    for (const auto& elem : custom_nodes) {
+        jitters[elem] = dummy_functor;
+    }
 }
 
 LoweringTests::LoweringTests() : TransformationTestsF() {
@@ -92,9 +96,11 @@ std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getSubgraph(const
 }
 
 std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getLoweredSubgraph(const std::shared_ptr<Model> &f,
-                                                                                  const ov::PartialShape& master_shape) {
+                                                                                  const ov::PartialShape& master_shape,
+                                                                                  ov::pass::Manager target_optimizations,
+                                                                                  const std::shared_ptr<ngraph::snippets::Generator> generator) {
     auto subgraph = getTokenizedSubgraph(f);
-    subgraph->set_generator(std::make_shared<DummyGenerator>());
+    subgraph->set_generator(generator == nullptr ? std::make_shared<DummyGenerator>() : generator);
     subgraph->set_master_shape(master_shape);
     const auto& body = subgraph->body_ptr();
     auto& body_rt_info = body->get_rt_info();
@@ -115,7 +121,7 @@ std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getLoweredSubgrap
     }
     body_rt_info["PluginShapesOverride"] = new_shapes;
     subgraph->set_tile_rank(2);
-    subgraph->generate();
+    subgraph->generate(target_optimizations);
     return subgraph;
 }
 
