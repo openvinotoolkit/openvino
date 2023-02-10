@@ -35,7 +35,6 @@ struct RwProperties {
             .add(ov::common_property(ov::enable_profiling), std::ref(enable_propfinling))
             .add(ov::template_plugin::throughput_streams)
             .add(ov::infer_property, _streamsExecutorConfig.properties)
-            .add(ov::inference_num_threads, std::ref(_streamsExecutorConfig._threads))
             .add(ov::hint::performance_mode, std::ref(performance_mode));
     }
     int deviceId = 0;
