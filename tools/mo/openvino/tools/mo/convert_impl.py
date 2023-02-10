@@ -747,9 +747,8 @@ def get_pytorch_decoder(model, input_shape, example_inputs):
     inputs = prepare_torch_inputs(example_inputs, input_shape, allow_none=True)
     model.eval()
     input_signature = None
-    if isinstance(model, torch.nn.Module):
-        input_signature = list(inspect.signature(
-            model.forward).parameters.keys())
+    if isinstance(model, torch.nn.Module) and not isinstance(model, torch.jit._trace.TopLevelTracedModule):
+        input_signature = list(inspect.signature(model.forward).parameters.keys())
         try:
             scripted = torch.jit.script(model)
         except Exception as scripting_err:
@@ -951,7 +950,7 @@ def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParse
 
             # Non string params like input_model or extensions are ignored by parse_args()
             # so we need to set them in argv separately
-            if value is not None and getattr(argv, key) != value:
+            if value is not None and getattr(argv, key, None) != value:
                 setattr(argv, key, value)
     else:
         argv = cli_parser.parse_args()

@@ -8,7 +8,7 @@ import numpy as np
 import openvino.runtime as ov
 import pytest
 import torch
-from openvino.runtime import PartialShape, Dimension, Model
+from openvino.runtime import PartialShape, Dimension, Model, Type
 
 from common.mo_convert_test_class import CommonMOConvertTest
 
@@ -483,6 +483,103 @@ def create_pytorch_nn_module_shapes_list_static_single_input(tmp_dir):
     return pt_model, ref_model, {'input_shape': inp_shapes, 'onnx_opset_version': 11, "use_legacy_frontend": True}
 
 
+def create_pytorch_nn_module_convert_pytorch_frontend1(tmp_dir):
+    pt_model = make_pt_model_one_input()
+    shape = [-1, -1, -1, -1]
+    shape = PartialShape(shape)
+    param = ov.opset10.parameter(shape)
+    relu = ov.opset10.relu(param)
+    sigm = ov.opset10.sigmoid(relu)
+
+    parameter_list = [param]
+    ref_model = Model([sigm], parameter_list, "test")
+    return pt_model, ref_model, {"example_input": torch.zeros((1, 3, 10, 10))}
+
+
+def create_pytorch_nn_module_convert_pytorch_frontend2(tmp_dir):
+    pt_model = make_pt_model_one_input()
+    shape = [-1, -1, -1, -1]
+    shape = PartialShape(shape)
+    param = ov.opset10.parameter(shape)
+    relu = ov.opset10.relu(param)
+    sigm = ov.opset10.sigmoid(relu)
+
+    parameter_list = [param]
+    ref_model = Model([sigm], parameter_list, "test")
+    ref_model.input(0).get_node().set_element_type(Type.i32)
+    ref_model.validate_nodes_and_infer_types()
+    return pt_model, ref_model, {"example_input": torch.zeros((1, 3, 10, 10), dtype=torch.int32)}
+
+
+def create_pytorch_nn_module_convert_pytorch_frontend3(tmp_dir):
+    pt_model = make_pt_model_two_inputs()
+    shape = [-1, -1, -1, -1]
+    shape = PartialShape(shape)
+    param1 = ov.opset10.parameter(shape)
+    param2 = ov.opset10.parameter(shape)
+    param2_convert = ov.opset10.convert_like(param2, param1)
+    add = ov.opset10.add(param1, param2_convert)
+    relu = ov.opset10.relu(add)
+    sigm = ov.opset10.sigmoid(relu)
+
+    parameter_list = [param1, param2]
+    ref_model = Model([sigm], parameter_list, "test")
+    return pt_model, ref_model, {"example_input": [torch.zeros((1, 3, 10, 10)), torch.ones((1, 3, 10, 10))]}
+
+
+def create_pytorch_nn_module_convert_pytorch_frontend4(tmp_dir):
+    pt_model = make_pt_model_two_inputs()
+    shape = [-1, -1, -1, -1]
+    shape = PartialShape(shape)
+    param1 = ov.opset10.parameter(shape)
+    param2 = ov.opset10.parameter(shape)
+    param2_convert = ov.opset10.convert_like(param2, param1)
+    add = ov.opset10.add(param1, param2_convert)
+    relu = ov.opset10.relu(add)
+    sigm = ov.opset10.sigmoid(relu)
+
+    parameter_list = [param1, param2]
+    ref_model = Model([sigm], parameter_list, "test")
+    return pt_model, ref_model, {"example_input": {"x": torch.zeros((1, 3, 10, 10)), "y": torch.ones((1, 3, 10, 10))}}
+
+
+def create_pytorch_jit_script_module_convert_pytorch_frontend(tmp_dir):
+    import torch
+
+    net = make_pt_model_two_inputs()
+    scripted_model = torch.jit.script(net)
+    shape = [-1, -1, -1, -1]
+    shape = PartialShape(shape)
+    param1 = ov.opset10.parameter(shape)
+    param2 = ov.opset10.parameter(shape)
+    param2_convert = ov.opset10.convert_like(param2, param1)
+    add = ov.opset10.add(param1, param2_convert)
+    relu = ov.opset10.relu(add)
+    sigm = ov.opset10.sigmoid(relu)
+    parameter_list = [param1, param2]
+    ref_model = Model([sigm], parameter_list, "test")
+    return scripted_model, ref_model,  {"example_input": {"x": torch.zeros((1, 3, 10, 10)), "y": torch.ones((1, 3, 10, 10))}}
+
+
+def create_pytorch_jit_trace_module_convert_pytorch_frontend(tmp_dir):
+    import torch
+
+    net = make_pt_model_two_inputs()
+    example_input = [torch.zeros((1, 3, 10, 10)), torch.ones((1, 3, 10, 10))]
+    scripted_model = torch.jit.trace(net, example_input)
+    shape = [-1, -1, -1, -1]
+    shape = PartialShape(shape)
+    param1 = ov.opset10.parameter(shape)
+    param2 = ov.opset10.parameter(shape)
+    param2_convert = ov.opset10.convert_like(param2, param1)
+    add = ov.opset10.add(param1, param2_convert)
+    relu = ov.opset10.relu(add)
+    sigm = ov.opset10.sigmoid(relu)
+    parameter_list = [param1, param2]
+    ref_model = Model([sigm], parameter_list, "test")
+    return scripted_model, ref_model,  {"example_input": example_input}
+
+
 class TestMoConvertPyTorch(CommonMOConvertTest):
     test_data = [
         create_pytorch_nn_module_case1,
@@ -514,7 +611,13 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         create_pytorch_nn_module_shapes_list_static,
         create_pytorch_nn_module_shapes_list_dynamic,
         create_pytorch_nn_module_shapes_list_dynamic_single_input,
-        create_pytorch_nn_module_shapes_list_static_single_input
+        create_pytorch_nn_module_shapes_list_static_single_input,
+        create_pytorch_nn_module_convert_pytorch_frontend1,
+        create_pytorch_nn_module_convert_pytorch_frontend2,
+        create_pytorch_nn_module_convert_pytorch_frontend3,
+        create_pytorch_nn_module_convert_pytorch_frontend4,
+        create_pytorch_jit_script_module_convert_pytorch_frontend,
+        create_pytorch_jit_trace_module_convert_pytorch_frontend
     ]
 
     @pytest.mark.parametrize("create_model", test_data)
