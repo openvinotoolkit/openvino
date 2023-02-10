@@ -24,15 +24,11 @@ OutputVector translate_loop(NodeContext& context) {
 
     auto body_parameters = body->get_parameters();
     // #0 parameter is counter
-<<<<<<< Updated upstream
-    for (size_t i = 1; i < body_parameters.size(); i++) {
-=======
-    for (int i = 2; i < inputs.size(); i++) {
+    for (size_t i = 2; i < inputs.size(); i++) {
         loop->set_invariant_inputs(inputs[i], {body_parameters[i - 1]});
     }
     // Connect extra inputs
-    for (int i = inputs.size() - 1; i < body_parameters.size(); i++) {
->>>>>>> Stashed changes
+    for (auto i = inputs.size() - 1; i < body_parameters.size(); i++) {
         auto param = body_parameters[i];
         auto name = param->get_output_tensor(0).get_any_name();
         size_t input_idx = (size_t)std::stoll(name);
