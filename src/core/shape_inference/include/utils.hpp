@@ -10,7 +10,7 @@
 
 #include "bound_evaluation_util.hpp"
 #include "shape_infer_type_utils.hpp"
-#include "tensor_accessor.hpp"
+#include "tensor_data_accessor.hpp"
 
 template <class OpType, class T>
 void copy_shape_infer(const OpType* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
@@ -239,7 +239,7 @@ template <class TShape,
           typename std::enable_if<!std::is_same<TShape, ov::PartialShape>::value>::type* = nullptr>
 std::unique_ptr<TRes> get_input_const_data_as(const ov::Node* op,
                                               size_t idx,
-                                              get_tensor_func_t get_tensor,
+                                              tensor_data_accessor_func_t get_tensor,
                                               UnaryOperation&& func = ov::util::Cast<TData>()) {
     if (auto t = get_tensor(idx)) {
         return std::unique_ptr<TRes>(new TRes(get_tensor_data_as<TData, TRes>(*t, std::forward<UnaryOperation>(func))));
@@ -280,7 +280,7 @@ template <class TShape,
           typename std::enable_if<std::is_same<TShape, ov::PartialShape>::value>::type* = nullptr>
 std::unique_ptr<TRes> get_input_const_data_as(const ov::Node* op,
                                               size_t idx,
-                                              get_tensor_func_t get_tensor,
+                                              tensor_data_accessor_func_t get_tensor,
                                               UnaryOperation&& func = ov::util::Cast<TData>()) {
     if (auto t = get_tensor(idx)) {
         return std::unique_ptr<TRes>(new TRes(get_tensor_data_as<TData, TRes>(*t, std::forward<UnaryOperation>(func))));
@@ -318,7 +318,7 @@ template <class TShape,
           class UnaryOperation = ov::util::InTypeRange<TDimValue>>
 std::unique_ptr<TShape> get_input_const_data_as_shape(const ov::Node* op,
                                                       size_t idx,
-                                                      get_tensor_func_t get_tensor,
+                                                      tensor_data_accessor_func_t get_tensor,
                                                       UnaryOperation&& func = ov::util::InTypeRange<TDimValue>()) {
     if (auto s = get_input_const_data_as<TShape, TDimValue, TShape>(op,
                                                                     idx,

@@ -14,9 +14,17 @@
 
 namespace cldnn {
 
-class DataAdapter : public ov::ITensorDataAdapter {
+/**
+ * @brief cldnn Memory adapter to access its data as Tensor.
+ *
+ * This adapter takes data ownership by store the memory lock and release when object will be destroyed.
+ *
+ * @note This is example how to use it with tensor data accessor function instead creating a map.
+ * Make it more generic for GPU plugin.
+ */
+class MemoryAdapter : public ov::ITensorDataAdapter {
 public:
-    DataAdapter(cldnn::memory::ptr ptr, const cldnn::stream& stream) : m_ptr{ptr}, m_ptr_lock{ptr, stream} {}
+    MemoryAdapter(cldnn::memory::ptr ptr, const cldnn::stream& stream) : m_ptr{ptr}, m_ptr_lock{ptr, stream} {}
 
     ov::element::Type_t get_element_type() const override {
         return data_type_to_element_type(m_ptr->get_layout().data_type);
@@ -31,8 +39,8 @@ public:
     }
 
 private:
-    cldnn::memory::ptr m_ptr;
-    cldnn::mem_lock<uint8_t, mem_lock_type::read> m_ptr_lock;
+    cldnn::memory::ptr m_ptr;                                  //!< Pointer to cldnn::memory.
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> m_ptr_lock;  //!< Store cldnn memory lock.
 };
 
 GPU_DEFINE_PRIMITIVE_TYPE_ID(tile)
@@ -73,19 +81,20 @@ std::vector<layout> tile_inst::calc_output_layouts(tile_node const& /*node*/, co
     };
 
     auto repeats_data = desc->repeats;
-    auto get_tensor_data = [&impl_param, &repeats_data](size_t i) -> ov::ITensorDataAdapterPtr {
+    // Example of lambda to access plugin data during shape inference.
+    auto get_memory_as_tensor = [&impl_param, &repeats_data](size_t i) -> ov::ITensorDataAdapter::UPtr {
         const auto mem_it = impl_param.memory_deps.find(i);
         if (mem_it != impl_param.memory_deps.cend()) {
-            return std::unique_ptr<DataAdapter>(new DataAdapter{mem_it->second, impl_param.prog->get_stream()});
+            return std::unique_ptr<MemoryAdapter>(new MemoryAdapter{mem_it->second, impl_param.prog->get_stream()});
         } else if (i == 1) {
             return std::unique_ptr<ov::ContainerDataAdapter<std::vector<int64_t>>>(
-                new ov::ContainerDataAdapter<std::vector<int64_t>>{repeats_data});
+                new ov::ContainerDataAdapter<std::vector<int64_t>>{&repeats_data});
         } else {
             return nullptr;
         }
     };
 
-    std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes, get_tensor_data);
+    std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes, get_memory_as_tensor);
 
     format output_format = format::adjust_to_rank(input0_layout.format, output_shapes[0].size());
 
