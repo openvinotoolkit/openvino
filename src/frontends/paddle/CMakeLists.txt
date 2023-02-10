@@ -3,7 +3,7 @@
 #
 
 if(CMAKE_COMPILER_IS_GNUCXX)
-    ie_add_compiler_flags(-Wno-sign-compare)
+    ie_add_compiler_flags(-Wsign-compare)
 endif()
 
 add_subdirectory(src)
