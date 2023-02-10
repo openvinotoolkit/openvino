@@ -25,7 +25,7 @@ equals to <xml,dot,svg>
 * xml (default)\
 IR in .xml file. Can be opened using, for example, *netron* app. (For now the option is Linux only)
 * xmlbin\
-IR in .xml and .bin files. Can be opened using, for example, *netron* app.
+IR in .xml and .bin files. Can be opened using, for example, *netron* app. Also can be read using OV API
 * dot\
 IR in .dot file (.svg.dot file if svg is also specified). Can be inspected using, for example, *graphviz* tools.
 * svg\
