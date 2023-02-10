@@ -171,8 +171,8 @@ bool CanPropagateGatherForwardThrough(Node* node) {
 #undef CHECK_GATHER_SINKING_SUPPORTED
 
 bool CanGatherPropagateForward(NodePtr node) {
-    for (size_t i = 0; i < node->get_output_size(); ++i) {
-        for (auto& consumer_input : node->output(i).get_target_inputs()) {
+    for (auto output : node->outputs()) {
+        for (auto& consumer_input : output.get_target_inputs()) {
             if (!CanPropagateGatherForwardThrough(consumer_input.get_node()))
                 return false;
         }
