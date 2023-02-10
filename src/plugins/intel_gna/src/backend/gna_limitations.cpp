@@ -516,7 +516,7 @@ static bool ValidateConcatAxis(const InferenceEngine::CNNLayerPtr layer, std::st
 
                     IE_ASSERT(prev_layer);
 
-                    if (LayerInfo(prev_layer).isInput() && prev_layer->outData[0]->getDims()[0] == 1 ||
+                    if ((LayerInfo(prev_layer).isInput() && prev_layer->outData[0]->getDims()[0] == 1) ||
                         LayerInfo(prev_layer).isConst()) {
                         continue;
                     } else if ((LayerInfo(prev_layer).isInput() && prev_layer->outData[0]->getDims()[0] != 1)) {

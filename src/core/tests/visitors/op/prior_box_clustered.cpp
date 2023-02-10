@@ -52,14 +52,14 @@ TEST(attributes, prior_box_clustered_op2) {
     const auto image_shape = make_shared<op::Parameter>(element::i64, Shape{300, 300});
 
     op::PriorBoxClusteredAttrs attrs;
-    attrs.heights = {44.0f, 10.0f, 30.0f, 19.0f, 94.0f, 32.0f, 61.0f, 53.0f, 17.0};
-    attrs.widths = {86.0f, 13.0f, 57.0f, 39.0f, 68.0f, 34.0f, 142.0f, 50.0f, 23.0};
+    attrs.heights = {44.0f, 10.0f, 30.0f, 19.0f, 94.0f, 32.0f, 61.0f, 53.0f, 17.0f};
+    attrs.widths = {86.0f, 13.0f, 57.0f, 39.0f, 68.0f, 34.0f, 142.0f, 50.0f, 23.0f};
     attrs.clip = false;
     attrs.step_widths = 0.0f;
     attrs.step_heights = 0.0f;
     attrs.step = 16.0f;
     attrs.offset = 0.5f;
-    attrs.variances = {0.1f, 0.1f, 0.2f, 0.2};
+    attrs.variances = {0.1f, 0.1f, 0.2f, 0.2f};
 
     auto pbc = make_shared<opset1::PriorBoxClustered>(layer_shape, image_shape, attrs);
     NodeBuilder builder(pbc, {layer_shape, image_shape});
