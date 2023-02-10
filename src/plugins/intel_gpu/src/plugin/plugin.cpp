@@ -423,7 +423,7 @@ auto StringRightTrim = [](std::string string, std::string substring, bool case_s
 Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::GetMetric");
     GPU_DEBUG_GET_INSTANCE(debug_config);
-    std::string device_id = GetConfig(ov::device::id.name(), options);
+    std::string device_id = GetConfig(ov::device::id.name(), options)->as<std::string>();
 
     auto iter = device_map.find(std::to_string(cldnn::device_query::device_id));
     if (iter == device_map.end())
@@ -614,7 +614,7 @@ std::vector<std::string> Plugin::get_device_capabilities(const cldnn::device_inf
 
 uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& options) const {
     GPU_DEBUG_GET_INSTANCE(debug_config);
-    std::string device_id = GetConfig(ov::device::id.name(), options);
+    std::string device_id = GetConfig(ov::device::id.name(), options)->as<std::string>();
     auto context = m_default_contexts.at(device_id)->get_impl();
     const auto& device_info = context->get_engine().get_device_info();
     const auto& config = m_configs_map.at(device_id);
@@ -764,7 +764,7 @@ uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& opti
 }
 
 uint32_t Plugin::get_optimal_batch_size(const std::map<std::string, Parameter>& options) const {
-    std::string device_id = GetConfig(ov::device::id.name(), options);
+    std::string device_id = GetConfig(ov::device::id.name(), options)->as<std::string>();
     auto context = m_default_contexts.at(device_id)->get_impl();
     const auto& device_info = context->get_engine().get_device_info();
     auto next_pow_of_2 = [] (float x) {
