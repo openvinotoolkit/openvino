@@ -625,11 +625,12 @@ public:
 
         int test_sockets = 0;
         int test_cores = 0;
+        unsigned long len = unsigned long(test_len / 2);
         std::vector<std::vector<int>> test_proc_type_table;
         std::vector<std::vector<int>> test_cpu_mapping_table;
 
         parse_processor_info_win(test_info_ptr,
-                                 test_len / 2,
+                                 len,
                                  test_data._processors,
                                  test_sockets,
                                  test_cores,
