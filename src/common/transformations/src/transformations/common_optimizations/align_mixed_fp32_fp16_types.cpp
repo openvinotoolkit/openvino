@@ -77,5 +77,5 @@ bool ov::pass::AlignMixedFP32FP16Types::run_on_model(const std::shared_ptr<ov::M
         is_changed |= insert_converts_after_if_needed(node);
     }
 
-    return true;
+    return is_changed;
 }
