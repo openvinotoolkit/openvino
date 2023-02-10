@@ -42,6 +42,8 @@ public:
         return params;
     }
 
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+
 private:
     bool transposed;
     uint32_t groups;

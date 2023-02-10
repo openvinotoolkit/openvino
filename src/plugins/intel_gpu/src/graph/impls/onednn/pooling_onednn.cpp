@@ -87,7 +87,16 @@ public:
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::save(ob);
 
-        ob << make_data(&_desc->data, sizeof(dnnl_pooling_desc_t));
+        const dnnl::pooling_forward::primitive_desc *typed_pd
+            = reinterpret_cast<const dnnl::pooling_forward::primitive_desc *>(&_pd);
+
+        dnnl::algorithm alg = typed_pd->get_algorithm();
+        ob << make_data(&alg, sizeof(dnnl::algorithm));
+        ob << typed_pd->get_strides();
+        ob << typed_pd->get_kernel();
+        ob << typed_pd->get_dilations();
+        ob << typed_pd->get_padding_l();
+        ob << typed_pd->get_padding_r();
 
         std::vector<uint8_t> prim_cache;
         prim_cache = _prim.get_cache_blob();
@@ -99,16 +108,42 @@ public:
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::load(ib);
 
-        const char dummy_mem[sizeof(dnnl::pooling_forward::desc)] = {};
-        const dnnl::pooling_forward::desc *dummy_opdesc
-            = reinterpret_cast<const dnnl::pooling_forward::desc *>(&dummy_mem[0]);
-        _desc = std::make_shared<dnnl::pooling_forward::desc>(std::move(*dummy_opdesc));
-        ib >> make_data(&_desc->data, sizeof(dnnl_pooling_desc_t));
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernlImplParams());
+
+        dnnl::algorithm alg;
+        ib >> make_data(&alg, sizeof(dnnl::algorithm));
+
+        auto input_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(0));
+        auto output_md = onednn::layout_to_memory_desc(impl_params->get_output_layout());
+
+        dnnl::memory::dims stride;
+        dnnl::memory::dims kernel;
+        dnnl::memory::dims dilation;
+        dnnl::memory::dims pad_l;
+        dnnl::memory::dims pad_r;
+        ib >> stride;
+        ib >> kernel;
+        ib >> dilation;
+        ib >> pad_l;
+        ib >> pad_r;
+
+        auto prim_desc = std::make_shared<dnnl::pooling_forward::primitive_desc>(
+            ib.get_engine().get_onednn_engine(),
+            dnnl::prop_kind::forward_inference,
+            alg,
+            input_md,
+            output_md,
+            stride,
+            kernel,
+            dilation,
+            pad_l,
+            pad_r,
+            *_attrs.get());
+        _pd = *prim_desc;
 
         std::vector<uint8_t> prim_cache;
         ib >> prim_cache;
 
-        _pd = dnnl::primitive_desc(&_desc->data, _attrs.get(), ib.get_engine().get_onednn_engine(), nullptr);
         _prim = dnnl::primitive(_pd, prim_cache);
 #endif
     }

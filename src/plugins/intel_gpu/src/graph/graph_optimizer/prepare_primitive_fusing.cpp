@@ -911,7 +911,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 return;
 
             std::vector<std::pair<program_node*, int32_t>> parents = node.get_dependencies();
-            std::list<cldnn::program_node*> users = node.get_users();
 
             std::vector<bool> can_fuse_parents = { false, false };
 

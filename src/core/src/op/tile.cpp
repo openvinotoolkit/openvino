@@ -4,9 +4,9 @@
 
 #include "ngraph/op/tile.hpp"
 
-#include <ngraph/validation_util.hpp>
 #include <tile_shape_inference.hpp>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/reference/tile.hpp"
@@ -110,13 +110,13 @@ bool op::v0::Tile::evaluate(const HostTensorVector& outputs, const HostTensorVec
     return evaluate_tile(outputs, inputs);
 }
 
-bool op::v0::Tile::evaluate_lower(const HostTensorVector& output_values) const {
+bool op::v0::Tile::evaluate_lower(ov::TensorVector& output_values) const {
     OV_OP_SCOPE(v0_Tile_evaluate_lower);
 
     return get_input_tensor(1).has_and_set_bound() && default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v0::Tile::evaluate_upper(const HostTensorVector& output_values) const {
+bool op::v0::Tile::evaluate_upper(ov::TensorVector& output_values) const {
     OV_OP_SCOPE(v0_Tile_evaluate_upper);
 
     return get_input_tensor(1).has_and_set_bound() && default_upper_bound_evaluator(this, output_values);

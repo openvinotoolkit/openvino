@@ -81,7 +81,7 @@ TEST_P(GNALayersLimit30Test, CompareWithRefs) {
     Run();
 }
 
-std::map<std::string, std::string> common_config{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"},  {"GNA_COMPACT_MODE", "NO"}};
+std::map<std::string, std::string> common_config{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_COMPACT_MODE", "NO"}};
 
 std::vector<std::map<std::string, std::string>> configs_20{{{"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}},
                                                            {{"GNA_COMPILE_TARGET", "GNA_TARGET_2_0"}}};
@@ -94,20 +94,19 @@ std::vector<size_t> layer_limits_20{64, 4096, 4160};
 // for GNA v3.0 limit is 8191
 std::vector<size_t> layer_limits_30{64, 8192, 8200};
 
+INSTANTIATE_TEST_SUITE_P(smoke_GNALimits,
+                         GNALayersLimit20Test,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(common_config),
+                                            ::testing::ValuesIn(configs_20),
+                                            ::testing::ValuesIn(layer_limits_20)),
+                         GNALayersLimitTest::getTestCaseName);
 
- INSTANTIATE_TEST_SUITE_P(smoke_GNALimits,
-                          GNALayersLimit20Test,
-                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                             ::testing::Values(common_config),
-                                             ::testing::ValuesIn(configs_20),
-                                             ::testing::ValuesIn(layer_limits_20)),
-                          GNALayersLimitTest::getTestCaseName);
-
- INSTANTIATE_TEST_SUITE_P(smoke_GNALimits,
-                          GNALayersLimit30Test,
-                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                             ::testing::Values(common_config),
-                                             ::testing::ValuesIn(configs_30),
-                                             ::testing::ValuesIn(layer_limits_30)),
-                          GNALayersLimitTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GNALimits,
+                         GNALayersLimit30Test,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(common_config),
+                                            ::testing::ValuesIn(configs_30),
+                                            ::testing::ValuesIn(layer_limits_30)),
+                         GNALayersLimitTest::getTestCaseName);
 }  // namespace LayerTestsDefinitions

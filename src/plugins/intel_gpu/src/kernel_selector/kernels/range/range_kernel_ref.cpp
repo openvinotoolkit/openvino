@@ -67,6 +67,7 @@ ParamsKey RangeKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F32);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableDifferentTypes();
     return k;
 }
 

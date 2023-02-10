@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <memory>
-
 #include <ie_api.h>
+
+#include <memory>
 
 #include "ngraph/op/op.hpp"
 
@@ -17,9 +17,7 @@ class SeluIE : public Op {
 public:
     OPENVINO_OP("SeluIE", "legacy");
 
-    SeluIE(const Output<Node> & input,
-           const float alpha,
-           const float gamma);
+    SeluIE(const Output<Node>& input, const float alpha, const float gamma);
 
     void validate_and_infer_types() override;
 

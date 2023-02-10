@@ -27,7 +27,7 @@ TEST_F(SubgraphSnippetSerializationTest, SerializeSubgraph) {
         auto ininput1 = std::make_shared<Parameter>(ov::element::f32, shape);
         auto add = std::make_shared<Add>(ininput0, ininput1);
         auto subgraph_body = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{ininput0, ininput1});
-        auto subgraph = std::make_shared<ngraph::snippets::op::Subgraph>(ov::NodeVector{input0, input1}, ov::clone_model(*subgraph_body.get()));
+        auto subgraph = std::make_shared<ngraph::snippets::op::Subgraph>(ov::NodeVector{input0, input1}, subgraph_body.get()->clone());
         return std::make_shared<ov::Model>(ov::NodeVector{subgraph}, ov::ParameterVector{input0, input1});
     })();
     ov::Core core;
@@ -54,8 +54,8 @@ TEST_F(SubgraphSnippetSerializationTest, SerializeSubgraph) {
     auto imported_out_val = std::vector<float>(imported_out_p, imported_out_p + imported_out.get_size());
     ASSERT_EQ(out_val, imported_out_val);
 
-    auto compiled_model_runtime = ov::clone_model(*compiled_model.get_runtime_model());
-    auto imported_compiled_model_runtime = ov::clone_model(*imported_compiled_model.get_runtime_model());
+    auto compiled_model_runtime = compiled_model.get_runtime_model()->clone();
+    auto imported_compiled_model_runtime = imported_compiled_model.get_runtime_model()->clone();
     const auto fc = FunctionsComparator::with_default()
                                 .enable(FunctionsComparator::CONST_VALUES)
                                 .enable(FunctionsComparator::ATTRIBUTES);
@@ -75,7 +75,7 @@ TEST_F(SubgraphSnippetSerializationTest, SerializeSubgraphWithScalarConst) {
         auto add = std::make_shared<Add>(input, constant);
         auto internal_add = std::make_shared<Add>(internal_input, internal_constant);
         auto subgraph_body = std::make_shared<ov::Model>(ov::NodeVector{internal_add}, ov::ParameterVector{internal_input});
-        auto subgraph = std::make_shared<ngraph::snippets::op::Subgraph>(ov::NodeVector{add}, ov::clone_model(*subgraph_body.get()));
+        auto subgraph = std::make_shared<ngraph::snippets::op::Subgraph>(ov::NodeVector{add}, subgraph_body.get()->clone());
         return std::make_shared<ov::Model>(ov::NodeVector{subgraph}, ov::ParameterVector{input});
     })();
     ov::Core core;
@@ -99,8 +99,8 @@ TEST_F(SubgraphSnippetSerializationTest, SerializeSubgraphWithScalarConst) {
     auto imported_out_val = std::vector<float>(imported_out_p, imported_out_p + imported_out.get_size());
     ASSERT_EQ(out_val, imported_out_val);
 
-    auto compiled_model_runtime = ov::clone_model(*compiled_model.get_runtime_model());
-    auto imported_compiled_model_runtime = ov::clone_model(*imported_compiled_model.get_runtime_model());
+    auto compiled_model_runtime = compiled_model.get_runtime_model()->clone();
+    auto imported_compiled_model_runtime = imported_compiled_model.get_runtime_model()->clone();
     const auto fc = FunctionsComparator::with_default()
                                 .enable(FunctionsComparator::CONST_VALUES)
                                 .enable(FunctionsComparator::ATTRIBUTES);
@@ -137,8 +137,8 @@ TEST_F(SubgraphSnippetSerializationTest, SerializeSubgraphWithResultAs1stOutput)
     compiled_model.export_model(stream);
     ov::CompiledModel imported_compiled_model = core.import_model(stream, "CPU");
 
-    auto compiled_model_runtime = ov::clone_model(*compiled_model.get_runtime_model());
-    auto imported_compiled_model_runtime = ov::clone_model(*imported_compiled_model.get_runtime_model());
+    auto compiled_model_runtime = compiled_model.get_runtime_model()->clone();
+    auto imported_compiled_model_runtime = imported_compiled_model.get_runtime_model()->clone();
     const auto fc = FunctionsComparator::with_default()
                                 .enable(FunctionsComparator::CONST_VALUES)
                                 .enable(FunctionsComparator::ATTRIBUTES);

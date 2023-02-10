@@ -4,20 +4,20 @@
 
 #pragma once
 
-#include <vector>
-#include <utility>
-#include <string>
-#include <type_traits>
-
 #include <legacy/details/ie_cnn_network_tools.h>
 
+#include <string>
+#include <type_traits>
+#include <utility>
+#include <vector>
+
+#include "descriptions/gna_desc.hpp"
 #include "gna_graph_tools.hpp"
+#include "gna_itt.hpp"
 #include "gna_plugin_config.hpp"
 #include "layer_quantizer.hpp"
 #include "scale_factor_calc.hpp"
 #include "weights_converter.hpp"
-#include "gna_itt.hpp"
-#include "descriptions/gna_desc.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -58,7 +58,7 @@ public:
 
         // Filling scale factors for input layers, memory layers will have scale factor of 1.0 by default
         InferenceEngine::InputsDataMap dm = copied_net.getInputsInfo();
-        for (auto &&inputData : dm) {
+        for (auto&& inputData : dm) {
             auto input_layer = getCreatorLayer(inputData.second->getInputData()).lock();
             auto quant_data = InferenceEngine::getInjectedData<frontend::QuantizedLayerParams>(input_layer);
             IE_ASSERT(quant_data != nullptr);
@@ -69,14 +69,14 @@ public:
         propagateScaleFactor(sorted_new_net);
         frontend::LayerQuantizer lq(gna_config);
 
-        for (auto &&layer : sorted_new_net) {
+        for (auto&& layer : sorted_new_net) {
             lq.quantize(*layer);
         }
 
         return copied_net;
     }
 
- private :
+private:
     void propagateScaleFactor(std::vector<InferenceEngine::CNNLayerPtr>& net) const {
         ScaleFactorCalculator sf(net, gna_config, fake_quantized);
         uint32_t inf_loop_count = 0;
@@ -85,7 +85,7 @@ public:
         while (!sf.allLayersProcessed() && inf_loop_count <= 2) {
             auto layers = sf.getStartLayers();
             inf_loop_history.emplace_back(layers.front()->name);
-            for (auto &&layer : layers) {
+            for (auto&& layer : layers) {
                 sf.CalculateScaleFactor(layer);
                 // transforming until we reached cases where output scale updated due to situation in downstream layer
                 if (sf.needToRestart()) {
@@ -121,9 +121,12 @@ public:
                 if ((inf_loop_history.size() - i) % 2 == 0 &&
                     (inf_loop_history.size() - i) / 2 == inf_loop_history.size() - k &&
                     ((inf_loop_history.size() - i) / 2 > 1 ||
-                        std::distance(inf_loop_history.rbegin(),
-                            std::find_if_not(inf_loop_history.rbegin(), inf_loop_history.rend(),
-                                [&inf_loop_history](const std::string& str) { return str == inf_loop_history.back(); })) > 3)) {
+                     std::distance(inf_loop_history.rbegin(),
+                                   std::find_if_not(inf_loop_history.rbegin(),
+                                                    inf_loop_history.rend(),
+                                                    [&inf_loop_history](const std::string& str) {
+                                                        return str == inf_loop_history.back();
+                                                    })) > 3)) {
                     log::debug() << "inf_loop_pattern:\n";
                     for (const auto& s : inf_loop_pattern) {
                         log::debug() << "\t " << s << '\n';
@@ -150,9 +153,10 @@ public:
                 inf_loop_count++;
             } else {
                 if (inf_loop_count > 0 &&
-                    (inf_loop_history.size()%inf_loop_pattern.size() == 0 || sf.allLayersProcessed()) &&
+                    (inf_loop_history.size() % inf_loop_pattern.size() == 0 || sf.allLayersProcessed()) &&
                     !std::equal(inf_loop_history.begin() + (inf_loop_history.size() - inf_loop_pattern.size()),
-                        inf_loop_history.end(), inf_loop_pattern.begin())) {
+                                inf_loop_history.end(),
+                                inf_loop_pattern.begin())) {
                     inf_loop_count = 0;
                     inf_loop_pattern.clear();
                     log::debug() << "infinite loop fixed\n";
