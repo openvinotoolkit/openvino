@@ -56,9 +56,16 @@ Output<ov::Node> reshape_channelwise(const NodeContext& context, Output<ov::Node
     return context.mark_node(std::make_shared<opset10::Reshape>(data, new_shape, false));
 }
 
-std::shared_ptr<Node> get_rank_node(const Output<Node>& node) {
-    auto shape = std::make_shared<opset10::ShapeOf>(node);
-    return std::make_shared<opset10::ShapeOf>(shape);
+std::tuple<Output<Node>, Output<Node>> get_shape_rank(const NodeContext& context,
+                                                      const Output<Node>& x,
+                                                      bool as_scalar,
+                                                      element::Type output_type) {
+    auto shape = context.mark_node(std::make_shared<opset10::ShapeOf>(x, output_type));
+    Output<Node> rank = context.mark_node(std::make_shared<opset10::ShapeOf>(shape, output_type));
+    if (as_scalar) {
+        rank = context.mark_node(std::make_shared<opset10::Squeeze>(rank));
+    }
+    return std::make_tuple(shape, rank);
 }
 
 Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<Node>& kernel, int64_t groups) {
