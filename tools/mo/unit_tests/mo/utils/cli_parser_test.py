@@ -1155,7 +1155,7 @@ class TestModelNameParsing(unittest.TestCase):
         exp_res = 'model'
         self.assertEqual(exp_res, res)
 
-    @patch("openvino.tools.mo.utils.cli_parser.os")
+    @patch("openvino.tools.mo_lite.utils.cli_parser.os")
     def test_model_name_win(self, old_os):
         old_os.path.basename.return_value = "caffemodel"
         old_os.path.splitext.return_value = ("caffemodel", "")

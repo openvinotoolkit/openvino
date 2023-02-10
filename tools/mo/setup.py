@@ -62,13 +62,9 @@ class BuildCmd(build_py):
             for (pkg, module, filename) in modules
         ]
 
-lite_packages = find_namespace_packages(prefix[:-1])
-lite_packages = [prefix.replace('/', '.') + p for p in lite_packages]
+packages = find_namespace_packages(prefix[:-1])
+packages = [prefix.replace('/', '.') + p for p in packages]
 
-dev_packages = find_namespace_packages(prefix[:-6])
-dev_packages = [prefix[:-6].replace('/', '.') + '.' + p for p in dev_packages]
-
-packages = lite_packages + dev_packages
 
 setup(
     name='openvino-mo',

@@ -21,7 +21,7 @@ def create_tf_model():
     return tf_net
 
 def run_main():
-    from openvino.tools.mo import convert_model
+    from openvino.tools.mo_lite import convert_model
 
     log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 

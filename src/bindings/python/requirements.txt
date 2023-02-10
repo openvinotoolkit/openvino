@@ -1,1 +1,2 @@
 numpy>=1.16.6
+openvino-telemetry>=2022.1.0
