@@ -65,7 +65,7 @@ inline ov::TensorVector convert_hosttensors_2_tensors(const HostTensorVector& ho
         if (hosttensor->get_element_type().is_dynamic()) {
             tensor = ov::Tensor();
         } else if (hosttensor->get_partial_shape().is_dynamic()) {
-            tensor = ov::Tensor(hosttensor->get_element_type(), {0, std::numeric_limits<size_t>::max()});
+            tensor = ov::Tensor(hosttensor->get_element_type(), {0});
         } else {
             tensor = ov::Tensor(hosttensor->get_element_type(), hosttensor->get_shape());
             if (copy_data) {
