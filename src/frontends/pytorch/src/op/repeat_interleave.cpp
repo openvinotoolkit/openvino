@@ -14,7 +14,7 @@ namespace op {
 namespace {
 OutputVector generate_indices_from_repeats_tensor(std::vector<int32_t> repeats, NodeContext& context) {
     OutputVector all_indices;
-    for (int i = 0; i < repeats.size(); i++) {
+    for (size_t i = 0; i < repeats.size(); i++) {
         Shape indices_shape{static_cast<size_t>(repeats.at(i))};
         std::vector<int32_t> indices_vec(repeats.at(i), i);
         auto indices = context.mark_node(opset10::Constant::create(element::i32, indices_shape, indices_vec));

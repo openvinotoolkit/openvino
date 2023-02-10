@@ -574,7 +574,7 @@ void InterpolateEval<T>::nearest_func(const T* input_data, T* out) {
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
-static void pad_input_data(const uint8_t* data_ptr,
+inline void pad_input_data(const uint8_t* data_ptr,
                            uint8_t* padded_data_ptr,
                            size_t type_size,
                            const ov::Shape& input_shape,
@@ -598,7 +598,7 @@ static void pad_input_data(const uint8_t* data_ptr,
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
-static PartialShape get_padded_input_shape(const PartialShape& input_shape,
+inline PartialShape get_padded_input_shape(const PartialShape& input_shape,
                                            const op::v0::Interpolate::Attributes& attrs) {
     const auto input_rank = input_shape.rank().get_length();
 
@@ -614,7 +614,7 @@ static PartialShape get_padded_input_shape(const PartialShape& input_shape,
     return padded_input_shape;
 }
 
-static std::vector<float> get_scales(const PartialShape& input_data_partial_shape,
+inline std::vector<float> get_scales(const PartialShape& input_data_partial_shape,
                                      const Shape& out_shape,
                                      const op::v0::Interpolate::Attributes& attrs) {
     std::vector<float> scales(attrs.axes.size(), 1.0f);
@@ -628,7 +628,7 @@ static std::vector<float> get_scales(const PartialShape& input_data_partial_shap
     return scales;
 }
 
-static op::v4::Interpolate::InterpolateAttrs transform_v0_to_v4(const PartialShape& input_partial_shape,
+inline op::v4::Interpolate::InterpolateAttrs transform_v0_to_v4(const PartialShape& input_partial_shape,
                                                                 const op::v0::Interpolate::Attributes& attrs_v0) {
     auto input_shape_rank = input_partial_shape.rank().get_length();
 

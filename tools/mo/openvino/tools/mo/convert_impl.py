@@ -337,7 +337,8 @@ def update_fallback_with_conversion_error(use_new_frontend: bool, is_tf: bool, e
         # corresponds to automatic pruning
         "FIFOQueueV2", "QueueDequeueUpToV2", "QueueDequeueManyV2",
         "QueueDequeue", "QueueDequeueV2", "IteratorGetNext",
-        "LookupTableInsert", "LookupTableInsertV2"
+        "LookupTableInsert", "LookupTableInsertV2",
+        "Iterator", "IteratorV2", "OneShotIterator"
     ]
     if len(conversion_error_match) < 1 or len(conversion_error_match[0]) != 3 or \
             conversion_error_match[0][1] not in fallback_operations:
