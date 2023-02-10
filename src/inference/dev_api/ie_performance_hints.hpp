@@ -73,12 +73,12 @@ struct PerfHintsConfig {
      */
     static std::string CheckPerformanceHintValue(const std::string& val) {
         if (val == PluginConfigParams::LATENCY || val == PluginConfigParams::THROUGHPUT ||
-            val == PluginConfigParams::CUMULATIVE_THROUGHPUT || val == "")
+            val == PluginConfigParams::CUMULATIVE_THROUGHPUT || val == PluginConfigParams::UNDEFINED)
             return val;
         else
             IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_PERFORMANCE_HINT
                        << ". Expected only " << PluginConfigParams::LATENCY << "/" << PluginConfigParams::THROUGHPUT
-                       << "/" << PluginConfigParams::CUMULATIVE_THROUGHPUT;
+                       << "/" << PluginConfigParams::CUMULATIVE_THROUGHPUT << "/" << PluginConfigParams::UNDEFINED;
     }
 
     /**
