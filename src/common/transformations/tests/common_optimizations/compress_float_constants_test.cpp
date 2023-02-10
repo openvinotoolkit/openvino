@@ -478,7 +478,7 @@ TEST_F(TransformationTestsF, CompressConstants_not_keep_in_f32_when_zeros) {
 }
 
 TEST_F(TransformationTestsF, CompressConstants_compress_to_f16_denormal_vals) {
-    float fp16_denormal = 0.00001;
+    float fp16_denormal = 0.00001f;
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
 
