@@ -203,10 +203,14 @@ bool Pad::needPrepareParams() const {
 }
 
 void Pad::createPrimitive() {
-    for (int i = 0; i < getOriginalInputsNumber(); i++) {
-        srcMemory.push_back(getParentEdgeAt(i)->getMemoryPtr());
+    if (srcMemory.empty()) {
+        for (int i = 0; i < getOriginalInputsNumber(); i++) {
+            srcMemory.push_back(getParentEdgeAt(i)->getMemoryPtr());
+        }
     }
-    dstMemory.push_back(getChildEdgeAt(0)->getMemoryPtr());
+    if (dstMemory.empty()) {
+        dstMemory.push_back(getChildEdgeAt(0)->getMemoryPtr());
+    }
     if (inputShapesDefined() && isExecutable() && !shapeHasDataDependency) {
         prepareParams();
         updateLastInputDims();
