@@ -857,7 +857,7 @@ public:
     const T& as() const {
         return const_cast<Any*>(this)->as<T>();
     }
-    
+
     /**
      * @brief The comparison operator for the Any
      *
@@ -881,20 +881,6 @@ public:
      * @return true if objects aren't equal
      */
     bool operator!=(const Any& other) const;
-
-    /**
-     * @brief Standard pointer operator
-     * @return underlined interface
-     */
-    OPENVINO_DEPRECATED("Please use as() method")
-    Base* operator->();
-
-    /**
-     * @brief Standard pointer operator
-     * @return underlined interface
-     */
-    OPENVINO_DEPRECATED("Please use as() method")
-    const Base* operator->() const;
 
     /**
      * @brief Prints underlying object to the given output stream.

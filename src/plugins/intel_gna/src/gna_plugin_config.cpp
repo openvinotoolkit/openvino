@@ -395,7 +395,7 @@ const Parameter Config::GetSupportedProperties(bool compiled) {
     };
 
     const std::vector<ov::PropertyName> impacting_model_compilation_properties =
-        GetImpactingModelCompilationProperties(compiled)->as<std::vector<ov::PropertyName>>();
+        GetImpactingModelCompilationProperties(compiled).as<std::vector<ov::PropertyName>>();
 
     supported_properties.insert(supported_properties.end(),
                                 impacting_model_compilation_properties.begin(),
