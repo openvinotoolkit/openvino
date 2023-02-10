@@ -201,6 +201,19 @@ KernelsData StridedSliceKernelRef::GetKernelsData(const Params& params, const op
     auto dispatchData = SetDefault(newParams);
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto cldnn_jit = GetJitConstants(newParams);
+    auto input = newParams.inputs[0];
+    auto input_dt = input.GetDType();
+
+    if (!newParams.fused_ops.empty()) {
+        std::vector<std::string> idx_order;
+        if (input.Dimentions() == 5) {
+            idx_order = {"b", "f", "z", "y", "x"};
+        } else if (input.Dimentions() == 4) {
+            idx_order = {"b", "f", "y", "x"};
+        }
+        FusedOpsConfiguration conf = {"", idx_order, "input_data", input_dt, 1};
+        cldnn_jit.Merge(MakeFusedOpsJitConstants(newParams, {conf}));
+    }
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
