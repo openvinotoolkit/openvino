@@ -51,6 +51,8 @@
  * If MatcherPass register more than one node make sure that this nodes are registered in
  * topological order. */
 
+#ifdef ENABLE_PROFILING_ITT
+
 namespace ov {
 namespace pass {
 namespace {
@@ -61,6 +63,8 @@ PerfCounters& perf_counters_graph_rewrite() {
 }  // namespace
 }  // namespace pass
 }  // namespace ov
+
+#endif  // ENABLE_PROFILING_ITT
 
 bool ov::pass::BackwardGraphRewrite::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_MODEL_SCOPE(BackwardGraphRewrite);
