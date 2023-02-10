@@ -27,7 +27,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
             if(SUGGEST_OVERRIDE_SUPPORTED)
                 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
             endif()
-            if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12)
+            if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
                 ie_add_compiler_flags(-Wno-error=array-bounds -Wno-error=stringop-overflow= -Wno-error=unused-result)
             endif()
         endif()
@@ -79,7 +79,6 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DDNNL_LIBRARY_TYPE=STATIC"
                 "-DOpenCL_LIBRARY=${OpenCL_LIBRARY}"
                 "-DOpenCL_INCLUDE_DIR=${OpenCL_INCLUDE_DIR}"
-                "-DOPENCL_VERSION_2_2=${OPENCL_VERSION_2_2}"
         )
         add_library(onednn_gpu_tgt INTERFACE)
         set_target_properties(onednn_gpu_tgt PROPERTIES

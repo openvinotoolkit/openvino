@@ -34,7 +34,7 @@ OutputVector translate_convolution_mode(NodeContext& context) {
     } else {
         conv = context.mark_node(std::make_shared<opset10::GroupConvolution>(
             context.get_input(0),
-            context.mark_output(reshape_kernel_for_group(context, context.get_input(0), context.get_input(1), groups)),
+            context.mark_output(reshape_kernel_for_group(context, context.get_input(1), groups)),
             strides,
             pad_const,
             pad_const,
@@ -46,7 +46,7 @@ OutputVector translate_convolution_mode(NodeContext& context) {
         auto bias = context.get_input(2);
         auto bias_rank = bias.get_partial_shape().rank();
         if (bias_rank == 1) {
-            bias = reshape_conv_bias(context, bias, conv);
+            bias = reshape_channelwise(context, bias, conv);
         }
 
         conv = context.mark_node(std::make_shared<opset10::Add>(conv, bias));

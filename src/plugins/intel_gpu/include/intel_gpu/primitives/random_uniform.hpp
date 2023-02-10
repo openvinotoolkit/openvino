@@ -42,6 +42,13 @@ struct random_uniform : public primitive_base<random_uniform> {
     const uint64_t op_seed;
     const tensor output_shape;
     const format output_format;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, global_seed);
+        seed = hash_combine(seed, op_seed);
+        return seed;
+    }
 };
 
 }  // namespace cldnn

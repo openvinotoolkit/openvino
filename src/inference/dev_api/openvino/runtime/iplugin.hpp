@@ -16,13 +16,13 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/icore.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "threading/ie_executor_manager.hpp"
 
 namespace InferenceEngine {
 
-class IExecutableNetworkInternal;
 class IPluginWrapper;
 class IExtension;
 
@@ -69,9 +69,8 @@ public:
      * @param properties A ov::AnyMap of properties relevant only for this load operation
      * @return Created Compiled Model object
      */
-    virtual std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> compile_model(
-        const std::shared_ptr<const ov::Model>& model,
-        const ov::AnyMap& properties) const = 0;
+    virtual std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                              const ov::AnyMap& properties) const = 0;
 
     /**
      * @brief Compiles model from ov::Model object
@@ -79,9 +78,8 @@ public:
      * @param properties A ov::AnyMap of properties relevant only for this load operation
      * @return Created Compiled Model object
      */
-    virtual std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> compile_model(
-        const std::string& model_path,
-        const ov::AnyMap& properties) const = 0;
+    virtual std::shared_ptr<ov::ICompiledModel> compile_model(const std::string& model_path,
+                                                              const ov::AnyMap& properties) const;
 
     /**
      * @brief Compiles model from ov::Model object, on specified remote context
@@ -91,10 +89,9 @@ public:
      *        execute the model
      * @return Created Compiled Model object
      */
-    virtual std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> compile_model(
-        const std::shared_ptr<const ov::Model>& model,
-        const ov::AnyMap& properties,
-        const ov::RemoteContext& context) const = 0;
+    virtual std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                              const ov::AnyMap& properties,
+                                                              const ov::RemoteContext& context) const = 0;
 
     /**
      * @brief Sets properties for plugin, acceptable keys can be found in openvino/runtime/properties.hpp
@@ -118,7 +115,7 @@ public:
      *
      * @return A remote context object
      */
-    virtual RemoteContext create_context(const ov::AnyMap& remote_properties) const = 0;
+    virtual ov::RemoteContext create_context(const ov::AnyMap& remote_properties) const = 0;
 
     /**
      * @brief Provides a default remote context instance if supported by a plugin
@@ -126,7 +123,7 @@ public:
      *
      * @return The default context.
      */
-    virtual RemoteContext get_default_context(const ov::AnyMap& remote_properties) const = 0;
+    virtual ov::RemoteContext get_default_context(const ov::AnyMap& remote_properties) const = 0;
 
     /**
      * @brief Creates an compiled model from an previously exported model using plugin implementation
@@ -135,9 +132,8 @@ public:
      * @param properties A ov::AnyMap of properties
      * @return An Compiled model
      */
-    virtual std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> import_model(
-        std::istream& model,
-        const ov::AnyMap& properties) const = 0;
+    virtual std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                             const ov::AnyMap& properties) const = 0;
 
     /**
      * @brief Creates an compiled model from an previously exported model using plugin implementation
@@ -148,8 +144,9 @@ public:
      * @param properties A ov::AnyMap of properties
      * @return An Compiled model
      */
-    virtual std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
-    import_model(std::istream& model, const ov::RemoteContext& context, const ov::AnyMap& properties) const = 0;
+    virtual std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                             const ov::RemoteContext& context,
+                                                             const ov::AnyMap& properties) const = 0;
 
     /**
      * @brief Queries a plugin about supported layers in model

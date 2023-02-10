@@ -430,6 +430,7 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, SizeVector>
     return reshape(shapes, responseDesc);
 }
 
+#if 0
 namespace {
 void collect_dynamism_signature(const std::shared_ptr<ov::Model>& ov_model,
                                 std::map<std::string, std::map<std::string, size_t>>& signatures,
@@ -480,6 +481,7 @@ void collect_dynamism_signature(const std::shared_ptr<ov::Model>& ov_model,
     }
 }
 }  // namespace
+#endif
 
 void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetworkNGraphImpl::reshape");

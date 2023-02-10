@@ -185,7 +185,7 @@ public:
     bool is_dynamic() const { return _is_dynamic; }
     bool can_share_buffer() const { return _can_share_buffer; }
     bool is_constant() const { return _is_constant; }
-
+    bool is_output_event() const { return _is_output_event; }
 
     void allocate_internal_buffers();
     static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node& _node,
@@ -213,6 +213,9 @@ public:
 #endif // ENABLE_ONEDNN_FOR_GPU
 
     virtual void update_output_memory() {}
+
+    virtual size_t get_impl_key(const kernel_impl_params& params) const;
+    virtual size_t get_impl_key() const;
 
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
@@ -274,10 +277,13 @@ protected:
     bool _can_be_optimized = false;
     bool _can_share_buffer = true;
     bool _is_constant = false;
+    bool _is_output_event = false;
 
     size_t max_output_layout_size = 0;
+    std::vector<size_t> max_intermediates_memory_sizes;
 
     std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr);
+    memory::ptr allocate_internal_buffer(size_t idx);
     static std::vector<std::shared_ptr<primitive_inst>> build_exec_deps(
         std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> const& mem_deps);
     void convert_args(const kernel_arguments_data& args, kernel_arguments_data_idx& args_idx) const;
@@ -289,7 +295,8 @@ protected:
 
     virtual void update_shape();
     virtual event::ptr update_weights();
-    void update_impl();
+    // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
+    bool update_impl();
     void realloc_if_needed();
 
     cldnn::network::ptr get_unfused_subgraph();
@@ -407,7 +414,7 @@ public:
     }
 
     static std::vector<size_t> extend_input_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t input_idx) {
-        ov::PartialShape ps =  orig_impl_param.get_input_layout(input_idx).get_partial_shape();
+        ov::PartialShape ps = orig_impl_param.get_input_layout(input_idx).get_partial_shape();
 
         if (ps.size() < 4) {
             ps.insert(ps.end(), 4 - ps.size(), ov::Dimension(1));
@@ -443,8 +450,9 @@ protected:
 
 private:
     bool do_allocate_memory(typed_node const& typ_node) {
-        if (typ_node.get_output_layout().is_dynamic())
-            return false;
+        if (typ_node.get_output_layout().is_dynamic() && !typ_node.get_output_layout().has_upper_bound()) {
+                return false;
+        }
 
         if (typ_node.template have_user_with_type<concatenation>() && typ_node.get_users().size() == 1 &&
             typ_node.get_users().front()->can_be_optimized()) {  // check if the only user is concat

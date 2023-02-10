@@ -9,6 +9,7 @@
 
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/util/framework_node.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "utils.hpp"
@@ -137,6 +138,67 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
 
             return true;
         }
+
+        if (auto meshgrid = cast_fw_node(input_node, "aten::meshgrid")) {
+            // Input - ListConstruct
+            auto meshgrid_input_node =
+                cast_fw_node(meshgrid->input_value(0).get_node_shared_ptr(), "prim::ListConstruct");
+            if (!meshgrid_input_node) {
+                return false;
+            }
+            NodeVector rt_copy_from{list_unpack, input_node, meshgrid_input_node};
+            OutputVector meshgrid_inputs;
+            for (auto& input : meshgrid_input_node->inputs()) {
+                meshgrid_inputs.push_back(input.get_source_output());
+            }
+
+            auto meshgrid_attrs = meshgrid->get_attrs();
+            if (meshgrid_attrs.find("indexing") == meshgrid_attrs.end()) {
+                // Check if "indexing" key is available in meshgrid attributes set in translation.
+                return false;
+            }
+            std::string indexing = meshgrid_attrs.at("indexing");
+            if (indexing != "ij" && indexing != "xy") {
+                // Check if indexing attribute has correct values.
+                return false;
+            }
+
+            if (indexing == "xy" && meshgrid_inputs.size() >= 2) {
+                std::swap(meshgrid_inputs[0], meshgrid_inputs[1]);
+            }
+            NodeVector cat_shapes{};
+            NodeVector reshapes{};
+            auto const_neg_1 = opset10::Constant::create(element::i64, Shape{1}, {-1});
+            auto const_1 = opset10::Constant::create(element::i64, Shape{1}, {1});
+            int input_idx = 0;
+            for (auto& input : meshgrid_inputs) {
+                auto reshaped_input = std::make_shared<opset10::Reshape>(input, const_neg_1, false);
+                auto shape = std::make_shared<opset10::ShapeOf>(reshaped_input);
+                cat_shapes.push_back(shape);
+                NodeVector cat_inputs(meshgrid_inputs.size(), const_1);
+                cat_inputs[input_idx] = shape;
+                input_idx++;
+                auto input_cat = std::make_shared<opset10::Concat>(cat_inputs, 0);
+                auto reshape_cat = std::make_shared<opset10::Reshape>(reshaped_input, input_cat, false);
+                reshapes.push_back(reshape_cat);
+            }
+            auto cat = std::make_shared<opset10::Concat>(cat_shapes, 0);
+            NodeVector to_copy_rt{cat};
+            to_copy_rt.push_back(cat);
+            OutputVector outputs{};
+            for (auto& reshape : reshapes) {
+                auto out = std::make_shared<opset10::Broadcast>(reshape, cat, ov::op::BroadcastType::BIDIRECTIONAL);
+                to_copy_rt.push_back(out);
+                outputs.push_back(out);
+            }
+            if (indexing == "xy" && meshgrid_inputs.size() >= 2) {
+                std::swap(outputs[0], outputs[1]);
+            }
+            copy_runtime_info(rt_copy_from, to_copy_rt);
+            replace_node(list_unpack, outputs);
+            return true;
+        }
+
         if (auto shape_of = std::dynamic_pointer_cast<opset10::ShapeOf>(input_node)) {
             // case aten::size as input
             // Number of ListUnpack outputs should be equal to rank of input shape.

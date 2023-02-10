@@ -3,10 +3,11 @@
 //
 
 #pragma once
-#include <map>
-#include <vector>
 #include <list>
+#include <map>
 #include <string>
+#include <vector>
+
 #include "gna_graph_tools.hpp"
 
 namespace ov {
@@ -16,24 +17,24 @@ namespace intel_gna {
  * @brief implements upstream search for BFS routine
  */
 class UpstreamLayersIterator {
-    using iterator = std::vector<InferenceEngine::DataWeakPtr> ::iterator;
+    using iterator = std::vector<InferenceEngine::DataWeakPtr>::iterator;
     InferenceEngine::details::OutLayersIterator standardIterator;
     InferenceEngine::CNNLayer* origin = nullptr;
-    iterator  currentLayer;
-    iterator  endLayer;
+    iterator currentLayer;
+    iterator endLayer;
 
- public:
+public:
     UpstreamLayersIterator() = default;
     explicit UpstreamLayersIterator(InferenceEngine::CNNLayer* origin, iterator beg) : origin(origin) {
         currentLayer = beg;
         endLayer = origin->insData.end();
     }
 
-    void operator ++() {
+    void operator++() {
         currentLayer++;
     }
 
-    bool operator == (UpstreamLayersIterator that) const {
+    bool operator==(UpstreamLayersIterator that) const {
         // probing for end
         if (origin != nullptr && that.origin == nullptr) {
             return currentLayer == endLayer;
@@ -44,17 +45,18 @@ class UpstreamLayersIterator {
         }
 
         if (origin != that.origin) {
-            THROW_GNA_EXCEPTION << "iterator not comparable for layers: " << origin->name << ", and " << that.origin->name;
+            THROW_GNA_EXCEPTION << "iterator not comparable for layers: " << origin->name << ", and "
+                                << that.origin->name;
         }
 
         return currentLayer == that.currentLayer;
     }
 
-    bool operator != (UpstreamLayersIterator that) const {
+    bool operator!=(UpstreamLayersIterator that) const {
         return !this->operator==(that);
     }
 
-    InferenceEngine::CNNLayerPtr operator *() const {
+    InferenceEngine::CNNLayerPtr operator*() const {
         if (origin == nullptr) {
             return nullptr;
         }
@@ -74,8 +76,10 @@ class UpstreamLayersContainer {
     InferenceEngine::CNNLayer* origin;
     int startIdx = -1;
 
- public:
-    explicit UpstreamLayersContainer(InferenceEngine::CNNLayer* origin, int startIdx = -1) : origin(origin), startIdx(startIdx) {}
+public:
+    explicit UpstreamLayersContainer(InferenceEngine::CNNLayer* origin, int startIdx = -1)
+        : origin(origin),
+          startIdx(startIdx) {}
 
     UpstreamLayersIterator begin() {
         if (origin == nullptr) {
@@ -100,7 +104,7 @@ class UpstreamLayersContainer {
         return UpstreamLayersIterator(origin, end);
     }
 
- protected:
+protected:
     std::vector<InferenceEngine::DataWeakPtr>::iterator makeBeginIterator() {
         auto beg = origin->insData.begin();
         if (startIdx > 0) {

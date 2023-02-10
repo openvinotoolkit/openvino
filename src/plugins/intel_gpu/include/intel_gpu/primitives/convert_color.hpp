@@ -50,5 +50,13 @@ struct convert_color : public primitive_base<convert_color> {
     color_format output_color_format;
     memory_type mem_type;
     layout output_layout;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, input_color_format);
+        seed = hash_combine(seed, output_color_format);
+        seed = hash_combine(seed, mem_type);
+        return seed;
+    }
 };
 }  // namespace cldnn

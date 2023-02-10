@@ -149,5 +149,21 @@ struct resample : public primitive_base<resample> {
     InterpolateOp::CoordinateTransformMode coord_trans_mode;
     /// @param round_mode specifies round mode when mode == nearest and is used only when mode == nearest.
     InterpolateOp::NearestMode round_mode;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, num_filter);
+        seed = hash_range(seed, scales.begin(), scales.end());
+        seed = hash_range(seed, axes.begin(), axes.end());
+        seed = hash_range(seed, pads_begin.begin(), pads_begin.end());
+        seed = hash_range(seed, pads_end.begin(), pads_end.end());
+        seed = hash_combine(seed, operation_type);
+        seed = hash_combine(seed, shape_calc_mode);
+        seed = hash_combine(seed, antialias);
+        seed = hash_combine(seed, cube_coeff);
+        seed = hash_combine(seed, coord_trans_mode);
+        seed = hash_combine(seed, round_mode);
+        return seed;
+    }
 };
 }  // namespace cldnn
