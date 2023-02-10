@@ -66,6 +66,7 @@ jobs:
   - task: UsePythonVersion@0
     inputs:
       versionSpec: '3.10'
+      disableDownloadFromRegistry: false
       addToPath: true
       architecture: 'x64'
       githubToken: $(auth_token)
