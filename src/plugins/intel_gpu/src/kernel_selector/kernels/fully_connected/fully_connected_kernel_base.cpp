@@ -89,7 +89,6 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
-        kd.kernels[0].skip_execution = (dispatchData.GetTotalNumberOfWorkItems() == 0);
     };
     fully_connected_params& newParams = *static_cast<fully_connected_params*>(kd.params.get());
 

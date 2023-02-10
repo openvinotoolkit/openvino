@@ -290,14 +290,6 @@ void primitive_inst::realloc_if_needed() {
 
 bool primitive_inst::update_impl() {
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::update_implementation);
-#if 0
-    if (get_output_layout().bytes_count() == 0) {
-        // skip execution if output is empty
-        reset_shape_change();
-        return true;
-    }
-#endif
-
     auto prev_impl_str =  _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
 
     auto update_shape_info = [this, prev_impl_str](const kernel_impl_params& params) {
@@ -345,7 +337,6 @@ bool primitive_inst::update_impl() {
         }
         if (!has_cached_impl) {
             if (_dynamic_impl) {
-                #if 0
                 auto& compilation_context = get_network().get_compilation_context();
                 compilation_context.push_task(impl_key, [this, updated_params, impl_key](kernels_cache& kc) {
                     auto& cache = get_network().get_implementations_cache();
@@ -367,7 +358,6 @@ bool primitive_inst::update_impl() {
                     std::lock_guard<std::mutex> lock(get_network().get_impl_cache_mutex());
                     cache.add(impl_key, impl->clone());
                 });
-                #endif
                 _impl = _dynamic_impl->clone();
                 _impl->update_dispatch_data(*_impl_params);
 
@@ -444,13 +434,6 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                 if (ev)
                     dependencies.push_back(ev);
                 realloc_if_needed();
-                #if 0
-                if (get_output_layout().bytes_count() == 0) {
-                    // skip execution if output is empty
-                    auto ev = get_network().get_stream().create_user_event(true);
-                    return ev;
-                }
-                #endif
             }
         }
     }

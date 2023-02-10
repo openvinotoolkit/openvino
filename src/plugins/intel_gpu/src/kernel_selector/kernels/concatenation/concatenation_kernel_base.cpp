@@ -89,11 +89,6 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
     }
 
     const concatenation_params& orgParams = static_cast<const concatenation_params&>(params);
-    auto num_valid_kernels = 0;
-    for (size_t i = 0; i < orgParams.inputs.size(); ++i) {
-        if (orgParams.inputs[i].LogicalSize() != 0)
-            num_valid_kernels++;
-    }
     KernelData kd = KernelData::Default<concatenation_params>(params, orgParams.inputs.size());
 
     uint32_t lastOffset = 0;

@@ -209,12 +209,10 @@ protected:
         }
 
         stream& stream = instance.get_network().get_stream();
-
-        //for (size_t k = 0; k < _kernels.size(); ++k) {
-        int32_t iter = 0;
-        for (size_t k = 0; k < _kernel_data.kernels.size(); ++k) {
+        size_t k_idx = 0;
+        for (size_t kd_idx = 0; kd_idx < _kernel_data.kernels.size(); ++kd_idx) {
             kernel_arguments_data args;
-            if (_kernel_data.kernels[k].skip_execution)
+            if (_kernel_data.kernels[kd_idx].skip_execution)
                 continue;
 
             if (_kernel_args.inputs.size() > 0) {
@@ -227,9 +225,9 @@ protected:
                 args.intermediates.push_back(m);
             }
 
-            args.scalars = &_kernel_data.kernels[k].params.scalars;
+            args.scalars = &_kernel_data.kernels[kd_idx].params.scalars;
 
-            stream.set_arguments(*_kernels[iter++], _kernel_data.kernels[k].params, args);
+            stream.set_arguments(*_kernels[k_idx++], _kernel_data.kernels[kd_idx].params, args);
         }
     }
 
@@ -261,9 +259,9 @@ protected:
         }
         std::vector<event::ptr> tmp_events(events);
         std::vector<event::ptr> all_events;
-        int32_t iter = 0;
-        for (size_t k = 0; k < _kernel_data.kernels.size(); ++k) {
-            if (_kernel_data.kernels[k].skip_execution)
+        size_t k_idx = 0;
+        for (size_t kd_idx = 0; kd_idx < _kernel_data.kernels.size(); ++kd_idx) {
+            if (_kernel_data.kernels[kd_idx].skip_execution)
                 continue;
             std::vector<event::ptr> new_events;
             // is any user of the prim's users is an detecion output, set prim as a output event (event won't be nullptr)
@@ -287,9 +285,9 @@ protected:
                 }
             }
 
-            args.scalars = &_kernel_data.kernels[k].params.scalars;
+            args.scalars = &_kernel_data.kernels[kd_idx].params.scalars;
 
-            auto ev = stream.enqueue_kernel(*_kernels[iter++], _kernel_data.kernels[k].params, args, tmp_events, is_output_event);
+            auto ev = stream.enqueue_kernel(*_kernels[k_idx++], _kernel_data.kernels[kd_idx].params, args, tmp_events, is_output_event);
             new_events.push_back(ev);
             all_events.push_back(ev);
 

@@ -63,7 +63,7 @@ TEST_P(test_empty_tensor, concat_two_inputs) {
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_taylor, test_empty_tensor,
+INSTANTIATE_TEST_SUITE_P(smoke_empty, test_empty_tensor,
     testing::ValuesIn(std::vector<empty_tensor_test_params>{
         {
             layout{ov::PartialShape{1, 2}, data_types::i32, format::bfyx},

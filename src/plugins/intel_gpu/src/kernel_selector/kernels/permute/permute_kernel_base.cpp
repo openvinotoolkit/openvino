@@ -47,7 +47,6 @@ KernelsData PermuteKernelBase::GetKernelsData(const Params& params, const option
         OPENVINO_ASSERT(kernel_data.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
         kernel_data.kernels[0].params.workGroups.global = dispatchData.gws;
         kernel_data.kernels[0].params.workGroups.local = dispatchData.lws;
-        kernel_data.kernels[0].skip_execution = (dispatchData.GetTotalNumberOfWorkItems() == 0);
     };
 
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);

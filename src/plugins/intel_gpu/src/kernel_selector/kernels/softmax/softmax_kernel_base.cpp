@@ -68,7 +68,6 @@ KernelsData SoftmaxKernelBase::GetCommonKernelsData(const Params& params, const 
         kd.internalBufferSizes.clear();
         kd.internalBufferSizes.push_back(prim_params.inputs[0].PhysicalSizeInBytes());
         kd.internalBufferDataType = prim_params.inputs[0].GetDType();
-        kd.kernels[0].skip_execution = (dispatchData.GetTotalNumberOfWorkItems() == 0);
     };
 
     auto dispatchData = SetDefault(orgParams);

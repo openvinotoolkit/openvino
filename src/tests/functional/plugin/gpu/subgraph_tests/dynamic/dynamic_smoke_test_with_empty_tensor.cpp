@@ -149,7 +149,7 @@ const auto testParams_smoke = ::testing::Combine(::testing::ValuesIn(dynInputSha
                                                    ::testing::Values(CommonTestUtils::DEVICE_GPU),
                                                    ::testing::Values(emptyAdditionalConfig));
 
-INSTANTIATE_TEST_SUITE_P(smoke_empty_tensor_taylor, EmptyTensorDynamicGPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_empty_tensor, EmptyTensorDynamicGPUTest,
                          testParams_smoke, EmptyTensorDynamicGPUTest::getTestCaseName);
 } // namespace
 } // namespace GPULayerTestsDefinitions
