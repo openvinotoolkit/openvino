@@ -255,9 +255,7 @@ bool HasSameOutputGatherNodes(NodePtr main_node) {
     for (size_t output_idx = 0; output_idx < main_node->get_output_size(); ++output_idx) {
         for (auto& input : main_node->get_output_target_inputs(output_idx)) {
             GatherInfo gather_info = GetGatherInfo(input.get_node());
-            if (gather_info.isEmpty())
-                return false;
-            if (gather_info != first_gather_info)
+            if (gather_info.isEmpty() || gather_info != first_gather_info)
                 return false;
         }
     }
