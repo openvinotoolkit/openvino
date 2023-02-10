@@ -13,7 +13,6 @@
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
-#include "openvino/pass/visualize_tree.hpp"
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
@@ -277,7 +276,7 @@ TEST_F(TransformationTestsF, CompressConstants_f64) {
 }
 
 TEST_F(TransformationTestsF, CompressConstants_keep_in_f32_small_eps_out_of_range) {
-    float fp16_eps = static_cast<float>(ov::float16::from_bits(0x0001));
+    float fp16_eps = 0.00000001f;  // smaller than fp16 minimal value: float16::from_bits(0x0001)
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
 
@@ -309,6 +308,8 @@ TEST_F(TransformationTestsF, CompressConstants_keep_in_f32_small_eps_out_of_rang
 
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
+        // fp16_eps is lesser that fp16 minimal value,
+        // they must be stored in fp32 because of a big proportion of such out of range values
         auto const_weights = ov::opset8::Constant::create(ov::element::f32,
                                                           ov::Shape{1, 3, 4, 1},
                                                           {0.0f,
@@ -494,10 +495,8 @@ TEST_F(TransformationTestsF, CompressConstants_compress_to_f16_denormal_vals) {
                                                               ov::Strides{1, 1});
         function = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
 
-        manager.register_pass<ov::pass::VisualizeTree>("before.svg");
         manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
         manager.register_pass<ov::pass::CompressFloatConstants>();
-        manager.register_pass<ov::pass::VisualizeTree>("after.svg");
     }
 
     {
@@ -514,8 +513,6 @@ TEST_F(TransformationTestsF, CompressConstants_compress_to_f16_denormal_vals) {
                                                               ov::CoordinateDiff{0, 0},
                                                               ov::Strides{1, 1});
         function_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
-        ov::pass::VisualizeTree("ref.svg").run_on_model(function_ref);
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    comparator.enable(FunctionsComparator::CmpValues::PRECISIONS);
 }
