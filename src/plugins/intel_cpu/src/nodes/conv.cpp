@@ -489,11 +489,6 @@ void Convolution::getSupportedDescriptors() {
 
     MemoryDescPtr in_candidate, out_candidate;
     if (canBeExecutedInInt8()) {
-        //  We have to extend convolution_x8s8s32x from oneDNN to support BF16 output data type
-        if (outputDataType == memory::data_type::bf16)
-            outputDataType = memory::data_type::f32;
-        if (eltwisePrecision == Precision::BF16)
-            eltwisePrecision = Precision::FP32;
         // initTryBrgconvFlag depends on outputDataType, should be after outputDataType computed
         if (!enforceBrgconv)
             initTryBrgconvFlag();
@@ -503,10 +498,30 @@ void Convolution::getSupportedDescriptors() {
             ndims == 3 ? memory::format_tag::nwc : (ndims == 4 ? memory::format_tag::nhwc : memory::format_tag::ndhwc));
         createDescriptor({ in_candidate }, { out_candidate });
     } else {
-        inputDataType = (getOriginalInputPrecisionAtPort(0) == Precision::BF16
-                && !(isDepthWise() && ndims == 5)) ? memory::data_type::bf16 : memory::data_type::f32;
-        outputDataType = (getOriginalOutputPrecisionAtPort(0) == Precision::BF16
-                && !(isDepthWise() && ndims == 5)) ? memory::data_type::bf16 : memory::data_type::f32;
+        // in oneDNN, depthwise 5D convolution is only customized for f32, in bf16 it will fallbacks to
+        // normal convolution with much worse performance. thus we keep using f32 precision in that case.
+        // this WA can be removed after brdgmm_dw is enabled.
+        bool is_dw5DConv = (isDepthWise() && ndims == 5);
+        inputDataType = memory::data_type::f32;
+        outputDataType = memory::data_type::f32;
+        if (getOriginalInputPrecisionAtPort(0) == Precision::BF16) {
+            if (is_dw5DConv) {
+                DEBUG_LOG(getName(),
+                          " inputDataType fallback from BF16 to F32 due to un-optimized 5D depthwise convolution");
+            } else {
+                inputDataType = memory::data_type::bf16;
+            }
+        }
+
+        if (getOriginalOutputPrecisionAtPort(0) == Precision::BF16) {
+            if (is_dw5DConv) {
+                DEBUG_LOG(getName(),
+                          " outputDataType fallback from BF16 to F32 due to un-optimized 5D depthwise convolution");
+            } else {
+                outputDataType = memory::data_type::bf16;
+            }
+        }
+
         eltwisePrecision = Precision::FP32;
         for (int i = 0; i < fusedWith.size(); i++) {
             if (fusedWith[i]->getAlgorithm() == Algorithm::EltwiseAdd) {
