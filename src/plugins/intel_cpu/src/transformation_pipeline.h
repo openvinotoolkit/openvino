@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/core/model.hpp"
+#include "utils/debug_capabilities.h"
 #include "low_precision/low_precision.hpp"
 #include "config.h"
 
@@ -26,12 +27,16 @@ public:
                     const bool                        enableLpt,
                     const bool                        enableBF16,
                     const bool                        isLegacyApi,
-                    Config::SnippetsMode&             snippetsMode)
+                    Config::SnippetsMode&             snippetsMode,
+                    const Config&                     config)
         : model(initialModel),
           enableLpt(enableLpt),
           enableBF16(enableBF16),
           isLegacyApi(isLegacyApi),
-          snippetsMode(snippetsMode) {}
+          snippetsMode(snippetsMode),
+          config(config) {
+            CPU_DEBUG_CAPS_MAYBE_UNUSED(this->config);
+          }
 
     void UpToCpuSpecificOpSet();
     void CpuSpecificOpSet(void);
@@ -42,6 +47,7 @@ private:
     const bool    enableBF16;
     const bool    isLegacyApi;
     const Config::SnippetsMode snippetsMode;
+    const Config& config;
 
     void PreLpt(const std::vector<ov::element::Type>& defaultPrecisions, const bool isLegacyApi);
 
