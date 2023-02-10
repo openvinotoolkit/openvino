@@ -74,7 +74,7 @@ jobs:
   timeoutInMinutes: '120'
 
   pool:
-    name: LIN_VMSS_VENV_F16S_U20_WU2
+    name: ubuntu-latest
 
   variables:
     system.debug: true
@@ -99,13 +99,13 @@ jobs:
     CMAKE_VERSION: 3.24.0
     BUILD_PYTHON: $(WORK_DIR)/build_python
     INSTALL_PYTHON: $(INSTALL_OPENVINO)/extras/python
-    LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
-    OV_PYTHON_VERSION: 3.10.10 # Full version of Python its required for LD_LIBRARY_PATH. More details https://github.com/microsoft/azure-pipelines-tool-lib/blob/master/docs/overview.md#tool-cache
+    # LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
+    # OV_PYTHON_VERSION: 3.10.10 # Full version of Python its required for LD_LIBRARY_PATH. More details https://github.com/microsoft/azure-pipelines-tool-lib/blob/master/docs/overview.md#tool-cache
 
   steps:
   - task: UsePythonVersion@0
     inputs:
-      versionSpec: '$(OV_PYTHON_VERSION)' # Setting only major & minor version will download latest release from GH repo example 3.10 will be 3.10.10. 
+      versionSpec: '3.10' # Setting only major & minor version will download latest release from GH repo example 3.10 will be 3.10.10. 
       addToPath: true
       disableDownloadFromRegistry: false
       architecture: 'x64'
