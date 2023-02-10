@@ -166,7 +166,7 @@ def autodoc_skip_member(app, what, name, obj, skip, options):
     return name in exclude_pyapi_methods
 
 
-shutil.copy("../../../docs/index_zh_CN.rst","home.rst")
+shutil.copy("../../../docs/index_zh_CN.rst","home_zh_CN.rst")
 
 def replace_index_with_redirect(app,exception):
     shutil.copy("../../../docs/index.html","../_build/index.html")
