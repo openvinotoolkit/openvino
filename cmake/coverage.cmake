@@ -13,9 +13,9 @@ ov_coverage_capture(INFO_FILE "openvino"
                                      "${OV_COVERAGE_BASE_DIRECTORY}/*.pb.h"
                                      "${OV_COVERAGE_BASE_DIRECTORY}/*/tests/*"
                                      "${OV_COVERAGE_BASE_DIRECTORY}/*/tests_deprecated/*"
-                                     "${OV_COVERAGE_BASE_DIRECTORY}/thirdparty/*" #Skip some pb files, tests and thirdparty
-                                     "${OV_COVERAGE_BASE_DIRECTORY}/CMakeCXXCompilerId.cpp" #Fix ov_coverage target CVS-102343
-                                     "${OV_COVERAGE_BASE_DIRECTORY}/CMakeCCompilerId.c") #Fix ov_coverage target CVS-102343
+                                     "${OV_COVERAGE_BASE_DIRECTORY}/thirdparty/*"
+                                     "${OV_COVERAGE_BASE_DIRECTORY}/CMakeCXXCompilerId.cpp"
+                                     "${OV_COVERAGE_BASE_DIRECTORY}/CMakeCCompilerId.c") # Skip some service files, tests and thirdparty
 # Generate reports
 
 # Common report
