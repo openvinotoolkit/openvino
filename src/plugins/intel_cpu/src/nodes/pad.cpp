@@ -41,7 +41,6 @@ bool Pad::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
         }
 
         auto checkPadConstVal = [&](size_t id) {
-            if (op->get_input_node_shared_ptr(id)->get_type_info() == ov::op::v0::Constant::get_type_info_static()) {
                 CoordinateDiff padParams;
                 std::string padStr = "";
                 if (id == PADS_BEGIN_ID) {
@@ -58,12 +57,13 @@ bool Pad::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
                     return false;
                 }
                 return true;
-            }
         };
 
-        if (!checkPadConstVal(PADS_BEGIN_ID))
+        if (op->get_input_node_shared_ptr(PADS_BEGIN_ID)->get_type_info() == ov::op::v0::Constant::get_type_info_static()
+            && !checkPadConstVal(PADS_BEGIN_ID))
             return false;
-        if (!checkPadConstVal(PADS_END_ID))
+        if (op->get_input_node_shared_ptr(PADS_END_ID)->get_type_info() == ov::op::v0::Constant::get_type_info_static()
+            && !checkPadConstVal(PADS_END_ID))
             return false;
     } catch (...) {
         return false;
