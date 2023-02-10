@@ -3,7 +3,7 @@
 //
 
 #include "openvino/core/any.hpp"
-
+#include "meta_data.hpp"
 #include <pybind11/pybind11.h>
 
 #include "pyopenvino/graph/any.hpp"
@@ -33,6 +33,11 @@ void regclass_graph_Any(py::module m) {
     });
 
     ov_any.def("__getitem__", [](const ov::Any& self, py::object& k) {
+        std::cout << "here " << self.type_info().name() << std::endl;
+        if (self.is<std::shared_ptr<ov::Meta>>()) {
+            const ov::AnyMap& as_map = *self.as<std::shared_ptr<ov::Meta>>();
+            return Common::utils::from_ov_any_map(as_map).attr("__getitem__")(k);
+        }
         return Common::utils::from_ov_any(self).attr("__getitem__")(k);
     });
 
@@ -45,6 +50,10 @@ void regclass_graph_Any(py::module m) {
     });
 
     ov_any.def("__get__", [](const ov::Any& self) {
+        if (self.is<std::shared_ptr<ov::Meta>>()) {
+            const ov::AnyMap& as_map = *self.as<std::shared_ptr<ov::Meta>>();
+            return Common::utils::from_ov_any_map(as_map);
+        }
         return Common::utils::from_ov_any(self);
     });
 
@@ -83,6 +92,10 @@ void regclass_graph_Any(py::module m) {
     ov_any.def_property_readonly(
         "value",
         [](const ov::Any& self) {
+            if (self.is<std::shared_ptr<ov::Meta>>()) {
+                const ov::AnyMap& as_map = *self.as<std::shared_ptr<ov::Meta>>();
+                return Common::utils::from_ov_any_map(as_map);
+            }
             return Common::utils::from_ov_any(self);
         },
         R"(

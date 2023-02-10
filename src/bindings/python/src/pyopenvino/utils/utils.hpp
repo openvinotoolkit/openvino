@@ -15,6 +15,8 @@ namespace py = pybind11;
 
 namespace Common {
 namespace utils {
+    py::object from_ov_any_map(const ov::AnyMap& map);
+
     py::object from_ov_any(const ov::Any& any);
 
     std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string, py::object>& properties);

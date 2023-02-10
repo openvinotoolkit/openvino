@@ -16,6 +16,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/subtract.hpp"
+#include "meta_data.hpp"
 #include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/any.hpp"
 #include "pyopenvino/graph/node.hpp"
@@ -39,6 +40,11 @@ void regclass_graph_PyRTMap(py::module m) {
         m[k] = v;
     });
     py_map.def("__getitem__", [](PyRTMap& m, const std::string& k) -> py::object {
+        std::cout << "olvdo";
+        if (m[k].is<std::shared_ptr<ov::Meta>>()) {
+            const ov::AnyMap& as_map = *m[k].as<std::shared_ptr<ov::Meta>>();
+            return Common::utils::from_ov_any_map(as_map);
+        }
         return Common::utils::from_ov_any(m[k]);
     });
     py_map.def(
@@ -59,10 +65,17 @@ void regclass_graph_PyRTMap(py::module m) {
     py_map.def(
         "items",
         [](PyRTMap& m) {
+            // ((x, self[x]) for x in self)
             return py::make_iterator(m.begin(), m.end());
+            //return Common::utils::from_ov_any(m.);
         },
-        py::keep_alive<0, 1>() /* Essential: keep list alive while iterator exists */
+       py::keep_alive<0, 1>() /* Essential: keep list alive while iterator exists */
     );
+
+    py_map.def(
+            "values",
+            [](const PyRTMap &map) { return py::make_value_iterator(map.begin(), map.end()); },
+            py::keep_alive<0, 1>());
 
     py_map.def("__contains__", [](PyRTMap& m, const std::string& k) -> bool {
         auto it = m.find(k);

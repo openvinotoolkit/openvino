@@ -13,18 +13,28 @@
 
 #include "Python.h"
 #include "openvino/frontend/decoder.hpp"
+// #include "meta_data.hpp"
 
 using Version = ov::pass::Serialize::Version;
 
 namespace Common {
 namespace utils {
 
+py::object from_ov_any_map(const ov::AnyMap& map) {
+    std::map<std::string, py::object> result;
+    for (const auto& entry : map) {
+        // std::cout << "Processing " << entry.first << std::endl;
+        result[entry.first] = from_ov_any(entry.second);
+       // std::cout << "\tResut is " << py::type(result[entry.first]) << std::endl;
+    }
+    return py::cast(result);
+}
+
 py::object from_ov_any(const ov::Any& any) {
     // Check for py::object
     if (any.is<py::object>()) {
         return any.as<py::object>();
-    }
-    // Check for std::string
+    } // Check for std::string
     else if (any.is<std::string>()) {
         return py::cast(any.as<std::string>().c_str());
     }
@@ -97,6 +107,9 @@ py::object from_ov_any(const ov::Any& any) {
     // Check for std::map<element::Type, float>
     else if (any.is<std::map<ov::element::Type, float>>()) {
         return py::cast(any.as<std::map<ov::element::Type, float>>());
+    } else if (any.is<ov::AnyMap>()) {
+        std::cout<<"oko"<<std::endl;
+        return from_ov_any_map(any.as<ov::AnyMap>());
     }
     // Check for std::vector<ov::PropertyName>
     else if (any.is<std::vector<ov::PropertyName>>()) {
