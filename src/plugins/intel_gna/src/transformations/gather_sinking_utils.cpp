@@ -58,20 +58,20 @@ namespace {
 
 bool HasDynamicRankInput(NodePtr node) {
     for (auto& input_node : node->input_values()) {
-        const ov::Rank output_rank = input_node.get_partial_shape().rank();
+        const Rank output_rank = input_node.get_partial_shape().rank();
         if (output_rank.is_dynamic())
             return true;
     }
     return false;
 }
 
-ov::Rank::value_type GetMaxInputRank(const NodePtr& node) {
-    ov::Rank::value_type max_input_rank = 0;
+Rank::value_type GetMaxInputRank(const NodePtr& node) {
+    Rank::value_type max_input_rank = 0;
     for (auto& input_node : node->input_values()) {
-        const ov::Rank output_rank = input_node.get_partial_shape().rank();
+        const Rank output_rank = input_node.get_partial_shape().rank();
         if (output_rank.is_dynamic())
             return -1;
-        const ov::Rank::value_type output_rank_len = output_rank.get_length();
+        const Rank::value_type output_rank_len = output_rank.get_length();
         if (output_rank_len > max_input_rank)
             max_input_rank = output_rank_len;
     }
@@ -81,14 +81,14 @@ ov::Rank::value_type GetMaxInputRank(const NodePtr& node) {
 NodePtr InsertUnsqueeze(Output<Node> node, size_t n_dims) {
     std::vector<size_t> dims(n_dims);
     std::iota(dims.begin(), dims.end(), 0);
-    auto unsqueeze_const = std::make_shared<Constant>(ov::element::i64, Shape{dims.size()}, dims);
+    auto unsqueeze_const = std::make_shared<Constant>(element::i64, Shape{dims.size()}, dims);
     auto unsqueeze = std::make_shared<Unsqueeze>(node, unsqueeze_const);
     copy_runtime_info(node.get_node_shared_ptr(), {unsqueeze, unsqueeze_const});
     return unsqueeze;
 }
 
-ov::Output<ov::Node> FixInputNodeRank(ov::Output<ov::Node> input_node, ov::Rank::value_type required_rank) {
-    const ov::Rank::value_type output_rank = input_node.get_partial_shape().rank().get_length();
+Output<Node> FixInputNodeRank(Output<Node> input_node, Rank::value_type required_rank) {
+    const Rank::value_type output_rank = input_node.get_partial_shape().rank().get_length();
     if (output_rank >= required_rank)
         return input_node;
     return InsertUnsqueeze(input_node, required_rank - output_rank)->output(0);
