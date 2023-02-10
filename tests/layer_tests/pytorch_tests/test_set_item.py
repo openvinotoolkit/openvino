@@ -22,7 +22,7 @@ class TestSilu(PytorchLayerTest):
 
             def forward(self, x: List[int]):
                 x[self.idx] = 0
-                return torch.tensor(x)
+                return torch.tensor(x).to(torch.int)
 
         ref_net = None
 
