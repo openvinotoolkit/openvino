@@ -901,26 +901,6 @@ public:
     void read(std::istream& stream);
 
     /**
-     * @brief Return pointer to underlined interface
-     * @return underlined interface
-     */
-    OPENVINO_DEPRECATED("Please use as() method")
-    Base* get() {
-        impl_check();
-        return _impl.get();
-    }
-
-    /**
-     * @brief Return pointer to underlined interface
-     * @return underlined interface
-     */
-    OPENVINO_DEPRECATED("Please use as() method")
-    const Base* get() const {
-        impl_check();
-        return _impl.get();
-    }
-
-    /**
      * @brief Returns address to internal value if any is not empty and `nullptr` instead
      * @return address to internal stored value
      */
