@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,8 @@
 #include <future>
 #include <memory>
 
-#include "ie_common.h"
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/exception.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -227,9 +227,9 @@ private:
             state = m_state;
             switch (m_state) {
             case InferState::BUSY:
-                IE_THROW(RequestBusy);
+                throw ov::Busy("Infer Request is busy");
             case InferState::CANCELLED:
-                IE_THROW(InferCancelled);
+                throw ov::Cancelled("Infer Request was canceled");
             case InferState::IDLE: {
                 m_futures.erase(std::remove_if(std::begin(m_futures),
                                                std::end(m_futures),

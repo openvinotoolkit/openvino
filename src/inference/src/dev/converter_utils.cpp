@@ -4,34 +4,34 @@
 
 #include "converter_utils.hpp"
 
-#include <ie_blob.h>
-#include <ie_common.h>
-#include <ie_compound_blob.h>
-#include <ie_layouts.h>
-
 #include <fstream>
-#include <ie_input_info.hpp>
-#include <ie_plugin_config.hpp>
-#include <ie_version.hpp>
 #include <memory>
 #include <mutex>
-#include <openvino/core/except.hpp>
-#include <openvino/op/parameter.hpp>
-#include <openvino/runtime/exception.hpp>
-#include <openvino/runtime/remote_context.hpp>
-#include <openvino/runtime/tensor.hpp>
 
 #include "any_copy.hpp"
 #include "cnn_network_ngraph_impl.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "icompiled_model_wrapper.hpp"
+#include "ie_blob.h"
+#include "ie_common.h"
+#include "ie_compound_blob.h"
 #include "ie_icore.hpp"
+#include "ie_input_info.hpp"
+#include "ie_layouts.h"
 #include "ie_ngraph_utils.hpp"
+#include "ie_plugin_config.hpp"
+#include "ie_version.hpp"
 #include "iplugin_wrapper.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/runtime/exception.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/profiling_info.hpp"
+#include "openvino/runtime/remote_context.hpp"
+#include "openvino/runtime/tensor.hpp"
 #include "openvino/runtime/variable_state.hpp"
 #include "so_ptr.hpp"
 #include "transformations/utils/utils.hpp"
@@ -424,8 +424,7 @@ class IInferRequestInternalWrapper : public InferenceEngine::IInferRequestIntern
             if (get_legacy_name_from_port(port) == legacy_name)
                 return port;
         }
-        // TODO:
-        OPENVINO_ASSERT(false);
+        OPENVINO_ASSERT(false, "Cannot find port with name: ", legacy_name);
     }
 
 public:
@@ -441,10 +440,29 @@ public:
     }
 
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override {
-        OPENVINO_NOT_IMPLEMENTED;
-        // TODO:
         auto res = m_request->get_profiling_info();
         std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> ret;
+        for (const auto& info : res) {
+            InferenceEngine::InferenceEngineProfileInfo old_info;
+            old_info.cpu_uSec = info.cpu_time.count();
+            old_info.realTime_uSec = info.real_time.count();
+            strncpy(old_info.exec_type, info.exec_type.c_str(), sizeof(old_info.exec_type));
+            old_info.exec_type[sizeof(old_info.exec_type) - 1] = 0;
+            strncpy(old_info.layer_type, info.node_type.c_str(), sizeof(old_info.layer_type));
+            old_info.layer_type[sizeof(old_info.layer_type) - 1] = 0;
+            switch (info.status) {
+            case ov::ProfilingInfo::Status::EXECUTED:
+                old_info.status = InferenceEngine::InferenceEngineProfileInfo::EXECUTED;
+                break;
+            case ov::ProfilingInfo::Status::NOT_RUN:
+                old_info.status = InferenceEngine::InferenceEngineProfileInfo::NOT_RUN;
+                break;
+            case ov::ProfilingInfo::Status::OPTIMIZED_OUT:
+                old_info.status = InferenceEngine::InferenceEngineProfileInfo::OPTIMIZED_OUT;
+                break;
+            }
+            ret[info.node_name] = old_info;
+        }
         return ret;
     }
 
@@ -621,9 +639,7 @@ public:
                         name,
                         "'");
         auto blob = m_request->GetBlob(name);
-        // soVec = {_so, _impl->getPointerToSo()};
-        // Tensor tensor = {blob, soVec};
-        ov::Tensor tensor = {blob, {}};
+        ov::Tensor tensor = {blob, {m_request->getPointerToSo()}};
         return tensor;
     }
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) override {
@@ -636,7 +652,7 @@ public:
         if (!blobs)
             return ret;
         for (size_t i = 0; i < blobs->size(); i++) {
-            ret.emplace_back(ov::Tensor{blobs->getBlob(i), {}});
+            ret.emplace_back(ov::Tensor{blobs->getBlob(i), {m_request->getPointerToSo()}});
         }
         return ret;
     }

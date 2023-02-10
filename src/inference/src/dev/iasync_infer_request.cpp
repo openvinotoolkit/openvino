@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -117,7 +117,7 @@ void ov::IAsyncInferRequest::run_first_stage(const Pipeline::iterator itBeginSta
                                              const Pipeline::iterator itEndStage,
                                              const InferenceEngine::ITaskExecutor::Ptr callbackExecutor) {
     auto& firstStageExecutor = std::get<Stage_e::EXECUTOR>(*itBeginStage);
-    IE_ASSERT(nullptr != firstStageExecutor);
+    OPENVINO_ASSERT(nullptr != firstStageExecutor);
     firstStageExecutor->run(make_next_stage_task(itBeginStage, itEndStage, std::move(callbackExecutor)));
 }
 
@@ -132,12 +132,12 @@ InferenceEngine::Task ov::IAsyncInferRequest::make_next_stage_task(
             auto itNextStage = itStage + 1;
             try {
                 auto& stageTask = std::get<Stage_e::TASK>(thisStage);
-                IE_ASSERT(nullptr != stageTask);
+                OPENVINO_ASSERT(nullptr != stageTask);
                 stageTask();
                 if (itEndStage != itNextStage) {
                     auto& nextStage = *itNextStage;
                     auto& nextStageExecutor = std::get<Stage_e::EXECUTOR>(nextStage);
-                    IE_ASSERT(nullptr != nextStageExecutor);
+                    OPENVINO_ASSERT(nullptr != nextStageExecutor);
                     nextStageExecutor->run(make_next_stage_task(itNextStage, itEndStage, std::move(callbackExecutor)));
                 }
             } catch (...) {
@@ -191,9 +191,9 @@ void ov::IAsyncInferRequest::check_state() const {
     std::lock_guard<std::mutex> lock{m_mutex};
     switch (m_state) {
     case InferState::BUSY:
-        IE_THROW(RequestBusy);
+        throw ov::Busy("Infer Request is busy");
     case InferState::CANCELLED:
-        IE_THROW(InferCancelled);
+        throw ov::Cancelled("Infer Request was canceled");
     default:
         break;
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,12 +11,12 @@
 
 #include <exception>
 #include <memory>
-#include <openvino/runtime/tensor.hpp>
 #include <unordered_map>
 #include <vector>
 
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/profiling_info.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 
