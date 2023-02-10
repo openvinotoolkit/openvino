@@ -177,7 +177,7 @@ def test_serialize_pass_tuple(request, tmp_path):
     model = ov.floor(ov.minimum(ov.abs(parameter_a), ov.multiply(parameter_b, parameter_c)))
     func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
     pass_manager = Manager()
-    pass_manager.register_pass("Serialize", output_files=(str(xml_path), str(bin_path)))
+    pass_manager.register_pass("Serialize", output_files=(xml_path, bin_path))
     pass_manager.run_passes(func)
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
@@ -201,7 +201,7 @@ def test_default_version(request, tmp_path):
     model = ov.floor(ov.minimum(ov.abs(parameter_a), ov.multiply(parameter_b, parameter_c)))
     func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
     pass_manager = Manager()
-    pass_manager.register_pass("Serialize", output_files=(str(xml_path), str(bin_path)))
+    pass_manager.register_pass("Serialize", output_files=(xml_path, bin_path))
     pass_manager.run_passes(func)
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
@@ -225,7 +225,7 @@ def test_default_version_IR_V11_tuple(request, tmp_path):
     model = ov.floor(ov.minimum(ov.abs(parameter_a), ov.multiply(parameter_b, parameter_c)))
     func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
     pass_manager = Manager()
-    pass_manager.register_pass("Serialize", output_files=(str(xml_path), str(bin_path)), version="IR_V11")
+    pass_manager.register_pass("Serialize", output_files=(xml_path, bin_path), version="IR_V11")
     pass_manager.run_passes(func)
 
     res_model = core.read_model(model=xml_path, weights=bin_path)

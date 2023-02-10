@@ -2,6 +2,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import io
 import os
 import onnx
 import numpy as np
@@ -172,6 +173,7 @@ def run_model(model, *inputs, expected):
 # FrontEndManager shall be initialized and destroyed after all tests finished
 # This is because destroy of FrontEndManager will unload all plugins, no objects shall exist after this
 fem = FrontEndManager()
+model_stream = io.BytesIO()
 onnx_model_filename = "model.onnx"
 onnx_model_2_filename = "model2.onnx"
 onnx_model_with_custom_attributes_filename = "model_custom_attributes.onnx"
@@ -183,6 +185,7 @@ ONNX_FRONTEND_NAME = "onnx"
 
 def setup_module():
     onnx.save_model(create_onnx_model(), onnx_model_filename)
+    onnx.save_model(create_onnx_model(), model_stream)
     onnx.save_model(create_onnx_model_2(), onnx_model_2_filename)
     onnx.save_model(create_onnx_model_with_custom_attributes(),
                     onnx_model_with_custom_attributes_filename)
@@ -719,3 +722,17 @@ def test_so_extension_via_frontend_decode_input_model():
 
     decoded_model = load_decoded_model()  # decoded model has longer lifetime than frontend
     assert decoded_model
+
+
+def test_load_bytesio_model():
+    from openvino.runtime import Core
+
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model_from_fe = fe.load(model_stream)
+    assert model_from_fe
+    converted_model = fe.convert(model_from_fe)
+    assert converted_model.friendly_name == "graph"
+
+    core = Core()
+    model = core.read_model(model_stream)
+    assert converted_model.friendly_name == model.friendly_name
