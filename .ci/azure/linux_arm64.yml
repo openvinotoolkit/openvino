@@ -48,7 +48,7 @@ jobs:
   timeoutInMinutes: '120'
 
   pool:
-    vmImage: 'ubuntu-latest'
+    name: LIN_VMSS_VENV_F16S_U20_WU2
 
   variables:
     system.debug: true
@@ -80,13 +80,13 @@ jobs:
     OPENVINO_CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux_arm64
     OPENCV_CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux_arm64_opencv
     ONETBB_CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux_arm64_onetbb
-    # LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
-    # OV_PYTHON_VERSION: 3.10.10 # Full version of Python its required for LD_LIBRARY_PATH. More details https://github.com/microsoft/azure-pipelines-tool-lib/blob/master/docs/overview.md#tool-cache
+    LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
+    OV_PYTHON_VERSION: 3.10.10 # Full version of Python its required for LD_LIBRARY_PATH. More details https://github.com/microsoft/azure-pipelines-tool-lib/blob/master/docs/overview.md#tool-cache
 
   steps:
   - task: UsePythonVersion@0
     inputs:
-      versionSpec: '3.10' # Setting only major & minor version will download latest release from GH repo example 3.10 will be 3.10.10. 
+      versionSpec: '$(OV_PYTHON_VERSION)' # Setting only major & minor version will download latest release from GH repo example 3.10 will be 3.10.10. 
       addToPath: true
       disableDownloadFromRegistry: false
       architecture: 'x64'
