@@ -594,7 +594,7 @@ int Hex2Int(char c) {
                : (c >= 'A' && c <= 'F') ? (c) - 'A' + 10 : (c >= 'a' && c <= 'f') ? (c) - 'a' + 10 : 0;
 }
 
-void Hex2Bin(const char* hex, int sz, char* out) {
+void Hex2Bin(const char* hex, std::size_t sz, char* out) {
     for (int i = 0; i < sz; i += 2) {
         out[i / 2] = (Hex2Int(hex[i]) << 4) | Hex2Int(hex[i + 1]);
     }
@@ -616,7 +616,7 @@ public:
         const auto& test_data = std::get<0>(GetParam());
 
         const char* test_ptr = (char*)test_data.system_info.c_str();
-        unsigned long test_len = test_data.system_info.length();
+        std::size_t test_len = test_data.system_info.length();
 
         std::shared_ptr<char> test_info(new char[test_len / 2]);
         char* test_info_ptr = test_info.get();
