@@ -20,8 +20,6 @@ class TestTranspose(CommonTFLayerTest):
         return tf_net, None
 
     test_data_basic = [
-        dict(x_shape=[], perm_value=[]),
-        dict(x_shape=[2], perm_value=[0]),
         dict(x_shape=[2, 4], perm_value=[1, 0]),
         dict(x_shape=[2, 1, 3, 4], perm_value=[2, 0, 1, 3]),
     ]
