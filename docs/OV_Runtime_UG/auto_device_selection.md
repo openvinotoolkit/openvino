@@ -89,7 +89,7 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 | |                              | | If not specified, `AUTO` will be used as default,                  |
 | |                              | | and all devices will be "viewed" as candidates.                    |
 +--------------------------------+----------------------------------------------------------------------+
-| | `ov::device:priorities`      | | **Values**:                                                        |
+| | `ov::device::priorities`     | | **Values**:                                                        |
 | |                              | |       `<device names>` (comma-separated, no spaces)                |
 | |                              | |                                                                    |
 | |                              | | Specifies the devices for AUTO to select.                          |
@@ -111,6 +111,13 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 | |                              | | Indicates the priority for a model.                                |
 | |                              | | IMPORTANT: This property is not fully supported yet.               |
 +--------------------------------+----------------------------------------------------------------------+
+| | `ov::execution_devices`      | | Lists the runtime target devices on which the inferences are being |
+| |                              | | executed.                                                          |
+| |                              | | Examples of returning results could be `CPU_HELP`(`CPU_HELP` is a  |
+| |                              | | temporary device, indicating that CPU is used for acceleration at  |
+| |                              | | the model compilation stage), `CPU`, `GPU`, `CPU GPU`, `GPU.0`,    |
+| |                              | | etc.                                                               |
++--------------------------------+----------------------------------------------------------------------+
 
 @endsphinxdirective
 
@@ -122,7 +129,7 @@ The device candidate list enables you to customize the priority and limit the ch
 - If <device candidate list> is not specified, AUTO assumes all the devices present in the system can be used. 
 - If `AUTO` without any device names is specified, AUTO assumes all the devices present in the system can be used, and will load the network to all devices and run inference based on their default priorities, from high to low.
 
-To specify the priority of devices, enter the device names in the priority order (from high to low) in `AUTO: <device names>`, or use the `ov::device:priorities` property.
+To specify the priority of devices, enter the device names in the priority order (from high to low) in `AUTO: <device names>`, or use the `ov::device::priorities` property.
 
 See the following code for using AUTO and specifying devices: 
 
@@ -192,24 +199,42 @@ AUTO will then query all available devices and remove CPU from the candidate lis
 
 Note that if you choose to exclude CPU from device candidate list, CPU will not be able to support the initial model compilation stage. See more information in [How AUTO Works](#how-auto-works).
 
+### Checking Target Runtime Devices
+
+To query the runtime target devices on which the inferences are being executed using AUTO, you can use the `ov::execution_devices` property. It must be used with `get_property`, for example:
+
+@sphinxdirective
+
+.. tab:: C++
+
+    .. doxygensnippet:: docs/snippets/AUTO7.cpp
+       :language: cpp
+       :fragment: [part7]
+
+.. tab:: Python
+
+    .. doxygensnippet:: docs/snippets/ov_auto.py
+       :language: python
+       :fragment: [part7]
+
+@endsphinxdirective
+
 ### Performance Hints for AUTO
-The `ov::hint::performance_mode` property enables you to specify a performance option for AUTO to be more efficient for particular use cases.
-
-> **NOTE**: Currently, the `ov::hint` property is supported by CPU and GPU devices only.
-
-#### THROUGHPUT
-This option prioritizes high throughput, balancing between latency and power. It is best suited for tasks involving multiple jobs, such as inference of video feeds or large numbers of images.
-
-> **NOTE**: If no performance hint is set explicitly, AUTO will set THROUGHPUT for devices that have not set `ov::device::properties`. For example, if you have both a CPU and a GPU in the system, this command `core.compile_model("AUTO", ov::device::properties("CPU", ov::enable_profiling(true)))` will set THROUGHPUT for the GPU only. No hint will be set for the CPU although it's the selected device.
+The `ov::hint::performance_mode` property enables you to specify a performance option for AUTO to be more efficient for particular use cases. The default hint for AUTO is `LATENCY`.
 
 #### LATENCY
 This option prioritizes low latency, providing short response time for each inference job. It performs best for tasks where inference is required for a single input image, e.g. a medical analysis of an ultrasound scan image. It also fits the tasks of real-time or nearly real-time applications, such as an industrial robot's response to actions in its environment or obstacle avoidance for autonomous vehicles.
+
+> **NOTE**: If no performance hint is set explicitly, AUTO will set LATENCY for devices that have not set `ov::device::properties`, for example, `ov::device::properties(<DEVICE_NAME>, ov::hint::performance_mode(ov::hint::LATENCY))`.
 
 @sphinxdirective
 
 .. _cumulative throughput:
 
 @endsphinxdirective
+
+#### THROUGHPUT
+This option prioritizes high throughput, balancing between latency and power. It is best suited for tasks involving multiple jobs, such as inference of video feeds or large numbers of images.
 
 #### CUMULATIVE_THROUGHPUT
 While `LATENCY` and `THROUGHPUT` can select one target device with your preferred performance option, the `CUMULATIVE_THROUGHPUT` option enables running inference on multiple devices for higher throughput. With `CUMULATIVE_THROUGHPUT`, AUTO loads the network model to all available devices in the candidate list, and then runs inference on them based on the default or specified priority. 
