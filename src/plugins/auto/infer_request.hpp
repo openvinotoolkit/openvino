@@ -39,6 +39,13 @@ public:
                                      InferenceEngine::RemoteContext::Ptr ctx = nullptr);
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& blob) override;
+    /**
+     * @deprecated This method will be removed in 2024.1 release
+     * @brief Sets blob with a pre-process information
+     */
+    void SetBlob(const std::string& name,
+                 const InferenceEngine::Blob::Ptr& blob,
+                 const InferenceEngine::PreProcessInfo& info) override;
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
     std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> QueryState() override;
     // Multi-Device impl specific: sets the data (blobs from the device-less requests to the specific device request)

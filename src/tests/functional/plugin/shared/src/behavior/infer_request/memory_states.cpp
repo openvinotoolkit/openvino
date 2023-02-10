@@ -249,4 +249,11 @@ TEST_P(InferRequestVariableStateTest, inferreq_smoke_VariableState_2infers) {
         }
     }
 }
+
+TEST_P(InferRequestQueryStateExceptionTest, inferreq_smoke_QueryState_ExceptionTest) {
+    auto executableNet = PrepareNetwork();
+    auto inferReq = executableNet.CreateInferRequest();
+
+    EXPECT_ANY_THROW(inferReq.QueryState());
+}
 } // namespace BehaviorTestsDefinitions
