@@ -93,10 +93,10 @@ int readBmpImage(const char* fileName, BitMap* image) {
     }
 
     // reading by rows in invert vertically
-    unsigned int i;
+    int i;
     int image_height = image->height;
     for (i = 0; i < image_height; i++) {
-        unsigned int storeAt = image->infoHeader.height < 0 ? i : (unsigned int)image_height - 1 - i;
+        unsigned int storeAt = image->infoHeader.height < 0 ? (unsigned int)i : (unsigned int)image_height - 1 - i;
         cnt = fread(image->data + row_size * storeAt, row_size, sizeof(unsigned char), input);
         if (cnt != sizeof(unsigned char)) {
             printf("[BMP] file read error\n");
