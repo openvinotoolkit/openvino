@@ -39,7 +39,7 @@ jobs:
   timeoutInMinutes: '90'
 
   pool:
-    name: ubuntu-latest
+    vmImage: 'ubuntu-latest'
 
   variables:
     system.debug: true
