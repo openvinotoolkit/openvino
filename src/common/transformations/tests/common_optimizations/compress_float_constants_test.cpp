@@ -13,6 +13,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/visualize_tree.hpp"
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
@@ -105,6 +106,7 @@ TEST_F(TransformationTestsF, CompressConstants_f32) {
 
         function_ref = std::make_shared<ov::Model>(ov::NodeVector{resize}, ov::ParameterVector{input});
     }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 TEST_F(TransformationTestsF, CompressConstants_f32_If) {
@@ -234,6 +236,7 @@ TEST_F(TransformationTestsF, CompressConstants_f32_If) {
         function_ref =
             std::make_shared<ngraph::Function>(ngraph::NodeVector{if_result}, ngraph::ParameterVector{input});
     }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 TEST_F(TransformationTestsF, CompressConstants_f64) {
@@ -270,10 +273,11 @@ TEST_F(TransformationTestsF, CompressConstants_f64) {
                                                               ov::Strides{1, 1});
         function_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
     }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 TEST_F(TransformationTestsF, CompressConstants_keep_in_f32_small_eps_out_of_range) {
-    float fp16_eps = static_cast<float>(ov::float16::from_bits(0x0400));
+    float fp16_eps = static_cast<float>(ov::float16::from_bits(0x0001));
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
 
@@ -327,6 +331,7 @@ TEST_F(TransformationTestsF, CompressConstants_keep_in_f32_small_eps_out_of_rang
                                                               ov::Strides{1, 1});
         function_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
     }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 TEST_F(TransformationTestsF, CompressConstants_keep_in_f32_max_out_of_range_val) {
@@ -386,6 +391,7 @@ TEST_F(TransformationTestsF, CompressConstants_keep_in_f32_max_out_of_range_val)
                                                               ov::Strides{1, 1});
         function_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
     }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 TEST_F(TransformationTestsF, CompressConstants_compress_to_f16_max_out_of_range_val) {
@@ -427,6 +433,7 @@ TEST_F(TransformationTestsF, CompressConstants_compress_to_f16_max_out_of_range_
                                                               ov::Strides{1, 1});
         function_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
     }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 TEST_F(TransformationTestsF, CompressConstants_not_keep_in_f32_when_zeros) {
@@ -466,4 +473,49 @@ TEST_F(TransformationTestsF, CompressConstants_not_keep_in_f32_when_zeros) {
                                                               ov::Strides{1, 1});
         function_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
     }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, CompressConstants_compress_to_f16_denormal_vals) {
+    float fp16_denormal = 0.00001;
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
+
+        // only one third of values are out of fp16 normal range, therefore they will be compressed to fp16
+        auto const_weights = ov::opset8::Constant::create(
+            ov::element::f32,
+            ov::Shape{1, 3, 3, 1},
+            {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, fp16_denormal, fp16_denormal, fp16_denormal});
+        auto conv = std::make_shared<ov::opset8::Convolution>(input,
+                                                              const_weights,
+                                                              ov::Strides{1, 1},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::Strides{1, 1});
+        function = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
+
+        manager.register_pass<ov::pass::VisualizeTree>("before.svg");
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
+        manager.register_pass<ov::pass::CompressFloatConstants>();
+        manager.register_pass<ov::pass::VisualizeTree>("after.svg");
+    }
+
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
+        auto const_weights = ov::opset8::Constant::create(
+            ov::element::f16,
+            ov::Shape{1, 3, 3, 1},
+            {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, fp16_denormal, fp16_denormal, fp16_denormal});
+        auto convert_ins1 = std::make_shared<ov::opset8::Convert>(const_weights, ov::element::f32);
+        auto conv = std::make_shared<ov::opset8::Convolution>(input,
+                                                              convert_ins1,
+                                                              ov::Strides{1, 1},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::Strides{1, 1});
+        function_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
+        ov::pass::VisualizeTree("ref.svg").run_on_model(function_ref);
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::PRECISIONS);
 }
