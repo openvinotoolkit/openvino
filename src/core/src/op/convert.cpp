@@ -42,20 +42,23 @@ shared_ptr<Node> op::Convert::clone_with_new_inputs(const OutputVector& new_args
 namespace convert {
 namespace {
 template <element::Type_t INPUT_ET, element::Type_t OUTPUT_ET>
-bool evaluate(const ov::Tensor& arg, const ov::Tensor& out) {
-    size_t element_count = shape_size(out.get_shape());
-    using IN_T = typename element_type_traits<INPUT_ET>::value_type;
-    using OUT_T = typename element_type_traits<OUTPUT_ET>::value_type;
+bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out) {
+    out->set_shape(arg->get_shape());
+    size_t element_count = shape_size(out->get_shape());
 
-    if ((INPUT_ET != arg.get_element_type()) || OUTPUT_ET != out.get_element_type()) {
+    if ((INPUT_ET != arg->get_element_type()) || OUTPUT_ET != out->get_element_type()) {
         return false;
     }
     if (((INPUT_ET == element::u1) || (OUTPUT_ET == element::u1)) ||
         ((INPUT_ET == element::u4) || (OUTPUT_ET == element::u4)) ||
         ((INPUT_ET == element::i4) || (OUTPUT_ET == element::i4))) {
-        runtime::reference::detail::lp_convert(arg.data<IN_T>(), out.data<OUT_T>(), element_count, INPUT_ET, OUTPUT_ET);
+        runtime::reference::detail::lp_convert(arg->get_data_ptr<INPUT_ET>(),
+                                               out->get_data_ptr<OUTPUT_ET>(),
+                                               element_count,
+                                               INPUT_ET,
+                                               OUTPUT_ET);
     } else {
-        runtime::reference::convert(arg.data<IN_T>(), out.data<OUT_T>(), element_count);
+        runtime::reference::convert(arg->get_data_ptr<INPUT_ET>(), out->get_data_ptr<OUTPUT_ET>(), element_count);
     }
     return true;
 }
@@ -67,10 +70,10 @@ bool evaluate(const ov::Tensor& arg, const ov::Tensor& out) {
     } break
 
 template <element::Type_t INPUT_ET>
-bool evaluate(const ov::Tensor& arg, const ov::Tensor& out) {
+bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out) {
     bool rc = true;
 
-    switch (out.get_element_type()) {
+    switch (out->get_element_type()) {
         TYPE_OUT_CASE(i4, arg, out);
         TYPE_OUT_CASE(i8, arg, out);
         TYPE_OUT_CASE(i16, arg, out);
@@ -94,9 +97,9 @@ bool evaluate(const ov::Tensor& arg, const ov::Tensor& out) {
     return rc;
 }
 
-bool evaluate_convert(const ov::Tensor& arg, const ov::Tensor& out) {
+bool evaluate_convert(const HostTensorPtr& arg, const HostTensorPtr& out) {
     bool rc = true;
-    switch (arg.get_element_type()) {
+    switch (arg->get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_convert, u1, arg, out);
         NGRAPH_TYPE_CASE(evaluate_convert, u4, arg, out);
         NGRAPH_TYPE_CASE(evaluate_convert, u8, arg, out);
@@ -166,11 +169,10 @@ bool evaluate_bound(const Node* node, ov::TensorVector& output_values, bool is_u
 }
 }  // namespace
 }  // namespace convert
-bool op::v0::Convert::evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const {
+bool op::v0::Convert::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     OV_OP_SCOPE(v0_Convert_evaluate);
-    NGRAPH_CHECK(output_values.size() == 1);
-    NGRAPH_CHECK(input_values.size() == 1);
-
+    NGRAPH_CHECK(validate_host_tensor_vector(input_values, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
     return convert::evaluate_convert(input_values[0], output_values[0]);
 }
 
