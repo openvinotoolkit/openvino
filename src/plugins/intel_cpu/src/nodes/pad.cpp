@@ -3,19 +3,16 @@
 //
 
 #include "pad.h"
-
-#include <dnnl_extension_utils.h>
-#include <dnnl_types.h>
-#include <selective_build.h>
-
-#include <cmath>
-#include <limits>
-#include <ngraph/opsets/opset1.hpp>
 #include <string>
-
-#include "common/cpu_memcpy.h"
+#include <cmath>
+#include <dnnl_types.h>
+#include <dnnl_extension_utils.h>
+#include <limits>
 #include "ie_parallel.hpp"
+#include "common/cpu_memcpy.h"
 #include "utils/bfloat16.hpp"
+#include <selective_build.h>
+#include <ngraph/opsets/opset1.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -43,24 +40,31 @@ bool Pad::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
             return false;
         }
 
-        if (op->get_input_node_shared_ptr(PADS_BEGIN_ID)->get_type_info() ==
-                ov::op::v0::Constant::get_type_info_static() ||
-            op->get_input_node_shared_ptr(PADS_END_ID)->get_type_info() ==
-                ov::op::v0::Constant::get_type_info_static()) {
-            const auto pb = pad->get_pads_begin();
-            const auto pe = pad->get_pads_end();
-            if (std::any_of(pb.begin(),
-                            pb.end(),
-                            [](ptrdiff_t x) {
-                                return x < 0;
-                            }) ||
-                std::any_of(pe.begin(), pe.end(), [](ptrdiff_t x) {
-                    return x < 0;
-                })) {
-                errorMessage = "Doesn't support 'pads_begin' or 'pads_end' with negative values";
-                return false;
+        auto checkPadConstVal = [&](size_t id) {
+            if (op->get_input_node_shared_ptr(id)->get_type_info() == ov::op::v0::Constant::get_type_info_static()) {
+                CoordinateDiff padParams;
+                std::string padStr = "";
+                if (id == PADS_BEGIN_ID) {
+                    padParams = pad->get_pads_begin();
+                    padStr = "pad_begin";
+                } else if (id == PADS_END_ID) {
+                    padParams = pad->get_pads_end();
+                    padStr = "pad_end";
+                }
+                if (std::any_of(padParams.begin(), padParams.end(), [](ptrdiff_t x) {
+                        return x < 0;
+                    })) {
+                    errorMessage = "Doesn't support " + padStr + " with negative values";
+                    return false;
+                }
+                return true;
             }
-        }
+        };
+
+        if (!checkPadConstVal(PADS_BEGIN_ID))
+            return false;
+        if (!checkPadConstVal(PADS_END_ID))
+            return false;
     } catch (...) {
         return false;
     }
@@ -112,7 +116,6 @@ Pad::Pad(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr conte
 
     const auto pad_mode = pad->get_pad_mode();
     isPadValueSpecified = pad->get_input_size() == 4;
-    size_t inParamsNum = pad->get_input_size();
     if (pad_mode == ngraph::op::PadMode::CONSTANT) {
         attrs.padMode = CONSTANT;
         if (isPadValueSpecified && op->get_input_node_shared_ptr(PAD_VALUE_ID)->get_type_info() ==
@@ -133,8 +136,6 @@ Pad::Pad(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr conte
     } else {
         IE_THROW() << errorPrefix << "has unsupported pad_mode: " + ngraph::as_string(pad_mode);
     }
-    srcMemory.assign(inParamsNum, nullptr);
-    dstMemory.assign(1, nullptr);
 }
 
 void Pad::getSupportedDescriptors() {}
@@ -143,10 +144,8 @@ void Pad::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    std::vector<InferenceEngine::Precision> supportedPrecisions = {InferenceEngine::Precision::FP32,
-                                                                   InferenceEngine::Precision::I32,
-                                                                   InferenceEngine::Precision::BF16,
-                                                                   InferenceEngine::Precision::I8,
+    std::vector<InferenceEngine::Precision> supportedPrecisions = {InferenceEngine::Precision::FP32, InferenceEngine::Precision::I32,
+                                                                   InferenceEngine::Precision::BF16, InferenceEngine::Precision::I8,
                                                                    InferenceEngine::Precision::U8};
     InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(DATA_ID);
     if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), precision) == supportedPrecisions.end())
@@ -162,18 +161,13 @@ void Pad::initSupportedPrimitiveDescriptors() {
 
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto pushSupportedPrimitiveDescriptor = [&](LayoutType memoryFormat) {
-        config.inConfs[0].setMemDesc(
-            creatorsMap.at(memoryFormat)->createSharedDesc(precision, getInputShapeAtPort(DATA_ID)));
-        config.inConfs[1].setMemDesc(
-            creatorsMap.at(LayoutType::ncsp)->createSharedDesc(Precision::I32, getInputShapeAtPort(PADS_BEGIN_ID)));
-        config.inConfs[2].setMemDesc(
-            creatorsMap.at(LayoutType::ncsp)->createSharedDesc(Precision::I32, getInputShapeAtPort(PADS_END_ID)));
+        config.inConfs[0].setMemDesc(creatorsMap.at(memoryFormat)->createSharedDesc(precision, getInputShapeAtPort(DATA_ID)));
+        config.inConfs[1].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(Precision::I32, getInputShapeAtPort(PADS_BEGIN_ID)));
+        config.inConfs[2].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(Precision::I32, getInputShapeAtPort(PADS_END_ID)));
         if (isPadValueSpecified)
-            config.inConfs[3].setMemDesc(
-                creatorsMap.at(LayoutType::ncsp)->createSharedDesc(Precision::FP32, getInputShapeAtPort(PAD_VALUE_ID)));
+            config.inConfs[3].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(Precision::FP32, getInputShapeAtPort(PAD_VALUE_ID)));
 
-        config.outConfs[0].setMemDesc(
-            creatorsMap.at(memoryFormat)->createSharedDesc(precision, getOutputShapeAtPort(DATA_ID)));
+        config.outConfs[0].setMemDesc(creatorsMap.at(memoryFormat)->createSharedDesc(precision, getOutputShapeAtPort(DATA_ID)));
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::ref});
     };
 
@@ -210,9 +204,9 @@ bool Pad::needPrepareParams() const {
 
 void Pad::createPrimitive() {
     for (int i = 0; i < getOriginalInputsNumber(); i++) {
-        srcMemory[i] = getParentEdgeAt(i)->getMemoryPtr();
+        srcMemory.push_back(getParentEdgeAt(i)->getMemoryPtr());
     }
-    dstMemory[0] = getChildEdgeAt(0)->getMemoryPtr();
+    dstMemory.push_back(getChildEdgeAt(0)->getMemoryPtr());
     if (inputShapesDefined() && isExecutable() && !shapeHasDataDependency) {
         prepareParams();
         updateLastInputDims();
