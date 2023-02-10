@@ -42,7 +42,7 @@ static AxisVector get_default_order(size_t rank) {
     return default_order;
 }
 
-int64_t get_static_rank(const Output<Node>& output) {
+static size_t get_static_rank(const Output<Node>& output) {
     auto rank = output.get_partial_shape().rank();
     OPENVINO_ASSERT(rank.is_static(), "Dynamic rank is not supported in TransposeSinking transformation.");
     return rank.get_length();
@@ -173,7 +173,7 @@ static void convert_binary_to_default_order(const shared_ptr<Node>& binary,
     // if right input is being implicitly broadcasted, insert a reshape
     // instead of a transpose
     shared_ptr<Node> new_node;
-    auto left_rank = static_cast<size_t>(get_static_rank(left));
+    auto left_rank = get_static_rank(left);
     if (left_rank < perm_to_def.size() && left.get_partial_shape().is_static()) {
         auto left_shape = left.get_shape();
         left_shape.insert(left_shape.begin(), perm_to_def.size() - left_rank, 1);
