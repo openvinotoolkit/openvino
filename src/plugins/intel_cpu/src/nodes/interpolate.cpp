@@ -3086,10 +3086,10 @@ void Interpolate::InterpolateRefExecutor::linearInterpolation(const uint8_t *in_
 }
 
 Interpolate::InterpolateExecutor::InterpolateExecutor(const InterpolateAttrs& interpAttrs,
-                                                                const VectorDims &srcDims,
-                                                                const VectorDims &dstDims,
-                                                                const std::vector<float> &dataScales) :
-        mode(interpAttrs.mode), configured_for_layout(interpAttrs.layout), coordTransMode(interpAttrs.coordTransMode),
+                                                      const VectorDims &srcDims,
+                                                      const VectorDims &dstDims,
+                                                      const std::vector<float> &dataScales) :
+        mode(interpAttrs.mode), coordTransMode(interpAttrs.coordTransMode), configured_for_layout(interpAttrs.layout),
         inputPrec(interpAttrs.inPrc), outputPrec(interpAttrs.outPrc) {
     srcDimPad5d = to5Dim(getPaddedInputShape(srcDims, interpAttrs.padBegin, interpAttrs.padEnd));
     dstDim5d = to5Dim(dstDims);

@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+
 #include <pugixml.hpp>
+
 
 #include "functional_test_utils/summary/op_summary.hpp"
 #include "common_test_utils/file_utils.hpp"
@@ -27,17 +30,6 @@ void OpSummaryDestroyer::initialize(OpSummary *p) {
 
 OpSummary::OpSummary() {
     reportFilename = CommonTestUtils::OP_REPORT_FILENAME;
-    // TODO: replace to get_available_opsets()
-    opsets.push_back(ngraph::get_opset1());
-    opsets.push_back(ngraph::get_opset2());
-    opsets.push_back(ngraph::get_opset3());
-    opsets.push_back(ngraph::get_opset4());
-    opsets.push_back(ngraph::get_opset5());
-    opsets.push_back(ngraph::get_opset6());
-    opsets.push_back(ngraph::get_opset7());
-    opsets.push_back(ngraph::get_opset8());
-    opsets.push_back(ngraph::get_opset9());
-    opsets.push_back(ngraph::get_opset10());
 }
 
 OpSummary &OpSummary::getInstance() {
@@ -48,7 +40,7 @@ OpSummary &OpSummary::getInstance() {
     return *p_instance;
 }
 
-void OpSummary::updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::Statuses &status) {
+void OpSummary::updateOPsStats(const ov::NodeTypeInfo &op, const PassRate::Statuses &status) {
     auto it = opsStats.find(op);
     if (opsStats.find(op) == opsStats.end()) {
         opsStats.insert({op, PassRate()});
@@ -56,7 +48,8 @@ void OpSummary::updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::S
     auto &passrate = opsStats[op];
     if (isCrashReported) {
         isCrashReported = false;
-        passrate.crashed--;
+        if (passrate.crashed > 0)
+            passrate.crashed--;
     }
     if (isHangReported) {
         isHangReported = false;
@@ -78,7 +71,7 @@ void OpSummary::updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::S
         case PassRate::CRASHED: {
             passrate.crashed++;
             isCrashReported = true;
-            return;
+            break;
         }
         case PassRate::HANGED: {
             passrate.hanged++;
@@ -88,7 +81,7 @@ void OpSummary::updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::S
     }
 }
 
-void OpSummary::updateOPsImplStatus(const ngraph::NodeTypeInfo &op, const bool implStatus) {
+void OpSummary::updateOPsImplStatus(const ov::NodeTypeInfo &op, const bool implStatus) {
     auto it = opsStats.find(op);
     if (it != opsStats.end()) {
         if (!it->second.isImplemented && implStatus) {
@@ -100,13 +93,14 @@ void OpSummary::updateOPsImplStatus(const ngraph::NodeTypeInfo &op, const bool i
     }
 }
 
-std::string OpSummary::getOpVersion(const ngraph::NodeTypeInfo &type_info) {
-    for (size_t i = 0; i < opsets.size(); i++) {
-        if (opsets[i].contains_type(type_info)) {
-            return std::to_string(i+1);
-        }
+std::string OpSummary::getOpVersion(const ov::NodeTypeInfo &type_info) {
+    std::string opset_name = "opset", version = type_info.get_version();
+    auto pos = version.find(opset_name);
+    if (pos == std::string::npos) {
+        return "undefined";
+    } else {
+        return version.substr(pos + opset_name.size());
     }
-    return "undefined";
 }
 
 std::map<std::string, PassRate> OpSummary::getStatisticFromReport() {
@@ -135,41 +129,41 @@ std::map<std::string, PassRate> OpSummary::getStatisticFromReport() {
     return oldOpsStat;
 }
 
-void OpSummary::updateOPsStats(const std::shared_ptr<ngraph::Function> &function, const PassRate::Statuses &status) {
-    if (function->get_parameters().empty()) {
+void OpSummary::updateOPsStats(const std::shared_ptr<ov::Model> &model, const PassRate::Statuses &status) {
+    if (model->get_parameters().empty()) {
         return;
     }
     bool isFunctionalGraph = false;
-    for (const auto &op : function->get_ordered_ops()) {
-        if (!ngraph::is_type<ngraph::op::Parameter>(op) &&
-            !ngraph::is_type<ngraph::op::Constant>(op) &&
-            !ngraph::is_type<ngraph::op::Result>(op)) {
+    for (const auto &op : model->get_ordered_ops()) {
+        if (!std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) &&
+            !std::dynamic_pointer_cast<ov::op::v0::Constant>(op) &&
+            !std::dynamic_pointer_cast<ov::op::v0::Result>(op)) {
             isFunctionalGraph = true;
             break;
         }
     }
 
-    for (const auto &op : function->get_ordered_ops()) {
-        if ((ngraph::is_type<ngraph::op::Parameter>(op) ||
-             ngraph::is_type<ngraph::op::Constant>(op) ||
-             ngraph::is_type<ngraph::op::Result>(op)) && isFunctionalGraph) {
+    for (const auto &op : model->get_ordered_ops()) {
+        if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) ||
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(op) ||
+            std::dynamic_pointer_cast<ov::op::v0::Result>(op) || isFunctionalGraph) {
             continue;
         }
         if (extractBody) {
-            if (ngraph::is_type<ngraph::op::TensorIterator>(op)) {
+            if (std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(op)) {
                 updateOPsStats(op->get_type_info(), status);
-                auto ti = ngraph::as_type_ptr<ngraph::op::TensorIterator>(op);
+                auto ti = ov::as_type_ptr<ov::op::v0::TensorIterator>(op);
                 auto ti_body = ti->get_function();
                 updateOPsStats(ti_body, status);
-            } else if (ngraph::is_type<ngraph::op::v5::Loop>(op)) {
+            } else if (std::dynamic_pointer_cast<ov::op::v5::Loop>(op)) {
                 updateOPsStats(op->get_type_info(), status);
-                auto loop = ngraph::as_type_ptr<ngraph::op::v5::Loop>(op);
+                auto loop = ov::as_type_ptr<ov::op::v5::Loop>(op);
                 auto loop_body = loop->get_function();
                 updateOPsStats(loop_body, status);
-            } else if (ngraph::is_type<ngraph::op::v8::If>(op)) {
+            } else if (std::dynamic_pointer_cast<ov::op::v8::If>(op)) {
                 updateOPsStats(op->get_type_info(), status);
-                auto if_op = ngraph::as_type_ptr<ngraph::op::v8::If>(op);
-                std::vector<std::shared_ptr<ngraph::Function>> bodies;
+                auto if_op = ov::as_type_ptr<ov::op::v8::If>(op);
+                std::vector<std::shared_ptr<ov::Model>> bodies;
                 for (size_t i = 0; i < if_op->get_internal_subgraphs_size(); i++) {
                     auto if_body = if_op->get_function(i);
                     updateOPsStats(if_body, status);
@@ -180,33 +174,33 @@ void OpSummary::updateOPsStats(const std::shared_ptr<ngraph::Function> &function
     }
 }
 
-void OpSummary::updateOPsImplStatus(const std::shared_ptr<ngraph::Function> &function, const bool implStatus) {
-    if (function->get_parameters().empty()) {
+void OpSummary::updateOPsImplStatus(const std::shared_ptr<ov::Model> &model, const bool implStatus) {
+    if (model->get_parameters().empty()) {
         return;
     }
     bool isFunctionalGraph = false;
-    for (const auto &op : function->get_ordered_ops()) {
-        if (!ngraph::is_type<ngraph::op::Parameter>(op) &&
-            !ngraph::is_type<ngraph::op::Constant>(op) &&
-            !ngraph::is_type<ngraph::op::Result>(op)) {
+    for (const auto &op : model->get_ordered_ops()) {
+        if (!std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) &&
+            !std::dynamic_pointer_cast<ov::op::v0::Constant>(op) &&
+            !std::dynamic_pointer_cast<ov::op::v0::Result>(op)) {
             isFunctionalGraph = true;
             break;
         }
     }
 
-    for (const auto &op : function->get_ordered_ops()) {
-        if ((ngraph::is_type<ngraph::op::Parameter>(op) ||
-             ngraph::is_type<ngraph::op::Constant>(op) ||
-             ngraph::is_type<ngraph::op::Result>(op)) && isFunctionalGraph) {
+    for (const auto &op : model->get_ordered_ops()) {
+        if ((std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) ||
+             std::dynamic_pointer_cast<ov::op::v0::Constant>(op) ||
+             std::dynamic_pointer_cast<ov::op::v0::Result>(op)) && isFunctionalGraph) {
             continue;
-        } else if (ngraph::is_type<ngraph::op::TensorIterator>(op)) {
+        } else if (std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(op)) {
             updateOPsImplStatus(op->get_type_info(), implStatus);
-            auto ti = ngraph::as_type_ptr<ngraph::op::TensorIterator>(op);
+            auto ti = ov::as_type_ptr<ov::op::v0::TensorIterator>(op);
             auto ti_body = ti->get_function();
             updateOPsImplStatus(ti_body, implStatus);
-        } else if (ngraph::is_type<ngraph::op::v5::Loop>(op)) {
+        } else if (std::dynamic_pointer_cast<ov::op::v5::Loop>(op)) {
             updateOPsImplStatus(op->get_type_info(), implStatus);
-            auto loop = ngraph::as_type_ptr<ngraph::op::v5::Loop>(op);
+            auto loop = ov::as_type_ptr<ov::op::v5::Loop>(op);
             auto loop_body = loop->get_function();
             updateOPsImplStatus(loop_body, implStatus);
         } else {
@@ -248,8 +242,10 @@ void OpSummary::saveReport() {
 
     std::string outputFilePath = outputFolder + std::string(CommonTestUtils::FileSeparator) + filename;
 
-    std::set<ngraph::NodeTypeInfo> opsInfo;
-    for (const auto &opset : opsets) {
+    std::set<ov::NodeTypeInfo> opsInfo;
+    for (const auto &opset_pair : get_available_opsets()) {
+        std::string opset_version = opset_pair.first;
+        const ov::OpSet& opset = opset_pair.second();
         const auto &type_info_set = opset.get_type_info_set();
         opsInfo.insert(type_info_set.begin(), type_info_set.end());
     }
