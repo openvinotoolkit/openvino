@@ -95,13 +95,9 @@ Output<Node> FixInputNodeRank(Output<Node> input_node, Rank::value_type required
 }
 
 ov::AxisVector ReverseGatherIndexes(const ov::AxisVector & indexes) {
-    ov::AxisVector positions(indexes.size());
-    for (size_t idx = 0; idx < indexes.size(); ++idx)
-        positions[indexes[idx]] = idx;
-
     ov::AxisVector inverted(indexes.size());
     for (size_t idx = 0; idx < indexes.size(); ++idx)
-        inverted[idx] = positions[idx];
+        inverted[indexes[idx]] = idx;
 
     return inverted;
 }
