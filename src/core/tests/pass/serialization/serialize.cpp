@@ -448,7 +448,7 @@ TEST_F(MetaDataSerialize, set_complex_meta_information) {
                                                                "labels",
                                                                "label_groups",
                                                                "ids"));
-        ov::AnyVector any_vec_ref = {"sa", 12345};
+        ov::AnyVector any_vec_ref = {"sa", 12345 /*, "12out test_str in 123"*/};
         auto any_vec =
             model->get_rt_info<ov::AnyVector>("xml", "-model-parameters", "labels", "label_gr\\oups", "10 i@ds");
         EXPECT_EQ(any_vec.size(), any_vec.size());
@@ -456,6 +456,16 @@ TEST_F(MetaDataSerialize, set_complex_meta_information) {
             EXPECT_EQ(any_vec_ref[i].as<std::string>(), any_vec[i].as<std::string>());
             if (i == 1)
                 EXPECT_EQ(any_vec_ref[i].as<int>(), any_vec[i].as<int>());
+            // else if (i == 2) {
+            //     auto map = any_vec[i].as<ov::AnyMap>();
+            //     EXPECT_EQ(map.size(), 2);
+            //     for (const auto& it : map) {
+            //         if (it.first == "in")
+            //             EXPECT_EQ(123, it.second.as<int>());
+            //         else if (it.first == "12out")
+            //             EXPECT_EQ("test_str", it.second.as<std::string>());
+            //     }
+            // }
         }
         std::vector<float> fl_vec{22.3f, 33.11f, 44.f};
         EXPECT_EQ(fl_vec, model->get_rt_info<std::vector<float>>("config", "model_parameters", "mean_values"));
@@ -483,7 +493,7 @@ TEST_F(MetaDataSerialize, set_complex_meta_information) {
                            "labels",
                            "label_groups",
                            "ids");
-        model->set_rt_info(ov::AnyVector{"sa", 12345},
+        model->set_rt_info(ov::AnyVector{"sa", 12345 /*, ov::AnyMap{{"in", 123}, {"12out", "test_str"}}*/},
                            "xml",
                            "-model-parameters",
                            "labels",
