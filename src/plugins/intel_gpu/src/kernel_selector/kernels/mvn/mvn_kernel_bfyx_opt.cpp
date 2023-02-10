@@ -85,30 +85,29 @@ JitConstants MVNKernelBfyxOpt::GetJitConstants(const mvn_params& params, MVNKern
         auto w = toCodeString(input.W(), 2);
         auto f = toCodeString(input.Feature(), 1);
         auto b = toCodeString(input.Batch(), 0);
-        auto multiply = [](std::vector<std::string> dims) -> std::string {
-            std::string res = "(";
-            for (size_t i = 0; i < dims.size(); i++) {
-                auto& d = dims[i];
-                res += d;
-                if (i != dims.size() - 1)
-                    res += "*";
-            }
-            res += ")";
-            return res;
-        };
         std::string data_set_size;
         std::string data_set_count;
         if (params.mvnMode == MVNMode::WITHIN_CHANNELS) {
-            data_set_size = multiply({x, y, z});
-            data_set_count = multiply({f, b});
+            data_set_size = toVectorMulString({x, y, z});
+            data_set_count = toVectorMulString({f, b});
         } else {
-            data_set_size = multiply({x, y, z, f});
+            data_set_size = toVectorMulString({x, y, z, f});
             data_set_count = b;
         }
+        // since lws[0] is calculated by power of 2
+        // items_num can be calculated by dividing data_set_size by power of 2
+        const std::string lws_0 = "get_local_size(0)";
+        const std::string power = "(uint)(log2((float)" + lws_0 + "))";
+        const std::string items_num = "(DATA_SET_SIZE>>POWER)";
+        const std::string left_overs = "(DATA_SET_SIZE-(ITEMS_NUM<<POWER))";
         jit.AddConstants({
-            MakeJitConstant("SLM_SIZE", dispatchData.maxSlmSize),
-            MakeJitConstant("DATA_SETS_COUNT", data_set_count),
+            MakeJitConstant("LWS", lws_0),
+            MakeJitConstant("POWER", power),
             MakeJitConstant("DATA_SET_SIZE", data_set_size),
+            MakeJitConstant("DATA_SETS_COUNT", data_set_count),
+            MakeJitConstant("SLM_SIZE", dispatchData.maxSlmSize),
+            MakeJitConstant("ITEMS_NUM", items_num),
+            MakeJitConstant("LEFTOVERS", left_overs),
         });
     } else {
         jit.AddConstants({
