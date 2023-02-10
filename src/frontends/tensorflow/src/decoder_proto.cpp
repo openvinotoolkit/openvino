@@ -45,8 +45,10 @@ void extract_tensor_content(const std::string& tensor_content, ov::Tensor* value
     std::copy(tensor_values, tensor_values + tensor_content_size / sizeof(T), values->data<T>());
 }
 
-#pragma warning(push)
-#pragma warning(disable : 4244)  // possible loss of data
+#if defined(_MSC_VER)
+#    pragma warning(push)
+#    pragma warning(disable : 4244)  // possible loss of data
+#endif
 template <typename T>
 void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_proto,
                                        int64_t val_size,
@@ -89,7 +91,9 @@ void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_p
     }
 }
 }  // namespace
-#pragma warning(pop)
+#if defined(_MSC_VER)
+#    pragma warning(pop)
+#endif
 
 ov::Any DecoderProto::get_attribute(const std::string& name) const {
     auto attrs = decode_attribute_helper(name);
