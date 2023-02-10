@@ -719,10 +719,10 @@ def convert_pytorch_to_onnx(model, input_shape, opset_version, example_inputs, o
         model_onnx = get_onnx_temp_filename(output_dir)
     if opset_version is not None:
         additional_params.update({'opset_version': opset_version})
-
     torch.onnx.export(model,
                       inputs,
                       model_onnx,
+                      operator_export_type=torch.onnx.OperatorExportTypes.ONNX_FALLTHROUGH,
                       **additional_params)
     return model_onnx
 
