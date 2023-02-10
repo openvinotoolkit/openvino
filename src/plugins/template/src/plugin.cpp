@@ -29,6 +29,7 @@ static constexpr const char* stream_executor_name = "TemplateStreamsExecutor";
 
 // ! [plugin:ctor]
 Plugin::Plugin() {
+    using uint = unsigned int;
     // TODO: fill with actual device name, backend engine
     set_device_name("TEMPLATE");
 
