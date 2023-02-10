@@ -58,9 +58,9 @@ struct strided_slice_impl : typed_primitive_impl_ocl<strided_slice> {
     }
 
 public:
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& prim = impl_param.typed_desc<strided_slice>();
-        auto params = get_default_params<kernel_selector::strided_slice_params>(impl_param);
+        auto params = get_default_params<kernel_selector::strided_slice_params>(impl_param, is_shape_agnostic);
         auto op_params = get_default_optional_params<kernel_selector::strided_slice_optional_params>(impl_param.get_program());
         const size_t dims_num = params.inputs[0].Dimentions();
 
@@ -188,8 +188,7 @@ public:
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_kernel_params(impl_param);
-        kernel_params.first.is_shape_agnostic = true;
+        auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
     }
 };

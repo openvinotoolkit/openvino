@@ -42,7 +42,7 @@ protected:
     }
 
 public:
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<fully_connected>();
 
         auto get_fc_input_layouts = [primitive](const std::vector<layout>& input_layouts) {
@@ -101,7 +101,7 @@ public:
         updated_impl_param.output_layouts[0] = get_fc_output_layout(input_layouts, impl_param.get_output_layout());
 
         const auto& progam = impl_param.get_program();
-        auto params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(updated_impl_param);
+        auto params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(updated_impl_param, false, is_shape_agnostic);
         auto optional_params = get_default_weights_bias_optional_params<kernel_selector::fully_connected_optional_params>(progam);
         optional_params.allowInputReordering = true;
 
@@ -122,8 +122,7 @@ public:
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_kernel_params(impl_param);
-        kernel_params.first.is_shape_agnostic = true;
+        auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
     }
 };

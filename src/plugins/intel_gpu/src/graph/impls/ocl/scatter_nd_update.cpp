@@ -27,9 +27,9 @@ struct scatter_nd_update_impl : typed_primitive_impl_ocl<scatter_nd_update> {
         return make_unique<scatter_nd_update_impl>(*this);
     }
 
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<scatter_nd_update>();
-        auto params = get_default_params<kernel_selector::scatter_nd_update_params>(impl_param);
+        auto params = get_default_params<kernel_selector::scatter_nd_update_params>(impl_param, is_shape_agnostic);
         auto optional_params = get_default_optional_params<kernel_selector::scatter_nd_update_optional_params>(impl_param.get_program());
 
         params.indices_rank = primitive->indices_rank;
@@ -41,7 +41,7 @@ struct scatter_nd_update_impl : typed_primitive_impl_ocl<scatter_nd_update> {
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-       auto kernel_params = get_kernel_params(impl_param);
+       auto kernel_params = get_kernel_params(impl_param, true);
        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
     }
 };

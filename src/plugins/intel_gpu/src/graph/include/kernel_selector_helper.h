@@ -215,7 +215,7 @@ bool use_legacy_fused_ops(const kernel_impl_params& param_info);
 void set_params(const kernel_impl_params& param_info, kernel_selector::params& params);
 
 template <typename params_t>
-inline params_t get_default_params(const kernel_impl_params& param_info) {
+inline params_t get_default_params(const kernel_impl_params& param_info, bool is_shape_agnostic = false) {
     params_t params;
 
     set_params(param_info, params);
@@ -223,6 +223,7 @@ inline params_t get_default_params(const kernel_impl_params& param_info) {
     const auto& input_layout = param_info.get_input_layout(0);
     const auto& output_layout = param_info.get_output_layout(0);
 
+    params.is_shape_agnostic = is_shape_agnostic;
     params.inputs[0] = convert_data_tensor(input_layout);
     params.outputs[0] = convert_data_tensor(output_layout);
     params.layerID = param_info.desc->id;
@@ -287,8 +288,8 @@ inline params_t get_default_params(const kernel_impl_params& param_info) {
 }
 
 template <typename params_t>
-inline params_t get_weights_bias_default_params(const kernel_impl_params& param_info, bool has_group_dimension = false) {
-    params_t params = get_default_params<params_t>(param_info);
+inline params_t get_weights_bias_default_params(const kernel_impl_params& param_info, bool has_group_dimension = false, bool is_shape_agnostic = false) {
+    params_t params = get_default_params<params_t>(param_info, is_shape_agnostic);
     params.weights = convert_weights_tensor(*param_info.weights_layout, has_group_dimension);
 
     if (param_info.bias_layout) {
@@ -300,8 +301,8 @@ inline params_t get_weights_bias_default_params(const kernel_impl_params& param_
 }
 
 template <typename params_t>
-params_t get_weight_bias_zero_point_default_params(const kernel_impl_params& param_info, bool has_group_dimension = false) {
-    params_t params = get_weights_bias_default_params<params_t>(param_info, has_group_dimension);
+params_t get_weight_bias_zero_point_default_params(const kernel_impl_params& param_info, bool has_group_dimension = false, bool is_shape_agnostic = false) {
+    params_t params = get_weights_bias_default_params<params_t>(param_info, has_group_dimension, is_shape_agnostic);
 
     if (param_info.weights_zero_points_layout) {
         params.weights_zero_points.push_back(
