@@ -64,6 +64,11 @@ public:
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));
         return {params, optional_params};
     }
+
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+       auto kernel_params = get_kernel_params(impl_param);
+       (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+    }
 };
 
 namespace detail {
@@ -79,15 +84,31 @@ attach_scatter_update_impl::attach_scatter_update_impl() {
         format::bs_fs_yx_bsv32_fsv32,
         format::bfzyx,
         format::b_fs_zyx_fsv16,
-        format::bs_fs_zyx_bsv16_fsv16,
         format::b_fs_zyx_fsv32,
+        format::bs_fs_zyx_bsv16_fsv16,
         format::bs_fs_zyx_bsv16_fsv32,
-        format::bs_fs_zyx_bsv32_fsv32,
         format::bs_fs_zyx_bsv32_fsv16,
+        format::bs_fs_zyx_bsv32_fsv32,
         format::bfwzyx
     };
 
-    implementation_map<scatter_update>::add(impl_types::ocl, typed_primitive_impl_ocl<scatter_update>::create<scatter_update_impl>, types, formats);
+    implementation_map<scatter_update>::add(impl_types::ocl,
+                                            shape_types::static_shape,
+                                            typed_primitive_impl_ocl<scatter_update>::create<scatter_update_impl>,
+                                            types,
+                                            formats);
+
+    auto dyn_formats = {
+        format::bfyx,
+        format::bfzyx,
+        format::bfwzyx
+    };
+
+    implementation_map<scatter_update>::add(impl_types::ocl,
+                                            shape_types::dynamic_shape,
+                                            typed_primitive_impl_ocl<scatter_update>::create<scatter_update_impl>,
+                                            types,
+                                            dyn_formats);
 }
 
 }  // namespace detail
