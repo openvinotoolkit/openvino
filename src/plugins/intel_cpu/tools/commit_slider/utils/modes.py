@@ -221,10 +221,9 @@ class CompareBlobsMode(Mode):
                     newFileName = "{c}_{fn}".format(
                         c=getMeaningfullCommitTail(commit), fn=filename
                     )
-                    shutil.copyfile(
+                    shutil.move(
                         os.path.join(self.outDir, filename),
-                        os.path.join(self.cachePath, newFileName),
-                        follow_symlinks=True,
+                        os.path.join(self.cachePath, newFileName)
                     )
                     break
             if filename == "":
