@@ -159,6 +159,20 @@ OutputVector translate_new_ones(NodeContext& context) {
     return {base_translate_full_with_convertlike(context, sizes, value, input)};
 };
 
+OutputVector translate_empty(NodeContext& context) {
+    auto sizes = context.get_input(0);
+    // In OV uninitialised data is not supported, so we create a tensor filled with zeros with a given shape and type.
+    auto value = context.mark_node(ov::op::v0::Constant::create(element::f32, Shape{}, {0}));
+    int dtype_id = 1;
+    ov::Output<ov::Node> empty;
+    if (!context.input_is_none(dtype_id)) {
+        empty = base_translate_full_with_convert(context, sizes, value, dtype_id);
+    } else {
+        empty = base_translate_full(context, sizes, value);
+    }
+    return {empty};
+};
+
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend
