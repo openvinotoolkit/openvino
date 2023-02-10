@@ -412,10 +412,8 @@ def prepare_ir(argv: argparse.Namespace):
         if len(fallback_reasons) == 0:
             try:
                 t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
-                # PyTorch does not support extensions yet
-                if not moc_front_end.get_name() == "pytorch":
-                    moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
-                    moc_front_end.add_extension(ProgressReporterExtension(progress_printer(argv)))
+                moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
+                moc_front_end.add_extension(ProgressReporterExtension(progress_printer(argv)))
                 if legacy_transformations_config_used(argv):
                     raise Error('Legacy extensions are not supported for the new frontend')
                 if legacy_extensions_used(argv):
