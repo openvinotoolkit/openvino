@@ -16,7 +16,7 @@ OutputVector translate_max(NodeContext& context) {
     // torch.max(x, dim, keepdim) and torch.max(x, y)
     auto x = context.get_input(0);
     // torch.max(input)
-    if (context.input_is_none(1) & context.input_is_none(2)) {
+    if (context.input_is_none(1) && context.input_is_none(2)) {
         auto axes = get_axes_range(context, 0);
         return {context.mark_node(std::make_shared<opset10::ReduceMax>(x, axes, false))};
     }
@@ -45,7 +45,7 @@ OutputVector translate_min(NodeContext& context) {
     // torch.min(x, dim, keepdim) and torch.min(x, y)
     auto x = context.get_input(0);
     // torch.min(input)
-    if (context.input_is_none(1) & context.input_is_none(2)) {
+    if (context.input_is_none(1) && context.input_is_none(2)) {
         auto axes = get_axes_range(context, 0);
         return {context.mark_node(std::make_shared<opset10::ReduceMin>(x, axes, false))};
     }
