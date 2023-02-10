@@ -169,7 +169,7 @@ inline bool is_power_activation(const ov::Node* node) noexcept {
             return true;
         }
         return (1.0f != value);
-    } else if (auto power_op = std::dynamic_pointer_cast<ngraph::op::PowerIE>(node)) {
+    } else if (auto power_op = ov::Any(node).as<std::shared_ptr<ngraph::op::PowerIE>>()) {
         return (1.0f != power_op->power);
     }
     return false;

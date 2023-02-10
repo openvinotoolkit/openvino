@@ -913,23 +913,6 @@ public:
     const void* addressof() const;
 };
 
-/** @cond INTERNAL */
-namespace util {
-template <>
-struct AsTypePtr<Any> {
-    template <typename T>
-    OPENVINO_DEPRECATED("Please use ov::Any::as() method")
-    static std::shared_ptr<T> call(const Any& any) {
-        try {
-            return any.as<std::shared_ptr<T>>();
-        } catch (...) {
-            return {};
-        }
-    }
-};
-}  // namespace util
-/** @endcond */
-
 using AnyMap = std::map<std::string, Any>;
 
 using RTMap = AnyMap;
@@ -943,22 +926,3 @@ inline static void PrintTo(const Any& any, std::ostream* os) {
 /** @endcond */
 
 }  // namespace ov
-
-namespace std {
-template <typename T>
-OPENVINO_DEPRECATED("Please use ov::Any::as() method")
-std::shared_ptr<T> dynamic_pointer_cast(const ::ov::Any& any) {
-    try {
-        return any.as<std::shared_ptr<T>>();
-    } catch (...) {
-        return {};
-    }
-}
-
-template <typename T>
-OPENVINO_DEPRECATED("Please use ov::Any::as() method")
-std::shared_ptr<T> static_pointer_cast(const ::ov::Any& any) {
-    return any.as<std::shared_ptr<T>>();
-}
-
-}  // namespace std
