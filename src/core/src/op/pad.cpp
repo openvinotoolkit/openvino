@@ -6,6 +6,7 @@
 
 #include <ngraph/validation_util.hpp>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/except.hpp"
@@ -103,11 +104,7 @@ void op::v1::Pad::validate_and_infer_types() {
                           pads_end_element_type,
                           ").");
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
-    std::vector<ov::PartialShape> input_shapes;
-    for (size_t i = 0; i < get_input_size(); i++)
-        input_shapes.push_back(get_input_partial_shape(i));
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this));
     set_output_type(0, result_et, output_shapes[0]);
 }
 
@@ -172,4 +169,19 @@ bool op::v1::Pad::evaluate(const HostTensorVector& outputs, const HostTensorVect
 bool op::v1::Pad::has_evaluate() const {
     OV_OP_SCOPE(v1_Pad_has_evaluate);
     return true;
+}
+
+bool op::v1::Pad::evaluate_lower(ov::TensorVector& output_values) const {
+    OV_OP_SCOPE(v1_Pad_evaluate_lower);
+    return ov::have_node_inputs_bounds_set(this, 1, 2) && ov::default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v1::Pad::evaluate_upper(ov::TensorVector& output_values) const {
+    OV_OP_SCOPE(v1_Pad_evaluate_upper);
+    return ov::have_node_inputs_bounds_set(this, 1, 2) && ov::default_upper_bound_evaluator(this, output_values);
+}
+
+bool op::v1::Pad::evaluate_label(ov::TensorLabelVector& output_labels) const {
+    OV_OP_SCOPE(v1_Pad_evaluate_label);
+    return ov::default_label_evaluator(this, output_labels);
 }
