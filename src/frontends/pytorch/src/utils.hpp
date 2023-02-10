@@ -29,7 +29,10 @@ Output<ov::Node> reshape_channelwise(const NodeContext& context,
                                      Output<ov::Node> data,
                                      Output<ngraph::Node> shape_source);
 
-std::shared_ptr<ov::Node> get_rank_node(const Output<Node>& node);
+std::tuple<Output<Node>, Output<Node>> get_shape_rank(const NodeContext& context,
+                                                      const Output<Node>& x,
+                                                      bool as_scalar = false,
+                                                      element::Type output_type = element::i32);
 
 Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<Node>& kernel, int64_t groups);
 
