@@ -951,7 +951,7 @@ def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParse
 
             # Non string params like input_model or extensions are ignored by parse_args()
             # so we need to set them in argv separately
-            if value is not None and getattr(argv, key, None) != value:
+            if value is not None and getattr(argv, key) != value:
                 setattr(argv, key, value)
     else:
         argv = cli_parser.parse_args()
@@ -982,22 +982,8 @@ def convert_pytorch_via_onnx(args, example_inputs, cli_parser, framework):
     args['input_model'] = model_onnx
     if os.environ.get('SAVE_TO_BYTES_IO_ONNX_MODEL'):
         args['use_legacy_frontend'] = True
-        args['example_input'] = None
-        args['onnx_opset_version'] = None
-
-    try:
-        ov_model = _convert(**args)
-    except Exception as e:
-        remove_tmp_onnx_model(out_dir)
-        raise e
-
-    out_dir = args['output_dir'] if 'output_dir' in args else None
-
-    model_onnx = convert_pytorch_to_onnx(args['input_model'],
-                                         parse_input_shapes(args),
-                                         opset_version,
-                                         example_inputs,
-                                         out_dir)
+    args['example_input'] = None
+    args['onnx_opset_version'] = None
 
     try:
         ov_model, argv = _convert(cli_parser, framework, args)
@@ -1022,12 +1008,15 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
         inp_model_is_object = input_model_is_object(args)
         if inp_model_is_object:
             model_framework = check_model_object(args)
+            print(args)
             if model_framework == "pytorch":
                 use_pt_fe = os.environ.get('USE_PYTORCH_FRONTEND') or not args.get("use_legacy_frontend", False)
                 example_inputs = None
                 if 'example_input' in args and args['example_input'] is not None:
                     example_inputs = args['example_input']
                 if not use_pt_fe:
+                    if "use_legacy_frontend" in args:
+                        args.pop("use_legacy_frontend")
                     return convert_pytorch_via_onnx(args, example_inputs, cli_parser, framework)
 
                 decoder, input_signature  = get_pytorch_decoder(args['input_model'], parse_input_shapes(args), example_inputs)
@@ -1083,4 +1072,4 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
         telemetry.send_event('mo', 'conversion_result', 'fail')
         telemetry.end_session('mo')
         telemetry.force_shutdown(1.0)
-        raise e.with_traceback(None)
+        raise e#.with_traceback(None)
