@@ -48,6 +48,7 @@ void extract_tensor_content(const std::string& tensor_content, ov::Tensor* value
 #if defined(_MSC_VER)
 #    pragma warning(push)
 #    pragma warning(disable : 4244)  // possible loss of data
+#    pragma warning(disable : 4267)  // possible loss of data
 #endif
 template <typename T>
 void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_proto,
