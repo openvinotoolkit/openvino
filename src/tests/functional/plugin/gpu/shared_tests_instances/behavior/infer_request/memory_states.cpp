@@ -47,7 +47,7 @@ std::vector<memoryStateParams> memoryStateTestCases = {
                       {{MULTI_CONFIG_KEY(DEVICE_PRIORITIES),
                         CommonTestUtils::DEVICE_GPU + std::string(",") + CommonTestUtils::DEVICE_CPU}})};
 
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_StateBasic,
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
                          InferRequestQueryStateExceptionTest,
                          ::testing::ValuesIn(memoryStateTestCases),
                          InferRequestQueryStateExceptionTest::getTestCaseName);
