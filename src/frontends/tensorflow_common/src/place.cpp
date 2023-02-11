@@ -40,8 +40,10 @@ const std::map<std::string, std::vector<std::shared_ptr<InPortPlace>>>& OpPlace:
 }
 
 std::shared_ptr<InPortPlace> OpPlace::get_input_port_tf(const std::string& inputName, int inputPortIndex) const {
-    FRONT_END_GENERAL_CHECK(inputPortIndex <= m_input_ports.at(inputName).size(), "inputPortIndex is out of bounds.");
-    return m_input_ports.at(inputName)[inputPortIndex];
+    FRONT_END_GENERAL_CHECK(inputPortIndex >= 0, "inputPortIndex is negative.");
+    size_t input_port_index = static_cast<size_t>(inputPortIndex);
+    FRONT_END_GENERAL_CHECK(input_port_index <= m_input_ports.at(inputName).size(), "inputPortIndex is out of bounds.");
+    return m_input_ports.at(inputName)[input_port_index];
 }
 
 std::shared_ptr<DecoderBase> OpPlace::get_decoder() const {
@@ -49,10 +51,12 @@ std::shared_ptr<DecoderBase> OpPlace::get_decoder() const {
 }
 
 void OpPlace::add_out_port(const std::shared_ptr<OutPortPlace>& output, int idx) {
-    while (idx >= m_output_ports.size()) {
+    FRONT_END_GENERAL_CHECK(idx >= 0, "Output port index to be added is negative.");
+    size_t output_port_index = static_cast<size_t>(idx);
+    while (output_port_index >= m_output_ports.size()) {
         m_output_ports.push_back(std::shared_ptr<OutPortPlace>());
     }
-    m_output_ports[idx] = output;
+    m_output_ports[output_port_index] = output;
 }
 
 void OpPlace::add_in_port(const std::shared_ptr<InPortPlace>& input, const std::string& name) {
@@ -70,8 +74,10 @@ ov::frontend::Place::Ptr OpPlace::get_input_port(int outputPortIndex) const {
 }
 
 ov::frontend::Place::Ptr OpPlace::get_output_port(int outputPortIndex) const {
-    FRONT_END_GENERAL_CHECK(m_output_ports.size() > outputPortIndex, "No port with index: ", outputPortIndex);
-    return m_output_ports[outputPortIndex];
+    FRONT_END_GENERAL_CHECK(outputPortIndex >= 0, "outputPortIndex is negative.");
+    size_t output_port_index = static_cast<size_t>(outputPortIndex);
+    FRONT_END_GENERAL_CHECK(m_output_ports.size() > output_port_index, "No port with index: ", output_port_index);
+    return m_output_ports[output_port_index];
 }
 
 ov::frontend::Place::Ptr OpPlace::get_output_port() const {
@@ -108,8 +114,10 @@ std::vector<ov::frontend::Place::Ptr> OpPlace::get_consuming_ports() const {
 }
 
 ov::frontend::Place::Ptr OpPlace::get_input_port(const std::string& inputName, int inputPortIndex) const {
-    FRONT_END_GENERAL_CHECK(inputPortIndex <= m_input_ports.at(inputName).size(), "inputPortIndex is out of bounds.");
-    return m_input_ports.at(inputName)[inputPortIndex];
+    FRONT_END_GENERAL_CHECK(inputPortIndex >= 0, "inputPortIndex is negative.");
+    size_t input_port_index = static_cast<size_t>(inputPortIndex);
+    FRONT_END_GENERAL_CHECK(input_port_index <= m_input_ports.at(inputName).size(), "inputPortIndex is out of bounds.");
+    return m_input_ports.at(inputName)[input_port_index];
 }
 
 ov::frontend::Place::Ptr OpPlace::get_source_tensor() const {

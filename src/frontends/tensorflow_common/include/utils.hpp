@@ -61,7 +61,7 @@ void fill_explicit_pads_vectors(const NodeContext& node,
                                 ov::CoordinateDiff& pads_begin,
                                 ov::CoordinateDiff& pads_end);
 
-void default_op_checks(const NodeContext& node, int min_input_size, const std::vector<std::string>& supported_ops);
+void default_op_checks(const NodeContext& node, size_t min_input_size, const std::vector<std::string>& supported_ops);
 
 ov::Output<Node> get_elements_number_1d(const Output<Node>& output,
                                         ov::element::Type output_type,
