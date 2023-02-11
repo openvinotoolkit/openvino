@@ -91,10 +91,10 @@ void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_p
         }
     }
 }
-}  // namespace
 #if defined(_MSC_VER)
 #    pragma warning(pop)
 #endif
+}  // namespace
 
 ov::Any DecoderProto::get_attribute(const std::string& name) const {
     auto attrs = decode_attribute_helper(name);
