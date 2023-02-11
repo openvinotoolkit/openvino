@@ -91,8 +91,14 @@ ov::frontend::tensorflow::pass::EmbeddingSegmentSingleFeatureFusion::EmbeddingSe
                                         false);
     auto tile = make_shared<Tile>(reshape, pack);
 
-    auto zeros_like = make_shared<Broadcast>(make_shared<Constant>(ov::element::f32, Shape{1}, std::vector<int64_t>{0}),
-                                             make_shared<ShapeOf>(sparse_segment_op));
+    auto zero_int_const = make_shared<Constant>(element::i32, Shape{1}, 0);
+    auto one_int_const = make_shared<Constant>(element::i32, Shape{1}, 1);
+    Output<Node> shape_of = make_shared<ShapeOf>(sparse_segment_op, element::i32);
+    shape_of = make_shared<Concat>(OutputVector{one_int_const, shape_of}, 0);
+
+    Output<Node> zeros_like =
+        make_shared<Broadcast>(make_shared<Constant>(ov::element::f32, Shape{1}, std::vector<int64_t>{0}), shape_of);
+    zeros_like = make_shared<Squeeze>(zeros_like, zero_int_const);
 
     // compute number of dimensions to unsqueeze the condition
     auto cond_rank = compute_subgraph_scalar_rank(tile, element::i32);
