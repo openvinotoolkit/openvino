@@ -16,7 +16,7 @@ namespace pytorch {
 
 void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs) {
     auto inputs = context.inputs();
-    FRONT_END_OP_CONVERSION_CHECK(inputs.size() > min_inputs, "Got less inputs than expected");
+    FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= min_inputs, "Got less inputs than expected");
     for (auto i = max_inputs; i < inputs.size(); i++) {
         FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(i), "Got more inputs than expected.");
     }
@@ -42,7 +42,9 @@ Output<Node> make_optional_bias(const Output<Node>& base_op,
     }
 }
 
-Output<ov::Node> reshape_channelwise(const NodeContext& context, Output<ov::Node> data, Output<ov::Node> shape_source) {
+Output<Node> reshape_channelwise(const NodeContext& context,
+                                 const Output<Node>& data,
+                                 const Output<Node>& shape_source) {
     auto input_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(shape_source));
     auto input_rank = context.mark_node(std::make_shared<opset10::ShapeOf>(input_shape));
     auto one_const = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {1}));
@@ -113,8 +115,7 @@ std::shared_ptr<Node> get_axes_range(const NodeContext& context, size_t input_id
     return context.mark_node(std::make_shared<opset10::Range>(start, reduced_rank, step, element::i32));
 };
 
-std::shared_ptr<Node> numel(const NodeContext& context, size_t input_id) {
-    auto x = context.get_input(input_id);
+std::shared_ptr<Node> numel(const NodeContext& context, const Output<Node>& x) {
     auto input_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(x));
     auto axes = context.mark_node(opset10::Constant::create(element::i64, Shape({1}), {0}));
     return context.mark_node(std::make_shared<opset10::ReduceProd>(input_shape, axes, false));
@@ -135,7 +136,7 @@ const std::unordered_map<std::string, ov::op::PadType> TORCH_AUTO_PAD_TO_OV{{"va
                                                                             {"same", ov::op::PadType::SAME_UPPER}};
 }  // namespace
 
-ov::element::Type convert_dtype(int64_t pt_type) {
+element::Type convert_dtype(int64_t pt_type) {
     FRONT_END_OP_CONVERSION_CHECK(TORCH_TO_OV_TYPE.count(pt_type), "Unknown type: ", pt_type);
     return TORCH_TO_OV_TYPE.at(pt_type);
 };
@@ -185,7 +186,7 @@ OutputVector make_framework_node(NodeContext* context) {
     std::map<size_t, ParameterVector> inputs_map;
     std::map<size_t, ResultVector> extra_outputs_map;
     std::set<size_t> input_idxs;  // initial inputs
-    std::vector<std::shared_ptr<ov::Model>> bodies;
+    std::vector<std::shared_ptr<Model>> bodies;
     // We need to remember initial inputs to be able to find extra inputs to body that were created to propagate
     // external context
     size_t num_body_outs = 0;
@@ -293,9 +294,9 @@ OutputVector convert_node(NodeContext* context) {
 ///  which is visible from nested model. Empty external_tensor_map is used as an indication that this is a main body
 ///  conversion.
 /// \return fully converted OV Model
-std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<TorchDecoder> pytorch_model,
-                                                 const TensorMap& external_tensor_map) {
-    std::shared_ptr<ov::Model> resulting_model;  // define here to make a conversion in a nested scope
+std::shared_ptr<Model> convert_pytorch_model(std::shared_ptr<TorchDecoder> pytorch_model,
+                                             const TensorMap& external_tensor_map) {
+    std::shared_ptr<Model> resulting_model;  // define here to make a conversion in a nested scope
     {
         ParameterVector parameters;
         TensorMap tensor_map;  // tensor map of the current context
@@ -307,7 +308,7 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<TorchDecoder> p
             PartialShape ps = pytorch_model->get_input_shape(i);
             auto type = simplified_type_interpret(pytorch_model->get_input_type(i));
             // TODO: Use special API to set custom type detalization
-            auto parameter = std::make_shared<opset10::Parameter>(ov::element::dynamic, ps);
+            auto parameter = std::make_shared<opset10::Parameter>(element::dynamic, ps);
             parameter->get_output_tensor(0).add_names({std::to_string(pytorch_model->input(i))});
             parameters.push_back(parameter);
             auto order = pytorch_model->get_input_transpose_order(i);
@@ -426,7 +427,7 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<TorchDecoder> p
                     results.push_back(std::make_shared<opset10::Result>(tensor_map.at(tensor_id)));
             }
         }
-        resulting_model = std::make_shared<ov::Model>(results, parameters);
+        resulting_model = std::make_shared<Model>(results, parameters);
         // Did a conversion in a nested scope to automatically remove any holders of nodes except those in the graph
     }
 
@@ -474,10 +475,7 @@ std::unordered_map<size_t, element::Type> bit_to_int{
 };
 }  // namespace
 
-void align_eltwise_input_types(const NodeContext& context,
-                               ov::Output<ov::Node>& lhs,
-                               ov::Output<ov::Node>& rhs,
-                               bool align_scalars) {
+void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Output<Node>& rhs, bool align_scalars) {
     const auto& lhs_type = lhs.get_element_type();
     const auto& rhs_type = rhs.get_element_type();
     if (lhs_type.is_dynamic() || rhs_type.is_dynamic()) {
