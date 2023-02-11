@@ -196,19 +196,19 @@ typedef enum {
  * @brief      This enum contains defination of each columns in cpu streams infomation table.
  *
  * The following are two example of processor type table.
- *  1. 8 streams on hybrid platform which has 4 threads per stream.
+ *  1. 8 streams on hybrid platform which has 4 threads per stream (TPS).
  *
  *  NUMBER_OF_STREAMS | PROC_TYPE | THREADS_PER_STREAM
- *          2               1                4          // 2 streams on physical core of Intel Performance-cores
- *          4               2                4          // 4 streams on Intel Efficient-cores
- *          2               3                4          // 2 streams on logic core of Intel Performance-cores
+ *          2               1                4          // 2 streams (4 TPS) on physical core of Intel Performance-cores
+ *          4               2                4          // 4 streams (4 TPS) on Intel Efficient-cores
+ *          2               3                4          // 2 streams (4 TPS) on logic core of Intel Performance-cores
  *
- * 2. 1 stream on hybrid platform which has 2 threads on physical core and 8 threads on Ecore.
+ * 2. 1 stream (10 TPS) on hybrid platform which has 2 threads on physical core and 8 threads on Ecore.
  *
  *  NUMBER_OF_STREAMS | PROC_TYPE | THREADS_PER_STREAM
- *          1               0               10          // 2 streams on physical core of Intel Performance-cores
- *          0               1                2          // 4 streams on Intel Efficient-cores
- *          0               2                8          // 2 streams on logic core of Intel Performance-cores
+ *          1               0               10          // 1 streams (10 TPS) on multiple types of processors
+ *          0               1                2          // 2 threads on physical core of Intel Performance-cores
+ *          0               2                8          // 8 threads on Intel Efficient-cores
  */
 typedef enum {
     NUMBER_OF_STREAMS = 0,      //!< Number of streams on specific CPU core tpye
