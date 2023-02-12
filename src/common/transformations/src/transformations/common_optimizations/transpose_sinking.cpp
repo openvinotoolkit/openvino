@@ -134,21 +134,19 @@ ov::pass::TransposeReductionBackward::TransposeReductionBackward() {
     MATCHER_SCOPE(TransposeReductionBackward);
 
     auto reduce_or_squeeze_label =
-            pattern::wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims, opset6::Squeeze>(
-                    {pattern::any_input(), pattern::wrap_type<opset6::Constant>()});
+        pattern::wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims, opset6::Squeeze>(
+            {pattern::any_input(), pattern::wrap_type<opset6::Constant>()});
     auto transpose_label =
-            pattern::wrap_type<opset6::Transpose>({reduce_or_squeeze_label, pattern::wrap_type<opset6::Constant>()});
+        pattern::wrap_type<opset6::Transpose>({reduce_or_squeeze_label, pattern::wrap_type<opset6::Constant>()});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
-        std::cout << "XXXXX here -1" << std::endl;
 
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto reduction = pattern_to_output.at(reduce_or_squeeze_label).get_node_shared_ptr();
         auto arithmetic_reduce = std::dynamic_pointer_cast<op::util::ArithmeticReductionKeepDims>(reduction);
         auto logical_reduce = std::dynamic_pointer_cast<op::util::LogicalReductionKeepDims>(reduction);
         auto squeeze = std::dynamic_pointer_cast<opset6::Squeeze>(reduction);
-        std::cout << "XXXXX here 000" << std::endl;
         if (!transpose || !(arithmetic_reduce || logical_reduce || squeeze))
             return false;
 
@@ -157,12 +155,10 @@ ov::pass::TransposeReductionBackward::TransposeReductionBackward() {
             keep_dims = logical_reduce->get_keep_dims();
         else if (arithmetic_reduce)
             keep_dims = arithmetic_reduce->get_keep_dims();
-        std::cout << "XXXXX here 0" << std::endl;
         auto transpose_order = std::dynamic_pointer_cast<opset6::Constant>(transpose->get_input_node_shared_ptr(1));
         auto reduction_axes = std::dynamic_pointer_cast<opset6::Constant>(reduction->get_input_node_shared_ptr(1));
         if (!transpose_order || !reduction_axes)
             return false;
-        std::cout << "XXXXX here 01" << std::endl;
         const auto& non_negative_axes = normalize_axes(reduction->get_friendly_name(),
                                                        reduction_axes->cast_vector<int64_t>(),
                                                        reduction->get_input_partial_shape(0).rank());
@@ -174,15 +170,12 @@ ov::pass::TransposeReductionBackward::TransposeReductionBackward() {
         for (const auto& axis : non_negative_axes) {
             new_values.push_back(reversed_order_values[axis]);
         }
-        std::cout << "XXXXX here 1" << std::endl;
-        auto new_const = std::make_shared<opset6::Constant>(reduction_axes->get_element_type(), reduction_axes->get_shape(), new_values);
-        std::cout << "XXXXX here 2" << std::endl;
+        auto new_const = std::make_shared<opset6::Constant>(reduction_axes->get_element_type(),
+                                                            reduction_axes->get_shape(),
+                                                            new_values);
         transpose->input(0).replace_source_output(reduction->input_value(0));
-        std::cout << "XXXXX here 3" << std::endl;
         reduction->input(1).replace_source_output(new_const);
-        std::cout << "XXXXX here 4" << std::endl;
         reduction->input(0).replace_source_output(transpose);
-        std::cout << "XXXXX here 5" << std::endl;
         return true;
     };
 
@@ -325,12 +318,13 @@ ov::pass::TransposeFQReduction::TransposeFQReduction() {
 
 ov::pass::TransposeFuse::TransposeFuse() {
     MATCHER_SCOPE(TransposeFuse);
-    auto transpose_label = pattern::wrap_type<opset7::Transpose>({pattern::any_input(), pattern::wrap_type<opset7::Constant>()});
+    auto transpose_label =
+        pattern::wrap_type<opset7::Transpose>({pattern::any_input(), pattern::wrap_type<opset7::Constant>()});
     ov::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
         auto transpose_1 = pattern_to_output.at(transpose_label);
-        std::cout << "XXXXXXXXXXXXXXX TransposeFuse " << transpose_1->get_friendly_name() << std::endl;
-        auto order_const_1 = std::dynamic_pointer_cast<opset7::Constant>(transpose_1->input_value(1).get_node_shared_ptr());
+        auto order_const_1 =
+            std::dynamic_pointer_cast<opset7::Constant>(transpose_1->input_value(1).get_node_shared_ptr());
         auto consumers = transpose_1->get_output_target_inputs(0);
 
         std::vector<int64_t> saved_order_values;
@@ -338,20 +332,17 @@ ov::pass::TransposeFuse::TransposeFuse() {
         for (const auto& it : consumers) {
             auto out_transpose = dynamic_cast<opset7::Transpose*>(it.get_node());
             if (!out_transpose) {
-                std::cout << "XXXXXXX RET 1" << std::endl;
                 return false;
             }
 
             auto order = out_transpose->input_value(1).get_node_shared_ptr();
             auto order_const = std::dynamic_pointer_cast<opset7::Constant>(order);
             if (!order_const) {
-                std::cout << "XXXXXXX RET 2" << std::endl;
                 return false;
             }
 
             auto order_values = order_const->cast_vector<int64_t>();
             if (order_values.empty()) {
-                std::cout << "XXXXXXX RET 3" << std::endl;
                 return false;
             }
 
@@ -359,7 +350,6 @@ ov::pass::TransposeFuse::TransposeFuse() {
                 saved_order_values = order_values;
             } else {
                 if (saved_order_values != order_values) {
-                    std::cout << "XXXXXXX RET 4" << std::endl;
                     return false;
                 }
             }
@@ -371,7 +361,6 @@ ov::pass::TransposeFuse::TransposeFuse() {
 
         auto order1 = order_const_1->cast_vector<int64_t>();
         if (order1.size() != saved_order_values.size()) {
-            std::cout << "XXXXXXX RET 5" << std::endl;
             return false;
         }
 
@@ -383,12 +372,11 @@ ov::pass::TransposeFuse::TransposeFuse() {
         }
 
         if (is_ordered) {
-            std::cout << "XXXXXX1" << std::endl;
+            ;
             for (const auto& it : consumers) {
                 it.get_node()->output(0).replace(transpose_1->input_value(0));
             }
         } else {
-            std::cout << "XXXXXX2" << std::endl;
             auto new_order = opset7::Constant::create(saved_type, {saved_order_values.size()}, saved_order_values);
             auto new_transpose = register_new_node<opset7::Transpose>(transpose_1->input_value(0), new_order);
             for (const auto& it : consumers) {

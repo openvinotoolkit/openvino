@@ -10,11 +10,11 @@
 
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/opsets/opset9.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
-#include "openvino/pass/graph_rewrite.hpp"
 
 namespace transpose_sinking {
 
@@ -66,7 +66,7 @@ namespace sink_forward {
  * @brief Inserts reversed transposed on @args main_node inputs. Removes input transpose specified in @arg
  * transpose_input_info
  */
-bool UpdateInputTransposes(const std::shared_ptr<ov::Node>& main_node, const TransposeInputsInfo& transpose_input_info, std::vector<std::shared_ptr<ov::Node>>& new_nodes);
+bool UpdateInputTransposes(const std::shared_ptr<ov::Node>& main_node, const TransposeInputsInfo& transpose_input_info);
 
 /**
  * @brief Removes @arg input node

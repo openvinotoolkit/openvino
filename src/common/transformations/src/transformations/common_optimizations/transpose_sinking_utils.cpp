@@ -155,17 +155,13 @@ AxisVector AlignTransposeOrder(const Output<Node>& output, const TransposeInputs
     return new_transpose_order;
 }
 
-bool UpdateInputTransposes(const NodePtr& main_node, const TransposeInputsInfo& transpose_input_info, std::vector<std::shared_ptr<ov::Node>>& new_nodes) {
-    if (transpose_input_info.isEmpty() || HasDynamicRankInput(main_node)) {
-        std::cout << "XXXXXXXXXXXXXXxx RETURN 1" << std::endl;
+bool UpdateInputTransposes(const NodePtr& main_node, const TransposeInputsInfo& transpose_input_info) {
+    if (transpose_input_info.isEmpty() || HasDynamicRankInput(main_node))
         return false;
-    }
 
     const auto max_input_rank = GetMaxInputRank(main_node);
-    if (max_input_rank < 0) {
-        std::cout << "XXXXXXXXXXXXXXxx RETURN 2" << std::endl;
+    if (max_input_rank < 0)
         return false;
-    }
 
     const size_t transpose_input_index = transpose_input_info.input_idx;
     const auto transpose_element_type = transpose_input_info.transpose_const->get_element_type();
@@ -179,7 +175,6 @@ bool UpdateInputTransposes(const NodePtr& main_node, const TransposeInputsInfo& 
             input_node = FixInputNodeRank(input_node, max_input_rank);
             auto transpose_order = AlignTransposeOrder(input_node, transpose_input_info);
             if (transpose_order.empty()) {
-                std::cout << "XXXXXXXXXXXXXXxx RETURN 3" << std::endl;
                 return false;
             }
             const auto reversed_transpose_axis_order = ReverseTransposeOrder(transpose_order);
@@ -187,7 +182,7 @@ bool UpdateInputTransposes(const NodePtr& main_node, const TransposeInputsInfo& 
                                                                   Shape{reversed_transpose_axis_order.size()},
                                                                   reversed_transpose_axis_order);
             auto new_transpose = std::make_shared<Transpose>(input_node, new_transpose_const);
-            new_nodes.push_back(new_transpose);
+
             main_node->input(i).replace_source_output(new_transpose->output(0));
 
             copy_runtime_info(input_node.get_node_shared_ptr(), {new_transpose, new_transpose_const});

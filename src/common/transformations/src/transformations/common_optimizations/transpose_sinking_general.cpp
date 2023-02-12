@@ -45,12 +45,8 @@ bool ov::pass::TransposeSinkingGeneral::run_on_model(const std::shared_ptr<ov::M
     RUN_ON_FUNCTION_SCOPE(TransposeSinkingGeneral);
     {
         ngraph::pass::Manager manager(get_pass_config());
-        manager.register_pass<ov::pass::Serialize>("/home/tikhonov/OpenVINO/tmp/serialized/ts_before_forward.xml",
-                                                   "/home/tikhonov/OpenVINO/tmp/serialized/ts_before_forward.bin");
         manager.register_pass<ov::pass::TransposeSinkingGeneralForward>();
         manager.register_pass<ngraph::pass::ConstantFolding>();
-        manager.register_pass<ov::pass::Serialize>("/home/tikhonov/OpenVINO/tmp/serialized/ts_after_forward.xml",
-                                                   "/home/tikhonov/OpenVINO/tmp/serialized/ts_after_forward.bin");
         manager.run_passes(f);
     }
 

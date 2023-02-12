@@ -38,16 +38,11 @@ ov::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
             return false;
         }
         // todo: support dyn rank case
-        std::vector<std::shared_ptr<ov::Node>> new_nodes;
-        bool updated = sink_forward::UpdateInputTransposes(main_node, transpose_input_info, new_nodes);
+        bool updated = sink_forward::UpdateInputTransposes(main_node, transpose_input_info);
         if (!updated) {
             return false;
         }
 
-        for (const auto& it : new_nodes) {
-            std::cout << "XXXXXX reg new node " << it->get_friendly_name() << std::endl;
-            register_new_node(it);
-        }
         for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
             register_new_node(new_node);
             transpose_sinking::UpdateForwardSinkingAbility(new_node);
@@ -71,21 +66,19 @@ ov::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
         return has_static_rank()(output) && HasSameOutputTransposeNodes(output);
     });
 
-/*    auto transpose_const_label = wrap_type<Constant>();
+    /*    auto transpose_const_label = wrap_type<Constant>();
 
-    auto transpose_label =
-        wrap_type<Transpose>({main_node_label, transpose_const_label}, [](const Output<Node>& output) -> bool {
-            return has_static_rank()(output);
-        });*/
+        auto transpose_label =
+            wrap_type<Transpose>({main_node_label, transpose_const_label}, [](const Output<Node>& output) -> bool {
+                return has_static_rank()(output);
+            });*/
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         auto main_node = pattern_to_output.at(main_node_label).get_node_shared_ptr();
-
         auto transpose = pattern_to_output.at(main_node->input_value(0).get_node_shared_ptr()).get_node_shared_ptr();
         auto transpose_const = as_type_ptr<Constant>(transpose->input_value(1).get_node_shared_ptr());
-        std::cout << "XXXXXXXXXX: CONCAT backward " << main_node->get_friendly_name() << std::endl;
         auto concat_node = as_type_ptr<Concat>(main_node);
         auto concat_axis = concat_node->get_concatenation_axis();
         if (concat_axis < 0) {

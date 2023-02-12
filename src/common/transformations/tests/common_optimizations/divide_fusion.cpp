@@ -18,6 +18,7 @@
 
 using namespace testing;
 
+/*
 TEST(TransformationTests, ConcatTest) {
     auto data1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 28, 28, 1, 58});
     auto data2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 28, 28, 1, 58});
@@ -29,6 +30,7 @@ TEST(TransformationTests, ConcatTest) {
     auto model = std::make_shared<ov::Model>(ov::OutputVector{X}, ov::ParameterVector{data1, data2});
     serialize(model, "/home/tikhonov/OpenVINO/tmp/concat_5d_axis" + std::to_string(axis) +".xml");
 }
+*/
 
 TEST(TransformationTests, DivideFusion) {
     std::shared_ptr<ngraph::Function> f, f_ref;

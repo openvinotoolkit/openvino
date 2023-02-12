@@ -32,12 +32,10 @@ ov::pass::TransposeSinkingBinaryForward::TransposeSinkingBinaryForward() {
         auto main_node = main_node_output.get_node_shared_ptr();
 
         TransposeInputsInfo transpose_input_info = GetFirstTransposeInput(main_node);
-        std::cout << "XXXXXXXXXX Forward " << main_node->get_friendly_name() << std::endl;
+
         // todo: support dynamic rank case
-        std::vector<std::shared_ptr<ov::Node>> new_nodes;
-        bool updated = sink_forward::UpdateInputTransposes(main_node, transpose_input_info, new_nodes);
+        bool updated = sink_forward::UpdateInputTransposes(main_node, transpose_input_info);
         if (!updated) {
-            std::cout << "XXXXXXXXXX RETURN 5" << std::endl;
             return false;
         }
         for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
@@ -72,7 +70,7 @@ ov::pass::TransposeSinkingBinaryBackward::TransposeSinkingBinaryBackward() {
         auto transpose_const = as_type_ptr<Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto main_node = pattern_to_output.at(main_node_label).get_node_shared_ptr();
-        std::cout << "XXXXXXXXXX Backward " << main_node->get_friendly_name() << std::endl;
+
         for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node, transpose_const)) {
             register_new_node(new_node);
         }

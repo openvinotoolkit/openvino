@@ -1011,7 +1011,7 @@ static UNUSED void printPerformanceCounts(std::vector<ov::ProfilingInfo> perform
     }
     std::ios::fmtflags fmt(std::cout.flags());
     stream << std::fixed << std::setprecision(precision);
-    std::map<std::string, std::pair<int, double>> layer_to_time;
+
     for (const auto& it : performanceData) {
         if (it.real_time.count() > 0) {
             totalTime += it.real_time;
@@ -1042,8 +1042,6 @@ static UNUSED void printPerformanceCounts(std::vector<ov::ProfilingInfo> perform
         }
 
         stream << "layerType: ";
-        layer_to_time[it.node_type].second +=  it.cpu_time.count() / 1000.0;
-        layer_to_time[it.node_type].first +=  1;
         if (it.node_type.length() >= maxPrintLength) {
             stream << std::setw(maxPrintLength) << std::left << it.node_type.substr(0, maxPrintLength - 3) + "..."
                    << " ";
@@ -1057,10 +1055,6 @@ static UNUSED void printPerformanceCounts(std::vector<ov::ProfilingInfo> perform
         stream << "cpuTime (ms): " << std::setw(10) << std::left << std::fixed << std::setprecision(3)
                << it.cpu_time.count() / 1000.0 << " ";
         stream << std::endl;
-    }
-    stream << std::setw(25) << "Total time per layer" << std::endl;
-    for (const auto& it : layer_to_time) {
-        stream << it.first << "    cnt: " << it.second.first << " time: " <<  it.second.second <<  std::endl;
     }
     stream << std::setw(25) << std::left << "Total time: " << std::fixed << std::setprecision(3)
            << totalTime.count() / 1000.0 << " milliseconds" << std::endl;
@@ -1185,7 +1179,6 @@ static UNUSED void printPerformanceCountsSort(std::vector<ov::ProfilingInfo> per
             std::sort(sortPerfCounts.begin(), sortPerfCounts.end(), sort_pc_descend);
         }
 
-        std::map<std::string, double> layer_to_time;
         for (const auto& it : sortPerfCounts) {
             if ((sorttype == pcSimpleSort && it.status == ov::ProfilingInfo::Status::EXECUTED) ||
                 sorttype != pcSimpleSort) {
@@ -1211,7 +1204,6 @@ static UNUSED void printPerformanceCountsSort(std::vector<ov::ProfilingInfo> per
                 }
 
                 stream << "layerType: ";
-                layer_to_time[it.node_type] +=  it.cpu_time.count() / 1000.0;
                 if (it.node_type.length() >= maxPrintLength) {
                     stream << std::setw(maxPrintLength) << std::left
                            << it.node_type.substr(0, maxPrintLength - 3) + "..."
@@ -1236,10 +1228,6 @@ static UNUSED void printPerformanceCountsSort(std::vector<ov::ProfilingInfo> per
                 stream << std::setw(20) << std::left << "proportion: " + opt_proportion_str + "%";
                 stream << std::endl;
             }
-        }
-        stream << std::setw(25) << "Total time per layer" << std::endl;
-        for (const auto& it : layer_to_time) {
-            stream << it.first << "    " << it.second << std::endl;
         }
     }
     stream << std::setw(25) << std::left << "Total time: " + std::to_string(totalTime.count() / 1000.0)
