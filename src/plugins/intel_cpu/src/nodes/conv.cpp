@@ -498,25 +498,27 @@ void Convolution::getSupportedDescriptors() {
             ndims == 3 ? memory::format_tag::nwc : (ndims == 4 ? memory::format_tag::nhwc : memory::format_tag::ndhwc));
         createDescriptor({ in_candidate }, { out_candidate });
     } else {
-        // in oneDNN, depthwise 5D convolution is only customized for f32, in bf16 it will fallbacks to
+        // in oneDNN, depthwise 3D convolution is only customized for f32, in bf16 it will fallbacks to
         // normal convolution with much worse performance. thus we keep using f32 precision in that case.
         // this WA can be removed after brdgmm_dw is enabled.
-        bool is_dw5DConv = (isDepthWise() && ndims == 5);
+        //    GroupConv([N, GROUPS * C_IN, D, H, W], [GROUPS, C_OUT=1, C_IN=1, kd, kh, kw])
+        // TODO, when kd=1, and src layout is ndhwc, N & D can be combined so it can be done as a 2D depthwise
+        bool is_dw3DConv = (isDepthWise() && ndims == 5);
         inputDataType = memory::data_type::f32;
         outputDataType = memory::data_type::f32;
         if (getOriginalInputPrecisionAtPort(0) == Precision::BF16) {
-            if (is_dw5DConv) {
+            if (is_dw3DConv) {
                 DEBUG_LOG(getName(),
-                          " inputDataType fallback from BF16 to F32 due to un-optimized 5D depthwise convolution");
+                          " inputDataType fallback from BF16 to F32 due to un-optimized depthwise 3D convolution");
             } else {
                 inputDataType = memory::data_type::bf16;
             }
         }
 
         if (getOriginalOutputPrecisionAtPort(0) == Precision::BF16) {
-            if (is_dw5DConv) {
+            if (is_dw3DConv) {
                 DEBUG_LOG(getName(),
-                          " outputDataType fallback from BF16 to F32 due to un-optimized 5D depthwise convolution");
+                          " outputDataType fallback from BF16 to F32 due to un-optimized depthwise 3D convolution");
             } else {
                 outputDataType = memory::data_type::bf16;
             }
