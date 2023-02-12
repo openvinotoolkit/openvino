@@ -168,7 +168,7 @@ OutputVector make_framework_node(NodeContext* context) {
     if (schema.find('!') != std::string::npos) {
         // We create additional output for such nodes. It contains new tensor that represents input that was changed.
         auto fw_node =
-            std::make_shared<PtFrameworkNode>(context->get_decoder(), context->inputs(), context->num_of_outputs() + 1);
+            std::make_shared<PtFrameworkNode>(context->get_decoder(), context->inputs(), context->get_output_size() + 1);
         fw_node->set_friendly_name(context->get_op_type());
         auto outputs = fw_node->outputs();
         // Usually mutated input index is 0, because it is usually "self" input, so we need to replace this tensor with
@@ -222,12 +222,12 @@ OutputVector make_framework_node(NodeContext* context) {
     // Number of body outputs can be higher then number of pt node outputs, e.g. in case of loop first body output is
     // condition, we have to skip such outputs.
     int num_skip_body_outputs =
-        num_body_outs > context->num_of_outputs() ? num_body_outs - context->num_of_outputs() : 0;
+        num_body_outs > context->get_output_size() ? num_body_outs - context->get_output_size() : 0;
 
     // We need to reduce number of outputs, because some outputs are outputs from body
     auto fw_node = std::make_shared<PtFrameworkNode>(context->get_decoder(),
                                                      context->inputs(),
-                                                     context->num_of_outputs() - num_body_outs + num_skip_body_outputs);
+                                                     context->get_output_size() - num_body_outs + num_skip_body_outputs);
     fw_node->set_friendly_name(context->get_op_type());
     for (size_t i = 0; i < bodies.size(); ++i) {
         fw_node->set_function(i, bodies[i]);
@@ -309,7 +309,7 @@ std::shared_ptr<Model> convert_pytorch_model(std::shared_ptr<TorchDecoder> pytor
             auto type = simplified_type_interpret(pytorch_model->get_input_type(i));
             // TODO: Use special API to set custom type detalization
             auto parameter = std::make_shared<opset10::Parameter>(element::dynamic, ps);
-            parameter->get_output_tensor(0).add_names({std::to_string(pytorch_model->input(i))});
+            parameter->get_output_tensor(0).add_names({std::to_string(inputs.at(i))});
             parameters.push_back(parameter);
             auto order = pytorch_model->get_input_transpose_order(i);
             if (order.size() > 0 && !std::is_sorted(order.begin(), order.end())) {
@@ -323,9 +323,9 @@ std::shared_ptr<Model> convert_pytorch_model(std::shared_ptr<TorchDecoder> pytor
                 auto reshape = std::make_shared<opset10::Reshape>(parameter, shape_const, false);
                 auto order_const = opset10::Constant::create(element::i32, {order.size()}, order);
                 auto transpose = std::make_shared<opset10::Transpose>(reshape, order_const);
-                tensor_map[pytorch_model->input(i)] = transpose;
+                tensor_map[inputs.at(i)] = transpose;
             } else {
-                tensor_map[pytorch_model->input(i)] = parameter;
+                tensor_map[inputs.at(i)] = parameter;
             }
         }
 
@@ -336,7 +336,7 @@ std::shared_ptr<Model> convert_pytorch_model(std::shared_ptr<TorchDecoder> pytor
 
             auto raw_inputs = node->inputs();
             for (size_t i = 0; i < raw_inputs.size(); ++i) {
-                auto input = node->input(i);
+                auto input = raw_inputs.at(i);
                 if (tensor_map.find(input) == tensor_map.end()) {
                     // Input refers value in the outer scope, need to create a new Parameter in the current scope
                     // Linkage to external scope will be performed on the level of the parent operation (if or loop)
