@@ -10,6 +10,7 @@
 #pragma once
 
 #include <openvino/cc/selective_build.h>
+
 #include <openvino/itt.hpp>
 
 namespace InferenceEngine {
