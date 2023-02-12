@@ -5,12 +5,15 @@
 #include <array>
 #include <utility>
 
+#include "dimension_tracker.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
+#include "openvino/op/ops.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;
+using namespace testing;
 
 namespace {
 constexpr size_t step_ids_input_idx = 0;
@@ -38,6 +41,25 @@ std::shared_ptr<Node> makeGatherTreeOp(const GatherTreeInputParams& p) {
     return make_shared<op::v1::GatherTree>(step_ids, parent_idx, max_seq_len, end_token);
 }
 }  // namespace
+
+TEST(type_prop, gather_tree_default_constructor) {
+    auto op = std::make_shared<op::v1::GatherTree>();
+
+    auto step_ids = std::make_shared<op::Parameter>(element::i32, PartialShape{2, 4, 3});
+    auto parent_idx = std::make_shared<op::Parameter>(element::i32, PartialShape{2, 4, 3});
+    auto max_seq_len = std::make_shared<op::Parameter>(element::i32, PartialShape{4});
+    auto end_token = std::make_shared<op::Parameter>(element::i32, PartialShape{});
+
+    op->set_argument(0, step_ids);
+    op->set_argument(1, parent_idx);
+    op->set_argument(2, max_seq_len);
+    op->set_argument(3, end_token);
+
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_output_element_type(0), element::i32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 4, 3}));
+}
 
 TEST(type_prop, gather_tree_invalid_input_element_type) {
     Shape scalar_shape{};
@@ -230,12 +252,12 @@ TEST(type_prop, gather_tree_output_shape) {
     std::vector<std::pair<PartialShape, PartialShape>> input_shapes = {
         {PartialShape{1, 2, 3}, PartialShape{2}},
         {PartialShape{1, 2, 3}, PartialShape::dynamic(1)},
-        {PartialShape{Dimension(), 2, Dimension()}, PartialShape{2}},
+        {PartialShape{-1, 2, -1}, PartialShape{2}},
         {
             PartialShape::dynamic(3),
             PartialShape{4},
         },
-        {PartialShape{Dimension(), Dimension(3, 5), Dimension()}, PartialShape{Dimension(1, 3)}},
+        {PartialShape{-1, {3, 5}, -1}, PartialShape{{1, 3}}},
         {PartialShape::dynamic(), PartialShape::dynamic()}};
     std::vector<GatherTreeInputParams> test_cases;
     std::for_each(std::begin(input_shapes), std::end(input_shapes), [&](std::pair<PartialShape, PartialShape> shapes) {
@@ -254,8 +276,8 @@ TEST(type_prop, gather_tree_output_shape) {
             if (result_shape.rank().is_static() && max_seq_len_shape.rank().is_static()) {
                 result_shape[1] = result_shape[1] & max_seq_len_shape[0];
             }
-            ASSERT_EQ(gather_tree->get_output_partial_shape(0), result_shape);
-            ASSERT_EQ(gather_tree->get_output_element_type(0), et);
+            EXPECT_EQ(gather_tree->get_output_partial_shape(0), result_shape);
+            EXPECT_EQ(gather_tree->get_output_element_type(0), et);
         } catch (...) {
             FAIL() << "Output shape check failed for unexpected reason";
         }
@@ -288,4 +310,86 @@ TEST(type_prop, gather_tree_invalid_end_token_rank) {
             FAIL() << "Shape check for end_token input failed for unexpected reason";
         }
     }
+}
+
+TEST(type_prop, gather_tree_interval_labeled_dims_all) {
+    auto step_ids_shape = PartialShape{{2, 5}, {4, 8}, {3, 6}};
+    set_shape_labels(step_ids_shape, 10);
+
+    auto parent_ids_shape = PartialShape{{3, 7}, {3, 7}, {1, 4}};
+    set_shape_labels(parent_ids_shape, 20);
+
+    auto max_seq_len_shape = PartialShape{{2, 6}};
+    set_shape_labels(max_seq_len_shape, 30);
+
+    auto step_ids = std::make_shared<op::v0::Parameter>(element::i32, step_ids_shape);
+    auto parent_ids = std::make_shared<op::v0::Parameter>(element::i32, parent_ids_shape);
+    auto max_seq_len = std::make_shared<op::v0::Parameter>(element::i32, max_seq_len_shape);
+    auto end_token = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
+
+    auto op = std::make_shared<op::v1::GatherTree>(step_ids, parent_ids, max_seq_len, end_token);
+
+    const auto& out_shape = op->get_output_partial_shape(0);
+    EXPECT_EQ(op->get_output_element_type(0), element::i32);
+    EXPECT_EQ(out_shape, (PartialShape{{3, 5}, {4, 6}, {3, 4}}));
+    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(20, 30, 22));
+}
+
+TEST(type_prop, gather_tree_interval_labeled_dims_step_ids) {
+    auto step_ids_shape = PartialShape{{2, 5}, {4, 8}, {3, 6}};
+    set_shape_labels(step_ids_shape, 10);
+
+    auto parent_ids_shape = PartialShape{{3, 7}, {3, 7}, {1, 4}};
+    auto max_seq_len_shape = PartialShape{{2, 6}};
+
+    auto step_ids = std::make_shared<op::v0::Parameter>(element::i32, step_ids_shape);
+    auto parent_ids = std::make_shared<op::v0::Parameter>(element::i32, parent_ids_shape);
+    auto max_seq_len = std::make_shared<op::v0::Parameter>(element::i32, max_seq_len_shape);
+    auto end_token = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
+
+    auto op = std::make_shared<op::v1::GatherTree>(step_ids, parent_ids, max_seq_len, end_token);
+
+    const auto& out_shape = op->get_output_partial_shape(0);
+    EXPECT_EQ(op->get_output_element_type(0), element::i32);
+    EXPECT_EQ(out_shape, (PartialShape{{3, 5}, {4, 6}, {3, 4}}));
+    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(10, 11, 12));
+}
+
+TEST(type_prop, gather_tree_interval_labeled_dims_parent_ids) {
+    auto step_ids_shape = PartialShape{{2, 5}, {4, 8}, {3, 6}};
+    auto parent_ids_shape = PartialShape{{3, 7}, {3, 7}, {1, 4}};
+    set_shape_labels(parent_ids_shape, 20);
+
+    auto max_seq_len_shape = PartialShape{{2, 6}};
+
+    auto step_ids = std::make_shared<op::v0::Parameter>(element::i32, step_ids_shape);
+    auto parent_ids = std::make_shared<op::v0::Parameter>(element::i32, parent_ids_shape);
+    auto max_seq_len = std::make_shared<op::v0::Parameter>(element::i32, max_seq_len_shape);
+    auto end_token = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
+
+    auto op = std::make_shared<op::v1::GatherTree>(step_ids, parent_ids, max_seq_len, end_token);
+
+    const auto& out_shape = op->get_output_partial_shape(0);
+    EXPECT_EQ(op->get_output_element_type(0), element::i32);
+    EXPECT_EQ(out_shape, (PartialShape{{3, 5}, {4, 6}, {3, 4}}));
+    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(20, 21, 22));
+}
+
+TEST(type_prop, gather_tree_interval_labeled_dims_seq_len) {
+    auto step_ids_shape = PartialShape{{2, 5}, {4, 8}, {3, 6}};
+    auto parent_ids_shape = PartialShape{{3, 7}, {3, 7}, {1, 4}};
+    auto max_seq_len_shape = PartialShape{{2, 6}};
+    set_shape_labels(max_seq_len_shape, 30);
+
+    auto step_ids = std::make_shared<op::v0::Parameter>(element::i32, step_ids_shape);
+    auto parent_ids = std::make_shared<op::v0::Parameter>(element::i32, parent_ids_shape);
+    auto max_seq_len = std::make_shared<op::v0::Parameter>(element::i32, max_seq_len_shape);
+    auto end_token = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
+
+    auto op = std::make_shared<op::v1::GatherTree>(step_ids, parent_ids, max_seq_len, end_token);
+
+    const auto& out_shape = op->get_output_partial_shape(0);
+    EXPECT_EQ(op->get_output_element_type(0), element::i32);
+    EXPECT_EQ(out_shape, (PartialShape{{3, 5}, {4, 6}, {3, 4}}));
+    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(ov::no_label, 30, ov::no_label));
 }

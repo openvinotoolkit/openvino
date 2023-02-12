@@ -25,6 +25,12 @@ struct bucketize : primitive_base<bucketize> {
           with_right_bound(with_right_bound) {}
 
     bool with_right_bound;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, with_right_bound);
+        return seed;
+    }
 };
 
 }  // namespace cldnn

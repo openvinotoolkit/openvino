@@ -68,8 +68,10 @@ void data_inst::save(cldnn::BinaryOutputBuffer& ob) const {
     if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
         ob << make_data(_outputs[0]->buffer_ptr(), data_size);
     } else {
-        mem_lock<char, mem_lock_type::read> lock{_outputs[0], get_node().get_program().get_stream()};
-        ob << make_data(lock.data(), data_size);
+        std::vector<uint8_t> _buf;
+        _buf.resize(data_size);
+        _outputs[0]->copy_to(get_network().get_stream(), _buf.data());
+        ob << make_data(_buf.data(), data_size);
     }
 }
 

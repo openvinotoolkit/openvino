@@ -4,13 +4,14 @@
 
 #include "gna_convolution_layer.hpp"
 
+#include <legacy/ie_layers.h>
+
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <utility>
 #include <vector>
 
-#include <legacy/ie_layers.h>
 #include "gna_graph_tools.hpp"
 #include "log/debug.hpp"
 

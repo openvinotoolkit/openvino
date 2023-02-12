@@ -42,7 +42,7 @@ static AxisVector get_default_order(size_t rank) {
     return default_order;
 }
 
-int64_t get_static_rank(const Output<Node>& output) {
+static size_t get_static_rank(const Output<Node>& output) {
     auto rank = output.get_partial_shape().rank();
     OPENVINO_ASSERT(rank.is_static(), "Dynamic rank is not supported in TransposeSinking transformation.");
     return rank.get_length();

@@ -63,5 +63,13 @@ struct batch_to_space : public primitive_base<batch_to_space> {
     tensor crops_begin;
     tensor crops_end;
     tensor out_size;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, block_shape.hash());
+        seed = hash_combine(seed, crops_begin.hash());
+        seed = hash_combine(seed, crops_end.hash());
+        return seed;
+    }
 };
 }  // namespace cldnn

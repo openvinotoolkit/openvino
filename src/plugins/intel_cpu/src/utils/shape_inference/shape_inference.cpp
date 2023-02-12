@@ -5,6 +5,7 @@
 #include <openvino/core/node.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset10.hpp>
+#include <openvino/opsets/opset5.hpp>
 #include <openvino/opsets/opset7.hpp>
 
 #include "assign_shape_inference.hpp"
@@ -33,6 +34,7 @@
 #include "fake_quantize.hpp"
 #include "fft_base_shape_inference.hpp"
 #include "gather_elements_shape_inference.hpp"
+#include "gather_nd_shape_inference.hpp"
 #include "gather_shape_inference.hpp"
 #include "gather_tree_shape_inference.hpp"
 #include "grid_sample_shape_inference.hpp"
@@ -50,6 +52,7 @@
 #include "region_yolo_shape_inference.hpp"
 #include "reorg_yolo_shape_inference.hpp"
 #include "reverse_sequence_shape_inference.hpp"
+#include "reverse_shape_inference.hpp"
 #include "roi_align_shape_inference.hpp"
 #include "roll_shape_inference.hpp"
 #include "scatter_elements_update_shape_inference.hpp"
@@ -550,6 +553,7 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(Eye, entryIOC),
     _OV_OP_SHAPE_INFER_REG(FakeQuantize, entryIO),
     _OV_OP_SHAPE_INFER_REG(GatherElements, entryIO),
+    _OV_OP_SHAPE_INFER_REG(GatherND, entryIO),
     _OV_OP_SHAPE_INFER_REG(GatherTree, entryIO),
     _OV_OP_SHAPE_INFER_REG(GridSample, entryIO),
     _OV_OP_SHAPE_INFER_REG(GRUCell, entryIO),
@@ -605,6 +609,8 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_VA_REG(ReduceSum, entryIOC, op::util::ArithmeticReductionKeepDims),
     // opset7
     _OV_OP_SHAPE_INFER_VA_REG(opset7::Gather, entryIOC, ov::op::util::GatherBase),
+    // opset5
+    _OV_OP_SHAPE_INFER_REG(opset5::GatherND, entryIO),
     // opset3
     _OV_OP_SHAPE_INFER_REG(opset3::Assign, entryIO),
     _OV_OP_SHAPE_INFER_REG(opset3::ReadValue, entryIO),
@@ -639,6 +645,8 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     // Default opset
     _OV_OP_SHAPE_INFER_REG(Tile, ShapeInferBase),
     // Operators shape inferences for specific opset version should be specified below
+    // opset1
+    _OV_OP_SHAPE_INFER_REG(opset1::Reverse, ShapeInferBase),
 };
 
 #undef _OV_OP_NON_TEMPLATE_SHAPE_INFER_REG

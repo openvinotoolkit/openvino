@@ -211,7 +211,7 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
     }
 
     const PartialShape outputPShape = op->get_output_partial_shape(0);
-    if (outputPShape[1].is_dynamic()) {
+    if (outputPShape.size() < 2 || outputPShape[1].is_dynamic()) {
         return false;
     }
 

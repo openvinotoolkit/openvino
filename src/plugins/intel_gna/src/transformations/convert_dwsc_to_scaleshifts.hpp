@@ -10,10 +10,9 @@ namespace ov {
 namespace intel_gna {
 namespace pass {
 
-
 /**
- * @brief Convert a depthwise separable convolution (represented by a GroupConvolution) to a set of ScaleShift layers (MatMul + Add)
- * Additionally supported are bias and fake quantize layers.
+ * @brief Convert a depthwise separable convolution (represented by a GroupConvolution) to a set of ScaleShift layers
+ * (MatMul + Add) Additionally supported are bias and fake quantize layers.
  */
 class ConvertDWSCToScaleShifts : public ngraph::pass::MatcherPass {
 public:
@@ -21,6 +20,6 @@ public:
     ConvertDWSCToScaleShifts();
 };
 
-} // namespace pass
-} // namespace intel_gna
-} // namespace ov
+}  // namespace pass
+}  // namespace intel_gna
+}  // namespace ov

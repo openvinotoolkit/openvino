@@ -33,6 +33,9 @@ public:
     std::vector<std::string> get_names() const override {
         return m_names;
     }
+    void set_names(const std::vector<std::string>& names) {
+        m_names = names;
+    }
 
 private:
     const ov::frontend::InputModel& m_input_model;

@@ -281,6 +281,9 @@ jobs:
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_tensorflow_common_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-TensorflowCommon.xml
     displayName: 'TensorFlow Common Unit Tests'
 
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_tensorflow_lite_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-TensorflowLite.xml
+    displayName: 'TensorFlow Lite Frontend Unit Tests'
+
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_lp_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\LpTransformations.xml
     displayName: 'Low Precision Transformations Tests'
 
@@ -304,7 +307,6 @@ jobs:
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ieMultiPluginUnitTests.xml
     displayName: 'MULTI UT'
-    enabled: 'false'
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_template_func_tests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-templateFuncTests.xml
     displayName: 'TEMPLATE FuncTests'

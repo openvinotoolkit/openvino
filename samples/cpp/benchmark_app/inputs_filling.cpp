@@ -169,7 +169,7 @@ ov::Tensor create_tensor_from_binary(const std::vector<std::string>& files,
         if (inputInfo.layout != "CN") {
             binaryFile.read(&data[b * inputSize], inputSize);
         } else {
-            for (int i = 0; i < inputInfo.channels(); i++) {
+            for (size_t i = 0; i < inputInfo.channels(); i++) {
                 binaryFile.read(&data[(i * binaryBatchSize + b) * sizeof(T)], sizeof(T));
             }
         }
@@ -216,12 +216,12 @@ ov::Tensor get_image_tensor(const std::vector<std::string>& files,
                                                inputInfo.first,
                                                filenames_used);
     } else if (type == ov::element::f16) {
-        return create_tensor_from_image<short>(files,
-                                               inputId,
-                                               batchSize,
-                                               inputInfo.second,
-                                               inputInfo.first,
-                                               filenames_used);
+        return create_tensor_from_image<ov::float16>(files,
+                                                     inputId,
+                                                     batchSize,
+                                                     inputInfo.second,
+                                                     inputInfo.first,
+                                                     filenames_used);
     } else if (type == ov::element::f64) {
         return create_tensor_from_image<double>(files,
                                                 inputId,
@@ -517,7 +517,7 @@ std::map<std::string, ov::TensorVector> get_tensors(std::map<std::string, std::v
         }
     }
 
-    for (int i = 0; i < logOutput.size(); i++) {
+    for (size_t i = 0; i < logOutput.size(); i++) {
         slog::info << "Test Config " << i << slog::endl;
         auto maxNameWidth = std::max_element(logOutput[i].begin(),
                                              logOutput[i].end(),
@@ -691,7 +691,7 @@ std::map<std::string, ov::TensorVector> get_tensors_static_case(const std::vecto
         }
     }
 
-    for (int i = 0; i < logOutput.size(); i++) {
+    for (size_t i = 0; i < logOutput.size(); i++) {
         slog::info << "Test Config " << i << slog::endl;
         auto maxNameWidth = std::max_element(logOutput[i].begin(),
                                              logOutput[i].end(),
