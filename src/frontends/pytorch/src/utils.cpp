@@ -167,8 +167,9 @@ OutputVector make_framework_node(NodeContext* context) {
     // Hack. Can indicate mutable inputs, but can it be reliable?
     if (schema.find('!') != std::string::npos) {
         // We create additional output for such nodes. It contains new tensor that represents input that was changed.
-        auto fw_node =
-            std::make_shared<PtFrameworkNode>(context->get_decoder(), context->inputs(), context->get_output_size() + 1);
+        auto fw_node = std::make_shared<PtFrameworkNode>(context->get_decoder(),
+                                                         context->inputs(),
+                                                         context->get_output_size() + 1);
         fw_node->set_friendly_name(context->get_op_type());
         auto outputs = fw_node->outputs();
         // Usually mutated input index is 0, because it is usually "self" input, so we need to replace this tensor with
@@ -225,9 +226,10 @@ OutputVector make_framework_node(NodeContext* context) {
         num_body_outs > context->get_output_size() ? num_body_outs - context->get_output_size() : 0;
 
     // We need to reduce number of outputs, because some outputs are outputs from body
-    auto fw_node = std::make_shared<PtFrameworkNode>(context->get_decoder(),
-                                                     context->inputs(),
-                                                     context->get_output_size() - num_body_outs + num_skip_body_outputs);
+    auto fw_node =
+        std::make_shared<PtFrameworkNode>(context->get_decoder(),
+                                          context->inputs(),
+                                          context->get_output_size() - num_body_outs + num_skip_body_outputs);
     fw_node->set_friendly_name(context->get_op_type());
     for (size_t i = 0; i < bodies.size(); ++i) {
         fw_node->set_function(i, bodies[i]);

@@ -9,24 +9,10 @@
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/util/log.hpp"
 #include "pt_framework_node.hpp"
-#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
 namespace pytorch {
-
-/*bool NodeContext::input_is_none(size_t index) const {
-    if (index >= m_decoder_inputs.size())
-        return true;
-    auto in_dtype = m_decoder->get_input_type(index);
-    if (in_dtype.is<type::PyNone>())
-        return true;
-    // prim::GetAttr case
-    if (const auto in_node = cast_fw_node(get_input(index).get_node_shared_ptr(), "prim::GetAttr")) {
-        const auto& attrs = in_node->get_attrs();
-        return attrs.find("none_value") != attrs.end();
-    }
-}*/
 
 OutputVector NodeContext::as_constant() const {
     auto dtype = m_decoder->get_output_type(0);
