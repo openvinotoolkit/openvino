@@ -26,6 +26,7 @@ ov::pass::TransposeSinkingGeneralForward::TransposeSinkingGeneralForward() {
     add_matcher<ov::pass::TransposeSinkingConcatForward>();
     add_matcher<ov::pass::TransposeSinkingSplitForward>();
     add_matcher<ov::pass::TransposeSinkingPadForward>();
+    add_matcher<ov::pass::TransposeReduction>();
     add_matcher<ov::pass::TransposeFuse>();
 }
 
@@ -36,6 +37,7 @@ ov::pass::TransposeSinkingGeneralBackward::TransposeSinkingGeneralBackward() {
     add_matcher<ov::pass::TransposeSinkingConcatBackward>();
     add_matcher<ov::pass::TransposeSinkingSplitBackward>();
     add_matcher<ov::pass::TransposeSinkingPadBackward>();
+    add_matcher<ov::pass::TransposeReductionBackward>();
     add_matcher<ov::pass::TransposeFuse>();
 }
 
@@ -43,8 +45,12 @@ bool ov::pass::TransposeSinkingGeneral::run_on_model(const std::shared_ptr<ov::M
     RUN_ON_FUNCTION_SCOPE(TransposeSinkingGeneral);
     {
         ngraph::pass::Manager manager(get_pass_config());
+        manager.register_pass<ov::pass::Serialize>("/home/tikhonov/OpenVINO/tmp/serialized/ts_before_forward.xml",
+                                                   "/home/tikhonov/OpenVINO/tmp/serialized/ts_before_forward.bin");
         manager.register_pass<ov::pass::TransposeSinkingGeneralForward>();
         manager.register_pass<ngraph::pass::ConstantFolding>();
+        manager.register_pass<ov::pass::Serialize>("/home/tikhonov/OpenVINO/tmp/serialized/ts_after_forward.xml",
+                                                   "/home/tikhonov/OpenVINO/tmp/serialized/ts_after_forward.bin");
         manager.run_passes(f);
     }
 

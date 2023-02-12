@@ -17,6 +17,7 @@ class TRANSFORMATIONS_API TransposeSinking;
 class TRANSFORMATIONS_API TransposeConvert;
 class TRANSFORMATIONS_API TransposeEltwise;
 class TRANSFORMATIONS_API TransposeReduction;
+class TRANSFORMATIONS_API TransposeReductionBackward;
 class TRANSFORMATIONS_API TransposeFQReduction;
 class TRANSFORMATIONS_API TransposeFuse;
 
@@ -31,6 +32,16 @@ class ov::pass::TransposeReduction : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("TransposeReduction", "0");
     TransposeReduction();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief TransposeReduction transformation sinks Transpose through Reduce operations
+ */
+class ov::pass::TransposeReductionBackward : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("TransposeReductionBackward", "0");
+    TransposeReductionBackward();
 };
 
 /**
