@@ -28,12 +28,12 @@ OutputVector translate_strided_slice_op(const NodeContext& node) {
     auto shrink_axis_mask = node.get_attribute<int64_t>("shrink_axis_mask", 0);
 
     auto mask_to_vector = [](int64_t mask) {
-        auto length = sizeof(mask) * CHAR_BIT;
+        size_t length = sizeof(mask) * CHAR_BIT;
         vector<int64_t> vec(length, 0);
         if (mask == 0) {
             return vec;
         }
-        for (auto i = 0; i < length; ++i) {
+        for (size_t i = 0; i < length; ++i) {
             if (static_cast<unsigned char>(mask >> i & 0x1) == 1) {
                 vec[i] = 1;
             }
