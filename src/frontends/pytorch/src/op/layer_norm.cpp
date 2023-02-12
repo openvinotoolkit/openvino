@@ -25,8 +25,8 @@ OutputVector translate_layer_norm(NodeContext& context) {
                                   "which means normalizing over the last dimension.");
     // TODO: support any dimention
     auto axes = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-1}));
-    auto out_node = context.mark_node(
-        std::make_shared<v6::MVN>(context.get_input(0), axes, true, eps, MVNEpsMode::INSIDE_SQRT));
+    auto out_node =
+        context.mark_node(std::make_shared<v6::MVN>(context.get_input(0), axes, true, eps, MVNEpsMode::INSIDE_SQRT));
     if (!context.input_is_none(2)) {
         out_node = context.mark_node(std::make_shared<v1::Multiply>(out_node, context.get_input(2)));
     }
