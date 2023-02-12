@@ -502,7 +502,7 @@ void Convolution::getSupportedDescriptors() {
         // normal convolution with much worse performance. thus we keep using f32 precision in that case.
         // this WA can be removed after brdgmm_dw is enabled.
         //    GroupConv([N, GROUPS * C_IN, D, H, W], [GROUPS, C_OUT=1, C_IN=1, kd, kh, kw])
-        // TODO, when kd=1, and src layout is ndhwc, N & D can be combined so it can be done as a 2D depthwise
+        // TODO when kd=1, and src layout is ndhwc, N & D can be combined so it can be done as a 2D depthwise
         bool is_dw3DConv = (isDepthWise() && ndims == 5);
         inputDataType = memory::data_type::f32;
         outputDataType = memory::data_type::f32;
