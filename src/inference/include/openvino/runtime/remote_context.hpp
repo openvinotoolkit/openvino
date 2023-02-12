@@ -20,11 +20,19 @@
 
 namespace InferenceEngine {
 class RemoteContext;
+class IPluginWrapper;
+class ICompiledModelWrapper;
+class Core;
 }  // namespace InferenceEngine
 
 namespace ov {
 
 class Core;
+class CoreImpl;
+class Plugin;
+class IPlugin;
+class IInferencePluginWrapper;
+class IExecutableNetworkWrapper;
 class CompiledModel;
 
 /**
@@ -47,7 +55,15 @@ protected:
      */
     RemoteContext(const std::shared_ptr<InferenceEngine::RemoteContext>& impl,
                   const std::vector<std::shared_ptr<void>>& so);
+    friend class InferenceEngine::Core;
+    friend class InferenceEngine::IPluginWrapper;
+    friend class InferenceEngine::ICompiledModelWrapper;
     friend class ov::Core;
+    friend class ov::CoreImpl;
+    friend class ov::Plugin;
+    friend class ov::IPlugin;
+    friend class ov::IInferencePluginWrapper;
+    friend class ov::IExecutableNetworkWrapper;
     friend class ov::CompiledModel;
 
 public:

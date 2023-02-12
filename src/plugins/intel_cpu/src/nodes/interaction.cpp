@@ -228,8 +228,6 @@ static inline void flat_triangle(const uint8_t* in, uint8_t* out, size_t size, s
 }
 
 void Interaction::execRef(dnnl::stream strm) {
-    using tag = dnnl::memory::format_tag;
-    using dt = dnnl::memory::data_type;
     using namespace dnnl;
     uint8_t* outFeaturesPtr = reinterpret_cast<uint8_t*>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
     std::vector<const uint8_t*> inputPtrs(inputSizes);
@@ -278,8 +276,6 @@ bool Interaction::created() const {
 }
 
 void Interaction::prepareParams() {
-    using tag = dnnl::memory::format_tag;
-    using dt = dnnl::memory::data_type;
     using namespace dnnl;
     const auto& denseFeatureDims = getParentEdgeAt(0)->getMemory().getStaticDims();
     batchSize = denseFeatureDims[0];

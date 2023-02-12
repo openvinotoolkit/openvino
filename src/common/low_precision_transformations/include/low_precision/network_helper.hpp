@@ -259,6 +259,8 @@ public:
 
     static ov::Output<ov::Node> getSingleConsumerConstant(const ov::Output<ov::Node>& output);
 
+    static bool checkConstantOnInf(const std::shared_ptr<Node> constant_node);
+
 private:
     static std::shared_ptr<Node> foldFakeQuantize(
             const std::shared_ptr<opset1::FakeQuantize>& fq,
@@ -275,7 +277,7 @@ private:
 template <typename OperationType>
 std::shared_ptr<Node> NetworkHelper::setOutDataPrecisionForTypeRelaxed(std::shared_ptr<OperationType> layer, const element::Type& precision) {
     // check if it already exteded operation node
-    if (auto relaxed_layer = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(layer)) {
+    if (auto relaxed_layer = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(layer)) {
         relaxed_layer->set_overridden_output_type(precision);
         std::dynamic_pointer_cast<ngraph::Node>(layer)->validate_and_infer_types();
         return layer;
@@ -287,7 +289,7 @@ std::shared_ptr<Node> NetworkHelper::setOutDataPrecisionForTypeRelaxed(std::shar
 template <typename OperationType>
 std::shared_ptr<Node> NetworkHelper::setOutDataPrecision(std::shared_ptr<OperationType> layer, const element::Type& precision) {
     // check if it already exteded operation node
-    if (auto relaxed_layer = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(layer)) {
+    if (auto relaxed_layer = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(layer)) {
         relaxed_layer->set_overridden_output_type(precision);
         std::dynamic_pointer_cast<ngraph::Node>(layer)->validate_and_infer_types();
         return layer;
@@ -295,7 +297,7 @@ std::shared_ptr<Node> NetworkHelper::setOutDataPrecision(std::shared_ptr<Operati
         // Make such replacements in advance for all supported polymorphic layer types
         // extend a node with new semantics: overriden output data_type
         // OperationType should be a real type of an object, otherwise it will lead to undefined behavior
-        auto replacement = std::make_shared<ngraph::op::TypeRelaxed<OperationType>>(*layer, precision);
+        auto replacement = std::make_shared<ov::op::TypeRelaxed<OperationType>>(*layer, precision);
         copy_runtime_info(layer, replacement);
         replace_node(layer, replacement);
         return replacement;

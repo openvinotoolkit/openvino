@@ -115,7 +115,7 @@ CMake version 3.10 or higher is required for building the OpenVINO™ toolkit sa
 
 CMake is installed. Continue to the next section to set the environment variables.
 
-.. _set-the-environment-variables:
+.. _set-the-environment-variables-raspbian:
 
 @endsphinxdirective
 
@@ -209,6 +209,8 @@ To uninstall the toolkit, follow the steps on the :doc:`Uninstalling page <openv
 * Sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
 * Pre-trained deep learning models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
 * IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit`_ 
+* :ref:`OpenVINO Installation Selector Tool <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`
+
 .. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
 
 @endsphinxdirective

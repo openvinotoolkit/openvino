@@ -17,10 +17,6 @@
 #include <utility>
 #include <set>
 
-namespace kernel_selector {
-class TuningCache;
-}  // namespace kernel_selector
-
 namespace cldnn {
 
 struct topology;
@@ -248,15 +244,13 @@ public:
     kernel::ptr get_kernel(kernel_id id);
     kernels_cache& get_kernels_cache() const;
 
-    void load_tuning_cache();
-    std::shared_ptr<kernel_selector::TuningCache> get_tuning_cache() const { return tuning_cache; }
-
     // returns {-1, -1} if it failed to estimate by allocating given batch size
     std::pair<int64_t/*const alloc*/, int64_t/*general alloc*/> get_estimated_device_mem_usage();
 
     void remove_kernel(kernel_id id);
     bool is_local_block_io_supported() const;
     void query_local_block_io_supported();
+    void calc_nodes_hash();
 
 private:
     uint32_t prog_id = 0;
@@ -270,7 +264,6 @@ private:
     std::vector<program_node*> outputs;
     nodes_ordering processing_order;
     std::unique_ptr<pass_manager> pm;
-    std::shared_ptr<kernel_selector::TuningCache> tuning_cache;
     bool is_body_program;
     int8_t is_subgroup_local_block_io_supported;
 

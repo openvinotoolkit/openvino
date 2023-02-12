@@ -7,21 +7,21 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
-#include "ngraph_functions/builders.hpp"
 #include <transformations/init_node_info.hpp>
-#include "transformations/remove_converts.hpp"
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "ngraph_functions/builders.hpp"
+#include "transformations/remove_converts.hpp"
 
 namespace testing {
 
-typedef std::tuple<
-        ov::element::Type,     // Net precision
-        ov::element::Type      // Convert precision
-> removeConvertTestParams;
+typedef std::tuple<ov::element::Type,  // Net precision
+                   ov::element::Type   // Convert precision
+                   >
+    removeConvertTestParams;
 
-class RemoveInputConvertTest: public CommonTestUtils::TestsCommon,
-                         public ::testing::WithParamInterface<removeConvertTestParams> {
+class RemoveInputConvertTest : public CommonTestUtils::TestsCommon,
+                               public ::testing::WithParamInterface<removeConvertTestParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<removeConvertTestParams>& obj) {
         ov::element::Type net_precision, target_precision;
@@ -36,6 +36,7 @@ public:
     void SetUp() override;
     virtual void Validate();
     virtual void Run();
+
 public:
     std::shared_ptr<ngraph::Function> func_, ref_func_no_convert_, ref_func_convert_;
     ov::element::Type net_precision_, target_precision_;
@@ -54,14 +55,15 @@ void RemoveInputConvertTest::SetUp() {
     // test function
     {
         auto params = std::make_shared<ngraph::opset8::Parameter>(target_precision_, input_shape);
-        auto conversion = ngraph::builder::makeConversion(params, net_precision_, ngraph::helpers::ConversionTypes::CONVERT);
+        auto conversion =
+            ngraph::builder::makeConversion(params, net_precision_, ngraph::helpers::ConversionTypes::CONVERT);
         auto add_const = ngraph::opset8::Constant::create(net_precision_, input_shape, {10});
         auto add = std::make_shared<ngraph::opset8::Add>(conversion, add_const);
 
         auto result = std::make_shared<ngraph::opset8::Result>(add);
         func_ = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                       ngraph::ParameterVector{params},
-                                                       "Conversion");
+                                                   ngraph::ParameterVector{params},
+                                                   "Conversion");
     }
 
     // ref function convert should be removed
@@ -72,8 +74,8 @@ void RemoveInputConvertTest::SetUp() {
 
         auto result = std::make_shared<ngraph::opset8::Result>(add);
         ref_func_no_convert_ = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                           ngraph::ParameterVector{params},
-                                                           "Conversion");
+                                                                  ngraph::ParameterVector{params},
+                                                                  "Conversion");
     }
 
     // ref function convert should not be removed
@@ -82,12 +84,13 @@ void RemoveInputConvertTest::SetUp() {
 
 void RemoveInputConvertTest::Validate() {
     ngraph::pass::Manager m;
-    m.register_pass<ngraph::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ov::intel_gna::pass::RemoveInputConvert>();
     m.run_passes(func_);
     ASSERT_NO_THROW(check_rt_info(func_));
 
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     FunctionsComparator::Result result;
     if (std::count(ov::intel_gna::pass::kSupportedInputConverts.begin(),
                    ov::intel_gna::pass::kSupportedInputConverts.end(),
@@ -100,7 +103,7 @@ void RemoveInputConvertTest::Validate() {
     ASSERT_TRUE(result.valid);
 }
 
-class RemoveOutputConvertTest: public RemoveInputConvertTest {
+class RemoveOutputConvertTest : public RemoveInputConvertTest {
 public:
     void SetUp() override {
         const ngraph::Shape input_shape{10};
@@ -112,9 +115,11 @@ public:
             auto params = std::make_shared<ngraph::opset8::Parameter>(net_precision_, input_shape);
             auto add_const = ngraph::opset8::Constant::create(net_precision_, input_shape, {10});
             auto add = std::make_shared<ngraph::opset8::Add>(params, add_const);
-            auto conversion = ngraph::builder::makeConversion(add, target_precision_, ngraph::helpers::ConversionTypes::CONVERT);
+            auto conversion =
+                ngraph::builder::makeConversion(add, target_precision_, ngraph::helpers::ConversionTypes::CONVERT);
             auto result = std::make_shared<ngraph::opset8::Result>(conversion);
-            func_ = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{params},
+            func_ = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                       ngraph::ParameterVector{params},
                                                        "Conversion");
         }
 
@@ -125,7 +130,8 @@ public:
             auto add = std::make_shared<ngraph::opset8::Add>(params, add_const);
 
             auto result = std::make_shared<ngraph::opset8::Result>(add);
-            ref_func_no_convert_ = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{params},
+            ref_func_no_convert_ = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                                      ngraph::ParameterVector{params},
                                                                       "Conversion");
         }
 
@@ -134,13 +140,14 @@ public:
     }
     void Validate() override {
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::intel_gna::pass::RemoveOutputConvert>();
         m.run_passes(func_);
         ASSERT_NO_THROW(check_rt_info(func_));
 
-        const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
-            FunctionsComparator::Result result;
+        const FunctionsComparator func_comparator =
+            FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+        FunctionsComparator::Result result;
         if (std::count(ov::intel_gna::pass::kSupportedOutputConverts.begin(),
                        ov::intel_gna::pass::kSupportedOutputConverts.end(),
                        std::make_pair(net_precision_, target_precision_)) == 0) {
@@ -153,7 +160,7 @@ public:
     }
 };
 
-class LeaveConvertTest: public RemoveInputConvertTest {
+class LeaveConvertTest : public RemoveInputConvertTest {
 public:
     void SetUp() override {
         const ngraph::Shape input_shape{10};
@@ -165,10 +172,13 @@ public:
             auto params = std::make_shared<ngraph::opset8::Parameter>(net_precision_, input_shape);
             auto add_const = ngraph::opset8::Constant::create(net_precision_, input_shape, {10});
             auto add1 = std::make_shared<ngraph::opset8::Add>(params, add_const);
-            auto conversion = ngraph::builder::makeConversion(add1, net_precision_, ngraph::helpers::ConversionTypes::CONVERT);
+            auto conversion =
+                ngraph::builder::makeConversion(add1, net_precision_, ngraph::helpers::ConversionTypes::CONVERT);
             auto add2 = std::make_shared<ngraph::opset8::Add>(conversion, add_const);
             auto result = std::make_shared<ngraph::opset8::Result>(add2);
-            func_ = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{params}, "Conversion");
+            func_ = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                       ngraph::ParameterVector{params},
+                                                       "Conversion");
         }
 
         // ref function
@@ -176,19 +186,20 @@ public:
     }
     void Validate() override {
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::intel_gna::pass::RemoveInputConvert>();
         m.register_pass<ov::intel_gna::pass::RemoveOutputConvert>();
         m.run_passes(func_);
         ASSERT_NO_THROW(check_rt_info(func_));
 
-        const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+        const FunctionsComparator func_comparator =
+            FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
         const FunctionsComparator::Result result = func_comparator(func_, ref_func_convert_);
         ASSERT_TRUE(result.valid);
     }
 };
 
-class RemoveMultiInputsConvertTest: public RemoveInputConvertTest {
+class RemoveMultiInputsConvertTest : public RemoveInputConvertTest {
 public:
     void SetUp() override {
         std::tie(net_precision_, target_precision_) = this->GetParam();
@@ -197,9 +208,12 @@ public:
         // test function
         {
             auto input = ngraph::builder::makeParams(target_precision_, {input_shape, input_shape, input_shape});
-            auto convert1 = ngraph::builder::makeConversion(input[0], net_precision_, ngraph::helpers::ConversionTypes::CONVERT);
-            auto convert2 = ngraph::builder::makeConversion(input[1], net_precision_, ngraph::helpers::ConversionTypes::CONVERT);
-            auto convert3 = ngraph::builder::makeConversion(input[2], net_precision_, ngraph::helpers::ConversionTypes::CONVERT);
+            auto convert1 =
+                ngraph::builder::makeConversion(input[0], net_precision_, ngraph::helpers::ConversionTypes::CONVERT);
+            auto convert2 =
+                ngraph::builder::makeConversion(input[1], net_precision_, ngraph::helpers::ConversionTypes::CONVERT);
+            auto convert3 =
+                ngraph::builder::makeConversion(input[2], net_precision_, ngraph::helpers::ConversionTypes::CONVERT);
             auto mul1 = ngraph::builder::makeEltwise(convert1, convert2, ngraph::helpers::EltwiseTypes::ADD);
             auto mul2 = ngraph::builder::makeEltwise(convert3, mul1, ngraph::helpers::EltwiseTypes::ADD);
             auto result = std::make_shared<ngraph::opset8::Result>(mul2);
@@ -212,7 +226,8 @@ public:
             auto mul1 = ngraph::builder::makeEltwise(input[0], input[1], ngraph::helpers::EltwiseTypes::ADD);
             auto mul2 = ngraph::builder::makeEltwise(input[2], mul1, ngraph::helpers::EltwiseTypes::ADD);
             auto result = std::make_shared<ngraph::opset8::Result>(mul2);
-            ref_func_no_convert_ = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, input, "multiple_input");
+            ref_func_no_convert_ =
+                std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, input, "multiple_input");
         }
 
         // ref function convert should not be removed
@@ -220,33 +235,39 @@ public:
     }
 };
 
-class RemoveMultiOutputsConvertTest: public RemoveOutputConvertTest {
+class RemoveMultiOutputsConvertTest : public RemoveOutputConvertTest {
 public:
     void SetUp() override {
         std::tie(net_precision_, target_precision_) = this->GetParam();
         const ngraph::Shape input_shape{1, 10};
         // test function
         {
-            auto input = ngraph::builder::makeParams(net_precision_, {input_shape, input_shape, input_shape, input_shape});
+            auto input =
+                ngraph::builder::makeParams(net_precision_, {input_shape, input_shape, input_shape, input_shape});
             auto mul1 = ngraph::builder::makeEltwise(input[0], input[1], ngraph::helpers::EltwiseTypes::ADD);
             auto mul2 = ngraph::builder::makeEltwise(input[2], input[3], ngraph::helpers::EltwiseTypes::ADD);
-            auto convert1 = ngraph::builder::makeConversion(mul1, target_precision_, ngraph::helpers::ConversionTypes::CONVERT);
-            auto convert2 = ngraph::builder::makeConversion(mul2, target_precision_, ngraph::helpers::ConversionTypes::CONVERT);
+            auto convert1 =
+                ngraph::builder::makeConversion(mul1, target_precision_, ngraph::helpers::ConversionTypes::CONVERT);
+            auto convert2 =
+                ngraph::builder::makeConversion(mul2, target_precision_, ngraph::helpers::ConversionTypes::CONVERT);
             auto result1 = std::make_shared<ngraph::opset8::Result>(convert1);
             auto result2 = std::make_shared<ngraph::opset8::Result>(convert2);
 
-            func_ = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2}, input, "multiple_output");
+            func_ =
+                std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2}, input, "multiple_output");
         }
 
         // ref function
         {
-            auto input = ngraph::builder::makeParams(net_precision_, {input_shape, input_shape, input_shape, input_shape});
+            auto input =
+                ngraph::builder::makeParams(net_precision_, {input_shape, input_shape, input_shape, input_shape});
             auto mul1 = ngraph::builder::makeEltwise(input[0], input[1], ngraph::helpers::EltwiseTypes::ADD);
             auto mul2 = ngraph::builder::makeEltwise(input[2], input[3], ngraph::helpers::EltwiseTypes::ADD);
             auto result1 = std::make_shared<ngraph::opset8::Result>(mul1);
             auto result2 = std::make_shared<ngraph::opset8::Result>(mul2);
 
-            ref_func_no_convert_ = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2}, input, "multiple_output");
+            ref_func_no_convert_ =
+                std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2}, input, "multiple_output");
         }
 
         // ref function convert should not be removed
@@ -254,30 +275,37 @@ public:
     }
 };
 
-class RemoveOutputConvertConnectedToLayerTest: public RemoveOutputConvertTest {
+class RemoveOutputConvertConnectedToLayerTest : public RemoveOutputConvertTest {
 public:
     void SetUp() override {
         std::tie(net_precision_, target_precision_) = this->GetParam();
         const ngraph::Shape input_shape{1, 10};
         // test function
         {
-            auto input = ngraph::builder::makeParams(net_precision_, {input_shape, input_shape, input_shape, input_shape});
+            auto input =
+                ngraph::builder::makeParams(net_precision_, {input_shape, input_shape, input_shape, input_shape});
             auto mul1 = ngraph::builder::makeEltwise(input[0], input[1], ngraph::helpers::EltwiseTypes::ADD);
             auto mul2 = ngraph::builder::makeEltwise(input[2], input[3], ngraph::helpers::EltwiseTypes::ADD);
             auto mul3 = ngraph::builder::makeEltwise(mul1, mul2, ngraph::helpers::EltwiseTypes::ADD);
-            auto convert1 = ngraph::builder::makeConversion(mul1, target_precision_, ngraph::helpers::ConversionTypes::CONVERT);
-            auto convert2 = ngraph::builder::makeConversion(mul2, target_precision_, ngraph::helpers::ConversionTypes::CONVERT);
-            auto convert3 = ngraph::builder::makeConversion(mul3, target_precision_, ngraph::helpers::ConversionTypes::CONVERT);
+            auto convert1 =
+                ngraph::builder::makeConversion(mul1, target_precision_, ngraph::helpers::ConversionTypes::CONVERT);
+            auto convert2 =
+                ngraph::builder::makeConversion(mul2, target_precision_, ngraph::helpers::ConversionTypes::CONVERT);
+            auto convert3 =
+                ngraph::builder::makeConversion(mul3, target_precision_, ngraph::helpers::ConversionTypes::CONVERT);
             auto result1 = std::make_shared<ngraph::opset8::Result>(convert1);
             auto result2 = std::make_shared<ngraph::opset8::Result>(convert2);
             auto result3 = std::make_shared<ngraph::opset8::Result>(convert3);
 
-            func_ = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2, result3}, input, "multiple_output");
+            func_ = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2, result3},
+                                                       input,
+                                                       "multiple_output");
         }
 
         // ref function
         {
-            auto input = ngraph::builder::makeParams(net_precision_, {input_shape, input_shape, input_shape, input_shape});
+            auto input =
+                ngraph::builder::makeParams(net_precision_, {input_shape, input_shape, input_shape, input_shape});
             auto mul1 = ngraph::builder::makeEltwise(input[0], input[1], ngraph::helpers::EltwiseTypes::ADD);
             auto mul2 = ngraph::builder::makeEltwise(input[2], input[3], ngraph::helpers::EltwiseTypes::ADD);
             auto mul3 = ngraph::builder::makeEltwise(mul1, mul2, ngraph::helpers::EltwiseTypes::ADD);
@@ -285,7 +313,9 @@ public:
             auto result2 = std::make_shared<ngraph::opset8::Result>(mul2);
             auto result3 = std::make_shared<ngraph::opset8::Result>(mul3);
 
-            ref_func_no_convert_ = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2, result3}, input, "multiple_output");
+            ref_func_no_convert_ = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2, result3},
+                                                                      input,
+                                                                      "multiple_output");
         }
 
         // ref function convert should not be removed
@@ -293,25 +323,21 @@ public:
     }
 };
 
-ov::element::TypeVector netTypes = {
-    ov::element::f16,
-    ov::element::f32,
-    ov::element::i8,
-    ov::element::u8,
-    ov::element::i16,
-    ov::element::i32,
-    ov::element::i64
-};
+ov::element::TypeVector netTypes = {ov::element::f16,
+                                    ov::element::f32,
+                                    ov::element::i8,
+                                    ov::element::u8,
+                                    ov::element::i16,
+                                    ov::element::i32,
+                                    ov::element::i64};
 
-ov::element::TypeVector targetTypes = {
-    ov::element::f16,
-    ov::element::f32,
-    ov::element::i8,
-    ov::element::u8,
-    ov::element::i16,
-    ov::element::i32,
-    ov::element::i64
-};
+ov::element::TypeVector targetTypes = {ov::element::f16,
+                                       ov::element::f32,
+                                       ov::element::i8,
+                                       ov::element::u8,
+                                       ov::element::i16,
+                                       ov::element::i32,
+                                       ov::element::i64};
 
 TEST_P(RemoveInputConvertTest, CompareWithRefs) {
     Run();
@@ -337,39 +363,33 @@ TEST_P(RemoveOutputConvertConnectedToLayerTest, CompareWithRefs) {
     Run();
 }
 
-INSTANTIATE_TEST_SUITE_P(TransformationTests, RemoveInputConvertTest,
-                         ::testing::Combine(
-                                ::testing::ValuesIn(netTypes),
-                                ::testing::ValuesIn(targetTypes)),
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         RemoveInputConvertTest,
+                         ::testing::Combine(::testing::ValuesIn(netTypes), ::testing::ValuesIn(targetTypes)),
                          RemoveInputConvertTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(TransformationTests, RemoveOutputConvertTest,
-                         ::testing::Combine(
-                                ::testing::ValuesIn(netTypes),
-                                ::testing::ValuesIn(targetTypes)),
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         RemoveOutputConvertTest,
+                         ::testing::Combine(::testing::ValuesIn(netTypes), ::testing::ValuesIn(targetTypes)),
                          RemoveOutputConvertTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(TransformationTests, LeaveConvertTest,
-                         ::testing::Combine(
-                                ::testing::ValuesIn(netTypes),
-                                ::testing::ValuesIn(targetTypes)),
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         LeaveConvertTest,
+                         ::testing::Combine(::testing::ValuesIn(netTypes), ::testing::ValuesIn(targetTypes)),
                          LeaveConvertTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(TransformationTests, RemoveMultiInputsConvertTest,
-                         ::testing::Combine(
-                                ::testing::ValuesIn(netTypes),
-                                ::testing::ValuesIn(targetTypes)),
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         RemoveMultiInputsConvertTest,
+                         ::testing::Combine(::testing::ValuesIn(netTypes), ::testing::ValuesIn(targetTypes)),
                          RemoveMultiInputsConvertTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(TransformationTests, RemoveMultiOutputsConvertTest,
-                         ::testing::Combine(
-                                ::testing::ValuesIn(netTypes),
-                                ::testing::ValuesIn(targetTypes)),
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         RemoveMultiOutputsConvertTest,
+                         ::testing::Combine(::testing::ValuesIn(netTypes), ::testing::ValuesIn(targetTypes)),
                          RemoveMultiOutputsConvertTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(TransformationTests, RemoveOutputConvertConnectedToLayerTest,
-                         ::testing::Combine(
-                                ::testing::ValuesIn(netTypes),
-                                ::testing::ValuesIn(targetTypes)),
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         RemoveOutputConvertConnectedToLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(netTypes), ::testing::ValuesIn(targetTypes)),
                          RemoveOutputConvertConnectedToLayerTest::getTestCaseName);
-} // namespace testing
+}  // namespace testing

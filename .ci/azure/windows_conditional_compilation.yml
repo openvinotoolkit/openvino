@@ -113,6 +113,8 @@ jobs:
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
       call "$(MSVS_VARS_PATH)" && cmake -GNinja ^
+        -DENABLE_CPPLINT=OFF ^
+        -DENABLE_GAPI_PREPROCESSING=OFF ^
         -DENABLE_FASTER_BUILD=ON ^
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON ^
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) ^
@@ -120,29 +122,17 @@ jobs:
         -DSELECTIVE_BUILD=COLLECT ^
         -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
-        -DENABLE_CLDNN=OFF ^
-        -DENABLE_INTEL_GPU=OFF ^
-        -DENABLE_MULTI=OFF ^
-        -DENABLE_AUTO=OFF ^
-        -DENABLE_AUTO_BATCH=OFF ^
-        -DENABLE_HETERO=OFF ^
-        -DENABLE_TEMPLATE=OFF ^
-        -DENABLE_TESTS=OFF ^
-        -DENABLE_OV_ONNX_FRONTEND=OFF ^
-        -DENABLE_OV_PADDLE_FRONTEND=OFF ^
-        -DENABLE_OV_PYTORCH_FRONTEND=OFF ^
-        -DENABLE_OV_TF_FRONTEND=OFF ^
-        $(REPO_DIR)
-    workingDirectory: $(BUILD_DIR)
-    displayName: 'CMake'
+        -S $(REPO_DIR) ^
+        -B $(BUILD_DIR)
+    displayName: 'CMake CC COLLECT'
 
   - script: dir $(REPO_DIR)\temp\ /s
     displayName: 'List temp SDKs'
 
   - script: |
-      call "$(MSVS_VARS_PATH)" && cmake --build . --config $(BUILD_TYPE) && cmake --build . --config $(BUILD_TYPE) --target sea_itt_lib
-    workingDirectory: $(BUILD_DIR)
-    displayName: 'Build Win CC COLLECT'
+      call "$(MSVS_VARS_PATH)" && cmake --build $(BUILD_DIR) --config $(BUILD_TYPE) --parallel --target ^
+        openvino_intel_cpu_plugin openvino_ir_frontend benchmark_app sea_itt_lib
+    displayName: 'Build CC COLLECT'
 
   - script: dir $(REPO_DIR)\bin\ /s
     displayName: 'List bin files'
@@ -159,6 +149,8 @@ jobs:
   - script: |
       call "$(MSVS_VARS_PATH)" && cmake -G"Visual Studio 16 2019" ^
         -DVERBOSE_BUILD=ON ^
+        -DENABLE_CPPLINT=OFF ^
+        -DENABLE_GAPI_PREPROCESSING=OFF ^
         -DENABLE_FASTER_BUILD=ON ^
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) ^
         -DENABLE_PROFILING_ITT=OFF ^
@@ -166,25 +158,13 @@ jobs:
         -DSELECTIVE_BUILD_STAT=$(BUILD_DIR)\*.csv ^
         -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
-        -DENABLE_CLDNN=OFF ^
-        -DENABLE_INTEL_GPU=OFF ^
-        -DENABLE_MULTI=OFF ^
-        -DENABLE_AUTO=OFF ^
-        -DENABLE_AUTO_BATCH=OFF ^
-        -DENABLE_HETERO=OFF ^
-        -DENABLE_TEMPLATE=OFF ^
-        -DENABLE_TESTS=OFF ^
-        -DENABLE_OV_ONNX_FRONTEND=OFF ^
-        -DENABLE_OV_PADDLE_FRONTEND=OFF ^
-        -DENABLE_OV_PYTORCH_FRONTEND=OFF ^
-        -DENABLE_OV_TF_FRONTEND=OFF ^
-        $(REPO_DIR)
-    workingDirectory: $(BUILD_DIR_2)
-    displayName: 'CMake2'
+        -S $(REPO_DIR) ^
+        -B $(BUILD_DIR_2)
+    displayName: 'CMake CC ON'
 
-  - script: cmake --build . --config $(BUILD_TYPE)
-    workingDirectory: $(BUILD_DIR_2)
-    displayName: 'Build WinCC ON'
+  - script: cmake --build $(BUILD_DIR_2) --config $(BUILD_TYPE) --parallel --target ^
+      openvino_intel_cpu_plugin openvino_ir_frontend benchmark_app
+    displayName: 'Build CC ON'
 
   - script: dir $(REPO_DIR)\bin\ /s
     displayName: 'List bin files ON'

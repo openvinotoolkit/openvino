@@ -2,7 +2,7 @@
 
 This guide provides steps on creating a Docker image with Intel® Distribution of OpenVINO™ toolkit for Linux and using the image on different devices. 
 
-## <a name="system-requirments"></a>System Requirements
+## <a name="system-requirements-docker-linux"></a>System Requirements
 
 @sphinxdirective
 .. tab:: Target Operating Systems with Python Versions
@@ -37,16 +37,16 @@ This guide provides steps on creating a Docker image with Intel® Distribution o
 
 There are two ways to install OpenVINO with Docker. You can choose either of them according to your needs:
 * Use a prebuilt image. Do the following steps:
-  1. <a href="#get-prebuilt-image">Get a prebuilt image from provided sources</a>.
-  2. <a href="#run-image">Run the image on different devices</a>.
-  3. <a href="#run-samples">(Optional) Run samples in the Docker image</a>.
+  1. <a href="#get-prebuilt-image-docker-linux">Get a prebuilt image from provided sources</a>.
+  2. <a href="#run-image-docker-linux">Run the image on different devices</a>.
+  3. <a href="#run-samples-docker-linux">(Optional) Run samples in the Docker image</a>.
 * If you want to customize your image, you can also build a Docker image manually by using the following steps:
-  1. <a href="#prepare-dockerfile">Prepare a Dockerfile</a>.
-  2. <a href="#configure-image">Configure the Docker image</a>.
-  3. <a href="#run-image">Run the image on different devices</a>.
-  4. <a href="#run-samples">(Optional) Run samples in the Docker image</a>.
+  1. <a href="#prepare-dockerfile-linux">Prepare a Dockerfile</a>.
+  2. <a href="#configure-image-docker-linux">Configure the Docker image</a>.
+  3. <a href="#run-image-docker-linux">Run the image on different devices</a>.
+  4. <a href="#run-samples-docker-linux">(Optional) Run samples in the Docker image</a>.
 
-## <a name="get-prebuilt-image"></a>Getting a Prebuilt Image from Provided Sources
+## <a name="get-prebuilt-image-docker-linux"></a>Getting a Prebuilt Image from Provided Sources
 
 You can find prebuilt images on:
 
@@ -56,14 +56,14 @@ You can find prebuilt images on:
 - [Red Hat Ecosystem Catalog (development image)](https://catalog.redhat.com/software/containers/intel/openvino-dev/613a450dc9bc35f21dc4a1f7)
 - [Azure Marketplace](https://azuremarketplace.microsoft.com/en-us/marketplace/apps/intel_corporation.openvino)
 
-## <a name="prepare-dockerfile"></a>Preparing a Dockerfile
+## <a name="prepare-dockerfile-linux"></a>Preparing a Dockerfile
 
 You can use the [available Dockerfiles on GitHub](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your settings via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) which can generate a Dockerfile, build, test and deploy an image with the Intel® Distribution of OpenVINO™ toolkit.
 You can also try our [Tutorials](https://github.com/openvinotoolkit/docker_ci/tree/master/docs/tutorials) which demonstrate the usage of Docker containers with OpenVINO. 
 
-## <a name="configure-image"></a>Configuring the Image for Different Devices
+## <a name="configure-image-docker-linux"></a>Configuring the Image for Different Devices
 
-If you want to run inferences on a CPU or Intel® Neural Compute Stick 2, no extra configuration is needed. Go to <a href="#run-image">Running the image on different devices</a> for the next step.
+If you want to run inferences on a CPU or Intel® Neural Compute Stick 2, no extra configuration is needed. Go to <a href="#run-image-docker-linux">Running the image on different devices</a> for the next step.
 
 ### Configuring Docker Image for GPU
 
@@ -112,7 +112,7 @@ RUN yum update -y && yum install -y https://dl.fedoraproject.org/pub/epel/epel-r
     yum remove -y epel-release
 ```
 
-## <a name="run-image"></a>Running the Docker Image on Different Devices
+## <a name="run-image-docker-linux"></a>Running the Docker Image on Different Devices
 
 ### Running the Image on CPU
 
@@ -176,3 +176,4 @@ docker run -itu root:root  --rm --device /dev/dri:/dev/dri <image_name>
 - [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) for Intel® Distribution of OpenVINO™ toolkit. The Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit. You can reuse available Dockerfiles, add your layer and customize the image of OpenVINO™ for your needs.
 - Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)
 - Intel® Neural Compute Stick 2 Get Started: [https://software.intel.com/en-us/neural-compute-stick/get-started](https://software.intel.com/en-us/neural-compute-stick/get-started)
+- [OpenVINO Installation Selector Tool](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html)

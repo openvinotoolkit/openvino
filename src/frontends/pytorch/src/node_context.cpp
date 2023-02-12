@@ -14,6 +14,28 @@ namespace ov {
 namespace frontend {
 namespace pytorch {
 
+OutputVector NodeContext::as_constant() const {
+    auto dtype = m_decoder->get_output_type(0);
+    if (dtype.is<type::Str>()) {
+        // Cannot represent string as Constant, creating FrameworkNode
+        auto str = m_decoder->as_string();
+        auto fw_node = std::make_shared<PtFrameworkNode>(m_decoder, OutputVector{});
+        auto attrs = fw_node->get_attrs();
+        attrs["string_value"] = str;
+        fw_node->set_attrs(attrs);
+        return {fw_node};
+    } else if (dtype.is<type::PyNone>()) {
+        // Cannot represent None as Constant, creating FrameworkNode
+        auto fw_node = std::make_shared<PtFrameworkNode>(m_decoder, OutputVector{});
+        auto attrs = fw_node->get_attrs();
+        attrs["none_value"] = "";
+        fw_node->set_attrs(attrs);
+        return {fw_node};
+    } else {
+        return m_decoder->as_constant();
+    }
+}
+
 Output<Node> NodeContext::get_tensor_from_model_or_create_input(size_t index) {
     if (m_tensor_map->find(index) != m_tensor_map->end()) {
         return m_tensor_map->at(index);

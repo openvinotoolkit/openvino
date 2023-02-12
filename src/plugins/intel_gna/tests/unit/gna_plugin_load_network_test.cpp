@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gna_mock_api_initializer.hpp"
+#include <gtest/gtest.h>
+
 #include "common/gna_target.hpp"
+#include "gna_mock_api_initializer.hpp"
 #include "gna_plugin.hpp"
 #include "ngraph_functions/builders.hpp"
-#include <gtest/gtest.h>
 
 namespace {
 typedef struct {
@@ -16,10 +17,7 @@ typedef struct {
     const std::vector<ptrdiff_t> pads_end;
 } ConvModel;
 
-const std::vector<ConvModel> models{
-    {{1, 8, 32, 1}, {2, 1}, {1, 0}, {1, 0}},
-    {{1, 8, 1, 32}, {1, 2}, {0, 1}, {0, 1}}
-};
+const std::vector<ConvModel> models{{{1, 8, 32, 1}, {2, 1}, {1, 0}, {1, 0}}, {{1, 8, 1, 32}, {1, 2}, {0, 1}, {0, 1}}};
 
 typedef struct {
     ConvModel model;
@@ -27,11 +25,10 @@ typedef struct {
     bool load_succesfull;
 } ConvModelTestParams;
 
-std::vector<ConvModelTestParams> all_tests{
-    {models[0], Gna2DeviceVersion3_0, false},
-    {models[1], Gna2DeviceVersion3_0, false},
-    {models[0], Gna2DeviceVersion3_5, true},
-    {models[1], Gna2DeviceVersion3_5, true}};
+std::vector<ConvModelTestParams> all_tests{{models[0], Gna2DeviceVersion3_0, false},
+                                           {models[1], Gna2DeviceVersion3_0, false},
+                                           {models[0], Gna2DeviceVersion3_5, true},
+                                           {models[1], Gna2DeviceVersion3_5, true}};
 
 class GNAPluginLoadNetworkTest : public ::testing::Test, public ::testing::WithParamInterface<ConvModelTestParams> {
     std::shared_ptr<ngraph::Function> function;

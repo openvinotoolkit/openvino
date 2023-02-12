@@ -83,7 +83,7 @@ class TestBinaryOps(CommonTFLayerTest):
 
         type = np.float32
         if op_type in ["LogicalAnd", "LogicalOr", "LogicalXor"]:
-            type = np.bool
+            type = bool
         tf.compat.v1.reset_default_graph()
         # Create the graph and model
         with tf.compat.v1.Session() as sess:

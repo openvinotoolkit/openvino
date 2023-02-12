@@ -52,6 +52,10 @@ public:
         return m_op_type;
     }
 
+    virtual const std::string& get_name() const {
+        FRONT_END_NOT_IMPLEMENTED(get_name);
+    }
+
     /// \brief Returns node attribute by name.
     template <class T>
     T get_attribute(const std::string& name) const {

@@ -175,7 +175,14 @@ std::map<IE::ColorFormat, colorformat_e> colorformat_map = {{IE::ColorFormat::RA
         return IEStatusCode::StatusCode;              \
     }
 
+#define CATCH_OV_EXCEPTION(StatusCode, ExceptionType) \
+    catch (const ov::ExceptionType&) {                \
+        return IEStatusCode::StatusCode;              \
+    }
+
 #define CATCH_IE_EXCEPTIONS                                   \
+    CATCH_OV_EXCEPTION(NOT_IMPLEMENTED, NotImplemented)       \
+    CATCH_OV_EXCEPTION(GENERAL_ERROR, Exception)              \
     CATCH_IE_EXCEPTION(GENERAL_ERROR, GeneralError)           \
     CATCH_IE_EXCEPTION(NOT_IMPLEMENTED, NotImplemented)       \
     CATCH_IE_EXCEPTION(NETWORK_NOT_LOADED, NetworkNotLoaded)  \
@@ -534,16 +541,16 @@ IEStatusCode ie_core_set_config(ie_core_t* core, const ie_config_t* ie_core_conf
     return status;
 }
 
-IEStatusCode ie_core_register_plugin(ie_core_t* core, const char* plugin_name, const char* device_name) {
+IEStatusCode ie_core_register_plugin(ie_core_t* core, const char* plugin, const char* device_name) {
     IEStatusCode status = IEStatusCode::OK;
 
-    if (core == nullptr || plugin_name == nullptr || device_name == nullptr) {
+    if (core == nullptr || plugin == nullptr || device_name == nullptr) {
         status = IEStatusCode::GENERAL_ERROR;
         return status;
     }
 
     try {
-        core->object.RegisterPlugin(plugin_name, device_name);
+        core->object.RegisterPlugin(plugin, device_name);
     }
     CATCH_IE_EXCEPTIONS
 

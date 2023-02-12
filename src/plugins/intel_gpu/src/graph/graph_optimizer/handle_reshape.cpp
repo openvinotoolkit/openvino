@@ -31,7 +31,6 @@ void handle_reshape::run(program& p) {
             auto output_lay = node.get_output_layout();
 
             if (!node.is_in_place() ||
-                !node.get_fused_activations_funcs().empty() ||
                 node.has_fused_primitives())
                 return;
 
@@ -55,7 +54,7 @@ void handle_reshape::run(program& p) {
     while (node_itr != p.get_processing_order().end()) {
         auto& node = (*node_itr++);
         program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node) {
-            if (node.is_output() || node.get_users().size() > 1 || !node.get_fused_activations_funcs().empty())
+            if (node.is_output() || node.get_users().size() > 1 || node.has_fused_primitives())
                 return;
 
             auto& out_node = node.get_users().front();

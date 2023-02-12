@@ -221,3 +221,44 @@ TEST_F(TransformationTestsF, InjectedBodyAndIf) {
         model_ref = make_shared<Model>(OutputVector{if_op}, ParameterVector{x, y});
     }
 }
+
+// Ticket 101756
+TEST_F(TransformationTestsF, DISABLED_ModelWithDilatedGroupConvolution) {
+    {
+        model = convert_model("dilated_gconv_model/dilated_gconv_model.pb");
+        // need to call MOC to fuse BatchToSpace/SpaceToBatch with GroupConvolution
+        manager.register_pass<pass::MOCTransformations>(false);
+    }
+    {
+        auto x = make_shared<Parameter>(f32, Shape{1, 129, 257, 384});
+        auto transpose_before_const = make_shared<Constant>(i64, Shape{4}, std::vector<int64_t>{0, 3, 1, 2});
+        auto transpose_before = make_shared<Transpose>(x, transpose_before_const);
+        auto const_filter = make_shared<Constant>(f32, Shape{384, 1, 1, 3, 3}, std::vector<float>(384 * 3 * 3, 0));
+        Strides dilations{2, 2};
+        CoordinateDiff pads_begin{2, 2};
+        CoordinateDiff pads_end{2, 2};
+        Strides strides{1, 1};
+        auto gconv =
+            make_shared<GroupConvolution>(transpose_before, const_filter, strides, pads_begin, pads_end, dilations);
+        auto transpose_after_const = make_shared<Constant>(i64, Shape{4}, std::vector<int64_t>{0, 2, 3, 1});
+        auto transpose_after = make_shared<Transpose>(gconv, transpose_after_const);
+
+        model_ref = make_shared<Model>(OutputVector{transpose_after}, ParameterVector{x});
+    }
+}
+
+TEST_F(TransformationTestsF, ModelWithSaveV2) {
+    {
+        model = convert_model("model_savev2/model_savev2.pb");
+        // need to call shape inference since body graphs can be injected with undefined shapes
+        model->validate_nodes_and_infer_types();
+    }
+    {
+        // create a reference graph
+        auto x = make_shared<Parameter>(element::f32, Shape{2});
+        auto const_2 = make_shared<Constant>(element::f32, Shape{2}, vector<float>{1, 2});
+        auto add = make_shared<Add>(x, const_2);
+
+        model_ref = make_shared<Model>(OutputVector{add}, ParameterVector{x});
+    }
+}

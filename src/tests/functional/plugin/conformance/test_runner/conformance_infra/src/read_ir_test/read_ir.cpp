@@ -89,10 +89,10 @@ void ReadIRTest::query_model() {
         } catch (...) {
             s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED);
         }
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
-        IE_THROW() << "Crash happens";
     } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
         s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::HANGED);
+        IE_THROW() << "Crash happens";
+    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
         IE_THROW() << "Crash happens";
     }
 }
@@ -171,6 +171,14 @@ void ReadIRTest::SetUp() {
         if (param->get_partial_shape().is_dynamic()) {
             hasDynamic = true;
             break;
+        }
+    }
+    if (!hasDynamic) {
+        for (const auto& result : function->get_results()) {
+            if (result->get_output_partial_shape(0).is_dynamic()) {
+                hasDynamic = true;
+                break;
+            }
         }
     }
     if (hasDynamic && ov::test::subgraph::shapeMode == ov::test::subgraph::ShapeMode::STATIC) {

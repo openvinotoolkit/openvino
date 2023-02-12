@@ -65,7 +65,6 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::intel_gpu::enable_memory_pool, true),
         std::make_tuple(ov::intel_gpu::allow_static_input_reorder, false),
         std::make_tuple(ov::intel_gpu::custom_outputs, std::vector<std::string>{}),
-        std::make_tuple(ov::intel_gpu::tuning_config, ov::intel_gpu::TuningConfig{}),
         std::make_tuple(ov::intel_gpu::dump_graphs, ""),
         std::make_tuple(ov::intel_gpu::force_implementations, ImplForcingMap{}),
         std::make_tuple(ov::intel_gpu::partial_build_program, false),

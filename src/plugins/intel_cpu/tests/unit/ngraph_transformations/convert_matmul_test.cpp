@@ -32,7 +32,7 @@ TEST(TransformationTests, ConvertMatMulToFCTest1) {
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ matmul }, ngraph::ParameterVector{ input1 });
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ConvertMatMulToFC>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -61,7 +61,7 @@ TEST(TransformationTests, ConvertMatMulToFCTest2) {
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1, input2});
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ConvertMatMulToFC>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -88,7 +88,7 @@ TEST(TransformationTests, ConvertMatMulToFCTest3) {
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1});
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ConvertMatMulToFC>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -115,7 +115,7 @@ TEST(TransformationTests, ConvertMatMulToFCTest4) {
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1});
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ConvertMatMulToFC>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -141,7 +141,7 @@ TEST(TransformationTests, ConvertMatMulToFCTest5) {
     auto f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ matmul }, ngraph::ParameterVector{ input1 });
 
     ngraph::pass::Manager m;
-    m.register_pass<ngraph::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ConvertMatMulToFC>();
     ASSERT_NO_THROW(m.run_passes(f));
 }
@@ -154,7 +154,7 @@ TEST(TransformationTests, ConvertMatMulToFCTest6) {
     auto f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ matmul }, ngraph::ParameterVector{ input1 });
 
     ngraph::pass::Manager m;
-    m.register_pass<ngraph::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ConvertMatMulToFC>();
     ASSERT_NO_THROW(m.run_passes(f));
     ASSERT_NO_THROW(check_rt_info(f));
@@ -169,7 +169,7 @@ TEST(TransformationTests, ConvertMatMulToFCTest7) {
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1});
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ConvertMatMulToFC>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -196,7 +196,7 @@ TEST(TransformationTests, ConvertMatMulToFCTest8) {
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1});
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ConvertMatMulToFC>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -209,7 +209,7 @@ TEST(TransformationTests, ConvertMatMulToFCTest8) {
         auto fc = std::make_shared<FullyConnectedNode>(input1, input2, ngraph::Rank(2));
         auto a_shape = std::make_shared<ngraph::opset3::ShapeOf>(input1);
 
-        auto I = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_node(a_shape, {0, 1});
+        auto I = ov::op::util::node_to_get_shape_value_of_indices_from_shape_node(a_shape, {0, 1});
         auto O = ngraph::opset1::Constant::create(ngraph::element::i64, { 1 }, { 3 });
         auto output_shape = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{I, O}, 0);
 
@@ -231,7 +231,7 @@ TEST(TransformationTests, ConvertMatMulToFCTest9) {
 
         ngraph::pass::Manager m;
         auto pass_config = m.get_pass_config();
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ConvertMatMulToFC>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -257,7 +257,7 @@ TEST(TransformationTests, ConvertMatMulToFCTest10) {
     auto f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ matmul }, ngraph::ParameterVector{ input1 });
 
     ngraph::pass::Manager m;
-    m.register_pass<ngraph::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ConvertMatMulToFC>();
     ASSERT_NO_THROW(m.run_passes(f));
 }
@@ -275,7 +275,7 @@ TEST(TransformationTests, FullyConnectedBiasFusionTest1) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input1});
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<FullyConnectedBiasFusion>();
         manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
             check_rt_info(f);
@@ -308,7 +308,7 @@ TEST(TransformationTests, FullyConnectedBiasFusionTest2) {
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input1});
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<FullyConnectedBiasFusion>();
         manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
             check_rt_info(f);
@@ -341,7 +341,7 @@ TEST(TransformationTests, FullyConnectedBiasFusionTest3) {
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input1});
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<FullyConnectedBiasFusion>();
         manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
             check_rt_info(f);
@@ -374,7 +374,7 @@ TEST(TransformationTests, FullyConnectedBiasFusionTest4) {
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input1});
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<FullyConnectedBiasFusion>();
         manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
             check_rt_info(f);
@@ -434,7 +434,7 @@ TEST(TransformationTests, ConvertMatMulToFCTest_second_input_rank_adj_1) {
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1});
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ConvertMatMulToFC>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -460,7 +460,7 @@ TEST(TransformationTests, ConvertMatMulToFCTest_second_input_rank_adj_2) {
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ matmul }, ngraph::ParameterVector{ input1 });
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ConvertMatMulToFC>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -488,7 +488,7 @@ TEST(TransformationTests, ConvertMatMulToFCTest_second_input_rank_adj_3) {
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input1 });
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ConvertMatMulToFC>();
         m.register_pass<FullyConnectedBiasFusion>();
         m.run_passes(f);
