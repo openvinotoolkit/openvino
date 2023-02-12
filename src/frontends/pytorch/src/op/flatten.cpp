@@ -19,7 +19,7 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_flatten(NodeContext& context) {
-    num_inputs_check(context, 3, 3);
+    num_inputs_check(context, 1, 3);
     auto x = context.get_input(0);
     int64_t start_dim = 0;
     int64_t end_dim = -1;
