@@ -21,7 +21,7 @@ OutputVector translate_convolution(NodeContext& context) {
     // dilation, bool transposed, int[] output_padding, int groups, bool benchmark, bool deterministic, bool
     // cudnn_enabled, bool allow_tf32) -> Tensor
 
-    num_inputs_check(context, 9, 9);
+    num_inputs_check(context, 9, 13);
     auto strides = context.const_input<Strides>(3);
     auto pads = context.const_input<CoordinateDiff>(4);
     auto dilations = context.const_input<Strides>(5);
