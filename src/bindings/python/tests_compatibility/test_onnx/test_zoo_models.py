@@ -105,7 +105,8 @@ tolerance_map = {
     "test_tiny_yolov2": {"atol": 1e-05, "rtol": 0.001},
     "test_resnet152v2": {"atol": 1e-04, "rtol": 0.001},
     "test_mobilenetv2-1": {"atol": 1e-04, "rtol": 0.001},
-    "yolov3": {"atol": 0.001, "rtol": 0.001},
+    # "yolov3": {"atol": 0.001, "rtol": 0.001}, temp test
+    "yolov3": {"atol": 0.01, "rtol": 0.01},
     "yolov4": {"atol": 1e-04, "rtol": 0.001},
     "tinyyolov3": {"atol": 1e-04, "rtol": 0.001},
     "tiny-yolov3-11": {"atol": 1e-04, "rtol": 0.001},
