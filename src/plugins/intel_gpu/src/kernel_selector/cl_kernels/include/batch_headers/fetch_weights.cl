@@ -1245,18 +1245,6 @@ inline uint get_os_is_y_x8_osv8_isv4_swizzled_by_4_index(uint o, uint i, uint y,
         CAT(prefix, _SIZE_X),                                         \
         CAT(prefix, _SIZE_Y), 16, 4)
 
-inline uint get_g_os_is_yx_osv_isv(uint g, uint o, uint i, uint y, uint x,
-                                          uint i_size,
-                                          uint o_size,
-                                          uint x_size,
-                                          uint y_size,
-                                          uint osv_size,
-                                          uint isv_size)
-{
-    return get_g_os_is_zyx_osv_isv_index(g, o, i, 0, y, x,
-        x_size, y_size, 1, i_size, o_size, osv_size, isv_size);
-}
-
 #define GET_FILTER_OS_IS_YX_OSV8_ISV2_INDEX(prefix, o, i, y, x) \
     get_g_os_is_yx_osv_isv(                                     \
         0, o, i, y, x,                                          \
@@ -1795,4 +1783,16 @@ inline uint get_g_os_is_zyx_osv_isv_index(uint g, uint o, uint i, uint z, uint y
         g * g_pitch;
 
     return output_offset;
+}
+
+inline uint get_g_os_is_yx_osv_isv(uint g, uint o, uint i, uint y, uint x,
+                                          uint i_size,
+                                          uint o_size,
+                                          uint x_size,
+                                          uint y_size,
+                                          uint osv_size,
+                                          uint isv_size)
+{
+    return get_g_os_is_zyx_osv_isv_index(g, o, i, 0, y, x,
+        x_size, y_size, 1, i_size, o_size, osv_size, isv_size);
 }
