@@ -498,6 +498,8 @@ void Convolution::getSupportedDescriptors() {
             ndims == 3 ? memory::format_tag::nwc : (ndims == 4 ? memory::format_tag::nhwc : memory::format_tag::ndhwc));
         createDescriptor({ in_candidate }, { out_candidate });
     } else {
+        // FQ is allowed to be fused into non-INT8 parent Node, in such case it doesn't change the outputDataType
+
         // in oneDNN, depthwise 3D convolution is only customized for f32, in bf16 it will fallbacks to
         // normal convolution with much worse performance. thus we keep using f32 precision in that case.
         // this WA can be removed after brdgmm_dw is enabled.

@@ -238,15 +238,11 @@ void FullyConnected::getSupportedDescriptors() {
     }
     auto weightsDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(WEIGHTS_ID));
 
-    //  We have to extend gemm_x8s8s32x_inner_product_fwd_t from oneDNN to support BF16 output data type
+    // FQ is allowed to be fused into non-INT8 parent Node, in such case it doesn't change the outputDataType
+
     if ((!one_of(inputDataType , memory::data_type::u8, memory::data_type::s8) || weightsDataType != memory::data_type::s8)
             && inputDataType != memory::data_type::bf16) {
         inputDataType = outputDataType = memory::data_type::f32;
-    }
-
-    if (one_of(inputDataType , memory::data_type::u8, memory::data_type::s8)
-        && outputDataType == memory::data_type::bf16) {
-        outputDataType = memory::data_type::f32;
     }
 
     if (inputDataType == memory::data_type::bf16
