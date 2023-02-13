@@ -17,6 +17,10 @@
 #else
 #    include <mm_malloc.h>
 #endif
+
+#include "openvino/pass/serialize.hpp"
+#include "openvino/runtime/core.hpp"
+
 #include "common/versioning.hpp"
 #include "gna2_model_helper.hpp"
 #include "gna_model_serial.hpp"
@@ -27,11 +31,6 @@
 #include "serial/headers/2dot8/gna_model_header.hpp"
 #include "serial/headers/2dot9/gna_model_header.hpp"
 #include "serial/headers/latest/gna_model_header.hpp"
-
-#ifdef GNA_DEBUG
-#include <ngraph/pass/manager.hpp>
-#include "transformations/serialize.hpp"
-#endif
 
 using namespace ov::intel_gna;
 

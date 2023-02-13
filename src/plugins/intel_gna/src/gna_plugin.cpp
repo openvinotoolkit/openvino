@@ -39,7 +39,7 @@
 #include "gna_fused_iterator.hpp"
 #include "gna_graph_patterns.hpp"
 #include "gna_itt.hpp"
-#include "gna_model_serial.hpp"
+#include "serial/gna_model_serial.hpp"
 #include "gna_plugin_config.hpp"
 #include "gna_tensor_tools.hpp"
 #include "gna_transformations_pipeline.hpp"
@@ -352,11 +352,6 @@ void GNAPlugin::pre_post_process(InferenceEngine::Blob::Ptr input_blob, Inferenc
     }
     model->validate_nodes_and_infer_types();
 
-#ifdef GNA_DEBUG
-    ngraph::pass::Manager manager;
-    manager.register_pass<ov::pass::Serialize>("pre_post_process_model_" + model->get_friendly_name() + ".xml", "post_process_model.bin");
-    manager.run_passes(model);
-#endif
     ov::TensorVector inputs = {ov::Tensor(input_prc, input_shape, input_blob->cbuffer().as<void*>())};
     ov::TensorVector results = {ov::Tensor(output_prc, output_shape, output_blob->buffer().as<void*>())};
 
