@@ -259,7 +259,7 @@ void serializeToCout(const Graph &graph) {
 void summary_perf(const Graph &graph) {
     const std::string& summaryPerf = graph.getConfig().debugCaps.summaryPerf;
 
-    if (summaryPerf.empty())
+    if (summaryPerf.empty() || !std::stoi(summaryPerf))
         return;
 
     std::map<std::string, double> perf_by_type;
