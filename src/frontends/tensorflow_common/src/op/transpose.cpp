@@ -14,11 +14,12 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_transpose_op(const NodeContext& node) {
-    auto input = node.get_input(0);
-    auto order = node.get_input(1);
-    auto res = make_shared<opset8::Transpose>(input, order);
-    set_node_name(node.get_name(), res);
-    return res->outputs();
+    default_op_checks(node, 2, {"Transpose", "TRANSPOSE"});
+    auto x = node.get_input(0);
+    auto perm = node.get_input(1);
+    auto transpose = make_shared<Transpose>(x, perm);
+    set_node_name(node.get_name(), transpose);
+    return {transpose};
 }
 
 }  // namespace op
