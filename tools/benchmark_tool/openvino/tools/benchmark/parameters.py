@@ -134,6 +134,8 @@ def parse_args():
                            "counters and latency for each executed infer request.")
     args.add_argument('-report_folder', '--report_folder', type=str, required=False, default='',
                       help="Optional. Path to a folder where statistics report is stored.")
+    args.add_argument('-json_stats', '--json_stats', type=str2bool, required=False, default=False, nargs='?', const=True,
+                      help="Optional. Enables JSON-based statistics output (by default reporting system will use CSV format). Should be used together with -report_folder option.")
     args.add_argument('-dump_config', type=str, required=False, default='',
                       help="Optional. Path to JSON file to dump OpenVINO parameters, which were set by application.")
     args.add_argument('-load_config', type=str, required=False, default='',

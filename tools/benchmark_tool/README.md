@@ -180,6 +180,8 @@ Options:
                         report and additionally includes per-layer PM counters and latency for each executed infer request.
   -report_folder REPORT_FOLDER, --report_folder REPORT_FOLDER
                         Optional. Path to a folder where statistics report is stored.
+  -json_stats [JSON_STATS], --json_stats [JSON_STATS]
+                        Optional. Enables JSON-based statistics output (by default reporting system will use CSV format). Should be used together with -report_folder option.
   -dump_config DUMP_CONFIG
                         Optional. Path to JSON file to dump OpenVINO parameters, which were set by application.
   -load_config LOAD_CONFIG
