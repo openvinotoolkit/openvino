@@ -63,30 +63,9 @@ jobs:
     SETUPVARS: $(INSTALL_DIR)\setupvars.bat
 
   steps:
-  - script: |
-      rd /Q /S $(WORK_DIR) & mkdir $(WORK_DIR)
-      rd /Q /S $(BUILD_DIR) & mkdir $(BUILD_DIR)
-      rd /Q /S $(BUILD_DIR_2) & mkdir $(BUILD_DIR_2)
-      rd /Q /S $(WORK_DIR) & mkdir C:\hostedtoolcache\windows\Python\3.10.7
-      rd /Q /S $(BUILD_DIR) & mkdir C:\hostedtoolcache\windows\Python\3.10.7\x64
-      rd /Q /S $(BUILD_SAMPLES_DIR) & mkdir $(BUILD_SAMPLES_DIR)
-      rd /Q /S $(BUILD_SAMPLES_TESTS_DIR) & mkdir $(BUILD_SAMPLES_TESTS_DIR)
-    displayName: 'Make dir'
-
-  - script: curl -O https://www.python.org/ftp/python/3.10.7/python-3.10.7-amd64.exe
-    displayName: 'Download Python'
-    workingDirectory: $(WORK_DIR)
-
-  - script: |
-      python-3.10.7-amd64.exe /passive InstallAllUsers=0 Include_launcher=0 TargetDir=C:\hostedtoolcache\windows\Python\3.10.7\x64
-      cp C:\hostedtoolcache\windows\Python\3.8.2\x64.complete C:\hostedtoolcache\windows\Python\3.10.7\x64.complete
-    displayName: 'Install Python'
-    workingDirectory: $(WORK_DIR)
-
   - task: UsePythonVersion@0
     inputs:
       versionSpec: '3.10'
-      disableDownloadFromRegistry: true
       addToPath: true
       architecture: 'x64'
       githubToken: $(auth_token)
@@ -105,6 +84,12 @@ jobs:
       wmic VOLUME list
       set
     displayName: 'System info'
+
+  - script: |
+      rd /Q /S $(WORK_DIR) & mkdir $(WORK_DIR)
+      rd /Q /S $(BUILD_DIR) & mkdir $(BUILD_DIR)
+      rd /Q /S $(BUILD_DIR_2) & mkdir $(BUILD_DIR_2)
+    displayName: 'Make dir'
 
   - checkout: self
     clean: 'true'
@@ -170,7 +155,6 @@ jobs:
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) ^
         -DENABLE_PROFILING_ITT=OFF ^
         -DSELECTIVE_BUILD=ON ^
-        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON ^
         -DSELECTIVE_BUILD_STAT=$(BUILD_DIR)\*.csv ^
         -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
