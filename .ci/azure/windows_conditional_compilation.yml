@@ -63,10 +63,16 @@ jobs:
     SETUPVARS: $(INSTALL_DIR)\setupvars.bat
 
   steps:
+  - script: |
+      python-3.10.7-amd64.exe /passive InstallAllUsers=0 Include_launcher=0 TargetDir=C:\hostedtoolcache\windows\Python\3.10.7\x64
+      cp C:\hostedtoolcache\windows\Python\3.8.2\x64.complete C:\hostedtoolcache\windows\Python\3.10.7\x64.complete
+    displayName: 'Install Python'
+    workingDirectory: $(WORK_DIR)
+
   - task: UsePythonVersion@0
     inputs:
       versionSpec: '3.10'
-      disableDownloadFromRegistry: false
+      disableDownloadFromRegistry: true
       addToPath: true
       architecture: 'x64'
       githubToken: $(auth_token)
