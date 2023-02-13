@@ -533,7 +533,7 @@ std::vector<memory::format_tag> Node::getAvailableFormatsForDims(const Shape &di
 
 void Node::execute(dnnl::stream strm) {
     if (prim) {
-        (*prim).execute(strm, primArgs);
+        prim.execute(strm, primArgs);
     }
 }
 
@@ -555,7 +555,7 @@ void Node::updateDynamicParams() {
             prepareParams();
 #ifdef CPU_DEBUG_CAPS
             if (prim) {
-                auto pd_c = (*prim).get_primitive_desc();
+                auto pd_c = prim.get_primitive_desc();
                 auto* pd = reinterpret_cast<const dnnl_primitive_desc*>(pd_c);
                 DEBUG_LOG("verbose##", getName(), "##", pd->info(), "\n");
             }

@@ -19,6 +19,7 @@
 
 namespace ov {
 namespace intel_gna {
+using namespace common;
 namespace limitations {
 namespace cnn2d {
 
@@ -423,13 +424,17 @@ bool Validator_35::ShouldUseOnlyConv2DGnaIface() const {
     return true;
 }
 
-std::unique_ptr<AbstractValidator> AbstractValidator::Create(const std::string& target) {
-    if (target == common::kGnaTarget3_0) {
+std::unique_ptr<AbstractValidator> AbstractValidator::Create(const common::DeviceVersion& target) {
+    switch (target) {
+    case DeviceVersion::GNA3_0:
+    case DeviceVersion::GNAEmbedded3_1:
         return tools::make_unique<Validator_30>();
-    } else if (target == common::kGnaTarget3_5) {
+    case DeviceVersion::GNA3_5:
+    case DeviceVersion::GNAEmbedded3_5:
         return tools::make_unique<Validator_35>();
+    default:
+        return nullptr;
     }
-    return nullptr;
 }
 
 void AbstractValidator::ThrowIfNotEmpty(const std::string& prefix, const std::string& error) {
@@ -448,6 +453,11 @@ bool AbstractValidator::ValidationSuccesful(const bool throwOnError,
     }
 
     return error.empty();
+}
+
+bool UseOnly16BitConvolutionWeights(const DeviceVersion& compile_target) {
+    return (compile_target == common::DeviceVersion::GNA2_0 || compile_target == common::DeviceVersion::GNA3_0) ||
+           compile_target == common::DeviceVersion::GNAEmbedded3_1;
 }
 
 }  // namespace cnn2d
