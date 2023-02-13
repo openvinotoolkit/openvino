@@ -117,7 +117,6 @@ private:
     std::vector<MemoryCPtr> dstMemory;
     std::string errorPrefix;
     bool shapeHasDataDependency = false;
-    bool constPadValue = false;
 };
 
 }   // namespace node
