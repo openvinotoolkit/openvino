@@ -38,7 +38,9 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space() {
             return false;  // because StridedSlice masks are std::vector
         }
 
-        // static data shape rank implies static block shape
+        if (block.get_partial_shape().is_dynamic() || block.get_shape().size() == 0) {
+            return false;
+        }
         const auto block_length = static_cast<int64_t>(block.get_shape()[0]);
 
         // First we have to disperse the data from batch, then rearrange them
@@ -122,7 +124,9 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
         const auto crops_begin = batch_to_space->input_value(2);
         const auto crops_end = batch_to_space->input_value(3);
 
-        // static data shape rank implies static block shape
+        if (block.get_partial_shape().is_dynamic() || block.get_shape().size() == 0) {
+            return false;
+        }
         const auto block_length = static_cast<int64_t>(block.get_shape()[0]);
 
         NodeRegistry rg;
