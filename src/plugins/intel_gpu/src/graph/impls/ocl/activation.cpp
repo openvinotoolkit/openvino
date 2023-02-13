@@ -68,6 +68,7 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        set_skip_kernels();
     }
 };
 

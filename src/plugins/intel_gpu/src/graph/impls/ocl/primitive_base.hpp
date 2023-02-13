@@ -106,7 +106,9 @@ protected:
     virtual kernel_arguments_data get_arguments(const typed_primitive_inst<PType>& instance) const {
         kernel_arguments_data args;
 
+        std::cout << "!!!! get_arguments of " << instance.id() << " !! " << std::endl;
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
+            std::cout << "!!!! input " << i <<  " of " <<  instance.id() << " is " << instance.input_memory_ptr(i) << std::endl;
             args.inputs.push_back(instance.input_memory_ptr(i));
         }
 
@@ -212,8 +214,10 @@ protected:
         size_t k_idx = 0;
         for (size_t kd_idx = 0; kd_idx < _kernel_data.kernels.size(); ++kd_idx) {
             kernel_arguments_data args;
-            if (_kernel_data.kernels[kd_idx].skip_execution)
+            if (_kernel_data.kernels[kd_idx].skip_execution) {
+                std::cout << "!!!!! " << kd_idx << "-th kernel is set as skip_execution  " << std::endl;
                 continue;
+            }
 
             if (_kernel_args.inputs.size() > 0) {
                 args = get_arguments_by_idx(instance);
@@ -317,6 +321,14 @@ protected:
     void reset_kernels_source() override {
         for (size_t i = 0; i < _kernel_data.kernels.size(); ++i) {
             _kernel_data.kernels[i].code.kernelString.reset();
+        }
+    }
+
+    void set_skip_kernels() {
+        for (size_t i = 0; i < _kernel_data.kernels.size(); ++i) {
+            auto gws = _kernel_data.kernels[0].params.workGroups.global;
+            _kernel_data.kernels[0].skip_execution =
+                (std::accumulate(gws.begin(), gws.end(), 1, std::multiplies<size_t>()) == 0);
         }
     }
 };

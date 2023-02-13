@@ -29,6 +29,7 @@ protected:
     kernel_arguments_data get_arguments(const reorder_inst& instance) const override {
         kernel_arguments_data args = parent::get_arguments(instance);
         auto input = &instance.input_memory();
+        std::cout << "!!!! get_arguments of " << instance.id() << " !! input address : " << input << std::endl;
         auto input_layout = input->get_layout();
         if (instance.has_mean()) {
             if (input_layout.format == cldnn::format::nv12) {
@@ -109,6 +110,7 @@ public:
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        set_skip_kernels();
     }
 };
 
