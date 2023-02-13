@@ -4,6 +4,7 @@
 #pragma once
 #ifdef CPU_DEBUG_CAPS
 
+#include "extension.h"
 #include "debug_caps_config.h"
 #include "openvino/util/file_util.hpp"
 #include <openvino/pass/manager.hpp>
@@ -66,8 +67,10 @@ private:
 
         ov::pass::Manager serializer;
 
-        if (config.dumpIR.format.filter[DebugCapsConfig::IrFormatFilter::XmlBin])
-            serializer.register_pass<ov::pass::Serialize>(pathAndName + ".xml", "");
+        if (config.dumpIR.format.filter[DebugCapsConfig::IrFormatFilter::XmlBin]) {
+            auto custom_opsets = std::make_shared<Extension>()->getOpSets();
+            serializer.register_pass<ov::pass::Serialize>(pathAndName + ".xml", "", custom_opsets);
+        }
 
         if (config.dumpIR.format.filter[DebugCapsConfig::IrFormatFilter::Xml]) {
             std::string  xmlFile(pathAndName + ".xml");

@@ -69,7 +69,7 @@ std::string GetStackString() {
     if (!bt_syms)
         return std::string();
     std::string res;
-    for (int i = 2; i < size; i++) {
+    for (size_t i = 2; i < size; i++) {
         if (res.size())
             res += "<-";
         res += bt_syms[i];
