@@ -4,88 +4,9 @@
 
 #include "common.cl"
 
-#define GET_FILTER_OS_IS_YX_ISV_OSV_INDEX(prefix, o, i, y, x, osv, isv) \
-    get_common_index(                                                   \
-        o%osv, i%isv, x, y, i/isv, o/osv, 0, 0,                         \
-        osv, isv,                                                       \
-        CAT(prefix, _SIZE_X),                                           \
-        CAT(prefix, _SIZE_Y),                                           \
-        alignas(CAT(prefix, _IFM_NUM), isv),                            \
-        alignas(CAT(prefix, _OFM_NUM), osv),                            \
-        0, 0)
-
-#define GET_FILTER_OS_IS_ZYX_ISV_OSV_INDEX(prefix, o, i, z, y, x, osv, isv) \
-    get_common_index(                                                   \
-        o%osv, i%isv, x, y, z, i/isv, o/osv, 0,                         \
-        osv, isv,                                                       \
-        CAT(prefix, _SIZE_X),                                           \
-        CAT(prefix, _SIZE_Y),                                           \
-        CAT(prefix, _SIZE_Z),                                           \
-        alignas(CAT(prefix, _IFM_NUM), isv),                            \
-        alignas(CAT(prefix, _OFM_NUM), osv),                            \
-        0)
-
-#define GET_FILTER_IS_OS_ZYX_ISV16_OSV16_INDEX(prefix, o, i, z, y, x, sub_group_size) \
-    CAT(prefix, _OFFSET) +                                                            \
-    ((o) % (sub_group_size)) +                                                        \
-    (sub_group_size)*(                                                                \
-        (x)*(sub_group_size)*CAT(prefix, _X_PITCH) +                                  \
-        (y)*(sub_group_size)*CAT(prefix, _Y_PITCH) +                                  \
-        (z)*(sub_group_size)*CAT(prefix, _Z_PITCH) +                                  \
-        ((i) % (sub_group_size)) +                                                    \
-        ((o) / (sub_group_size))*(sub_group_size)*CAT(prefix, _OFM_PITCH) +           \
-        ((i) / (sub_group_size))*CAT(prefix, _IFM_PITCH)                              \
-    )
-
-#define GET_FILTER_IS_OS_YX_ISV16_OSV16_INDEX(prefix, o, i, y, x, sub_group_size) \
-    CAT(prefix, _OFFSET) +                                                        \
-    ((o) % (sub_group_size)) +                                                    \
-    (sub_group_size)*(                                                            \
-        (x)*(sub_group_size)*CAT(prefix, _X_PITCH) +                              \
-        (y)*(sub_group_size)*CAT(prefix, _Y_PITCH) +                              \
-        ((i) % (sub_group_size)) +                                                \
-        ((o) / (sub_group_size))*(sub_group_size)*CAT(prefix, _OFM_PITCH) +       \
-        ((i) / (sub_group_size))*CAT(prefix, _IFM_PITCH)                          \
-    )
-
-#define GET_FILTER_IS_OS_YX_ISV16_OSV8_INDEX(prefix, o, i, y, x, sub_group_size) \
-    CAT(prefix, _OFFSET) +                                                       \
-    ((o) % (sub_group_size)) +                                                   \
-    (sub_group_size)*(                                                           \
-        (x)*(sub_group_size)*CAT(prefix, _X_PITCH) +                             \
-        (y)*(sub_group_size)*CAT(prefix, _Y_PITCH) +                             \
-        ((i) % (sub_group_size)) +                                               \
-        ((o) / (sub_group_size))*(sub_group_size)*CAT(prefix, _OFM_PITCH) +      \
-        ((i) / (sub_group_size))*CAT(prefix, _IFM_PITCH)                         \
-    )
-
-#define GET_FILTER_OS_IS_YX_ISV8_OSV16_ISV2_INDEX(prefix, o, i, y, x, sub_group_size) \
-    get_os_is_zyx_isv8_osv16_isv2_index(                                              \
-        0, o, i, 0, y, x,                                                             \
-        CAT(prefix, _SIZE_X),                                                         \
-        CAT(prefix, _SIZE_Y),                                                         \
-        CAT(prefix, _SIZE_Z),                                                         \
-        CAT(prefix, _GROUPS_NUM),                                                     \
-        CAT(prefix, _OFM_NUM),                                                        \
-        CAT(prefix, _IFM_NUM),                                                        \
-        CAT(prefix, _OFFSET)                                                          \
-    )
-
-#define GET_FILTER_OS_IS_ZYX_ISV8_OSV16_ISV2_INDEX(prefix, o, i, z, y, x, sub_group_size) \
-    get_os_is_zyx_isv8_osv16_isv2_index(                                                  \
-        0, o, i, z, y, x,                                                                 \
-        CAT(prefix, _SIZE_X),                                                             \
-        CAT(prefix, _SIZE_Y),                                                             \
-        CAT(prefix, _SIZE_Z),                                                             \
-        CAT(prefix, _GROUPS_NUM),                                                         \
-        CAT(prefix, _OFM_NUM),                                                            \
-        CAT(prefix, _IFM_NUM),                                                            \
-        CAT(prefix, _OFFSET)                                                              \
-    )
-
 inline uint get_common_index(
     uint x0, uint x1, uint x2, uint x3, uint x4, uint x5, uint x6, uint x7, uint x8,
-    uint X0, uint X1, uint X2, uint X3, uint X4, uint X5, uint X6, uint X7, uint X8,
+    uint X0, uint X1, uint X2, uint X3, uint X4, uint X5, uint X6, uint X7
 ){
     const uint p0 = 1;
     const uint p1 = p0 * X0;
@@ -99,140 +20,96 @@ inline uint get_common_index(
     return x0*p0 + x1*p1 + x2*p2 + x3*p3 + x4*p4 + x5*p5 + x6*p6 + x7*p7 + x8*p8;
 }
 
-inline uint get_os_is_zyx_isv_osv_index(uint o, uint i, uint z, uint y, uint x,
-    uint x_size, uint y_size, uint z_size, uint i_size, uint o_size, uint osv_size, uint isv_size)
-{
-    const uint osv = o % osv_size;
-    const uint isv = i % isv_size;
-    const uint is = i / isv_size;
-    const uint os = o / osv_size;
+#define GET_FILTER_OS_IS_YX_ISV_OSV_INDEX(prefix, o, i, y, x, osv, isv) \
+    get_common_index(                                                   \
+        o%osv, i%isv, x, y, i/isv, o/osv, 0, 0,                         \
+        osv, isv,                                                       \
+        CAT(prefix, _SIZE_X),                                           \
+        CAT(prefix, _SIZE_Y),                                           \
+        alignas(CAT(prefix, _IFM_NUM), isv),                            \
+        0, 0)
 
-    const uint x_pitch = osv_size * isv_size;
-    const uint y_pitch = x_pitch * x_size;
-    const uint z_pitch = y_pitch * y_size;
-    const uint is_pitch = z_pitch * z_size;
-    const uint os_pitch = is_pitch * ((i_size + isv_size - 1) / isv_size);
-
-    const uint output_offset =
-        osv +
-        isv * osv_size +
-        x * x_pitch +
-        y * y_pitch +
-        z * z_pitch +
-        is * is_pitch +
-        os * os_pitch;
-
-    return output_offset;
-}
-
-inline uint get_os_is_zyx_osv_isv_index(uint o, uint i, uint z, uint y, uint x,
-    uint x_size, uint y_size, uint z_size, uint i_size, uint o_size, uint osv_size, uint isv_size)
-{
-    const uint isv = i % isv_size;
-    const uint osv = o % osv_size;
-    const uint is = i / isv_size;
-    const uint os = o / osv_size;
-
-    const uint x_pitch = osv_size * isv_size;
-    const uint y_pitch = x_pitch * x_size;
-    const uint z_pitch = y_pitch * y_size;
-    const uint is_pitch = z_pitch * z_size;
-    const uint os_pitch = is_pitch * ((i_size + isv_size - 1) / isv_size);
-
-    const uint output_offset =
-        isv +
-        osv * isv_size +
-        x * x_pitch +
-        y * y_pitch +
-        z * z_pitch +
-        is * is_pitch +
-        os * os_pitch;
-
-    return output_offset;
-}
-
-inline uint get_g_os_is_zyx_osv_isv_index(uint g, uint o, uint i, uint z, uint y, uint x,
-    uint x_size, uint y_size, uint z_size, uint i_size, uint o_size, uint osv_size, uint isv_size)
-{
-    const uint isv = i % isv_size;
-    const uint osv = o % osv_size;
-    const uint is = i / isv_size;
-    const uint os = o / osv_size;
-
-    const uint x_pitch = osv_size * isv_size;
-    const uint y_pitch = x_pitch * x_size;
-    const uint z_pitch = y_pitch * y_size;
-    const uint is_pitch = z_pitch * z_size;
-    const uint os_pitch = is_pitch * ((i_size + isv_size - 1) / isv_size);
-    const uint g_pitch = os_pitch * ((o_size + osv_size - 1) / osv_size);
-
-    const uint output_offset =
-        isv +
-        osv * isv_size +
-        x * x_pitch +
-        y * y_pitch +
-        z * z_pitch +
-        is * is_pitch +
-        os * os_pitch +
-        g * g_pitch;
-
-    return output_offset;
-}
-
-#define GET_FILTER_G_OS_IS_ZYX_OSV16_ISV16_INDEX(prefix, g, o, i, z, y, x)   \
-    get_g_os_is_zyx_osv_isv_index(                                           \
-        g, o, i, z, y, x,                                                    \
-        CAT(prefix, _SIZE_X),                                                \
-        CAT(prefix, _SIZE_Y),                                                \
-        CAT(prefix, _SIZE_Z),                                                \
-        CAT(prefix, _IFM_NUM),                                               \
-        CAT(prefix, _OFM_NUM),                                               \
-        16,                                                                  \
-        16)
-
-#define GET_FILTER_OS_IS_YX_OSV16_ISV16_INDEX(prefix, o, i, y, x) \
-    get_os_is_zyx_osv_isv_index(                                  \
-        o, i, 0, y, x,                                            \
-        CAT(prefix, _SIZE_X),                                     \
-        CAT(prefix, _SIZE_Y),                                     \
-        1,                                                        \
-        CAT(prefix, _IFM_NUM),                                    \
-        CAT(prefix, _OFM_NUM),                                    \
-        16,                                                       \
-        16)
-
-#define GET_FILTER_OS_IS_ZYX_OSV16_ISV16_INDEX(prefix, o, i, z, y, x)   \
-    get_os_is_zyx_osv_isv_index(                                        \
-        o, i, z, y, x,                                                  \
+#define GET_FILTER_OS_IS_ZYX_ISV_OSV_INDEX(prefix, o, i, z, y, x, osv, isv) \
+    get_common_index(                                                   \
+        o%osv, i%isv, x, y, z, i/isv, o/osv, 0,                         \
+        osv, isv,                                                       \
         CAT(prefix, _SIZE_X),                                           \
         CAT(prefix, _SIZE_Y),                                           \
         CAT(prefix, _SIZE_Z),                                           \
-        CAT(prefix, _IFM_NUM),                                          \
-        CAT(prefix, _OFM_NUM),                                          \
-        16,                                                             \
-        16)
+        alignas(CAT(prefix, _IFM_NUM), isv),                            \
+        0)
 
-#define GET_FILTER_OS_IS_ZYX_OSV32_ISV16_INDEX(prefix, o, i, z, y, x)   \
-    get_os_is_zyx_osv_isv_index(                                        \
-        o, i, z, y, x,                                                  \
+#define GET_FILTER_IS_OS_ZYX_ISV_OSV_INDEX(prefix, o, i, z, y, x, osv, isv) \
+    get_common_index(                                                   \
+        o%osv, i%isv, x, y, z, o/osv, i/isv, 0,                         \
+        osv, isv,                                                       \
         CAT(prefix, _SIZE_X),                                           \
         CAT(prefix, _SIZE_Y),                                           \
         CAT(prefix, _SIZE_Z),                                           \
-        CAT(prefix, _IFM_NUM),                                          \
-        CAT(prefix, _OFM_NUM),                                          \
-        32,                                                             \
-        16)
+        alignas(CAT(prefix, _OFM_NUM), osv),                            \
+        0)
 
-#define GET_FILTER_OS_IS_ZYX_OSV64_ISV16_INDEX(prefix, o, i, z, y, x)   \
-    get_os_is_zyx_osv_isv_index(                                        \
-        o, i, z, y, x,                                                  \
+#define GET_FILTER_IS_OS_YX_ISV_OSV_INDEX(prefix, o, i, y, x, osv, isv) \
+    get_common_index(                                                   \
+        o%osv, i%isv, x, y, o/osv, i/isv, 0, 0,                         \
+        osv, isv,                                                       \
+        CAT(prefix, _SIZE_X),                                           \
+        CAT(prefix, _SIZE_Y),                                           \
+        alignas(CAT(prefix, _OFM_NUM), osv),                            \
+        0, 0)
+
+#define GET_FILTER_G_OS_IS_ZYX_OSV_ISV_INDEX(prefix, g, o, i, z, y, x, osv, isv)   \
+    get_common_index(                                                   \
+        i%isv, o%osv, x, y, z, i/isv, o/osv, g,                         \
+        isv, osv,                                                       \
         CAT(prefix, _SIZE_X),                                           \
         CAT(prefix, _SIZE_Y),                                           \
         CAT(prefix, _SIZE_Z),                                           \
-        CAT(prefix, _IFM_NUM),                                          \
-        CAT(prefix, _OFM_NUM),                                          \
-        64,                                                             \
-        16)
+        alignas(CAT(prefix, _IFM_NUM), isv),                            \
+        alignas(CAT(prefix, _OFM_NUM), osv))
+
+#define GET_FILTER_OS_IS_YX_OSV_ISV_INDEX(prefix, o, i, y, x, osv, isv) \
+    get_common_index(                                                   \
+        i%isv, o%osv, x, y, i/isv, o/osv, 0, 0,                         \
+        isv, osv,                                                       \
+        CAT(prefix, _SIZE_X),                                           \
+        CAT(prefix, _SIZE_Y),                                           \
+        alignas(CAT(prefix, _IFM_NUM), isv),                            \
+        0, 0)
+
+#define GET_FILTER_OS_IS_ZYX_OSV_ISV_INDEX(prefix, o, i, z, y, x, osv, isv)   \
+    get_common_index(                                                   \
+        i%isv, o%osv, x, y, z, i/isv, o/osv, 0,                         \
+        isv, osv,                                                       \
+        CAT(prefix, _SIZE_X),                                           \
+        CAT(prefix, _SIZE_Y),                                           \
+        CAT(prefix, _SIZE_Z),                                           \
+        alignas(CAT(prefix, _IFM_NUM), isv),                            \
+        0)
+
+#define GET_FILTER_OS_IS_YX_ISV8_OSV16_ISV2_INDEX(prefix, o, i, y, x) \
+    get_os_is_zyx_isv8_osv16_isv2_index(                                              \
+        0, o, i, 0, y, x,                                                             \
+        CAT(prefix, _SIZE_X),                                                         \
+        CAT(prefix, _SIZE_Y),                                                         \
+        CAT(prefix, _SIZE_Z),                                                         \
+        CAT(prefix, _GROUPS_NUM),                                                     \
+        CAT(prefix, _OFM_NUM),                                                        \
+        CAT(prefix, _IFM_NUM),                                                        \
+        CAT(prefix, _OFFSET)                                                          \
+    )
+
+#define GET_FILTER_OS_IS_ZYX_ISV8_OSV16_ISV2_INDEX(prefix, o, i, z, y, x) \
+    get_os_is_zyx_isv8_osv16_isv2_index(                                                  \
+        0, o, i, z, y, x,                                                                 \
+        CAT(prefix, _SIZE_X),                                                             \
+        CAT(prefix, _SIZE_Y),                                                             \
+        CAT(prefix, _SIZE_Z),                                                             \
+        CAT(prefix, _GROUPS_NUM),                                                         \
+        CAT(prefix, _OFM_NUM),                                                            \
+        CAT(prefix, _IFM_NUM),                                                            \
+        CAT(prefix, _OFFSET)                                                              \
+    )
 
 #define GET_FILTER_G_OS_IS_YX_ISV8_OSV16_ISV2_INDEX(prefix, g, o, i, y, x, sub_group_size) \
     get_os_is_zyx_isv8_osv16_isv2_index(                                                   \
@@ -1864,3 +1741,58 @@ inline uint get_g_os_zy_is_x_osv_isv_index(uint g, uint o, uint i, uint z, uint 
 #define GET_FILTER_OS_ZY_IS_X_OSV8_ISV4_INDEX(tensor, o, i, z, y, x)            GET_FILTER_G_OS_ZY_IS_X_OSV_ISV_INDEX(tensor, 0, o, i, z, y, x, 8, 4)
 #define GET_FILTER_G_OS_ZY_IS_X_OSV8_ISV2_INDEX(tensor, g, o, i, z, y, x)       GET_FILTER_G_OS_ZY_IS_X_OSV_ISV_INDEX(tensor, g, o, i, z, y, x, 8, 2)
 #define GET_FILTER_G_OS_ZY_IS_X_OSV8_ISV4_INDEX(tensor, g, o, i, z, y, x)       GET_FILTER_G_OS_ZY_IS_X_OSV_ISV_INDEX(tensor, g, o, i, z, y, x, 8, 4)
+
+
+inline uint get_os_is_zyx_osv_isv_index(uint o, uint i, uint z, uint y, uint x,
+    uint x_size, uint y_size, uint z_size, uint i_size, uint o_size, uint osv_size, uint isv_size)
+{
+    const uint isv = i % isv_size;
+    const uint osv = o % osv_size;
+    const uint is = i / isv_size;
+    const uint os = o / osv_size;
+
+    const uint x_pitch = osv_size * isv_size;
+    const uint y_pitch = x_pitch * x_size;
+    const uint z_pitch = y_pitch * y_size;
+    const uint is_pitch = z_pitch * z_size;
+    const uint os_pitch = is_pitch * ((i_size + isv_size - 1) / isv_size);
+
+    const uint output_offset =
+        isv +
+        osv * isv_size +
+        x * x_pitch +
+        y * y_pitch +
+        z * z_pitch +
+        is * is_pitch +
+        os * os_pitch;
+
+    return output_offset;
+}
+
+inline uint get_g_os_is_zyx_osv_isv_index(uint g, uint o, uint i, uint z, uint y, uint x,
+    uint x_size, uint y_size, uint z_size, uint i_size, uint o_size, uint osv_size, uint isv_size)
+{
+    const uint isv = i % isv_size;
+    const uint osv = o % osv_size;
+    const uint is = i / isv_size;
+    const uint os = o / osv_size;
+
+    const uint x_pitch = osv_size * isv_size;
+    const uint y_pitch = x_pitch * x_size;
+    const uint z_pitch = y_pitch * y_size;
+    const uint is_pitch = z_pitch * z_size;
+    const uint os_pitch = is_pitch * ((i_size + isv_size - 1) / isv_size);
+    const uint g_pitch = os_pitch * ((o_size + osv_size - 1) / osv_size);
+
+    const uint output_offset =
+        isv +
+        osv * isv_size +
+        x * x_pitch +
+        y * y_pitch +
+        z * z_pitch +
+        is * is_pitch +
+        os * os_pitch +
+        g * g_pitch;
+
+    return output_offset;
+}

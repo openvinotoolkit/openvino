@@ -104,7 +104,7 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
     const uint in_f_start = get_sub_group_id() * FSV;
 #endif
 
-    uint filter_idx  = GET_FILTER_G_OS_IS_ZYX_OSV16_ISV16_INDEX(FILTER, g, out_f_g, in_f_start, 0, 0, 0);
+    uint filter_idx  = GET_FILTER_G_OS_IS_ZYX_OSV_ISV_INDEX(FILTER, g, out_f_g, in_f_start, 0, 0, 0, 16, 16);
     const uint filter_idx_diff = (ALIGN(FILTER_IFM_NUM, FSV) * FILTER_SIZE_X * FILTER_SIZE_Y * FILTER_SIZE_Z * FSV);
 
 #if INPUT0_DIMS == 4

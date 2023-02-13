@@ -45,17 +45,17 @@
 #define AS_FILTER_TYPE_4(x) AS_TYPE_N(FILTER_TYPE, 4, x)
 
 #if FILTER_LAYOUT_OS_IS_YX_OSV16_ISV16
-#   define GET_WEIGHTS_INDEX(o, i, z, y, x)     GET_FILTER_OS_IS_YX_OSV16_ISV16_INDEX(FILTER, o, i, y, x)
+#   define GET_WEIGHTS_INDEX(o, i, z, y, x)     GET_FILTER_OS_IS_YX_OSV_ISV_INDEX(FILTER, o, i, y, x, 16, 16)
 #   define WEIGHTS_FEATURE_BLOCK_PITCH          (ALIGN(FILTER_IFM_NUM, FSV) * FILTER_SIZE_X * FILTER_SIZE_Y * FSV)
 #   define WEIGHTS_IS_PITCH                     (FSV * FSV * FILTER_SIZE_X * FILTER_SIZE_Y)
 
 #elif FILTER_LAYOUT_OS_IS_ZYX_OSV32_ISV16
-#   define GET_WEIGHTS_INDEX(o, i, z, y, x)     GET_FILTER_OS_IS_ZYX_OSV32_ISV16_INDEX(FILTER, o, i, z, y, x)
+#   define GET_WEIGHTS_INDEX(o, i, z, y, x)     GET_FILTER_OS_IS_ZYX_OSV_ISV_INDEX(FILTER, o, i, z, y, x, 32, 16)
 #   define WEIGHTS_FEATURE_BLOCK_PITCH          (FSV * FSV)
 #   define WEIGHTS_IS_PITCH                     (2 * FSV * FSV * FILTER_SIZE_X * FILTER_SIZE_Y * FILTER_SIZE_Z)
 
 #elif FILTER_LAYOUT_OS_IS_ZYX_OSV64_ISV16
-#   define GET_WEIGHTS_INDEX(o, i, z, y, x)     GET_FILTER_OS_IS_ZYX_OSV64_ISV16_INDEX(FILTER, o, i, z, y, x)
+#   define GET_WEIGHTS_INDEX(o, i, z, y, x)     GET_FILTER_OS_IS_ZYX_OSV_ISV_INDEX(FILTER, o, i, z, y, x, 64, 16)
 #   define WEIGHTS_FEATURE_BLOCK_PITCH          (FSV * FSV)
 #   define WEIGHTS_IS_PITCH                     (4 * FSV * FSV * FILTER_SIZE_X * FILTER_SIZE_Y * FILTER_SIZE_Z)
 

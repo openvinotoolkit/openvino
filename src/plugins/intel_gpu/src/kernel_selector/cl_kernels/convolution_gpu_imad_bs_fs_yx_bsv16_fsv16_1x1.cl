@@ -52,8 +52,8 @@ KERNEL(convolution_gpu_imad_bs_fs_yx_bsv16_fsv16_1x1)(
     const uint input_y_pitch = input_x_pitch * (INPUT0_PAD_BEFORE_SIZE_X + INPUT0_SIZE_X + INPUT0_PAD_AFTER_SIZE_X);
     const uint input_fs_pitch = input_y_pitch * (INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y);
 
-    uint filter_idx = GET_FILTER_OS_IS_YX_OSV16_ISV16_INDEX(FILTER, out_f + get_sub_group_local_id(), 0, 0, 0);
-    uint filter_idx2 = GET_FILTER_OS_IS_YX_OSV16_ISV16_INDEX(FILTER, out_f + 16 + get_sub_group_local_id(), 0, 0, 0);
+    uint filter_idx = GET_FILTER_OS_IS_YX_OSV_ISV_INDEX(FILTER, out_f + get_sub_group_local_id(), 0, 0, 0, 16, 16);
+    uint filter_idx2 = GET_FILTER_OS_IS_YX_OSV_ISV_INDEX(FILTER, out_f + 16 + get_sub_group_local_id(), 0, 0, 0, 16, 16);
 
     uint input_idx = GET_DATA_BS_FS_YX_BSV16_FSV16_INDEX(INPUT0, out_b, 0, input_y, input_x);
     __attribute__((opencl_unroll_hint(1)))

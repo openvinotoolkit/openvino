@@ -58,7 +58,7 @@ KERNEL(convolution_gpu_imad_bs_fs_yx_bsv16_fsv16_3x3)(
 
     __attribute__((opencl_unroll_hint(1)))
     for (uint k = 0; k < INPUT0_FEATURE_NUM / 16; k++) {
-        uint filter_idx = GET_FILTER_OS_IS_YX_OSV16_ISV16_INDEX(FILTER, out_f + get_sub_group_local_id(), k*16, 0, 0);
+        uint filter_idx = GET_FILTER_OS_IS_YX_OSV_ISV_INDEX(FILTER, out_f + get_sub_group_local_id(), k*16, 0, 0, 16, 16);
 
         __attribute__((opencl_unroll_hint(1)))
         for (uint y = 0; y < FILTER_SIZE_Y; y++) {
