@@ -25,9 +25,9 @@
 #include "gna_data_types.hpp"
 #include "gna_graph_compiler.hpp"
 #include "gna_plugin_config.hpp"
-#include "preprocessing.hpp"
 #include "log/debug.hpp"
 #include "log/log.hpp"
+#include "preprocessing.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -193,8 +193,8 @@ protected:
     void DumpXNNToFile() const;
 
     void pre_post_process(InferenceEngine::Blob::Ptr input_blob,
-                      InferenceEngine::Blob::Ptr output_blob,
-                      std::shared_ptr<ov::Model> model);
+                          InferenceEngine::Blob::Ptr output_blob,
+                          std::shared_ptr<ov::Model> model);
 
     void ImportFrames(void* ptr_dst,
                       const void* ptr_src,
@@ -227,13 +227,13 @@ protected:
                        intel_dnn_orientation_t orientation,
                        float scaleFactor);
 
+    // TODO: Need to remove this conversation when ngraph NCHW<->NHWC transformation is enabled
     template <class T1, class T2>
-    inline void convert_transpose_map_to_model(T1& transposes, T2& nodes) {
-        for (auto && node : nodes)
-        {
+    inline void ConvertTransposeMapToModel(T1& transposes, T2& nodes) {
+        for (auto&& node : nodes) {
             auto t_it = transposes.find(node.name);
             if (t_it != transposes.end() && !t_it->second.empty()) {
-                node.pre_post_process_model = to_pre_post_process_model(t_it->second);
+                node.pre_post_process_model = ToProcessModel(t_it->second);
             }
         }
     };

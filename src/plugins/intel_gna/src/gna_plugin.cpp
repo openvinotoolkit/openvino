@@ -39,7 +39,6 @@
 #include "gna_fused_iterator.hpp"
 #include "gna_graph_patterns.hpp"
 #include "gna_itt.hpp"
-#include "serial/gna_model_serial.hpp"
 #include "gna_plugin_config.hpp"
 #include "gna_tensor_tools.hpp"
 #include "gna_transformations_pipeline.hpp"
@@ -341,7 +340,9 @@ void GNAPlugin::ImportFrames(void* ptr_dst,
     }
 }
 
-void GNAPlugin::pre_post_process(InferenceEngine::Blob::Ptr input_blob, InferenceEngine::Blob::Ptr output_blob, std::shared_ptr<ov::Model> model) {
+void GNAPlugin::pre_post_process(InferenceEngine::Blob::Ptr input_blob,
+                                 InferenceEngine::Blob::Ptr output_blob,
+                                 std::shared_ptr<ov::Model> model) {
     const ov::element::Type input_prc = details::convertPrecision(input_blob->getTensorDesc().getPrecision());
     const ov::element::Type output_prc = details::convertPrecision(output_blob->getTensorDesc().getPrecision());
     const ov::Shape& input_shape = input_blob->getTensorDesc().getDims();
@@ -982,12 +983,12 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         }
     }
 
-    //TODO: Need to remove this conversation when ngraph NCHW<->NHWC transformation is enabled
+    // TODO: Need to remove this conversation when ngraph NCHW<->NHWC transformation is enabled
     if (!transpose_inputs_info.empty()) {
-        convert_transpose_map_to_model(transpose_inputs_info, inputs_ptr_->Get());
+        ConvertTransposeMapToModel(transpose_inputs_info, inputs_ptr_->Get());
     }
     if (!transpose_outputs_info.empty()) {
-        convert_transpose_map_to_model(transpose_outputs_info, outputs_.Get());
+        ConvertTransposeMapToModel(transpose_outputs_info, outputs_.Get());
     }
 
     DumpXNNToFile();
@@ -1112,14 +1113,15 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, Infer
     int inputNum = 0;
     for (auto& input : inputs) {
         std::string input_name = input.first;
-        Blob::Ptr gna_input_blob = input.second; // this copy is needed to split user input and plugin's
+        Blob::Ptr gna_input_blob = input.second;  // this copy is needed to split user input and plugin's
         InferenceEngine::Layout input_layout = gna_input_blob->getTensorDesc().getLayout();
 
         if (input_layout != InferenceEngine::Layout::C && input_layout != InferenceEngine::Layout::NC &&
             input_layout != InferenceEngine::Layout::CN && input_layout != InferenceEngine::Layout::CHW &&
             input_layout != InferenceEngine::Layout::NCHW) {
             THROW_GNA_EXCEPTION << "Expected input blob to have Layout::C, Layout::NC, Layout::CN, Layout::NCHW or "
-                                   "Layout::CHW. But was: " << input_layout;
+                                   "Layout::CHW. But was: "
+                                << input_layout;
         }
 
         if (input_layout == InferenceEngine::Layout::NCHW || input_layout == InferenceEngine::Layout::CHW) {
@@ -1271,7 +1273,8 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
             output_layout != InferenceEngine::Layout::CN && output_layout != InferenceEngine::Layout::NCHW &&
             output_layout != InferenceEngine::Layout::CHW && output_layout != InferenceEngine::Layout::SCALAR) {
             THROW_GNA_EXCEPTION << "Expected output blob to have Layout::C, Layout::NC, Layout::CN, Layout::NCHW or "
-                                   "Layout::CHW. But was " << output_layout;
+                                   "Layout::CHW. But was "
+                                << output_layout;
         }
 
         auto dims = output_blob->getTensorDesc().getDims();
@@ -1279,7 +1282,8 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
         auto isScalar = output_layout == InferenceEngine::Layout::SCALAR;
         auto is3D = output_layout == InferenceEngine::Layout::CHW;
         auto batchSize = (is1D || isScalar || is3D) ? 1 : dims[0];
-        auto elementsPerBatch = isScalar ? 1 : (is1D ? dims.front() : details::product(++std::begin(dims), std::end(dims)));\
+        auto elementsPerBatch =
+            isScalar ? 1 : (is1D ? dims.front() : details::product(++std::begin(dims), std::end(dims)));
 
         OutputDesc& gna_output_desc = outputs_.at(output_name);
         TensorDesc tensor_desc(gna_output_desc.tensor_precision, gna_output_desc.dims, gna_output_desc.model_layout);
@@ -1531,12 +1535,12 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
         }
     }
 
-    //TODO: Need to remove this conversation when ngraph NCHW<->NHWC transformation is enabled
-    if(!transpose_inputs_info.empty()) {
-        convert_transpose_map_to_model(transpose_inputs_info, inputs_ptr_->Get());
+    // TODO: Need to remove this conversation when ngraph NCHW<->NHWC transformation is enabled
+    if (!transpose_inputs_info.empty()) {
+        ConvertTransposeMapToModel(transpose_inputs_info, inputs_ptr_->Get());
     }
-    if(!transpose_outputs_info.empty()) {
-        convert_transpose_map_to_model(transpose_outputs_info, outputs_.Get());
+    if (!transpose_outputs_info.empty()) {
+        ConvertTransposeMapToModel(transpose_outputs_info, outputs_.Get());
     }
 
     for (auto&& memory : mt) {

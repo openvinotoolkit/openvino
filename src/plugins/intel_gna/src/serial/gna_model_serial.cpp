@@ -18,13 +18,12 @@
 #    include <mm_malloc.h>
 #endif
 
-#include "openvino/pass/serialize.hpp"
-#include "openvino/runtime/core.hpp"
-
 #include "common/versioning.hpp"
 #include "gna2_model_helper.hpp"
 #include "gna_model_serial.hpp"
 #include "gna_plugin.hpp"
+#include "openvino/pass/serialize.hpp"
+#include "openvino/runtime/core.hpp"
 #include "serial/headers/2dot2/gna_model_header.hpp"
 #include "serial/headers/2dot5/gna_model_header.hpp"
 #include "serial/headers/2dot7/gna_model_header.hpp"
@@ -478,7 +477,7 @@ void GNAModelSerial::Export(const GnaAllocations& allocations, std::ostream& os)
             writeString(tname, os);
         }
         // write pre_processing model
-        if(input.pre_post_process_model) {
+        if (input.pre_post_process_model) {
             // allocate buffer for ir.xml
             std::ostringstream xml_buf;
             // allocate buffer for ir.bin
@@ -515,7 +514,7 @@ void GNAModelSerial::Export(const GnaAllocations& allocations, std::ostream& os)
         }
 
         // write pre_processing model
-        if(output.pre_post_process_model) {
+        if (output.pre_post_process_model) {
             // allocate buffer for ir.xml
             std::ostringstream xml_buf;
             // allocate buffer for ir.bin
@@ -611,15 +610,16 @@ void GNAModelSerial::Export(const GnaAllocations& allocations, std::ostream& os)
 }
 
 template <class T>
-void GNAModelSerial::ImportNodes(std::istream &is, void* base_ptr, T &nodes) {
-    for (auto &node : nodes.Get()) {
+void GNAModelSerial::ImportNodes(std::istream& is, void* base_ptr, T& nodes) {
+    for (auto& node : nodes.Get()) {
         header_latest::RuntimeEndPoint ep = ReadEndPoint(is);
 
-        node.ptrs.push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t *> (base_ptr) + ep.descriptor_offset));
+        node.ptrs.push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t*>(base_ptr) + ep.descriptor_offset));
         node.orientation = ep.orientation;
         node.num_elements = ep.elements_count;
         node.scale_factor = ep.scaleFactor;
-        node.model_precision = InferenceEngine::Precision(static_cast<InferenceEngine::Precision::ePrecision>(ep.precision));
+        node.model_precision =
+            InferenceEngine::Precision(static_cast<InferenceEngine::Precision::ePrecision>(ep.precision));
         node.set_precision(ep.element_size);
         node.model_layout = static_cast<InferenceEngine::Layout>(ep.layout);
         node.allocated_size = node.get_required_size();
@@ -637,11 +637,10 @@ void GNAModelSerial::ImportNodes(std::istream &is, void* base_ptr, T &nodes) {
         AppendTensorNameIfNeeded(node);
 
         // read preprocessing model
-        if (model_header_.version.major == 2 && model_header_.version.minor >= 9)
-        {
+        if (model_header_.version.major == 2 && model_header_.version.minor >= 9) {
             std::string ir_xml_str = readString(is);
-            if(!ir_xml_str.empty()) {
-                //read IR bin
+            if (!ir_xml_str.empty()) {
+                // read IR bin
                 size_t ir_bin_size = 0;
                 readBits(ir_bin_size, is);
 

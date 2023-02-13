@@ -6,14 +6,14 @@
 
 #include <cstdint>
 
-#include "openvino/core/model.hpp"
 #include "gna_data_types.hpp"
+#include "openvino/core/model.hpp"
 
 namespace ov {
 namespace intel_gna {
 
-std::shared_ptr<ov::Model> to_pre_post_process_model(const TranspositionInfo& t_info);
-std::shared_ptr<ov::Model> to_pre_post_process_model(const std::vector<TranspositionInfo>& transposes);
+std::shared_ptr<ov::Model> ToProcessModel(const TranspositionInfo& t_info);
+std::shared_ptr<ov::Model> ToProcessModel(const std::vector<TranspositionInfo>& transposes);
 
 void ConvertToInt16(int16_t* ptr_dst,
                     const float* ptr_src,

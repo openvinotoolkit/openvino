@@ -41,7 +41,7 @@ private:
     GNAVersionSerializer version_;
 
     template <class T>
-    void ImportNodes(std::istream &is, void* basePtr, T &inputs);   //inputs or outputs
+    void ImportNodes(std::istream& is, void* basePtr, T& inputs);  // inputs or outputs
 
     void ImportTranspositionInfo(std::istream& is,
                                  std::string& name,

@@ -6,9 +6,10 @@
 
 #include <cstdint>
 #include <map>
+
 #include "backend/dnn_types.hpp"
-#include "serial/headers/2dot8/gna_model_header.hpp"
 #include "gna_data_types.hpp"
+#include "serial/headers/2dot8/gna_model_header.hpp"
 
 #pragma pack(push, 1)
 
@@ -217,6 +218,6 @@ struct RuntimeEndPoint {
           orientation(orientation) {}
 };
 
-}  // namespace header_2_dot_8
+}  // namespace header_2_dot_9
 }  // namespace intel_gna
 }  // namespace ov

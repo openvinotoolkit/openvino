@@ -4,12 +4,10 @@
 
 #include "preprocessing.hpp"
 
-
+#include "gna_data_types.hpp"
+#include "ngraph/opsets/opset9.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/shape.hpp"
-#include "ngraph/opsets/opset9.hpp"
-#include "gna_data_types.hpp"
-
 
 using namespace ngraph::opset9;
 
@@ -54,7 +52,7 @@ void ConvertToInt16(int16_t* ptr_dst,
 /*
 Convert legacy transposition info to preprocessing model
  */
-std::shared_ptr<ov::Model> to_pre_post_process_model(const TranspositionInfo& t_info) {
+std::shared_ptr<ov::Model> ToProcessModel(const TranspositionInfo& t_info) {
     size_t c_size = t_info.num_transpose_rows;
     size_t hw_size = t_info.num_transpose_columns;
 
@@ -81,20 +79,20 @@ std::shared_ptr<ov::Model> to_pre_post_process_model(const TranspositionInfo& t_
 /*
     Convert legacy transposition info to preprocessing model
  */
-std::shared_ptr<ov::Model> to_pre_post_process_model(const std::vector<TranspositionInfo>& transposes) {
+std::shared_ptr<ov::Model> ToProcessModel(const std::vector<TranspositionInfo>& transposes) {
     // case wheb the input should be transposed entirely
     if (transposes.size() == 1) {
-        return to_pre_post_process_model(transposes.front());
+        return ToProcessModel(transposes.front());
     }
 
     std::vector<int32_t> indexes = {};
-    for (auto & transpose : transposes) {
+    for (auto& transpose : transposes) {
         size_t c_size = transpose.num_transpose_rows;
         size_t hw_size = transpose.num_transpose_columns;
         size_t chw_size = c_size * hw_size;
         size_t id = indexes.size();
-        for(size_t i{0}; i < chw_size; ++i) {
-            size_t idx = (transpose.transpose) ?  hw_size * (i % c_size) + i / c_size : i;
+        for (size_t i{0}; i < chw_size; ++i) {
+            size_t idx = (transpose.transpose) ? hw_size * (i % c_size) + i / c_size : i;
             indexes.push_back(id + idx);
         }
     }
