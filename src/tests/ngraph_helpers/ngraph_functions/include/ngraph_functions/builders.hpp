@@ -506,6 +506,12 @@ std::shared_ptr<ngraph::Node> makePad(const ngraph::Output<Node>& data,
                                       float argPadValue,
                                       ngraph::helpers::PadMode padMode);
 
+std::shared_ptr<ov::Node> makePad(const ov::Output<Node>& in,
+                                  const ov::Output<Node>& beginNode,
+                                  const ov::Output<Node>& endNode,
+                                  const ov::Output<Node>& valueNode,
+                                  ngraph::helpers::PadMode padMode);
+
 std::shared_ptr<ngraph::Node> makeBatchNormInference(const ngraph::Output<Node>& data,
                                                      double epsilon);
 
