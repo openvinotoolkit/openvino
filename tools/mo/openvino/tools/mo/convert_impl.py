@@ -1009,11 +1009,12 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
             model_framework = check_model_object(args)
             print(args)
             if model_framework == "pytorch":
-                use_pt_fe = os.environ.get('USE_PYTORCH_FRONTEND') or not args.get("use_legacy_frontend", False)
+                use_pt_fe = not args.get("use_legacy_frontend", False)
                 example_inputs = None
                 if 'example_input' in args and args['example_input'] is not None:
                     example_inputs = args['example_input']
                 if not use_pt_fe:
+                    # TO DO: remove this path, when pytorch frontend productization is finished, CVS-103726
                     if "use_legacy_frontend" in args:
                         args.pop("use_legacy_frontend")
                     return convert_pytorch_via_onnx(args, example_inputs, cli_parser, framework)

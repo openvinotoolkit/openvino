@@ -120,6 +120,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     // Extension loading mechanism is not implemented, any extensions will be ignored
+    // see CVS-98766 for tracking progress
     return;
 }
 
