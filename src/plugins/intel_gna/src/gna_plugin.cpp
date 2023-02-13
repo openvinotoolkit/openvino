@@ -49,6 +49,7 @@
 #include "frontend/model_quantizer.hpp"
 #include "frontend/scale_factor_calc.hpp"
 #include "frontend/weights_converter.hpp"
+#include "gna2-model-api.h"
 #include "gna2_model_export_helper.hpp"
 #include "gna2_model_helper.hpp"
 #include "gna_fused_iterator.hpp"
@@ -416,11 +417,9 @@ void GNAPlugin::InitGNADevice() {
     if (gnaFlags->sw_fp32) {
         gnamem.reset(new gna_memory_float(memory::GNAFloatAllocator{}));
     } else {
-        gnadevice = std::make_shared<GNADeviceHelper>(config.gnaExecTarget,
-                                                      config.gnaCompileTarget,
-                                                      config.swExactMode,
+        gnadevice = std::make_shared<GNADeviceHelper>(config.target,
                                                       gnaFlags->performance_counting,
-                                                      !config.dumpXNNPath.empty());
+                                                      !config.embedded_export_path.empty());
         size_t page_size_bytes = 4096;
         gnamem = std::make_shared<gna_memory_device>(memory::GNAAllocator(gnadevice), page_size_bytes);
     }
@@ -704,8 +703,8 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     _network_name = _network.getName();
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
 
-    const auto effectiveGnaCompileTargetValue = effectiveGnaCompileTarget();
-    graphCompiler.SetValidatorTarget(effectiveGnaCompileTargetValue);
+    const auto effectiveCompileTarget = config.target->get_effective_compile_target();
+    graphCompiler.SetValidatorTarget(effectiveCompileTarget);
 
     bool isNgraphPassesUsed = false;
     bool fake_quantized = false;
@@ -731,12 +730,11 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         manager.register_pass<ov::pass::LSTMCellDecomposition>();
         manager.register_pass<ov::intel_gna::pass::ConvertDWSCToScaleShifts>();
         manager.register_pass<ov::intel_gna::pass::ConvertPaddedToValidConv>();
-        manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBiasAF>(effectiveGnaCompileTargetValue,
+        manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBiasAF>(effectiveCompileTarget,
                                                                                         config.gnaPrecision);
-        manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBias>(effectiveGnaCompileTargetValue,
+        manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBias>(effectiveCompileTarget,
                                                                                       config.gnaPrecision);
-        manager.register_pass<ov::intel_gna::pass::Decompose2DConv>(effectiveGnaCompileTargetValue,
-                                                                    config.gnaPrecision);
+        manager.register_pass<ov::intel_gna::pass::Decompose2DConv>(effectiveCompileTarget, config.gnaPrecision);
         // TODO enable this transformation for networks with convolutions
         if (!ov::op::util::has_op_with_type<ngraph::opset7::Convolution>(graph)) {
             manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithFqToPointWiseConvolution>();
@@ -1171,15 +1169,6 @@ bool GNAPlugin::isFP32ModeActive() const {
     return gnaFlags->sw_fp32 || !gnadevice;
 }
 
-std::string GNAPlugin::effectiveGnaCompileTarget() const {
-    if (gnadevice) {
-        return gnadevice->GetCompileTarget();
-    } else if (!config.gnaCompileTarget.empty()) {
-        return config.gnaCompileTarget;
-    }
-    return common::kGnaDefaultTarget;
-}
-
 std::shared_ptr<request::Worker> GNAPlugin::createWorkerForLoadNetwork(bool trivial, bool fp32Mode) {
     // Do not initialize gna model for fp32 mode (create trivial model wraper)
     return createWorker(createModelWrapperForLoadNetwork(trivial || fp32Mode), trivial, fp32Mode);
@@ -1217,10 +1206,9 @@ std::shared_ptr<request::ModelWrapper> GNAPlugin::createModelWrapperForLoadNetwo
     }
 
     std::weak_ptr<backend::AMIntelDNN> weakDnn = dnn;
-    auto compileTarget = effectiveGnaCompileTarget();
-    auto initializer = [weakDnn, compileTarget](Gna2Model* model) {
+    auto initializer = [weakDnn](Gna2Model* model) {
         if (auto dnn = weakDnn.lock()) {
-            dnn->InitGNAStruct(model, compileTarget);
+            dnn->InitGNAStruct(model);
             return;
         }
         THROW_GNA_EXCEPTION << "dnn is nullptr";
@@ -1236,7 +1224,7 @@ std::shared_ptr<request::ModelWrapper> GNAPlugin::createModelWrapperForImportNet
 void GNAPlugin::DumpXNNToFile() const {
     // TODO: output  precision as well as pointer might be incorrect, LSTM for sure
     // gna looks automatically set layer 0 as output and adjust it's pointer / precision/ size respectively
-    if (config.dumpXNNPath.empty()) {
+    if (config.embedded_export_path.empty()) {
         return;
     }
 
@@ -1248,7 +1236,7 @@ void GNAPlugin::DumpXNNToFile() const {
         THROW_GNA_EXCEPTION << "Cannot generate XNNDump for not exsisting model";
     }
 
-    std::ofstream dumpStream(config.dumpXNNPath, std::ios::out | std::ios::binary);
+    std::ofstream dumpStream(config.embedded_export_path, std::ios::out | std::ios::binary);
 
     auto model = const_cast<Gna2Model*>(requestWorkerPool_->firstWorker().model());
 
@@ -1256,7 +1244,7 @@ void GNAPlugin::DumpXNNToFile() const {
     const auto& inputsDesc = inputs_ptr_->Get();
     const auto& outputsDesc = outputs_.Get();
 
-    if (common::kGnaTarget2_0 == gnadevice->GetCompileTarget()) {
+    if (config.target->get_effective_compile_target() == common::DeviceVersion::GNAEmbedded1_0) {
         auto dump = gnadevice->dumpXnn(modelId);
         dump.header.RwRegionSize = gnamem->getRegionBytes(REGION_SCRATCH);
         dump.header.InputScalingFactor = inputsDesc.begin()->scale_factor;
@@ -1729,6 +1717,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
         graphCompiler.memory_connection.emplace_back(make_pair(name, memoryLayer));
     }
 
+    // TODO update documenation to allow exporting tlv with importing cep only for sue creek
+    // TODO tlv + cep import + export
     DumpXNNToFile();
 
 #ifdef PLOT
