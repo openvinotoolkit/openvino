@@ -62,9 +62,9 @@ class BuildCmd(build_py):
             for (pkg, module, filename) in modules
         ]
 
+
 packages = find_namespace_packages(prefix[:-1])
 packages = [prefix.replace('/', '.') + p for p in packages]
-
 
 setup(
     name='openvino-mo',
@@ -77,6 +77,11 @@ setup(
     cmdclass={
         'install': InstallCmd,
         'build_py': BuildCmd,
+    },
+    entry_points={
+        'console_scripts': [
+            'mo = openvino.tools.mo.__main__:main',
+        ],
     },
     package_data={
       'openvino.tools.mo.front.caffe.proto': ['*.proto'],
