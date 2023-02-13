@@ -207,13 +207,28 @@ struct Read<
     std::map<K, T, C, A>,
     typename std::enable_if<std::is_default_constructible<K>::value && std::is_default_constructible<T>::value>::type> {
     void operator()(std::istream& is, std::map<K, T, C, A>& map) const {
-        while (is.good()) {
-            std::string str;
-            is >> str;
-            auto k = from_string<K>(str);
-            is >> str;
-            auto v = from_string<T>(str);
-            map.emplace(std::move(k), std::move(v));
+        char ch;
+        std::string key;
+        std::string value;
+        std::string str;
+        while (std::getline(is, str, '}')) {
+            std::istringstream iss(str);
+            iss >> ch;
+            while (iss.good()) {
+                std::getline(iss, key, ':');
+                auto k = from_string<K>(key);
+                std::getline(iss, value, ',');
+                if (value.front() == '{' && value.back() != '}') {
+                    std::string tmp;
+                    if (iss.good()) {
+                        std::getline(iss, tmp);
+                        value += ',' + tmp;
+                    }
+                    value += '}';
+                }
+                auto v = from_string<T>(value);
+                map.emplace(std::move(k), std::move(v));
+            }
         }
     }
 };
@@ -319,14 +334,14 @@ struct Write<std::map<K, T, C, A>> {
     void operator()(std::ostream& os, const std::map<K, T, C, A>& map) const {
         if (!map.empty()) {
             std::size_t i = 0;
+            os << '{';
             for (auto&& v : map) {
-                os << to_string(v.first);
-                os << ' ';
-                os << to_string(v.second);
+                os << to_string(v.first) << ':' << to_string(v.second);
                 if (i < (map.size() - 1))
-                    os << ' ';
+                    os << ',';
                 ++i;
             }
+            os << '}';
         }
     }
 };

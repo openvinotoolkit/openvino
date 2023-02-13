@@ -231,17 +231,16 @@ std::map<std::string, std::string> ov::CoreImpl::GetSupportedConfig(const std::s
         }
     } catch (ov::Exception&) {
     }
+    // If device properties for the same device are present several times in different format
+    // they are applied with the following priorities:
+    // 1. Properties of the 1st level
+    // 2. Secondary properties with key DEVICE_PROPERTIES_<DEVICE>
+    // 3. Secondary properties with key DEVICE_PROPERTIES
     std::map<std::string, std::string> supportedConfig;
-    for (auto&& key : supportedConfigKeys) {
-        auto itKey = configs.find(key);
-        if (configs.end() != itKey) {
-            supportedConfig[key] = itKey->second;
-        }
-    }
-    for (auto&& config : configs) {
-        auto parsed = parseDeviceNameIntoConfig(config.first);
-        if (deviceName.find(parsed._deviceName) != std::string::npos) {
-            std::stringstream strm(config.second);
+    auto updateSupportedConfig = [&](const std::string& deviceNameToParse, const std::string& string_value) {
+        auto parsed = parseDeviceNameIntoConfig(deviceNameToParse);
+        if (ov::isConfigApplicable(deviceName, parsed._deviceName)) {
+            std::stringstream strm(string_value);
             std::map<std::string, std::string> device_configs;
             util::Read<std::map<std::string, std::string>>{}(strm, device_configs);
             for (auto&& device_config : device_configs) {
@@ -249,9 +248,35 @@ std::map<std::string, std::string> ov::CoreImpl::GetSupportedConfig(const std::s
                     supportedConfig[device_config.first] = device_config.second;
                 }
             }
-            for (auto&& config : parsed._config) {
-                supportedConfig[config.first] = config.second.as<std::string>();
+            for (auto&& parsed_config : parsed._config) {
+                supportedConfig[parsed_config.first] = parsed_config.second.as<std::string>();
             }
+        }
+    };
+    // First search for ov::device::properties(ov::AnyMap{...})
+    auto it = configs.find(ov::device::properties.name());
+    if (it != configs.end()) {
+        std::stringstream strm(it->second);
+        std::map<std::string, std::string> secondary_properties;
+        util::Read<std::map<std::string, std::string>>{}(strm, secondary_properties);
+        for (auto& secondary_property : secondary_properties) {
+            updateSupportedConfig(secondary_property.first, secondary_property.second);
+        }
+    }
+    // Second search for ov::device::properties(DEVICE, ...)
+    for (auto&& config : configs) {
+        if ((config.first.find(ov::device::properties.name()) != std::string::npos) &&
+            config.first != ov::device::properties.name()) {
+            auto parsedDeviceName = config.first.substr(config.first.find(ov::device::properties.name()) +
+                                                        std::string(ov::device::properties.name()).length() + 1);
+            updateSupportedConfig(parsedDeviceName, config.second);
+        }
+    }
+    // Third apply properties of the 1st level
+    for (auto&& key : supportedConfigKeys) {
+        auto itKey = configs.find(key);
+        if (configs.end() != itKey) {
+            supportedConfig[key] = itKey->second;
         }
     }
     return supportedConfig;
