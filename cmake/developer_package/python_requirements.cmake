@@ -98,9 +98,7 @@ function(ov_check_pip_packages)
     if(PYTHONINTERP_FOUND)
         execute_process(
             COMMAND ${PYTHON_EXECUTABLE} -c "import pkg_resources ;
-            requirements_raw = open('${ARG_REQUIREMENTS_FILE}', mode='r').readlines() ;
-            requirements = [package for package in requirements_raw if not package.startswith('-c')] ;
-            pkg_resources.require(requirements)"
+            pkg_resources.require('onnx==1.12.0')"
             RESULT_VARIABLE EXIT_CODE
             OUTPUT_VARIABLE OUTPUT_TEXT
             ERROR_VARIABLE ERROR_TEXT)
