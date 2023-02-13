@@ -163,9 +163,7 @@ bool read_tensor(std::istream& is, char* data, size_t len) {
     std::vector<char> dims_struct(dims_len);
     is.read(&dims_struct[0], dims_len);
     is.read(data, len);
-    if ((size_t)is.gcount() != len)
-        return false;
-    return true;
+    return (size_t)is.gcount() == len;
 }
 
 template <typename T>
