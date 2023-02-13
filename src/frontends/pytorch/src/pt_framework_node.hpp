@@ -47,7 +47,7 @@ public:
         auto op = std::make_shared<PtFrameworkNode>(m_decoder, inputs, get_output_size());
 
         for (size_t body_index = 0; body_index < m_bodies.size(); ++body_index) {
-            op->set_function(body_index, get_function(body_index)->clone());
+            op->set_function(static_cast<int>(body_index), get_function(static_cast<int>(body_index))->clone());
             for (const auto& m_input_descr : m_input_descriptions[body_index]) {
                 op->m_input_descriptions[body_index].push_back(m_input_descr->copy());
             }
