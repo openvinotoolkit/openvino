@@ -224,6 +224,7 @@ template <typename T>
 std::vector<std::shared_ptr<Node>> topological_sort(T root_nodes) {
     std::stack<Node*, std::vector<Node*>> nodes_to_do;
     std::unordered_set<Node*> nodes_done;
+    std::unordered_map<Node*, size_t /*visit_count*/> nodes_visited;
     std::vector<std::shared_ptr<Node>> result;
 
     for (auto& node : root_nodes) {
@@ -231,9 +232,17 @@ std::vector<std::shared_ptr<Node>> topological_sort(T root_nodes) {
     }
     while (nodes_to_do.size() > 0) {
         Node* node = nodes_to_do.top();
+        size_t arg_count = node->get_input_size();
+        size_t node_degree =
+            arg_count + node->get_control_dependencies().size() + node->get_control_dependents().size();
+        for (size_t i = 0; i < node->get_output_size(); ++i)
+            node_degree += node->get_output_target_inputs(i).size();
+        nodes_visited[node] += 1;
+        if (nodes_visited[node] > node_degree + 1)
+            throw Exception("Detected loop during topological sort starting from '" + node->get_friendly_name() +
+                            "' node.");
         if (nodes_done.count(node) == 0) {
             bool can_add = true;
-            size_t arg_count = node->get_input_size();
             for (size_t i = 0; i < arg_count; ++i) {
                 Node* dep = node->get_input_node_ptr(arg_count - i - 1);
                 if (nodes_done.count(dep) == 0) {
