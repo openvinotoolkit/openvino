@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/ov_executable_network/get_metric.hpp"
+#include "behavior/ov_executable_network/properties.hpp"
+#include "behavior/ov_executable_network/hetero_properties.hpp"
 #include "behavior/ov_plugin/properties_tests.hpp"
 #include "openvino/runtime/core.hpp"
 
@@ -12,25 +13,11 @@ using namespace InferenceEngine::PluginConfigParams;
 
 namespace {
 //
-// IE Class Common tests with <pluginName, deviceName params>
-//
-
-
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassImportExportTestP, OVClassExecutableNetworkImportExportTestP,
-        ::testing::Values("HETERO:CPU"));
-
-//
 // Executable Network GetMetric
 //
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::Values("CPU", "MULTI:CPU", "HETERO:CPU", "AUTO:CPU"));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
+        smoke_OVClassExecutableNetworkGetMetricTest, OVClassCompiledModelProperties_SupportedProperties,
         ::testing::Values("CPU", "MULTI:CPU", "HETERO:CPU", "AUTO:CPU"));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -42,7 +29,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values("CPU", "MULTI:CPU", "HETERO:CPU", "AUTO:CPU"));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
+        smoke_OVClassExecutableNetworkGetMetricTest, OVClassCompiledModelGetIncorrectProperties,
         ::testing::Values("CPU", "MULTI:CPU", "HETERO:CPU", "AUTO:CPU"));
 
 const std::vector<std::tuple<std::string, std::pair<ov::AnyMap, std::string>>> GetMetricTest_ExecutionDevice_CPU = {
@@ -58,12 +45,13 @@ INSTANTIATE_TEST_SUITE_P(
 //
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassExecutableNetworkGetConfigTest, OVClassExecutableNetworkGetConfigTest,
+        smoke_OVCompiledModelGetSupportedPropertiesTest, OVCompiledModelGetSupportedPropertiesTest,
         ::testing::Values("CPU"));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassExecutableNetworkSetConfigTest, OVClassExecutableNetworkSetConfigTest,
-        ::testing::Values("CPU"));
+        smoke_OVClassCompiledModelUnsupportedConfigTest, OVClassCompiledModelUnsupportedConfigTest,
+        ::testing::Combine(::testing::Values("CPU"),
+                           ::testing::Values(std::make_pair("unsupported_config", "some_value"))));
 
 ////
 //// Hetero Executable Network GetMetric

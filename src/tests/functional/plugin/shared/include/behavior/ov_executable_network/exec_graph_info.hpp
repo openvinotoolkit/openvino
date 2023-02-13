@@ -534,6 +534,18 @@ TEST_P(OVExecGraphImportExportTest, ieImportExportedFunction) {
     EXPECT_EQ(prc, importedExecNet.GetOutputsInfo()["relu_op"]->getPrecision());
 }
 
+using OVClassExecutableNetworkImportExportTestP = OVCompiledModelClassBaseTestP;
+
+TEST_P(OVClassExecutableNetworkImportExportTestP, smoke_ImportNetworkNoThrowWithDeviceName) {
+    ov::Core ie = createCoreWithTemplate();
+    std::stringstream strm;
+    ov::CompiledModel executableNetwork;
+    OV_ASSERT_NO_THROW(executableNetwork = ie.compile_model(actualNetwork, target_device));
+    OV_ASSERT_NO_THROW(executableNetwork.export_model(strm));
+    OV_ASSERT_NO_THROW(executableNetwork = ie.import_model(strm, target_device));
+    OV_ASSERT_NO_THROW(executableNetwork.create_infer_request());
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
