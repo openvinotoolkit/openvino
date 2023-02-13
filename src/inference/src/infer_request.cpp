@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 
+#include "ie_common.h"
 #include "openvino/core/node.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/exception.hpp"
