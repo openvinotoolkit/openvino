@@ -6,6 +6,8 @@
 
 #include "primitive.hpp"
 #include <vector>
+#include "intel_gpu/graph/serialization/utils.hpp"
+#include "intel_gpu/graph/serialization/vector_serializer.hpp"
 
 namespace cldnn {
 
@@ -14,6 +16,10 @@ namespace cldnn {
 
 struct proposal : public primitive_base<proposal> {
     CLDNN_DECLARE_PRIMITIVE(proposal)
+
+    proposal() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     proposal(const primitive_id& id,
              const input_info& cls_scores,
@@ -168,27 +174,62 @@ struct proposal : public primitive_base<proposal> {
 
     size_t hash() const override {
         size_t seed = primitive::hash();
-        seed = hash_combine(seed, max_proposals);
-        seed = hash_combine(seed, iou_threshold);
-        seed = hash_combine(seed, base_bbox_size);
-        seed = hash_combine(seed, min_bbox_size);
-        seed = hash_combine(seed, feature_stride);
-        seed = hash_combine(seed, pre_nms_topn);
-        seed = hash_combine(seed, post_nms_topn);
-        seed = hash_range(seed, ratios.begin(), ratios.end());
-        seed = hash_range(seed, scales.begin(), scales.end());
-        seed = hash_combine(seed, coordinates_offset);
-        seed = hash_combine(seed, box_coordinate_scale);
-        seed = hash_combine(seed, box_size_scale);
-        seed = hash_combine(seed, for_deformable);
-        seed = hash_combine(seed, swap_xy);
-        seed = hash_combine(seed, initial_clip);
-        seed = hash_combine(seed, clip_before_nms);
-        seed = hash_combine(seed, clip_after_nms);
-        seed = hash_combine(seed, round_ratios);
-        seed = hash_combine(seed, shift_anchors);
-        seed = hash_combine(seed, normalize);
+
+        membuf mem_buf;
+        {
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            save(ob);
+        }
+        seed = hash_range(seed, mem_buf.begin(), mem_buf.end());
+
         return seed;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        ob << max_proposals;
+        ob << iou_threshold;
+        ob << base_bbox_size;
+        ob << min_bbox_size;
+        ob << feature_stride;
+        ob << pre_nms_topn;
+        ob << post_nms_topn;
+        ob << ratios;
+        ob << scales;
+        ob << coordinates_offset;
+        ob << box_coordinate_scale;
+        ob << box_size_scale;
+        ob << for_deformable;
+        ob << swap_xy;
+        ob << initial_clip;
+        ob << clip_before_nms;
+        ob << clip_after_nms;
+        ob << round_ratios;
+        ob << shift_anchors;
+        ob << normalize;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        ib >> max_proposals;
+        ib >> iou_threshold;
+        ib >> base_bbox_size;
+        ib >> min_bbox_size;
+        ib >> feature_stride;
+        ib >> pre_nms_topn;
+        ib >> post_nms_topn;
+        ib >> ratios;
+        ib >> scales;
+        ib >> coordinates_offset;
+        ib >> box_coordinate_scale;
+        ib >> box_size_scale;
+        ib >> for_deformable;
+        ib >> swap_xy;
+        ib >> initial_clip;
+        ib >> clip_before_nms;
+        ib >> clip_after_nms;
+        ib >> round_ratios;
+        ib >> shift_anchors;
+        ib >> normalize;
     }
 };
 

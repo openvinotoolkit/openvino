@@ -9,6 +9,7 @@
 #include "to_string_utils.h"
 #include "program_node.h"
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
+#include "intel_gpu/graph/serialization/polymorphic_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
 
@@ -1129,6 +1130,7 @@ void set_optional_params(const program& program, kernel_selector::optional_param
 }
 
 void kernel_impl_params::save(BinaryOutputBuffer& ob) const {
+    ob << desc;
     ob << has_runtime_layouts;
     ob << unique_id;
     ob << input_layouts;
@@ -1186,7 +1188,7 @@ void kernel_impl_params::save(BinaryOutputBuffer& ob) const {
 
 void kernel_impl_params::load(BinaryInputBuffer& ib) {
     prog = nullptr;
-    desc = nullptr;
+    ib >> desc;
     ib >> has_runtime_layouts;
     ib >> unique_id;
     ib >> input_layouts;

@@ -100,7 +100,7 @@ CompiledModel::CompiledModel(std::istream& networkModel, InferenceEngine::Remote
             ib >> precision;
             ib >> layout;
 
-            DataPtr input = std::make_shared<Data>(name, Precision::FromStr(precision), cldnn::layout_from_string(layout));
+            DataPtr input = std::make_shared<Data>(name, Precision::FromStr(precision), cldnn::serial_util::layout_from_string(layout));
             InputInfo::Ptr infoNew = std::make_shared<InputInfo>();
             infoNew->setInputData(input);
             inputs.emplace(std::make_pair(name, infoNew));
@@ -119,7 +119,7 @@ CompiledModel::CompiledModel(std::istream& networkModel, InferenceEngine::Remote
             ib >> precision;
             ib >> layout;
 
-            DataPtr output = std::make_shared<Data>(name, Precision::FromStr(precision), cldnn::layout_from_string(layout));
+            DataPtr output = std::make_shared<Data>(name, Precision::FromStr(precision), cldnn::serial_util::layout_from_string(layout));
             outputs.emplace(std::make_pair(name, output));
         }
 

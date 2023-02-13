@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/compounds.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/optionals.hpp"
@@ -135,6 +136,10 @@ public:
     input_info_arr input;
 
     size_t num_outputs;
+
+    virtual std::string get_type() const { return "NONE"; }
+    virtual void save(BinaryOutputBuffer& ob) const { }
+    virtual void load(BinaryInputBuffer& ib) { }
 
 protected:
     virtual std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const { return {}; }
