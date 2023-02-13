@@ -686,7 +686,7 @@ int main(int argc, char* argv[]) {
 
             const auto& inputInfo = std::const_pointer_cast<const ov::Model>(model)->inputs();
             if (inputInfo.empty()) {
-                throw std::logic_error("no inputs info is provided");
+                throw std::logic_error("No inputs info is provided");
             }
 
             // ----------------- 5. Resizing network to match image sizes and given

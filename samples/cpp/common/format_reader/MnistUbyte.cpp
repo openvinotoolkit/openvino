@@ -49,6 +49,8 @@ MnistUbyte::MnistUbyte(const std::string& filename) {
     }
 
     size_t size = _width * _height * 1;
+    _shape.push_back(_height);
+    _shape.push_back(_width);
 
     _data.reset(new unsigned char[size], std::default_delete<unsigned char[]>());
     size_t count = 0;
