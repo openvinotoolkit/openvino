@@ -10,6 +10,9 @@
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/power.hpp"
+#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/rt_info.hpp>
+#include "transformations/utils/utils.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -57,6 +60,15 @@ bool evaluate_power(const HostTensorPtr& arg0,
 op::v1::Power::Power(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast) {
     constructor_validate_and_infer_types();
+    float value(0);
+    auto node = this->input(1).get_source_output().get_node_shared_ptr();
+    if (auto const_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(node)) {
+        if (op::util::get_single_value(const_node, value)) {
+            power = value;
+            scale = 1.0f;
+            shift = 0.0f;
+        }
+    }
 }
 
 shared_ptr<Node> op::v1::Power::clone_with_new_inputs(const OutputVector& new_args) const {
