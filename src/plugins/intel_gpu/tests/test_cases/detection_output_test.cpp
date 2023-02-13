@@ -345,7 +345,7 @@ public:
         } else {
             network = std::make_shared<cldnn::network>(engine, topology, config);
         }
-        
+
         network->set_input_data("input_location", input_location);
         network->set_input_data("input_confidence", input_confidence);
         network->set_input_data("input_prior_box", input_prior_box);

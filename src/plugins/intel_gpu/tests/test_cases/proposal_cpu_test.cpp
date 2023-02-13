@@ -106,7 +106,7 @@ TestRunnerProposal<Dtype, ImInfoType>::TestRunnerProposal(cldnn::tensor image_in
         }
     } else {
         _network.reset(new network(get_test_engine(), _topology));
-    } 
+    }
 }
 
 template <typename Dtype, typename ImInfoType>
