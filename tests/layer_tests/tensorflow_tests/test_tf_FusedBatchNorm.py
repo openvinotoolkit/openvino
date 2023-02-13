@@ -25,7 +25,7 @@ class TestFusedBatchNorm(CommonTFLayerTest):
         return inputs_data
 
     def create_fused_batch_norm_net(self, x_shape, epsilon, exponential_avg_factor, data_format, is_training,
-                                    fbn_version):
+                                    fbn_version, empty_mean_variance=False):
         fbn_dict = {
             "v1": tf.raw_ops.FusedBatchNorm,
             "v2": tf.raw_ops.FusedBatchNormV2,
@@ -38,8 +38,13 @@ class TestFusedBatchNorm(CommonTFLayerTest):
             if data_format == "NCHW":
                 c_dim = x_shape[1]
             x = tf.compat.v1.placeholder(tf.float32, x_shape, 'x')
-            mean = tf.compat.v1.placeholder(tf.float32, [c_dim], 'mean')
-            variance = tf.compat.v1.placeholder(tf.float32, [c_dim], 'variance')
+            if empty_mean_variance:
+                mean = tf.constant([], dtype=tf.float32)
+                variance = tf.constant([], dtype=tf.float32)
+            else:
+                mean = tf.compat.v1.placeholder(tf.float32, [c_dim], 'mean')
+                variance = tf.compat.v1.placeholder(tf.float32, [c_dim], 'variance')
+
             scale = tf.compat.v1.placeholder(tf.float32, [c_dim], 'scale')
             offset = tf.compat.v1.placeholder(tf.float32, [c_dim], 'offset')
             fbn_func = fbn_dict[fbn_version]
@@ -85,6 +90,8 @@ class TestFusedBatchNorm(CommonTFLayerTest):
         dict(x_shape=[5, 4, 3, 2], epsilon=0.0005, exponential_avg_factor=0.0, data_format="NCHW",
              is_training=False,
              fbn_version="v3"),
+        dict(x_shape=[5, 10, 8, 2], epsilon=0.0002, exponential_avg_factor=0.2, data_format="NHWC",
+             is_training=True, fbn_version="v3", empty_mean_variance=False),
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)

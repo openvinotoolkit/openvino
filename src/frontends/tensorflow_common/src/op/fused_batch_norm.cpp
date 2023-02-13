@@ -104,18 +104,28 @@ void compute_weighted_batch_mean_and_variance(const Output<Node>& x,
     // for weighted_variance it is similar
     // (1 - exponential_avg_factor) * variance + exponential_avg_factor * batch_variance,
     // where batch_variance is the variance of the current batch in x.
-
-    // compute weighted_batch_mean
     auto const_one = make_shared<Constant>(exp_avg_factor_const.get_element_type(), Shape{}, 1);
     auto one_minus_exp_avg_factor = make_shared<Subtract>(const_one, exp_avg_factor_const);
-    auto bt_mean_by_exp_avg = make_shared<Multiply>(batch_mean, exp_avg_factor_const);
-    weighted_batch_mean = make_shared<Multiply>(mean, one_minus_exp_avg_factor)->output(0);
-    weighted_batch_mean = make_shared<Add>(bt_mean_by_exp_avg, weighted_batch_mean);
+
+    // compute weighted_batch_mean
+    // no need to weight in case of empty tensor mean
+    if (mean.get_partial_shape().is_static() && shape_size(mean.get_shape()) > 0) {
+        auto bt_mean_by_exp_avg = make_shared<Multiply>(batch_mean, exp_avg_factor_const);
+        weighted_batch_mean = make_shared<Multiply>(mean, one_minus_exp_avg_factor)->output(0);
+        weighted_batch_mean = make_shared<Add>(bt_mean_by_exp_avg, weighted_batch_mean);
+    } else {
+        weighted_batch_mean = batch_mean;
+    }
 
     // compute weighted_batch_variance
-    auto bt_variance_by_exp_avg = make_shared<Multiply>(batch_variance, exp_avg_factor_const);
-    weighted_batch_variance = make_shared<Multiply>(variance, one_minus_exp_avg_factor)->output(0);
-    weighted_batch_variance = make_shared<Add>(bt_variance_by_exp_avg, weighted_batch_variance)->output(0);
+    // no need to weight in case of empty tensor variance
+    if (variance.get_partial_shape().is_static() && shape_size(variance.get_shape()) > 0) {
+        auto bt_variance_by_exp_avg = make_shared<Multiply>(batch_variance, exp_avg_factor_const);
+        weighted_batch_variance = make_shared<Multiply>(variance, one_minus_exp_avg_factor)->output(0);
+        weighted_batch_variance = make_shared<Add>(bt_variance_by_exp_avg, weighted_batch_variance)->output(0);
+    } else {
+        weighted_batch_variance = batch_variance;
+    }
 }
 
 void compute_fused_batch_norm_inference(const NodeContext& node,
