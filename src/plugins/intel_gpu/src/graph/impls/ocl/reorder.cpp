@@ -29,7 +29,6 @@ protected:
     kernel_arguments_data get_arguments(const reorder_inst& instance) const override {
         kernel_arguments_data args = parent::get_arguments(instance);
         auto input = &instance.input_memory();
-        std::cout << "!!!! get_arguments of " << instance.id() << " !! input address : " << input << std::endl;
         auto input_layout = input->get_layout();
         if (instance.has_mean()) {
             if (input_layout.format == cldnn::format::nv12) {

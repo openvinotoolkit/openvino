@@ -23,7 +23,6 @@ struct empty_tensor_test_params {
     int64_t concat_axis;
 };
 
-//void test_empty_tensor_concat_two_inputs(layout nonzero_input_layout, layout concat_input_layout, int32_t concat_axis) {
 class test_empty_tensor : public testing::TestWithParam<empty_tensor_test_params> {};
 
 TEST_P(test_empty_tensor, concat_two_inputs) {

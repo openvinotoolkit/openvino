@@ -180,10 +180,6 @@ void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) {
     if (!data)
         IE_THROW(NotAllocated) << "Failed to set empty blob with name: \'" << name << "\'";
 
-    size_t dataSize = data->size();
-    if (0 == dataSize) {
-        IE_THROW() << "Input data is empty. Input name: \'" << name << "\'";
-    }
     if (inputTensorsMap.find(name) != inputTensorsMap.end()) {
         inputTensorsMap.erase(name);
     }
@@ -202,13 +198,18 @@ void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) {
                                     << (is_input ? "input" : "output") << " precision";
     }
 
-    size_t dataBinSize = dataSize * data->element_size();
     size_t netReqBinSize = std::accumulate(desc.getDims().begin(), desc.getDims().end(),
                                            desc.getPrecision().size(),
                                            std::multiplies<size_t>());
     auto node = is_input ? findInputByNodeName(name) : findOutputByNodeName(name);
     bool isDynamic = (node && node->get_output_partial_shape(0).is_dynamic());
 
+    size_t dataSize = data->size();
+    if (0 == dataSize && !isDynamic) {
+        IE_THROW() << "Input data is empty. Input name: \'" << name << "\'";
+    }
+
+    size_t dataBinSize = dataSize * data->element_size();
     if (!isDynamic && dataBinSize != netReqBinSize) {
         IE_THROW() << "Incorrect binary data size for " << (is_input ? "input" : "output") <<
                       " blob with name: \'" << name <<  "\' " <<
@@ -1052,10 +1053,19 @@ InferenceEngine::Blob::Ptr InferRequest::create_device_blob(const InferenceEngin
     auto dt = DataTypeFromPrecision(desc.getPrecision());
     ov::PartialShape shape(desc.getDims());
 
+    // Currently, clDeviceMemAllocINTEL returns memory address allocated to other input blob if the current blob is empty
+    // W/A for this issue:
+    // Allocate with non-empty shape and then reinterprete with original shape
+    for (auto &i : shape) {
+        if (i == 0)
+            i = 1;
+    }
+
     auto l = cldnn::layout(shape, dt, format);
 
     if (m_graph->get_engine().use_unified_shared_memory()) {
-        return create_remote_blob<RemoteUSMbuffer>(desc, l, BlobType::BT_USM_DEVICE_INTERNAL);
+        auto blob = create_remote_blob<RemoteUSMbuffer>(desc, l, BlobType::BT_USM_DEVICE_INTERNAL);
+        return reinterpret_device_blob(blob, desc);
     } else {
         return create_remote_blob<RemoteCLbuffer>(desc, l, BlobType::BT_BUF_INTERNAL);
     }
