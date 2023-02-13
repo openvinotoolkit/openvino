@@ -42,6 +42,7 @@ private:
     SplitConnection split_connection;
     CropConnection crop_connection;
     const Config& gna_config;
+    size_t mem_alignment = 0;
 
     intel_dnn_component_t* find_first_unused_input(InferenceEngine::CNNLayerPtr current);
 
