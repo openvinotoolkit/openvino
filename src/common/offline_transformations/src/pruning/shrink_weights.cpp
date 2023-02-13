@@ -59,15 +59,14 @@ static bool maybe_adopt_reshape_node(std::shared_ptr<ov::Node> reshape, ngraph::
         return false;
     }
 
-    const auto& output_shape = reshape->get_output_shape(0);
     const auto new_shape = get_constant_from_source(shape)->cast_vector<int64_t>();
     auto sub_const_vector = std::vector<int64_t>();
     bool all_zeros = true;
     for (size_t i = 0; i < mask->size(); i++) {
-        if (new_shape[i] <= 0 || new_shape[i] == (output_shape[i] - static_cast<int64_t>(mask->at(i).size()))) {
+        if (new_shape[i] <= 0) {
             sub_const_vector.push_back(0);
         } else {
-            all_zeros = false;
+            all_zeros = all_zeros && mask->at(i).size() == 0;
             sub_const_vector.push_back(mask->at(i).size());
         }
     }
