@@ -20,13 +20,17 @@ inline uint get_common_index(
     return x0*p0 + x1*p1 + x2*p2 + x3*p3 + x4*p4 + x5*p5 + x6*p6 + x7*p7 + x8*p8;
 }
 
+inline uint ALIGN(uint x, uint y){
+    return (x + y - 1) / y * y;
+}
+
 #define GET_FILTER_OS_IS_YX_ISV_OSV_INDEX(prefix, o, i, y, x, osv, isv) \
     get_common_index(                                                   \
         o%osv, i%isv, x, y, i/isv, o/osv, 0, 0,                         \
         osv, isv,                                                       \
         CAT(prefix, _SIZE_X),                                           \
         CAT(prefix, _SIZE_Y),                                           \
-        alignas(CAT(prefix, _IFM_NUM), isv),                            \
+        ALIGN(CAT(prefix, _IFM_NUM), isv),                            \
         0, 0)
 
 #define GET_FILTER_OS_IS_ZYX_ISV_OSV_INDEX(prefix, o, i, z, y, x, osv, isv) \
@@ -36,7 +40,7 @@ inline uint get_common_index(
         CAT(prefix, _SIZE_X),                                           \
         CAT(prefix, _SIZE_Y),                                           \
         CAT(prefix, _SIZE_Z),                                           \
-        alignas(CAT(prefix, _IFM_NUM), isv),                            \
+        ALIGN(CAT(prefix, _IFM_NUM), isv),                            \
         0)
 
 #define GET_FILTER_IS_OS_ZYX_ISV_OSV_INDEX(prefix, o, i, z, y, x, osv, isv) \
@@ -46,7 +50,7 @@ inline uint get_common_index(
         CAT(prefix, _SIZE_X),                                           \
         CAT(prefix, _SIZE_Y),                                           \
         CAT(prefix, _SIZE_Z),                                           \
-        alignas(CAT(prefix, _OFM_NUM), osv),                            \
+        ALIGN(CAT(prefix, _OFM_NUM), osv),                            \
         0)
 
 #define GET_FILTER_IS_OS_YX_ISV_OSV_INDEX(prefix, o, i, y, x, osv, isv) \
@@ -55,7 +59,7 @@ inline uint get_common_index(
         osv, isv,                                                       \
         CAT(prefix, _SIZE_X),                                           \
         CAT(prefix, _SIZE_Y),                                           \
-        alignas(CAT(prefix, _OFM_NUM), osv),                            \
+        ALIGN(CAT(prefix, _OFM_NUM), osv),                            \
         0, 0)
 
 #define GET_FILTER_G_OS_IS_ZYX_OSV_ISV_INDEX(prefix, g, o, i, z, y, x, osv, isv)   \
@@ -65,8 +69,8 @@ inline uint get_common_index(
         CAT(prefix, _SIZE_X),                                           \
         CAT(prefix, _SIZE_Y),                                           \
         CAT(prefix, _SIZE_Z),                                           \
-        alignas(CAT(prefix, _IFM_NUM), isv),                            \
-        alignas(CAT(prefix, _OFM_NUM), osv))
+        ALIGN(CAT(prefix, _IFM_NUM), isv),                            \
+        ALIGN(CAT(prefix, _OFM_NUM), osv))
 
 #define GET_FILTER_OS_IS_YX_OSV_ISV_INDEX(prefix, o, i, y, x, osv, isv) \
     get_common_index(                                                   \
@@ -74,7 +78,7 @@ inline uint get_common_index(
         isv, osv,                                                       \
         CAT(prefix, _SIZE_X),                                           \
         CAT(prefix, _SIZE_Y),                                           \
-        alignas(CAT(prefix, _IFM_NUM), isv),                            \
+        ALIGN(CAT(prefix, _IFM_NUM), isv),                            \
         0, 0)
 
 #define GET_FILTER_OS_IS_ZYX_OSV_ISV_INDEX(prefix, o, i, z, y, x, osv, isv)   \
@@ -84,7 +88,7 @@ inline uint get_common_index(
         CAT(prefix, _SIZE_X),                                           \
         CAT(prefix, _SIZE_Y),                                           \
         CAT(prefix, _SIZE_Z),                                           \
-        alignas(CAT(prefix, _IFM_NUM), isv),                            \
+        ALIGN(CAT(prefix, _IFM_NUM), isv),                            \
         0)
 
 #define GET_FILTER_OS_IS_YX_ISV8_OSV16_ISV2_INDEX(prefix, o, i, y, x) \
