@@ -50,6 +50,17 @@ ov::op::v0::Constant::Constant(const shared_ptr<ngraph::runtime::Tensor>& tensor
     constructor_validate_and_infer_types();
 }
 
+ov::op::v0::Constant::Constant(const ov::Tensor& tensor) {
+    m_element_type = tensor.get_element_type();
+    m_shape = tensor.get_shape();
+    // Share data from ov::Tensor
+    m_data = make_shared<ngraph::runtime::SharedBuffer<ov::Tensor>>(static_cast<char*>(tensor.data()),
+                                                                    tensor.get_byte_size(),
+                                                                    tensor);
+
+    constructor_validate_and_infer_types();
+}
+
 ov::op::v0::Constant::Constant(const element::Type& type,
                                const ov::Shape& shape,
                                const std::vector<std::string>& values)
