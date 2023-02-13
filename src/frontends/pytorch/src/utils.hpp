@@ -22,7 +22,7 @@ void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_
 
 Output<Node> make_optional_bias(const Output<Node>& base_op,
                                 const NodeContext& context,
-                                size_t bias_input_idx,
+                                int bias_input_idx,
                                 const std::vector<int>& unsqueeze_dims = {});
 
 Output<Node> reshape_channelwise(const NodeContext& context,
