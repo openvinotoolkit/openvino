@@ -19,7 +19,7 @@ from openvino.tools.benchmark.utils.utils import next_step, get_number_iteration
     get_command_line_arguments, parse_value_per_device, parse_devices, get_inputs_info, \
     print_inputs_and_outputs_info, get_network_batch_size, load_config, dump_config, get_latency_groups, \
     check_for_static, can_measure_as_static, parse_value_for_virtual_device
-from openvino.tools.benchmark.utils.statistics_report import JsonStatisticsReport, CsvStatisticsReport, \
+from openvino.tools.benchmark.utils.statistics_report import StatisticsReport, JsonStatisticsReport, CsvStatisticsReport, \
     averageCntReport, detailedCntReport
 
 def parse_and_check_command_line():
