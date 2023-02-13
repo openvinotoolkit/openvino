@@ -18,25 +18,30 @@ class TestAdd(PytorchLayerTest):
     def _prepare_input(self):
         return (np.random.randn(2, 5, 3, 4).astype(np.float32), self.input_rhs)
 
-    def create_model(self, alpha):
+    def create_model(self, alpha, op_type):
         class aten_add(torch.nn.Module):
 
-            def __init__(self, alpha) -> None:
+            def __init__(self, alpha, op) -> None:
                 super().__init__()
                 self.alpha = alpha
+                self.forward = self.forward1 if op == "add" else self.forward2
 
-            def forward(self, lhs, rhs):
+            def forward1(self, lhs, rhs):
                 return torch.add(lhs, rhs, alpha=self.alpha)
+
+            def forward2(self, lhs, rhs):
+                return lhs.add_(rhs, alpha=self.alpha)
 
         ref_net = None
 
-        return aten_add(alpha), ref_net, "aten::add"
+        return aten_add(alpha, op_type), ref_net, f"aten::{op_type}"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_add(self, ie_device, precision, ir_version, alpha, input_rhs):
+    @pytest.mark.parametrize("op_type", ["add", "add_"])
+    def test_add(self, ie_device, precision, ir_version, alpha, input_rhs, op_type):
         self.input_rhs = input_rhs
-        self._test(*self.create_model(alpha), ie_device, precision, ir_version)
+        self._test(*self.create_model(alpha, op_type), ie_device, precision, ir_version)
 
 
 class TestAddTypes(PytorchLayerTest):
