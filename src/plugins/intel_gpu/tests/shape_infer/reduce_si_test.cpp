@@ -54,7 +54,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, reduce_test,
         {
             layout{ov::PartialShape{1, 1, 1, 1}, data_types::f32, format::bfyx},
             reduce_mode::max, {1}, false,
-            layout{ov::PartialShape{1}, data_types::f32, format::bfyx}
+            layout{ov::PartialShape{1, 1, 1}, data_types::f32, format::bfyx}
         },
             {
             layout{ov::PartialShape{1, 1, 1, 1}, data_types::f32, format::bfyx},

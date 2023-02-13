@@ -12,7 +12,7 @@
 class GnaMockApiInitializer {
     GNACppApi _mock_api;
     std::vector<std::vector<uint8_t>> _mocked_gna_memory;
-    Gna2DeviceVersion _gna_device_version = Gna2DeviceVersionSoftwareEmulation;
+    Gna2DeviceVersion _gna_device_version = Gna2DeviceVersion::Gna2DeviceVersionSoftwareEmulation;
     bool _create_model = true;
 
 public:
