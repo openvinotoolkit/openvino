@@ -1,8 +1,9 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #include "ie_parallel_custom_arena.hpp"
+
+#include <cstring>
 
 #include "itt.hpp"
 
