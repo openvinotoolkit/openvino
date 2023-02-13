@@ -10,7 +10,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <openvino/opsets/opset10.hpp>
-#include <openvino/opsets/opset3.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -21,9 +20,9 @@ using namespace ov::element;
 
 void ov::pass::ConvertBatchToSpace::convert_batch_to_space() {
     MATCHER_SCOPE(ConvertBatchToSpace_convert_batch_to_space);
-    const auto batch_to_space = pattern::wrap_type<opset3::BatchToSpace>();
+    const auto batch_to_space = pattern::wrap_type<BatchToSpace>();
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        const auto batch_to_space = dynamic_pointer_cast<opset3::BatchToSpace>(m.get_match_root());
+        const auto batch_to_space = dynamic_pointer_cast<BatchToSpace>(m.get_match_root());
         if (!batch_to_space || transformation_callback(batch_to_space)) {
             return false;
         }
@@ -36,11 +35,11 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space() {
 
         const auto data_shape_rank = data.get_partial_shape().rank();
         if (data_shape_rank.is_dynamic()) {
-            return false;  // beacuse StridedSlice masks are std::vector
+            return false;  // because StridedSlice masks are std::vector
         }
 
         // static data shape rank implies static block shape
-        const auto block_lenght = static_cast<int64_t>(block.get_shape()[0]);
+        const auto block_length = static_cast<int64_t>(block.get_shape()[0]);
 
         // First we have to disperse the data from batch, then rearrange them
         // so as appropriate chunks of data where close to their destination place.
@@ -57,7 +56,7 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space() {
         //      D_{N - 1}]),
         //      where B_i = block_shape[i]
         const auto one = rg.make<Constant>(i64, Shape{1}, 1);
-        const auto end = rg.make<Constant>(i64, Shape{1}, block_lenght);
+        const auto end = rg.make<Constant>(i64, Shape{1}, block_length);
         const auto block_tail = rg.make<Slice>(block, one, end, one);
         const auto data_shape_tail = rg.make<Slice>(shape_of_data, one, end, one);
         const auto dispersed_shape = rg.make<Concat>(OutputVector{block_tail, batch_div, data_shape_tail}, 0);
@@ -66,9 +65,9 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space() {
 
         // calculate axes to transpose
         //      x'' = transpose(x', [N, N + 1, 0, N + 2, 1, ..., N + N - 1, N - 1])
-        vector<int64_t> axes_order{block_lenght - 1};
-        for (int64_t i = 0; i < block_lenght - 1; ++i) {
-            axes_order.push_back(i + block_lenght);
+        vector<int64_t> axes_order{block_length - 1};
+        for (int64_t i = 0; i < block_length - 1; ++i) {
+            axes_order.push_back(i + block_length);
             axes_order.push_back(i);
         }
         const auto axes_order_const = rg.make<Constant>(i64, Shape{axes_order.size()}, axes_order);
@@ -105,9 +104,9 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space() {
 
 void ov::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
     MATCHER_SCOPE(ConvertBatchToSpace_convert_batch_to_space_by_elements);
-    const auto batch_to_space = pattern::wrap_type<opset3::BatchToSpace>();
+    const auto batch_to_space = pattern::wrap_type<BatchToSpace>();
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        const auto batch_to_space = dynamic_pointer_cast<opset3::BatchToSpace>(m.get_match_root());
+        const auto batch_to_space = dynamic_pointer_cast<BatchToSpace>(m.get_match_root());
         if (!batch_to_space || transformation_callback(batch_to_space)) {
             return false;
         }
@@ -116,7 +115,7 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
 
         const auto data_shape_rank = data.get_partial_shape().rank();
         if (data_shape_rank.is_dynamic()) {
-            return false;  // beacuse StridedSlice masks are std::vector
+            return false;  // because StridedSlice masks are std::vector
         }
 
         const auto block = batch_to_space->input_value(1);
@@ -124,7 +123,7 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
         const auto crops_end = batch_to_space->input_value(3);
 
         // static data shape rank implies static block shape
-        const auto block_lenght = static_cast<int64_t>(block.get_shape()[0]);
+        const auto block_length = static_cast<int64_t>(block.get_shape()[0]);
 
         NodeRegistry rg;
         const auto zero = rg.make<Constant>(i64, Shape{1}, 0);
@@ -143,14 +142,15 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
             nodes.erase(remove_if(nodes.begin(),
                                   nodes.end(),
                                   [](const Output<Node>& n) {
-                                      return n.get_shape()[0] == 0;
+                                      return n.get_partial_shape().is_static() && n.get_shape().size() > 0 &&
+                                             n.get_shape()[0] == 0;
                                   }),
                         nodes.end());
             return rg.make<Concat>(nodes, 0);
         };
 
         shared_ptr<Node> div;
-        for (int64_t b_idx = 1; b_idx < block_lenght; ++b_idx) {
+        for (int64_t b_idx = 1; b_idx < block_length; ++b_idx) {
             const auto block_index = rg.make<Constant>(i64, Shape{1}, b_idx);
             const auto block_index_next = rg.make<Constant>(i64, Shape{1}, b_idx + 1);
             const auto block_value = rg.make<Gather>(block, block_index, zero);
@@ -168,9 +168,9 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
             constexpr auto special_zero = false;
             flat_node = rg.make<Reshape>(flat_node, dispersed_shape, special_zero);
 
-            vector<int64_t> axes_order(block_lenght + 1);
+            vector<int64_t> axes_order(block_length + 1);
             int64_t val = 1;
-            for (int64_t axis_idx = 0; axis_idx <= block_lenght; ++axis_idx) {
+            for (int64_t axis_idx = 0; axis_idx <= block_length; ++axis_idx) {
                 if ((b_idx + 1) == axis_idx) {
                     axes_order[axis_idx] = 0;
                 } else {

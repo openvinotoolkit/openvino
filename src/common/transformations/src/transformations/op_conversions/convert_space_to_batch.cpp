@@ -9,7 +9,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <openvino/opsets/opset10.hpp>
-#include <openvino/opsets/opset3.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -20,9 +19,9 @@ using namespace ov::element;
 
 void ov::pass::ConvertSpaceToBatch::convert_space_to_batch() {
     MATCHER_SCOPE(ConvertSpaceToBatch_convert_space_to_batch);
-    const auto space_to_batch = pattern::wrap_type<opset3::SpaceToBatch>();
+    const auto space_to_batch = pattern::wrap_type<SpaceToBatch>();
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        const auto space_to_batch = dynamic_pointer_cast<opset3::SpaceToBatch>(m.get_match_root());
+        const auto space_to_batch = dynamic_pointer_cast<SpaceToBatch>(m.get_match_root());
         if (!space_to_batch || transformation_callback(space_to_batch)) {
             return false;
         }
@@ -37,7 +36,7 @@ void ov::pass::ConvertSpaceToBatch::convert_space_to_batch() {
         const auto pads_end = space_to_batch->input_value(3);
 
         // static data shape rank implies static block shape
-        const auto block_lenght = static_cast<int64_t>(block.get_shape()[0]);
+        const auto block_length = static_cast<int64_t>(block.get_shape()[0]);
 
         NodeRegistry rg;
 
@@ -69,20 +68,20 @@ void ov::pass::ConvertSpaceToBatch::convert_space_to_batch() {
         // interleave os_tail_div with block_tail
         const auto c = rg.make<Concat>(NodeVector{os_tail_div, block_tail}, 0);
         const auto r =
-            rg.make<Reshape>(c, rg.make<Constant>(i64, Shape{2}, vector<int64_t>{2, block_lenght - 1}), false);
+            rg.make<Reshape>(c, rg.make<Constant>(i64, Shape{2}, vector<int64_t>{2, block_length - 1}), false);
         const auto t = rg.make<Transpose>(r, rg.make<Constant>(i64, Shape{2}, vector<int64_t>{1, 0}));
-        const auto interleaved = rg.make<Reshape>(t, rg.make<Constant>(i64, Shape{1}, 2 * (block_lenght - 1)), false);
+        const auto interleaved = rg.make<Reshape>(t, rg.make<Constant>(i64, Shape{1}, 2 * (block_length - 1)), false);
 
         const auto dispersed_shape = rg.make<Concat>(NodeVector{batch, interleaved}, 0);
         flat_node = rg.make<Reshape>(flat_node, dispersed_shape, false);
 
         //    x'' = transpose(x',  [2, 4, ..., (N - 1) + (N - 1), 0, 1, 3, ..., N + (N - 1)])
         vector<int64_t> axes_order;
-        for (int64_t i = 0, j = 2; i < block_lenght - 1; ++i, j += 2) {
+        for (int64_t i = 0, j = 2; i < block_length - 1; ++i, j += 2) {
             axes_order.push_back(j);
         }
         axes_order.push_back(0);
-        for (int64_t i = 0, j = 1; i < block_lenght - 1; ++i, j += 2) {
+        for (int64_t i = 0, j = 1; i < block_length - 1; ++i, j += 2) {
             axes_order.push_back(j);
         }
 
@@ -108,9 +107,9 @@ void ov::pass::ConvertSpaceToBatch::convert_space_to_batch() {
 
 void ov::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
     MATCHER_SCOPE(ConvertSpaceToBatch_convert_space_to_batch_by_elements);
-    const auto space_to_batch = pattern::wrap_type<opset3::SpaceToBatch>();
+    const auto space_to_batch = pattern::wrap_type<SpaceToBatch>();
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        const auto space_to_batch = dynamic_pointer_cast<opset3::SpaceToBatch>(m.get_match_root());
+        const auto space_to_batch = dynamic_pointer_cast<SpaceToBatch>(m.get_match_root());
         if (!space_to_batch || transformation_callback(space_to_batch)) {
             return false;
         }
@@ -125,7 +124,7 @@ void ov::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
         const auto pads_end = space_to_batch->input_value(3);
 
         // static data shape rank implies static block shape
-        const auto block_lenght = static_cast<int64_t>(block.get_shape()[0]);
+        const auto block_length = static_cast<int64_t>(block.get_shape()[0]);
 
         NodeRegistry rg;
 
@@ -137,28 +136,28 @@ void ov::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
         const auto one = rg.make<Constant>(i64, Shape{1}, 1);
         const auto int_max = rg.make<Constant>(i64, Shape{1}, INT_MAX);
 
-        for (int64_t b_idx = block_lenght - 1; b_idx >= 0; --b_idx) {
+        for (int64_t b_idx = block_length - 1; b_idx >= 0; --b_idx) {
             const auto block_index = rg.make<Constant>(i64, Shape{1}, b_idx);
             const auto block_index_next = rg.make<Constant>(i64, Shape{1}, b_idx + 1);
             const auto block_value = rg.make<Gather>(block, block_index, zero);
 
             NodeVector dispersed_shape_prep;
-            dispersed_shape_prep.reserve(block_lenght + 1);
+            dispersed_shape_prep.reserve(block_length + 1);
             if (b_idx > 0)  // avoid addind empty Slice into Concat
                 dispersed_shape_prep.push_back(rg.make<Slice>(squeezed_shape, zero, block_index, one));
             const auto squeezed_element = rg.make<Gather>(squeezed_shape, block_index, zero);
             dispersed_shape_prep.push_back(rg.make<Divide>(squeezed_element, block_value));
             dispersed_shape_prep.push_back(block_value);
-            if (b_idx + 1 < block_lenght)  // avoid addind empty Slice into Concat
+            if (b_idx + 1 < block_length)  // avoid addind empty Slice into Concat
                 dispersed_shape_prep.push_back(rg.make<Slice>(squeezed_shape, block_index_next, int_max, one));
 
             const auto dispersed_shape = rg.make<Concat>(dispersed_shape_prep, 0);
             constexpr auto special_zero = false;
             flat_node = rg.make<Reshape>(flat_node, dispersed_shape, special_zero);
 
-            vector<int64_t> axes_order(block_lenght + 1);
+            vector<int64_t> axes_order(block_length + 1);
             int64_t axis_idx = axes_order.size() - 1;
-            for (int64_t ds_idx = block_lenght; ds_idx >= 0; --ds_idx) {
+            for (int64_t ds_idx = block_length; ds_idx >= 0; --ds_idx) {
                 if (ds_idx == (b_idx + 1)) {
                     axes_order[0] = ds_idx;
                 } else if (ds_idx == b_idx) {
@@ -175,7 +174,7 @@ void ov::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
             // don't change squeezed_shape at the last iteration, block[0] is assumed to be 1 by op definion
             if (b_idx > 0) {
                 NodeVector squeezed_shape_prep;
-                squeezed_shape_prep.reserve(block_lenght);
+                squeezed_shape_prep.reserve(block_length);
                 squeezed_shape_prep.push_back(
                     rg.make<Multiply>(rg.make<Gather>(squeezed_shape, zero, zero), block_value));
                 if (b_idx > 1) {  // avoid addind empty Slice into Concat
@@ -183,7 +182,7 @@ void ov::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
                 }
                 squeezed_shape_prep.push_back(
                     rg.make<Divide>(rg.make<Gather>(squeezed_shape, block_index, zero), block_value));
-                if (b_idx + 1 < block_lenght) {  // avoid addind empty Slice into Concat
+                if (b_idx + 1 < block_length) {  // avoid addind empty Slice into Concat
                     squeezed_shape_prep.push_back(rg.make<Slice>(squeezed_shape, block_index_next, int_max, one));
                 }
 
