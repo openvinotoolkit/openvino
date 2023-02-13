@@ -31,6 +31,8 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "preprocessing/preprocessing.hpp"
+#include "transformations/common_optimizations/moc_transformations.hpp"
+#include "transformations/low_precision/compress_quantize_weights.hpp"
 #include "xml_parse_utils.h"
 
 ov::ICore::~ICore() = default;
@@ -1159,9 +1161,19 @@ ov::AnyMap ov::flatten_sub_properties(const std::string& device, const ov::AnyMa
     return result;
 }
 
+static void apply_moc_transformations(const std::shared_ptr<ov::Model>& model) {
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::MOCTransformations>(false);
+    manager.register_pass<ngraph::pass::CompressQuantizeWeights>();
+    manager.register_pass<ngraph::pass::ZeroPointOptimizer>();
+    manager.run_passes(model);
+}
+
 std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& modelPath, const std::string& binPath) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::read_model from file");
-    return ReadNetwork(modelPath, binPath).getFunction();
+    auto function = ReadNetwork(modelPath, binPath).getFunction();
+    apply_moc_transformations(function);
+    return function;
 }
 
 std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& model,
@@ -1172,5 +1184,7 @@ std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& model,
         blob = weights._impl;
     }
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::read_model from memory");
-    return ReadNetwork(model, blob, frontendMode).getFunction();
+    auto function = ReadNetwork(model, blob, frontendMode).getFunction();
+    apply_moc_transformations(function);
+    return function;
 }

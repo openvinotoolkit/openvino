@@ -6,7 +6,6 @@
 
 #include <pybind11/stl.h>
 
-#include <compress_quantize_weights.hpp>
 #include <generate_mapping_file.hpp>
 #include <openvino/pass/make_stateful.hpp>
 #include <openvino/pass/serialize.hpp>
@@ -17,6 +16,7 @@
 #include <transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp>
 #include <transformations/common_optimizations/moc_legacy_transformations.hpp>
 #include <transformations/common_optimizations/moc_transformations.hpp>
+#include <transformations/low_precision/compress_quantize_weights.hpp>
 #include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
 #include <transformations/smart_reshape/smart_reshape.hpp>
 

@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <compress_quantize_weights.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
 #include <openvino/pass/constant_folding.hpp>
+#include <transformations/low_precision/compress_quantize_weights.hpp>
 
 static bool has_dequantization_subgraph(const std::shared_ptr<ngraph::Node>& first_convert) {
     auto first_convert_users = first_convert->get_users();

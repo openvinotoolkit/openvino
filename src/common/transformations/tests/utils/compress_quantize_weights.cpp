@@ -4,12 +4,12 @@
 
 #include <gtest/gtest.h>
 
-#include <compress_quantize_weights.hpp>
 #include <memory>
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <transformations/init_node_info.hpp>
+#include <transformations/low_precision/compress_quantize_weights.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
