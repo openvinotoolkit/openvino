@@ -4,6 +4,7 @@
 
 #include "transpose.h"
 #include "ie_parallel.hpp"
+#include "nodes/common/reorder_prim.h"
 
 #include <algorithm>
 #include <string>
@@ -16,31 +17,6 @@ using namespace InferenceEngine;
 namespace ov {
 namespace intel_cpu {
 namespace node {
-namespace {
-struct TransposeAsReorderKey {
-    dnnl::memory::desc src;
-    dnnl::memory::desc dest;
-    size_t hash() const;
-    bool operator==(const TransposeAsReorderKey& rhs) const;
-};
-
-size_t TransposeAsReorderKey::hash() const {
-    using namespace dnnl::impl;
-    using namespace dnnl::impl::primitive_hashing;
-
-    size_t seed = 0;
-    seed = hash_combine(seed, get_md_hash(src.data));
-    seed = hash_combine(seed, get_md_hash(dest.data));
-
-    return seed;
-}
-
-bool TransposeAsReorderKey::operator==(const TransposeAsReorderKey& rhs) const {
-    bool retVal = true;
-    retVal = src == rhs.src && dest == rhs.dest;
-    return retVal;
-}
-}  // namespace
 
 bool Transpose::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -147,48 +123,21 @@ bool Transpose::needPrepareParams() const {
 
 void Transpose::prepareParams() {
     if (performAsReorder) {
-        dnnl::primitive_attr attr;
-        const auto engine = getEngine();
-        auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+        //  Transpose(order={0,3,1,2}) can be performed as Reorder(acdb=>abcd)
         auto& srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
-        MemoryPtr src_blocked = std::make_shared<Memory>(engine);
-        MemoryPtr dst_blocked = std::make_shared<Memory>(engine);
-
-        dst_blocked->Create(
-            DnnlExtensionUtils::makeDescriptor(dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc()),
-            dstMemPtr->GetData(), false);
-
-        const auto newDims = dst_blocked->getStaticDims();
-        auto newDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(newDims),
-                                            dst_blocked->GetDataType(),
-                                            memory::format_tag::acdb);
-        src_blocked->Create(DnnlExtensionUtils::makeDescriptor(newDesc), srcMemPtr->GetData(), false);
-
-        impl_desc_type impl_type = getSelectedPrimitiveDescriptor()->getImplementationType();
-        TransposeAsReorderKey key = {src_blocked->GetPrimitive().get_desc(), dst_blocked->GetPrimitive().get_desc()};
-        auto builder = [&engine, &impl_type](const TransposeAsReorderKey& key) -> std::shared_ptr<dnnl::primitive> {
-            dnnl::primitive_attr attr;
-            reorder::primitive_desc pd = dnnl::reorder::primitive_desc(engine, key.src, engine, key.dest, attr, true);
-
-            if (!pd)
-                return nullptr;
-            auto info = pd.impl_info_str();
-            impl_type = parse_impl_name(info);
-            return std::make_shared<dnnl::reorder>(pd);
-        };
-
-        auto cache = context->getParamsCache();
-        auto result = cache->getOrCreate(key, builder);
-
-        if (!result.first) {
+        auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+        auto dstDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+        auto srcDesc = dnnl::memory::desc(dstDesc.dims(), dstDesc.data_type(), memory::format_tag::acdb);
+        auto result = getReorderPrim(context->getParamsCache(), getEngine(), srcDesc, dstDesc);
+        if (!result) {
             IE_THROW() << "Reorder primitive descriptor was not found for Transpose node " << getName() << ".";
         }
+        prim = result;
 
-        prim = result.first;
+        getSelectedPrimitiveDescriptor()->setImplementationType(
+            parse_impl_name(DnnlExtensionUtils::query_impl_info_str(prim.get_primitive_desc())));
 
-        supportedPrimitiveDescriptors[0].setImplementationType(impl_type);
-        primArgs = {{DNNL_ARG_SRC, getParentEdgesAtPort(INPUT_DATA_IDX)[0]->getMemoryPtr()->GetPrimitive()},
-                    {DNNL_ARG_DST, getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive()}};
+        primArgs = {{DNNL_ARG_SRC, srcMemPtr->GetPrimitive()}, {DNNL_ARG_DST, dstMemPtr->GetPrimitive()}};
         return;
     }
 
@@ -358,7 +307,7 @@ void Transpose::optimizedExecute(const int MB, const MemoryPtr& srcMemPtr, Memor
 
 void Transpose::execute(dnnl::stream strm) {
     if (prim) {
-        (*prim).execute(strm, primArgs);
+        prim.execute(strm, primArgs);
     } else if (execPtr) {
         auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
         auto &srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
