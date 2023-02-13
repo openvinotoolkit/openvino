@@ -13,6 +13,7 @@ namespace op {
 
 OutputVector translate_list_construct(NodeContext& context) {
     // Process the case when prim::ListConstruct has all inputs constant
+    auto const_0 = context.mark_node(opset10::Constant::create(element::i32, Shape{}, {0}));
     ov::OutputVector consts;
     for (int i = 0; i < context.get_input_size(); i++) {
         auto input = context.get_input_from_visible_context(i);
@@ -21,7 +22,8 @@ OutputVector translate_list_construct(NodeContext& context) {
         if (c_node->get_shape().size() == 0) {
             c_node = std::make_shared<opset10::Constant>(c_node->get_element_type(), Shape{1}, c_node->get_data_ptr());
         }
-        consts.push_back(c_node);
+        auto unsqueezed_c_node = std::make_shared<opset10::Unsqueeze>(c_node, const_0);
+        consts.push_back(unsqueezed_c_node);
     }
     auto list_construct = std::make_shared<opset10::Concat>(consts, 0);
     if (list_construct->has_evaluate()) {
