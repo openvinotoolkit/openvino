@@ -53,10 +53,10 @@ void ConvertToInt16(int16_t* ptr_dst,
 Convert legacy transposition info to preprocessing model
  */
 std::shared_ptr<ov::Model> ToProcessModel(const TranspositionInfo& t_info) {
-    size_t c_size = t_info.num_transpose_rows;
-    size_t hw_size = t_info.num_transpose_columns;
+    int32_t c_size = t_info.num_transpose_rows;
+    int32_t hw_size = t_info.num_transpose_columns;
 
-    ov::PartialShape input_shape = {1, c_size, hw_size};
+    ov::PartialShape input_shape{1, c_size, hw_size};
     auto param = std::make_shared<Parameter>(element::f32, input_shape);
 
     // legacy way was to revert C and HW dimentions in the reshaped tensor
@@ -80,7 +80,7 @@ std::shared_ptr<ov::Model> ToProcessModel(const TranspositionInfo& t_info) {
     Convert legacy transposition info to preprocessing model
  */
 std::shared_ptr<ov::Model> ToProcessModel(const std::vector<TranspositionInfo>& transposes) {
-    // case wheb the input should be transposed entirely
+    // case when the input should be transposed entirely
     if (transposes.size() == 1) {
         return ToProcessModel(transposes.front());
     }
@@ -99,7 +99,7 @@ std::shared_ptr<ov::Model> ToProcessModel(const std::vector<TranspositionInfo>& 
 
     auto param = std::make_shared<Parameter>(element::f32, ov::Shape{1, indexes.size()});
     // legacy way was to revert C and HW dimentions in the reshaped tensor
-    std::vector<int32_t> reshape_pattern{-1, indexes.size()};
+    std::vector<int32_t> reshape_pattern{-1, static_cast<int32_t>(indexes.size())};
     auto reshape_const = std::make_shared<Constant>(element::i32, Shape{reshape_pattern.size()}, reshape_pattern);
     auto reshape = std::make_shared<Reshape>(param, reshape_const, false);
 
