@@ -20,7 +20,7 @@ ov::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolate4()
     MATCHER_SCOPE(ConvertInterpolate1ToInterpolate4);
     auto interpolate1 = ngraph::pattern::wrap_type<ov::opset1::Interpolate>(
         {pattern::any_input(pattern::has_static_rank()), pattern::any_input()});
-    matcher_pass_callback callback = [this](pattern::Matcher& m) {
+    matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto interpolationV0 = std::dynamic_pointer_cast<ov::opset1::Interpolate>(m.get_match_root());
         if (!interpolationV0) {
             return false;

@@ -15,7 +15,7 @@ OutputVector translate_list_construct(NodeContext& context) {
     // Process the case when prim::ListConstruct has all inputs constant
     auto const_0 = context.mark_node(opset10::Constant::create(element::i32, Shape{}, {0}));
     ov::OutputVector consts;
-    for (int i = 0; i < context.get_input_size(); i++) {
+    for (size_t i = 0; i < context.get_input_size(); i++) {
         auto input = context.get_input_from_visible_context(i);
         auto c_node = std::dynamic_pointer_cast<opset10::Constant>(input.get_node_shared_ptr());
         FRONT_END_OP_CONVERSION_CHECK(c_node, "Translation for prim::ListConstruct support only constant inputs");
