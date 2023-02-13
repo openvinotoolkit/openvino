@@ -258,7 +258,7 @@ task_arena::task_arena(const task_arena& s)
 void task_arena::initialize() {
     my_task_arena.initialize();
 #    if USE_TBBBIND_2_5
-    TBB_BIND_SCOPE(task_arena_initialize);
+    TBB_BIND_SCOPE(task_arena_initialize)
     std::call_once(my_initialization_state, [this] {
         my_binding_observer =
             detail::construct_binding_observer(my_task_arena, my_task_arena.max_concurrency(), my_constraints);
@@ -269,7 +269,7 @@ void task_arena::initialize() {
 void task_arena::initialize(int max_concurrency_, unsigned reserved_for_masters) {
     my_task_arena.initialize(max_concurrency_, reserved_for_masters);
 #    if USE_TBBBIND_2_5
-    TBB_BIND_SCOPE(task_arena_initialize_max_concurrency);
+    TBB_BIND_SCOPE(task_arena_initialize_max_concurrency)
     std::call_once(my_initialization_state, [this] {
         my_binding_observer =
             detail::construct_binding_observer(my_task_arena, my_task_arena.max_concurrency(), my_constraints);
@@ -280,7 +280,7 @@ void task_arena::initialize(int max_concurrency_, unsigned reserved_for_masters)
 void task_arena::initialize(constraints constraints_, unsigned reserved_for_masters) {
     my_constraints = constraints_;
 #    if USE_TBBBIND_2_5
-    TBB_BIND_SCOPE(task_arena_initialize_constraints);
+    TBB_BIND_SCOPE(task_arena_initialize_constraints)
     my_task_arena.initialize(info::default_concurrency(constraints_), reserved_for_masters);
     std::call_once(my_initialization_state, [this] {
         my_binding_observer =
