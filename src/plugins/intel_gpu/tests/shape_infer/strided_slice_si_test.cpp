@@ -146,6 +146,14 @@ INSTANTIATE_TEST_SUITE_P(smoke, strided_slice_test_four_inputs,
             {1, 0, 1}, {1, 0, 1}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0},
             layout{ov::PartialShape{1, 1, 1024}, data_types::i64, format::bfyx}
         },
+        {
+            layout{ov::PartialShape{200, 128}, data_types::i64, format::bfyx},
+            layout{ov::PartialShape{1}, data_types::i64, format::bfyx}, {0},
+            layout{ov::PartialShape{1}, data_types::i64, format::bfyx}, {15},
+            layout{ov::PartialShape{1}, data_types::i64, format::bfyx}, {1},
+            {0}, {0}, {}, {}, {},
+            layout{ov::PartialShape{15, 128}, data_types::i64, format::bfyx}
+        },
     }));
 
 }  // shape_infer_tests

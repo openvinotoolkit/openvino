@@ -34,7 +34,6 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
     auto desc = impl_param.typed_desc<strided_slice>();
     auto input0_layout = impl_param.get_input_layout(0);
     auto input0_shape = input0_layout.get<ShapeType>();
-    auto input0_rank = input0_shape.size();
 
     auto& constant_mem = impl_param.memory_deps;
     auto begin_data = desc->begin;
@@ -49,10 +48,9 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
     }
 
     ov::op::v1::StridedSlice op;
-
-    ShapeType begin_shape = begin_data.empty() ? ov::Shape{ input0_rank } : ov::Shape{ begin_data.size() };
-    ShapeType end_shape = end_data.empty() ? ov::Shape{ input0_rank } : ov::Shape{ end_data.size() };
-    ShapeType strides_shape = strides_data.empty() ? ov::Shape{ input0_rank } : ov::Shape{ strides_data.size() };
+    ShapeType begin_shape = begin_data.empty() ? impl_param.get_input_layout(1).get<ShapeType>() : ov::Shape{ begin_data.size() };
+    ShapeType end_shape = end_data.empty() ? impl_param.get_input_layout(2).get<ShapeType>() : ov::Shape{ end_data.size() };
+    ShapeType strides_shape = strides_data.empty() ? impl_param.get_input_layout(3).get<ShapeType>() : ov::Shape{ strides_data.size() };
 
     std::vector<ShapeType> output_shapes = {ShapeType{}};
     std::vector<ShapeType> input_shapes = {

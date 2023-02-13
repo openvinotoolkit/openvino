@@ -593,6 +593,9 @@ void remove_redundant_reorders::run(program& p) {
 
         auto& reshape_input_node = dep_node.as<reshape>();
 
+        if (reshape_node.is_dynamic())
+            continue;
+
         bool remove_dep = reshape_input_node.get_users().size() == 1 && !reshape_input_node.is_output() &&
                           !reshape_input_node.has_fused_primitives();
         bool remove_current = remove_dep && !reshape_input_node.get_dependencies().empty() &&

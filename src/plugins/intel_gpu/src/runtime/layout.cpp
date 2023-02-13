@@ -277,10 +277,14 @@ std::string layout::to_string() const {
 std::string layout::to_short_string() const {
     std::stringstream s;
     auto dump_shape = [](std::stringstream& stream, const ov::PartialShape& shape) {
-        for (size_t i = 0; i < shape.size(); i++) {
-            stream << shape[i];
-            if (i != shape.size() - 1)
-                stream << "x";
+        if (shape.rank().is_dynamic()) {
+            stream << "...";
+        } else {
+            for (size_t i = 0; i < shape.size(); i++) {
+                stream << shape[i];
+                if (i != shape.size() - 1)
+                    stream << "x";
+            }
         }
     };
 

@@ -403,6 +403,10 @@ struct layout {
             }
             return l.size;
         };
+
+        if (lhs.get_partial_shape().rank() != rhs.get_partial_shape().rank())
+            return false;
+
         auto check_pshape = (lhs.is_dynamic() || rhs.is_dynamic()) ? (lhs.size == rhs.size) : (get_pshape(lhs) == get_pshape(rhs));
         return lhs.data_type == rhs.data_type && lhs.format == rhs.format && check_pshape && lhs.data_padding == rhs.data_padding;
     }

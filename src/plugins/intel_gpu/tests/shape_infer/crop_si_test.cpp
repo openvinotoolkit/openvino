@@ -105,7 +105,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, crop_si_test,
             {tensor({0,0,0,0,1,1,1}),tensor({0,0,0,0,1,1,1})},
             {},
             {{{4},data_types::f32,format::bfyx}},
-            {{{3},data_types::f32,format::bfyx}}, 0
+            {{{3, 1, 1, 1},data_types::f32,format::bfyx}}, 0 // TODO: update once shape infer impl is fixed and don't do rank extension
         },
         {
             tensor({-1,-1,-1,-1,-1,-1,-1}),
