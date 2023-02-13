@@ -178,7 +178,7 @@ class JsonStatisticsReport(StatisticsReport):
                 json_statistics["execution_results"] = \
                     list_to_dict(self.parameters[self.Category.COMMAND_LINE_PARAMETERS])
 
-            json.dump(file, json_statistics)
+            json.dump(json_statistics, file)
             logger.info(f"Statistics report is stored to {file.name}")
 
     def dump_performance_counters(self, prof_info_list):
@@ -199,7 +199,7 @@ class JsonStatisticsReport(StatisticsReport):
 
                     total += info.real_time
                     total_cpu += info.cpu_time
-                    list.extend(node_info_dict)
+                    list.append(node_info_dict)
 
             return list, total, total_cpu
 
@@ -207,16 +207,16 @@ class JsonStatisticsReport(StatisticsReport):
             performance_counters_avg = []
             for prof_info in prof_info_list:
                 for pi in prof_info:
-                    item = next((x for x in performance_counters_avg if x.node_name == pi.node_name), None)
+                    item = next((x for x in performance_counters_avg if x[0].node_name == pi.node_name), None)
                     if item:
-                        item.real_time += pi.real_time
-                        item.cpu_time += pi.cpu_time
+                        item[0].real_time += pi.real_time
+                        item[0].cpu_time += pi.cpu_time
                     else:
                         performance_counters_avg.append([pi])
 
             for pi in performance_counters_avg:
-                pi.real_time /= len(prof_info_list)
-                pi.cpu_time /= len(prof_info_list)
+                pi[0].real_time /= len(prof_info_list)
+                pi[0].cpu_time /= len(prof_info_list)
 
             return performance_counters_avg
 
@@ -254,12 +254,12 @@ class JsonStatisticsReport(StatisticsReport):
                 raise Exception('PM data can only be collected for average or detailed report types')
 
             logger.info(f'Performance counters report is stored to {filename}')
-            json.dump(file, json_statistics)
+            json.dump(json_statistics, file, indent=4)
 
     def dump_performance_counters_sorted(self, prof_sorted_info):
         def profiling_info_to_dict_list(prof_info_matrix: np.ndarray):
-            total = timedelta()
-            total_cpu = timedelta()
+            total = 0
+            total_cpu = 0
 
             list: List[Dict[str, str]] = []
             for info in prof_info_matrix:
@@ -275,12 +275,12 @@ class JsonStatisticsReport(StatisticsReport):
                 total += info[3]
                 total_cpu += info[4]
 
-                list.extend(node_info_dict)
+                list.append(node_info_dict)
 
             return list, total, total_cpu
 
-        filename = os.path.join(self.config.report_folder, f'benchmark_sorted_report.csv')
-        with open(filename, 'w') as f:
+        filename = os.path.join(self.config.report_folder, f'benchmark_sorted_report.json')
+        with open(filename, 'w') as file:
             json_statistics = {}
 
             nodes_info_list, total, total_cpu = profiling_info_to_dict_list(prof_sorted_info)
@@ -288,8 +288,8 @@ class JsonStatisticsReport(StatisticsReport):
             json_statistics['report_type'] = 'sorted'
             json_statistics['avg_performance'] = {
                 'nodes': nodes_info_list,
-                'total_real_time': f"{total / timedelta(milliseconds=1):.3f}",
-                'total_cpu_time': f"{total_cpu / timedelta(milliseconds=1):.3f}"
+                'total_real_time': f"{total / 1000:.3f}",
+                'total_cpu_time': f"{total_cpu / 1000:.3f}"
             }
             logger.info(f'Sorted performance counters report is stored to {filename}')
-            json.dump(file, json_statistics)
+            json.dump(json_statistics, file, indent=4)
