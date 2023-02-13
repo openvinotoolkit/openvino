@@ -68,6 +68,41 @@ ov::Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std
     return {deviceName_, config_};
 }
 
+template <typename T = InferenceEngine::Parameter>
+bool isConfigApplicable(const std::string& device_name, const std::string& property_name) {
+    // full match
+    if (device_name == property_name) {
+        return true;
+    }
+    auto parsed_device_name = ov::parseDeviceNameIntoConfig(device_name);
+    auto parsed_property_name = ov::parseDeviceNameIntoConfig(property_name);
+    // if device name is matched, check additional condition
+    auto is_matched = [&](const std::string& key) -> bool {
+        if (parsed_device_name._config.count(key)) {
+            if (parsed_property_name._config.count(key)) {
+                // additional information is present in both configs, compare
+                return (parsed_device_name._config[key] == parsed_property_name._config[key]);
+            } else {
+                // property without additional limitation can be applied
+                return true;
+            }
+        }
+        return false;
+    };
+    if (parsed_device_name._deviceName == parsed_property_name._deviceName) {
+        if ("HETERO" == parsed_device_name._deviceName) {
+            return is_matched("TARGET_FALLBACK");
+        } else if ("MULTI" == parsed_device_name._deviceName || "AUTO" == parsed_device_name._deviceName) {
+            return is_matched(InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
+        } else if ("BATCH" == parsed_device_name._deviceName ) {
+            return is_matched(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
+        } else {
+            return is_matched(InferenceEngine::PluginConfigParams::KEY_DEVICE_ID);
+        }
+    }
+    return false;
+}
+
 #ifndef OPENVINO_STATIC_LIBRARY
 
 std::string findPluginXML(const std::string& xmlFile);

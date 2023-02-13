@@ -161,6 +161,47 @@ TEST_F(AnyTests, AnyAsMapOfAnys) {
     ASSERT_EQ(refMap["testParamString"].as<std::string>(), testString);
 }
 
+TEST_F(AnyTests, AnyAsMapOfMapOfAnys) {
+    std::map<std::string, Any> refMap1;
+    refMap1["testParamInt"] = 4;
+    refMap1["testParamString"] = "test";
+
+    std::map<std::string, Any> refMap2;
+    refMap2["testParamInt"] = 5;
+    refMap2["testParamString"] = "test2";
+
+    std::map<std::string, Any> refMap;
+    refMap["refMap1"] = refMap1;
+    refMap["refMap2"] = refMap2;
+
+    Any p = refMap;
+    bool isMap = p.is<std::map<std::string, Any>>();
+    ASSERT_TRUE(isMap);
+    auto testMap = p.as<std::map<std::string, Any>>();
+
+    ASSERT_NE(testMap.find("refMap1"), testMap.end());
+    auto testMap1 = testMap.at("refMap1").as<std::map<std::string, Any>>();
+    ASSERT_NE(testMap1.find("testParamInt"), testMap.end());
+    ASSERT_NE(testMap1.find("testParamString"), testMap.end());
+
+    int testInt1 = testMap1["testParamInt"].as<int>();
+    std::string testString1 = testMap1["testParamString"].as<std::string>();
+
+    ASSERT_EQ(refMap1["testParamInt"].as<int>(), testInt1);
+    ASSERT_EQ(refMap1["testParamString"].as<std::string>(), testString1);
+
+    ASSERT_NE(testMap.find("refMap2"), testMap.end());
+    auto testMap2 = testMap.at("refMap2").as<std::map<std::string, Any>>();
+    ASSERT_NE(testMap2.find("testParamInt"), testMap.end());
+    ASSERT_NE(testMap2.find("testParamString"), testMap.end());
+
+    int testInt2 = testMap2["testParamInt"].as<int>();
+    std::string testString2 = testMap2["testParamString"].as<std::string>();
+
+    ASSERT_EQ(refMap2["testParamInt"].as<int>(), testInt2);
+    ASSERT_EQ(refMap2["testParamString"].as<std::string>(), testString2);
+}
+
 TEST_F(AnyTests, AnyNotEmpty) {
     Any p = 4;
     ASSERT_FALSE(p.empty());
@@ -401,7 +442,31 @@ TEST_F(AnyTests, PrintToMapOfAnys) {
     {
         Any p = refMap;
         ASSERT_NO_THROW(p.print(stream));
-        ASSERT_EQ(stream.str(), std::string{"testParamInt 4 testParamString test"});
+        ASSERT_EQ(stream.str(), std::string{"{testParamInt:4,testParamString:test}"});
+    }
+}
+
+TEST_F(AnyTests, PrintToMapOfMapsOfAnys) {
+    std::map<std::string, Any> refMap1;
+    refMap1["testParamInt"] = 4;
+    refMap1["testParamString"] = "test";
+
+    std::map<std::string, Any> refMap2;
+    refMap2["testParamInt"] = 5;
+    refMap2["testParamString"] = "test2";
+
+    std::map<std::string, Any> refMap;
+    refMap["refMap1"] = refMap1;
+    refMap["refMap2"] = refMap2;
+
+    std::stringstream stream;
+    {
+        Any p = refMap;
+        ASSERT_NO_THROW(p.print(stream));
+        ASSERT_EQ(
+            stream.str(),
+            std::string{
+                "{refMap1:{testParamInt:4,testParamString:test},refMap2:{testParamInt:5,testParamString:test2}}"});
     }
 }
 

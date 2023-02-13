@@ -29,34 +29,78 @@ std::string resolve_extension_path(const std::string& path) {
 
 ov::AnyMap flatten_sub_properties(const std::string& device, const ov::AnyMap& properties) {
     ov::AnyMap result = properties;
-    bool isVirtualDev = device.find("AUTO") != std::string::npos || device.find("MULTI") != std::string::npos ||
-                        device.find("HETERO") != std::string::npos;
-    for (auto item = result.begin(); item != result.end();) {
-        auto parsed = ov::parseDeviceNameIntoConfig(item->first);
-        if (!item->second.is<ov::AnyMap>()) {
-            item++;
-            continue;
+    auto is_virtual_device = [&](const std::string& name) -> bool {
+        return (device.find("AUTO") != std::string::npos || device.find("MULTI") != std::string::npos ||
+                device.find("HETERO") != std::string::npos);
+    };
+    auto update_device_property = [&](const ov::AnyMap& sub_properties) -> void {
+        for (auto&& sub_property : sub_properties) {
+            // 1st level property overides 2nd level property
+            // so check original config
+            if (properties.find(sub_property.first) != properties.end())
+                continue;
+            // 2nd level properties in form ov::device::properties(DEVICE, ...) overrides
+            // 2nd level properties in form ov::device::properties(ov::AnyMap{...})
+            // they have been applied in right order
+            result[sub_property.first] = sub_property.second;
         }
-        if (device == parsed._deviceName) {
-            // 1. flatten the secondary property for target device
-            for (auto&& sub_property : item->second.as<ov::AnyMap>()) {
-                // 1.1 1st level property overrides 2nd level property
-                if (result.find(sub_property.first) != result.end())
-                    continue;
-                result[sub_property.first] = sub_property.second;
+    };
+    // First search for ov::device::properties(ov::AnyMap{...})
+    ov::AnyMap::iterator it = result.find(ov::device::properties.name());
+    if (it != result.end()) {
+        // 1. device properties are found
+        auto secondary_properties = it->second.as<ov::AnyMap>();
+        for (auto item2 = secondary_properties.begin(); item2 != secondary_properties.end();) {
+            auto parsed = ov::parseDeviceNameIntoConfig(item2->first);
+            // flattening is performed only in case of full device name match
+            if (device == parsed._deviceName) {
+                // 1.2 flatten the secondary property for target device
+                update_device_property(item2->second.as<ov::AnyMap>());
+                item2 = secondary_properties.erase(item2);
+            } else if (is_virtual_device(parsed._deviceName)) {
+                // 1.2 keep the secondary property for the other virtual devices
+                item2++;
+                continue;
+            } else {
+                // 1.3. remove the secondary property setting for other hardware device
+                item2 = secondary_properties.erase(item2);
+            }
+        }
+        if (0 == secondary_properties.size()) {
+            it = result.erase(it);
+        }
+    }
+    // Second search for ov::device::properties(DEVICE, ...)
+    for (auto item = result.begin(); item != result.end();) {
+        if ((item->first.find(ov::device::properties.name()) != std::string::npos) &&
+            (item->first.length() > std::string(ov::device::properties.name()).length())) {
+            // 2. device properties DEVICE_PROPERTIES_<device_name_with_id> are found
+            auto parsed_name = item->first.substr(item->first.find(ov::device::properties.name()) +
+                                                  std::string(ov::device::properties.name()).length() + 1);
+            auto parsed = ov::parseDeviceNameIntoConfig(parsed_name);
+            // flattening is performed only in case of full device name match
+            if (device == parsed._deviceName) {
+                // 2.1 flatten the secondary property for target device
+                update_device_property(item->second.as<ov::AnyMap>());
+            } else if (is_virtual_device(parsed._deviceName)) {
+                // 2.1 keep the secondary property for the other virtual devices but repack them
+                if (!result.count(ov::device::properties.name())) {
+                    result[ov::device::properties.name()] = ov::AnyMap{};
+                }
+                // 2.2 device properties with device name overrides device properties
+                auto& secondary_properties = result.at(ov::device::properties.name()).as<ov::AnyMap>();
+                auto p = secondary_properties.insert({parsed_name, item->second});
+                if (!p.second)
+                    p.first->second = item->second;
             }
             item = result.erase(item);
-        } else if (isVirtualDev) {
-            // 2. keep the secondary property for the other virtual devices
-            item++;
         } else {
-            // 3. remove the secondary property setting for other hardware device
-            item = result.erase(item);
+            // 3. Skip other properties
+            item++;
         }
     }
     return result;
 }
-
 }  // namespace
 
 namespace ov {

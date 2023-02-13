@@ -460,12 +460,13 @@ ov::RemoteContext ov::CoreImpl::create_context(const std::string& device_name, c
     return get_plugin(parsed._deviceName).create_context(parsed._config);
 }
 
-ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& device_name, const ov::AnyMap& config) const {
-    std::vector<std::string> supportedConfigKeys;
+ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& device_name, const ov::AnyMap& configs) const {
+    std::vector<std::string> supported_config_keys;
 
     // try to search against IE API 1.0' SUPPORTED_CONFIG_KEYS
     try {
-        supportedConfigKeys = GetMetric(device_name, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
+        supported_config_keys =
+            GetMetric(device_name, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
     } catch (ov::Exception&) {
     }
 
@@ -473,38 +474,55 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& device_name, 
     try {
         for (auto&& property : ICore::get_property(device_name, ov::supported_properties)) {
             if (property.is_mutable()) {
-                supportedConfigKeys.emplace_back(std::move(property));
+                supported_config_keys.emplace_back(std::move(property));
             }
         }
     } catch (ov::Exception&) {
     }
-
-    ov::AnyMap supportedConfig;
-    for (auto&& key : supportedConfigKeys) {
-        auto itKey = config.find(key);
-        if (config.end() != itKey) {
-            supportedConfig[key] = itKey->second;
-        }
-    }
-
-    for (auto&& config : config) {
-        auto parsed = parseDeviceNameIntoConfig(config.first);
-        if (device_name.find(parsed._deviceName) != std::string::npos) {
-            std::stringstream strm(config.second.as<std::string>());
-            std::map<std::string, std::string> device_configs;
-            util::Read<std::map<std::string, std::string>>{}(strm, device_configs);
-            for (auto&& device_config : device_configs) {
-                if (util::contains(supportedConfigKeys, device_config.first)) {
-                    supportedConfig[device_config.first] = device_config.second;
+    // If device properties for the same device are present several times in different format
+    // they are applied with the following priorities:
+    // 1. Properties of the 1st level
+    // 2. Secondary properties with key ov::device::properties.name() + _<DEVICE_NAME>
+    // 3. Secondary properties with key ov::device::properties.name()
+    ov::AnyMap supported_config;
+    auto update_supported_config = [&](const std::string& device_name_to_parse, const ov::AnyMap& device_config) {
+        auto parsed = parseDeviceNameIntoConfig(device_name_to_parse);
+        if (ov::isConfigApplicable(device_name, device_name_to_parse)) {
+            for (auto&& device_property : device_config) {
+                if (util::contains(supported_config_keys, device_property.first)) {
+                    supported_config[device_property.first] = device_property.second;
                 }
             }
-            for (auto&& config : parsed._config) {
-                supportedConfig[config.first] = config.second.as<std::string>();
+            for (auto&& parsed_config : parsed._config) {
+                supported_config[parsed_config.first] = parsed_config.second;
             }
         }
+    };
+    // First search for ov::device::properties(ov::AnyMap{...})
+    auto it = configs.find(ov::device::properties.name());
+    if (it != configs.end()) {
+        for (auto& secondary_property : it->second.as<ov::AnyMap>()) {
+            // here key is device name, value is device config
+            update_supported_config(secondary_property.first, secondary_property.second.as<ov::AnyMap>());
+        }
     }
-
-    return supportedConfig;
+    // Second search for ov::device::properties(DEVICE, ...)
+    for (auto&& config : configs) {
+        if ((config.first.find(ov::device::properties.name()) != std::string::npos) &&
+            config.first != ov::device::properties.name()) {
+            auto parsed_device_name = config.first.substr(config.first.find(ov::device::properties.name()) +
+                                                          std::string(ov::device::properties.name()).length() + 1);
+            update_supported_config(parsed_device_name, config.second.as<ov::AnyMap>());
+        }
+    }
+    // Third apply properties of the 1st level
+    for (auto&& key : supported_config_keys) {
+        auto itKey = configs.find(key);
+        if (configs.end() != itKey) {
+            supported_config[key] = itKey->second;
+        }
+    }
+    return supported_config;
 }
 
 bool ov::CoreImpl::is_new_api() const {
@@ -616,11 +634,7 @@ void ov::CoreImpl::set_property(const std::string& device_name, const AnyMap& pr
     // unsupport to set ov::device::properties to HW device through this function
     auto devices = get_registered_devices();
     for (auto&& config : properties) {
-        auto parsed = parseDeviceNameIntoConfig(config.first);
-        auto is_secondary_config_for_hw_device =
-            std::any_of(devices.begin(), devices.end(), [&](const std::string& device) {
-                return device == parsed._deviceName;
-            });
+        auto is_secondary_config_for_hw_device = config.first.find(ov::device::properties.name()) != std::string::npos;
         OPENVINO_ASSERT(!is_secondary_config_for_hw_device,
                         "set_property do not support ov::device::propreties. "
                         "You can configure the devices through the compile_model()/loadNetwork() API.");
