@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/loop.hpp"
+
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -13,21 +14,23 @@ namespace op {
 
 OutputVector translate_loop(NodeContext& context) {
     const auto& inputs = context.inputs();
-    auto loop = std::make_shared<opset10::Loop>(inputs[0], inputs[1]);
+    FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= 2, "Loop must have at least 2 inputs.");
+    auto loop = std::make_shared<ov::op::v5::Loop>(inputs[0], inputs[1]);
     auto decoder = context.get_decoder();
     FRONT_END_OP_CONVERSION_CHECK(decoder->get_subgraph_size() == 1, "Loop must have 1 subgraph.");
     auto subgraph_decoder = decoder->get_subgraph_decoder(0);
     auto body = context.convert_subgraph(0);
     loop->set_function(body);
-    opset10::Loop::SpecialBodyPorts spec_ports{0, 0};
+    ov::op::v5::Loop::SpecialBodyPorts spec_ports{0, 0};
     loop->set_special_body_ports(spec_ports);
 
     auto body_parameters = body->get_parameters();
-    // #0 parameter is counter
+    // #0 body parameter is counter; #0 loop input is counter, #1 loop input is condition
+    // Connect other inputs
     for (size_t i = 2; i < inputs.size(); i++) {
         loop->set_invariant_inputs(inputs[i], {body_parameters[i - 1]});
     }
-    // Connect extra inputs
+    // Connect inputs from external context
     for (auto i = inputs.size() - 1; i < body_parameters.size(); i++) {
         auto param = body_parameters[i];
         auto name = param->get_output_tensor(0).get_any_name();

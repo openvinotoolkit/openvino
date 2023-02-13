@@ -6,7 +6,7 @@ import pytest
 from pytorch_layer_test_class import PytorchLayerTest
 
 
-class TestSilu(PytorchLayerTest):
+class TestSetItem(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
         return [np.random.randn(10).astype(np.int32).tolist()]
