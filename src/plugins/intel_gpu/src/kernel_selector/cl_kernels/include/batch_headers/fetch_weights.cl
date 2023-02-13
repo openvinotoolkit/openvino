@@ -5,28 +5,25 @@
 #include "common.cl"
 
 #define GET_FILTER_OS_IS_YX_ISV_OSV_INDEX(prefix, o, i, y, x, osv, isv) \
-    get_os_is_zyx_isv_osv_index(                                  \
-        o, i, 0, y, x,                                            \
-        CAT(prefix, _SIZE_X),                                     \
-        CAT(prefix, _SIZE_Y),                                     \
-        1,                                                        \
-        CAT(prefix, _IFM_NUM),                                    \
-        CAT(prefix, _OFM_NUM),                                    \
-        osv,                                                      \
-        isv                                                       \
-    )
+    get_common_index(                                                   \
+        o%osv, i%isv, x, y, i/isv, o/osv, 0, 0,                         \
+        osv, isv,                                                       \
+        CAT(prefix, _SIZE_X),                                           \
+        CAT(prefix, _SIZE_Y),                                           \
+        alignas(CAT(prefix, _IFM_NUM), isv),                            \
+        alignas(CAT(prefix, _OFM_NUM), osv),                            \
+        0, 0)
 
 #define GET_FILTER_OS_IS_ZYX_ISV_OSV_INDEX(prefix, o, i, z, y, x, osv, isv) \
-    get_os_is_zyx_isv_osv_index(                                  \
-        o, i, z, y, x,                                            \
-        CAT(prefix, _SIZE_X),                                     \
-        CAT(prefix, _SIZE_Y),                                     \
-        1,                                                        \
-        CAT(prefix, _IFM_NUM),                                    \
-        CAT(prefix, _OFM_NUM),                                    \
-        osv,                                                      \
-        isv                                                       \
-    )
+    get_common_index(                                                   \
+        o%osv, i%isv, x, y, z, i/isv, o/osv, 0,                         \
+        osv, isv,                                                       \
+        CAT(prefix, _SIZE_X),                                           \
+        CAT(prefix, _SIZE_Y),                                           \
+        CAT(prefix, _SIZE_Z),                                           \
+        alignas(CAT(prefix, _IFM_NUM), isv),                            \
+        alignas(CAT(prefix, _OFM_NUM), osv),                            \
+        0)
 
 #define GET_FILTER_IS_OS_ZYX_ISV16_OSV16_INDEX(prefix, o, i, z, y, x, sub_group_size) \
     CAT(prefix, _OFFSET) +                                                            \
@@ -86,11 +83,27 @@
         CAT(prefix, _OFFSET)                                                              \
     )
 
+inline uint get_common_index(
+    uint x0, uint x1, uint x2, uint x3, uint x4, uint x5, uint x6, uint x7, uint x8,
+    uint X0, uint X1, uint X2, uint X3, uint X4, uint X5, uint X6, uint X7, uint X8,
+){
+    const uint p0 = 1;
+    const uint p1 = p0 * X0;
+    const uint p2 = p1 * X1;
+    const uint p3 = p2 * X2;
+    const uint p4 = p3 * X3;
+    const uint p5 = p4 * X4;
+    const uint p6 = p5 * X5;
+    const uint p7 = p6 * X6;
+    const uint p8 = p7 * X7;
+    return x0*p0 + x1*p1 + x2*p2 + x3*p3 + x4*p4 + x5*p5 + x6*p6 + x7*p7 + x8*p8;
+}
+
 inline uint get_os_is_zyx_isv_osv_index(uint o, uint i, uint z, uint y, uint x,
     uint x_size, uint y_size, uint z_size, uint i_size, uint o_size, uint osv_size, uint isv_size)
 {
-    const uint isv = i % isv_size;
     const uint osv = o % osv_size;
+    const uint isv = i % isv_size;
     const uint is = i / isv_size;
     const uint os = o / osv_size;
 
