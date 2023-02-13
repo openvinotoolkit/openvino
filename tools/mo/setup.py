@@ -86,7 +86,6 @@ setup(
     entry_points={
         'console_scripts': [
             'mo = openvino.tools.mo_lite.__main__:main',
-            'mo = openvino.tools.mo_lite.__main__:main',
         ],
     },
     package_data={
