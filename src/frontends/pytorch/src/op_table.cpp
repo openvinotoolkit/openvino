@@ -22,6 +22,7 @@ OP_CONVERTER(translate_addmm);
 OP_CONVERTER(translate_arange);
 OP_CONVERTER(translate_as_tensor);
 OP_CONVERTER(translate_avg_poolnd);
+OP_CONVERTER(translate_bool);
 OP_CONVERTER(translate_batch_norm);
 OP_CONVERTER(translate_clamp);
 OP_CONVERTER(translate_constant);
@@ -149,7 +150,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::avg_pool3d", op::translate_avg_poolnd},
         {"aten::batch_norm", op::translate_batch_norm},
         {"aten::bmm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
-        //{"aten::cat", done as transformation},
+        {"aten::Bool", op::translate_bool},
+        // {"aten::cat", done as transformation},
         {"aten::ceil", op::translate_1to1_match_1_inputs<opset10::Ceiling>},
         {"aten::ceil_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Ceiling>>},
         {"aten::clamp", op::translate_clamp},
