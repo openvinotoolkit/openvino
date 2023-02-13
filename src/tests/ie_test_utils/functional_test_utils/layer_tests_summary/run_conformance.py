@@ -49,6 +49,7 @@ def parse_arguments():
     gtest_filter_helper = "Specify gtest filter to apply when running test. E.g. *Add*:*BinaryConv*. The default value is None"
     ov_config_path_helper = "Specify path to file contains plugin config"
     dump_conformance_help = "Set '1' if you want to create Conformance IRs from custom/downloaded models. In other cases, set 0. The default value is '1'"
+    shape_mode_help = "Specify shape mode for conformance. Default value is `Both`. Possible values: `static`, `dynamic`, ``"
 
     parser.add_argument("-m", "--models_path", help=models_path_help, type=str, required=False, default=NO_MODEL_CONSTANT)
     parser.add_argument("-d", "--device", help= device_help, type=str, required=False, default="CPU")
@@ -59,12 +60,13 @@ def parse_arguments():
     parser.add_argument("--gtest_filter", help=gtest_filter_helper, type=str, required=False, default="*")
     parser.add_argument("-c", "--ov_config_path", help=ov_config_path_helper, type=str, required=False, default="")
     parser.add_argument("-s", "--dump_conformance", help=dump_conformance_help, type=int, required=False, default=0)
+    parser.add_argument("-sm", "--shape_mode", help=shape_mode_help, type=str, required=False, default="")
 
     return parser.parse_args()
 
 class Conformance:
     def __init__(self, device:str, model_path:os.path, ov_path:os.path, type:str, workers:int,
-                 gtest_filter:str, working_dir:os.path, ov_config_path:os.path):
+                 gtest_filter:str, working_dir:os.path, ov_config_path:os.path, shape_mode:str):
         self._device = device
         self._model_path = model_path
         self._ov_path = ov_path
@@ -84,6 +86,11 @@ class Conformance:
             logger.error(f"Specified config file does not exist: {ov_config_path}.")
             exit(-1)
         self._ov_config_path = ov_config_path
+        if shape_mode == "static" or shape_mode == "dynamic" or shape_mode == "":
+            self._shape_mode = shape_mode
+        else:
+            logger.error(f'Incorrect value to set shape mode: {shape_mode}. Please check to get possible values')
+            exit(-1)
 
     def __download_models(self, url_to_download, path_to_save):
         _, file_name = os.path.split(urlparse(url_to_download).path)
@@ -158,7 +165,8 @@ class Conformance:
         
         command_line_args = [f"--device={self._device}", f'--input_folders="{self._model_path}"',
                              f"--report_unique_name", f'--output_folder="{parallel_report_dir}"',
-                             f'--gtest_filter={self._gtest_filter}', f'--config_path="{self._ov_config_path}"']
+                             f'--gtest_filter={self._gtest_filter}', f'--config_path="{self._ov_config_path}"',
+                             f'--shape_mode={self._shape_mode}']
         conformance = TestParallelRunner(f"{conformance_path}", command_line_args, self._workers, logs_dir, "")
         conformance.run()
         conformance.postprocess_logs()
@@ -198,6 +206,7 @@ class Conformance:
         logger.info(f"[ARGUMENTS] --gtest_filter = {self._gtest_filter}")
         logger.info(f"[ARGUMENTS] --ov_config_path = {self._ov_config_path}")
         logger.info(f"[ARGUMENTS] --dump_conformance = {dump_models}")
+        logger.info(f"[ARGUMENTS] --shape_mode = {self._shape_mode}")
 
         if file_utils.is_url(self._model_path):
             self._model_path = self.__download_models(self._model_path, self._working_dir)
@@ -226,5 +235,6 @@ if __name__ == "__main__":
     conformance = Conformance(args.device, args.models_path,
                               args.ov_path, args.type,
                               args.workers, args.gtest_filter,
-                              args.working_dir, args.ov_config_path)
+                              args.working_dir, args.ov_config_path,
+                              args.shape_mode)
     conformance.run(args.dump_conformance)
