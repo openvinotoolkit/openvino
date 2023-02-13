@@ -1,0 +1,3 @@
+88:"conformance_Abs/ReadIRTest.ReadIR/Op=Abs_Type=f32_IR=Abs_3997079_Device=CPU_Config=()":
+72:"conformance_Abs/ReadIRTest.ReadIR/Op=Abs_Type=f32_IR=Abs_7822629_Device=CPU_Config=()":
+55:"conformance/OpImplCheckTest.checkPluginImplementation/Function=Abs_opset1_Device=CPU_Config=()":
