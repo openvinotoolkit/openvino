@@ -892,11 +892,11 @@ bool FullyConnected::canBeExecutedInConv1x1() const {
 }
 
 FullyConnected::ExecutorInnerProduct::ExecutorInnerProduct(const dnnl::inner_product_forward::primitive_desc& pd) {
-    execPrim.reset(new dnnl::inner_product_forward(pd));
+    execPrim = dnnl::inner_product_forward(pd);
 }
 
 FullyConnected::ExecutorConv1x1::ExecutorConv1x1(const dnnl::convolution_forward::primitive_desc& pd) {
-    execPrim.reset(new dnnl::convolution_forward(pd));
+    execPrim = dnnl::convolution_forward(pd);
 }
 
 MemoryPtr FullyConnected::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
