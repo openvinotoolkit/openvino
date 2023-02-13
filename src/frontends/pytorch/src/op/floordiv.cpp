@@ -3,7 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/divide.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -12,9 +12,10 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_floordiv(NodeContext& context) {
+    num_inputs_check(context, 2, 2);
     auto x = context.get_input(0);
     auto y = context.get_input(1);
-    return {context.mark_node(std::make_shared<opset10::Divide>(x, y, true))};
+    return {context.mark_node(std::make_shared<ov::op::v1::Divide>(x, y, true))};
 };
 
 }  // namespace op

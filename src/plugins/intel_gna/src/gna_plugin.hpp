@@ -87,6 +87,7 @@ public:
     std::string GetName() const noexcept override;
     void SetName(const std::string& pluginName) noexcept override;
 
+    using InferenceEngine::IInferencePlugin::LoadNetwork;
     void LoadNetwork(const InferenceEngine::CNNNetwork& network);
 
     bool Infer(const InferenceEngine::BlobMap& input, InferenceEngine::BlobMap& result);
@@ -239,7 +240,6 @@ protected:
     void FillInputsAndOutputsTranspositionInfo(const InferenceEngine::CNNNetwork& net);
 
     bool isFP32ModeActive() const;
-    std::string effectiveGnaCompileTarget() const;
     std::shared_ptr<request::ModelWrapper> createModelWrapperForLoadNetwork(bool trivial);
     std::shared_ptr<request::ModelWrapper> createModelWrapperForImportNetwork(uint32_t numberOfOperations);
     std::shared_ptr<request::Worker> createWorkerForLoadNetwork(bool trivial, bool fp32Mode);
