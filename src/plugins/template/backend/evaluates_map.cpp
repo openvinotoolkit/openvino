@@ -15,16 +15,16 @@
 // #include <ngraph/runtime/reference/convert.hpp>
 // #include <ngraph/runtime/reference/convolution.hpp>
 // #include <ngraph/runtime/reference/convolution_backprop_data.hpp>
-#include <ngraph/runtime/reference/ctc_greedy_decoder.hpp>
-#include <ngraph/runtime/reference/ctc_greedy_decoder_seq_len.hpp>
-#include <ngraph/runtime/reference/ctc_loss.hpp>
-#include <ngraph/runtime/reference/cum_sum.hpp>
-#include <ngraph/runtime/reference/deformable_convolution.hpp>
-#include <ngraph/runtime/reference/deformable_psroi_pooling.hpp>
-#include <ngraph/runtime/reference/detection_output.hpp>
-#include <ngraph/runtime/reference/einsum.hpp>
-#include <ngraph/runtime/reference/elu.hpp>
-#include <ngraph/runtime/reference/embedding_bag_offsets_sum.hpp>
+// #include <ngraph/runtime/reference/ctc_greedy_decoder.hpp>
+// #include <ngraph/runtime/reference/ctc_greedy_decoder_seq_len.hpp>
+// #include <ngraph/runtime/reference/ctc_loss.hpp>
+// #include <ngraph/runtime/reference/cum_sum.hpp>
+// #include <ngraph/runtime/reference/deformable_convolution.hpp>
+// #include <ngraph/runtime/reference/deformable_psroi_pooling.hpp>
+// #include <ngraph/runtime/reference/detection_output.hpp>
+// #include <ngraph/runtime/reference/einsum.hpp>
+// #include <ngraph/runtime/reference/elu.hpp>
+// #include <ngraph/runtime/reference/embedding_bag_offsets_sum.hpp>
 #include <ngraph/runtime/reference/embedding_bag_packed_sum.hpp>
 #include <ngraph/runtime/reference/embedding_segments_sum.hpp>
 #include <ngraph/runtime/reference/equal.hpp>
@@ -204,90 +204,6 @@ bool evaluate(const shared_ptr<op::v1::GroupConvolutionBackpropData>& op,
 }
 
 template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v8::DeformableConvolution>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    const auto in_data_ptr = inputs[0]->get_data_ptr<ET>();
-    const auto offset_data_ptr = inputs[1]->get_data_ptr<ET>();
-    const auto filter_data_ptr = inputs[2]->get_data_ptr<ET>();
-    auto out_data_ptr = outputs[0]->get_data_ptr<ET>();
-    const auto& out_shape = outputs[0]->get_shape();
-    const auto& in_shape = inputs[0]->get_shape();
-    const auto& offset_shape = inputs[1]->get_shape();
-    const auto& filter_shape = inputs[2]->get_shape();
-    if (inputs.size() == 3) {
-        runtime::reference::deformable_convolution<typename element_type_traits<ET>::value_type>(
-            in_data_ptr,
-            offset_data_ptr,
-            filter_data_ptr,
-            out_data_ptr,
-            in_shape,
-            offset_shape,
-            filter_shape,
-            out_shape,
-            op->get_strides(),
-            op->get_dilations(),
-            op->get_pads_begin(),
-            op->get_pads_end(),
-            op->get_group(),
-            op->get_deformable_group(),
-            op->get_bilinear_interpolation_pad());
-    } else {
-        const auto mask_data_ptr = inputs[3]->get_data_ptr<ET>();
-        const auto& mask_shape = inputs[3]->get_shape();
-        runtime::reference::deformable_convolution<typename element_type_traits<ET>::value_type>(
-            in_data_ptr,
-            offset_data_ptr,
-            filter_data_ptr,
-            mask_data_ptr,
-            out_data_ptr,
-            in_shape,
-            offset_shape,
-            filter_shape,
-            mask_shape,
-            out_shape,
-            op->get_strides(),
-            op->get_dilations(),
-            op->get_pads_begin(),
-            op->get_pads_end(),
-            op->get_group(),
-            op->get_deformable_group(),
-            op->get_bilinear_interpolation_pad());
-    }
-    return true;
-}
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v1::DeformableConvolution>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    const auto in_data_ptr = inputs[0]->get_data_ptr<ET>();
-    const auto offset_data_ptr = inputs[1]->get_data_ptr<ET>();
-    const auto filter_data_ptr = inputs[2]->get_data_ptr<ET>();
-    auto out_data_ptr = outputs[0]->get_data_ptr<ET>();
-    const auto& out_shape = outputs[0]->get_shape();
-    const auto& in_shape = inputs[0]->get_shape();
-    const auto& offset_shape = inputs[1]->get_shape();
-    const auto& filter_shape = inputs[2]->get_shape();
-    runtime::reference::deformable_convolution<typename element_type_traits<ET>::value_type>(
-        in_data_ptr,
-        offset_data_ptr,
-        filter_data_ptr,
-        out_data_ptr,
-        in_shape,
-        offset_shape,
-        filter_shape,
-        out_shape,
-        op->get_strides(),
-        op->get_dilations(),
-        op->get_pads_begin(),
-        op->get_pads_end(),
-        op->get_group(),
-        op->get_deformable_group());
-    return true;
-}
-
-template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v1::Greater>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     const auto in0_data_ptr = inputs[0]->get_data_ptr<ET>();
     const auto in1_data_ptr = inputs[1]->get_data_ptr<ET>();
@@ -320,35 +236,6 @@ bool evaluate(const shared_ptr<op::v1::Equal>& op, const HostTensorVector& outpu
                                                                                                   in0_shape,
                                                                                                   in1_shape,
                                                                                                   broadcast_spec);
-    return true;
-}
-
-namespace cum_sum_v0 {
-template <element::Type_t t1, element::Type_t t2>
-inline void evaluate(const shared_ptr<op::v0::CumSum>& op,
-                     const HostTensorVector& outputs,
-                     const HostTensorVector& inputs) {
-    using T1 = typename element_type_traits<t1>::value_type;
-    using T2 = typename element_type_traits<t2>::value_type;
-    runtime::reference::cumsum<T1, T2>(inputs[0]->get_data_ptr<T1>(),
-                                       inputs[1]->get_data_ptr<T2>(),
-                                       outputs[0]->get_data_ptr<T1>(),
-                                       inputs[0]->get_shape(),
-                                       op->is_exclusive(),
-                                       op->is_reverse());
-}
-}  // namespace cum_sum_v0
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v0::CumSum>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    switch (inputs[1]->get_element_type()) {
-    case element::Type_t::i64:
-        cum_sum_v0::evaluate<ET, element::Type_t::i64>(op, outputs, inputs);
-        break;
-    default:
-        cum_sum_v0::evaluate<ET, element::Type_t::i32>(op, outputs, inputs);
-        break;
-    }
     return true;
 }
 
@@ -542,41 +429,6 @@ bool evaluate(const shared_ptr<op::v3::EmbeddingSegmentsSum>& op,
         break;
     case element::Type_t::i64:
         embedding_offsets_sum_v3::evaluate<ET, element::Type_t::i64>(op, outputs, inputs);
-        break;
-    default:
-        return false;
-    }
-    return true;
-}
-
-namespace embedding_bag_offsets_sum_v3 {
-template <element::Type_t t1, element::Type_t t2>
-inline void evaluate(const shared_ptr<op::v3::EmbeddingBagOffsetsSum>& op,
-                     const HostTensorVector& outputs,
-                     const HostTensorVector& inputs) {
-    using T1 = typename element_type_traits<t1>::value_type;
-    using T2 = typename element_type_traits<t2>::value_type;
-    runtime::reference::embeddingBagOffsetsSum<T1, T2>(inputs[0]->get_data_ptr<T1>(),
-                                                       inputs[1]->get_data_ptr<T2>(),
-                                                       inputs[2]->get_data_ptr<T2>(),
-                                                       inputs.size() > 3 ? inputs[3]->get_data_ptr<T2>() : nullptr,
-                                                       inputs.size() > 4 ? inputs[4]->get_data_ptr<T1>() : nullptr,
-                                                       outputs[0]->get_data_ptr<T1>(),
-                                                       shape_size(inputs[1]->get_shape()),
-                                                       outputs[0]->get_shape());
-}
-}  // namespace embedding_bag_offsets_sum_v3
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v3::EmbeddingBagOffsetsSum>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    switch (inputs[1]->get_element_type()) {
-    case element::Type_t::i32:
-        embedding_bag_offsets_sum_v3::evaluate<ET, element::Type_t::i32>(op, outputs, inputs);
-        break;
-    case element::Type_t::i64:
-        embedding_bag_offsets_sum_v3::evaluate<ET, element::Type_t::i64>(op, outputs, inputs);
         break;
     default:
         return false;
@@ -2308,66 +2160,6 @@ bool evaluate(const shared_ptr<op::v0::GRN>& op, const HostTensorVector& outputs
 }
 
 template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v0::DetectionOutput>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::referenceDetectionOutput<T> refDetOut(op->get_attrs(),
-                                                              op->get_input_shape(0),
-                                                              op->get_input_shape(1),
-                                                              op->get_input_shape(2),
-                                                              op->get_output_shape(0));
-    if (op->get_input_size() == 3) {
-        refDetOut.run(inputs[0]->get_data_ptr<const T>(),
-                      inputs[1]->get_data_ptr<const T>(),
-                      inputs[2]->get_data_ptr<const T>(),
-                      nullptr,
-                      nullptr,
-                      outputs[0]->get_data_ptr<T>());
-    } else if (op->get_input_size() == 5) {
-        refDetOut.run(inputs[0]->get_data_ptr<const T>(),
-                      inputs[1]->get_data_ptr<const T>(),
-                      inputs[2]->get_data_ptr<const T>(),
-                      inputs[3]->get_data_ptr<const T>(),
-                      inputs[4]->get_data_ptr<const T>(),
-                      outputs[0]->get_data_ptr<T>());
-    } else {
-        throw ngraph_error("DetectionOutput layer supports only 3 or 5 inputs");
-    }
-    return true;
-}
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v8::DetectionOutput>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::referenceDetectionOutput<T> refDetOut(op->get_attrs(),
-                                                              op->get_input_shape(0),
-                                                              op->get_input_shape(1),
-                                                              op->get_input_shape(2),
-                                                              op->get_output_shape(0));
-    if (op->get_input_size() == 3) {
-        refDetOut.run(inputs[0]->get_data_ptr<const T>(),
-                      inputs[1]->get_data_ptr<const T>(),
-                      inputs[2]->get_data_ptr<const T>(),
-                      nullptr,
-                      nullptr,
-                      outputs[0]->get_data_ptr<T>());
-    } else if (op->get_input_size() == 5) {
-        refDetOut.run(inputs[0]->get_data_ptr<const T>(),
-                      inputs[1]->get_data_ptr<const T>(),
-                      inputs[2]->get_data_ptr<const T>(),
-                      inputs[3]->get_data_ptr<const T>(),
-                      inputs[4]->get_data_ptr<const T>(),
-                      outputs[0]->get_data_ptr<T>());
-    } else {
-        throw ngraph_error("DetectionOutput layer supports only 3 or 5 inputs");
-    }
-    return true;
-}
-
-template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v3::ScatterNDUpdate>& op,
               const HostTensorVector& outputs,
               const HostTensorVector& inputs) {
@@ -2405,16 +2197,6 @@ bool evaluate(const shared_ptr<op::v0::HardSigmoid>& op,
                                         inputs[2]->get_data_ptr<const T>()[0],
                                         outputs[0]->get_data_ptr<T>(),
                                         shape_size(outputs[0]->get_shape()));
-    return true;
-}
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v0::Elu>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::elu<T>(inputs[0]->get_data_ptr<T>(),
-                               outputs[0]->get_data_ptr<T>(),
-                               shape_size(inputs[0]->get_shape()),
-                               op->get_alpha());
     return true;
 }
 
@@ -2557,58 +2339,6 @@ bool evaluate(const shared_ptr<op::v0::Log>& op, const HostTensorVector& outputs
     runtime::reference::log<T>(inputs[0]->get_data_ptr<T>(),
                                outputs[0]->get_data_ptr<T>(),
                                shape_size(inputs[0]->get_shape()));
-    return true;
-}
-
-namespace ctc_loss_v4 {
-template <element::Type_t t1,
-          element::Type_t t2,
-          typename std::enable_if<!std::is_floating_point<typename element_type_traits<t1>::value_type>::value &&
-                                      !std::is_same<typename element_type_traits<t1>::value_type, bfloat16>::value &&
-                                      !std::is_same<typename element_type_traits<t1>::value_type, float16>::value,
-                                  bool>::type = true>
-inline void evaluate(const shared_ptr<op::v4::CTCLoss>& op,
-                     const HostTensorVector& outputs,
-                     const HostTensorVector& inputs) {
-    OPENVINO_ASSERT(false, "The data type for logits is expected to be a floating point type. Got:", element::Type(t1));
-}
-
-template <element::Type_t t1,
-          element::Type_t t2,
-          typename std::enable_if<std::is_floating_point<typename element_type_traits<t1>::value_type>::value ||
-                                      std::is_same<typename element_type_traits<t1>::value_type, bfloat16>::value ||
-                                      std::is_same<typename element_type_traits<t1>::value_type, float16>::value,
-                                  bool>::type = true>
-inline void evaluate(const shared_ptr<op::v4::CTCLoss>& op,
-                     const HostTensorVector& outputs,
-                     const HostTensorVector& inputs) {
-    using T1 = typename element_type_traits<t1>::value_type;
-    using T2 = typename element_type_traits<t2>::value_type;
-    runtime::reference::CTCLoss<T1, T2>(inputs[0]->get_data_ptr<T1>(),
-                                        inputs[0]->get_shape(),
-                                        inputs[1]->get_data_ptr<T2>(),
-                                        inputs[2]->get_data_ptr<T2>(),
-                                        inputs[3]->get_data_ptr<T2>(),
-                                        inputs[4]->get_data_ptr<T2>(),
-                                        op->get_preprocess_collapse_repeated(),
-                                        op->get_ctc_merge_repeated(),
-                                        op->get_unique(),
-                                        outputs[0]->get_data_ptr<T1>());
-}
-}  // namespace ctc_loss_v4
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v4::CTCLoss>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    switch (inputs[1]->get_element_type()) {
-    case element::Type_t::i32:
-        ctc_loss_v4::evaluate<ET, element::Type_t::i32>(op, outputs, inputs);
-        break;
-    case element::Type_t::i64:
-        ctc_loss_v4::evaluate<ET, element::Type_t::i64>(op, outputs, inputs);
-        break;
-    default:
-        return false;
-    }
     return true;
 }
 
@@ -3249,79 +2979,6 @@ bool evaluate(const shared_ptr<op::v0::NormalizeL2>& op,
 }
 
 template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v0::CTCGreedyDecoder>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::ctc_greedy_decoder<T>(inputs[0]->get_data_ptr<const T>(),
-                                              inputs[1]->get_data_ptr<const T>(),
-                                              outputs[0]->get_data_ptr<T>(),
-                                              inputs[0]->get_shape(),
-                                              inputs[1]->get_shape(),
-                                              outputs[0]->get_shape(),
-                                              op->get_ctc_merge_repeated());
-    return true;
-}
-
-namespace ctc_greedy_decoder_v6 {
-template <element::Type_t T1, element::Type_t T2, element::Type_t TOUT>
-inline void evaluate(const shared_ptr<op::v6::CTCGreedyDecoderSeqLen>& op,
-                     const HostTensorVector& outputs,
-                     const HostTensorVector& inputs) {
-    using TF = typename element_type_traits<T1>::value_type;
-    using TI = typename element_type_traits<T2>::value_type;
-    using TIND1 = typename element_type_traits<TOUT>::value_type;
-    TI blank_index_val = static_cast<TI>(inputs[0]->get_shape().back() - 1);
-    const TI* blank_index = &blank_index_val;
-    if (inputs.size() == 3) {
-        blank_index = inputs[2]->get_data_ptr<const TI>();
-    }
-    if (op->get_sequence_length_type() == element::i32) {
-        runtime::reference::ctc_greedy_decoder_seq_len<TF>(inputs[0]->get_data_ptr<const TF>(),
-                                                           inputs[1]->get_data_ptr<const TI>(),
-                                                           blank_index,
-                                                           outputs[0]->get_data_ptr<TIND1>(),
-                                                           outputs[1]->get_data_ptr<int32_t>(),
-                                                           inputs[0]->get_shape(),
-                                                           outputs[0]->get_shape(),
-                                                           op->get_merge_repeated());
-    } else if (op->get_sequence_length_type() == element::i64) {
-        runtime::reference::ctc_greedy_decoder_seq_len<TF>(inputs[0]->get_data_ptr<const TF>(),
-                                                           inputs[1]->get_data_ptr<const TI>(),
-                                                           blank_index,
-                                                           outputs[0]->get_data_ptr<TIND1>(),
-                                                           outputs[1]->get_data_ptr<int64_t>(),
-                                                           inputs[0]->get_shape(),
-                                                           outputs[0]->get_shape(),
-                                                           op->get_merge_repeated());
-    }
-}
-}  // namespace ctc_greedy_decoder_v6
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v6::CTCGreedyDecoderSeqLen>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    const auto& dataType = inputs[0]->get_element_type();
-    const auto& seqLenType = inputs[1]->get_element_type();
-    if (dataType == element::Type_t::f16 && seqLenType == element::Type_t::i32) {
-        ctc_greedy_decoder_v6::evaluate<element::Type_t::f16, element::Type_t::i32, ET>(op, outputs, inputs);
-    } else if (dataType == element::Type_t::f32 && seqLenType == element::Type_t::i32) {
-        ctc_greedy_decoder_v6::evaluate<element::Type_t::f32, element::Type_t::i32, ET>(op, outputs, inputs);
-    } else if (dataType == element::Type_t::f64 && seqLenType == element::Type_t::i32) {
-        ctc_greedy_decoder_v6::evaluate<element::Type_t::f64, element::Type_t::i32, ET>(op, outputs, inputs);
-    } else if (dataType == element::Type_t::f16 && seqLenType == element::Type_t::i64) {
-        ctc_greedy_decoder_v6::evaluate<element::Type_t::f16, element::Type_t::i64, ET>(op, outputs, inputs);
-    } else if (dataType == element::Type_t::f32 && seqLenType == element::Type_t::i64) {
-        ctc_greedy_decoder_v6::evaluate<element::Type_t::f32, element::Type_t::i64, ET>(op, outputs, inputs);
-    } else if (dataType == element::Type_t::f64 && seqLenType == element::Type_t::i64) {
-        ctc_greedy_decoder_v6::evaluate<element::Type_t::f64, element::Type_t::i64, ET>(op, outputs, inputs);
-    } else {
-        return false;
-    }
-    return true;
-}
-
-template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronTopKROIs>& op,
               const HostTensorVector& outputs,
               const HostTensorVector& inputs) {
@@ -3596,52 +3253,6 @@ bool evaluate(const shared_ptr<op::PSROIPooling>& op, const HostTensorVector& ou
 
     return true;
 }
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v1::DeformablePSROIPooling>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
-    NGRAPH_CHECK(inputs.size() > 1 && inputs[1]->get_shape().size() == 2,
-                 "2D tensor must be provided as second input. ");
-    outputs[0]->set_shape({inputs[1]->get_shape()[0],
-                           static_cast<size_t>(op->get_output_dim()),
-                           static_cast<size_t>(op->get_group_size()),
-                           static_cast<size_t>(op->get_group_size())});
-
-    const bool has_offset_intput = inputs.size() == 3;
-    if (has_offset_intput) {
-        runtime::reference::deformable_psroi_pooling<T>(inputs[0]->get_data_ptr<T>(),
-                                                        inputs[0]->get_shape(),
-                                                        inputs[1]->get_data_ptr<T>(),
-                                                        inputs[1]->get_shape(),
-                                                        inputs[2]->get_data_ptr<T>(),
-                                                        inputs[2]->get_shape(),
-                                                        outputs[0]->get_data_ptr<T>(),
-                                                        outputs[0]->get_shape(),
-                                                        op->get_mode(),
-                                                        op->get_spatial_scale(),
-                                                        op->get_spatial_bins_x(),
-                                                        op->get_spatial_bins_y(),
-                                                        op->get_trans_std(),
-                                                        op->get_part_size());
-    } else {
-        runtime::reference::deformable_psroi_pooling<T>(inputs[0]->get_data_ptr<T>(),
-                                                        inputs[0]->get_shape(),
-                                                        inputs[1]->get_data_ptr<T>(),
-                                                        inputs[1]->get_shape(),
-                                                        nullptr,
-                                                        ngraph::Shape(),
-                                                        outputs[0]->get_data_ptr<T>(),
-                                                        outputs[0]->get_shape(),
-                                                        op->get_mode(),
-                                                        op->get_spatial_scale(),
-                                                        op->get_spatial_bins_x(),
-                                                        op->get_spatial_bins_y(),
-                                                        op->get_trans_std(),
-                                                        op->get_part_size());
-    }
-    return true;
-}
 
 template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v7::Roll>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
@@ -3674,13 +3285,6 @@ bool evaluate(const shared_ptr<op::v7::Roll>& op, const HostTensorVector& output
         inputs[1]->get_shape(),
         inputs[2]->get_shape(),
         inputs[0]->get_element_type().size());
-    return true;
-}
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v7::Einsum>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    const auto equation = op->get_equation();
-    runtime::reference::einsum(outputs, inputs, equation);
     return true;
 }
 
