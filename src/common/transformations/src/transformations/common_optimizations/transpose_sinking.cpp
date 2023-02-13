@@ -151,11 +151,11 @@ ov::pass::TransposeReductionBackward::TransposeReductionBackward() {
             return false;
 
         // todo: support keep_dims
-        /*bool keep_dims = false;  // squeeze always reduces number of output dimensions
+        bool keep_dims = false;  // squeeze always reduces number of output dimensions
         if (logical_reduce)
             keep_dims = logical_reduce->get_keep_dims();
         else if (arithmetic_reduce)
-            keep_dims = arithmetic_reduce->get_keep_dims();*/
+            keep_dims = arithmetic_reduce->get_keep_dims();
         auto transpose_order = std::dynamic_pointer_cast<opset6::Constant>(transpose->get_input_node_shared_ptr(1));
         auto reduction_axes = std::dynamic_pointer_cast<opset6::Constant>(reduction->get_input_node_shared_ptr(1));
         if (!transpose_order || !reduction_axes)
@@ -166,15 +166,34 @@ ov::pass::TransposeReductionBackward::TransposeReductionBackward() {
 
         transpose->output(0).replace(reduction);
         auto transpose_order_values = transpose_order->cast_vector<size_t>();
+        if (!keep_dims) {
+            int shift = 0;
+            std::vector<size_t> aligned_order(transpose_order_values.size() + non_negative_axes.size());
+            for (size_t i = 0, j = 0; j < aligned_order.size(); ++j) {
+                if (std::find(non_negative_axes.begin(), non_negative_axes.end(), j) != non_negative_axes.end()) {
+                    aligned_order[j] = j;
+                    ++j;
+                    ++shift;
+                }
+                aligned_order[j] = transpose_order_values[i] + shift;
+                ++i;
+            }
+
+            transpose_order_values = aligned_order;
+        }
         auto reversed_order_values = transpose_sinking::ReverseTransposeOrder(transpose_order_values);
         std::vector<int64_t> new_values;
         for (const auto& axis : non_negative_axes) {
             new_values.push_back(reversed_order_values[axis]);
         }
+        auto new_transpose_order = std::make_shared<opset6::Constant>(transpose_order->get_element_type(),
+                                                                      Shape{transpose_order_values.size()},
+                                                                      transpose_order_values);
         auto new_const = std::make_shared<opset6::Constant>(reduction_axes->get_element_type(),
                                                             reduction_axes->get_shape(),
                                                             new_values);
         transpose->input(0).replace_source_output(reduction->input_value(0));
+        transpose->input(1).replace_source_output(new_transpose_order);
         reduction->input(1).replace_source_output(new_const);
         reduction->input(0).replace_source_output(transpose);
         return true;
