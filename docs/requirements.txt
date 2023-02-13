@@ -11,7 +11,7 @@ idna==3.4
 imagesize==1.2.0
 importlib-metadata==4.4.0
 iniconfig==1.1.1
-ipython==8.5.0
+ipython==8.10.0
 Jinja2==3.1.2
 lxml>=4.9.2
 MarkupSafe==2.1.1
