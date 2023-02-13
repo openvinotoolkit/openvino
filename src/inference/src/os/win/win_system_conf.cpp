@@ -161,7 +161,7 @@ void parse_processor_info_win(const char* base_ptr,
         _proc_type_table[0] = line_value_0;
 
         for (int m = 1; m <= _sockets; m++) {
-            for (int n = 0; n <= EFFICIENT_CORE_PROC; n++) {
+            for (int n = 0; n < PROC_TYPE_TABLE_SIZE; n++) {
                 _proc_type_table[0][n] += _proc_type_table[m][n];
             }
         }
