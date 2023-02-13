@@ -71,11 +71,6 @@ TYPES_TO_QUANTIZABLE_PORTS = {'LSTMSequence': [0, 1, 4, 5], 'GRUSequence': [0, 1
 ELTWISE_TYPES = ['Add', 'Multiply', 'Subtract', 'Divide', 'Less', 'LessEqual', 'Greater', 'GreaterEqual',
                  'Equal', 'NotEqual', 'FloorMod', 'LogicalOr', 'LogicalXor', 'LogicalAnd', 'Maximum', 'Minimum']
 
-ELTWISE_ADD_SUB = [
-    {'type': 'Add'},
-    {'type': 'Subtract'}
-]
-
 
 def is_eltwise(node):
     return node.type in ELTWISE_TYPES
