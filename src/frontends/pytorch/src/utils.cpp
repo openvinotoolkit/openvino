@@ -231,8 +231,8 @@ OutputVector make_framework_node(NodeContext* context) {
                                           context->inputs(),
                                           context->get_output_size() - num_body_outs + num_skip_body_outputs);
     fw_node->set_friendly_name(context->get_op_type());
-    for (int i = 0; i < bodies.size(); ++i) {
-        fw_node->set_function(i, bodies[i]);
+    for (size_t i = 0; i < bodies.size(); ++i) {
+        fw_node->set_function(static_cast<int>(i), bodies[i]);
     }
 
     // Connect inputs with external context
