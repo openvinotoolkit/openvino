@@ -20,7 +20,7 @@ To install the latest available **Intel® Graphics Compute Runtime for oneAPI Le
 
 .. note::
 
-If you are using RedHat 8, you may install the OpenCL library as a prerequisite by using the following command:
+   If you are using RedHat 8, you may install the OpenCL library as a prerequisite by using the following command:
 
    .. code-block:: sh
 
@@ -48,13 +48,13 @@ To check whether you have this driver installed:
 1. Type **device manager** in your **Search Windows** box and press Enter. The **Device Manager** opens.
 2. Click the drop-down arrow to view the **Display adapters**. You can see the adapter that is installed in your computer:
 
-   .. image:: img/DeviceManager.PNG
+   .. image:: docs/img/DeviceManager.PNG
       :width: 400
 
 3. Right-click the adapter name and select **Properties**.
 4. Click the **Driver** tab to see the driver version.  
 
-   .. image:: img/DeviceDriverVersion.PNG
+   .. image:: docs/img/DeviceDriverVersion.PNG
       :width: 400
 
 
