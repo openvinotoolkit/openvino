@@ -346,3 +346,126 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformationNoZeroPoint
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
 }
+
+TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformationNotConstantWeights) {
+    // Input graph:
+    //
+    //     Parameter
+    //      |F32
+    //      |
+    //     FakeQuantize            Constant
+    //      |F32                     |I8
+    //      |                        |
+    //     Convert   Constant       Clamp    Constant
+    //      |U8        |U8           |I8       |I8
+    //      |          |             |         |
+    //     Convert  Convert(DCF) Convert(DCF) Convert(DCF)
+    //       \FP32    /FP32          |FP32   /F32
+    //        \      /               |      /
+    //        Subtract  Constant    Subtract  Constant
+    //          \FP32   /FP32        |FP32    /FP32
+    //           \     /             |       /
+    //           Multiply           Multiply
+    //             \FP32            /FP32
+    //              \              /
+    //                 Convolution
+    //
+    // After MarkDequantizationSubgraph all Subtract and Multiply nodes from above graph
+    // are marked with 'DequantizationNode' attribute.
+    // Also all 'Convert(DCF)' nodes from above graph are marked with 'DisableConstantFolding' attribute
+
+    {
+        auto parameter = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 16, 14, 14});
+        std::shared_ptr<Node> activations =
+            std::make_shared<opset10::FakeQuantize>(parameter,
+                                                    opset10::Constant::create(element::f32, Shape{}, {0}),
+                                                    opset10::Constant::create(element::f32, Shape{}, {20}),
+                                                    opset10::Constant::create(element::f32, Shape{}, {0}),
+                                                    opset10::Constant::create(element::f32, Shape{}, {254}),
+                                                    255);
+        {
+            auto first_convert = std::make_shared<opset10::Convert>(activations, element::u8);
+            auto second_convert = std::make_shared<opset10::Convert>(first_convert, element::f32);
+            auto zero_point = opset10::Constant::create(element::u8, Shape{}, {127});
+            auto convert_on_zero_point = std::make_shared<opset10::Convert>(zero_point, element::f32);
+            auto subtract = std::make_shared<opset10::Subtract>(second_convert, convert_on_zero_point);
+            auto scale = opset10::Constant::create(element::f32, Shape{}, {0.2});
+            auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
+            activations = multiply;
+        }
+
+        std::shared_ptr<Node> weights = opset10::Constant::create(element::i8, Shape{4, 16, 1, 1}, {-3});
+        {
+            auto clamp = std::make_shared<opset10::Clamp>(weights, -2, 2);
+            auto convert = std::make_shared<opset10::Convert>(clamp, element::f32);
+            auto zero_point = opset10::Constant::create(element::i8, Shape{}, {127});
+            auto convert_on_zero_point = std::make_shared<opset10::Convert>(zero_point, element::f32);
+            auto subtract = std::make_shared<opset10::Subtract>(convert, convert_on_zero_point);
+            auto scale = opset10::Constant::create(element::f32, Shape{}, {0.2});
+            auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
+            weights = multiply;
+        }
+
+        auto conv = std::make_shared<opset10::Convolution>(activations,
+                                                           weights,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
+        function = std::make_shared<Model>(conv, ParameterVector{parameter});
+    }
+
+    manager.register_pass<pass::MarkDequantizationSubgraph>(element::TypeVector{element::u8, element::i8});
+    manager.register_pass<pass::ConstantFolding>();
+
+    {
+        auto parameter = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 16, 14, 14});
+        std::shared_ptr<Node> activations =
+            std::make_shared<opset10::FakeQuantize>(parameter,
+                                                    opset10::Constant::create(element::f32, Shape{}, {0}),
+                                                    opset10::Constant::create(element::f32, Shape{}, {20}),
+                                                    opset10::Constant::create(element::f32, Shape{}, {0}),
+                                                    opset10::Constant::create(element::f32, Shape{}, {254}),
+                                                    255);
+        {
+            auto first_convert = std::make_shared<opset10::Convert>(activations, element::u8);
+            auto second_convert = std::make_shared<opset10::Convert>(first_convert, element::f32);
+            auto zero_point = opset10::Constant::create(element::u8, Shape{}, {127});
+            auto convert_on_zero_point = std::make_shared<opset10::Convert>(zero_point, element::f32);
+            pass::disable_constant_folding(convert_on_zero_point);
+            auto subtract = std::make_shared<opset10::Subtract>(second_convert, convert_on_zero_point);
+            mark_as_dequantization_node(subtract);
+            auto scale = opset10::Constant::create(element::f32, Shape{}, {0.2});
+            auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
+            mark_as_dequantization_node(multiply);
+            activations = multiply;
+        }
+
+        std::shared_ptr<Node> weights = opset10::Constant::create(element::i8, Shape{4, 16, 1, 1}, {-2});
+        {
+            // Clamp was constantfolded
+            auto convert = std::make_shared<opset10::Convert>(weights, element::f32);
+            pass::disable_constant_folding(convert);
+            auto zero_point = opset10::Constant::create(element::i8, Shape{}, {127});
+            auto convert_on_zero_point = std::make_shared<opset10::Convert>(zero_point, element::f32);
+            pass::disable_constant_folding(convert_on_zero_point);
+            auto subtract = std::make_shared<opset10::Subtract>(convert, convert_on_zero_point);
+            mark_as_dequantization_node(subtract);
+            auto scale = opset10::Constant::create(element::f32, Shape{}, {0.2});
+            auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
+            mark_as_dequantization_node(multiply);
+            weights = multiply;
+        }
+
+        auto conv = std::make_shared<opset10::Convolution>(activations,
+                                                           weights,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
+        function_ref = std::make_shared<Model>(conv, ParameterVector{parameter});
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+}
