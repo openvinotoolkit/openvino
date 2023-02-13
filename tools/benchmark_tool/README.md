@@ -110,11 +110,11 @@ usage: benchmark_app.py [-h [HELP]] [-i PATHS_TO_INPUT [PATHS_TO_INPUT ...]] -m 
                         [-hint {throughput,cumulative_throughput,latency,none}] [-niter NUMBER_ITERATIONS] [-t TIME] [-b BATCH_SIZE] [-shape SHAPE]
                         [-data_shape DATA_SHAPE] [-layout LAYOUT] [-extensions EXTENSIONS] [-c PATH_TO_CLDNN_CONFIG] [-cdir CACHE_DIR] [-lfile [LOAD_FROM_FILE]]
                         [-api {sync,async}] [-nireq NUMBER_INFER_REQUESTS] [-nstreams NUMBER_STREAMS] [-inference_only [INFERENCE_ONLY]]
-                        [-infer_precision INFER_PRECISION] [-ip {u8,U8,f16,FP16,f32,FP32}] [-op {u8,U8,f16,FP16,f32,FP32}] [-iop INPUT_OUTPUT_PRECISION]
-                        [--mean_values [R,G,B]] [--scale_values [R,G,B]] [-nthreads NUMBER_THREADS] [-pin {YES,NO,NUMA,HYBRID_AWARE}]
-                        [-latency_percentile LATENCY_PERCENTILE] [-report_type {no_counters,average_counters,detailed_counters}] [-report_folder REPORT_FOLDER]
-                        [-pc [PERF_COUNTS]] [-pcsort {no_sort,sort,simple_sort}] [-pcseq [PCSEQ]] [-exec_graph_path EXEC_GRAPH_PATH] [-dump_config DUMP_CONFIG]
-                        [-load_config LOAD_CONFIG]
+                        [-infer_precision INFER_PRECISION] [-ip {bool,f16,f32,f64,i8,i16,i32,i64,u8,u16,u32,u64}]
+                        [-op {bool,f16,f32,f64,i8,i16,i32,i64,u8,u16,u32,u64}] [-iop INPUT_OUTPUT_PRECISION] [--mean_values [R,G,B]] [--scale_values [R,G,B]]
+                        [-nthreads NUMBER_THREADS] [-pin {YES,NO,NUMA,HYBRID_AWARE}] [-latency_percentile LATENCY_PERCENTILE]
+                        [-report_type {no_counters,average_counters,detailed_counters}] [-report_folder REPORT_FOLDER] [-pc [PERF_COUNTS]]
+                        [-pcsort {no_sort,sort,simple_sort}] [-pcseq [PCSEQ]] [-exec_graph_path EXEC_GRAPH_PATH] [-dump_config DUMP_CONFIG] [-load_config LOAD_CONFIG]
 
 Options:
   -h [HELP], --help [HELP]
@@ -122,7 +122,8 @@ Options:
 
   -i PATHS_TO_INPUT [PATHS_TO_INPUT ...], --paths_to_input PATHS_TO_INPUT [PATHS_TO_INPUT ...]
                         Optional. Path to a folder with images and/or binaries or to specific image or binary file.It is also allowed to map files to model inputs:
-                        input_1:file_1/dir1,file_2/dir2,input_4:file_4/dir4 input_2:file_3/dir3
+                        input_1:file_1/dir1,file_2/dir2,input_4:file_4/dir4 input_2:file_3/dir3 Currently supported data types: bin, npy. If OPENCV is enabled, this
+                        functionalityis extended with the following data types: bmp, dib, jpeg, jpg, jpe, jp2, png, pbm, pgm, ppm, sr, ras, tiff, tif.
 
   -m PATH_TO_MODEL, --path_to_model PATH_TO_MODEL
                         Required. Path to an .xml/.onnx file with a trained model or to a .blob file with a trained compiled model.
@@ -198,10 +199,10 @@ Advanced options:
 
 
 Preprocessing options:
-  -ip {u8,U8,f16,FP16,f32,FP32}, --input_precision {u8,U8,f16,FP16,f32,FP32}
+  -ip {bool,f16,f32,f64,i8,i16,i32,i64,u8,u16,u32,u64}, --input_precision {bool,f16,f32,f64,i8,i16,i32,i64,u8,u16,u32,u64}
                         Optional. Specifies precision for all input layers of the model.
 
-  -op {u8,U8,f16,FP16,f32,FP32}, --output_precision {u8,U8,f16,FP16,f32,FP32}
+  -op {bool,f16,f32,f64,i8,i16,i32,i64,u8,u16,u32,u64}, --output_precision {bool,f16,f32,f64,i8,i16,i32,i64,u8,u16,u32,u64}
                         Optional. Specifies precision for all output layers of the model.
 
   -iop INPUT_OUTPUT_PRECISION, --input_output_precision INPUT_OUTPUT_PRECISION
@@ -285,7 +286,7 @@ Statistics dumping options:
 Running the application with the empty list of options yields the usage message given above and an error message.
 
 ### More information on inputs
-The benchmark tool supports topologies with one or more inputs. If a topology is not data sensitive, you can skip the input parameter, and the inputs will be filled with random values. If a model has only image input(s), provide a folder with images or a path to an image as input. If a model has some specific input(s) (besides images), please prepare a binary file(s) that is filled with data of appropriate precision and provide a path to it as input. If a model has mixed input types, the input folder should contain all required files. Image inputs are filled with image files one by one. Binary inputs are filled with binary inputs one by one.
+The benchmark tool supports topologies with one or more inputs. If a topology is not data sensitive, you can skip the input parameter, and the inputs will be filled with random values. If a model has only image input(s), provide a folder with images or a path to an image as input. If a model has some specific input(s) (besides images), please prepare a binary file(s) or numpy array(s) that is filled with data of appropriate precision and provide a path to it as input. If a model has mixed input types, the input folder should contain all required files. Image inputs are filled with image files one by one. Binary inputs are filled with binary inputs one by one.
 
 ## <a name="examples-of-running-the-tool-python"></a> Examples of Running the Tool
 This section provides step-by-step instructions on how to run the Benchmark Tool with the `asl-recognition` Intel model on CPU or GPU devices. It uses random data as the input.

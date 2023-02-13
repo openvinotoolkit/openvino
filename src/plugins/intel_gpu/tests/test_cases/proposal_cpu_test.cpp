@@ -52,7 +52,7 @@ template <typename Dtype, typename ImInfoType = Dtype>
 class TestRunnerProposal
 {
     public:
-        explicit TestRunnerProposal(cldnn::tensor image_info_size);
+        explicit TestRunnerProposal(cldnn::tensor image_info_size, bool is_caching_test = false);
 
         memory::ptr Run(std::vector<Dtype>& data,
                         std::vector<Dtype>& rois);
@@ -67,7 +67,7 @@ class TestRunnerProposal
 };
 
 template <typename Dtype, typename ImInfoType>
-TestRunnerProposal<Dtype, ImInfoType>::TestRunnerProposal(cldnn::tensor image_info_size) :
+TestRunnerProposal<Dtype, ImInfoType>::TestRunnerProposal(cldnn::tensor image_info_size, bool is_caching_test) :
                             _cls_scores_layout(cldnn::type_to_data_type<Dtype>::value, format::bfyx, { 1, 18, 23, 14 } ),
                             _bbox_pred_layout(cldnn::type_to_data_type<Dtype>::value, format::bfyx, { 1, 36, 23, 14 } ),
                             _image_info_layout(cldnn::type_to_data_type<ImInfoType>::value, format::bfyx, image_info_size),
@@ -91,7 +91,22 @@ TestRunnerProposal<Dtype, ImInfoType>::TestRunnerProposal(cldnn::tensor image_in
 
     _topology.add(_test_layer);
 
-    _network.reset(new network(get_test_engine(), _topology));
+    if (is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(get_test_engine(), _topology);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, get_test_engine());
+            _network.reset(new network(ib, get_test_stream_ptr(), get_test_engine()));
+        }
+    } else {
+        _network.reset(new network(get_test_engine(), _topology));
+    }
 }
 
 template <typename Dtype, typename ImInfoType>
@@ -117,101 +132,86 @@ memory::ptr TestRunnerProposal<Dtype, ImInfoType>::Run(std::vector<Dtype>& cls_s
     return network_output.at(layer_name).get_memory();
 }
 
-TEST(proposal, basic) {
-    std::vector<float> cls_scores(&cls_scores_data[0], &cls_scores_data[cls_scores_data_size]);
-    std::vector<float> bbox_pred(&bbox_pred_data[0], &bbox_pred_data[bbox_pred_data_size]);
+template <typename Dtype>
+void test_proposal_basic(cldnn::tensor image_info_size, bool is_caching_test) {
+    std::vector<Dtype> cls_scores(&cls_scores_data[0], &cls_scores_data[cls_scores_data_size]);
+    std::vector<Dtype> bbox_pred(&bbox_pred_data[0], &bbox_pred_data[bbox_pred_data_size]);
 
-    TestRunnerProposal<float> t({ 1, 3, 1, 1 });
+    TestRunnerProposal<Dtype> t(image_info_size, is_caching_test);
 
     memory::ptr output = t.Run(cls_scores, bbox_pred);
     ASSERT_EQ(output->get_layout().count(), proposal_ref_size);
 
-    cldnn::mem_lock<float> f(output, get_test_stream());
+    cldnn::mem_lock<Dtype> f(output, get_test_stream());
 
     for (size_t i = 0; i < proposal_ref_size; i++) {
-        ASSERT_NEAR(f[i], proposal_ref[i], epsilon);
+        Dtype ref(proposal_ref[i]);
+        ASSERT_NEAR((float)f[i], (float)ref, epsilon_fp16);
     }
 }
 
-TEST(proposal, fp16) {
-    std::vector<FLOAT16> cls_scores(&cls_scores_data[0], &cls_scores_data[cls_scores_data_size]);
-    std::vector<FLOAT16> bbox_pred(&bbox_pred_data[0], &bbox_pred_data[bbox_pred_data_size]);
+TEST(proposal, basic) {
+    test_proposal_basic<float>({ 1, 3, 1, 1 }, false);
+}
 
-    TestRunnerProposal<FLOAT16> t({ 1, 3, 1, 1 });
+TEST(proposal, fp16) {
+    test_proposal_basic<FLOAT16>({ 1, 3, 1, 1 }, false);
+}
+
+TEST(proposal, img_info_batched) {
+    test_proposal_basic<float>({ 2, 3, 1, 1 }, false);
+}
+
+TEST(proposal, img_info_batch_only) {
+    test_proposal_basic<float>({ 3, 1, 1, 1 }, false);
+}
+
+template <typename Dtype, typename ImInfoType>
+void test_proposal_basic_two_types(cldnn::tensor image_info_size, bool is_caching_test) {
+    std::vector<Dtype> cls_scores(&cls_scores_data[0], &cls_scores_data[cls_scores_data_size]);
+    std::vector<Dtype> bbox_pred(&bbox_pred_data[0], &bbox_pred_data[bbox_pred_data_size]);
+
+    TestRunnerProposal<Dtype, ImInfoType> t(image_info_size, is_caching_test);
 
     memory::ptr output = t.Run(cls_scores, bbox_pred);
     ASSERT_EQ(output->get_layout().count(), proposal_ref_size);
 
-    cldnn::mem_lock<FLOAT16> d(output, get_test_stream());
+    cldnn::mem_lock<Dtype> d(output, get_test_stream());
 
     for (size_t i = 0; i < proposal_ref_size; i++) {
-        FLOAT16 ref(proposal_ref[i]);
+        Dtype ref(proposal_ref[i]);
         ASSERT_NEAR((float)d[i], (float)ref, epsilon_fp16);
     }
 }
 
 TEST(proposal, scores_fp16_im_info_fp32) {
-    std::vector<FLOAT16> cls_scores(&cls_scores_data[0], &cls_scores_data[cls_scores_data_size]);
-    std::vector<FLOAT16> bbox_pred(&bbox_pred_data[0], &bbox_pred_data[bbox_pred_data_size]);
-
-    TestRunnerProposal<FLOAT16, float> t({ 1, 3, 1, 1 });
-
-    memory::ptr output = t.Run(cls_scores, bbox_pred);
-    ASSERT_EQ(output->get_layout().count(), proposal_ref_size);
-
-    cldnn::mem_lock<FLOAT16> d(output, get_test_stream());
-
-    for (size_t i = 0; i < proposal_ref_size; i++) {
-        FLOAT16 ref(proposal_ref[i]);
-        ASSERT_NEAR((float)d[i], (float)ref, epsilon_fp16);
-    }
+    test_proposal_basic_two_types<FLOAT16, float>({ 1, 3, 1, 1 }, false);
 }
 
 TEST(proposal, scores_fp32_im_info_fp16) {
-    std::vector<float> cls_scores(&cls_scores_data[0], &cls_scores_data[cls_scores_data_size]);
-    std::vector<float> bbox_pred(&bbox_pred_data[0], &bbox_pred_data[bbox_pred_data_size]);
-
-    TestRunnerProposal<float, FLOAT16> t({ 1, 3, 1, 1 });
-
-    memory::ptr output = t.Run(cls_scores, bbox_pred);
-    ASSERT_EQ(output->get_layout().count(), proposal_ref_size);
-
-    cldnn::mem_lock<float> d(output, get_test_stream());
-
-    for (size_t i = 0; i < proposal_ref_size; i++) {
-        float ref(proposal_ref[i]);
-        ASSERT_NEAR((float)d[i], (float)ref, epsilon);
-    }
+    test_proposal_basic_two_types<float, FLOAT16>({ 1, 3, 1, 1 }, false);
+}
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+TEST(proposal, basic_cached) {
+    test_proposal_basic<float>({ 1, 3, 1, 1 }, true);
 }
 
-TEST(proposal, img_info_batched) {
-    std::vector<float> cls_scores(&cls_scores_data[0], &cls_scores_data[cls_scores_data_size]);
-    std::vector<float> bbox_pred(&bbox_pred_data[0], &bbox_pred_data[bbox_pred_data_size]);
-
-    TestRunnerProposal<float> t({ 2, 3, 1, 1 });
-
-    memory::ptr output = t.Run(cls_scores, bbox_pred);
-    ASSERT_EQ(output->get_layout().count(), proposal_ref_size);
-
-    cldnn::mem_lock<float> f(output, get_test_stream());
-
-    for (size_t i = 0; i < proposal_ref_size; i++) {
-        ASSERT_NEAR(f[i], proposal_ref[i], epsilon);
-    }
+TEST(proposal, fp16_cached) {
+    test_proposal_basic<FLOAT16>({ 1, 3, 1, 1 }, true);
 }
 
-TEST(proposal, img_info_batch_only) {
-    std::vector<float> cls_scores(&cls_scores_data[0], &cls_scores_data[cls_scores_data_size]);
-    std::vector<float> bbox_pred(&bbox_pred_data[0], &bbox_pred_data[bbox_pred_data_size]);
+TEST(proposal, img_info_batched_cached) {
+    test_proposal_basic<float>({ 2, 3, 1, 1 }, true);
+}
 
-    TestRunnerProposal<float> t({ 3, 1, 1, 1 });
+TEST(proposal, img_info_batch_only_cached) {
+    test_proposal_basic<float>({ 3, 1, 1, 1 }, true);
+}
 
-    memory::ptr output = t.Run(cls_scores, bbox_pred);
-    ASSERT_EQ(output->get_layout().count(), proposal_ref_size);
-
-    cldnn::mem_lock<float> f(output, get_test_stream());
-
-    for (size_t i = 0; i < proposal_ref_size; i++) {
-        ASSERT_NEAR(f[i], proposal_ref[i], epsilon);
-    }
+TEST(proposal, scores_fp16_im_info_fp32_cached) {
+    test_proposal_basic_two_types<FLOAT16, float>({ 1, 3, 1, 1 }, true);
+}
+#endif // RUN_ALL_MODEL_CACHING_TESTS
+TEST(proposal, scores_fp32_im_info_fp16_cached) {
+    test_proposal_basic_two_types<float, FLOAT16>({ 1, 3, 1, 1 }, true);
 }
