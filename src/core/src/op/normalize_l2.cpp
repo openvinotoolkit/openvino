@@ -12,6 +12,7 @@
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include <ngraph/opsets/opset1.hpp>
 
 using namespace std;
 using namespace ngraph;
@@ -37,6 +38,13 @@ void op::v0::NormalizeL2::validate_and_infer_types() {
     const auto& axes_pshape = get_input_partial_shape(1);
     const auto& input_rank = input_pshape.rank();
     const auto& axes_rank = axes_pshape.rank();
+
+    auto const_axis = std::dynamic_pointer_cast<ngraph::opset1::Constant> (input(1).get_source_output().get_node_shared_ptr());
+    if (const_axis) {
+        auto axis = const_axis->cast_vector<size_t>();
+        across_spatial = !(axis.size() == 1 && axis[0] == 1);
+        channel_shared = true;
+    }
 
     NODE_VALIDATION_CHECK(this, has_and_set_equal_bounds(input_value(1)), "Input axes must be Constant type");
 

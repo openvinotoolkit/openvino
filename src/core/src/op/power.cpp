@@ -61,7 +61,7 @@ op::v1::Power::Power(const Output<Node>& arg0, const Output<Node>& arg1, const A
     : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast) {
     constructor_validate_and_infer_types();
     float value(0);
-    auto node = this->input(1).get_source_output().get_node_shared_ptr();
+    auto node = input(1).get_source_output().get_node_shared_ptr();
     if (auto const_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(node)) {
         if (op::util::get_single_value(const_node, value)) {
             power = value;

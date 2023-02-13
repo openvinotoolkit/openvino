@@ -40,6 +40,12 @@ public:
     float get_eps() const {
         return m_eps;
     }
+    float get_across_spatial() const {
+        return across_spatial;
+    }
+    float get_channel_shared() const {
+        return channel_shared;
+    }
     EpsMode get_eps_mode() const {
         return m_eps_mode;
     }
@@ -47,6 +53,8 @@ public:
 
 protected:
     float m_eps;
+    bool across_spatial;
+    bool channel_shared;
     EpsMode m_eps_mode;
 };
 }  // namespace v0
