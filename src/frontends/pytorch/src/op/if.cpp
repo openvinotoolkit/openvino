@@ -56,7 +56,7 @@ OutputVector translate_if(NodeContext& context) {
         }
     }
     OutputVector res;
-    const auto num_outs = context.num_of_outputs();
+    const auto num_outs = context.get_output_size();
     const auto then_results = then_body->get_results();
     const auto else_results = else_body->get_results();
     FRONT_END_OP_CONVERSION_CHECK(then_results.size() >= num_outs && else_results.size() >= num_outs,

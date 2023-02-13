@@ -13,9 +13,10 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
+using namespace ov::op;
+
 OutputVector translate_conv_transposend(NodeContext& context) {
-    auto num_inputs = context.get_input_size();
-    FRONT_END_OP_CONVERSION_CHECK(num_inputs == 8, "Unsupported number of inputs: ", num_inputs);
+    num_inputs_check(context, 8, 8);
     auto strides = context.const_input<Strides>(3);
     // PyTorch support only symmetric padding, padding sizes are the same for begins and ends for each dimension
     auto pads = context.const_input<CoordinateDiff>(4);
@@ -27,16 +28,16 @@ OutputVector translate_conv_transposend(NodeContext& context) {
 
     std::shared_ptr<ov::Node> conv;
     if (groups == 1) {
-        conv = std::make_shared<ov::op::v1::ConvolutionBackpropData>(context.get_input(0),
-                                                                     context.get_input(1),
-                                                                     strides,
-                                                                     pads,
-                                                                     pads,
-                                                                     dilations,
-                                                                     pad_type,
-                                                                     output_padding);
+        conv = std::make_shared<v1::ConvolutionBackpropData>(context.get_input(0),
+                                                             context.get_input(1),
+                                                             strides,
+                                                             pads,
+                                                             pads,
+                                                             dilations,
+                                                             pad_type,
+                                                             output_padding);
     } else {
-        conv = std::make_shared<ov::op::v1::GroupConvolutionBackpropData>(
+        conv = std::make_shared<v1::GroupConvolutionBackpropData>(
             context.get_input(0),
             reshape_kernel_for_group(context, context.get_input(1), groups),
             strides,
@@ -52,7 +53,7 @@ OutputVector translate_conv_transposend(NodeContext& context) {
         if (bias_rank == 1) {
             bias = reshape_channelwise(context, bias, conv);
         }
-        conv = context.mark_node(std::make_shared<ov::op::v1::Add>(conv, bias));
+        conv = context.mark_node(std::make_shared<v1::Add>(conv, bias));
     }
 
     return {conv};

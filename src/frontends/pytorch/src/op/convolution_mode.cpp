@@ -3,7 +3,9 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -11,9 +13,12 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
+using namespace ov::op;
+
 OutputVector translate_convolution_mode(NodeContext& context) {
     // Schema: aten::_convolution_mode(Tensor input, Tensor weight, Tensor? bias, int[] stride, str padding, int[]
     // dilation, int groups) -> Tensor
+    num_inputs_check(context, 7, 7);
     auto strides = context.const_input<Strides>(3);
     auto pad_mode = context.const_input<std::string>(4);
     auto dilations = context.const_input<Strides>(5);
@@ -24,15 +29,15 @@ OutputVector translate_convolution_mode(NodeContext& context) {
 
     std::shared_ptr<ov::Node> conv;
     if (groups == 1) {
-        conv = context.mark_node(std::make_shared<opset10::Convolution>(context.get_input(0),
-                                                                        context.get_input(1),
-                                                                        strides,
-                                                                        pad_const,
-                                                                        pad_const,
-                                                                        dilations,
-                                                                        auto_pad_mode));
+        conv = context.mark_node(std::make_shared<v1::Convolution>(context.get_input(0),
+                                                                   context.get_input(1),
+                                                                   strides,
+                                                                   pad_const,
+                                                                   pad_const,
+                                                                   dilations,
+                                                                   auto_pad_mode));
     } else {
-        conv = context.mark_node(std::make_shared<opset10::GroupConvolution>(
+        conv = context.mark_node(std::make_shared<v1::GroupConvolution>(
             context.get_input(0),
             context.mark_output(reshape_kernel_for_group(context, context.get_input(1), groups)),
             strides,
@@ -49,7 +54,7 @@ OutputVector translate_convolution_mode(NodeContext& context) {
             bias = reshape_channelwise(context, bias, conv);
         }
 
-        conv = context.mark_node(std::make_shared<opset10::Add>(conv, bias));
+        conv = context.mark_node(std::make_shared<v1::Add>(conv, bias));
     }
     return {context.mark_output(conv)};
 };

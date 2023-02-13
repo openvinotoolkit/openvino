@@ -13,6 +13,7 @@ namespace op {
 
 OutputVector translate_linear(NodeContext& context) {
     // schema: aten::linear(Tensor input, Tensor weight, Tensor? bias=None) -> Tensor
+    num_inputs_check(context, 2, 3);
     auto x = context.get_input(0);
     auto y = context.get_input(1);
     auto matmul = context.mark_node(std::make_shared<ov::op::v0::MatMul>(x, y, false, true));

@@ -29,9 +29,6 @@ public:
 
     // TODO: set of input and output methods are not aligned; also they are not aligned with the rest of FEs
 
-    // Input tensor id
-    virtual size_t input(size_t index) const = 0;
-
     virtual const std::vector<size_t>& inputs() const = 0;
 
     // ------------------------------

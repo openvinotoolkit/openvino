@@ -26,21 +26,23 @@ public:
           m_decoder(decoder),
           m_tensor_map(tensor_map),
           m_ext_tensor_map(ext_tensor_map),
-          m_external_parameters(external_parameters) {}
+          m_external_parameters(external_parameters),
+          m_decoder_inputs(decoder->inputs()),
+          m_decoder_outputs(decoder->outputs()) {}
 
     // Do not search for input in tensor map; try to access it as a constant of specified type T and return its value
     template <typename T>
     T const_input(size_t index) const;
 
     size_t get_input_size() const override {
-        return m_decoder->inputs().size();
+        return m_decoder_inputs.size();
     };
 
     // Search for input in tensor map and return an output port for already converted op
     // TODO: int due to base class uses it, but naturally it should be size_t for PT
     Output<Node> get_input(int index) const override {
         FRONT_END_GENERAL_CHECK(!m_decoder->input_is_none(index), "Input is none with index: ", index);
-        auto input = m_decoder->input(index);
+        auto input = m_decoder_inputs.at(index);
         FRONT_END_GENERAL_CHECK(m_tensor_map->count(input), "No tensor corresponding input: ", input, " exist.");
         return m_tensor_map->at(input);
     }
@@ -48,7 +50,7 @@ public:
     // TODO: upstream to base class
     OutputVector inputs() const {
         OutputVector res;
-        for (size_t input : m_decoder->inputs()) {
+        for (auto input : m_decoder_inputs) {
             FRONT_END_GENERAL_CHECK(m_tensor_map->count(input), "No tensor corresponding index: ", input, " exist.");
             res.push_back(m_tensor_map->at(input));
         }
@@ -63,27 +65,20 @@ public:
         return m_decoder->input_is_none(index);
     }
 
+    size_t get_output_size() const {
+        return m_decoder_outputs.size();
+    }
+
+    std::vector<size_t> outputs() const {
+        return m_decoder_outputs;
+    }
+
     // Convert the resulting value of this node to ov Constant; works correctly only for nodes that produce
     // constant value, naturally for prim::Constant
     OutputVector as_constant() const;
 
-    /*
-    TODO: Should be uncommented when explicit NodeContext ctor won't require passing op_type
-    const std::string& get_op_type() const override {
-        return m_decoder->get_op_type();
-    }
-    */
-
     std::string get_schema() const {
         return m_decoder->get_schema();
-    }
-
-    size_t num_of_outputs() const {
-        return m_decoder->num_of_outputs();
-    }
-
-    std::vector<size_t> outputs() const {
-        return m_decoder->outputs();
     }
 
     std::shared_ptr<Node> mark_node(std::shared_ptr<Node> ov_node) const {
@@ -105,7 +100,7 @@ public:
 
     void mutate_input(size_t index, Output<Node> ov_output) {
         FRONT_END_GENERAL_CHECK(!m_decoder->input_is_none(index), "Input is none with index: ", index);
-        auto input = m_decoder->input(index);
+        auto input = m_decoder_inputs.at(index);
         FRONT_END_GENERAL_CHECK(m_tensor_map->count(input), "No tensor corresponding input: ", input, " exist.");
         m_tensor_map->at(input).get_tensor().set_names({std::to_string(input) + "_"});
         // TODO: find out why this doesn't work
@@ -148,6 +143,8 @@ private:
     TensorMap* m_tensor_map;
     const TensorMap& m_ext_tensor_map;
     ParameterVector* m_external_parameters;
+    const std::vector<size_t> m_decoder_inputs;
+    const std::vector<size_t> m_decoder_outputs;
 };
 
 }  // namespace pytorch

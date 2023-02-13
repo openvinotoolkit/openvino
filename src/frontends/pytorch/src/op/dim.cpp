@@ -3,7 +3,6 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -11,12 +10,13 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
+using namespace ov::op;
+
 OutputVector translate_dim(NodeContext& context) {
-    auto shape = std::make_shared<opset10::ShapeOf>(context.get_input(0), element::i32);
-    auto rank = std::make_shared<opset10::ShapeOf>(shape, element::i32);
-    auto squeeze = std::make_shared<opset10::Squeeze>(rank);
-    context.mark_nodes({shape, rank, squeeze});
-    return squeeze->outputs();
+    num_inputs_check(context, 1, 1);
+    Output<Node> rank;
+    std::tie(std::ignore, rank) = get_shape_rank(context, context.get_input(0), true);
+    return {rank};
 };
 
 }  // namespace op

@@ -19,17 +19,32 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_flatten(NodeContext& context) {
-    num_inputs_check(context, 2, 3);
+    num_inputs_check(context, 1, 3);
     auto x = context.get_input(0);
-    auto start_dim = context.const_input<int64_t>(1);
-    auto end_dim = context.const_input<int64_t>(2);
-
+    int64_t start_dim = 0;
+    int64_t end_dim = -1;
+    if (!context.input_is_none(1)) {
+        start_dim = context.const_input<int64_t>(1);
+    }
+    if (!context.input_is_none(2)) {
+        end_dim = context.const_input<int64_t>(2);
+    }
     Output<Node> shape;
     Output<Node> rank;
     std::tie(shape, rank) = get_shape_rank(context, x, true);
     // Use opset::If for dim normalization. For now we only have flatten with constant start and end
-    auto start_dim_node = context.get_input(1);
-    auto end_dim_node = context.get_input(2);
+    Output<Node> start_dim_node;
+    Output<Node> end_dim_node;
+    if (!context.input_is_none(1)) {
+        start_dim_node = context.get_input(1);
+    } else {
+        start_dim_node = v0::Constant::create(element::i32, Shape{}, {start_dim});
+    }
+    if (!context.input_is_none(2)) {
+        end_dim_node = context.get_input(2);
+    } else {
+        end_dim_node = v0::Constant::create(element::i32, Shape{}, {end_dim});
+    }
     if (start_dim < 0) {
         start_dim_node = context.mark_node(std::make_shared<v1::Add>(rank, start_dim_node));
     }
@@ -51,7 +66,7 @@ OutputVector translate_flatten(NodeContext& context) {
 
     context.mark_nodes({zero, one, int_max, start_dim_u, end_dim_u, slice_begin, slice_end, neg_1_const, new_shape});
 
-    return {context.mark_node(std::make_shared<v1::Reshape>(context.get_input(0), new_shape, true))};
+    return {context.mark_node(std::make_shared<v1::Reshape>(x, new_shape, true))};
 };
 
 }  // namespace op

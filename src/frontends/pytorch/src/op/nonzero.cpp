@@ -3,7 +3,9 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/non_zero.hpp"
+#include "openvino/op/transpose.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -11,11 +13,14 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
+using namespace ov::op;
+
 OutputVector translate_nonzero(NodeContext& context) {
+    num_inputs_check(context, 1, 1);
     auto cond = context.get_input(0);
-    auto non_zero = context.mark_node(std::make_shared<opset10::NonZero>(cond));
-    auto input_order = context.mark_node(opset10::Constant::create(element::i64, Shape{2}, {1, 0}));
-    return {context.mark_node(std::make_shared<opset10::Transpose>(non_zero, input_order))};
+    auto non_zero = context.mark_node(std::make_shared<v3::NonZero>(cond));
+    auto input_order = context.mark_node(v0::Constant::create(element::i64, Shape{2}, {1, 0}));
+    return {context.mark_node(std::make_shared<v1::Transpose>(non_zero, input_order))};
 };
 
 }  // namespace op

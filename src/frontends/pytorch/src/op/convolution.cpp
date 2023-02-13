@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/convolution.hpp"
+
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/group_conv.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -11,11 +14,14 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
+using namespace ov::op;
+
 OutputVector translate_convolution(NodeContext& context) {
     // Schema: aten::_convolution(Tensor input, Tensor weight, Tensor? bias, int[] stride, int[] padding, int[]
     // dilation, bool transposed, int[] output_padding, int groups, bool benchmark, bool deterministic, bool
     // cudnn_enabled, bool allow_tf32) -> Tensor
 
+    num_inputs_check(context, 9, 13);
     auto strides = context.const_input<Strides>(3);
     auto pads = context.const_input<CoordinateDiff>(4);
     auto dilations = context.const_input<Strides>(5);
@@ -26,25 +32,25 @@ OutputVector translate_convolution(NodeContext& context) {
     std::shared_ptr<ov::Node> conv;
     if (groups == 1) {
         if (!transposed) {
-            conv = context.mark_node(std::make_shared<opset10::Convolution>(context.get_input(0),
-                                                                            context.get_input(1),
-                                                                            strides,
-                                                                            pads,
-                                                                            pads,
-                                                                            dilations));
+            conv = context.mark_node(std::make_shared<v1::Convolution>(context.get_input(0),
+                                                                       context.get_input(1),
+                                                                       strides,
+                                                                       pads,
+                                                                       pads,
+                                                                       dilations));
         } else {
-            conv = context.mark_node(std::make_shared<opset10::ConvolutionBackpropData>(context.get_input(0),
-                                                                                        context.get_input(1),
-                                                                                        strides,
-                                                                                        pads,
-                                                                                        pads,
-                                                                                        dilations,
-                                                                                        ov::op::PadType::EXPLICIT,
-                                                                                        output_padding));
+            conv = context.mark_node(std::make_shared<v1::ConvolutionBackpropData>(context.get_input(0),
+                                                                                   context.get_input(1),
+                                                                                   strides,
+                                                                                   pads,
+                                                                                   pads,
+                                                                                   dilations,
+                                                                                   ov::op::PadType::EXPLICIT,
+                                                                                   output_padding));
         }
     } else {
         if (!transposed) {
-            conv = context.mark_node(std::make_shared<opset10::GroupConvolution>(
+            conv = context.mark_node(std::make_shared<v1::GroupConvolution>(
                 context.get_input(0),
                 context.mark_output(reshape_kernel_for_group(context, context.get_input(1), groups)),
                 strides,
@@ -52,7 +58,7 @@ OutputVector translate_convolution(NodeContext& context) {
                 pads,
                 dilations));
         } else {
-            conv = context.mark_node(std::make_shared<opset10::GroupConvolutionBackpropData>(
+            conv = context.mark_node(std::make_shared<v1::GroupConvolutionBackpropData>(
                 context.get_input(0),
                 context.mark_output(reshape_kernel_for_group(context, context.get_input(1), groups)),
                 strides,
@@ -70,7 +76,7 @@ OutputVector translate_convolution(NodeContext& context) {
             bias = reshape_channelwise(context, bias, conv);
         }
 
-        conv = context.mark_node(std::make_shared<opset10::Add>(conv, bias));
+        conv = context.mark_node(std::make_shared<v1::Add>(conv, bias));
     }
 
     return {context.mark_output(conv)};
