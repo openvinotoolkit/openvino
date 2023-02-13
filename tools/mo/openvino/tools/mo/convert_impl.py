@@ -1007,7 +1007,6 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
         inp_model_is_object = input_model_is_object(args)
         if inp_model_is_object:
             model_framework = check_model_object(args)
-            print(args)
             if model_framework == "pytorch":
                 use_pt_fe = not args.get("use_legacy_frontend", False)
                 example_inputs = None
@@ -1072,4 +1071,4 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
         telemetry.send_event('mo', 'conversion_result', 'fail')
         telemetry.end_session('mo')
         telemetry.force_shutdown(1.0)
-        raise e#.with_traceback(None)
+        raise e.with_traceback(None)
