@@ -1465,7 +1465,7 @@ Convolution::ConvolutionExecutor::ConvolutionExecutor(const dnnl::convolution_fo
                                                                 const dnnl::memory::desc& weightMemDesc,
                                                                 const dnnl::memory::desc& outMemDesc,
                                                                 const dnnl::engine& engine) {
-    execPrim.reset(new dnnl::convolution_forward(pd));
+    execPrim = dnnl::convolution_forward(pd);
 
     if (inMemDesc != pd.src_desc()) {
         inputReorders.insert({DNNL_ARG_SRC, IntermReorder(inMemDesc, pd.src_desc(), engine)});

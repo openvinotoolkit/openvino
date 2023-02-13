@@ -38,7 +38,7 @@ public:
     virtual ~PortMapHelper() = default;
     virtual void execute(dnnl::stream strm, int n_iter = -1) = 0;
 protected:
-    dnnl::reorder reorder;
+    dnnl::primitive reorder;
     dnnl::memory mem_holder_src;
     dnnl::memory mem_holder_dst;
 };
@@ -74,8 +74,8 @@ private:
     void init(const dnnl::engine& eng);
 
     /* methods for resize and refill buffer */
-    std::shared_ptr<dnnl::memory> create_buffer(const dnnl::engine& eng);
-    void move_buffer(std::shared_ptr<dnnl::memory> new_buffer);
+    dnnl::memory create_buffer(const dnnl::engine& eng);
+    void move_buffer(dnnl::memory new_buffer);
     void move_data();
 
     static void copy(const uint8_t* src, uint8_t* dst, const size_t src_stride, const size_t dst_stride, const size_t count, const size_t len);
@@ -91,7 +91,7 @@ private:
     std::vector<MemoryPtr> to;
     PortMap map_rule;
 
-    std::shared_ptr<dnnl::memory> mem_holder_buffer;
+    dnnl::memory mem_holder_buffer;
 };
 
 class TensorIterator : public Node {

@@ -426,7 +426,7 @@ void Concat::prepareParams() {
         }
 
         auto primitive_desc = concat::primitive_desc(desc, static_cast<int>(axis), srcs_d, getEngine());
-        prim.reset(new concat(primitive_desc));
+        prim = concat(primitive_desc);
     }
 }
 
@@ -557,7 +557,7 @@ void Concat::execute(dnnl::stream strm) {
             mem_ags[DNNL_ARG_MULTIPLE_SRC + nonZeroInShapes] = srcMem.GetPrimitive();
             nonZeroInShapes++;
         }
-        (*prim).execute(strm, mem_ags);
+        prim.execute(strm, mem_ags);
     }
 }
 

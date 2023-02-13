@@ -175,7 +175,7 @@ void Lrn::prepareParams() {
     LrnKey key = {inpDesc, selected_pd->getImplementationType(), alg, size, k, alpha, beta};
     auto engine = getEngine();
 
-    auto builder = [&engine](const LrnKey& key) -> std::shared_ptr<dnnl::primitive> {
+    auto builder = [&engine](const LrnKey& key) -> dnnl::primitive {
         DnnlDesriptor desc(std::shared_ptr<dnnl::lrn_forward::desc>(
             new dnnl::lrn_forward::desc(dnnl::prop_kind::forward_scoring, key.alg, key.inp0->getDnnlDesc(), key.size, key.alpha, key.beta, key.k)));
 
@@ -190,9 +190,9 @@ void Lrn::prepareParams() {
                 break;
             }
             if (!itpd.next_impl())
-                return nullptr;
+                return dnnl::lrn_forward();
         }
-        return std::make_shared<dnnl::lrn_forward>(prim_desc);
+        return dnnl::lrn_forward(prim_desc);
     };
 
     auto cache = context->getParamsCache();
@@ -202,7 +202,7 @@ void Lrn::prepareParams() {
     }
     prim = result.first;
 
-    auto pd = (*prim).get_primitive_desc();
+    auto pd = prim.get_primitive_desc();
     auto scratchpadMem = getScratchPadMem(pd);
 
     auto src = srcMemPtr->GetPrimitive();

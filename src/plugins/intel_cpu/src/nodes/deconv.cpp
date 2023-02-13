@@ -1045,7 +1045,7 @@ Deconvolution::DeconvExecutorDefault::DeconvExecutorDefault(const dnnl::convolut
                                                                       const dnnl::memory::desc& weightMemDesc,
                                                                       const dnnl::memory::desc& outMemDesc,
                                                                       const dnnl::engine& engine) {
-    execPrim.reset(new dnnl::convolution_backward_data(pd));
+    execPrim = dnnl::convolution_backward_data(pd);
 
     if (inMemDesc != pd.diff_dst_desc()) {
         inputReorders.insert({DNNL_ARG_DIFF_DST, IntermReorder(inMemDesc, pd.diff_dst_desc(), engine)});
@@ -1065,7 +1065,7 @@ Deconvolution::DeconvExecutorInt8::DeconvExecutorInt8(const dnnl::deconvolution_
                                                                 const dnnl::memory::desc& weightMemDesc,
                                                                 const dnnl::memory::desc& outMemDesc,
                                                                 const dnnl::engine& engine) {
-    execPrim.reset(new dnnl::deconvolution_forward(pd));
+    execPrim = dnnl::deconvolution_forward(pd);
 
     if (inMemDesc != pd.src_desc()) {
         inputReorders.insert({DNNL_ARG_SRC, IntermReorder(inMemDesc, pd.src_desc(), engine)});

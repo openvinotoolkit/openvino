@@ -534,7 +534,7 @@ void MatMul::prepareParams() {
 
     auto engine = getEngine();
 
-    auto builder = [&engine](const MatMulKey& key) -> std::shared_ptr<dnnl::primitive> {
+    auto builder = [&engine](const MatMulKey& key) -> dnnl::primitive {
         std::shared_ptr<dnnl::matmul::desc> matmul_desc;
 
         if (key.bias) {
@@ -560,9 +560,9 @@ void MatMul::prepareParams() {
                 break;
             }
             if (!itpd.next_impl())
-                return nullptr;
+                return matmul();
         }
-        return std::make_shared<matmul>(prim_desc);
+        return matmul(prim_desc);
     };
 
     auto cache = context->getParamsCache();
@@ -574,7 +574,7 @@ void MatMul::prepareParams() {
 
     prim = result.first;
 
-    auto pd = (*prim).get_primitive_desc();
+    auto pd = prim.get_primitive_desc();
     auto scratchpadMem = getScratchPadMem(pd);
 
     primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();

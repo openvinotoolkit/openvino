@@ -166,14 +166,14 @@ public:
 
     dnnl::memory GetPrimitive() const {
         if (isAllocated()) {
-            return *prim;
+            return prim;
         } else {
             IE_THROW() << "Can not perform GetPrimitive call to the not allocated memory";
         }
     }
 
     bool isAllocated() const noexcept {
-        return prim != nullptr;
+        return static_cast<bool>(prim);
     }
 
     /**
@@ -263,7 +263,7 @@ private:
 
 private:
     MemoryDescPtr pMemDesc;
-    std::shared_ptr<dnnl::memory> prim;
+    dnnl::memory prim;
     dnnl::engine eng;
     DnnlMemMngrHandle mgrHandle;
 };
