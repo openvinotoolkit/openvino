@@ -159,7 +159,6 @@ public:
     }
 
 private:
-    const std::shared_ptr<const ngraph::opset1::MatMul> m_matmul;
     VectorDims m_shapeY;
     const size_t m_out_rank;
     const bool m_transpose_a;
@@ -170,11 +169,14 @@ class MMShapeInferFactory : public ShapeInferFactory {
 public:
     MMShapeInferFactory(const std::shared_ptr<ngraph::Node>& op) : m_op(op) {}
     ShapeInferPtr makeShapeInfer() const override {
-        const auto matmul = std::dynamic_pointer_cast<const ngraph::opset1::MatMul>(m_op);
-        const auto output_rank = matmul->get_output_partial_shape(0).rank().get_length();
-        const bool transpose_a = matmul->get_transpose_a();
-        const bool transpose_b = matmul->get_transpose_b();
-        return std::make_shared<MMShapeInfer>(output_rank, transpose_a, transpose_b);
+        if (const auto matmul = ov::as_type_ptr<const ngraph::opset1::MatMul>(m_op)) {
+            const auto output_rank = matmul->get_output_partial_shape(0).rank().get_length();
+            const bool transpose_a = matmul->get_transpose_a();
+            const bool transpose_b = matmul->get_transpose_b();
+            return std::make_shared<MMShapeInfer>(output_rank, transpose_a, transpose_b);
+       } else {
+             IE_THROW() << "Unexpected operation type in the MatMul shape inference factory";
+       }
     }
 private:
     std::shared_ptr<ngraph::Node> m_op;
