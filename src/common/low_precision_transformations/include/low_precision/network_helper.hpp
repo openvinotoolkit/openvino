@@ -132,15 +132,6 @@ public:
         const ngraph::Output<ngraph::Node>& parent,
         const ngraph::Output<ngraph::Node>& subtract_constant);
 
-    static FakeQuantizeDequantization createDequantizationFromFakeQuantize(
-        std::shared_ptr<opset1::FakeQuantize> fq,
-        element::Type precision,
-        float min,
-        float max,
-        const bool hasZeroPoint,
-        const bool updatePrecision,
-        const element::Type deqPrecision = element::f32);
-
     static bool areQuantizeAndDequantizeSupportedForSubtract(const std::shared_ptr<const ngraph::Node>& node,
         const std::vector<ngraph::element::Type>& defaultPrecisions = precision_set::int8_support);
 
@@ -259,7 +250,7 @@ public:
 
     static ov::Output<ov::Node> getSingleConsumerConstant(const ov::Output<ov::Node>& output);
 
-    static bool checkConstantOnInf(const std::shared_ptr<Node> constant_node);
+    static bool checkConstantNotInf(const std::shared_ptr<Node> constant_node);
 
 private:
     static std::shared_ptr<Node> foldFakeQuantize(

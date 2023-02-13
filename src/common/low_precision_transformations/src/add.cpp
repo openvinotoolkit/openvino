@@ -189,8 +189,8 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
         auto newMultiplyFullPathValues = fold<opset1::Divide>(multiplyFullPathValues, multiplyEmptyPathValues);
 
         // Transformation can't be applied if new full path values brake accuracy because of Inf values
-        if (!NetworkHelper::checkConstantOnInf(newSubtractFullPathValues) ||
-            !NetworkHelper::checkConstantOnInf(newMultiplyFullPathValues)) {
+        if (!NetworkHelper::checkConstantNotInf(newSubtractFullPathValues) ||
+            !NetworkHelper::checkConstantNotInf(newMultiplyFullPathValues)) {
             return false;
         }
 
