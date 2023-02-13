@@ -48,13 +48,13 @@ To check whether you have this driver installed:
 1. Type **device manager** in your **Search Windows** box and press Enter. The **Device Manager** opens.
 2. Click the drop-down arrow to view the **Display adapters**. You can see the adapter that is installed in your computer:
 
-   .. image:: docs/img/DeviceManager.png
+   .. image:: _static/images/DeviceManager.png
       :width: 400
 
 3. Right-click the adapter name and select **Properties**.
 4. Click the **Driver** tab to see the driver version.  
 
-   .. image:: docs/img/DeviceDriverVersion.png
+   .. image:: _static/images/DeviceDriverVersion.png
       :width: 400
 
 
