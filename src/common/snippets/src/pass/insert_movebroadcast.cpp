@@ -21,7 +21,7 @@ namespace {
 
 std::pair<ov::PartialShape, std::vector<ov::PartialShape>> get_numpy_broadcast_partial_shapes(const std::vector<ov::PartialShape>& input_shapes) {
     ov::PartialShape target_shape =  input_shapes.front();
-    for (auto i = 1; i < input_shapes.size(); i++) {
+    for (size_t i = 1; i < input_shapes.size(); i++) {
         if (!ov::PartialShape::broadcast_merge_into(target_shape, input_shapes[i], op::AutoBroadcastType::NUMPY))
             throw ngraph::ngraph_error("InsertMoveBroadcast: Failed broadcast-merge input shapes");
     }
@@ -62,7 +62,7 @@ ngraph::Output<ngraph::Node> ngraph::snippets::pass::InsertMoveBroadcast::Broadc
 
 ngraph::snippets::pass::InsertMoveBroadcast::InsertMoveBroadcast() {
     MATCHER_SCOPE(InsertMoveBroadcast);
-    ngraph::graph_rewrite_callback callback = [this](ngraph::pattern::Matcher &m) {
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher &m) {
         OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::InsertMoveBroadcast")
         auto root = m.get_match_root();
         const auto& values = root->input_values();

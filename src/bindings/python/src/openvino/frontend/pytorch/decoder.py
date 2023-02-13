@@ -15,10 +15,13 @@ import torch
 def get_type_from_py_type(value):
     if isinstance(value, float):
         return OVType.f32
-    if isinstance(value, int):
-        return OVType.i32
     if isinstance(value, bool):
         return OVType.boolean
+    if isinstance(value, int):
+        # Python int is 64 bit, but we will convert it to int32 except cases when it can't fit in 32 bits
+        if torch.iinfo(torch.int).min <= value <= torch.iinfo(torch.int).max:
+            return OVType.i32
+        return OVType.i64
     return OVType.dynamic
 
 
@@ -27,13 +30,13 @@ def ivalue_to_constant(ivalue):
     if ov_type.is_static():
         return op.Constant(ov_type, Shape([]), [ivalue]).outputs()
 
-    if isinstance(ivalue, list):
+    if isinstance(ivalue, (list, tuple)):
         assert len(ivalue) > 0, "Can't deduce type for empty list"
         ov_type = get_type_from_py_type(ivalue[0])
         assert ov_type.is_static(), "Can't deduce type for list"
         return op.Constant(ov_type, Shape([len(ivalue)]), ivalue).outputs()
 
-    if ivalue.type() in pt_to_ov_type_map:
+    if isinstance(ivalue, torch.Tensor) and ivalue.type() in pt_to_ov_type_map:
         try:
             ovshape = PartialShape(ivalue.size())
             ovtype = pt_to_ov_type_map[ivalue.type()]
@@ -46,6 +49,7 @@ def ivalue_to_constant(ivalue):
             ovshape = PartialShape(nvalues.shape)
             ov_const = op.Constant(ovtype, ovshape.get_shape(), nvalues.flatten().tolist())
         return ov_const.outputs()
+    return None
 
 
 def get_value_from_getattr(getattr_node, self_module):
@@ -69,23 +73,20 @@ def get_value_from_getattr(getattr_node, self_module):
 pt_to_ov_type_map = {
     "float": OVType.f32,
     "int": OVType.i32,
+    "bool": OVType.boolean,
+    "torch.float16": OVType.f16,
     "torch.float32": OVType.f32,
+    "torch.float64": OVType.f64,
+    "torch.uint8": OVType.u8,
+    "torch.int8": OVType.i8,
     "torch.int32": OVType.i32,
-    "torch.bool": OVType.boolean,
     "torch.int64": OVType.i64,
+    "torch.bool": OVType.boolean,
+    "torch.DoubleTensor": OVType.f64,
     "torch.FloatTensor": OVType.f32,
     "torch.IntTensor": OVType.i32,
     "torch.LongTensor": OVType.i64,
     "torch.BoolTensor": OVType.boolean,
-}
-
-pt_to_py_type_map = {
-    "float": "float",
-    "int": "int",
-    "torch.float32": "float",
-    "torch.int32": "int",
-    "torch.int64": "int",
-    "torch.bool": "bool",
 }
 
 np_to_ov_type_map = {
@@ -105,9 +106,11 @@ class TorchScriptPythonDecoder (Decoder):
         else:
             self.graph_element = graph_element
         self.pt_module = pt_module
+        self.raw_inputs = list(self.graph_element.inputs())
+        self.raw_outputs = list(self.graph_element.outputs())
 
-    def inputs(self):
-        return [x.unique() for x in self.graph_element.inputs()]
+    def inputs(self) -> list:
+        return [x.unique() for x in self.raw_inputs]
 
     def get_input(self, index: int):
         return self.inputs()[index]
@@ -150,7 +153,7 @@ class TorchScriptPythonDecoder (Decoder):
             # Not yet recognized
             return OVAny(OVType.dynamic)
 
-    def get_shape_for_value(self, value):
+    def get_shape_for_value(self, value: torch.Value):
         if value.isCompleteTensor():
             ps = PartialShape(value.type().sizes())
             return ps
@@ -161,7 +164,7 @@ class TorchScriptPythonDecoder (Decoder):
             pass
         return PartialShape.dynamic()
 
-    def get_type_for_value(self, value):
+    def get_type_for_value(self, value: torch.Value):
         full_type = self._get_known_type_for_value(value.type())
         return full_type
 
@@ -184,46 +187,40 @@ class TorchScriptPythonDecoder (Decoder):
     def get_subgraph_size(self) -> int:
         return len(self.get_subgraphs()) if hasattr(self.graph_element, "blocks") else 1
 
-    def visit_subgraph(self, node_visitor):
+    def visit_subgraph(self, node_visitor) -> None:
         # make sure topological order is satisfied
         for node in self.graph_element.nodes():
             decoder = TorchScriptPythonDecoder(self.pt_module, node)
             self.m_decoders.append(decoder)
             node_visitor(decoder)
 
-    def get_subgraphs(self):
+    def get_subgraphs(self) -> list:
         return list(self.graph_element.blocks())
 
-    def get_subgraph_decoder(self, index):
+    def get_subgraph_decoder(self, index: int):
         decoder = TorchScriptPythonDecoder(self.pt_module, self.get_subgraphs()[index])
         self.m_decoders.append(decoder)
         return decoder
 
-    def get_op_type(self):
+    def get_op_type(self) -> str:
         return self.graph_element.kind()
 
-    def get_schema(self):
+    def get_schema(self) -> str:
         return self.graph_element.schema()
 
-    def outputs(self):
-        return [x.unique() for x in self.graph_element.outputs()]
+    def outputs(self) -> list:
+        return [x.unique() for x in self.raw_outputs]
 
-    def _raw_outputs(self):
-        return list(self.graph_element.outputs())
+    def _raw_output(self, index: int):
+        return self.raw_outputs[index]
 
-    def _raw_output(self, index):
-        return self._raw_outputs()[index]
-
-    def _raw_inputs(self):
-        return list(self.graph_element.inputs())
-
-    def _raw_input(self, index):
-        return self._raw_inputs()[index]
+    def _raw_input(self, index: int):
+        return self.raw_inputs[index]
 
     def num_of_outputs(self):
-        return len(self.outputs())
+        return len(self.raw_outputs)
 
-    def output(self, index):
+    def output(self, index: int):
         return self.outputs()[index]
 
     def mark_node(self, node):
@@ -232,7 +229,7 @@ class TorchScriptPythonDecoder (Decoder):
     def try_decode_get_attr(self):
         pt_value = get_value_from_getattr(self.graph_element, self.pt_module)
         assert pt_value is not None, "Couldn't retrieve value from prim::GetAttr"
-        if not isinstance(pt_value, torch.jit.ScriptModule) or isinstance(pt_value, torch.jit.TracedModule):
+        if not isinstance(pt_value, (torch.jit.ScriptModule, torch.jit.TracedModule)):
             return ivalue_to_constant(pt_value)
         else:
             return []
@@ -244,17 +241,10 @@ class TorchScriptPythonDecoder (Decoder):
 
         pt_type = pt_value.type()
         if isinstance(pt_type, torch.TensorType):
-            return self.as_constant_tensor(pt_value)
+            return self._as_constant_tensor(pt_value)
         if isinstance(pt_type, torch.ListType):
-            return self.as_constant_list(pt_value)
-        if str(pt_type) in ["torch.int32", "int"]:
-            return op.Constant(OVType.i32, Shape([]), [pt_value.toIValue()]).outputs()
-        if str(pt_type) in ["torch.float", "torch.FloatType", "float"]:
-            return op.Constant(OVType.f32, Shape([]), [pt_value.toIValue()]).outputs()
-        if str(pt_type) in ["torch.bool", "bool"]:
-            return op.Constant(OVType.boolean, Shape([]), [pt_value.toIValue()]).outputs()
-
-        return None
+            return self._as_constant_list(pt_value)
+        return ivalue_to_constant(pt_value.toIValue())
 
     def as_string(self):
         if not self.get_op_type() == "prim::Constant":
@@ -265,7 +255,8 @@ class TorchScriptPythonDecoder (Decoder):
             return pt_value.toIValue()
         return None
 
-    def as_constant_tensor(self, pt_value):
+    @staticmethod
+    def _as_constant_tensor(pt_value: torch.Value):
         ivalue = pt_value.toIValue()
         if pt_value.isCompleteTensor():
             try:
@@ -295,7 +286,8 @@ class TorchScriptPythonDecoder (Decoder):
             return ivalue_to_constant(ivalue)
         return None
 
-    def as_constant_list(self, pt_value):
+    @staticmethod
+    def _as_constant_list(pt_value: torch.Value):
         # For now it is treat a list as a 1D tensor; it is required by converters to avoid need to massively
         # rewrite them in that part where constant attributes are queried
         pt_element_type = str(pt_value.type().getElementType())
@@ -308,7 +300,7 @@ class TorchScriptPythonDecoder (Decoder):
             ov_const = op.Constant(ovtype, ovshape.get_shape(), ivalue)
             return ov_const.outputs()
 
-    def input_is_none(self, index):
+    def input_is_none(self, index: int) -> bool:
         if index >= len(self.inputs()) or self._raw_input(index) is None:
             return True
         else:

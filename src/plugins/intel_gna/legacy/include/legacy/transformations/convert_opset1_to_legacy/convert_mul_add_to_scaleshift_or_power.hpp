@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include <vector>
-#include <memory>
-
 #include <ie_api.h>
 
+#include <memory>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <vector>
 
 namespace ngraph {
 namespace pass {
@@ -19,17 +18,13 @@ class ConvertMulAddToScaleShiftOrPower;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertMulAddToScaleShiftOrPower: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertMulAddToScaleShiftOrPower : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertMulAddToScaleShiftOrPower", "0");
     ConvertMulAddToScaleShiftOrPower();
 };
 
-enum class CONVERSION_RESULT {
-    SCALE_SHIFT,
-    POWER,
-    NONE
-};
+enum class CONVERSION_RESULT { SCALE_SHIFT, POWER, NONE };
 
 /*
  * check_constant function checks how given constant performs elementwise operation with given input
@@ -40,4 +35,4 @@ enum class CONVERSION_RESULT {
  */
 
 CONVERSION_RESULT
-check_constant(const std::shared_ptr<ngraph::op::Constant> & constant, const ngraph::PartialShape & shape);
+check_constant(const std::shared_ptr<ngraph::op::Constant>& constant, const ngraph::PartialShape& shape);

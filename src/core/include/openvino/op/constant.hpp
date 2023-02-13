@@ -30,6 +30,10 @@ public:
     /// \param tensor The tensor with data
     Constant(const std::shared_ptr<ngraph::runtime::Tensor>& tensor);
 
+    /// \brief Initialize a constant from ov::Tensor
+    /// \param tensor The ov::Tensor with data
+    Constant(const ov::Tensor& tensor);
+
     /// \brief Constructs a tensor constant.
     ///
     /// \param type The element type of the tensor constant.
@@ -181,10 +185,8 @@ public:
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate_lower(const HostTensorVector& outputs) const override;
-    bool evaluate_upper(const HostTensorVector& outputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate_lower(TensorVector& outputs) const override;
+    bool evaluate_upper(TensorVector& outputs) const override;
 
     // Don't constant fold a constant; it would make a copy
     bool constant_fold(OutputVector& outputs, const OutputVector& inputs) override {
@@ -504,15 +506,14 @@ private:
                                           Type != element::Type_t::i4,
                                       bool>::type = true>
     void fill_data(const T& value) {
-#ifdef __GNUC__
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wsign-compare"
-#endif
 #ifdef __clang__
 #    pragma clang diagnostic push
 #    pragma clang diagnostic ignored "-Wimplicit-const-int-float-conversion"
-#endif
-#if defined(_MSC_VER)
+#elif defined(__GNUC__)
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wsign-compare"
+#    pragma GCC diagnostic ignored "-Wbool-compare"
+#elif defined(_MSC_VER)
 #    pragma warning(push)
 #    pragma warning(disable : 4018)
 #    pragma warning(disable : 4804)
@@ -520,15 +521,13 @@ private:
         if (!std::is_same<T, StorageDataType>::value) {
             OPENVINO_ASSERT(!std::numeric_limits<T>::is_signed ||
                             std::numeric_limits<StorageDataType>::lowest() <= value);
-            OPENVINO_ASSERT(value <= std::numeric_limits<StorageDataType>::max());
+            OPENVINO_ASSERT(std::numeric_limits<StorageDataType>::max() >= value);
         }
 #if defined(_MSC_VER)
 #    pragma warning(pop)
-#endif
-#ifdef __clang__
-#    pragma GangC diagnostic pop
-#endif
-#ifdef __GNUC__
+#elif defined(__clang__)
+#    pragma clang diagnostic pop
+#elif defined(__GNUC__)
 #    pragma GCC diagnostic pop
 #endif
 

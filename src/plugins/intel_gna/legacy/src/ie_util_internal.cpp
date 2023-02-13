@@ -2,9 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "legacy/ie_util_internal.hpp"
+
+#include <legacy/ie_layers.h>
+
 #include <cassert>
 #include <deque>
 #include <iomanip>
+#include <legacy/details/ie_cnn_network_iterator.hpp>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -13,18 +18,14 @@
 #include <vector>
 
 #include "caseless.hpp"
-#include "precision_utils.h"
 #include "cnn_network_ngraph_impl.hpp"
+#include "ie_legacy_itt.hpp"
 #include "ie_ngraph_utils.hpp"
-
-#include "legacy/ie_util_internal.hpp"
 #include "legacy/cnn_network_impl.hpp"
 #include "legacy/details/ie_cnn_network_tools.h"
 #include "legacy/graph_tools.hpp"
 #include "legacy/net_pass.h"
-#include <legacy/details/ie_cnn_network_iterator.hpp>
-#include <legacy/ie_layers.h>
-#include "ie_legacy_itt.hpp"
+#include "precision_utils.h"
 
 using std::string;
 
@@ -295,7 +296,7 @@ details::CNNNetworkImplPtr cloneNet(const std::vector<CNNLayerPtr>& layers) {
             }
 
             if (nullptr == layer) {
-                LayerParams params = { data->getName(), std::string("Input"), data->getPrecision() };
+                LayerParams params = {data->getName(), std::string("Input"), data->getPrecision()};
                 layer = std::make_shared<CNNLayer>(params);
                 // this place should be transactional
                 layer->outData.push_back(data);
@@ -324,7 +325,7 @@ struct NodePrinter {
 
     printer_callback layer_cb;
 
-    explicit NodePrinter(std::ostream& os, printer_callback cb): out(os), layer_cb(std::move(cb)) {}
+    explicit NodePrinter(std::ostream& os, printer_callback cb) : out(os), layer_cb(std::move(cb)) {}
 
     bool isPrinted(const CNNLayerPtr& layer) {
         return static_cast<bool>(printed_layers.count(layer.get()));
@@ -349,7 +350,8 @@ struct NodePrinter {
 
     string formatSize_(const std::vector<unsigned int>& spatialDims) {
         string result;
-        if (spatialDims.empty()) return result;
+        if (spatialDims.empty())
+            return result;
         result = std::to_string(spatialDims[0]);
         for (auto dim : spatialDims) {
             result += "x" + std::to_string(dim);
@@ -385,32 +387,39 @@ struct NodePrinter {
                 unsigned int depth = conv->_out_depth, group = conv->_group;
 
                 printed_properties.emplace_back(
-                    "kernel size", formatSize_({&(conv->_kernel[0]), &(conv->_kernel[conv->_kernel.size() - 1])}));
+                    "kernel size",
+                    formatSize_({&(conv->_kernel[0]), &(conv->_kernel[conv->_kernel.size() - 1])}));
                 printed_properties.emplace_back("output depth", std::to_string(depth));
                 printed_properties.emplace_back("group", std::to_string(group));
                 printed_properties.emplace_back(
-                    "padding begin", formatSize_({&(conv->_padding[0]), &(conv->_padding[conv->_padding.size() - 1])}));
+                    "padding begin",
+                    formatSize_({&(conv->_padding[0]), &(conv->_padding[conv->_padding.size() - 1])}));
                 printed_properties.emplace_back(
                     "padding end",
                     formatSize_({&(conv->_pads_end[0]), &(conv->_pads_end[conv->_pads_end.size() - 1])}));
                 printed_properties.emplace_back(
-                    "strides", formatSize_({&(conv->_stride[0]), &(conv->_stride[conv->_stride.size() - 1])}));
+                    "strides",
+                    formatSize_({&(conv->_stride[0]), &(conv->_stride[conv->_stride.size() - 1])}));
                 printed_properties.emplace_back(
-                    "dilations", formatSize_({&(conv->_dilation[0]), &(conv->_dilation[conv->_dilation.size() - 1])}));
+                    "dilations",
+                    formatSize_({&(conv->_dilation[0]), &(conv->_dilation[conv->_dilation.size() - 1])}));
             }
         } else if (type == "Pooling") {
             auto* pool = dynamic_cast<PoolingLayer*>(layer.get());
 
             if (pool != nullptr) {
                 printed_properties.emplace_back(
-                    "window size", formatSize_({&(pool->_kernel[0]), &(pool->_kernel[pool->_kernel.size() - 1])}));
+                    "window size",
+                    formatSize_({&(pool->_kernel[0]), &(pool->_kernel[pool->_kernel.size() - 1])}));
                 printed_properties.emplace_back(
-                    "padding begin", formatSize_({&(pool->_padding[0]), &(pool->_padding[pool->_padding.size() - 1])}));
+                    "padding begin",
+                    formatSize_({&(pool->_padding[0]), &(pool->_padding[pool->_padding.size() - 1])}));
                 printed_properties.emplace_back(
                     "padding end",
                     formatSize_({&(pool->_pads_end[0]), &(pool->_pads_end[pool->_pads_end.size() - 1])}));
                 printed_properties.emplace_back(
-                    "strides", formatSize_({&(pool->_stride[0]), &(pool->_stride[pool->_stride.size() - 1])}));
+                    "strides",
+                    formatSize_({&(pool->_stride[0]), &(pool->_stride[pool->_stride.size() - 1])}));
             }
         } else if (type == "ReLU") {
             auto* relu = dynamic_cast<ReLULayer*>(layer.get());
@@ -508,7 +517,9 @@ struct NodePrinter {
         printNode(node_name, data->getName(), node_properties, printed_properties);
     }
 
-    void printNode(string const& node_name, const string& node_title, ordered_properties const& node_properties,
+    void printNode(string const& node_name,
+                   const string& node_title,
+                   ordered_properties const& node_properties,
                    ordered_properties const& printed_properties) {
         // normalization of names, removing all prohibited symbols like "/"
         string nodeNameN = node_name;
@@ -533,7 +544,8 @@ struct NodePrinter {
         auto to_name = "data_" + cleanNodeName_(to_->getName());
         std::replace(from_name.begin(), from_name.end(), '/', '_');
         std::replace(to_name.begin(), to_name.end(), '/', '_');
-        if (reverse) std::swap(from_name, to_name);
+        if (reverse)
+            std::swap(from_name, to_name);
         out << '\t' << from_name << " -> " << to_name << ";\n";
     }
 };

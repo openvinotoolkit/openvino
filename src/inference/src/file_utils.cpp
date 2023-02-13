@@ -65,9 +65,12 @@ std::basic_string<C> getPathName(const std::basic_string<C>& s) {
     return {};
 }
 
-}  // namespace
+#if defined __GNUC__ || defined __clang__
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wunused-function"
+#endif
 
-static std::string getIELibraryPathA() {
+std::string getIELibraryPathA() {
 #ifdef _WIN32
     CHAR ie_library_path[MAX_PATH];
     HMODULE hm = NULL;
@@ -100,6 +103,12 @@ static std::string getIELibraryPathA() {
 #    error "Unsupported OS"
 #endif  // _WIN32
 }
+
+#if defined __GNUC__ || defined __clang__
+#    pragma GCC diagnostic pop
+#endif
+
+}  // namespace
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 

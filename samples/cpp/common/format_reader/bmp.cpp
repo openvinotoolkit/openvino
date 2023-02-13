@@ -37,6 +37,8 @@ BitMap::BitMap(const string& filename) {
     bool rowsReversed = infoHeader.height < 0;
     _width = infoHeader.width;
     _height = abs(infoHeader.height);
+    _shape.push_back(_height);
+    _shape.push_back(_width);
 
     if (infoHeader.bits != 24) {
         cerr << "[BMP] 24bpp only supported. But input has:" << infoHeader.bits << "\n";

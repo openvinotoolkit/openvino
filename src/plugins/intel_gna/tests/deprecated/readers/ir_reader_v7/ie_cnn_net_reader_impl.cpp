@@ -3,9 +3,9 @@
 //
 
 #include <file_utils.h>
-#include <description_buffer.hpp>
 #include <ie_cnn_net_reader_impl.h>
 
+#include <description_buffer.hpp>
 #include <fstream>
 #include <map>
 #include <memory>
@@ -24,7 +24,9 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 CNNNetReaderImpl::CNNNetReaderImpl(const FormatParserCreator::Ptr& _creator)
-    : parseSuccess(false), _version(0), parserCreator(_creator) {}
+    : parseSuccess(false),
+      _version(0),
+      parserCreator(_creator) {}
 
 StatusCode CNNNetReaderImpl::SetWeights(const TBlob<uint8_t>::Ptr& weights, ResponseDesc* desc) noexcept {
     if (!_parser && _version < 10) {
@@ -78,7 +80,8 @@ void readAllFile(const std::string& string_file_name, void* buffer, size_t maxSi
 #endif
 
     inputFile.open(file_name, std::ios::binary | std::ios::in);
-    if (!inputFile.is_open()) IE_THROW() << "cannot open file " << string_file_name;
+    if (!inputFile.is_open())
+        IE_THROW() << "cannot open file " << string_file_name;
     if (!inputFile.read(reinterpret_cast<char*>(buffer), maxSize)) {
         inputFile.close();
         IE_THROW() << "cannot read " << maxSize << " bytes from file " << string_file_name;
@@ -139,11 +142,12 @@ StatusCode CNNNetReaderImpl::ReadNetwork(const char* filepath, ResponseDesc* res
     return OK;
 }
 
-StatusCode CNNNetReaderImpl::ReadNetwork(const pugi::xml_node& const_root, ResponseDesc * desc) {
+StatusCode CNNNetReaderImpl::ReadNetwork(const pugi::xml_node& const_root, ResponseDesc* desc) {
     try {
         pugi::xml_node root = *const_cast<pugi::xml_node*>(&const_root);
         _version = GetFileVersion(root);
-        if (_version < 2) IE_THROW() << "deprecated IR version: " << _version;
+        if (_version < 2)
+            IE_THROW() << "deprecated IR version: " << _version;
 
         if (_version < 10) {
             _parser = parserCreator->create(_version);

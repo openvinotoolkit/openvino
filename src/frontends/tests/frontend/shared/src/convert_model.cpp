@@ -18,7 +18,6 @@ std::string FrontEndConvertModelTest::getTestCaseName(const testing::TestParamIn
 }
 
 void FrontEndConvertModelTest::SetUp() {
-    FrontEndTestUtils::setupTestEnv();
     m_fem = FrontEndManager();  // re-initialize after setting up environment
     initParamTest();
 }

@@ -5,6 +5,12 @@ import sys, argparse
 
 from openvino.tools.benchmark.utils.utils import show_available_devices
 
+INPUT_OUTPUT_PRECISION_CHOICES = [
+    'bool', \
+    'f16', 'f32', 'f64', \
+    'i8', 'i16', 'i32', 'i64', \
+    'u8', 'u16', 'u32', 'u64']
+
 def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
         return True
@@ -42,7 +48,10 @@ def parse_args():
                       help='Optional. '
                            'Path to a folder with images and/or binaries or to specific image or binary file.'
                            'It is also allowed to map files to model inputs: '
-                           'input_1:file_1/dir1,file_2/dir2,input_4:file_4/dir4 input_2:file_3/dir3')
+                           'input_1:file_1/dir1,file_2/dir2,input_4:file_4/dir4 input_2:file_3/dir3 '
+                           'Currently supported data types: bin, npy. If OPENCV is enabled, this functionality'
+                           'is extended with the following data types: bmp, dib, jpeg, jpg, jpe, jp2, png, pbm, '
+                           'pgm, ppm, sr, ras, tiff, tif.')
     args.add_argument('-m', '--path_to_model', type=str, required=True,
                       help='Required. Path to an .xml/.onnx file with a trained model or '
                            'to a .blob file with a trained compiled model.')
@@ -162,9 +171,9 @@ def parse_args():
                            "             }\n")
     args.add_argument('-infer_precision', type=str, required=False,
                       help='Optional. Specifies the inference precision. Example #1: \'-infer_precision bf16\'. Example #2: \'-infer_precision CPU:bf16,GPU:f32\'')
-    args.add_argument('-ip', '--input_precision', type=str, required=False, choices=['u8', 'U8', 'f16','FP16', 'f32','FP32'],
+    args.add_argument('-ip', '--input_precision', type=str, required=False, choices=INPUT_OUTPUT_PRECISION_CHOICES,
                       help='Optional. Specifies precision for all input layers of the model.')
-    args.add_argument('-op', '--output_precision', type=str, required=False, choices=['u8', 'U8', 'f16','FP16', 'f32','FP32'],
+    args.add_argument('-op', '--output_precision', type=str, required=False, choices=INPUT_OUTPUT_PRECISION_CHOICES,
                       help='Optional. Specifies precision for all output layers of the model.')
     args.add_argument('-iop', '--input_output_precision', type=str, required=False,
                       help='Optional. Specifies precision for input and output layers by name. Example: -iop "input:f16, output:f16". Notice that quotes are required. Overwrites precision from ip and op options for specified layers.')

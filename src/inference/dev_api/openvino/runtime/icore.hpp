@@ -10,8 +10,8 @@
 #pragma once
 
 #include <memory>
-#include <openvino/runtime/compiled_model.hpp>
 
+#include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "so_ptr.hpp"
 
@@ -56,10 +56,9 @@ public:
      * operation
      * @return An executable network reference
      */
-    virtual ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model(
-        const std::shared_ptr<const ov::Model>& model,
-        const std::string& device_name,
-        const ov::AnyMap& config = {}) const = 0;
+    virtual ov::SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                        const std::string& device_name,
+                                                        const ov::AnyMap& config = {}) const = 0;
 
     /**
      * @brief Creates an executable network from a network object.
@@ -73,10 +72,9 @@ public:
      * operation
      * @return An executable network reference
      */
-    virtual ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model(
-        const std::shared_ptr<const ov::Model>& model,
-        const ov::RemoteContext& context,
-        const ov::AnyMap& config = {}) const = 0;
+    virtual ov::SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                        const ov::RemoteContext& context,
+                                                        const ov::AnyMap& config = {}) const = 0;
 
     /**
      * @brief Creates an executable network from a model file.
@@ -90,9 +88,9 @@ public:
      * operation
      * @return An executable network reference
      */
-    virtual ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model(const std::string& model_path,
-                                                                                 const std::string& device_name,
-                                                                                 const ov::AnyMap& config) const = 0;
+    virtual ov::SoPtr<ov::ICompiledModel> compile_model(const std::string& model_path,
+                                                        const std::string& device_name,
+                                                        const ov::AnyMap& config) const = 0;
 
     /**
      * @brief Creates an executable network from a model memory.
@@ -107,10 +105,10 @@ public:
      * operation
      * @return An executable network reference
      */
-    virtual ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model(const std::string& model_str,
-                                                                                 const ov::Tensor& weights,
-                                                                                 const std::string& device_name,
-                                                                                 const ov::AnyMap& config) const = 0;
+    virtual ov::SoPtr<ov::ICompiledModel> compile_model(const std::string& model_str,
+                                                        const ov::Tensor& weights,
+                                                        const std::string& device_name,
+                                                        const ov::AnyMap& config) const = 0;
 
     /**
      * @brief Creates an executable network from a previously exported network
@@ -120,8 +118,9 @@ public:
      * operation*
      * @return An executable network reference
      */
-    virtual ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>
-    import_model(std::istream& model, const std::string& device_name, const ov::AnyMap& config = {}) const = 0;
+    virtual ov::SoPtr<ov::ICompiledModel> import_model(std::istream& model,
+                                                       const std::string& device_name,
+                                                       const ov::AnyMap& config = {}) const = 0;
 
     /**
      * @brief Query device if it supports specified network with specified configuration

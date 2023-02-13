@@ -6,6 +6,8 @@
 
 #include <algorithm>
 #include <functional>
+#include <legacy/cnn_network_impl.hpp>
+#include <legacy/layer_transform.hpp>
 #include <list>
 #include <map>
 #include <memory>
@@ -17,11 +19,8 @@
 #include <utility>
 #include <vector>
 
-#include "ie_algorithm.hpp"
 #include "cpp/ie_cnn_network.h"
-
-#include <legacy/layer_transform.hpp>
-#include <legacy/cnn_network_impl.hpp>
+#include "ie_algorithm.hpp"
 
 IE_SUPPRESS_DEPRECATED_START
 
@@ -104,7 +103,7 @@ class OutInfoWrapper {
     CNNLayer* origin = nullptr;
 
 public:
-    explicit OutInfoWrapper(CNNLayer* origin): origin(origin) {}
+    explicit OutInfoWrapper(CNNLayer* origin) : origin(origin) {}
     OutLayersIterator begin() const {
         return OutLayersIterator::make_begin(origin->outData);
     }
@@ -127,13 +126,17 @@ inline OutInfoWrapper default_order(CNNLayer* layer) {
  * @return false if cycle detected
  */
 template <class T, class Ordering = std::function<OutInfoWrapper(CNNLayer*)>>
-inline bool DFS(std::unordered_map<CNNLayer*, bool>& visited, const InferenceEngine::CNNLayerPtr& layer, const T& visit,
-                bool visitBefore, const Ordering& order = &default_order) {
+inline bool DFS(std::unordered_map<CNNLayer*, bool>& visited,
+                const InferenceEngine::CNNLayerPtr& layer,
+                const T& visit,
+                bool visitBefore,
+                const Ordering& order = &default_order) {
     if (layer == nullptr) {
         return true;
     }
 
-    if (visitBefore) visit(layer);
+    if (visitBefore)
+        visit(layer);
     visited[layer.get()] = false;
     for (auto outLayerPtr : order(layer.get())) {
         auto i = visited.find(outLayerPtr.get());
@@ -151,7 +154,8 @@ inline bool DFS(std::unordered_map<CNNLayer*, bool>& visited, const InferenceEng
         }
     }
 
-    if (!visitBefore) visit(layer);
+    if (!visitBefore)
+        visit(layer);
     visited[layer.get()] = true;
     return true;
 }
@@ -164,11 +168,14 @@ inline bool DFS(std::unordered_map<CNNLayer*, bool>& visited, const InferenceEng
  * @param visitBefore - indicates when callback is happened before all child nodes or after
  */
 template <class T>
-inline void UnorderedDFS(std::unordered_set<CNNLayer*>& visited, const InferenceEngine::CNNLayerPtr& layer,
-                         const T& visit, bool visitBefore) {
+inline void UnorderedDFS(std::unordered_set<CNNLayer*>& visited,
+                         const InferenceEngine::CNNLayerPtr& layer,
+                         const T& visit,
+                         bool visitBefore) {
     std::queue<InferenceEngine::CNNLayerPtr> layers;
     auto cycleDFS = [&]() {
-        if (layers.empty()) return;
+        if (layers.empty())
+            return;
         auto cnnLayer = layers.front();
         layers.pop();
 
@@ -179,7 +186,8 @@ inline void UnorderedDFS(std::unordered_set<CNNLayer*>& visited, const Inference
             return;
         }
 
-        if (visitBefore) visit(cnnLayer);
+        if (visitBefore)
+            visit(cnnLayer);
         visited.insert(cnnLayer.get());
 
         // visit children
@@ -202,7 +210,8 @@ inline void UnorderedDFS(std::unordered_set<CNNLayer*>& visited, const Inference
             }
         }
 
-        if (!visitBefore) visit(cnnLayer);
+        if (!visitBefore)
+            visit(cnnLayer);
     };
     layers.push(layer);
     while (!layers.empty()) {
@@ -251,7 +260,9 @@ inline void BFS(InferenceEngine::CNNLayerPtr layer, const T& visit, int maxDepth
  * @param visitBefore - indicates when callback is happened before all child nodes or after
  */
 template <class T, class Ordering = std::function<details::OutInfoWrapper(CNNLayer*)>>
-inline bool CNNNetDFS(const InferenceEngine::CNNLayerPtr& layer, const T& visit, bool visitBefore = true,
+inline bool CNNNetDFS(const InferenceEngine::CNNLayerPtr& layer,
+                      const T& visit,
+                      bool visitBefore = true,
                       const Ordering& order = &details::default_order) {
     if (layer == nullptr) {
         return true;
@@ -271,7 +282,8 @@ inline bool CNNNetForestDFS(const std::vector<DataPtr>& heads, const T& visit, b
     std::unordered_map<CNNLayer*, bool> visited;
     for (const auto& in : heads) {
         for (const auto& to : getInputTo(in)) {
-            if (visited.find(to.second.get()) != visited.end()) continue;
+            if (visited.find(to.second.get()) != visited.end())
+                continue;
             if (!details::DFS(visited, to.second, visit, bVisitBefore)) {
                 return false;
             }
@@ -373,18 +385,19 @@ inline CNNLayerSet CNNNetGetAllInputLayers(const CNNNetwork& network) {
 
     std::vector<DataPtr> entryDataSet;
     entryDataSet.reserve(inputs.size() + outputs.size());
-    for (const auto &kvp : inputs)
+    for (const auto& kvp : inputs)
         entryDataSet.push_back(kvp.second->getInputData());
-    for (const auto &kvp : outputs)
+    for (const auto& kvp : outputs)
         entryDataSet.push_back(kvp.second);
 
     CNNLayerSet inputLayers;
     std::unordered_set<CNNLayer*> allLayers;
 
-    if (entryDataSet.empty()) return inputLayers;
+    if (entryDataSet.empty())
+        return inputLayers;
 
     // define any layer connected to provided Data object (consumer or creator)
-    auto findConnectedLayer = [] (const DataPtr& data) -> CNNLayerPtr {
+    auto findConnectedLayer = [](const DataPtr& data) -> CNNLayerPtr {
         auto consumerLayers = getInputTo(data);
         if (!consumerLayers.empty())
             return consumerLayers.begin()->second;
@@ -399,10 +412,12 @@ inline CNNLayerSet CNNNetGetAllInputLayers(const CNNNetwork& network) {
     for (const auto& data : entryDataSet) {
         auto entryLayer = findConnectedLayer(data);
 
-        if (entryLayer == nullptr) continue;
+        if (entryLayer == nullptr)
+            continue;
 
         details::UnorderedDFS(
-            allLayers, entryLayer,
+            allLayers,
+            entryLayer,
             [&inputLayers](const CNNLayerPtr& layer) {
                 if (layer->insData.empty()) {
                     inputLayers.insert(layer);
@@ -413,8 +428,8 @@ inline CNNLayerSet CNNNetGetAllInputLayers(const CNNNetwork& network) {
     return inputLayers;
 }
 
-inline CNNLayerSet CNNNetGetAllInputLayers(ICNNNetwork * network) {
-    std::shared_ptr<ICNNNetwork> pointer(network, [](ICNNNetwork* p) { });
+inline CNNLayerSet CNNNetGetAllInputLayers(ICNNNetwork* network) {
+    std::shared_ptr<ICNNNetwork> pointer(network, [](ICNNNetwork* p) {});
     return CNNNetGetAllInputLayers(CNNNetwork(pointer));
 }
 
@@ -430,7 +445,8 @@ inline CNNLayerSet CNNNetGetAllInputLayers(CNNLayer* layer) {
     CNNLayerPtr layerPtr(layer, [](CNNLayer*) {});
 
     details::UnorderedDFS(
-        allLayers, layerPtr,
+        allLayers,
+        layerPtr,
         [&](CNNLayerPtr layer) {
             if (layer->insData.empty()) {
                 inputLayers.insert(layer);
@@ -454,7 +470,8 @@ std::vector<CNNLayerPtr> CNNNetSortTopologicallyEx(const CNNNetwork& network, La
         [&](CNNLayerPtr current) {
             stackOfVisited.push_back(current);
         },
-        false, ordering);
+        false,
+        ordering);
 
     if (!res) {
         IE_THROW() << "Sorting not possible, due to existed loop.";
@@ -572,7 +589,8 @@ inline CNNNetwork CNNNetCopy(const CNNNetwork& input, const Copier& cp) {
                 net->getData(newLayer->outData[i]->getName()) = newLayer->outData[i];
 
                 for (auto inputTo = std::begin(getInputTo(newLayer->outData[i]));
-                     inputTo != std::end(getInputTo(newLayer->outData[i])); inputTo++) {
+                     inputTo != std::end(getInputTo(newLayer->outData[i]));
+                     inputTo++) {
                     inputTo->second = oldToNewLayers[inputTo->second.get()];
                 }
             }
@@ -664,16 +682,18 @@ inline std::vector<DataPtr> CNNSubnetGetAllInputs(const std::vector<DataPtr>& he
     for (const auto& data : heads) {
         auto& secondLayers = getInputTo(data);
 
-        if (secondLayers.empty()) continue;
+        if (secondLayers.empty())
+            continue;
 
         details::UnorderedDFS(
-                allLayers, secondLayers.begin()->second,
-                [&](CNNLayerPtr layer) {
-                    if (layer->insData.empty()) {
-                        inputLayers.insert(layer);
-                    }
-                },
-                false);
+            allLayers,
+            secondLayers.begin()->second,
+            [&](CNNLayerPtr layer) {
+                if (layer->insData.empty()) {
+                    inputLayers.insert(layer);
+                }
+            },
+            false);
     }
 
     std::vector<DataPtr> res = heads;
@@ -696,11 +716,11 @@ inline std::vector<DataPtr> CNNSubnetGetAllInputs(const std::vector<DataPtr>& he
 inline std::vector<CNNLayerPtr> CNNSubnetSortTopologically(const CNNSubnet& subnet) {
     std::vector<CNNLayerPtr> stackOfVisited;
     bool res = CNNNetForestDFS(
-            CNNSubnetGetAllInputs(subnet.inputs),
-            [&](CNNLayerPtr current) {
-                stackOfVisited.push_back(current);
-            },
-            false);
+        CNNSubnetGetAllInputs(subnet.inputs),
+        [&](CNNLayerPtr current) {
+            stackOfVisited.push_back(current);
+        },
+        false);
     if (!res) {
         IE_THROW() << "Sorting not possible, due to existed loop.";
     }

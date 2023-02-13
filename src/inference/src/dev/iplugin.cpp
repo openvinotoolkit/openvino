@@ -45,3 +45,11 @@ bool ov::IPlugin::is_new_api() const {
 const std::shared_ptr<InferenceEngine::ExecutorManager>& ov::IPlugin::get_executor_manager() const {
     return m_executor_manager;
 }
+
+std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::string& model_path,
+                                                               const ov::AnyMap& properties) const {
+    auto core = get_core();
+    OPENVINO_ASSERT(core);
+    auto model = core->read_model(model_path, std::string());
+    return compile_model(model, properties);
+}
