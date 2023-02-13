@@ -26,7 +26,7 @@ OutputVector generate_indices_from_repeats_tensor(const NodeContext& context, co
     OutputVector all_indices;
     for (size_t i = 0; i < repeats.size(); i++) {
         Shape indices_shape{static_cast<size_t>(repeats.at(i))};
-        std::vector<int32_t> indices_vec(repeats.at(i), i);
+        std::vector<int32_t> indices_vec(repeats.at(i), static_cast<int32_t>(i));
         auto indices = context.mark_node(v0::Constant::create(element::i32, indices_shape, indices_vec));
         all_indices.push_back(indices);
     }

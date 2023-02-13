@@ -24,7 +24,7 @@ void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_
 
 Output<Node> make_optional_bias(const Output<Node>& base_op,
                                 const NodeContext& context,
-                                size_t bias_input_idx,
+                                int bias_input_idx,
                                 const std::vector<int>& unsqueeze_dims) {
     using std::make_shared;
 
@@ -105,7 +105,7 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<N
     return make_shared<opset10::Reshape>(kernel, new_kernel_shape, false);
 }
 
-std::shared_ptr<Node> get_axes_range(const NodeContext& context, size_t input_id) {
+std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id) {
     auto x = context.get_input(input_id);
     auto start = std::make_shared<opset10::Constant>(element::i32, Shape{}, 0);
     auto step = std::make_shared<opset10::Constant>(element::i32, Shape{}, 1);
@@ -122,15 +122,15 @@ std::shared_ptr<Node> numel(const NodeContext& context, const Output<Node>& x) {
 };
 
 namespace {
-const std::unordered_map<int, element::Type> TORCH_TO_OV_TYPE{{0, element::u8},
-                                                              {1, element::i8},
-                                                              {2, element::i16},
-                                                              {3, element::i32},
-                                                              {4, element::i64},
-                                                              {5, element::f16},
-                                                              {6, element::f32},
-                                                              {7, element::f64},
-                                                              {11, element::boolean}};
+const std::unordered_map<int64_t, element::Type> TORCH_TO_OV_TYPE{{0, element::u8},
+                                                                  {1, element::i8},
+                                                                  {2, element::i16},
+                                                                  {3, element::i32},
+                                                                  {4, element::i64},
+                                                                  {5, element::f16},
+                                                                  {6, element::f32},
+                                                                  {7, element::f64},
+                                                                  {11, element::boolean}};
 
 const std::unordered_map<std::string, ov::op::PadType> TORCH_AUTO_PAD_TO_OV{{"valid", ov::op::PadType::VALID},
                                                                             {"same", ov::op::PadType::SAME_UPPER}};
@@ -222,7 +222,7 @@ OutputVector make_framework_node(NodeContext* context) {
     }
     // Number of body outputs can be higher then number of pt node outputs, e.g. in case of loop first body output is
     // condition, we have to skip such outputs.
-    int num_skip_body_outputs =
+    auto num_skip_body_outputs =
         num_body_outs > context->get_output_size() ? num_body_outs - context->get_output_size() : 0;
 
     // We need to reduce number of outputs, because some outputs are outputs from body
@@ -232,7 +232,7 @@ OutputVector make_framework_node(NodeContext* context) {
                                           context->get_output_size() - num_body_outs + num_skip_body_outputs);
     fw_node->set_friendly_name(context->get_op_type());
     for (size_t i = 0; i < bodies.size(); ++i) {
-        fw_node->set_function(i, bodies[i]);
+        fw_node->set_function(static_cast<int>(i), bodies[i]);
     }
 
     // Connect inputs with external context

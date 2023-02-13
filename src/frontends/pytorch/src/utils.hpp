@@ -22,7 +22,7 @@ void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_
 
 Output<Node> make_optional_bias(const Output<Node>& base_op,
                                 const NodeContext& context,
-                                size_t bias_input_idx,
+                                int bias_input_idx,
                                 const std::vector<int>& unsqueeze_dims = {});
 
 Output<Node> reshape_channelwise(const NodeContext& context,
@@ -36,7 +36,7 @@ std::tuple<Output<Node>, Output<Node>> get_shape_rank(const NodeContext& context
 
 Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<Node>& kernel, int64_t groups);
 
-std::shared_ptr<Node> get_axes_range(const NodeContext& context, size_t input_id);
+std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id);
 
 std::shared_ptr<Node> numel(const NodeContext& context, const Output<Node>& x);
 

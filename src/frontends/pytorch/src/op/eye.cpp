@@ -22,7 +22,7 @@ OutputVector translate_eye(NodeContext& context) {
     // num rows and cols should be integer, but at the moment conversion their data type can be unknown yet
     x = context.mark_node(std::make_shared<v0::Convert>(x, element::i64));
     Output<Node> y;
-    size_t dtype_id;
+    int dtype_id;
     auto dtype = element::f32;
     // aten::eye support only main diagonal
     auto diagonal = context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}));
