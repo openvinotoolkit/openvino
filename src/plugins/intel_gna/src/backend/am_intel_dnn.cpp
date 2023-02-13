@@ -1365,7 +1365,7 @@ uint32_t AMIntelDNN::CountLayers() {
     return n;
 }
 
-void AMIntelDNN::InitGNAStruct(Gna2Model* gnaModel, const std::string& gnaCompileTarget) {
+void AMIntelDNN::InitGNAStruct(Gna2Model* gnaModel) {
     Gna2Operation* gnaOperation;
     if (gnaModel == nullptr)
         THROW_GNA_EXCEPTION << "Invalid input parameter";
