@@ -36,7 +36,7 @@ std::tuple<Output<Node>, Output<Node>> get_shape_rank(const NodeContext& context
 
 Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<Node>& kernel, int64_t groups);
 
-std::shared_ptr<Node> get_axes_range(const NodeContext& context, size_t input_id);
+std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id);
 
 std::shared_ptr<Node> numel(const NodeContext& context, const Output<Node>& x);
 
