@@ -11,10 +11,10 @@
 // #include <ngraph/runtime/reference/batch_norm.hpp>
 // #include <ngraph/runtime/reference/binary_convolution.hpp>
 // #include <ngraph/runtime/reference/bucketize.hpp>
-#include <ngraph/runtime/reference/ceiling.hpp>
-#include <ngraph/runtime/reference/convert.hpp>
-#include <ngraph/runtime/reference/convolution.hpp>
-#include <ngraph/runtime/reference/convolution_backprop_data.hpp>
+// #include <ngraph/runtime/reference/ceiling.hpp>
+// #include <ngraph/runtime/reference/convert.hpp>
+// #include <ngraph/runtime/reference/convolution.hpp>
+// #include <ngraph/runtime/reference/convolution_backprop_data.hpp>
 #include <ngraph/runtime/reference/ctc_greedy_decoder.hpp>
 #include <ngraph/runtime/reference/ctc_greedy_decoder_seq_len.hpp>
 #include <ngraph/runtime/reference/ctc_loss.hpp>
@@ -2476,15 +2476,6 @@ bool evaluate(const shared_ptr<op::v0::Selu>& op, const HostTensorVector& output
 }
 
 template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v0::Ceiling>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::ceiling<T>(inputs[0]->get_data_ptr<T>(),
-                                   outputs[0]->get_data_ptr<T>(),
-                                   shape_size(inputs[0]->get_shape()));
-    return true;
-}
-
-template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v0::Gelu>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     using T = typename element_type_traits<ET>::value_type;
     runtime::reference::gelu<T>(inputs[0]->get_data_ptr<T>(),
@@ -2697,85 +2688,6 @@ bool evaluate(const shared_ptr<op::v3::ExtractImagePatches>& op,
     return true;
 }
 
-namespace convert_like_v1 {
-template <element::Type_t ti, element::Type_t to>
-inline void evaluate(const shared_ptr<op::v1::ConvertLike>& op,
-                     const HostTensorVector& outputs,
-                     const HostTensorVector& inputs) {
-    outputs[0]->set_shape(inputs[0]->get_shape());
-    size_t element_count = shape_size(outputs[0]->get_shape());
-
-    if (((ti == element::u1) || (to == element::u1)) || ((ti == element::u4) || (to == element::u4)) ||
-        ((ti == element::i4) || (to == element::i4))) {
-        runtime::reference::detail::lp_convert(inputs[0]->get_data_ptr<ti>(),
-                                               outputs[0]->get_data_ptr<to>(),
-                                               element_count,
-                                               ti,
-                                               to);
-    } else {
-        runtime::reference::convert(inputs[0]->get_data_ptr<ti>(), outputs[0]->get_data_ptr<to>(), element_count);
-    }
-}
-}  // namespace convert_like_v1
-
-template <element::Type_t OUT_ET>
-bool evaluate(const shared_ptr<op::v1::ConvertLike>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    switch (inputs[0]->get_element_type()) {
-    case element::Type_t::boolean:
-        convert_like_v1::evaluate<element::Type_t::boolean, OUT_ET>(op, outputs, inputs);
-        break;
-    case element::Type_t::u1:
-        convert_like_v1::evaluate<element::Type_t::u1, OUT_ET>(op, outputs, inputs);
-        break;
-    case element::Type_t::u4:
-        convert_like_v1::evaluate<element::Type_t::u4, OUT_ET>(op, outputs, inputs);
-        break;
-    case element::Type_t::u8:
-        convert_like_v1::evaluate<element::Type_t::u8, OUT_ET>(op, outputs, inputs);
-        break;
-    case element::Type_t::u16:
-        convert_like_v1::evaluate<element::Type_t::u16, OUT_ET>(op, outputs, inputs);
-        break;
-    case element::Type_t::u32:
-        convert_like_v1::evaluate<element::Type_t::u32, OUT_ET>(op, outputs, inputs);
-        break;
-    case element::Type_t::u64:
-        convert_like_v1::evaluate<element::Type_t::u64, OUT_ET>(op, outputs, inputs);
-        break;
-    case element::Type_t::i4:
-        convert_like_v1::evaluate<element::Type_t::i4, OUT_ET>(op, outputs, inputs);
-        break;
-    case element::Type_t::i8:
-        convert_like_v1::evaluate<element::Type_t::i8, OUT_ET>(op, outputs, inputs);
-        break;
-    case element::Type_t::i16:
-        convert_like_v1::evaluate<element::Type_t::i16, OUT_ET>(op, outputs, inputs);
-        break;
-    case element::Type_t::i32:
-        convert_like_v1::evaluate<element::Type_t::i32, OUT_ET>(op, outputs, inputs);
-        break;
-    case element::Type_t::i64:
-        convert_like_v1::evaluate<element::Type_t::i64, OUT_ET>(op, outputs, inputs);
-        break;
-    case element::Type_t::bf16:
-        convert_like_v1::evaluate<element::Type_t::bf16, OUT_ET>(op, outputs, inputs);
-        break;
-    case element::Type_t::f16:
-        convert_like_v1::evaluate<element::Type_t::f16, OUT_ET>(op, outputs, inputs);
-        break;
-    case element::Type_t::f32:
-        convert_like_v1::evaluate<element::Type_t::f32, OUT_ET>(op, outputs, inputs);
-        break;
-    case element::Type_t::f64:
-        convert_like_v1::evaluate<element::Type_t::f64, OUT_ET>(op, outputs, inputs);
-        break;
-    default:
-        return false;
-    }
-    return true;
-}
 template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v0::RNNCell>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     using T = typename element_type_traits<ET>::value_type;
