@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 #include <gtest/gtest.h>
 #include "memory/gna_memory.hpp"
 
-using namespace GNAPluginNS::memory;
+using namespace memory;
 
 class GNAMemoryTest : public ::testing::Test {
  protected:
@@ -317,7 +317,7 @@ TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSize) {
 }
 
 TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSizeWithAlignment) {
-    GNAMemory<GNAPluginNS::memory::GNAFloatAllocator> memAligned(64);
+    GNAMemory<memory::GNAFloatAllocator> memAligned(64);
     float* pFuture1 = reinterpret_cast<float*>(&pFuture1);
     float* pFuture2 = reinterpret_cast<float*>(&pFuture2);
 

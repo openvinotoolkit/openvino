@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,11 @@
 
 #include <threading/ie_istreams_executor.hpp>
 #include <ie_performance_hints.hpp>
-#include "utils/debug_capabilities.h"
+#include <ie/ie_common.h>
+#include <openvino/util/common_util.hpp>
+#include "utils/debug_caps_config.h"
 
+#include <bitset>
 #include <string>
 #include <map>
 #include <mutex>
@@ -29,22 +32,30 @@ struct Config {
         DO_On,
     };
 
+    enum SnippetsMode {
+        Enable,
+        IgnoreCallback,
+        Disable,
+    };
+
     bool collectPerfCounters = false;
     bool exclusiveAsyncRequests = false;
     bool enableDynamicBatch = false;
+    SnippetsMode snippetsMode = SnippetsMode::Enable;
     std::string dumpToDot = "";
     int batchLimit = 0;
     float fcSparseWeiDecompressionRate = 1.0f;
     size_t rtCacheCapacity = 5000ul;
     InferenceEngine::IStreamsExecutor::Config streamExecutorConfig;
     InferenceEngine::PerfHintsConfig  perfHintsConfig;
-#if defined(__arm__) || defined(__aarch64__)
-    // Currently INT8 mode is not optimized on ARM, fallback to FP32 mode.
-    LPTransformsMode lpTransformsMode = LPTransformsMode::Off;
-    bool enforceBF16 = false;
-#else
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
     bool enforceBF16 = true;
+    bool manualEnforceBF16 = false;
+#else
+    // Currently INT8 mode is not optimized on ARM / RISCV or other non-x86 platforms, fallback to FP32 mode.
+    LPTransformsMode lpTransformsMode = LPTransformsMode::Off;
+    bool enforceBF16 = false;
     bool manualEnforceBF16 = false;
 #endif
 
@@ -57,31 +68,12 @@ struct Config {
 
     std::map<std::string, std::string> _config;
 
-#ifdef CPU_DEBUG_CAPS
-    enum FILTER {
-        BY_PORTS,
-        BY_EXEC_ID,
-        BY_TYPE,
-        BY_NAME,
-    };
-
-    enum class FORMAT {
-        BIN,
-        TEXT,
-    };
-
-    std::string execGraphPath;
-    std::string verbose;
-    std::string blobDumpDir = "cpu_dump";
-    FORMAT blobDumpFormat = FORMAT::TEXT;
-    // std::hash<int> is necessary for Ubuntu-16.04 (gcc-5.4 and defect in C++11 standart)
-    std::unordered_map<FILTER, std::string, std::hash<int>> blobDumpFilters;
-    std::string summaryPerf = "";
-
-    void readDebugCapsProperties();
-#endif
-
     bool isNewApi = true;
+
+#ifdef CPU_DEBUG_CAPS
+    DebugCapsConfig debugCaps;
+    void applyDebugCapsProperties();
+#endif
 };
 
 }   // namespace intel_cpu

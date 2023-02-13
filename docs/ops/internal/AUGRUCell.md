@@ -6,7 +6,7 @@
 
 **Short description**: *AUGRUCell* represents a single AUGRU Cell (GRU with attentional update gate).
 
-**Detailed description**: The main difference between *AUGRUCell* and [GRUCell](../../../../../docs/ops/sequence/GRUCell_3.md) is the additional attention score input `A`, which is a multiplier for the update gate.
+**Detailed description**: The main difference between *AUGRUCell* and [GRUCell](../../../docs/ops/sequence/GRUCell_3.md) is the additional attention score input `A`, which is a multiplier for the update gate.
 The AUGRU formula is based on the [paper arXiv:1809.03672](https://arxiv.org/abs/1809.03672).
 
 ```

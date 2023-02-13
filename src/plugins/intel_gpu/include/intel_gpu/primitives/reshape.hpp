@@ -1,18 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Changes information about inputs's layout effectively creating new memory which share underlaying buffer
 /// but is interpreted in a different way (different shape).
@@ -88,7 +81,4 @@ struct reshape : public primitive_base<reshape> {
     reshape_mode mode;
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

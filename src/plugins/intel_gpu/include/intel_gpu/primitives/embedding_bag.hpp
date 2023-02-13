@@ -1,18 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Computes sums of "bags" of embeddings, without instantiating the intermediate embeddings.
 /// @details For each index in `indices` this operator gets values from `data` embedding table and sums all values belonging to each bag.
@@ -45,8 +38,12 @@ struct embedding_bag : public primitive_base<embedding_bag> {
     tensor output_shape;
     /// @brief Default index
     int32_t default_index;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, type);
+        seed = hash_combine(seed, default_index);
+        return seed;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

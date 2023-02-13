@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -270,5 +270,7 @@ inline std::vector<std::string> readListFiles(const std::vector<std::string>& fi
 }
 
 std::string getExecutableDirectory();
+std::string getCurrentWorkingDir();
+std::string getRelativePath(const std::string& from, const std::string& to);
 
 }  // namespace CommonTestUtils

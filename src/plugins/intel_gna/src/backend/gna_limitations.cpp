@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <cstdint>
@@ -15,11 +15,35 @@
 #include "gna_limitations.hpp"
 #include "gna/gna_config.hpp"
 
-using namespace ov::intel_gna;
+namespace ov {
+namespace intel_gna {
+namespace limitations {
+namespace cnn2d {
 
-namespace GNAPluginNS {
-namespace GNALimitations {
-namespace Cnn2D {
+bool IsEqualToLimit::isValid(const uint32_t val) const {
+    return val == compared_value;
+}
+
+std::string IsEqualToLimit::GetErrorOrEmpty(const uint32_t val) const {
+    std::ostringstream out;
+    if (!isValid(val)) {
+        out << "Unsupported " << what << ", actual value: " << val << ", but should be equal to " << compared_value
+            << "\n";
+    }
+    return out.str();
+}
+
+bool IsLessThanLimit ::isValid(const uint32_t val) const {
+    return val < compared_value;
+}
+
+std::string IsLessThanLimit ::GetErrorOrEmpty(const uint32_t val) const {
+    std::ostringstream out;
+    if (!isValid(val)) {
+        out << "Unsupported " << what << ", actual value: " << val << ", but should be less than " << compared_value << "\n";
+    }
+    return out.str();
+}
 
 bool RangeLimit::isValid(const uint32_t val) const {
     return val >= min && val <= max;
@@ -178,7 +202,21 @@ bool Validator_30::ValidatePooling2D(const std::string& name,
     return ValidationSuccesful(throwOnError, error, name, "Pooling2D");
 }
 
-bool Validator_30::IsPaddingSupported() const {
+bool Validator_30::ValidateInputPadding(const std::string& name,
+    const uint32_t pad_h_begin, const uint32_t pad_h_end,
+    const uint32_t pad_w_begin, const uint32_t pad_w_end,
+    const uint32_t,
+    const uint32_t,
+    const bool throwOnError) const {
+    const IsEqualToLimit padding_zero{0, "convolution input padding size (must equal zero)"};
+    auto error = padding_zero.GetErrorOrEmpty(pad_h_begin);
+    error += padding_zero.GetErrorOrEmpty(pad_h_end);
+    error += padding_zero.GetErrorOrEmpty(pad_w_begin);
+    error += padding_zero.GetErrorOrEmpty(pad_w_end);
+    return ValidationSuccesful(throwOnError, error, name, "Convolution2D");
+}
+
+bool Validator_30::ShouldUseOnlyConv2DGnaIface() const {
     return false;
 }
 
@@ -262,7 +300,28 @@ bool Validator_35::ValidatePooling2D(const std::string& name, const uint32_t win
     return ValidationSuccesful(throwOnError, error, name, "Pooling2D");
 }
 
-bool Validator_35::IsPaddingSupported() const {
+bool Validator_35::ValidateInputPadding(const std::string& name,
+    const uint32_t pad_h_begin, const uint32_t pad_h_end,
+    const uint32_t pad_w_begin, const uint32_t pad_w_end,
+    const uint32_t kernel_h,
+    const uint32_t kernel_w,
+    const bool throwOnError) const {
+    const IsEqualToLimit padding_h_symetric{pad_h_end, "convolution input padding along height axis (must be symmetric)"};
+    const IsEqualToLimit padding_w_symetric{pad_w_end, "convolution input padding along width axis (must be symmetric)"};
+
+    const IsLessThanLimit padding_h_limit{kernel_h, "convolution input padding height (must be less than kernel height)"};
+    const IsLessThanLimit padding_w_limit{kernel_w, "convolution input padding width (must be less than kernel width)"};
+
+    auto error = padding_h_symetric.GetErrorOrEmpty(pad_h_begin);
+    error += padding_w_symetric.GetErrorOrEmpty(pad_w_begin);
+
+    error += padding_h_limit.GetErrorOrEmpty(pad_h_begin);
+    error += padding_w_limit.GetErrorOrEmpty(pad_w_begin);
+
+    return ValidationSuccesful(throwOnError, error, name, "Convolution2D");
+}
+
+bool Validator_35::ShouldUseOnlyConv2DGnaIface() const {
     return true;
 }
 
@@ -293,7 +352,7 @@ bool AbstractValidator::ValidationSuccesful(const bool throwOnError,
     return error.empty();
 }
 
-} // namespace Cnn2D
+}  // namespace cnn2d
 
 IE_SUPPRESS_DEPRECATED_START
 static bool ValidateConcatAxis(const InferenceEngine::CNNLayerPtr layer, std::string& errMessage) {
@@ -310,7 +369,7 @@ static bool ValidateConcatAxis(const InferenceEngine::CNNLayerPtr layer, std::st
         auto isFusableWithConv = [](InferenceEngine::CNNLayerPtr ptr) {
             return (LayerInfo(ptr).isFusableWithConv() || LayerInfo(ptr).isNonFunctional() ||
                 (LayerInfo(ptr).isPermute() && ((ptr->input()->getLayout() == InferenceEngine::Layout::NCHW &&
-                    ptr->GetParamAsInts("order") == GetPermuteOrder(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC)) ||
+                    ptr->GetParamAsInts("order") == permute::GetPermuteOrder(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC)) ||
                     (ptr->input()->getLayout() == InferenceEngine::Layout::CHW &&
                         ptr->GetParamAsInts("order") == std::vector<int32_t>{0, 2, 1} /* NCW to NWC */))));
         };
@@ -445,12 +504,12 @@ bool ValidateConvConcatAxis(const InferenceEngine::ConcatLayer* concat_layer) {
                     break;
 
                 // Convert dims to NHWC layout to allow later verification
-                auto new_order = GetPermuteOrder(concat_layout, InferenceEngine::Layout::NHWC);
+                auto new_order = permute::GetPermuteOrder(concat_layout, InferenceEngine::Layout::NHWC);
                 InferenceEngine::SizeVector new_dims;
                 for (size_t i = 0; i < dims_size; ++i) {
                     new_dims.push_back(in_dims[new_order[i]]);
                 }
-                concat_axis = GetPermuteOrder(InferenceEngine::Layout::NHWC, concat_layout)[concat_axis];
+                concat_axis = permute::GetPermuteOrder(InferenceEngine::Layout::NHWC, concat_layout)[concat_axis];
 
                 // Looking for any axis with dimension > 1 before concatentaion axis;
                 // in general such concatenation is unsupported
@@ -505,7 +564,7 @@ bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMe
                                            startLayer,
                                            [&](const InferenceEngine::CNNLayerPtr layer) {
                                                LayerInfo info(layer);
-                                               if (GNAPluginNS::LayerTypeFromStr(layer->type) == GNAPluginNS::LayerType::NO_TYPE) {
+                                               if (LayerTypeFromStr(layer->type) == LayerType::NO_TYPE) {
                                                    errMessage = "The plugin does not support layer: " + layer->name + ":" + layer->type + "\n";
                                                    check_result =  false;
                                                }
@@ -531,5 +590,6 @@ bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMe
 }
 IE_SUPPRESS_DEPRECATED_END
 
-} // namespace GNALimitations
-} // namespace GNAPluginNS
+}  // namespace limitations
+}  // namespace intel_gna
+}  // namespace ov

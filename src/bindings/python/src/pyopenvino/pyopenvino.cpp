@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include <pybind11/pybind11.h>
@@ -34,6 +34,7 @@
 #include "pyopenvino/core/tensor.hpp"
 #include "pyopenvino/core/variable_state.hpp"
 #include "pyopenvino/core/version.hpp"
+#include "pyopenvino/frontend/decoder.hpp"
 #include "pyopenvino/frontend/extension.hpp"
 #include "pyopenvino/frontend/frontend.hpp"
 #include "pyopenvino/frontend/input_model.hpp"
@@ -61,6 +62,7 @@
 #include "pyopenvino/graph/strides.hpp"
 #include "pyopenvino/graph/types/regmodule_graph_types.hpp"
 #include "pyopenvino/graph/util.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -100,14 +102,17 @@ PYBIND11_MODULE(_pyopenvino, m) {
     m.def(
         "serialize",
         [](std::shared_ptr<ov::Model>& model,
-           const std::string& xml_path,
-           const std::string& bin_path,
+           const py::object& xml_path,
+           const py::object& bin_path,
            const std::string& version) {
-            ov::serialize(model, xml_path, bin_path, Common::convert_to_version(version));
+            ov::serialize(model,
+                          Common::utils::convert_path_to_string(xml_path),
+                          Common::utils::convert_path_to_string(bin_path),
+                          Common::convert_to_version(version));
         },
         py::arg("model"),
         py::arg("xml_path"),
-        py::arg("bin_path") = "",
+        py::arg("bin_path") = py::str(""),
         py::arg("version") = "UNSPECIFIED",
         R"(
             Serialize given model into IR. The generated .xml and .bin files will be saved
@@ -115,10 +120,10 @@ PYBIND11_MODULE(_pyopenvino, m) {
             :param model: model which will be converted to IR representation
             :type model: openvino.runtime.Model
             :param xml_path: path where .xml file will be saved
-            :type xml_path: str
+            :type xml_path: Union[str, bytes, pathlib.Path]
             :param bin_path: path where .bin file will be saved (optional),
                              the same name as for xml_path will be used by default.
-            :type bin_path: str
+            :type bin_path: Union[str, bytes, pathlib.Path]
             :param version: version of the generated IR (optional).
             Supported versions are:
             - "UNSPECIFIED" (default) : Use the latest or model version
@@ -231,6 +236,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
     regclass_frontend_FrontEnd(m);
     regclass_frontend_InputModel(m);
     regclass_frontend_NodeContext(m);
+    regclass_frontend_IDecoder(m);
 
     // frontend extensions
     regclass_frontend_TelemetryExtension(m);

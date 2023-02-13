@@ -1,16 +1,16 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "include/batch_headers/fetch_data.cl"
-#include "include/batch_headers/data_types.cl"
-
-#define unroll_for __attribute__((opencl_unroll_hint)) for
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 
 #if INPUT0_TYPE_SIZE == 4
-#define BLOCK_SHUFFLE               intel_sub_group_shuffle
+#define BLOCK_SHUFFLE               _sub_group_shuffle
 #else // INPUT0_TYPE_SIZE == 4
-#define BLOCK_SHUFFLE(data, sg_lid) as_half16(intel_sub_group_shuffle(as_short16(data), sg_lid))
+#define BLOCK_SHUFFLE(data, sg_lid) as_half16(_sub_group_shuffle(as_short16(data), sg_lid))
 #endif // INPUT0_TYPE_SIZE == 4
 
 #if TILE_K > SIMD_WIDTH
@@ -62,7 +62,7 @@ inline uint FUNC(get_output_batch_offset)(uint b, uint f, uint w, uint z) {
 }
 
 // Optimized gemm kernel for fp16/fp32 inputs
-__attribute__((intel_reqd_sub_group_size(SIMD_WIDTH)))
+REQD_SUB_GROUP_SIZE(SIMD_WIDTH)
 __attribute__((reqd_work_group_size(SIMD_WIDTH, 1, 1)))
 KERNEL(gemm_tiled_opt)(
     const __global INPUT0_TYPE* input0,
@@ -342,7 +342,6 @@ KERNEL(gemm_tiled_opt)(
     } // Writing result in the global memory end
 }
 
-#undef unroll_for
 #undef BLOCK_SHUFFLE
 #undef BLOCK_READ_A
 #undef BLOCK_READ_B

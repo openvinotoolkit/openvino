@@ -1,8 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "dnn_types.h"
+#include "dnn_types.hpp"
 
 const char *intel_dnn_activation_name[kActNumType] = {
         "kActNone",
@@ -25,13 +25,6 @@ const char *intel_dnn_activation_name[kActNumType] = {
         "kActPwl"
 };
 
-const char *intel_dnn_softmax_name[kSoftmaxNumType] = {
-        "kSoftmaxNone",
-        "kSoftmaxKaldiSumGroup",
-        "kSoftmaxKaldiApplyLog",
-        "kSoftmaxGoogle"
-};
-
 const char* intel_dnn_operation_name[kDnnNumOp] = {
         "kDnnNullOp",
         "kDnnAffineOp",
@@ -44,12 +37,6 @@ const char* intel_dnn_operation_name[kDnnNumOp] = {
         "kDnnInterleaveOp",
         "kDnnDeinterleaveOp",
         "kDnnCopyOp"
-};
-
-const char *intel_dnn_macro_operation_name[kDnnNumMacroOp] = {
-        "kDnnMacroOpNone",
-        "kDnnMacroOpLstm",
-        "kDnnMacroOpBiLstm"
 };
 
 const char *intel_dnn_number_type_name[kDnnNumNumberType] = {

@@ -35,7 +35,7 @@ struct variable_test : public ::testing::TestWithParam<VariableParams<T>> {
         topology.add(eltwise{"sum", { input_info("input"), input_info("read_value") }, eltwise_mode::sum, {}, variable_layout.data_type});
         topology.add(assign{"assign", { input_info("sum") }, "v0", variable_layout});
 
-        network network(engine, topology, build_options{}, false);
+        network network(engine, topology, ExecutionConfig{}, false);
         network.assign_variables_memories({ { "v0", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) } });
         network.set_input_data("input", input_data);
 
@@ -123,7 +123,7 @@ TEST(variable_test_common, exception_on_wrong_layout) {
     topology.add(input_layout("wrong_input", wrong_input_data->get_layout()));
     topology.add(assign{"assign", { input_info("wrong_input") }, "v0", wrong_layout});
 
-    network network(engine, topology, build_options{}, false);
+    network network(engine, topology, ExecutionConfig{}, false);
     network.assign_variables_memories({ { "v0", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) } });
     network.set_input_data("input", input_data);
     network.set_input_data("wrong_input", wrong_input_data);
@@ -174,7 +174,7 @@ TEST(variable_test_common, variables_are_preserved_across_inferences) {
     topology.add(data("dummy2", dummy2));
     topology.add(read_value{"read_result", { input_info("dummy2") }, "v_result", variable_layout});
 
-    network network{engine, topology, build_options{}, true};
+    network network{engine, topology, ExecutionConfig{}, true};
     network.assign_variables_memories({
         { "v1", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) },
         { "v2", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) },

@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "test_utils.h"
 
@@ -60,7 +58,7 @@ TEST(spatial_concatenate_f32_gpu, test01) {
         size_t idx = 0;
         for (auto const& value : out_ptr)
         {
-            EXPECT_FLOAT_EQ(value, expected_output[idx++]);
+            ASSERT_FLOAT_EQ(value, expected_output[idx++]);
         }
     }
 }
@@ -115,7 +113,7 @@ TEST(spatial_concatenate_f32_gpu, test02) {
         size_t idx = 0;
         for (auto const& value : out_ptr)
         {
-            EXPECT_FLOAT_EQ(value, expected_output[idx++]);
+            ASSERT_FLOAT_EQ(value, expected_output[idx++]);
         }
     }
 }
@@ -172,7 +170,7 @@ TEST(spatial_concatenate_f32_gpu, test03) {
         size_t idx = 0;
         for (auto const& value : out_ptr)
         {
-            EXPECT_FLOAT_EQ(value, expected_output[idx++]);
+            ASSERT_FLOAT_EQ(value, expected_output[idx++]);
         }
     }
 }
@@ -227,7 +225,7 @@ TEST(spatial_concatenate_f32_gpu, test04) {
         size_t idx = 0;
         for (auto const& value : out_ptr)
         {
-            EXPECT_FLOAT_EQ(value, expected_output[idx++]);
+            ASSERT_FLOAT_EQ(value, expected_output[idx++]);
         }
     }
 }
@@ -288,7 +286,7 @@ TEST(spatial_concatenate_f32_gpu, inputs_3) {
         size_t idx = 0;
         for (auto const& value : out_ptr)
         {
-            EXPECT_FLOAT_EQ(value, expected_output[idx++]);
+            ASSERT_FLOAT_EQ(value, expected_output[idx++]);
         }
     }
 }
@@ -376,7 +374,7 @@ TEST(spatial_concatenate_f32_gpu, inputs_3_uneven_axis_b) {
         size_t idx = 0;
         for (auto const& value : out_ptr)
         {
-            EXPECT_FLOAT_EQ(value, expected_output[idx++]);
+            ASSERT_FLOAT_EQ(value, expected_output[idx++]);
         }
     }
 }
@@ -436,7 +434,7 @@ TEST(spatial_concatenate_f32_gpu, inputs3d_axis_x) {
         size_t idx = 0;
         for (auto const& value : out_ptr)
         {
-            EXPECT_FLOAT_EQ(value, expected_output[idx++]);
+            ASSERT_FLOAT_EQ(value, expected_output[idx++]);
         }
     }
 }
@@ -500,7 +498,7 @@ TEST(spatial_concatenate_f32_gpu, inputs3d_axis_y) {
         size_t idx = 0;
         for (auto const& value : out_ptr)
         {
-            EXPECT_FLOAT_EQ(value, expected_output[idx++]);
+            ASSERT_FLOAT_EQ(value, expected_output[idx++]);
         }
     }
 }
@@ -564,7 +562,7 @@ TEST(spatial_concatenate_f32_gpu, inputs3d_axis_z) {
         size_t idx = 0;
         for (auto const& value : out_ptr)
         {
-            EXPECT_FLOAT_EQ(value, expected_output[idx++]);
+            ASSERT_FLOAT_EQ(value, expected_output[idx++]);
         }
     }
 }
@@ -639,7 +637,7 @@ TEST(spatial_concatenate_f32_gpu, inputs3d_axis_b) {
         size_t idx = 0;
         for (auto const& value : out_ptr)
         {
-            EXPECT_FLOAT_EQ(value, expected_output[idx++]);
+            ASSERT_FLOAT_EQ(value, expected_output[idx++]);
         }
     }
 }
@@ -770,7 +768,7 @@ TEST(spatial_concatenate_f32_gpu, inputs3d_3_uneven_axis_b) {
         size_t idx = 0;
         for (auto const& value : out_ptr)
         {
-            EXPECT_FLOAT_EQ(value, expected_output[idx++]);
+            ASSERT_FLOAT_EQ(value, expected_output[idx++]);
         }
     }
 }

@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include "openvino/op/util/attr_types.hpp"
@@ -11,12 +10,6 @@
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Finds the index of the k max values of input.
 /// @details Returns indices in f32, because we currently does not support int32 data type.
@@ -60,8 +53,15 @@ struct arg_max_min : public primitive_base<arg_max_min> {
     ov::op::TopKSortType sort;
     /// @brief Sets output order: if True than first output contains values and second (optional) - indices.
     bool values_first;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, mode);
+        seed = hash_combine(seed, top_k);
+        seed = hash_combine(seed, axis);
+        seed = hash_combine(seed, sort);
+        seed = hash_combine(seed, values_first);
+        return seed;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

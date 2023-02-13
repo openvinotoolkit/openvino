@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <cstdint>
 #include <limits>
 
-#include "gna_slope_scale.h"
+#include "gna_slope_scale.hpp"
 
 pwl_gna_slope_scale_t gna_slope(const double slope,
                                 const double in_scale,

@@ -4,11 +4,9 @@
 
 #include "layer_quantizer.hpp"
 #include "weights_converter.hpp"
-#include "backend/gna_types.h"
+#include "backend/gna_types.hpp"
 #include "common/gna_target.hpp"
 #include "gna_graph_tools.hpp"
-
-using namespace GNAPluginNS;
 
 namespace ov {
 namespace intel_gna {
@@ -252,7 +250,7 @@ void LayerQuantizer::QuantizeWeightsBiases(InferenceEngine::WeightableLayer& wl)
     QuantizationData common_data{
         num_rows,
         num_columns,
-        GNAPluginNS::kScaleFactorDefault,
+        kScaleFactorDefault,
         quant_layer_params->_weights_quant
     };
 

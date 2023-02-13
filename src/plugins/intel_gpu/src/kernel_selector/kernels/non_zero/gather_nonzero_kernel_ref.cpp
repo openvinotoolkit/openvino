@@ -57,7 +57,7 @@ KernelsData GatherNonzeroKernelRef::GetKernelsData(const Params& params, const o
     auto& kernel = kd.kernels[0];
     kernel.params.workGroups.global = {1, 1, 1};
     kernel.params.workGroups.local = {1, 1, 1};
-    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
+    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, EXE_MODE_DEFAULT);
     kernel.params.arguments = GetArgsDesc(2, false, false);
 
     return {kd};

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,9 +9,11 @@
 
 #include <caseless.hpp>
 
-#include "backend/dnn_types.h"
+#include "backend/dnn_types.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+
 enum class LayerType {
     Input,
     Convolution,
@@ -54,7 +56,7 @@ enum class LayerType {
     NO_TYPE
 };
 
-static const InferenceEngine::details::caseless_map<std::string, GNAPluginNS::LayerType> LayerNameToType = {
+static const InferenceEngine::details::caseless_map<std::string, LayerType> LayerNameToType = {
         { "Input" , LayerType::Input },
         { "Convolution" , LayerType::Convolution },
         { "ReLU" , LayerType::ReLU },
@@ -94,5 +96,7 @@ static const InferenceEngine::details::caseless_map<std::string, GNAPluginNS::La
         {"Gemm", LayerType::Gemm},
 };
 
-GNAPluginNS::LayerType LayerTypeFromStr(const std::string &str);
-}  // namespace GNAPluginNS
+LayerType LayerTypeFromStr(const std::string &str);
+
+}  // namespace intel_gna
+}  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,7 +43,7 @@ ov::Tensor create_tensor_from_image(const std::vector<std::string>& files,
     if (!inputInfo.layout.empty() && ov::layout::has_batch(inputInfo.layout)) {
         imgBatchSize = batchSize;
     } else {
-        slog::warn << inputName << ": layout does not contain batch dimension. Assuming bath 1 for this input"
+        slog::warn << inputName << ": layout does not contain batch dimension. Assuming batch 1 for this input"
                    << slog::endl;
     }
 
@@ -83,10 +83,7 @@ ov::Tensor create_tensor_from_image(const std::vector<std::string>& files,
                                     (((inputInfo.layout == "NCHW") || (inputInfo.layout == "CHW"))
                                          ? (ch * width * height + h * width + w)
                                          : (h * width * numChannels + w * numChannels + ch));
-                    data[offset] =
-                        (static_cast<T>(vreader.at(b).get()[h * width * numChannels + w * numChannels + ch]) -
-                         static_cast<T>(inputInfo.mean[ch])) /
-                        static_cast<T>(inputInfo.scale[ch]);
+                    data[offset] = static_cast<T>(vreader.at(b).get()[h * width * numChannels + w * numChannels + ch]);
                 }
             }
         }
@@ -219,12 +216,12 @@ ov::Tensor get_image_tensor(const std::vector<std::string>& files,
                                                inputInfo.first,
                                                filenames_used);
     } else if (type == ov::element::f16) {
-        return create_tensor_from_image<short>(files,
-                                               inputId,
-                                               batchSize,
-                                               inputInfo.second,
-                                               inputInfo.first,
-                                               filenames_used);
+        return create_tensor_from_image<ov::float16>(files,
+                                                     inputId,
+                                                     batchSize,
+                                                     inputInfo.second,
+                                                     inputInfo.first,
+                                                     filenames_used);
     } else if (type == ov::element::f64) {
         return create_tensor_from_image<double>(files,
                                                 inputId,

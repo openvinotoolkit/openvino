@@ -85,7 +85,7 @@ public:
             tp.add(reorder("output", input_info("eye"), oupput_fmt, type_to_data_type<OutputType>::value));
         }
 
-        cldnn::network::ptr network; 
+        cldnn::network::ptr network;
 
         if (is_caching_test) {
             membuf mem_buf;
@@ -106,8 +106,8 @@ public:
 
         auto outputs = network->execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, ouput_op_name);
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, ouput_op_name);
 
         auto output = outputs.at(ouput_op_name).get_memory();
 
@@ -115,7 +115,7 @@ public:
 
         ASSERT_EQ(output_ptr.size(), expected_values.size());
         for (size_t i = 0; i < output_ptr.size(); ++i)
-            EXPECT_TRUE(are_equal(expected_values[i], output_ptr[i], 2e-3));
+            ASSERT_TRUE(are_equal(expected_values[i], output_ptr[i], 2e-3));
     }
 
 protected:

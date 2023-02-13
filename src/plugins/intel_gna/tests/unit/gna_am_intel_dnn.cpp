@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@ using namespace testing;
 
 class GNA_AmIntelDnn_test : public ::testing::Test {
 protected:
-    GNAPluginNS::backend::AMIntelDNN amIntelDnn;
+    backend::AMIntelDNN amIntelDnn;
     Gna2Model desc = {};
 };
 

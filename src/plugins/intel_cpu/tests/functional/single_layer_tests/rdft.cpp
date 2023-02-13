@@ -436,6 +436,8 @@ std::vector<RDFTTestCPUParams> getParams4D() {
     params.push_back({{1, 192, 36, 64}, {3, 2}, {}, false, cpuParams});
     params.push_back({{1, 192, 36, 64}, {-2, -1}, {36, 64}, false, cpuParams});
     params.push_back({{1, 192, 36, 64}, {0, 1, 2, 3}, {}, false, cpuParams});
+    params.push_back({{1, 120, 64, 64}, {-2, -1}, {64, 33}, false, cpuParams});
+    params.push_back({{1, 120, 96, 96}, {-2, -1}, {96, 49}, false, cpuParams});
     params.push_back({{2, 192, 36, 33, 2}, {0}, {}, true, cpuParams});
     params.push_back({{1, 192, 36, 33, 2}, {1}, {}, true, cpuParams});
     params.push_back({{1, 192, 36, 33, 2}, {2}, {}, true, cpuParams});
@@ -444,6 +446,8 @@ std::vector<RDFTTestCPUParams> getParams4D() {
     params.push_back({{1, 192, 36, 33, 2}, {3, 2}, {}, true, cpuParams});
     params.push_back({{1, 192, 36, 33, 2}, {-2, -1}, {36, 64}, true, cpuParams});
     params.push_back({{1, 192, 36, 33, 2}, {0, 1, 2, 3}, {}, true, cpuParams});
+    params.push_back({{1, 120, 64, 33, 2}, {-2, -1}, {64, 64}, true, cpuParams});
+    params.push_back({{1, 120, 96, 49, 2}, {-2, -1}, {96, 96}, true, cpuParams});
 
     return params;
 }

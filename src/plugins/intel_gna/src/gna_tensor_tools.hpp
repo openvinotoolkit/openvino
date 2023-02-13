@@ -1,11 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <ie_memcpy.h>
 #include "gna_data_types.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 
 /**
  * @brief convert a tensor or its parts from NCHW to NHWC order on the base of transposition information.
@@ -79,4 +80,5 @@ inline void ConvertTensorFromNCHWToNHWC(size_t precision, size_t rows, size_t co
     }
 }
 
-} // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -336,7 +336,7 @@ std::shared_ptr<ngraph::Node> ReshapeBiasConst(std::shared_ptr<ngraph::opset7::A
     IE_ASSERT(add_const);
 
     auto bias_size = shape_size(add_const->get_shape());
-    return ngraph::op::util::make_try_fold<ngraph::opset7::Reshape>(add_const,
+    return ov::op::util::make_try_fold<ngraph::opset7::Reshape>(add_const,
         ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, ngraph::Shape{1, bias_size, 1, 1}), false);
 }
 
@@ -388,7 +388,7 @@ static std::vector<std::shared_ptr<ngraph::Node>> Split2DConvFilters(std::shared
     }
 
     for (auto& new_filter : result)
-        new_filter = ngraph::op::util::make_try_fold<ngraph::opset7::Reshape>(new_filter,
+        new_filter = ov::op::util::make_try_fold<ngraph::opset7::Reshape>(new_filter,
             ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, reshape_shape), false);
 
     return result;
@@ -635,7 +635,7 @@ static size_t CalculateConvCount(const ConvParams& conv_params) {
     // Check if split of plane due to GNA HW limitations of 768 filter elements is possible
     size_t conv_count = 1;
     size_t total_factorized_conv_channel_count = (conv_params.input_channel_count * conv_params.filter_height * conv_params.filter_width);
-    while (total_factorized_conv_channel_count / conv_count > GNAPluginNS::GNALimitations::convFilterMaxSize ||
+    while (total_factorized_conv_channel_count / conv_count > ov::intel_gna::limitations::convFilterMaxSize ||
         total_factorized_conv_channel_count % conv_count != 0 || conv_params.filter_channel_count % conv_count != 0)
         conv_count++;
 
@@ -648,7 +648,7 @@ static bool ShouldDecompose(GraphData& graph_data, const ConvParams& conv_params
 
     // Concat (copy) layer limitation allows to split up to a certain limit
     // Currently we are able to split only convolutions without pooling in horizontal dimension
-    if (graph_data.conv_count > GNAPluginNS::GNALimitations::copyMaxGrouping ||
+    if (graph_data.conv_count > ov::intel_gna::limitations::copyMaxGrouping ||
         ((graph_data.pool_size_width > 1 || graph_data.pool_stride_width > 1) && graph_data.conv_count > 1))
         return false;
 
@@ -725,7 +725,7 @@ std::shared_ptr<ngraph::Function> Decompose2DConvTestFixture::get_reference(cons
 
 void execute_test(modelType model, std::shared_ptr<ngraph::Function> function, std::shared_ptr<ngraph::Function> reference_function) {
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
     InferenceEngine::Precision gnaPrecision = InferenceEngine::Precision::I16;
 
     switch (model) {

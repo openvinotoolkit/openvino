@@ -20,7 +20,7 @@
 #include "memory/gna_mem_regions.hpp"
 #include "gna_lib_ver_selector.hpp"
 
-using GNAPluginNS::memory::rRegion;
+using ov::intel_gna::memory::rRegion;
 
 struct GnaAllocation {
     void* ptr = nullptr;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -273,7 +273,7 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
         if (!getParameters<size_t>(m_node.child("data"), name, shape))
             return;
         static_cast<ngraph::Strides&>(*a) = ngraph::Strides(shape);
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
     } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<size_t>>>(&adapter)) {
         std::vector<size_t> result;
         if (!getParameters<size_t>(m_node.child("data"), name, result))

@@ -8,12 +8,6 @@
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief CTCLoss-4 primitive.
 struct ctc_loss : primitive_base<ctc_loss> {
@@ -39,9 +33,14 @@ struct ctc_loss : primitive_base<ctc_loss> {
     bool preprocess_collapse_repeated;
     bool ctc_merge_repeated;
     bool unique;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, preprocess_collapse_repeated);
+        seed = hash_combine(seed, ctc_merge_repeated);
+        seed = hash_combine(seed, unique);
+        return seed;
+    }
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

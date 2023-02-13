@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 # Target system specific flags
@@ -69,18 +69,28 @@ elseif(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "^riscv64$")
   set(HOST_RISCV64 ON)
 endif()
 
-if(UNIX AND NOT (APPLE OR ANDROID))
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    set(EMSCRIPTEN ON)
+endif()
+
+if(UNIX AND NOT (APPLE OR ANDROID OR EMSCRIPTEN))
     set(LINUX ON)
+endif()
+
+if(NOT DEFINED CMAKE_HOST_LINUX AND CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
+    set(CMAKE_HOST_LINUX ON)
 endif()
 
 if(ENV{OECORE_NATIVE_SYSROOT} AND AARCH64)
     set(YOCTO_AARCH64 ON)
 endif()
 
-if(EXISTS "/etc/debian_version")
-    set(OV_OS_DEBIAN ON)
-elseif(EXISTS "/etc/redhat-release")
-    set(OV_OS_RHEL ON)
+if(CMAKE_HOST_LINUX AND LINUX)
+    if(EXISTS "/etc/debian_version")
+        set(OV_OS_DEBIAN ON)
+    elseif(EXISTS "/etc/redhat-release")
+        set(OV_OS_RHEL ON)
+    endif()
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
@@ -93,7 +103,8 @@ endif()
 get_property(OV_GENERATOR_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 
 function(ov_glibc_version)
-    if(LINUX)
+    # cmake needs to look at glibc version only when we build for Linux on Linux
+    if(CMAKE_HOST_LINUX AND LINUX)
         function(ov_get_definition definition var)
             execute_process(COMMAND echo "#include <errno.h>"
                             COMMAND "${CMAKE_CXX_COMPILER}" -xc - -E -dM

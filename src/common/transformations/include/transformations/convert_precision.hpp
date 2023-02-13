@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,7 @@ class TRANSFORMATIONS_API ConvertPrecision;
  *
  * For all operations from opset1-opset4 this conversions can be applied without adding Conversion operations.
  * That is possible because all operations that produces "FROM" type can produce "TO" type. And for this operations
- * we have created special fuse_type_into_<type> functoin (can be found in cpp file) that performs type fusion
+ * we have created special fuse_type_into_<type> function (can be found in cpp file) that performs type fusion
  * into operation. m_additional_type_to_fuse_map allows to rewrite existing type convertors.
  *
  * List of operations that are supported by this transformations for i64 -> i32 conversion:
@@ -74,23 +74,23 @@ public:
     OPENVINO_RTTI("ConvertPrecision", "0");
     ConvertPrecision(ov::element::Type_t from,
                      ov::element::Type_t to,
-                     type_to_fuse_map additional_type_to_fuse_map = {})
+                     type_to_fuse_map additional_type_to_fuse_map = {},
+                     bool keep_precision_sensitive_in_fp32 = false)
         : m_precisions(precisions_array{{from, to}}),
-          m_additional_type_to_fuse_map(additional_type_to_fuse_map) {}
+          m_additional_type_to_fuse_map(additional_type_to_fuse_map),
+          m_keep_precision_sensitive_in_fp32(keep_precision_sensitive_in_fp32) {}
 
-    ConvertPrecision(const precisions_array& precisions, const type_to_fuse_map& additional_type_to_fuse_map = {})
+    ConvertPrecision(const precisions_array& precisions,
+                     const type_to_fuse_map& additional_type_to_fuse_map = {},
+                     bool keep_precision_sensitive_in_fp32 = false)
         : m_precisions(precisions),
-          m_additional_type_to_fuse_map(additional_type_to_fuse_map) {}
+          m_additional_type_to_fuse_map(additional_type_to_fuse_map),
+          m_keep_precision_sensitive_in_fp32(keep_precision_sensitive_in_fp32) {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:
     precisions_array m_precisions;
     type_to_fuse_map m_additional_type_to_fuse_map;
+    bool m_keep_precision_sensitive_in_fp32;
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertPrecision;
-}  // namespace pass
-}  // namespace ngraph

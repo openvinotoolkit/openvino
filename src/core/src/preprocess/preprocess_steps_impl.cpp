@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -427,6 +427,64 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
                 auto res = reverse_channels(nodes, function, context);
                 context.color_format() = dst_format;
                 return res;
+            }
+            if ((context.color_format() == ColorFormat::RGB || context.color_format() == ColorFormat::BGR) &&
+                (dst_format == ColorFormat::GRAY)) {
+                auto node = nodes[0];
+                auto elem_type = node.get_element_type();
+                auto shape = node.get_partial_shape();
+                OPENVINO_ASSERT(shape.size() == 4,
+                                "Input shape size should be equal to 4, actual size: ",
+                                shape.size());
+                auto channels_idx = get_and_check_channels_idx(context.layout(), shape);
+                OPENVINO_ASSERT(shape[channels_idx] == 3,
+                                "Channels dimesion should be equal to 3, actual value: ",
+                                shape[channels_idx]);
+
+                auto is_transposed = false, is_converted = false;
+                if (channels_idx + 1 == shape.size()) {
+                    // Transpose N...C  to NC...
+                    auto permutation = layout::utils::find_permutation(context.layout(), shape, ov::Layout{"NC..."});
+                    auto perm_constant =
+                        op::v0::Constant::create<int64_t>(element::i64, Shape{permutation.size()}, permutation);
+                    node = std::make_shared<op::v1::Transpose>(node, perm_constant);
+                    is_transposed = true;
+                }
+                if (elem_type.is_integral_number()) {
+                    // Compute in floats due weights are floats
+                    node = std::make_shared<op::v0::Convert>(node, element::f32);
+                    is_converted = true;
+                }
+
+                // RGB coefficients were used from https://docs.opencv.org/3.4/de/d25/imgproc_color_conversions.html
+                auto weights_data = context.color_format() == ColorFormat::RGB
+                                        ? std::vector<float>{0.299f, 0.587f, 0.114f}
+                                        : std::vector<float>{0.114f, 0.587f, 0.299f};
+                auto weights_shape = ov::Shape(shape.size(), 1);
+                weights_shape[1] = 3;  // Set kernel layout to [1, 3, 1, ...]
+                auto weights_node = std::make_shared<ov::op::v0::Constant>(element::f32, weights_shape, weights_data);
+                node = std::make_shared<ov::op::v1::Convolution>(node,
+                                                                 weights_node,
+                                                                 ov::Strides(weights_shape.size() - 2, 1),
+                                                                 ov::CoordinateDiff(weights_shape.size() - 2, 0),
+                                                                 ov::CoordinateDiff(weights_shape.size() - 2, 0),
+                                                                 ov::Strides(weights_shape.size() - 2, 1));
+
+                if (is_converted) {
+                    // Round values according to OpenCV rule before converting to integral values
+                    auto round_val =
+                        std::make_shared<ov::op::v5::Round>(node, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
+                    node = std::make_shared<op::v0::Convert>(round_val, elem_type);
+                }
+                if (is_transposed) {
+                    // Return NC... to N...C
+                    auto permutation = layout::utils::find_permutation(ov::Layout{"NC..."}, shape, context.layout());
+                    auto perm_constant =
+                        op::v0::Constant::create<int64_t>(element::i64, Shape{permutation.size()}, permutation);
+                    node = std::make_shared<op::v1::Transpose>(node, perm_constant);
+                }
+                context.color_format() = dst_format;
+                return std::make_tuple(std::vector<Output<Node>>{node}, true);
             }
             if (context.color_format() == ColorFormat::RGBX) {
                 if (dst_format == ColorFormat::RGB) {

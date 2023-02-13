@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os.path
@@ -12,15 +12,15 @@ import multiprocessing
 from fnmatch import fnmatchcase
 from pathlib import Path
 from shutil import copyfile, rmtree
+from setuptools import setup, find_namespace_packages, Extension
+from setuptools.command.build_ext import build_ext
+from setuptools.command.build_clib import build_clib
+from setuptools.command.install import install
 from distutils.command.build import build
 from distutils.command.clean import clean
 from distutils.errors import DistutilsSetupError
 from distutils.file_util import copy_file
 from distutils import log
-from setuptools import setup, find_namespace_packages, Extension
-from setuptools.command.build_ext import build_ext
-from setuptools.command.build_clib import build_clib
-from setuptools.command.install import install
 
 WHEEL_LIBS_INSTALL_DIR = os.path.join("openvino", "libs")
 WHEEL_LIBS_PACKAGE = "openvino.libs"
@@ -119,6 +119,13 @@ LIB_INSTALL_CFG = {
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BUILD_DIR,
     },
+    "pytorch_libs": {
+        "name": "pytorch",
+        "prefix": "libs.pytorch",
+        "install_dir": OV_RUNTIME_LIBS_DIR,
+        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BUILD_DIR,
+    },
     "onnx_libs": {
         "name": "onnx",
         "prefix": "libs.onnx",
@@ -129,6 +136,13 @@ LIB_INSTALL_CFG = {
     "tensorflow_libs": {
         "name": "tensorflow",
         "prefix": "libs.tensorflow",
+        "install_dir": OV_RUNTIME_LIBS_DIR,
+        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BUILD_DIR,
+    },
+    "tensorflow_lite_libs": {
+        "name": "tensorflow_lite",
+        "prefix": "libs.tensorflow_lite",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BUILD_DIR,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,11 +28,11 @@ struct gather_tree_impl : typed_primitive_impl_ocl<gather_tree> {
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<gather_tree>();
-        auto params = get_default_params<kernel_selector::gather_tree_params>(impl_param, 1);
+        auto params = get_default_params<kernel_selector::gather_tree_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::gather_tree_optional_params>(impl_param.get_program());
 
         for (size_t i = 1; i < impl_param.input_layouts.size(); i++) {
-            params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i), 1));
+            params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
         }
         return {params, optional_params};
     }

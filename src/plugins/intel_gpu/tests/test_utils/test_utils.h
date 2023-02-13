@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,12 +52,8 @@ struct type_to_data_type<FLOAT16> {
 
 namespace tests {
 
-std::shared_ptr<cldnn::engine> create_test_engine(cldnn::queue_types queue_type = cldnn::queue_types::out_of_order);
+std::shared_ptr<cldnn::engine> create_test_engine();
 cldnn::engine& get_test_engine();
-cldnn::engine& get_test_engine(const cldnn::engine_configuration& configuration);
-#ifdef ENABLE_ONEDNN_FOR_GPU
-cldnn::engine& get_onednn_test_engine();
-#endif
 cldnn::stream_ptr get_test_stream_ptr();
 cldnn::stream& get_test_stream();
 
@@ -412,10 +408,10 @@ public:
 
     test_params() : fmt(cldnn::format::bfyx) { }
 
-    test_params(cldnn::data_types dt, cldnn::format input_format, int32_t batch_size, int32_t feature_size, cldnn::tensor input_size, cldnn::build_options const& options = cldnn::build_options()) :
+    test_params(cldnn::data_types dt, cldnn::format input_format, int32_t batch_size, int32_t feature_size, cldnn::tensor input_size, ExecutionConfig config = {}) :
         data_type(dt),
         fmt(input_format),
-        network_build_options(options) {
+        network_config(config) {
         cldnn::tensor t = cldnn::tensor(batch_size, feature_size, input_size.spatial[0],  input_size.spatial[1] );
         input_layouts.push_back( cldnn::layout(dt, fmt, t) );
     }
@@ -426,7 +422,7 @@ public:
 
     void * opaque_custom_param = nullptr;
 
-    cldnn::build_options network_build_options;
+    ExecutionConfig network_config;
 
     std::string print();
     static std::string print_tensor(cldnn::tensor tensor);
@@ -467,8 +463,6 @@ public:
 
     static std::vector<std::shared_ptr<test_params>> generate_generic_test_params(std::vector<std::shared_ptr<test_params>>& all_generic_params);
 
-    static void dump_graph(const std::string test_name, cldnn::build_options& bo);
-
     virtual bool is_format_supported(cldnn::format format) = 0;
 
     virtual cldnn::tensor get_expected_output_tensor();
@@ -488,7 +482,6 @@ protected:
     std::shared_ptr<cldnn::primitive> layer_params;
     int max_ulps_diff_allowed; //Max number of ulps allowed between 2 values when comparing the output buffer and the reference buffer.
     bool random_values; // if set memory buffers will be filled with random values
-    bool dump_graphs; // if set tests will dump graphs to file
     bool dump_memory; // if set memory buffers will be dumped to file
     virtual cldnn::memory::ptr generate_reference(const std::vector<cldnn::memory::ptr>& inputs) = 0;
     // Allows the test to override the random input data that the framework generates
@@ -579,8 +572,23 @@ T div_up(const T a, const U b) {
     return (a + b - 1) / b;
 }
 
+template <class T>
+std::vector<float> get_output_values_to_float(network& net, const primitive_id& output_id, size_t max_cnt = std::numeric_limits<size_t>::max()) {
+    std::vector<float> ret;
+    auto ptr = net.get_output_memory(output_id);
+    auto out_ids = net.get_output_ids();
+    if (find(out_ids.begin(), out_ids.end(), output_id) == out_ids.end())
+        IE_THROW() << "Non output node's memory may have been reused. "
+                      "Make target node to output by using ov::intel_gpu::custom_outputs in ExecutionConfig.";
+    mem_lock<T, mem_lock_type::read> mem(ptr, net.get_stream());
+    if (ptr->get_layout().data_type != type_to_data_type<T>::value)
+        IE_THROW() << "target type " << data_type_traits::name(type_to_data_type<T>::value)
+                    << " mismatched with actual type " << data_type_traits::name(ptr->get_layout().data_type);
+    for (size_t i = 0; i < std::min(max_cnt, ptr->get_layout().count()); i++)
+        ret.push_back(mem[i]);
+    return ret;
+}
 double default_tolerance(data_types dt);
-
 class membuf : public std::streambuf
 {
 public:

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,9 +61,6 @@ size_t InputInfo::depth() const {
 uint32_t device_default_device_duration_in_seconds(const std::string& device) {
     static const std::map<std::string, uint32_t> deviceDefaultDurationInSeconds{{"CPU", 60},
                                                                                 {"GPU", 60},
-                                                                                {"VPU", 60},
-                                                                                {"MYRIAD", 60},
-                                                                                {"HDDL", 60},
                                                                                 {"UNKNOWN", 120}};
     uint32_t duration = 0;
     for (const auto& deviceDurationInSeconds : deviceDefaultDurationInSeconds) {
@@ -223,7 +220,7 @@ std::string get_shapes_string(const benchmark_app::PartialShapes& shapes) {
 
 std::map<std::string, std::vector<float>> parse_scale_or_mean(const std::string& scale_mean,
                                                               const benchmark_app::InputsInfo& inputs_info) {
-    //  Format: data:[255,255,255],info[255,255,255]
+    //  Format: data[255,255,255],info[255,255,255]
     std::map<std::string, std::vector<float>> return_value;
 
     std::string search_string = scale_mean;
@@ -630,9 +627,6 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
 
         for (auto& item : info_map) {
             if (item.second.is_image()) {
-                item.second.scale.assign({1, 1, 1});
-                item.second.mean.assign({0, 0, 0});
-
                 if (scale_map.count(item.first)) {
                     item.second.scale = scale_map.at(item.first);
                 }

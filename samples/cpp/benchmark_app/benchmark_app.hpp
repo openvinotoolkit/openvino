@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,17 +14,8 @@
 
 #include "gflags/gflags.h"
 
-// gflags supports uint32 starting from v2.2 only
-#ifndef DEFINE_uint32
-#    ifdef GFLAGS_NAMESPACE
-#        define DEFINE_uint32(name, val, txt) DEFINE_VARIABLE(GFLAGS_NAMESPACE::uint32, U, name, val, txt)
-#    else
-#        define DEFINE_uint32(name, val, txt) DEFINE_VARIABLE(gflags::uint32, U, name, val, txt)
-#    endif
-#endif
-
 /// @brief message for help argument
-static const char help_message[] = "Print a usage message";
+static const char help_message[] = "Print the usage message";
 
 /// @brief message for images argument
 static const char input_message[] =
@@ -83,7 +74,7 @@ static const char infer_num_threads_message[] = "Optional. Number of threads to 
 
 /// @brief message for #streams for CPU inference
 static const char infer_num_streams_message[] =
-    "Optional. Number of streams to use for inference on the CPU, GPU or MYRIAD devices "
+    "Optional. Number of streams to use for inference on the CPU or GPU devices "
     "(for HETERO and MULTI device cases use format <dev1>:<nstreams1>,<dev2>:<nstreams2> or just "
     "<nstreams>). "
     "Default value is determined automatically for a device.Please note that although the "
@@ -121,7 +112,7 @@ static const char batch_size_message[] =
 
 // @brief message for CPU threads pinning option
 static const char infer_threads_pinning_message[] =
-    "Optional. Explicit inference threads binding options (leave empty to let the OpenVINO to make a choice):\n"
+    "Optional. Explicit inference threads binding options (leave empty to let the OpenVINO make a choice):\n"
     "\t\t\t\tenabling threads->cores pinning(\"YES\", which is already default for any conventional CPU), \n"
     "\t\t\t\tletting the runtime to decide on the threads->different core types(\"HYBRID_AWARE\", which is default on "
     "the hybrid CPUs) \n"
@@ -226,7 +217,9 @@ static const char load_from_file_message[] = "Optional. Loads model from file di
                                              " All CNNNetwork options (like re-shape) will be ignored";
 
 // @brief message for inference_precision
-static const char inference_precision_message[] = "Optional. Inference precision";
+static const char inference_precision_message[] =
+    "Optional. Specifies the inference precision. Example #1: '-infer_precision bf16'. Example #2: '-infer_precision "
+    "CPU:bf16,GPU:f32'";
 
 static constexpr char inputs_precision_message[] = "Optional. Specifies precision for all input layers of the model.";
 
@@ -244,10 +237,18 @@ static constexpr char input_image_scale_message[] =
     "Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.\n"
     "Example: -iscale data[255,255,255],info[255,255,255]\n";
 
-static constexpr char input_image_mean_message[] =
-    "Optional. Mean values to be used for the input image per channel.\n"
-    "Values to be provided in the [R, G, B] format. Can be defined for desired input of the model,\n"
-    "Example: -imean data[255,255,255],info[255,255,255]\n";
+static constexpr char mean_values_message[] =
+    "Optional. Mean values to be used for the input image per channel. Values to be provided in the [R,G,B] format. "
+    "Can be defined for desired input of the model, for example: \"--mean_values "
+    "data[255,255,255],info[255,255,255]\". The exact meaning and order of channels depend on how the original model "
+    "was trained. Applying the values affects performance and may cause type conversion";
+
+static constexpr char scale_values_message[] =
+    "Optional. Scale values to be used for the input image per channel. Values are provided in the [R,G,B] format. Can "
+    "be defined for desired input of the model, for example: \"--scale_values data[255,255,255],info[255,255,255]\". "
+    "The exact meaning and order of channels depend on how the original model was trained. If both --mean_values and "
+    "--scale_values are specified, the mean is subtracted first and then scale is applied regardless of the order of "
+    "options in command line. Applying the values affects performance and may cause type conversion";
 
 static constexpr char inference_only_message[] =
     "Optional. Measure only inference stage. Default option for static models. Dynamic models"
@@ -290,27 +291,27 @@ DEFINE_string(c, "", custom_cldnn_message);
 /// @brief Iterations count (default 0)
 /// Sync mode: iterations count
 /// Async mode: StartAsync counts
-DEFINE_uint32(niter, 0, iterations_count_message);
+DEFINE_uint64(niter, 0, iterations_count_message);
 
 /// @brief Time to execute topology in seconds
-DEFINE_uint32(t, 0, execution_time_message);
+DEFINE_uint64(t, 0, execution_time_message);
 
 /// @brief Number of infer requests in parallel
-DEFINE_uint32(nireq, 0, infer_requests_count_message);
+DEFINE_uint64(nireq, 0, infer_requests_count_message);
 
 /// @brief Number of threads to use for inference on the CPU in throughput mode (also affects Hetero
 /// cases)
-DEFINE_uint32(nthreads, 0, infer_num_threads_message);
+DEFINE_uint64(nthreads, 0, infer_num_threads_message);
 
 /// @brief Number of streams to use for inference on the CPU (also affects Hetero cases)
 DEFINE_string(nstreams, "", infer_num_streams_message);
 
 /// @brief The percentile which will be reported in latency metric
-DEFINE_uint32(latency_percentile, 50, infer_latency_percentile_message);
+DEFINE_uint64(latency_percentile, 50, infer_latency_percentile_message);
 
 /// @brief Define parameter for batch size <br>
 /// Default is 0 (that means don't specify)
-DEFINE_uint32(b, 0, batch_size_message);
+DEFINE_uint64(b, 0, batch_size_message);
 
 // @brief Enable plugin messages
 DEFINE_string(pin, "", infer_threads_pinning_message);
@@ -377,11 +378,11 @@ DEFINE_string(cache_dir, "", cache_dir_message);
 /// @brief Define flag for load network from model file by name without ReadNetwork <br>
 DEFINE_bool(load_from_file, false, load_from_file_message);
 
-/// @brief Define flag for using input image scale <br>
-DEFINE_string(iscale, "", input_image_scale_message);
-
 /// @brief Define flag for using input image mean <br>
-DEFINE_string(imean, "", input_image_mean_message);
+DEFINE_string(mean_values, "", mean_values_message);
+
+/// @brief Define flag for using input image scale <br>
+DEFINE_string(scale_values, "", scale_values_message);
 
 /// @brief Define flag for inference only mode <br>
 DEFINE_bool(inference_only, true, inference_only_message);
@@ -394,48 +395,48 @@ static void show_usage() {
     std::cout << "benchmark_app [OPTION]" << std::endl;
     std::cout << "Options:" << std::endl;
     std::cout << std::endl;
-    std::cout << "    -h, --help                " << help_message << std::endl;
-    std::cout << "    -m \"<path>\"               " << model_message << std::endl;
-    std::cout << "    -i \"<path>\"               " << input_message << std::endl;
-    std::cout << "    -d \"<device>\"             " << target_device_message << std::endl;
-    std::cout << "    -extensions \"<absolute_path>\" " << custom_extensions_library_message << std::endl;
-    std::cout << "    -c \"<absolute_path>\"      " << custom_cldnn_message << std::endl;
-    std::cout << "    -hint \"performance hint (latency or throughput or cumulative_throughput or none)\"   "
+    std::cout << "    -h, --help                    " << help_message << std::endl;
+    std::cout << "    -m  <path>                    " << model_message << std::endl;
+    std::cout << "    -i  <path>                    " << input_message << std::endl;
+    std::cout << "    -d  <device>                  " << target_device_message << std::endl;
+    std::cout << "    -extensions  <absolute_path>  " << custom_extensions_library_message << std::endl;
+    std::cout << "    -c  <absolute_path>           " << custom_cldnn_message << std::endl;
+    std::cout << "    -hint  <performance hint> (latency or throughput or cumulative_throughput or none)   "
               << hint_message << std::endl;
-    std::cout << "    -api \"<sync/async>\"       " << api_message << std::endl;
-    std::cout << "    -niter \"<integer>\"        " << iterations_count_message << std::endl;
-    std::cout << "    -nireq \"<integer>\"        " << infer_requests_count_message << std::endl;
-    std::cout << "    -b \"<integer>\"            " << batch_size_message << std::endl;
-    std::cout << "    -t                        " << execution_time_message << std::endl;
-    std::cout << "    -shape                    " << shape_message << std::endl;
-    std::cout << "    -data_shape               " << data_shape_message << std::endl;
-    std::cout << "    -layout                   " << layout_message << std::endl;
-    std::cout << "    -cache_dir \"<path>\"       " << cache_dir_message << std::endl;
-    std::cout << "    -load_from_file           " << load_from_file_message << std::endl;
-    std::cout << "    -latency_percentile       " << infer_latency_percentile_message << std::endl;
+    std::cout << "    -api <sync/async>             " << api_message << std::endl;
+    std::cout << "    -niter  <integer>             " << iterations_count_message << std::endl;
+    std::cout << "    -nireq  <integer>             " << infer_requests_count_message << std::endl;
+    std::cout << "    -b  <integer>                 " << batch_size_message << std::endl;
+    std::cout << "    -t                            " << execution_time_message << std::endl;
+    std::cout << "    -shape                        " << shape_message << std::endl;
+    std::cout << "    -data_shape                   " << data_shape_message << std::endl;
+    std::cout << "    -layout                       " << layout_message << std::endl;
+    std::cout << "    -cache_dir  <path>            " << cache_dir_message << std::endl;
+    std::cout << "    -load_from_file               " << load_from_file_message << std::endl;
+    std::cout << "    -latency_percentile           " << infer_latency_percentile_message << std::endl;
     std::cout << std::endl << "  device-specific performance options:" << std::endl;
-    std::cout << "    -nstreams \"<integer>\"     " << infer_num_streams_message << std::endl;
-    std::cout << "    -nthreads \"<integer>\"     " << infer_num_threads_message << std::endl;
-    std::cout << "    -pin (\"YES\"|\"CORE\")/\"HYBRID_AWARE\"/(\"NO\"|\"NONE\")/\"NUMA\"   "
+    std::cout << "    -nstreams  <integer>          " << infer_num_streams_message << std::endl;
+    std::cout << "    -nthreads  <integer>          " << infer_num_threads_message << std::endl;
+    std::cout << "    -pin  <string>  (\"YES\"|\"CORE\") / \"HYBRID_AWARE\" / (\"NO\"|\"NONE\") / \"NUMA\"  "
               << infer_threads_pinning_message << std::endl;
 #ifdef HAVE_DEVICE_MEM_SUPPORT
     std::cout << "    -use_device_mem           " << use_device_mem_message << std::endl;
 #endif
     std::cout << std::endl << "  Statistics dumping options:" << std::endl;
-    std::cout << "    -report_type \"<type>\"   " << report_type_message << std::endl;
-    std::cout << "    -report_folder            " << report_folder_message << std::endl;
-    std::cout << "    -json_stats               " << json_stats_message << std::endl;
-    std::cout << "    -exec_graph_path          " << exec_graph_path_message << std::endl;
-    std::cout << "    -pc                       " << pc_message << std::endl;
-    std::cout << "    -pcsort                   " << pc_sort_message << std::endl;
-    std::cout << "    -pcseq                    " << pcseq_message << std::endl;
-    std::cout << "    -dump_config              " << dump_config_message << std::endl;
-    std::cout << "    -load_config              " << load_config_message << std::endl;
-    std::cout << "    -infer_precision \"<element type>\"" << inference_precision_message << std::endl;
-    std::cout << "    -ip                       <value>     " << inputs_precision_message << std::endl;
-    std::cout << "    -op                       <value>     " << outputs_precision_message << std::endl;
-    std::cout << "    -iop                      \"<value>\"    " << iop_message << std::endl;
-    std::cout << "    -iscale                   " << input_image_scale_message << std::endl;
-    std::cout << "    -imean                    " << input_image_mean_message << std::endl;
-    std::cout << "    -inference_only           " << inference_only_message << std::endl;
+    std::cout << "    -report_type  <type>    " << report_type_message << std::endl;
+    std::cout << "    -report_folder          " << report_folder_message << std::endl;
+    std::cout << "    -json_stats             " << json_stats_message << std::endl;
+    std::cout << "    -exec_graph_path        " << exec_graph_path_message << std::endl;
+    std::cout << "    -pc                     " << pc_message << std::endl;
+    std::cout << "    -pcsort                 " << pc_sort_message << std::endl;
+    std::cout << "    -pcseq                  " << pcseq_message << std::endl;
+    std::cout << "    -dump_config            " << dump_config_message << std::endl;
+    std::cout << "    -load_config            " << load_config_message << std::endl;
+    std::cout << "    -infer_precision        " << inference_precision_message << std::endl;
+    std::cout << "    -ip   <value>           " << inputs_precision_message << std::endl;
+    std::cout << "    -op   <value>           " << outputs_precision_message << std::endl;
+    std::cout << "    -iop  <value>           " << iop_message << std::endl;
+    std::cout << "    -mean_values   [R,G,B]  " << mean_values_message << std::endl;
+    std::cout << "    -scale_values  [R,G,B]  " << scale_values_message << std::endl;
+    std::cout << "    -inference_only         " << inference_only_message << std::endl;
 }

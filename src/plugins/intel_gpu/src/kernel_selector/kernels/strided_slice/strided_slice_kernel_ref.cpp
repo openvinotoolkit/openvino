@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,6 +56,7 @@ ParamsKey StridedSliceKernelRef::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
+    k.EnableDifferentTypes();
     return k;
 }
 
@@ -106,13 +107,46 @@ CommonDispatchData StridedSliceKernelRef::SetDefault(const strided_slice_params&
     return dispatchData;
 }
 
+inline std::string GetInputTypeStr(uint32_t idx) {
+    return "INPUT" + std::to_string(idx) + "_TYPE";
+}
+
+inline std::string GetToInputTypeStr(uint32_t idx) {
+    return "TO_" + GetInputTypeStr(idx);
+}
+
+inline std::string GetInputIndexStr(uint32_t idx) {
+    return "INPUT" + std::to_string(idx) + "_GET_INDEX";
+}
+
 JitConstants StridedSliceKernelRef::GetJitConstants(const strided_slice_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    makeJitConstForParam(jit, "SLICE_BEGIN", params.striding_params[0]);
-    makeJitConstForParam(jit, "SLICE_END", params.striding_params[1]);
-    makeJitConstForParam(jit, "SLICE_STEPS", params.striding_params[2]);
-
+    if (params.begin_type == StridedSliceArgType::Input) {
+        jit.AddConstant(MakeJitConstant("BEGIN_TYPE", GetInputTypeStr(params.GetIndexBegin())));
+        jit.AddConstant(MakeJitConstant("TO_BEGIN_TYPE", GetToInputTypeStr(params.GetIndexBegin())));
+        jit.AddConstant(MakeJitConstant("BEGIN_GET_INDEX", GetInputIndexStr(params.GetIndexBegin())));
+        jit.AddConstant(MakeJitConstant("BEGIN_DIMS", params.begin_dims));
+        makeJitConstForParam(jit, "BEGIN", params.begin_mask);
+    } else {
+        makeJitConstForParam(jit, "SLICE_BEGIN", params.striding_params[0]);
+    }
+    if (params.end_type == StridedSliceArgType::Input) {
+        jit.AddConstant(MakeJitConstant("END_TYPE", GetInputTypeStr(params.GetIndexEnd())));
+        jit.AddConstant(MakeJitConstant("TO_END_TYPE", GetToInputTypeStr(params.GetIndexEnd())));
+        jit.AddConstant(MakeJitConstant("END_GET_INDEX", GetInputIndexStr(params.GetIndexEnd())));
+        jit.AddConstant(MakeJitConstant("END_DIMS", params.end_dims));
+        makeJitConstForParam(jit, "END", params.end_mask);
+    } else {
+        makeJitConstForParam(jit, "SLICE_END", params.striding_params[1]);
+    }
+    if (params.stride_type == StridedSliceArgType::Input) {
+        jit.AddConstant(MakeJitConstant("STRIDE_TYPE", GetInputTypeStr(params.GetIndexStride())));
+        jit.AddConstant(MakeJitConstant("STRIDE_GET_INDEX", GetInputIndexStr(params.GetIndexStride())));
+        jit.AddConstant(MakeJitConstant("STRIDE_DIMS", params.stride_dims));
+    } else {
+        makeJitConstForParam(jit, "SLICE_STEPS", params.striding_params[2]);
+    }
     jit.AddConstant(MakeJitConstant(
         "NEW_AXIS_MODE",
         std::find(params.new_axis_mask.begin(), params.new_axis_mask.end(), 1) != params.new_axis_mask.end()));
@@ -170,7 +204,7 @@ KernelsData StridedSliceKernelRef::GetKernelsData(const Params& params, const op
 
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, "", false, false, static_cast<int>(newParams.inputs.size()));
 
     return {kd};
 }

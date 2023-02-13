@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,8 @@ const char *debug_configuration::prefix = "GPU_Debug: ";
 // Default policy is that dump_configuration will override other configuration from IE.
 
 #ifdef GPU_DEBUG_CONFIG
+
+#define GPU_DEBUG_COUT std::cout << cldnn::debug_configuration::prefix
 
 template<typename T>
 void print_option(std::string option_name, T option_value) {

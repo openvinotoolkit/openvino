@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ namespace node {
 
 class Reference : public Node {
 public:
-    Reference(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache, const std::string& errorMessage);
+    Reference(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context, const std::string& errorMessage);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;

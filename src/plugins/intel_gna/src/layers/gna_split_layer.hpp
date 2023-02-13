@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,9 @@
 #include <legacy/ie_layers.h>
 #include "backend/gna_limitations.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+
 // Split, Slice
 class GNASplitLayer {
     InferenceEngine::CNNLayerPtr splitLayer;
@@ -48,7 +50,7 @@ public:
 };
 
 // @brief Returns sizes of split outputs to split the input tensor to aligned parts not greater than the specified size
-static std::vector<uint32_t> GetAlignedSplitSizes(uint32_t totalSize, uint32_t maxSplitSize, uint32_t alignment = GNALimitations::inputByteAlignment) {
+static std::vector<uint32_t> GetAlignedSplitSizes(uint32_t totalSize, uint32_t maxSplitSize, uint32_t alignment = limitations::inputByteAlignment) {
     std::vector<uint32_t> splitSizes;
     uint32_t maxAlignedSplitSize = std::max(maxSplitSize - maxSplitSize % alignment, alignment);
     uint32_t usedSize = 0;
@@ -68,7 +70,7 @@ static std::pair<int64_t, std::vector<uint32_t>> AlignedSplitSizesPerAxis(Infere
     IE_ASSERT(firstValuableDim != std::end(dims));
     auto splittedElementsSize = *firstValuableDim;
     auto splittedDimIx = std::distance(std::begin(dims), firstValuableDim);
-    auto alignment = GNALimitations::inputByteAlignment;
+    auto alignment = limitations::inputByteAlignment;
 
     // Split output size should be multiple by 64 to avoid align filters insertion,
     // but we need to check if our input size to split exceeds 64; if not we can always
@@ -81,8 +83,9 @@ static std::pair<int64_t, std::vector<uint32_t>> AlignedSplitSizesPerAxis(Infere
         }
     }
     splitSizes = GetAlignedSplitSizes(splittedElementsSize,
-        GNALimitations::bufferMaxSize * splittedElementsSize / totalElementsSize, alignment);
+        limitations::bufferMaxSize * splittedElementsSize / totalElementsSize, alignment);
     return {splittedDimIx, splitSizes};
 }
 
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

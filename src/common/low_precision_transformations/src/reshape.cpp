@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -211,7 +211,7 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
     }
 
     const PartialShape outputPShape = op->get_output_partial_shape(0);
-    if (outputPShape[1].is_dynamic()) {
+    if (outputPShape.size() < 2 || outputPShape[1].is_dynamic()) {
         return false;
     }
 

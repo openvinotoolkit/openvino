@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@
 #include <vector>
 #include <cstdint>
 #include "quantized_layer_params.hpp"
-#include "backend/gna_types.h"
+#include "backend/gna_types.hpp"
 
 namespace ov {
 namespace intel_gna {

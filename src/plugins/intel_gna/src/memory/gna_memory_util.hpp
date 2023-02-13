@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,10 +6,12 @@
 
 #include <cstdint>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace memory {
 
 int32_t MemoryOffset(void *ptr_target, void *ptr_base);
 
 }  // namespace memory
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

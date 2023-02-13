@@ -71,16 +71,16 @@ For example, if you would like to infer a model with `Convolution` operation in 
 
 > There are several supported quantization approaches on activations and on weights. All supported approaches are described in [Quantization approaches](#quantization-approaches) section below. In demonstrated model [FakeQuantize operation quantization](#fakequantize-operation) approach is used.
 
-### Low precision tools
+### <a name="low-precision-tools"></a> Low precision tools
 For more details on how to get a quantized model, refer to [Model Optimization](@ref openvino_docs_model_optimization_guide) document.
 
-## Quantization approaches
+## <a name="quantization-approaches"></a> Quantization approaches
 LPT transformations support two quantization approaches:
 1. `FakeQuantize` operation,
 2. Quantize and dequantization operations
 
 Let's explore both approaches in details on `Convolution` operation.
-### FakeQuantize operation  
+### <a name="fakequantize-operation"></a> FakeQuantize operation  
 In this case `FakeQuantize` operation is used on activations and quantized constant on weights. Original input model:  
 
 ![Original model with FakeQuantize](img/model_fq_and_convolution.common.png)

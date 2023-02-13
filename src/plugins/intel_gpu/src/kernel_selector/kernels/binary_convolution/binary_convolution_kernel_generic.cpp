@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,14 @@ ParamsKey BinaryConvolutionKernelGeneric::GetSupportedKey() const {
     k.EnableNonBiasTerm();
     k.EnableBatching();
     k.EnableDifferentTypes();
+    return k;
+}
+
+DeviceFeaturesKey BinaryConvolutionKernelGeneric::get_required_device_features_key(const Params& params, const optional_params& /*options*/) const {
+    DeviceFeaturesKey k;
+    k.requires_subgroup_shuffle();
+    k.requires_blocked_read_write();
+
     return k;
 }
 
@@ -65,7 +73,7 @@ bool BinaryConvolutionKernelGeneric::Validate(const Params& p, const optional_pa
 
     const auto& params = static_cast<const binary_convolution_params&>(p);
 
-    if (params.split > 1 || params.groups > 1 || params.depthwise_separable_opt)
+    if (params.groups > 1)
         return false;
 
     return true;
@@ -117,9 +125,9 @@ JitConstants BinaryConvolutionKernelGeneric::GetFusedPrimitivesJitConstants(cons
         auto fused_dep_codegen = FusedOpsCodeGenerator(fused_dep);
         auto get_aligned_load2 = [&](std::string ptr, std::string byte_offset) -> std::string {
             if (fused_dep.tensors[0].GetDType() == Datatype::F32)
-                return "(intel_sub_group_block_read2((const __global uint*)(" + ptr + ") + (" + byte_offset + ")))";
+                return "(_sub_group_block_read2((const __global uint*)(" + ptr + ") + (" + byte_offset + ")))";
             else
-                return "(intel_sub_group_block_read_us2((const __global ushort*)(" + ptr + ") + (" + byte_offset +
+                return "(_sub_group_block_read_us2((const __global ushort*)(" + ptr + ") + (" + byte_offset +
                        ")))";
         };
         std::string data_type = fused_dep_codegen.GetInputTypeName(0, 1);

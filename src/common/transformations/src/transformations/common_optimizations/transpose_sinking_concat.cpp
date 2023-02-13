@@ -54,16 +54,16 @@ ov::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
 ov::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
     MATCHER_SCOPE(TransposeSinkingConcatBackward);
 
-    auto main_node_label = wrap_type<Concat>(consumers_count(1));
+    auto main_node_label = wrap_type<Concat>([](const Output<Node>& output) -> bool {
+        return has_static_rank()(output) && HasSameOutputTransposeNodes(output);
+    });
 
-    auto transpose_const_label = wrap_type<Constant>(consumers_count(1));
+    auto transpose_const_label = wrap_type<Constant>();
 
-    auto IfSinkingEnabled = [](const Output<Node>& output) -> bool {
-        static auto consumers_check = consumers_count(1);
-        return consumers_check(output) && is_sinking_node(output.get_node_shared_ptr());
-    };
-
-    auto transpose_label = wrap_type<Transpose>({main_node_label, transpose_const_label}, IfSinkingEnabled);
+    auto transpose_label =
+        wrap_type<Transpose>({main_node_label, transpose_const_label}, [](const Output<Node>& output) -> bool {
+            return has_static_rank()(output) && is_sinking_node(output);
+        });
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -75,8 +75,8 @@ ov::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
             register_new_node(new_node);
         }
 
-        // remove transpose after main node
-        transpose->output(0).replace(main_node);
+        // remove output transposes
+        RemoveSingleOutputConsumers(main_node);
 
         SwapNames(transpose, main_node);
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -85,8 +85,8 @@ namespace LayerTestsDefinitions {
         if (!is_pure_sequence) {
             ngraph::pass::Manager manager;
             if (direction == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
-                manager.register_pass<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
-            manager.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
+                manager.register_pass<ov::pass::BidirectionalRNNSequenceDecomposition>();
+            manager.register_pass<ov::pass::ConvertRNNSequenceToTensorIterator>();
             manager.run_passes(function);
             bool ti_found = ngraph::helpers::is_tensor_iterator_exist(function);
             EXPECT_EQ(ti_found, true);

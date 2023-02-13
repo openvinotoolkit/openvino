@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,7 @@ IInferRequestInternal::IInferRequestInternal(const std::vector<std::shared_ptr<c
     : _parameters(inputs),
       _results(outputs) {
     const auto& create_old_data = [](const ov::Output<const ov::Node>& output) -> InferenceEngine::DataPtr {
-        auto name = ngraph::op::util::get_ie_output_name(output);
+        auto name = ov::op::util::get_ie_output_name(output);
         auto shape = output.get_partial_shape();
         auto rank = shape.rank().is_static() ? shape.rank().get_length() : -1;
         SizeVector dims(1, 0);

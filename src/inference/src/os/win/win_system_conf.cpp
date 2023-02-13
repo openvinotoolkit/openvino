@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,15 @@
 #include "threading/ie_parallel_custom_arena.hpp"
 
 namespace InferenceEngine {
+struct CPU {
+    int _processors = 0;
+    int _sockets = 0;
+    int _cores = 0;
+
+    std::vector<int> _proc_type_table;
+    std::vector<std::vector<int>> _cpu_mapping_table;
+};
+static CPU cpu;
 int getNumberOfCPUCores(bool bigCoresOnly) {
     const int fallback_val = parallel_get_max_threads();
     DWORD sz = 0;

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import sys, argparse
@@ -90,7 +90,7 @@ def parse_args():
                            'Prompts how model layouts should be treated by application. '
                            'For example, "input1[NCHW],input2[NC]" or "[NCHW]" in case of one input size.')
     args.add_argument('-nstreams', '--number_streams', type=str, required=False, default=None,
-                      help='Optional. Number of streams to use for inference on the CPU/GPU/MYRIAD '
+                      help='Optional. Number of streams to use for inference on the CPU/GPU '
                            '(for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> '
                            'or just <nstreams>). '
                            'Default value is determined automatically for a device. Please note that although the automatic selection '
@@ -161,7 +161,7 @@ def parse_args():
                            "                }\n"
                            "             }\n")
     args.add_argument('-infer_precision', type=str, required=False,
-                      help='Optional. Hint to specifies inference precision. Example: -infer_precision CPU:bf16,GPU:f32')
+                      help='Optional. Specifies the inference precision. Example #1: \'-infer_precision bf16\'. Example #2: \'-infer_precision CPU:bf16,GPU:f32\'')
     args.add_argument('-ip', '--input_precision', type=str, required=False, choices=['u8', 'U8', 'f16','FP16', 'f32','FP32'],
                       help='Optional. Specifies precision for all input layers of the model.')
     args.add_argument('-op', '--output_precision', type=str, required=False, choices=['u8', 'U8', 'f16','FP16', 'f32','FP32'],
@@ -172,12 +172,15 @@ def parse_args():
                       help="Optional. Enable model caching to specified directory")
     args.add_argument('-lfile', '--load_from_file', required=False, nargs='?', default=argparse.SUPPRESS,
                       help="Optional. Loads model from file directly without read_model.")
-    args.add_argument('-iscale', '--input_scale', type=str, required=False, default='',
-                      help="Optional. Scale values to be used for the input image per channel.\n Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.\n"
-                           "Example: -iscale data[255,255,255],info[255,255,255]\n")
-    args.add_argument('-imean', '--input_mean', type=str, required=False, default='',
-                      help="Optional. Mean values to be used for the input image per channel.\n Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.\n"
-                           "Example: -imean data[255,255,255],info[255,255,255]\n")
+    args.add_argument('--mean_values', type=str, required=False, default='', metavar='[R,G,B]',
+                      help='Optional. Mean values to be used for the input image per channel. Values to be provided in the [R,G,B] format. Can be defined for '
+                           'desired input of the model, for example: "--mean_values data[255,255,255],info[255,255,255]". The exact meaning and order of '
+                           'channels depend on how the original model was trained')
+    args.add_argument('--scale_values', type=str, required=False, default='', metavar='[R,G,B]',
+                      help='Optional. Scale values to be used for the input image per channel. Values are provided in the [R,G,B] format. Can be defined for '
+                           'desired input of the model, for example: "--scale_values data[255,255,255],info[255,255,255]". The exact meaning and order of '
+                           'channels depend on how the original model was trained. If both --mean_values and --scale_values are specified, the mean is '
+                           'subtracted first and then scale is applied regardless of the order of options in command line')
     parsed_args = parser.parse_args()
 
     return parsed_args, parser

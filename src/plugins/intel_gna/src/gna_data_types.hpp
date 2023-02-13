@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,10 +29,12 @@ static inline bool FoundPartToTranspose(const std::vector<TranspositionInfo> &tr
     return partToTranspose != std::end(transpositionInfo);
 }
 
-namespace GNAPluginNS {
-    using gna_memory_type = GNAPluginNS::memory::GNAMemoryInterface;
-    using gna_memory_float = GNAPluginNS::memory::GNAMemory<memory::GNAFloatAllocator>;
-    using gna_memory_device = GNAPluginNS::memory::GNAMemory<>;
+namespace ov {
+namespace intel_gna {
+
+    using gna_memory_type = memory::GNAMemoryInterface;
+    using gna_memory_float = memory::GNAMemory<memory::GNAFloatAllocator>;
+    using gna_memory_device = memory::GNAMemory<>;
 
     using DnnComponentsForLayer = std::list<std::pair<std::string, intel_dnn_component_t>>;
     using MemoryConnection = std::list<std::pair<std::string, GNAMemoryLayer>>;
@@ -40,4 +42,6 @@ namespace GNAPluginNS {
     using SplitConnection = std::unordered_map<std::string, GNASplitLayer>;
     using CropConnection = std::unordered_map<std::string, GNACropLayer>;
     using ConstConnections = std::unordered_map<std::string, void*>;
-}  // namespace GNAPluginNS
+
+}  // namespace intel_gna
+}  // namespace ov

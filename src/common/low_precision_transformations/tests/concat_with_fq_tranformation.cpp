@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -988,7 +988,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
           {0.f, 0.f, 0.f},
           {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f},
           {0.f, 0.f, 0.f},
-          {2.55f, 2.55f, 2.55}},
+          {2.55f, 2.55f, 2.55f}},
          {},
          {},
          {256ul,

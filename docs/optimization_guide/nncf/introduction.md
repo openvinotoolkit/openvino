@@ -25,8 +25,8 @@ Adding compression to a training pipeline only requires a few lines of code. The
 ### NNCF Quick Start Examples
 See the following Jupyter Notebooks for step-by-step examples showing how to add model compression to a PyTorch or Tensorflow training pipeline with NNCF:
 
-- [Quantization Aware Training with NNCF and PyTorch](https://docs.openvino.ai/2022.2/notebooks/302-pytorch-quantization-aware-training-with-output.html).
-- [Quantization Aware Training with NNCF and TensorFlow](https://docs.openvino.ai/2022.2/notebooks/305-tensorflow-quantization-aware-training-with-output.html).
+- [Quantization Aware Training with NNCF and PyTorch](https://docs.openvino.ai/latest/notebooks/302-pytorch-quantization-aware-training-with-output.html).
+- [Quantization Aware Training with NNCF and TensorFlow](https://docs.openvino.ai/latest/notebooks/305-tensorflow-quantization-aware-training-with-output.html).
 
 ## Installation
 NNCF is open-sourced on [GitHub](https://github.com/openvinotoolkit/nncf) and distributed as a separate package from OpenVINO. It is also available on PyPI. Install it to the same Python environment where PyTorch or TensorFlow is installed.
@@ -46,7 +46,7 @@ To install the latest NNCF version from source follow the instruction on [GitHub
 ## Working with NNCF
 The figure below shows a common workflow of applying training-time compressions with NNCF. The NNCF optimizations are added to the TensorFlow or PyTorch training script, and then the model undergoes fine-tuning. The optimized model can then be exported to OpenVINO IR format for accelerated performance with OpenVINO Runtime.
 
-![](../../img/nncf_workflow.png)
+![](../../img/nncf_workflow.svg)
 
 
 ### Training-Time Compression Methods
@@ -82,5 +82,5 @@ Using compression-aware training requires a training pipeline, an annotated data
 - [Quantizing Models Post-training](@ref pot_introduction)
 - [NNCF GitHub repository](https://github.com/openvinotoolkit/nncf)
 - [NNCF FAQ](https://github.com/openvinotoolkit/nncf/blob/develop/docs/FAQ.md)
-- [Quantization Aware Training with NNCF and PyTorch](https://docs.openvino.ai/2022.2/notebooks/302-pytorch-quantization-aware-training-with-output.html)
-- [Quantization Aware Training with NNCF and TensorFlow](https://docs.openvino.ai/2022.2/notebooks/305-tensorflow-quantization-aware-training-with-output.html)
+- [Quantization Aware Training with NNCF and PyTorch](https://docs.openvino.ai/latest/notebooks/302-pytorch-quantization-aware-training-with-output.html)
+- [Quantization Aware Training with NNCF and TensorFlow](https://docs.openvino.ai/latest/notebooks/305-tensorflow-quantization-aware-training-with-output.html)

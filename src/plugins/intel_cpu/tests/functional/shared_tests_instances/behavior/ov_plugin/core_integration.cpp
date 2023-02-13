@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -224,14 +224,21 @@ TEST(OVClassBasicTest, smoke_SetConfigHintInferencePrecision) {
     auto value = ov::element::f32;
     const auto precision = InferenceEngine::with_cpu_x86_bfloat16() ? ov::element::bf16 : ov::element::f32;
 
-    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::inference_precision));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::inference_precision));
     ASSERT_EQ(precision, value);
 
     const auto forcedPrecision = ov::element::f32;
 
-    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(forcedPrecision)));
-    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::inference_precision));
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::inference_precision(forcedPrecision)));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::inference_precision));
     ASSERT_EQ(value, forcedPrecision);
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto forced_precision_deprecated = ov::element::f32;
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(forced_precision_deprecated)));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::inference_precision));
+    ASSERT_EQ(value, forced_precision_deprecated);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST(OVClassBasicTest, smoke_SetConfigEnableProfiling) {
@@ -307,4 +314,24 @@ INSTANTIATE_TEST_SUITE_P(smoke_MULTI_DoNotReturnDefaultHintTest,
                          OVClassLoadNetWorkDoNotReturnDefaultHintTest,
                          ::testing::Combine(::testing::Values("MULTI:CPU"),
                                             ::testing::ValuesIn(default_multi_properties)));
-} // namespace
+
+const std::vector<ov::AnyMap> configsWithEmpty = {{}};
+const std::vector<ov::AnyMap> configsWithMetaPlugin = {{ov::device::priorities("AUTO")},
+                                                       {ov::device::priorities("MULTI")},
+                                                       {ov::device::priorities("AUTO", "MULTI")},
+                                                       {ov::device::priorities("AUTO", "CPU")},
+                                                       {ov::device::priorities("MULTI", "CPU")}};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_MULTI_AUTO_DoNotSupportMetaPluginLoadingItselfRepeatedlyWithEmptyConfigTest,
+    OVClassLoadNetworkWithCondidateDeviceListContainedMetaPluginTest,
+    ::testing::Combine(::testing::Values("MULTI:AUTO", "AUTO:MULTI", "MULTI:CPU,AUTO", "AUTO:CPU,MULTI"),
+                       ::testing::ValuesIn(configsWithEmpty)),
+    ::testing::PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(smoke_MULTI_AUTO_DoNotSupportMetaPluginLoadingItselfRepeatedlyTest,
+                         OVClassLoadNetworkWithCondidateDeviceListContainedMetaPluginTest,
+                         ::testing::Combine(::testing::Values("MULTI", "AUTO"),
+                                            ::testing::ValuesIn(configsWithMetaPlugin)),
+                         ::testing::PrintToStringParamName());
+}  // namespace

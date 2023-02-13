@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,8 @@
 #include <cstdint>
 #include <ngraph/node.hpp>
 
-#include "backend/dnn_types.h"
-#include "backend/gna_types.h"
+#include "backend/dnn_types.hpp"
+#include "backend/gna_types.hpp"
 
 #define SIGMOID_NUM_SEGMENTS 65
 #define SIGMOID_DOMAIN 10.0f // portion of input to be approximated (-10,10)

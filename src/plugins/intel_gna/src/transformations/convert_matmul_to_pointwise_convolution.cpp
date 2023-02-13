@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <openvino/cc/ngraph/itt.hpp>
@@ -47,10 +47,10 @@ static std::tuple<bool, uint32_t, uint32_t, uint32_t> VerifyAndGetConvParams(std
     const uint32_t width = input1_shape.front();
     const uint32_t in_channels = input2_shape.back();
     const uint32_t out_channels = input2_shape.front();
-    if (input1_shape.front() <= GNAPluginNS::GNALimitations::affineMaxBatchSize ||
-        out_channels % GNAPluginNS::GNALimitations::convFiltersNumDivider != 0 ||
-        out_channels > GNAPluginNS::GNALimitations::convMaxFiltersNum ||
-        in_channels > GNAPluginNS::GNALimitations::convFilterMaxSize) {
+    if (input1_shape.front() <= limitations::affineMaxBatchSize ||
+        out_channels % limitations::convFiltersNumDivider != 0 ||
+        out_channels > limitations::convMaxFiltersNum ||
+        in_channels > limitations::convFilterMaxSize) {
         return std::make_tuple(false, 0, 0, 0);
     }
 
@@ -79,7 +79,7 @@ static bool Convert(std::shared_ptr<ngraph::Node> matmul_node,
 
     auto transpose_before = std::make_shared<ngraph::opset7::Transpose>(reshape_before,
         ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4},
-        GNAPluginNS::GetPermuteOrder(InferenceEngine::Layout::NHWC, InferenceEngine::Layout::NCHW)));
+        permute::GetPermuteOrder(InferenceEngine::Layout::NHWC, InferenceEngine::Layout::NCHW)));
     transpose_before->set_friendly_name(base_name + "/transpose_in");
     ngraph::copy_runtime_info(matmul_node, transpose_before);
 
@@ -124,7 +124,7 @@ static bool Convert(std::shared_ptr<ngraph::Node> matmul_node,
 
     auto transpose_after = std::make_shared<ngraph::opset7::Transpose>(conv_node,
         ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4},
-        GNAPluginNS::GetPermuteOrder(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC)));
+        permute::GetPermuteOrder(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC)));
     transpose_after->set_friendly_name(base_name + "/transpose_out");
     ngraph::copy_runtime_info(conv_node, transpose_after);
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,9 @@
 
 #include <legacy/ie_layers.h>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+
 struct ConnectionDetails {
     InferenceEngine::CNNLayerPtr  input;
     bool needTransposeWeights = false;
@@ -19,4 +21,6 @@ struct ConnectionDetails {
         , permute(permute) {
     }
 };
-}  // namespace GNAPluginNS
+
+}  // namespace intel_gna
+}  // namespace ov

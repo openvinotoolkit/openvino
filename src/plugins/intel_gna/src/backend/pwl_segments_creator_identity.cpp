@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 
 #include "log/debug.hpp"
 #include "log/log.hpp"
-#include "gna_slope_scale.h"
+#include "gna_slope_scale.hpp"
 #include "pwl_input_params.hpp"
 #include "pwl_tools.hpp"
 #include "runtime/pwl.h"

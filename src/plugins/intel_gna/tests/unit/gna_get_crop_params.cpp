@@ -12,6 +12,8 @@
 
 namespace {
 
+using namespace ov::intel_gna;
+
 typedef std::tuple<
         std::vector<size_t>,    // Input shape
         std::vector<int>,       // Output shape
@@ -46,7 +48,7 @@ TEST(GetCropParamsTest, testGetCropParams) {
         crop_layer->dim = orig_out_shape;
         crop_layer->axis = orig_axes;
         crop_layer->offset = orig_offset;
-        const auto results = GNAPluginNS::GetCropParams(crop_layer.get());
+        const auto results = GetCropParams(crop_layer.get());
         ASSERT_EQ(results.start_offset, result_offset);
         ASSERT_EQ(results.crop_size, result_out_size);
     }

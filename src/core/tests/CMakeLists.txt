@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 set(TARGET_NAME ov_core_unit_tests)
@@ -15,10 +15,6 @@ if(NOT ENABLE_OV_CORE_UNIT_TESTS)
 endif()
 
 message(STATUS "OpenVINO Core unit tests enabled")
-
-if(LINUX)
-    set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-endif()
 
 # For type relaxed types
 set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/threading.cpp

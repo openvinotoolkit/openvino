@@ -182,7 +182,7 @@ void UnfuseReshapeAndTransposeTestSuiteFixture::SetUp() {
 void execute_test(std::shared_ptr<ngraph::Function> function,
                   std::shared_ptr<ngraph::Function> reference_function) {
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::intel_gna::pass::Unfuse2dto4dReshapeAndTranspose>();
     manager.register_pass<ov::intel_gna::pass::Unfuse4dto2dReshapeAndTranspose>();
     manager.run_passes(function);

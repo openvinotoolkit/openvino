@@ -34,7 +34,7 @@ void test_count_non_zero(layout in_layout, std::vector<T> in_data) {
     auto output = outputs.at("count_nonzero").get_memory();
 
     cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
-    EXPECT_EQ(count_non_zero, output_ptr[0]);
+    ASSERT_EQ(count_non_zero, output_ptr[0]);
 }
 
 TEST(test_count_non_zero, 4d_fp32_1_2_1_5) {
@@ -87,7 +87,7 @@ void test_gather_non_zero(layout in_layout, std::vector<T> in_data) {
     cldnn::mem_lock<int32_t> shape_ptr(output_shape_mem, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -192,7 +192,7 @@ void test_non_zero(layout in_layout, std::vector<T> in_data) {
     cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 

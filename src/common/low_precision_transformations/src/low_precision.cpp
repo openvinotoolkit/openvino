@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -109,7 +109,7 @@ void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
         if (!l_node) {
             THROW_TRANSFORMATION_EXCEPTION << "unexpected operation type for type relaxed conversion";
         }
-        if (std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(l_node)) {
+        if (std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(l_node)) {
             return false;
         }
 
@@ -125,7 +125,7 @@ void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
             outputPrecisions.push_back(output.get_element_type());
         }
 
-        auto replacement = std::make_shared<ngraph::op::TypeRelaxed<BaseOp>>(*l_node, inputPrecisions, outputPrecisions);
+        auto replacement = std::make_shared<ov::op::TypeRelaxed<BaseOp>>(*l_node, inputPrecisions, outputPrecisions);
 
         copy_runtime_info(l_node, replacement);
         replace_node(l_node, replacement);
@@ -178,11 +178,11 @@ bool ngraph::pass::low_precision::MarkupOptimizations::run_on_model(const std::s
     if (!quantizationRestrictions.empty()) {
         markup.register_pass<low_precision::MarkupQuantizationGranularity>(quantizationRestrictions);
     }
-    if (ngraph::op::util::has_op_with_type<ngraph::opset1::AvgPool>(f)) {
+    if (ov::op::util::has_op_with_type<ngraph::opset1::AvgPool>(f)) {
         markup.register_pass<low_precision::MarkupAvgPoolPrecisionPreserved>(params.defaultPrecisions);
     }
     markup.register_pass<low_precision::PropagatePrecisions>(params);
-    if (ngraph::op::util::has_op_with_type<ngraph::opset1::Concat>(f)) {
+    if (ov::op::util::has_op_with_type<ngraph::opset1::Concat>(f)) {
         markup.register_pass<low_precision::AlignQuantizationIntervals>(params.defaultPrecisions);
         markup.register_pass<low_precision::AlignQuantizationParameters>(params.defaultPrecisions);
     }
@@ -201,8 +201,8 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_p
     const std::vector<ngraph::element::Type> supportedTypes = {ngraph::element::i8, ngraph::element::u8};
     ADD_MATCHER(prerequisites, PullReshapeThroughDequantization, supportedTypes)
     ADD_MATCHER(prerequisites, PullTransposeThroughDequantization, supportedTypes)
-    using namespace ngraph::pass;
     using namespace ngraph::pass::low_precision;
+    using namespace ov::pass;
     ADD_MATCHER(prerequisites, LinOpSequenceFusion)
     ADD_MATCHER(prerequisites, MoveFakeQuantize)
 

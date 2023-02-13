@@ -9,7 +9,7 @@
 #include "log/log.hpp"
 
 namespace ov {
-namespace intela_gna {
+namespace intel_gna {
 using namespace common;
 namespace helpers {
 
@@ -20,7 +20,7 @@ static bool IsCustomInputScaleFactorAvailableLegacy(const std::vector<float>& in
 
     bool is_scale_factor_custom = false;
     for (const auto& scale_factor : input_scale_factors) {
-        if (!fp32eq(scale_factor, GNAPluginNS::kScaleFactorDefault)) {
+        if (!AreFpEq(scale_factor, kScaleFactorDefault)) {
             is_scale_factor_custom = true;
             break;
         }
@@ -29,15 +29,19 @@ static bool IsCustomInputScaleFactorAvailableLegacy(const std::vector<float>& in
     return is_scale_factor_custom;
 }
 
-static void ApplyScaleFactorsLegacy(const std::vector<float>& input_scale_factors, GNAPluginNS::GnaInputs& inputs) {
+static void ApplyScaleFactorsLegacy(const std::vector<float>& input_scale_factors, GnaInputs& inputs) {
     if (input_scale_factors.size() > inputs.size()) {
         IE_THROW() << "Configuration input scale factors count is bigger than inputs count";
     }
 
-    for (size_t id = 0; id < input_scale_factors.size(); ++id) {
-        ::log::warning() << "Using input scale factor: " << input_scale_factors[id]
+    for (size_t id = 0; id < inputs.size(); ++id) {
+        log::warning() << "Using input scale factor: " << input_scale_factors[id]
                          << ", defined in configuration for input id: " << id << std::endl;
-        inputs.Get().at(id).scale_factor = input_scale_factors[id];
+        if (input_scale_factors.size() > id) {
+            inputs.Get().at(id).scale_factor = input_scale_factors[id];
+        } else {
+            log::warning() << "Using default input scale factor: " << kScaleFactorDefault << " for input id: " << id << std::endl;
+        }
     }
 }
 
@@ -48,7 +52,7 @@ static bool IsCustomInputScaleFactorPerInputAvailable(const std::map<std::string
 
     bool is_scale_factor_custom = false;
     for (const auto& scale_factor : per_input_scale_factors) {
-        if (!fp32eq(scale_factor.second, GNAPluginNS::kScaleFactorDefault)) {
+        if (!AreFpEq(scale_factor.second, kScaleFactorDefault)) {
             is_scale_factor_custom = true;
             break;
         }
@@ -58,13 +62,17 @@ static bool IsCustomInputScaleFactorPerInputAvailable(const std::map<std::string
 }
 
 static void ApplyScaleFactorsPerInput(const std::map<std::string, float>& per_input_scale_factors,
-                                      GNAPluginNS::GnaInputs& inputs) {
+                                      GnaInputs& inputs) {
     if (per_input_scale_factors.size() > inputs.size()) {
         IE_THROW() << "Configuration per input scale factors count is bigger than inputs count";
     }
 
     for (auto&& sf : per_input_scale_factors) {
-        auto input_it = inputs.find(sf.first);
+        // to support the both legacy and 2.0 API we need to check all possible names in the configuration
+        auto input_it = std::find_if(inputs.Get().begin(), inputs.Get().end(), [&](const InputDesc& input_desc) {
+                return sf.first == input_desc.name || input_desc.tensor_names.count(sf.first);
+            });
+
         if (input_it == inputs.end()) {
             IE_THROW() << "Given scale factor for invalid input: " << sf.first;
         }
@@ -74,9 +82,9 @@ static void ApplyScaleFactorsPerInput(const std::map<std::string, float>& per_in
     }
 }
 
-static bool CheckIfCanApplyCustomScaleFactor(const GNAPluginNS::HeaderLatest::ModelHeader& header) {
-    static constexpr GNAPluginNS::Header2dot8::ModelHeader::Version sc_forbid_override_scale_factor;
-    if (!GNAPluginNS::HeaderLatest::IsFirstVersionLower(header.version, sc_forbid_override_scale_factor)) {
+static bool CheckIfCanApplyCustomScaleFactor(const header_latest::ModelHeader& header) {
+    static constexpr header_2_dot_8::ModelHeader::Version sc_forbid_override_scale_factor;
+    if (!header_latest::IsFirstVersionLower(header.version, sc_forbid_override_scale_factor)) {
         ::log::warning() << "Cannot apply custom scale factor for model versions >= "
                          << sc_forbid_override_scale_factor.major << "." << sc_forbid_override_scale_factor.minor
                          << std::endl;
@@ -85,16 +93,11 @@ static bool CheckIfCanApplyCustomScaleFactor(const GNAPluginNS::HeaderLatest::Mo
     return true;
 }
 
-void ApplyInputScaleFactors(const GNAPluginNS::Config& config,
-                            const GNAPluginNS::HeaderLatest::ModelHeader& header,
-                            GNAPluginNS::GnaInputs& inputs) {
-    // If scale factors are defined in configuration we still need to use them instead of imported values,
-    // for example to change the scale factors for the old models.
-    const bool custom_scale_factor_per_input =
-        IsCustomInputScaleFactorPerInputAvailable(config.inputScaleFactorsPerInput);
-    const bool custom_scale_factor_legacy = IsCustomInputScaleFactorAvailableLegacy(config.inputScaleFactors);
-
-    if (!custom_scale_factor_per_input && !custom_scale_factor_legacy) {
+void ApplyInputScaleFactors(GnaInputs& inputs, const Config& config, const header_latest::ModelHeader& header) {
+    // we have to check that SF exist in the configuration and values are not default
+    const bool custom_scale_factors = IsCustomInputScaleFactorPerInputAvailable(config.inputScaleFactorsPerInput);
+    const bool custom_scale_factors_legacy = IsCustomInputScaleFactorAvailableLegacy(config.inputScaleFactors);
+    if (!custom_scale_factors && !custom_scale_factors_legacy) {
         return;
     }
 
@@ -102,16 +105,25 @@ void ApplyInputScaleFactors(const GNAPluginNS::Config& config,
         return;
     }
 
-    // Due the fact inputScaleFactors is set by defuault construcor of GNAPluginNS::Config
-    // we need to check is_intput_scale_factor_per_input_given as first.
-    if (custom_scale_factor_per_input) {
+    if (custom_scale_factors) {
         ApplyScaleFactorsPerInput(config.inputScaleFactorsPerInput, inputs);
-        return;
+    } else if (custom_scale_factors_legacy) {
+        ApplyScaleFactorsLegacy(config.inputScaleFactors, inputs);
     }
 
-    ApplyScaleFactorsLegacy(config.inputScaleFactors, inputs);
+    return;
+}
+
+void ApplyInputScaleFactors(GnaInputs& inputs, const Config& config) {
+    if (IsCustomInputScaleFactorPerInputAvailable(config.inputScaleFactorsPerInput)) {
+        ApplyScaleFactorsPerInput(config.inputScaleFactorsPerInput, inputs);
+    } else if (IsCustomInputScaleFactorAvailableLegacy(config.inputScaleFactors)) {
+        ApplyScaleFactorsLegacy(config.inputScaleFactors, inputs);
+    }
+
+    return;
 }
 
 }  // namespace helpers
-}  // namespace intela_gna
+}  // namespace intel_gna
 }  // namespace ov

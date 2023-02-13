@@ -11,7 +11,7 @@
 
 ## Linux
 
-If you have installed OpenVINO Runtime from the archive file, follow these steps to work with GPU:
+If you have installed OpenVINO Runtime from the archive file, APT, or YUM, follow these steps to work with GPU:
 
 1. Go to the install_dependencies directory:
    ```sh
@@ -22,6 +22,8 @@ If you have installed OpenVINO Runtime from the archive file, follow these steps
    ```sh
    sudo -E ./install_NEO_OCL_driver.sh
    ```
+   > **NOTE**: If you installed OpenVINO Runtime via PyPI, you can get this script from [the OpenVINO repository](https://github.com/openvinotoolkit/openvino/blob/master/scripts/install_dependencies/install_NEO_OCL_driver.sh).
+
    > **NOTE**: To use the **Intel® Iris® Xe MAX Graphics**, see the [Intel® Iris® Xe MAX Graphics with Linux*](https://dgpu-docs.intel.com/devices/iris-xe-max-graphics/index.html) page for driver installation instructions.
    
    The script compares the driver version on the system to the current version. If the driver version on the system is higher or equal to the current version, the script does 

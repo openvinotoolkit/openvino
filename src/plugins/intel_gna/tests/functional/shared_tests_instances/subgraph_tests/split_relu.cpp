@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,10 +41,6 @@ namespace {
     };
 
     std::map<std::string, std::string> additional_config = {
-            {"GNA_SCALE_FACTOR_1", "1"},
-            {"GNA_SCALE_FACTOR_2", "1"},
-            {"GNA_SCALE_FACTOR_3", "1"},
-            {"GNA_SCALE_FACTOR_4", "1"},
             {std::string(GNA_CONFIG_KEY(COMPACT_MODE)), "NO"}
     };
 

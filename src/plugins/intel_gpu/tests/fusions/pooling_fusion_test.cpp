@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,15 +33,17 @@ struct pooling_test_params {
 class PoolingFusingTest : public ::BaseFusingTest<pooling_test_params> {
 public:
     void execute(pooling_test_params& p) {
+        if (engine.get_device_info().supports_immad)
+            p.expected_fused_primitives = p.expected_fused_primitives_onednn;
         auto input_prim = get_mem(get_input_layout(p));
-        build_options options;
-        options.set_option(build_option::optimize_data(true));
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::optimize_data(true));
         if (!p.kernel_name.empty()) {
-            implementation_desc impl = { p.input_format, p.kernel_name };
-            options.set_option(build_option::force_implementations({ { "pooling", impl } }));
+            ov::intel_gpu::ImplementationDesc impl = { p.input_format, p.kernel_name };
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "pooling", impl } }));
         }
-        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-        network network_fused(this->engine, this->topology_fused, options);
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, config);
 
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
@@ -313,7 +315,7 @@ TEST_P(pooling_scale_activation_quantize, per_channel) {
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / 16.0f)),
         pooling("pooling", input_info("input"), p.pool_mode, kernel, stride, pads_begin, pads_end),
         eltwise("scale", { input_info("pooling"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
-        activation("activation", input_info("scale"), activation_func::hyperbolic_tan),
+        activation("activation", input_info("scale"), activation_func::relu),
         quantize("quantize", input_info("activation"), input_info("in_lo"), input_info("in_hi"),
                  input_info("out_lo"), input_info("out_hi"), 255, data_types::u8),
         reorder("output_reorder", input_info("quantize"), p.default_format, data_types::f32)
@@ -325,40 +327,40 @@ TEST_P(pooling_scale_activation_quantize, per_channel) {
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, pooling_scale_activation_quantize, ::testing::ValuesIn(std::vector<pooling_test_params>{
     // Input type: FP32
-    pooling_test_params{ CASE_POOLING_F32_3, 2, 3, 5, pooling_mode::average, "pooling_gpu_bfyx_block_opt" },
-    pooling_test_params{ CASE_POOLING_F32_3, 2, 3, 5, pooling_mode::max, "pooling_gpu_bfyx_block_opt" },
-    pooling_test_params{ CASE_POOLING_F32_3, 2, 3, 5, pooling_mode::average, "pooling_gpu_ref" },
-    pooling_test_params{ CASE_POOLING_F32_3, 2, 3, 5, pooling_mode::max, "pooling_gpu_ref" },
-    pooling_test_params{ CASE_POOLING_F32_4, 2, 3, 5, pooling_mode::average, "pooling_gpu_fs_b_yx_fsv32" },
-    pooling_test_params{ CASE_POOLING_F32_4, 2, 3, 5, pooling_mode::max, "pooling_gpu_fs_b_yx_fsv32" },
-    pooling_test_params{ CASE_POOLING_F32_5, 2, 3, 5, pooling_mode::average, "pooling_gpu_byxf_padding_opt" },
-    pooling_test_params{ CASE_POOLING_F32_5, 2, 3, 5, pooling_mode::max, "pooling_gpu_byxf_padding_opt" },
-    pooling_test_params{ CASE_POOLING_F32_6, 2, 3, 5, pooling_mode::average, "pooling_gpu_byxf_opt" },
-    pooling_test_params{ CASE_POOLING_F32_6, 2, 3, 5, pooling_mode::max, "pooling_gpu_byxf_opt" },
-    pooling_test_params{ CASE_POOLING_F32_7, 2, 3, 5, pooling_mode::average, "pooling_gpu_bsv16_fsv16" },
-    pooling_test_params{ CASE_POOLING_F32_7, 2, 3, 5, pooling_mode::max, "pooling_gpu_bsv16_fsv16" },
-    pooling_test_params{ CASE_POOLING_F32_8, 2, 3, 5, pooling_mode::average, "pooling_gpu_blocked" },
-    pooling_test_params{ CASE_POOLING_F32_8, 2, 3, 5, pooling_mode::max, "pooling_gpu_blocked" },
-    pooling_test_params{ CASE_POOLING_F32_9, 2, 3, 5, pooling_mode::average, "pooling_gpu_ref" },
-    pooling_test_params{ CASE_POOLING_F32_9, 2, 3, 5, pooling_mode::max, "pooling_gpu_ref" },
-    pooling_test_params{ CASE_POOLING_F32_10, 2, 3, 5, pooling_mode::average, "pooling_gpu_bsv16_fsv16" },
-    pooling_test_params{ CASE_POOLING_F32_10, 2, 3, 5, pooling_mode::max, "pooling_gpu_bsv16_fsv16" },
+    pooling_test_params{ CASE_POOLING_F32_3, 2, 2, 5, pooling_mode::average, "pooling_gpu_bfyx_block_opt" },
+    pooling_test_params{ CASE_POOLING_F32_3, 2, 2, 5, pooling_mode::max, "pooling_gpu_bfyx_block_opt" },
+    pooling_test_params{ CASE_POOLING_F32_3, 2, 2, 5, pooling_mode::average, "pooling_gpu_ref" },
+    pooling_test_params{ CASE_POOLING_F32_3, 2, 2, 5, pooling_mode::max, "pooling_gpu_ref" },
+    pooling_test_params{ CASE_POOLING_F32_4, 2, 2, 5, pooling_mode::average, "pooling_gpu_fs_b_yx_fsv32" },
+    pooling_test_params{ CASE_POOLING_F32_4, 2, 2, 5, pooling_mode::max, "pooling_gpu_fs_b_yx_fsv32" },
+    pooling_test_params{ CASE_POOLING_F32_5, 2, 2, 5, pooling_mode::average, "pooling_gpu_byxf_padding_opt" },
+    pooling_test_params{ CASE_POOLING_F32_5, 2, 2, 5, pooling_mode::max, "pooling_gpu_byxf_padding_opt" },
+    pooling_test_params{ CASE_POOLING_F32_6, 2, 2, 5, pooling_mode::average, "pooling_gpu_byxf_opt" },
+    pooling_test_params{ CASE_POOLING_F32_6, 2, 2, 5, pooling_mode::max, "pooling_gpu_byxf_opt" },
+    pooling_test_params{ CASE_POOLING_F32_7, 2, 2, 5, pooling_mode::average, "pooling_gpu_bsv16_fsv16" },
+    pooling_test_params{ CASE_POOLING_F32_7, 2, 2, 5, pooling_mode::max, "pooling_gpu_bsv16_fsv16" },
+    pooling_test_params{ CASE_POOLING_F32_8, 2, 2, 5, pooling_mode::average, "pooling_gpu_blocked" },
+    pooling_test_params{ CASE_POOLING_F32_8, 2, 2, 5, pooling_mode::max, "pooling_gpu_blocked" },
+    pooling_test_params{ CASE_POOLING_F32_9, 2, 2, 5, pooling_mode::average, "pooling_gpu_ref" },
+    pooling_test_params{ CASE_POOLING_F32_9, 2, 2, 5, pooling_mode::max, "pooling_gpu_ref" },
+    pooling_test_params{ CASE_POOLING_F32_10, 2, 2, 5, pooling_mode::average, "pooling_gpu_bsv16_fsv16" },
+    pooling_test_params{ CASE_POOLING_F32_10, 2, 2, 5, pooling_mode::max, "pooling_gpu_bsv16_fsv16" },
 
     // Input type: INT8
-    pooling_test_params{ CASE_POOLING_I8_5, 2, 3, 5, pooling_mode::average, "pooling_gpu_b_fs_yx_fsv4" },
-    pooling_test_params{ CASE_POOLING_I8_5, 2, 3, 5, pooling_mode::max, "pooling_gpu_b_fs_yx_fsv4" },
-    pooling_test_params{ CASE_POOLING_I8_6, 2, 3, 5, pooling_mode::average, "pooling_gpu_int8_ref" },
-    pooling_test_params{ CASE_POOLING_I8_6, 2, 3, 5, pooling_mode::max, "pooling_gpu_int8_ref" },
+    pooling_test_params{ CASE_POOLING_I8_5, 2, 2, 5, pooling_mode::average, "pooling_gpu_b_fs_yx_fsv4" },
+    pooling_test_params{ CASE_POOLING_I8_5, 2, 2, 5, pooling_mode::max, "pooling_gpu_b_fs_yx_fsv4" },
+    pooling_test_params{ CASE_POOLING_I8_6, 2, 2, 5, pooling_mode::average, "pooling_gpu_int8_ref" },
+    pooling_test_params{ CASE_POOLING_I8_6, 2, 2, 5, pooling_mode::max, "pooling_gpu_int8_ref" },
 
     // Input type: UINT8
-    pooling_test_params{ CASE_POOLING_U8_3, 2, 3, 5, pooling_mode::average, "pooling_gpu_int8_ref" },
-    pooling_test_params{ CASE_POOLING_U8_3, 2, 3, 5, pooling_mode::max, "pooling_gpu_int8_ref" },
-    pooling_test_params{ CASE_POOLING_U8_3, 2, 3, 5, pooling_mode::average, "pooling_gpu_b_fs_yx_fsv4" },
-    pooling_test_params{ CASE_POOLING_U8_3, 2, 3, 5, pooling_mode::max, "pooling_gpu_b_fs_yx_fsv4" },
-    pooling_test_params{ CASE_POOLING_U8_5, 2, 3, 5, pooling_mode::average, "pooling_gpu_int8_ref" },
-    pooling_test_params{ CASE_POOLING_U8_5, 2, 3, 5, pooling_mode::max, "pooling_gpu_int8_ref" },
-    pooling_test_params{ CASE_POOLING_U8_6, 2, 3, 5, pooling_mode::average, "pooling_gpu_int8_ref" },
-    pooling_test_params{ CASE_POOLING_U8_6, 2, 3, 5, pooling_mode::max, "pooling_gpu_int8_ref" },
+    pooling_test_params{ CASE_POOLING_U8_3, 2, 2, 5, pooling_mode::average, "pooling_gpu_int8_ref" },
+    pooling_test_params{ CASE_POOLING_U8_3, 2, 2, 5, pooling_mode::max, "pooling_gpu_int8_ref" },
+    pooling_test_params{ CASE_POOLING_U8_3, 2, 2, 5, pooling_mode::average, "pooling_gpu_b_fs_yx_fsv4" },
+    pooling_test_params{ CASE_POOLING_U8_3, 2, 2, 5, pooling_mode::max, "pooling_gpu_b_fs_yx_fsv4" },
+    pooling_test_params{ CASE_POOLING_U8_5, 2, 2, 5, pooling_mode::average, "pooling_gpu_int8_ref" },
+    pooling_test_params{ CASE_POOLING_U8_5, 2, 2, 5, pooling_mode::max, "pooling_gpu_int8_ref" },
+    pooling_test_params{ CASE_POOLING_U8_6, 2, 2, 5, pooling_mode::average, "pooling_gpu_int8_ref" },
+    pooling_test_params{ CASE_POOLING_U8_6, 2, 2, 5, pooling_mode::max, "pooling_gpu_int8_ref" },
 }));
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_fusings_gpu, pooling_scale_activation_quantize, ::testing::ValuesIn(std::vector<pooling_test_params>{
@@ -535,20 +537,19 @@ public:
 
         auto input_prim = get_mem(get_input_layout(p));
 
-        build_options onednn_options;
-        build_options cldnn_options;
+        ov::intel_gpu::ImplementationDesc onednn_impl = { p.input_format, "", impl_types::onednn };
+        ov::intel_gpu::ImplementationDesc cldnn_impl = { p.input_format, "", impl_types::ocl };
 
-        onednn_options.set_option(build_option::optimize_data(true));
-        cldnn_options.set_option(build_option::optimize_data(true));
-
-        implementation_desc onednn_impl = { p.input_format, "", impl_types::onednn };
-        implementation_desc cldnn_impl = { p.input_format, "", impl_types::ocl };
-        onednn_options.set_option(build_option::force_implementations({ { "pooling", onednn_impl } }));
-        cldnn_options.set_option(build_option::force_implementations({ { "pooling", cldnn_impl } }));
+        ExecutionConfig cldnn_cfg{ov::intel_gpu::queue_type(QueueTypes::in_order),
+                                  ov::intel_gpu::optimize_data(true),
+                                  ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "pooling", cldnn_impl } })};
+        ExecutionConfig onednn_cfg{ov::intel_gpu::queue_type(QueueTypes::in_order),
+                                   ov::intel_gpu::optimize_data(true),
+                                   ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "pooling", onednn_impl } })};
 
         // for onednn fusing test, topology_non_fused means cldnn, topology_fused is onednn
-        network network_fused_cldnn(this->engine, this->topology_non_fused, cldnn_options);
-        network network_fused_onednn(this->engine, this->topology_fused, onednn_options);
+        network network_fused_cldnn(this->engine, this->topology_non_fused, cldnn_cfg);
+        network network_fused_onednn(this->engine, this->topology_fused, onednn_cfg);
 
         network_fused_cldnn.set_input_data("input", input_prim);
         network_fused_onednn.set_input_data("input", input_prim);

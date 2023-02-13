@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,7 +43,7 @@ inline std::string fileToTestName(const std::string& fileName) {
 inline int set_test_env(const char* name, const char* value) {
 #ifdef _WIN32
     return _putenv_s(name, value);
-#elif defined(__linux) || defined(__APPLE__)
+#elif defined(__linux) || defined(__EMSCRIPTEN__) || defined(__APPLE__)
     std::string var = std::string(name) + "=" + value;
     return setenv(name, value, 0);
 #endif

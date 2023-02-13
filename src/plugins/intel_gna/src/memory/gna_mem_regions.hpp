@@ -9,7 +9,8 @@
 
 #include "log/debug.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace memory {
 
 /**
@@ -47,4 +48,5 @@ inline std::string rRegionToStr(const rRegion region) {
 }
 
 }  // namespace memory
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

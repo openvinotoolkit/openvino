@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,7 +50,7 @@ struct matrix_nms_impl : typed_primitive_impl_ocl<matrix_nms> {
     }
 
 protected:
-    kernel_arguments_data get_arguments(const matrix_nms_inst& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const matrix_nms_inst& instance) const override {
         kernel_arguments_data args;
         args.inputs = {instance.input_boxes_mem(),
                        instance.input_scores_mem(),

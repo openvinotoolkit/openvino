@@ -287,7 +287,7 @@ public:
         const auto &expected_rois = param.expected_rois;
         for (int64_t i = 0; i < param.post_nms_count; ++i) {
             if (!is_caching_test) {
-                EXPECT_NEAR(expected_roi_scores[i], roi_scores_ptr[i], 0.001) << "i=" << i;
+                ASSERT_NEAR(expected_roi_scores[i], roi_scores_ptr[i], 0.001) << "i=" << i;
             }
 
             // order of proposals with zero scores is not guaranteed (to be precise,
@@ -295,7 +295,7 @@ public:
             if (static_cast<float>(expected_roi_scores[i]) != 0.0f) {
                 for (size_t coord = 0; coord < 4; ++coord) {
                     const auto roi_idx = i * 4 + coord;
-                    EXPECT_NEAR(expected_rois[roi_idx], rois_ptr[roi_idx], getError<T>()) << "i=" << i << ", coord=" << coord;
+                    ASSERT_NEAR(expected_rois[roi_idx], rois_ptr[roi_idx], getError<T>()) << "i=" << i << ", coord=" << coord;
                 }
             }
         }

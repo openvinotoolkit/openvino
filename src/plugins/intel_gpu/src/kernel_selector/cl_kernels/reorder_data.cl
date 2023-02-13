@@ -1,44 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "include/reshape_dims.cl"
-#include "include/batch_headers/fetch_data.cl"
+#include "include/fetch_utils.cl"
 
-#include "include/batch_headers/data_types.cl"
 #include "include/image_data.cl"
 
 #define INPUT_TYPE4 MAKE_VECTOR_TYPE(INPUT_REORDER_TYPE, 4)
 #define OUTPUT_TYPE4 MAKE_VECTOR_TYPE(OUTPUT_REORDER_TYPE, 4)
-
-///////////////////////// Input Index /////////////////////////
-inline uint FUNC(get_input_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x)
-{
-#if INPUT0_DIMS < 5
-    return INPUT0_GET_INDEX(b, f, y, x);
-#elif INPUT0_DIMS == 5
-    return INPUT0_GET_INDEX(b, f, z, y, x);
-#elif INPUT0_SIMPLE && INPUT0_DIMS == 6
-    return GET_DATA_INDEX_6D(INPUT0, b, f, w, z, y, x);
-#else
-#error reorder_data.cl: input format - not supported
-#endif
-}
-
-///////////////////////// Output Index /////////////////////////
-
-inline uint FUNC(get_output_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x)
-{
-#if OUTPUT_DIMS < 5
-    return OUTPUT_GET_INDEX(b, f, y, x);
-#elif OUTPUT_DIMS == 5
-    return OUTPUT_GET_INDEX(b, f, z, y, x);
-#elif OUTPUT_SIMPLE && OUTPUT_DIMS == 6
-    return GET_DATA_INDEX_6D(OUTPUT, b, f, w, z, y, x);
-#else
-#error reorder_data.cl: output format - not supported
-#endif
-}
 
 KERNEL (reorder_data)(
     OPTIONAL_SHAPE_INFO_ARG
@@ -171,7 +141,11 @@ KERNEL (reorder_data)(
     IMAGE_WRITE(output, (int2)(x, y), colorRGBA);
 #else
 #if INPUT0_IS_FP && !OUTPUT_IS_FP
+#if CONVERT_TRUNCATE
+    output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(convert_long(res)), ACTIVATION_PARAMS_TYPED);
+#else
     output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE_SAT(res), ACTIVATION_PARAMS_TYPED);
+#endif
 #else
     output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(res), ACTIVATION_PARAMS_TYPED);
 #endif

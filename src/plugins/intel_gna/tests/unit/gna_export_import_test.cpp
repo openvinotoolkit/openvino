@@ -15,7 +15,7 @@
 #include "any_copy.hpp"
 
 using namespace ::testing;
-using GNAPluginNS::GNAPlugin;
+using ov::intel_gna::GNAPlugin;
 using ::testing::InSequence;
 using namespace InferenceEngine;
 
@@ -169,7 +169,7 @@ protected:
 TEST_F(GNAExportImportTest, ExportImportI16) {
     const ov::AnyMap gna_config = {
         ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT),
-        ov::hint::inference_precision(ngraph::element::i16)
+        ov::inference_precision(ngraph::element::i16)
     };
     exported_file_name = "export_test.bin";
     ExportModel(exported_file_name, gna_config);
@@ -179,7 +179,7 @@ TEST_F(GNAExportImportTest, ExportImportI16) {
 TEST_F(GNAExportImportTest, ExportImportI8) {
     const ov::AnyMap gna_config = {
         ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT),
-        ov::hint::inference_precision(ngraph::element::i8)
+        ov::inference_precision(ngraph::element::i8)
     };
     exported_file_name = "export_test.bin";
     ExportModel(exported_file_name, gna_config);

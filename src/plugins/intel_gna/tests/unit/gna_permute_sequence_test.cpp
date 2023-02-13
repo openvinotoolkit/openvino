@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 #include <gtest/gtest.h>
 #include <layers/gna_permute.hpp>
 
-using namespace GNAPluginNS;
+using namespace ov::intel_gna::permute;
 
 class PermuteSequenceTest : public ::testing::Test {
 };

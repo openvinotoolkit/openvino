@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,11 +13,11 @@
 using namespace InferenceEngine;
 namespace testing {
 
-class GNAPluginForPrecisionTest : public GNAPluginNS::GNAPlugin {
+class GNAPluginForPrecisionTest : public GNAPlugin {
 public:
     GNAPluginForPrecisionTest(const std::map<std::string, std::string>& configMap) :
-                              GNAPluginNS::GNAPlugin(configMap) {
-        gnamem.reset(new GNAPluginNS::gna_memory_float(GNAPluginNS::memory::GNAFloatAllocator{}));
+                              GNAPlugin(configMap) {
+        gnamem.reset(new gna_memory_float(memory::GNAFloatAllocator{}));
         graphCompiler.setGNAMemoryPtr(gnamem);
         gnadevice.reset();
     }
@@ -90,7 +90,7 @@ TEST_F(GNAHwPrecisionTest, GNAHwPrecisionTestDefault) {
 TEST_F(GNAHwPrecisionTest, GNAHwPrecisionTestI16) {
     Run({
         ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT),
-        ov::hint::inference_precision(ngraph::element::i16)
+        ov::inference_precision(ngraph::element::i16)
     });
     compare(ngraph::element::i16, ngraph::element::i32, sizeof(int16_t), sizeof(uint32_t));
 }
@@ -98,7 +98,7 @@ TEST_F(GNAHwPrecisionTest, GNAHwPrecisionTestI16) {
 TEST_F(GNAHwPrecisionTest, GNAHwPrecisionTestI8) {
     Run({
         ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT),
-        ov::hint::inference_precision(ngraph::element::i8)
+        ov::inference_precision(ngraph::element::i8)
     });
     compare(ngraph::element::i16, ngraph::element::i32, sizeof(int8_t), Precision::fromType<gna_compound_bias_t>().size());
 }
@@ -106,7 +106,7 @@ TEST_F(GNAHwPrecisionTest, GNAHwPrecisionTestI8) {
 TEST_F(GNAHwPrecisionTest, GNAHwPrecisionTestI8LP) {
     Run({
         ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT),
-        ov::hint::inference_precision(ngraph::element::i8)
+        ov::inference_precision(ngraph::element::i8)
     }, true);
     compare(ngraph::element::i8, ngraph::element::i32, sizeof(int8_t), sizeof(int8_t));
 }

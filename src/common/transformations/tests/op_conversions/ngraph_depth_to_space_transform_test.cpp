@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,8 +33,8 @@ TEST(TransformationTests, TestDepthToSpaceTransformBlockFirst) {
                                                        2);
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{depth_to_space}, ngraph::ParameterVector{input});
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertDepthToSpace>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertDepthToSpace>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -79,8 +79,8 @@ TEST(TransformationTests, TestDepthToSpaceTransformDepthFirst) {
                                                        2);
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{depth_to_space}, ngraph::ParameterVector{input});
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertDepthToSpace>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertDepthToSpace>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -125,8 +125,8 @@ TEST(TransformationTests, TestSpaceToDepthTransformBlockFirst) {
                                                        2);
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{space_to_depth}, ngraph::ParameterVector{input});
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertSpaceToDepth>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertSpaceToDepth>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -171,8 +171,8 @@ TEST(TransformationTests, TestSpaceToDepthTransformDepthFirst) {
                                                        2);
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{space_to_depth}, ngraph::ParameterVector{input});
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertSpaceToDepth>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertSpaceToDepth>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -217,7 +217,7 @@ TEST(TransformationTests, TestSpaceToDepthDynamic) {
                                                        2);
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{space_to_depth}, ngraph::ParameterVector{input});
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::ConvertSpaceToDepth>();
+        m.register_pass<ov::pass::ConvertSpaceToDepth>();
         ASSERT_NO_THROW(m.run_passes(f));
     }
 }
@@ -233,7 +233,7 @@ TEST(TransformationTests, TestDepthToSpaceDynamic) {
                                                        2);
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{depth_to_space}, ngraph::ParameterVector{input});
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::ConvertDepthToSpace>();
+        m.register_pass<ov::pass::ConvertDepthToSpace>();
         ASSERT_NO_THROW(m.run_passes(f));
     }
 }

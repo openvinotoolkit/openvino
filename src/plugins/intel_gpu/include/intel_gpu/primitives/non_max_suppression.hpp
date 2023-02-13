@@ -1,20 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Performs non max supression of input boxes and returns indices of selected boxes.
 /// @detail Filters out boxes that have high intersection-over-union (IOU) with previously
@@ -70,6 +63,19 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
     primitive_id second_output;
     primitive_id third_output;
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, center_point_box);
+        seed = hash_combine(seed, sort_result_descending);
+        seed = hash_combine(seed, num_select_per_class.empty());
+        seed = hash_combine(seed, iou_threshold.empty());
+        seed = hash_combine(seed, score_threshold.empty());
+        seed = hash_combine(seed, soft_nms_sigma.empty());
+        seed = hash_combine(seed, second_output.empty());
+        seed = hash_combine(seed, third_output.empty());
+        return seed;
+    }
+
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
         if (!num_select_per_class.empty())
@@ -88,7 +94,4 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
         return ret;
     }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

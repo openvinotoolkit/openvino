@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -645,10 +645,13 @@ InferenceEngine::Parameter AutoBatchExecutableNetwork::GetMetric(const std::stri
                              {METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS),
                               METRIC_KEY(SUPPORTED_METRICS),
                               METRIC_KEY(NETWORK_NAME),
-                              METRIC_KEY(SUPPORTED_CONFIG_KEYS)});
+                              METRIC_KEY(SUPPORTED_CONFIG_KEYS),
+                              ov::execution_devices.name()});
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS,
                              {CONFIG_KEY(AUTO_BATCH_TIMEOUT)});  // only timeout can be changed on the fly
+    } else if (name == ov::execution_devices) {
+        return _networkWithoutBatch->GetMetric(name);
     } else {
         IE_THROW() << "Unsupported Network metric: " << name;
     }
@@ -848,7 +851,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         auto function = clonedNetwork.getFunction();
         // find the batch dim
         ov::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::FindBatch>(false, check_dims);
         m.run_passes(function);
         // do not reshape/re-batch originally batched networks and when there are no inputs with the N* layouts
@@ -866,7 +869,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
                 if (static_shape[0] != 1)
                     IE_THROW(NotImplemented) << "Auto-batching does not reshape/re-batch originally batched networks!";
                 batched_inputs.insert(
-                    ngraph::op::util::get_ie_output_name(params[input_id]->output(0)));  // batched dim for the input
+                    ov::op::util::get_ie_output_name(params[input_id]->output(0)));  // batched dim for the input
             } else {
                 // if the 0-th dim is not for the batch, then we support only the case when NONE dimension is batch
                 for (size_t s = 1; s < shape.size(); s++)
@@ -886,8 +889,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
                 if (shape[0] != 1)
                     IE_THROW(NotImplemented) << "Auto-batching does not reshape/re-batch originally batched networks!";
                 const auto& node = output->input_value(0);
-                batched_outputs.insert(ngraph::op::util::get_ie_output_name(
-                    ov::Output<const ov::Node>(node.get_node(), node.get_index())));
+                batched_outputs.insert(
+                    ov::op::util::get_ie_output_name(ov::Output<const ov::Node>(node.get_node(), node.get_index())));
             } else {
                 // if the 0-th dim is not for the batch, then we support only the case when NONE dimension is batch
                 for (size_t s = 1; s < shape.size(); s++)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@ bool check_block_first(const ngraph::PartialShape& shape_input,
     for (int i = 2; i < input_rank.get_length(); ++i)
         expected_shape.push_back(shape_input[i]);
 
-    if (!ngraph::op::util::shapes_equal_except_dynamic_expected_batch(expected_shape, shape_reshape_before)) {
+    if (!ov::op::util::shapes_equal_except_dynamic_expected_batch(expected_shape, shape_reshape_before)) {
         return false;
     }
 
@@ -58,7 +58,7 @@ bool check_block_first(const ngraph::PartialShape& shape_input,
     for (int i = 2; i < input_rank.get_length(); ++i)
         expected_shape.push_back(shape_input[i] * possible_block_size);
 
-    if (!ngraph::op::util::shapes_equal_except_dynamic_expected_batch(expected_shape, shape_reshape_after)) {
+    if (!ov::op::util::shapes_equal_except_dynamic_expected_batch(expected_shape, shape_reshape_after)) {
         return false;
     }
 
@@ -87,7 +87,7 @@ bool check_depth_first(const ngraph::PartialShape& shape_input,
     for (int i = 2; i < input_rank.get_length(); ++i)
         expected_shape.push_back(shape_input[i]);
 
-    if (!ngraph::op::util::shapes_equal_except_dynamic_expected_batch(expected_shape, shape_reshape_before)) {
+    if (!ov::op::util::shapes_equal_except_dynamic_expected_batch(expected_shape, shape_reshape_before)) {
         return false;
     }
 
@@ -107,7 +107,7 @@ bool check_depth_first(const ngraph::PartialShape& shape_input,
     for (int i = 2; i < input_rank.get_length(); ++i)
         expected_shape.push_back(shape_input[i] * possible_block_size);
 
-    if (!ngraph::op::util::shapes_equal_except_dynamic_expected_batch(expected_shape, shape_reshape_after)) {
+    if (!ov::op::util::shapes_equal_except_dynamic_expected_batch(expected_shape, shape_reshape_after)) {
         return false;
     }
 

@@ -10,6 +10,7 @@
    From PyPI <openvino_docs_install_guides_installing_openvino_pip>
    From APT <openvino_docs_install_guides_installing_openvino_apt>
    From YUM <openvino_docs_install_guides_installing_openvino_yum>
+   Using HomeBrew <openvino_docs_install_guides_installing_openvino_brew>
    Using Docker <openvino_docs_install_guides_installing_openvino_docker_linux>
 
 @endsphinxdirective

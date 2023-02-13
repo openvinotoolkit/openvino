@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,6 +26,7 @@ struct reorder_params : public base_params {
     bool winograd = false;
     bool has_padded_output = false;
     bool surface_input = false;
+    bool truncate = false;
 
     ParamsKey GetParamsKey() const override {
         auto k = base_params::GetParamsKey();

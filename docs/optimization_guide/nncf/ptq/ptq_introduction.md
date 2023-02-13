@@ -1,4 +1,4 @@
-# Post-training Quantization w/ NNCF (new) {#nncf_ptq_introduction}
+# Post-training Quantization with NNCF (new) {#nncf_ptq_introduction}
 
 @sphinxdirective
 

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -34,7 +34,7 @@ class TestTopK(OnnxRuntimeLayerTest):
         indices = helper.make_tensor_value_info('cindices', TensorProto.INT64, output_shape)
 
         const1 = np.ones(output_shape).astype(np.int64)
-        const2 = np.ones(output_shape).astype(np.float)
+        const2 = np.ones(output_shape).astype(float)
 
         nodes = list()
         inputs = ['input']

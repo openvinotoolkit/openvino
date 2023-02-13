@@ -1,8 +1,7 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "openvino/op/broadcast.hpp"
@@ -11,12 +10,6 @@
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Broadcasts input to defined by @p broadcast_sizes output. @p broadcast_axes are used to
 ///        reinterpret input (reshape) inside algorithm.
@@ -107,7 +100,7 @@ struct broadcast : public primitive_base<broadcast> {
           target_shape(target_shape),
           axes_mapping(axes_mapping),
           broadcast_mode(broadcast_spec),
-          broadcast_sizes({}),
+          broadcast_sizes(target_shape.empty() ? tensor(1) : tensor(0)),
           broadcast_axes({}) {}
 
     /// @brief Constructs broadcast primitive / layer with dynamic target_shape.
@@ -135,8 +128,12 @@ struct broadcast : public primitive_base<broadcast> {
     /// @brief Array of axes positions from output shape (0-based, from left to right)
     ///        along which broadcast should happen.
     std::vector<uint16_t> broadcast_axes;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_range(seed, broadcast_axes.begin(), broadcast_axes.end());
+        seed = hash_range(seed, axes_mapping.begin(), axes_mapping.end());
+        return seed;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

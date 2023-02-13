@@ -1,18 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief SpaceToBatch operation divides "spatial" dimensions [1, ..., N - 1], N ∈ {4,5,6} of the data input
 /// into a grid of blocks of shape block_shape, and interleaves these blocks with the batch dimension (0) such that in the output,
@@ -67,8 +60,13 @@ struct space_to_batch : public primitive_base<space_to_batch> {
     tensor pads_begin;
     tensor pads_end;
     tensor out_size;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, block_shape.hash());
+        seed = hash_combine(seed, pads_begin.hash());
+        seed = hash_combine(seed, pads_end.hash());
+        return seed;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn
