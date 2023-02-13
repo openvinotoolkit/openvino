@@ -15,6 +15,7 @@
 #include "ngraph/runtime/reference/shuffle_channels.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
+#include "openvino/core/validation_util.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -48,11 +49,9 @@ size_t op::ShuffleChannels::get_zero_based_axis() const {
 void op::ShuffleChannels::validate_and_infer_types() {
     OV_OP_SCOPE(v0_ShuffleChannels_validate_and_infer_types);
 
-    const auto& data_type = get_input_element_type(0);
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-    const std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0)};
-    shape_infer(this, input_shapes, output_shapes);
-    set_output_type(0, data_type, output_shapes[0]);
+    auto output_shapes = std::vector<ov::PartialShape>(1);
+    shape_infer(this, get_node_input_partial_shapes(*this), output_shapes);
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
 shared_ptr<Node> op::ShuffleChannels::clone_with_new_inputs(const OutputVector& new_args) const {

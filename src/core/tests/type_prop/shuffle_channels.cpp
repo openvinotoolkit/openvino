@@ -8,6 +8,7 @@
 
 using namespace std;
 using namespace ngraph;
+using namespace testing;
 
 TEST(type_prop, shuffle_channels_default_4D) {
     const auto data_input_shape = Shape{3, 9, 4, 5};
@@ -30,7 +31,8 @@ TEST(type_prop, shuffle_channels_basic_4D) {
 }
 
 TEST(type_prop, shuffle_channels_dynamic_4D) {
-    const auto data_input_shape = PartialShape{Dimension::dynamic(), Dimension(3, 9), 4, Dimension(4, 15)};
+    auto data_input_shape = PartialShape{Dimension::dynamic(), Dimension(3, 9), 4, Dimension(4, 15)};
+    set_shape_labels(data_input_shape, 10);
     const auto data = make_shared<op::Parameter>(element::f32, data_input_shape);
     const auto axis = 1;
     const auto group = 3;
@@ -38,6 +40,7 @@ TEST(type_prop, shuffle_channels_dynamic_4D) {
 
     EXPECT_EQ(shuffle_channels->get_element_type(), element::f32);
     EXPECT_EQ(shuffle_channels->get_output_partial_shape(0), data_input_shape);
+    EXPECT_THAT(get_shape_labels(shuffle_channels->get_output_partial_shape(0)), ElementsAre(10, 11, 12, 13));
 }
 
 TEST(type_prop, shuffle_channels_dynamic_fully) {

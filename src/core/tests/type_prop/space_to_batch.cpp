@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
+#include "gmock/gmock.h"
 #include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;
+using namespace testing;
 
 #define DIV_ROUND_UP(n, d) (((n) + (d)-1) / (d))
 
@@ -65,31 +66,52 @@ TEST(type_prop, space_to_batch_and_batch_to_space) {
 }
 
 TEST(type_prop, space_to_batch_when_space_is_static) {
-    auto data = make_shared<op::Parameter>(element::f32, PartialShape{{2, 5}, 100, 1024, 3});
+    auto data_shape = PartialShape{{2, 5}, 100, 1024, 3};
+    set_shape_labels(data_shape, 10);
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
     auto block_shape = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{1, 12, 100, 2});
     auto pads_begin = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 3, 38, 1});
     auto pads_end = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 5, 38, 0});
 
     auto space_to_batch = make_shared<op::v1::SpaceToBatch>(data, block_shape, pads_begin, pads_end);
 
-    ASSERT_EQ(
+    EXPECT_EQ(
         space_to_batch->get_output_partial_shape(0),
         (PartialShape{{2 * 12 * 100 * 2, 5 * 12 * 100 * 2}, (100 + 3 + 5) / 12, (1024 + 38 + 38) / 100, (3 + 1) / 2}));
+    EXPECT_THAT(get_shape_labels(space_to_batch->get_output_partial_shape(0)), Each(ov::no_label));
+}
+
+TEST(type_prop, space_to_batch_when_data_dynamic_) {
+    auto data_shape = PartialShape{{2, 5}, {5, 100}, {100, 1024}, {3, 10}};
+    set_shape_labels(data_shape, 10);
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    auto block_shape = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{1, 1, 1, 1});
+    auto pads_begin = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{1, 0, 2, 0});
+    auto pads_end = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{1, 0, 3, 0});
+
+    auto space_to_batch = make_shared<op::v1::SpaceToBatch>(data, block_shape, pads_begin, pads_end);
+
+    EXPECT_EQ(space_to_batch->get_output_partial_shape(0),
+              PartialShape({{2, 5}, {5, 100}, {(100 + 2 + 3) / 1, (1024 + 2 + 3) / 1}, {3, 10}}));
+    EXPECT_THAT(get_shape_labels(space_to_batch->get_output_partial_shape(0)), ElementsAre(10, 11, ov::no_label, 13));
 }
 
 TEST(type_prop, space_to_batch_when_space_is_dynamic) {
-    auto data = make_shared<op::Parameter>(element::f32, PartialShape{{2, 5}, {5, 100}, {100, 1024}, {3, 10}});
+    auto data_shape = PartialShape{{2, 5}, {5, 100}, {100, 1024}, {3, 10}};
+    set_shape_labels(data_shape, 10);
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
     auto block_shape = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{1, 12, 100, 2});
     auto pads_begin = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 3, 38, 1});
     auto pads_end = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 5, 38, 0});
 
     auto space_to_batch = make_shared<op::v1::SpaceToBatch>(data, block_shape, pads_begin, pads_end);
 
-    ASSERT_EQ(space_to_batch->get_output_partial_shape(0),
+    EXPECT_EQ(space_to_batch->get_output_partial_shape(0),
               (PartialShape{{2 * 12 * 100 * 2, 5 * 12 * 100 * 2},
                             {DIV_ROUND_UP((5 + 5 + 3), 12), (100 + 5 + 3) / 12},
                             {DIV_ROUND_UP((100 + 38 + 38), 100), (1024 + 38 + 38) / 100},
                             {DIV_ROUND_UP((3 + 1), 2), (10 + 1) / 2}}));
+    EXPECT_THAT(get_shape_labels(space_to_batch->get_output_partial_shape(0)), Each(ov::no_label));
 }
 
 TEST(type_prop, space_to_batch_dynamic_shape_static_rank) {
@@ -109,6 +131,18 @@ TEST(type_prop, space_to_batch_dynamic_shape_dynamic_rank) {
     auto block_shape = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{1, 10, 5, 1});
     auto pads_begin = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 3, 1, 0});
     auto pads_end = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 3, 0, 0});
+
+    auto space_to_batch = make_shared<op::v1::SpaceToBatch>(data, block_shape, pads_begin, pads_end);
+
+    ASSERT_EQ(space_to_batch->get_element_type(), element::f32);
+    ASSERT_EQ(space_to_batch->get_output_partial_shape(0), PartialShape::dynamic());
+}
+
+TEST(type_prop, space_to_batch_dynamic_rank_shape_block_and_pads_not_const) {
+    auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto block_shape = make_shared<op::Parameter>(element::i64, Shape{4});
+    auto pads_begin = make_shared<op::Parameter>(element::i64, Shape{4});
+    auto pads_end = make_shared<op::Parameter>(element::i64, Shape{4});
 
     auto space_to_batch = make_shared<op::v1::SpaceToBatch>(data, block_shape, pads_begin, pads_end);
 
