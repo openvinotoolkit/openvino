@@ -4,10 +4,10 @@
 
 #include "evaluates_map.hpp"
 
-#include <ngraph/runtime/reference/abs.hpp>
-#include <ngraph/runtime/reference/adaptive_avg_pool.hpp>
-#include <ngraph/runtime/reference/adaptive_max_pool.hpp>
-#include <ngraph/runtime/reference/avg_pool.hpp>
+// #include <ngraph/runtime/reference/abs.hpp>
+// #include <ngraph/runtime/reference/adaptive_avg_pool.hpp>
+// #include <ngraph/runtime/reference/adaptive_max_pool.hpp>
+// #include <ngraph/runtime/reference/avg_pool.hpp>
 #include <ngraph/runtime/reference/batch_norm.hpp>
 #include <ngraph/runtime/reference/binary_convolution.hpp>
 #include <ngraph/runtime/reference/bucketize.hpp>
@@ -2582,21 +2582,6 @@ bool evaluate(const shared_ptr<op::v3::ScatterNDUpdate>& op,
 }
 
 template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v1::AvgPool>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::avg_pool<T>(inputs[0]->get_data_ptr<T>(),
-                                    outputs[0]->get_data_ptr<T>(),
-                                    inputs[0]->get_shape(),
-                                    op->get_output_shape(0),
-                                    op->get_kernel(),
-                                    op->get_strides(),
-                                    op->get_pads_begin(),
-                                    op->get_pads_end(),
-                                    !op->get_exclude_pad());
-    return true;
-}
-
-template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v0::HardSigmoid>& op,
               const HostTensorVector& outputs,
               const HostTensorVector& inputs) {
@@ -2731,15 +2716,6 @@ bool evaluate(const shared_ptr<op::v0::Sign>& op, const HostTensorVector& output
     runtime::reference::sign<T>(inputs[0]->get_data_ptr<T>(),
                                 outputs[0]->get_data_ptr<T>(),
                                 shape_size(inputs[0]->get_shape()));
-    return true;
-}
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v0::Abs>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::abs<T>(inputs[0]->get_data_ptr<T>(),
-                               outputs[0]->get_data_ptr<T>(),
-                               shape_size(inputs[0]->get_shape()));
     return true;
 }
 
@@ -4011,39 +3987,6 @@ template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v7::Einsum>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     const auto equation = op->get_equation();
     runtime::reference::einsum(outputs, inputs, equation);
-    return true;
-}
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v8::AdaptiveAvgPool>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::adaptive_avg_pool(inputs[0]->get_data_ptr<T>(),
-                                          outputs[0]->get_data_ptr<T>(),
-                                          inputs[0]->get_shape(),
-                                          op->get_output_shape(0));
-    return true;
-}
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v8::AdaptiveMaxPool>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
-    if (op->get_index_element_type() == element::i32) {
-        runtime::reference::adaptive_max_pool(inputs[0]->get_data_ptr<T>(),
-                                              outputs[0]->get_data_ptr<T>(),
-                                              outputs[1]->get_data_ptr<int32_t>(),
-                                              inputs[0]->get_shape(),
-                                              op->get_output_shape(0));
-    } else if (op->get_index_element_type() == element::i64) {
-        runtime::reference::adaptive_max_pool(inputs[0]->get_data_ptr<T>(),
-                                              outputs[0]->get_data_ptr<T>(),
-                                              outputs[1]->get_data_ptr<int64_t>(),
-                                              inputs[0]->get_shape(),
-                                              op->get_output_shape(0));
-    }
     return true;
 }
 
