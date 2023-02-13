@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <ie_algorithm.hpp>
 
+#include "common/gna_target.hpp"
 #include "dnn_types.hpp"
 #include "gna_lib_ver_selector.hpp"
 
@@ -199,7 +200,7 @@ public:
                                OvGnaType inPrecision,
                                bool exception = true) const = 0;
 
-    static std::unique_ptr<AbstractValidator> Create(const std::string&);
+    static std::unique_ptr<AbstractValidator> Create(const common::DeviceVersion& target);
 };
 
 class Validator_30 : public AbstractValidator {
@@ -350,6 +351,8 @@ public:
                        OvGnaType inPrecision,
                        bool exception = true) const override;
 };
+
+bool UseOnly16BitConvolutionWeights(const common::DeviceVersion& compile_target);
 
 }  // namespace cnn2d
 

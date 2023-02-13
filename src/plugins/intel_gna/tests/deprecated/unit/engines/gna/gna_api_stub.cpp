@@ -227,7 +227,7 @@ GNA2_API enum Gna2Status Gna2DeviceGetVersion(
     if (current != nullptr) {
         return current->Gna2DeviceGetVersion(deviceIndex,deviceVersion);
     }
-    *deviceVersion = Gna2DeviceVersionSoftwareEmulation;
+    *deviceVersion = Gna2DeviceVersion::Gna2DeviceVersionSoftwareEmulation;
     return Gna2StatusSuccess;
 }
 

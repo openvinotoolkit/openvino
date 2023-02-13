@@ -67,7 +67,7 @@ protected:
 
         EXPECT_CALL(*_mock_api, Gna2DeviceGetVersion(_, _))
             .WillOnce(Invoke([](uint32_t deviceIndex, enum Gna2DeviceVersion* deviceVersion) {
-                *deviceVersion = Gna2DeviceVersionSoftwareEmulation;
+                *deviceVersion = Gna2DeviceVersion::Gna2DeviceVersionSoftwareEmulation;
                 return Gna2StatusSuccess;
             }));
 

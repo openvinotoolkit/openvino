@@ -4,12 +4,10 @@
 
 #pragma once
 
-#include <gna2-common-api.h>
-#include <gna2-model-api.h>
-
 #include <cstdint>
 
 #include "backend/dnn_types.hpp"
+#include "gna2-model-api.h"
 
 constexpr uint32_t InOpIdx = 0;
 constexpr uint32_t OutOpIdx = 1;

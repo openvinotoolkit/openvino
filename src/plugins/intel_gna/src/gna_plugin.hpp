@@ -240,7 +240,6 @@ protected:
     void FillInputsAndOutputsTranspositionInfo(const InferenceEngine::CNNNetwork& net);
 
     bool isFP32ModeActive() const;
-    std::string effectiveGnaCompileTarget() const;
     std::shared_ptr<request::ModelWrapper> createModelWrapperForLoadNetwork(bool trivial);
     std::shared_ptr<request::ModelWrapper> createModelWrapperForImportNetwork(uint32_t numberOfOperations);
     std::shared_ptr<request::Worker> createWorkerForLoadNetwork(bool trivial, bool fp32Mode);

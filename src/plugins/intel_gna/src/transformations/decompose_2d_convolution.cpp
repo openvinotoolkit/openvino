@@ -17,11 +17,11 @@
 #include "layers/gna_convolution_layer.hpp"
 #include "utils/transformation_helper.hpp"
 
-using namespace ov::intel_gna::pass::helper;
-
 namespace ov {
 namespace intel_gna {
+using namespace common;
 namespace pass {
+using namespace helper;
 
 struct GraphData {
     std::shared_ptr<ngraph::opset7::Transpose> leading_transpose;
@@ -84,11 +84,11 @@ static bool VerifyMaxPool(GraphData& graph_data, std::shared_ptr<ngraph::opset7:
     return true;
 }
 
-static bool GNA30SupportedConv(const std::string& gnaCompileTarget,
+static bool GNA30SupportedConv(const DeviceVersion& compile_target,
                                const InferenceEngine::Precision& gnaPrecision,
                                const GraphData& graph_data,
                                const ConvData& conv_data) {
-    const auto cnn2dValidatorPtr = limitations::cnn2d::AbstractValidator::Create(gnaCompileTarget);
+    const auto cnn2dValidatorPtr = limitations::cnn2d::AbstractValidator::Create(compile_target);
     if (!cnn2dValidatorPtr) {
         return false;
     }
@@ -561,7 +561,7 @@ static void Decompose(const GraphData& graph_data, ConvData& conv_data) {
     conv_result->set_friendly_name(conv_result_name);
 }
 
-static bool Convert(const std::string& gnaCompileTarget,
+static bool Convert(const DeviceVersion& compile_target,
                     const InferenceEngine::Precision& gnaPrecision,
                     std::shared_ptr<ngraph::Node> leading_transpose,
                     std::shared_ptr<ngraph::Node> fq_filters,
@@ -598,7 +598,7 @@ static bool Convert(const std::string& gnaCompileTarget,
         return false;
 
     // If compile target is GNA 3.0 and the convolution is supported on it, then skip decomposition
-    if (GNA30SupportedConv(gnaCompileTarget, gnaPrecision, graph_data, conv_data))
+    if (GNA30SupportedConv(compile_target, gnaPrecision, graph_data, conv_data))
         return false;
 
     // We are looking for Transpose(NHWC->NCHW) => Conv => Transpose(NCHW->NHWC)
@@ -618,7 +618,7 @@ static bool Convert(const std::string& gnaCompileTarget,
     return true;
 }
 
-Decompose2DConv::Decompose2DConv(const std::string& gnaCompileTarget, const InferenceEngine::Precision& gnaPrecision) {
+Decompose2DConv::Decompose2DConv(const DeviceVersion& compile_target, const InferenceEngine::Precision& gnaPrecision) {
     MATCHER_SCOPE(Decompose2DConv);
 
     auto const_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
@@ -735,7 +735,7 @@ Decompose2DConv::Decompose2DConv(const std::string& gnaCompileTarget, const Infe
             }
         }
 
-        return Convert(gnaCompileTarget,
+        return Convert(compile_target,
                        gnaPrecision,
                        pattern_map.at(leading_transpose).get_node_shared_ptr(),
                        fq_filters_node,
@@ -755,7 +755,7 @@ Decompose2DConv::Decompose2DConv(const std::string& gnaCompileTarget, const Infe
     this->register_matcher(m, callback);
 }
 
-Decompose2DConvTransposedWithBias::Decompose2DConvTransposedWithBias(const std::string& gnaCompileTarget,
+Decompose2DConvTransposedWithBias::Decompose2DConvTransposedWithBias(const DeviceVersion& compile_target,
                                                                      const InferenceEngine::Precision& gnaPrecision) {
     MATCHER_SCOPE(Decompose2DConvTransposedWithBias);
 
@@ -781,7 +781,7 @@ Decompose2DConvTransposedWithBias::Decompose2DConvTransposedWithBias(const std::
                                                    pattern_map.at(bias).get_node_shared_ptr())))
             return false;
 
-        return Convert(gnaCompileTarget,
+        return Convert(compile_target,
                        gnaPrecision,
                        pattern_map.at(leading_transpose).get_node_shared_ptr(),
                        nullptr,
@@ -802,7 +802,7 @@ Decompose2DConvTransposedWithBias::Decompose2DConvTransposedWithBias(const std::
 }
 
 Decompose2DConvTransposedWithBiasAF::Decompose2DConvTransposedWithBiasAF(
-    const std::string& gnaCompileTarget,
+    const DeviceVersion& compile_target,
     const InferenceEngine::Precision& gnaPrecision) {
     MATCHER_SCOPE(Decompose2DConvTransposedWithBiasAF);
 
@@ -836,7 +836,7 @@ Decompose2DConvTransposedWithBiasAF::Decompose2DConvTransposedWithBiasAF(
                                                    pattern_map.at(bias).get_node_shared_ptr())))
             return false;
 
-        return Convert(gnaCompileTarget,
+        return Convert(compile_target,
                        gnaPrecision,
                        pattern_map.at(leading_transpose).get_node_shared_ptr(),
                        nullptr,
