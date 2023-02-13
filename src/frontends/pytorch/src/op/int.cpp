@@ -3,7 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/convert.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -12,7 +12,8 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_int(NodeContext& context) {
-    return {context.mark_node(std::make_shared<opset10::Convert>(context.get_input(0), element::i32))};
+    num_inputs_check(context, 1, 1);
+    return {context.mark_node(std::make_shared<ov::op::v0::Convert>(context.get_input(0), element::i32))};
 };
 
 }  // namespace op
