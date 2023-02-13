@@ -23,7 +23,10 @@ public:
                 std::shared_ptr<ov::frontend::tensorflow_lite::QuantizationInfo> info,
                 const element::Type& type,
                 const std::shared_ptr<DecoderBase>& decoder = nullptr)
-            : ov::frontend::tensorflow::InternalOperation(decoder, OutputVector{data}, 1), m_info(info), m_type(type), m_original_type(type) {
+        : ov::frontend::tensorflow::InternalOperation(decoder, OutputVector{data}, 1),
+          m_info(info),
+          m_type(type),
+          m_original_type(type) {
         validate_and_infer_types();
     }
 
@@ -46,6 +49,7 @@ public:
     void validate_and_infer_types() override {
         set_output_type(0, m_type, get_input_partial_shape(0));
     }
+
 private:
     std::shared_ptr<ov::frontend::tensorflow_lite::QuantizationInfo> m_info;
     ov::element::Type m_type;

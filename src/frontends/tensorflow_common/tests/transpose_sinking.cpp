@@ -621,8 +621,7 @@ TEST(TransposeSinkingTest, AlexnetPattern) {
 }
 
 Output<Node> make_transpose(const Output<Node>& input, const vector<int64_t>& order) {
-    return std::make_shared<opset8::Transpose>(
-            input, opset8::Constant::create(element::i64, {order.size()}, order));
+    return std::make_shared<opset8::Transpose>(input, opset8::Constant::create(element::i64, {order.size()}, order));
 }
 
 TEST(TransposeSinkingTest, BinarySubTrickyShapes) {

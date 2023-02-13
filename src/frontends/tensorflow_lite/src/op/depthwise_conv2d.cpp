@@ -26,7 +26,11 @@ OutputVector depthwise_conv2d(const ov::frontend::tensorflow_lite::NodeContext& 
     if (group == 1)
         get_conv(output, node, decoder, &ov::frontend::tensorflow::op::translate_conv_2d_op);
     else
-        get_conv(output, node, decoder, &ov::frontend::tensorflow::op::translate_depthwise_conv_2d_native_op, {1, 2, 0, 3});
+        get_conv(output,
+                 node,
+                 decoder,
+                 &ov::frontend::tensorflow::op::translate_depthwise_conv_2d_native_op,
+                 {1, 2, 0, 3});
     get_bias(output, node, decoder);
     get_activation(output, decoder);
     output[0].get_node_shared_ptr()->set_friendly_name(node.get_name());

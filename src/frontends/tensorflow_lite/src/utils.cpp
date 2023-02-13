@@ -4,8 +4,8 @@
 
 #include "utils.hpp"
 
-#include <openvino/opsets/opset10.hpp>
 #include <openvino/frontend/tensorflow_lite/node_context.hpp>
+#include <openvino/opsets/opset10.hpp>
 
 #include "schema_generated.h"
 #include "tflite_ops/tflite_quantize.hpp"
@@ -58,7 +58,9 @@ const std::map<tflite::TensorType, ov::element::Type>& TYPE_MAP() {
 
 ov::element::Type ov::frontend::tensorflow_lite::get_ov_type(const tflite::TensorType& tf_type) {
     const auto& mapping = TYPE_MAP();
-    FRONT_END_GENERAL_CHECK(mapping.find(tf_type) != mapping.end(), "Unexpected type: ", tflite::EnumNameTensorType(tf_type));
+    FRONT_END_GENERAL_CHECK(mapping.find(tf_type) != mapping.end(),
+                            "Unexpected type: ",
+                            tflite::EnumNameTensorType(tf_type));
     return mapping.at(tf_type);
 }
 
@@ -72,12 +74,20 @@ void ov::frontend::tensorflow_lite::apply_quantization(ov::Output<ov::Node>& out
     auto rt_info = output.get_rt_info();
     auto input_type = output.get_element_type();
     if (!rt_info.count(QuantizationInfo::get_type_info_static())) {  // no quantization
-        FRONT_END_GENERAL_CHECK(input_type.compatible(type), "Inconsistent type inference: tflite ", type, ", ov ", input_type);
+        FRONT_END_GENERAL_CHECK(input_type.compatible(type),
+                                "Inconsistent type inference: tflite ",
+                                type,
+                                ", ov ",
+                                input_type);
         return;
     }
     auto quantization = rt_info[QuantizationInfo::get_type_info_static()].as<std::shared_ptr<QuantizationInfo>>();
     if (!quantization || quantization->is_disabled()) {
-        FRONT_END_GENERAL_CHECK(input_type.compatible(type), "Inconsistent type inference: tflite ", type, ", ov ", input_type);
+        FRONT_END_GENERAL_CHECK(input_type.compatible(type),
+                                "Inconsistent type inference: tflite ",
+                                type,
+                                ", ov ",
+                                input_type);
         return;
     }
 
@@ -86,7 +96,7 @@ void ov::frontend::tensorflow_lite::apply_quantization(ov::Output<ov::Node>& out
 }
 
 void ov::frontend::tensorflow_lite::dequantize_inputs(OutputVector& deq_inputs) {
-    for (auto & deq_input : deq_inputs) {
+    for (auto& deq_input : deq_inputs) {
         auto input = deq_input.get_node_shared_ptr();
         if (!ov::is_type<ov::frontend::tensorflow_lite::TFLQuantize>(input))
             continue;

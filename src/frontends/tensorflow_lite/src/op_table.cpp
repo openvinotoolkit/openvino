@@ -12,13 +12,13 @@ using namespace std;
 using namespace ov;
 using namespace ov::frontend::tensorflow::op;
 
-#define DEQUANTIZE_INPUTS(func)                                                         \
-    [](const ov::frontend::tensorflow_lite::NodeContext& node) -> OutputVector {        \
-        auto decoder = node.get_decoder();                                              \
-        auto inputs = node.get_inputs();                                                \
-        ov::frontend::tensorflow_lite::dequantize_inputs(inputs);                       \
-        auto context = ov::frontend::tensorflow_lite::NodeContext(decoder, inputs);     \
-        return func(context);                                                           \
+#define DEQUANTIZE_INPUTS(func)                                                     \
+    [](const ov::frontend::tensorflow_lite::NodeContext& node) -> OutputVector {    \
+        auto decoder = node.get_decoder();                                          \
+        auto inputs = node.get_inputs();                                            \
+        ov::frontend::tensorflow_lite::dequantize_inputs(inputs);                   \
+        auto context = ov::frontend::tensorflow_lite::NodeContext(decoder, inputs); \
+        return func(context);                                                       \
     }
 
 #define OP_CONVERT_TYPE_RENAME(func, name)                                                                         \
@@ -129,7 +129,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         {"PADV2", OP_CONVERT_TYPE_RENAME(translate_padv2_op, "PadV2")},
         {"POW", translate_binary<opset8::Power>},
         {"PRELU", translate_binary<opset10::PRelu>},
-        {"QUANTIZE", quantize}, // TODO: ???
+        {"QUANTIZE", quantize},
         // RANDOM_STANDARD_NORMAL
         // RANDOM_UNIFORM
         {"RANGE", DEQUANTIZE_INPUTS(range)},

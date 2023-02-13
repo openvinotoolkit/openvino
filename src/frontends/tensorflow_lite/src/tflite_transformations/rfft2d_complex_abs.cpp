@@ -6,12 +6,12 @@
 
 #include <memory>
 
-#include "tflite_ops/rfft2d.h"
-#include "tflite_ops/complex_abs.h"
-#include "openvino/opsets/opset9.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "tflite_ops/complex_abs.h"
+#include "tflite_ops/rfft2d.h"
 #include "utils.hpp"
 
 using namespace std;
@@ -31,24 +31,22 @@ pass::Rfft2dSimplifier::Rfft2dSimplifier() {
         auto reshape_original_node = pattern_map.at(reshape_label);
         auto abs_original_node = pattern_map.at(complex_abs_label);
 
-        auto rfft = make_shared<RDFT>(
-                rfft_original_node->get_input_source_output(0),
-                Constant::create(element::i64, {2}, {-2, -1}),
-                rfft_original_node->get_input_source_output(1)
-                );
+        auto rfft = make_shared<RDFT>(rfft_original_node->get_input_source_output(0),
+                                      Constant::create(element::i64, {2}, {-2, -1}),
+                                      rfft_original_node->get_input_source_output(1));
         auto split = make_shared<Split>(rfft, Constant::create(element::i64, {}, {-1}), 2);
 
         auto real = make_shared<Unsqueeze>(split->output(0), Constant::create(element::i64, {}, {-1}));
         auto imag = make_shared<Unsqueeze>(split->output(1), Constant::create(element::i64, {}, {-1}));
 
-        auto reshape_real = reshape_original_node->clone_with_new_inputs({real, reshape_original_node->get_input_source_output(1)});
-        auto reshape_imag = reshape_original_node->clone_with_new_inputs({imag, reshape_original_node->get_input_source_output(1)});
+        auto reshape_real =
+            reshape_original_node->clone_with_new_inputs({real, reshape_original_node->get_input_source_output(1)});
+        auto reshape_imag =
+            reshape_original_node->clone_with_new_inputs({imag, reshape_original_node->get_input_source_output(1)});
 
         auto two = make_shared<ConvertLike>(Constant::create(element::i64, {}, {2}), reshape_real);
         auto complex_abs = make_shared<Sqrt>(
-                make_shared<Add>(
-                make_shared<Power>(reshape_real, two),
-                make_shared<Power>(reshape_imag, two)));
+            make_shared<Add>(make_shared<Power>(reshape_real, two), make_shared<Power>(reshape_imag, two)));
 
         complex_abs->output(0).set_names(abs_original_node->output(0).get_names());
         abs_original_node->output(0).replace(complex_abs->output(0));
@@ -57,6 +55,7 @@ pass::Rfft2dSimplifier::Rfft2dSimplifier() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(complex_abs_label, "ov::frontend::tensorflow_lite::pass::Rfft2dSimplifier");
+    auto m =
+        std::make_shared<pattern::Matcher>(complex_abs_label, "ov::frontend::tensorflow_lite::pass::Rfft2dSimplifier");
     register_matcher(m, callback);
 }

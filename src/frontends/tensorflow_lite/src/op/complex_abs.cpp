@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op_translation_utils.hpp"
 #include "tflite_ops/complex_abs.h"
+
+#include "op_translation_utils.hpp"
 
 using namespace std;
 
