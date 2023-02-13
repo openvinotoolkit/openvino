@@ -8,6 +8,8 @@
 #include <unordered_map>
 #include <functional>
 #include <iostream>
+#include <thread>
+#include <mutex>
 
 #include "kernel.hpp"
 
@@ -39,6 +41,19 @@ public:
             return _lru_data_list.back().second;
         } else {
             return Value();
+        }
+    }
+
+    /**
+     * @brief Get the least recently used key in the cache
+     *
+     * @return Key
+     */
+    Key get_lru_key() const {
+        if (_lru_data_list.size()) {
+            return _lru_data_list.back().first;
+        } else {
+            return Key();
         }
     }
 
@@ -164,6 +179,49 @@ private:
     }
 };
 
-using ImplementationsCache = cldnn::LruCache<size_t, std::shared_ptr<primitive_impl>>;
 using KernelsCache = cldnn::LruCache<size_t, cldnn::kernel::ptr>;
+
+template<typename Key, typename Value>
+class LruCacheThreadSafe {
+public:
+    using LRUCacheType = cldnn::LruCache<Key, Value>;
+    using FuncRemoveItem = std::function<void(Key)>;
+
+    explicit LruCacheThreadSafe(size_t caps) {
+        _impl = cldnn::make_unique<LRUCacheType>(caps);
+    }
+
+    bool add(const Key& key, const Value& value) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        auto popped_lru_key = _impl->get_lru_key();
+        auto ret = _impl->add(key, value);
+        if (ret && _remove_popped_items) {
+            _remove_popped_items(popped_lru_key);
+        }
+        return ret;
+    }
+
+    bool has(const Key& key) const {
+        std::lock_guard<std::mutex> lock(_mutex);
+        return _impl->has(key);
+    }
+
+    Value get(const Key& key) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        return _impl->get(key);
+    }
+
+    void set_remove_item_callback(FuncRemoveItem callback) {
+        _remove_popped_items = callback;
+    }
+
+private:
+    FuncRemoveItem _remove_popped_items;
+    std::unique_ptr<LRUCacheType> _impl;
+    mutable std::mutex _mutex;
+};
+
+
+using ImplementationsCache = cldnn::LruCacheThreadSafe<size_t, std::shared_ptr<primitive_impl>>;
+
 }  // namespace cldnn

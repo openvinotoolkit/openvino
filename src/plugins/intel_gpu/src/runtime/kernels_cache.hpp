@@ -81,17 +81,23 @@ private:
     ExecutionConfig _config;
     uint32_t _prog_id = 0;
     kernels_code _kernels_code;
-    size_t _kernel_idx = 0;
+    static std::atomic<size_t> _kernels_counts;
+    static std::atomic<size_t> _kernel_idx;
     std::atomic<bool> _pending_compilation{false};
     std::map<const std::string, kernel::ptr> _kernels;
     std::vector<std::string> batch_header_str;
 
     void get_program_source(const kernels_code& kernels_source_code, std::vector<batch_program>*) const;
-    void build_batch(const engine& build_engine, const batch_program& batch);
+    void build_batch(const engine& build_engine, const batch_program& batch, std::map<const std::string, kernel::ptr>& compiled_kernels);
 
     std::string get_cache_path() const;
     bool is_cache_enabled() const;
     size_t get_max_kernels_per_batch() const;
+
+    inline std::string gen_kernel_id(std::string entry_point) {
+        // we need unique id in order to avoid conflict across topologies.
+        return entry_point + "_" + std::to_string(_kernels_counts + (_kernel_idx++));
+    }
 
 public:
     explicit kernels_cache(engine& engine,
@@ -119,6 +125,7 @@ public:
     void compile();
     void save(BinaryOutputBuffer& ob) const;
     void load(BinaryInputBuffer& ib);
+    std::map<const std::string, kernel::ptr> compile_threadsafe(std::vector<std::shared_ptr<kernel_string>> kernel_sources, bool dump_custom_program = false);
 };
 
 }  // namespace cldnn
