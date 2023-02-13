@@ -111,6 +111,7 @@ using OVClassGetMetricTest_DEVICE_TYPE = OVClassBaseTestP;
 using OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS = OVClassBaseTestP;
 using OVClassGetMetricTest_MAX_BATCH_SIZE = OVClassBaseTestP;
 using OVClassGetMetricTest_ThrowUnsupported = OVClassBaseTestP;
+using OVClassGetMetricTest_CORE_PROPERTIES = OVClassBaseTestP;
 using OVClassGetConfigTest = OVClassBaseTestP;
 using OVClassGetConfigTest_ThrowUnsupported = OVClassBaseTestP;
 using OVClassGetAvailableDevices = OVClassBaseTestP;
@@ -815,6 +816,34 @@ TEST_P(OVClassGetMetricTest_RANGE_FOR_STREAMS, GetMetricAndPrintNoThrow) {
 
     ASSERT_LE(start, end);
     OV_ASSERT_PROPERTY_SUPPORTED(ov::range_for_streams);
+}
+
+TEST_P(OVClassGetMetricTest_CORE_PROPERTIES, GetMetricAndPrintNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    std::set<std::string> t;
+
+    OV_ASSERT_NO_THROW(t = ie.get_property(target_device, ov::core_properties));
+
+    std::cout << "Supported core properties: " << std::endl;
+    for (auto&& str : t) {
+        std::cout << str.c_str() << std::endl;
+    }
+
+    ASSERT_EQ(t.size(), 3);
+}
+
+TEST_P(OVClassGetMetricTest_CORE_PROPERTIES, GetMetricWithEmptyDevice) {
+    ov::Core ie = createCoreWithTemplate();
+    std::set<std::string> t;
+
+    OV_ASSERT_NO_THROW(t = ie.get_property({}, ov::core_properties));
+
+    std::cout << "Supported core properties: " << std::endl;
+    for (auto&& str : t) {
+        std::cout << str.c_str() << std::endl;
+    }
+
+    ASSERT_EQ(t.size(), 3);
 }
 
 TEST_P(OVClassGetMetricTest_ThrowUnsupported, GetMetricThrow) {

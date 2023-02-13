@@ -186,6 +186,9 @@ ov::Any ov::CoreImpl::GetMetric(const std::string& deviceName,
         parsed._config.insert(o);
     }
 
+    if (name == ov::core_properties.name()) {
+        return coreConfig.get_core_config(ov::core_properties.name());
+    }
     return get_plugin(parsed._deviceName).get_property(name, parsed._config);
 }
 
@@ -255,10 +258,6 @@ std::map<std::string, std::string> ov::CoreImpl::GetSupportedConfig(const std::s
         }
     }
     return supportedConfig;
-}
-
-std::set<std::string> ov::CoreImpl::QueryCoreSupportedConfig() const {
-    return coreConfig.query_core_config_keys();
 }
 
 std::map<std::string, InferenceEngine::Version> ov::CoreImpl::GetVersions(const std::string& deviceName) const {

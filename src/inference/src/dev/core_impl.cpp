@@ -932,6 +932,13 @@ void ov::CoreImpl::AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& exte
     extensions.emplace_back(extension);
 }
 
+ov::CoreImpl::CoreConfig::CoreConfig() {
+    _core_plugin_properties._properties.insert(ov::hint::allow_auto_batching(true));
+    _core_plugin_properties._properties.insert(ov::auto_batch_timeout(1000));
+    _core_plugin_properties._properties.insert(ov::cache_dir());
+    _core_global_properties._properties.insert(ov::force_tbb_terminate(false));
+}
+
 void ov::CoreImpl::CoreConfig::set_core_config(ov::AnyMap& config, const std::string& device_name) {
     for (auto it = config.begin(); it != config.end();) {
         {
@@ -999,6 +1006,14 @@ ov::Any ov::CoreImpl::CoreConfig::get_core_config(const std::string& config_name
         return item->second;
     }
 
+    if(config_name == ov::core_properties.name()) {
+        std::set<std::string> res;
+        for (auto& it : _core_plugin_properties._properties){
+            res.emplace(it.first);
+        }
+        return res;
+    }
+
     IE_THROW() << "Exception: unsupported core property name: '" << config_name << "'";
 }
 
@@ -1022,7 +1037,8 @@ void ov::CoreImpl::CoreConfig::print_core_properties() const {
 
 bool ov::CoreImpl::CoreConfig::is_core_config(const std::string& config_name) const {
     auto ret = _core_plugin_properties._properties.find(config_name) != _core_plugin_properties._properties.end() ||
-               _core_global_properties._properties.find(config_name) != _core_global_properties._properties.end();
+               _core_global_properties._properties.find(config_name) != _core_global_properties._properties.end() ||
+               config_name == ov::core_properties.name();
     return ret;
 }
 

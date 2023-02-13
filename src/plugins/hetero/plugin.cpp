@@ -94,7 +94,7 @@ Engine::DeviceMetaInformationMap Engine::GetDevicePlugins(const std::string& tar
         auto config = GetCore()->GetSupportedConfig(deviceName, tconfig);
 
         // Hetero doesn't use any core properties, remove them
-        auto core_config = GetCore()->QueryCoreSupportedConfig();
+        auto core_config = GetCore()->GetMetric({}, ov::core_properties.name()).as<std::set<std::string>>();
         for (auto item = config.begin(); item != config.end();) {
             if (core_config.count(item->first)) {
                 item = config.erase(item);
@@ -120,7 +120,7 @@ void Engine::SetConfig(const Configs& configs) {
     if (GetCore() == nullptr) {
         IE_THROW() << "Please, work with HETERO device via InferencEngine::Core object";
     }
-    auto core_config = GetCore()->QueryCoreSupportedConfig();
+    auto core_config = GetCore()->GetMetric({}, ov::core_properties.name()).as<std::set<std::string>>();
 
     for (auto&& kvp : configs) {
         const auto& name = kvp.first;
@@ -235,7 +235,7 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
     if (GetCore() == nullptr) {
         IE_THROW() << "Please, work with HETERO device via InferencEngine::Core object";
     }
-    auto core_config = GetCore()->QueryCoreSupportedConfig();
+    auto core_config = GetCore()->GetMetric({}, ov::core_properties.name()).as<std::set<std::string>>();
     if (name == HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)) {
         auto it = _config.find(HETERO_CONFIG_KEY(DUMP_GRAPH_DOT));
         IE_ASSERT(it != _config.end());

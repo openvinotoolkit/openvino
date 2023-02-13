@@ -55,6 +55,10 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(return_all_possible_device_combination(false)));
 
 INSTANTIATE_TEST_SUITE_P(
+        ie_plugin, IEClassGetMetricTest_CORE_PROPERTIES,
+        ::testing::ValuesIn(return_all_possible_device_combination(false)));
+
+INSTANTIATE_TEST_SUITE_P(
         ie_plugin, IEClassGetMetricTest_ThrowUnsupported,
         ::testing::ValuesIn(return_all_possible_device_combination(false)));
 

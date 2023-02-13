@@ -716,7 +716,7 @@ DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(const std::string& d
     metaDevice.config = getDeviceConfig(metaDevice.deviceName);
 
     auto cfg = config;
-    auto core_config = GetCore()->QueryCoreSupportedConfig();
+    auto core_config = GetCore()->GetMetric({}, ov::core_properties.name()).as<std::set<std::string>>();
     // check that no irrelevant config-keys left
     for (auto k : config) {
         const auto& name = k.first;

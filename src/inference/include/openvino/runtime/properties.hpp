@@ -239,6 +239,12 @@ static constexpr Property<uint32_t, PropertyMutability::RO> optimal_number_of_in
 static constexpr Property<element::Type, PropertyMutability::RW> inference_precision{"INFERENCE_PRECISION_HINT"};
 
 /**
+ * @brief Core supported properties
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<std::set<std::string>, PropertyMutability::RO> core_properties{"CORE_PROPERTIES"};
+
+/**
  * @brief Namespace with hint properties
  */
 namespace hint {

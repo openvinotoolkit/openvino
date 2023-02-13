@@ -95,6 +95,8 @@ private:
             std::shared_ptr<InferenceEngine::ICacheManager> _cacheManager;
         };
 
+        CoreConfig();
+
         // Set core config with input config map, it will update core config data.
         void set_core_config(ov::AnyMap& config, const std::string& plugin_name = {});
 
@@ -136,14 +138,11 @@ private:
 
         // Core global properties, which will not be set to any plugins.
         // It will be updated if core.set_property() without device name is called.
-        mutable CoreConfigCache _core_global_properties = {{{ov::force_tbb_terminate.name(), ov::Any(false)}}, nullptr};
+        mutable CoreConfigCache _core_global_properties;
 
         // Core plugins properties, which will be set to all plugins.
         // It will be updated if core.set_property() is called.
-        mutable CoreConfigCache _core_plugin_properties = {{{ov::cache_dir.name(), ""},
-                                                            {ov::hint::allow_auto_batching.name(), ov::Any(true)},
-                                                            {ov::auto_batch_timeout.name(), "1000"}},
-                                                           nullptr};
+        mutable CoreConfigCache _core_plugin_properties;
     };
 
     struct CacheContent {
@@ -362,9 +361,6 @@ public:
 
     std::map<std::string, std::string> GetSupportedConfig(const std::string& deviceName,
                                                           const std::map<std::string, std::string>& configs) override;
-
-
-    std::set<std::string> QueryCoreSupportedConfig() const override;
 
     /**
      * @brief Registers the extension in a Core object

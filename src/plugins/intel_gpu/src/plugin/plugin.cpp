@@ -83,7 +83,8 @@ ov::AnyMap Plugin::preprocess_config(const std::map<std::string, std::string>& o
     }
 
     // Core property handling: keep the core properties that this plugin used and remove unused core property
-    auto core_config = GetCore() ? GetCore()->QueryCoreSupportedConfig() : std::set<std::string>();
+    auto core_config = GetCore() ? GetCore()->GetMetric({}, ov::core_properties.name()).as<std::set<std::string>>()
+                                 : std::set<std::string>();
     for (auto& it : core_config) {
         auto item = config.find(it);
         if (item == config.end())
@@ -410,7 +411,8 @@ Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string,
         actual_name = LegacyAPIHelper::convert_legacy_property({name, nullptr}).first;
     }
 
-    auto core_config = GetCore() ? GetCore()->QueryCoreSupportedConfig() : std::set<std::string>();
+    auto core_config = GetCore() ? GetCore()->GetMetric({}, ov::core_properties.name()).as<std::set<std::string>>()
+                                 : std::set<std::string>();
     if (core_config.find(name) != core_config.end()) {
         IE_THROW() << " Unsupported to get core property: " << name.c_str();
     }
