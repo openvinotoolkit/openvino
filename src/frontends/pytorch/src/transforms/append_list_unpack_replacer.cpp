@@ -62,11 +62,12 @@ AppendListUnpackReplacer::AppendListUnpackReplacer() {
             auto getitem_index_ptr = getitem_node->input_value(1).get_node_shared_ptr();
             auto getitem_index_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(getitem_index_ptr);
             auto index_val = getitem_index_const->cast_vector<int64_t>();
-            auto index = 0;
-            if (index_val[0] >= 0) {
-                index = index_val[0];
-            } else {
-                index = inputs.size() + index_val[0];
+            if (index_val.size() != 1) {
+                return false;
+            }
+            auto index = index_val[0];
+            if (index_val[0] < 0) {
+                index = inputs.size() + index;
             }
             auto axis_0 = ov::op::v0::Constant::create(element::i64, Shape{}, {0});
             auto split = std::make_shared<ov::op::v1::Split>(inputs[index], axis_0, list_unpack->get_output_size());
