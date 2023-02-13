@@ -63,8 +63,13 @@ class BuildCmd(build_py):
         ]
 
 
-packages = find_namespace_packages(prefix[:-1])
-packages = [prefix.replace('/', '.') + p for p in packages]
+lite_packages = find_namespace_packages(prefix[:-1])
+lite_packages = [prefix.replace('/', '.') + p for p in lite_packages]
+
+dev_packages = find_namespace_packages(prefix[:-6])
+dev_packages = [prefix[:-6].replace('/', '.') + '.' + p for p in dev_packages]
+
+packages = lite_packages + dev_packages
 
 setup(
     name='openvino-mo',
@@ -80,7 +85,8 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'mo = openvino.tools.mo.__main__:main',
+            'mo = openvino.tools.mo_lite.__main__:main',
+            'mo = openvino.tools.mo_lite.__main__:main',
         ],
     },
     package_data={
