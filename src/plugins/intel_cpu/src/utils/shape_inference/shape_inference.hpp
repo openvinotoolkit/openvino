@@ -32,6 +32,8 @@ public:
 
 class IStaticShapeInfer : public IShapeInferCommon {
 public:
+    using IShapeInferCommon::infer;
+
     virtual std::vector<StaticShape> infer(
         const std::vector<StaticShape>& input_shapes,
         const std::map<size_t, std::reference_wrapper<const Tensor>>& constant_data) = 0;

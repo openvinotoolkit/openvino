@@ -79,6 +79,23 @@ public:
 };
 
 /**
+ * \brief Compare if value is less to expected.
+ *
+ * \tparam T  Value type to compare.
+ */
+template <class T>
+class Less {
+    const T m_exp_value{};
+
+public:
+    constexpr Less(const T& exp_value) : m_exp_value{exp_value} {}
+
+    constexpr bool operator()(const T& value) const {
+        return value < m_exp_value;
+    }
+};
+
+/**
  * \brief Compare two values (a < b) in safe way against lossy integer conversion.
  *
  * \tparam T Type of a value.

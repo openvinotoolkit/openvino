@@ -24,7 +24,6 @@ using namespace InferenceEngine;
 
 namespace {
 
-const char str_device_input_unsupported_blob[] = "Device input is of an unsupported blob type.";
 const char str_device_output_unsupported_blob[] = "Device output is of an unsupported blob type.";
 const char str_input_not_allocated[] = "Input data was not allocated.";
 const char str_output_not_allocated[] = "Output data was not allocated.";
