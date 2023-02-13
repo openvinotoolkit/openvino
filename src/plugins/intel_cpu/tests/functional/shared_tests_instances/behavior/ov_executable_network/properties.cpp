@@ -139,4 +139,24 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, OVCompiledModelPropertie
                 ::testing::Values(CommonTestUtils::DEVICE_BATCH),
                 ::testing::ValuesIn(auto_batch_properties)),
         OVCompiledModelPropertiesTests::getTestCaseName);
+
+const std::vector<ov::AnyMap> configsWithEmpty = {{}};
+const std::vector<ov::AnyMap> configsWithMetaPlugin = {{ov::device::priorities("AUTO")},
+                                                       {ov::device::priorities("MULTI")},
+                                                       {ov::device::priorities("AUTO", "MULTI")},
+                                                       {ov::device::priorities("AUTO", "CPU")},
+                                                       {ov::device::priorities("MULTI", "CPU")}};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_MULTI_AUTO_DoNotSupportMetaPluginLoadingItselfRepeatedlyWithEmptyConfigTest,
+    OVClassLoadNetworkWithCondidateDeviceListContainedMetaPluginTest,
+    ::testing::Combine(::testing::Values("MULTI:AUTO", "AUTO:MULTI", "MULTI:CPU,AUTO", "AUTO:CPU,MULTI"),
+                       ::testing::ValuesIn(configsWithEmpty)),
+    ::testing::PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(smoke_MULTI_AUTO_DoNotSupportMetaPluginLoadingItselfRepeatedlyTest,
+                         OVClassLoadNetworkWithCondidateDeviceListContainedMetaPluginTest,
+                         ::testing::Combine(::testing::Values("MULTI", "AUTO"),
+                                            ::testing::ValuesIn(configsWithMetaPlugin)),
+                         ::testing::PrintToStringParamName());
 } // namespace

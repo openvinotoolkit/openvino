@@ -25,47 +25,6 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
 //
-// OV Class GetMetric
-//
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_SUPPORTED_METRICS,
-        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_AVAILABLE_DEVICES,
-        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_FULL_DEVICE_NAME,
-        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
-        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
-        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_ThrowUnsupported,
-        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetConfigTest, OVClassGetConfigTest_ThrowUnsupported,
-        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetAvailableDevices, OVClassGetAvailableDevices,
-        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
-
-
-//
 // OV Class GetConfig
 //
 

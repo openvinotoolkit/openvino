@@ -178,4 +178,64 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiSetAndCompileModelBehaviorTestsThrow,
                                                               CommonTestUtils::DEVICE_MULTI),
                                             ::testing::ValuesIn(auto_multi_incorrect_device_properties)),
                          OVSetUnsupportPropComplieModleWithoutConfigTests::getTestCaseName);
+
+std::vector<ov::AnyMap> incorrect_properies = {{{"unsupported_key", "4"}}};
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVPropertiesIncorrectTests, OVPropertiesIncorrectTests,
+        ::testing::ValuesIn(incorrect_properies));
+
+const std::vector<std::string> propery_to_check = { ov::log::level, ov::hint::model_priority };
+
+INSTANTIATE_TEST_SUITE_P(smoke_OVCheckChangePropComplieModleGetPropTestsRW,
+                         OVCheckChangePropComplieModleGetPropTestsRW,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO,
+                                                              CommonTestUtils::DEVICE_MULTI),
+                                            ::testing::ValuesIn(OVCheckChangePropComplieModleGetPropTestsRW::getRWPropertiesValues(propery_to_check))),
+                         OVCheckChangePropComplieModleGetPropTestsRW::getTestCaseName);
+
+//
+// IE Class GetMetric
+//
+
+const std::vector<ov::AnyMap> ro_property_all_plugin = {
+        {{ov::PropertyName(ov::supported_properties.name(), ov::supported_properties.mutability), nullptr}},
+        {{ov::PropertyName(ov::device::full_name.name(), ov::device::full_name.mutability), nullptr}},
+};
+
+const std::vector<ov::AnyMap> ro_property_cpu_only = {
+        {{ov::PropertyName(ov::available_devices.name(), ov::available_devices.mutability), nullptr}},
+        {{ov::PropertyName(ov::device::capabilities.name(), ov::device::capabilities.mutability), nullptr}}
+};
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVCheckChangePropComplieModleGetPropTests, OVCheckChangePropComplieModleGetPropTestsRO,
+        ::testing::Combine(::testing::Values("CPU", "MULTI", "HETERO", "AUTO"),
+                           ::testing::ValuesIn(ro_property_all_plugin)));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVCheckChangePropComplieModleGetPropTestsRO, OVCheckChangePropComplieModleGetPropTestsRO,
+        ::testing::Combine(::testing::Values("CPU"),
+                           ::testing::ValuesIn(ro_property_cpu_only)));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassGetMetricTest, OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
+        ::testing::Values("CPU"));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassGetMetricTest, OVClassGetMetricTest_RANGE_FOR_STREAMS,
+        ::testing::Values("CPU"));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVGetPropertiesIncorrectTests, OVGetPropertiesIncorrectTests,
+        ::testing::Combine(::testing::Values("CPU", "MULTI", "HETERO", "AUTO"),
+                           ::testing::ValueIn(incorrect_properies)));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassGetAvailableDevices, OVClassGetAvailableDevices,
+        ::testing::Values("CPU"));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassSetTBBForceTerminatePropertyTest, OVClassSetTBBForceTerminatePropertyTest,
+        ::testing::Values("AUTO", "GPU"));
 } // namespace

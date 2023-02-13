@@ -115,6 +115,61 @@ TEST_P(OVCompiledModelPropertiesDefaultTests, CheckDefaultValues) {
     }
 }
 
+TEST_P(OVClassLoadNetworkAndCheckSecondaryPropertiesTest, LoadNetworkAndCheckSecondaryPropertiesTest) {
+    ov::Core ie = createCoreWithTemplate();
+    ov::CompiledModel model;
+    OV_ASSERT_NO_THROW(model = ie.compile_model(actualNetwork, target_device, configuration));
+    auto property = configuration.begin()->second.as<ov::AnyMap>();
+    auto actual = property.begin()->second.as<int32_t>();
+    ov::Any value;
+    OV_ASSERT_NO_THROW(value = model.get_property(ov::num_streams.name()));
+    int32_t expect = value.as<int32_t>();
+    ASSERT_EQ(actual, expect);
+}
+
+TEST_P(OVClassLoadNetWorkReturnDefaultHintTest, LoadNetworkReturnDefaultHintTest) {
+    ov::Core ie = createCoreWithTemplate();
+    ov::CompiledModel model;
+    ov::hint::PerformanceMode value;
+    OV_ASSERT_NO_THROW(model = ie.compile_model(actualNetwork, target_device, configuration));
+    OV_ASSERT_NO_THROW(value = model.get_property(ov::hint::performance_mode));
+    if (target_device.find("AUTO") != std::string::npos) {
+        ASSERT_EQ(value, ov::hint::PerformanceMode::LATENCY);
+    } else {
+        ASSERT_EQ(value, ov::hint::PerformanceMode::THROUGHPUT);
+    }
+}
+
+TEST_P(OVClassSetDevicePriorityConfigTest, SetConfigAndCheckGetConfigNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    std::string devicePriority;
+    OV_ASSERT_NO_THROW(ie.set_property(target_device, configuration));
+    OV_ASSERT_NO_THROW(devicePriority = ie.get_property(target_device, ov::device::priorities));
+    ASSERT_EQ(devicePriority, configuration[ov::device::priorities.name()].as<std::string>());
+}
+
+TEST_P(OVClassLoadNetworkWithCondidateDeviceListContainedMetaPluginTest, LoadNetworkRepeatedlyWithMetaPluginTestThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    ASSERT_THROW(ie.compile_model(actualNetwork, target_device, configuration), ov::Exception);
+}
+
+TEST_P(OVClassLoadNetworkWithCorrectPropertiesTest, LoadNetworkWithCorrectPropertiesTest) {
+    ov::Core ie = createCoreWithTemplate();
+    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, target_device, configuration));
+}
+
+TEST_P(OVClassLoadNetWorkDoNotReturnDefaultHintTest, LoadNetworkDoNotReturnDefaultHintTest) {
+    ov::Core ie = createCoreWithTemplate();
+    ov::CompiledModel model;
+    ov::hint::PerformanceMode value;
+    OV_ASSERT_NO_THROW(model = ie.compile_model(actualNetwork, target_device, configuration));
+    OV_ASSERT_NO_THROW(value = model.get_property(ov::hint::performance_mode));
+    if (target_device.find("AUTO") != std::string::npos) {
+        ASSERT_NE(value, ov::hint::PerformanceMode::LATENCY);
+    } else {
+        ASSERT_NE(value, ov::hint::PerformanceMode::THROUGHPUT);
+    }
+}
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

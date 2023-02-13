@@ -32,6 +32,26 @@ namespace ov {
 namespace test {
 namespace behavior {
 
+#define OV_ASSERT_PROPERTY_SUPPORTED(property_key)                                                 \
+{                                                                                                  \
+    auto properties = ie.get_property(target_device, ov::supported_properties);                       \
+    auto it = std::find(properties.begin(), properties.end(), property_key);                       \
+    ASSERT_NE(properties.end(), it);                                                               \
+}
+
+inline bool supportsDeviceID(ov::Core& ie, const std::string& target_device) {
+    auto supported_properties =
+            ie.get_property(target_device, ov::supported_properties);
+    return supported_properties.end() !=
+           std::find(std::begin(supported_properties), std::end(supported_properties), ov::device::id);
+}
+
+inline bool supportsAvailableDevices(ov::Core& ie, const std::string& target_device) {
+    auto supported_properties = ie.get_property(target_device, ov::supported_properties);
+    return supported_properties.end() !=
+           std::find(std::begin(supported_properties), std::end(supported_properties), ov::available_devices);
+}
+
 inline std::shared_ptr<ngraph::Function> getDefaultNGraphFunctionForTheDevice(std::string targetDevice,
                                                                               std::vector<size_t> inputShape = {1, 1, 32, 32},
                                                                               ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {

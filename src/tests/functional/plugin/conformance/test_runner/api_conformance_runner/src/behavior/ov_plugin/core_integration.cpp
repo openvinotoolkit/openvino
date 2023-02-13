@@ -3,6 +3,10 @@
 //
 
 #include "behavior/ov_plugin/core_integration.hpp"
+#include "behavior/ov_plugin/core_integration_sw_plugin.hpp"
+#include "behavior/ov_plugin/query_model.hpp"
+#include "behavior/ov_plugin/compile_model.hpp"
+#include "behavior/ov_plugin/properties_tests.hpp"
 #include "openvino/runtime/core.hpp"
 #include "ov_api_conformance_helpers.hpp"
 
@@ -26,27 +30,6 @@ INSTANTIATE_TEST_SUITE_P(
 //
 // IE Class GetMetric
 //
-
-INSTANTIATE_TEST_SUITE_P(
-        ov_plugin, OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::ValuesIn(return_all_possible_device_combination(false)));
-
-INSTANTIATE_TEST_SUITE_P(
-        ov_plugin, OVClassGetMetricTest_SUPPORTED_METRICS,
-        ::testing::ValuesIn(return_all_possible_device_combination(false)));
-
-INSTANTIATE_TEST_SUITE_P(
-        ov_plugin, OVClassGetMetricTest_AVAILABLE_DEVICES,
-        ::testing::ValuesIn(return_all_possible_device_combination(false)));
-
-INSTANTIATE_TEST_SUITE_P(
-        ov_plugin, OVClassGetMetricTest_FULL_DEVICE_NAME,
-        ::testing::ValuesIn(return_all_possible_device_combination(false)));
-
-INSTANTIATE_TEST_SUITE_P(
-        ov_plugin, OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
-        ::testing::ValuesIn(return_all_possible_device_combination(false)));
-
 INSTANTIATE_TEST_SUITE_P(
         ov_plugin, OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
         ::testing::ValuesIn(return_all_possible_device_combination(false)));
@@ -55,13 +38,12 @@ INSTANTIATE_TEST_SUITE_P(
         ov_plugin, OVClassGetMetricTest_RANGE_FOR_STREAMS,
         ::testing::ValuesIn(return_all_possible_device_combination(false)));
 
-INSTANTIATE_TEST_SUITE_P(
-        ov_plugin, OVClassGetMetricTest_ThrowUnsupported,
-        ::testing::ValuesIn(return_all_possible_device_combination(false)));
+std::vector<ov::AnyMap> incorrect_properies = {{{"unsupported_key", "4"}}};
 
 INSTANTIATE_TEST_SUITE_P(
-        ov_plugin, OVClassGetConfigTest_ThrowUnsupported,
-        ::testing::ValuesIn(return_all_possible_device_combination(false)));
+        smoke_OVGetPropertiesIncorrectTests, OVGetPropertiesIncorrectTests,
+        ::testing::Combine(::testing::ValuesIn(return_all_possible_device_combination(false)),
+                           ::testing::ValuesIn(incorrect_properies)));
 
 INSTANTIATE_TEST_SUITE_P(
         ov_plugin, OVClassGetAvailableDevices,

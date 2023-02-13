@@ -20,6 +20,18 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassBasicTestP,
                          OVClassBasicTestP,
                          ::testing::Values(std::make_pair("openvino_intel_gna_plugin", "GNA")));
 
+// 
+// Check set of correct properties 
+// 
+const std::vector<ov::AnyMap> correct_properties = {
+        {ov::enable_profiling(true)}
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVPropertiesTests,
+        ::testing::Combine(::testing::Values("GNA", "MULTI", "HETERO"),
+                           ::testing::ValuesIn(correct_properties)),
+        OVPropertiesTests::getTestCaseName);
+
 // TODO
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassNetworkTestP, OVClassNetworkTestP, ::testing::Values("GNA"));
 
@@ -27,37 +39,44 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassNetworkTestP, OVClassNetworkTestP
 // IE Class GetMetric
 //
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-                         OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS,
-                         ::testing::Values("GNA", "MULTI", "HETERO"));
+const std::vector<ov::AnyMap> ro_property_all_plugin = {
+    {{ov::PropertyName(ov::supported_properties.name(), ov::supported_properties.mutability), nullptr}},
+    {{ov::PropertyName(ov::device::full_name.name(), ov::device::full_name.mutability), nullptr}},
+};
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-                         OVClassGetMetricTest_SUPPORTED_METRICS,
-                         ::testing::Values("GNA", "MULTI", "HETERO"));
+const std::vector<ov::AnyMap> ro_property_gna_only = {
+    {{ov::PropertyName(ov::available_devices.name(), ov::available_devices.mutability), nullptr}},
+    {{ov::PropertyName(ov::device::capabilities.name(), ov::device::capabilities.mutability), nullptr}}
+};
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-                         OVClassGetMetricTest_AVAILABLE_DEVICES,
-                         ::testing::Values("GNA"));
+INSTANTIATE_TEST_SUITE_P(
+        nightly_OVCheckChangePropComplieModleGetPropTests, OVCheckChangePropComplieModleGetPropTestsRO,
+        ::testing::Combine(::testing::Values("GNA", "MULTI", "HETERO"),
+                           ::testing::ValuesIn(ro_property_all_plugin)));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-                         OVClassGetMetricTest_FULL_DEVICE_NAME,
-                         ::testing::Values("GNA", "MULTI", "HETERO"));
-
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassGetMetricTest,
-                         OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
-                         ::testing::Values("GNA"));
+INSTANTIATE_TEST_SUITE_P(
+        nightly_OVCheckChangePropComplieModleGetPropTestsRO, OVCheckChangePropComplieModleGetPropTestsRO,
+        ::testing::Combine(::testing::Values("GNA"),
+                           ::testing::ValuesIn(ro_property_gna_only)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassGetMetricTest,
                          OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
                          ::testing::Values("GNA"));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-                         OVClassGetMetricTest_ThrowUnsupported,
-                         ::testing::Values("GNA", "MULTI", "HETERO"));
+// 
+// Check set of incorrect properties 
+// 
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetConfigTest,
-                         OVClassGetConfigTest_ThrowUnsupported,
-                         ::testing::Values("GNA", "MULTI", "HETERO"));
+std::vector<ov::AnyMap> incorrect_properies = {{{"unsupported_key", "4"}}};
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_OVPropertiesIncorrectTests, OVPropertiesIncorrectTests,
+        ::testing::ValuesIn(incorrect_properies));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVGetPropertiesIncorrectTests, OVGetPropertiesIncorrectTests,
+        ::testing::Combine(::testing::Values("GNA", "MULTI", "HETERO"),
+                           ::testing::ValuesIn(incorrect_properies)));
 
 const std::vector<std::tuple<std::string, std::pair<ov::AnyMap, std::string>>> GetMetricTest_ExecutionDevice_GNA = {
     {"GNA", std::make_pair(ov::AnyMap{}, "GNA")}};

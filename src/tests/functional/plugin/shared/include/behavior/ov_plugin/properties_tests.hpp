@@ -44,6 +44,7 @@ public:
 };
 
 using OVPropertiesIncorrectTests = OVPropertiesTests;
+using OVGetPropertiesIncorrectTests = OVPropertiesTests;
 using OVPropertiesDefaultTests = OVPropertiesTests;
 using OVSetSupportPropComplieModleWithoutConfigTests = OVPropertiesTests;
 using OVSetUnsupportPropComplieModleWithoutConfigTests = OVPropertiesTests;
@@ -72,11 +73,13 @@ public:
 
     AnyMap compileModelProperties;
 
-    static std::vector<ov::AnyMap> getPropertiesValues();
+    static std::vector<ov::AnyMap> getAllROPropertiesValues();
+    static std::vector<ov::AnyMap> getRWPropertiesValues(std::vector<std::string> param_properties = {});
     static std::vector<ov::AnyMap> getModelDependcePropertiesValues();
 };
 
-using OVCheckChangePropComplieModleGetPropTests = OVPropertiesTestsWithComplieModelProps;
+using OVCheckChangePropComplieModleGetPropTestsRO = OVPropertiesTestsWithComplieModelProps;
+using OVCheckChangePropComplieModleGetPropTestsRW = OVPropertiesTestsWithComplieModelProps;
 using OVCheckChangePropComplieModleGetPropTests_DEVICE_ID = OVPropertiesTestsWithComplieModelProps;
 using OVCheckChangePropComplieModleGetPropTests_ModelDependceProps = OVPropertiesTestsWithComplieModelProps;
 
@@ -85,7 +88,7 @@ using OvPropertiesParams = std::tuple<
         std::pair<ov::AnyMap, std::string>    // device and expect execution device configuration
 >;
 class OVCompileModelGetExecutionDeviceTests : public testing::WithParamInterface<OvPropertiesParams>,
-                                          public OVPropertiesBase {
+                                              public OVPropertiesBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<OvPropertiesParams> obj);
 
@@ -97,6 +100,30 @@ public:
 };
 
 using OVClassExecutableNetworkGetMetricTest_EXEC_DEVICES = OVCompileModelGetExecutionDeviceTests;
+
+class OVClassSetDefaultDeviceIDTest : public OVPluginTestBase,
+                                      public ::testing::WithParamInterface<std::pair<std::string, std::string>> {
+protected:
+    std::string deviceName;
+    std::string deviceID;
+
+public:
+    void SetUp() override {
+        std::tie(target_device, deviceID) = GetParam();
+        APIBaseTest::SetUp();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    }
+};
+
+using OVClassGetConfigTest = OVClassBaseTestP;
+using OVClassSetGlobalConfigTest = OVClassBaseTestP;
+using OVClassGetAvailableDevices = OVClassBaseTestP;
+using OVClassSpecificDeviceTestSetConfig = OVClassBaseTestP;
+using OVClassSpecificDeviceTestGetConfig = OVClassBaseTestP;
+using OVClassGetMetricTest_RANGE_FOR_STREAMS = OVClassBaseTestP;
+using OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS = OVClassBaseTestP;
+using OVClassGetMetricTest_FULL_DEVICE_NAME_with_DEVICE_ID = OVClassBaseTestP;
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

@@ -43,6 +43,34 @@ public:
 using OVCompiledModelPropertiesIncorrectTests = OVCompiledModelPropertiesTests;
 using OVCompiledModelPropertiesDefaultTests = OVCompiledModelPropertiesTests;
 
+using DevicePriorityParams = std::tuple<
+        std::string,            // Device name
+        ov::AnyMap              // Configuration key and its default value
+>;
+class OVClassSetDevicePriorityConfigTest : public OVPluginTestBase,
+                                           public ::testing::WithParamInterface<DevicePriorityParams> {
+protected:
+    std::string deviceName;
+    ov::AnyMap configuration;
+    std::shared_ptr<ngraph::Function> actualNetwork;
+
+public:
+    void SetUp() override {
+        std::tie(target_device, configuration) = GetParam();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        APIBaseTest::SetUp();
+        actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
+    }
+};
+
+using OVClassLoadNetworkWithCorrectPropertiesTest = OVClassSetDevicePriorityConfigTest;
+
+using OVClassLoadNetWorkReturnDefaultHintTest = OVClassSetDevicePriorityConfigTest;
+using OVClassLoadNetWorkDoNotReturnDefaultHintTest = OVClassSetDevicePriorityConfigTest;
+using OVClassLoadNetworkAndCheckSecondaryPropertiesTest = OVClassSetDevicePriorityConfigTest;
+
+using OVClassLoadNetworkWithCondidateDeviceListContainedMetaPluginTest = OVClassSetDevicePriorityConfigTest;
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

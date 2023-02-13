@@ -771,7 +771,6 @@ TEST_P(OVAutoExecutableNetworkTest, AutoNotImplementedSetConfigToExecNet) {
     auto execNet = core->compile_model(function, target_device, config);
     EXPECT_ANY_THROW(execNet.set_property(config));
 }
-
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

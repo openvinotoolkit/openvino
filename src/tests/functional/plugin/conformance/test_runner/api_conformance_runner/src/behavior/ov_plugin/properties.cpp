@@ -55,11 +55,17 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin_AutoBatch, OVPropertiesTests,
                 ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(CommonTestUtils::DEVICE_BATCH, auto_batch_properties))),
         OVPropertiesTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckChangePropComplieModleGetPropTests,
+INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckChangePropComplieModleGetPropTestsRW,
         ::testing::Combine(
                         ::testing::ValuesIn(return_all_possible_device_combination()),
-                        ::testing::ValuesIn(OVCheckChangePropComplieModleGetPropTests::getPropertiesValues())),
-        OVCheckChangePropComplieModleGetPropTests::getTestCaseName);
+                        ::testing::ValuesIn(OVCheckChangePropComplieModleGetPropTestsRW::getRWPropertiesValues())),
+        OVCheckChangePropComplieModleGetPropTestsRW::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckChangePropComplieModleGetPropTestsRO,
+        ::testing::Combine(
+                        ::testing::ValuesIn(return_all_possible_device_combination()),
+                        ::testing::ValuesIn(OVCheckChangePropComplieModleGetPropTestsRO::getAllROPropertiesValues())),
+        OVCheckChangePropComplieModleGetPropTestsRO::getTestCaseName);
 
 const std::vector<ov::AnyMap> device_properties = {
         {ov::device::id("0")},
@@ -74,6 +80,6 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckChangePropComplieModleGetPropTests_DE
 INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckChangePropComplieModleGetPropTests_ModelDependceProps,
         ::testing::Combine(
                 ::testing::ValuesIn(return_all_possible_device_combination()),
-                ::testing::ValuesIn(OVCheckChangePropComplieModleGetPropTests::getModelDependcePropertiesValues())),
+                ::testing::ValuesIn(OVCheckChangePropComplieModleGetPropTests_ModelDependceProps::getModelDependcePropertiesValues())),
         OVCheckChangePropComplieModleGetPropTests_ModelDependceProps::getTestCaseName);
 } // namespace

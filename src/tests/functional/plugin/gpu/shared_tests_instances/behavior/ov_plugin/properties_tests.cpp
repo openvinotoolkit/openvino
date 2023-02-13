@@ -228,4 +228,30 @@ INSTANTIATE_TEST_SUITE_P(smoke_MultiCompileModelBehaviorTests,
                                             ::testing::ValuesIn(multiExeDeviceConfigs)),
                          OVCompileModelGetExecutionDeviceTests::getTestCaseName);
 
+std::vector<ov::AnyMap> incorrect_properies = {{{"unsupported_key", "4"}}};
+INSTANTIATE_TEST_SUITE_P(
+        smoke_BehaviorTests, OVPropertiesIncorrectTests,
+        ::testing::ValuesIn(incorrect_properies));
+
+// GetConfig / SetConfig for specific device
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_OVClassSpecificDevice0Test, OVClassSpecificDeviceTestGetConfig,
+        ::testing::Values("GPU.0")
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_OVClassSpecificDevice1Test, OVClassSpecificDeviceTestGetConfig,
+        ::testing::Values("GPU.1")
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_OVClassSpecificDevice0Test, OVClassSpecificDeviceTestSetConfig,
+        ::testing::Values("GPU.0")
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_OVClassSpecificDevice1Test, OVClassSpecificDeviceTestSetConfig,
+        ::testing::Values("GPU.1")
+);
 } // namespace

@@ -9,6 +9,10 @@
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 
+#include "behavior/ov_plugin/properties_tests.hpp"
+#include "base/ov_behavior_test_utils.hpp"
+#include "openvino/runtime/properties.hpp"
+
 #ifdef _WIN32
 #    include "gpu/gpu_context_api_dx.hpp"
 #elif defined ENABLE_LIBVA
@@ -33,37 +37,37 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassNetworkTestP, OVClassNetworkTestP, ::tes
 // IE Class GetMetric
 //
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-        OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::Values("GPU", "MULTI", "HETERO", "AUTO", "BATCH"));
+const std::vector<ov::AnyMap> ro_property_all_plugin = {
+    {{ov::PropertyName(ov::supported_properties.name(), ov::supported_properties.mutability), nullptr}},
+    {{ov::PropertyName(ov::device::full_name.name(), ov::device::full_name.mutability), nullptr}},
+};
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-        OVClassGetMetricTest_SUPPORTED_METRICS,
-        ::testing::Values("GPU", "MULTI", "HETERO", "AUTO", "BATCH"));
+INSTANTIATE_TEST_SUITE_P(
+        nightly_OVCheckChangePropComplieModleGetPropTestsRO, OVCheckChangePropComplieModleGetPropTestsRO,
+        ::testing::Combine(::testing::Values("GPU", "MULTI", "HETERO", "AUTO", "BATCH"),
+                           ::testing::ValuesIn(ro_property_all_plugin)));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-        OVClassGetMetricTest_AVAILABLE_DEVICES,
-        ::testing::Values("GPU"));
+const std::vector<ov::AnyMap> ro_property_gnu_only = {
+    {{ov::PropertyName(ov::available_devices.name(), ov::available_devices.mutability), nullptr}},
+    {{ov::PropertyName(ov::device::uuid.name(), ov::device::uuid.mutability), nullptr}},
+    {{ov::PropertyName(ov::device::capabilities.name(), ov::device::capabilities.mutability), nullptr}}
+    {{ov::PropertyName(ov::device::gops.name(), ov::device::gops.mutability), nullptr}}
+    {{ov::PropertyName(ov::device::type.name(), ov::device::type.mutability), nullptr}}
+};
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-        OVClassGetMetricTest_FULL_DEVICE_NAME,
-        ::testing::Values("GPU", "MULTI", "HETERO", "AUTO", "BATCH"));
+INSTANTIATE_TEST_SUITE_P(
+        nightly_OVCheckChangePropComplieModleGetPropTests, OVCheckChangePropComplieModleGetPropTestsRO,
+        ::testing::Combine(::testing::Values("GPU"),
+                           ::testing::ValuesIn(ro_property_gnu_only)));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-        OVClassGetMetricTest_DEVICE_UUID,
-        ::testing::Values("GPU"));
+const std::vector<ov::AnyMap> model_depence_property = {
+    res.push_back({{ov::PropertyName(ov::max_batch_size.name(), ov::max_batch_size.mutability), nullptr}})
+};
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-        OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
-        ::testing::Values("GPU"));
-
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-        OVClassGetMetricTest_MAX_BATCH_SIZE,
-        ::testing::Values("GPU"));
-
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest, OVClassGetMetricTest_DEVICE_GOPS, ::testing::Values("GPU"));
-
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest, OVClassGetMetricTest_DEVICE_TYPE, ::testing::Values("GPU"));
+INSTANTIATE_TEST_SUITE_P(nightly_OVCheckChangePropComplieModleGetPropTests_ModelDependceProps,
+                         OVCheckChangePropComplieModleGetPropTests_ModelDependceProps,
+                         ::testing::Combine(::testing::Values("GPU"),
+                                            ::testing::ValuesIn(model_depence_property)));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
         OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
@@ -73,19 +77,22 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
         OVClassGetMetricTest_RANGE_FOR_STREAMS,
         ::testing::Values("GPU"));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-        OVClassGetMetricTest_ThrowUnsupported,
-        ::testing::Values("GPU", "MULTI", "HETERO", "AUTO", "BATCH"));
+std::vector<ov::AnyMap> incorrect_properies = {{{"unsupported_key", "4"}}};
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetConfigTest,
-        OVClassGetConfigTest_ThrowUnsupported,
-        ::testing::Values("GPU", "MULTI", "HETERO", "AUTO", "BATCH"));
+INSTANTIATE_TEST_SUITE_P(
+        nightly_OVGetPropertiesIncorrectTests, OVGetPropertiesIncorrectTests,
+        ::testing::Combine(::testing::Values("GPU", "MULTI", "HETERO", "AUTO", "BATCH"),
+                           ::testing::ValuesIn(incorrect_properies)));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetAvailableDevices, OVClassGetAvailableDevices, ::testing::Values("GPU"));
 
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassSetModelPriorityConfigTest, OVClassSetModelPriorityConfigTest,
-        ::testing::Values("MULTI", "AUTO"));
+const std::vector<std::string> propery_to_check_gpu = { ov::hint::execution_mode.name() };
+
+INSTANTIATE_TEST_SUITE_P(smoke_OVCheckChangePropComplieModleGetPropTestsGPU,
+                         OVCheckChangePropComplieModleGetPropTestsRW,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                            ::testing::ValuesIn(OVCheckChangePropComplieModleGetPropTestsRW::getRWPropertiesValues(propery_to_check_gpu))),
+                         OVCheckChangePropComplieModleGetPropTestsRW::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassSetExecutionModeHintConfigTest, OVClassSetExecutionModeHintConfigTest,
@@ -95,9 +102,14 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassSetTBBForceTerminatePropertyTest, OVClassSetTBBForceTerminatePropertyTest,
         ::testing::Values("CPU", "GPU"));
 
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassSetLogLevelConfigTest, OVClassSetLogLevelConfigTest,
-        ::testing::Values("MULTI", "AUTO"));
+const std::vector<ov::Property> propery_to_check = { ov::log::level, ov::hint::model_priority };
+
+INSTANTIATE_TEST_SUITE_P(smoke_OVCheckChangePropComplieModleGetPropTestsRW,
+                         OVCheckChangePropComplieModleGetPropTestsRW,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO,
+                                                              CommonTestUtils::DEVICE_MULTI),
+                                            ::testing::ValuesIn(OVCheckChangePropComplieModleGetPropTestsRW::getRWPropertiesValues(propery_to_check))),
+                         OVCheckChangePropComplieModleGetPropTestsRW::getTestCaseName);
 
 auto multiConfigs = []() {
     return std::vector<ov::AnyMap>{
@@ -846,28 +858,6 @@ TEST_P(OVClassGetMetricTest_CACHING_PROPERTIES, GetMetricAndPrintNoThrow) {
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
         OVClassGetMetricTest_CACHING_PROPERTIES,
         ::testing::Values("GPU"));
-
-// GetConfig / SetConfig for specific device
-
-INSTANTIATE_TEST_SUITE_P(
-        nightly_OVClassSpecificDevice0Test, OVClassSpecificDeviceTestGetConfig,
-        ::testing::Values("GPU.0")
-);
-
-INSTANTIATE_TEST_SUITE_P(
-        nightly_OVClassSpecificDevice1Test, OVClassSpecificDeviceTestGetConfig,
-        ::testing::Values("GPU.1")
-);
-
-INSTANTIATE_TEST_SUITE_P(
-        nightly_OVClassSpecificDevice0Test, OVClassSpecificDeviceTestSetConfig,
-        ::testing::Values("GPU.0")
-);
-
-INSTANTIATE_TEST_SUITE_P(
-        nightly_OVClassSpecificDevice1Test, OVClassSpecificDeviceTestSetConfig,
-        ::testing::Values("GPU.1")
-);
 
 // Several devices case
 

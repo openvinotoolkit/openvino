@@ -3,6 +3,9 @@
 //
 
 #include "behavior/ov_plugin/core_integration.hpp"
+#include "behavior/ov_plugin/compile_model.hpp"
+#include "behavior/ov_plugin/query_model.hpp"
+#include "behavior/ov_plugin/core_integration_sw_plugin.hpp"
 #include <openvino/runtime/properties.hpp>
 #include "ie_system_conf.h"
 #include "openvino/runtime/core.hpp"
@@ -27,62 +30,6 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassImportExportTestP, OVClassImportExportTestP,
         ::testing::Values("HETERO:CPU"));
-
-//
-// IE Class GetMetric
-//
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::Values("CPU", "MULTI", "HETERO", "AUTO"));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_SUPPORTED_METRICS,
-        ::testing::Values("CPU", "MULTI", "HETERO", "AUTO"));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_AVAILABLE_DEVICES,
-        ::testing::Values("CPU"));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_FULL_DEVICE_NAME,
-        ::testing::Values("CPU", "MULTI", "HETERO", "AUTO"));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
-        ::testing::Values("CPU"));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
-        ::testing::Values("CPU"));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_RANGE_FOR_STREAMS,
-        ::testing::Values("CPU"));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_ThrowUnsupported,
-        ::testing::Values("CPU", "MULTI", "HETERO", "AUTO"));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetConfigTest, OVClassGetConfigTest_ThrowUnsupported,
-        ::testing::Values("CPU", "MULTI", "HETERO", "AUTO"));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetAvailableDevices, OVClassGetAvailableDevices,
-        ::testing::Values("CPU"));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassSetModelPriorityConfigTest, OVClassSetModelPriorityConfigTest,
-        ::testing::Values("MULTI", "AUTO"));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassSetTBBForceTerminatePropertyTest, OVClassSetTBBForceTerminatePropertyTest,
-        ::testing::Values("AUTO", "GPU"));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassSetLogLevelConfigTest, OVClassSetLogLevelConfigTest,
-        ::testing::Values("MULTI", "AUTO"));
 
 const std::vector<ov::AnyMap> multiConfigs = {
     {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}
@@ -314,24 +261,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_MULTI_DoNotReturnDefaultHintTest,
                          OVClassLoadNetWorkDoNotReturnDefaultHintTest,
                          ::testing::Combine(::testing::Values("MULTI:CPU"),
                                             ::testing::ValuesIn(default_multi_properties)));
-
-const std::vector<ov::AnyMap> configsWithEmpty = {{}};
-const std::vector<ov::AnyMap> configsWithMetaPlugin = {{ov::device::priorities("AUTO")},
-                                                       {ov::device::priorities("MULTI")},
-                                                       {ov::device::priorities("AUTO", "MULTI")},
-                                                       {ov::device::priorities("AUTO", "CPU")},
-                                                       {ov::device::priorities("MULTI", "CPU")}};
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_MULTI_AUTO_DoNotSupportMetaPluginLoadingItselfRepeatedlyWithEmptyConfigTest,
-    OVClassLoadNetworkWithCondidateDeviceListContainedMetaPluginTest,
-    ::testing::Combine(::testing::Values("MULTI:AUTO", "AUTO:MULTI", "MULTI:CPU,AUTO", "AUTO:CPU,MULTI"),
-                       ::testing::ValuesIn(configsWithEmpty)),
-    ::testing::PrintToStringParamName());
-
-INSTANTIATE_TEST_SUITE_P(smoke_MULTI_AUTO_DoNotSupportMetaPluginLoadingItselfRepeatedlyTest,
-                         OVClassLoadNetworkWithCondidateDeviceListContainedMetaPluginTest,
-                         ::testing::Combine(::testing::Values("MULTI", "AUTO"),
-                                            ::testing::ValuesIn(configsWithMetaPlugin)),
-                         ::testing::PrintToStringParamName());
 }  // namespace
