@@ -591,7 +591,7 @@ void FullyConnected::createDescriptorInternal(const dnnl::memory::desc &inputDes
     dnnl::memory::desc wgh_candidate;
     if (useSparseWeights) {
         wgh_candidate = { DnnlExtensionUtils::convertToDnnlDims(getInputShapeAtPort(WEIGHTS_ID).getStaticDims()),
-                wdt, memory::desc::packed(nnzCount) };
+                wdt, memory::desc::packed() };
     } else {
         wgh_candidate = { DnnlExtensionUtils::convertToDnnlDims(getInputShapeAtPort(WEIGHTS_ID).getStaticDims()),
                                         wdt, dnnl::memory::format_tag::any };
@@ -930,10 +930,9 @@ bool FullyConnected::useSparseWeightsDecompression() {
             zerosCounts++;
         }
     }
-    nnzCount = elementsCount - zerosCounts;
 
     DEBUG_LOG(getName(), ", weightsData.size() = ", elementsCount, ", zerosCounts = ",
-        zerosCounts, ", nnzCount = ", nnzCount);
+        zerosCounts, ", nnzCount = ", elementsCount - zerosCounts);
 
     weiSparseRate = static_cast<float>(zerosCounts) / static_cast<float>(elementsCount);
 

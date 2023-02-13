@@ -195,7 +195,7 @@ def test_properties_ro(ov_property_ro, expected_value):
         ),
         (
             properties.intel_cpu.sparse_weights_decompression_rate,
-            "SPARSE_WEIGHTS_DECOMPRESSION_RATE",
+            "CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE",
             (
                 (0.1, np.float32(0.1)),
                 (2.0, 2.0),
