@@ -172,7 +172,7 @@ jobs:
       cmakeArgs: >
         -GNinja
         -DCMAKE_VERBOSE_MAKEFILE=ON
-        -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DOpenCV_DIR=$(INSTALL_OPENCV)/cmake
         -DENABLE_PYTHON=OFF
         -DENABLE_TESTS=ON
