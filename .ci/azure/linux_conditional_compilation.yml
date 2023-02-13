@@ -3,6 +3,7 @@ trigger:
     include:
     - master
     - releases/*
+    - customer_A
   paths:
     exclude: 
     - docs/
@@ -16,6 +17,7 @@ pr:
     include:
     - master
     - releases/*
+    - customer_A
   paths:
     exclude: 
     - docs/
