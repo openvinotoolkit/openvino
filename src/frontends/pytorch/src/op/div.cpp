@@ -7,6 +7,7 @@
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/floor.hpp"
+#include "transformations/rt_info/nonconvertible_divide.hpp"
 #include "utils.hpp"
 
 using namespace ov::op;
@@ -34,6 +35,8 @@ OutputVector translate_div(NodeContext& context) {
     }
     align_eltwise_input_types(context, x, y, true);
     auto res = context.mark_node(std::make_shared<v1::Divide>(x, y, true));
+    // TODO: ticket 103296; Temporarily disable ConvertDivide transformation
+    disable_divide_conversion(res);
     if (rounding_mode == "floor") {
         res = context.mark_node(std::make_shared<v0::Floor>(res));
     } else if (rounding_mode == "trunc") {
