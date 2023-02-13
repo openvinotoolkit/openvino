@@ -20,10 +20,6 @@ inline uint get_common_index(
     return x0*p0 + x1*p1 + x2*p2 + x3*p3 + x4*p4 + x5*p5 + x6*p6 + x7*p7 + x8*p8;
 }
 
-inline uint ALIGN(uint x, uint y){
-    return (x + y - 1) / y * y;
-}
-
 #define GET_FILTER_OS_IS_YX_ISV_OSV_INDEX(prefix, o, i, y, x, osv, isv) \
     get_common_index(                                                   \
         o%osv, i%isv, x, y, i/isv, o/osv, 0, 0,                         \
