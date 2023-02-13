@@ -30,6 +30,10 @@ public:
     /// \param tensor The tensor with data
     Constant(const std::shared_ptr<ngraph::runtime::Tensor>& tensor);
 
+    /// \brief Initialize a constant from ov::Tensor
+    /// \param tensor The ov::Tensor with data
+    Constant(const ov::Tensor& tensor);
+
     /// \brief Constructs a tensor constant.
     ///
     /// \param type The element type of the tensor constant.
