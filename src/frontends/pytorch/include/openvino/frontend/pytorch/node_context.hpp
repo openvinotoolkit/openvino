@@ -87,16 +87,19 @@ public:
         return m_decoder->get_schema();
     }
 
-    std::shared_ptr<Node> mark_node(std::shared_ptr<Node> ov_node) const {
-        return m_decoder->mark_node(ov_node);
-    }
+    std::shared_ptr<Node> mark_node(std::shared_ptr<Node> ov_node) const;
 
+    // Call mark_node for each node from the vector
     void mark_nodes(std::vector<std::shared_ptr<Node>> ov_nodes) const {
-        return m_decoder->mark_nodes(ov_nodes);
+        for (auto& ov_node : ov_nodes) {
+            mark_node(ov_node);
+        }
     }
 
+    // Syntactic sugar around mark_node -- just calls it for corresponding node for the passed output port
     Output<Node> mark_output(Output<Node> ov_output) const {
-        return m_decoder->mark_node(ov_output.get_node_shared_ptr());
+        mark_node(ov_output.get_node_shared_ptr());
+        return ov_output;
     }
 
     Any get_attribute_as_any(const std::string&) const override {

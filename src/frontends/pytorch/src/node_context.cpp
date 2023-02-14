@@ -37,6 +37,11 @@ OutputVector NodeContext::as_constant() const {
     }
 }
 
+std::shared_ptr<Node> NodeContext::mark_node(std::shared_ptr<Node> ov_node) const {
+    ov_node->set_friendly_name(get_op_type() + '_' + std::to_string(m_translate_session->m_friendly_name_counter++));
+    return m_decoder->mark_node(ov_node);
+}
+
 void NodeContext::mutate_input(size_t index, Output<Node> ov_output) {
     FRONT_END_GENERAL_CHECK(!m_decoder->input_is_none(index), "Input is none with index: ", index);
     auto input_id = m_decoder_inputs.at(index);
