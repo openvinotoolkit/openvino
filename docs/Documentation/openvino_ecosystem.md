@@ -24,9 +24,10 @@ A suite of advanced algorithms for Neural Network inference optimization with mi
 filter pruning, binarization and sparsity algorithms to PyTorch and TensorFlow models during training.
 
 More resources:
-* :doc:`Documentation <tmo_introduction>`
-* `GitHub <https://github.com/openvinotoolkit/nncf>`__
-* `PyPI <https://pypi.org/project/nncf/>`__
+
+* :doc:`Documentation <tmo_introduction>`  
+* `GitHub <https://github.com/openvinotoolkit/nncf>`__  
+* `PyPI <https://pypi.org/project/nncf/>`__  
 
 OpenVINO™ Security Add-on
 -------------------------
@@ -34,8 +35,9 @@ OpenVINO™ Security Add-on
 A solution for Model Developers and Independent Software Vendors to use secure packaging and secure model execution.	 
 
 More resources:
-* `documentation <https://docs.openvino.ai/latest/ovsa_get_started.html>`__
-* `GitHub <https://github.com/openvinotoolkit/security_addon>`__
+
+* `documentation <https://docs.openvino.ai/latest/ovsa_get_started.html>`__  
+* `GitHub <https://github.com/openvinotoolkit/security_addon>`__  
 
 
 OpenVINO™ integration with TensorFlow (OVTF)
@@ -45,9 +47,10 @@ A solution empowering TensorFlow developers with OpenVINO's optimization capabil
 in your application, you can offload inference to OpenVINO, while keeping the TensorFlow API.
 
 More resources:
-* `documentation <https://github.com/openvinotoolkit/openvino_tensorflow>`__ 
-* `PyPI <https://pypi.org/project/openvino-tensorflow/>`__
-* `GitHub <https://github.com/openvinotoolkit/openvino_tensorflow>`__
+
+* `documentation <https://github.com/openvinotoolkit/openvino_tensorflow>`__  
+* `PyPI <https://pypi.org/project/openvino-tensorflow/>`__  
+* `GitHub <https://github.com/openvinotoolkit/openvino_tensorflow>`__  
 
 DL Streamer	
 -----------
@@ -55,8 +58,9 @@ DL Streamer
 A streaming media analytics framework, based on the GStreamer multimedia framework, for creating complex media analytics pipelines.
 
 More resources:
-* `documentation on GitHub <https://dlstreamer.github.io/index.html>`__
-* `installation Guide on GitHub <https://github.com/openvinotoolkit/dlstreamer_gst/wiki/Install-Guide>`__
+
+* `documentation on GitHub <https://dlstreamer.github.io/index.html>`__  
+* `installation Guide on GitHub <https://github.com/openvinotoolkit/dlstreamer_gst/wiki/Install-Guide>`__  
 
 DL Workbench
 ------------
@@ -67,9 +71,10 @@ pre-trained models. You can do all that by visiting `Intel® DevCloud for the Ed
 and launching DL Workbench on-line.
 
 More resources:
-* :doc:`documentation <dl_workbench_overview.md>`
-* `Docker Hub <https://hub.docker.com/r/openvino/workbench>`__
-* `PyPI <https://pypi.org/project/openvino-workbench/)>`__
+
+* :doc:`documentation <workbench_docs_Workbench_DG_Introduction>`  
+* `Docker Hub <https://hub.docker.com/r/openvino/workbench>`__  
+* `PyPI <https://pypi.org/project/openvino-workbench/)>`__  
 
 OpenVINO™ Training Extensions (OTE)
 -----------------------------------
@@ -77,7 +82,8 @@ OpenVINO™ Training Extensions (OTE)
 A convenient environment to train Deep Learning models and convert them using the OpenVINO™ toolkit for optimized inference.
 
 More resources:
-* `GitHub <https://github.com/openvinotoolkit/training_extensions>`__
+
+* `GitHub <https://github.com/openvinotoolkit/training_extensions>`__  
 
 Computer Vision Annotation Tool (CVAT)
 --------------------------------------
@@ -85,10 +91,11 @@ Computer Vision Annotation Tool (CVAT)
 An online, interactive video and image annotation tool for computer vision purposes.
 
 More resources:
-* `documentation on GitHub <https://opencv.github.io/cvat/docs/>`__
-* `web application <https://cvat.org/>`__
-* `Docker Hub <https://hub.docker.com/r/openvino/cvat_server>`__
-* `GitHub <https://github.com/openvinotoolkit/cvat>`__
+
+* `documentation on GitHub <https://opencv.github.io/cvat/docs/>`__  
+* `web application <https://cvat.org/>`__  
+* `Docker Hub <https://hub.docker.com/r/openvino/cvat_server>`__  
+* `GitHub <https://github.com/openvinotoolkit/cvat>`__  
 
 Dataset Management Framework (Datumaro)
 ---------------------------------------
@@ -96,8 +103,9 @@ Dataset Management Framework (Datumaro)
 A framework and CLI tool to build, transform, and analyze datasets.
 
 More resources:
-* `documentation on GitHub <https://openvinotoolkit.github.io/datumaro/docs/>`__
-* `PyPI <https://pypi.org/project/datumaro/>`__
-* `GitHub <https://github.com/openvinotoolkit/datumaro>`__
+
+* `documentation on GitHub <https://openvinotoolkit.github.io/datumaro/docs/>`__  
+* `PyPI <https://pypi.org/project/datumaro/>`__  
+* `GitHub <https://github.com/openvinotoolkit/datumaro>`__  
 
 @endsphinxdirective
