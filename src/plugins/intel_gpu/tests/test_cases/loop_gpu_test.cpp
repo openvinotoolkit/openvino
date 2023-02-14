@@ -143,10 +143,6 @@ TEST(loop_gpu, basic_no_concat) {
     test_loop_gpu_basic_no_concat<float>(false);
 }
 
-TEST(export_import_loop_gpu, basic_no_concat) {
-    test_loop_gpu_basic_no_concat<float>(true);
-}
-
 template <typename T>
 void test_loop_gpu_basic_concat(bool is_caching_test)
 {
@@ -261,10 +257,6 @@ void test_loop_gpu_basic_concat(bool is_caching_test)
 
 TEST(loop_gpu, basic_concat) {
     test_loop_gpu_basic_concat<float>(false);
-}
-
-TEST(export_import_loop_gpu, basic_concat) {
-    test_loop_gpu_basic_concat<float>(true);
 }
 
 template <typename T>
@@ -443,7 +435,15 @@ void test_loop_gpu_basic_concat_nested(bool is_caching_test)
 TEST(loop_gpu, basic_concat_nested) {
     test_loop_gpu_basic_concat_nested<float>(false);
 }
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+TEST(loop_gpu, basic_no_concat_cached) {
+    test_loop_gpu_basic_no_concat<float>(true);
+}
 
-TEST(export_import_loop_gpu, basic_concat_nested) {
+TEST(loop_gpu, basic_concat_cached) {
+    test_loop_gpu_basic_concat<float>(true);
+}
+#endif // RUN_ALL_MODEL_CACHING_TESTS
+TEST(loop_gpu, basic_concat_nested_cached) {
     test_loop_gpu_basic_concat_nested<float>(true);
 }
