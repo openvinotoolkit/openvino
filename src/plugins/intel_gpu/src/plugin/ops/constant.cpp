@@ -98,6 +98,7 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
             }
         } else if (ngraph::op::is_binary_elementwise_arithmetic(outOp) ||
                    ngraph::op::is_binary_elementwise_logical(outOp) ||
+                   ngraph::op::is_binary_elementwise_comparison(outOp) ||
                    ngraph::is_type<ngraph::op::v0::SquaredDifference>(outOp)) {
             bool all_inputs_1d = true;
             for (size_t j = 0; j < outOp->get_input_size(); j++) {
