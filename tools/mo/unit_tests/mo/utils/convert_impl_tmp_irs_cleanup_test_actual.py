@@ -5,7 +5,7 @@ import os
 import unittest
 from unittest.mock import patch
 
-from openvino.tools.mo.convert import convert_model
+from openvino.tools.mo_lite.convert import convert_model
 from openvino.tools.mo.utils.error import Error
 
 

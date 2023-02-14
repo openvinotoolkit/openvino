@@ -817,6 +817,7 @@ openvino/tools/mo/middle/UnsqueezeTileReshapeBlockToInterpolate.py
 openvino/tools/mo/middle/UpsampleToResample.py
 openvino/tools/mo/middle/UselessMerge.py
 openvino/tools/mo/middle/UselessSplitEraser.py
+openvino/tools/mo/mo.py
 openvino/tools/mo/ops/__init__.py
 openvino/tools/mo/ops/activation.py
 openvino/tools/mo/ops/activation_ops.py
