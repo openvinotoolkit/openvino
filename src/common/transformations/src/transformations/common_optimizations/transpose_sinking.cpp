@@ -398,7 +398,6 @@ ov::pass::TransposeFuse::TransposeFuse() {
         }
 
         if (is_ordered) {
-            ;
             for (const auto& it : consumers) {
                 it.get_node()->output(0).replace(transpose_1->input_value(0));
             }
@@ -406,8 +405,8 @@ ov::pass::TransposeFuse::TransposeFuse() {
             auto new_order = opset7::Constant::create(saved_type, {saved_order_values.size()}, saved_order_values);
             auto new_transpose = register_new_node<opset7::Transpose>(transpose_1->input_value(0), new_order);
             for (const auto& it : consumers) {
-                it.get_node()->output(0).replace(new_transpose);
                 new_transpose->set_friendly_name(it.get_node()->get_friendly_name());
+                it.get_node()->output(0).replace(new_transpose);
                 copy_runtime_info(transpose_1, new_transpose);
             }
             transpose_sinking::UpdateForwardSinkingAbility(new_transpose);
