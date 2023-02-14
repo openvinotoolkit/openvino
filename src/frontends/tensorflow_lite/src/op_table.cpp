@@ -76,7 +76,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         // EMBEDDING_LOOKUP_SPARSE
         {"EQUAL", translate_binary<opset8::Equal>},
         {"EXP", translate_unary<opset8::Exp>},
-        {"EXPAND_DIMS", DEQUANTIZE_INPUTS(translate_expand_dims_op)},
+        {"EXPAND_DIMS", OP_CONVERT_TYPE_RENAME(translate_expand_dims_op, "ExpandDims")},
         // FAKE_QUANT
         {"FILL", DEQUANTIZE_INPUTS(translate_fill_op)},
         {"FLOOR", translate_unary<opset8::Floor>},

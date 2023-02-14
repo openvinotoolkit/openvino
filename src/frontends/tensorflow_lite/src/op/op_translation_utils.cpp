@@ -157,8 +157,9 @@ void transform_reduce_name(std::string& op_type) {
     auto ind = op_type.find(substring);
     if (ind != std::string::npos)
         op_type.erase(ind, substring.length());
-    std::transform(op_type.begin() + 1, op_type.end(), op_type.begin() + 1,
-                   [](unsigned char c){ return std::tolower(c); });
+    std::transform(op_type.begin() + 1, op_type.end(), op_type.begin() + 1, [](unsigned char c) {
+        return std::tolower(c);
+    });
 }
 
 }  // namespace op
