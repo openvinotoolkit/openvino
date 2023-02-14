@@ -512,22 +512,22 @@ void InferRequest::wait() {
     if (internal_outputs.empty()) {
         IE_THROW() << "Inference was not started!\n";
     }
-
     // wait for completion & collect outputs as requested by the model
     for (auto& no : _networkOutputs) {
         // In dynamic case, graph API must be used to retrieve outputID
         // because it does not create outputsMap during SetGraph
         std::string outputID = outputsMap.empty() ? m_graph->MapOutputName(no.first) : outputsMap.at(no.first);
         auto outputMemory = internal_outputs.at(outputID).get_memory();
+        auto outputLayout = internal_outputs.at(outputID).get_layout();
+        if (outputMemory)
+            outputMemory = m_graph->get_engine().reinterpret_buffer(*outputMemory, outputLayout);
 
         bool need_output_update = false;
 
-        if (!outputMemory) {
-            // only update shape for empty tensor
-            auto internal_output_layout = internal_outputs.at(outputID).get_layout();
+        if (outputLayout.bytes_count() == 0) { // Output is empty tensor. Just update the output blob shape
             auto dims = SizeVector();
-            for (size_t i = 0; i < internal_output_layout.get_shape().size(); ++i) {
-                dims.push_back(internal_output_layout.get_shape()[i]);
+            for (size_t i = 0; i < outputLayout.get_shape().size(); ++i) {
+                dims.push_back(outputLayout.get_shape()[i]);
             }
             _outputs[no.first]->setShape(dims);
         } else if (_outputs.find(no.first) == _outputs.end() || _outputs.at(no.first)->byteSize() != outputMemory->size()) {
@@ -537,7 +537,7 @@ void InferRequest::wait() {
         if (need_output_update) {
             auto node = findOutputByNodeName(no.first);
             auto out_partial_shape = node->get_output_partial_shape(0);
-            auto mem_dims = outputMemory->get_layout().get_shape();
+            auto mem_dims = outputLayout.get_shape();
             size_t out_rank =  out_partial_shape.size();
             auto precision = InferenceEngine::Precision::FP32;
             auto dims = SizeVector(mem_dims.begin(), mem_dims.end());
@@ -578,7 +578,7 @@ void InferRequest::wait() {
                 auto dst_ptr = dst_lock.as<uint8_t*>();
                 same_mem = outputMemory && same_host_mem(outputMemory, dst_ptr);
             }
-            if (!same_mem && outputMemory) {
+            if (!same_mem && outputMemory && outputMemory->size()) {
                 copy_output_data(outputMemory, bptr);
             }
         }

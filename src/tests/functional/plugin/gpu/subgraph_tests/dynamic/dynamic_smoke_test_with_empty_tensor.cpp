@@ -28,7 +28,6 @@ typedef std::tuple<
 > emptyTensorTestParamsSet;
 
 const std::vector<ElementType> netPrecisions = {
-//    ElementType::f16,
     ElementType::i32,
 };
 
@@ -139,7 +138,7 @@ const std::vector<std::vector<ov::test::InputShape>> dynInputShapes = {
         // Input for NonZero
         {{ov::Dimension::dynamic()}, {{30}, {40}, {50}, {10}, {7}}},
         // Input for Concat
-        {{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 7}, {1, 8}, {1, 2}, {1, 3}, {1, 20}}}
+        {{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 0}, {1, 8}, {1, 0}, {1, 3}, {1, 20}}}
     },
 };
 
