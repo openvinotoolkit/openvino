@@ -42,7 +42,7 @@ static AxisVector get_default_order(size_t rank) {
     return default_order;
 }
 
-static size_t get_static_rank(const Output<Node>& output) {
+int64_t get_static_rank(const Output<Node>& output) {
     auto rank = output.get_partial_shape().rank();
     OPENVINO_ASSERT(rank.is_static(), "Dynamic rank is not supported in TransposeSinking transformation.");
     return rank.get_length();
@@ -174,13 +174,13 @@ static void convert_binary_to_default_order(const shared_ptr<Node>& binary,
     // instead of a transpose
     shared_ptr<Node> new_node;
     auto left_rank = get_static_rank(left);
-    if (left_rank < perm_to_def.size() && left.get_partial_shape().is_static()) {
+    if (left_rank < static_cast<int64_t>(perm_to_def.size()) && left.get_partial_shape().is_static()) {
         auto left_shape = left.get_shape();
         left_shape.insert(left_shape.begin(), perm_to_def.size() - left_rank, 1);
 
         auto new_shape = apply_permutation(left_shape, perm_to_def);
         new_node = make_reshape(left, new_shape);
-    } else if (left_rank == perm_to_def.size()) {
+    } else if ((size_t)left_rank == perm_to_def.size()) {
         new_node = make_transpose(left, perm_to_def);
     } else {
         throw runtime_error("case not supported when converting binary to default order");
