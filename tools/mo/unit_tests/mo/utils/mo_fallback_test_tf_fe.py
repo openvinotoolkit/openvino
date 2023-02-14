@@ -10,7 +10,7 @@ import pytest
 from generator import generator, generate
 
 from openvino.frontend import FrontEndManager, FrontEnd  # pylint: disable=no-name-in-module,import-error
-from openvino.tools.mo.convert_impl import prepare_ir
+from openvino.tools.mo_lite.convert_impl import prepare_ir
 
 try:
     import openvino_telemetry as tm

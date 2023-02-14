@@ -14,7 +14,7 @@ from openvino.frontend import (
     FrontEnd,
 )  # pylint: disable=no-name-in-module,import-error
 from openvino.runtime import Core
-from openvino.tools.mo.convert_impl import prepare_ir
+from openvino.tools.mo_lite.convert_impl import prepare_ir
 
 
 def base_args_config():

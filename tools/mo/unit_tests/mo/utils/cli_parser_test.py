@@ -17,8 +17,8 @@ from openvino.tools.mo.utils.cli_parser import get_placeholder_shapes, get_tuple
     get_model_name, \
     parse_tuple_pairs, check_positive, writable_dir, readable_dirs, \
     readable_file, get_freeze_placeholder_values, parse_transform, check_available_transforms, get_layout_values, get_data_type_from_input_value, get_all_cli_parser
-from openvino.tools.mo.convert_impl import pack_params_to_args_namespace
-from openvino.tools.mo.convert import InputCutInfo, LayoutMap
+from openvino.tools.mo_lite.convert_impl import pack_params_to_args_namespace
+from openvino.tools.mo_lite.convert import InputCutInfo, LayoutMap
 from openvino.tools.mo.utils.error import Error
 from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from openvino.runtime import PartialShape, Dimension, Layout
