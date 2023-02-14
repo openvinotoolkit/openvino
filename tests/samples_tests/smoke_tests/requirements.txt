@@ -1,4 +1,4 @@
--c ../../constraints.txt
+-c ../constraints.txt  # due to an issue with CI copying files please change to ../../constraints.txt when installing locally
 requests
 pyyaml
 wheel
