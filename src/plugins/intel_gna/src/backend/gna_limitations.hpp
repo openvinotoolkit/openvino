@@ -10,8 +10,13 @@
 #include <cstdint>
 #include <ie_algorithm.hpp>
 
+#include "common/gna_target.hpp"
 #include "dnn_types.hpp"
 #include "gna_lib_ver_selector.hpp"
+#include "legacy/ngraph_ops/convolution_ie.hpp"
+#include "legacy/ngraph_ops/fully_connected.hpp"
+#include "ngraph/opsets/opset7.hpp"
+#include "ngraph/opsets/opset9.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -70,6 +75,80 @@ inline bool IsTransposeSupported(const std::vector<size_t>& shape) {
     std::tie(min, max) = std::minmax(shape_no_1[0], shape_no_1[1]);
     return min <= 8 && max % 8 == 0 && max >= 8 && max <= transposeMaxSize;
 }
+
+class SupportedElementTypes {
+public:
+    static bool is_parameter_type_supported(ov::element::Type type, bool is_exception_allowed = false);
+    static bool is_constant_type_supported(ov::element::Type type, bool is_exception_allowed = false);
+
+private:
+    static const std::set<ov::element::Type> supported_parameter_types;
+    static const std::set<ov::element::Type> supported_constant_types;
+};
+
+/**
+ * @brief Validates if legacy convolution is supported by GNA
+ * @param conv_ie convolution
+ * @param effective_compile_target GNA compile targets
+ * @param gna_precision GNA inference precision
+ * @param is_exception_allowed flag specifies whether exception is allowed
+ * @return true if supported
+ */
+bool is_conv_supported(const std::shared_ptr<ngraph::op::ConvolutionIE>& conv_ie,
+                       const ov::intel_gna::common::DeviceVersion& effective_compile_target,
+                       const InferenceEngine::Precision gna_precision,
+                       bool is_exception_allowed = false);
+/**
+ * @brief Validates if max pooling is supported by GNA
+ * @param max_pool max pooling
+ * @param effective_compile_target GNA compile targets
+ * @param supported_types list of supported types
+ * @param is_exception_allowed flag specifies whether exception is allowed
+ * @return true if precision is found in supported
+ */
+bool is_pooling_supported(const std::shared_ptr<ngraph::opset7::MaxPool> max_pool,
+                          const ov::intel_gna::common::DeviceVersion& effective_compile_target,
+                          bool is_exception_allowed = false);
+
+/**
+ * @brief Validates if fully connected is supported by GNA
+ * @param fully_connected fully connected
+ * @param is_exception_allowed flag specifies whether exception is allowed
+ * @return true if supported
+ */
+bool is_fc_supported(const std::shared_ptr<ngraph::op::FullyConnected>& fully_connected,
+                     bool is_exception_allowed = false);
+
+/**
+ * @brief Validates if split is supported by GNA
+ * @param node split
+ * @param is_exception_allowed flag specifies whether exception is allowed
+ * @return true if supported
+ */
+bool is_split_supported(const std::shared_ptr<ov::Node>& node, bool is_exception_allowed = false);
+
+/**
+ * @brief Validates if operation is supported by GNA
+ * @param node operation
+ * @param gna_compile_target GNA compile target
+ * @param gna_precision GNA inference precision
+ * @param is_exception_allowed flag specifies whether exception is allowed
+ * @return true if supported
+ */
+bool is_op_supported(const std::shared_ptr<ov::Node>& node,
+                     const ov::intel_gna::common::DeviceVersion& effective_compile_target,
+                     const InferenceEngine::Precision gna_precision,
+                     bool is_exception_allowed = false);
+
+/**
+ * @brief Check if all operations are supported by GNA
+ * @param model ngraph model
+ * @param gna_compile_target GNA compile target
+ * @param gna_precision GNA inference precision
+ */
+void check_all_ops_supported(const std::shared_ptr<ov::Model>& model,
+                             const ov::intel_gna::common::DeviceVersion& effective_compile_target,
+                             const InferenceEngine::Precision gna_precision);
 
 namespace cnn2d {
 
@@ -146,12 +225,13 @@ struct RectLimitByChannelsAndPrecision {
 class AbstractValidator {
 protected:
     static void ThrowIfNotEmpty(const std::string& prefix, const std::string& error);
+
+public:
     static bool ValidationSuccesful(const bool throwOnError,
                                     const std::string& error,
                                     const std::string& operation,
                                     const std::string& type);
 
-public:
     virtual ~AbstractValidator() = default;
     virtual bool ValidateCnn2D(const std::string& name,
                                const uint32_t inHeight,
@@ -199,7 +279,7 @@ public:
                                OvGnaType inPrecision,
                                bool exception = true) const = 0;
 
-    static std::unique_ptr<AbstractValidator> Create(const std::string&);
+    static std::unique_ptr<AbstractValidator> Create(const common::DeviceVersion& target);
 };
 
 class Validator_30 : public AbstractValidator {
@@ -350,6 +430,8 @@ public:
                        OvGnaType inPrecision,
                        bool exception = true) const override;
 };
+
+bool UseOnly16BitConvolutionWeights(const common::DeviceVersion& compile_target);
 
 }  // namespace cnn2d
 
