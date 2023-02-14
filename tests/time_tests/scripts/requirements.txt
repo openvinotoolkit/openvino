@@ -1,2 +1,2 @@
--c ../../../src/bindings/python/constraints.txt
+-c ../../constraints.txt
 PyYAML

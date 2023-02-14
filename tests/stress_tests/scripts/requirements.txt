@@ -1,4 +1,4 @@
--c ../../../src/bindings/python/constraints.txt
+-c ../../constraints.txt
 pymongo
 Jinja2
 PyYAML
