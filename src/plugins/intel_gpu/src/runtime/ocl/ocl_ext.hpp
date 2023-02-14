@@ -7,37 +7,244 @@
 ///
 
 #pragma once
+
+#include <array>
+
+#ifdef OV_GPU_USE_OPENCL_HPP
 #include <CL/opencl.hpp>
+#else
+#include <CL/cl2.hpp>
+#endif
+
 #include <CL/cl_ext.h>
-#define NOMINMAX
+
 #ifdef _WIN32
-#include <CL/cl_d3d11.h>
+# define NOMINMAX
+# include <CL/cl_d3d11.h>
 typedef cl_d3d11_device_source_khr cl_device_source_intel;
 typedef cl_d3d11_device_set_khr    cl_device_set_intel;
 #else
-#include <CL/cl_va_api_media_sharing_intel.h>
+# include <CL/cl_va_api_media_sharing_intel.h>
 typedef cl_va_api_device_source_intel cl_device_source_intel;
 typedef cl_va_api_device_set_intel    cl_device_set_intel;
 #endif
 
+/********************************************
+* cl_intel_required_subgroup_size extension *
+*********************************************/
+
+#if !defined(cl_intel_required_subgroup_size)
+#define cl_intel_required_subgroup_size 1
+
 // cl_intel_required_subgroup_size
 #define CL_DEVICE_SUB_GROUP_SIZES_INTEL           0x4108
 
-// cl_intel_device_attribute_query
-#define CL_DEVICE_IP_VERSION_INTEL                0x4250
-#define CL_DEVICE_ID_INTEL                        0x4251
-#define CL_DEVICE_NUM_SLICES_INTEL                0x4252
-#define CL_DEVICE_NUM_SUB_SLICES_PER_SLICE_INTEL  0x4253
-#define CL_DEVICE_NUM_EUS_PER_SUB_SLICE_INTEL     0x4254
-#define CL_DEVICE_NUM_THREADS_PER_EU_INTEL        0x4255
-#define CL_DEVICE_FEATURE_CAPABILITIES_INTEL      0x4256
+#endif // cl_intel_required_subgroup_size
+
+namespace cl {
+namespace detail {
+CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_SUB_GROUP_SIZES_INTEL, vector<size_type>)
+}  // namespace detail
+}  // namespace cl
+
+/***************************************************************
+* cl_intel_command_queue_families
+***************************************************************/
+
+#if !defined(cl_intel_command_queue_families)
+#define cl_intel_command_queue_families 1
+
+typedef cl_bitfield         cl_command_queue_capabilities_intel;
+
+#define CL_QUEUE_FAMILY_MAX_NAME_SIZE_INTEL                 64
+
+typedef struct _cl_queue_family_properties_intel {
+    cl_command_queue_properties properties;
+    cl_command_queue_capabilities_intel capabilities;
+    cl_uint count;
+    char name[CL_QUEUE_FAMILY_MAX_NAME_SIZE_INTEL];
+} cl_queue_family_properties_intel;
+
+/* cl_device_info */
+#define CL_DEVICE_QUEUE_FAMILY_PROPERTIES_INTEL             0x418B
+
+/* cl_queue_properties */
+#define CL_QUEUE_FAMILY_INTEL                               0x418C
+#define CL_QUEUE_INDEX_INTEL                                0x418D
+
+/* cl_command_queue_capabilities_intel */
+#define CL_QUEUE_DEFAULT_CAPABILITIES_INTEL                 0
+
+#endif  // cl_intel_command_queue_families
+
+/*******************************************
+* cl_intel_unified_shared_memory extension *
+********************************************/
+
+#if !defined(cl_intel_unified_shared_memory)
+#define cl_intel_unified_shared_memory 1
+
+/* cl_mem_alloc_info_intel */
+#define CL_MEM_ALLOC_TYPE_INTEL         0x419A
+#define CL_MEM_ALLOC_SIZE_INTEL         0x419C
+
+/* cl_unified_shared_memory_type_intel */
+#define CL_MEM_TYPE_UNKNOWN_INTEL       0x4196
+#define CL_MEM_TYPE_HOST_INTEL          0x4197
+#define CL_MEM_TYPE_DEVICE_INTEL        0x4198
+#define CL_MEM_TYPE_SHARED_INTEL        0x4199
+
+/* cl_device_info */
+#define CL_DEVICE_HOST_MEM_CAPABILITIES_INTEL                   0x4190
+#define CL_DEVICE_DEVICE_MEM_CAPABILITIES_INTEL                 0x4191
+#define CL_DEVICE_SINGLE_DEVICE_SHARED_MEM_CAPABILITIES_INTEL   0x4192
+
+/* cl_device_unified_shared_memory_capabilities_intel - bitfield */
+#define CL_UNIFIED_SHARED_MEMORY_ACCESS_INTEL                   (1 << 0)
+
+typedef cl_ulong            cl_properties;
+typedef cl_properties cl_mem_properties_intel;
+typedef cl_uint cl_mem_info_intel;
+typedef cl_uint cl_unified_shared_memory_type_intel;
+typedef cl_bitfield cl_device_unified_shared_memory_capabilities_intel;
+
+typedef cl_int (CL_API_CALL *
+clMemFreeINTEL_fn)(
+            cl_context context,
+            void* ptr);
+
+typedef cl_int (CL_API_CALL *
+clSetKernelArgMemPointerINTEL_fn)(
+            cl_kernel kernel,
+            cl_uint arg_index,
+            const void* arg_value);
+
+typedef cl_int (CL_API_CALL *
+clEnqueueMemcpyINTEL_fn)(
+            cl_command_queue command_queue,
+            cl_bool blocking,
+            void* dst_ptr,
+            const void* src_ptr,
+            size_t size,
+            cl_uint num_events_in_wait_list,
+            const cl_event* event_wait_list,
+            cl_event* event);
+
+typedef void* (CL_API_CALL *
+clHostMemAllocINTEL_fn)(
+            cl_context context,
+            const cl_mem_properties_intel* properties,
+            size_t size,
+            cl_uint alignment,
+            cl_int* errcode_ret);
+
+typedef void* (CL_API_CALL *
+clSharedMemAllocINTEL_fn)(
+            cl_context context,
+            cl_device_id device,
+            const cl_mem_properties_intel* properties,
+            size_t size,
+            cl_uint alignment,
+            cl_int* errcode_ret);
+
+typedef void* (CL_API_CALL *
+clDeviceMemAllocINTEL_fn)(
+            cl_context context,
+            cl_device_id device,
+            const cl_mem_properties_intel* properties,
+            size_t size,
+            cl_uint alignment,
+            cl_int* errcode_ret);
+
+typedef cl_int (CL_API_CALL *
+clGetMemAllocInfoINTEL_fn)(
+            cl_context context,
+            const void* ptr,
+            cl_mem_info_intel param_name,
+            size_t param_value_size,
+            void* param_value,
+            size_t* param_value_size_ret);
+
+typedef cl_int (CL_API_CALL *
+clEnqueueMemsetINTEL_fn)(   /* Deprecated */
+            cl_command_queue command_queue,
+            void* dst_ptr,
+            cl_int value,
+            size_t size,
+            cl_uint num_events_in_wait_list,
+            const cl_event* event_wait_list,
+            cl_event* event);
+
+typedef cl_int (CL_API_CALL *
+clEnqueueMemFillINTEL_fn)(
+            cl_command_queue command_queue,
+            void* dst_ptr,
+            const void* pattern,
+            size_t pattern_size,
+            size_t size,
+            cl_uint num_events_in_wait_list,
+            const cl_event* event_wait_list,
+            cl_event* event);
+
+#endif // cl_intel_unified_shared_memory
+
+/********************************
+* cl_intel_planar_yuv extension *
+*********************************/
+
+#if !defined(CL_NV12_INTEL)
+#define CL_NV12_INTEL                                       0x410E
+#endif // CL_NV12_INTEL
+
+#if !defined(CL_MEM_ACCESS_FLAGS_UNRESTRICTED_INTEL)
+#define CL_MEM_ACCESS_FLAGS_UNRESTRICTED_INTEL              (1 << 25)
+#endif // CL_MEM_ACCESS_FLAGS_UNRESTRICTED_INTEL
+
+/*********************************
+* cl_khr_device_uuid extension
+*********************************/
+
+#if !defined(cl_khr_device_uuid)
+#define cl_khr_device_uuid 1
+
+#define CL_UUID_SIZE_KHR 16
+
+#define CL_DEVICE_UUID_KHR          0x106A
+
+// for C++ wrappers
+using uuid_array = std::array<cl_uchar, CL_UUID_SIZE_KHR>;
+
+namespace cl {
+namespace detail {
+CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_UUID_KHR, uuid_array)
+}  // namespace detail
+}  // namespace cl
+
+#endif // cl_khr_device_uuid
+
+/***************************************************************
+* cl_intel_device_attribute_query
+***************************************************************/
+
+#if !defined(cl_intel_device_attribute_query)
+#define cl_intel_device_attribute_query 1
 
 typedef cl_bitfield         cl_device_feature_capabilities_intel;
 
-/* For GPU devices, version 1.0.0: */
+/* cl_device_feature_capabilities_intel */
+#define CL_DEVICE_FEATURE_FLAG_DP4A_INTEL                   (1 << 0)
+#define CL_DEVICE_FEATURE_FLAG_DPAS_INTEL                   (1 << 1)
 
-#define CL_DEVICE_FEATURE_FLAG_DP4A_INTEL         (1 << 0)
-#define CL_DEVICE_FEATURE_FLAG_DPAS_INTEL         (1 << 1)
+/* cl_device_info */
+#define CL_DEVICE_IP_VERSION_INTEL                          0x4250
+#define CL_DEVICE_ID_INTEL                                  0x4251
+#define CL_DEVICE_NUM_SLICES_INTEL                          0x4252
+#define CL_DEVICE_NUM_SUB_SLICES_PER_SLICE_INTEL            0x4253
+#define CL_DEVICE_NUM_EUS_PER_SUB_SLICE_INTEL               0x4254
+#define CL_DEVICE_NUM_THREADS_PER_EU_INTEL                  0x4255
+#define CL_DEVICE_FEATURE_CAPABILITIES_INTEL                0x4256
+
+#endif // cl_intel_device_attribute_query
 
 #define CL_HPP_PARAM_NAME_CL_INTEL_COMMAND_QUEUE_FAMILIES_(F) \
     F(cl_device_info, CL_DEVICE_QUEUE_FAMILY_PROPERTIES_INTEL, cl::vector<cl_queue_family_properties_intel>) \
@@ -47,7 +254,6 @@ typedef cl_bitfield         cl_device_feature_capabilities_intel;
 
 namespace cl {
 namespace detail {
-CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_SUB_GROUP_SIZES_INTEL, vector<size_type>)
 CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_IP_VERSION_INTEL, cl_uint)
 CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_ID_INTEL, cl_uint)
 CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_NUM_SLICES_INTEL, cl_uint)

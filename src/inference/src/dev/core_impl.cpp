@@ -25,10 +25,12 @@
 #include "openvino/core/op_extension.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/core/version.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/shared_object.hpp"
+#include "preprocessing/preprocessing.hpp"
 #include "xml_parse_utils.h"
 
 ov::ICore::~ICore() = default;
@@ -40,6 +42,7 @@ void allowNotImplemented(F&& f) {
     try {
         f();
     } catch (const InferenceEngine::NotImplemented&) {
+    } catch (const ov::NotImplemented&) {
     }
 }
 
@@ -58,64 +61,6 @@ ov::CoreImpl::CoreImpl(bool _newAPI) : m_new_api(_newAPI) {
     for (const auto& it : ov::get_available_opsets()) {
         opsetNames.insert(it.first);
     }
-}
-
-ov::util::FilePath ov::get_plugin_path(const std::string& plugin) {
-    // Assume `plugin` may contain:
-    // 1. /path/to/libexample.so absolute path
-    // 2. ../path/to/libexample.so path relative to working directory
-    // 3. example library name - to be converted to 4th case
-    // 4. libexample.so - path relative to working directory (if exists) or file to be found in ENV
-
-    // For 1-2 cases
-    if (plugin.find(ov::util::FileTraits<char>::file_separator) != std::string::npos)
-        return ov::util::to_file_path(ov::util::get_absolute_file_path(plugin));
-
-    auto lib_name = plugin;
-    // For 3rd case - convert to 4th case
-    if (!ov::util::ends_with(plugin, ov::util::FileTraits<char>::library_ext()))
-        lib_name = FileUtils::makePluginLibraryName({}, plugin);
-
-    // For 4th case
-    auto lib_path = ov::util::to_file_path(ov::util::get_absolute_file_path(lib_name));
-    if (ov::util::file_exists(lib_path))
-        return lib_path;
-    return ov::util::to_file_path(lib_name);
-}
-
-ov::util::FilePath ov::get_plugin_path(const std::string& plugin, const std::string& xml_path, bool as_abs_only) {
-    // Assume `plugin` (from XML "location" record) contains only:
-    // 1. /path/to/libexample.so absolute path
-    // 2. ../path/to/libexample.so path relative to XML directory
-    // 3. example library name - to be converted to 4th case
-    // 4. libexample.so - path relative to XML directory (if exists) or file to be found in ENV
-    // (if `as_abs_only` is false)
-
-    // For 1st case
-    if (ov::util::is_absolute_file_path(plugin))
-        return ov::util::to_file_path(plugin);
-
-    auto xml_path_ = xml_path;
-    if (xml_path.find(ov::util::FileTraits<char>::file_separator) == std::string::npos)
-        xml_path_ = FileUtils::makePath(std::string("."), xml_path);  // treat plugins.xml as CWD/plugins.xml
-
-    // For 2nd case
-    if (plugin.find(ov::util::FileTraits<char>::file_separator) != std::string::npos) {
-        auto path_ = FileUtils::makePath(ov::util::get_directory(xml_path_), plugin);
-        return ov::util::to_file_path(ov::util::get_absolute_file_path(path_));  // canonicalize path
-    }
-
-    auto lib_file_name = plugin;
-    // For 3rd case - convert to 4th case
-    if (!ov::util::ends_with(plugin, ov::util::FileTraits<char>::library_ext()))
-        lib_file_name = FileUtils::makePluginLibraryName({}, plugin);
-
-    // For 4th case
-    auto lib_path = FileUtils::makePath(ov::util::get_directory(xml_path_), lib_file_name);
-    lib_path = ov::util::get_absolute_file_path(lib_path);  // canonicalize path
-    if (as_abs_only || ov::util::file_exists(lib_path))
-        return ov::util::to_file_path(lib_path);
-    return ov::util::to_file_path(lib_file_name);
 }
 
 void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_file, const bool& by_abs_path) {
@@ -142,7 +87,7 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
         }
 
         ov::util::FilePath pluginPath =
-            get_plugin_path(GetStrAttr(pluginNode, "location"), xml_config_file, by_abs_path);
+            ov::util::get_plugin_path(GetStrAttr(pluginNode, "location"), xml_config_file, by_abs_path);
 
         // check properties
         auto propertiesNode = pluginNode.child("properties");
@@ -386,16 +331,22 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(ov::Plugin& plugin,
                                                           const std::shared_ptr<const ov::Model>& model,
                                                           const ov::RemoteContext& context,
                                                           const ov::AnyMap& config) const {
+    std::shared_ptr<const ov::Model> prepared_model = model;
     ov::SoPtr<ov::ICompiledModel> compiled_model;
 
     if (!is_new_api() && !std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin.m_ptr)) {
-        OPENVINO_NOT_IMPLEMENTED;
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::AddPreprocessing>();
+
+        auto cloned_model = model->clone();
+        manager.run_passes(cloned_model);
+        prepared_model = cloned_model;
     }
 
     if (!context._impl) {
-        compiled_model = plugin.compile_model(model, config);
+        compiled_model = plugin.compile_model(prepared_model, config);
     } else {
-        compiled_model = plugin.compile_model(model, context, config);
+        compiled_model = plugin.compile_model(prepared_model, context, config);
     }
     return compiled_model;
 }
@@ -746,7 +697,7 @@ void ov::CoreImpl::register_plugin(const std::string& plugin, const std::string&
         IE_THROW() << "Device name must not contain dot '.' symbol";
     }
 
-    PluginDescriptor desc{get_plugin_path(plugin)};
+    PluginDescriptor desc{ov::util::get_plugin_path(plugin)};
     pluginRegistry[device_name] = desc;
     add_mutex(device_name);
 }
@@ -907,8 +858,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_impl(const std::shared
                                                                bool forceDisableCache) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::compile_model_impl");
     ov::SoPtr<ov::ICompiledModel> execNetwork;
-    execNetwork =
-        context._impl ? plugin.compile_model(model, context, parsedConfig) : plugin.compile_model(model, parsedConfig);
+    execNetwork = compile_model(plugin, model, context, parsedConfig);
     if (!forceDisableCache && cacheContent.cacheManager && device_supports_import_export(plugin)) {
         try {
             // need to export network for further import from "cache"

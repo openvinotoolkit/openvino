@@ -27,7 +27,7 @@ OutputVector translate_loop(NodeContext& context) {
 
     auto body_parameters = body->get_parameters();
     // #0 parameter is counter
-    for (int i = 1; i < body_parameters.size(); i++) {
+    for (size_t i = 1; i < body_parameters.size(); i++) {
         auto param = body_parameters[i];
         auto name = param->get_output_tensor(0).get_any_name();
         size_t input_idx = (size_t)std::stoll(name);
@@ -53,7 +53,7 @@ OutputVector translate_loop(NodeContext& context) {
     FRONT_END_OP_CONVERSION_CHECK(body_results.size() > 0, "At least one output from loop is required - condition.");
     std::set<size_t> output_idxs;
     // 0 output is condition, do not need to connect it
-    for (int i = 1; i < body_results.size(); i++) {
+    for (size_t i = 1; i < body_results.size(); i++) {
         auto result = body_results[i];
         auto name = result->input(0).get_tensor().get_any_name();
         size_t out_idx = (size_t)std::stoll(name);

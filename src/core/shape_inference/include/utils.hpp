@@ -8,6 +8,7 @@
 #include <openvino/opsets/opset1.hpp>
 #include <type_traits>
 
+#include "bound_evaluation_util.hpp"
 #include "shape_infer_type_utils.hpp"
 
 template <class OpType, class T>
@@ -65,6 +66,7 @@ namespace ov {
  */
 template <class T, class TResult = std::vector<T>, class UnaryOperation>
 TResult get_raw_data_as(const element::Type_t et, const void* const ptr, const size_t size, UnaryOperation&& func) {
+    OPENVINO_ASSERT(!!ptr, "ptr is Null");
     TResult out;
     auto out_it = std::inserter(out, out.end());
 
@@ -329,6 +331,50 @@ std::unique_ptr<TShape> get_input_const_data_as_shape(const ov::Node* op,
     }
     return {};
 }
+
+/**
+ * \brief Get the input bounds from constant input (constant map) or evaluate bunds
+ *  and return them as vector of pairs (lower, upper).
+ *
+ * \tparam TShape        Shape type.
+ * \tparam TData         Bound value type.
+ *
+ * \param op             Operator pointer.
+ * \param idx            Input index.
+ * \param constant_data  Map with constant data.
+ *
+ * \return Return vector of bounds as pair lower, upper.
+ */
+template <class TShape, class TData, class TResult = std::vector<std::pair<TData, TData>>>
+std::unique_ptr<TResult> get_input_bounds(const ov::Node* op,
+                                          size_t idx,
+                                          const std::map<size_t, HostTensorPtr>& constant_data) {
+    const auto make_bound = [](TData lb, TData ub) -> typename TResult::value_type {
+        return {lb, ub};
+    };
+
+    if (auto lowers = op::get_input_const_data_as<TShape, TData>(op, idx, constant_data)) {
+        auto out = std::unique_ptr<TResult>(new TResult);
+        out->reserve(lowers->size());
+        std::transform(lowers->begin(), lowers->end(), lowers->begin(), std::back_inserter(*out), make_bound);
+        return out;
+    } else {
+        auto bounds = ov::evaluate_both_bounds(op->get_input_source_output(idx));
+
+        if (bounds.first && bounds.second) {
+            constexpr auto cast = ov::util::Cast<TData>();
+            auto lowers = get_tensor_data_as<TData>(bounds.first, cast);
+            auto uppers = get_tensor_data_as<TData>(bounds.second, cast);
+
+            auto out = std::unique_ptr<TResult>(new TResult);
+            out->reserve(lowers.size());
+            std::transform(lowers.begin(), lowers.end(), uppers.begin(), std::back_inserter(*out), make_bound);
+            return out;
+        }
+    }
+    return {};
+}
+
 }  // namespace op
 }  // namespace ov
 

@@ -201,6 +201,7 @@ kernel_selector::dim_tensor<T> convert_dim_vector(const tensor& t) {
 
 void convert_fused_ops_to_legacy_activations(const kernel_impl_params& param_info, std::vector<kernel_selector::base_activation_params>& activations);
 bool use_legacy_fused_ops(const kernel_impl_params& param_info);
+bool is_shape_agnostic(const kernel_impl_params& param_info);
 
 void set_params(const kernel_impl_params& param_info, kernel_selector::params& params);
 
@@ -215,6 +216,9 @@ inline params_t get_default_params(const kernel_impl_params& param_info) {
 
     params.inputs[0] = convert_data_tensor(input_layout);
     params.outputs[0] = convert_data_tensor(output_layout);
+    if (is_shape_agnostic(param_info)) {
+        params.is_shape_agnostic = true;
+    }
     params.layerID = param_info.desc->id;
 
     if (use_legacy_fused_ops(param_info)) {

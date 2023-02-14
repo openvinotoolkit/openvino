@@ -118,6 +118,21 @@ struct matrix_nms : public primitive_base<matrix_nms> {
 
     attributes attribs;
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, attribs.sort_type);
+        seed = hash_combine(seed, attribs.sort_result_across_batch);
+        seed = hash_combine(seed, attribs.score_threshold);
+        seed = hash_combine(seed, attribs.nms_top_k);
+        seed = hash_combine(seed, attribs.keep_top_k);
+        seed = hash_combine(seed, attribs.background_class);
+        seed = hash_combine(seed, attribs.decay);
+        seed = hash_combine(seed, attribs.gaussian_sigma);
+        seed = hash_combine(seed, attribs.post_threshold);
+        seed = hash_combine(seed, attribs.normalized);
+        return seed;
+    }
+
 private:
     static cldnn::matrix_nms::decay_function from(ngraph::op::v8::MatrixNms::DecayFunction decay) {
         switch (decay) {

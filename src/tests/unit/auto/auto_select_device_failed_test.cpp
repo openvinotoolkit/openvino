@@ -225,6 +225,11 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
         devicesStr += ((++iter) == deviceConfigs.end()) ? "" : ",";
     }
     ON_CALL(*plugin, ParseMetaDevices(_, _)).WillByDefault(Return(metaDevices));
+    ON_CALL(*plugin, GetValidDevice)
+        .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
+            std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
+            return devices;
+        });
     config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , devicesStr});
     // if set this parameter true, the second selecting call will thrown exception,
     // if there is only one device, it will thrown exception at the first call
@@ -259,7 +264,7 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
 
 // the test configure, for example
 // ConfigParams {true, false,  GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
-//               DeviceParams {"MYRIAD", true},
+//               DeviceParams {CommonTestUtils::DEVICE_KEEMBAY, true},
 //                DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 2, 3, 2},
 //
 // every element for ConfigParams
@@ -275,28 +280,28 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
 // so inference request num is 4 (CPU 2, MYRIAD 2)
 //
 const std::vector<ConfigParams> testConfigs = {ConfigParams {true, false, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, true},
-                                                        DeviceParams {"MYRIAD", true},
+                                                        DeviceParams {CommonTestUtils::DEVICE_KEEMBAY, true},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 1, 2, 2},
                                                ConfigParams {true, false, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
-                                                        DeviceParams {"MYRIAD", true},
+                                                        DeviceParams {CommonTestUtils::DEVICE_KEEMBAY, true},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 2, 3, 2},
                                                ConfigParams {true, false, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, true},
-                                                        DeviceParams {"MYRIAD", false},
+                                                        DeviceParams {CommonTestUtils::DEVICE_KEEMBAY, false},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 1, 2, 2},
                                                ConfigParams {true, false, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, true},
-                                                        DeviceParams {"MYRIAD", true},
+                                                        DeviceParams {CommonTestUtils::DEVICE_KEEMBAY, true},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, false}}, 1, 2, 1},
                                                ConfigParams {true, false, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, true},
-                                                        DeviceParams {"MYRIAD", false},
+                                                        DeviceParams {CommonTestUtils::DEVICE_KEEMBAY, false},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, false}}, 1, 2, 1},
                                                ConfigParams {true, false, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
-                                                        DeviceParams {"MYRIAD", true},
+                                                        DeviceParams {CommonTestUtils::DEVICE_KEEMBAY, true},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, false}}, 2, 3, 1},
                                                ConfigParams {true, false, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
-                                                        DeviceParams {"MYRIAD", false},
+                                                        DeviceParams {CommonTestUtils::DEVICE_KEEMBAY, false},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 3, 4, 2},
                                                ConfigParams {false, false, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
-                                                        DeviceParams {"MYRIAD", false},
+                                                        DeviceParams {CommonTestUtils::DEVICE_KEEMBAY, false},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, false}}, 3, 4, 0},
                                                ConfigParams {true, false, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, true},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 1, 2, 2},
@@ -313,20 +318,20 @@ const std::vector<ConfigParams> testConfigs = {ConfigParams {true, false, GENERA
                                                ConfigParams {false, true, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, true}}, 1, 0, 0},
                                                ConfigParams {false, true, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 1, 0, 0},
                                                ConfigParams {true, true, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
-                                                        DeviceParams {"MYRIAD", true},
+                                                        DeviceParams {CommonTestUtils::DEVICE_KEEMBAY, true},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 2, 2, 1},
                                                ConfigParams {false, true, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
-                                                        DeviceParams {"MYRIAD", true},
+                                                        DeviceParams {CommonTestUtils::DEVICE_KEEMBAY, true},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, false}}, 2, 2, 0},
                                                ConfigParams {true, true, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 2, 2, 1},
                                                ConfigParams {true, false, LATENCY, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
-                                                        DeviceParams {"MYRIAD", false},
+                                                        DeviceParams {CommonTestUtils::DEVICE_KEEMBAY, false},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 3, 3, 1},
                                                ConfigParams {true, false, LATENCY, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 2, 2, 1},
                                                ConfigParams {true, false, THROUGHPUT, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
-                                                        DeviceParams {"MYRIAD", false},
+                                                        DeviceParams {CommonTestUtils::DEVICE_KEEMBAY, false},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 3, 4, 2},
                                                ConfigParams {true, false, THROUGHPUT, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 2, 3, 2}

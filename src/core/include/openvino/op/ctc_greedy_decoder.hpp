@@ -32,6 +32,10 @@ public:
         return m_ctc_merge_repeated;
     }
 
+    void set_ctc_merge_repeated(bool ctc_merge_repeated) {
+        m_ctc_merge_repeated = ctc_merge_repeated;
+    }
+
 private:
     bool m_ctc_merge_repeated{true};
 };

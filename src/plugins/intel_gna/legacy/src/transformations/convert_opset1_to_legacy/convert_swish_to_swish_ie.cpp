@@ -4,20 +4,18 @@
 
 #include "legacy/transformations/convert_opset1_to_legacy/convert_swish_to_swish_ie.hpp"
 
-#include <memory>
-
-#include <ngraph/opsets/opset4.hpp>
-
 #include <legacy/ngraph_ops/swish_ie.hpp>
-#include <transformations/utils/utils.hpp>
-#include <ngraph/rt_info.hpp>
+#include <memory>
+#include <ngraph/opsets/opset4.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+#include <transformations/utils/utils.hpp>
 
 ngraph::pass::ConvertSwishToSwishIEMatcher::ConvertSwishToSwishIEMatcher() {
     auto swish = ngraph::pattern::wrap_type<ngraph::opset4::Swish>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto swish = std::dynamic_pointer_cast<ngraph::opset4::Swish> (m.get_match_root());
+        auto swish = std::dynamic_pointer_cast<ngraph::opset4::Swish>(m.get_match_root());
         if (!swish) {
             return false;
         }

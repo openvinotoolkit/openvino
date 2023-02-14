@@ -25,6 +25,7 @@
 #include <intel_gpu/primitives/pooling.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/data.hpp>
+#include "intel_gpu/graph/serialization/utils.hpp"
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -589,25 +590,6 @@ std::vector<float> get_output_values_to_float(network& net, const primitive_id& 
     return ret;
 }
 double default_tolerance(data_types dt);
-class membuf : public std::streambuf
-{
-public:
-    membuf() : _pos(0) { }
-
-protected:
-    virtual int_type overflow (int_type c) {
-        _buf.emplace_back(c);
-        return c;
-    }
-
-    virtual int_type uflow() {
-        return (_pos < _buf.size()) ? _buf[_pos++] : EOF;
-    }
-
-private:
-    std::vector<int_type> _buf;
-    size_t _pos;
-};
 // inline void print_bin_blob(cldnn::memory& mem, std::string name)
 // {
 //     auto&& size = mem.get_layout().get_tensor();

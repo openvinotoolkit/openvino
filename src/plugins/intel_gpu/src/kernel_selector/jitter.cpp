@@ -241,6 +241,8 @@ protected:
     explicit TensorBaseTJitConstant(const std::string& name) : JitConstant(name) {}
 
 public:
+    using JitConstant::GetDefinitions;
+
     JitDefinitions GetDefinitions(const Tensor::TensorBaseT<DType, Layout>& t) const {
         JitDefinitions definitions{
             {_name + "_OFFSET", toCodeString(t.GetFirstElementOffset())},
@@ -561,14 +563,9 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
 
     std::string offset = toCodeString(_tensor.GetFirstElementOffset());
     if (_tensor.LogicalSize() == 1 && !_tensor.is_dynamic()) {
-        // if tensor contains single element we can always return 0 for safe function
-        if (_tensor.PitchesDifferFromLogicalDims()) {
-            definitions.push_back({ safe_index_func_name, offset });
-            definitions.push_back({ index_func_name, offset });
-        } else {
-            definitions.push_back({ safe_index_func_name, "0" });
-            definitions.push_back({ index_func_name, "0" });
-        }
+        // if tensor contains single element we can always return first element offset for safe function
+        definitions.push_back({ safe_index_func_name, offset });
+        definitions.push_back({ index_func_name, offset });
     } else if (_tensor.LogicalSize() == _tensor.Feature().v && !_tensor.is_dynamic()) {
         // We support broadcast only if corresponding dimension is equal to 1.
         // Otherwise, dimensions should be equal and using "f" should be safe.

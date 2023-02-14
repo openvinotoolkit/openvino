@@ -50,6 +50,17 @@ ov::op::v0::Constant::Constant(const shared_ptr<ngraph::runtime::Tensor>& tensor
     constructor_validate_and_infer_types();
 }
 
+ov::op::v0::Constant::Constant(const ov::Tensor& tensor) {
+    m_element_type = tensor.get_element_type();
+    m_shape = tensor.get_shape();
+    // Share data from ov::Tensor
+    m_data = make_shared<ngraph::runtime::SharedBuffer<ov::Tensor>>(static_cast<char*>(tensor.data()),
+                                                                    tensor.get_byte_size(),
+                                                                    tensor);
+
+    constructor_validate_and_infer_types();
+}
+
 ov::op::v0::Constant::Constant(const element::Type& type,
                                const ov::Shape& shape,
                                const std::vector<std::string>& values)
@@ -552,6 +563,7 @@ bool ov::op::v0::Constant::visit_attributes(AttributeVisitor& visitor) {
 bool ov::op::v0::Constant::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Constant_evaluate);
     auto output = outputs[0];
+    output->set_shape(get_shape());
     output->write(get_data_ptr(), output->get_size_in_bytes());
     return true;
 }
@@ -561,9 +573,9 @@ bool ov::op::v0::Constant::has_evaluate() const {
     return true;
 }
 
-bool ov::op::v0::Constant::evaluate_lower(const HostTensorVector& outputs) const {
+bool ov::op::v0::Constant::evaluate_lower(TensorVector& outputs) const {
     return evaluate(outputs, {});
 }
-bool ov::op::v0::Constant::evaluate_upper(const HostTensorVector& outputs) const {
+bool ov::op::v0::Constant::evaluate_upper(TensorVector& outputs) const {
     return evaluate(outputs, {});
 }

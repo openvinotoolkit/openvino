@@ -71,6 +71,21 @@ struct experimental_detectron_detection_output : public primitive_base<experimen
     float max_delta_log_wh;
     std::vector<float> deltas_weights;
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, score_threshold);
+        seed = hash_combine(seed, nms_threshold);
+        seed = hash_combine(seed, num_classes);
+        seed = hash_combine(seed, post_nms_count);
+        seed = hash_combine(seed, max_detections_per_image);
+        seed = hash_combine(seed, class_agnostic_box_regression);
+        seed = hash_combine(seed, max_delta_log_wh);
+        seed = hash_range(seed, deltas_weights.begin(), deltas_weights.end());
+        seed = hash_combine(seed, output_classes.empty());
+        seed = hash_combine(seed, output_scores.empty());
+        return seed;
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
