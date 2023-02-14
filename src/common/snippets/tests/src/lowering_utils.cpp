@@ -11,7 +11,7 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-DummyTargetMachine::DummyTargetMachine(const std::vector<ov::Node::type_info_t>& custom_nodes) {
+DummyTargetMachine::DummyTargetMachine(const std::vector<ov::Node::type_info_t>& custom_opset) {
     auto dummy_functor = [](const std::shared_ptr<ngraph::Node>& n) {
         return std::make_shared<DummyEmitter>();
     };
@@ -42,7 +42,7 @@ DummyTargetMachine::DummyTargetMachine(const std::vector<ov::Node::type_info_t>&
     jitters[ngraph::snippets::op::VectorBuffer::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::Fill::get_type_info_static()] = dummy_functor;
 
-    for (const auto& elem : custom_nodes) {
+    for (const auto& elem : custom_opset) {
         jitters[elem] = dummy_functor;
     }
 }

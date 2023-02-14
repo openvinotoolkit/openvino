@@ -26,7 +26,7 @@ public:
 
 class DummyTargetMachine : public ngraph::snippets::TargetMachine {
 public:
-    DummyTargetMachine(const std::vector<ov::Node::type_info_t>& custom_nodes = {});
+    DummyTargetMachine(const std::vector<ov::Node::type_info_t>& custom_opset = {});
     bool is_supported() const override { return true; }
     ngraph::snippets::code get_snippet() const override { return nullptr; }
     size_t get_lanes() const override { return 10; }

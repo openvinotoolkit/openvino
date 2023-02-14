@@ -144,8 +144,8 @@ protected:
 
         cpu_manager.register_pass<ov::intel_cpu::pass::MulAddToFMA>();
 
-        std::vector<ov::Node::type_info_t> custom_nodes{ov::intel_cpu::FusedMulAdd::get_type_info_static()};
-        auto target_machine = std::make_shared<DummyTargetMachine>(custom_nodes);
+        std::vector<ov::Node::type_info_t> custom_opset{ov::intel_cpu::FusedMulAdd::get_type_info_static()};
+        auto target_machine = std::make_shared<DummyTargetMachine>(custom_opset);
         generator = std::make_shared<DummyGenerator>(target_machine);
     }
 
