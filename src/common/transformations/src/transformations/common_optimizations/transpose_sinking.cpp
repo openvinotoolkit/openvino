@@ -170,16 +170,22 @@ ov::pass::TransposeReductionBackward::TransposeReductionBackward() {
             int shift = 0;
             std::vector<size_t> aligned_order(transpose_order_values.size() + non_negative_axes.size());
             for (size_t i = 0, j = 0; j < aligned_order.size(); ++j) {
+                std::cout << "XXXXXX j " << j << std::endl;
                 if (std::find(non_negative_axes.begin(), non_negative_axes.end(), j) != non_negative_axes.end()) {
                     aligned_order[j] = j;
-                    ++j;
                     ++shift;
+                    continue;
                 }
                 aligned_order[j] = transpose_order_values[i] + shift;
                 ++i;
             }
 
             transpose_order_values = aligned_order;
+            std::cout << "XXXXX : " << std::endl;
+            for (const auto& it : transpose_order_values) {
+                std::cout << it << " ";
+            }
+            std::cout << std::endl;
         }
         auto reversed_order_values = transpose_sinking::ReverseTransposeOrder(transpose_order_values);
         std::vector<int64_t> new_values;
