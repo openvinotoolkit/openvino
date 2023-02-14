@@ -7,7 +7,7 @@
 
 #include <common_test_utils/test_common.hpp>
 
-#include "plugin.h"
+#include "cpu_streams_calculation.hpp"
 
 using namespace testing;
 using namespace InferenceEngine;
@@ -28,13 +28,12 @@ class StreamsCalculationTests : public CommonTestUtils::TestsCommon,
 public:
     void SetUp() override {
         const auto& test_data = std::get<0>(GetParam());
-        ov::intel_cpu::Engine test_engin;
 
         std::vector<std::vector<int>> test_stream_info_table =
-            test_engin.get_streams_info_table(test_data.input_streams,
-                                              test_data.input_threads,
-                                              test_data.model_prefer_threads,
-                                              test_data.proc_type_table);
+            ov::intel_cpu::get_streams_info_table(test_data.input_streams,
+                                                  test_data.input_threads,
+                                                  test_data.model_prefer_threads,
+                                                  test_data.proc_type_table);
 
         ASSERT_EQ(test_data.stream_info_table, test_stream_info_table);
     }
