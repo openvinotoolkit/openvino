@@ -22,6 +22,7 @@ struct strided_slice_test_params {
     format input_format;
     size_t expected_fused_primitives;
     size_t expected_not_fused_primitives;
+    std::vector<std::pair<activation_func,activation_additional_params>> activation_func_list;
 };
 
 class StridedSliceFusingsTest : public ::BaseFusingTest<strided_slice_test_params> {
@@ -56,8 +57,8 @@ public:
 #define CASE_STRIDED_SLICE_F16_1 { 1, 8, 1, 1 },  { 1, 3, 2, 2 }, data_types::f16, format::bfyx
 
 
-class strided_slice_act_act : public StridedSliceFusingsTest {};
-TEST_P(strided_slice_act_act, basic) {
+class strided_slice_activation : public StridedSliceFusingsTest {};
+TEST_P(strided_slice_activation, basic) {
     std::vector<int64_t> begin_data = { 0, 0, 0, 0 };
     std::vector<int64_t> end_data = { 1, 8, 1, 1 };
     std::vector<int64_t> strides_data = { 1, 1, 1, 1 };
@@ -65,16 +66,25 @@ TEST_P(strided_slice_act_act, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {}, {}, {}, {}, {}, { 1, 8, 1, 1 }),
-        activation("actv_clamp", input_info("strided_slice"), activation_func::clamp),
-        activation("actv_exp", input_info("actv_clamp"), activation_func::exp),
-        reorder("reorder_bfyx", input_info("actv_exp"), format::bfyx, data_types::f16)
+        strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {}, {}, {}, {}, {}, { 1, 8, 1, 1 })
     );
+
+    std::string before_name = "strided_slice";
+    for (auto& act_item : p.activation_func_list) {
+        std::string act_name = "actv_" + activation_type_to_str(act_item.first);
+        add_topologies(activation(act_name, input_info(before_name), act_item.first, act_item.second));
+        before_name = act_name;
+    }
+
+    add_topologies(
+        reorder("reorder_bfyx", input_info(before_name), format::bfyx, data_types::f16));
 
     tolerance = 1e-5f;
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, strided_slice_act_act, ::testing::ValuesIn(std::vector<strided_slice_test_params>{
-    strided_slice_test_params{ CASE_STRIDED_SLICE_F16_1, 2, 4 },
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, strided_slice_activation, ::testing::ValuesIn(std::vector<strided_slice_test_params>{
+    strided_slice_test_params{ CASE_STRIDED_SLICE_F16_1, 2, 4, {{ activation_func::clamp, { } }, { activation_func::exp, { } }} },
+    strided_slice_test_params{ CASE_STRIDED_SLICE_F16_1, 2, 3, {{ activation_func::logistic, { } } } },
+    strided_slice_test_params{ CASE_STRIDED_SLICE_F16_1, 2, 3, {{ activation_func::hyperbolic_tan, { } } } },
 }));

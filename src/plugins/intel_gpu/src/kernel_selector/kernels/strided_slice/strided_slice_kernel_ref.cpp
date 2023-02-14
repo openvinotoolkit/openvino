@@ -73,6 +73,11 @@ bool StridedSliceKernelRef::Validate(const Params& p, const optional_params& o) 
     if (params.outputs[0].Dimentions() > 5 || params.inputs[0].Dimentions() > 5)
         return false;
 
+    for (auto& fused_op : params.fused_ops) {
+        if (!IsFusedPrimitiveSupported(fused_op))
+            return false;
+    }
+
     bool shrink_mode = std::find(params.shrink_axis_mask.begin(), params.shrink_axis_mask.end(), 1) != params.shrink_axis_mask.end();
     if (shrink_mode) {
         size_t shrinked_axes = std::count_if(params.shrink_axis_mask.begin(), params.shrink_axis_mask.end(), [](const uint8_t& v) {
