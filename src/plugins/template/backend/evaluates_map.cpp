@@ -25,10 +25,10 @@
 // #include <ngraph/runtime/reference/einsum.hpp>
 // #include <ngraph/runtime/reference/elu.hpp>
 // #include <ngraph/runtime/reference/embedding_bag_offsets_sum.hpp>
-#include <ngraph/runtime/reference/embedding_bag_packed_sum.hpp>
-#include <ngraph/runtime/reference/embedding_segments_sum.hpp>
-#include <ngraph/runtime/reference/equal.hpp>
-#include <ngraph/runtime/reference/exp.hpp>
+// #include <ngraph/runtime/reference/embedding_bag_packed_sum.hpp>
+// #include <ngraph/runtime/reference/embedding_segments_sum.hpp>
+// #include <ngraph/runtime/reference/equal.hpp>
+// #include <ngraph/runtime/reference/exp.hpp>
 #include <ngraph/runtime/reference/experimental_detectron_detection_output.hpp>
 #include <ngraph/runtime/reference/experimental_detectron_prior_grid_generator.hpp>
 #include <ngraph/runtime/reference/experimental_detectron_proposal_single_image.hpp>
@@ -221,24 +221,6 @@ bool evaluate(const shared_ptr<op::v1::Greater>& op, const HostTensorVector& out
     return true;
 }
 
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v1::Equal>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    const auto in0_data_ptr = inputs[0]->get_data_ptr<ET>();
-    const auto in1_data_ptr = inputs[1]->get_data_ptr<ET>();
-    const auto out_data_ptr = outputs[0]->get_data_ptr<element::Type_t::boolean>();
-    const auto in0_shape = inputs[0]->get_shape();
-    const auto in1_shape = inputs[1]->get_shape();
-    const auto broadcast_spec = op->get_autob();
-    runtime::reference::equal<typename element_type_traits<ET>::value_type,
-                              typename element_type_traits<element::Type_t::boolean>::value_type>(in0_data_ptr,
-                                                                                                  in1_data_ptr,
-                                                                                                  out_data_ptr,
-                                                                                                  in0_shape,
-                                                                                                  in1_shape,
-                                                                                                  broadcast_spec);
-    return true;
-}
-
 namespace if_op {
 bool call(const HostTensorVector& func_outputs,
           const HostTensorVector& func_inputs,
@@ -397,76 +379,6 @@ bool evaluate(const shared_ptr<op::v8::If>& op, const HostTensorVector& outputs,
     } catch (...) {
         if_op::if_reference(bodies, out_descs, in_descs, outputs, inputs);
     }
-    return true;
-}
-
-namespace embedding_offsets_sum_v3 {
-template <element::Type_t t1, element::Type_t t2>
-inline void evaluate(const shared_ptr<op::v3::EmbeddingSegmentsSum>& op,
-                     const HostTensorVector& outputs,
-                     const HostTensorVector& inputs) {
-    using T1 = typename element_type_traits<t1>::value_type;
-    using T2 = typename element_type_traits<t2>::value_type;
-    runtime::reference::embeddingSegmentsSum<T1, T2>(inputs[0]->get_data_ptr<T1>(),
-                                                     inputs[1]->get_data_ptr<T2>(),
-                                                     inputs[2]->get_data_ptr<T2>(),
-                                                     inputs.size() > 4 ? inputs[4]->get_data_ptr<T2>() : nullptr,
-                                                     inputs.size() > 5 ? inputs[5]->get_data_ptr<T1>() : nullptr,
-                                                     outputs[0]->get_data_ptr<T1>(),
-                                                     inputs[0]->get_shape(),
-                                                     inputs[1]->get_shape(),
-                                                     outputs[0]->get_shape());
-}
-}  // namespace embedding_offsets_sum_v3
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v3::EmbeddingSegmentsSum>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    switch (inputs[1]->get_element_type()) {
-    case element::Type_t::i32:
-        embedding_offsets_sum_v3::evaluate<ET, element::Type_t::i32>(op, outputs, inputs);
-        break;
-    case element::Type_t::i64:
-        embedding_offsets_sum_v3::evaluate<ET, element::Type_t::i64>(op, outputs, inputs);
-        break;
-    default:
-        return false;
-    }
-    return true;
-}
-
-namespace embedding_bag_packed_sum_v3 {
-template <element::Type_t t1, element::Type_t t2>
-inline void evaluate(const shared_ptr<op::v3::EmbeddingBagPackedSum>& op,
-                     const HostTensorVector& outputs,
-                     const HostTensorVector& inputs) {
-    using T1 = typename element_type_traits<t1>::value_type;
-    using T2 = typename element_type_traits<t2>::value_type;
-    runtime::reference::embeddingBagPackedSum<T1, T2>(inputs[0]->get_data_ptr<T1>(),
-                                                      inputs[1]->get_data_ptr<T2>(),
-                                                      inputs.size() > 2 ? inputs[2]->get_data_ptr<T1>() : nullptr,
-                                                      outputs[0]->get_data_ptr<T1>(),
-                                                      inputs[1]->get_shape(),
-                                                      outputs[0]->get_shape());
-}
-}  // namespace embedding_bag_packed_sum_v3
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v3::EmbeddingBagPackedSum>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    switch (inputs[1]->get_element_type()) {
-    case element::Type_t::i32:
-        embedding_bag_packed_sum_v3::evaluate<ET, element::Type_t::i32>(op, outputs, inputs);
-        break;
-    case element::Type_t::i64:
-        embedding_bag_packed_sum_v3::evaluate<ET, element::Type_t::i64>(op, outputs, inputs);
-        break;
-    default:
-        return false;
-    }
-
     return true;
 }
 
@@ -2312,15 +2224,6 @@ bool evaluate(const shared_ptr<op::v0::Sigmoid>& op, const HostTensorVector& out
     runtime::reference::sigmoid<T>(inputs[0]->get_data_ptr<T>(),
                                    outputs[0]->get_data_ptr<T>(),
                                    shape_size(inputs[0]->get_shape()));
-    return true;
-}
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v0::Exp>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::exp<T>(inputs[0]->get_data_ptr<T>(),
-                               outputs[0]->get_data_ptr<T>(),
-                               shape_size(inputs[0]->get_shape()));
     return true;
 }
 
