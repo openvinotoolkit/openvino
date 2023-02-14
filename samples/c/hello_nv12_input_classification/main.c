@@ -150,7 +150,7 @@ size_t read_image_from_file(const char* img_path, unsigned char* img_data, size_
 
     if (fp) {
         fseek(fp, 0, SEEK_END);
-        if (ftell(fp) >= size) {
+        if ((size_t)ftell(fp) >= size) {
             fseek(fp, 0, SEEK_SET);
             read_size = fread(img_data, 1, size, fp);
         }

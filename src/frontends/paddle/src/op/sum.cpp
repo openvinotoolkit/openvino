@@ -12,7 +12,7 @@ namespace op {
 NamedOutputs sum(const NodeContext& node) {
     auto data = node.get_ng_inputs("X");
     auto sum = data[0].get_node_shared_ptr();
-    for (int i = 1; i < data.size(); i++) {
+    for (size_t i = 1; i < data.size(); i++) {
         sum = std::make_shared<default_opset::Add>(sum, data[i]);
     }
     return node.default_single_output_mapping({sum}, {"Out"});
