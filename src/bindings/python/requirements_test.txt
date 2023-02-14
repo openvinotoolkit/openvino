@@ -31,6 +31,7 @@ Pep8-naming
 pydocstyle
 pytest-forked
 pytest-xdist
+pytest-html
 pytest
 py
 radon
