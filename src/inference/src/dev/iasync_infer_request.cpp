@@ -62,6 +62,7 @@ void ov::IAsyncInferRequest::wait() {
     }
 
     future.wait();
+    future.get();
 }
 
 bool ov::IAsyncInferRequest::wait_for(const std::chrono::milliseconds& timeout) {
