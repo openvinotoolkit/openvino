@@ -13,6 +13,7 @@
 #include "openvino/op/slice.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
@@ -22,7 +23,9 @@ namespace op {
 using namespace ov::op;
 
 namespace {
-Output<Node> generate_zeros_with_convertlike(NodeContext& context, Output<Node> sizes, Output<Node> tensor_of_type) {
+Output<Node> generate_zeros_with_convertlike(const NodeContext& context,
+                                             const Output<Node> sizes,
+                                             const Output<Node> tensor_of_type) {
     auto const_0 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
     auto zeros = context.mark_node(std::make_shared<v3::Broadcast>(const_0, sizes));
     return context.mark_node(std::make_shared<v1::ConvertLike>(zeros, tensor_of_type));
@@ -30,6 +33,7 @@ Output<Node> generate_zeros_with_convertlike(NodeContext& context, Output<Node> 
 }  // namespace
 
 OutputVector translate_index_put_(NodeContext& context) {
+    num_inputs_check(context, 4, 4);
     auto const_0 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
     auto const_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
     auto const_max_int =
@@ -45,7 +49,7 @@ OutputVector translate_index_put_(NodeContext& context) {
     auto indices_partial_shape = indices.get_partial_shape();
     auto indices_first_dim = indices_partial_shape[0];
     FRONT_END_OP_CONVERSION_CHECK(indices_first_dim.is_static(),
-                                  "We support only lists of tensors with v0::Constant number of elements.");
+                                  "We support only lists of tensors with static number of elements.");
     int64_t indices_list_len = indices_first_dim.get_length();
     if (indices_list_len == 0) {
         return {values};
@@ -54,8 +58,8 @@ OutputVector translate_index_put_(NodeContext& context) {
     auto const_indices_list_len = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {indices_list_len}));
     auto split_indices = context.mark_node(std::make_shared<v1::Split>(indices, const_0, indices_list_len));
 
-    std::shared_ptr<ov::Node> broadcast_index_shape;
-    ov::Output<ov::Node> index;
+    std::shared_ptr<Node> broadcast_index_shape;
+    Output<Node> index;
     if (indices_list_len > 1) {
         index = split_indices->output(0);
         for (int i = 1; i < indices_list_len; i++) {
@@ -83,7 +87,7 @@ OutputVector translate_index_put_(NodeContext& context) {
     values = context.mark_node(std::make_shared<v3::Broadcast>(values, values_shape));
     values = context.mark_node(std::make_shared<v1::ConvertLike>(values, input));
 
-    std::shared_ptr<ov::Node> result;
+    Output<Node> result;
     if (accumulate) {
         auto zeros = generate_zeros_with_convertlike(context, input_shape, input);
         result = context.mark_node(std::make_shared<v3::ScatterNDUpdate>(zeros, index, values));
