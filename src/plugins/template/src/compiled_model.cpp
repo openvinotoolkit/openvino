@@ -108,20 +108,6 @@ void transform_model(const std::shared_ptr<ov::Model>& model);
 void TemplatePlugin::CompiledModel::compile_model(const std::shared_ptr<ov::Model>& model) {
     // apply plugins transformations
     transform_model(model);
-    // Generate backend specific blob mappings. For example Inference Engine uses not ngraph::Result nodes friendly name
-    // as inference request output names but the name of the layer before.
-    // TODO: Remove it
-    size_t idx = 0;
-    for (auto&& result : model->get_results()) {
-        const auto& input = result->input_value(0);
-        auto name = ov::op::util::get_ie_output_name(input);
-        if (_outputIndex.emplace(name, idx).second)
-            idx++;
-    }
-    for (auto&& parameter : model->get_parameters()) {
-        _inputIndex.emplace(parameter->get_friendly_name(), model->get_parameter_index(parameter));
-    }
-
     // Perform any other steps like allocation and filling backend specific memory handles and so on
 }
 // ! [executable_network:map_graph]

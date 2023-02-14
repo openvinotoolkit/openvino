@@ -49,19 +49,21 @@ TemplatePlugin::InferRequest::InferRequest(const std::shared_ptr<const TemplateP
     : ov::ISyncInferRequest(model) {
     // TODO: allocate infer request device and host buffers if needed, fill actual list of profiling tasks
 
-    auto compiled_model = std::const_pointer_cast<TemplatePlugin::CompiledModel>(get_template_model());
-    auto requestID = std::to_string(compiled_model->_requestId.fetch_add(1));
+    auto requestID = std::to_string(get_template_model()->_requestId.fetch_add(1));
 
-    std::string name = compiled_model->m_model->get_friendly_name() + "_Req" + requestID;
+    std::string name = get_template_model()->m_model->get_friendly_name() + "_Req" + requestID;
     m_profiling_task = {
-        openvino::itt::handle("Template" + std::to_string(compiled_model->_cfg.deviceId) + "_" + name + "_Preprocess"),
-        openvino::itt::handle("Template" + std::to_string(compiled_model->_cfg.deviceId) + "_" + name + "_Postprocess"),
-        openvino::itt::handle("Template" + std::to_string(compiled_model->_cfg.deviceId) + "_" + name +
-                              "_StartPipline"),
-        openvino::itt::handle("Template" + std::to_string(compiled_model->_cfg.deviceId) + "_" + name + "_WaitPipline"),
+        openvino::itt::handle("Template" + std::to_string(get_template_model()->_cfg.deviceId) + "_" + name +
+                              "_Preprocess"),
+        openvino::itt::handle("Template" + std::to_string(get_template_model()->_cfg.deviceId) + "_" + name +
+                              "_Postprocess"),
+        openvino::itt::handle("Template" + std::to_string(get_template_model()->_cfg.deviceId) + "_" + name +
+                              "_StartPipeline"),
+        openvino::itt::handle("Template" + std::to_string(get_template_model()->_cfg.deviceId) + "_" + name +
+                              "_WaitPipline"),
     };
 
-    m_executable = compiled_model->get_template_plugin()->_backend->compile(compiled_model->m_model);
+    m_executable = get_template_model()->get_template_plugin()->_backend->compile(get_template_model()->m_model);
 
     // Allocate plugin backend specific memory handles
     m_plugin_input_tensors.resize(get_inputs().size());

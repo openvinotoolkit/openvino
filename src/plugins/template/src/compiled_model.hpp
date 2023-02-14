@@ -49,11 +49,9 @@ private:
     void compile_model(const std::shared_ptr<ov::Model>& model);
     std::shared_ptr<const Plugin> get_template_plugin() const;
 
-    std::atomic<std::size_t> _requestId = {0};
+    mutable std::atomic<std::size_t> _requestId = {0};
     Configuration _cfg;
     std::shared_ptr<ov::Model> m_model;
-    std::map<std::string, std::size_t> _inputIndex;
-    std::map<std::string, std::size_t> _outputIndex;
 };
 // ! [executable_network:header]
 

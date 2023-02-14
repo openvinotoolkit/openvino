@@ -40,9 +40,7 @@ Tensor::Tensor(const element::Type element_type, const Shape& shape, const Alloc
     auto allocator_impl = dynamic_cast<const BlobAllocator*>(allocator._impl.get());
     auto blob_allocator =
         (allocator_impl != nullptr) ? allocator_impl->_impl : std::make_shared<ie::BlobAllocator>(allocator._impl);
-    ie::Layout layout = ie::TensorDesc::getLayoutByRank(shape.size());
-    if (!ov::shape_size(shape))
-        layout = ie::Layout::BLOCKED;
+    ie::Layout layout = ie::TensorDesc::getLayoutByDims(shape);
     _impl = make_blob_with_precision({ie::details::convertPrecision(element_type), shape, layout}, blob_allocator);
     _impl->allocate();
 }
