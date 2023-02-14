@@ -6,8 +6,12 @@
 
 #include <memory>
 
+#include "converter_utils.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/runtime/iinfer_request.hpp"
+#include "openvino/runtime/isync_infer_request.hpp"
 #include "plugin.hpp"
 #include "template/config.hpp"
 #include "template_async_infer_request.hpp"
@@ -124,17 +128,8 @@ void TemplatePlugin::CompiledModel::compile_model(const std::shared_ptr<ov::Mode
 // ! [executable_network:map_graph]
 
 // ! [executable_network:create_infer_request]
-std::shared_ptr<InferenceEngine::IInferRequestInternal> TemplatePlugin::CompiledModel::create_infer_request() const {
-    auto internal_request = create_sync_infer_request();
-    return std::make_shared<TemplateAsyncInferRequest>(
-        std::static_pointer_cast<TemplatePlugin::TemplateInferRequest>(internal_request),
-        get_task_executor(),
-        get_template_plugin()->_waitExecutor,
-        get_callback_executor());
-}
-
-std::shared_ptr<InferenceEngine::IInferRequestInternal> TemplatePlugin::CompiledModel::create_sync_infer_request()
-    const {
+std::shared_ptr<ov::IAsyncInferRequest> TemplatePlugin::CompiledModel::create_infer_request() const {
+    // auto internal_request = create_sync_infer_request();
     std::vector<std::shared_ptr<const ov::Node>> _inputs, _outputs;
     for (const auto& output : m_model->inputs()) {
         _inputs.emplace_back(output.get_node_shared_ptr());
@@ -143,10 +138,36 @@ std::shared_ptr<InferenceEngine::IInferRequestInternal> TemplatePlugin::Compiled
         _outputs.emplace_back(output.get_node_shared_ptr());
     }
 
-    return std::make_shared<TemplateInferRequest>(
+    auto internal_request = std::make_shared<TemplateInferRequest>(
         _inputs,
         _outputs,
         std::static_pointer_cast<const TemplatePlugin::CompiledModel>(shared_from_this()));
+    auto async_infer_request = std::make_shared<TemplateAsyncInferRequest>(
+        std::static_pointer_cast<TemplatePlugin::TemplateInferRequest>(internal_request),
+        get_task_executor(),
+        get_template_plugin()->_waitExecutor,
+        get_callback_executor());
+
+    async_infer_request->setPointerToExecutableNetworkInternal(
+        ov::legacy_convert::convert_compiled_model(std::const_pointer_cast<ov::ICompiledModel>(shared_from_this())));
+
+    return ov::legacy_convert::convert_infer_request(async_infer_request);
+}
+
+std::shared_ptr<ov::ISyncInferRequest> TemplatePlugin::CompiledModel::create_sync_infer_request() const {
+    OPENVINO_NOT_IMPLEMENTED;
+    // std::vector<std::shared_ptr<const ov::Node>> _inputs, _outputs;
+    // for (const auto& output : m_model->inputs()) {
+    //     _inputs.emplace_back(output.get_node_shared_ptr());
+    // }
+    // for (const auto& output : outputs()) {
+    //     _outputs.emplace_back(output.get_node_shared_ptr());
+    // }
+    //
+    // return std::make_shared<TemplateInferRequest>(
+    //     _inputs,
+    //     _outputs,
+    //     std::static_pointer_cast<const TemplatePlugin::CompiledModel>(shared_from_this()));
 }
 // ! [executable_network:create_infer_request]
 

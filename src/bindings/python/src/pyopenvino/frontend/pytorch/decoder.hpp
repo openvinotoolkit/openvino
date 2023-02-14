@@ -18,10 +18,6 @@ class PyDecoder : public ov::frontend::pytorch::TorchDecoder {
         PYBIND11_OVERRIDE_PURE(ov::Any, TorchDecoder, const_input, index);
     }
 
-    size_t input(size_t index) const override {
-        PYBIND11_OVERRIDE_PURE(size_t, TorchDecoder, get_input, index);
-    }
-
     const std::vector<size_t>& inputs() const override {
         PYBIND11_OVERRIDE_PURE(const std::vector<size_t>&, TorchDecoder, inputs);
     }
