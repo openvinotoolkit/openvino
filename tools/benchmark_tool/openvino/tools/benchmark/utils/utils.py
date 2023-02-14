@@ -54,21 +54,25 @@ def next_step(additional_info='', step_id=0):
 
 def get_element_type(precision):
     format_map = {
-      'FP32' : Type.f32,
-      'I32'  : Type.i32,
-      'I64'  : Type.i64,
-      'FP16' : Type.f16,
-      'I16'  : Type.i16,
-      'U16'  : Type.u16,
-      'I8'   : Type.i8,
-      'U8'   : Type.u8,
-      'BOOL' : Type.boolean,
+      'bool'    : Type.boolean,
+
+      'f16'  : Type.f16,
+      'f32'  : Type.f32,
+      'f64'  : Type.f64,
+
+      'i8'   : Type.i8,
+      'i16'  : Type.i16,
+      'i32'  : Type.i32,
+      'i64'  : Type.i64,
+
+      'u8'   : Type.u8,
+      'u16'  : Type.u16,
+      'u32'  : Type.u32,
+      'u64'  : Type.u64,
     }
     if precision in format_map.keys():
         return format_map[precision]
-    for element_type in format_map.values():
-        if element_type.get_type_name() == precision:
-            return element_type
+
     raise Exception(f"Undefined precision: '{precision}' !")
 
 
@@ -203,7 +207,6 @@ def get_number_iterations(number_iterations: int, nireq: int, num_shapes: int, a
                             f'from {number_iterations} to {niter} using number of requests {nireq}')
 
     return niter
-
 
 def get_duration_seconds(time, number_iterations, device):
     if time:
@@ -538,7 +541,6 @@ def parse_scale_or_mean(parameter_string, input_info):
             raise Exception(f"Can't parse input parameter: {parameter_string}")
     return return_value
 
-
 class AppInputInfo:
     def __init__(self):
         self.element_type = None
@@ -563,13 +565,13 @@ class AppInputInfo:
             return False
         return len(self.channels) >= 2 if self.channels.is_static else self.channels.relaxes(Dimension(2))
 
-    def getDimentionByLayout(self, character):
+    def getDimensionByLayout(self, character):
         if self.layout.has_name(character):
             return self.partial_shape[self.layout.get_index_by_name(character)]
         else:
             return Dimension(0)
 
-    def getDimentionsByLayout(self, character):
+    def getDimensionsByLayout(self, character):
         if self.layout.has_name(character):
             d_index = self.layout.get_index_by_name(character)
             dims = []
@@ -588,23 +590,23 @@ class AppInputInfo:
 
     @property
     def width(self):
-        return len(self.getDimentionByLayout("W"))
+        return len(self.getDimensionByLayout("W"))
 
     @property
-    def widthes(self):
-        return self.getDimentionsByLayout("W")
+    def widths(self):
+        return self.getDimensionsByLayout("W")
 
     @property
     def height(self):
-        return len(self.getDimentionByLayout("H"))
+        return len(self.getDimensionByLayout("H"))
 
     @property
     def heights(self):
-        return self.getDimentionsByLayout("H")
+        return self.getDimensionsByLayout("H")
 
     @property
     def channels(self):
-        return self.getDimentionByLayout("C")
+        return self.getDimensionByLayout("C")
 
     @property
     def is_static(self):

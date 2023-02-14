@@ -223,7 +223,7 @@ TEST(type_prop, if_dynamic_output) {
     auto dynamic_shape = result0->get_output_partial_shape(0);
 
     EXPECT_EQ(X_shape.size(), dynamic_shape.rank().get_length());
-    for (auto shape_index = 0; shape_index < X_shape.size(); shape_index++) {
+    for (size_t shape_index = 0; shape_index < X_shape.size(); shape_index++) {
         auto x_shape_it = X_shape.begin();
         auto y_shape_it = Y_shape.begin();
         auto res_it = dynamic_shape.begin();

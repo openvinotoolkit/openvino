@@ -42,13 +42,13 @@
 #include "runtime/pwl.h"
 
 using namespace InferenceEngine;
-using namespace ov::intel_gna::frontend;
-using namespace ov::intel_gna::common;
-using namespace ov::intel_gna::memory;
 using namespace std;
 
 namespace ov {
 namespace intel_gna {
+using namespace frontend;
+using namespace common;
+using namespace memory;
 
 static bool CheckIFLastComponentIsPrecededByConv2D(const backend::DnnComponents::storage_type& components,
                                                    bool verify_with_pooling = true) {
@@ -221,7 +221,7 @@ void GNAGraphCompiler::fillSplitConnections(InferenceEngine::CNNLayerPtr layer) 
     split_connection.emplace(id, layerInfoItem);
 }
 
-void GNAGraphCompiler::SetValidatorTarget(const std::string& target) {
+void GNAGraphCompiler::SetValidatorTarget(const DeviceVersion& target) {
     auto temp = limitations::cnn2d::AbstractValidator::Create(target);
     cnn2dValidator.reset(temp.release());
 }
@@ -1679,9 +1679,7 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
                 layer,
                 ptr_weights,
                 weightable._weights->byteSize(),
-                [isDiag, num_rows_in, num_rows_out, num_padding, transposedRows, transposedCols, weightsBuffer, wpSize](
-                    void* data,
-                    size_t size) {
+                [isDiag, num_rows_out, transposedRows, transposedCols, weightsBuffer, wpSize](void* data, size_t size) {
                     for (uint32_t k = 0; k < (isDiag ? 1 : num_rows_out); k++) {
                         auto rowOffset = k * transposedRows * transposedCols * wpSize;
                         auto cbuffer = weightsBuffer + rowOffset;

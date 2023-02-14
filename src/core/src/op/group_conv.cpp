@@ -48,21 +48,6 @@ bool ngraph::op::v1::GroupConvolution::visit_attributes(AttributeVisitor& visito
     return true;
 }
 
-static Dimension infer_group_from_input_shapes(const ov::PartialShape& data_pshape,
-                                               const ov::PartialShape& filters_pshape) {
-    Dimension group_dim = Dimension();
-    if (data_pshape.rank().is_static() && data_pshape[1].is_static() && filters_pshape.rank().is_static() &&
-        filters_pshape[2].is_static()) {
-        auto n_data_channels = data_pshape[1].get_length();
-        auto input_channels = filters_pshape[2].get_length();
-
-        NGRAPH_CHECK((n_data_channels % input_channels) == 0);
-        auto groups = n_data_channels / input_channels;
-        group_dim = Dimension(groups);
-    }
-    return group_dim;
-}
-
 void op::v1::GroupConvolution::validate_and_infer_types() {
     OV_OP_SCOPE(v1_GroupConvolution_validate_and_infer_types);
     element::Type data_batch_et = get_input_element_type(0);
@@ -196,21 +181,6 @@ bool op::v1::GroupConvolutionBackpropData::is_dynamic() const {
         return !has_and_set_equal_bounds(input_value(2));
     }
     return is_dynamic;
-}
-
-static Dimension infer_backprop_group_from_input_shapes(const ov::PartialShape& data_pshape,
-                                                        const ov::PartialShape& filters_pshape) {
-    Dimension group_dim = Dimension();
-    if (data_pshape.rank().is_static() && data_pshape[1].is_static() && filters_pshape.rank().is_static() &&
-        filters_pshape[1].is_static()) {
-        auto n_data_channels = data_pshape[1].get_length();
-        auto input_channels = filters_pshape[1].get_length();
-
-        NGRAPH_CHECK((n_data_channels % input_channels) == 0);
-        auto groups = n_data_channels / input_channels;
-        group_dim = Dimension(groups);
-    }
-    return group_dim;
 }
 
 const ov::PartialShape op::v1::GroupConvolutionBackpropData::get_convolution_output_shape() const {

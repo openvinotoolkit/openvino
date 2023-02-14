@@ -93,15 +93,16 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
             } else {
                 auto getitem_index_ptr = getitem->input_value(1).get_node_shared_ptr();
                 auto getitem_index_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(getitem_index_ptr);
-                auto index_val = getitem_index_const->cast_vector<int64_t>();
                 auto split = std::make_shared<ov::op::v1::VariadicSplit>(torch_split->get_input_source_output(0),
                                                                          torch_split->get_input_source_output(2),
                                                                          torch_split->get_input_source_output(1));
-                auto index = 0;
-                if (index_val[0] >= 0) {
-                    index = index_val[0];
-                } else {
-                    index = split->outputs().size() + index_val[0];
+                auto index_val = getitem_index_const->cast_vector<int64_t>();
+                if (index_val.size() != 1) {
+                    return false;
+                }
+                auto index = index_val[0];
+                if (index < 0) {
+                    index = split->outputs().size() + index;
                 }
                 OutputVector res{split->outputs()[index]};
                 copy_runtime_info({getitem, input_node}, split);
