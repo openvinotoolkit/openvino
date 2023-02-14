@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "openvino/core/except.hpp"
+#include "openvino/runtime/profiling_info.hpp"
 #include "plugin.hpp"
 #include "template_itt.hpp"
 
@@ -117,6 +118,11 @@ void TemplatePlugin::InferRequest::infer_preprocess() {
     }
     OPENVINO_ASSERT(m_output_tensors.size() == m_plugin_output_tensors.size());
     for (size_t i = 0; i < m_output_tensors.size(); i++) {
+        const auto& result = get_template_model()->m_model->get_results()[i];
+        if (result->get_output_partial_shape(0).is_dynamic()) {
+            m_plugin_output_tensors[i] = get_template_model()->get_template_plugin()->_backend->create_tensor();
+            continue;
+        }
         m_plugin_output_tensors[i] = get_template_model()->get_template_plugin()->_backend->create_tensor(
             m_output_tensors.at(i).get_element_type(),
             m_output_tensors.at(i).get_shape(),
@@ -147,7 +153,17 @@ void TemplatePlugin::InferRequest::wait_pipeline() {
 void TemplatePlugin::InferRequest::infer_postprocess() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, m_profiling_task[Postprocess]);
     auto start = Time::now();
-    // We don't need post-processing in template plugin
+    OPENVINO_ASSERT(m_output_tensors.size() == m_plugin_output_tensors.size());
+    for (size_t i = 0; i < m_output_tensors.size(); i++) {
+        const auto& result = get_template_model()->m_model->get_results()[i];
+        auto tensor = m_output_tensors[i];
+        if (result->get_output_partial_shape(0).is_dynamic()) {
+            auto host_tensor = m_plugin_output_tensors[i];
+            AllocateImplSingle(m_output_tensors, i, host_tensor->get_element_type(), host_tensor->get_shape());
+            // tensor.set_shape(host_tensor->get_shape());
+            host_tensor->read(static_cast<char*>(tensor.data()), host_tensor->get_size_in_bytes());
+        }
+    }
     m_durations[Postprocess] = Time::now() - start;
 }
 // ! [infer_request:infer_postprocess]
@@ -162,16 +178,7 @@ ov::Tensor TemplatePlugin::InferRequest::get_tensor(const ov::Output<const ov::N
     if (found_port.is_input()) {
         data = m_input_tensors[found_port.idx];
         ov::Shape shape;
-        if (!data.get_size()) {
-            auto&& parameters = get_template_model()->m_model->get_parameters();
-            const auto& pshape = parameters.at(found_port.idx)->get_partial_shape();
-            shape = pshape.is_dynamic() ? ov::Shape{0} : pshape.get_shape();
-            auto this_non_const = const_cast<InferRequest*>(this);
-            AllocateImplSingle(this_non_const->m_input_tensors, found_port.idx, port.get_element_type(), shape);
-            data = m_input_tensors[found_port.idx];
-        } else {
-            shape = data.get_shape();
-        }
+        shape = data.get_shape();
         check_tensor(port, data);
     } else {
         data = m_output_tensors[found_port.idx];
@@ -189,11 +196,6 @@ ov::Tensor TemplatePlugin::InferRequest::get_tensor(const ov::Output<const ov::N
             shape = ov::Shape(
                 port.get_partial_shape().rank().is_dynamic() ? 1 : port.get_partial_shape().rank().get_length(),
                 0);
-        }
-        if (data.get_shape() != shape) {
-            auto this_non_const = const_cast<InferRequest*>(this);
-            AllocateImplSingle(this_non_const->m_output_tensors, found_port.idx, port.get_element_type(), shape);
-            data = m_output_tensors[found_port.idx];
         }
         check_tensor(port, data);
     }
@@ -238,16 +240,17 @@ void TemplatePlugin::InferRequest::set_tensors_impl(const ov::Output<const ov::N
 // ! [infer_request:get_performance_counts]
 std::vector<ov::ProfilingInfo> TemplatePlugin::InferRequest::get_profiling_info() const {
     std::vector<ov::ProfilingInfo> info;
-    // const auto fill_profiling_info = [](const std::string& name, const std::chrono::microseconds& time) {
-    //     ov::ProfilingInfo p_info;
-    //     p_info.status = ov::ProfilingInfo::Status::EXECUTED;
-    //     p_info.node_name = name;
-    //     p_info.cpu_time = p_info.real_time = time;
-    //     return p_info;
-    // };
-    // info.emplace_back(fill_profiling_info("input preprocessing", m_durations[Preprocess].count()));
-    // info.emplace_back(fill_profiling_info("execution time", m_durations[StartPipeline]));
-    // info.emplace_back(fill_profiling_info("output postprocessing", m_durations[Postprocess]));
+    const auto fill_profiling_info = [](const std::string& name,
+                                        const std::chrono::duration<float, std::micro>& time) -> ov::ProfilingInfo {
+        ov::ProfilingInfo p_info;
+        p_info.status = ov::ProfilingInfo::Status::EXECUTED;
+        p_info.node_name = name;
+        p_info.cpu_time = p_info.real_time = std::chrono::duration_cast<std::chrono::milliseconds>(time);
+        return p_info;
+    };
+    info.emplace_back(fill_profiling_info("input preprocessing", m_durations[Preprocess]));
+    info.emplace_back(fill_profiling_info("execution time", m_durations[StartPipeline]));
+    info.emplace_back(fill_profiling_info("output postprocessing", m_durations[Postprocess]));
     return info;
 }
 // ! [infer_request:get_performance_counts]

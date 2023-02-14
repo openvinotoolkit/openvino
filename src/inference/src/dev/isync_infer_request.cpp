@@ -142,7 +142,7 @@ void ov::ISyncInferRequest::convert_batched_tensors() {
 ov::Tensor ov::ISyncInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
     OV_ITT_SCOPED_TASK(InferenceEngine::itt::domains::Plugin, "get_tensor");
     auto found_port = find_port(port);
-    OPENVINO_ASSERT(!found_port.found(), "Cannot find tensor for port ", port);
+    OPENVINO_ASSERT(found_port.found(), "Cannot find tensor for port ", port);
     if (found_port.is_input()) {
         auto input = m_compiled_model->inputs().at(found_port.idx);
         // TODO: Support dynamic inputs
@@ -159,7 +159,7 @@ ov::Tensor ov::ISyncInferRequest::get_tensor(const ov::Output<const ov::Node>& p
 void ov::ISyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) {
     OV_ITT_SCOPED_TASK(InferenceEngine::itt::domains::Plugin, "set_tensor");
     auto found_port = find_port(port);
-    OPENVINO_ASSERT(!found_port.found(), "Cannot find tensor for port ", port);
+    OPENVINO_ASSERT(found_port.found(), "Cannot find tensor for port ", port);
     OPENVINO_ASSERT(
         port.get_element_type() == tensor.get_element_type(),
         "Failed to set output tensor, the tensor element type is not corresponding with output element type");
@@ -180,8 +180,8 @@ void ov::ISyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, c
 std::vector<ov::Tensor> ov::ISyncInferRequest::get_tensors(const ov::Output<const ov::Node>& port) const {
     OV_ITT_SCOPED_TASK(InferenceEngine::itt::domains::Plugin, "get_tensors");
     auto found_port = find_port(port);
-    OPENVINO_ASSERT(!found_port.found() && found_port.is_input(), "Cannot find input tensors for port ", port);
-    if (m_batched_tensors.count(found_port.idx))
+    OPENVINO_ASSERT(found_port.found(), "Cannot find input tensors for port ", port);
+    if (found_port.is_input() && m_batched_tensors.count(found_port.idx))
         return m_batched_tensors.at(found_port.idx);
     return {};
 }
@@ -190,7 +190,7 @@ void ov::ISyncInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
                                         const std::vector<ov::Tensor>& tensors) {
     OV_ITT_SCOPED_TASK(InferenceEngine::itt::domains::Plugin, "set_tensors");
     auto found_port = find_port(port);
-    OPENVINO_ASSERT(!found_port.found() && found_port.is_input(), "Cannot find input tensors for port ", port);
+    OPENVINO_ASSERT(found_port.found() && found_port.is_input(), "Cannot find input tensors for port ", port);
     if (tensors.size() == 1) {
         set_tensor(port, tensors[0]);
         return;

@@ -4,7 +4,8 @@
 
 #include <numeric>
 
-#include "blob_factory.hpp"     // IE private header
+#include "blob_factory.hpp"  // IE private header
+#include "ie_common.h"
 #include "ie_ngraph_utils.hpp"  // IE private header
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -39,9 +40,10 @@ Tensor::Tensor(const element::Type element_type, const Shape& shape, const Alloc
     auto allocator_impl = dynamic_cast<const BlobAllocator*>(allocator._impl.get());
     auto blob_allocator =
         (allocator_impl != nullptr) ? allocator_impl->_impl : std::make_shared<ie::BlobAllocator>(allocator._impl);
-    _impl = make_blob_with_precision(
-        {ie::details::convertPrecision(element_type), shape, ie::TensorDesc::getLayoutByRank(shape.size())},
-        blob_allocator);
+    ie::Layout layout = ie::TensorDesc::getLayoutByRank(shape.size());
+    if (!ov::shape_size(shape))
+        layout = ie::Layout::BLOCKED;
+    _impl = make_blob_with_precision({ie::details::convertPrecision(element_type), shape, layout}, blob_allocator);
     _impl->allocate();
 }
 
@@ -102,7 +104,7 @@ void Tensor::set_shape(const ov::Shape& shape) {
 }
 
 Shape Tensor::get_shape() const {
-    OV_TENSOR_STATEMENT({ return _impl->getTensorDesc().getDims(); });
+    OV_TENSOR_STATEMENT({ return _impl->getTensorDesc().getBlockingDesc().getBlockDims(); });
 }
 
 Strides Tensor::get_strides() const {
