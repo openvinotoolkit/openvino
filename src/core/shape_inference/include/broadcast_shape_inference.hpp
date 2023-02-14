@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -250,7 +250,10 @@ void broadcast_base_shape_infer(
         } else if (data_input_shape.rank().is_static() && is_target_input_shape_static) {
             result_shape = PartialShape::dynamic(target_input_shape[0].get_length());
             // The logic of BroadcastType::BIDIRECTIONAL matches broadcast_merge_into with AutoBroadcastType::NUMPY
-            T::broadcast_merge_into(result_shape, data_input_shape, op::AutoBroadcastType::NUMPY);
+            NODE_VALIDATION_CHECK(op,
+                                  T::broadcast_merge_into(result_shape, data_input_shape, op::AutoBroadcastType::NUMPY),
+                                  "Broadcast shape inference failed, output shape calculation with "
+                                  "'broadcast_merge_into' was unsuccessful.");
         } else {
             result_shape = PartialShape::dynamic();
         }

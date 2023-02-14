@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -35,7 +35,6 @@ addIeTargetTest(
         LABELS
             CPU
 )
-
 
 # remove all non-common files from debug
 set(EXCLUDED_SOURCE_PATHS_FOR_DEBUG

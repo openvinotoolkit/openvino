@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -505,6 +505,12 @@ std::shared_ptr<ngraph::Node> makePad(const ngraph::Output<Node>& data,
                                       const std::vector<int64_t>& padsEnd,
                                       float argPadValue,
                                       ngraph::helpers::PadMode padMode);
+
+std::shared_ptr<ov::Node> makePad(const ov::Output<Node>& in,
+                                  const ov::Output<Node>& beginNode,
+                                  const ov::Output<Node>& endNode,
+                                  const ov::Output<Node>& valueNode,
+                                  ngraph::helpers::PadMode padMode);
 
 std::shared_ptr<ngraph::Node> makeBatchNormInference(const ngraph::Output<Node>& data,
                                                      double epsilon);

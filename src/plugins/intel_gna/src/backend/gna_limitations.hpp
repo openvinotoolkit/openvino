@@ -1,14 +1,17 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "dnn_types.hpp"
-#include <cstdint>
 #include <cpp/ie_cnn_network.h>
-#include <ie_algorithm.hpp>
 #include <legacy/ie_layers.h>
+
+#include <cstdint>
+#include <ie_algorithm.hpp>
+
+#include "common/gna_target.hpp"
+#include "dnn_types.hpp"
 #include "gna_lib_ver_selector.hpp"
 
 namespace ov {
@@ -49,16 +52,19 @@ constexpr uint32_t bytesPerSplitElement = 2;
 constexpr uint32_t bytesPerCropElement = 2;
 
 inline bool isCropAffinedOffset(size_t numberOfElements) {
-    const auto cropOffset = numberOfElements*bytesPerCropElement;
+    const auto cropOffset = numberOfElements * bytesPerCropElement;
     return (ALIGN64(cropOffset) != cropOffset);
 }
 
 inline bool IsTranspose2d(const std::vector<size_t>& shape) {
-    return std::count_if(std::begin(shape), std::end(shape), [](size_t dim) { return dim != 1; }) == 2;
+    return std::count_if(std::begin(shape), std::end(shape), [](size_t dim) {
+               return dim != 1;
+           }) == 2;
 }
 
 inline bool IsTransposeSupported(const std::vector<size_t>& shape) {
-    if (!IsTranspose2d(shape)) return false;
+    if (!IsTranspose2d(shape))
+        return false;
     auto shape_no_1 = shape;
     shape_no_1.erase(std::remove(shape_no_1.begin(), shape_no_1.end(), 1), shape_no_1.end());
     size_t min, max;
@@ -194,7 +200,7 @@ public:
                                OvGnaType inPrecision,
                                bool exception = true) const = 0;
 
-    static std::unique_ptr<AbstractValidator> Create(const std::string&);
+    static std::unique_ptr<AbstractValidator> Create(const common::DeviceVersion& target);
 };
 
 class Validator_30 : public AbstractValidator {
@@ -345,6 +351,8 @@ public:
                        OvGnaType inPrecision,
                        bool exception = true) const override;
 };
+
+bool UseOnly16BitConvolutionWeights(const common::DeviceVersion& compile_target);
 
 }  // namespace cnn2d
 

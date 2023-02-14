@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,8 +42,6 @@ public:
         auto& stream = instance.get_network().get_stream();
         return stream.enqueue_marker(events);
     }
-
-    bool validate(const primitive_inst&) const override { return true; }
 
     static std::unique_ptr<primitive_impl> create_data(const data_node& data, const kernel_impl_params&) {
         return make_unique<wait_for_events_impl>(data);

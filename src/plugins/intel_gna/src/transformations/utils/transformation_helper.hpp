@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,7 +48,8 @@ void GetConvData(std::shared_ptr<ngraph::opset7::Convolution> conv, ConvData& co
  * @param expected_rank expected node rank
  * @return predicate function wrapper
  */
-std::function<bool(ngraph::Output<ngraph::Node>)> consumers_and_rank(const size_t expected_count, const ngraph::Dimension& expected_rank);
+std::function<bool(ngraph::Output<ngraph::Node>)> consumers_and_rank(const size_t expected_count,
+                                                                     const ngraph::Dimension& expected_rank);
 
 /**
  * @brief checks whether transpose matches a given order
@@ -81,9 +82,10 @@ std::shared_ptr<ngraph::Node> VerifyBiasGetConst(std::shared_ptr<ngraph::Node> c
  * @param last_node the node to which output the new fake quantize layer will be connected
  * @return new fake quantize layer or the last node
  */
-std::shared_ptr<ngraph::Node> InsertFQLayer(const std::shared_ptr<ngraph::opset7::FakeQuantize> fq_layer, std::shared_ptr<ngraph::Node> last_node);
+std::shared_ptr<ngraph::Node> InsertFQLayer(const std::shared_ptr<ngraph::opset7::FakeQuantize> fq_layer,
+                                            std::shared_ptr<ngraph::Node> last_node);
 
-} // namespace helper
-} // namespace pass
-} // namespace intel_gna
-} // namespace ov
+}  // namespace helper
+}  // namespace pass
+}  // namespace intel_gna
+}  // namespace ov

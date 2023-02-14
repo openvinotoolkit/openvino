@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/quantize.hpp"
 #include "primitive_inst.h"
@@ -97,6 +96,34 @@ public:
                                                                        out_shift);
     }
     std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+
+    void calculate_hash() override {
+        parent::calculate_hash();
+
+        seed = hash_combine(seed, scale_shift_opt);
+        seed = hash_combine(seed, need_post_scale);
+        seed = hash_combine(seed, need_post_shift);
+        seed = hash_combine(seed, need_pre_shift);
+        seed = hash_combine(seed, need_clamp);
+        seed = hash_combine(seed, need_min_clamp);
+        seed = hash_combine(seed, need_max_clamp);
+
+        seed = hash_combine(seed, per_tensor_input_range);
+        seed = hash_combine(seed, per_tensor_input_scale);
+        seed = hash_combine(seed, per_tensor_input_shift);
+        seed = hash_combine(seed, per_tensor_output_range);
+        seed = hash_combine(seed, per_tensor_output_scale);
+        seed = hash_combine(seed, per_tensor_output_shift);
+
+        seed = hash_combine(seed, in_lo);
+        seed = hash_combine(seed, in_hi);
+        seed = hash_combine(seed, in_scale);
+        seed = hash_combine(seed, in_shift);
+        seed = hash_combine(seed, out_lo);
+        seed = hash_combine(seed, out_hi);
+        seed = hash_combine(seed, out_scale);
+        seed = hash_combine(seed, out_shift);
+    }
 
 private:
     inline float clamp(float val) const {

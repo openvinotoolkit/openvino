@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,12 +35,12 @@ public:
     void execute(lrn_test_params& p) {
         auto input_prim = get_mem(get_input_layout(p));
 
-        build_options options;
-        implementation_desc lrn_impl = { p.input_format, p.kernel_name };
-        options.set_option(build_option::optimize_data(true));
-        options.set_option(build_option::force_implementations({ { "lrn_norm", lrn_impl } }));
-        network network_fused(this->engine, this->topology_fused, options);
-        network network_not_fused(this->engine, this->topology_non_fused, this->bo_not_fused);
+        ExecutionConfig config;
+        ov::intel_gpu::ImplementationDesc lrn_impl = { p.input_format, p.kernel_name };
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "lrn_norm", lrn_impl } }));
+        network network_fused(this->engine, this->topology_fused, config);
+        network network_not_fused(this->engine, this->topology_non_fused, this->cfg_not_fused);
 
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);

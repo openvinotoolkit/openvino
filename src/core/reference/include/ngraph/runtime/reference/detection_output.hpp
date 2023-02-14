@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -481,7 +481,6 @@ public:
             DecodeBBoxesAll(locPreds, priorBboxes, priorVariances, decodeBboxes);
         }
 
-        int numKept = 0;
         std::vector<std::map<int, std::vector<int>>> allIndices;
         for (size_t i = 0; i < numImages; ++i) {
             const LabelBBox& decodeBboxesImage = decodeBboxes[i];
@@ -539,10 +538,8 @@ public:
                     newIndices[label].push_back(idx);
                 }
                 allIndices.push_back(newIndices);
-                numKept += attrs.top_k;
             } else {
                 allIndices.push_back(indices);
-                numKept += numDet;
             }
         }
 

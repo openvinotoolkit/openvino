@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,8 +34,8 @@ TEST_F(TransformationTestsF, TransposeReshapeEliminationForMatMul) {
         auto const_tranpose_after = opset1::Constant::create(element::i32, Shape{3}, {2, 0, 1});
         auto tranpose_after = std::make_shared<opset1::Transpose>(reshape_after, const_tranpose_after);
         function = std::make_shared<Function>(NodeVector{tranpose_after}, ParameterVector{data_1, data_2});
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::TransposeReshapeEliminationForMatmul>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::TransposeReshapeEliminationForMatmul>();
     }
     {
         auto data_1 = std::make_shared<opset1::Parameter>(element::f32, data_shape_1);
@@ -61,7 +61,7 @@ TEST_F(TransformationTestsF, TransposeReshapeEliminationForMatMul_TransposedA) {
         auto const_tranpose_after = opset1::Constant::create(element::i32, Shape{3}, {2, 0, 1});
         auto tranpose_after = std::make_shared<opset1::Transpose>(reshape_after, const_tranpose_after);
         function = std::make_shared<Function>(NodeVector{tranpose_after}, ParameterVector{data_1, data_2});
-        manager.register_pass<pass::TransposeReshapeEliminationForMatmul>();
+        manager.register_pass<ov::pass::TransposeReshapeEliminationForMatmul>();
     }
     {
         auto data_1 = std::make_shared<opset1::Parameter>(element::f32, data_shape_1);
@@ -87,7 +87,7 @@ TEST_F(TransformationTestsF, TransposeReshapeEliminationForMatMul_TransposedB) {
         auto const_tranpose_after = opset1::Constant::create(element::i32, Shape{3}, {1, 0, 2});
         auto tranpose_after = std::make_shared<opset1::Transpose>(reshape_after, const_tranpose_after);
         function = std::make_shared<Function>(NodeVector{tranpose_after}, ParameterVector{data_1, data_2});
-        manager.register_pass<pass::TransposeReshapeEliminationForMatmul>();
+        manager.register_pass<ov::pass::TransposeReshapeEliminationForMatmul>();
     }
     {
         auto data_1 = std::make_shared<opset1::Parameter>(element::f32, data_shape_1);
@@ -113,7 +113,7 @@ TEST_F(TransformationTestsF, TransposeReshapeEliminationForMatMul_TransposedAB) 
         auto const_tranpose_after = opset1::Constant::create(element::i32, Shape{3}, {1, 0, 2});
         auto tranpose_after = std::make_shared<opset1::Transpose>(reshape_after, const_tranpose_after);
         function = std::make_shared<Function>(NodeVector{tranpose_after}, ParameterVector{data_1, data_2});
-        manager.register_pass<pass::TransposeReshapeEliminationForMatmul>();
+        manager.register_pass<ov::pass::TransposeReshapeEliminationForMatmul>();
     }
     {
         auto data_1 = std::make_shared<opset1::Parameter>(element::f32, data_shape_1);
@@ -131,8 +131,8 @@ TEST_F(TransformationTestsF, TransposeReshapeEliminationForMatMul_Einsum) {
         auto data_2 = std::make_shared<opset1::Parameter>(element::f32, data_shape_2);
         auto einsum = std::make_shared<opset7::Einsum>(OutputVector{data_1, data_2}, "kl,mlj->mkj");
         function = std::make_shared<Function>(NodeVector{einsum}, ParameterVector{data_1, data_2});
-        manager.register_pass<pass::EinsumDecomposition>();
-        manager.register_pass<pass::TransposeReshapeEliminationForMatmul>();
+        manager.register_pass<ov::pass::EinsumDecomposition>();
+        manager.register_pass<ov::pass::TransposeReshapeEliminationForMatmul>();
     }
     {
         auto data_1 = std::make_shared<opset1::Parameter>(element::f32, data_shape_1);

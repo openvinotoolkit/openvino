@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -200,7 +200,7 @@ def freeze_tf2_concrete_function(model, concrete_func, env_setup):
 
 
 def prepare_graph_def(model):
-    from tensorflow.python.training.tracking.base import Trackable
+    from tensorflow.python.training.tracking.base import Trackable  # pylint: disable=no-name-in-module,import-error
     if isinstance(model, tf_v1.GraphDef):
         nodes_to_clear_device = model.node
         for node in nodes_to_clear_device:
@@ -328,7 +328,8 @@ def convert_to_pb(argv: argparse.Namespace):
     # if this is already binary frozen format .pb, there is no need to create auxiliary binary frozen protobuf
     # the main thing is to differentiate this format from text frozen format and checkpoint
     # that can utilize input_model option
-    if argv.input_model and not argv.input_model_is_text and not argv.input_checkpoint:
+    if argv.input_model and not argv.input_model_is_text and not argv.input_checkpoint and \
+            isinstance(argv.input_model, str):
         return None
 
     user_output_node_names_list = argv.output.split(',') if argv.output else None

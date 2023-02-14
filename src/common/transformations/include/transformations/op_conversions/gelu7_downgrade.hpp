@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,9 +26,3 @@ public:
     OPENVINO_RTTI("Gelu7Downgrade", "0");
     Gelu7Downgrade();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::Gelu7Downgrade;
-}  // namespace pass
-}  // namespace ngraph

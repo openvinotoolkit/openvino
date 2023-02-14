@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,83 +26,28 @@ struct deconvolution_impl : typed_primitive_impl_ocl<deconvolution> {
         return make_unique<deconvolution_impl>(*this);
     }
 
-    deconvolution_impl() : parent() {}
-
-    explicit deconvolution_impl(const deconvolution_impl& other) : parent(other),
-        _split(other._split),
-        _groups(other._groups) {}
-
-    deconvolution_impl(const deconvolution_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
-        set_node_params(arg);
-        this->can_reuse_memory = kd.can_reuse_memory;
-    }
-
-    void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<deconvolution>());
-        const auto& node = arg.as<deconvolution>();
-        _split = node.get_split();
-        _groups = node.get_groups();
-    }
-
-    void save(BinaryOutputBuffer& ob) const override {
-        parent::save(ob);
-        ob << _split;
-        ob << _groups;
-    }
-
-    void load(BinaryInputBuffer& ib) override {
-        parent::load(ib);
-        ib >> _split;
-        ib >> _groups;
-    }
-
 protected:
-    // TODO: share it with convolution and fully connected
-    bool validate_impl(const typed_primitive_inst<deconvolution>& instance) const override {
-        bool res = true;
+    kernel_arguments_data get_arguments(const typed_primitive_inst<deconvolution>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
 
-        CLDNN_ERROR_NOT_EQUAL(_node_id,
-                              "deconvolution filling value",
-                              instance.node->get_output_layout().data_padding.filling_value(),
-                              "padding mode",
-                              0.0f,
-                              "Unknown padding mode in deconvolution.");
-
-        return res;
-    }
-
-    kernel_arguments_data get_arguments(const typed_primitive_inst<deconvolution>& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
-
-        args.weights = instance.weights_memory(split);
-        args.bias = instance.bias_term() ? instance.bias_memory(split) : nullptr;
+        args.weights = instance.weights_memory();
+        args.bias = instance.bias_term() ? instance.bias_memory() : nullptr;
 
         return args;
     }
 
-    int32_t get_split() const override { return _split; }
-
-    uint32_t get_groups() const override { return _groups; }
-
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<deconvolution>();
-        const auto& split = primitive->split();
         const auto& stride = primitive->stride;
         const ov::Strides dilation(impl_param.get_output_layout().get_spatial_rank(), 1);
-        const auto actual_split = split;
 
         const auto& pad = primitive->pad;
         const auto& groups = primitive->groups;
 
-        auto params = get_weights_bias_default_params<kernel_selector::deconvolution_params>(
-            impl_param,
-            (groups > 1) ? 1 : actual_split,
-            1,
-            primitive->grouped_weights_shape);
+        auto params = get_weights_bias_default_params<kernel_selector::deconvolution_params>(impl_param, primitive->grouped_weights_shape);
         auto optional_params = get_default_weights_bias_optional_params<kernel_selector::deconvolution_optional_params>(impl_param.get_program());
 
-        params.split = split;
         params.groups = groups;
 
         const auto weights_idx = 1 + 0;
@@ -130,10 +75,6 @@ public:
 
         return {params, optional_params};
     }
-
-private:
-    int32_t _split;
-    uint32_t _groups;
 };
 
 namespace detail {

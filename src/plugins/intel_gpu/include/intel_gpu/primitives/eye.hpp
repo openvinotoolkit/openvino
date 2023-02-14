@@ -1,16 +1,11 @@
 // Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief
 /// @details Construct identity matrix or batch fo them
@@ -35,8 +30,11 @@ struct eye : public primitive_base<eye> {
 
     tensor output_shape;
     int32_t shift;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, shift);
+        return seed;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,11 +15,9 @@ extern const char *targetPluginName;
 
 extern std::vector<std::string> IRFolderPaths;
 extern std::vector<std::string> disabledTests;
+extern std::list<std::string> dirList;
 
 extern ov::AnyMap pluginConfig;
-
-extern std::list<std::string> dirList;
-#define CONFORMANCE_OTHER_OPS "Other"
 
 inline ov::AnyMap readPluginConfig(const std::string &configFilePath) {
     if (!CommonTestUtils::fileExists(configFilePath)) {
@@ -48,7 +46,7 @@ inline ov::AnyMap readPluginConfig(const std::string &configFilePath) {
 }
 
 inline std::vector<std::string> getModelPaths(const std::vector<std::string>& conformance_ir_paths,
-                                              const std::string opName = CONFORMANCE_OTHER_OPS) {
+                                              const std::string opName = "Other") {
     // This is required to prevent re-scan folders each call in case there is nothing found
     static bool listPrepared = false;
     if (!listPrepared) {
@@ -70,26 +68,24 @@ inline std::vector<std::string> getModelPaths(const std::vector<std::string>& co
     }
 
     std::vector<std::string> result;
-
-    if (opName != "" && opName != CONFORMANCE_OTHER_OPS) {
-        // Looking for files which contains /opName/ in file path, an expecting file structure is: /opName/precision/file.xml
-        auto opLookup = std::regex("[\\\\/]" + opName + "-?([^\\\\/])?[\\\\/]", std::regex::icase);
+    if (!opName.empty() && opName != "Other") {
+        std::string strToFind = CommonTestUtils::FileSeparator + opName + CommonTestUtils::FileSeparator;
         auto it = dirList.begin();
         while (it != dirList.end()) {
-            if (std::regex_search(*it, opLookup)) {
-                // Remove file in case it apply to the operation
+            if (it->find(strToFind) != std::string::npos) {
                 result.push_back(*it);
                 it = dirList.erase(it);
             } else {
                 ++it;
             }
         }
-    } else if (opName == CONFORMANCE_OTHER_OPS) {
+    } else if (opName == "Other") {
         // For "Undefined" operation name - run all applicable files in "Undefined" handler
         result.insert(result.end(), dirList.begin(), dirList.end());
-        dirList.clear();
+    } else {
+        std::string message = "Operatiion name: " + opName + " is incorrect. Please check the instantiation parameters!";
+        throw std::runtime_error(message);
     }
-
     return result;
 }
 

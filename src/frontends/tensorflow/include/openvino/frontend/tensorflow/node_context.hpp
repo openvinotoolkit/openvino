@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,7 +41,7 @@ public:
     }
 
     /// \brief Get a node name
-    std::string get_name() const {
+    const std::string& get_name() const override {
         return m_decoder->get_op_name();
     }
 

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,6 +69,9 @@ bool ConvolutionKernel_bfyx_1x1_gemm_buf::Validate(const Params& p, const option
     if (bPad || bFilterSize || bStride || bIFMSize) {
         return false;
     }
+
+    if (!params.engineInfo.supports_image)
+        return false;
 
     return true;
 }

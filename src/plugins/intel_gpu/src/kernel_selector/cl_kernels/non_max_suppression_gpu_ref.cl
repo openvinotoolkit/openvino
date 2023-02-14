@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -478,14 +478,21 @@ KERNEL (non_max_suppression_ref_stage_2)(
             if (convert_float(next_candidate.score) > SCORE_THRESHOLD_VAL) {
                 --i;
                 sortedBoxList[i] = next_candidate;
-                FUNC_CALL(quickSortIterative)(sortedBoxList, i, kSortedBoxNum);
+                FUNC_CALL(quickSortIterative)(sortedBoxList, i, kSortedBoxNum - 1);
             }
         }
     }
 
     // Set pad value to indicate the end of selected box list.
     if (selectedBoxNum < NUM_BOXES) {
-        selectedBoxList[selectedBoxNum].batchId = -1;
+        int b = selectedBoxNum;
+        #ifdef REUSE_INTERNAL_BUFFER
+            for (; b < NUM_BOXES; ++b) {
+                selectedBoxList[b].batchId = -1;
+            }
+        #else
+            selectedBoxList[b].batchId = -1;
+        #endif
     }
 }
 #endif /* NMS_STAGE_2 */

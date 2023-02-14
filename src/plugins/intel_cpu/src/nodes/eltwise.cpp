@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1589,8 +1589,8 @@ public:
                     case Algorithm::EltwiseSoftSign:          *dst_ptr_f = src_f[0] / (1 + std::fabs(src_f[0])); break;
                     case Algorithm::EltwiseIsFinite:          *dst_ptr_f = std::isfinite(src_f[0]); break;
                     case Algorithm::EltwiseIsInf:
-                        *dst_ptr_f = _opData.alpha && (src_f[0] == -std::numeric_limits<float>::infinity()) ||
-                                     _opData.beta  && (src_f[0] == std::numeric_limits<float>::infinity());
+                        *dst_ptr_f = (_opData.alpha && (src_f[0] == -std::numeric_limits<float>::infinity())) ||
+                                     (_opData.beta  && (src_f[0] == std::numeric_limits<float>::infinity()));
                         break;
                     case Algorithm::EltwiseIsNaN:             *dst_ptr_f = std::isnan(src_f[0]); break;
                     default: IE_THROW() << "Unsupported operation type for Eltwise executor";
@@ -1666,8 +1666,8 @@ bool Eltwise::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-Eltwise::Eltwise(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-    Node(op, eng, cache, EltwiseShapeInferFactory()), broadcastingPolicy(Undefined) {
+Eltwise::Eltwise(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+    Node(op, context, EltwiseShapeInferFactory()), broadcastingPolicy(Undefined) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -2050,7 +2050,7 @@ void Eltwise::prepareParams() {
         }
     }
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, buildExecutor);
     execPtr = result.first;
 }
@@ -2350,7 +2350,7 @@ bool Eltwise::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp,
 }
 
 bool Eltwise::canFuse(const NodePtr& node) const {
-    auto isIntegerComputeSupported = [this](const Node* node) {
+    auto isIntegerComputeSupported = [](const Node* node) {
         if (!one_of(node->getAlgorithm(), Algorithm::EltwiseAdd,
                                           Algorithm::EltwiseMultiply,
                                           Algorithm::EltwiseMulAdd,
@@ -2388,8 +2388,8 @@ bool Eltwise::canFuse(const NodePtr& node) const {
         // [TODO] We need to rewrite support for different precisions at all to avoid implicit conversions to FP32
         // (all should be handled via explicit convert operations)
         bool isIntegerFusingNode = isIntegerComputeSupported(node.get());
-        if (isIntegerNode && !isIntegerFusingNode ||
-                !isIntegerNode && isIntegerFusingNode) {
+        if ((isIntegerNode && !isIntegerFusingNode) ||
+                (!isIntegerNode && isIntegerFusingNode)) {
             return false;
         }
 

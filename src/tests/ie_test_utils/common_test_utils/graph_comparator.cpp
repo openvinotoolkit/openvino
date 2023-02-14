@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -76,12 +76,16 @@ bool compare_rt_keys(const T& node1, const T& node2, std::ostream& err_log) {
 }
 
 bool less_by_name(const std::shared_ptr<ngraph::op::v0::Result>& l, const std::shared_ptr<ngraph::op::v0::Result>& r) {
-    return l->get_friendly_name() < r->get_friendly_name();
+    const auto& l_name = l->get_friendly_name();
+    const auto& r_name = r->get_friendly_name();
+    return l_name.size() < r_name.size() || (l_name.size() == r_name.size() && l_name < r_name);
 }
 
 bool less_by_parent_name(const std::shared_ptr<ngraph::op::v0::Result>& l,
                          const std::shared_ptr<ngraph::op::v0::Result>& r) {
-    return l->get_input_node_shared_ptr(0)->get_friendly_name() < r->get_input_node_shared_ptr(0)->get_friendly_name();
+    const auto& l_name = l->get_input_node_shared_ptr(0)->get_friendly_name();
+    const auto& r_name = r->get_input_node_shared_ptr(0)->get_friendly_name();
+    return l_name.size() < r_name.size() || (l_name.size() == r_name.size() && l_name < r_name);
 }
 
 std::string typeInfoToStr(const ngraph::Node::type_info_t& typeInfo) {
@@ -802,6 +806,14 @@ void Comparator::compare_outputs(ngraph::Node* node1, ngraph::Node* node2, std::
         if (should_compare(CmpValues::RUNTIME_KEYS) && !compare_rt_keys(node1->output(i), node2->output(i), err_log)) {
             err_log << "Different runtime info detected at output(" << i << ")\n"
                     << name(node1) << " and " << name(node2) << " not equal runtime info." << std::endl;
+        }
+
+        if (should_compare(CmpValues::CONSUMERS_COUNT)) {
+            if (node1->output(i).get_target_inputs().size() != node2->output(i).get_target_inputs().size()) {
+                err_log << "Different consumers number detected\n"
+                        << name(node1) << " Output(" << i << ") " << node1->output(i).get_target_inputs().size() << " and "
+                        << name(node2) << " Output(" << i << ") " << node2->output(i).get_target_inputs().size() << std::endl;
+            }
         }
     }
 }

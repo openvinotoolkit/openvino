@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -165,6 +165,8 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
                     continue;
                 } else {
                     std::string exeDevices_string = _autoSchedule->_loadContext[i].workName.substr(_autoSchedule->_loadContext[i].workName.find(":") + 1);
+                    if (exeDevices_string == "CPU_HELP")
+                        exeDevices_string = "(CPU)";
                     std::stringstream ss(exeDevices_string);
                     std::string item;
                     while (getline(ss, item, ',')) {

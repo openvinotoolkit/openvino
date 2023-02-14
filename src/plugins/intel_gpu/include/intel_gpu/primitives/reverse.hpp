@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "primitive.hpp"
@@ -28,5 +27,11 @@ struct reverse : public primitive_base<reverse> {
           mode{mode} {}
 
     reverse_mode mode{reverse_mode::index};
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, mode);
+        return seed;
+    }
 };
 }  // namespace cldnn

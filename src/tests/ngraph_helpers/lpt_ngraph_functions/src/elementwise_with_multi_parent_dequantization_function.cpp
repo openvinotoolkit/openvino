@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,10 +25,10 @@ std::shared_ptr<ngraph::Function> ElementwiseWithMultiParentDequantizationFuncti
     const ngraph::builder::subgraph::DequantizationOperations& dequantization2) {
     const auto input1_1 = std::make_shared<ngraph::opset1::Parameter>(precision1, inputShape);
     const auto input1_2 = std::make_shared<ngraph::opset1::Parameter>(precision1, ngraph::Shape({ inputShape[0], inputShape[1], 1, 1 }));
-    const std::shared_ptr<ngraph::Node> multiply1 = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Multiply>>(
+    const std::shared_ptr<ngraph::Node> multiply1 = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Multiply>>(
         opset1::Multiply(
-            ngraph::op::TemporaryReplaceOutputType(input1_1, element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(input1_2, element::f32).get()),
+            ov::op::TemporaryReplaceOutputType(input1_1, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(input1_2, element::f32).get()),
         std::vector<element::Type>{element::f32, element::f32},
         std::vector<element::Type>{});
 
@@ -36,10 +36,10 @@ std::shared_ptr<ngraph::Function> ElementwiseWithMultiParentDequantizationFuncti
 
     const auto input2_1 = std::make_shared<ngraph::opset1::Parameter>(precision1, inputShape);
     const auto input2_2 = std::make_shared<ngraph::opset1::Parameter>(precision1, ngraph::Shape({ inputShape[0], inputShape[1], 1, 1 }));
-    const std::shared_ptr<ngraph::Node> multiply2 = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Multiply>>(
+    const std::shared_ptr<ngraph::Node> multiply2 = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Multiply>>(
         opset1::Multiply(
-            ngraph::op::TemporaryReplaceOutputType(input2_1, element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(input2_2, element::f32).get()),
+            ov::op::TemporaryReplaceOutputType(input2_1, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(input2_2, element::f32).get()),
         std::vector<element::Type>{element::f32, element::f32},
         std::vector<element::Type>{});
 

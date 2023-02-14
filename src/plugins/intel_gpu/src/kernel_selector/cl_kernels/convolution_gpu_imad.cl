@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,23 +75,23 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
     const __global PACKED_TYPE   *conv_input,
 #endif
     __global OUTPUT_TYPE         *restrict output,
-    const __global int           *weights,
+    const __global int           *weights
 #if BIAS_TERM
-    const __global BIAS_TYPE     *biases,
+    , const __global BIAS_TYPE     *biases
 #endif
 #ifdef ASYMMETRIC_WEIGHTS_QUANTIZATION
-    const __global WEIGHTS_ZERO_POINTS_TYPE *weights_zp,
+    , const __global WEIGHTS_ZERO_POINTS_TYPE *weights_zp
 #endif
 #ifdef ASYMMETRIC_DATA_QUANTIZATION
-    const __global ACTIVATIONS_ZERO_POINTS_TYPE *activations_zp,
+    , const __global ACTIVATIONS_ZERO_POINTS_TYPE *activations_zp
 #endif
 #ifdef COMPENSATION_TERM
-    const __global COMPENSATION_TYPE *compensation,
+    , const __global COMPENSATION_TYPE *compensation
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-    uint split_idx)
+)
 {
     const uint oc = (uint)get_global_id(0) * OUT_BLOCK_WIDTH;  // oc = Output Column
     const uint or = (uint)get_global_id(1) * OUT_BLOCK_HEIGHT; // or = Output Row

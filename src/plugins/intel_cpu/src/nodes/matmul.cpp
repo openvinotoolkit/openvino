@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -110,8 +110,8 @@ bool MatMul::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
     return true;
 }
 
-MatMul::MatMul(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-    Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)), withBiases(false) {
+MatMul::MatMul(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+    Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)), withBiases(false) {
     std::string errorMessage;
     errorPrefix = "MatMul node with name '" + getName() + "'";
 
@@ -534,7 +534,7 @@ void MatMul::prepareParams() {
 
     auto engine = getEngine();
 
-    auto builder = [&engine](const MatMulKey& key) -> std::shared_ptr<dnnl::primitive> {
+    auto builder = [&engine](const MatMulKey& key) -> dnnl::primitive {
         std::shared_ptr<dnnl::matmul::desc> matmul_desc;
 
         if (key.bias) {
@@ -560,12 +560,12 @@ void MatMul::prepareParams() {
                 break;
             }
             if (!itpd.next_impl())
-                return nullptr;
+                return matmul();
         }
-        return std::make_shared<matmul>(prim_desc);
+        return matmul(prim_desc);
     };
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
 
     if (!result.first) {
@@ -574,7 +574,7 @@ void MatMul::prepareParams() {
 
     prim = result.first;
 
-    auto pd = (*prim).get_primitive_desc();
+    auto pd = prim.get_primitive_desc();
     auto scratchpadMem = getScratchPadMem(pd);
 
     primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();

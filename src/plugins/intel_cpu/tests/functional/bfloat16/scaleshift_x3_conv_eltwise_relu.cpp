@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,7 +66,7 @@ protected:
 
         // convolution
         std::shared_ptr<ngraph::opset1::Constant> weightsNode = nullptr;
-        ngraph::Shape convFilterShape = { channelsCount, channelsCount, 3, 3 };  // out channel, /input channels, kernel h, kernel w
+        ngraph::Shape convFilterShape = { channelsCount, channelsCount, 3, 3 };  // out channel, input channels, kernel h, kernel w
         if (netPrecision == Precision::FP32) {
             std::vector<float> weightValuesFP32;
             weightValuesFP32.resize(channelsCount * channelsCount * 3 * 3);

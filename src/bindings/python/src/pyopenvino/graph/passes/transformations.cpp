@@ -20,37 +20,37 @@
 #include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
+using Version = ov::pass::Serialize::Version;
 
 void regclass_transformations(py::module m) {
+    py::enum_<Version>(m, "Version", py::arithmetic())
+        .value("UNSPECIFIED", Version::UNSPECIFIED)
+        .value("IR_V10", Version::IR_V10)
+        .value("IR_V11", Version::IR_V11);
+
     py::class_<ov::pass::Serialize, std::shared_ptr<ov::pass::Serialize>, ov::pass::ModelPass, ov::pass::PassBase>
         serialize(m, "Serialize");
     serialize.doc() = "openvino.runtime.passes.Serialize transformation";
-    serialize.def(py::init([](const py::object& path_to_xml, const py::object& path_to_bin) {
-                      return std::make_shared<ov::pass::Serialize>(Common::utils::convert_path_to_string(path_to_xml),
-                                                                   Common::utils::convert_path_to_string(path_to_bin));
-                  }),
-                  py::arg("path_to_xml"),
-                  py::arg("path_to_bin"),
-                  R"(
-                  Create Serialize pass which is used for Model to IR serialization.
-
-                  :param path_to_xml: Path where *.xml file will be saved.
-                  :type path_to_xml: Union[str, bytes, pathlib.Path]
-
-                  :param path_to_xml: Path where *.bin file will be saved.
-                  :type path_to_xml: Union[str, bytes, pathlib.Path]
-    )");
 
     serialize.def(
-        py::init(
-            [](const py::object& path_to_xml, const py::object& path_to_bin, ov::pass::Serialize::Version version) {
+        py::init([](const py::object& path_to_xml, const py::object& path_to_bin, const py::object& version) {
+            if (py::isinstance<py::str>(version)) {
+                return std::make_shared<ov::pass::Serialize>(
+                    Common::utils::convert_path_to_string(path_to_xml),
+                    Common::utils::convert_path_to_string(path_to_bin),
+                    Common::utils::convert_to_version(version.cast<std::string>()));
+            } else if (py::isinstance<Version>(version)) {
                 return std::make_shared<ov::pass::Serialize>(Common::utils::convert_path_to_string(path_to_xml),
                                                              Common::utils::convert_path_to_string(path_to_bin),
-                                                             version);
-            }),
+                                                             version.cast<Version>());
+            } else {
+                return std::make_shared<ov::pass::Serialize>(Common::utils::convert_path_to_string(path_to_xml),
+                                                             Common::utils::convert_path_to_string(path_to_bin));
+            }
+        }),
         py::arg("path_to_xml"),
         py::arg("path_to_bin"),
-        py::arg("version"),
+        py::arg("version") = py::none(),
         R"(
         Create Serialize pass which is used for Model to IR serialization.
 
@@ -60,8 +60,8 @@ void regclass_transformations(py::module m) {
         :param path_to_xml: Path where *.bin file will be saved.
         :type path_to_xml: Union[str, bytes, pathlib.Path]
 
-        :param version: serialized IR version.
-        :type version: int
+        :param version: Optional serialized IR version.
+        :type version: Union[str, openvino.runtime.passes.Version]
     )");
 
     py::class_<ov::pass::ConstantFolding,

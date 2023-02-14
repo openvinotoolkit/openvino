@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "test_utils.h"
 
@@ -67,10 +65,10 @@ void generic_reshape_test(format fmt, tensor const& input_size, tensor const& re
     }
     tpl.add(reshape("reshape", reshape_input, reshape_size, cldnn::reshape::reshape_mode::base, output_padd));
 
-    build_options bo;
-    bo.set_option(build_option::outputs({reshape_input, "reshape"}));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{reshape_input, "reshape"}));
 
-    network net(engine, tpl, bo);
+    network net(engine, tpl, config);
     net.set_input_data("input", input);
     auto outputs = net.execute();
 
@@ -615,9 +613,9 @@ TEST(reshape_gpu_f32, shrink_chain_partial) {
     std::vector<float> out = {5.f, 12.f, 15.f, 32.0f};
     set_values(input, input_vec);
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -655,9 +653,9 @@ TEST(reshape_gpu_f32, shrink_chain_full) {
     std::vector<float> out = {5.f, 12.f, 15.f, 32.0f};
     set_values(input, input_vec);
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -690,9 +688,9 @@ TEST(reshape_gpu_f32, shrink_chain_out) {
     std::vector<float> out = {0.f, 2.f, 0.f, 4.0f};
     set_values(input, input_vec);
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -729,9 +727,9 @@ TEST(reshape_gpu_f32, basic_runtime_static_shape) {
 
     set_values(input, input_data);
 
-    build_options bo;
-    bo.set_option(build_option::allow_new_shape_infer(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -777,10 +775,10 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape) {
 
     set_values(input, input_data);
 
-    build_options bo;
-    bo.set_option(build_option::allow_new_shape_infer(true));
-    bo.set_option(build_option::optimize_data(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -828,10 +826,10 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape_with_const) {
 
     set_values(input, input_data);
 
-    build_options bo;
-    bo.set_option(build_option::allow_new_shape_infer(true));
-    bo.set_option(build_option::optimize_data(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -885,10 +883,10 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape_with_const_optimized_out) {
 
     set_values(input, input_data);
 
-    build_options bo;
-    bo.set_option(build_option::allow_new_shape_infer(true));
-    bo.set_option(build_option::optimize_data(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 

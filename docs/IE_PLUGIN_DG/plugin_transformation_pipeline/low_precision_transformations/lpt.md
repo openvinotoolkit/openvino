@@ -60,6 +60,8 @@ LPT transformations propagate dequantization operations through the following op
 * [Squeeze-1](@ref openvino_docs_ops_shape_Reshape_1)
 * [StridedSlice-1](@ref openvino_docs_ops_movement_StridedSlice_1)
 * [Transpose-1](@ref openvino_docs_ops_movement_Transpose_1)
+* [Gather-7](@ref openvino_docs_ops_movement_Gather_7)
+* [Gather-8](@ref openvino_docs_ops_movement_Gather_8)
 * [Unsqueeze-1](@ref openvino_docs_ops_shape_Unsqueeze_1)
 * [VariadicSplit-1](@ref openvino_docs_ops_movement_VariadicSplit_1)
 
@@ -71,16 +73,16 @@ For example, if you would like to infer a model with `Convolution` operation in 
 
 > There are several supported quantization approaches on activations and on weights. All supported approaches are described in [Quantization approaches](#quantization-approaches) section below. In demonstrated model [FakeQuantize operation quantization](#fakequantize-operation) approach is used.
 
-### Low precision tools
+### <a name="low-precision-tools"></a> Low precision tools
 For more details on how to get a quantized model, refer to [Model Optimization](@ref openvino_docs_model_optimization_guide) document.
 
-## Quantization approaches
+## <a name="quantization-approaches"></a> Quantization approaches
 LPT transformations support two quantization approaches:
 1. `FakeQuantize` operation,
 2. Quantize and dequantization operations
 
 Let's explore both approaches in details on `Convolution` operation.
-### FakeQuantize operation  
+### <a name="fakequantize-operation"></a> FakeQuantize operation  
 In this case `FakeQuantize` operation is used on activations and quantized constant on weights. Original input model:  
 
 ![Original model with FakeQuantize](img/model_fq_and_convolution.common.png)
@@ -149,6 +151,7 @@ This step has the most transformations. These transformations can be separated i
 * [FakeQuantizeTransformation](@ref openvino_docs_OV_UG_lpt_FakeQuantizeTransformation)
 * [InterpolateTransformation](@ref openvino_docs_OV_UG_lpt_InterpolateTransformation)
 * [GroupConvolutionTransformation](@ref openvino_docs_OV_UG_lpt_GroupConvolutionTransformation)
+* [GatherTransformation](@ref openvino_docs_OV_UG_lpt_GatherTransformation)
 * [MatMulTransformation](@ref openvino_docs_OV_UG_lpt_MatMulTransformation)
 * [MaxPoolTransformation](@ref openvino_docs_OV_UG_lpt_MaxPoolTransformation)
 * [MultiplyTransformation](@ref openvino_docs_OV_UG_lpt_MultiplyTransformation)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,7 +65,6 @@ class Matcher;
 using HostTensor = ngraph::runtime::HostTensor;
 using HostTensorPtr = std::shared_ptr<HostTensor>;
 using HostTensorVector = std::vector<HostTensorPtr>;
-using TensorLabelVector = std::vector<TensorLabel>;
 
 template <typename NodeType>
 class Input;
@@ -222,12 +221,6 @@ public:
     virtual bool evaluate(const ov::HostTensorVector& output_values,
                           const ov::HostTensorVector& input_values,
                           const EvaluationContext& evaluationContext) const;
-    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon. Please use evaluate_lower with "
-                        "ov::Tensor instead.")
-    virtual bool evaluate_lower(const ov::HostTensorVector& output_values) const;
-    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon. Please use evaluate_upper with "
-                        "ov::Tensor instead.")
-    virtual bool evaluate_upper(const ov::HostTensorVector& output_values) const;
 
     /// \brief Evaluates the op on input_values putting results in output_values
     /// \param output_values Tensors for the outputs to compute. One for each result

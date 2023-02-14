@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,14 +42,14 @@ public:
 
             function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-            manager.register_pass<ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>();
+            manager.register_pass<ov::pass::ConvertMatrixNmsToMatrixNmsIE>();
             manager.register_pass<ngraph::pass::ConstantFolding>();
         }
 
         {
             auto boxes = std::make_shared<opset1::Parameter>(element_type, Shape{1, 1000, 4});
             auto scores = std::make_shared<opset1::Parameter>(element_type, Shape{1, 1, 1000});
-            auto nms = std::make_shared<op::internal::NmsStaticShapeIE<ngraph::opset8::MatrixNms>>(
+            auto nms = std::make_shared<ov::op::internal::NmsStaticShapeIE<ngraph::opset8::MatrixNms>>(
                 boxes,
                 scores,
                 opset8::MatrixNms::Attributes());

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,9 +23,6 @@ ParamsKey DeformableConvolutionKernel_bfyx_interp::GetSupportedKey() const {
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
     k.EnableBatching();
-    k.EnableSplitSupport();
-    k.EnableDepthwiseSeparableOpt();
-    k.DisableTuning();
     k.EnableGroupedConvolution();
     k.EnableDeformableMode();
     k.EnableDeformableMask();

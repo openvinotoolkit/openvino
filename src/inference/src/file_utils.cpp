@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,9 +65,12 @@ std::basic_string<C> getPathName(const std::basic_string<C>& s) {
     return {};
 }
 
-}  // namespace
+#if defined __GNUC__ || defined __clang__
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wunused-function"
+#endif
 
-static std::string getIELibraryPathA() {
+std::string getIELibraryPathA() {
 #ifdef _WIN32
     CHAR ie_library_path[MAX_PATH];
     HMODULE hm = NULL;
@@ -78,7 +81,7 @@ static std::string getIELibraryPathA() {
     }
     GetModuleFileNameA(hm, (LPSTR)ie_library_path, sizeof(ie_library_path));
     return getPathName(std::string(ie_library_path));
-#elif defined(__APPLE__) || defined(__linux__)
+#elif defined(__APPLE__) || defined(__linux__) || defined(__EMSCRIPTEN__)
 #    ifdef USE_STATIC_IE
 #        ifdef __APPLE__
     Dl_info info;
@@ -101,6 +104,12 @@ static std::string getIELibraryPathA() {
 #endif  // _WIN32
 }
 
+#if defined __GNUC__ || defined __clang__
+#    pragma GCC diagnostic pop
+#endif
+
+}  // namespace
+
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 std::wstring getIELibraryPathW() {
@@ -114,7 +123,7 @@ std::wstring getIELibraryPathW() {
     }
     GetModuleFileNameW(hm, (LPWSTR)ie_library_path, sizeof(ie_library_path) / sizeof(ie_library_path[0]));
     return getPathName(std::wstring(ie_library_path));
-#    elif defined(__linux__) || defined(__APPLE__)
+#    elif defined(__linux__) || defined(__APPLE__) || defined(__EMSCRIPTEN__)
     return ::ov::util::string_to_wstring(getIELibraryPathA().c_str());
 #    else
 #        error "Unsupported OS"

@@ -184,13 +184,16 @@ const std::vector<GatherShapeParams> dynamicInputShapeConstTargetShape = {
         ov::test::InputShape(ov::PartialShape({}), {{3, 4, 3}}),
         3, 2
     },
-    #if 0 // TODO (99432) 5D=>4D test does not work properly because of the current reorder_impl logic does not work as expected.
     {
         ov::test::InputShape(ov::PartialShape({-1, -1, -1, -1, -1}), {{2, 4, 2, 2, 3}, {2, 4, 8, 9, 10}}),
         ov::test::InputShape(ov::PartialShape({}), {{2, 4}}),
         2, 2
     },
-    #endif
+    {
+        ov::test::InputShape(ov::PartialShape({-1, -1, -1, -1, -1, -1}), {{2, 4, 2, 3, 1, 3}, {2, 4, 7, 8, 9, 10}}),
+        ov::test::InputShape(ov::PartialShape({}), {{2, 4}}),
+        2, 2
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_input_shapes_const_target_shapes, GatherGPUTest,

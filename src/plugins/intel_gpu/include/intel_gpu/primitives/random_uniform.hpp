@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,12 +10,7 @@
 
 namespace cldnn {
 
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
+
 
 /// @brief RandomUniform-8 primitive
 /// @details
@@ -47,6 +42,13 @@ struct random_uniform : public primitive_base<random_uniform> {
     const uint64_t op_seed;
     const tensor output_shape;
     const format output_format;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, global_seed);
+        seed = hash_combine(seed, op_seed);
+        return seed;
+    }
 };
 
 }  // namespace cldnn

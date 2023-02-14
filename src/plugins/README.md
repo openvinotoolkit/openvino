@@ -10,7 +10,6 @@ The list of supported plugins:
  * [intel_cpu](./intel_cpu)
  * [intel_gna](./intel_gna)
  * [intel_gpu](./intel_gpu)
- * [intel_myriad](./intel_myriad)
  * [template](./template)
 
 ## See also

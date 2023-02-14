@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -97,8 +97,8 @@ TEST(TransformationTests, LowLatency2_LSTM) {
         f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency2>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::LowLatency2>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -183,8 +183,8 @@ TEST(TransformationTests, LowLatency2_GRU) {
         f = std::make_shared<Function>(NodeVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency2>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::LowLatency2>();
 
         manager.run_passes(f);
 
@@ -264,8 +264,8 @@ TEST(TransformationTests, LowLatency2_RNN) {
         f = std::make_shared<Function>(NodeVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency2>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::LowLatency2>();
 
         manager.run_passes(f);
 
@@ -342,8 +342,8 @@ TEST(TransformationTests, LowLatency2_LSTMReshape) {
         f->validate_nodes_and_infer_types();
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency2>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::LowLatency2>();
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -427,8 +427,8 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop) {
         f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency2>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::LowLatency2>();
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -506,8 +506,8 @@ TEST(TransformationTests, LowLatency2_LSTM_several_iterations) {
         f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H, C});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency2>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::LowLatency2>();
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -621,8 +621,8 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_Reshape) {
         f->validate_nodes_and_infer_types();
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency2>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::LowLatency2>();
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -702,8 +702,8 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_several_iterations) {
         f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency2>(true);
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::LowLatency2>(true);
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -821,20 +821,20 @@ TEST(TransformationTests, LowLatencyLSTM_LLTv1_LLTv2) {
 
         auto f_2 = ngraph::clone_function(*f);
         pass::Manager manager_2;
-        manager_2.register_pass<pass::InitNodeInfo>();
+        manager_2.register_pass<ov::pass::InitNodeInfo>();
         NGRAPH_SUPPRESS_DEPRECATED_START
         manager_2.register_pass<ngraph::pass::LowLatency>();
         NGRAPH_SUPPRESS_DEPRECATED_END
         EXPECT_NO_THROW(manager_2.run_passes(f_2));
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         NGRAPH_SUPPRESS_DEPRECATED_START
         manager.register_pass<ngraph::pass::LowLatency>();
         NGRAPH_SUPPRESS_DEPRECATED_END
         // LLT v2 doesn't insert Assign/ReadValue ops, they are already inserted
         // but unrolls TI/Loop
-        manager.register_pass<pass::LowLatency2>();
+        manager.register_pass<ov::pass::LowLatency2>();
 
         EXPECT_NO_THROW(manager.run_passes(f));
     }

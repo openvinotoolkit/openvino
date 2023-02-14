@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 using namespace InferenceEngine;
-// using namespace ov::test;
+using namespace ov::opset8;
 
 namespace LayerTestsDefinitions {
 
@@ -40,7 +40,9 @@ public:
 protected:
     void SetUp() override {
         ov::element::Type net_type = ov::element::f32;
-        auto params = ngraph::builder::makeParams(net_type, {{1, 2}, {1, 2}});
+        const size_t branch_count = 64;
+        std::vector<std::vector<size_t>> shapes(branch_count, {1, 2});
+
         std::map<std::string, std::string> common_conf, conf;
         size_t layers_number;
         std::tie(targetDevice, common_conf, conf, layers_number) = this->GetParam();
@@ -48,26 +50,24 @@ protected:
         configuration.insert(common_conf.begin(), common_conf.end());
         configuration.insert(conf.begin(), conf.end());
 
-        auto add_const = ngraph::builder::makeConstant(net_type, ngraph::Shape{1}, std::vector<float>{0.01f});
-        auto add_x = std::make_shared<ngraph::opset8::Add>(add_const, params[0]);
-        auto add_y = std::make_shared<ngraph::opset8::Add>(add_const, params[1]);
+        auto params = ngraph::builder::makeParams(net_type, shapes);
+        auto add_const = ngraph::builder::makeConstant(net_type, ov::Shape{1}, std::vector<float>{0.01f});
+        ov::ResultVector results;
 
-        std::vector<std::shared_ptr<ov::op::v1::Add>> add_nodes_x;
-        std::vector<std::shared_ptr<ov::op::v1::Add>> add_nodes_y;
+        std::vector<std::vector<std::shared_ptr<Add>>> branches;
 
-        add_nodes_x.push_back(add_x);
-        add_nodes_y.push_back(add_y);
+        for (size_t i = 0; i < branch_count; ++i) {
+            configuration.insert({"GNA_SCALE_FACTOR_" + std::to_string(i), "1"});
+            std::vector<std::shared_ptr<Add>> add_nodes;
+            add_nodes.push_back(std::make_shared<Add>(add_const, params[i]));
 
-        for (size_t i = 0; i < (layers_number - 2) / 2; ++i) {
-            auto add_next_x = std::make_shared<ngraph::opset8::Add>(add_nodes_x.back(), params[0]);
-            auto add_next_y = std::make_shared<ngraph::opset8::Add>(add_nodes_y.back(), params[1]);
-            add_nodes_x.push_back(add_next_x);
-            add_nodes_y.push_back(add_next_y);
+            for (size_t j = 0; j < (layers_number - branch_count) / branch_count; ++j) {
+                add_nodes.push_back(std::make_shared<Add>(add_nodes.back(), params[i]));
+            }
+            branches.push_back(add_nodes);
+            results.push_back(std::make_shared<Result>(add_nodes.back()));
         }
-
-        ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(add_nodes_x.back()),
-                                     std::make_shared<ngraph::opset8::Result>(add_nodes_y.back())};
-        function = std::make_shared<ngraph::Function>(results, params, "layers_limit");
+        function = std::make_shared<ov::Model>(results, params, "layers_limit");
     };
 };
 
@@ -81,9 +81,7 @@ TEST_P(GNALayersLimit30Test, CompareWithRefs) {
     Run();
 }
 
-std::map<std::string, std::string> common_config{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-                                                 {"GNA_SCALE_FACTOR_0", "1"},
-                                                 {"GNA_SCALE_FACTOR_1", "1"}};
+std::map<std::string, std::string> common_config{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_COMPACT_MODE", "NO"}};
 
 std::vector<std::map<std::string, std::string>> configs_20{{{"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}},
                                                            {{"GNA_COMPILE_TARGET", "GNA_TARGET_2_0"}}};
@@ -92,24 +90,23 @@ std::vector<std::map<std::string, std::string>> configs_30{{{"GNA_EXEC_TARGET", 
                                                            {{"GNA_COMPILE_TARGET", "GNA_TARGET_3_0"}}};
 
 // for GNA v2.0 limit is 4096
-std::vector<size_t> layer_limits_20{2, 4096, 4100};
+std::vector<size_t> layer_limits_20{64, 4096, 4160};
 // for GNA v3.0 limit is 8191
-std::vector<size_t> layer_limits_30{2, 8192, 8194};
+std::vector<size_t> layer_limits_30{64, 8192, 8200};
 
+INSTANTIATE_TEST_SUITE_P(smoke_GNALimits,
+                         GNALayersLimit20Test,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(common_config),
+                                            ::testing::ValuesIn(configs_20),
+                                            ::testing::ValuesIn(layer_limits_20)),
+                         GNALayersLimitTest::getTestCaseName);
 
- INSTANTIATE_TEST_SUITE_P(smoke_GNALimits,
-                          GNALayersLimit20Test,
-                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                             ::testing::Values(common_config),
-                                             ::testing::ValuesIn(configs_20),
-                                             ::testing::ValuesIn(layer_limits_20)),
-                          GNALayersLimitTest::getTestCaseName);
-
- INSTANTIATE_TEST_SUITE_P(smoke_GNALimits,
-                          GNALayersLimit30Test,
-                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                             ::testing::Values(common_config),
-                                             ::testing::ValuesIn(configs_30),
-                                             ::testing::ValuesIn(layer_limits_30)),
-                          GNALayersLimitTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GNALimits,
+                         GNALayersLimit30Test,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(common_config),
+                                            ::testing::ValuesIn(configs_30),
+                                            ::testing::ValuesIn(layer_limits_30)),
+                         GNALayersLimitTest::getTestCaseName);
 }  // namespace LayerTestsDefinitions
