@@ -5,8 +5,8 @@
 #pragma once
 
 #include "openvino/frontend/frontend.hpp"
-#include "openvino/frontend/pytorch/visibility.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/frontend/pytorch/visibility.hpp"
 
 namespace ov {
 namespace frontend {

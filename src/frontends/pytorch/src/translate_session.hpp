@@ -35,6 +35,7 @@ public:
     size_t decode_tensor_name(const Output<Node>& tensor_desc);
 
     size_t m_friendly_name_counter = 0;
+
 private:
     OutputVector convert_node(NodeContext& context);
 

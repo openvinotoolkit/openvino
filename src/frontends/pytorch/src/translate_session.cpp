@@ -192,8 +192,7 @@ OutputVector TranslateSession::convert_node(NodeContext& context) {
 
 void TranslateSession::encode_tensor_name(Output<Node> output, size_t tensor_idx, std::string debug_name) {
     if (!output.get_names().empty()) {
-        OPENVINO_DEBUG << "Tensor names already exist: " << output.get_any_name() << ". Rewriting with "
-                       << tensor_idx;
+        OPENVINO_DEBUG << "Tensor names already exist: " << output.get_any_name() << ". Rewriting with " << tensor_idx;
     }
     auto has_dname = !debug_name.empty();
     auto name = std::to_string(tensor_idx);
