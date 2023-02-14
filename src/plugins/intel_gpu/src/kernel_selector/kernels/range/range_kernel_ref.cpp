@@ -23,22 +23,34 @@ CommonDispatchData SetDefault(const range_params &params) {
 }  // namespace
 
 KernelsData RangeKernelRef::GetKernelsData(const Params &params, const optional_params &options) const {
-    KernelsData kernels_data;
     if (!Validate(params, options))
-        return kernels_data;
-    kernels_data.push_back(KernelData::Default<range_params>(params));
-    KernelData &kernel_data = kernels_data.front();
-    auto &derived_params = dynamic_cast<range_params&>(*kernel_data.params.get());
-    auto dispatch_data = SetDefault(derived_params);
-    auto entry_point = GetEntryPoint(kernelName, derived_params.layerID, params, options);
-    auto jit_constants = MakeBaseParamsJitConstants(derived_params);
+        return {};
+
+    KernelData kernel_data = KernelData::Default<range_params>(params);
+    const auto& prim_params = static_cast<const range_params&>(params);
+
+    auto dispatch_data = SetDefault(prim_params);
+    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, options);
+    auto jit_constants = MakeBaseParamsJitConstants(prim_params);
     auto jit = CreateJit(kernelName, jit_constants, entry_point);
+
+    kernel_data.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+    const auto& prim_params = static_cast<const range_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+    };
+
     auto &clKernelData = kernel_data.kernels[0];
-    FillCLKernelData(clKernelData, dispatch_data, params.engineInfo, kernelName, jit, entry_point, EXE_MODE_DEFAULT,
-                     false, false, 3);
+    bool is_dynamic = prim_params.has_dynamic_tensors();
+    FillCLKernelData(clKernelData, dispatch_data, params.engineInfo, kernelName, jit, entry_point,
+                     EXE_MODE_DEFAULT, false, false, 3, 0, 1, is_dynamic);
+
     auto &arguments = clKernelData.params.arguments;
-    arguments.erase(arguments.begin()+1); // stop is not used by kernel
-    return kernels_data;
+    arguments.erase(arguments.begin() + 1 + static_cast<int>(is_dynamic)); // stop is not used by kernel
+
+    return {kernel_data};
 }
 
 KernelsPriority RangeKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
@@ -68,6 +80,7 @@ ParamsKey RangeKernelRef::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableDifferentTypes();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 
