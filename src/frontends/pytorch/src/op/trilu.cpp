@@ -14,55 +14,58 @@
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
 namespace pytorch {
 namespace op {
 
-namespace base {
+using namespace ov::op;
 
-OutputVector translate_base_triu_tril(NodeContext& context, bool upper) {
+namespace {
+OutputVector translate_base_triu_tril(const NodeContext& context, bool upper) {
+    num_inputs_check(context, 1, 2);
     auto input_tensor = context.get_input(0);
-    auto input_shape = context.mark_node(std::make_shared<ov::op::v3::ShapeOf>(input_tensor));
-    auto zero = context.mark_node(ov::op::v0::Constant::create(element::i64, Shape{}, {0}));
-    auto one = context.mark_node(ov::op::v0::Constant::create(element::i64, Shape{}, {1}));
-    auto minus_one = context.mark_node(ov::op::v0::Constant::create(element::i64, Shape{}, {-1}));
-    auto minus_two = context.mark_node(ov::op::v0::Constant::create(element::i64, Shape{}, {-2}));
-    const auto m = context.mark_node(std::make_shared<ov::op::v7::Gather>(input_shape, minus_one, zero));
-    const auto n = context.mark_node(std::make_shared<ov::op::v7::Gather>(input_shape, minus_two, zero));
-    auto horizontal_range = context.mark_node(std::make_shared<ov::op::v4::Range>(zero, m, one, element::i64));
-    horizontal_range = context.mark_node(std::make_shared<ov::op::v0::Unsqueeze>(horizontal_range, zero));
+    auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input_tensor));
+    auto zero = context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}));
+    auto one = context.mark_node(v0::Constant::create(element::i64, Shape{}, {1}));
+    auto minus_one = context.mark_node(v0::Constant::create(element::i64, Shape{}, {-1}));
+    auto minus_two = context.mark_node(v0::Constant::create(element::i64, Shape{}, {-2}));
+    const auto m = context.mark_node(std::make_shared<v7::Gather>(input_shape, minus_one, zero));
+    const auto n = context.mark_node(std::make_shared<v7::Gather>(input_shape, minus_two, zero));
+    auto horizontal_range = context.mark_node(std::make_shared<v4::Range>(zero, m, one, element::i64));
+    horizontal_range = context.mark_node(std::make_shared<v0::Unsqueeze>(horizontal_range, zero));
     Output<Node> vertical_range;
     if (!context.input_is_none(1)) {
         auto diagonal = context.get_input(1);
-        diagonal = context.mark_node(std::make_shared<ov::op::v0::Convert>(diagonal, element::i64));
-        auto stop = context.mark_node(std::make_shared<ov::op::v1::Add>(n, diagonal));
-        vertical_range = context.mark_node(std::make_shared<ov::op::v4::Range>(diagonal, stop, one, element::i64));
+        diagonal = context.mark_node(std::make_shared<v0::Convert>(diagonal, element::i64));
+        auto stop = context.mark_node(std::make_shared<v1::Add>(n, diagonal));
+        vertical_range = context.mark_node(std::make_shared<v4::Range>(diagonal, stop, one, element::i64));
     } else {
-        vertical_range = context.mark_node(std::make_shared<ov::op::v4::Range>(zero, n, one, element::i64));
+        vertical_range = context.mark_node(std::make_shared<v4::Range>(zero, n, one, element::i64));
     }
-    vertical_range = context.mark_node(std::make_shared<ov::op::v0::Unsqueeze>(vertical_range, one));
+    vertical_range = context.mark_node(std::make_shared<v0::Unsqueeze>(vertical_range, one));
 
     Output<Node> mask;
     if (upper) {
-        mask = context.mark_node(std::make_shared<ov::op::v1::GreaterEqual>(horizontal_range, vertical_range));
+        mask = context.mark_node(std::make_shared<v1::GreaterEqual>(horizontal_range, vertical_range));
     } else {
-        mask = context.mark_node(std::make_shared<ov::op::v1::LessEqual>(horizontal_range, vertical_range));
+        mask = context.mark_node(std::make_shared<v1::LessEqual>(horizontal_range, vertical_range));
     }
 
-    zero = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(zero, input_tensor));
+    zero = context.mark_node(std::make_shared<v1::ConvertLike>(zero, input_tensor));
 
-    return {context.mark_node(std::make_shared<ov::op::v1::Select>(mask, input_tensor, zero))};
+    return {context.mark_node(std::make_shared<v1::Select>(mask, input_tensor, zero))};
 }
-};  // namespace base
+};  // namespace
 
 OutputVector translate_triu(NodeContext& context) {
-    return base::translate_base_triu_tril(context, true);
+    return translate_base_triu_tril(context, true);
 };
 
 OutputVector translate_tril(NodeContext& context) {
-    return base::translate_base_triu_tril(context, false);
+    return translate_base_triu_tril(context, false);
 };
 
 }  // namespace op

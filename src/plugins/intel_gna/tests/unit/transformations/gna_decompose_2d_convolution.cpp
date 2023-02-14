@@ -884,13 +884,18 @@ void execute_test(modelType model,
     case modelType::TranspConvBcastAddMaxPoolTransp:
     case modelType::TranspConvBcastAddActTransp:
     case modelType::TranspConvBcastAddMaxPoolActTransp:
-        manager.register_pass<ov::intel_gna::pass::Decompose2DConv>("", gnaPrecision);
+        manager.register_pass<ov::intel_gna::pass::Decompose2DConv>(ov::intel_gna::common::DeviceVersion::Default,
+                                                                    gnaPrecision);
         break;
     case modelType::TranspConvTranspBcastAdd:
-        manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBias>("", gnaPrecision);
+        manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBias>(
+            ov::intel_gna::common::DeviceVersion::Default,
+            gnaPrecision);
         break;
     case modelType::TranspConvTranspBcastAddAct:
-        manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBiasAF>("", gnaPrecision);
+        manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBiasAF>(
+            ov::intel_gna::common::DeviceVersion::Default,
+            gnaPrecision);
         break;
     }
 

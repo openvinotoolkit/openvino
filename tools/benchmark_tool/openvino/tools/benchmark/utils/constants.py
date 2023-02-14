@@ -14,7 +14,9 @@ XML_EXTENSION = '.xml'
 BIN_EXTENSION = '.bin'
 BLOB_EXTENSION = '.blob'
 
-IMAGE_EXTENSIONS = ['.jpeg', '.jpg', '.png', '.bmp']
+IMAGE_EXTENSIONS = ['.bmp', '.dib', '.jpeg', '.jpg', '.jpe', '.jp2', '.png',
+                    '.pbm', '.pgm', '.ppm', '.sr', '.ras', '.tiff', '.tif']
+NUMPY_EXTENSIONS = ['.npy']
 BINARY_EXTENSIONS = ['.bin']
 
 DEVICE_DURATION_IN_SECS = {

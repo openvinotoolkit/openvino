@@ -217,20 +217,6 @@ def node_with_quantized_weights(node):
     return False
 
 
-def node_with_quantized_input_and_bias(node):
-    """
-    Check that node havs two quantized input (inputs on port 0 and 1).
-    :param node: operation node
-    :return: True if node has quantized inputs and False instead
-    """
-    input_node = get_node_input(node, 0)
-    bias_node = get_node_input(node, 1)
-    if input_node is not None and input_node.type == 'FakeQuantize' and bias_node is not None and bias_node.type == 'FakeQuantize':
-        return True
-
-    return False
-
-
 def get_input_data_value(node: Node, port: int):
     """
     Return value of data node for needed node at port
