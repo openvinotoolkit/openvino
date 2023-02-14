@@ -241,14 +241,14 @@ ov::OutputVector ov::frontend::tensorflow::translate_convolution_op(const ov::fr
 }
 
 void ov::frontend::tensorflow::default_op_checks(const ov::frontend::NodeContext& node,
-                                                 size_t min_input_size,
+                                                 int min_input_size,
                                                  const std::vector<std::string>& supported_ops) {
     auto op_type = node.get_op_type();
     TENSORFLOW_OP_VALIDATION(node,
                              std::find(supported_ops.begin(), supported_ops.end(), op_type) != supported_ops.end(),
                              op_type + " is not supported for conversion.");
     TENSORFLOW_OP_VALIDATION(node,
-                             node.get_input_size() >= min_input_size,
+                             node.get_input_size() >= (size_t)min_input_size,
                              op_type + " must have at least " + std::to_string(min_input_size) + " inputs.");
 }
 
