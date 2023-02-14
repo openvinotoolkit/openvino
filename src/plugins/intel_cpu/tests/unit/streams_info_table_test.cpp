@@ -8,7 +8,6 @@
 #include <common_test_utils/test_common.hpp>
 
 #include "cpu_streams_calculation.hpp"
-#include "threading/ie_cpu_streams_info.h"
 
 using namespace testing;
 using namespace InferenceEngine;
