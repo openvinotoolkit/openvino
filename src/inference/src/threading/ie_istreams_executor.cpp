@@ -156,11 +156,14 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
         }
     } else if (key == CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) {
         if (value == CONFIG_VALUE(CPU_THROUGHPUT_NUMA)) {
+            std::cout << "----CPU_THROUGHPUT_NUMA----\n";
             _streams = static_cast<int>(getAvailableNUMANodes().size());
         } else if (value == CONFIG_VALUE(CPU_THROUGHPUT_AUTO)) {
+            std::cout << "----CPU_THROUGHPUT_AUTO----\n";
             // bare minimum of streams (that evenly divides available number of cores)
             _streams = GetDefaultNumStreams();
         } else {
+            std::cout << "----CPU_THROUGHPUT_value---- " << value << "\n";
             int val_i;
             try {
                 val_i = std::stoi(value);
@@ -178,11 +181,16 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
     } else if (key == ov::num_streams) {
         auto streams = ov::util::from_string(value, ov::streams::num);
         if (streams == ov::streams::NUMA) {
+            std::cout << "----num_streams NUMA----\n";
             _streams = static_cast<int32_t>(getAvailableNUMANodes().size());
         } else if (streams == ov::streams::AUTO) {
+            std::cout << "----num_streams AUTO----\n";
             // bare minimum of streams (that evenly divides available number of cores)
-            _streams = GetDefaultNumStreams();
+            //if (!cpuMapAvailable()) {
+                _streams = GetDefaultNumStreams();
+            //}
         } else if (streams.num >= 0) {
+            std::cout << "----num_streams num---- " << streams.num << "\n";
             _streams = streams.num;
         } else {
             OPENVINO_UNREACHABLE("Wrong value for property key ",

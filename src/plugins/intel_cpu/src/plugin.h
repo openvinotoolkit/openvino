@@ -37,6 +37,11 @@ public:
     InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel,
                                                      const std::map<std::string, std::string>& config) override;
 
+    std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
+                                                         const int input_threads,
+                                                         const int model_prefer_threads,
+                                                         const std::vector<std::vector<int>> proc_type_table) const;
+
 private:
     bool isLegacyAPI() const;
 
@@ -46,15 +51,19 @@ private:
 
     void ApplyPerformanceHints(std::map<std::string, std::string> &config, const std::shared_ptr<ngraph::Function>& ngraphFunc) const;
 
+    int GetModelPreferThreads(const std::shared_ptr<ngraph::Function>& ngraphFunc) const;
+
     struct StreamCfg {
         int num_streams;
         int big_core_streams;          // Number of streams in Performance-core(big core)
+        int big_core_logic_streams;
         int small_core_streams;        // Number of streams in Efficient-core(small core)
         int threads_per_stream_big;    // Threads per stream in big cores
         int threads_per_stream_small;  // Threads per stream in small cores
         int small_core_offset;
     };
     enum StreamMode { DEFAULT, AGGRESSIVE, LESSAGGRESSIVE };
+    StreamCfg ParseStreamsTable(std::vector<std::vector<int>> streams_table) const;
     StreamCfg GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBindingType thread_binding_type,
                             int stream_mode,
                             const bool enable_hyper_thread = true) const;
