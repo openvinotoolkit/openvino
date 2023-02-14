@@ -4,6 +4,7 @@
 
 #include "cpu_streams_calculation.hpp"
 
+#include <algorithm>
 #include <cstdio>
 #include <iostream>
 #include <numeric>
