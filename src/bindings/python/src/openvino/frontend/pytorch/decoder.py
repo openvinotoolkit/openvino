@@ -185,7 +185,10 @@ class TorchScriptPythonDecoder (Decoder):
         return []
 
     def get_subgraph_size(self) -> int:
-        return len(self.get_subgraphs()) if hasattr(self.graph_element, "blocks") else 1
+        try:
+            return len(self.get_subgraphs()) 
+        except AttributeError:
+            return 1
 
     def visit_subgraph(self, node_visitor) -> None:
         # make sure topological order is satisfied
@@ -195,6 +198,13 @@ class TorchScriptPythonDecoder (Decoder):
             node_visitor(decoder)
 
     def get_subgraphs(self) -> list:
+        if self.graph_element.kind() == "prim::PythonOp":
+            if "Subgraph" in self.graph_element.attributeNames():
+                return [self.graph_element["Subgraph"]]
+            else:
+                # Attribute "Subgraph" is only available if Graph was created using tracing.
+                # TODO Find way to extract subgraph for scripted Graph.
+                return []
         return list(self.graph_element.blocks())
 
     def get_subgraph_decoder(self, index: int):
