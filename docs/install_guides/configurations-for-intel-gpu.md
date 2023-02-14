@@ -16,7 +16,7 @@ If Intel® Graphics Driver is already installed and you would like to keep it, y
 
 @sphinxdirective
 
-To install the latest available **Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver** for your operating system, see its [installation guide on GitHub](https://github.com/intel/compute-runtime/releases/latest).
+To install the latest available **Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver** for your operating system, see its `installation guide on GitHub <https://github.com/intel/compute-runtime/releases/latest>`_.
 
 .. note::
 
@@ -29,9 +29,9 @@ To install the latest available **Intel® Graphics Compute Runtime for oneAPI Le
 
 You can also install an earlier version of the driver, based on your particular needs for setup.
 
-For instructions and recommendations on the installation of a specific GPU driver release, as well as the list of supported hardware platforms, refer to the [Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver GitHub home page](https://github.com/intel/compute-runtime/).
+For instructions and recommendations on the installation of a specific GPU driver release, as well as the list of supported hardware platforms, refer to the `Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver GitHub home page <https://github.com/intel/compute-runtime/>`_.
 
-For specific instructions for discrete graphics platforms, refer to [the dGPU guides](https://dgpu-docs.intel.com/installation-guides/index.html), including installation guides for Intel® Arc™ A-Series Graphics, Intel® Data Center GPU Flex Series, Intel® Data Center GPU MAX Series, Intel® processor graphics Gen12, and Intel® Iris Xe MAX codename DG1.
+For specific instructions for discrete graphics platforms, refer to `the dGPU guides <https://dgpu-docs.intel.com/installation-guides/index.html>`_, including installation guides for Intel® Arc™ A-Series Graphics, Intel® Data Center GPU Flex Series, Intel® Data Center GPU MAX Series, Intel® processor graphics Gen12, and Intel® Iris Xe MAX codename DG1.
 
 .. _gpu guide windows:
 
@@ -68,17 +68,17 @@ You are done updating your device driver and are ready to use your GPU.
 
 For your reference, the following versions of Intel® Graphics Driver were used in the OpenVINO internal validation:
 
-+------------------+-----------------------------------------------------------------------------------+
-| Operating System || Driver version                                                                   |
-+==================+===================================================================================+
-| Ubuntu 20.04     || [22.35.24055](https://github.com/intel/compute-runtime/releases/tag/22.35.24055) |
-+------------------+------------------------------------------------------+----------------------------+
-| Ubuntu 18.04     || [21.38.21026](https://github.com/intel/compute-runtime/releases/tag/21.38.21026) |
-+------------------+------------------------------------------------------+----------------------------+
-| CentOS 7         || [19.41.14441](https://github.com/intel/compute-runtime/releases/tag/19.41.14441) |
-+------------------+------------------------------------------------------+----------------------------+
-| RHEL 8           || [22.28.23726](https://github.com/intel/compute-runtime/releases/tag/22.28.23726) |
-+------------------+-----------------------------------------------------------------------------------+
++------------------+-------------------------------------------------------------------------------------+
+| Operating System || Driver version                                                                     |
++==================+=====================================================================================+
+| Ubuntu 20.04     || `22.35.24055 <https://github.com/intel/compute-runtime/releases/tag/22.35.24055>`_ |
++------------------+------------------------------------------------------+------------------------------+
+| Ubuntu 18.04     || `21.38.21026 <https://github.com/intel/compute-runtime/releases/tag/21.38.21026>`_ |
++------------------+------------------------------------------------------+------------------------------+
+| CentOS 7         || `19.41.14441 <https://github.com/intel/compute-runtime/releases/tag/19.41.14441>`_ |
++------------------+------------------------------------------------------+------------------------------+
+| RHEL 8           || `22.28.23726 <https://github.com/intel/compute-runtime/releases/tag/22.28.23726>`_ |
++------------------+-------------------------------------------------------------------------------------+
 
 @endsphinxdirective
 
