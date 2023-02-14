@@ -264,3 +264,7 @@ const std::vector<ov::Output<const ov::Node>>& ov::IAsyncInferRequest::get_input
 const std::vector<ov::Output<const ov::Node>>& ov::IAsyncInferRequest::get_outputs() const {
     return m_sync_request->get_outputs();
 }
+
+const std::shared_ptr<ov::IInferRequest>& ov::IAsyncInferRequest::get_sync_infer_request() const {
+    return m_sync_request;
+}

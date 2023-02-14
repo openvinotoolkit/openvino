@@ -9,11 +9,11 @@
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "template_config.hpp"
-#include "template_infer_request.hpp"
 
 namespace TemplatePlugin {
 
 class Plugin;
+class InferRequest;
 
 /**
  * @class ExecutableNetwork
@@ -43,7 +43,7 @@ protected:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
 private:
-    friend class TemplateInferRequest;
+    friend class InferRequest;
     friend class Plugin;
 
     void compile_model(const std::shared_ptr<ov::Model>& model);
