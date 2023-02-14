@@ -72,6 +72,7 @@ OP_CONVERTER(p_norm);
 OP_CONVERTER(pad3d);
 OP_CONVERTER(pow);
 OP_CONVERTER(pool2d);
+OP_CONVERTER(prelu);
 OP_CONVERTER(prior_box);
 OP_CONVERTER(range);
 OP_CONVERTER(reduce_max);
@@ -186,6 +187,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"pad3d", op::pad3d},
             {"pow", op::pow},
             {"pool2d", op::pool2d},
+            {"prelu", op::prelu},
             {"prior_box", op::prior_box},
             {"range", op::range},
             {"reduce_max", op::reduce_max},

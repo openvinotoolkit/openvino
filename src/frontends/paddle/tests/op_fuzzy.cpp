@@ -378,6 +378,7 @@ static const std::vector<std::string> models{
     std::string("pow_int64"),
     // pow_int64_out_of_range(out of range of OV int64),
     std::string("pow_y_tensor"),
+    std::string("prelu"),
     std::string("prior_box_attrs_mmar_order_true"),
     std::string("prior_box_default"),
     std::string("prior_box_flip_clip_false"),
