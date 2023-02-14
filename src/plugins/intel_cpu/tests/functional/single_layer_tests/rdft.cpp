@@ -19,7 +19,7 @@ std::vector<element::Type> precisions{element::f32};
 using RDFTTestCPUParams = std::tuple<std::vector<InputShape>,
                                      std::vector<std::vector<int64_t>>,  // axes
                                      std::vector<std::vector<int64_t>>,  // signal sizes
-                                     bool,                  // inverse
+                                     bool,  // inverse
                                      bool,  // const axes if true
                                      bool,  // const signal sizes if true
                                      CPUSpecificParams>;
