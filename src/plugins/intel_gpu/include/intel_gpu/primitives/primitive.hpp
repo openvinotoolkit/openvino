@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #pragma once
 
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/compounds.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/optionals.hpp"
@@ -18,11 +17,6 @@
 #include <utility>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-
-/// @addtogroup cpp_topology Network Topology
-/// @{
 
 /// @brief Globally unique primitive's type id
 using primitive_type_id = struct primitive_type *;
@@ -92,6 +86,23 @@ public:
 
     virtual primitive_id type_string() const = 0;
 
+    virtual size_t hash() const {
+        size_t seed = 0;
+        // hash for type
+        primitive_id type_str = type_string();
+        for (size_t idx = 0; idx < type_str.size(); idx++) {
+            seed = hash_combine(seed, type_str[idx]);
+        }
+
+        // hash for number of outputs
+        seed = hash_combine(seed, num_outputs);
+
+        // hash for number of inputs
+        auto inputs = dependencies();
+        seed = hash_combine(seed, inputs.size());
+        return seed;
+    }
+
     /// @brief Implicit conversion to primiitive id.
     operator primitive_id() const { return id; }
 
@@ -125,6 +136,10 @@ public:
     input_info_arr input;
 
     size_t num_outputs;
+
+    virtual std::string get_type() const { return "NONE"; }
+    virtual void save(BinaryOutputBuffer& ob) const { }
+    virtual void load(BinaryInputBuffer& ib) { }
 
 protected:
     virtual std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const { return {}; }
@@ -218,6 +233,4 @@ struct prim_map_storage {
 private:
     std::unordered_map<std::string, cldnn::primitive_type_id> map;
 };
-/// @}
-/// @}
 }  // namespace cldnn

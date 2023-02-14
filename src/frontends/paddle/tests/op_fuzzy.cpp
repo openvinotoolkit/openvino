@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -76,30 +76,31 @@ static const std::vector<std::string> models{
     std::string("conditional_block_dyn_multiple_consumers/conditional_block_dyn_multiple_consumers.pdmodel"),
     std::string("conditional_block_dyn_multiple_blocks/conditional_block_dyn_multiple_blocks.pdmodel"),
     std::string("conditional_block_dyn_multiple_blocks2/conditional_block_dyn_multiple_blocks2.pdmodel"),
-    // TensorArray case
-    std::string("conditional_block_concat/conditional_block_concat.pdmodel"),
-    std::string("conditional_block_concat_dyn/conditional_block_concat_dyn.pdmodel"),
-    std::string("conditional_block_concat_dyn_2axes/conditional_block_concat_dyn_2axes.pdmodel"),
-    std::string("conditional_block_conditional_block_concat/conditional_block_conditional_block_concat.pdmodel"),
-    std::string(
-        "conditional_block_conditional_block_concat_dyn/conditional_block_conditional_block_concat_dyn.pdmodel"),
-    std::string("conditional_block_slice0/conditional_block_slice0.pdmodel"),
-    std::string("conditional_block_slice0_dyn/conditional_block_slice0_dyn.pdmodel"),
-    std::string("conditional_block_slice0_else/conditional_block_slice0_else.pdmodel"),
-    std::string("conditional_block_slice0_scaler/conditional_block_slice0_scaler.pdmodel"),
-    std::string("conditional_block_slice0_scaler_dyn/conditional_block_slice0_scaler_dyn.pdmodel"),
-    // std::string("conditional_block_slice0_axis2/conditional_block_slice0_axis2.pdmodel"),   // No such case in
-    // model, as paddle.concat always concat along axis 0.
-    // std::string("conditional_block_slice0_axis2_dyn/conditional_block_slice0_axis2_dyn.pdmodel"),
-    // std::string("conditional_block_slice0_axis1_axis2/conditional_block_slice0_axis1_axis2.pdmodel"),
-    // std::string("conditional_block_slice0_axis1_axis2_dyn/conditional_block_slice0_axis1_axis2_dyn.pdmodel"),
-    std::string("conditional_block_concat_false/conditional_block_concat_false.pdmodel"),
-    std::string("conditional_block_concat_false_dyn/conditional_block_concat_false_dyn.pdmodel"),
-    std::string("conditional_block_slice0_2tensorarrays/conditional_block_slice0_2tensorarrays.pdmodel"),
-    std::string("conditional_block_slice0_2tensorarrays_dyn/conditional_block_slice0_2tensorarrays_dyn.pdmodel"),
-    std::string("conditional_block_slice0_2tensorarrays_extra/conditional_block_slice0_2tensorarrays_extra.pdmodel"),
-    std::string(
-        "conditional_block_slice0_2tensorarrays_extra_dyn/conditional_block_slice0_2tensorarrays_extra_dyn.pdmodel"),
+    //// TensorArray case
+    //// Save model failed if update paddlepaddle to 2.4.0
+    // std::string("conditional_block_concat/conditional_block_concat.pdmodel"),
+    // std::string("conditional_block_concat_dyn/conditional_block_concat_dyn.pdmodel"),
+    // std::string("conditional_block_concat_dyn_2axes/conditional_block_concat_dyn_2axes.pdmodel"),
+    // std::string("conditional_block_conditional_block_concat/conditional_block_conditional_block_concat.pdmodel"),
+    // std::string(
+    //    "conditional_block_conditional_block_concat_dyn/conditional_block_conditional_block_concat_dyn.pdmodel"),
+    // std::string("conditional_block_slice0/conditional_block_slice0.pdmodel"),
+    // std::string("conditional_block_slice0_dyn/conditional_block_slice0_dyn.pdmodel"),
+    // std::string("conditional_block_slice0_else/conditional_block_slice0_else.pdmodel"),
+    // std::string("conditional_block_slice0_scaler/conditional_block_slice0_scaler.pdmodel"),
+    // std::string("conditional_block_slice0_scaler_dyn/conditional_block_slice0_scaler_dyn.pdmodel"),
+    //// std::string("conditional_block_slice0_axis2/conditional_block_slice0_axis2.pdmodel"),   // No such case in
+    //// model, as paddle.concat always concat along axis 0.
+    //// std::string("conditional_block_slice0_axis2_dyn/conditional_block_slice0_axis2_dyn.pdmodel"),
+    //// std::string("conditional_block_slice0_axis1_axis2/conditional_block_slice0_axis1_axis2.pdmodel"),
+    //// std::string("conditional_block_slice0_axis1_axis2_dyn/conditional_block_slice0_axis1_axis2_dyn.pdmodel"),
+    // std::string("conditional_block_concat_false/conditional_block_concat_false.pdmodel"),
+    // std::string("conditional_block_concat_false_dyn/conditional_block_concat_false_dyn.pdmodel"),
+    // std::string("conditional_block_slice0_2tensorarrays/conditional_block_slice0_2tensorarrays.pdmodel"),
+    // std::string("conditional_block_slice0_2tensorarrays_dyn/conditional_block_slice0_2tensorarrays_dyn.pdmodel"),
+    // std::string("conditional_block_slice0_2tensorarrays_extra/conditional_block_slice0_2tensorarrays_extra.pdmodel"),
+    // std::string(
+    //    "conditional_block_slice0_2tensorarrays_extra_dyn/conditional_block_slice0_2tensorarrays_extra_dyn.pdmodel"),
     std::string("conv2d_dilation_assymetric_pads_strides"),
     std::string("conv2d_SAME_padding"),
     std::string("conv2d_strides_assymetric_padding"),

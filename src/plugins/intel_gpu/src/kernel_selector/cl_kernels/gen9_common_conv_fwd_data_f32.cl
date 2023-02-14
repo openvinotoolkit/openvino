@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,17 +37,17 @@ KERNEL(gen9_common_conv_fwd_f32_kernel)(
         const __global float *src,
         __global float *dst,
 #if USE_IMAGE == 1
-        __read_only image2d_t wei,
+        __read_only image2d_t wei
 #else
-        const __global float *wei,
+        const __global float *wei
 #endif
 #if WITH_BIAS
-        const __global float *bias,
+        , const __global float *bias
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-    uint split_idx)
+)
 {
 
 const float eltwise_alpha = 0;
@@ -180,9 +180,9 @@ const float sum_scale = 1;
 
 #if USE_IMAGE == 1
                         float8 blockB00 = as_float8(
-                                _sub_group_block_read8(wei, coordB0));
+                                intel_sub_group_block_read8(wei, coordB0));
                         float8 blockB01 = as_float8(
-                                _sub_group_block_read8(wei, coordB1));
+                                intel_sub_group_block_read8(wei, coordB1));
 #else
         float8 blockB00 = as_float8(
                 _sub_group_block_read8((const __global uint *)wei1));

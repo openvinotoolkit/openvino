@@ -78,7 +78,7 @@ pair<Shape, vector<Shape>> get_numpy_broadcast_shapes(const vector<Shape>& input
     for (const Shape& input : input_shapes) {
         Shape padded_shape{input};
         padded_shape.insert(begin(padded_shape), target_shape.size() - padded_shape.size(), 1);
-        full_shapes.push_back(move(padded_shape));
+        full_shapes.push_back(std::move(padded_shape));
     }
 
     return {target_shape, full_shapes};
@@ -194,7 +194,7 @@ static shared_ptr<Node> broadcast_value_pdpd_style(const Output<Node>& value, co
     auto value_bcast =
         make_shared<op::v1::Broadcast>(trimmed_value, shape_const, opset1::get_axes_mapping_output(output_shape, axes));
 
-    return move(value_bcast);
+    return std::move(value_bcast);
 }
 
 pair<shared_ptr<Node>, shared_ptr<Node>> numpy_broadcast(const pair<Output<Node>, Output<Node>>& args) {

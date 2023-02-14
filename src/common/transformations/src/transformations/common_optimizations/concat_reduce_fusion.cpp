@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,8 +55,7 @@ ov::pass::PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
         ngraph::OutputVector eltwise_inputs;
         for (size_t input_index = 0; input_index < eltwise_inputs_size; ++input_index) {
             const auto eltwise_input = eltwise->input_value(input_index);
-            const auto new_input_node =
-                ngraph::op::util::clone_try_fold(squeeze, {eltwise_input, squeeze->input_value(1)});
+            const auto new_input_node = ov::op::util::clone_try_fold(squeeze, {eltwise_input, squeeze->input_value(1)});
 
             if (!is_type<opset8::Constant>(new_input_node))
                 register_new_node(as_type_ptr<opset8::Squeeze>(new_input_node));
@@ -65,7 +64,7 @@ ov::pass::PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
             eltwise_inputs.push_back(new_input_node);
         }
 
-        const auto new_eltwise = ngraph::op::util::clone_try_fold(eltwise, eltwise_inputs);
+        const auto new_eltwise = ov::op::util::clone_try_fold(eltwise, eltwise_inputs);
         new_eltwise->set_friendly_name(squeeze->get_friendly_name());
         ngraph::copy_runtime_info({eltwise, squeeze}, new_eltwise);
         ngraph::replace_node(squeeze, new_eltwise);

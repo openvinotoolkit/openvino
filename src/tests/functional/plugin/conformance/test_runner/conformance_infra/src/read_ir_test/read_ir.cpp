@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,7 @@
 #include "functional_test_utils/summary/op_info.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
+#include "conformance.hpp"
 #include "read_ir_test/read_ir.hpp"
 
 #include <setjmp.h>
@@ -39,11 +40,42 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
 
     std::ostringstream result;
     auto splittedFilename = CommonTestUtils::splitStringByDelimiter(pathToModel, CommonTestUtils::FileSeparator);
-    if (splittedFilename.size() > 1) {
-        result << "PRC=" << *std::next(splittedFilename.rbegin()) << "_";
+    std::reverse(splittedFilename.begin(), splittedFilename.end());
+    bool is_valid_path_format = true;
+
+    // Check that op is valid
+    if (splittedFilename.size() > 2) {
+        auto pos = splittedFilename[2].find('-');
+        std::string op_name = splittedFilename[2], op_version = "";
+        if (pos != std::string::npos) {
+            op_name = splittedFilename[2].substr(0, pos);
+            op_version = splittedFilename[2].substr(pos + 1);
+        }
+        if (std::find(ov::test::conformance::unique_ops[op_name].begin(),
+                      ov::test::conformance::unique_ops[op_name].end(), op_version) != ov::test::conformance::unique_ops[op_name].end() &&
+            ov::test::conformance::unique_ops.find(op_name) != ov::test::conformance::unique_ops.end()) {
+            std::string message = "Op=" + op_name;
+            if (op_version != "") {
+                message += "." + op_version;
+            }
+            message += "_";
+            result << message;
+        } else {
+            is_valid_path_format = false;
+        }
     }
-    result << "IR_name=" << splittedFilename.back() << "_";
-    result << "TargetDevice=" << deviceName << "_";
+    // Check the element_type
+    if (splittedFilename.size() > 1) {
+        if (std::find(ov::test::conformance::element_type_names.begin(),
+                      ov::test::conformance::element_type_names.end(),
+                      splittedFilename[1]) != ov::test::conformance::element_type_names.end()) {
+            result << "Type=" << splittedFilename[1] << "_";
+        } else {
+            is_valid_path_format = false;
+        }
+    }
+    result << "IR=" << (is_valid_path_format ? CommonTestUtils::replaceExt(splittedFilename[0], "") : pathToModel) << "_";
+    result << "Device=" << deviceName << "_";
     result << "Config=(";
     auto configItem = config.begin();
     while (configItem != config.end()) {
@@ -89,10 +121,10 @@ void ReadIRTest::query_model() {
         } catch (...) {
             s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED);
         }
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
-        IE_THROW() << "Crash happens";
     } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
         s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::HANGED);
+        IE_THROW() << "Crash happens";
+    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
         IE_THROW() << "Crash happens";
     }
 }
@@ -171,6 +203,14 @@ void ReadIRTest::SetUp() {
         if (param->get_partial_shape().is_dynamic()) {
             hasDynamic = true;
             break;
+        }
+    }
+    if (!hasDynamic) {
+        for (const auto& result : function->get_results()) {
+            if (result->get_output_partial_shape(0).is_dynamic()) {
+                hasDynamic = true;
+                break;
+            }
         }
     }
     if (hasDynamic && ov::test::subgraph::shapeMode == ov::test::subgraph::ShapeMode::STATIC) {

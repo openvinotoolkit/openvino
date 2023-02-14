@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -192,37 +192,37 @@ struct PluginConfig {
             _keyConfigMap.clear();
         adjustKeyMapValues();
     }
+    bool isSupportedDevice(const std::string& deviceName) const {
+        if (deviceName.empty())
+            return false;
+        auto realDevName = deviceName[0] != '-' ? deviceName : deviceName.substr(1);
+        if (realDevName.empty()) {
+            return false;
+        }
+        realDevName = DeviceIDParser(realDevName).getDeviceName();
+        std::string::size_type realEndPos = 0;
+        if ((realEndPos = realDevName.find('(')) != std::string::npos) {
+            realDevName = realDevName.substr(0, realEndPos);
+        }
+        if (_availableDevices.end() == std::find(_availableDevices.begin(), _availableDevices.end(), realDevName)) {
+            return false;
+        }
+        return true;
+    }
     std::vector<std::string> ParsePrioritiesDevices(const std::string& priorities, const char separator = ',') const {
         std::vector<std::string> devices;
         std::string::size_type pos = 0;
         std::string::size_type endpos = 0;
-        auto isAvailableDevice = [&](std::string& deviceName) -> bool {
-            if (deviceName.empty())
-                return false;
-            auto realDevName = deviceName[0] != '-' ? deviceName : deviceName.substr(1);
-            if (realDevName.empty()) {
-                return false;
-            }
-            realDevName = DeviceIDParser(realDevName).getDeviceName();
-            std::string::size_type realEndPos = 0;
-            if ((realEndPos = realDevName.find('(')) != std::string::npos) {
-                realDevName = realDevName.substr(0, realEndPos);
-            }
-            if (_availableDevices.end() == std::find(_availableDevices.begin(), _availableDevices.end(), realDevName)) {
-                return false;
-            }
-            return true;
-        };
         while ((endpos = priorities.find(separator, pos)) != std::string::npos) {
             auto subStr = priorities.substr(pos, endpos - pos);
-            if (!isAvailableDevice(subStr)) {
+            if (!isSupportedDevice(subStr)) {
                 IE_THROW() << "Unavailable device name: " << subStr;
             }
             devices.push_back(subStr);
             pos = endpos + 1;
         }
         auto subStr = priorities.substr(pos, priorities.length() - pos);
-        if (!isAvailableDevice(subStr)) {
+        if (!isSupportedDevice(subStr)) {
             IE_THROW() << "Unavailable device name: " << subStr;
         }
         devices.push_back(subStr);
@@ -289,19 +289,7 @@ struct PluginConfig {
     bool _isBatchConfigSet = false;
     std::map<std::string, std::string> _passThroughConfig;
     std::map<std::string, std::string> _keyConfigMap;
-    const std::set<std::string> _availableDevices = {"AUTO",
-                                                     "CPU",
-                                                     "GPU",
-                                                     "GNA",
-                                                     "TEMPLATE",
-                                                     "MYRIAD",
-                                                     "HDDL",
-                                                     "VPUX",
-                                                     "MULTI",
-                                                     "HETERO",
-                                                     "CUDA",
-                                                     "NVIDIA",
-                                                     "HPU_GOYA",
-                                                     "mock"};
+    const std::set<std::string> _availableDevices =
+        {"AUTO", "CPU", "GPU", "TEMPLATE", "MYRIAD", "VPUX", "MULTI", "HETERO", "mock"};
 };
 } // namespace MultiDevicePlugin

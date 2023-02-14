@@ -12,6 +12,7 @@ Main transformations are the majority of low precision transformations. Transfor
 * [FakeQuantizeTransformation](@ref openvino_docs_OV_UG_lpt_FakeQuantizeTransformation)
 * [InterpolateTransformation](@ref openvino_docs_OV_UG_lpt_InterpolateTransformation)
 * [GroupConvolutionTransformation](@ref openvino_docs_OV_UG_lpt_GroupConvolutionTransformation)
+* [GatherTransformation](@ref openvino_docs_OV_UG_lpt_GatherTransformation)
 * [MatMulTransformation](@ref openvino_docs_OV_UG_lpt_MatMulTransformation)
 * [MaxPoolTransformation](@ref openvino_docs_OV_UG_lpt_MaxPoolTransformation)
 * [MultiplyTransformation](@ref openvino_docs_OV_UG_lpt_MultiplyTransformation)

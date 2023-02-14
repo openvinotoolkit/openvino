@@ -11,20 +11,20 @@
 namespace ov {
 namespace pass {
 
-class TRANSFORMATIONS_API TransposeSinkingBinaryElementwiseForward;
-class TRANSFORMATIONS_API TransposeSinkingBinaryElementwiseBackward;
+class TRANSFORMATIONS_API TransposeSinkingBinaryForward;
+class TRANSFORMATIONS_API TransposeSinkingBinaryBackward;
 
 }  // namespace pass
 }  // namespace ov
 
-class ov::pass::TransposeSinkingBinaryElementwiseForward : public ov::pass::MatcherPass {
+class ov::pass::TransposeSinkingBinaryForward : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::pass::TransposeSinkingBinaryElementwiseForward", "0");
-    TransposeSinkingBinaryElementwiseForward();
+    OPENVINO_RTTI("ov::pass::TransposeSinkingBinaryForward", "0");
+    TransposeSinkingBinaryForward();
 };
 
-class ov::pass::TransposeSinkingBinaryElementwiseBackward : public ov::pass::MatcherPass {
+class ov::pass::TransposeSinkingBinaryBackward : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::pass::TransposeSinkingBinaryElementwiseBackward", "0");
-    TransposeSinkingBinaryElementwiseBackward();
+    OPENVINO_RTTI("ov::pass::TransposeSinkingBinaryBackward", "0");
+    TransposeSinkingBinaryBackward();
 };

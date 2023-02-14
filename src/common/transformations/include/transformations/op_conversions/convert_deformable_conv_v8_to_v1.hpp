@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,9 +24,3 @@ public:
     OPENVINO_RTTI("ConvertDeformableConv8To1", "0");
     ConvertDeformableConv8To1();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertDeformableConv8To1;
-}  // namespace pass
-}  // namespace ngraph

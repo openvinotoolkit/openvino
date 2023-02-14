@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -18,8 +18,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd4273)
     ie_add_compiler_flags(/wd4309)
     ie_add_compiler_flags(/wd4804)
-endif()
-if(NOT MSVC)
+else()
     ie_add_compiler_flags(-Wno-missing-declarations)
     ie_add_compiler_flags(-Wno-sign-compare)
     ie_add_compiler_flags(-Wno-odr)

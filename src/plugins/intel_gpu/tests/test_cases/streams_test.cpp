@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ TEST(gpu_streams, can_create_networks_for_stream) {
     topology topology(
             input_layout("input", input->get_layout()),
             activation("relu", input_info("input"), activation_func::relu_negative_slope, activation_additional_params{ 0.5f, 0.f }, padding{ { 0, 0, 0, 0 }, 0 }));
-    network network(engine, topology, build_options());
+    network network(engine, topology, ExecutionConfig{});
 
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -72,7 +72,7 @@ TEST(gpu_streams, check_networks_can_use_the_same_weights) {
             convolution("conv", input_info("input"), { "weights" }, { 2, 1 }));
 
     set_values(weights, { 1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f });
-    auto prog = program::build_program(engine, topology, build_options());
+    auto prog = program::build_program(engine, topology, ExecutionConfig{});
     network network0(prog, 0);
     network network1(prog, 1);
 
@@ -136,7 +136,7 @@ TEST(gpu_streams, check_networks_use_unique_mutable_data_per_stream) {
             convolution("conv", input_info("input"), { "weights" }, { 2, 1 }));
 
     set_values(weights, { 1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f });
-    auto prog = program::build_program(engine, topology, build_options());
+    auto prog = program::build_program(engine, topology, ExecutionConfig{});
     network network0(prog, 0);
     network network1(prog, 1);
 

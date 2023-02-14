@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -80,7 +80,7 @@ InferenceEngine::Blob::Ptr createBlob(InferenceEngine::Precision precision,
 size_t GenerateRandom(size_t elem) {
     size_t result;
     do {
-        result = std::floor(std::rand() / static_cast<float>(RAND_MAX * elem));
+        result = static_cast<size_t>(std::floor(std::rand() / static_cast<float>(RAND_MAX * elem)));
     } while (result >= elem);
     return result;
 }
@@ -91,7 +91,7 @@ size_t GenerateRandom(size_t elem) {
 SizeVector GenerateRandomVector(SizeVector dims) {
     SizeVector idx(dims.size());
 
-    for (auto i = 0; i < dims.size(); ++i) {
+    for (size_t i = 0; i < dims.size(); ++i) {
         idx[i] = GenerateRandom(dims[i]);
     }
     return idx;
@@ -102,7 +102,7 @@ void PrintParams(InferenceEngine::Layout layout,
                  std::string blobType,
                  InferenceEngine::Precision precision) {
     std::cout << blobType << "Blob params: " << layout << ", precision: " << precision << ", dims: {";
-    for (int i = 0; i < dims.size(); i++) {
+    for (size_t i = 0; i < dims.size(); i++) {
         std::cout << (i > 0 ? ", " : "") << dims[i];
     }
     std::cout << "}" << std::endl;
@@ -160,14 +160,14 @@ T GetElem(Blob::Ptr& blob, SizeVector idx) {
 
     SizeVector strides = blob->getTensorDesc().getBlockingDesc().getStrides();
     if (blobLayout == NHWC || blobLayout == NDHWC) {
-        for (int i = 2; i < strides.size(); i++) {
+        for (size_t i = 2; i < strides.size(); i++) {
             std::swap(strides[1], strides[i]);
         }
     }
 
-    int offset = 0;
+    size_t offset = 0;
 
-    for (int i = 0; i < idx.size(); i++) {
+    for (size_t i = 0; i < idx.size(); i++) {
         offset += idx[i] * strides[i];
     }
 
@@ -189,7 +189,7 @@ int SetExperimentsNum(int blobSize) {
 template <typename T>
 bool IsCorrectBlobCopy_Impl(Blob::Ptr& srcBlob, Blob::Ptr& dstBlob) {
     EXPECT_TRUE(srcBlob->size() == dstBlob->size());
-    int experimentsNum = SetExperimentsNum(srcBlob->size());
+    int experimentsNum = SetExperimentsNum(static_cast<int>(srcBlob->size()));
     int errorsCount = 0;
     for (; experimentsNum > 0; --experimentsNum) {
         SizeVector randomElemIdx = GenerateRandomVector(srcBlob->getTensorDesc().getDims());
@@ -258,8 +258,8 @@ TEST_P(BlobCopyTest, BlobCopy) {
     SizeVector srcDims = SetDimVector(batchNum, channelNum, dims);
     SizeVector dstDims = SetDimVector(batchNum, channelNum, dims);
 
-    InferenceEngine::Layout srcLayout = setLayout(srcIsInterleaved, dims.size());
-    InferenceEngine::Layout dstLayout = setLayout(dstIsInterleaved, dims.size());
+    InferenceEngine::Layout srcLayout = setLayout(srcIsInterleaved, static_cast<int>(dims.size()));
+    InferenceEngine::Layout dstLayout = setLayout(dstIsInterleaved, static_cast<int>(dims.size()));
 
     PrintParams(srcLayout, srcDims, "src", precisionType);
     PrintParams(dstLayout, dstDims, "dst", precisionType);

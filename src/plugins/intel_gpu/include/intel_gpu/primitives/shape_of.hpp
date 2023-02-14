@@ -1,19 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Returns shape of input primitive.
 struct shape_of : public primitive_base<shape_of> {
@@ -44,7 +37,4 @@ struct shape_of : public primitive_base<shape_of> {
 
     size_t output_rank;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

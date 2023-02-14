@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,8 +27,7 @@
 namespace ov {
 class Model;
 
-OPENVINO_API
-std::shared_ptr<Model> clone_model(const Model& func, std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
+std::shared_ptr<Model> clone_ov_model(const Model& func, std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
 
 namespace frontend {
 class FrontEnd;
@@ -42,8 +41,8 @@ class ModelAccessor;
  */
 class OPENVINO_API Model : public std::enable_shared_from_this<Model> {
     friend class frontend::FrontEnd;
-    friend OPENVINO_API std::shared_ptr<Model> clone_model(const Model& func,
-                                                           std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
+    friend std::shared_ptr<Model> clone_ov_model(const Model& func,
+                                                 std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
     std::shared_ptr<void> m_shared_object;  // Frontend plugin shared object handle.
 
 public:

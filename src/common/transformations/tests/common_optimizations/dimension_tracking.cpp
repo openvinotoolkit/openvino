@@ -74,7 +74,7 @@ TEST(TransformationTests, AutoBatch_FindBatch_Transpose_and_Convolution) {
     const auto& f = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{data});
 
     ov::pass::Manager m;
-    m.register_pass<ngraph::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ov::pass::FindBatch>();
     m.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
@@ -101,7 +101,7 @@ TEST(TransformationTests, AutoBatch_FindBatch_SingleMultiply) {
     const auto& f = std::make_shared<ov::Model>(ov::NodeVector{mul}, ov::ParameterVector{data});
 
     ov::pass::Manager m;
-    m.register_pass<ngraph::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ov::pass::FindBatch>();
     m.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
@@ -131,7 +131,7 @@ TEST(TransformationTests, AutoBatch_FindBatch_Two_Outputs) {
     const auto& f = std::make_shared<ov::Model>(ov::NodeVector{conv, transpose}, ov::ParameterVector{data});
 
     ov::pass::Manager m;
-    m.register_pass<ngraph::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ov::pass::FindBatch>();
     m.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
@@ -161,7 +161,7 @@ TEST(TransformationTests, AutoBatch_FindBatch_TwoOutputsReversed) {
     const auto& f = std::make_shared<ov::Model>(ov::NodeVector{transpose, conv}, ov::ParameterVector{data});
 
     ov::pass::Manager m;
-    m.register_pass<ngraph::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ov::pass::FindBatch>();
     m.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
@@ -195,7 +195,7 @@ TEST(TransformationTests, AutoBatch_FindBatch_IndependentBranchesConcated) {
     const auto& f = std::make_shared<ov::Model>(ov::NodeVector{concat}, ov::ParameterVector{data});
 
     ov::pass::Manager m;
-    m.register_pass<ngraph::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ov::pass::FindBatch>();
     m.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
@@ -228,7 +228,7 @@ TEST(TransformationTests, AutoBatch_FindBatch_TwoConvNetwork) {
     const auto& f = std::make_shared<ov::Model>(ov::NodeVector{conv_0, conv_1}, ov::ParameterVector{data});
 
     ov::pass::Manager m;
-    m.register_pass<ngraph::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ov::pass::FindBatch>();
     m.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
@@ -256,7 +256,7 @@ TEST(TransformationTests, AutoBatch_FindBatch_NegativeTracking) {
     const auto& f = std::make_shared<ov::Model>(ov::NodeVector{reshape}, ov::ParameterVector{data});
 
     ov::pass::Manager m;
-    m.register_pass<ngraph::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ov::pass::FindBatch>(false, false);
     m.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
@@ -276,7 +276,7 @@ TEST(TransformationTests, AutoBatch_FindBatch_AutoBatch_LabelPropagation_DO_deta
     auto& data = f->get_parameters()[0];
 
     ov::pass::Manager m;
-    m.register_pass<ngraph::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ov::pass::FindBatch>(true);
     m.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));

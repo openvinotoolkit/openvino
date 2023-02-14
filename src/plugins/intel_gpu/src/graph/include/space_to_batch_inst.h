@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "intel_gpu/primitives/space_to_batch.hpp"
@@ -23,7 +22,6 @@ public:
     static layout calc_output_layout(space_to_batch_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(space_to_batch_node const& node);
 
-public:
     typed_primitive_inst(network& network, space_to_batch_node const& desc);
 };
 

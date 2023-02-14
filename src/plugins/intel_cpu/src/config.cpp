@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -150,7 +150,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_ENFORCE_BF16
                     << ". Expected only YES/NO";
             }
-        } else if (key == ov::hint::inference_precision.name()) {
+        } else if (key == ov::inference_precision.name()) {
             if (val == "bf16") {
                 if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
                     enforceBF16 = true;
@@ -162,7 +162,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 enforceBF16 = false;
                 manualEnforceBF16 = false;
             } else {
-                IE_THROW() << "Wrong value for property key " << ov::hint::inference_precision.name()
+                IE_THROW() << "Wrong value for property key " << ov::inference_precision.name()
                     << ". Supported values: bf16, f32";
             }
         } else if (key == PluginConfigParams::KEY_CACHE_DIR) {
@@ -188,6 +188,16 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 IE_THROW() << "Wrong value for property key " << CPUConfigParams::KEY_CPU_DENORMALS_OPTIMIZATION
                 << ". Expected only YES/NO";
             }
+        } else if (key == PluginConfigInternalParams::KEY_SNIPPETS_MODE) {
+            if (val == PluginConfigInternalParams::ENABLE)
+                snippetsMode = SnippetsMode::Enable;
+            else if (val == PluginConfigInternalParams::IGNORE_CALLBACK)
+                snippetsMode = SnippetsMode::IgnoreCallback;
+            else if (val == PluginConfigInternalParams::DISABLE)
+                snippetsMode = SnippetsMode::Disable;
+            else
+                IE_THROW() << "Wrong value for property key " << PluginConfigInternalParams::KEY_SNIPPETS_MODE
+                            << ". Expected values: ENABLE/DISABLE/IGNORE_CALLBACK";
         } else {
             IE_THROW(NotFound) << "Unsupported property " << key << " by CPU plugin";
         }
@@ -256,4 +266,3 @@ void Config::updateProperties() {
 
 }   // namespace intel_cpu
 }   // namespace ov
-

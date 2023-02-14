@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -202,8 +202,8 @@ void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::
         p.profiling_ids.push_back(initialconstPrimID);
     } else {
         GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant]" << std::endl;
-        cldnn::memory::ptr mem = p.GetEngine().allocate_memory(constLayout, false);
-        auto& stream = p.GetEngine().get_program_stream();
+        cldnn::memory::ptr mem = p.get_engine().allocate_memory(constLayout, false);
+        auto& stream = p.get_engine().get_service_stream();
         cldnn::mem_lock<char> lock{mem, stream};
         auto buf = lock.data();
         auto bufSize = constLayout.bytes_count();

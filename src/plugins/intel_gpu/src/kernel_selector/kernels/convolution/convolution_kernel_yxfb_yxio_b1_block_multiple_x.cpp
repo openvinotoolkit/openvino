@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,6 @@ ParamsKey ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::GetSupportedKey() con
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
     k.EnableBatching();
-    k.EnableSplitSupport();
     k.EnableDilation();
     return k;
 }
@@ -108,10 +107,6 @@ bool ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::Validate(const Params& p, 
     }
 
     const convolution_params& params = static_cast<const convolution_params&>(p);
-
-    if (!CheckPitchForSplitOnly(params)) {
-        return false;
-    }
 
     const auto filter_ofm_num = params.weights.OFM().v;
     const auto batch_size = params.outputs[0].Batch().v;

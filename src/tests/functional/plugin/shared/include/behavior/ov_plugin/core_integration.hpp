@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ namespace behavior {
     ASSERT_NE(properties.end(), it);                                                               \
 }
 
-inline bool supportsAvaliableDevices(ov::Core& ie, const std::string& target_device) {
+inline bool supportsAvailableDevices(ov::Core& ie, const std::string& target_device) {
     auto supported_properties = ie.get_property(target_device, ov::supported_properties);
     return supported_properties.end() !=
            std::find(std::begin(supported_properties), std::end(supported_properties), ov::available_devices);
@@ -119,6 +119,7 @@ using OVClassLoadNetworkAfterCoreRecreateTest = OVClassBaseTestP;
 using OVClassLoadNetworkTest = OVClassQueryNetworkTest;
 using OVClassSetGlobalConfigTest = OVClassBaseTestP;
 using OVClassSetModelPriorityConfigTest = OVClassBaseTestP;
+using OVClassSetExecutionModeHintConfigTest = OVClassBaseTestP;
 using OVClassSetTBBForceTerminatePropertyTest = OVClassBaseTestP;
 using OVClassSetLogLevelConfigTest = OVClassBaseTestP;
 using OVClassSpecificDeviceTestSetConfig = OVClassBaseTestP;
@@ -176,7 +177,8 @@ TEST(OVClassBasicTest, smoke_createNonExistingConfigThrows) {
 }
 
 inline std::string getPluginFile() {
-    std::string filename{"mock_engine_valid.xml"};
+    std::string filePostfix{"mock_engine_valid.xml"};
+    std::string filename = CommonTestUtils::generateTestFilePrefix() + "_" + filePostfix;
     std::ostringstream stream;
     stream << "<ie><plugins><plugin name=\"mock\" location=\"";
     stream << ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
@@ -193,7 +195,7 @@ TEST(OVClassBasicTest, smoke_createMockEngineConfigNoThrows) {
 }
 
 TEST(OVClassBasicTest, smoke_createMockEngineConfigThrows) {
-    std::string filename{"mock_engine.xml"};
+    std::string filename = CommonTestUtils::generateTestFilePrefix() + "_mock_engine.xml";
     std::string content{"<ie><plugins><plugin location=\"libmock_engine.so\"></plugin></plugins></ie>"};
     CommonTestUtils::createFile(filename, content);
     ASSERT_THROW(ov::Core ie(filename), ov::Exception);
@@ -399,7 +401,7 @@ TEST_P(OVClassSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
         cleartarget_device = target_device.substr(0, pos);
         deviceID =  target_device.substr(pos + 1,  target_device.size());
     }
-    if (!supportsDeviceID(ie, cleartarget_device) || !supportsAvaliableDevices(ie, cleartarget_device)) {
+    if (!supportsDeviceID(ie, cleartarget_device) || !supportsAvailableDevices(ie, cleartarget_device)) {
         GTEST_FAIL();
     }
     auto deviceIDs = ie.get_property(cleartarget_device, ov::available_devices);
@@ -427,6 +429,23 @@ TEST_P(OVClassSetModelPriorityConfigTest, SetConfigNoThrow) {
     OV_ASSERT_NO_THROW(ie.set_property(target_device, ov::hint::model_priority(ov::hint::Priority::HIGH)));
     OV_ASSERT_NO_THROW(value = ie.get_property(target_device, ov::hint::model_priority));
     EXPECT_EQ(value, ov::hint::Priority::HIGH);
+}
+
+TEST_P(OVClassSetExecutionModeHintConfigTest, SetConfigNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::hint::execution_mode);
+
+    ov::hint::ExecutionMode defaultMode{};
+    ASSERT_NO_THROW(defaultMode = ie.get_property(target_device, ov::hint::execution_mode));
+    (void)defaultMode;
+
+    ie.set_property(target_device, ov::hint::execution_mode(ov::hint::ExecutionMode::UNDEFINED));
+    ASSERT_EQ(ov::hint::ExecutionMode::UNDEFINED, ie.get_property(target_device, ov::hint::execution_mode));
+    ie.set_property(target_device, ov::hint::execution_mode(ov::hint::ExecutionMode::ACCURACY));
+    ASSERT_EQ(ov::hint::ExecutionMode::ACCURACY, ie.get_property(target_device, ov::hint::execution_mode));
+    ie.set_property(target_device, ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE));
+    ASSERT_EQ(ov::hint::ExecutionMode::PERFORMANCE, ie.get_property(target_device, ov::hint::execution_mode));
 }
 
 TEST_P(OVClassSetDevicePriorityConfigTest, SetConfigAndCheckGetConfigNoThrow) {
@@ -541,7 +560,7 @@ TEST_P(OVClassSeveralDevicesTestQueryNetwork, QueryNetworkActualSeveralDevicesNo
     if (!supportsDeviceID(ie, clear_target_device)) {
         GTEST_FAIL() << "Device does not support DeviceID property" << std::endl;
     }
-    if (!supportsAvaliableDevices(ie, clear_target_device)) {
+    if (!supportsAvailableDevices(ie, clear_target_device)) {
         GTEST_FAIL() << "Device does not support AvailableDevices property" << std::endl;
     }
     auto deviceIDs = ie.get_property(clear_target_device, ov::available_devices);
@@ -859,7 +878,7 @@ TEST_P(OVClassSpecificDeviceTestGetConfig, GetConfigSpecificDeviceNoThrow) {
     if (!supportsDeviceID(ie, clear_target_device)) {
         GTEST_FAIL() << "Device does not support DeviceID property" << std::endl;
     }
-    if (!supportsAvaliableDevices(ie, clear_target_device)) {
+    if (!supportsAvailableDevices(ie, clear_target_device)) {
         GTEST_FAIL() << "Device does not support AvailableDevices property" << std::endl;
     }
     auto deviceIDs = ie.get_property(clear_target_device, ov::available_devices);
@@ -1038,7 +1057,7 @@ TEST_P(OVClassSeveralDevicesTestLoadNetwork, LoadNetworkActualSeveralDevicesNoTh
     if (pos != std::string::npos) {
         clear_target_device = target_devices.begin()->substr(0, pos);
     }
-    if (!supportsAvaliableDevices(ie, clear_target_device)) {
+    if (!supportsAvailableDevices(ie, clear_target_device)) {
         GTEST_FAIL() << "Device does not support AvailableDevices property" << std::endl;
     }
     auto deviceIDs = ie.get_property(clear_target_device, ov::available_devices);
@@ -1187,7 +1206,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROAndDeviceIDThrows) {
 
 TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROwithMULTINoThrow) {
     ov::Core ie = createCoreWithTemplate();
-    if (supportsDeviceID(ie, target_device) && supportsAvaliableDevices(ie, target_device)) {
+    if (supportsDeviceID(ie, target_device) && supportsAvailableDevices(ie, target_device)) {
         std::string devices;
         auto availableDevices = ie.get_property(target_device, ov::available_devices);
         for (auto&& device : availableDevices) {
@@ -1211,7 +1230,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROwithMULTINoThrow) {
 TEST_P(OVClassLoadNetworkTest, LoadNetworkMULTIwithHETERONoThrow) {
     ov::Core ie = createCoreWithTemplate();
 
-    if (supportsDeviceID(ie, target_device) && supportsAvaliableDevices(ie, target_device)) {
+    if (supportsDeviceID(ie, target_device) && supportsAvailableDevices(ie, target_device)) {
         std::string devices;
         auto availableDevices = ie.get_property(target_device, ov::available_devices);
         for (auto&& device : availableDevices) {
@@ -1237,7 +1256,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkMULTIwithHETERONoThrow) {
 TEST_P(OVClassLoadNetworkTest, QueryNetworkHETEROWithMULTINoThrow_V10) {
     ov::Core ie = createCoreWithTemplate();
 
-    if (supportsDeviceID(ie, target_device) && supportsAvaliableDevices(ie, target_device)) {
+    if (supportsDeviceID(ie, target_device) && supportsAvailableDevices(ie, target_device)) {
         std::string devices;
         auto availableDevices = ie.get_property(target_device, ov::available_devices);
         for (auto&& device : availableDevices) {
@@ -1279,7 +1298,7 @@ TEST_P(OVClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
     if (!supportsDeviceID(ie, target_device)) {
         GTEST_FAIL() << "Device does not support DeviceID property" << std::endl;
     }
-    if (!supportsAvaliableDevices(ie, target_device)) {
+    if (!supportsAvailableDevices(ie, target_device)) {
         GTEST_FAIL() << "Device does not support AvailableDevices property" << std::endl;
     }
     std::string devices;
@@ -1373,7 +1392,7 @@ TEST_P(OVClassSeveralDevicesTestDefaultCore, DefaultCoreSeveralDevicesNoThrow) {
     if (!supportsDeviceID(ie, clear_target_device)) {
         GTEST_FAIL() << "Device does not support DeviceID property" << std::endl;
     }
-    if (!supportsAvaliableDevices(ie, clear_target_device)) {
+    if (!supportsAvailableDevices(ie, clear_target_device)) {
         GTEST_FAIL() << "Device does not support AvailableDevices property" << std::endl;
     }
     auto deviceIDs = ie.get_property(clear_target_device, ov::available_devices);

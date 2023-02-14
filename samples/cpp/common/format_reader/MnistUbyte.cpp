@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,6 +49,8 @@ MnistUbyte::MnistUbyte(const std::string& filename) {
     }
 
     size_t size = _width * _height * 1;
+    _shape.push_back(_height);
+    _shape.push_back(_width);
 
     _data.reset(new unsigned char[size], std::default_delete<unsigned char[]>());
     size_t count = 0;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ public:
         const std::shared_ptr<ngraph::Node>& node,
         const AttributeParameters& params);
     // merge attribute instances which can be got from different sources: node, input port or output port
-    void merge(std::vector<ov::Any>& attributes);
+    void merge_attributes(std::vector<ov::Any>& attributes);
     // vizualize shared attributes details in VizualizeTree pass
     std::string to_string() const override;
 };

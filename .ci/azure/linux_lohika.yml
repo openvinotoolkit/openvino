@@ -55,6 +55,7 @@ jobs:
 #      # CMake must get Python 3.x version by default
 #      cmakeArgs: >
 #        -GNinja
+#        -DENABLE_CPPLINT=OFF
 #        -DCMAKE_VERBOSE_MAKEFILE=ON
 #        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
 #        -DENABLE_PYTHON=ON
@@ -64,10 +65,10 @@ jobs:
 #        -DENABLE_FASTER_BUILD=ON
 #        -DENABLE_STRICT_DEPENDENCIES=OFF
 #        -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
-#        $(REPO_DIR)
-#      workingDirectory: $(BUILD_DIR)
+#        -S $(REPO_DIR)
+#        -B $(BUILD_DIR)
 
-  - script: >
+  - script: |
       env -C ~/work
       ./buildreleasenolto.sh
       libopenvino_gapi_preproc.so

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -79,6 +79,7 @@
 
 REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(fc)(
+    OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
     const __global FILTER_TYPE* weights
@@ -149,10 +150,10 @@ KERNEL(fc)(
             weights_offset += TILE_K_OFM * SIMD;
 
             unroll_for (uint kii = 0; kii < TILE_K; ++kii) {
-                unroll_for (uint fi = 0; fi < TILE_OFM; ++fi) {
-                    unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
-                        const uint total_k = ki * TILE_K + kii;
-                        INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
+                const uint total_k = ki * TILE_K + kii;
+                unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
+                    INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
+                    unroll_for (uint fi = 0; fi < TILE_OFM; ++fi) {
                         ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((FILTER_TYPE*)(&wei))[kii * TILE_OFM + fi];
                     }
                 }
@@ -236,11 +237,18 @@ KERNEL(fc)(
     uint output_offset = out_f * TILE_OUT_F_PITCH + out_b * TILE_OUT_B_PITCH + OUTPUT_OFFSET;
 
     if (USE_BLOCK_WRITE && (TILE_OUT_F_NUM % (TILE_OFM * SIMD) == 0 || out_f + (TILE_OFM * SIMD) <= TILE_OUT_F_NUM)) {
+#if IS_DYNAMIC
+        #define WRITE_OUTPUT(bi) do {                                       \
+                if (bi + out_b < BATCH_SIZE)                                \
+                    OUTPUT_BLOCK_WRITE(output, output_offset, result[bi]);  \
+                output_offset += TILE_OUT_B_PITCH;                          \
+            } while (false)
+#else
         #define WRITE_OUTPUT(bi) do {                                       \
                 OUTPUT_BLOCK_WRITE(output, output_offset, result[bi]);      \
                 output_offset += TILE_OUT_B_PITCH;                          \
             } while (false)
-
+#endif
         CONST_LOOP(TILE_B, WRITE_OUTPUT);
         #undef WRITE_OUTPUT
     } else {
@@ -270,8 +278,11 @@ KERNEL(fc)(
         for (uint bi = 0; bi < TILE_B; ++bi) {
             for (uint fi = 0; fi < TILE_OFM; ++fi) {
                 const bool should_write =
-                    TILE_OUT_F_NUM % (TILE_OFM * SIMD) == 0 ||
-                    out_f + fi * SIMD + sglid < TILE_OUT_F_NUM;
+#if IS_DYNAMIC
+                    bi + out_b < BATCH_SIZE &&
+#endif
+                    (TILE_OUT_F_NUM % (TILE_OFM * SIMD) == 0 ||
+                    out_f + fi * SIMD + sglid < TILE_OUT_F_NUM);
                 if (should_write) {
                     output[output_offset] = ((OUTPUT_TYPE*)(&result[bi]))[fi];
                 }

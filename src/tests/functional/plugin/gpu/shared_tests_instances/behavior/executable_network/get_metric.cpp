@@ -1,10 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "behavior/executable_network/get_metric.hpp"
-
-#define OV_GPU_USE_OPENCL_HPP
 
 #ifdef _WIN32
 # include "gpu/gpu_context_api_dx.hpp"

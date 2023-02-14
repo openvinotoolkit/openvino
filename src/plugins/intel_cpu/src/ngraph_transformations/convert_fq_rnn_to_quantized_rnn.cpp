@@ -105,16 +105,16 @@ ov::intel_cpu::ConvertFqRnnToQuantizedRnn::ConvertFqRnnToQuantizedRnn() {
             const auto& sequence_length = pattern_map.at(sequence_length_m);
 
             // @todo prototype removal of unnecessary fq between two consequtive rnn nodes
-            auto rnn_quantized_tr = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset9::LSTMSequence>>(
+            auto rnn_quantized_tr = std::make_shared<op::TypeRelaxed<ngraph::opset9::LSTMSequence>>(
                 element::TypeVector{ element::f32, element::f32, element::f32, element::f32, element::f32, element::f32, element::f32 },
                 element::TypeVector{ element::f32, element::f32, element::f32 },
-                ngraph::op::TemporaryReplaceOutputType(activation, element::f32).get(),
-                ngraph::op::TemporaryReplaceOutputType(hidden_state, element::f32).get(),
-                ngraph::op::TemporaryReplaceOutputType(cell_state, element::f32).get(),
-                ngraph::op::TemporaryReplaceOutputType(sequence_length, element::f32).get(),
-                ngraph::op::TemporaryReplaceOutputType(weights, element::f32).get(),
-                ngraph::op::TemporaryReplaceOutputType(r_weights, element::f32).get(),
-                ngraph::op::TemporaryReplaceOutputType(bias, element::f32).get(),
+                op::TemporaryReplaceOutputType(activation, element::f32).get(),
+                op::TemporaryReplaceOutputType(hidden_state, element::f32).get(),
+                op::TemporaryReplaceOutputType(cell_state, element::f32).get(),
+                op::TemporaryReplaceOutputType(sequence_length, element::f32).get(),
+                op::TemporaryReplaceOutputType(weights, element::f32).get(),
+                op::TemporaryReplaceOutputType(r_weights, element::f32).get(),
+                op::TemporaryReplaceOutputType(bias, element::f32).get(),
                 lstm_seq->get_hidden_size(),
                 lstm_seq->get_direction(),
                 lstm_seq->get_activations_alpha(),
@@ -127,15 +127,15 @@ ov::intel_cpu::ConvertFqRnnToQuantizedRnn::ConvertFqRnnToQuantizedRnn() {
         } else if (const auto gru_seq = ngraph::as_type_ptr<ngraph::opset9::GRUSequence>(rnn)) {
             const auto& sequence_length = pattern_map.at(sequence_length_m);
 
-            auto rnn_quantized_tr = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset9::GRUSequence>>(
+            auto rnn_quantized_tr = std::make_shared<op::TypeRelaxed<ngraph::opset9::GRUSequence>>(
                 std::vector<ngraph::element::Type>{ element::f32, element::f32, element::f32, element::f32, element::f32, element::f32},
                 std::vector<ngraph::element::Type>{ element::f32, element::f32 },
-                ngraph::op::TemporaryReplaceOutputType(activation, element::f32).get(),
-                ngraph::op::TemporaryReplaceOutputType(hidden_state, element::f32).get(),
-                ngraph::op::TemporaryReplaceOutputType(sequence_length, element::f32).get(),
-                ngraph::op::TemporaryReplaceOutputType(weights, element::f32).get(),
-                ngraph::op::TemporaryReplaceOutputType(r_weights, element::f32).get(),
-                ngraph::op::TemporaryReplaceOutputType(bias, element::f32).get(),
+                op::TemporaryReplaceOutputType(activation, element::f32).get(),
+                op::TemporaryReplaceOutputType(hidden_state, element::f32).get(),
+                op::TemporaryReplaceOutputType(sequence_length, element::f32).get(),
+                op::TemporaryReplaceOutputType(weights, element::f32).get(),
+                op::TemporaryReplaceOutputType(r_weights, element::f32).get(),
+                op::TemporaryReplaceOutputType(bias, element::f32).get(),
                 gru_seq->get_hidden_size(),
                 gru_seq->get_direction(),
                 gru_seq->get_activations(),

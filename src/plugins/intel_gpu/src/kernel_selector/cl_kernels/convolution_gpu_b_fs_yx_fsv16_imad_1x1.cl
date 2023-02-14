@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,23 +69,23 @@ __attribute__((reqd_work_group_size(1, SIMD * FEATURE_SLM_SPLIT, 1)))
 KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
     const __global INPUT0_TYPE   *conv_input,
     __global OUTPUT_TYPE         *output,
-    const __global FILTER_TYPE    *weights,
+    const __global FILTER_TYPE    *weights
 #if BIAS_TERM
-    const __global BIAS_TYPE     *biases,
+    , const __global BIAS_TYPE     *biases
 #endif
 #ifdef ASYMMETRIC_WEIGHTS_QUANTIZATION
-    const __global WEIGHTS_ZERO_POINTS_TYPE *weights_zp,
+    , const __global WEIGHTS_ZERO_POINTS_TYPE *weights_zp
 #endif
 #ifdef ASYMMETRIC_DATA_QUANTIZATION
-    const __global ACTIVATIONS_ZERO_POINTS_TYPE *activations_zp,
+    , const __global ACTIVATIONS_ZERO_POINTS_TYPE *activations_zp
 #endif
 #ifdef COMPENSATION_TERM
-    const __global COMPENSATION_TYPE *compensation,
+    , const __global COMPENSATION_TYPE *compensation
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-    uint split_idx)
+)
 {
     // Use group ids to ease sub-group uniform variables optimization for compiler
     const uint out_yx_sg = (uint)get_group_id(0) * OUT_BLOCK_SPATIAL;

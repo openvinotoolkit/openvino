@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -235,7 +235,7 @@ private:
                                       bool>::type = true>
     std::shared_ptr<ngraph::op::Constant> make_ng_constant(const element::Type& type) const {
         std::shared_ptr<default_opset::Constant> constant{nullptr};
-        int data_size = get_data_size();
+        size_t data_size = get_data_size();
         if (has_external_data()) {
             auto external_data = load_external_data();
             constant = std::make_shared<ngraph::op::Constant>(type, m_shape, external_data.data());
