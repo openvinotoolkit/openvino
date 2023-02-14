@@ -100,3 +100,19 @@ void ov::ICompiledModel::loaded_from_cache() {
     }
     OPENVINO_NOT_IMPLEMENTED;
 }
+
+void ov::ICompiledModel::set_property(const ov::AnyMap& properties) {
+    m_properties.set(properties);
+}
+
+ov::Any ov::ICompiledModel::get_property(const std::string& name) const {
+    return m_properties.get(name);
+}
+
+ov::PropertySupervisor& ov::ICompiledModel::get_properties() {
+    return m_properties;
+}
+
+const ov::PropertySupervisor& ov::ICompiledModel::get_properties() const {
+    return m_properties;
+}

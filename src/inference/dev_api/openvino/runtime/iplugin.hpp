@@ -195,7 +195,8 @@ public:
 
 protected:
     IPlugin();
-    ov::PropertySupervisor m_properties;  //!< Property supervisor
+    ov::PropertySupervisor& get_properties();
+    const ov::PropertySupervisor& get_properties() const;
 
 private:
     friend ::InferenceEngine::IPluginWrapper;
@@ -205,6 +206,7 @@ private:
     std::shared_ptr<InferenceEngine::ExecutorManager> m_executor_manager;  //!< A tasks execution manager
     ov::Version m_version;                                                 //!< Member contains plugin version
     bool m_is_new_api;                                                     //!< A flag which shows used API
+    ov::PropertySupervisor m_properties;                                   //!< Property supervisor
 };
 
 }  // namespace ov

@@ -191,7 +191,7 @@ static std::vector<std::string> check_found_pathes(const std::vector<std::vector
             for (auto&& part : path) {
                 strm << part << ".";
             }
-            strm.seekp(-1, strm.cur);
+            strm << std::endl;
         }
         if (!skip_unsupported) {
             OPENVINO_UNREACHABLE(strm.str());

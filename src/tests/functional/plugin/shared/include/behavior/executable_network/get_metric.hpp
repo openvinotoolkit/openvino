@@ -173,7 +173,7 @@ TEST_P(IEClassExecutableNetworkGetMetricTest_NETWORK_NAME, GetMetricNoThrow) {
 
     InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
-    ASSERT_NO_THROW(p = exeNetwork.GetMetric(EXEC_NETWORK_METRIC_KEY(NETWORK_NAME)));
+    p = exeNetwork.GetMetric(EXEC_NETWORK_METRIC_KEY(NETWORK_NAME));
     std::string networkname = p;
 
     std::cout << "Exe network name: " << std::endl << networkname << std::endl;

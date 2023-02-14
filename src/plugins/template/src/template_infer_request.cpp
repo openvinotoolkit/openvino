@@ -48,13 +48,13 @@ void TemplateInferRequest::createInferRequest() {
 
     std::string name = m_compiled_model->m_model->get_friendly_name() + "_Req" + requestID;
     _profilingTask = {
-        openvino::itt::handle("Template" + std::to_string(m_compiled_model->_cfg.deviceId) + "_" + name +
+        openvino::itt::handle("Template" + m_compiled_model->get_properties().get(ov::device::id) + "_" + name +
                               "_Preprocess"),
-        openvino::itt::handle("Template" + std::to_string(m_compiled_model->_cfg.deviceId) + "_" + name +
+        openvino::itt::handle("Template" + m_compiled_model->get_properties().get(ov::device::id) + "_" + name +
                               "_Postprocess"),
-        openvino::itt::handle("Template" + std::to_string(m_compiled_model->_cfg.deviceId) + "_" + name +
+        openvino::itt::handle("Template" + m_compiled_model->get_properties().get(ov::device::id) + "_" + name +
                               "_StartPipline"),
-        openvino::itt::handle("Template" + std::to_string(m_compiled_model->_cfg.deviceId) + "_" + name +
+        openvino::itt::handle("Template" + m_compiled_model->get_properties().get(ov::device::id) + "_" + name +
                               "_WaitPipline"),
     };
 

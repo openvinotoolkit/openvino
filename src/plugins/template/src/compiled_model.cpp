@@ -83,12 +83,27 @@ void fill_output_info(const ov::Output<ov::Node>& output, InferenceEngine::DataP
 TemplatePlugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
                                              const InferenceEngine::ITaskExecutor::Ptr& task_executor,
-                                             const InferenceEngine::IStreamsExecutor::Config& _streamsExecutorConfig,
                                              const ov::AnyMap& cfg)
     : ov::ICompiledModel(model, plugin, task_executor),  // Disable default threads creation
-      _cfg(cfg),
       m_model(model) {
-    _cfg._streamsExecutorConfig = _streamsExecutorConfig;
+    // Init properties
+    get_properties()
+        .add(m_rw_properties.m_properties)
+        .add(ov::model_name,
+             [this]() {
+                 return decltype(ov::model_name)::value_type(m_model->get_friendly_name());
+             })
+        .add(ov::legacy_property(METRIC_KEY(NETWORK_NAME)),
+             [this]() {
+                 return m_model->get_friendly_name();
+             })
+        .add(ov::common_property(ov::optimal_number_of_infer_requests),
+             std::ref(m_rw_properties._streamsExecutorConfig._streams));
+    get_properties()
+        .set(cfg)
+        // IF we need to make some properties read only use ov::PropertyAccess::ro() with property name
+        .ro(ov::streams::num)
+        .ro(ov::infer_property);
     // TODO: if your plugin supports device ID (more that single instance of device can be on host machine)
     // you should select proper device based on KEY_DEVICE_ID or automatic behavior
     // In this case, _waitExecutor should also be created per device.
@@ -173,9 +188,6 @@ std::shared_ptr<ov::ISyncInferRequest> TemplatePlugin::CompiledModel::create_syn
 }
 // ! [executable_network:create_infer_request]
 
-void TemplatePlugin::CompiledModel::set_property(const ov::AnyMap& properties) {
-    OPENVINO_NOT_IMPLEMENTED;
-}
 ov::RemoteContext TemplatePlugin::CompiledModel::get_context() const {
     OPENVINO_NOT_IMPLEMENTED;
 }
@@ -191,66 +203,6 @@ std::shared_ptr<const Plugin> TemplatePlugin::CompiledModel::get_template_plugin
     OPENVINO_ASSERT(template_plugin);
     return template_plugin;
 }
-
-// ! [executable_network:get_config]
-InferenceEngine::Parameter TemplatePlugin::CompiledModel::get_property(const std::string& name) const {
-    const auto& add_ro_properties = [](const std::string& name, std::vector<ov::PropertyName>& properties) {
-        properties.emplace_back(ov::PropertyName{name, ov::PropertyMutability::RO});
-    };
-    const auto& default_ro_properties = []() {
-        std::vector<ov::PropertyName> ro_properties{ov::model_name,
-                                                    ov::supported_properties,
-                                                    ov::optimal_number_of_infer_requests};
-        return ro_properties;
-    };
-    const auto& default_rw_properties = []() {
-        std::vector<ov::PropertyName> rw_properties{ov::device::id,
-                                                    ov::enable_profiling,
-                                                    ov::template_plugin::throughput_streams};
-        return rw_properties;
-    };
-    const auto& to_string_vector = [](const std::vector<ov::PropertyName>& properties) {
-        std::vector<std::string> ret;
-        for (const auto& property : properties) {
-            ret.emplace_back(property);
-        }
-        return ret;
-    };
-    // TODO: return more supported values for metrics
-    if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_METRICS) == name) {
-        auto metrics = default_ro_properties();
-        add_ro_properties(METRIC_KEY(SUPPORTED_METRICS), metrics);
-        add_ro_properties(METRIC_KEY(SUPPORTED_CONFIG_KEYS), metrics);
-        return to_string_vector(metrics);
-    } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        auto configs = default_rw_properties();
-        // auto streamExecutorConfigKeys = InferenceEngine::IStreamsExecutor::Config{}.SupportedKeys();
-        // for (auto&& configKey : streamExecutorConfigKeys) {
-        //     configs.emplace_back(configKey);
-        // }
-        return to_string_vector(configs);
-    } else if (ov::model_name == name) {
-        auto model_name = m_model->get_friendly_name();
-        return decltype(ov::model_name)::value_type(model_name);
-    } else if (ov::optimal_number_of_infer_requests == name) {
-        unsigned int value = _cfg._streamsExecutorConfig._streams;
-        return decltype(ov::optimal_number_of_infer_requests)::value_type(value);
-    }
-
-    if (ov::supported_properties == name) {
-        auto ro_properties = default_ro_properties();
-        auto rw_properties = default_rw_properties();
-
-        std::vector<ov::PropertyName> supported_properties;
-        supported_properties.reserve(ro_properties.size() + rw_properties.size());
-        supported_properties.insert(supported_properties.end(), ro_properties.begin(), ro_properties.end());
-        supported_properties.insert(supported_properties.end(), rw_properties.begin(), rw_properties.end());
-        return decltype(ov::supported_properties)::value_type(supported_properties);
-    }
-
-    return _cfg.Get(name);
-}
-// ! [executable_network:get_config]
 
 // ! [executable_network:export]
 void TemplatePlugin::CompiledModel::export_model(std::ostream& modelStream) const {

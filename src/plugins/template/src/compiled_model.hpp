@@ -8,6 +8,7 @@
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "rw_properties.hpp"
 #include "template_config.hpp"
 #include "template_infer_request.hpp"
 
@@ -25,17 +26,12 @@ public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const InferenceEngine::ITaskExecutor::Ptr& task_executor,
-                  const InferenceEngine::IStreamsExecutor::Config& _streamsExecutorConfig,
                   const ov::AnyMap& cfg);
 
     // Methods from a base class ov::ICompiledModel
     void export_model(std::ostream& model) const override;
 
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
-
-    void set_property(const ov::AnyMap& properties) override;
-
-    virtual ov::Any get_property(const std::string& name) const override;
 
     ov::RemoteContext get_context() const override;
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
@@ -51,10 +47,10 @@ private:
     std::shared_ptr<const Plugin> get_template_plugin() const;
 
     std::atomic<std::size_t> _requestId = {0};
-    Configuration _cfg;
     std::shared_ptr<ov::Model> m_model;
     std::map<std::string, std::size_t> _inputIndex;
     std::map<std::string, std::size_t> _outputIndex;
+    RwProperties m_rw_properties;
 };
 // ! [executable_network:header]
 

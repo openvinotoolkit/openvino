@@ -4,15 +4,14 @@
 
 #pragma once
 
-#include <ie_parameter.hpp>
 #include <map>
-#include <openvino/runtime/properties.hpp>
 #include <string>
-#include <threading/ie_istreams_executor.hpp>
 
 #include "openvino/runtime/internal_properties.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/property_supervisor.hpp"
 #include "template/config.hpp"
+#include "threading/ie_istreams_executor.hpp"
 
 namespace TemplatePlugin {
 

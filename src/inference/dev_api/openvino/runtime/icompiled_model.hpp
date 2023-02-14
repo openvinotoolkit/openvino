@@ -16,6 +16,7 @@
 #include "openvino/core/node_output.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
+#include "openvino/runtime/property_supervisor.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"
 #include "threading/ie_itask_executor.hpp"
@@ -96,7 +97,7 @@ public:
      *
      * @param properties new plugin properties
      */
-    virtual void set_property(const ov::AnyMap& properties) = 0;
+    void set_property(const ov::AnyMap& properties);
 
     /**
      * @brief Returns property
@@ -105,7 +106,7 @@ public:
      *
      * @return Property value
      */
-    virtual ov::Any get_property(const std::string& name) const = 0;
+    ov::Any get_property(const std::string& name) const;
 
     /**
      * @brief Creates device specific remote context
@@ -121,6 +122,7 @@ private:
 
     InferenceEngine::ITaskExecutor::Ptr m_task_executor = nullptr;      //!< Holds a task executor
     InferenceEngine::ITaskExecutor::Ptr m_callback_executor = nullptr;  //!< Holds a callback executor
+    ov::PropertySupervisor m_properties;                                //!< Property supervisor
 
     friend ov::CoreImpl;
     friend ov::IExecutableNetworkWrapper;
@@ -165,6 +167,8 @@ protected:
     const std::shared_ptr<const ov::IPlugin>& get_plugin() const;
     const InferenceEngine::ITaskExecutor::Ptr get_task_executor() const;
     const InferenceEngine::ITaskExecutor::Ptr get_callback_executor() const;
+    ov::PropertySupervisor& get_properties();
+    const ov::PropertySupervisor& get_properties() const;
 };
 
 }  // namespace ov

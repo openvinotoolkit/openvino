@@ -19,9 +19,9 @@ public:
 
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
 
-    void set_property(const ov::AnyMap& properties) override;
+    void set_property(const ov::AnyMap& properties);
 
-    ov::Any get_property(const std::string& name) const override;
+    ov::Any get_property(const std::string& name) const;
 
     ov::RemoteContext get_context() const override;
 

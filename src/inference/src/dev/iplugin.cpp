@@ -61,3 +61,11 @@ void ov::IPlugin::set_property(const ov::AnyMap& properties) {
 ov::Any ov::IPlugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
     return m_properties.get(name, arguments);
 }
+
+ov::PropertySupervisor& ov::IPlugin::get_properties() {
+    return m_properties;
+}
+
+const ov::PropertySupervisor& ov::IPlugin::get_properties() const {
+    return m_properties;
+}
