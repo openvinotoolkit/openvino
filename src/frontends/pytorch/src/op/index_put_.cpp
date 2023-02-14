@@ -39,7 +39,7 @@ OutputVector translate_index_put_(NodeContext& context) {
     auto indices_first_dim = indices_partial_shape[0];
     FRONT_END_OP_CONVERSION_CHECK(indices_first_dim.is_static(),
                                   "We support only lists of tensors with constant number of elements.");
-    int indices_list_len = indices_first_dim.get_length();
+    int64_t indices_list_len = indices_first_dim.get_length();
     if (indices_list_len == 0) {
         return {values};
     }
