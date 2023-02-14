@@ -36,7 +36,7 @@ def prelu(name: str, x, alpha, data_format='NCHW'):
 def main():
     data = np.array([-2, 0, 1]).astype('float32')
     weight= np.array([0.25]).astype('float32')
-    prelu("prelu", data)
+    prelu("prelu", data, weight)
 
 
 if __name__ == "__main__":
