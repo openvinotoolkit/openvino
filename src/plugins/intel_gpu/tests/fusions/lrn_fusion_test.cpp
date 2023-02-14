@@ -121,11 +121,8 @@ TEST_P(lrn_fp32_quantize_u8_eltwise_activation, basic) {
         activation("activation", input_info("eltwise"), activation_func::floor),
         reorder("reorder", input_info("activation"), p.default_format, data_types::f32)
     );
-    // Activation won't be fused because onednn doesn't support floor activation
-    if (engine.get_device_info().supports_immad)
-        p.expected_fused_primitives++;
 
-    tolerance = 1.0f;
+    tolerance = default_tolerance(data_types::u8);
     execute(p);
 }
 
@@ -152,7 +149,7 @@ TEST_P(lrn_fp32_quantize_u8_eltwise_activation, per_channel) {
         reorder("reorder", input_info("activation"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1.0f;
+    tolerance = default_tolerance(data_types::u8);
     execute(p);
 }
 
@@ -203,7 +200,7 @@ TEST_P(lrn_fp32_quantize_i8_eltwise_activation, basic) {
         reorder("reorder", input_info("activation"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1.0f;
+    tolerance = default_tolerance(data_types::i8);
     execute(p);
 }
 
@@ -247,7 +244,7 @@ TEST_P(lrn_fp32_eltwise_activation_quantize_u8, basic) {
         reorder("reorder", input_info("quantize"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1.0f;
+    tolerance = default_tolerance(data_types::u8);
     execute(p);
 }
 
@@ -282,7 +279,7 @@ TEST_P(lrn_fp16_eltwise_activation, basic) {
         reorder("reorder", input_info("activation"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-05f;
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 

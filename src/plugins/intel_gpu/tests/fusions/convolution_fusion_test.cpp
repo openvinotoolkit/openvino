@@ -2025,18 +2025,18 @@ TEST_P(conv_int8_activation_eltwise_quantize, fsv32) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_activation_eltwise_quantize, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 4, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 4, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 4, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_4, 2, 4, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_7, 2, 4, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_8, 2, 4, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 4, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 4, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 4, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_4, 2, 4, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_7, 2, 4, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_8, 2, 4, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_4, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_7, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_8, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_4, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_7, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_8, 2, 2, 5 },
 }));
 
 class conv_int8_activation : public ConvFusingTest {};
@@ -2119,18 +2119,18 @@ TEST_P(conv_int8_activation_eltwise, fsv32) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_activation_eltwise, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 4, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 4, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 4, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_4, 2, 4, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_7, 2, 4, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_8, 2, 4, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 4, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 4, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 4, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_4, 2, 4, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_7, 2, 4, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_8, 2, 4, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_4, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_7, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_8, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_4, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_7, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_8, 2, 2, 4 },
 }));
 
 class conv_int8_quantize_u8 : public ConvFusingTest {};
