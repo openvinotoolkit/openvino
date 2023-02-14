@@ -128,7 +128,7 @@ class PytorchLayerTest:
         for fw_tensor, ov_tensor in zip(flatten_fw_res, output_list):
             if not isinstance(fw_tensor, torch.Tensor):
                 if np.isscalar(fw_tensor):
-                    assert fw_tensor == np.array(ov_tensor).item()
+                    assert fw_tensor == np.array(ov_tensor).item(), f"{fw_tensor} != {np.array(ov_tensor).item()}"
                 else:
                     if isinstance(fw_tensor, list):
                         ov_tensor = ov_tensor.tolist()
