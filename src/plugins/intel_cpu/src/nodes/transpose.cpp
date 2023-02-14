@@ -37,8 +37,52 @@ bool Transpose::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
     return true;
 }
 
+class TransposeShapeInfer : public ShapeInferEmptyPads {
+public:
+    TransposeShapeInfer(const size_t& out_rank, const std::vector<size_t>& axes_vec) : m_out_rank(out_rank), m_axes_vec(axes_vec) {
+        m_outputShape = VectorDims(out_rank, 1);
+        m_needReverse = m_axes_vec.empty();
+    }
+
+    std::vector<VectorDims> infer(
+        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        const VectorDims& shapeIn = input_shapes[0].get();
+        for (auto i = 0; i < m_out_rank; ++i) {
+            m_outputShape[i] = m_needReverse ? shapeIn[m_out_rank - 1 - i] : shapeIn[m_axes_vec[i]];
+        }
+        return {m_outputShape};
+    }
+
+    port_mask_t get_port_mask() const override {
+        return EMPTY_PORT_MASK;
+    }
+
+private:
+    const size_t m_out_rank;
+    const std::vector<size_t> m_axes_vec;
+    VectorDims m_outputShape;
+    bool m_needReverse;
+};
+
+class TransposeShapeInferFactory : public ShapeInferFactory {
+public:
+    TransposeShapeInferFactory(const std::shared_ptr<ov::Node>& op) : m_op(op) {}
+    ShapeInferPtr makeShapeInfer() const override {
+        if (const auto order = ov::as_type_ptr<const ov::op::v0::Constant>(m_op->get_input_node_shared_ptr(ov::op::v1::Transpose::ORDER))) {
+            const auto axes_vec = order->cast_vector<size_t>();
+            return std::make_shared<TransposeShapeInfer>(m_op->get_output_partial_shape(0).rank().get_length(), axes_vec);
+        } else {
+            IE_THROW() << "Unexpected operation type in the Transpose shape inference factory";
+        }
+    }
+
+private:
+    const std::shared_ptr<ngraph::Node> m_op;
+};
+
 Transpose::Transpose(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+        : Node(op, context, TransposeShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
