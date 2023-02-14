@@ -1,4 +1,3 @@
-
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -10,6 +9,7 @@
 #include <numeric>
 
 #include "ie_system_conf.h"
+#include "threading/ie_cpu_streams_info.hpp"
 
 using namespace InferenceEngine;
 

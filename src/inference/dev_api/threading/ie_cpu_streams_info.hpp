@@ -3,7 +3,7 @@
 //
 
 /**
- * @file ie_cpu_streams_info_table.hpp
+ * @file ie_cpu_streams_info.hpp
  * @brief A header file for Inference Engine CPU streams info table implementation.
  */
 
