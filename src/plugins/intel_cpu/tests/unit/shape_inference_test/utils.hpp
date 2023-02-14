@@ -90,6 +90,8 @@ using ShapeVector = std::vector<ov::intel_cpu::StaticShape>;
 template <class TOp>
 class OpStaticShapeInferenceTest : public testing::Test {
 protected:
+    using op_type = TOp;
+
     ShapeVector input_shapes, output_shapes;
     ov::intel_cpu::StaticShape exp_shape;
     std::shared_ptr<TOp> op;

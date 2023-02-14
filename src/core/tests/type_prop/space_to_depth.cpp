@@ -107,6 +107,23 @@ TEST(type_prop, space_to_depth_dynamic_shape_dynamic_rank) {
     ASSERT_EQ(space_to_depth->get_output_partial_shape(0), PartialShape::dynamic());
 }
 
+TEST(type_prop, space_to_depth_default_ctor) {
+    auto A = make_shared<op::Parameter>(element::f64, PartialShape{{1, 4}, {12, 36}, 900, 3});
+
+    const auto space_to_depth = make_shared<op::SpaceToDepth>();
+    space_to_depth->set_block_size(3);
+    space_to_depth->set_mode(op::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST);
+    space_to_depth->set_argument(0, A);
+    space_to_depth->validate_and_infer_types();
+
+    EXPECT_EQ(space_to_depth->get_block_size(), 3);
+    EXPECT_EQ(space_to_depth->get_mode(), op::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST);
+    EXPECT_EQ(space_to_depth->get_input_size(), 1);
+    EXPECT_EQ(space_to_depth->get_output_size(), 1);
+    EXPECT_EQ(space_to_depth->get_element_type(), element::f64);
+    EXPECT_EQ(space_to_depth->get_output_partial_shape(0), (PartialShape{{1, 4}, {12 * 9, 36 * 9}, 900 / 3, 3 / 3}));
+}
+
 TEST(type_prop, space_to_depth_input_rank_not_supported) {
     auto A = make_shared<op::Parameter>(element::f32, Shape{1, 8});
     try {

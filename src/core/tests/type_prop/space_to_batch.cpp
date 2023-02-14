@@ -150,6 +150,23 @@ TEST(type_prop, space_to_batch_dynamic_rank_shape_block_and_pads_not_const) {
     ASSERT_EQ(space_to_batch->get_output_partial_shape(0), PartialShape::dynamic());
 }
 
+TEST(type_prop, space_to_batch_default_ctor) {
+    auto data = make_shared<op::Parameter>(element::f32, PartialShape{{2, 5}, 100, {100, 1024}, 3});
+    auto block_shape = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{1, 2, 4, 1});
+    auto pads_begin = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{1, 1, 2, 0});
+    auto pads_end = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{1, 1, 6, 0});
+
+    auto space_to_batch = make_shared<op::v1::SpaceToBatch>();
+    space_to_batch->set_arguments(OutputVector{data, block_shape, pads_begin, pads_end});
+    space_to_batch->validate_and_infer_types();
+
+    EXPECT_EQ(space_to_batch->get_input_size(), 4);
+    EXPECT_EQ(space_to_batch->get_output_size(), 1);
+    EXPECT_EQ(space_to_batch->get_output_element_type(0), element::f32);
+    EXPECT_EQ(space_to_batch->get_output_partial_shape(0),
+              PartialShape({{2 * 2 * 4, 5 * 2 * 4}, (100 + 2) / 2, {(100 + 2 + 6) / 4, (1024 + 2 + 6) / 4}, 3}));
+}
+
 TEST(type_prop, space_to_batch_invalid_element_type_block_shape) {
     auto data = make_shared<op::Parameter>(element::f32, Shape{2, 128});
     auto block_shape = make_shared<op::Constant>(element::f32, Shape{2}, vector<int64_t>{1, 5});
