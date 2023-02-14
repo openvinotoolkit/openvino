@@ -10,6 +10,7 @@ from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape
 
 import warnings
 import torch
+from torch.onnx import symbolic_helper
 
 
 def get_type_from_py_type(value):
@@ -200,7 +201,7 @@ class TorchScriptPythonDecoder (Decoder):
     def get_subgraphs(self) -> list:
         if self.graph_element.kind() == "prim::PythonOp":
             if "Subgraph" in self.graph_element.attributeNames():
-                return [self.graph_element["Subgraph"]]
+                return [symbolic_helper._node_get(self.graph_element, "Subgraph")]
             else:
                 # Attribute "Subgraph" is only available if Graph was created using tracing.
                 # TODO Find way to extract subgraph for scripted Graph.

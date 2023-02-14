@@ -15,12 +15,9 @@ OutputVector translate_pythonop(NodeContext& context) {
     auto decoder = context.get_decoder();
     FRONT_END_OP_CONVERSION_CHECK(decoder->get_subgraph_size() == 1,
                                   "PythonOp must have 1 subgraph to be able to translate it to OV.");
-    auto subgraph_decoder = decoder->get_subgraph_decoder(0);
     auto body = context.convert_subgraph(0);
-    auto body_ops = body->get_ops();
-    auto inputs = subgraph_decoder->inputs();
-    std::map<size_t, ParameterVector> inputs_map;
 
+    std::map<size_t, ParameterVector> inputs_map;
     for (auto param : body->get_parameters()) {
         auto name = param->get_output_tensor(0).get_any_name();
         size_t input_idx = (size_t)std::stoll(name);

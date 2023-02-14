@@ -80,6 +80,7 @@ OP_CONVERTER(translate_ones);
 OP_CONVERTER(translate_ones_like);
 OP_CONVERTER(translate_pad);
 OP_CONVERTER(translate_pow);
+OP_CONVERTER(translate_pythonop);
 OP_CONVERTER(translate_reciprocal);
 OP_CONVERTER(translate_relu6);
 OP_CONVERTER(translate_remainder);
@@ -314,6 +315,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"prim::Loop", op::translate_loop},
         {"prim::NumToTensor", op::skip_node},  // In openvino we already store number as tensor with shape []
         {"prim::requires_grad", op::return_false_scalar},
+        {"prim::PythonOp", op::translate_pythonop},
         {"torchvision::nms", op::translate_nms},
     };
 };
