@@ -1,10 +1,66 @@
 # Basic data structures of GPU graph and overall flow
 
 ## Overall graph data structure
-![](https://user-images.githubusercontent.com/25142117/156685475-9b31ddfd-3b00-47e8-a801-57f94c820215.png)
+<a name="fig1"></a>
+
+```mermaid
+classDiagram 
+direction LR
+pooling  --<| primitive_base
+convolution --<| primitive_base 
+class primitive_base{<<PType>>}
+primitive_base --<| primitive
+primitive --o program_node
+primitive --o topology
+class typed_program_node {<<convolution>>}
+typed_program_node --<| typed_program_node_base
+class typed_program_node_base{<<PType>>}
+typed_program_node_base --<| program_node
+program_node --o program
+class primitive_type {
++create_node
++create_instance
++choose_mpl}
+program --> topology
+program ..<| primitive_type : create_node()\nchoose_impl()
+convolution_impl --<| typed_primitive_impl_ocl
+fully_connected_impl --<| typed_primitive_impl_ocl
+convolution_onednn --<| typed_primitive__onednn_impl
+pooling_onednn --<| typed_primitive__onednn_impl
+class typed_primitive_impl_ocl {<<PType>>}
+typed_primitive_impl_ocl --<| typed_primitive_impl
+class typed_primitive__onednn_impl {<<PType>>}
+typed_primitive__onednn_impl --<| typed_primitive_impl
+class typed_primitive_impl {<<PType>>}
+typed_primitive_impl --<| primitive_impl
+primitive_impl --o primitive_inst
+primitive_impl --o program_node
+class typed_primitive_inst {<<convolution>>}
+class `typed_primitive-inst` {<<pooling>>}
+typed_primitive_inst --<| typed_primitive_inst_base
+`typed_primitive-inst` --<| typed_primitive_inst_base
+class typed_primitive_inst_base {<<PType>>}
+typed_primitive_inst_base --<| primitive_inst
+primitive_inst --> program_node
+primitive_inst --o network
+network --> program
+network ..<| primitive_type : create_instance
+class primitive_type_base {<<PType>>}
+primitive_type_base --<| primitive_type
+primitive_type_base ..<| typed_program_node
+primitive_type_base --o primitive_base: 0.1
+class implementation_map {<<PType>>
+get(typed_program_node<Ptype>): factory_type}
+primitive_type_base ..<| implementation_map : get()
+primitive_type_base ..<| typed_primitive_inst
+a1 o-- a2 : Aggregation
+b1 --> b2 : Association
+c1 --<| c2 : Inheritance
+d1 ..> d2 : Dependency
+```
 
 There are three levels of abstraction in the graph structures being used in the gpu plugin : *topology*, *program*, *network*. <br>
-The above [figure](https://user-images.githubusercontent.com/25142117/156685475-9b31ddfd-3b00-47e8-a801-57f94c820215.png) presents the overall data structures. 
+The above <a href="#fig1">figure</a> presents the overall data structures. 
 
 First, the original model should be presented as a corresponding *topology*, which is consisting of primitives and their connections. It can be regarded as a simple graph structure representing the original model.  
 
