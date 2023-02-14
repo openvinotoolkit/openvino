@@ -20,6 +20,7 @@ from setuptools.command.build_py import build_py
 from setuptools.command.install import install
 
 prefix = 'openvino/tools/mo_lite/'
+mo_prefix = 'openvino/tools/mo/'
 SETUP_DIR = Path(__file__).resolve().parent / Path(prefix)
 
 
@@ -40,6 +41,11 @@ py_modules.append(prefix.replace('/', '.') + 'subprocess_main')
 py_modules.append(prefix.replace('/', '.') + 'convert')
 py_modules.append(prefix.replace('/', '.') + 'convert_impl')
 py_modules.append(prefix.replace('/', '.') + '__main__')
+py_modules.append(mo_prefix.replace('/', '.') + 'subprocess_main')
+py_modules.append(mo_prefix.replace('/', '.') + 'convert')
+py_modules.append(mo_prefix.replace('/', '.') + 'convert_impl')
+py_modules.append(mo_prefix.replace('/', '.') + 'mo')
+
 
 class InstallCmd(install):
     def run(self):
