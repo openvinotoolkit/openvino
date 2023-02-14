@@ -36,6 +36,9 @@ public:
     // Do we need a separate Decoder for Tensor to request properties of it instead of having an impression
     // that inputs/outputs have types and shapes?
 
+    // Return debug name of the input tensor
+    virtual const std::string& get_input_debug_name(size_t index) const = 0;
+
     // Return shape if inputs has torch::Tensor type in the original model, otherwise returns the shape [] of a scalar
     virtual PartialShape get_input_shape(size_t index) const = 0;
 
@@ -46,8 +49,8 @@ public:
     // TODO: Consider deleting this method, probably it doesn't make sence outside Torch JIT execution
     virtual const std::vector<size_t>& get_input_transpose_order(size_t index) const = 0;
 
-    // TODO: Consider deleting this method, probably it doesn't make sence outside Torch JIT execution
-    virtual const std::vector<size_t>& get_output_transpose_order(size_t index) const = 0;
+    // Return debug name of the input tensor
+    virtual const std::string& get_output_debug_name(size_t index) const = 0;
 
     // Return shape if inputs has torch::Tensor type in the original model, otherwise returns the shape [] of a scalar
     virtual PartialShape get_output_shape(size_t index) const = 0;
@@ -55,6 +58,9 @@ public:
     // Return element::Type when it the original type can be represented, otherwise returns PT-sepcific data type object
     // (see custom_type.hpp)
     virtual Any get_output_type(size_t index) const = 0;
+
+    // TODO: Consider deleting this method, probably it doesn't make sence outside Torch JIT execution
+    virtual const std::vector<size_t>& get_output_transpose_order(size_t index) const = 0;
     // ------------------------------
 
     // TODO: required? can be implemented in the context of a single node?
