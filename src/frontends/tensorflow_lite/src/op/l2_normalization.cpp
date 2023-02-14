@@ -17,7 +17,7 @@ OutputVector l2_normalization(const ov::frontend::tensorflow_lite::NodeContext& 
     auto input = node.get_input(0);
     //  taken from tfl reference; attribute fused activation is not used there
     auto axis = opset10::Constant::create(ov::element::i32, {}, {-1});
-    float epsilon = 1e-6;
+    float epsilon = 1e-6f;
     auto epsilon_mode = ov::op::EpsMode::MAX;
     //
     auto res = make_shared<opset10::NormalizeL2>(input, axis, epsilon, epsilon_mode);

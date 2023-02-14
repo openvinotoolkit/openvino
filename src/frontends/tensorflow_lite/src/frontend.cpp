@@ -35,7 +35,7 @@ void translate_framework_node(const std::shared_ptr<ov::frontend::tensorflow::Fr
     ov::frontend::tensorflow_lite::op::set_output_names(node_ctx, new_outputs);
     auto old_outputs = node->outputs();
     FRONT_END_GENERAL_CHECK(new_outputs.size() == old_outputs.size());
-    for (auto i = 0; i < new_outputs.size(); ++i) {
+    for (size_t i = 0; i < new_outputs.size(); ++i) {
         old_outputs[i].replace(new_outputs[i]);
         apply_quantization(new_outputs[i], node->get_output_element_type(i));
     }
@@ -265,12 +265,9 @@ std::shared_ptr<ov::Model> FrontEnd::decode(const InputModel::Ptr& model) const 
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
     ov::pass::Manager manager;
-    // TODO: register i8 weights normalization after implemented
-    // TODO: remove custom transpose sinking after common TS ready
     manager.register_pass<ov::frontend::tensorflow_lite::pass::TFLQuantizeResolver>();
     manager.register_pass<ov::frontend::tensorflow_lite::pass::Rfft2dSimplifier>();
     manager.register_pass<ov::pass::TransposeSinking>();
-    manager.register_pass<ov::frontend::tensorflow::pass::TransposeSinking>();
     manager.register_pass<ov::pass::TransposeSinkingGeneral>();
     manager.run_passes(function);
 }

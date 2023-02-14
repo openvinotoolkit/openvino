@@ -52,7 +52,7 @@ void get_conv(ov::OutputVector& output,
               ov::AxisVector transpose_axes = {1, 2, 3, 0});
 void get_bias(ov::OutputVector& output,
               const ov::frontend::NodeContext& node,
-              const std::shared_ptr<ov::frontend::tensorflow_lite::DecoderMap>& decoder);
+              const std::shared_ptr<ov::frontend::DecoderBase>& decoder);
 void get_activation(ov::OutputVector& output,
                     const std::shared_ptr<ov::frontend::tensorflow_lite::DecoderMap>& decoder);
 void get_activation(ov::OutputVector& output,
@@ -96,6 +96,8 @@ OutputVector attribute_helper(const ov::frontend::tensorflow_lite::NodeContext& 
                               bool empty_name = false,
                               ov::OutputVector inputs = {});
 
+void transform_reduce_name(std::string& op_type);
+
 template <typename OV_TYPE>
 OutputVector translate_reduce_op(const ov::frontend::tensorflow_lite::NodeContext& node) {
     auto inputs = node.get_inputs();
@@ -104,9 +106,11 @@ OutputVector translate_reduce_op(const ov::frontend::tensorflow_lite::NodeContex
     const auto& original_decoder = std::dynamic_pointer_cast<DecoderFlatBuffer>(node.get_decoder());
     FRONT_END_GENERAL_CHECK(original_decoder != nullptr,
                             "Unexpected decoder during operation translation. Expected DecoderFlatBuffer");
+    auto op_type = original_decoder->get_op_type();
+    transform_reduce_name(op_type);
     const std::map<std::string, ov::Any> attrs{
         {"keep_dims", original_decoder->get_attribute(&tflite::ReducerOptions::keep_dims)}};
-    return attribute_helper(context, attrs, ov::frontend::tensorflow::op::translate_direct_reduce_op<OV_TYPE>);
+    return attribute_helper(context, attrs, ov::frontend::tensorflow::op::translate_direct_reduce_op<OV_TYPE>, op_type);
 }
 
 template OutputVector translate_reduce_op<opset8::ReduceMean>(const ov::frontend::tensorflow_lite::NodeContext& node);

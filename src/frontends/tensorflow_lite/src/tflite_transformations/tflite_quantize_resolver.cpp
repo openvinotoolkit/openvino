@@ -77,7 +77,11 @@ void fuse_zp_to_weights(ov::Output<ov::Node>& output, std::vector<int64_t>& zero
     auto min_value = make_shared<ReduceMin>(output, axes, false)->output(0);
 
     auto check_in_bounds = [&](ov::Output<ov::Node>& value) -> bool {
-        auto constant = ov::get_constant_from_source(value);
+        shared_ptr<ov::opset10::Constant> constant;
+        if (rank == 0)
+            constant = ov::as_type_ptr<ov::opset10::Constant>(output.get_node_shared_ptr());
+        else
+            constant = ov::get_constant_from_source(value);
         if (!constant)
             return false;
         auto weight = constant->cast_vector<int64_t>()[0];

@@ -59,7 +59,7 @@ void get_pool(ov::OutputVector& output,
 
 void get_bias(ov::OutputVector& output,
               const ov::frontend::NodeContext& node,
-              const std::shared_ptr<ov::frontend::tensorflow_lite::DecoderMap>& decoder) {
+              const std::shared_ptr<ov::frontend::DecoderBase>& decoder) {
     if (node.get_input_size() == 3) {
         const OutputVector inputs_for_bias = {output[0], node.get_input(2)};
         auto context_for_bias_add = ov::frontend::tensorflow_lite::NodeContext(decoder, inputs_for_bias);
@@ -71,12 +71,13 @@ void get_bias(ov::OutputVector& output,
 void get_activation(ov::OutputVector& output,
                     const ov::frontend::tensorflow_lite::NodeContext& node,
                     const std::string& activation) {
+    auto context = ov::frontend::tensorflow_lite::NodeContext(node.get_decoder(), output);
     if (activation == "RELU") {
-        output = ov::frontend::tensorflow::op::translate_unary_op<opset10::Relu>(node);
+        output = ov::frontend::tensorflow::op::translate_unary_op<opset10::Relu>(context);
     } else if (activation == "RELU6") {
-        output = ov::frontend::tensorflow::op::translate_relu_6_op(node);
+        output = ov::frontend::tensorflow::op::translate_relu_6_op(context);
     } else if (activation == "TANH") {
-        output = ov::frontend::tensorflow::op::translate_unary_op<opset10::Tanh>(node);
+        output = ov::frontend::tensorflow::op::translate_unary_op<opset10::Tanh>(context);
     } else {
         // TODO: Fused activation to support:
         //          RELU_N1_TO_1 = 2,
@@ -149,6 +150,15 @@ std::shared_ptr<DecoderFlatBuffer> get_decoder(const ov::frontend::tensorflow_li
     FRONT_END_GENERAL_CHECK(decoder != nullptr,
                             "Unexpected decoder during operation translation. Expected DecoderFlatBuffer");
     return decoder;
+}
+
+void transform_reduce_name(std::string& op_type) {
+    std::string substring = "REDUCE_";
+    auto ind = op_type.find(substring);
+    if (ind != std::string::npos)
+        op_type.erase(ind, substring.length());
+    std::transform(op_type.begin() + 1, op_type.end(), op_type.begin() + 1,
+                   [](unsigned char c){ return std::tolower(c); });
 }
 
 }  // namespace op
