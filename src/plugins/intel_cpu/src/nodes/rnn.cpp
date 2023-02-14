@@ -1035,29 +1035,29 @@ void RNN::prepareParams() {
 
     const auto attr = initPrimitiveAttr();
 
-    auto builder = [this, attr](const RNNKey& key) -> std::shared_ptr<dnnl::primitive> {
+    auto builder = [this, attr](const RNNKey& key) -> dnnl::primitive {
         fillDescs();
 
         if (key.cellType == dnnl::algorithm::vanilla_rnn) {
             std::shared_ptr<vanilla_rnn_forward::desc> desc = descs[0];
-            return std::make_shared<vanilla_rnn_forward>(vanilla_rnn_forward::primitive_desc(*desc, *attr, getEngine()));
+            return vanilla_rnn_forward(vanilla_rnn_forward::primitive_desc(*desc, *attr, getEngine()));
         } else if (key.cellType == dnnl::algorithm::vanilla_gru) {
             std::shared_ptr<gru_forward::desc> desc = descs[0];
-            return std::make_shared<gru_forward>(gru_forward::primitive_desc(*desc, *attr, getEngine()));
+            return gru_forward(gru_forward::primitive_desc(*desc, *attr, getEngine()));
         } else if (key.cellType == dnnl::algorithm::lbr_gru) {
             std::shared_ptr<lbr_gru_forward::desc> desc = descs[0];
-            return std::make_shared<lbr_gru_forward>(lbr_gru_forward::primitive_desc(*desc, *attr, getEngine()));
+            return lbr_gru_forward(lbr_gru_forward::primitive_desc(*desc, *attr, getEngine()));
         } else if (key.cellType == dnnl::algorithm::vanilla_lstm) {
             std::shared_ptr<lstm_forward::desc> desc = descs[0];
-            return std::make_shared<lstm_forward>(lstm_forward::primitive_desc(*desc, *attr, getEngine()));
+            return lstm_forward(lstm_forward::primitive_desc(*desc, *attr, getEngine()));
         } else if (key.cellType == dnnl::algorithm::vanilla_augru) {
             std::shared_ptr<augru_forward::desc> desc = descs[0];
-            return std::make_shared<augru_forward>(augru_forward::primitive_desc(*desc, *attr, getEngine()));
+            return augru_forward(augru_forward::primitive_desc(*desc, *attr, getEngine()));
         } else if (key.cellType == dnnl::algorithm::lbr_augru) {
             std::shared_ptr<lbr_augru_forward::desc> desc = descs[0];
-            return std::make_shared<lbr_augru_forward>(lbr_augru_forward::primitive_desc(*desc, *attr, getEngine()));
+            return lbr_augru_forward(lbr_augru_forward::primitive_desc(*desc, *attr, getEngine()));
         } else {
-            return nullptr;
+            return dnnl::primitive();
         }
     };
 
@@ -1070,11 +1070,11 @@ void RNN::prepareParams() {
 
     prim = result.first;
 
-    auto pd = (*prim).get_primitive_desc();
+    auto pd = prim.get_primitive_desc();
     scratchpadMem = getScratchPadMem(pd);
 
     if (!wasMemoryPrepared || wFormatWasChanged) {
-        auto pd = (*prim).get_primitive_desc();
+        auto pd = prim.get_primitive_desc();
         auto query_weights_md = [&](int idx = 0) -> dnnl::memory::desc {
             auto what = dnnl::convert_to_c(dnnl::query::weights_md);
             const dnnl_memory_desc_t *cdesc = dnnl_primitive_desc_query_md(pd, what, idx);
@@ -1143,7 +1143,7 @@ void RNN::execute(dnnl::stream strm) {
         }
     }
 
-    (*prim).execute(strm, args);
+    prim.execute(strm, args);
 }
 
 void RNN::executeDynamicImpl(dnnl::stream strm) {

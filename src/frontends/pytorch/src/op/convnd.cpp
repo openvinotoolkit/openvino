@@ -3,7 +3,9 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -11,7 +13,10 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
+using namespace ov::op;
+
 OutputVector translate_convnd(NodeContext& context) {
+    num_inputs_check(context, 7, 7);
     auto strides = context.const_input<Strides>(3);
     // In torch pads at beginning are same as at end
     auto pads = CoordinateDiff(strides.size(), 0);
@@ -28,22 +33,21 @@ OutputVector translate_convnd(NodeContext& context) {
 
     std::shared_ptr<ov::Node> conv;
     if (groups == 1) {
-        conv = std::make_shared<opset10::Convolution>(context.get_input(0),
-                                                      context.get_input(1),
+        conv = std::make_shared<v1::Convolution>(context.get_input(0),
+                                                 context.get_input(1),
+                                                 strides,
+                                                 pads,
+                                                 pads,
+                                                 dilations,
+                                                 pad_type);
+    } else {
+        conv = std::make_shared<v1::GroupConvolution>(context.get_input(0),
+                                                      reshape_kernel_for_group(context, context.get_input(1), groups),
                                                       strides,
                                                       pads,
                                                       pads,
                                                       dilations,
                                                       pad_type);
-    } else {
-        conv =
-            std::make_shared<opset10::GroupConvolution>(context.get_input(0),
-                                                        reshape_kernel_for_group(context, context.get_input(1), groups),
-                                                        strides,
-                                                        pads,
-                                                        pads,
-                                                        dilations,
-                                                        pad_type);
     }
     if (!context.input_is_none(2)) {
         auto bias = context.get_input(2);
@@ -51,7 +55,7 @@ OutputVector translate_convnd(NodeContext& context) {
         if (bias_rank == 1) {
             bias = reshape_channelwise(context, bias, conv);
         }
-        conv = context.mark_node(std::make_shared<opset10::Add>(conv, bias));
+        conv = context.mark_node(std::make_shared<v1::Add>(conv, bias));
     }
 
     return {conv};
