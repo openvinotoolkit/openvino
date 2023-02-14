@@ -80,8 +80,17 @@ ov::Tensor evaluate_bound(const Output<Node>& output, bool is_upper, bool invali
             ov::TensorVector outputs;
             for (const auto& out : node->outputs()) {
                 const auto& out_shape = out.get_partial_shape();
-                auto shape = out_shape.is_static() ? out_shape.to_shape() : Shape(out_shape.rank().get_length());
-                outputs.emplace_back(out.get_element_type(), shape);
+                const auto& out_et = out.get_element_type();
+
+                if (out_et.is_dynamic()) {
+                    outputs.emplace_back();
+                } else if (out_shape.is_static()) {
+                    outputs.emplace_back(out_et, out_shape.to_shape());
+                } else if (out_shape.rank().is_static()) {
+                    outputs.emplace_back(out_et, Shape(out_shape.rank().get_length()));
+                } else {
+                    outputs.emplace_back(out_et, Shape{0});
+                }
             }
 
             if (is_upper ? node->evaluate_upper(outputs) : node->evaluate_lower(outputs)) {
@@ -176,7 +185,13 @@ ov::Tensor or_tensor(const ov::Tensor& lhs, const ov::Tensor& rhs) {
 
 struct TensorVectorCmp {
     bool operator()(const ov::TensorVector& lhs, const ov::TensorVector& rhs) const {
-        return !std::equal(lhs.begin(), lhs.end(), rhs.begin(), &are_same_tensor);
+        auto rhs_it = rhs.begin();
+        return std::any_of(lhs.begin(), lhs.end(), [&rhs_it](const ov::Tensor& lhs) {
+            bool is_less =
+                (lhs && *rhs_it) ? lhs.data() < rhs_it->data() : static_cast<bool>(lhs) < static_cast<bool>(*rhs_it);
+            ++rhs_it;
+            return is_less;
+        });
     }
 };
 
@@ -401,4 +416,12 @@ bool ov::has_and_set_equal_bounds(const Output<Node>& source) {
 
     auto bounds = ov::evaluate_both_bounds(source);
     return are_same_tensor(bounds.first, bounds.second);
+}
+
+bool ov::have_node_inputs_bounds_set(const Node* const node, const size_t first_idx, const size_t last_idx) {
+    bool have_bound_set = last_idx <= node->get_input_size();
+    for (size_t i = first_idx; have_bound_set && (i <= last_idx); ++i) {
+        have_bound_set = node->get_input_tensor(i).has_and_set_bound();
+    }
+    return have_bound_set;
 }

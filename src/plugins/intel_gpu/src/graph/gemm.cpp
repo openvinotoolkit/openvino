@@ -185,7 +185,7 @@ std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<con
     layouts[0].set_partial_shape(updated_input0_pshape);
     layouts[1].set_partial_shape(updated_input1_pshape);
 
-    if (input_layouts.size() == 3) {
+    if (primitive->input_size() == 3) {
         auto bias_pshape = input_layouts[2].get_partial_shape();
         auto updated_bias_pshape = get_updated_input_shape(bias_pshape, weight_rank, output_rank, primitive->transpose_input1, false);
         layouts[2].set_partial_shape(updated_bias_pshape);

@@ -29,7 +29,7 @@ struct ie_layout_serialization_test : testing::TestWithParam<InferenceEngine::La
         
             std::string str_layout;
             ib >> str_layout;
-            EXPECT_EQ(cldnn::layout_from_string(str_layout), test_layout);
+            EXPECT_EQ(cldnn::serial_util::layout_from_string(str_layout), test_layout);
         }
     }
 };

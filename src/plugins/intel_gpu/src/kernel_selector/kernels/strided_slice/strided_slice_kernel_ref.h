@@ -64,7 +64,7 @@ public:
     StridedSliceKernelRef() : KernelBaseOpenCL("strided_slice_ref") {}
     virtual ~StridedSliceKernelRef() {}
     virtual JitConstants GetJitConstants(const strided_slice_params& params) const;
-    virtual CommonDispatchData SetDefault(const strided_slice_params& params, const optional_params&) const;
+    virtual CommonDispatchData SetDefault(const strided_slice_params& params) const;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;

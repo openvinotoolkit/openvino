@@ -13,8 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-op::SwishIE::SwishIE(const Output<Node> & input, const float alpha)
-        : Op({input}), m_alpha(alpha) {
+op::SwishIE::SwishIE(const Output<Node>& input, const float alpha) : Op({input}), m_alpha(alpha) {
     constructor_validate_and_infer_types();
 }
 
@@ -32,11 +31,10 @@ void op::SwishIE::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
-void op::SwishIE::set_alpha(float alpha)  {
+void op::SwishIE::set_alpha(float alpha) {
     m_alpha = alpha;
 }
 
 float op::SwishIE::get_alpha() const {
     return m_alpha;
 }
-

@@ -185,8 +185,8 @@ Node::Node(const std::string& type, const std::string& name, const GraphContext:
       temporary(false),
       constant(ConstantType::Unknown),
       context(ctx),
-      engine(ctx->getEngine()),
       fusingPort(-1),
+      engine(ctx->getEngine()),
       name(name),
       typeStr(type),
       type(TypeFromName(type)),
@@ -533,7 +533,7 @@ std::vector<memory::format_tag> Node::getAvailableFormatsForDims(const Shape &di
 
 void Node::execute(dnnl::stream strm) {
     if (prim) {
-        (*prim).execute(strm, primArgs);
+        prim.execute(strm, primArgs);
     }
 }
 
@@ -555,7 +555,7 @@ void Node::updateDynamicParams() {
             prepareParams();
 #ifdef CPU_DEBUG_CAPS
             if (prim) {
-                auto pd_c = (*prim).get_primitive_desc();
+                auto pd_c = prim.get_primitive_desc();
                 auto* pd = reinterpret_cast<const dnnl_primitive_desc*>(pd_c);
                 DEBUG_LOG("verbose##", getName(), "##", pd->info(), "\n");
             }
