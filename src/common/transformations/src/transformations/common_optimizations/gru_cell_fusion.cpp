@@ -147,6 +147,8 @@ ov::pass::GRUCellFusion::GRUCellFusion() {
         auto B = rg.make<Concat>(OutputVector{bias_add_1, bias_add_2}, 1);
         auto squeeze_B = rg.make<Squeeze>(B, axis_0);
 
+        using std::string;
+
         string act_name_1 = pattern_map.at(activation_1)->get_type_name();
         string act_name_2 = pattern_map.at(activation_2)->get_type_name();
         auto to_lower = [](unsigned char c) {

@@ -127,6 +127,9 @@ public:
         case Type_t::u64:
             fill_data<Type_t::u64>(value);
             break;
+        case Type_t::string:
+            fill_data<Type_t::string>(value);
+            break;
         case Type_t::undefined:
         case Type_t::dynamic:
             throw std::runtime_error("unsupported type");
@@ -283,7 +286,9 @@ public:
     ///
     /// \tparam T  Type to which data vector's entries will be cast.
     /// \return    Constant's data vector.
-    template <typename T>
+    template <typename T,
+              typename std::enable_if<!std::is_same<T, std::string>::value,
+                                      bool>::type = true>
     std::vector<T> cast_vector() const {
         auto source_type = get_element_type();
         std::vector<T> rc;
@@ -341,6 +346,9 @@ public:
         case Type_t::u64:
             cast_vector<Type_t::u64>(rc);
             break;
+        // case Type_t::string:
+        //     // FIXME: Implement direct cast to std::string by providing a template specialization
+        //     throw std::runtime_error("Cannot cast std::string constant to any other type");
         default:
             throw std::runtime_error("unsupported type");
         }
@@ -422,19 +430,31 @@ private:
     template <element::Type_t Type,
               typename OUT_T,
               typename std::enable_if<Type != element::Type_t::u1 && Type != element::Type_t::u4 &&
-                                          Type != element::Type_t::i4,
+                                          Type != element::Type_t::i4 && Type != element::Type_t::string,
                                       bool>::type = true>
     void cast_vector(std::vector<OUT_T>& output_vector) const {
-        // this function is workaround for waring during windows building
+        // this function is workaround for warning during windows building
         // build complains for vector creation based on iterators
         // which point on different type than destination vector::value_type
         using IN_T = fundamental_type_for<Type>;
         auto source_vector = get_vector<IN_T>();
         output_vector.reserve(source_vector.size());
 
+        // TODO: need to clear output_vector before appending?
         std::transform(source_vector.begin(), source_vector.end(), std::back_inserter(output_vector), [](IN_T c) {
             return static_cast<OUT_T>(c);
         });
+    }
+
+    template <element::Type_t Type,
+              //typename OUT_T,  -- fixed to be std::string, TODO: investigate whether it needs to be relaxed
+              typename std::enable_if<Type == element::Type_t::string, bool>::type = true>
+    void cast_vector(std::vector<std::string>& output_vector) const {
+        const auto element_number = shape_size(m_shape);
+        output_vector.reserve(element_number);
+        // TODO: need to clear output_vector before copying?
+        auto p = get_data_ptr<std::string>();
+        std::copy(p, p + element_number, std::back_inserter(output_vector));
     }
 
     template <element::Type_t Type,
@@ -499,7 +519,7 @@ private:
               typename T,
               typename StorageDataType = fundamental_type_for<Type>,
               typename std::enable_if<Type != element::Type_t::u1 && Type != element::Type_t::u4 &&
-                                          Type != element::Type_t::i4,
+                                          Type != element::Type_t::i4 && Type != element::Type_t::string,
                                       bool>::type = true>
     void fill_data(const T& value) {
 #ifdef __GNUC__
@@ -547,6 +567,15 @@ private:
     template <element::Type_t Type,
               typename T,
               typename StorageDataType = fundamental_type_for<Type>,
+              typename std::enable_if<Type == element::Type_t::string, bool>::type = true>
+    void fill_data(const T& value) {
+        // TODO: Is there guarantee that destination memory is pre-initialized?
+        std::fill_n(get_data_ptr_nc<Type>(), mem_size(), value);
+    }
+
+    template <element::Type_t Type,
+              typename T,
+              typename StorageDataType = fundamental_type_for<Type>,
               typename std::enable_if<Type == element::Type_t::u4 || Type == element::Type_t::i4, bool>::type = true>
     void fill_data(const T& value) {
         uint8_t v = value_in_range<Type>(value);
@@ -579,13 +608,23 @@ private:
               typename T,
               typename StorageDataType = fundamental_type_for<Type>,
               typename std::enable_if<Type != element::Type_t::u1 && Type != element::Type_t::u4 &&
-                                          Type != element::Type_t::i4,
+                                          Type != element::Type_t::i4 && Type != element::Type_t::string,
                                       bool>::type = true>
     void write_buffer(const std::vector<T>& source) {
         auto p = get_data_ptr_nc<Type>();
         for (size_t i = 0; i < source.size(); i++) {
             p[i] = static_cast<StorageDataType>(source[i]);
         }
+    }
+
+    template <element::Type_t Type,
+              typename T,
+              typename StorageDataType = fundamental_type_for<Type>,
+              typename std::enable_if<Type == element::Type_t::string, bool>::type = true>
+    void write_buffer(const std::vector<T>& source) {
+        auto p = get_data_ptr_nc<Type>();
+        // TODO: Make sure that the storage is pre-initialized with default string ctor
+        std::copy(source.begin(), source.end(), p);
     }
 
     template <element::Type_t Type,
@@ -692,6 +731,9 @@ private:
             break;
         case Type_t::u64:
             write_buffer<Type_t::u64>(source);
+            break;
+        case Type_t::string:
+            write_buffer<Type_t::string>(source);
             break;
         case element::Type_t::undefined:
         case element::Type_t::dynamic:

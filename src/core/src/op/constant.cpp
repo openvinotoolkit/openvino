@@ -39,7 +39,7 @@ ov::op::v0::Constant::Constant(const shared_ptr<ngraph::runtime::Tensor>& tensor
     // And copy data in other cas
     if (auto hostTensor = std::dynamic_pointer_cast<ngraph::runtime::HostTensor>(tensor)) {
         m_data = make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<ngraph::runtime::Tensor>>>(
-            static_cast<char*>(hostTensor->get_data_ptr()),
+            static_cast<char*>(hostTensor->get_data_ptr()), // TODO: who is owner?
             tensor->get_size_in_bytes(),
             tensor);
     } else {
@@ -118,6 +118,9 @@ ov::op::v0::Constant::Constant(const element::Type& type,
         case Type_t::u64:
             fill_data<Type_t::u64>(ngraph::parse_string<uint64_t>(values[0]));
             break;
+        case Type_t::string:
+            fill_data<Type_t::string>(values[0]);
+            break;
         case Type_t::undefined:
             throw std::runtime_error("deserialize unsupported type undefined");
         case Type_t::dynamic:
@@ -174,6 +177,9 @@ ov::op::v0::Constant::Constant(const element::Type& type,
         case Type_t::u64:
             write_buffer<Type_t::u64>(ngraph::parse_string<uint64_t>(values));
             break;
+        case Type_t::string:
+            write_buffer<Type_t::string>(values);
+            break;
         case Type_t::undefined:
             throw std::runtime_error("deserialize unsupported type undefined");
         case Type_t::dynamic:
@@ -196,7 +202,12 @@ ov::op::v0::Constant::Constant(bool memset_allocation, const element::Type& type
 void ov::op::v0::Constant::allocate_buffer(bool memset_allocation) {
     m_data = make_shared<ngraph::runtime::AlignedBuffer>(mem_size(), host_alignment());
     if (memset_allocation) {
-        std::memset(m_data->get_ptr(), 0, m_data->size());
+        if(m_element_type == element::Type_t::string) {
+            auto num_elements = shape_size(m_shape);
+            std::uninitialized_fill_n(get_data_ptr_nc<element::Type_t::string>(), num_elements, std::string());
+        } else {
+            std::memset(m_data->get_ptr(), 0, m_data->size());
+        }
     }
 }
 
@@ -284,6 +295,9 @@ string ov::op::v0::Constant::convert_value_to_string(size_t index) const {
     case Type_t::u64:
         rc = to_string(get_element_value<Type_t::u64>(index));
         break;
+    case Type_t::string:
+        rc = get_element_value<Type_t::string>(index); // TODO: Need enclosure of value in extra ""?
+        break;
     case Type_t::undefined:
         throw runtime_error("unsupported type");
     case Type_t::dynamic:
@@ -296,7 +310,7 @@ string ov::op::v0::Constant::convert_value_to_string(size_t index) const {
 }
 
 vector<string> ov::op::v0::Constant::get_value_strings() const {
-    vector<string> rc;
+    vector<string> rc;  // TODO: the number of elements is known, why not to reserve?
 
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #    pragma GCC diagnostic push
@@ -378,6 +392,11 @@ vector<string> ov::op::v0::Constant::get_value_strings() const {
     case element::Type_t::u64:
         for (uint64_t value : get_vector<uint64_t>()) {
             rc.push_back(to_string(value));
+        }
+        break;
+    case element::Type_t::string:
+        for (const std::string& value : get_vector<std::string>()) {
+            rc.push_back(value);
         }
         break;
     case element::Type_t::undefined:
@@ -470,7 +489,7 @@ static bool test_bitwise_identical(const T* data, const size_t size) {
     bool data_is_constant = true;
     if (size > 0) {
         OPENVINO_ASSERT(data != nullptr);
-        const T compare = data[0];
+        const T compare = data[0];  // TODO: const T& instead of T? Probably makes sense if T can be non-trivial type
         for (size_t i = 1; i < size; i++) {
             if (data[i] != compare) {
                 data_is_constant = false;
@@ -512,6 +531,10 @@ bool ov::op::v0::Constant::are_all_data_elements_bitwise_identical() const {
     case element::Type_t::i64:
     case element::Type_t::u64: {
         rc = test_bitwise_identical<uint64_t>(get_data_ptr<uint64_t>(), shape_size(m_shape));
+        break;
+    }
+    case element::Type_t::string: {
+        rc = test_bitwise_identical<std::string>(get_data_ptr<std::string>(), shape_size(m_shape));
         break;
     }
     case element::Type_t::i4:

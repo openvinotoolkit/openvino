@@ -42,6 +42,7 @@ OutputVector translate_const_op(const NodeContext& node) {
             std::cerr << "This is not a string\n";
             throw;
         }
+        // TODO: does it work with a non-scalar tensor?
         auto& tensor = str_wa.m_tensor.as<ov::Tensor>();
         // FIXME: Is this a data copy?
         auto res = std::make_shared<ov::opset8::Constant>(tensor.get_element_type(), tensor.get_shape(), tensor.data());

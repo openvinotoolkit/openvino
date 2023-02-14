@@ -50,7 +50,8 @@ enum class Type_t {
     u8,         //!< u8 element type
     u16,        //!< u16 element type
     u32,        //!< u32 element type
-    u64         //!< u64 element type
+    u64,        //!< u64 element type
+    string      //!< string element type
 };
 
 /// \brief Base class to define element type
@@ -174,6 +175,9 @@ constexpr Type u32(Type_t::u32);
 /// \brief u64 element type
 /// \ingroup ov_element_cpp_api
 constexpr Type u64(Type_t::u64);
+/// \brief u64 element type
+/// \ingroup ov_element_cpp_api
+constexpr Type string(Type_t::string);
 
 template <typename T>
 Type from() {
@@ -207,6 +211,8 @@ template <>
 OPENVINO_API Type from<ov::bfloat16>();
 template <>
 OPENVINO_API Type from<ov::float16>();
+template <>
+OPENVINO_API Type from<std::string>();
 
 OPENVINO_API Type fundamental_type_for(const Type& type);
 

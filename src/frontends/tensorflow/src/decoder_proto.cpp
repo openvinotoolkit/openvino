@@ -208,12 +208,12 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
             if (!tensor_content.empty() && tensor_proto.has_tensor_shape()) {
                 std::cerr << "[ FIRST IF ]\n";
                 ov::Tensor res(element::u8, Shape{tensor_content.length()});
-                if(pshape.get_shape().size() == 0) {
+                if(pshape.get_shape().size() == 0) {    // TODO: it works for scalars only
                     extract_tensor_content<uint8_t>(tensor_content, &res);
                     throw StructuralTypeWA(ov::element::StructuralType::Str(), res);
                 }
             } else {
-                if(pshape.get_shape().size() == 0) {
+                if(pshape.get_shape().size() == 0) {   // TODO: it works for scalars only
                     std::cerr << "[ COMPRESSED TENSOR ]\n";
                     auto tensor_content = tensor_proto.string_val()[0];
                     ov::Tensor res(element::u8, Shape{tensor_content.length()});
