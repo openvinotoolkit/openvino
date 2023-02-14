@@ -51,10 +51,10 @@ More resources:
 * [installation Guide on GitHub](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/Install-Guide)
 
 ### DL Workbench
-A web-based tool for deploying deep learning models. Built on the core of OpenVINO and equipped with a graphics user interface, DL Workbench is a great way to explore the possibilities of the OpenVINO workflow, import, analyze, optimize, and build your pre-trained models. You can do all that by visiting [Intel® DevCloud for the Edge](https://software.intel.com/content/www/us/en/develop/tools/devcloud.html) and launching DL Workbench on-line.
+A web-based tool for deploying deep learning models. Built on the core of OpenVINO and equipped with a graphics user interface, DL Workbench is a great way to explore the possibilities of the OpenVINO workflow, import, analyze, optimize, and build your pre-trained models. You can do all that by visiting [Developer Cloud for the Edge](https://software.intel.com/content/www/us/en/develop/tools/devcloud.html) and launching DL Workbench on-line.
 
 More resources:
-* [documentation](dl_workbench_overview.md)
+* [Documentation](https://docs.openvino.ai/2022.3/workbench_docs_Workbench_DG_Introduction.html)
 * [Docker Hub](https://hub.docker.com/r/openvino/workbench)
 * [PyPI](https://pypi.org/project/openvino-workbench/)
 
