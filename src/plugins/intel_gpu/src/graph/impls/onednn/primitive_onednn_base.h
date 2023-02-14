@@ -380,6 +380,7 @@ protected:
                 case onednn_post_op_type::eltwise_clip:
                 case onednn_post_op_type::eltwise_linear:
                 case onednn_post_op_type::eltwise_round:
+                case onednn_post_op_type::eltwise_hardsigmoid:
                 {
                     // onednn elwise doesn't need any data from memory buffers
                     break;

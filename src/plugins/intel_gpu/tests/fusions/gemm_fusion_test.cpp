@@ -359,9 +359,6 @@ TEST_P(gemm_2in_act_scale_eltwise, basic) {
         eltwise("sum", { input_info("activation"), input_info("eltwise_data") }, eltwise_mode::sum,  data_types::f32),
         reorder("reorder_bfyx", input_info("sum"), p.default_format, data_types::f32)
     );
-    // Activation won't be fused because onednn doesn't support negative activation
-    if (engine.get_device_info().supports_immad && !p.kernel_name.empty())
-        p.expected_fused_primitives += 2;
 
     tolerance = default_tolerance(p.default_type);
     execute(p);
@@ -380,20 +377,21 @@ TEST_P(gemm_2in_act_scale_eltwise, broadcast_eltwise) {
         eltwise("sum", { input_info("activation"), input_info("eltwise_data") }, eltwise_mode::sum,  data_types::f32),
         reorder("reorder_bfyx", input_info("sum"), p.default_format, data_types::f32)
     );
-    // Activation won't be fused because onednn doesn't support negative activation
-    if (engine.get_device_info().supports_immad && !p.kernel_name.empty())
-        p.expected_fused_primitives += 2;
 
     tolerance = default_tolerance(p.default_type);
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_act_scale_eltwise, ::testing::ValuesIn(std::vector<gemm_test_params>{
-    gemm_test_params{ CASE_GEMM_ELTWISE_2IN_FP32_1, 3, 6 },
-    gemm_test_params{ CASE_GEMM_ELTWISE_2IN_FP16_1, 3, 6 },
-    gemm_test_params{ CASE_GEMM_ELTWISE_2IN_U8S8_1, 3, 6 },
-    gemm_test_params{ CASE_GEMM_ELTWISE_2IN_S8U8_1, 3, 6 },
-    gemm_test_params{ CASE_GEMM_ELTWISE_2IN_U8S8_2, 3, 3, "gemm_mmad_int8" },
-    // gemm_test_params{ CASE_GEMM_ELTWISE_2IN_U8S8_2, 3, 3 , "gemm_mmad_int8_slm" },   // tolerance issue
-    gemm_test_params{ CASE_GEMM_ELTWISE_2IN_FP16_2, 3, 3, "gemm_tiled_opt" },
-}));
+INSTANTIATE_TEST_SUITE_P(
+    fusings_gpu,
+    gemm_2in_act_scale_eltwise,
+    ::testing::ValuesIn(std::vector<gemm_test_params>{
+        gemm_test_params{CASE_GEMM_ELTWISE_2IN_FP32_1, 3, 6},
+        gemm_test_params{CASE_GEMM_ELTWISE_2IN_FP16_1, 3, 6},
+        gemm_test_params{CASE_GEMM_ELTWISE_2IN_U8S8_1, 3, 6},
+        gemm_test_params{CASE_GEMM_ELTWISE_2IN_S8U8_1, 3, 6},
+        // Reference graph can be fused because force_implementation leads optimize_data(true) in program::set_options()
+        gemm_test_params{CASE_GEMM_ELTWISE_2IN_U8S8_2, 3, 3, "gemm_mmad_int8"},
+        // gemm_test_params{ CASE_GEMM_ELTWISE_2IN_U8S8_2, 3, 3, "gemm_mmad_int8_slm" },   // tolerance issue
+        gemm_test_params{CASE_GEMM_ELTWISE_2IN_FP16_2, 3, 3, "gemm_tiled_opt"},
+    }));

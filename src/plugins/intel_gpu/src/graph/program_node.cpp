@@ -490,6 +490,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
             case onednn_post_op_type::eltwise_clip:
             case onednn_post_op_type::eltwise_linear:
             case onednn_post_op_type::eltwise_round:
+            case onednn_post_op_type::eltwise_hardsigmoid:
             {
                 dnnl::algorithm alg;
                 float alpha, beta;
@@ -930,14 +931,21 @@ void program_node::init_onednn_primitive_attributes() {
                 post_ops.append_prelu(1 << oc_dim);
                 update_onednn_post_op_list(onednn_post_op_type::binary_relu, dep_idx);
             } else if (fused_desc->activation_function == cldnn::activation_func::hard_sigmoid) {
-                // Splits hard_sigmoid activation into eltwise_linear, min and max.
-                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear,
-                    fused_desc->additional_params.a, fused_desc->additional_params.b);
-                post_ops.append_eltwise(dnnl::algorithm::eltwise_clip, 0.0f, 1.0f);
+                post_ops.append_eltwise(dnnl::algorithm::eltwise_hardsigmoid, fused_desc->additional_params.a, fused_desc->additional_params.b);
+                update_onednn_post_op_list(onednn_post_op_type::eltwise_hardsigmoid, empty_mem);
+            } else if (fused_desc->activation_function == cldnn::activation_func::hsigmoid) {
+                // hard_sigmoid(x,a,b) = clamp(ax+b, 0, 1)
+                // hsigmoid(x) = clamp(val+3, 0, 6) / 6 = clamp(val/6+0.5, 0, 1) = hard_sigmoid(val, 1/6, 1/2)
+                post_ops.append_eltwise(dnnl::algorithm::eltwise_hardsigmoid, 1./6, 1./2);
+                update_onednn_post_op_list(onednn_post_op_type::eltwise_hardsigmoid, empty_mem);
+            } else if (fused_desc->activation_function == cldnn::activation_func::negative) {
+                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, -1, 0);
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
-                update_onednn_post_op_list(onednn_post_op_type::eltwise_clip, empty_mem);
             } else {
                 dnnl::algorithm alg = onednn::convert_activation_func(fused_desc->activation_function);
+                if (alg == dnnl::algorithm::undef)
+                    IE_THROW() << "Activations that are undef algorithms must be converted to other activations before "
+                                  "pushing to post-op.";
                 // Usage of alpha and beta between cldnn::pow and dnnl::eltwise::pow is different : d = pow(src, a) / d = a * pow(src, b)
                 if (alg == dnnl::algorithm::eltwise_pow)
                     post_ops.append_eltwise(alg, 1.0f, fused_desc->additional_params.a);
