@@ -74,7 +74,7 @@ More resources:
 
 * :doc:`Documentation <workbench_docs_Workbench_DG_Introduction>`  
 * `Docker Hub <https://hub.docker.com/r/openvino/workbench>`__  
-* `PyPI <https://pypi.org/project/openvino-workbench/)>`__  
+* `PyPI <https://pypi.org/project/openvino-workbench/>`__  
 
 OpenVINO™ Training Extensions (OTE)
 -----------------------------------
@@ -93,7 +93,7 @@ An online, interactive video and image annotation tool for computer vision purpo
 More resources:
 
 * `Documentation on GitHub <https://opencv.github.io/cvat/docs/>`__  
-* `Web application <https://cvat.org/>`__  
+* `Web application <https://app.cvat.ai/>`__  
 * `Docker Hub <https://hub.docker.com/r/openvino/cvat_server>`__  
 * `GitHub <https://github.com/openvinotoolkit/cvat>`__  
 
