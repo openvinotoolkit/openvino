@@ -188,11 +188,20 @@ OPCache::serialize_function(const std::pair<std::shared_ptr<ov::Node>, LayerTest
         auto function = std::make_shared<ov::Model>(results, params);
 
         // TODO: How to define element type for multi-output ops
+        std::string op_folder_name = op.first->get_type_info().name;
+        std::string opset_version = op.first->get_type_info().get_version();
+        std::string opset_name = "opset";
+        auto pos = opset_version.find(opset_name);
+        if (pos != std::string::npos) {
+            op_folder_name += "-" + opset_version.substr(pos + opset_name.size());
+        }
         auto op_el_type = op.first->get_output_element_type(0).get_type_name();
         auto current_op_folder = serialization_dir + CommonTestUtils::FileSeparator +
                                  (is_dynamic ? "dynamic" : "static") + CommonTestUtils::FileSeparator +
-                                 op.first->get_type_info().name + CommonTestUtils::FileSeparator + op_el_type;
+                                 op_folder_name + CommonTestUtils::FileSeparator + op_el_type;
         auto op_name = op.first->get_name();
+        op_name = op_name.substr(op_name.find("_") + 1);
+
         std::cout << op_name << " will be serialized to " << current_op_folder << std::endl;
         if (!CommonTestUtils::directoryExists(current_op_folder)) {
             CommonTestUtils::createDirectoryRecursive(current_op_folder);
