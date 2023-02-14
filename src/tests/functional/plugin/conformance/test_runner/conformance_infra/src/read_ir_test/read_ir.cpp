@@ -34,14 +34,12 @@ ShapeMode shapeMode = ShapeMode::BOTH;
 
 std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParams> &obj) {
     using namespace CommonTestUtils;
-    std::pair<std::string, std::string> model_pair;
-    std::string path_to_model, path_to_cache, deviceName;
+    std::string pathToModel, deviceName;
     ov::AnyMap config;
-    std::tie(model_pair, deviceName, config) = obj.param;
-    std::tie(path_to_model, path_to_cache) = model_pair;
+    std::tie(pathToModel, deviceName, config) = obj.param;
 
     std::ostringstream result;
-    auto splittedFilename = CommonTestUtils::splitStringByDelimiter(path_to_model, CommonTestUtils::FileSeparator);
+    auto splittedFilename = CommonTestUtils::splitStringByDelimiter(pathToModel, CommonTestUtils::FileSeparator);
     std::reverse(splittedFilename.begin(), splittedFilename.end());
     bool is_valid_path_format = true;
 
@@ -76,7 +74,7 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
             is_valid_path_format = false;
         }
     }
-    result << "IR=" << (is_valid_path_format ? CommonTestUtils::replaceExt(splittedFilename[0], "") : path_to_model) << "_";
+    result << "IR=" << (is_valid_path_format ? CommonTestUtils::replaceExt(splittedFilename[0], "") : pathToModel) << "_";
     result << "Device=" << deviceName << "_";
     result << "Config=(";
     auto configItem = config.begin();
@@ -136,18 +134,16 @@ uint64_t clip(uint64_t n, uint64_t lower, uint64_t upper) {
 }
 
 void ReadIRTest::SetUp() {
-    std::pair<std::string, std::string> model_pair;
-    std::tie(model_pair, targetDevice, configuration) = this->GetParam();
-    std::tie(path_to_model, path_to_cache) = model_pair;
-    function = core->read_model(path_to_model);
-    const auto metaFile = CommonTestUtils::replaceExt(path_to_model, "meta");
+    std::tie(pathToModel, targetDevice, configuration) = this->GetParam();
+    function = core->read_model(pathToModel);
+    const auto metaFile = CommonTestUtils::replaceExt(pathToModel, "meta");
     if (CommonTestUtils::fileExists(metaFile)) {
         pugi::xml_document doc;
         doc.load_file(metaFile.c_str());
         auto models = doc.child("meta_info").child("models");
-        source_model = models.child("initial_model").attribute("name").as_string();
+        sourceModel = models.child("initial_model").attribute("name").as_string();
         for (const auto &model : models.children("model")) {
-            ocurance_in_models.push_back({model.attribute("name").as_string(), model.attribute("count").as_uint()});
+            ocuranceInModels.push_back({model.attribute("name").as_string(), model.attribute("count").as_uint()});
         }
         auto portsInfo = doc.child("meta_info").child("ports_info");
         auto getPortInfo = [&](size_t id) {
@@ -266,44 +262,6 @@ void ReadIRTest::SetUp() {
     }
     init_input_shapes(inputShapes);
     is_report_stages = true;
-}
-
-std::vector<ov::Tensor> ReadIRTest::calculate_refs() {
-    if (!CommonTestUtils::fileExists(path_to_cache)) {
-        std::cout << "[ REFERENCE ] Calculate reference in runtime" << std::endl;
-        auto output_tensors = SubgraphBaseTest::calculate_refs();
-        if (path_to_cache != "") {
-            std::ofstream ofp(path_to_cache, std::ios::out | std::ios::binary);
-            for (const auto& out_tensor : output_tensors) {
-                ofp.write(reinterpret_cast<const char*>(out_tensor.data<char>()), out_tensor.get_byte_size());
-            }
-            ofp.close();
-        }
-        return output_tensors;
-    } else {
-        std::cout << "[ REFERENCE ] Read refernce from file: " << path_to_cache << std::endl;
-
-        ov::TensorVector output_tensors;
-        // Because of functionRefs is a static function
-        std::ifstream ref_data_ifstream(path_to_cache, std::ios_base::binary);
-        ref_data_ifstream.open(path_to_cache, std::ios::binary);
-        if (!ref_data_ifstream.is_open())
-            // IE_THROW() << "Weights file " << ref_tensors << " cannot be opened!";
-
-        ref_data_ifstream.seekg(0, std::ios::end);
-        size_t file_size = ref_data_ifstream.tellg();
-        ref_data_ifstream.seekg(0, std::ios::beg);
-
-        char* ref_data;
-        ref_data_ifstream.read(ref_data, file_size);
-        ref_data_ifstream.close();
-
-        size_t pos = 0;
-        for (const auto& output : functionRefs->outputs()) {
-            auto out_tensor = ov::runtime::Tensor(output.get_element_type(), output.get_shape(), &ref_data[pos]);
-            pos += out_tensor.get_byte_size();
-        }
-    }
 }
 
 } // namespace subgraph
