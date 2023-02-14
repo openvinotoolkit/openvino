@@ -3,6 +3,7 @@
 //
 
 #include <openvino/cc/ngraph/itt.hpp>
+#include <ngraph/rt_info.hpp>
 
 #include "transformations/gather_sinking_transpose_reshape.hpp"
 
@@ -45,6 +46,9 @@ NodePair SinkForward(NodePtr transpose, NodePtr reshape) {
 
     ov::replace_node(reshape, gather);
 
+    ov::copy_runtime_info({reshape}, {gather, gather_indices, gather_axis, reshape_new});
+    gather->set_friendly_name(reshape->get_friendly_name());
+
     return std::make_pair(reshape_new, gather);
 }
 
@@ -82,11 +86,17 @@ NodePair SinkBackward(NodePtr transpose, std::shared_ptr<Constant> transpose_con
 
     ov::replace_node(transpose, reshape_new);
 
+    ov::copy_runtime_info({transpose}, {gather, gather_indices, gather_axis, reshape_new, reshape_const_new});
+    reshape_new->set_friendly_name(transpose->get_friendly_name());
+
     return std::make_pair(transpose, reshape_new);
 }
 
 bool IsFlatten2D(const Output<Node>& output) {
     std::shared_ptr<ov::Node> reshape_node = output.get_node_shared_ptr();
+    if (reshape_node->get_output_partial_shape(0).rank().is_dynamic() ||
+        reshape_node->get_input_partial_shape(0).rank().is_dynamic())
+        return false;
     const Shape& input_shape = reshape_node->get_input_shape(0);
     const Shape& output_shape = reshape_node->get_output_shape(0);
     return (input_shape.size() == 3 &&
@@ -97,6 +107,9 @@ bool IsFlatten2D(const Output<Node>& output) {
 
 bool IsUnflatten2D(const Output<Node>& output) {
     std::shared_ptr<ov::Node> reshape_node = output.get_node_shared_ptr();
+    if (reshape_node->get_output_partial_shape(0).rank().is_dynamic() ||
+        reshape_node->get_input_partial_shape(0).rank().is_dynamic())
+        return false;
     const Shape& input_shape = reshape_node->get_input_shape(0);
     const Shape& output_shape = reshape_node->get_output_shape(0);
     return (input_shape.size() == 2 &&
