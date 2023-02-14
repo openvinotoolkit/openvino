@@ -13,7 +13,6 @@ NamedOutputs cross(const NodeContext& node) {
     auto x = node.get_input("X");
     auto weight = node.get_input("Alpha");
 
-    auto mode = node.get_attribute<std::string>("mode", 'all');
     auto data_format  = node.get_attribute<std::string>("data_format", 'NCHW');
     
     auto node_prelu = std::make_shared<default_opset::PRelu>(x, weight);
