@@ -70,7 +70,7 @@ ov::frontend::Place::Ptr OpPlace::get_input_port(int outputPortIndex) const {
 }
 
 ov::frontend::Place::Ptr OpPlace::get_output_port(int outputPortIndex) const {
-    FRONT_END_GENERAL_CHECK(m_output_ports.size() > outputPortIndex, "No port with index: ", outputPortIndex);
+    FRONT_END_GENERAL_CHECK((int)m_output_ports.size() > outputPortIndex, "No port with index: ", outputPortIndex);
     return m_output_ports[outputPortIndex];
 }
 
