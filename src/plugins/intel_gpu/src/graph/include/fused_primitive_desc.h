@@ -50,6 +50,7 @@ enum class onednn_post_op_type : uint32_t {
     eltwise_clip,
     eltwise_linear,
     eltwise_round,
+    eltwise_hardsigmoid,
     binary_mul,
     binary_add,
     binary_sub,
@@ -72,6 +73,7 @@ static inline std::ostream& operator<< (std::ostream& os, onednn_post_op_type& t
         case onednn_post_op_type::eltwise_clip: os << "eltwise_clip"; break;
         case onednn_post_op_type::eltwise_linear: os << "eltwise_linear"; break;
         case onednn_post_op_type::eltwise_round: os << "eltwise_round"; break;
+        case onednn_post_op_type::eltwise_hardsigmoid: os << "eltwise_hardsigmoid"; break;
         case onednn_post_op_type::binary_mul: os << "binary_mul"; break;
         case onednn_post_op_type::binary_add: os << "binary_add"; break;
         case onednn_post_op_type::binary_sub: os << "binary_sub"; break;
