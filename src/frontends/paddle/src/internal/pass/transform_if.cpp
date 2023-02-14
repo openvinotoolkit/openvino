@@ -50,7 +50,7 @@ ov::frontend::paddle::pass::TransformIf::TransformIf(std::vector<std::shared_ptr
         // openvino If requires both then and else branch at the same time.
         ParameterVector params;
         ResultVector results;
-        for (auto i = 0; i < then_branch->get_output_size(); i++) {
+        for (size_t i = 0; i < then_branch->get_output_size(); i++) {
             const auto param = std::make_shared<Parameter>(then_branch->get_output_element_type(i),
                                                            then_branch->get_output_partial_shape(i));
             param->set_friendly_name(then_branch->get_output_op(i)->get_output_tensor(0).get_any_name());
@@ -96,7 +96,7 @@ ov::frontend::paddle::pass::TransformIf::TransformIf(std::vector<std::shared_ptr
 
         auto else_results = else_branch->get_results();
         auto then_results = then_branch->get_results();
-        for (auto i = 0; i < else_results.size(); i++) {
+        for (size_t i = 0; i < else_results.size(); i++) {
             if_node->set_output(then_results[i], else_results[i]);
         }
         replace_node(conditional_block, if_node);
