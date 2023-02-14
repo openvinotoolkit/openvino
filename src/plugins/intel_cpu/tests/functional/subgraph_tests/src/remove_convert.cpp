@@ -36,8 +36,6 @@ public:
         InputShape inputShape;
         std::tie(inType, inputShape) = this->GetParam();
         targetDevice = CommonTestUtils::DEVICE_CPU;
-        // snippets will capture convert before graph optimizer, disable it
-        configuration.insert({"SNIPPETS_MODE", "DISABLE"});
         if (inType == ElementType::bf16) {
             configuration.insert({"ENFORCE_BF16", "YES"});
         }
@@ -66,7 +64,10 @@ public:
 
 TEST_P(RemoveUselessBF16ConvertCPUTest, CompareWithRefs) {
     run();
+    //Convert is removed by graph_optimizer
     CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
+    //Disable Convert with Snippet
+    CheckNumberOfNodesWithType(compiledModel, "Subgraph", 0);
     CheckPluginRelatedResults(compiledModel, "StridedSlice");
 }
 namespace {
