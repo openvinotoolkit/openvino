@@ -38,8 +38,8 @@ struct border : public primitive_base<border> {
     /// @param output_padding     Optional padding for output from primitive.
     border(const primitive_id& id,
            const input_info& input,
-           const ov::CoordinateDiff& pads_begin = {0, 0, 0, 0},
-           const ov::CoordinateDiff& pads_end = {0, 0, 0, 0},
+           const std::vector<int64_t>& pads_begin = {},
+           const std::vector<int64_t>& pads_end = {},
            const ov::op::PadMode pad_mode = ov::op::PadMode::CONSTANT,
            const float pad_value = 0.0f,
            const padding& output_padding = padding())
@@ -47,30 +47,48 @@ struct border : public primitive_base<border> {
           pads_begin(pads_begin),
           pads_end(pads_end),
           pad_mode(pad_mode),
-          pad_value(pad_value) {}
+          pad_value(pad_value),
+          pad_value_input_constant(true) {}
 
     /// @brief Constructs border primitive / layer with dynamic pads.
     border(const primitive_id& id,
-           const input_info& input,
-           const input_info& pads_begin_id,
-           const input_info& pads_end_id,
+           const std::vector<input_info>& inputs,
+           const std::vector<int64_t>& pads_begin = {},
+           const std::vector<int64_t>& pads_end = {},
            const ov::op::PadMode pad_mode = ov::op::PadMode::CONSTANT,
            const float pad_value = 0.0f,
            const padding& output_padding = padding())
-        : primitive_base(id, {input, pads_begin_id, pads_end_id}, {output_padding}),
-          pads_begin({}),
-          pads_end({}),
+        : primitive_base(id, inputs, {output_padding}),
+          pads_begin(pads_begin),
+          pads_end(pads_end),
           pad_mode(pad_mode),
-          pad_value(pad_value) {}
+          pad_value(pad_value),
+          pad_value_input_constant(true) {}
+
+    /// @brief Constructs pad_mode is PadMode::CONSTANT and pad_value comes from parameter input.
+    border(const primitive_id& id,
+           const std::vector<input_info>& inputs,
+           const std::vector<int64_t>& pads_begin,
+           const std::vector<int64_t>& pads_end,
+           const padding& output_padding)
+        : primitive_base(id, inputs, {output_padding}),
+          pads_begin(pads_begin),
+          pads_end(pads_end),
+          pad_mode(ov::op::PadMode::CONSTANT),
+          pad_value(0.0f),
+          pad_value_input_constant(false) {}
 
     /// @brief Sizes of border that needs to be added from left (in X dimension) and from top (in Y dimension).
-    ov::CoordinateDiff pads_begin;
+    std::vector<int64_t> pads_begin;
     /// @brief Sizes of border that needs to be added from right (in X dimension) and from bottom (in Y dimension).
-    ov::CoordinateDiff pads_end;
+    std::vector<int64_t> pads_end;
     /// @brief Type of border that needs to be added to the input.
     ov::op::PadMode pad_mode;
     /// @brief Border value that is used in constant mode.
     float pad_value;
+    /// @brief Whether pad_value comes from constant input or parameter input.
+    /// If this is true, pad_value has valid constant value. If not, pad_value should be got from input node, dynamically.
+    bool pad_value_input_constant;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
