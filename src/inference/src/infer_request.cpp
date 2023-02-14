@@ -272,7 +272,13 @@ std::vector<VariableState> InferRequest::query_state() {
     return variable_states;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 CompiledModel InferRequest::get_compiled_model() {
+    OV_INFER_REQ_CALL_STATEMENT(return {_impl->get_compiled_model(), _so});
+}
+OPENVINO_SUPPRESS_DEPRECATED_END
+
+const CompiledModel InferRequest::get_compiled_model() const {
     OV_INFER_REQ_CALL_STATEMENT(return {_impl->get_compiled_model(), _so});
 }
 

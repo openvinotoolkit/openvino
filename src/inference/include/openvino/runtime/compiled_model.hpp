@@ -145,7 +145,7 @@ public:
      *
      * @return InferRequest object
      */
-    InferRequest create_infer_request();
+    InferRequest create_infer_request() const;
 
     /**
      * @brief Exports the current compiled model to an output stream `std::ostream`.

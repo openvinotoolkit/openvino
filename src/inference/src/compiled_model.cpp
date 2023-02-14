@@ -100,7 +100,7 @@ const ov::Output<const ov::Node>& CompiledModel::output(const std::string& tenso
     });
 }
 
-InferRequest CompiledModel::create_infer_request() {
+InferRequest CompiledModel::create_infer_request() const {
     OV_COMPILED_MODEL_CALL_STATEMENT(return {_impl->create_infer_request(), _so});
 }
 

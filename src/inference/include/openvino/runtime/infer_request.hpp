@@ -13,6 +13,7 @@
 #include <memory>
 #include <string>
 
+#include "openvino/core/deprecated.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/profiling_info.hpp"
@@ -319,7 +320,14 @@ public:
      * @brief Returns a compiled model that creates this inference request.
      * @return Compiled model object.
      */
+    OPENVINO_DEPRECATED("This API was deprecated and will be removed soon")
     CompiledModel get_compiled_model();
+
+    /**
+     * @brief Returns a compiled model that creates this inference request.
+     * @return Compiled model object.
+     */
+    const CompiledModel get_compiled_model() const;
 
     /**
      * @brief Checks if the current InferRequest object is not initialized.
