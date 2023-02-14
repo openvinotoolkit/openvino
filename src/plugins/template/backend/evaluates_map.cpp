@@ -29,12 +29,12 @@
 // #include <ngraph/runtime/reference/embedding_segments_sum.hpp>
 // #include <ngraph/runtime/reference/equal.hpp>
 // #include <ngraph/runtime/reference/exp.hpp>
-#include <ngraph/runtime/reference/experimental_detectron_detection_output.hpp>
-#include <ngraph/runtime/reference/experimental_detectron_prior_grid_generator.hpp>
-#include <ngraph/runtime/reference/experimental_detectron_proposal_single_image.hpp>
-#include <ngraph/runtime/reference/experimental_detectron_roi_feature_extractor.hpp>
-#include <ngraph/runtime/reference/experimental_detectron_topk_rois.hpp>
-#include <ngraph/runtime/reference/extract_image_patches.hpp>
+// #include <ngraph/runtime/reference/experimental_detectron_detection_output.hpp>
+// #include <ngraph/runtime/reference/experimental_detectron_prior_grid_generator.hpp>
+// #include <ngraph/runtime/reference/experimental_detectron_proposal_single_image.hpp>
+// #include <ngraph/runtime/reference/experimental_detectron_roi_feature_extractor.hpp>
+// #include <ngraph/runtime/reference/experimental_detectron_topk_rois.hpp>
+// #include <ngraph/runtime/reference/extract_image_patches.hpp>
 #include <ngraph/runtime/reference/fft.hpp>
 #include <ngraph/runtime/reference/gather.hpp>
 #include <ngraph/runtime/reference/gather_elements.hpp>
@@ -1613,211 +1613,6 @@ bool evaluate(const shared_ptr<op::v9::MulticlassNms>& op,
     return true;
 }
 
-namespace experimental_prior_grid {
-struct InfoForEDPriorGrid {
-    Shape output_shape;
-    int64_t grid_h;
-    int64_t grid_w;
-    float stride_h;
-    float stride_w;
-};
-
-constexpr size_t priors_port = 0;
-constexpr size_t feature_map_port = 1;
-
-PartialShape infer_output_shape(const std::vector<std::shared_ptr<HostTensor>>& inputs, bool flatten) {
-    PartialShape out_shape = {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 4};
-
-    if (flatten) {
-        out_shape = PartialShape{Dimension::dynamic(), 4};
-    }
-
-    const auto priors_shape = inputs[priors_port]->get_partial_shape();
-    const auto feature_map_shape = inputs[feature_map_port]->get_partial_shape();
-
-    if (priors_shape.rank().is_dynamic() || feature_map_shape.rank().is_dynamic()) {
-        return out_shape;
-    }
-
-    auto num_priors = priors_shape[0];
-    auto featmap_height = feature_map_shape[2];
-    auto featmap_width = feature_map_shape[3];
-
-    if (flatten) {
-        out_shape = PartialShape{featmap_height * featmap_width * num_priors, 4};
-    } else {
-        out_shape = PartialShape{featmap_height, featmap_width, num_priors, 4};
-    }
-
-    return out_shape;
-}
-
-InfoForEDPriorGrid get_info_for_ed_prior_grid_eval(
-    const std::shared_ptr<op::v6::ExperimentalDetectronPriorGridGenerator>& prior_grid,
-    const std::vector<std::shared_ptr<HostTensor>>& inputs) {
-    InfoForEDPriorGrid result;
-
-    auto attrs = prior_grid->get_attrs();
-
-    result.grid_h = attrs.h;
-    result.grid_w = attrs.w;
-    result.stride_h = attrs.stride_y;
-    result.stride_w = attrs.stride_x;
-
-    auto output_rois_shape = infer_output_shape(inputs, attrs.flatten);
-    result.output_shape = output_rois_shape.to_shape();
-
-    return result;
-}
-}  // namespace experimental_prior_grid
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronPriorGridGenerator>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    auto info = experimental_prior_grid::get_info_for_ed_prior_grid_eval(op, inputs);
-
-    using T = typename element_type_traits<ET>::value_type;
-    outputs[0]->set_shape(info.output_shape);
-    runtime::reference::experimental_detectron_prior_grid_generator<T>(inputs[0]->get_data_ptr<const T>(),
-                                                                       inputs[0]->get_shape(),
-                                                                       inputs[1]->get_shape(),
-                                                                       inputs[2]->get_shape(),
-                                                                       outputs[0]->get_data_ptr<T>(),
-                                                                       info.grid_h,
-                                                                       info.grid_w,
-                                                                       info.stride_h,
-                                                                       info.stride_w);
-
-    return true;
-}
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronDetectionOutput>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    const auto attrs = op->get_attrs();
-    size_t rois_num = attrs.max_detections_per_image;
-
-    const Shape output_boxes_shape = Shape{rois_num, 4};
-    const Shape output_classes_shape = Shape{rois_num};
-    const Shape output_scores_shape = Shape{rois_num};
-
-    const auto output_type = op->get_input_element_type(0);
-
-    const auto boxes_data = get_floats(inputs[0], inputs[0]->get_shape());
-    const auto input_deltas_data = get_floats(inputs[1], inputs[1]->get_shape());
-    const auto input_scores_data = get_floats(inputs[2], inputs[2]->get_shape());
-    const auto input_im_info_data = get_floats(inputs[3], inputs[3]->get_shape());
-
-    std::vector<float> output_boxes(shape_size(output_boxes_shape));
-    std::vector<int32_t> output_classes(shape_size(output_classes_shape));
-    std::vector<float> output_scores(shape_size(output_scores_shape));
-
-    outputs[0]->set_element_type(output_type);
-    outputs[0]->set_shape(output_boxes_shape);
-    outputs[1]->set_element_type(element::Type_t::i32);
-    outputs[1]->set_shape(output_classes_shape);
-    outputs[2]->set_element_type(output_type);
-    outputs[2]->set_shape(output_scores_shape);
-
-    runtime::reference::experimental_detectron_detection_output(boxes_data.data(),
-                                                                input_deltas_data.data(),
-                                                                input_scores_data.data(),
-                                                                input_im_info_data.data(),
-                                                                attrs,
-                                                                output_boxes.data(),
-                                                                output_scores.data(),
-                                                                output_classes.data());
-
-    runtime::reference::experimental_detectron_detection_output_postprocessing(outputs[0]->get_data_ptr(),
-                                                                               outputs[1]->get_data_ptr(),
-                                                                               outputs[2]->get_data_ptr(),
-                                                                               output_type,
-                                                                               output_boxes,
-                                                                               output_classes,
-                                                                               output_scores,
-                                                                               output_boxes_shape,
-                                                                               output_classes_shape,
-                                                                               output_scores_shape);
-
-    return true;
-}
-
-namespace experimental_roi_feature {
-struct InfoForEDROIFeature {
-    Shape output_rois_features_shape;
-    Shape output_rois_shape;
-};
-
-InfoForEDROIFeature get_info_for_ed_roi_feature(
-    const std::vector<Shape> input_shapes,
-    const op::v6::ExperimentalDetectronROIFeatureExtractor::Attributes& attrs) {
-    InfoForEDROIFeature result;
-
-    size_t output_size = static_cast<size_t>(attrs.output_size);
-    auto out_shape = Shape{0, 0, output_size, output_size};
-    auto out_rois_shape = Shape{0, 4};
-
-    auto rois_shape = input_shapes[0];
-
-    out_shape[0] = rois_shape[0];
-    out_rois_shape[0] = rois_shape[0];
-
-    out_shape[1] = input_shapes[1][1];
-
-    result.output_rois_features_shape = out_shape;
-    result.output_rois_shape = out_rois_shape;
-
-    return result;
-}
-}  // namespace experimental_roi_feature
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronROIFeatureExtractor>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    const auto attrs = op->get_attrs();
-
-    std::vector<std::vector<float>> input_data;
-    std::vector<Shape> input_shapes;
-    for (const auto& input : inputs) {
-        const auto current_shape = input->get_shape();
-        input_data.push_back(get_floats(input, current_shape));
-        input_shapes.push_back(current_shape);
-    }
-
-    const auto info = experimental_roi_feature::get_info_for_ed_roi_feature(input_shapes, attrs);
-    const auto& output_rois_features_shape = info.output_rois_features_shape;
-    const auto& output_rois_shape = info.output_rois_shape;
-
-    const auto output_type = op->get_input_element_type(0);
-
-    outputs[0]->set_element_type(output_type);
-    outputs[0]->set_shape(output_rois_features_shape);
-    outputs[1]->set_element_type(output_type);
-    outputs[1]->set_shape(output_rois_shape);
-
-    std::vector<float> output_rois_features(shape_size(output_rois_features_shape));
-    std::vector<float> output_rois(shape_size(output_rois_shape));
-
-    runtime::reference::experimental_detectron_roi_feature_extractor(input_data,
-                                                                     input_shapes,
-                                                                     attrs,
-                                                                     output_rois_features.data(),
-                                                                     output_rois.data());
-
-    runtime::reference::experimental_detectron_roi_feature_extractor_postprocessing(outputs[0]->get_data_ptr(),
-                                                                                    outputs[1]->get_data_ptr(),
-                                                                                    output_type,
-                                                                                    output_rois_features,
-                                                                                    output_rois,
-                                                                                    output_rois_features_shape,
-                                                                                    output_rois_shape);
-
-    return true;
-}
-
 namespace fft_v7 {
 struct InfoForFFT7 {
     std::vector<float> input_data;
@@ -2305,19 +2100,6 @@ bool evaluate(const shared_ptr<op::v0::ReverseSequence>& op,
     default:
         return false;
     }
-    return true;
-}
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v3::ExtractImagePatches>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::extract_image_patches<T>(op,
-                                                 inputs[0]->get_data_ptr<T>(),
-                                                 outputs[0]->get_data_ptr<T>(),
-                                                 inputs[0]->get_shape(),
-                                                 outputs[0]->get_shape());
     return true;
 }
 
@@ -2882,22 +2664,6 @@ bool evaluate(const shared_ptr<op::v0::NormalizeL2>& op,
 }
 
 template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronTopKROIs>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
-    size_t max_rois = op->get_max_rois();
-    outputs[0]->set_shape(Shape{max_rois, 4});
-    runtime::reference::experimental_detectron_topk_rois<T>(inputs[0]->get_data_ptr<const T>(),
-                                                            inputs[1]->get_data_ptr<const T>(),
-                                                            inputs[0]->get_shape(),
-                                                            inputs[1]->get_shape(),
-                                                            max_rois,
-                                                            outputs[0]->get_data_ptr<T>());
-    return true;
-}
-
-template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v9::GenerateProposals>& op,
               const HostTensorVector& outputs,
               const HostTensorVector& inputs) {
@@ -2963,66 +2729,6 @@ bool evaluate(const shared_ptr<op::v9::GenerateProposals>& op,
                                                           output_num,
                                                           output_rois_shape,
                                                           output_scores_shape);
-
-    return true;
-}
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronGenerateProposalsSingleImage>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    const auto attrs = op->get_attrs();
-
-    size_t post_nms_count = 0;
-    if (attrs.post_nms_count < 0) {
-        throw ngraph_error("The attribute post_nms_count of the operation "
-                           "ExperimentalDetectronGenerateProposalsSingleImage must be a "
-                           "nonnegative integer.");
-    } else {
-        post_nms_count = static_cast<size_t>(attrs.post_nms_count);
-    }
-
-    const Shape output_rois_shape = Shape{post_nms_count, 4};
-    const Shape output_scores_shape = Shape{post_nms_count};
-
-    const auto output_type = op->get_input_element_type(0);
-
-    const auto im_info_shape = inputs[0]->get_shape();
-    const auto anchors_shape = inputs[1]->get_shape();
-    const auto deltas_shape = inputs[2]->get_shape();
-    const auto scores_shape = inputs[3]->get_shape();
-
-    const auto im_info_data = get_floats(inputs[0], im_info_shape);
-    const auto anchors_data = get_floats(inputs[1], anchors_shape);
-    const auto deltas_data = get_floats(inputs[2], deltas_shape);
-    const auto scores_data = get_floats(inputs[3], scores_shape);
-
-    std::vector<float> output_rois(shape_size(output_rois_shape));
-    std::vector<float> output_scores(shape_size(output_scores_shape));
-
-    outputs[0]->set_element_type(output_type);
-    outputs[0]->set_shape(output_rois_shape);
-    outputs[1]->set_element_type(output_type);
-    outputs[1]->set_shape(output_scores_shape);
-
-    runtime::reference::experimental_detectron_proposals_single_image(im_info_data.data(),
-                                                                      anchors_data.data(),
-                                                                      deltas_data.data(),
-                                                                      scores_data.data(),
-                                                                      attrs,
-                                                                      im_info_shape,
-                                                                      anchors_shape,
-                                                                      deltas_shape,
-                                                                      scores_shape,
-                                                                      output_rois.data(),
-                                                                      output_scores.data());
-    runtime::reference::experimental_detectron_proposals_single_image_postprocessing(outputs[0]->get_data_ptr(),
-                                                                                     outputs[1]->get_data_ptr(),
-                                                                                     output_type,
-                                                                                     output_rois,
-                                                                                     output_scores,
-                                                                                     output_rois_shape,
-                                                                                     output_scores_shape);
 
     return true;
 }
