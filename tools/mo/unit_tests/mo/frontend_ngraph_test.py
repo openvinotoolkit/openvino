@@ -8,7 +8,7 @@ import sys
 import unittest
 from unittest.mock import patch
 
-from openvino.tools.mo.subprocess_main import setup_env, subprocess_main
+from openvino.tools.mo_lite.subprocess_main import setup_env, subprocess_main
 
 import pytest
 
