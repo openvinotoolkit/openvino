@@ -166,8 +166,9 @@ public:
        IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, supportConfigs, {});
        ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _))
            .WillByDefault(RETURN_MOCK_VALUE(supportConfigs));
+       std::set<std::string> coreConfigs = {"CACHE_DIR", "AUTO_BATCH_TIMEOUT", "ALLOW_AUTO_BATCHING"};
+       ON_CALL(*core, GetMetric(_, StrEq("CORE_PROPERTIES"), _)).WillByDefault(Return(coreConfigs));
        EXPECT_CALL(*core, GetMetric(_, _, _)).Times(AnyNumber());
-
        // test auto plugin
        plugin->SetName("AUTO");
     }
@@ -220,6 +221,7 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
             std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
             return devices;
         });
+    EXPECT_CALL(*plugin, GetValidDevice(_, _)).Times(AnyNumber());
     EXPECT_CALL(*plugin, ParseMetaDevices(_, _)).Times(1);
     EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(1);
 

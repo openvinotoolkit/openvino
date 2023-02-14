@@ -118,6 +118,9 @@ public:
         std::vector<std::string> configKeys = {"SUPPORTED_CONFIG_KEYS", "NUM_STREAMS"};
         ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _)).WillByDefault(Return(configKeys));
 
+        std::set<std::string> coreConfigs = {"CACHE_DIR", "AUTO_BATCH_TIMEOUT", "ALLOW_AUTO_BATCHING"};
+        ON_CALL(*core, GetMetric(_, StrEq("CORE_PROPERTIES"), _)).WillByDefault(Return(coreConfigs));
+
         ON_CALL(*plugin, ParseMetaDevices)
             .WillByDefault(
                 [this](const std::string& priorityDevices, const std::map<std::string, std::string>& config) {

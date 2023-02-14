@@ -29,6 +29,7 @@ using ::testing::Property;
 using ::testing::Eq;
 using ::testing::ReturnRef;
 using ::testing::AtLeast;
+using ::testing::AnyNumber;
 using ::testing::InvokeWithoutArgs;
 using Config = std::map<std::string, std::string>;
 using namespace MockMultiDevice;
@@ -269,6 +270,7 @@ TEST_P(SelectDeviceTest, SelectDevice) {
     bool reverse;
     std::tie(netPrecision, devices, expect, throwExcept, enableDevicePriority, reverse) = this->GetParam();
 
+    EXPECT_CALL(*plugin, GetValidDevice(_, _)).Times(AnyNumber());
     EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(1);
     if (devices.size() >= 1) {
         EXPECT_CALL(*core, GetMetric(_, _, _)).Times(AtLeast(devices.size() - 1));

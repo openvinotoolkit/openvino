@@ -127,9 +127,6 @@ private:
                                                     const std::string& config_name,
                                                     ov::AnyMap& parsedConfig) const;
 
-        // Debug code, will remove later.
-        void print_core_properties() const;
-
     private:
         static void fill_config(CoreConfigCache& config, const std::string& key, const std::string& value);
 

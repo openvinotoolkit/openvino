@@ -974,9 +974,6 @@ void ov::CoreImpl::CoreConfig::set_core_config(ov::AnyMap& config, const std::st
         }
         it = config.erase(it);
     }
-
-    // Debug code, will be removed later.
-    print_core_properties();
 }
 
 ov::Any ov::CoreImpl::CoreConfig::get_core_config(const std::string& config_name,
@@ -1006,33 +1003,15 @@ ov::Any ov::CoreImpl::CoreConfig::get_core_config(const std::string& config_name
         return item->second;
     }
 
-    if(config_name == ov::core_properties.name()) {
+    if (config_name == ov::core_properties.name()) {
         std::set<std::string> res;
-        for (auto& it : _core_plugin_properties._properties){
+        for (auto& it : _core_plugin_properties._properties) {
             res.emplace(it.first);
         }
         return res;
     }
 
     IE_THROW() << "Exception: unsupported core property name: '" << config_name << "'";
-}
-
-void ov::CoreImpl::CoreConfig::print_core_properties() const {
-    // std::lock_guard<std::mutex> lock(_CoreConfigCacheMutex);
-    std::cout << "Default core property:" << std::endl;
-    for (auto& it : _core_plugin_properties._properties) {
-        std::cout << "\t" << it.first.c_str() << " : " << it.second.as<std::string>().c_str() << std::endl;
-    }
-    std::cout << "\t_cacheManager = " << _core_plugin_properties._cacheManager << std::endl;
-
-    for (auto& dev : _core_properties_cache_per_device) {
-        std::cout << dev.first.c_str() << " core property:" << std::endl;
-        for (auto& it : dev.second._properties) {
-            std::cout << "\t" << it.first.c_str() << " : " << it.second.as<std::string>().c_str() << std::endl;
-        }
-        std::cout << "\t_cacheManager = " << dev.second._cacheManager << std::endl;
-    }
-    std::cout << std::endl;
 }
 
 bool ov::CoreImpl::CoreConfig::is_core_config(const std::string& config_name) const {

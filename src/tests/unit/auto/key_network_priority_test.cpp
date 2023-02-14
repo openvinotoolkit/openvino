@@ -29,6 +29,7 @@ using ::testing::Property;
 using ::testing::Eq;
 using ::testing::ReturnRef;
 using ::testing::AtLeast;
+using ::testing::AnyNumber;
 using ::testing::InvokeWithoutArgs;
 using Config = std::map<std::string, std::string>;
 using namespace MockMultiDevice;
@@ -126,6 +127,7 @@ TEST_P(KeyNetworkPriorityTest, SelectDevice) {
             {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "VPUX_01", 0}};
     }
 
+    EXPECT_CALL(*plugin, GetValidDevice(_, _)).Times(AnyNumber());
     EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(PriorityConfigs.size());
     EXPECT_CALL(*core, GetMetric(_, _, _)).Times(AtLeast(PriorityConfigs.size() * 4));
 
@@ -161,6 +163,7 @@ TEST_P(KeyNetworkPriorityTest, MultiThreadsSelectDevice) {
             {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "VPUX_01", 0}};
     }
 
+    EXPECT_CALL(*plugin, GetValidDevice(_, _)).Times(AnyNumber());
     EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(PriorityConfigs.size() * 2);
     EXPECT_CALL(*core, GetMetric(_, _, _)).Times(AtLeast(PriorityConfigs.size() * 4 * 2));
     // selectdevice in multi threads, and UnregisterPriority them all, should not affect the
