@@ -36,7 +36,7 @@ A solution for Model Developers and Independent Software Vendors to use secure p
 
 More resources:
 
-* `documentation <https://docs.openvino.ai/latest/ovsa_get_started.html>`__  
+* `Documentation <https://docs.openvino.ai/latest/ovsa_get_started.html>`__  
 * `GitHub <https://github.com/openvinotoolkit/security_addon>`__  
 
 
@@ -48,7 +48,7 @@ in your application, you can offload inference to OpenVINO, while keeping the Te
 
 More resources:
 
-* `documentation <https://github.com/openvinotoolkit/openvino_tensorflow>`__  
+* `Documentation <https://github.com/openvinotoolkit/openvino_tensorflow>`__  
 * `PyPI <https://pypi.org/project/openvino-tensorflow/>`__  
 * `GitHub <https://github.com/openvinotoolkit/openvino_tensorflow>`__  
 
@@ -59,8 +59,8 @@ A streaming media analytics framework, based on the GStreamer multimedia framewo
 
 More resources:
 
-* `documentation on GitHub <https://dlstreamer.github.io/index.html>`__  
-* `installation Guide on GitHub <https://github.com/openvinotoolkit/dlstreamer_gst/wiki/Install-Guide>`__  
+* `Documentation on GitHub <https://dlstreamer.github.io/index.html>`__  
+* `Installation Guide on GitHub <https://github.com/openvinotoolkit/dlstreamer_gst/wiki/Install-Guide>`__  
 
 DL Workbench
 ------------
@@ -72,7 +72,7 @@ and launching DL Workbench on-line.
 
 More resources:
 
-* :doc:`documentation <workbench_docs_Workbench_DG_Introduction>`  
+* :doc:`Documentation <workbench_docs_Workbench_DG_Introduction>`  
 * `Docker Hub <https://hub.docker.com/r/openvino/workbench>`__  
 * `PyPI <https://pypi.org/project/openvino-workbench/)>`__  
 
@@ -92,8 +92,8 @@ An online, interactive video and image annotation tool for computer vision purpo
 
 More resources:
 
-* `documentation on GitHub <https://opencv.github.io/cvat/docs/>`__  
-* `web application <https://cvat.org/>`__  
+* `Documentation on GitHub <https://opencv.github.io/cvat/docs/>`__  
+* `Web application <https://cvat.org/>`__  
 * `Docker Hub <https://hub.docker.com/r/openvino/cvat_server>`__  
 * `GitHub <https://github.com/openvinotoolkit/cvat>`__  
 
@@ -104,7 +104,7 @@ A framework and CLI tool to build, transform, and analyze datasets.
 
 More resources:
 
-* `documentation on GitHub <https://openvinotoolkit.github.io/datumaro/docs/>`__  
+* `Documentation on GitHub <https://openvinotoolkit.github.io/datumaro/docs/>`__  
 * `PyPI <https://pypi.org/project/datumaro/>`__  
 * `GitHub <https://github.com/openvinotoolkit/datumaro>`__  
 
