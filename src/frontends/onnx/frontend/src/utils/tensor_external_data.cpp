@@ -47,7 +47,7 @@ std::string TensorExternalData::load_external_data(const std::string& model_dir)
     if (external_data_stream.fail())
         throw error::invalid_external_data{*this};
 
-    auto filesize = external_data_stream.tellg();
+    uint64_t filesize = external_data_stream.tellg();
     if (filesize == -1) {
         throw error::invalid_external_data{*this};
     }
