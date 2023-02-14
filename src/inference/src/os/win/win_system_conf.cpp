@@ -11,6 +11,7 @@
 #include <memory>
 #include <vector>
 
+#include "ie_common.h"
 #include "ie_system_conf.h"
 #include "streams_executor.hpp"
 #include "threading/ie_parallel_custom_arena.hpp"
@@ -205,13 +206,34 @@ std::vector<int> getAvailableNUMANodes() { return {-1}; }
 #endif
 
 bool cpuMapAvailable() {
-    return false;
+    return cpu._cpu_mapping_table.size() > 0;
 }
 
 std::vector<int> getAvailableCPUs(const cpu_core_type_of_processor core_type, const int num_cpus) {
-    return {};
+    std::vector<int> cpu_ids;
+    if (core_type < PROC_TYPE_TABLE_SIZE && core_type >= ALL_PROC) {
+        for (int i = 0; i < cpu._processors; i++) {
+            if (cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == core_type &&
+                cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] <= 0) {
+                cpu_ids.push_back(cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
+            }
+            if (static_cast<int>(cpu_ids.size()) == num_cpus) {
+                break;
+            }
+        }
+    } else {
+        IE_THROW() << "Wrong value for core_type " << core_type;
+    }
+    return cpu_ids;
 }
 
-void setCpuUsed(std::vector<int> cpu_ids, int used) {}
+void setCpuUsed(std::vector<int> cpu_ids, int used) {
+    const auto cpu_size = static_cast<int>(cpu_ids.size());
+    for (int i = 0; i < cpu_size; i++) {
+        if (cpu_ids[i] < cpu._processors) {
+            cpu._cpu_mapping_table[cpu_ids[i]][CPU_MAP_USED_FLAG] = used;
+        }
+    }
+}
 
 }  // namespace InferenceEngine
