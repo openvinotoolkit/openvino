@@ -678,7 +678,7 @@ public:
         m_request->SetCallback(std::move(callback));
     }
 
-    const std::shared_ptr<ov::ICompiledModel>& get_compiled_model() const override {
+    const std::shared_ptr<const ov::ICompiledModel>& get_compiled_model() const override {
         if (!m_compiled_model) {
             std::lock_guard<std::mutex> lock(m_mutex);
             if (!m_compiled_model) {
@@ -700,7 +700,7 @@ public:
 
 private:
     std::shared_ptr<InferenceEngine::IInferRequestInternal> m_request;
-    mutable std::shared_ptr<ov::ICompiledModel> m_compiled_model;
+    mutable std::shared_ptr<const ov::ICompiledModel> m_compiled_model;
     mutable std::mutex m_mutex;
 };
 

@@ -44,7 +44,7 @@ static void AllocateImpl(std::vector<ov::Tensor>& tensors, const std::vector<ov:
 }  // namespace
 
 // ! [infer_request:ctor]
-TemplatePlugin::InferRequest::InferRequest(const std::shared_ptr<TemplatePlugin::CompiledModel>& model)
+TemplatePlugin::InferRequest::InferRequest(const std::shared_ptr<const TemplatePlugin::CompiledModel>& model)
     : ov::ISyncInferRequest(model) {
     // TODO: allocate infer request device and host buffers if needed, fill actual list of profiling tasks
 

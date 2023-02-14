@@ -139,8 +139,8 @@ std::shared_ptr<ov::IAsyncInferRequest> TemplatePlugin::CompiledModel::create_in
 }
 
 std::shared_ptr<ov::ISyncInferRequest> TemplatePlugin::CompiledModel::create_sync_infer_request() const {
-    return std::make_shared<InferRequest>(std::const_pointer_cast<TemplatePlugin::CompiledModel>(
-        std::static_pointer_cast<const TemplatePlugin::CompiledModel>(shared_from_this())));
+    return std::make_shared<InferRequest>(
+        std::static_pointer_cast<const TemplatePlugin::CompiledModel>(shared_from_this()));
 }
 // ! [executable_network:create_infer_request]
 

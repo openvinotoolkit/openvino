@@ -24,7 +24,7 @@ class CompiledModel;
 // ! [infer_request:header]
 class InferRequest : public ov::ISyncInferRequest {
 public:
-    InferRequest(const std::shared_ptr<TemplatePlugin::CompiledModel>& compiled_model);
+    InferRequest(const std::shared_ptr<const TemplatePlugin::CompiledModel>& compiled_model);
     ~InferRequest();
 
     void infer() override;

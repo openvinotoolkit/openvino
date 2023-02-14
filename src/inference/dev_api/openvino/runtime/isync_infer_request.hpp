@@ -31,7 +31,7 @@ public:
      *
      * @param compiled_model pointer to compiled model
      */
-    ISyncInferRequest(const std::shared_ptr<ov::ICompiledModel>& compiled_model);
+    ISyncInferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model);
 
     /**
      * @brief Gets an input/output tensor for inference.
@@ -102,7 +102,7 @@ public:
      *
      * @return Pointer to the compiled model
      */
-    const std::shared_ptr<ov::ICompiledModel>& get_compiled_model() const override;
+    const std::shared_ptr<const ov::ICompiledModel>& get_compiled_model() const override;
 
 protected:
     struct FoundPort {
@@ -147,7 +147,7 @@ protected:
     std::unordered_map<size_t, std::vector<ov::Tensor>> m_batched_tensors;
 
 private:
-    std::shared_ptr<ov::ICompiledModel> m_compiled_model;
+    std::shared_ptr<const ov::ICompiledModel> m_compiled_model;
 };
 
 };  // namespace ov

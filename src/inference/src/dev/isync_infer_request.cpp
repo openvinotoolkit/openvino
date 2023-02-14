@@ -83,7 +83,7 @@ void check_batched_tensors(const ov::Output<const ov::Node>& input, const std::v
 
 ov::IInferRequest::~IInferRequest() = default;
 
-ov::ISyncInferRequest::ISyncInferRequest(const std::shared_ptr<ov::ICompiledModel>& compiled_model)
+ov::ISyncInferRequest::ISyncInferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model)
     : m_compiled_model(compiled_model) {}
 
 const std::vector<ov::Output<const ov::Node>>& ov::ISyncInferRequest::get_inputs() const {
@@ -92,7 +92,7 @@ const std::vector<ov::Output<const ov::Node>>& ov::ISyncInferRequest::get_inputs
 const std::vector<ov::Output<const ov::Node>>& ov::ISyncInferRequest::get_outputs() const {
     return m_compiled_model->outputs();
 }
-const std::shared_ptr<ov::ICompiledModel>& ov::ISyncInferRequest::get_compiled_model() const {
+const std::shared_ptr<const ov::ICompiledModel>& ov::ISyncInferRequest::get_compiled_model() const {
     return m_compiled_model;
 }
 
