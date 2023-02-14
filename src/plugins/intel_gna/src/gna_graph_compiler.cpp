@@ -385,11 +385,6 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
         THROW_GNA_LAYER_EXCEPTION(layer) << "with batch size not equals 1 is not supported";
     }
 
-    if (convolution._dilation_x != 1 || convolution._dilation_y != 1) {
-        // TODO: Issue 24839
-        THROW_GNA_LAYER_EXCEPTION(layer) << "with dilation is not supported on GNA";
-    }
-
     if (convolution._kernel_x > in_width * in_height) {
         THROW_GNA_LAYER_EXCEPTION(layer) << "Kernel dimensions X (" << convolution._kernel_x << ")"
                                          << " is bigger than total input dimensions WxH (" << in_width << "x"

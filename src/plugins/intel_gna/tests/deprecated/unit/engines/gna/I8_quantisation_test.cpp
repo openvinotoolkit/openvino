@@ -39,9 +39,10 @@ class I8QuantisationTest : public GNATest<> {
         gna_config.gnaPrecision = InferenceEngine::Precision::I16;
         gna_config.gnaFlags.input_low_precision = false;
 
-        return ModelQuantizer(gna_config, false).quantize(
+        auto transformer = ov::intel_gna::TransformationsPipeline(gna_config);
+
+        return ModelQuantizer(transformer).quantize(
             model,
-            [](const InferenceEngine::CNNNetwork&, bool run_before_copy, bool low_precision) {},
             inputs);
     }
 
@@ -100,7 +101,7 @@ TEST_F(I8QuantisationTest, FCDimensionIs1){
     auto weights = make_shared_blob<uint8_t >({ Precision::U8, {440}, C });
     weights->allocate();
     fillWeights(weights);
-    
+
     Core ie;
     auto network = ie.ReadNetwork(FCOnlyModel(), weights);
 
@@ -111,7 +112,7 @@ TEST_F(I8QuantisationTest, outputAffinePrecisionIs32Bits){
     auto weights = make_shared_blob<uint8_t >({ Precision::U8, {440}, C });
     weights->allocate();
     fillWeights(weights);
-    
+
     Core ie;
     auto network = ie.ReadNetwork(Fc2DOutputModel(), weights);
 
@@ -126,7 +127,7 @@ TEST_F(I8QuantisationTest, fp16tofp32_on_fullyConnected_model) {
     auto weights = make_shared_blob<uint8_t>({ Precision::U8, {220}, Layout::C });
     weights->allocate();
     fillWeights(weights);
-    
+
     Core ie;
     auto network = ie.ReadNetwork(FCOnlyModelFP16(), weights);
 
@@ -137,7 +138,7 @@ TEST_F(I8QuantisationTest, LSTMCell_quantize) {
     auto weights = make_shared_blob<uint8_t>({ Precision::U8, {33664}, C });
     weights->allocate();
     fillWeights(weights);
-    
+
     Core ie;
     auto network = ie.ReadNetwork(LSTMCellOnlyModel(), weights);
 
@@ -148,7 +149,7 @@ TEST_F(I8QuantisationTest, LSTMCell_unaligned_quantize) {
     auto weights = make_shared_blob<uint8_t>({ Precision::U8, {3480}, C });
     weights->allocate();
     fillWeights(weights);
-    
+
     Core ie;
     auto network = ie.ReadNetwork(LSTMCellOnlyModelUnaligned(), weights);
 
@@ -159,7 +160,7 @@ TEST_F(I8QuantisationTest, TI_quantize) {
     auto weights = make_shared_blob<uint8_t>({ Precision::U8, {249748}, C });
     weights->allocate();
     fillWeights(weights);
-        
+
     Core ie;
     auto network = ie.ReadNetwork(TIModelWithLSTMCell2(), weights);
 

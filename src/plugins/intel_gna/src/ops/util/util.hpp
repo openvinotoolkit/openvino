@@ -3,26 +3,29 @@
 //
 
 #pragma once
-#include <legacy/ngraph_ops/convolution_ie.hpp>
-#include <legacy/ngraph_ops/crop_ie.hpp>
-#include <legacy/ngraph_ops/eltwise.hpp>
-#include <legacy/ngraph_ops/fully_connected.hpp>
-#include <legacy/ngraph_ops/power.hpp>
-#include <legacy/ngraph_ops/relu_ie.hpp>
-#include <legacy/ngraph_ops/scaleshift.hpp>
 #include <memory>
-#include <ngraph/opsets/opset7.hpp>
-#include <ngraph/opsets/opset8.hpp>
-#include <ngraph/opsets/opset9.hpp>
-#include <transformations/rt_info/gna_transpose_fusable.hpp>
-#include <transformations/utils/utils.hpp>
 #include <vector>
 
 #include "backend/gna_limitations.hpp"
+#include "gna_plugin_config.hpp"
+#include "layers/gna_convolution_layer.hpp"
 #include "layers/gna_permute.hpp"
+#include "legacy/ngraph_ops/convolution_ie.hpp"
+#include "legacy/ngraph_ops/crop_ie.hpp"
+#include "legacy/ngraph_ops/eltwise.hpp"
+#include "legacy/ngraph_ops/fully_connected.hpp"
+#include "legacy/ngraph_ops/power.hpp"
+#include "legacy/ngraph_ops/relu_ie.hpp"
+#include "legacy/ngraph_ops/scaleshift.hpp"
+#include "ngraph/opsets/opset7.hpp"
+#include "ngraph/opsets/opset8.hpp"
+#include "ngraph/opsets/opset9.hpp"
 #include "ops/copy.hpp"
 #include "ops/identity.hpp"
 #include "ops/pwl.hpp"
+#include "transformations/rt_info/gna_transpose_fusable.hpp"
+#include "transformations/utils/transformation_helper.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -200,7 +203,7 @@ inline bool is_Tbit_fq(const std::shared_ptr<ngraph::Node>& node) {
     if (!fq_node)
         return false;
     auto levels = fq_node->get_levels();
-    return std::numeric_limits<T>::max() == levels;
+    return (std::numeric_limits<T>::max() == levels) || (std::numeric_limits<T>::max() == levels - 1);
 }
 
 inline bool is_32bit_fq(const std::shared_ptr<ngraph::Node>& node) {

@@ -15,6 +15,7 @@
 #include "gna_graph_tools.hpp"
 #include "gna_itt.hpp"
 #include "gna_plugin_config.hpp"
+#include "gna_transformations_pipeline.hpp"
 #include "layer_quantizer.hpp"
 #include "scale_factor_calc.hpp"
 #include "weights_converter.hpp"
@@ -27,17 +28,11 @@ namespace frontend {
  * Quantize entire network
  */
 class ModelQuantizer {
-    const Config& gna_config;
-    const bool fake_quantized;
+    ov::intel_gna::TransformationsPipeline& gna_transformer;
 
 public:
-    ModelQuantizer(const Config& gna_config, const bool fake_quantized)
-        : gna_config(gna_config),
-          fake_quantized(fake_quantized) {}
-    template <class PreQuantisationCb>
-    InferenceEngine::CNNNetwork quantize(const InferenceEngine::CNNNetwork& model,
-                                         const PreQuantisationCb& cb,
-                                         const GnaInputs& inputs) const {
+    ModelQuantizer(ov::intel_gna::TransformationsPipeline& transformer) : gna_transformer(transformer) {}
+    InferenceEngine::CNNNetwork quantize(const InferenceEngine::CNNNetwork& model, const GnaInputs& inputs) const {
         OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "ModelQuantizer::quantize");
         auto visitor = [&](InferenceEngine::CNNLayerPtr layer_ptr) {
             auto new_layer = InferenceEngine::injectData<QuantizedLayerParams>(layer_ptr);
@@ -46,12 +41,12 @@ public:
         };
 
         InferenceEngine::CNNNetwork copied_net = InferenceEngine::CNNNetCopy(model);
-        cb(copied_net, true, gna_config.gnaFlags.input_low_precision);
+        gna_transformer.apply_legacy(copied_net, true);
         copied_net = InferenceEngine::CNNNetCopy(copied_net, visitor);
 
         // Allow client code to access copied topology, to avoid copies if user would like to chain quantisation with
         // another preprocessing
-        cb(copied_net, false, gna_config.gnaFlags.input_low_precision);
+        gna_transformer.apply_legacy(copied_net, false);
 
         auto sorted_new_net = InferenceEngine::details::CNNNetSortTopologically(copied_net);
         log::debug() << "Sorted layers: " << std::endl;
@@ -67,7 +62,7 @@ public:
 
         // Propagate scale factor and quantize layers
         propagateScaleFactor(sorted_new_net);
-        frontend::LayerQuantizer lq(gna_config);
+        frontend::LayerQuantizer lq(gna_transformer.config);
 
         for (auto&& layer : sorted_new_net) {
             lq.quantize(*layer);
@@ -78,7 +73,7 @@ public:
 
 private:
     void propagateScaleFactor(std::vector<InferenceEngine::CNNLayerPtr>& net) const {
-        ScaleFactorCalculator sf(net, gna_config, fake_quantized);
+        ScaleFactorCalculator sf(net, gna_transformer.config, gna_transformer.is_fake_quantized());
         uint32_t inf_loop_count = 0;
         std::vector<std::string> inf_loop_pattern;
         std::vector<std::string> inf_loop_history;
