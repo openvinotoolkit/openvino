@@ -109,14 +109,12 @@ std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getLoweredSubgrap
     std::vector<std::vector<size_t>> new_shapes;
     for (const auto& p : body->get_parameters()) {
         const auto pshape = p->get_output_partial_shape(0);
-        if (pshape.is_dynamic())
-            IE_THROW() << "getLoweredSubgraph supports only static shapes";
+        OPENVINO_ASSERT(pshape.is_static(), "getLoweredSubgraph supports only static shapes");
         new_shapes.push_back(pshape.get_shape());
     }
     for (const auto& r : body->get_results()) {
         const auto pshape = r->get_input_partial_shape(0);
-        if (pshape.is_dynamic())
-            IE_THROW() << "getLoweredSubgraph supports only static shapes";
+        OPENVINO_ASSERT(pshape.is_static(), "getLoweredSubgraph supports only static shapes");
         new_shapes.push_back(pshape.get_shape());
     }
     body_rt_info["PluginShapesOverride"] = new_shapes;
