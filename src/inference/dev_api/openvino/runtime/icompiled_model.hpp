@@ -13,15 +13,14 @@
 #include <ostream>
 #include <vector>
 
-#include "cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"
 #include "threading/ie_itask_executor.hpp"
 
 namespace InferenceEngine {
-class IInferRequestInternal;
 class ICompiledModelWrapper;
 }  // namespace InferenceEngine
 
@@ -30,6 +29,7 @@ namespace ov {
 class CoreImpl;
 class IPlugin;
 class IExecutableNetworkWrapper;
+class IAsyncInferRequest;
 
 /**
  * @brief OpenVINO ICompiledModel interface
@@ -73,9 +73,9 @@ public:
     /**
      * @brief Create infer request
      *
-     * @return Infer request interface
+     * @return Asynchronous infer request interface
      */
-    virtual std::shared_ptr<InferenceEngine::IInferRequestInternal> create_infer_request() const;
+    virtual std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const;
 
     /**
      * @brief Export compiled model to stream
@@ -141,7 +141,7 @@ protected:
      *
      * @return Sync infer request
      */
-    virtual std::shared_ptr<InferenceEngine::IInferRequestInternal> create_sync_infer_request() const = 0;
+    virtual std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const = 0;
 
     /**
      * @brief Default implementation of create async inter request method
@@ -149,11 +149,11 @@ protected:
      * @tparam AsyncInferRequestType Async infer request type. InferenceEngine::AsyncInferRequestThreadSafeDefault by
      * default
      *
-     * @return Async infer request
+     * @return Asynchronous infer request
      */
-    template <typename AsyncInferRequestType = InferenceEngine::AsyncInferRequestThreadSafeDefault>
-    std::shared_ptr<InferenceEngine::IInferRequestInternal> create_async_infer_request() const {
-        std::shared_ptr<InferenceEngine::IInferRequestInternal> syncRequestImpl = this->create_sync_infer_request();
+    template <typename AsyncInferRequestType = ov::IAsyncInferRequest>
+    std::shared_ptr<ov::IAsyncInferRequest> create_async_infer_request() const {
+        auto syncRequestImpl = create_sync_infer_request();
         return std::make_shared<AsyncInferRequestType>(syncRequestImpl, m_task_executor, m_callback_executor);
     }
 

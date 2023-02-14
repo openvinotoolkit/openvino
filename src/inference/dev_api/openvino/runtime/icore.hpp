@@ -12,6 +12,7 @@
 #include <memory>
 
 #include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "so_ptr.hpp"
 

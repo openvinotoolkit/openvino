@@ -5,6 +5,9 @@
 #pragma once
 
 #include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/iinfer_request.hpp"
+#include "openvino/runtime/isync_infer_request.hpp"
+#include "openvino/runtime/tensor.hpp"
 #include "template_config.hpp"
 #include "template_infer_request.hpp"
 
@@ -34,10 +37,10 @@ public:
     virtual ov::Any get_property(const std::string& name) const override;
 
     ov::RemoteContext get_context() const override;
-    std::shared_ptr<InferenceEngine::IInferRequestInternal> create_infer_request() const override;
+    std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 
 protected:
-    std::shared_ptr<InferenceEngine::IInferRequestInternal> create_sync_infer_request() const override;
+    std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
 private:
     friend class TemplateInferRequest;

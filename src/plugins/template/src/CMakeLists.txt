@@ -26,6 +26,7 @@ ov_mark_target_as_cc(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${OpenVINO_SOURCE_DIR}/src/inference/src/dev" # TODO: remove after migration to new infer request
     "${TEMPLATE_PLUGIN_SOURCE_DIR}/include")
 
 # link common Inference Engine libraries
