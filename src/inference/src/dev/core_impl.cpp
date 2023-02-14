@@ -933,10 +933,10 @@ void ov::CoreImpl::AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& exte
 }
 
 ov::CoreImpl::CoreConfig::CoreConfig() {
-    _core_plugin_properties._properties.insert(ov::hint::allow_auto_batching(true));
-    _core_plugin_properties._properties.insert(ov::auto_batch_timeout(1000));
-    _core_plugin_properties._properties.insert(ov::cache_dir());
-    _core_global_properties._properties.insert(ov::force_tbb_terminate(false));
+    _core_plugin_properties._properties = {{ov::cache_dir.name(), ""},
+                                           {ov::hint::allow_auto_batching.name(), ov::Any(true)},
+                                           {ov::auto_batch_timeout.name(), "1000"}};
+    _core_global_properties._properties = {{ov::force_tbb_terminate.name(), ov::Any(false)}};
 }
 
 void ov::CoreImpl::CoreConfig::set_core_config(ov::AnyMap& config, const std::string& device_name) {
