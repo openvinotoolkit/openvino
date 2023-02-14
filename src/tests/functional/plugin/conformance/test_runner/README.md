@@ -74,6 +74,8 @@ The script has the following arguments:
                         Specify gtest filter to apply when running test. E.g. *Add*:*BinaryConv*. The default value is None
 * `-c OV_CONFIG_PATH, --ov_config_path OV_CONFIG_PATH`
                         Specify path to file contains plugin config 
+* `-sh SHAPE_MODE, --shape_mode SHAPE_MODE`
+                        Specify shape mode for conformance. Default value is ``. Possible values: `static`, `dynamic`, ``
 
 > **NOTE**:
 > All arguments are optional and have default values to reproduce OMZ conformance results in a default way.
