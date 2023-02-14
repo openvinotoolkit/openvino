@@ -5,6 +5,7 @@
 #include "gna_memory_util.hpp"
 
 #include <cstdint>
+
 #include "log/debug.hpp"
 
 namespace ov {

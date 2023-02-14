@@ -738,13 +738,15 @@ void program::transfer_memory_to_device() {
         return;
 
     for (auto& node : processing_order) {
+        if (node->is_shape_infer_dep()) {
+            continue;
+        }
         if (node->is_type<data>() && !node->need_lockable_memory()) {
             auto& data_node = node->as<data>();
             auto data_node_layout = data_node.get_output_layout();
             auto& mem = data_node.get_attached_memory();
             auto mem_layout = mem.get_layout();
             auto alloc_type = mem.get_allocation_type();
-
             if (!mem_layout.compatible(data_node_layout)) {
                 std::string err_str("Node and memory layouts are incompatible, error occurred for " + node->id() + " node");
                 throw std::invalid_argument(err_str);

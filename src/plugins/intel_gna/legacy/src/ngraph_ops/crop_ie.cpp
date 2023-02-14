@@ -14,9 +14,14 @@
 using namespace std;
 using namespace ngraph;
 
-op::CropIE::CropIE(const Output<Node>& data, std::vector<int64_t> axes, std::vector<int64_t> dim,
+op::CropIE::CropIE(const Output<Node>& data,
+                   std::vector<int64_t> axes,
+                   std::vector<int64_t> dim,
                    std::vector<int64_t> offset)
-    : Op({data}), axes(axes), dim(dim), offset(offset) {
+    : Op({data}),
+      axes(axes),
+      dim(dim),
+      offset(offset) {
     constructor_validate_and_infer_types();
 }
 
@@ -36,7 +41,8 @@ void op::CropIE::validate_and_infer_types() {
 
     ngraph::Shape output_shape(input_shape);
     for (size_t i = 0; i < axes.size(); ++i) {
-        NODE_VALIDATION_CHECK(this, axes[i] >= 0 && axes[i] < static_cast<int64_t>(output_shape.size()),
+        NODE_VALIDATION_CHECK(this,
+                              axes[i] >= 0 && axes[i] < static_cast<int64_t>(output_shape.size()),
                               "axes should be positive and less than number of input dims");
         output_shape[axes[i]] = dim[i];
     }
@@ -44,7 +50,7 @@ void op::CropIE::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), PartialShape(output_shape));
 }
 
-bool op::CropIE::visit_attributes(AttributeVisitor &visitor) {
+bool op::CropIE::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("axis", axes);
     visitor.on_attribute("dim", dim);
     visitor.on_attribute("offset", offset);

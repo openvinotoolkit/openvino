@@ -19,6 +19,7 @@ public:
 
     program_node& input() const { return get_dependency(0); }
     program_node& scale() const { return get_dependency(1); }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 };
 
 using normalize_node = typed_program_node<normalize>;
