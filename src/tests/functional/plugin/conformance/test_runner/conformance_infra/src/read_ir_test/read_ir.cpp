@@ -269,34 +269,32 @@ void ReadIRTest::SetUp() {
 }
 
 std::vector<ov::Tensor> ReadIRTest::calculate_refs() {
+    auto start_time = std::chrono::system_clock::now();
+    if (is_report_stages) {
+        std::cout << "[ REFERENCE   ] `SubgraphBaseTest::calculate_refs()` is started"<< std::endl;
+    }
+    ov::TensorVector output_tensors;
     if (!CommonTestUtils::fileExists(path_to_cache)) {
-        std::cout << "[ REFERENCE ] Calculate reference in runtime" << std::endl;
-        auto output_tensors = SubgraphBaseTest::calculate_refs();
+        std::cout << "[ REFERENCE   ] Calculate reference in runtime" << std::endl;
+        output_tensors = SubgraphBaseTest::calculate_refs();
         if (path_to_cache != "") {
-            std::ofstream ofp(path_to_cache, std::ios::out | std::ios::binary);
+            std::ofstream ofstream_tensor(path_to_cache, std::ios::out | std::ios::binary);
             for (const auto& out_tensor : output_tensors) {
-                ofp.write(reinterpret_cast<const char*>(out_tensor.data<char>()), out_tensor.get_byte_size());
+                ofstream_tensor.write(reinterpret_cast<const char*>(out_tensor.data()), out_tensor.get_byte_size());
             }
-            ofp.close();
+            ofstream_tensor.close();
         }
-        return output_tensors;
     } else {
-        std::cout << "[ REFERENCE ] Read refernce from file: " << path_to_cache << std::endl;
-
-        ov::TensorVector output_tensors;
+        std::cout << "[ REFERENCE   ] Read reference from file: " << path_to_cache << std::endl;
         // Because of functionRefs is a static function
-        std::ifstream ref_data_ifstream(path_to_cache, std::ios_base::binary);
+        std::ifstream ref_data_ifstream(path_to_cache, std::ifstream::binary);
         ref_data_ifstream.open(path_to_cache, std::ios::binary);
         if (!ref_data_ifstream.is_open())
-            // IE_THROW() << "Weights file " << ref_tensors << " cannot be opened!";
+            IE_THROW() << "Weights file " << path_to_cache << " cannot be opened!";
 
-        ref_data_ifstream.seekg(0, std::ios::end);
-        size_t file_size = ref_data_ifstream.tellg();
-        ref_data_ifstream.seekg(0, std::ios::beg);
 
-        char* ref_data;
-        ref_data_ifstream.read(ref_data, file_size);
-        ref_data_ifstream.close();
+        std::vector<unsigned char> ref_buffer(std::istreambuf_iterator<char>(ref_data_ifstream), {});
+        auto ref_data = ref_buffer.data();
 
         size_t pos = 0;
         for (const auto& output : functionRefs->outputs()) {
@@ -304,6 +302,12 @@ std::vector<ov::Tensor> ReadIRTest::calculate_refs() {
             pos += out_tensor.get_byte_size();
         }
     }
+    if (is_report_stages) {
+        auto end_time = std::chrono::system_clock::now();
+        std::chrono::duration<double> duration = end_time - start_time;
+        std::cout << "[ REFERENCE   ] `SubgraphBaseTest::calculate_refs()` is finished successfully. Duration is " << duration.count() << "s" << std::endl;
+    }
+    return output_tensors;
 }
 
 } // namespace subgraph

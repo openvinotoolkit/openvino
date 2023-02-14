@@ -105,12 +105,16 @@ static auto unique_ops = get_unique_ops();
 static auto element_type_names = get_element_type_names();
 
 inline std::string get_ref_path(const std::string& model_path) {
-    std::string path_to_cache = "";
-    if (CommonTestUtils::directoryExists(refCachePath)) {
-        std::string ref_name = model_path.substr(model_path.rfind(CommonTestUtils::FileSeparator) + 1);
-        ref_name = CommonTestUtils::replaceExt(ref_name, ".bin");
-        path_to_cache += refCachePath + std::string(CommonTestUtils::FileSeparator) + ref_name;
+    if (std::string(refCachePath) == "") {
+        return "";
     }
+    if (!CommonTestUtils::directoryExists(refCachePath)) {
+        CommonTestUtils::createDirectoryRecursive(refCachePath);
+    }
+    std::string path_to_cache = refCachePath + std::string(CommonTestUtils::FileSeparator);
+    std::string ref_name = model_path.substr(model_path.rfind(CommonTestUtils::FileSeparator) + 1);
+    ref_name = CommonTestUtils::replaceExt(ref_name, "bin");
+    path_to_cache +=  ref_name;
     return path_to_cache;
 }
 
