@@ -29,6 +29,7 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     RUN_ON_FUNCTION_SCOPE(ConvertToCPUSpecificOpset);
 
     ngraph::pass::Manager manager;
+    manager.set_per_pass_validation(false);
     manager.register_pass<ConvertMatMulToFC>();
     manager.register_pass<AlignMatMulInputRanks>();
     manager.register_pass<ConvertTileToSeqTiles>();
@@ -44,7 +45,7 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     manager.register_pass<ov::pass::ReshapeSequenceFusion>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ov::pass::ConvertPrecision>(precisions_array {{ ngraph::element::i64, ngraph::element::i32 }});
-
+    manager.register_pass<ov::pass::Validate>();
 
     manager.run_passes(nGraphFunc);
 }
