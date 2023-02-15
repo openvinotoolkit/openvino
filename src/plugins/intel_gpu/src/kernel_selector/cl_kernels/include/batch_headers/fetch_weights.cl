@@ -21,7 +21,7 @@
         o, i, z, y, x,                                            \
         CAT(prefix, _SIZE_X),                                     \
         CAT(prefix, _SIZE_Y),                                     \
-        1,                                                        \
+        CAT(prefix, _SIZE_Z),                                     \
         CAT(prefix, _IFM_NUM),                                    \
         CAT(prefix, _OFM_NUM),                                    \
         osv,                                                      \
