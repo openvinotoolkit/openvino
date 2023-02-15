@@ -20,7 +20,7 @@ class I16QuantisationTest : public GNATest<> {
  protected:
     InferenceEngine::CNNLayerPtr quantize (InferenceEngine::CNNLayerPtr lp) {
         auto newLayer = InferenceEngine::injectData<QuantizedLayerParams>(lp);
-        Config gna_config;        
+        Config gna_config;
         gna_config.gnaPrecision = InferenceEngine::Precision::I16;
         gna_config.gnaFlags.input_low_precision = false;
         LayerQuantizer lq(gna_config);
@@ -41,9 +41,10 @@ class I16QuantisationTest : public GNATest<> {
         gna_config.gnaPrecision = InferenceEngine::Precision::I16;
         gna_config.gnaFlags.input_low_precision = false;
 
-        return ModelQuantizer(gna_config, false).quantize(
+        auto transformer = ov::intel_gna::TransformationsPipeline(gna_config);
+
+        return ModelQuantizer(transformer).quantize(
             model,
-            [](const InferenceEngine::CNNNetwork&, bool run_before_copy, bool low_precision) {},
             inputs);
     }
 
@@ -367,7 +368,7 @@ TEST_F(I16QuantisationTest, fp16tofp32_on_fullyConnected_model) {
     auto weights = make_shared_blob<uint8_t>({ Precision::U8, {220}, Layout::C });
     weights->allocate();
     fillWeights(weights);
-    
+
     Core ie;
     auto network = ie.ReadNetwork(FCOnlyModelFP16(), weights);
 
@@ -431,7 +432,7 @@ TEST_F(I16QuantisationTest, LSTMCell_unaligned_quantize) {
     auto weights = make_shared_blob<uint8_t>({ Precision::U8, {3480}, C });
     weights->allocate();
     fillWeights(weights);
-    
+
     Core ie;
     auto network = ie.ReadNetwork(LSTMCellOnlyModelUnaligned(), weights);
 
@@ -468,7 +469,7 @@ TEST_F(I16QuantisationTest, TI_quantize) {
     auto weights = make_shared_blob<uint8_t>({ Precision::U8, {249748}, C });
     weights->allocate();
     fillWeights(weights);
-    
+
     Core ie;
     auto network = ie.ReadNetwork(TIModelWithLSTMCell2(), weights);
 
