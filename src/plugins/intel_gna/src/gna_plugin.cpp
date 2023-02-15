@@ -853,9 +853,6 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         }
         portId++;
     }
-    // TODO: how active list will work in multioutput case
-    // make room for active list
-    gnamem->getQueue(REGION_OUTPUTS)->reserve_ptr(nullptr, nullptr, outputs_.Get().begin()->get_required_size());
 
     void* pParallelExecutionData = nullptr;
 
