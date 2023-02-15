@@ -292,7 +292,7 @@ int main(int argc, char* argv[]) {
                 if (isFlagSetInCommandLine("nthreads"))
                     device_config[GNA_CONFIG_KEY(LIB_N_THREADS)] = std::to_string(FLAGS_nthreads);
             } else {
-                std::vector<std::string> supported_config_keys = (ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS))).as<std::vector<std::string>>();
+                std::vector<std::string> supported_config_keys = ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
                 auto supported = [&](const std::string& key) {
                     return std::find(std::begin(supported_config_keys), std::end(supported_config_keys), key) != std::end(supported_config_keys);
                 };
