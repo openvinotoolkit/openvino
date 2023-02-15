@@ -321,7 +321,7 @@ protected:
         }
     }
 
-    void set_skip_kernels() {
+    void update_kernels_list_to_skip() {
         for (size_t i = 0; i < _kernel_data.kernels.size(); ++i) {
             auto gws = _kernel_data.kernels[0].params.workGroups.global;
             _kernel_data.kernels[0].skip_execution =
