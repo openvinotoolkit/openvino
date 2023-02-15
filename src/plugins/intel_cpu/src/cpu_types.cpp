@@ -143,7 +143,7 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "GridSample", Type::GridSample},
         { "OneHot", Type::OneHot},
         { "RegionYolo", Type::RegionYolo},
-        { "Select", Type::Select},
+        { "Select", Type::Eltwise},
         { "ShuffleChannels", Type::ShuffleChannels},
         { "DFT", Type::DFT},
         { "IDFT", Type::DFT},
@@ -335,8 +335,6 @@ std::string NameFromType(const Type type) {
             return "OneHot";
         case Type::RegionYolo:
             return "RegionYolo";
-        case Type::Select:
-            return "Select";
         case Type::Roll:
             return "Roll";
         case Type::ShuffleChannels:
@@ -450,6 +448,7 @@ std::string algToString(const Algorithm alg) {
     CASE(EltwiseGelu);
     CASE(EltwiseElu);
     CASE(EltwiseTanh);
+    CASE(EltwiseSelect);
     CASE(EltwiseSigmoid);
     CASE(EltwiseAbs);
     CASE(EltwiseSqrt);

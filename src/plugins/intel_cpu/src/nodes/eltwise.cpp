@@ -528,7 +528,8 @@ private:
         OV_CASE(Algorithm::EltwiseSoftSign, jit_soft_sign_emitter),
         OV_CASE(Algorithm::EltwiseIsFinite, jit_is_finite_emitter),
         OV_CASE(Algorithm::EltwiseIsInf, jit_is_inf_emitter),
-        OV_CASE(Algorithm::EltwiseIsNaN, jit_is_nan_emitter));
+        OV_CASE(Algorithm::EltwiseIsNaN, jit_is_nan_emitter),
+        OV_CASE(Algorithm::EltwiseSelect, jit_select_emitter));
 
         if (precisions.empty())
             IE_THROW() << "Unsupported operation type for Eltwise emitter";
@@ -589,7 +590,8 @@ private:
         OV_CASE(Algorithm::EltwiseSoftSign, jit_soft_sign_emitter),
         OV_CASE(Algorithm::EltwiseIsFinite, jit_is_finite_emitter),
         OV_CASE(Algorithm::EltwiseIsInf, jit_is_inf_emitter),
-        OV_CASE(Algorithm::EltwiseIsNaN, jit_is_nan_emitter));
+        OV_CASE(Algorithm::EltwiseIsNaN, jit_is_nan_emitter),
+        OV_CASE(Algorithm::EltwiseSelect, jit_select_emitter));
 
         if (!ctx.emitter)
             IE_THROW() << "Unsupported operation type for Eltwise emitter";
@@ -1103,6 +1105,9 @@ const std::map<const ngraph::DiscreteTypeInfo, Eltwise::Initializer> Eltwise::in
     {ngraph::op::v9::SoftSign::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseSoftSign;
     }},
+    {ngraph::op::v1::Select::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+        node.algorithm = Algorithm::EltwiseSelect;
+    }},
 };
 
 
@@ -1593,6 +1598,7 @@ public:
                                      (_opData.beta  && (src_f[0] == std::numeric_limits<float>::infinity()));
                         break;
                     case Algorithm::EltwiseIsNaN:             *dst_ptr_f = std::isnan(src_f[0]); break;
+                    case Algorithm::EltwiseSelect:            *dst_ptr_f = src_f[0] ? src_f[1] : src_f[2]; break;
                     default: IE_THROW() << "Unsupported operation type for Eltwise executor";
                 }
             }
@@ -1660,6 +1666,13 @@ bool Eltwise::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
                 return false;
             }
         }
+        if (const auto select = std::dynamic_pointer_cast<const ov::op::v1::Select>(op)) {
+            if (select->get_auto_broadcast().m_type != ngraph::op::AutoBroadcastType::NONE &&
+                select->get_auto_broadcast().m_type != ngraph::op::AutoBroadcastType::NUMPY) {
+                errorMessage = "Doesn't support broadcast type: " + ngraph::as_string(select->get_autob().m_type);
+                return false;
+            }
+        }
     } catch (...) {
         return false;
     }
@@ -1723,6 +1736,7 @@ size_t Eltwise::getOpInputsNum() const {
         case Algorithm::EltwisePrelu:
             return 2;
         case Algorithm::EltwiseMulAdd:
+        case Algorithm::EltwiseSelect:
             return 3;
         default: IE_THROW() << "Unsupported operation for Eltwise node with name `" << getName() << "`.";
     }
@@ -2404,7 +2418,8 @@ bool Eltwise::canFuse(const NodePtr& node) const {
                                              Algorithm::EltwiseGreaterEqual,
                                              Algorithm::EltwiseLess,
                                              Algorithm::EltwiseLessEqual,
-                                             Algorithm::EltwiseMulAdd)) {
+                                             Algorithm::EltwiseMulAdd,
+                                             Algorithm::EltwiseSelect)) {
                 return false;
             }
 

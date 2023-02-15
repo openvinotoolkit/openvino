@@ -136,7 +136,6 @@ Node::NodesFactory::NodesFactory()
     INTEL_CPU_NODE(DeformableConvolution, Type::DeformableConvolution);
     INTEL_CPU_NODE(ReorgYolo, Type::ReorgYolo);
     INTEL_CPU_NODE(EmbeddingSegmentsSum, Type::EmbeddingSegmentsSum);
-    INTEL_CPU_NODE(Select, Type::Select);
     INTEL_CPU_NODE(ShapeOf, Type::ShapeOf);
     INTEL_CPU_NODE(ExperimentalDetectronGenerateProposalsSingleImage, Type::ExperimentalDetectronGenerateProposalsSingleImage);
     INTEL_CPU_NODE(GenerateProposals, Type::GenerateProposals);
