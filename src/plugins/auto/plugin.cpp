@@ -402,7 +402,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         if (modelPath.empty()) {
             // if network is valid
             LOG_INFO_TAG("load with CNN network");
-            supportDevices = FilterDeviceByNetwork(supportDevicesByConfig, network, false);
+            supportDevices = FilterDeviceByNetwork(supportDevicesByConfig, network);
             // clone the network, in case of reshape conflict
             clonedNetwork = InferenceEngine::details::cloneNetwork(network);
         } else {
@@ -470,7 +470,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() << " device";
     } else {  // for use case -d MULTI:xPU or -d AUTO:xPU
         auto metaDevicesByConfig = ParseMetaDevices(priorities->second, fullConfig);
-        metaDevices = modelPath.empty() ? FilterDeviceByNetwork(metaDevicesByConfig, network, true)
+        metaDevices = modelPath.empty() ? FilterDeviceByNetwork(metaDevicesByConfig, network)
                                         : metaDevicesByConfig;
         if (metaDevicesByConfig.size() != metaDevices.size()) {
             LOG_DEBUG_TAG("stateful/dynamic model, loaded to single device");
@@ -932,7 +932,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDevice(const st
     return filterDevice;
 }
 std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork(const std::vector<DeviceInformation>& metaDevices,
-                                                InferenceEngine::CNNNetwork network, bool isMulti) {
+                                                InferenceEngine::CNNNetwork network) {
     if (metaDevices.empty()) {
         IE_THROW(NotFound) << "No available device to filter " << GetName() <<  " plugin";
     }
@@ -956,7 +956,9 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork
     });
 
     // If CPU is in candidate list, load dynamic network to CPU first
-    if ((model->is_dynamic() || (isStateful() && !isMulti)) && cpuiter != metaDevices.end()) {
+    // For MULTI do not only load stateful network to CPU
+    // For AUTO CTPUT only load stateful network to CPU
+    if ((model->is_dynamic() || (isStateful() && _LogTag != "MULTI")) && cpuiter != metaDevices.end()) {
         filterDevice.push_back(*cpuiter);
         return filterDevice;
     }

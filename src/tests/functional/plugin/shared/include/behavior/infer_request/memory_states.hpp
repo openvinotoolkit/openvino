@@ -28,6 +28,7 @@ protected:
 public:
     void SetUp() override;
     static std::string getTestCaseName(const testing::TestParamInfo<memoryStateParams> &obj);
+    static InferenceEngine::CNNNetwork getNetwork();
 };
 
 using InferRequestQueryStateExceptionTest = InferRequestVariableStateTest;
