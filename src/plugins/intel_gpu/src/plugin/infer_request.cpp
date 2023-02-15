@@ -565,14 +565,14 @@ void InferRequest::wait() {
 
         // mapping remote blobs not needed -
         // let the user take care of them explicitly
-        if (!bptr->is<gpu::ClBlob>()) {
+        if (!bptr->is<gpu::ClBlob>() && outputMemory) {
             bool same_mem = false;
             {
                 auto dst_lock = bptr->cbuffer();
                 auto dst_ptr = dst_lock.as<uint8_t*>();
-                same_mem = outputMemory && same_host_mem(outputMemory, dst_ptr);
+                same_mem = same_host_mem(outputMemory, dst_ptr);
             }
-            if (!same_mem && outputMemory && outputMemory->size()) {
+            if (!same_mem && outputMemory->size()) {
                 copy_output_data(outputMemory, bptr);
             }
         }
