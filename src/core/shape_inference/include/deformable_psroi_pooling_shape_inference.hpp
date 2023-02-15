@@ -15,16 +15,6 @@ std::vector<TShape> shape_infer(const DeformablePSROIPooling* op, const std::vec
     const auto& input_pshape = input_shapes[0];
     const auto& box_coords_pshape = input_shapes[1];
 
-    if (input_shapes.size() == 3)  // offsets input is provided
-    {
-        const auto& offsets_shape = input_shapes[2];
-        NODE_VALIDATION_CHECK(op,
-                              offsets_shape.rank().compatible(4),
-                              "Third input rank must be compatible with 4 (input rank: ",
-                              offsets_shape.rank(),
-                              ")");
-    }
-
     NODE_VALIDATION_CHECK(op,
                           input_pshape.rank().compatible(4),
                           "First input rank must be compatible with 4 (input rank: ",
@@ -36,22 +26,25 @@ std::vector<TShape> shape_infer(const DeformablePSROIPooling* op, const std::vec
                           box_coords_pshape.rank(),
                           ")");
 
+    if (input_shapes.size() == 3)  // offsets input is provided
+    {
+        const auto& offsets_shape = input_shapes[2];
+        NODE_VALIDATION_CHECK(op,
+                              offsets_shape.rank().compatible(4),
+                              "Third input rank must be compatible with 4 (input rank: ",
+                              offsets_shape.rank(),
+                              ")");
+    }
+
     NODE_VALIDATION_CHECK(op, op->get_output_dim() > 0, "Value of `output_dim` attribute has to be greater than 0 ");
     NODE_VALIDATION_CHECK(op, op->get_group_size() > 0, "Value of `group_size` attribute has to be greater than 0 ");
 
-    constexpr int64_t output_rank = 4;
-    TShape output_shape;
-    output_shape.resize(output_rank);
-
-    if (box_coords_pshape.rank().is_static()) {
-        output_shape[0] = box_coords_pshape[0];  // Number of ROIs
-    }
-    output_shape[1] = op->get_output_dim();
-    for (int i = 2; i < output_rank; ++i) {
-        output_shape[i] = op->get_group_size();
-    }
-
-    return {output_shape};
+    using DimType = typename TShape::value_type;
+    // The output shape: [num_rois, output_dim, group_size, group_size]
+    return {TShape{box_coords_pshape.rank().is_static() ? box_coords_pshape[0] : DimType{},
+                   op->get_output_dim(),
+                   op->get_group_size(),
+                   op->get_group_size()}};
 }
 
 template <class TShape>

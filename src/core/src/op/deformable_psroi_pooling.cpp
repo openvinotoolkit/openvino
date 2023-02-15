@@ -72,13 +72,8 @@ bool op::v1::DeformablePSROIPooling::visit_attributes(AttributeVisitor& visitor)
 void op::v1::DeformablePSROIPooling::validate_and_infer_types() {
     OV_OP_SCOPE(v1_DeformablePSROIPooling_validate_and_infer_types);
     const auto& input_et = get_input_element_type(0);
-
     const auto input_shapes = get_node_input_partial_shapes(*this);
-    auto output_shapes = std::vector<ov::PartialShape>(1);
-
-    shape_infer(this, input_shapes, output_shapes);
-
-    set_output_type(0, input_et, output_shapes[0]);
+    set_output_type(0, input_et, shape_infer(this, input_shapes)[0]);
 }
 
 shared_ptr<Node> op::v1::DeformablePSROIPooling::clone_with_new_inputs(const OutputVector& new_args) const {
