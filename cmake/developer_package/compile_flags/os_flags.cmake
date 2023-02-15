@@ -411,6 +411,7 @@ else()
     ie_add_compiler_flags(-Wall)
     # Warn if an undefined identifier is evaluated in an #if directive. Such identifiers are replaced with zero.
     ie_add_compiler_flags(-Wundef)
+    ie_add_compiler_flags(-Wsign-compare)
 
     check_cxx_compiler_flag("-Wsuggest-override" SUGGEST_OVERRIDE_SUPPORTED)
     if(SUGGEST_OVERRIDE_SUPPORTED)
