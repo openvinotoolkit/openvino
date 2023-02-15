@@ -4,12 +4,7 @@
 
 #pragma once
 
-#include <memory>
-
-#include "openvino/core/any.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/node_output.hpp"
-#include "openvino/core/partial_shape.hpp"
 #include "openvino/frontend/decoder.hpp"
 
 namespace ov {

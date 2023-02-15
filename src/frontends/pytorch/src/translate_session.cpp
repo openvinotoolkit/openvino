@@ -10,6 +10,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/util/log.hpp"
 #include "utils.hpp"
 
 namespace ov {
