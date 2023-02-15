@@ -37,8 +37,6 @@ public:
     void wait_pipeline();
     void infer_postprocess();
 
-    ov::Tensor get_tensor(const ov::Output<const ov::Node>& port) const override;
-    void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) override;
     void set_tensors_impl(const ov::Output<const ov::Node> port, const std::vector<ov::Tensor>& tensors) override;
 
 private:

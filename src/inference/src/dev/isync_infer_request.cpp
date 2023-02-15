@@ -84,7 +84,18 @@ void check_batched_tensors(const ov::Output<const ov::Node>& input, const std::v
 ov::IInferRequest::~IInferRequest() = default;
 
 ov::ISyncInferRequest::ISyncInferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model)
-    : m_compiled_model(compiled_model) {}
+    : m_compiled_model(compiled_model) {
+    OPENVINO_ASSERT(m_compiled_model);
+    // Create map of empty tensors
+    for (const auto& input : get_inputs()) {
+        if (m_tensors.find(input.get_tensor_ptr()) == m_tensors.end())
+            m_tensors[input.get_tensor_ptr()] = ov::Tensor();
+    }
+    for (const auto& output : get_outputs()) {
+        if (m_tensors.find(output.get_tensor_ptr()) == m_tensors.end())
+            m_tensors[output.get_tensor_ptr()] = ov::Tensor();
+    }
+}
 
 const std::vector<ov::Output<const ov::Node>>& ov::ISyncInferRequest::get_inputs() const {
     return m_compiled_model->inputs();
@@ -139,21 +150,19 @@ void ov::ISyncInferRequest::convert_batched_tensors() {
     }
 }
 
-ov::Tensor ov::ISyncInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
-    OV_ITT_SCOPED_TASK(InferenceEngine::itt::domains::Plugin, "get_tensor");
+ov::Tensor& ov::ISyncInferRequest::get_ref_tensor(const ov::Output<const ov::Node>& port) const {
     auto found_port = find_port(port);
     OPENVINO_ASSERT(found_port.found(), "Cannot find tensor for port ", port);
-    if (found_port.is_input()) {
-        auto input = m_compiled_model->inputs().at(found_port.idx);
-        // TODO: Support dynamic inputs
-        // if (input.get_partial_shape().is_dynamic())
-        return m_input_tensors.at(found_port.idx);
-    }
+    auto ports = found_port.is_input() ? get_inputs() : get_outputs();
+    auto it = m_tensors.find(ports.at(found_port.idx).get_tensor_ptr());
+    OPENVINO_ASSERT(it != m_tensors.end(), "Cannot find tensor for port: ", port);
 
-    auto output = m_compiled_model->outputs().at(found_port.idx);
-    // TODO: Support dynamic inputs
-    // if (output.get_partial_shape().is_dynamic())
-    return m_output_tensors.at(found_port.idx);
+    return it->second;
+}
+
+ov::Tensor ov::ISyncInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
+    OV_ITT_SCOPED_TASK(InferenceEngine::itt::domains::Plugin, "get_tensor");
+    return get_ref_tensor(port);
 }
 
 void ov::ISyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) {
@@ -170,10 +179,10 @@ void ov::ISyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, c
                     port.get_shape(),
                     ").");
     if (found_port.is_input()) {
-        m_input_tensors.at(found_port.idx) = tensor;
+        m_tensors.at(get_inputs().at(found_port.idx).get_tensor_ptr()) = tensor;
         m_batched_tensors.erase(found_port.idx);
     } else {
-        m_output_tensors.at(found_port.idx) = tensor;
+        m_tensors.at(get_outputs().at(found_port.idx).get_tensor_ptr()) = tensor;
     }
 }
 
@@ -226,13 +235,19 @@ void ov::ISyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
                     ".");
 }
 
+void ov::ISyncInferRequest::allocate_tensor(const ov::Output<const ov::Node>& port,
+                                            const std::function<void(ov::Tensor& tensor)>& allocate_callback) {
+    auto& tensor = get_ref_tensor(port);
+    allocate_callback(tensor);
+}
+
 void ov::ISyncInferRequest::check_tensors() const {
     const auto& inputs = m_compiled_model->inputs();
     for (size_t i = 0; i < inputs.size(); i++) {
-        check_tensor(inputs[i], m_input_tensors[i]);
+        check_tensor(inputs[i], m_tensors.at(inputs[i].get_tensor_ptr()));
     }
     const auto& outputs = m_compiled_model->outputs();
     for (size_t i = 0; i < outputs.size(); i++) {
-        check_tensor(outputs[i], m_output_tensors[i]);
+        check_tensor(outputs[i], m_tensors.at(outputs[i].get_tensor_ptr()));
     }
 }

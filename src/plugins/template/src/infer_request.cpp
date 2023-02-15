@@ -10,6 +10,7 @@
 #include <string>
 #include <utility>
 
+#include "ngraph/runtime/host_tensor.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "plugin.hpp"
@@ -19,26 +20,11 @@ using Time = std::chrono::high_resolution_clock;
 
 namespace {
 
-static void AllocateImplSingle(std::vector<ov::Tensor>& tensors,
-                               size_t idx,
-                               const ov::element::Type& element_type,
-                               const ov::Shape& shape) {
-    OPENVINO_ASSERT(idx < tensors.size());
-    if (!tensors.at(idx) || tensors.at(idx).get_element_type() != element_type) {
-        tensors.at(idx) = ov::Tensor(element_type, shape);
+void allocate_tensor_impl(ov::Tensor& tensor, const ov::element::Type& element_type, const ov::Shape& shape) {
+    if (!tensor || tensor.get_element_type() != element_type) {
+        tensor = ov::Tensor(element_type, shape);
     } else {
-        tensors.at(idx).set_shape(shape);
-    }
-}
-
-static void AllocateImpl(std::vector<ov::Tensor>& tensors, const std::vector<ov::Output<const ov::Node>>& ports) {
-    OPENVINO_ASSERT(tensors.size() == ports.size());
-
-    for (size_t i = 0; i < tensors.size(); i++) {
-        AllocateImplSingle(tensors,
-                           i,
-                           ports.at(i).get_element_type(),
-                           ports.at(i).get_partial_shape().is_dynamic() ? ov::Shape{0} : ports.at(i).get_shape());
+        tensor.set_shape(shape);
     }
 }
 
@@ -68,11 +54,20 @@ TemplatePlugin::InferRequest::InferRequest(const std::shared_ptr<const TemplateP
     // Allocate plugin backend specific memory handles
     m_plugin_input_tensors.resize(get_inputs().size());
     m_plugin_output_tensors.resize(get_outputs().size());
-    m_input_tensors.resize(get_inputs().size());
-    m_output_tensors.resize(get_outputs().size());
 
-    AllocateImpl(m_input_tensors, get_inputs());
-    AllocateImpl(m_output_tensors, get_outputs());
+    // Allocate input/output tensors
+    for (const auto& input : get_inputs()) {
+        allocate_tensor(input, [input](ov::Tensor& tensor) {
+            // Can add a check to avoid double work in case of shared tensors
+            allocate_tensor_impl(tensor, input.get_element_type(), input.get_shape());
+        });
+    }
+    for (const auto& output : get_outputs()) {
+        allocate_tensor(output, [output](ov::Tensor& tensor) {
+            // Can add a check to avoid double work in case of shared tensors
+            allocate_tensor_impl(tensor, output.get_element_type(), output.get_shape());
+        });
+    }
 }
 // ! [infer_request:ctor]
 
@@ -110,25 +105,27 @@ void TemplatePlugin::InferRequest::infer_preprocess() {
     auto start = Time::now();
     convert_batched_tensors();
 
-    OPENVINO_ASSERT(m_input_tensors.size() == m_plugin_input_tensors.size());
-    for (size_t i = 0; i < m_input_tensors.size(); i++) {
+    OPENVINO_ASSERT(get_inputs().size() == m_plugin_input_tensors.size());
+    for (size_t i = 0; i < get_inputs().size(); i++) {
+        auto tensor = get_tensor(get_inputs()[i]);
         // No ROI extraction is needed
-        m_plugin_input_tensors[i] = get_template_model()->get_template_plugin()->_backend->create_tensor(
-            m_input_tensors.at(i).get_element_type(),
-            m_input_tensors.at(i).get_shape(),
-            m_input_tensors.at(i).data());
+        m_plugin_input_tensors[i] =
+            get_template_model()->get_template_plugin()->_backend->create_tensor(tensor.get_element_type(),
+                                                                                 tensor.get_shape(),
+                                                                                 tensor.data());
     }
-    OPENVINO_ASSERT(m_output_tensors.size() == m_plugin_output_tensors.size());
-    for (size_t i = 0; i < m_output_tensors.size(); i++) {
+    OPENVINO_ASSERT(get_outputs().size() == m_plugin_output_tensors.size());
+    for (size_t i = 0; i < get_outputs().size(); i++) {
         const auto& result = get_template_model()->m_model->get_results()[i];
         if (result->get_output_partial_shape(0).is_dynamic()) {
             m_plugin_output_tensors[i] = get_template_model()->get_template_plugin()->_backend->create_tensor();
             continue;
         }
-        m_plugin_output_tensors[i] = get_template_model()->get_template_plugin()->_backend->create_tensor(
-            m_output_tensors.at(i).get_element_type(),
-            m_output_tensors.at(i).get_shape(),
-            m_output_tensors.at(i).data());
+        auto tensor = get_tensor(get_outputs()[i]);
+        m_plugin_output_tensors[i] =
+            get_template_model()->get_template_plugin()->_backend->create_tensor(tensor.get_element_type(),
+                                                                                 tensor.get_shape(),
+                                                                                 tensor.data());
     }
     m_durations[Preprocess] = Time::now() - start;
 }
@@ -155,82 +152,22 @@ void TemplatePlugin::InferRequest::wait_pipeline() {
 void TemplatePlugin::InferRequest::infer_postprocess() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, m_profiling_task[Postprocess]);
     auto start = Time::now();
-    OPENVINO_ASSERT(m_output_tensors.size() == m_plugin_output_tensors.size());
-    for (size_t i = 0; i < m_output_tensors.size(); i++) {
+    OPENVINO_ASSERT(get_outputs().size() == m_plugin_output_tensors.size());
+    for (size_t i = 0; i < get_outputs().size(); i++) {
         const auto& result = get_template_model()->m_model->get_results()[i];
-        auto tensor = m_output_tensors[i];
         if (result->get_output_partial_shape(0).is_dynamic()) {
             auto host_tensor = m_plugin_output_tensors[i];
-            AllocateImplSingle(m_output_tensors, i, host_tensor->get_element_type(), host_tensor->get_shape());
-            // tensor.set_shape(host_tensor->get_shape());
-            host_tensor->read(static_cast<char*>(tensor.data()), host_tensor->get_size_in_bytes());
+            ov::Output<const ov::Node> output{result->output(0).get_node(), result->output(0).get_index()};
+            allocate_tensor(output, [host_tensor](ov::Tensor& tensor) {
+                allocate_tensor_impl(tensor, host_tensor->get_element_type(), host_tensor->get_shape());
+                // tensor.set_shape(host_tensor->get_shape());
+                host_tensor->read(static_cast<char*>(tensor.data()), host_tensor->get_size_in_bytes());
+            });
         }
     }
     m_durations[Postprocess] = Time::now() - start;
 }
 // ! [infer_request:infer_postprocess]
-
-// ! [infer_request:get_blob]
-ov::Tensor TemplatePlugin::InferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
-    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "get_tensor");
-    auto found_port = find_port(port);
-    OPENVINO_ASSERT(found_port.found(), "Failed to get tensor, port ", port, " cannot be found.");
-
-    ov::Tensor data;
-    if (found_port.is_input()) {
-        data = m_input_tensors[found_port.idx];
-        ov::Shape shape;
-        shape = data.get_shape();
-        check_tensor(port, data);
-    } else {
-        data = m_output_tensors[found_port.idx];
-        ov::Shape shape;
-        auto has_zeros = [](const ov::Shape& vec) {
-            return std::any_of(vec.cbegin(), vec.cend(), [](size_t e) {
-                return e == 0;
-            });
-        };
-        if (port.get_partial_shape().is_static() && !has_zeros(port.get_shape())) {
-            shape = port.get_shape();
-        } else if (!has_zeros(data.get_shape())) {
-            shape = data.get_shape();
-        } else {
-            shape = ov::Shape(
-                port.get_partial_shape().rank().is_dynamic() ? 1 : port.get_partial_shape().rank().get_length(),
-                0);
-        }
-        check_tensor(port, data);
-    }
-    return data;
-}
-// ! [infer_request:get_blob]
-
-// ! [infer_request:set_blob]
-void TemplatePlugin::InferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) {
-    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "set_tensor");
-    auto found_port = find_port(port);
-    OPENVINO_ASSERT(found_port.found(), "Failed to set tensor, port ", port, " cannot be found.");
-
-    OPENVINO_ASSERT(tensor.get_element_type() == port.get_element_type(),
-                    "Failed to set tensor with element type: ",
-                    tensor.get_element_type(),
-                    ", this element type is not corresponding to model element type: ",
-                    port.get_element_type());
-    OPENVINO_ASSERT(port.get_partial_shape().is_dynamic() || port.get_shape() == tensor.get_shape(),
-                    "Tensor shape (",
-                    tensor.get_shape(),
-                    ") doesn't match with model shape (",
-                    port.get_partial_shape(),
-                    ").");
-
-    if (found_port.is_input()) {
-        m_input_tensors.at(found_port.idx) = tensor;
-        m_batched_tensors.erase(found_port.idx);
-    } else {
-        m_output_tensors.at(found_port.idx) = tensor;
-    }
-}
-// ! [infer_request:set_blob]
 
 // ! [infer_request:set_blobs_impl]
 void TemplatePlugin::InferRequest::set_tensors_impl(const ov::Output<const ov::Node> port,

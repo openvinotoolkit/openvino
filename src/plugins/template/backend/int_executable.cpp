@@ -85,7 +85,8 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
     // map function outputs -> HostTensor
     for (size_t output_count = 0; output_count < get_results().size(); ++output_count) {
         auto output = get_results()[output_count]->output(0).get_tensor_ptr();
-        results_map.emplace(output, results_map.size());
+        if (!results_map.count(output))
+            results_map.emplace(output, output_count);
     }
 
     EvaluationContext eval_context;

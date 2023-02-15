@@ -11,13 +11,14 @@
 
 #include <exception>
 #include <memory>
-#include <openvino/runtime/tensor.hpp>
 #include <unordered_map>
 #include <vector>
 
+#include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/profiling_info.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 
@@ -142,12 +143,16 @@ protected:
      */
     void check_tensors() const override;
 
-    std::vector<ov::Tensor> m_input_tensors;
-    std::vector<ov::Tensor> m_output_tensors;
     std::unordered_map<size_t, std::vector<ov::Tensor>> m_batched_tensors;
+
+    void allocate_tensor(const ov::Output<const ov::Node>& port,
+                         const std::function<void(ov::Tensor& tensor)>& allocate_callback);
 
 private:
     std::shared_ptr<const ov::ICompiledModel> m_compiled_model;
+    // Mutable to return reference to ov::Tensor
+    mutable std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, ov::Tensor> m_tensors;
+    ov::Tensor& get_ref_tensor(const ov::Output<const ov::Node>& port) const;
 };
 
 };  // namespace ov
