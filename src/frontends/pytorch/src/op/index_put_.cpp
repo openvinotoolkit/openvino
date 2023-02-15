@@ -49,6 +49,8 @@ OutputVector translate_index_put_(NodeContext& context) {
     auto accumulate = context.const_input<bool>(3);
 
     auto indices_partial_shape = indices.get_partial_shape();
+    FRONT_END_OP_CONVERSION_CHECK(indices_partial_shape.rank().is_static(),
+                                  "We support only indices with static rank.");
     auto indices_first_dim = indices_partial_shape[0];
     FRONT_END_OP_CONVERSION_CHECK(indices_first_dim.is_static(),
                                   "We support only lists of tensors with static number of elements.");
