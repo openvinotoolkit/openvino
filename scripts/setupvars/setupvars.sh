@@ -3,7 +3,13 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-SCRIPT_DIR="$( cd "$( dirname "$(realpath "${BASH_SOURCE[0]}")" )" >/dev/null 2>&1 && pwd )"
+abs_path () {
+    path=$(eval echo "$1")
+    directory=$(dirname "$path")
+    echo "$(cd "$directory" || exit; pwd -P)/$(basename "$path")";
+}
+
+SCRIPT_DIR="$( cd "$( dirname "$(abs_path "${BASH_SOURCE[0]}")" )" >/dev/null 2>&1 && pwd )"
 INSTALLDIR="${SCRIPT_DIR}"
 export INTEL_OPENVINO_DIR="$INSTALLDIR"
 
