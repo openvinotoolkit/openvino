@@ -4,6 +4,7 @@
 
 #include "common_op_table.hpp"
 #include "helper_ops/fifo_queue.hpp"
+#include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 
@@ -16,7 +17,7 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 
-OutputVector translate_queue_dequeue_op(const NodeContext& node) {
+OutputVector translate_queue_dequeue_op(const ov::frontend::tensorflow::NodeContext& node) {
     // QueueDequeue operation generates multiple outputs
     // which we prune and create Parameter node for
     vector<string> supported_ops = {"QueueDequeue",

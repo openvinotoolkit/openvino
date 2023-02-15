@@ -5,6 +5,7 @@
 #include "helper_ops/iterator.hpp"
 
 #include "common_op_table.hpp"
+#include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 
@@ -17,7 +18,7 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 
-OutputVector translate_iterator_op(const NodeContext& node) {
+OutputVector translate_iterator_op(const ov::frontend::tensorflow::NodeContext& node) {
     default_op_checks(node, 0, {"Iterator", "IteratorV2", "OneShotIterator"});
     // retrieve all attributes
     auto container = node.get_attribute<string>("container");
@@ -25,7 +26,7 @@ OutputVector translate_iterator_op(const NodeContext& node) {
     auto output_types = node.get_attribute<vector<element::Type>>("output_types");
     auto output_shapes = node.get_attribute<vector<PartialShape>>("output_shapes");
 
-    auto iterator = make_shared<Iterator>(shared_name, container, output_types, output_shapes);
+    auto iterator = make_shared<Iterator>(shared_name, container, output_types, output_shapes, node.get_decoder());
     set_node_name(node.get_name(), iterator);
     return {iterator};
 }
