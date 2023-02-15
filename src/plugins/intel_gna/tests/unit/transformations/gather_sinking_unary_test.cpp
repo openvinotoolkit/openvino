@@ -128,7 +128,7 @@ public:
     }
 };
 
-#define CREATE_PASS_FACTORY(pass_name) std::make_shared<PassFactory<ov::pass::pass_name>>(#pass_name)
+#define CREATE_PASS_FACTORY(pass_name) std::make_shared<PassFactory<ov::intel_gna::pass::pass_name>>(#pass_name)
 
 #undef CREATE_UNARY_FACTORY
 #define CREATE_UNARY_FACTORY(type_name) CreateUnaryFactory<type_name>(#type_name)

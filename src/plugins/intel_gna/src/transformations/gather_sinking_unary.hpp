@@ -8,15 +8,13 @@
 #include "transformations_visibility.hpp"
 
 namespace ov {
+namespace intel_gna {
 namespace pass {
 
 class TRANSFORMATIONS_API GatherSinkingUnaryForward;
 class TRANSFORMATIONS_API GatherSinkingUnaryBackwardSingleConsumer;
 class TRANSFORMATIONS_API GatherSinkingUnaryBackwardMultiConsumers;
 class TRANSFORMATIONS_API GatherSinkingUnaryBackward;
-
-}  // namespace pass
-}  // namespace ov
 
 /**
  * @brief Moves Gather layer forward from the start to the end of the graph
@@ -55,7 +53,7 @@ class TRANSFORMATIONS_API GatherSinkingUnaryBackward;
  * after Gather does not support by GatherSinking transformations. That is done to
  * prevent backward pushing the layer that already pushed forward through the graph.
  */
-class ov::pass::GatherSinkingUnaryForward : public ov::pass::MatcherPass {
+class GatherSinkingUnaryForward : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("GatherSinkingUnaryForward", "0");
     GatherSinkingUnaryForward();
@@ -72,7 +70,7 @@ public:
  *    |           |
  *   Gather      Unary
  */
-class ov::pass::GatherSinkingUnaryBackwardSingleConsumer : public ov::pass::MatcherPass {
+class GatherSinkingUnaryBackwardSingleConsumer : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("GatherSinkingUnaryBackwardSingleConsumer", "0");
     GatherSinkingUnaryBackwardSingleConsumer();
@@ -97,7 +95,7 @@ public:
  * - All Unary consumers are Gather layers
  * - All that Gather layers equal each other
  */
-class ov::pass::GatherSinkingUnaryBackwardMultiConsumers : public ov::pass::MatcherPass {
+class GatherSinkingUnaryBackwardMultiConsumers : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("GatherSinkingUnaryBackwardMultiConsumers", "0");
     GatherSinkingUnaryBackwardMultiConsumers();
@@ -107,8 +105,12 @@ public:
  * @brief GatherSinkingUnaryBackward transformations calls GatherSinkingUnaryBackward and
  * GatherSinkingUnaryBackwardMultiConsumers so there is no need to use them if GatherSinkingUnaryBackward is used
  */
-class ov::pass::GatherSinkingUnaryBackward : public ov::pass::GraphRewrite {
+class GatherSinkingUnaryBackward : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("GatherSinkingUnaryBackward", "0");
     GatherSinkingUnaryBackward();
 };
+
+}  // namespace pass
+}  // namespace intel_gna
+}  // namespace ov

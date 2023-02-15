@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/gather_sinking_utils.hpp"
+#include "transformations/utils/gather_sinking_utils.hpp"
 
 #include <openvino/pass/pattern/op/or.hpp>
 #include <transformations/utils/utils.hpp>
@@ -91,14 +91,6 @@ Output<Node> FixInputNodeRank(Output<Node> input_node, Rank::value_type required
     if (output_rank >= required_rank)
         return input_node;
     return InsertUnsqueeze(input_node, required_rank - output_rank)->output(0);
-}
-
-ov::AxisVector ReverseGatherIndexes(const ov::AxisVector& indexes) {
-    ov::AxisVector inverted(indexes.size());
-    for (size_t idx = 0; idx < indexes.size(); ++idx)
-        inverted[indexes[idx]] = idx;
-
-    return inverted;
 }
 
 }  // namespace

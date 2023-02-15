@@ -10,7 +10,7 @@
 
 #include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/gather_sinking_utils.hpp"
+#include "transformations/utils/gather_sinking_utils.hpp"
 #include "transformations/rt_info/gather_sinking_attr.hpp"
 
 using namespace ov;
@@ -18,6 +18,7 @@ using namespace ov::opset9;
 using namespace ov::pass::pattern;
 using namespace ov::op::util;
 using namespace gather_sinking;
+using namespace ov::intel_gna::pass;
 
 namespace {
 
@@ -99,7 +100,7 @@ NodePair Swap(NodePtr first_node, NodePtr second_node) {
 
 }  // namespace
 
-ov::pass::GatherSinkingUnaryForward::GatherSinkingUnaryForward() {
+GatherSinkingUnaryForward::GatherSinkingUnaryForward() {
     MATCHER_SCOPE(GatherSinkingUnaryForward);
     auto gather_label = wrap_type<Gather>({any_input(), any_input(), any_input()});
     auto unary_label = wrap_type<UnaryElementwiseArithmetic, Clamp, Elu, SoftPlus, LogicalNot, Convert>({gather_label});
@@ -129,7 +130,7 @@ bool IfGatherSinkingEnabled(const Output<Node>& output) {
 }
 }  // namespace
 
-ov::pass::GatherSinkingUnaryBackwardSingleConsumer::GatherSinkingUnaryBackwardSingleConsumer() {
+GatherSinkingUnaryBackwardSingleConsumer::GatherSinkingUnaryBackwardSingleConsumer() {
     MATCHER_SCOPE(GatherSinkingUnaryBackwardSingleConsumer);
     auto unary_label =
         wrap_type<UnaryElementwiseArithmetic, Clamp, Elu, SoftPlus, LogicalNot, Convert>({any_input()},
@@ -162,7 +163,7 @@ std::function<bool(Output<Node>)> consumers_more_than(size_t n) {
 }
 }  // namespace
 
-ov::pass::GatherSinkingUnaryBackwardMultiConsumers::GatherSinkingUnaryBackwardMultiConsumers() {
+GatherSinkingUnaryBackwardMultiConsumers::GatherSinkingUnaryBackwardMultiConsumers() {
     MATCHER_SCOPE(GatherSinkingUnaryBackwardMultiConsumers);
     auto unary_restrictions = [](const Output<Node>& output) -> bool {
         return consumers_more_than(1)(output) && HasSameOutputGatherNodes(output);
@@ -197,8 +198,8 @@ ov::pass::GatherSinkingUnaryBackwardMultiConsumers::GatherSinkingUnaryBackwardMu
     register_matcher(m, matcher_pass_callback);
 }
 
-ov::pass::GatherSinkingUnaryBackward::GatherSinkingUnaryBackward() {
+GatherSinkingUnaryBackward::GatherSinkingUnaryBackward() {
     MATCHER_SCOPE(GatherSinkingUnaryBackward);
-    add_matcher<ov::pass::GatherSinkingUnaryBackwardSingleConsumer>();
-    add_matcher<ov::pass::GatherSinkingUnaryBackwardMultiConsumers>();
+    add_matcher<GatherSinkingUnaryBackwardSingleConsumer>();
+    add_matcher<GatherSinkingUnaryBackwardMultiConsumers>();
 }
