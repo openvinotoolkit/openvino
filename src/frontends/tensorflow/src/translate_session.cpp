@@ -43,14 +43,14 @@ TranslateSession::TranslateSession(const ov::frontend::InputModel::Ptr& input_mo
                                    const std::string& model_name,
                                    bool fail_fast,
                                    bool telemetry)
-    : m_fail_fast(fail_fast),
+    : m_input_model(input_model),
+      m_fail_fast(fail_fast),
       m_telemetry(telemetry),
-      m_input_model(input_model),
       m_translator_map(translator_map),
       m_model_name(model_name),
-      m_ov_model(nullptr),
       m_cached_body_models(std::make_shared<CachedBodyModelsType>()),
-      m_telemetry_data(std::make_shared<TelemetryDataType>()) {}
+      m_telemetry_data(std::make_shared<TelemetryDataType>()),
+      m_ov_model(nullptr) {}
 
 std::shared_ptr<ov::Model> TranslateSession::get_converted_model() {
     if (m_ov_model) {

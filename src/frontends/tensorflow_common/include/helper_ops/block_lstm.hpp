@@ -31,10 +31,10 @@ public:
               bool use_peephole,
               const std::shared_ptr<DecoderBase>& decoder = std::make_shared<DecoderFake>())
         : InternalOperation(decoder, OutputVector{seq_len_max, x, cs_prev, h_prev, w, wci, wcf, wco, b}, 7),
+          m_hidden_size(ov::Dimension::dynamic()),
           m_forget_bias(forget_bias),
           m_cell_clip(cell_clip),
-          m_use_peephole(use_peephole),
-          m_hidden_size(ov::Dimension::dynamic()) {
+          m_use_peephole(use_peephole) {
         validate_and_infer_types();
     }
 

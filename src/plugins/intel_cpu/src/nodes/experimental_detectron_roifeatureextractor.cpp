@@ -279,35 +279,6 @@ void split_points(const std::vector<int>& ids, std::vector<int>& rois_per_level,
     rois_per_level.insert(rois_per_level.begin(), 0);
 }
 
-
-void reorder_rois(const float *rois, const int* ids, int* mapping, const int rois_num,
-                  float * reordered_rois, std::vector<int>& rois_per_level, const int levels_num) {
-    rois_per_level.clear();
-    rois_per_level.resize(levels_num, 0);
-    for (int i = 0; i < rois_num; ++i) {
-        assert(0 <= ids[i] && ids[i] < levels_num);
-        rois_per_level[ids[i]]++;
-    }
-    for (int i = 1; i < levels_num; ++i) {
-        rois_per_level[i] += rois_per_level[i - 1];
-    }
-    rois_per_level.insert(rois_per_level.begin(), 0);
-
-    std::vector<int> level_counter = rois_per_level;
-
-    for (int i = 0; i < rois_num; ++i) {
-        const int level = ids[i];
-        assert(level < levels_num);
-        const int j = level_counter[level];
-        assert(0 <= j && j < rois_num);
-        reordered_rois[j * 4 + 0] = rois[i * 4 + 0];
-        reordered_rois[j * 4 + 1] = rois[i * 4 + 1];
-        reordered_rois[j * 4 + 2] = rois[i * 4 + 2];
-        reordered_rois[j * 4 + 3] = rois[i * 4 + 3];
-        level_counter[level]++;
-    }
-}
-
 } // namespace
 
 bool ExperimentalDetectronROIFeatureExtractor::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,

@@ -100,3 +100,20 @@ class TestAddTypes(PytorchLayerTest):
         self.rhs_shape = rhs_shape
         self._test(*self.create_model(lhs_type, lhs_shape, rhs_type, rhs_shape),
                    ie_device, precision, ir_version)
+
+class TestAddLists(PytorchLayerTest):
+
+    def _prepare_input(self):
+        return (np.random.randn(2, 5, 3, 4).astype(np.float32),)
+
+    def create_model(self):
+        class aten_add(torch.nn.Module):
+            def forward(self, x):
+                return x.reshape(x.shape[:-1] + (-1,))
+
+        return aten_add(), None, "aten::add"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_add(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version)

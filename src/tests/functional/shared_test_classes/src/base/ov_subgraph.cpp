@@ -13,6 +13,7 @@
 #include <process.h>
 #endif
 
+#include "openvino/pass/manager.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "transformations/convert_precision.hpp"

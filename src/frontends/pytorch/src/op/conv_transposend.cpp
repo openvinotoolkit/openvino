@@ -38,7 +38,7 @@ OutputVector translate_conv_transposend(NodeContext& context) {
     } else {
         conv = std::make_shared<ov::op::v1::GroupConvolutionBackpropData>(
             context.get_input(0),
-            reshape_kernel_for_group(context, context.get_input(0), context.get_input(1), groups),
+            reshape_kernel_for_group(context, context.get_input(1), groups),
             strides,
             pads,
             pads,

@@ -43,4 +43,14 @@ bool interval_bound_evaluator(const Node* node, TensorVector& lower_output_value
 /// only on pointers comparison.
 bool has_and_set_equal_bounds(const Output<Node>& source);
 
+/// \brief Checks if all node's inputs [first, last] have set bounds.
+///
+/// \param node
+/// \param first_idx   Index of first node for check.
+/// \param last_idx    Index of last node for check.
+///
+/// \return True If all inputs between [first, last] have bounds set, otherwise false. Return false if last input
+/// greater than node's inputs count.
+bool have_node_inputs_bounds_set(const ov::Node* const node, const size_t first_idx, const size_t last_idx);
+
 }  // namespace ov
