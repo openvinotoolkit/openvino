@@ -25,9 +25,11 @@ OutputVector translate_list_construct(NodeContext& context) {
         FRONT_END_OP_CONVERSION_CHECK(c_node, "Translation for prim::ListConstruct support only constant inputs");
         if (c_node->get_shape().size() == 0) {
             c_node = std::make_shared<v0::Constant>(c_node->get_element_type(), Shape{1}, c_node->get_data_ptr());
+            consts.push_back(c_node);
+        } else {
+            auto unsqueezed_c_node = context.mark_node(std::make_shared<v0::Unsqueeze>(c_node, const_0));
+            consts.push_back(unsqueezed_c_node);
         }
-        auto unsqueezed_c_node = context.mark_node(std::make_shared<v0::Unsqueeze>(c_node, const_0));
-        consts.push_back(unsqueezed_c_node);
     }
     auto list_construct = std::make_shared<v0::Concat>(consts, 0);
     if (list_construct->has_evaluate()) {

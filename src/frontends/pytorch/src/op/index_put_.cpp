@@ -8,6 +8,8 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert_like.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/mod.hpp"
 #include "openvino/op/scatter_nd_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
@@ -71,11 +73,26 @@ OutputVector translate_index_put_(NodeContext& context) {
             auto broadcast =
                 context.mark_node(std::make_shared<v3::Broadcast>(split_indices->output(i), broadcast_index_shape));
             auto unsqueeze = context.mark_node(std::make_shared<v0::Unsqueeze>(broadcast, const_neg_1));
+            
+            // change negative indices to positive indices
+            auto const_i = context.mark_node(v0::Constant::create(element::i32, Shape{}, {i}));
+            auto dim_i = context.mark_node(std::make_shared<v8::Gather>(input_shape, const_i, const_0));
+            auto dim_i_correct_type = context.mark_node(std::make_shared<v1::ConvertLike>(dim_i, index));
+            unsqueeze = context.mark_node(std::make_shared<v1::Add>(unsqueeze, dim_i_correct_type));
+            unsqueeze = context.mark_node(std::make_shared<v1::Mod>(unsqueeze, dim_i_correct_type));
+
             indices_list.push_back(unsqueeze);
         }
         index = context.mark_node(std::make_shared<v0::Concat>(indices_list, -1));
     } else {
         index = split_indices->output(0);
+
+        // change negative indices to positive indices
+        auto dim_0 = context.mark_node(std::make_shared<v8::Gather>(input_shape, const_0, const_0));
+        auto dim_0_correct_type = context.mark_node(std::make_shared<v1::ConvertLike>(dim_0, index));
+        index = context.mark_node(std::make_shared<v1::Add>(index, dim_0_correct_type));
+        index = context.mark_node(std::make_shared<v1::Mod>(index, dim_0_correct_type));
+
         broadcast_index_shape = context.mark_node(std::make_shared<v3::ShapeOf>(index, element::i32));
         index = context.mark_node(std::make_shared<v0::Unsqueeze>(index, const_neg_1));
     }

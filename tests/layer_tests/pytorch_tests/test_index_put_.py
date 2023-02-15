@@ -35,6 +35,8 @@ class TestIndexPut_SingleIndices(PytorchLayerTest):
                                              {'input_tensor': np.random.randn(3, 3).astype(np.float32),
                                              'values': np.array([10, 11, 12]).astype(np.float32)}))
     @pytest.mark.parametrize('indices', (torch.tensor([0], dtype=torch.long),
+                                         torch.tensor([-1, -2], dtype=torch.long),
+                                         torch.tensor([0, -1, -2], dtype=torch.long),
                                          torch.tensor([1, 2], dtype=torch.long),
                                          torch.tensor([0, 1, 2], dtype=torch.long)))
     @pytest.mark.parametrize('accumulate', (True, False))
@@ -76,7 +78,13 @@ class TestIndexPut_ManyIndices(PytorchLayerTest):
                                          (torch.tensor([1, 2], dtype=torch.long),
                                           torch.tensor([0, 1], dtype=torch.long)),
                                          (torch.tensor([0, 1], dtype=torch.long),
-                                          torch.tensor([0, 1], dtype=torch.long))))
+                                          torch.tensor([0, 1], dtype=torch.long)),
+                                          (torch.tensor([0], dtype=torch.long),
+                                          torch.tensor([-2], dtype=torch.long)),
+                                         (torch.tensor([-1, -2], dtype=torch.long),
+                                          torch.tensor([0, 1], dtype=torch.long)),
+                                         (torch.tensor([0, -1], dtype=torch.long),
+                                          torch.tensor([0, -1], dtype=torch.long))))
     @pytest.mark.parametrize('accumulate', (True, False))
     @pytest.mark.nightly
     @pytest.mark.precommit
