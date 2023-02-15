@@ -228,8 +228,6 @@ static inline void flat_triangle(const uint8_t* in, uint8_t* out, size_t size, s
 }
 
 void Interaction::execRef(dnnl::stream strm) {
-    using tag = dnnl::memory::format_tag;
-    using dt = dnnl::memory::data_type;
     using namespace dnnl;
     uint8_t* outFeaturesPtr = reinterpret_cast<uint8_t*>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
     std::vector<const uint8_t*> inputPtrs(inputSizes);
@@ -243,7 +241,7 @@ void Interaction::execRef(dnnl::stream strm) {
     float* scales = fqScales.empty() ? nullptr : fqScales.data();
     for (int64_t start = 0; start < batchSize; start++) {
         cat(reinterpret_cast<uint8_t*>(inputMemPtr->GetPtr()), inputPtrs, featureSizes, start, dataPrecision.size());
-        (*prim).execute(strm, mem_ags);
+        prim.execute(strm, mem_ags);
         flat_triangle(reinterpret_cast<const uint8_t*>(outputMemPtr->GetPtr()),
                       reinterpret_cast<uint8_t*>(flatMemPtr->GetPtr()),
                       inputSizes,
@@ -278,8 +276,6 @@ bool Interaction::created() const {
 }
 
 void Interaction::prepareParams() {
-    using tag = dnnl::memory::format_tag;
-    using dt = dnnl::memory::data_type;
     using namespace dnnl;
     const auto& denseFeatureDims = getParentEdgeAt(0)->getMemory().getStaticDims();
     batchSize = denseFeatureDims[0];
@@ -300,7 +296,7 @@ void Interaction::prepareParams() {
     auto matmul_d = matmul::desc(src_md, weights_md, dst_md);
     primitive_attr matmul_attr;
     auto matmul_pd = matmul::primitive_desc(matmul_d, matmul_attr, getEngine());
-    prim.reset(new matmul(matmul_pd));
+    prim = matmul(matmul_pd);
     featureSizes.assign(inputSizes, featureSize);
     auto initMemoryPtr = [&](const InferenceEngine::Precision &prc, const intel_cpu::Shape& shape,
         MemoryPtr& ptr) {

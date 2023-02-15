@@ -48,28 +48,22 @@ struct shuffle_channels_impl : typed_primitive_impl_ocl<shuffle_channels> {
 namespace detail {
 
 attach_shuffle_channels_impl::attach_shuffle_channels_impl() {
-    implementation_map<shuffle_channels>::add(impl_types::ocl, typed_primitive_impl_ocl<shuffle_channels>::create<shuffle_channels_impl>, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::f32, format::fs_b_yx_fsv32),
-        std::make_tuple(data_types::f16, format::fs_b_yx_fsv32),
-    });
-}
+    auto types =
+        {data_types::f16, data_types::f32, data_types::i8, data_types::u8};
+    auto formats = {
+        format::bfyx,
+        format::b_fs_yx_fsv4,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::fs_b_yx_fsv32,
+        format::bs_fs_yx_bsv16_fsv32,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv32_fsv32,
+        format::bs_fs_yx_bsv32_fsv16,
+    };
 
+    implementation_map<shuffle_channels>::add(impl_types::ocl, typed_primitive_impl_ocl<shuffle_channels>::create<shuffle_channels_impl>, types, formats);
+}
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn

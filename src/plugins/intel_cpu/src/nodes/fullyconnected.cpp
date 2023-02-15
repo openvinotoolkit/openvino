@@ -329,10 +329,6 @@ void FullyConnected::prepareParams() {
         }
         // fallback
         if (!execPtr) {
-            DEBUG_LOG(" ??? ", key.inp0->getDnnlDesc());
-            DEBUG_LOG(" ??? ", key.inp1->getDnnlDesc());
-            DEBUG_LOG(" ??? ", key.out->getDnnlDesc());
-
             auto inDesc = key.inp0->getDnnlDesc();
             if (inDesc.dims().size() == 3) {
                 auto inDims = inDesc.dims();
@@ -346,8 +342,6 @@ void FullyConnected::prepareParams() {
                 auto normalizedOutDims = { outDims[0] * outDims[1], outDims[2] };
                 outDesc = outDesc.reshape(normalizedOutDims);
             }
-            DEBUG_LOG(" ???=== inDesc ", inDesc);
-            DEBUG_LOG(" ???=== outDesc ", outDesc);
 
             std::shared_ptr<dnnl::inner_product_forward::desc> fcDsc;
             if (key.bias) {
@@ -895,11 +889,11 @@ bool FullyConnected::canBeExecutedInConv1x1() const {
 }
 
 FullyConnected::ExecutorInnerProduct::ExecutorInnerProduct(const dnnl::inner_product_forward::primitive_desc& pd) {
-    execPrim.reset(new dnnl::inner_product_forward(pd));
+    execPrim = dnnl::inner_product_forward(pd);
 }
 
 FullyConnected::ExecutorConv1x1::ExecutorConv1x1(const dnnl::convolution_forward::primitive_desc& pd) {
-    execPrim.reset(new dnnl::convolution_forward(pd));
+    execPrim = dnnl::convolution_forward(pd);
 }
 
 MemoryPtr FullyConnected::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {

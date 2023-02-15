@@ -13,7 +13,7 @@
 namespace TemplatePlugin {
 
 // ! [configuration:header]
-using ConfigMap = std::map<std::string, std::string>;
+using ConfigMap = std::map<std::string, ov::Any>;
 
 struct Configuration {
     Configuration();

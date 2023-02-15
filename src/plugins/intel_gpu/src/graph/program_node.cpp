@@ -9,6 +9,8 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "convolution_inst.h"
+#include "gemm_inst.h"
+#include "fully_connected_inst.h"
 #include "deconvolution_inst.h"
 #include "quantize_inst.h"
 #include "reorder_inst.h"
@@ -488,6 +490,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
             case onednn_post_op_type::eltwise_clip:
             case onednn_post_op_type::eltwise_linear:
             case onednn_post_op_type::eltwise_round:
+            case onednn_post_op_type::eltwise_hardsigmoid:
             {
                 dnnl::algorithm alg;
                 float alpha, beta;
@@ -928,14 +931,21 @@ void program_node::init_onednn_primitive_attributes() {
                 post_ops.append_prelu(1 << oc_dim);
                 update_onednn_post_op_list(onednn_post_op_type::binary_relu, dep_idx);
             } else if (fused_desc->activation_function == cldnn::activation_func::hard_sigmoid) {
-                // Splits hard_sigmoid activation into eltwise_linear, min and max.
-                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear,
-                    fused_desc->additional_params.a, fused_desc->additional_params.b);
-                post_ops.append_eltwise(dnnl::algorithm::eltwise_clip, 0.0f, 1.0f);
+                post_ops.append_eltwise(dnnl::algorithm::eltwise_hardsigmoid, fused_desc->additional_params.a, fused_desc->additional_params.b);
+                update_onednn_post_op_list(onednn_post_op_type::eltwise_hardsigmoid, empty_mem);
+            } else if (fused_desc->activation_function == cldnn::activation_func::hsigmoid) {
+                // hard_sigmoid(x,a,b) = clamp(ax+b, 0, 1)
+                // hsigmoid(x) = clamp(val+3, 0, 6) / 6 = clamp(val/6+0.5, 0, 1) = hard_sigmoid(val, 1/6, 1/2)
+                post_ops.append_eltwise(dnnl::algorithm::eltwise_hardsigmoid, 1./6, 1./2);
+                update_onednn_post_op_list(onednn_post_op_type::eltwise_hardsigmoid, empty_mem);
+            } else if (fused_desc->activation_function == cldnn::activation_func::negative) {
+                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, -1, 0);
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
-                update_onednn_post_op_list(onednn_post_op_type::eltwise_clip, empty_mem);
             } else {
                 dnnl::algorithm alg = onednn::convert_activation_func(fused_desc->activation_function);
+                if (alg == dnnl::algorithm::undef)
+                    IE_THROW() << "Activations that are undef algorithms must be converted to other activations before "
+                                  "pushing to post-op.";
                 // Usage of alpha and beta between cldnn::pow and dnnl::eltwise::pow is different : d = pow(src, a) / d = a * pow(src, b)
                 if (alg == dnnl::algorithm::eltwise_pow)
                     post_ops.append_eltwise(alg, 1.0f, fused_desc->additional_params.a);
@@ -950,6 +960,28 @@ void program_node::init_onednn_primitive_attributes() {
             auto dep_idx = desc.dep_start_idx;
             auto in = get_dependency(dep_idx).get_output_layout();
 
+            auto set_binary_op = [&](dnnl::algorithm alg, onednn_post_op_type op_type) {
+                if (is_type<fully_connected>()) {
+                    std::unique_ptr<const kernel_impl_params> impl_params = get_kernel_impl_params();
+                    auto prim = impl_params->typed_desc<fully_connected>();
+                    if (prim->input_size == 3) {
+                        cldnn::onednn::combine_bf_with_first_spatial_dim(in);
+                    }
+                    post_ops.append_binary(alg, onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::ab));
+                    update_onednn_post_op_list(op_type, dep_idx);
+                } else if (is_type<gemm>()) {
+                    size_t rank = cldnn::format::dimension(in.format);
+                    dnnl::memory::dims dims = onednn::convert_gemm_tensor(in.get_tensor(), rank, in.batch() > 1);
+                    dnnl::memory::data_type dt = onednn::convert_data_type(in.data_type);
+                    dnnl::memory::format_tag fmt = onednn::convert_gemm_data_format(dims);
+                    post_ops.append_binary(alg, dnnl::memory::desc(dims, dt, fmt));
+                    update_onednn_post_op_list(op_type, dep_idx);
+                } else {
+                    post_ops.append_binary(alg, onednn::layout_to_memory_desc(in));
+                    update_onednn_post_op_list(op_type, dep_idx);
+                }
+            };
+
             if (desc.typed_desc<eltwise>()->mode == eltwise_mode::sum) {
                 auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(*this, cldnn_post_ops[idx]);
                 if (fusing_type == add_fusing_type::sum && num_sum_post_ops == 0) {
@@ -961,18 +993,12 @@ void program_node::init_onednn_primitive_attributes() {
                     update_onednn_post_op_list(onednn_post_op_type::sum, dep_idx);
                     num_sum_post_ops++;
                 } else {
-                    dnnl::memory::desc in_desc = onednn::layout_to_memory_desc(in);
-                    post_ops.append_binary(dnnl::algorithm::binary_add, in_desc);
-                    update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx);
+                    set_binary_op(dnnl::algorithm::binary_add, onednn_post_op_type::binary_add);
                 }
             } else if (desc.typed_desc<eltwise>()->mode == eltwise_mode::sub) {
-                dnnl::memory::desc in_desc = onednn::layout_to_memory_desc(in);
-                post_ops.append_binary(dnnl::algorithm::binary_sub, in_desc);
-                update_onednn_post_op_list(onednn_post_op_type::binary_sub, dep_idx);
+                set_binary_op(dnnl::algorithm::binary_sub, onednn_post_op_type::binary_sub);
             } else if (desc.typed_desc<eltwise>()->mode == eltwise_mode::prod) {
-                dnnl::memory::desc in_desc = onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::ab, true);
-                post_ops.append_binary(dnnl::algorithm::binary_mul, in_desc);
-                update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx, dnnl::memory::format_tag::ab, true);
+                set_binary_op(dnnl::algorithm::binary_mul, onednn_post_op_type::binary_mul);
             } else {
                 std::stringstream error_msg;
                 error_msg << "Unsupported eltwise mode: " << static_cast<int>(desc.typed_desc<eltwise>()->mode) << ". ";
