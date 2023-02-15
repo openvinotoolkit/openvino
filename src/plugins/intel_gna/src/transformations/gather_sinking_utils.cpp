@@ -101,17 +101,6 @@ ov::AxisVector ReverseGatherIndexes(const ov::AxisVector& indexes) {
     return inverted;
 }
 
-std::shared_ptr<Constant> ReverseConstant(const std::shared_ptr<Constant>& node) {
-    if (!node)
-        return {};
-
-    const auto value = ReverseGatherIndexes(node->get_axis_vector_val());
-    const Shape& shape = node->get_output_shape(0);
-    const auto& element_type = node->get_element_type();
-
-    return std::make_shared<Constant>(element_type, shape, value);
-}
-
 }  // namespace
 
 namespace sink_backward {
