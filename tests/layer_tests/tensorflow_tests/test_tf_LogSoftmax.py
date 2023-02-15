@@ -9,10 +9,12 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestLogSoftmax(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'logits' in inputs_info
-        logits_shape = inputs_info['logits']
+        # this test is still under for the legacy frontend
+        # but the input name with :0 for the legacy
+        input_name = list(inputs_info.keys())[0]
+        logits_shape = inputs_info[input_name]
         inputs_data = {}
-        inputs_data['logits'] = np.random.randint(1, 5, logits_shape).astype(np.float32)
+        inputs_data[input_name] = np.random.randint(1, 5, logits_shape).astype(np.float32)
 
         return inputs_data
 
