@@ -14,6 +14,7 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_squeeze_op(const NodeContext& node) {
+    default_op_checks(node, 1, {"Squeeze", "SQUEEZE"});
     auto input = node.get_input(0);
     std::vector<int64_t> axis;
     if (node.has_attribute("axis")) {
@@ -23,9 +24,9 @@ OutputVector translate_squeeze_op(const NodeContext& node) {
         axis = node.get_attribute<std::vector<int64_t>>("squeeze_dims", {});
     }
     auto axis_const = make_shared<Constant>(element::i32, Shape{axis.size()}, axis);
-    auto res = make_shared<Squeeze>(input, axis_const);
-    set_node_name(node.get_name(), res);
-    return res->outputs();
+    auto squeeze = make_shared<Squeeze>(input, axis_const);
+    set_node_name(node.get_name(), squeeze);
+    return {squeeze};
 }
 
 }  // namespace op
