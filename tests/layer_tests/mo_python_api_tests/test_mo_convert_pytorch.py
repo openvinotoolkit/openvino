@@ -422,7 +422,7 @@ def create_pytorch_nn_module_mean_list(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
 
     return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]],
-                                 'onnx_opset_version': 11, 'compress_to_fp16': False}
+                                 'onnx_opset_version': 11, 'compress_to_fp16': False, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_mean_list_default_compression(tmp_dir):
@@ -472,7 +472,7 @@ def create_pytorch_nn_module_mean_list_compressin_enabled(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
 
     return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]],
-                                 'onnx_opset_version': 11, 'compress_to_fp16': True}
+                                 'onnx_opset_version': 11, 'compress_to_fp16': True, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_scale_list(tmp_dir):
@@ -494,7 +494,7 @@ def create_pytorch_nn_module_scale_list(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
 
     return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]],
-                                 'onnx_opset_version': 11, 'compress_to_fp16': False}
+                                 'onnx_opset_version': 11, 'compress_to_fp16': False, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_scale_list_default_compression(tmp_dir):
@@ -544,7 +544,7 @@ def create_pytorch_nn_module_scale_list_compression_enabled(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
 
     return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]],
-                                 'onnx_opset_version': 11, 'compress_to_fp16': True}
+                                 'onnx_opset_version': 11, 'compress_to_fp16': True, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_shapes_list_static(tmp_dir):
