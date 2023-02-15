@@ -23,12 +23,12 @@ public:
               const std::string& container,
               const std::string& shared_name,
               const std::shared_ptr<DecoderBase>& decoder = nullptr)
-        : m_component_types(component_types),
+        : InternalOperation(decoder, OutputVector{}, 1),
+          m_component_types(component_types),
           m_shapes(shapes),
           m_capacity(capacity),
           m_container(container),
-          m_shared_name(shared_name),
-          InternalOperation(decoder, OutputVector{}, 1) {
+          m_shared_name(shared_name) {
         validate_and_infer_types();
     }
 

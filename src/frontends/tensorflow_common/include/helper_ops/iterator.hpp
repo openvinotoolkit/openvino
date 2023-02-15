@@ -22,11 +22,11 @@ public:
              const std::vector<ov::element::Type>& output_types,
              const std::vector<ov::PartialShape>& output_shapes,
              const std::shared_ptr<DecoderBase>& decoder = nullptr)
-        : m_shared_name(shared_name),
+        : InternalOperation(decoder, OutputVector{}, 1),
+          m_shared_name(shared_name),
           m_container(container),
           m_output_types(output_types),
-          m_output_shapes(output_shapes),
-          InternalOperation(decoder, OutputVector{}, 1) {
+          m_output_shapes(output_shapes) {
         validate_and_infer_types();
     }
 
