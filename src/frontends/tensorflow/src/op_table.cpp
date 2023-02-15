@@ -21,8 +21,14 @@ namespace op {
 
 TF_OP_CONVERTER(translate_if_op);
 TF_OP_CONVERTER(translate_block_lstm_op);
+TF_OP_CONVERTER(translate_fifo_queue_op);
 TF_OP_CONVERTER(translate_gru_block_cell_op);
+TF_OP_CONVERTER(translate_hash_table_op);
+TF_OP_CONVERTER(translate_iterator_get_next_op);
+TF_OP_CONVERTER(translate_iterator_op);
+TF_OP_CONVERTER(translate_lookup_table_insert_op);
 TF_OP_CONVERTER(translate_partitioned_call_op);
+TF_OP_CONVERTER(translate_queue_dequeue_op);
 TF_OP_CONVERTER(translate_sparse_fill_empty_rows_op);
 TF_OP_CONVERTER(translate_sparse_reshape_op);
 TF_OP_CONVERTER(translate_sparse_segment_sum_op);
