@@ -39,17 +39,21 @@ bool Transpose::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
 
 class TransposeShapeInfer : public ShapeInferEmptyPads {
 public:
-    TransposeShapeInfer(const size_t& out_rank, const std::vector<size_t>& axes_vec) : m_out_rank(out_rank), m_axes_vec(axes_vec) {
-        m_outputShape = VectorDims(out_rank, 1);
-        m_needReverse = m_axes_vec.empty();
-    }
+    TransposeShapeInfer(const size_t& out_rank, const std::vector<size_t>& axes_vec)
+    : m_out_rank(out_rank), m_axes_vec(axes_vec), m_outputShape(std::move(VectorDims(out_rank, 1))), m_needReverse(axes_vec.empty()) {}
 
     std::vector<VectorDims> infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         const VectorDims& shapeIn = input_shapes[0].get();
-        for (auto i = 0; i < m_out_rank; ++i) {
-            m_outputShape[i] = m_needReverse ? shapeIn[m_out_rank - 1 - i] : shapeIn[m_axes_vec[i]];
+        if (m_needReverse) {
+            for (auto i = 0; i < m_out_rank; ++i) {
+                m_outputShape[i] = shapeIn[m_out_rank - 1 - i];
+            }
+        } else {
+            for (auto i = 0; i < m_out_rank; ++i) {
+                m_outputShape[i] = shapeIn[m_axes_vec[i]];
+            }
         }
         return {m_outputShape};
     }
@@ -62,7 +66,7 @@ private:
     const size_t m_out_rank;
     const std::vector<size_t> m_axes_vec;
     VectorDims m_outputShape;
-    bool m_needReverse;
+    const bool m_needReverse;
 };
 
 class TransposeShapeInferFactory : public ShapeInferFactory {
@@ -78,7 +82,7 @@ public:
     }
 
 private:
-    const std::shared_ptr<ngraph::Node> m_op;
+    const std::shared_ptr<ov::Node> m_op;
 };
 
 Transpose::Transpose(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
