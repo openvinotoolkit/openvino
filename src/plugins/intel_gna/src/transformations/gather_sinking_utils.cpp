@@ -15,7 +15,6 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/rt_info/gather_sinking_attr.hpp"
-#include "transformations/rt_info/gather_sinking_attr.hpp"
 
 namespace gather_sinking {
 
@@ -94,7 +93,7 @@ Output<Node> FixInputNodeRank(Output<Node> input_node, Rank::value_type required
     return InsertUnsqueeze(input_node, required_rank - output_rank)->output(0);
 }
 
-ov::AxisVector ReverseGatherIndexes(const ov::AxisVector & indexes) {
+ov::AxisVector ReverseGatherIndexes(const ov::AxisVector& indexes) {
     ov::AxisVector inverted(indexes.size());
     for (size_t idx = 0; idx < indexes.size(); ++idx)
         inverted[indexes[idx]] = idx;
@@ -150,8 +149,8 @@ NodeVector InsertGatherBeforeNode(NodePtr main_node,
 
 namespace {
 #define CHECK_GATHER_SINKING_SUPPORTED(TYPE, node) \
-    if (dynamic_cast<TYPE*>(node)) {                  \
-        return true;                                  \
+    if (dynamic_cast<TYPE*>(node)) {               \
+        return true;                               \
     }
 
 bool CanPropagateGatherForwardThrough(Node* node) {
@@ -187,17 +186,17 @@ void UpdateForwardGatherSinkingAbility(NodePtr node) {
 namespace {
 
 struct GatherInfo {
-    bool isEmpty() const { return indices.empty(); }
-    bool operator == (const GatherInfo& another) {
+    bool isEmpty() const {
+        return indices.empty();
+    }
+    bool operator==(const GatherInfo& another) {
         if (indices.size() != another.indices.size())
-                return false;
-        if (!std::equal(indices.begin(),
-                        indices.end(),
-                        another.indices.begin()))
+            return false;
+        if (!std::equal(indices.begin(), indices.end(), another.indices.begin()))
             return false;
         return axis == another.axis;
     }
-    bool operator != (const GatherInfo& another) {
+    bool operator!=(const GatherInfo& another) {
         return !(*this == another);
     }
 

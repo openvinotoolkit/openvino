@@ -21,25 +21,25 @@ class TRANSFORMATIONS_API GatherSinkingUnaryBackward;
 /**
  * @brief Moves Gather layer forward from the start to the end of the graph
  * through the unary operations UnaryElementwiseArithmetic, Clamp, Elu, SoftPlus, LogicalNot, Convert
- * 
+ *
  *  Gather          Unary
  *    |      =>       |
  *  Unary           Gather
  *    |               |
  *  Another         Another
- * 
+ *
  *   Gather                Unary
  *     |            =>       |
  *   Unary                Gather
  *    |  |                 |   |
  * Any1  Any2             Any1 Any2
- * 
+ *
  *     Gather                Unary1
  *       |           =>      |   |
  *     Unary1              Unary2 Unary3
  *     |    |                |     |
  * Unary2  Unary3          Gather Gather
- * 
+ *
  *     Another1              Another1
  *        |                  |      |
  *     Gather             Unary   Gather
@@ -47,7 +47,7 @@ class TRANSFORMATIONS_API GatherSinkingUnaryBackward;
  *    Unary Another2       Gather     Another2
  *     |                     |
  *    Another3              Another3
- * 
+ *
  * All GatherSinking tranformations are designed to work in 2 steps:
  * - forward push
  * - backward push
@@ -65,13 +65,13 @@ public:
  * @brief Moves Gather layer backward from the end to the start of the graph
  * Works only with single consumer case. If Gather is marked as not-sinkable
  * (since it was moved previously by forward sinking) it is not proceeded.
- * 
+ *
  *   Any         Any
  *    |           |
  *   Unary  =>   Gather
  *    |           |
  *   Gather      Unary
-*/
+ */
 class ov::pass::GatherSinkingUnaryBackwardSingleConsumer : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("GatherSinkingUnaryBackwardSingleConsumer", "0");
@@ -82,7 +82,7 @@ public:
  * @brief Moves Gather layer backward from the end to the start of the graph
  * Works only with multiple consumer case. If Gather is marked as non-sinkable
  * (since it was moved previously by forward sinking) it is not proceeded.
- * 
+ *
  *      Any1          Any1
  *       |            |
  *     Unary  =>     Gather
@@ -90,10 +90,10 @@ public:
  *   Gather Gather   Unary
  *     |     |       |   |
  *    Any2  Any3    Any2 Any3
- * 
+ *
  * Moves Gather layer backward only if:
  * - Gather is not marked as non-sinkable
- * - Unary layer has > 1 gather consumers 
+ * - Unary layer has > 1 gather consumers
  * - All Unary consumers are Gather layers
  * - All that Gather layers equal each other
  */
@@ -104,8 +104,8 @@ public:
 };
 
 /**
- * @brief GatherSinkingUnaryBackward transformations calls GatherSinkingUnaryBackward and GatherSinkingUnaryBackwardMultiConsumers
- * so there is no need to use them if GatherSinkingUnaryBackward is used
+ * @brief GatherSinkingUnaryBackward transformations calls GatherSinkingUnaryBackward and
+ * GatherSinkingUnaryBackwardMultiConsumers so there is no need to use them if GatherSinkingUnaryBackward is used
  */
 class ov::pass::GatherSinkingUnaryBackward : public ov::pass::GraphRewrite {
 public:

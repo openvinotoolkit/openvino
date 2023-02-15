@@ -4,9 +4,9 @@
 
 #include "transformations/gather_sinking_unary.hpp"
 
+#include <openvino/cc/ngraph/itt.hpp>
 #include <transformations/utils/utils.hpp>
 #include <utility>
-#include <openvino/cc/ngraph/itt.hpp>
 
 #include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -102,8 +102,7 @@ NodePair Swap(NodePtr first_node, NodePtr second_node) {
 ov::pass::GatherSinkingUnaryForward::GatherSinkingUnaryForward() {
     MATCHER_SCOPE(GatherSinkingUnaryForward);
     auto gather_label = wrap_type<Gather>({any_input(), any_input(), any_input()});
-    auto unary_label =
-        wrap_type<UnaryElementwiseArithmetic, Clamp, Elu, SoftPlus, LogicalNot, Convert>({gather_label});
+    auto unary_label = wrap_type<UnaryElementwiseArithmetic, Clamp, Elu, SoftPlus, LogicalNot, Convert>({gather_label});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();

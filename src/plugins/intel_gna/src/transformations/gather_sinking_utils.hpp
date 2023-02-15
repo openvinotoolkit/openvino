@@ -39,7 +39,6 @@ GatherInputsInfo GetFirstGatherInput(std::shared_ptr<ov::Node>);
  */
 bool IfNodeHasGatherInputs(const ov::Output<ov::Node>&);
 
-
 namespace sink_backward {
 /**
  * @brief Inserts Gather layers on each input of @arg main_node with cloned indices and axes constants
