@@ -224,5 +224,4 @@ using ov::Tensor;
 using ov::TensorVector;
 }  // namespace runtime
 
-OPENVINO_API std::ostream& operator<<(std::ostream& out, const ov::Tensor& tensor);
 }  // namespace ov

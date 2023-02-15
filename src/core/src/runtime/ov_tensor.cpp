@@ -3,106 +3,13 @@
 //
 
 #include <numeric>
-#include <string>
 
 #include "blob_factory.hpp"  // IE private header
 #include "ie_common.h"
 #include "ie_ngraph_utils.hpp"  // IE private header
 #include "openvino/core/except.hpp"
-#include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "runtime/blob_allocator.hpp"
-
-namespace {
-
-template <class T>
-std::string print_values(const T* data, size_t from, size_t size) {
-    std::string ret;
-    for (size_t i = from; i < size; i++) {
-        if (!ret.empty())
-            ret += ", ";
-        ret += std::to_string(data[i]);
-    }
-    return ret;
-}
-
-std::string serialize_values(const void* data, const ov::element::Type& element, size_t from, size_t size) {
-    switch (element) {
-    case ov::element::boolean:
-        return print_values(static_cast<const ov::element_type_traits<ov::element::boolean>::value_type*>(data),
-                            from,
-                            size);
-    case ov::element::bf16:
-        return print_values(static_cast<const ov::element_type_traits<ov::element::bf16>::value_type*>(data),
-                            from,
-                            size);
-    case ov::element::f16:
-        return print_values(static_cast<const ov::element_type_traits<ov::element::f16>::value_type*>(data),
-                            from,
-                            size);
-    case ov::element::f32:
-        return print_values(static_cast<const ov::element_type_traits<ov::element::f32>::value_type*>(data),
-                            from,
-                            size);
-    case ov::element::f64:
-        return print_values(static_cast<const ov::element_type_traits<ov::element::f64>::value_type*>(data),
-                            from,
-                            size);
-    case ov::element::i4:
-        return print_values(static_cast<const ov::element_type_traits<ov::element::i4>::value_type*>(data), from, size);
-    case ov::element::i8:
-        return print_values(static_cast<const ov::element_type_traits<ov::element::i8>::value_type*>(data), from, size);
-    case ov::element::i16:
-        return print_values(static_cast<const ov::element_type_traits<ov::element::i16>::value_type*>(data),
-                            from,
-                            size);
-    case ov::element::i32:
-        return print_values(static_cast<const ov::element_type_traits<ov::element::i32>::value_type*>(data),
-                            from,
-                            size);
-    case ov::element::i64:
-        return print_values(static_cast<const ov::element_type_traits<ov::element::i64>::value_type*>(data),
-                            from,
-                            size);
-    case ov::element::u1:
-        return print_values(static_cast<const ov::element_type_traits<ov::element::u1>::value_type*>(data), from, size);
-    case ov::element::u4:
-        return print_values(static_cast<const ov::element_type_traits<ov::element::u4>::value_type*>(data), from, size);
-    case ov::element::u8:
-        return print_values(static_cast<const ov::element_type_traits<ov::element::u8>::value_type*>(data), from, size);
-    case ov::element::u16:
-        return print_values(static_cast<const ov::element_type_traits<ov::element::u16>::value_type*>(data),
-                            from,
-                            size);
-    case ov::element::u32:
-        return print_values(static_cast<const ov::element_type_traits<ov::element::u32>::value_type*>(data),
-                            from,
-                            size);
-    case ov::element::u64:
-        return print_values(static_cast<const ov::element_type_traits<ov::element::u64>::value_type*>(data),
-                            from,
-                            size);
-    default:
-        OPENVINO_UNREACHABLE("Unsupported tensor data type: ", element);
-    }
-}
-
-void print_values(std::ostream& out,
-                  const void* data,
-                  const ov::element::Type& element,
-                  size_t size,
-                  size_t max_elements) {
-    out << "    [";
-    size_t start_elem = size <= max_elements ? size : max_elements / 2;
-    size_t end_elem = size <= max_elements ? 0 : max_elements - start_elem;
-    out << serialize_values(data, element, 0, start_elem);
-    if (end_elem) {
-        out << ", ..., ";
-        out << serialize_values(data, element, size - end_elem, size);
-    }
-    out << "]" << std::endl;
-}
-}  // namespace
 
 namespace ov {
 
@@ -256,18 +163,6 @@ bool Tensor::operator!() const noexcept {
 
 Tensor::operator bool() const noexcept {
     return (!!_impl);
-}
-
-std::ostream& operator<<(std::ostream& out, const ov::Tensor& tensor) {
-    if (!tensor) {
-        out << "Tensor is not initialized!" << std::endl;
-        return out;
-    }
-    out << "Tensor " << tensor.get_element_type() << " " << tensor.get_shape() << " " << tensor.data() << std::endl;
-
-    // Print some tensor elements
-    print_values(out, tensor.data(), tensor.get_element_type(), tensor.get_size(), 10);
-    return out;
 }
 
 }  // namespace ov
