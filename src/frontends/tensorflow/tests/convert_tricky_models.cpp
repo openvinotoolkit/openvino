@@ -262,3 +262,39 @@ TEST_F(TransformationTestsF, ModelWithSaveV2) {
         model_ref = make_shared<Model>(OutputVector{add}, ParameterVector{x});
     }
 }
+
+TEST_F(TransformationTestsF, ModelWithIteratorGetNext) {
+    { model = convert_model("model_with_iterator_get_next/model_with_iterator_get_next.pb"); }
+    {
+        // create a reference graph
+        auto x = make_shared<Parameter>(element::f32, Shape{2, 3});
+        auto y = make_shared<Parameter>(element::f32, Shape{2, 3});
+        auto sub = make_shared<Subtract>(x, y);
+
+        model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{x, y});
+    }
+}
+
+TEST_F(TransformationTestsF, ModelWithQueueOperations) {
+    { model = convert_model("model_with_queue_ops/model_with_queue_ops.pb"); }
+    {
+        // create a reference graph
+        auto x = make_shared<Parameter>(element::f32, PartialShape{Dimension::dynamic(), 160, 160, 3});
+        auto y = make_shared<Parameter>(element::f32, PartialShape{Dimension::dynamic(), 160, 160, 3});
+        auto sub = make_shared<Subtract>(x, y);
+
+        model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{x, y});
+    }
+}
+
+TEST_F(TransformationTestsF, ModelWithLookupTableOperations) {
+    { model = convert_model("model_with_lookup_table/model_with_lookup_table.pb"); }
+    {
+        // create a reference graph
+        auto x = make_shared<Parameter>(element::f32, Shape{2});
+        auto const_2 = make_shared<Constant>(element::f32, Shape{2}, vector<float>{1, 2});
+        auto add = make_shared<Add>(x, const_2);
+
+        model_ref = make_shared<Model>(OutputVector{add}, ParameterVector{x});
+    }
+}
