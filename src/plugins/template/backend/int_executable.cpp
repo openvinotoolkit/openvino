@@ -41,6 +41,44 @@ public:
     }
 };
 
+inline void update_output_tensors(const ov::TensorVector& output_values, const HostTensorVector& outputs) {
+    OPENVINO_ASSERT(output_values.size() == outputs.size());
+    for (int i = 0; i < output_values.size(); ++i) {
+        auto& tensor = output_values[i];
+        auto& hosttensor = outputs[i];
+        if (hosttensor->get_is_allocated()) {
+            hosttensor->set_shape(tensor.get_shape());
+            std::copy_n(static_cast<uint8_t*>(tensor.data()),
+                        tensor.get_byte_size(),
+                        hosttensor->get_data_ptr<uint8_t>());
+        } else {
+            hosttensor->initialize(
+                make_shared<ov::op::v0::Constant>(tensor.get_element_type(), tensor.get_shape(), tensor.data()));
+        }
+    }
+}
+
+inline ov::TensorVector convert_hosttensors_2_tensors(const HostTensorVector& host_tensors, bool copy_data) {
+    ov::TensorVector ret_value;
+    ov::Tensor tensor;
+    for (const auto& hosttensor : host_tensors) {
+        if (hosttensor->get_element_type().is_dynamic()) {
+            tensor = ov::Tensor();
+        } else if (hosttensor->get_partial_shape().is_dynamic()) {
+            tensor = ov::Tensor(hosttensor->get_element_type(), {0});
+        } else {
+            tensor = ov::Tensor(hosttensor->get_element_type(), hosttensor->get_shape());
+            if (copy_data) {
+                std::copy_n(hosttensor->get_data_ptr<uint8_t>(),
+                            hosttensor->get_size_in_bytes(),
+                            static_cast<uint8_t*>(tensor.data()));
+            }
+        }
+        ret_value.emplace_back(tensor);
+    }
+    return ret_value;
+}
+
 runtime::interpreter::INTExecutable::INTExecutable(const shared_ptr<Function>& function,
                                                    bool enable_performance_collection)
     : m_is_compiled{true},
@@ -130,21 +168,6 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
             op_outputs.push_back(host_tensor);
         }
 
-        // get op type
-        element::Type type;
-        if (ov::is_type<op::Convert>(op) || ov::is_type<op::v0::PriorBox>(op) || ov::is_type<op::v8::PriorBox>(op)) {
-            type = op->get_input_element_type(0);
-        } else if (ov::is_type<op::v1::Equal>(op) || ov::is_type<op::v1::Greater>(op) ||
-                   ov::is_type<op::v1::GreaterEqual>(op) || ov::is_type<op::v1::Less>(op) ||
-                   ov::is_type<op::v1::LessEqual>(op) || ov::is_type<op::v1::NotEqual>(op)) {
-            // Get the type of the second input, not the first
-            // All BinaryElementwiseComparision ops have the same type for inputs
-            // Select has bool for first input and the type we are interested in for the second
-            type = op->get_input_element_type(1);
-        } else {
-            type = op->get_output_element_type(0);
-        }
-
         if (m_performance_counters_enabled) {
             m_timer_map[op].start();
         }
@@ -159,8 +182,13 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
             }
         }
 
+        const ov::TensorVector tensor_inputs = convert_hosttensors_2_tensors(op_inputs, true);
+        ov::TensorVector tensor_outputs = convert_hosttensors_2_tensors(op_outputs, false);
+
         // Call evaluate for cloned_node with static shapes
-        if (!cloned_node->evaluate(op_outputs, op_inputs, eval_context)) {
+        if (cloned_node->evaluate(tensor_outputs, tensor_inputs, eval_context)) {
+            update_output_tensors(tensor_outputs, op_outputs);
+        } else {
             evaluate_node(cloned_node, op_outputs, op_inputs);
         }
         if (m_performance_counters_enabled) {
