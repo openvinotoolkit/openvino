@@ -111,5 +111,21 @@ struct strided_slice : public primitive_base<strided_slice> {
         seed = hash_range(seed, shrink_axis_mask.begin(), shrink_axis_mask.end());
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const strided_slice>(rhs);
+
+        return begin == rhs_casted.begin &&
+               end == rhs_casted.end &&
+               strides == rhs_casted.strides &&
+               begin_mask == rhs_casted.begin_mask &&
+               end_mask == rhs_casted.end_mask &&
+               new_axis_mask == rhs_casted.new_axis_mask &&
+               shrink_axis_mask == rhs_casted.shrink_axis_mask &&
+               ellipsis_mask == rhs_casted.ellipsis_mask;
+    }
 };
 }  // namespace cldnn

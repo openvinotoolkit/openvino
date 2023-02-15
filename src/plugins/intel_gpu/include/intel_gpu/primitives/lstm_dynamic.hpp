@@ -91,6 +91,23 @@ struct lstm_dynamic : public primitive_base<lstm_dynamic> {
         return seed;
     }
 
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const lstm_dynamic>(rhs);
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(clip) &&
+               cmp_fields(input_forget) &&
+               cmp_fields(last_hidden_state.empty()) &&
+               cmp_fields(last_cell_state.empty()) &&
+               cmp_fields(initial_hidden.empty()) &&
+               cmp_fields(initial_cell.empty()) &&
+               cmp_fields(bias.empty());
+        #undef cmp_fields
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
