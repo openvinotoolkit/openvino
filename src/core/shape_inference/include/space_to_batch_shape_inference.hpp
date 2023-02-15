@@ -44,7 +44,7 @@ std::vector<TShape> shape_infer(const SpaceToBatch* op,
                           inputs_same_ps.rank());
 
     if (data_shape.rank().is_static()) {
-        static constexpr size_t spatial_dim_offset = 1;
+        constexpr size_t spatial_dim_offset = 1;
         NODE_VALIDATION_CHECK(op,
                               (data_shape.size() > spatial_dim_offset),
                               "The data tensor with rank lower than 2 is not supported (data rank: ",
