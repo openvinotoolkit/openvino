@@ -22,16 +22,11 @@ class TestPythonOp(PytorchLayerTest):
                 ctx.save_for_backward(exp)
                 return exp
 
-            @staticmethod
-            def backward(ctx, output_grad):
-                (result,) = ctx.saved_tensors
-                return output_grad * result
-
         exp_f = _ExpF.apply
 
         class prim_pythonop(torch.nn.Module):
             def forward(self, input_tensor):
-                return torch.add(exp_f(input_tensor), 1)
+                return exp_f(input_tensor)
 
         ref_net = None
 

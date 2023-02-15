@@ -10,6 +10,7 @@ from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape
 
 import warnings
 import torch
+from torch import _C as torch_C
 from torch.onnx import symbolic_helper
 
 
@@ -186,9 +187,9 @@ class TorchScriptPythonDecoder (Decoder):
         return []
 
     def get_subgraph_size(self) -> int:
-        try:
+        if isinstance(self.graph_element, torch_C.Node):
             return len(self.get_subgraphs()) 
-        except AttributeError:
+        else:
             return 1
 
     def visit_subgraph(self, node_visitor) -> None:
