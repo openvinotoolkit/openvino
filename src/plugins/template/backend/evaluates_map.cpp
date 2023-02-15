@@ -81,18 +81,18 @@
 // #include <ngraph/runtime/reference/scatter_nd_update.hpp>
 // #include <ngraph/runtime/reference/selu.hpp>
 // #include <ngraph/runtime/reference/sequences.hpp>
-#include <ngraph/runtime/reference/sigmoid.hpp>
-#include <ngraph/runtime/reference/sign.hpp>
-#include <ngraph/runtime/reference/softsign.hpp>
-#include <ngraph/runtime/reference/squared_difference.hpp>
-#include <ngraph/runtime/reference/tanh.hpp>
-#include <ngraph/runtime/reference/tensor_iterator.hpp>
-#include <ngraph/runtime/reference/unique.hpp>
-#include <ngraph/runtime/reference/utils/nms_common.hpp>
+// #include <ngraph/runtime/reference/sigmoid.hpp>
+// #include <ngraph/runtime/reference/sign.hpp>
+// #include <ngraph/runtime/reference/softsign.hpp>
+// #include <ngraph/runtime/reference/squared_difference.hpp>
+// #include <ngraph/runtime/reference/tanh.hpp>
+// #include <ngraph/runtime/reference/tensor_iterator.hpp>
+// #include <ngraph/runtime/reference/unique.hpp>
+// #include <ngraph/runtime/reference/utils/nms_common.hpp>
 
-#include "backend.hpp"
-#include "ngraph/ops.hpp"
-#include "ngraph/runtime/reference/convert_color_nv12.hpp"
+// #include "backend.hpp"
+// #include "ngraph/ops.hpp"
+// #include "ngraph/runtime/reference/convert_color_nv12.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
 
@@ -136,147 +136,6 @@ std::vector<float> get_floats(const std::shared_ptr<HostTensor>& input, const Sh
 }  // namespace
 
 template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v0::Sign>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::sign<T>(inputs[0]->get_data_ptr<T>(),
-                                outputs[0]->get_data_ptr<T>(),
-                                shape_size(inputs[0]->get_shape()));
-    return true;
-}
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v0::Sigmoid>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::sigmoid<T>(inputs[0]->get_data_ptr<T>(),
-                                   outputs[0]->get_data_ptr<T>(),
-                                   shape_size(inputs[0]->get_shape()));
-    return true;
-}
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v0::Tanh>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::tanh<T>(inputs[0]->get_data_ptr<T>(),
-                                outputs[0]->get_data_ptr<T>(),
-                                shape_size(inputs[0]->get_shape()));
-    return true;
-}
-
-namespace ti_v0 {
-runtime::reference::custom_evaluate_function evaluate = [](const std::shared_ptr<ngraph::Function>& function,
-                                                           const HostTensorVector& inputs,
-                                                           HostTensorVector& outputs) -> void {
-    const auto& parameters = function->get_parameters();
-    const auto& parametersNumber = parameters.size();
-    const auto& inputsNumber = inputs.size();
-    NGRAPH_CHECK(parametersNumber == inputsNumber,
-                 "Got function (",
-                 function->get_friendly_name(),
-                 ") with ",
-                 parametersNumber,
-                 " parameters, but ",
-                 inputsNumber,
-                 " input blobs");
-
-    auto inputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
-    for (const auto& parameter : parameters) {
-        const auto& parameterIndex = function->get_parameter_index(parameter);
-        const auto& parameterShape = parameter->get_shape();
-        const auto& parameterType = parameter->get_element_type();
-        const auto& parameterSize = shape_size(parameterShape) * parameterType.size();
-
-        const auto& input = inputs[parameterIndex];
-        const auto& inputSize = input->get_size_in_bytes();
-        NGRAPH_CHECK(parameterSize == inputSize,
-                     "Got parameter (",
-                     parameter->get_friendly_name(),
-                     ") of size ",
-                     parameterSize,
-                     " bytes, but corresponding input with index ",
-                     parameterIndex,
-                     " has ",
-                     inputSize,
-                     " bytes");
-
-        auto tensor = std::make_shared<runtime::HostTensor>(parameterType, parameterShape);
-        tensor->write(input->get_data_ptr(), parameterSize);
-        inputTensors.push_back(tensor);
-    }
-
-    const auto& results = function->get_results();
-    std::vector<std::shared_ptr<ngraph::runtime::Tensor>> outputTensors;
-    outputTensors.reserve(results.size());
-    for (size_t i = 0; i < results.size(); ++i) {
-        outputTensors.push_back(std::make_shared<HostTensor>());
-    }
-    auto backend = runtime::Backend::create();
-    auto handle = backend->compile(function);
-    handle->call_with_validate(outputTensors, inputTensors);
-
-    outputs.reserve(outputTensors.size());
-    for (const auto& tensor : outputTensors) {
-        auto host_tensor = static_pointer_cast<runtime::HostTensor>(tensor);
-        outputs.push_back(host_tensor);
-    }
-};
-}  // namespace ti_v0
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v0::TensorIterator>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    runtime::reference::tensor_iterator(op->get_num_iterations(),
-                                        op->get_function(),
-                                        op->get_output_descriptions(),
-                                        op->get_input_descriptions(),
-                                        outputs,
-                                        inputs,
-                                        ti_v0::evaluate);
-    return true;
-}
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v0::SquaredDifference>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::squared_difference<T>(inputs[0]->get_data_ptr<const T>(),
-                                              inputs[1]->get_data_ptr<const T>(),
-                                              outputs[0]->get_data_ptr<T>(),
-                                              inputs[0]->get_shape(),
-                                              inputs[1]->get_shape(),
-                                              op->get_autob());
-    return true;
-}
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v8::Gather>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
-    if (op->get_input_element_type(1) == element::i64) {
-        runtime::reference::gather<T, int64_t>(inputs[0]->get_data_ptr<T>(),
-                                               inputs[1]->get_data_ptr<int64_t>(),
-                                               outputs[0]->get_data_ptr<T>(),
-                                               op->get_input_shape(0),
-                                               op->get_input_shape(1),
-                                               op->get_output_shape(0),
-                                               op->get_axis(),
-                                               op->get_batch_dims());
-    } else if (op->get_input_element_type(1) == element::i32) {
-        runtime::reference::gather<T, int32_t>(inputs[0]->get_data_ptr<T>(),
-                                               inputs[1]->get_data_ptr<int32_t>(),
-                                               outputs[0]->get_data_ptr<T>(),
-                                               op->get_input_shape(0),
-                                               op->get_input_shape(1),
-                                               op->get_output_shape(0),
-                                               op->get_axis(),
-                                               op->get_batch_dims());
-    } else {
-        throw ngraph_error("Unexpected indices type for Gather operation");
-    }
-    return true;
-}
-
-template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v3::Assign>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     outputs[0]->set_unary(inputs[0]);
     void* input = inputs[0]->get_data_ptr();
@@ -291,137 +150,6 @@ bool evaluate(const shared_ptr<op::v3::ReadValue>& op,
     outputs[0]->set_unary(inputs[0]);
     void* input = inputs[0]->get_data_ptr();
     outputs[0]->write(input, outputs[0]->get_size_in_bytes());
-    return true;
-}
-
-template <ov::element::Type_t ET>
-inline bool evaluate(const shared_ptr<op::v8::NV12toRGB>& op,
-                     const HostTensorVector& outputs,
-                     const HostTensorVector& inputs) {
-    return runtime::reference::color_convert_nv12<ET>(op,
-                                                      outputs,
-                                                      inputs,
-                                                      ov::op::util::ConvertColorNV12Base::ColorConversion::NV12_TO_RGB);
-}
-
-template <ov::element::Type_t ET>
-inline bool evaluate(const shared_ptr<op::v8::NV12toBGR>& op,
-                     const HostTensorVector& outputs,
-                     const HostTensorVector& inputs) {
-    return runtime::reference::color_convert_nv12<ET>(op,
-                                                      outputs,
-                                                      inputs,
-                                                      ov::op::util::ConvertColorNV12Base::ColorConversion::NV12_TO_BGR);
-}
-
-template <ov::element::Type_t ET>
-inline bool evaluate(const shared_ptr<op::v8::I420toRGB>& op,
-                     const HostTensorVector& outputs,
-                     const HostTensorVector& inputs) {
-    return runtime::reference::color_convert_i420<ET>(op,
-                                                      outputs,
-                                                      inputs,
-                                                      ov::op::util::ConvertColorI420Base::ColorConversion::I420_TO_RGB);
-}
-
-template <ov::element::Type_t ET>
-inline bool evaluate(const shared_ptr<op::v8::I420toBGR>& op,
-                     const HostTensorVector& outputs,
-                     const HostTensorVector& inputs) {
-    return runtime::reference::color_convert_i420<ET>(op,
-                                                      outputs,
-                                                      inputs,
-                                                      ov::op::util::ConvertColorI420Base::ColorConversion::I420_TO_BGR);
-}
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v9::SoftSign>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    element::Type input_et = op->get_input_element_type(0);
-    switch (input_et) {
-    case element::Type_t::f64:
-        runtime::reference::softsign<double>(inputs[0]->get_data_ptr<double>(),
-                                             outputs[0]->get_data_ptr<double>(),
-                                             shape_size(inputs[0]->get_shape()));
-        break;
-    case element::Type_t::f32:
-        runtime::reference::softsign<float>(inputs[0]->get_data_ptr<float>(),
-                                            outputs[0]->get_data_ptr<float>(),
-                                            shape_size(inputs[0]->get_shape()));
-        break;
-    case element::Type_t::f16:
-        runtime::reference::softsign<float16>(inputs[0]->get_data_ptr<float16>(),
-                                              outputs[0]->get_data_ptr<float16>(),
-                                              shape_size(inputs[0]->get_shape()));
-        break;
-    case element::Type_t::bf16:
-        runtime::reference::softsign<bfloat16>(inputs[0]->get_data_ptr<bfloat16>(),
-                                               outputs[0]->get_data_ptr<bfloat16>(),
-                                               shape_size(inputs[0]->get_shape()));
-        break;
-    default:
-        return false;
-    }
-    return true;
-}
-
-template <typename Data_t, typename Index_t, typename Count_t>
-void execute_unique(const HostTensorVector& outputs,
-                    const HostTensorVector& inputs,
-                    const shared_ptr<op::v10::Unique>& op) {
-    const auto maybe_extract_axis = [&op]() {
-        std::unique_ptr<int64_t> axis;
-        if (op->get_input_size() == 2 && ov::op::util::is_constant(op->input_value(1).get_node())) {
-            const auto axis_constant =
-                std::dynamic_pointer_cast<op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
-            const auto axis_vec = axis_constant->cast_vector<int64_t>();
-            axis = std::unique_ptr<int64_t>(new int64_t{axis_vec.at(0)});
-        }
-        return axis;
-    };
-
-    const auto unique_elements =
-        runtime::reference::find_unique_elements<Data_t, Index_t, Count_t>(inputs[0]->get_data_ptr<Data_t>(),
-                                                                           inputs[0]->get_shape(),
-                                                                           maybe_extract_axis(),
-                                                                           op->get_sorted());
-    const auto tensor_shapes =
-        runtime::reference::make_tensor_shapes(unique_elements, inputs[0]->get_shape(), maybe_extract_axis());
-
-    auto& out_unique_elements = outputs[0];
-    auto& out_indices = outputs[1];
-    auto& out_rev_indices = outputs[2];
-    auto& out_counts = outputs[3];
-
-    out_unique_elements->set_shape(std::get<0>(tensor_shapes));
-    out_indices->set_shape(std::get<1>(tensor_shapes));
-    out_rev_indices->set_shape(std::get<2>(tensor_shapes));
-    out_counts->set_shape(std::get<1>(tensor_shapes));
-
-    runtime::reference::unique(out_unique_elements->get_data_ptr<Data_t>(),
-                               out_indices->get_data_ptr<Index_t>(),
-                               out_rev_indices->get_data_ptr<Index_t>(),
-                               out_counts->get_data_ptr<Count_t>(),
-                               inputs[0]->get_data_ptr<Data_t>(),
-                               inputs[0]->get_shape(),
-                               std::get<0>(tensor_shapes),
-                               unique_elements);
-}
-
-template <element::Type_t Data_ET>
-bool evaluate(const shared_ptr<op::v10::Unique>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    using Data_t = typename element_type_traits<Data_ET>::value_type;
-    if (op->get_index_element_type() == element::i32 && op->get_count_element_type() == element::i32) {
-        execute_unique<Data_t, int32_t, int32_t>(outputs, inputs, op);
-    } else if (op->get_index_element_type() == element::i64 && op->get_count_element_type() == element::i64) {
-        execute_unique<Data_t, int64_t, int64_t>(outputs, inputs, op);
-    } else if (op->get_index_element_type() == element::i32 && op->get_count_element_type() == element::i64) {
-        execute_unique<Data_t, int32_t, int64_t>(outputs, inputs, op);
-    } else if (op->get_index_element_type() == element::i64 && op->get_count_element_type() == element::i32) {
-        execute_unique<Data_t, int64_t, int32_t>(outputs, inputs, op);
-    } else {
-        return false;
-    }
-
     return true;
 }
 
