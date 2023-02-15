@@ -127,7 +127,7 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
 
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     // Currently PyTorch FrontEnd only support TorchDecoder as input
-    if (variants.size() != 1 && !variants[0].is<std::shared_ptr<IDecoder>>())
+    if (variants.size() != 1 || !variants[0].is<std::shared_ptr<IDecoder>>())
         return false;
     auto decoder = variants[0].as<std::shared_ptr<IDecoder>>();
     return decoder && std::dynamic_pointer_cast<TorchDecoder>(decoder);
