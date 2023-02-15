@@ -249,6 +249,9 @@ void FullyConnected::getSupportedDescriptors() {
             // f32 mode
             inputDataType = outputDataType = memory::data_type::f32;
         }
+    } else {
+        // s32/u32/... unsupported input data types, fallback to f32
+        inputDataType = outputDataType = memory::data_type::f32;
     }
 
     inDims = isDynamicNode() ? makeDummyInputDims() : getInputShapeAtPort(DATA_ID).getStaticDims();
