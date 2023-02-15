@@ -150,7 +150,9 @@ protected:
             args.fused_op_inputs.push_back(instance.dep_memory_ptr(_kernel_args.fused_op_inputs[i]));
         }
 
-        args.outputs.push_back(instance.output_memory_ptr());
+        for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
+            args.outputs.push_back(instance.output_memory_ptr(i));
+        }
 
         return args;
     }
