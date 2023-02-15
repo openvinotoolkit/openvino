@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,6 +49,11 @@ const std::vector<FakeQuantizeTransformationParam> fakeQuantizeOnDataValues = {
     },
     {
         { 256ul, {}, { -127.5f }, { 0.f }, { -127.5f }, { 0.f } },
+        "Pooling", "U8"
+    },
+    // corner case: FQ with equal constant values
+    {
+        { 256ul, {}, { 0.f }, { 0.f }, { 0.f }, { 0.f } },
         "Pooling", "U8"
     },
     {

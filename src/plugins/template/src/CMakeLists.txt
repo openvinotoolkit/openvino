@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -18,7 +18,7 @@ ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "TEMPLATE"
               SOURCES ${SOURCES} ${HEADERS}
               ${skip_plugin}
-              VERSION_DEFINES_FOR template_plugin.cpp
+              VERSION_DEFINES_FOR plugin.cpp
               ADD_CLANG_FORMAT)
 
 # Enable support of CC for the plugin
@@ -26,6 +26,7 @@ ov_mark_target_as_cc(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${OpenVINO_SOURCE_DIR}/src/inference/src/dev" # TODO: remove after migration to new infer request
     "${TEMPLATE_PLUGIN_SOURCE_DIR}/include")
 
 # link common Inference Engine libraries

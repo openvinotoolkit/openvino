@@ -1,13 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
-#include "intel_gpu/primitives/select.hpp"
+#include <intel_gpu/primitives/select.hpp>
+#include "select_inst.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -63,7 +62,7 @@ TEST(select_gpu_f32, select_basic) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -117,7 +116,7 @@ TEST(select_gpu_f32, select_basic_negative) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -203,7 +202,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_mask_2x2x1x2) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -279,7 +278,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_mask_1x1x1x1) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -359,7 +358,7 @@ TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_mask_2x2x2x1) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -445,7 +444,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_in2_2x2x1x2) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -527,7 +526,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_in1_2x2x2x1_bcast_in2_2x2x1
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -601,7 +600,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_mask_2x1x2x2_in1_1x2x2x2_in
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -677,7 +676,7 @@ TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_mask_2x1x2x2_in1_2x2x
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -753,7 +752,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_in2_1x1x1x1) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -833,7 +832,7 @@ TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_in2_2x2x2x1) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -919,7 +918,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_in1_2x2x1x2) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -995,7 +994,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_in1_1x1x1x1) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1075,7 +1074,7 @@ TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_in1_2x2x2x1) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1155,7 +1154,7 @@ TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_mask_2x1x2x2_in1_2x2x
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1209,7 +1208,7 @@ TEST(select_gpu_f32, select_basic_comma) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1326,7 +1325,7 @@ TEST(select_gpu_f32, select_basic_byxf) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1380,7 +1379,7 @@ TEST(select_gpu_f32, select_basic_mask_f16) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1434,7 +1433,7 @@ TEST(select_gpu_f32, select_basic_mask_i8) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1488,7 +1487,7 @@ TEST(select_gpu_f32, select_basic_mask_u8) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1534,7 +1533,7 @@ TEST(select_gpu_f32, select_basic_1x1x2x2) {
 
     for (int i = 0; i < 4; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1584,7 +1583,7 @@ TEST(select_gpu_f32, select_basic_bfyx_1x1x2x2) {
 
     for (int i = 0; i < 4; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1634,7 +1633,7 @@ TEST(select_gpu_f32, select_basic_byxf_1x1x2x2) {
 
     for (int i = 0; i < 4; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1685,7 +1684,7 @@ TEST(select_gpu_f16, select_basic_1x1x2x2) {
 
     for (int i = 0; i < 4; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1735,7 +1734,7 @@ TEST(select_gpu_f16, select_basic_mask_f32_1x1x2x2) {
 
     for (int i = 0; i < 4; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1785,7 +1784,7 @@ TEST(select_gpu_f16, select_basic_mask_i8_1x1x2x2) {
 
     for (int i = 0; i < 4; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1835,7 +1834,7 @@ TEST(select_gpu_f16, select_basic_mask_u8_1x1x2x2) {
 
     for (int i = 0; i < 4; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1886,7 +1885,7 @@ TEST(select_gpu_i8, select_basic_1x1x2x2) {
 
     for (int i = 0; i < 4; i++)
     {
-        EXPECT_EQ(answers[i], output_ptr[i]);
+        ASSERT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -1936,7 +1935,7 @@ TEST(select_gpu_i8, select_basic_mask_f32_1x1x2x2) {
 
     for (int i = 0; i < 4; i++)
     {
-        EXPECT_EQ(answers[i], output_ptr[i]);
+        ASSERT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -1986,7 +1985,7 @@ TEST(select_gpu_i8, select_basic_mask_f16_1x1x2x2) {
 
     for (int i = 0; i < 4; i++)
     {
-        EXPECT_EQ(answers[i], output_ptr[i]);
+        ASSERT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -2036,7 +2035,7 @@ TEST(select_gpu_i8, select_basic_mask_u8_1x1x2x2) {
 
     for (int i = 0; i < 4; i++)
     {
-        EXPECT_EQ(answers[i], output_ptr[i]);
+        ASSERT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -2087,7 +2086,7 @@ TEST(select_gpu_u8, select_basic_1x1x2x2) {
 
     for (int i = 0; i < 4; i++)
     {
-        EXPECT_EQ(answers[i], output_ptr[i]);
+        ASSERT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -2137,7 +2136,7 @@ TEST(select_gpu_u8, select_basic_mask_f32_1x1x2x2) {
 
     for (int i = 0; i < 4; i++)
     {
-        EXPECT_EQ(answers[i], output_ptr[i]);
+        ASSERT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -2187,7 +2186,7 @@ TEST(select_gpu_u8, select_basic_mask_f16_1x1x2x2) {
 
     for (int i = 0; i < 4; i++)
     {
-        EXPECT_EQ(answers[i], output_ptr[i]);
+        ASSERT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -2237,7 +2236,7 @@ TEST(select_gpu_u8, select_basic_mask_i8_1x1x2x2) {
 
     for (int i = 0; i < 4; i++)
     {
-        EXPECT_EQ(answers[i], output_ptr[i]);
+        ASSERT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -2291,6 +2290,107 @@ TEST(select_gpu_fp32, select_numpy_broadcast_mask_u8_1x1x3) {
 
     for (int i = 0; i < 27; i++)
     {
-        EXPECT_EQ(answers[i], output_ptr[i]);
+        ASSERT_EQ(answers[i], output_ptr[i]);
+    }
+}
+
+TEST(select_gpu_f32, dynamic) {
+    auto& engine = get_test_engine();
+
+    ov::PartialShape in1_shape  = { 2, 2, 2, 2 };
+    ov::PartialShape in2_shape  = { 2, 2, 2, 2 };
+    ov::PartialShape mask_shape = { 2, 2, 2, 1 };
+
+    layout input1_layout { ov::PartialShape::dynamic(in1_shape.size()),  data_types::f32, format::bfyx };
+    layout input2_layout { ov::PartialShape::dynamic(in2_shape.size()),  data_types::f32, format::bfyx };
+    layout mask_layout   { ov::PartialShape::dynamic(mask_shape.size()), data_types::f32, format::bfyx };
+
+    auto input1 = engine.allocate_memory({ in1_shape,  data_types::f32, format::bfyx });
+    auto input2 = engine.allocate_memory({ in2_shape,  data_types::f32, format::bfyx });
+    auto mask   = engine.allocate_memory({ mask_shape, data_types::f32, format::bfyx });
+
+    set_values(input1, {
+        1.f,  0.f,
+        5.f,  1.5f,
+
+        2.f,  0.f,
+        6.f,  5.2f,
+
+        3.f,  0.5f,
+        7.f,  12.f,
+
+        4.f,  -0.5f,
+        8.f,  8.f
+    });
+
+    set_values(input2, {
+        0.5f,  2.5f,
+        1.5f,  3.f,
+
+        5.f,   7.f,
+        2.f,   4.f,
+
+        15.f,  17.f,
+        8.f,   10.f,
+
+        -2.f,  6.5f,
+        -0.5f, -2.5f
+    });
+
+    set_values(mask, {
+        0.f,
+        0.f,
+
+        1.f,
+        1.f,
+
+        0.f,
+        1.f,
+
+        1.f,
+        0.f,
+    });
+
+    topology topology;
+    topology.add(input_layout("input1", input1_layout));
+    topology.add(input_layout("input2", input2_layout));
+    topology.add(input_layout("mask", mask_layout));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input1"), input_info("input2")));
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+    network.set_input_data("mask", mask);
+
+    auto inst = network.get_primitive("select");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("select").get_memory();
+
+    float answers[16] = {
+        0.5f,  2.5f,
+        1.5f,  3.f,
+
+        2.f,   0.f,
+        6.f,   5.2f,
+
+        15.f,  17.f,
+        7.f,   12.f,
+
+        4.f,   -0.5f,
+        -0.5f, -2.5f
+    };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (int i = 0; i < 16; i++) {
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }

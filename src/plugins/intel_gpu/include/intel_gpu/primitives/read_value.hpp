@@ -10,12 +10,6 @@
 #include "intel_gpu/runtime/memory.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Returns value of the variable_id variable.
 struct read_value : public primitive_base<read_value> {
@@ -37,7 +31,4 @@ struct read_value : public primitive_base<read_value> {
     std::string variable_id;
     layout output_layout;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

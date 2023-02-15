@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ void StatisticsReport::add_parameters(const Category& category, const Parameters
 }
 
 void StatisticsReport::dump() {
-    CsvDumper dumper(true, _config.report_folder + _separator + "benchmark_report.csv");
+    CsvDumper dumper(true, _config.report_folder + _separator + "benchmark_report.csv", 3);
 
     auto dump_parameters = [&dumper](const Parameters& parameters) {
         for (auto& parameter : parameters) {
@@ -84,11 +84,11 @@ void StatisticsReport::dump_performance_counters_request(CsvDumper& dumper, cons
 
     for (const auto& layer : perfCounts) {
         dumper << layer.node_name;  // layer name
-        dumper << ((int)layer.status < (sizeof(status_names) / sizeof(status_names[0]))
+        dumper << ((size_t)layer.status < (sizeof(status_names) / sizeof(status_names[0]))
                        ? status_names[(int)layer.status]
                        : "INVALID_STATUS");
         dumper << layer.node_type << layer.exec_type;
-        dumper << std::to_string(layer.real_time.count() / 1000.0) << std::to_string(layer.cpu_time.count() / 1000.0);
+        dumper << layer.real_time.count() / 1000.0 << layer.cpu_time.count() / 1000.0;
         total += layer.real_time;
         total_cpu += layer.cpu_time;
         dumper.endLine();
@@ -107,7 +107,6 @@ void StatisticsReport::dump_sort_performance_counters_request(CsvDumper& dumper,
                                                               const PerformanceCounters& perfCounts) {
     std::chrono::microseconds total = std::chrono::microseconds::zero();
     std::chrono::microseconds total_cpu = std::chrono::microseconds::zero();
-    int layersize = 0;
 
     dumper << "layerName"
            << "execStatus"
@@ -131,15 +130,13 @@ void StatisticsReport::dump_sort_performance_counters_request(CsvDumper& dumper,
     for (const auto& layer : profiling) {
         if (std::string(status_names[(int)layer.status]).compare("EXECUTED") == 0) {
             dumper << layer.node_name;  // layer name
-            dumper << ((int)layer.status < (sizeof(status_names) / sizeof(status_names[0]))
+            dumper << ((size_t)layer.status < (sizeof(status_names) / sizeof(status_names[0]))
                            ? status_names[(int)layer.status]
                            : "INVALID_STATUS");
             dumper << layer.node_type << layer.exec_type;
-            dumper << std::to_string(layer.real_time.count() / 1000.0)
-                   << std::to_string(layer.cpu_time.count() / 1000.0);
+            dumper << layer.real_time.count() / 1000.0 << layer.cpu_time.count() / 1000.0;
             dumper << (layer.real_time * 1.0 / total) * 100;
             dumper.endLine();
-            layersize += 1;
         }
     }
 
@@ -160,7 +157,7 @@ StatisticsReport::PerformanceCounters StatisticsReport::get_average_performance_
         // iterate over each layer from sorted vector and add required PM data
         // to the per-layer maps
         for (const auto& pm : perfCounts[i]) {
-            int idx = 0;
+            size_t idx = 0;
             for (; idx < performanceCountersAvg.size(); idx++) {
                 if (performanceCountersAvg[idx].node_name == pm.node_name) {
                     performanceCountersAvg[idx].real_time += pm.real_time;
@@ -191,7 +188,7 @@ void StatisticsReport::dump_performance_counters(const std::vector<PerformanceCo
         slog::info << "Performance counters are empty. No reports are dumped." << slog::endl;
         return;
     }
-    CsvDumper dumper(true, _config.report_folder + _separator + "benchmark_" + _config.report_type + "_report.csv");
+    CsvDumper dumper(true, _config.report_folder + _separator + "benchmark_" + _config.report_type + "_report.csv", 3);
     if (_config.report_type == detailedCntReport) {
         for (auto& pc : perfCounts) {
             dump_performance_counters_request(dumper, pc);
@@ -285,8 +282,8 @@ const nlohmann::json StatisticsReportJSON::perf_counters_to_json(
 
         item["name"] = layer.node_name;  // layer name
         item["status"] =
-            ((int)layer.status < (sizeof(status_names) / sizeof(status_names[0])) ? status_names[(int)layer.status]
-                                                                                  : "INVALID_STATUS");
+            ((size_t)layer.status < (sizeof(status_names) / sizeof(status_names[0])) ? status_names[(int)layer.status]
+                                                                                     : "INVALID_STATUS");
         item["node_type"] = layer.node_type;
         item["exec_type"] = layer.exec_type;
         item["real_time"] = layer.real_time.count() / 1000.0;
@@ -321,8 +318,8 @@ const nlohmann::json StatisticsReportJSON::sort_perf_counters_to_json(
         nlohmann::json item;
         item["name"] = layer.node_name;  // layer name
         item["status"] =
-            ((int)layer.status < (sizeof(status_names) / sizeof(status_names[0])) ? status_names[(int)layer.status]
-                                                                                  : "INVALID_STATUS");
+            ((size_t)layer.status < (sizeof(status_names) / sizeof(status_names[0])) ? status_names[(int)layer.status]
+                                                                                     : "INVALID_STATUS");
         item["node_type"] = layer.node_type;
         item["exec_type"] = layer.exec_type;
         item["real_time"] = layer.real_time.count() / 1000.0;

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from collections import defaultdict
@@ -54,22 +54,43 @@ def next_step(additional_info='', step_id=0):
 
 def get_element_type(precision):
     format_map = {
-      'FP32' : Type.f32,
-      'I32'  : Type.i32,
-      'I64'  : Type.i64,
-      'FP16' : Type.f16,
-      'I16'  : Type.i16,
-      'U16'  : Type.u16,
-      'I8'   : Type.i8,
-      'U8'   : Type.u8,
-      'BOOL' : Type.boolean,
+      'bool'    : Type.boolean,
+
+      'f16'  : Type.f16,
+      'f32'  : Type.f32,
+      'f64'  : Type.f64,
+
+      'i8'   : Type.i8,
+      'i16'  : Type.i16,
+      'i32'  : Type.i32,
+      'i64'  : Type.i64,
+
+      'u8'   : Type.u8,
+      'u16'  : Type.u16,
+      'u32'  : Type.u32,
+      'u64'  : Type.u64,
     }
     if precision in format_map.keys():
         return format_map[precision]
-    for element_type in format_map.values():
-        if element_type.get_type_name() == precision:
-            return element_type
+
     raise Exception(f"Undefined precision: '{precision}' !")
+
+
+def fuse_mean_scale(preproc: PrePostProcessor, app_inputs_info):
+    # TODO: remove warning after 23.3 release
+    warned = False
+    warn_msg = 'Mean/scale values are fused into the model. This slows down performance compared to --imean and --iscale which existed before'
+    for input_info in app_inputs_info:
+        if input_info.mean.size:
+            if not warned:
+                logger.warning(warn_msg)
+                warned = True
+            preproc.input(input_info.name).preprocess().convert_element_type(Type.f32).mean(input_info.mean)
+        if input_info.scale.size:
+            if not warned:
+                logger.warning(warn_msg)
+                warned = True
+            preproc.input(input_info.name).preprocess().convert_element_type(Type.f32).scale(input_info.scale)
 
 
 def pre_post_processing(model: Model, app_inputs_info, input_precision: str, output_precision: str, input_output_precision: str):
@@ -117,6 +138,8 @@ def pre_post_processing(model: Model, app_inputs_info, input_precision: str, out
             elif app_inputs_info[i].is_image:
                 app_inputs_info[i].element_type = Type.u8
                 pre_post_processor.input(i).tensor().set_element_type(Type.u8)
+
+    fuse_mean_scale(pre_post_processor, app_inputs_info)
 
     # set layout for model input
     for info in app_inputs_info:
@@ -184,7 +207,6 @@ def get_number_iterations(number_iterations: int, nireq: int, num_shapes: int, a
                             f'from {number_iterations} to {niter} using number of requests {nireq}')
 
     return niter
-
 
 def get_duration_seconds(time, number_iterations, device):
     if time:
@@ -378,51 +400,52 @@ def print_perf_counters_sort(perf_counts_list,sort_flag="sort"):
             total_detail_data = sorted(total_detail_data,key=lambda tmp_data:tmp_data[-4],reverse=True)
             total_detail_data = [tmp_data for tmp_data in total_detail_data if str(tmp_data[1])!="Status.NOT_RUN"]
         print_detail_result(total_detail_data)        
-        print(f'Total time:       {total_time} microseconds')
-        print(f'Total CPU time:   {total_time_cpu} microseconds')
+        print(f'Total time:       {total_time / 1000:.3f} milliseconds')
+        print(f'Total CPU time:   {total_time_cpu / 1000:.3f} milliseconds')
         print(f'Total proportion: {"%.2f"%(round(total_real_time_proportion)*100)} % \n')
     return total_detail_data
 
 def print_detail_result(result_list):
     """ Print_perf_counters_sort result 
     """
-    max_layer_name = 30
+    max_print_length = 20
     for tmp_result in result_list:
         node_name = tmp_result[0]
         layerStatus = tmp_result[1]
         layerType = tmp_result[2]
         real_time = tmp_result[3]
         cpu_time = tmp_result[4]
-        real_proportion = "%.2f"%(tmp_result[5]*100)
+        real_proportion = "%.2f" % (tmp_result[5] * 100)
         if real_proportion == "0.00":
             real_proportion = "N/A"
         execType = tmp_result[6]
-        print(f"{node_name[:max_layer_name - 4] + '...' if (len(node_name) >= max_layer_name) else node_name:<30}"
-            f"{str(layerStatus):<20}"
-            f"{'layerType: ' + layerType:<30}"
-            f"{'realTime: ' + str(real_time):<20}"
-            f"{'cpu: ' +  str(cpu_time):<15}"
-            f"{'proportion: '+ str(real_proportion)+'%':<20}"
-            f"{'execType: ' + execType:<20}")
+        print(f"{node_name[:max_print_length - 4] + '...' if (len(node_name) >= max_print_length) else node_name:<20} "
+                f"{str(layerStatus):<20} "
+                f"layerType: {layerType[:max_print_length - 4] + '...' if (len(layerType) >= max_print_length) else layerType:<20} "
+                f"execType: {execType:<20} "
+                f"realTime (ms): {real_time / timedelta(milliseconds=1):<10.3f} "
+                f"cpuTime (ms): {cpu_time / timedelta(milliseconds=1):<10.3f}"
+                f"proportion: {str(real_proportion +'%'):<8}")
 
 def print_perf_counters(perf_counts_list):
-    max_layer_name = 30
+    max_print_length = 20
     for ni in range(len(perf_counts_list)):
         perf_counts = perf_counts_list[ni]
         total_time = timedelta()
         total_time_cpu = timedelta()
         logger.info(f"Performance counts for {ni}-th infer request")
         for pi in perf_counts:
-            print(f"{pi.node_name[:max_layer_name - 4] + '...' if (len(pi.node_name) >= max_layer_name) else pi.node_name:<30}"
-                                                                f"{str(pi.status):<15}"
-                                                                f"{'layerType: ' + pi.node_type:<30}"
-                                                                f"{'realTime: ' + str((pi.real_time // timedelta(microseconds=1)) / 1000.0):<20}"
-                                                                f"{'cpu: ' +  str((pi.cpu_time // timedelta(microseconds=1)) / 1000.0):<20}"
-                                                                f"{'execType: ' + pi.exec_type:<20}")
+            print(f"{pi.node_name[:max_print_length - 4] + '...' if (len(pi.node_name) >= max_print_length) else pi.node_name:<20} "
+                f"{str(pi.status):<20} "
+                f"layerType: {pi.node_type[:max_print_length - 4] + '...' if (len(pi.node_type) >= max_print_length) else pi.node_type:<20} "
+                f"execType: {pi.exec_type:<20} "
+                f"realTime (ms): {pi.real_time / timedelta(milliseconds=1):<10.3f} "
+                f"cpuTime (ms): {pi.cpu_time / timedelta(milliseconds=1):<10.3f}")
+
             total_time += pi.real_time
             total_time_cpu += pi.cpu_time
-        print(f'Total time:     {(total_time // timedelta(microseconds=1)) / 1000.0} seconds')
-        print(f'Total CPU time: {(total_time_cpu // timedelta(microseconds=1)) / 1000.0} seconds\n')
+        print(f'Total time:     {total_time / timedelta(milliseconds=1)} milliseconds')
+        print(f'Total CPU time: {total_time_cpu / timedelta(milliseconds=1)} milliseconds\n')
 
 
 def get_command_line_arguments(argv):
@@ -507,7 +530,7 @@ def parse_scale_or_mean(parameter_string, input_info):
         if matches:
             for match in matches:
                 input_name, value = match
-                f_value = np.array(value.split(",")).astype(np.float)
+                f_value = np.array(value.split(",")).astype(float)
                 if input_name != '':
                     return_value[input_name] = f_value
                 else:
@@ -517,7 +540,6 @@ def parse_scale_or_mean(parameter_string, input_info):
         else:
             raise Exception(f"Can't parse input parameter: {parameter_string}")
     return return_value
-
 
 class AppInputInfo:
     def __init__(self):
@@ -543,13 +565,13 @@ class AppInputInfo:
             return False
         return len(self.channels) >= 2 if self.channels.is_static else self.channels.relaxes(Dimension(2))
 
-    def getDimentionByLayout(self, character):
+    def getDimensionByLayout(self, character):
         if self.layout.has_name(character):
             return self.partial_shape[self.layout.get_index_by_name(character)]
         else:
             return Dimension(0)
 
-    def getDimentionsByLayout(self, character):
+    def getDimensionsByLayout(self, character):
         if self.layout.has_name(character):
             d_index = self.layout.get_index_by_name(character)
             dims = []
@@ -568,23 +590,23 @@ class AppInputInfo:
 
     @property
     def width(self):
-        return len(self.getDimentionByLayout("W"))
+        return len(self.getDimensionByLayout("W"))
 
     @property
-    def widthes(self):
-        return self.getDimentionsByLayout("W")
+    def widths(self):
+        return self.getDimensionsByLayout("W")
 
     @property
     def height(self):
-        return len(self.getDimentionByLayout("H"))
+        return len(self.getDimensionByLayout("H"))
 
     @property
     def heights(self):
-        return self.getDimentionsByLayout("H")
+        return self.getDimensionsByLayout("H")
 
     @property
     def channels(self):
-        return self.getDimentionByLayout("C")
+        return self.getDimensionByLayout("C")
 
     @property
     def is_static(self):

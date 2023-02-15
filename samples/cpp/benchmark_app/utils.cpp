@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,9 +61,6 @@ size_t InputInfo::depth() const {
 uint32_t device_default_device_duration_in_seconds(const std::string& device) {
     static const std::map<std::string, uint32_t> deviceDefaultDurationInSeconds{{"CPU", 60},
                                                                                 {"GPU", 60},
-                                                                                {"VPU", 60},
-                                                                                {"MYRIAD", 60},
-                                                                                {"HDDL", 60},
                                                                                 {"UNKNOWN", 120}};
     uint32_t duration = 0;
     for (const auto& deviceDurationInSeconds : deviceDefaultDurationInSeconds) {
@@ -223,7 +220,7 @@ std::string get_shapes_string(const benchmark_app::PartialShapes& shapes) {
 
 std::map<std::string, std::vector<float>> parse_scale_or_mean(const std::string& scale_mean,
                                                               const benchmark_app::InputsInfo& inputs_info) {
-    //  Format: data:[255,255,255],info[255,255,255]
+    //  Format: data[255,255,255],info[255,255,255]
     std::map<std::string, std::vector<float>> return_value;
 
     std::string search_string = scale_mean;
@@ -530,7 +527,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                 }
 
                 info.dataShape = ov::Shape(info.partialShape.size(), 0);
-                for (int i = 0; i < info.partialShape.size(); i++) {
+                for (size_t i = 0; i < info.partialShape.size(); i++) {
                     auto& dim = info.partialShape[i];
                     if (dim.is_static()) {
                         info.dataShape[i] = dim.get_length();
@@ -546,8 +543,9 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                     }
                 }
 
-                size_t w = 0;
                 size_t h = 0;
+                size_t w = 0;
+                std::vector<size_t> shape;
                 size_t fileIdx = currentFileCounters[item.get_any_name()];
                 for (; fileIdx < currentFileCounters[item.get_any_name()] + tensorBatchSize; fileIdx++) {
                     if (fileIdx >= namesVector.size()) {
@@ -556,28 +554,47 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                             "size if -data_shape parameter is omitted and shape is dynamic)");
                     }
                     FormatReader::ReaderPtr reader(namesVector[fileIdx].c_str());
-                    if ((w && w != reader->width()) || (h && h != reader->height())) {
-                        throw std::logic_error("Image sizes putting into one batch should be of the same size if input "
-                                               "shape is dynamic and -data_shape is omitted. Problem file: " +
-                                               namesVector[fileIdx]);
+                    if ((w && w != reader->width()) || (h && h != reader->height()) ||
+                        (!shape.empty() && shape != reader->shape())) {
+                        throw std::logic_error(
+                            "File dimensions putting into one batch should be of the same dimensionality if input "
+                            "shape is dynamic and -data_shape is omitted. Problem file: " +
+                            namesVector[fileIdx]);
                     }
-                    w = reader->width();
                     h = reader->height();
+                    w = reader->width();
+                    shape = reader->shape();
                 }
                 currentFileCounters[item.get_any_name()] = fileIdx;
-
-                if (!info.dataShape[ov::layout::height_idx(info.layout)]) {
-                    info.dataShape[ov::layout::height_idx(info.layout)] = h;
-                }
-                if (!info.dataShape[ov::layout::width_idx(info.layout)]) {
-                    info.dataShape[ov::layout::width_idx(info.layout)] = w;
+                if (shape.size() == 2) {  // Has only h and w
+                    if (!info.dataShape[ov::layout::height_idx(info.layout)]) {
+                        info.dataShape[ov::layout::height_idx(info.layout)] = h;
+                    }
+                    if (!info.dataShape[ov::layout::width_idx(info.layout)]) {
+                        info.dataShape[ov::layout::width_idx(info.layout)] = w;
+                    }
+                } else {  // Is numpy array
+                    size_t shape_idx = 0;
+                    if (info.dataShape.size() != shape.size()) {
+                        throw std::logic_error("Shape required by the input and file shape do not have the same rank. "
+                                               "Input: " +
+                                               item.get_any_name() + ", File name: " + namesVector[fileIdx - 1]);
+                    }
+                    for (size_t i = ov::layout::batch_idx(info.layout);
+                         i < ov::layout::batch_idx(info.layout) + info.dataShape.size();
+                         ++i) {
+                        if (!info.dataShape[i]) {
+                            info.dataShape[i] = shape.at(shape_idx);
+                        }
+                        shape_idx++;
+                    }
                 }
 
                 if (std::any_of(info.dataShape.begin(), info.dataShape.end(), [](size_t d) {
                         return d == 0;
                     })) {
-                    throw std::logic_error("Not enough information in shape and image to determine tensor shape "
-                                           "automatically autmatically. Input: " +
+                    throw std::logic_error("Not enough information in shape and file to determine tensor shape "
+                                           "autmatically. Input: " +
                                            item.get_any_name() + ", File name: " + namesVector[fileIdx - 1]);
                 }
 
@@ -630,9 +647,6 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
 
         for (auto& item : info_map) {
             if (item.second.is_image()) {
-                item.second.scale.assign({1, 1, 1});
-                item.second.mean.assign({0, 0, 0});
-
                 if (scale_map.count(item.first)) {
                     item.second.scale = scale_map.at(item.first);
                 }
@@ -668,65 +682,6 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                            reshape_required);
 }
 
-#ifdef USE_OPENCV
-void dump_config(const std::string& filename, const std::map<std::string, ov::AnyMap>& config) {
-    slog::warn << "YAML and XML formats for config file won't be supported soon." << slog::endl;
-    auto plugin_to_opencv_format = [](const std::string& str) -> std::string {
-        if (str.find("_") != std::string::npos) {
-            slog::warn
-                << "Device name contains \"_\" and will be changed during loading of configuration due to limitations."
-                   "This configuration file could not be loaded correctly."
-                << slog::endl;
-        }
-        std::string new_str(str);
-        auto pos = new_str.find(".");
-        if (pos != std::string::npos) {
-            new_str.replace(pos, 1, "_");
-        }
-        return new_str;
-    };
-    cv::FileStorage fs(filename, cv::FileStorage::WRITE);
-    if (!fs.isOpened())
-        throw std::runtime_error("Error: Can't open config file : " + filename);
-    for (auto device_it = config.begin(); device_it != config.end(); ++device_it) {
-        fs << plugin_to_opencv_format(device_it->first) << "{:";
-        std::stringstream strm;
-        for (auto param_it = device_it->second.begin(); param_it != device_it->second.end(); ++param_it) {
-            strm << param_it->first;
-            param_it->second.print(strm);
-        }
-        fs << strm.str();
-        fs << "}";
-    }
-    fs.release();
-}
-
-void load_config(const std::string& filename, std::map<std::string, ov::AnyMap>& config) {
-    slog::warn << "YAML and XML formats for config file won't be supported soon." << slog::endl;
-    auto opencv_to_plugin_format = [](const std::string& str) -> std::string {
-        std::string new_str(str);
-        auto pos = new_str.find("_");
-        if (pos != std::string::npos) {
-            new_str.replace(pos, 1, ".");
-        }
-        return new_str;
-    };
-    cv::FileStorage fs(filename, cv::FileStorage::READ);
-    if (!fs.isOpened())
-        throw std::runtime_error("Error: Can't load config file : " + filename);
-    cv::FileNode root = fs.root();
-    for (auto it = root.begin(); it != root.end(); ++it) {
-        auto device = *it;
-        if (!device.isMap()) {
-            throw std::runtime_error("Error: Can't parse config file : " + filename);
-        }
-        for (auto iit = device.begin(); iit != device.end(); ++iit) {
-            auto item = *iit;
-            config[opencv_to_plugin_format(device.name())][item.name()] = item.string();
-        }
-    }
-}
-#else
 void dump_config(const std::string& filename, const std::map<std::string, ov::AnyMap>& config) {
     nlohmann::json jsonConfig;
     for (const auto& item : config) {
@@ -800,15 +755,6 @@ void load_config(const std::string& filename, std::map<std::string, ov::AnyMap>&
         }
     }
 }
-#endif
-
-#ifdef USE_OPENCV
-const std::vector<std::string> supported_image_extensions =
-    {"bmp", "dib", "jpeg", "jpg", "jpe", "jp2", "png", "pbm", "pgm", "ppm", "sr", "ras", "tiff", "tif"};
-#else
-const std::vector<std::string> supported_image_extensions = {"bmp"};
-#endif
-const std::vector<std::string> supported_binary_extensions = {"bin"};
 
 std::string get_extension(const std::string& name) {
     auto extensionPosition = name.rfind('.', name.size());
@@ -818,36 +764,38 @@ std::string get_extension(const std::string& name) {
 bool is_binary_file(const std::string& filePath) {
     auto extension = get_extension(filePath);
     std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-    return std::find(supported_binary_extensions.begin(), supported_binary_extensions.end(), extension) !=
-           supported_binary_extensions.end();
+    return supported_binary_extensions.find(extension) != supported_binary_extensions.end();
+}
+
+bool is_numpy_file(const std::string& filePath) {
+    auto extension = get_extension(filePath);
+    std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+    return supported_numpy_extensions.find(extension) != supported_numpy_extensions.end();
 }
 
 bool is_image_file(const std::string& filePath) {
     auto extension = get_extension(filePath);
     std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-    return std::find(supported_binary_extensions.begin(), supported_binary_extensions.end(), extension) !=
-           supported_binary_extensions.end();
+    return supported_image_extensions.find(extension) != supported_image_extensions.end();
 }
 
 bool contains_binaries(const std::vector<std::string>& filePaths) {
     std::vector<std::string> filtered;
     for (auto& filePath : filePaths) {
-        auto extension = get_extension(filePath);
-        std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-        if (std::find(supported_binary_extensions.begin(), supported_binary_extensions.end(), extension) !=
-            supported_binary_extensions.end()) {
+        if (is_binary_file(filePath)) {
             return true;
         }
     }
     return false;
 }
+
 std::vector<std::string> filter_files_by_extensions(const std::vector<std::string>& filePaths,
-                                                    const std::vector<std::string>& extensions) {
+                                                    const std::unordered_set<std::string>& extensions) {
     std::vector<std::string> filtered;
     for (auto& filePath : filePaths) {
         auto extension = get_extension(filePath);
         std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-        if (std::find(extensions.begin(), extensions.end(), extension) != extensions.end()) {
+        if (extensions.find(extension) != extensions.end()) {
             filtered.push_back(filePath);
         }
     }

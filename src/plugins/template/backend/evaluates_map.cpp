@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -591,7 +591,7 @@ bool call(const HostTensorVector& func_outputs,
         op->validate_and_infer_types();
         OPENVINO_SUPPRESS_DEPRECATED_START
         if (!op->evaluate(op_outputs, op_inputs)) {
-            auto evaluates_map = ngraph::runtime::interpreter::get_evaluators_map();
+            const auto& evaluates_map = ngraph::runtime::interpreter::get_evaluators_map();
             auto it = evaluates_map.find(op->get_type_info());
             if (!it->second(op, op_outputs, op_inputs)) {
                 return false;
@@ -3673,13 +3673,10 @@ bool evaluate(const shared_ptr<op::v9::GenerateProposals>& op,
               const HostTensorVector& inputs) {
     const auto& attrs = op->get_attrs();
 
-    size_t post_nms_count = 0;
     if (attrs.post_nms_count < 0) {
         throw ngraph_error("The attribute post_nms_count of the operation "
                            "GenerateProposals must be a "
                            "nonnegative integer.");
-    } else {
-        post_nms_count = static_cast<size_t>(attrs.post_nms_count);
     }
 
     const auto& output_type = op->get_input_element_type(0);

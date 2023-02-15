@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +33,16 @@
 #    define TF_EXT
 #endif
 
+#ifdef ENABLE_OV_TF_LITE_FRONTEND
+#    include <openvino/frontend/tensorflow_lite/extension/conversion.hpp>
+#    define TF_LITE_EXT                                                                                   \
+        std::make_shared<ov::frontend::tensorflow_lite::ConversionExtension>("NewCustomOp_6",             \
+                                                                             CustomTranslatorTensorflow), \
+            std::make_shared<ov::frontend::tensorflow_lite::ConversionExtension>("RELU", ReluToSwishTranslator),
+#else
+#    define TF_LITE_EXT
+#endif
+
 ov::OutputVector CustomTranslatorCommon_1(const ov::frontend::NodeContext& node) {
     return ov::OutputVector();
 }
@@ -64,4 +74,4 @@ std::map<std::string, ov::OutputVector> CustomTranslatorPaddle(const ov::fronten
 OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>(
     {std::make_shared<ov::frontend::ConversionExtension>("NewCustomOp_1", CustomTranslatorCommon_1),
      std::make_shared<ov::frontend::ConversionExtension>("NewCustomOp_2", CustomTranslatorCommon_2),
-     ONNX_EXT PADDLE_EXT TF_EXT}));
+     ONNX_EXT PADDLE_EXT TF_EXT TF_LITE_EXT}));

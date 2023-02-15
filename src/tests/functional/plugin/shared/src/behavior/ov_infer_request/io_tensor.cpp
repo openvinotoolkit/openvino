@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -160,6 +160,26 @@ TEST_P(OVInferRequestIOTensorTest, canInferWithSetInOutBlobs) {
 TEST_P(OVInferRequestIOTensorTest, canInferWithGetIn) {
     ov::Tensor input_tensor;
     OV_ASSERT_NO_THROW(input_tensor = req.get_tensor(input));
+    OV_ASSERT_NO_THROW(req.infer());
+    OV_ASSERT_NO_THROW(req.start_async());
+    OV_ASSERT_NO_THROW(req.wait());
+    OV_ASSERT_NO_THROW(req.get_tensor(output));
+}
+
+TEST_P(OVInferRequestIOTensorTest, canInferAfterIOBlobReallocation) {
+    ov::Tensor input_tensor, output_tensor;
+    auto in_shape = input.get_shape();
+    auto out_shape = output.get_shape();
+
+    // imitates blob reallocation
+    OV_ASSERT_NO_THROW(input_tensor = req.get_tensor(input));
+    OV_ASSERT_NO_THROW(input_tensor.set_shape({5, 5, 5, 5}));
+    OV_ASSERT_NO_THROW(input_tensor.set_shape(in_shape));
+
+    OV_ASSERT_NO_THROW(output_tensor = req.get_tensor(output));
+    OV_ASSERT_NO_THROW(output_tensor.set_shape({20, 20}));
+    OV_ASSERT_NO_THROW(output_tensor.set_shape(out_shape));
+
     OV_ASSERT_NO_THROW(req.infer());
     OV_ASSERT_NO_THROW(req.start_async());
     OV_ASSERT_NO_THROW(req.wait());

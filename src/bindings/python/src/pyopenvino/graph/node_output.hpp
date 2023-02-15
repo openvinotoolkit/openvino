@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,6 +27,10 @@ void def_type_dependent_functions(py::class_<ov::Output<T>, std::shared_ptr<ov::
 template<>
 void def_type_dependent_functions<ov::Node>(py::class_<ov::Output<ov::Node>,
                                             std::shared_ptr<ov::Output<ov::Node>>>& output);
+
+template<>
+void def_type_dependent_functions<const ov::Node>(py::class_<ov::Output<const ov::Node>,
+                                                  std::shared_ptr<ov::Output<const ov::Node>>>& output);
 
 template <typename VT>
 void regclass_graph_Output(py::module m, std::string typestring)

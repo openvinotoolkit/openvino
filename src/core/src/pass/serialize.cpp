@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -388,6 +388,33 @@ public:
                 }
             }
         }
+        if (!is_body_target) {
+            std::string id = "input_descriptions";
+            std::string od = "output_descriptions";
+            const auto& id_pos = name.find("input_descriptions");
+            const auto& od_pos = name.find("output_descriptions");
+            auto id_str = name;
+            size_t body_id;
+            if (id_pos != std::string::npos) {
+                id_str.erase(id_pos, id.length());
+                (void)std::stoi(id_str, &body_id);
+                is_body_target = true;
+            } else if (od_pos != std::string::npos) {
+                id_str.erase(od_pos, od.length());
+                (void)std::stoi(id_str, &body_id);
+                is_body_target = true;
+            }
+            if (is_body_target) {
+                auto body_name = "body" + id_str;
+                if (m_xml_node.parent().child(body_name.c_str())) {
+                    bnames = BodyTargetNames{body_name,
+                                             "port_map" + id_str,
+                                             {"input_descriptions" + id_str, "output_descriptions" + id_str}};
+                } else {
+                    is_body_target = false;
+                }
+            }
+        }
         if (is_body_target) {
             auto body_name = std::get<0>(bnames);
             auto portmap_name = std::get<1>(bnames);
@@ -503,7 +530,8 @@ public:
         m_xml_node.append_attribute(name.c_str()).set_value(create_atribute_list(adapter).c_str());
     }
     void on_adapter(const std::string& name, ngraph::ValueAccessor<std::shared_ptr<Function>>& adapter) override {
-        if (name == "body" || name == "then_body" || name == "else_body") {
+        if (name.find("body") != std::string::npos) {
+            // name that contains subgraphs: body{n}, then_body, else_body
             // TI, Loop do not have attributtes as regular ops, it is necessary to append "body"
             // to layer above (m_xml_node.parent()) as in ngfunction_2_ir() layer (m_xml_node) with empty attributes
             // is removed.
@@ -701,15 +729,6 @@ bool is_exec_graph(const ngraph::Function& f) {
     for (const auto& op : f.get_ops()) {
         const auto& rtInfo = op->get_rt_info();
         if (rtInfo.find("execTimeMcs") != rtInfo.end()) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool has_dynamic_output(const std::shared_ptr<Node>& n) {
-    for (size_t i = 0; i < n->get_output_size(); i++) {
-        if (n->get_output_partial_shape(i).is_dynamic()) {
             return true;
         }
     }
@@ -1048,7 +1067,7 @@ void serializeFunc(std::ostream& xml_file,
 namespace ov {
 bool pass::Serialize::run_on_model(const std::shared_ptr<ngraph::Function>& f_orig) {
     RUN_ON_FUNCTION_SCOPE(Serialize);
-    auto f = ov::clone_model(*f_orig);
+    auto f = f_orig->clone();
     if (m_xmlFile && m_binFile) {
         serializeFunc(*m_xmlFile, *m_binFile, f, m_version, m_custom_opsets);
     } else {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -105,12 +105,12 @@ protected:
         fnPtr = createGraph(netPrecision);
 
         // STAGE1:
-        threshold = 2e-1;
+        threshold = 2e-1f;
         // STAGE2:
         // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
         // performance counters
         expectedPrecisions["CONV_1"] = "BF16";
-        expectedPrecisions["ADD_2"] = "ndef";
+        expectedPrecisions["ADD_2"] = netPrecision.name();
         expectedPrecisions["CONV_2"] = "BF16";
         expectedPrecisions["ELT_1"] = "ndef";
     }

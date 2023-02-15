@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,6 +56,8 @@ ParamsKey StridedSliceKernelRef::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
+    k.EnableDifferentTypes();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 
@@ -86,7 +88,7 @@ bool StridedSliceKernelRef::Validate(const Params& p, const optional_params& o) 
     return true;
 }
 
-CommonDispatchData StridedSliceKernelRef::SetDefault(const strided_slice_params& params, const optional_params&) const {
+CommonDispatchData StridedSliceKernelRef::SetDefault(const strided_slice_params& params) const {
     CommonDispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
@@ -106,13 +108,46 @@ CommonDispatchData StridedSliceKernelRef::SetDefault(const strided_slice_params&
     return dispatchData;
 }
 
+inline std::string GetInputTypeStr(uint32_t idx) {
+    return "INPUT" + std::to_string(idx) + "_TYPE";
+}
+
+inline std::string GetToInputTypeStr(uint32_t idx) {
+    return "TO_" + GetInputTypeStr(idx);
+}
+
+inline std::string GetInputIndexStr(uint32_t idx) {
+    return "INPUT" + std::to_string(idx) + "_GET_INDEX";
+}
+
 JitConstants StridedSliceKernelRef::GetJitConstants(const strided_slice_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    makeJitConstForParam(jit, "SLICE_BEGIN", params.striding_params[0]);
-    makeJitConstForParam(jit, "SLICE_END", params.striding_params[1]);
-    makeJitConstForParam(jit, "SLICE_STEPS", params.striding_params[2]);
-
+    if (params.begin_type == StridedSliceArgType::Input || params.has_dynamic_tensors()) {
+        jit.AddConstant(MakeJitConstant("BEGIN_TYPE", GetInputTypeStr(params.GetIndexBegin())));
+        jit.AddConstant(MakeJitConstant("TO_BEGIN_TYPE", GetToInputTypeStr(params.GetIndexBegin())));
+        jit.AddConstant(MakeJitConstant("BEGIN_GET_INDEX", GetInputIndexStr(params.GetIndexBegin())));
+        jit.AddConstant(MakeJitConstant("BEGIN_DIMS", params.begin_dims));
+        makeJitConstForParam(jit, "BEGIN", params.begin_mask);
+    } else {
+        makeJitConstForParam(jit, "SLICE_BEGIN", params.striding_params[0]);
+    }
+    if (params.end_type == StridedSliceArgType::Input || params.has_dynamic_tensors()) {
+        jit.AddConstant(MakeJitConstant("END_TYPE", GetInputTypeStr(params.GetIndexEnd())));
+        jit.AddConstant(MakeJitConstant("TO_END_TYPE", GetToInputTypeStr(params.GetIndexEnd())));
+        jit.AddConstant(MakeJitConstant("END_GET_INDEX", GetInputIndexStr(params.GetIndexEnd())));
+        jit.AddConstant(MakeJitConstant("END_DIMS", params.end_dims));
+        makeJitConstForParam(jit, "END", params.end_mask);
+    } else {
+        makeJitConstForParam(jit, "SLICE_END", params.striding_params[1]);
+    }
+    if (params.stride_type == StridedSliceArgType::Input || params.has_dynamic_tensors()) {
+        jit.AddConstant(MakeJitConstant("STRIDE_TYPE", GetInputTypeStr(params.GetIndexStride())));
+        jit.AddConstant(MakeJitConstant("STRIDE_GET_INDEX", GetInputIndexStr(params.GetIndexStride())));
+        jit.AddConstant(MakeJitConstant("STRIDE_DIMS", params.stride_dims));
+    } else {
+        makeJitConstForParam(jit, "SLICE_STEPS", params.striding_params[2]);
+    }
     jit.AddConstant(MakeJitConstant(
         "NEW_AXIS_MODE",
         std::find(params.new_axis_mask.begin(), params.new_axis_mask.end(), 1) != params.new_axis_mask.end()));
@@ -163,14 +198,24 @@ KernelsData StridedSliceKernelRef::GetKernelsData(const Params& params, const op
 
     assert(params.GetType() == KernelType::STRIDED_SLICE);
 
-    auto dispatchData = SetDefault(newParams, options);
+    auto dispatchData = SetDefault(newParams);
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const strided_slice_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+    };
+
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
+                     "", false, false, static_cast<int>(newParams.inputs.size()),
+                     0, 1, newParams.has_dynamic_tensors());
 
     return {kd};
 }

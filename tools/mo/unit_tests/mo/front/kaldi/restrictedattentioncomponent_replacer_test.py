@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
@@ -35,7 +35,7 @@ class RestrictedAttentionComponentReplacerTest(unittest.TestCase):
         **regular_op('reshape_helper_1', {'type': 'Reshape'}),
         **const('reshape_helper_1_shape', int64_array([10, 1])),
         **regular_op('mul', {'type': 'Multiply'}),
-        **const('mul_scale', mo_array(0.5, dtype=np.float)),
+        **const('mul_scale', mo_array(0.5, dtype=float)),
         **regular_op('add', {'type': 'Add'}),
         **regular_op('softmax', {'type': 'SoftMax'}),
         **regular_op('reshape_helper_3', {'type': 'Reshape'}),

@@ -1,17 +1,17 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 # TODO: fix in tests
 if(SUGGEST_OVERRIDE_SUPPORTED)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd4305)
 endif()
 
-set(TARGET_NAME "clDNN_unit_tests64")
+set(TARGET_NAME "ov_gpu_unit_tests")
 
 file(GLOB_RECURSE SOURCES_MAIN
     "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
@@ -21,6 +21,17 @@ file(GLOB_RECURSE SOURCES_MAIN
     "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/*.hpp"
     "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/*.cpp"
   )
+
+if (NOT ENABLE_ONEDNN_FOR_GPU)
+    set(EXCLUDE_DIR "/onednn/")
+    foreach (SOURCE_FILE ${SOURCES_MAIN})
+        string (FIND ${SOURCE_FILE} ${EXCLUDE_DIR} EXCLUDE_DIR_FOUND)
+        if (NOT ${EXCLUDE_DIR_FOUND} EQUAL -1)
+            message (Exclude : ${SOURCE_FILE})
+            list (REMOVE_ITEM SOURCES_MAIN ${SOURCE_FILE})
+        endif ()
+    endforeach(SOURCE_FILE)
+endif()
 
 if (MSVC)
   file(GLOB SOURCES_NATVIS
@@ -46,7 +57,7 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_graph
                                              inference_engine
-                                             OpenCL
+                                             OpenCL::OpenCL
                                              gtest
                                              gtest_main
                                              gflags

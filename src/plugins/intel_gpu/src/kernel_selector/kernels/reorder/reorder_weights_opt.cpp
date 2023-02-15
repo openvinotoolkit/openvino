@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,6 +52,39 @@ ParamsKey ReorderWeightsOpt::GetSupportedKey() const {
     k.EnableDifferentTypes();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
+    return k;
+}
+
+DeviceFeaturesKey ReorderWeightsOpt::get_required_device_features_key(const Params& params, const optional_params& /*options*/) const {
+    DeviceFeaturesKey k;
+
+    bool requires_blocked_read_write_char = false;
+    bool requires_blocked_read_write_short = false;
+    bool requires_blocked_read_write = false;
+    const auto& casted_params = static_cast<const reorder_weights_params&>(params);
+
+    std::vector<WeightsType> tensor_types = {casted_params.input.GetDType(), casted_params.output.GetDType() };
+    for (auto& type : tensor_types) {
+        if (type == WeightsType::F16) {
+            requires_blocked_read_write_short = true;
+        } else if (type == WeightsType::F32) {
+            requires_blocked_read_write = true;
+        } else if (type == WeightsType::UINT8 || type == WeightsType::INT8) {
+            requires_blocked_read_write_char = true;
+        }
+    }
+
+    if (requires_blocked_read_write)
+        k.requires_blocked_read_write();
+
+    if (requires_blocked_read_write_short)
+        k.requires_blocked_read_write_short();
+
+    if (requires_blocked_read_write_char)
+        k.requires_blocked_read_write_char();
+
+    k.requires_subgroups();
+
     return k;
 }
 

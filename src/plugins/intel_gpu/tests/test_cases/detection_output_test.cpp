@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "test_utils.h"
 
@@ -89,7 +87,7 @@ public:
     void init_buffer_sort(cldnn::memory::ptr input_buff) {
         cldnn::mem_lock<T> input_data_ptr(input_buff, get_test_stream());
 
-        EXPECT_EQ((int)input_buff->count(), 128);
+        ASSERT_EQ((int)input_buff->count(), 128);
 
         T* input_data = input_data_ptr.data();
         input_data[0] = 8;
@@ -119,20 +117,20 @@ public:
         std::vector<std::string> items;
         std::istringstream iss(values);
         std::copy(std::istream_iterator<std::string>(iss), std::istream_iterator<std::string>(), back_inserter(items));
-        EXPECT_EQ((int)items.size(), 7);
+        ASSERT_EQ((int)items.size(), 7);
 
         // Check data.
         cldnn::mem_lock<T> out_ptr(output, get_test_stream());
         const T* data = out_ptr.data();
         for (int i = 0; i < 2; ++i) {
-            EXPECT_EQ(static_cast<int>((float)data[num * output->get_layout().spatial(0) + i]), atoi(items[i].c_str()));
+            ASSERT_EQ(static_cast<int>((float)data[num * output->get_layout().spatial(0) + i]), atoi(items[i].c_str()));
         }
         for (int i = 2; i < 7; ++i) {
-            EXPECT_TRUE(floating_point_equal(data[num * output->get_layout().spatial(0) + i], (T)(float)atof(items[i].c_str())));
+            ASSERT_TRUE(floating_point_equal(data[num * output->get_layout().spatial(0) + i], (T)(float)atof(items[i].c_str())));
         }
     }
 
-    void setup_basic() {
+    void setup_basic(bool is_caching_test) {
         const bool share_location = true;
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 150;
@@ -149,24 +147,42 @@ public:
 
         topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k));
 
-        build_options opts;
-        network network(engine, topology, opts);
-        network.set_input_data("input_location", input_location);
-        network.set_input_data("input_confidence", input_confidence);
-        network.set_input_data("input_prior_box", input_prior_box);
+        ExecutionConfig config;
+        cldnn::network::ptr network;
 
-        auto outputs = network.execute();
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology, config);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology, config);
+        }
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        network->set_input_data("input_location", input_location);
+        network->set_input_data("input_confidence", input_confidence);
+        network->set_input_data("input_prior_box", input_prior_box);
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        auto outputs = network->execute();
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
+
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
     }
 
-    void setup_two_layers() {
+    void setup_two_layers(bool is_caching_test) {
         const bool share_location = true;
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 150;
@@ -184,29 +200,47 @@ public:
         topology.add(detection_output("detection_output_1", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k));
         topology.add(detection_output("detection_output_2", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k));
 
-        build_options opts;
-        network network(engine, topology, opts);
-        network.set_input_data("input_location", input_location);
-        network.set_input_data("input_confidence", input_confidence);
-        network.set_input_data("input_prior_box", input_prior_box);
+        ExecutionConfig config;
+        cldnn::network::ptr network;
 
-        auto outputs = network.execute();
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology, config);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology, config);
+        }
 
-        EXPECT_EQ(outputs.size(), size_t(2));
+        network->set_input_data("input_location", input_location);
+        network->set_input_data("input_confidence", input_confidence);
+        network->set_input_data("input_prior_box", input_prior_box);
+
+        auto outputs = network->execute();
+
+        ASSERT_EQ(outputs.size(), size_t(2));
         unsigned i = 1;
         for (auto it = outputs.begin(); it != outputs.begin(); it++) {
 
-            EXPECT_EQ(it->first, "detection_output_" + std::to_string(i));
+            ASSERT_EQ(it->first, "detection_output_" + std::to_string(i));
 
-            EXPECT_EQ(it->second.get_memory()->get_layout().batch(), 1);
-            EXPECT_EQ(it->second.get_memory()->get_layout().feature(), 1);
-            EXPECT_EQ(it->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-            EXPECT_EQ(it->second.get_memory()->get_layout().spatial(0), 7);
+            ASSERT_EQ(it->second.get_memory()->get_layout().batch(), 1);
+            ASSERT_EQ(it->second.get_memory()->get_layout().feature(), 1);
+            ASSERT_EQ(it->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+            ASSERT_EQ(it->second.get_memory()->get_layout().spatial(0), 7);
             i++;
         }
     }
 
-    void forward_share_location() {
+    void forward_share_location(bool is_caching_test) {
         const bool share_location = true;
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 4;
@@ -226,21 +260,39 @@ public:
 
         topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
-        build_options opts;
-        network network(engine, topology, opts);
-        network.set_input_data("input_location", input_location);
-        network.set_input_data("input_confidence", input_confidence);
-        network.set_input_data("input_prior_box", input_prior_box);
+        ExecutionConfig config;
+        cldnn::network::ptr network;
 
-        auto outputs = network.execute();
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology, config);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology, config);
+        }
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        network->set_input_data("input_location", input_location);
+        network->set_input_data("input_confidence", input_confidence);
+        network->set_input_data("input_prior_box", input_prior_box);
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        auto outputs = network->execute();
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
+
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -254,7 +306,7 @@ public:
         check_results(output_prim, 7, "0 0 0 0 0 0 0");
     }
 
-    void forward_num_detections_greater_than_keep_top_k() {
+    void forward_num_detections_greater_than_keep_top_k(bool is_caching_test) {
         const bool share_location = true;
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 1;
@@ -274,21 +326,39 @@ public:
 
         topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
-        build_options opts;
-        network network(engine, topology, opts);
-        network.set_input_data("input_location", input_location);
-        network.set_input_data("input_confidence", input_confidence);
-        network.set_input_data("input_prior_box", input_prior_box);
+        ExecutionConfig config;
+        cldnn::network::ptr network;
 
-        auto outputs = network.execute();
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology, config);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology, config);
+        }
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        network->set_input_data("input_location", input_location);
+        network->set_input_data("input_confidence", input_confidence);
+        network->set_input_data("input_prior_box", input_prior_box);
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        auto outputs = network->execute();
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
+
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -296,7 +366,7 @@ public:
         check_results(output_prim, 1, "1 1 0.6 0.45 0.45 0.75 0.75");
     }
 
-    void forward_num_detections_smaller_than_keep_top_k() {
+    void forward_num_detections_smaller_than_keep_top_k(bool is_caching_test) {
         const bool share_location = true;
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 6;
@@ -316,21 +386,39 @@ public:
 
         topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
-        build_options opts;
-        network network(engine, topology, opts);
-        network.set_input_data("input_location", input_location);
-        network.set_input_data("input_confidence", input_confidence);
-        network.set_input_data("input_prior_box", input_prior_box);
+        ExecutionConfig config;
+        cldnn::network::ptr network;
 
-        auto outputs = network.execute();
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology, config);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology, config);
+        }
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        network->set_input_data("input_location", input_location);
+        network->set_input_data("input_confidence", input_confidence);
+        network->set_input_data("input_prior_box", input_prior_box);
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        auto outputs = network->execute();
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
+
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -348,7 +436,7 @@ public:
         check_results(output_prim, 11, "0 0 0 0 0 0 0");
     }
 
-    void test_forward_share_location_top_k() {
+    void test_forward_share_location_top_k(bool is_caching_test) {
         const bool share_location = true;
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 2;
@@ -369,21 +457,39 @@ public:
 
         topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
-        build_options opts;
-        network network(engine, topology, opts);
-        network.set_input_data("input_location", input_location);
-        network.set_input_data("input_confidence", input_confidence);
-        network.set_input_data("input_prior_box", input_prior_box);
+        ExecutionConfig config;
+        cldnn::network::ptr network;
 
-        auto outputs = network.execute();
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology, config);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology, config);
+        }
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        network->set_input_data("input_location", input_location);
+        network->set_input_data("input_confidence", input_confidence);
+        network->set_input_data("input_prior_box", input_prior_box);
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        auto outputs = network->execute();
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
+
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -393,7 +499,7 @@ public:
         check_results(output_prim, 3, "-1 0 0 0 0 0 0");
     }
 
-    void test_forward_decrease_label_id() {
+    void test_forward_decrease_label_id(bool is_caching_test) {
         const bool share_location = true;
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 5;
@@ -432,21 +538,39 @@ public:
             prior_coordinates_offset, prior_is_normalized, input_width, input_height, decrease_label_id
         ));
 
-        build_options opts;
-        network network(engine, topology, opts);
-        network.set_input_data("input_location", input_location);
-        network.set_input_data("input_confidence", input_confidence);
-        network.set_input_data("input_prior_box", input_prior_box);
+        ExecutionConfig config;
+        cldnn::network::ptr network;
 
-        auto outputs = network.execute();
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology, config);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology, config);
+        }
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        network->set_input_data("input_location", input_location);
+        network->set_input_data("input_confidence", input_confidence);
+        network->set_input_data("input_prior_box", input_prior_box);
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        auto outputs = network->execute();
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
+
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -462,7 +586,7 @@ public:
         check_results(output_prim, 9, "0 0 0 0 0 0 0");
     }
 
-    void forward_no_share_location() {
+    void forward_no_share_location(bool is_caching_test) {
         const bool share_location = false;
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 10;
@@ -482,21 +606,39 @@ public:
 
         topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
-        build_options opts;
-        network network(engine, topology, opts);
-        network.set_input_data("input_location", input_location);
-        network.set_input_data("input_confidence", input_confidence);
-        network.set_input_data("input_prior_box", input_prior_box);
+        ExecutionConfig config;
+        cldnn::network::ptr network;
 
-        auto outputs = network.execute();
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology, config);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology, config);
+        }
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        network->set_input_data("input_location", input_location);
+        network->set_input_data("input_confidence", input_confidence);
+        network->set_input_data("input_prior_box", input_prior_box);
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        auto outputs = network->execute();
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
+
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -522,7 +664,7 @@ public:
         check_results(output_prim, 19, "0 0 0 0 0 0 0");
     }
 
-    void forward_no_share_location_top_k() {
+    void forward_no_share_location_top_k(bool is_caching_test) {
         const bool share_location = false;
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 4;
@@ -543,21 +685,39 @@ public:
 
         topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
-        build_options opts;
-        network network(engine, topology, opts);
-        network.set_input_data("input_location", input_location);
-        network.set_input_data("input_confidence", input_confidence);
-        network.set_input_data("input_prior_box", input_prior_box);
+        ExecutionConfig config;
+        cldnn::network::ptr network;
 
-        auto outputs = network.execute();
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology, config);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology, config);
+        }
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        network->set_input_data("input_location", input_location);
+        network->set_input_data("input_confidence", input_confidence);
+        network->set_input_data("input_prior_box", input_prior_box);
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        auto outputs = network->execute();
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
+
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -571,7 +731,7 @@ public:
         check_results(output_prim, 7, "0 0 0 0 0 0 0");
     }
 
-    void forward_no_share_location_neg_0() {
+    void forward_no_share_location_neg_0(bool is_caching_test) {
         const bool share_location = false;
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 5;
@@ -591,21 +751,39 @@ public:
 
         topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
-        build_options opts;
-        network network(engine, topology, opts);
-        network.set_input_data("input_location", input_location);
-        network.set_input_data("input_confidence", input_confidence);
-        network.set_input_data("input_prior_box", input_prior_box);
+        ExecutionConfig config;
+        cldnn::network::ptr network;
 
-        auto outputs = network.execute();
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology, config);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology, config);
+        }
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        network->set_input_data("input_location", input_location);
+        network->set_input_data("input_confidence", input_confidence);
+        network->set_input_data("input_prior_box", input_prior_box);
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        auto outputs = network->execute();
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
+
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -621,7 +799,7 @@ public:
         check_results(output_prim, 9, "0 0 0 0 0 0 0");
     }
 
-    void forward_no_share_location_neg_0_top_k() {
+    void forward_no_share_location_neg_0_top_k(bool is_caching_test) {
         const bool share_location = false;
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 2;
@@ -642,21 +820,39 @@ public:
 
         topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
-        build_options opts;
-        network network(engine, topology, opts);
-        network.set_input_data("input_location", input_location);
-        network.set_input_data("input_confidence", input_confidence);
-        network.set_input_data("input_prior_box", input_prior_box);
+        ExecutionConfig config;
+        cldnn::network::ptr network;
 
-        auto outputs = network.execute();
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology, config);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology, config);
+        }
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        network->set_input_data("input_location", input_location);
+        network->set_input_data("input_confidence", input_confidence);
+        network->set_input_data("input_prior_box", input_prior_box);
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        auto outputs = network->execute();
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
+
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -666,7 +862,7 @@ public:
         check_results(output_prim, 3, "-1 0 0 0 0 0 0");
     }
 
-    void forward_no_share_location_top_k_input_padding() {
+    void forward_no_share_location_top_k_input_padding(bool is_caching_test) {
         const bool share_location = false;
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 4;
@@ -688,21 +884,39 @@ public:
 
         topology.add(detection_output("detection_output", input_info("input_location_padded"), input_info("input_confidence_padded"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
-        build_options opts;
-        network network(engine, topology, opts);
-        network.set_input_data("input_location", input_location);
-        network.set_input_data("input_confidence", input_confidence);
-        network.set_input_data("input_prior_box", input_prior_box);
+        ExecutionConfig config;
+        cldnn::network::ptr network;
 
-        auto outputs = network.execute();
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology, config);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology, config);
+        }
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        network->set_input_data("input_location", input_location);
+        network->set_input_data("input_confidence", input_confidence);
+        network->set_input_data("input_prior_box", input_prior_box);
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        auto outputs = network->execute();
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
+
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -751,13 +965,13 @@ public:
             prior_is_normalized, this->img_size, this->img_size
         ));
 
-        build_options opts;
+        ExecutionConfig config;
         cldnn::network::ptr network;
 
         if (is_caching_test) {
             membuf mem_buf;
             {
-                cldnn::network _network(engine, topology, opts);
+                cldnn::network _network(engine, topology, config);
                 std::ostream out_mem(&mem_buf);
                 BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
                 _network.save(ob);
@@ -765,10 +979,10 @@ public:
             {
                 std::istream in_mem(&mem_buf);
                 BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+                network = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
             }
         } else {
-            network = std::make_shared<cldnn::network>(engine, topology, opts);
+            network = std::make_shared<cldnn::network>(engine, topology, config);
         }
 
         network->set_input_data("input_location", input_location);
@@ -777,13 +991,13 @@ public:
 
         auto outputs = network->execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -808,57 +1022,105 @@ typedef ::testing::Types<float, FLOAT16> detection_output_test_types;
 TYPED_TEST_SUITE(detection_output_test, detection_output_test_types);
 
 TYPED_TEST(detection_output_test, test_setup_basic) {
-    this->setup_basic();
+    this->setup_basic(false);
 }
 
 TYPED_TEST(detection_output_test, test_setup_two_layers) {
-    this->setup_two_layers();
+    this->setup_two_layers(false);
 }
 
 TYPED_TEST(detection_output_test, test_forward_share_location) {
-    this->forward_share_location();
+    this->forward_share_location(false);
 }
 
 TYPED_TEST(detection_output_test, test_forward_num_detections_greater_than_keep_top_k) {
-    this->forward_num_detections_greater_than_keep_top_k();
+    this->forward_num_detections_greater_than_keep_top_k(false);
 }
 
 TYPED_TEST(detection_output_test, test_forward_num_detections_smaller_than_keep_top_k) {
-    this->forward_num_detections_smaller_than_keep_top_k();
+    this->forward_num_detections_smaller_than_keep_top_k(false);
 }
 
 TYPED_TEST(detection_output_test, test_forward_share_location_top_k) {
-    this->test_forward_share_location_top_k();
+    this->test_forward_share_location_top_k(false);
 }
 
 TYPED_TEST(detection_output_test, test_forward_decrease_label_id) {
-    this->test_forward_decrease_label_id();
+    this->test_forward_decrease_label_id(false);
 }
 
 TYPED_TEST(detection_output_test, test_forward_no_share_location) {
-    this->forward_no_share_location();
+    this->forward_no_share_location(false);
 }
 
 TYPED_TEST(detection_output_test, test_forward_no_share_location_top_k) {
-    this->forward_no_share_location_top_k();
+    this->forward_no_share_location_top_k(false);
 }
 
 TYPED_TEST(detection_output_test, test_forward_no_share_location_neg_0) {
-    this->forward_no_share_location_neg_0();
+    this->forward_no_share_location_neg_0(false);
 }
 
 TYPED_TEST(detection_output_test, test_forward_no_share_location_neg_0_top_k) {
-    this->forward_no_share_location_neg_0_top_k();
+    this->forward_no_share_location_neg_0_top_k(false);
 }
 
 TYPED_TEST(detection_output_test, test_forward_no_share_location_top_k_input_padding) {
-    this->forward_no_share_location_top_k_input_padding();
+    this->forward_no_share_location_top_k_input_padding(false);
 }
 
 TYPED_TEST(detection_output_test, test_forward_no_share_location_top_k_faster_rcnn_case) {
     this->test_forward_no_share_location_top_k_faster_rcnn_case(false);
 }
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+TYPED_TEST(detection_output_test, test_setup_basic_cached) {
+    this->setup_basic(true);
+}
 
-TYPED_TEST(detection_output_test, export_import) {
+TYPED_TEST(detection_output_test, test_setup_two_layers_cached) {
+    this->setup_two_layers(true);
+}
+
+TYPED_TEST(detection_output_test, test_forward_share_location_cached) {
+    this->forward_share_location(true);
+}
+
+TYPED_TEST(detection_output_test, test_forward_num_detections_greater_than_keep_top_k_cached) {
+    this->forward_num_detections_greater_than_keep_top_k(true);
+}
+
+TYPED_TEST(detection_output_test, test_forward_num_detections_smaller_than_keep_top_k_cached) {
+    this->forward_num_detections_smaller_than_keep_top_k(true);
+}
+
+TYPED_TEST(detection_output_test, test_forward_share_location_top_k_cached) {
+    this->test_forward_share_location_top_k(true);
+}
+
+TYPED_TEST(detection_output_test, test_forward_decrease_label_id_cached) {
+    this->test_forward_decrease_label_id(true);
+}
+
+TYPED_TEST(detection_output_test, test_forward_no_share_location_cached) {
+    this->forward_no_share_location(true);
+}
+
+TYPED_TEST(detection_output_test, test_forward_no_share_location_top_k_cached) {
+    this->forward_no_share_location_top_k(true);
+}
+
+TYPED_TEST(detection_output_test, test_forward_no_share_location_neg_0_cached) {
+    this->forward_no_share_location_neg_0(true);
+}
+
+TYPED_TEST(detection_output_test, test_forward_no_share_location_neg_0_top_k_cached) {
+    this->forward_no_share_location_neg_0_top_k(true);
+}
+
+TYPED_TEST(detection_output_test, test_forward_no_share_location_top_k_input_padding_cached) {
+    this->forward_no_share_location_top_k_input_padding(true);
+}
+#endif // RUN_ALL_MODEL_CACHING_TESTS
+TYPED_TEST(detection_output_test, test_forward_no_share_location_top_k_faster_rcnn_case_cached) {
     this->test_forward_no_share_location_top_k_faster_rcnn_case(true);
 }

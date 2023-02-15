@@ -34,7 +34,6 @@ constexpr size_t image_width = 200;
 constexpr float image_scale = 4.0f;
 constexpr size_t height = 2;
 constexpr size_t width = 6;
-constexpr size_t number_of_channels = 3;
 constexpr size_t number_of_anchors = 3;
 
 const std::vector<float> im_info{image_height, image_width, image_scale, image_height, image_width, image_scale};
@@ -415,18 +414,18 @@ public:
 
         if (!is_caching_test) {
             for (size_t j = 0; j < expected_rois_num.size(); ++j) {
-                EXPECT_EQ(expected_rois_num[j], rois_num_ptr[j]) << "j=" << j;
+                ASSERT_EQ(expected_rois_num[j], rois_num_ptr[j]) << "j=" << j;
             }
         }
 
         for (auto i = 0; i < param.post_nms_count; ++i) {
             if (!is_caching_test) {
-                EXPECT_NEAR(expected_roi_scores[i], roi_scores_ptr[i], getError<T>()) << "i=" << i;
+                ASSERT_NEAR(expected_roi_scores[i], roi_scores_ptr[i], getError<T>()) << "i=" << i;
             }
             if (static_cast<float>(expected_roi_scores[i]) != 0.0f) {
                 for (size_t coord = 0; coord < 4; ++coord) {
                     const auto roi_idx = i * 4 + coord;
-                    EXPECT_NEAR(expected_rois[roi_idx], rois_ptr[roi_idx], getError<T>()) << "i=" << i << ", coord=" << coord;
+                    ASSERT_NEAR(expected_rois[roi_idx], rois_ptr[roi_idx], getError<T>()) << "i=" << i << ", coord=" << coord;
                 }
             }
         }

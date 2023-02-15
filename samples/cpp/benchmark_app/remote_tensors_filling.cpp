@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -83,7 +83,7 @@ std::map<std::string, ov::TensorVector> get_remote_input_tensors(
     auto& oclContext = static_cast<ov::intel_gpu::ocl::ClContext&>(context);
     auto oclInstance = std::make_shared<gpu::OpenCL>(oclContext.get());
 
-    for (int i = 0; i < num_requests; i++) {
+    for (size_t i = 0; i < num_requests; i++) {
         for (auto& inputs_info : app_inputs_info) {
             for (auto& input : inputs_info) {
                 // Fill random

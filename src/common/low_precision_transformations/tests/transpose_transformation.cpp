@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -86,7 +86,7 @@ public:
 };
 
 TEST_P(TransposeTransformation, CompareFunctions) {
-    InitNodeInfo().run_on_model(actualFunction);
+    ov::pass::InitNodeInfo().run_on_model(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(actualFunction, referenceFunction, true, true);
     ASSERT_TRUE(res.first) << res.second;
@@ -132,13 +132,13 @@ const std::vector<TransposeTransformationTestValues> testValues = {
      {ngraph::element::u8,
       {{ngraph::element::f32},
        {{128.f}, element::undefined, {1, 3, 1, 1}, false, 1ul, element::u8, true},
-       {{0.1}, ngraph::element::f32, {1, 3, 1, 1}}}},
+       {{0.1f}, ngraph::element::f32, {1, 3, 1, 1}}}},
      {ngraph::element::u8,
       {{}, {}, {}},
       ngraph::element::u8,
       {{ngraph::element::f32},
        {{128.f}, element::undefined, {1, 1, 3, 1}, false, 1ul, element::u8, true},
-       {{0.1}, ngraph::element::f32, {1, 1, 3, 1}}}}},
+       {{0.1f}, ngraph::element::f32, {1, 1, 3, 1}}}}},
     // U8: per-tensor quantization, transpose channel dimension
     {{0, 3, 1, 2},
      LayerTransformation::createParamsU8I8(),

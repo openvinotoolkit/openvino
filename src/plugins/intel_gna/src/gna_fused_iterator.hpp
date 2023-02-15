@@ -1,33 +1,36 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
-#include <map>
-#include <vector>
 #include <list>
+#include <map>
 #include <string>
+#include <vector>
+
 #include "gna_graph_tools.hpp"
 #include "layers/gna_layer_helpers.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+
 /**
  * @brief Modify child layers walking order to maintain strict ordering required for gna_fuse logic
  */
 class FuzedLayersIterator {
-    friend class  FuzedLayersContainer;
+    friend class FuzedLayersContainer;
     using iterator = std::map<std::string, InferenceEngine::CNNLayerPtr>::iterator;
     std::list<iterator> allOutputs;
     bool needReorder = false;
     InferenceEngine::details::OutLayersIterator standardIterator;
     std::list<iterator>::iterator reorderedIterator;
 
- public:
+public:
     FuzedLayersIterator() = default;
     explicit FuzedLayersIterator(InferenceEngine::CNNLayer* origin) {
         bool hasActivation = false;
-        for (auto && data : origin->outData) {
-            auto & inputTo = getInputTo(data);
+        for (auto&& data : origin->outData) {
+            auto& inputTo = getInputTo(data);
             for (auto i = inputTo.begin(); i != inputTo.end(); i++) {
                 LayerInfo info(i->second);
                 if (info.isActivation()) {
@@ -50,7 +53,7 @@ class FuzedLayersIterator {
         }
     }
 
-    void operator ++() {
+    void operator++() {
         if (!needReorder) {
             standardIterator.operator++();
             return;
@@ -58,7 +61,7 @@ class FuzedLayersIterator {
         reorderedIterator++;
     }
 
-    bool operator == (FuzedLayersIterator that) const {
+    bool operator==(FuzedLayersIterator that) const {
         if (!needReorder) {
             return standardIterator == that.standardIterator;
         }
@@ -69,11 +72,11 @@ class FuzedLayersIterator {
         return that.reorderedIterator == reorderedIterator;
     }
 
-    bool operator != (FuzedLayersIterator that) const {
+    bool operator!=(FuzedLayersIterator that) const {
         return !this->operator==(that);
     }
 
-    InferenceEngine::CNNLayerPtr operator *() const {
+    InferenceEngine::CNNLayerPtr operator*() const {
         if (!needReorder) {
             return *standardIterator;
         }
@@ -83,7 +86,8 @@ class FuzedLayersIterator {
 
 class FuzedLayersContainer {
     InferenceEngine::CNNLayer* origin;
- public:
+
+public:
     explicit FuzedLayersContainer(InferenceEngine::CNNLayer* origin) : origin(origin) {}
     FuzedLayersIterator begin() {
         return FuzedLayersIterator(origin);
@@ -99,4 +103,5 @@ inline FuzedLayersContainer make_fuzed_order(InferenceEngine::CNNLayer* origin) 
     return fusedCnt;
 }
 
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

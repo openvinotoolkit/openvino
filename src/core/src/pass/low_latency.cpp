@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -362,14 +362,14 @@ bool ov::pass::LowLatency2::run_on_model(const shared_ptr<Model>& f) {
                         }
                     }
 
-                    // insert ReadValue and Assign ops:
-                    //
-                    // Layers -> [new op: ReadValue] -> Subgraph operation
-                    //
-                    // Subgraph operation -> [new op: Assign]
-                    //                    \
-                    //                      ---> Layers -> ...
-                    //
+                    /** insert ReadValue and Assign ops:
+                     *
+                     * Layers -> [new op: ReadValue] -> Subgraph operation
+                     *
+                     * Subgraph operation -> [new op: Assign]
+                     *                    \
+                     *                     ---> Layers -> ...
+                     */
                     const auto& out_desc = sub_graph_op->get_output_descriptions();
                     bool is_output_exist = any_of(out_desc.begin(),
                                                   out_desc.end(),

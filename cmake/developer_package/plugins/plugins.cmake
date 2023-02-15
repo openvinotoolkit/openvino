@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -71,7 +71,8 @@ function(ie_add_plugin)
         if(NOT BUILD_SHARED_LIBS)
             # to distinguish functions creating plugin objects
             target_compile_definitions(${IE_PLUGIN_NAME} PRIVATE
-                IE_CREATE_PLUGIN=CreatePluginEngine${IE_PLUGIN_DEVICE_NAME})
+                IE_CREATE_PLUGIN=CreatePluginEngine${IE_PLUGIN_DEVICE_NAME}
+                OV_CREATE_PLUGIN=CreatePluginEngine${IE_PLUGIN_DEVICE_NAME})
             if(IE_PLUGIN_AS_EXTENSION)
                 # to distinguish functions creating extensions objects
                 target_compile_definitions(${IE_PLUGIN_NAME} PRIVATE
@@ -104,17 +105,6 @@ function(ie_add_plugin)
         endif()
 
         add_dependencies(ov_plugins ${IE_PLUGIN_NAME})
-
-        # fake dependencies to build in the following order:
-        # OV -> OV frontends -> OV inference plugins -> OV-based apps
-        if(BUILD_SHARED_LIBS)
-            add_dependencies(${IE_PLUGIN_NAME} ov_frontends)
-
-            # TODO: remove with legacy CNNNLayer API / IR v7
-            if(TARGET inference_engine_ir_v7_reader)
-                add_dependencies(${IE_PLUGIN_NAME} inference_engine_ir_v7_reader)
-            endif()
-        endif()
 
         # install rules
         if(NOT IE_PLUGIN_SKIP_INSTALL OR NOT BUILD_SHARED_LIBS)

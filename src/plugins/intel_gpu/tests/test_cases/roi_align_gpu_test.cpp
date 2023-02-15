@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -104,7 +102,7 @@ struct roi_align_test : public testing::Test {
 
         ASSERT_EQ(output_ptr.size(), expected_output.size());
         for (uint32_t i = 0; i < expected_output.size(); ++i) {
-            EXPECT_NEAR(output_ptr[i], expected_output[i], 0.01);
+            ASSERT_NEAR(output_ptr[i], expected_output[i], 0.01);
         }
     }
 };

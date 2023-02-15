@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,14 +21,11 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/remote_context.hpp"
 
-namespace InferenceEngine {
-class IExecutableNetworkInternal;
-}  // namespace InferenceEngine
-
 namespace ov {
 
 class Core;
 class InferRequest;
+class ICompiledModel;
 
 /**
  * @brief This class represents a compiled model.
@@ -37,7 +34,7 @@ class InferRequest;
  * transformations, then mapping to compute kernels.
  */
 class OPENVINO_RUNTIME_API CompiledModel {
-    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> _impl;
+    std::shared_ptr<ov::ICompiledModel> _impl;
     std::shared_ptr<void> _so;
 
     /**
@@ -46,8 +43,7 @@ class OPENVINO_RUNTIME_API CompiledModel {
      * @param so Plugin to use. This parameter is required to ensure that CompiledModel can work properly even if a
      * plugin object is destroyed.
      */
-    CompiledModel(const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& impl,
-                  const std::shared_ptr<void>& so);
+    CompiledModel(const std::shared_ptr<ov::ICompiledModel>& impl, const std::shared_ptr<void>& so);
     friend class ov::Core;
     friend class ov::InferRequest;
 
@@ -79,7 +75,7 @@ public:
      * They contain information about input tensors such as tensor shape, names, and element type.
      * @return std::vector of model inputs.
      */
-    std::vector<ov::Output<const ov::Node>> inputs() const;
+    const std::vector<ov::Output<const ov::Node>>& inputs() const;
 
     /**
      * @brief Gets a single input of a compiled model.
@@ -88,7 +84,7 @@ public:
      * @return Compiled model input.
      * @note If a model has more than one input, this method throws ov::Exception.
      */
-    ov::Output<const ov::Node> input() const;
+    const ov::Output<const ov::Node>& input() const;
 
     /**
      * @brief Gets input of a compiled model identified by @p i.
@@ -97,7 +93,7 @@ public:
      * @return Compiled model input.
      * @note The method throws ov::Exception if input with the specified index @p i is not found.
      */
-    ov::Output<const ov::Node> input(size_t i) const;
+    const ov::Output<const ov::Node>& input(size_t i) const;
 
     /**
      * @brief Gets input of a compiled model identified by @p tensor_name.
@@ -106,7 +102,7 @@ public:
      * @return Compiled model input.
      * @note The method throws ov::Exception if input with the specified tensor name @p tensor_name is not found.
      */
-    ov::Output<const ov::Node> input(const std::string& tensor_name) const;
+    const ov::Output<const ov::Node>& input(const std::string& tensor_name) const;
 
     /**
      * @brief Get all outputs of a compiled model.
@@ -114,7 +110,7 @@ public:
      * Outputs contain information about output tensors such as tensor shape, names, and element type.
      * @return std::vector of model outputs.
      */
-    std::vector<ov::Output<const ov::Node>> outputs() const;
+    const std::vector<ov::Output<const ov::Node>>& outputs() const;
 
     /**
      * @brief Gets a single output of a compiled model.
@@ -123,7 +119,7 @@ public:
      * @return Compiled model output.
      * @note If a model has more than one output, this method throws ov::Exception.
      */
-    ov::Output<const ov::Node> output() const;
+    const ov::Output<const ov::Node>& output() const;
 
     /**
      * @brief Gets output of a compiled model identified by @p index.
@@ -132,7 +128,7 @@ public:
      * @return Compiled model output.
      * @note The method throws ov::Exception if output with the specified index @p index is not found.
      */
-    ov::Output<const ov::Node> output(size_t i) const;
+    const ov::Output<const ov::Node>& output(size_t i) const;
 
     /**
      * @brief Gets output of a compiled model identified by @p tensor_name.
@@ -141,7 +137,7 @@ public:
      * @return Compiled model output.
      * @note The method throws ov::Exception if output with the specified tensor name @p tensor_name is not found.
      */
-    ov::Output<const ov::Node> output(const std::string& tensor_name) const;
+    const ov::Output<const ov::Node>& output(const std::string& tensor_name) const;
 
     /**
      * @brief Creates an inference request object used to infer the compiled model.

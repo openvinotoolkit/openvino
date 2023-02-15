@@ -1,11 +1,15 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
 
+// To avoid "unused variable" warnings `when debug caps
+// need more information than non-debug caps version
+#define CPU_DEBUG_CAPS_MAYBE_UNUSED(x) (void)x
+
 #ifdef CPU_DEBUG_CAPS
 
-#define CPU_DEBUG_CAP_ENABLE(_x) _x;
+#define CPU_DEBUG_CAP_ENABLE(...) __VA_ARGS__
 #define CPU_DEBUG_CAPS_ALWAYS_TRUE(x) true
 
 #include <string>
@@ -147,7 +151,7 @@ static inline std::ostream& write_all_to_stream(std::ostream& os, const T& arg, 
 
 #else // !CPU_DEBUG_CAPS
 
-#define CPU_DEBUG_CAP_ENABLE(_x)
+#define CPU_DEBUG_CAP_ENABLE(...)
 #define CPU_DEBUG_CAPS_ALWAYS_TRUE(x) x
 
 #define DEBUG_LOG(...)

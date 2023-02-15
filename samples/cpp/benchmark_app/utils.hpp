@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,16 +10,26 @@
 #include <openvino/openvino.hpp>
 #include <samples/slog.hpp>
 #include <string>
+#include <unordered_set>
 #include <vector>
+
+#ifdef USE_OPENCV
+const std::unordered_set<std::string> supported_image_extensions =
+    {"bmp", "dib", "jpeg", "jpg", "jpe", "jp2", "png", "pbm", "pgm", "ppm", "sr", "ras", "tiff", "tif"};
+#else
+const std::unordered_set<std::string> supported_image_extensions = {"bmp"};
+#endif
+const std::unordered_set<std::string> supported_numpy_extensions = {"npy"};
+const std::unordered_set<std::string> supported_binary_extensions = {"bin"};
 
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
 
-inline uint64_t get_duration_in_milliseconds(uint32_t duration) {
+inline uint64_t get_duration_in_milliseconds(uint64_t duration) {
     return duration * 1000LL;
 }
 
-inline uint64_t get_duration_in_nanoseconds(uint32_t duration) {
+inline uint64_t get_duration_in_nanoseconds(uint64_t duration) {
     return duration * 1000000000LL;
 }
 
@@ -117,14 +127,13 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
 void dump_config(const std::string& filename, const std::map<std::string, ov::AnyMap>& config);
 void load_config(const std::string& filename, std::map<std::string, ov::AnyMap>& config);
 
-extern const std::vector<std::string> supported_image_extensions;
-extern const std::vector<std::string> supported_binary_extensions;
-
+std::string get_extension(const std::string& name);
 bool is_binary_file(const std::string& filePath);
+bool is_numpy_file(const std::string& filePath);
 bool is_image_file(const std::string& filePath);
 bool contains_binaries(const std::vector<std::string>& filePaths);
 std::vector<std::string> filter_files_by_extensions(const std::vector<std::string>& filePaths,
-                                                    const std::vector<std::string>& extensions);
+                                                    const std::unordered_set<std::string>& extensions);
 
 std::string parameter_name_to_tensor_name(
     const std::string& name,

@@ -1,6 +1,13 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+
+# Android toolchain does not provide pkg-config file. So, cmake mistakenly uses
+# build system pkg-config executable, which finds packages on build system. Such
+# libraries cannot be linked into Android binaries.
+if(NOT ANDROID)
+    find_package(PkgConfig QUIET)
+endif()
 
 if(SUGGEST_OVERRIDE_SUPPORTED)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
@@ -19,29 +26,104 @@ if(ENABLE_SAMPLES OR ENABLE_TESTS)
     add_subdirectory(cnpy EXCLUDE_FROM_ALL)
 endif()
 
-if(ENABLE_INTEL_GPU)
-    add_subdirectory(ocl)
-endif()
-
 add_subdirectory(xbyak EXCLUDE_FROM_ALL)
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS xbyak)
 ov_install_static_lib(xbyak ${OV_CPACK_COMP_CORE})
+
+#
+# OpenCL
+#
+
+if(ENABLE_INTEL_GPU)
+    if(ENABLE_SYSTEM_OPENCL)
+        # try to find system OpenCL (installed via 'brew install opencl-icd-loader')
+        find_package(OpenCLICDLoader QUIET)
+
+        if(OpenCLICDLoader_FOUND)
+            # 'brew install opencl-headers'
+            find_package(OpenCLHeaders QUIET)
+            if(NOT OpenCLHeaders_FOUND)
+                message(FATAL_ERROR "OpenCLHeaders not found, but OpenCLICDLoader is installed. Please, install OpenCL headers")
+            else()
+                set_target_properties(OpenCL::Headers PROPERTIES IMPORTED_GLOBAL ON)
+            endif()
+        else()
+            # try to find system OpenCL:
+            # - 'sudo -E apt-get install opencl-headers ocl-icd-opencl-dev'
+            # - 'sudo -E yum install ocl-icd-devel opencl-headers'
+            # - 'conda install khronos-opencl-icd-loader -c conda-forge'
+            find_package(OpenCL QUIET)
+        endif()
+    endif()
+
+    if(TARGET OpenCL::OpenCL)
+        set_target_properties(OpenCL::OpenCL PROPERTIES IMPORTED_GLOBAL ON)
+
+        # try to find CL/opencl.hpp
+        find_file(OpenCL_HPP
+                  NAMES CL/opencl.hpp OpenCL/opencl.hpp
+                  HINTS ${OpenCL_INCLUDE_DIRS}
+                  DOC "Path to CL/opencl.hpp")
+
+        # add definition to select proper header and suppress warnings
+        if(OpenCL_HPP)
+            set_target_properties(OpenCL::OpenCL PROPERTIES
+                INTERFACE_COMPILE_DEFINITIONS OV_GPU_USE_OPENCL_HPP)
+        endif()
+
+        # set variables for onednn_gpu
+        if(OpenCLHeaders_FOUND)
+            set(OpenCL_INCLUDE_DIR "$<TARGET_PROPERTY:OpenCL::Headers,INTERFACE_INCLUDE_DIRECTORIES>" PARENT_SCOPE)
+            set(OpenCL_LIBRARY "$<TARGET_PROPERTY:OpenCL::OpenCL,IMPORTED_LOCATION_RELEASE>" PARENT_SCOPE)
+        elseif(OpenCL_FOUND)
+            # find_package(OpenCL) already defines OpenCL_INCLUDE_DIR and OpenCL_LIBRARY
+            # see https://cmake.org/cmake/help/latest/module/FindOpenCL.html
+            message(STATUS "Found OpenCL (ver. ${OpenCL_VERSION_STRING}, include dirs ${OpenCL_INCLUDE_DIRS})")
+        else()
+            message(FATAL_ERROR "Internal error: cannot find OpenCL headers")
+        endif()
+    else()
+        add_subdirectory(ocl)
+
+        set(OpenCL_INCLUDE_DIR "${OpenCL_INCLUDE_DIR}" PARENT_SCOPE)
+        set(OpenCL_LIBRARY "${OpenCL_LIBRARY}" PARENT_SCOPE)
+    endif()
+
+    # cmake cannot set properties for imported targets
+    get_target_property(opencl_target OpenCL::OpenCL ALIASED_TARGET)
+    if(NOT TARGET ${opencl_target})
+        set(opencl_target OpenCL::OpenCL)
+    endif()
+
+    if(SUGGEST_OVERRIDE_SUPPORTED)
+        set_target_properties(${opencl_target} PROPERTIES INTERFACE_COMPILE_OPTIONS "-Wno-suggest-override")
+    endif()
+
+    # used in tests
+    add_library(opencl_new_headers INTERFACE)
+    add_library(OpenCL::NewHeaders ALIAS opencl_new_headers)
+    foreach(opencl_dir "${CMAKE_CURRENT_SOURCE_DIR}/ocl/clhpp_headers/include" "${CMAKE_CURRENT_SOURCE_DIR}/ocl/cl_headers")
+        if(EXISTS "${opencl_dir}")
+            set_property(TARGET opencl_new_headers APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+                $<BUILD_INTERFACE:${opencl_dir}>)
+            set_target_properties(opencl_new_headers PROPERTIES
+                INTERFACE_COMPILE_DEFINITIONS OV_GPU_USE_OPENCL_HPP)
+        endif()
+    endforeach()
+endif()
 
 #
 # zlib
 #
 
 if(ENABLE_SAMPLES OR ENABLE_TESTS)
-    if(NOT ANDROID)
-        find_package(PkgConfig QUIET)
-        if(PkgConfig_FOUND)
-            pkg_search_module(zlib QUIET
-                              IMPORTED_TARGET GLOBAL
-                              zlib)
-            if(zlib_FOUND)
-                add_library(zlib::zlib ALIAS PkgConfig::zlib)
-                message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
-            endif()
+    if(PkgConfig_FOUND)
+        pkg_search_module(zlib QUIET
+                          IMPORTED_TARGET GLOBAL
+                          zlib)
+        if(zlib_FOUND)
+            add_library(zlib::zlib ALIAS PkgConfig::zlib)
+            message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
         endif()
     endif()
 
@@ -55,7 +137,6 @@ endif()
 #
 
 if(ENABLE_SYSTEM_PUGIXML)
-    find_package(PkgConfig QUIET)
     # try system pugixml first
     find_package(PugiXML QUIET)
     if(PugiXML_FOUND)
@@ -79,7 +160,7 @@ if(ENABLE_SYSTEM_PUGIXML)
         endif()
         # to property generate OpenVINO Developer packages files
         set(PugiXML_FOUND ${PugiXML_FOUND} CACHE BOOL "" FORCE)
-    elseif(PkgConfig_FOUND AND NOT ANDROID)
+    elseif(PkgConfig_FOUND)
         # U18 case when cmake interface is not available
         pkg_search_module(pugixml QUIET
                           IMPORTED_TARGET GLOBAL
@@ -170,8 +251,11 @@ if(ENABLE_GAPI_PREPROCESSING)
     add_subdirectory(ade EXCLUDE_FROM_ALL)
     add_subdirectory(fluid/modules/gapi EXCLUDE_FROM_ALL)
 
-    if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND NOT OV_COMPILER_IS_CLANG)
+    if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
         target_compile_options(fluid PRIVATE "-Wno-maybe-uninitialized")
+    endif()
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        target_compile_options(fluid PRIVATE "-Wno-unused-but-set-variable")
     endif()
 
     set_target_properties(ade fluid PROPERTIES FOLDER thirdparty)
@@ -186,7 +270,8 @@ endif()
 #
 
 if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL OR ENABLE_TESTS)
-    if(LINUX)
+    # on Windows and macOS we don't use gflags, because will be dynamically linked
+    if(CMAKE_HOST_LINUX AND LINUX)
         if(OV_OS_RHEL)
             set(gflag_component nothreads_shared)
         elseif(OV_OS_DEBIAN)
@@ -257,7 +342,7 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         set(Protobuf_LIBRARIES protobuf::libprotobuf)
         set(PROTOC_EXECUTABLE protobuf::protoc)
 
-        foreach(target ${PROTOC_EXECUTABLE} ${Protobuf_LIBRARIES} ${Protobuf_LITE_LIBRARIES})
+        foreach(target IN LISTS PROTOC_EXECUTABLE Protobuf_LIBRARIES Protobuf_LITE_LIBRARIES)
             set_property(TARGET ${target} PROPERTY IMPORTED_GLOBAL ON)
         endforeach()
     else()
@@ -282,6 +367,44 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
             target_compile_options(${target} ${link_type} -Wno-undef)
         endif()
     endforeach()
+endif()
+
+#
+# Flat Buffers
+#
+
+if(ENABLE_OV_TF_LITE_FRONTEND)
+    if(ENABLE_SYSTEM_FLATBUFFERS)
+        if(CMAKE_HOST_LINUX AND EMSCRIPTEN AND HOST_X86_64)
+            set(_old_flat_CMAKE_LIBRARY_ARCHITECTURE ${CMAKE_LIBRARY_ARCHITECTURE})
+            # without this WA cmake does not search in <triplet> subfolder
+            # see https://cmake.org/cmake/help/latest/command/find_package.html#config-mode-search-procedure
+            set(CMAKE_LIBRARY_ARCHITECTURE "x86_64-linux-gnu")
+        endif()
+
+        find_host_package(Flatbuffers QUIET NO_CMAKE_FIND_ROOT_PATH)
+
+        if(DEFINED _old_flat_CMAKE_LIBRARY_ARCHITECTURE)
+            set(CMAKE_LIBRARY_ARCHITECTURE ${_old_flat_CMAKE_LIBRARY_ARCHITECTURE})
+            unset(_old_flat_CMAKE_LIBRARY_ARCHITECTURE)
+        endif()
+    endif()
+
+    if(Flatbuffers_FOUND)
+        # we don't actually use library files (.so | .dylib | .a) itself, only headers
+        set(flatbuffers_LIBRARY flatbuffers::flatbuffers)
+        set(flatbuffers_COMPILER flatbuffers::flatc)
+
+        foreach(target IN LISTS flatbuffers_LIBRARY flatbuffers_COMPILER)
+            set_property(TARGET ${target} PROPERTY IMPORTED_GLOBAL ON)
+        endforeach()
+    else()
+        add_subdirectory(flatbuffers EXCLUDE_FROM_ALL)
+    endif()
+
+    set(flatbuffers_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:${flatbuffers_LIBRARY},INTERFACE_INCLUDE_DIRECTORIES> PARENT_SCOPE)
+    set(flatbuffers_COMPILER ${flatbuffers_COMPILER} PARENT_SCOPE)
+    set(flatbuffers_DEPENDENCY ${flatbuffers_DEPENDENCY} PARENT_SCOPE)
 endif()
 
 #

@@ -2,7 +2,7 @@
 
 The deprecated LowLatency transformation changes the structure of the network containing [TensorIterator](../ops/infrastructure/TensorIterator_1.md) and [Loop](../ops/infrastructure/Loop_5.md) operations by adding the ability to work with the state, inserting the [Assign](../ops/infrastructure/Assign_3.md)/[ReadValue](../ops/infrastructure/ReadValue_3.md) layers, as shown in the picture below.
 
-![applying_low_latency_example](./img/applying_low_latency.png)
+![](img/applying_low_latency.svg)
 
 After applying the transformation, `ReadValue` operations can receive other operations as an input, as shown in the picture above. These inputs should set the initial value for initialization of `ReadValue` operations. However, such initialization is not supported in the current State API implementation. Input values are ignored and the initial values for the `ReadValue` operations are set to 0 unless otherwise specified by the user via [State API](@ref openvino-state-api).
 
@@ -73,7 +73,12 @@ After applying the transformation, `ReadValue` operations can receive other oper
 
 	Unnecessary parameters may remain on the graph after applying the transformation. The automatic handling of this case inside the transformation is currently not possible. Such parameters should be removed manually from `ngraph::Function` or replaced with a constant.
 
-	![low_latency_limitation_1](./img/low_latency_limitation_1.png)
+	@sphinxdirective
+
+	.. image:: _static/images/low_latency_limitation_1.svg
+	   :scale: 70 %
+
+	@endsphinxdirective
 
 	**Current solutions:** 
 	* Replace a parameter with a constant (freeze) with the `[0, 0, 0 … 0]` value via [ModelOptimizer CLI](../MO_DG/prepare_model/convert_model/Converting_Model.md): the `--input` or `--freeze_placeholder_with_value` parameters.
@@ -99,7 +104,12 @@ After applying the transformation, `ReadValue` operations can receive other oper
 
 	Networks can be non-reshapable. The most common reason is that the value of shapes is hardcoded in the constant somewhere in the network. 
 
-	![low_latency_limitation_2](./img/low_latency_limitation_2.png)
+	@sphinxdirective
+
+	.. image:: _static/images/low_latency_limitation_2.svg
+	   :scale: 70 %
+
+	@endsphinxdirective
 
 	**Current solutions:** 
 	* Trim non-reshapable layers via [ModelOptimizer CLI](../MO_DG/prepare_model/convert_model/Converting_Model.md): the `--input` and `--output` parameters. For example, the parameter and the problematic constant (as shown in the picture above) can be trimmed using the `--input Reshape_layer_name` command-line option. 

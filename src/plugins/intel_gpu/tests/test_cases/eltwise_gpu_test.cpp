@@ -1,9 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
+#include "intel_gpu/runtime/layout.hpp"
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -107,24 +106,24 @@ void generic_eltwise_test(cldnn::format test_input_fmt, int input_b, int input_f
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, out_id);
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, out_id);
 
     auto output_memory = outputs.at(out_id).get_memory();
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<T> output_ptr(output_memory, get_test_stream());
 
     VVVVF<T> output_cpu = eltwise_reference<T>(input1_rnd, input2_rnd, mode, relu, slope, input_padding_y, input_padding_x, output_padding_y, output_padding_x);
-    EXPECT_EQ(output_layout.format.value, test_input_fmt.value);
+    ASSERT_EQ(output_layout.format.value, test_input_fmt.value);
     auto output_tensor = output_layout.get_padded_dims();
     int x_size = output_tensor[3];
     int y_size = output_tensor[2];
     int f_size = output_tensor[1];
     int b_size = output_tensor[0];
-    EXPECT_EQ(y_size, (int)output_cpu[0][0].size());
-    EXPECT_EQ(x_size, (int)output_cpu[0][0][0].size());
-    EXPECT_EQ(f_size, (int)output_cpu[0].size());
-    EXPECT_EQ(b_size, (int)output_cpu.size());
+    ASSERT_EQ(y_size, (int)output_cpu[0][0].size());
+    ASSERT_EQ(x_size, (int)output_cpu[0][0][0].size());
+    ASSERT_EQ(f_size, (int)output_cpu[0].size());
+    ASSERT_EQ(b_size, (int)output_cpu.size());
 
     bool test_is_correct = true;
     VF<T> output_cpu_vec = flatten_4d<T>(test_input_fmt, output_cpu);
@@ -134,7 +133,7 @@ void generic_eltwise_test(cldnn::format test_input_fmt, int input_b, int input_f
             break;
         }
     }
-    EXPECT_EQ(test_is_correct, true) << std::endl
+    ASSERT_EQ(test_is_correct, true) << std::endl
         << "failing test parameters:" << std::endl
         << "input_b = " << input_b << std::endl
         << "input_f = " << input_f << std::endl
@@ -245,25 +244,25 @@ void generic_eltwise_bool_test(cldnn::format test_input_fmt, int input_b, int in
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output_memory = outputs.at("eltwise").get_memory();
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<int8_t> output_ptr(output_memory, get_test_stream());
 
     VVVVF<int8_t> output_cpu = eltwise_bool_reference<T>(input1_rnd, input2_rnd, mode, input_padding_y, input_padding_x, output_padding_y, output_padding_x);
-    EXPECT_EQ(output_layout.format.value, test_input_fmt.value);
+    ASSERT_EQ(output_layout.format.value, test_input_fmt.value);
     auto output_tensor = output_layout.get_padded_dims();
     int x_size = output_tensor[3];
     int y_size = output_tensor[2];
     int f_size = output_tensor[1];
     int b_size = output_tensor[0];
 
-    EXPECT_EQ(y_size, (int)output_cpu[0][0].size());
-    EXPECT_EQ(x_size, (int)output_cpu[0][0][0].size());
-    EXPECT_EQ(f_size, (int)output_cpu[0].size());
-    EXPECT_EQ(b_size, (int)output_cpu.size());
+    ASSERT_EQ(y_size, (int)output_cpu[0][0].size());
+    ASSERT_EQ(x_size, (int)output_cpu[0][0][0].size());
+    ASSERT_EQ(f_size, (int)output_cpu[0].size());
+    ASSERT_EQ(b_size, (int)output_cpu.size());
 
     bool test_is_correct = true;
     VF<int8_t> output_cpu_vec = flatten_4d<int8_t>(test_input_fmt, output_cpu);
@@ -273,7 +272,7 @@ void generic_eltwise_bool_test(cldnn::format test_input_fmt, int input_b, int in
             break;
         }
     }
-    EXPECT_EQ(test_is_correct, true) << std::endl
+    ASSERT_EQ(test_is_correct, true) << std::endl
         << "failing test parameters:" << std::endl
         << "input_b = " << input_b << std::endl
         << "input_f = " << input_f << std::endl
@@ -351,8 +350,8 @@ TEST(eltwise_gpu_f32, equal_in2_float_out1_int) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
     cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
@@ -363,7 +362,7 @@ TEST(eltwise_gpu_f32, equal_in2_float_out1_int) {
                                     0, 1, 0, 0 };
 
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_EQ(answers[i], output_ptr[i]);
+        ASSERT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -421,8 +420,8 @@ TEST(eltwise_gpu_f32, not_equal_in2_float_out1_int) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
     cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
@@ -433,7 +432,7 @@ TEST(eltwise_gpu_f32, not_equal_in2_float_out1_int) {
                                     1, 0, 1, 1 };
 
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_EQ(answers[i], output_ptr[i]);
+        ASSERT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -491,8 +490,8 @@ TEST(eltwise_gpu_f32, less_in2_float_out1_int) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
     cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
@@ -503,7 +502,7 @@ TEST(eltwise_gpu_f32, less_in2_float_out1_int) {
                                     0, 0, 0, 0 };
 
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_EQ(answers[i], output_ptr[i]);
+        ASSERT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -561,8 +560,8 @@ TEST(eltwise_gpu_f32, less_equal_in2_float_out1_int) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
     cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
@@ -573,7 +572,7 @@ TEST(eltwise_gpu_f32, less_equal_in2_float_out1_int) {
                                     0, 1, 0, 0 };
 
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_EQ(answers[i], output_ptr[i]);
+        ASSERT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -631,8 +630,8 @@ TEST(eltwise_gpu_f32, greater_in2_float_out1_int) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
     cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
@@ -643,7 +642,7 @@ TEST(eltwise_gpu_f32, greater_in2_float_out1_int) {
                                     1, 0, 1, 1 };
 
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_EQ(answers[i], output_ptr[i]);
+        ASSERT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -701,8 +700,8 @@ TEST(eltwise_gpu_f32, greater_equal_in2_float_out1_int) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
     cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
@@ -713,7 +712,7 @@ TEST(eltwise_gpu_f32, greater_equal_in2_float_out1_int) {
                                     1, 1, 1, 1 };
 
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_EQ(answers[i], output_ptr[i]);
+        ASSERT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -771,8 +770,8 @@ TEST(eltwise_gpu_f32, logicalAND_in2_float_out1_int) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
     cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
@@ -783,7 +782,7 @@ TEST(eltwise_gpu_f32, logicalAND_in2_float_out1_int) {
                                     1, 0, 1, 1 };
 
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_EQ(answers[i], output_ptr[i]);
+        ASSERT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -858,8 +857,8 @@ TEST(eltwise_gpu_f32, logicalAND_in3_float_out1_int) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
     cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
@@ -870,7 +869,7 @@ TEST(eltwise_gpu_f32, logicalAND_in3_float_out1_int) {
                                     1, 0, 1, 1 };
 
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_EQ(answers[i], output_ptr[i]);
+        ASSERT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -928,8 +927,8 @@ TEST(eltwise_gpu_f32, logicalOR_in2_float_out1_int) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
     cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
@@ -940,7 +939,7 @@ TEST(eltwise_gpu_f32, logicalOR_in2_float_out1_int) {
                                     1, 0, 1, 1 };
 
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_EQ(answers[i], output_ptr[i]);
+        ASSERT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -1015,8 +1014,8 @@ TEST(eltwise_gpu_f32, logicalOR_in3_float_out1_int) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
     cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
@@ -1027,7 +1026,7 @@ TEST(eltwise_gpu_f32, logicalOR_in3_float_out1_int) {
                                     1, 1, 1, 1 };
 
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_EQ(answers[i], output_ptr[i]);
+        ASSERT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -1085,8 +1084,8 @@ TEST(eltwise_gpu_f32, logicalXOR_in2_float_out1_int) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
     cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
@@ -1097,7 +1096,7 @@ TEST(eltwise_gpu_f32, logicalXOR_in2_float_out1_int) {
                                     0, 0, 0, 0 };
 
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_EQ(answers[i], output_ptr[i]);
+        ASSERT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -1128,9 +1127,9 @@ TEST(eltwise_gpu_f32, dynamic_kernel_no_broadcast) {
         15.f,  17.f,    8.f,  10.f,
         -2.f,  6.5f,  -0.5f, -2.5f });
 
-    build_options bo;
-    bo.set_option(build_option::allow_new_shape_infer(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
 
@@ -1141,8 +1140,8 @@ TEST(eltwise_gpu_f32, dynamic_kernel_no_broadcast) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
 
@@ -1154,7 +1153,7 @@ TEST(eltwise_gpu_f32, dynamic_kernel_no_broadcast) {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1184,9 +1183,9 @@ TEST(eltwise_gpu_f32, dynamic_kernel_broadcast) {
 
     set_values(input2, { 0.5f, -0.5f });
 
-    build_options bo;
-    bo.set_option(build_option::allow_new_shape_infer(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
 
@@ -1197,8 +1196,8 @@ TEST(eltwise_gpu_f32, dynamic_kernel_broadcast) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
 
@@ -1210,7 +1209,7 @@ TEST(eltwise_gpu_f32, dynamic_kernel_broadcast) {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1267,8 +1266,8 @@ TEST(eltwise_gpu_f32, add_basic_in4x4x2x2) {
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
 
@@ -1281,7 +1280,7 @@ TEST(eltwise_gpu_f32, add_basic_in4x4x2x2) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1323,8 +1322,8 @@ TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_channel) {
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
 
@@ -1344,7 +1343,7 @@ TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_channel) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1392,8 +1391,8 @@ TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_x) {
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
 
@@ -1413,7 +1412,7 @@ TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_x) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1455,8 +1454,8 @@ TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_y) {
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
 
@@ -1476,7 +1475,7 @@ TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_y) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1520,8 +1519,8 @@ TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_batch) {
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
 
@@ -1541,7 +1540,7 @@ TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_batch) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1579,8 +1578,8 @@ TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_multiple_dims) {
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
 
@@ -1600,7 +1599,7 @@ TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_multiple_dims) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1636,8 +1635,8 @@ TEST(eltwise_gpu_f32, pow_in2x2x2x2_broadcast_all) {
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
 
@@ -1657,7 +1656,7 @@ TEST(eltwise_gpu_f32, pow_in2x2x2x2_broadcast_all) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1714,8 +1713,8 @@ TEST(eltwise_gpu_f32, add_basic_in2x2x2x2_broadcast_2_inputs_same_dim) {
     network.set_input_data("input3", input3);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
 
@@ -1735,7 +1734,7 @@ TEST(eltwise_gpu_f32, add_basic_in2x2x2x2_broadcast_2_inputs_same_dim) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1790,8 +1789,8 @@ TEST(eltwise_gpu_f32, add_basic_in2x2x2x2_broadcast_2_inputs_diff_dim) {
     network.set_input_data("input3", input3);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
 
@@ -1811,7 +1810,7 @@ TEST(eltwise_gpu_f32, add_basic_in2x2x2x2_broadcast_2_inputs_diff_dim) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1867,8 +1866,8 @@ TEST(eltwise_gpu_f32, max_basic_in4x4x4x4) {
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
 
@@ -1882,7 +1881,7 @@ TEST(eltwise_gpu_f32, max_basic_in4x4x4x4) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1938,8 +1937,8 @@ TEST(eltwise_gpu_f32, sub_basic_in4x4x4x4) {
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
 
@@ -1953,7 +1952,7 @@ TEST(eltwise_gpu_f32, sub_basic_in4x4x4x4) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -2009,7 +2008,7 @@ TEST(eltwise_gpu_int, basic_in4x4x4x4) {
             auto outputs = network.execute();
 
             ASSERT_EQ(outputs.size(), size_t(1));
-            EXPECT_EQ(outputs.begin()->first, "eltwise_reorder");
+            ASSERT_EQ(outputs.begin()->first, "eltwise_reorder");
 
             auto output = outputs.at("eltwise_reorder").get_memory();
 
@@ -2037,7 +2036,7 @@ TEST(eltwise_gpu_int, basic_in4x4x4x4) {
                     expected =  input_1_vec[i] - input_2_vec[i] * std::floor(input_1_vec[i] / divisor);
                 }
 
-                EXPECT_TRUE(are_equal(std::floor(expected), output_ptr[i]));
+                ASSERT_TRUE(are_equal(std::floor(expected), output_ptr[i]));
             }
         }
     }
@@ -2087,7 +2086,7 @@ TEST(eltwise_gpu_f32_int, basic_in4x4x4x4) {
             auto outputs = network.execute();
 
             ASSERT_EQ(outputs.size(), size_t(1));
-            EXPECT_EQ(outputs.begin()->first, "eltwise_reorder");
+            ASSERT_EQ(outputs.begin()->first, "eltwise_reorder");
 
             auto output = outputs.at("eltwise_reorder").get_memory();
 
@@ -2111,7 +2110,7 @@ TEST(eltwise_gpu_f32_int, basic_in4x4x4x4) {
                 else if (mode == eltwise_mode::mod)
                     expected = std::fmod(input_1_vec[i], input_2_vec[i]);
 
-                EXPECT_TRUE(are_equal(std::floor(expected), output_ptr[i]));
+                ASSERT_TRUE(are_equal(std::floor(expected), output_ptr[i]));
             }
         }
     }
@@ -2168,8 +2167,8 @@ TEST(eltwise_gpu_f32, prod_basic_in4x4x4x4) {
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
 
@@ -2183,7 +2182,7 @@ TEST(eltwise_gpu_f32, prod_basic_in4x4x4x4) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -2242,8 +2241,8 @@ TEST(eltwise_gpu_f32, max_basic_in4x4x4x4_input_padding) {
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
 
@@ -2257,7 +2256,7 @@ TEST(eltwise_gpu_f32, max_basic_in4x4x4x4_input_padding) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -2314,8 +2313,8 @@ TEST(eltwise_gpu_f32, add_basic_in4x4x2x2_with_coefficients) {
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
 
@@ -2328,7 +2327,7 @@ TEST(eltwise_gpu_f32, add_basic_in4x4x2x2_with_coefficients) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -2431,8 +2430,8 @@ TEST(eltwise_gpu_f32, add_basic_in4x4x2x2_with_coefficients_3inputs) {
     network.set_input_data("input3", input3);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
 
@@ -2445,7 +2444,7 @@ TEST(eltwise_gpu_f32, add_basic_in4x4x2x2_with_coefficients_3inputs) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -2521,8 +2520,8 @@ TEST(eltwise_gpu_f32, max_3inputs_in4x4x4x4_input_padding) {
     network.set_input_data("input3", input3);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
 
@@ -2536,7 +2535,7 @@ TEST(eltwise_gpu_f32, max_3inputs_in4x4x4x4_input_padding) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -2610,8 +2609,8 @@ TEST(eltwise_gpu_f32, stride_test_2x2) {
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
 
@@ -2625,7 +2624,7 @@ TEST(eltwise_gpu_f32, stride_test_2x2) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -2678,8 +2677,8 @@ TEST(eltwise_gpu_f32, broadcast_test_in4x4x2x2) {
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
 
@@ -2693,7 +2692,7 @@ TEST(eltwise_gpu_f32, broadcast_test_in4x4x2x2) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -2769,7 +2768,7 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_basic)
     ASSERT_EQ(golden_ptr.size(), FSV32_ptr.size());
 
     for (size_t i = 0; i < golden_ptr.size(); i++) {
-        EXPECT_EQ(float(golden_ptr[i]), float(FSV32_ptr[i]));
+        ASSERT_EQ(float(golden_ptr[i]), float(FSV32_ptr[i]));
     }
 }
 
@@ -2931,8 +2930,8 @@ TEST(eltwise_gpu_f32, broadcast_test_in4x4x2x2x2) {
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
 
@@ -2951,7 +2950,7 @@ TEST(eltwise_gpu_f32, broadcast_test_in4x4x2x2x2) {
 
     for (int i = 0; i < 32; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -3029,10 +3028,10 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_basic)
     ASSERT_EQ(golden_ptr.size(), BYXF_OUTPUT_ptr.size());
 
     for (size_t i = 0; i < golden_ptr.size(); i++) {
-        EXPECT_EQ(float(golden_ptr[i]), float(FS_B_YX_FSV32_OUTPUT_ptr[i]));
+        ASSERT_EQ(float(golden_ptr[i]), float(FS_B_YX_FSV32_OUTPUT_ptr[i]));
     }
     for (size_t i = 0; i < golden_ptr.size(); i++) {
-        EXPECT_EQ(float(golden_ptr[i]), float(BYXF_OUTPUT_ptr[i]));
+        ASSERT_EQ(float(golden_ptr[i]), float(BYXF_OUTPUT_ptr[i]));
     }
 }
 
@@ -3111,10 +3110,10 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_output_padding) {
     ASSERT_EQ(golden_ptr.size(), BYXF_OUTPUT_ptr.size());
 
     for (size_t i = 0; i < golden_ptr.size(); i++) {
-        EXPECT_EQ(float(golden_ptr[i]), float(FS_B_YX_FSV32_OUTPUT_ptr[i]));
+        ASSERT_EQ(float(golden_ptr[i]), float(FS_B_YX_FSV32_OUTPUT_ptr[i]));
     }
     for (size_t i = 0; i < golden_ptr.size(); i++) {
-        EXPECT_EQ(float(golden_ptr[i]), float(BYXF_OUTPUT_ptr[i]));
+        ASSERT_EQ(float(golden_ptr[i]), float(BYXF_OUTPUT_ptr[i]));
     }
 }
 
@@ -3195,11 +3194,11 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_input_padding)
 
     for (size_t i = 0; i < golden_ptr.size(); i++)
     {
-        EXPECT_EQ(float(golden_ptr[i]), float(FS_B_YX_FSV32_OUTPUT_ptr[i]));
+        ASSERT_EQ(float(golden_ptr[i]), float(FS_B_YX_FSV32_OUTPUT_ptr[i]));
     }
     for (size_t i = 0; i < golden_ptr.size(); i++)
     {
-        EXPECT_EQ(float(golden_ptr[i]), float(BYXF_OUTPUT_ptr[i]));
+        ASSERT_EQ(float(golden_ptr[i]), float(BYXF_OUTPUT_ptr[i]));
     }
 }
 
@@ -3487,7 +3486,7 @@ struct eltwise_same_input_test : testing::TestWithParam<eltwise_same_input_test_
     }
 
     template <typename T>
-    bool compare_outputs(const memory::ptr out_ref, const memory::ptr input_ref) {
+    void compare_outputs(const memory::ptr out_ref, const memory::ptr input_ref) {
         auto output_lay = out_ref->get_layout();
         auto opt_output_lay = input_ref->get_layout();
 
@@ -3508,14 +3507,12 @@ struct eltwise_same_input_test : testing::TestWithParam<eltwise_same_input_test_
                         auto opt_out_offset = opt_output_lay.get_linear_offset(ref_out_coords);
                         auto input_out_val = input_ptr[opt_out_offset];
 
-                        EXPECT_EQ((input_out_val+input_out_val), ref_out_val);
-                        // EXPECT_NEAR(static_cast<float>(opt_out_val), static_cast<float>(ref_out_val), 1.e-1f);
+                        ASSERT_EQ((input_out_val+input_out_val), ref_out_val);
+                        // ASSERT_NEAR(static_cast<float>(opt_out_val), static_cast<float>(ref_out_val), 1.e-1f);
                     }
                 }
             }
         }
-
-        return true;
     }
 
     void execute_same_input(const eltwise_same_input_test_params& params, bool check_result) {
@@ -3531,10 +3528,10 @@ struct eltwise_same_input_test : testing::TestWithParam<eltwise_same_input_test_
         auto prim = eltwise("eltwise", { input_info("input1"), input_info("input2") }, eltwise_mode::sum);
         topo.add(prim);
 
-        auto build_ops = build_options();
-        build_ops.set_option(build_option::outputs({"eltwise"}));
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"eltwise"}));
 
-        cldnn::network net(engine, topo, build_ops);
+        cldnn::network net(engine, topo, config);
         net.set_input_data("input1", input);
         net.set_input_data("input2", input);
 
@@ -3695,22 +3692,22 @@ TEST_P(eltwise_test, fsv16) {
     topology.add(reorder("out", input_info("eltwise"), fmt_pln, data_types::f32));
     primitive_id out_id = "out";
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, out_id);
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, out_id);
 
     auto output_memory = outputs.at(out_id).get_memory();
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
     VF<float> output_cpu_vec = eltwise_ref(input1_rnd, input2_rnd, in0_size, in1_size, mode);
     for (size_t i = 0; i < output_cpu_vec.size(); ++i) {
-        EXPECT_TRUE(!(std::isnan((float)output_cpu_vec[i]) && std::isnan((float)output_ptr[i])));
+        ASSERT_TRUE(!(std::isnan((float)output_cpu_vec[i]) && std::isnan((float)output_ptr[i])));
         ASSERT_FLOAT_EQ(output_cpu_vec[i], output_ptr[i]);
     }
 }
@@ -3801,22 +3798,22 @@ TEST_P(eltwise_test_6d, bfwzyx) {
     topology.add(reorder("out", input_info("eltwise"), format::bfwzyx, data_types::f32));
     primitive_id out_id = "out";
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, out_id);
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, out_id);
 
     auto output_memory = outputs.at(out_id).get_memory();
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
     VF<float> output_cpu_vec = eltwise_ref(input1_rnd, input2_rnd, in0_size, in1_size, mode);
     for (size_t i = 0; i < output_cpu_vec.size(); ++i) {
-        EXPECT_TRUE(!(std::isnan((float)output_cpu_vec[i]) && std::isnan((float)output_ptr[i])));
+        ASSERT_TRUE(!(std::isnan((float)output_cpu_vec[i]) && std::isnan((float)output_ptr[i])));
         ASSERT_FLOAT_EQ(output_cpu_vec[i], output_ptr[i]);
     }
 }
@@ -3886,22 +3883,22 @@ TEST_P(eltwise_test_mixed_precision, fsv16) {
     topology.add(reorder("out", input_info("eltwise"), fmt_pln, data_types::f32));
     primitive_id out_id = "out";
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, out_id);
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, out_id);
 
     auto output_memory = outputs.at(out_id).get_memory();
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
     VF<float> output_cpu_vec = eltwise_ref(input1_rnd, input2_rnd, in0_size, in1_size, mode);
     for (size_t i = 0; i < output_cpu_vec.size(); ++i) {
-        EXPECT_TRUE(!(std::isnan((float)output_cpu_vec[i]) && std::isnan((float)output_ptr[i])));
+        ASSERT_TRUE(!(std::isnan((float)output_cpu_vec[i]) && std::isnan((float)output_ptr[i])));
         ASSERT_FLOAT_EQ(output_cpu_vec[i], output_ptr[i]);
     }
 }
@@ -3936,6 +3933,14 @@ struct eltwise_layout_test_params {
 #define CASE_ELTWISE_TEST9  eltwise_mode::eq,  {4, 2, 4, 4}, {1, 1, 1, 1}, format::b_fs_yx_fsv16, format::bfyx, "generic_eltwise_ref"
 
 class eltwise_layout_test : public BaseEltwiseTest<eltwise_layout_test_params> {
+public:
+    std::string PrintToString(const eltwise_layout_test_params& params) {
+        std::string res;
+        res += " format1 (" + format::traits(params.input0_format).str + ")";
+        res += " format2 (" + format::traits(params.input1_format).str + ")";
+
+        return res;
+    }
 };
 
 class eltwise_test_mixed_layout : public eltwise_layout_test {};
@@ -3988,17 +3993,17 @@ TEST_P(eltwise_test_mixed_layout, mixed_layout) {
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, out_id);
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, out_id);
 
-    EXPECT_TRUE(network.get_primitive_info("eltwise").find(selected_kernel) != std::string::npos);
+    ASSERT_TRUE(network.get_primitive_info("eltwise").find(selected_kernel) != std::string::npos);
 
     auto output_memory = outputs.at(out_id).get_memory();
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
     VF<float> output_cpu_vec = eltwise_ref(input1_rnd, input2_rnd, in0_size, in1_size, mode);
     for (size_t i = 0; i < output_cpu_vec.size(); ++i) {
-        EXPECT_TRUE(!(std::isnan((float)output_cpu_vec[i]) && std::isnan((float)output_ptr[i])));
+        ASSERT_TRUE(!(std::isnan((float)output_cpu_vec[i]) && std::isnan((float)output_ptr[i])));
         ASSERT_FLOAT_EQ(output_cpu_vec[i], output_ptr[i]);
     }
 }
@@ -4031,6 +4036,15 @@ struct eltwise_random_test_params {
 
 struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
 {
+    static std::string PrintToString(const eltwise_random_test_params& params) {
+        std::string res = " data (" + cldnn::data_type_traits::name(params.input_type) + "), ";
+        res += " format (" + format::traits(params.in_format).str + ") input1 : ";
+        res += params.first_input_size.to_string() + " / input2 : ";
+        res += params.second_input_size.to_string() + "\n";
+
+        return res;
+    }
+
     template <typename T>
     void fill_random_typed(memory::ptr mem, int min, int max, int k) {
         auto l = mem->get_layout();
@@ -4075,7 +4089,7 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
     }
 
     template <typename T>
-    bool compare_outputs(const memory::ptr out_ref, const memory::ptr out_opt) {
+    void compare_outputs(const memory::ptr out_ref, const memory::ptr out_opt) {
         auto output_lay = out_ref->get_layout();
         auto opt_output_lay = out_opt->get_layout();
 
@@ -4096,14 +4110,12 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
                         auto opt_out_offset = opt_output_lay.get_linear_offset(ref_out_coords);
                         auto opt_out_val = opt_ptr[opt_out_offset];
 
-                        EXPECT_EQ(opt_out_val, ref_out_val);
-                        // EXPECT_NEAR(static_cast<float>(opt_out_val), static_cast<float>(ref_out_val), 1.e-1f);
+                        ASSERT_EQ(opt_out_val, ref_out_val);
+                        // ASSERT_NEAR(static_cast<float>(opt_out_val), static_cast<float>(ref_out_val), 1.e-1f);
                     }
                 }
             }
         }
-
-        return true;
     }
 
     void execute_compare(const eltwise_random_test_params& params, bool check_result) {
@@ -4123,11 +4135,11 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
         auto prim = eltwise("eltwise", { input_info("input1"), input_info("input2") }, params.mode);
         topo.add(prim);
 
-        auto build_ops = build_options();
-        build_ops.set_option(build_option::outputs({"eltwise"}));
-        build_ops.set_option(build_option::force_implementations({ {"eltwise", {params.in_format, "generic_eltwise_ref"}} }));
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"eltwise"}));
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"eltwise", {params.in_format, "generic_eltwise_ref"}} }));
 
-        cldnn::network net(engine, topo, build_ops);
+        cldnn::network net(engine, topo, config);
         net.set_input_data("input1", input1);
         net.set_input_data("input2", input2);
 
@@ -4140,15 +4152,15 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
         auto prim_opt = eltwise("eltwise_opt", { input_info("input1"), input_info("input2") }, params.mode);
         topo_opt.add(prim_opt);
 
-        auto buildops_opt = build_options();
-        buildops_opt.set_option(build_option::outputs({"eltwise_opt"}));
+        ExecutionConfig config_opt;
+        config_opt.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"eltwise_opt"}));
 
         std::shared_ptr<cldnn::network> net_opt;
 
         if (is_caching_test) {
             membuf mem_buf;
             {
-                cldnn::network _network(engine, topo_opt, buildops_opt);
+                cldnn::network _network(engine, topo_opt, config_opt);
                 std::ostream out_mem(&mem_buf);
                 BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
                 _network.save(ob);
@@ -4156,10 +4168,10 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
             {
                 std::istream in_mem(&mem_buf);
                 BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                net_opt = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+                net_opt = std::make_shared<cldnn::network>(ib, config_opt, get_test_stream_ptr(), engine);
             }
         } else {
-            net_opt = std::make_shared<cldnn::network>(engine, topo_opt, buildops_opt);
+            net_opt = std::make_shared<cldnn::network>(engine, topo_opt, config_opt);
         }
 
         net_opt->set_input_data("input1", input1);
@@ -4194,15 +4206,17 @@ struct eltwise_random_test_param_generator : std::vector<eltwise_random_test_par
     eltwise_random_test_param_generator& broadcast_params(data_types type, format::type input_format, format::type output_format) {
         push_back(eltwise_random_test_params{ type, {1, 1, 48, 64},  {1, 10, 48, 64}, input_format, input_format, output_format, eltwise_mode::sum, false });
         push_back(eltwise_random_test_params{ type, {1, 16, 48, 64}, {1, 1, 48, 64},  input_format, input_format, output_format, eltwise_mode::sum, false });
-        push_back(eltwise_random_test_params{ type, {1, 5, 4, 4},    {1, 1, 4, 4},    input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 36, 48, 64}, {1, 1, 48, 64},  input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 36, 4, 4},   {1, 1, 4, 4},    input_format, input_format, output_format, eltwise_mode::sum, false });
         push_back(eltwise_random_test_params{ type, {1, 8, 4, 4},    {1, 1, 1, 1},    input_format, format::bfyx, output_format, eltwise_mode::sum, false });
         return *this;
     }
 
     eltwise_random_test_param_generator& simple_params(data_types type, format::type input_format, format::type output_format) {
         push_back(eltwise_random_test_params{ type, {1, 10, 10, 10}, {1, 10, 10, 10}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 20, 10, 10}, {1, 20, 10, 10}, input_format, input_format, output_format, eltwise_mode::sum, false });
         push_back(eltwise_random_test_params{ type, {1, 5, 4, 4},    {1, 5, 4, 4},    input_format, input_format, output_format, eltwise_mode::sum, false });
-        push_back(eltwise_random_test_params{ type, {1, 20, 16, 16}, {1, 20, 16, 16}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 32, 16, 16}, {1, 32, 16, 16}, input_format, input_format, output_format, eltwise_mode::sum, false });
         return *this;
     }
 };
@@ -4233,3 +4247,45 @@ INSTANTIATE_TEST_SUITE_P(export_import,
                             .add(eltwise_random_test_params{ data_types::f16, {1, 1, 48, 64}, {1, 10, 48, 64}, format::b_fs_yx_fsv4,
                                                              format::b_fs_yx_fsv4, format::b_fs_yx_fsv4, eltwise_mode::sum, true })
                          ));
+
+INSTANTIATE_TEST_SUITE_P(eltwise_smoke_fsv16,
+                        eltwise_random_test,
+                        testing::ValuesIn(
+                            eltwise_random_test_param_generator()
+                            .broadcast_params(data_types::f32, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .broadcast_params(data_types::f16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .broadcast_params(data_types::i8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .broadcast_params(data_types::u8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .simple_params(data_types::f32, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .simple_params(data_types::f16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .simple_params(data_types::i8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .simple_params(data_types::u8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                        ));
+
+INSTANTIATE_TEST_SUITE_P(eltwise_smoke_fsv32,
+                        eltwise_random_test,
+                        testing::ValuesIn(
+                            eltwise_random_test_param_generator()
+                            .broadcast_params(data_types::f32, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+                            .broadcast_params(data_types::f16, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+                            .broadcast_params(data_types::i8, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+                            .broadcast_params(data_types::u8, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+                            .simple_params(data_types::f32, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+                            .simple_params(data_types::f16, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+                            .simple_params(data_types::i8, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+                            .simple_params(data_types::u8, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+                        ));
+
+INSTANTIATE_TEST_SUITE_P(eltwise_smoke_bsv_fsv,
+                        eltwise_random_test,
+                        testing::ValuesIn(
+                            eltwise_random_test_param_generator()
+                            .broadcast_params(data_types::f32, format::bs_fs_yx_bsv16_fsv16, format::bs_fs_yx_bsv16_fsv16)
+                            .broadcast_params(data_types::f16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16)
+                            .broadcast_params(data_types::i8, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32)
+                            .broadcast_params(data_types::u8, format::bs_fs_yx_bsv16_fsv32, format::bs_fs_yx_bsv16_fsv32)
+                            .simple_params(data_types::f32, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16)
+                            .simple_params(data_types::f16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16)
+                            .simple_params(data_types::i8, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32)
+                            .simple_params(data_types::u8, format::bs_fs_yx_bsv16_fsv32, format::bs_fs_yx_bsv16_fsv32)
+                        ));

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ namespace {
 bool isValidRangesInputs(const std::shared_ptr<ngraph::opset1::FakeQuantize>& fq) {
     auto il = fq->input_value(1);
     auto ih = fq->input_value(2);
-    auto greater_equal = std::make_shared<ngraph::opset1::GreaterEqual>(il, ih);
+    auto greater_equal = std::make_shared<ngraph::opset1::Greater>(il, ih);
 
     ngraph::OutputVector result(1);
     if (!greater_equal->constant_fold(result, greater_equal->input_values()))
@@ -221,7 +221,7 @@ bool ngraph::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
     osc.resize(output_size, 0);
     osh.resize(output_size, 0);
 
-    for (int i = 0; i < input_size; i++) {
+    for (size_t i = 0; i < input_size; i++) {
         float il = input_low[input_low.size() == 1 ? 0 : i];
         float ih = input_high[input_high.size() == 1 ? 0 : i];
 
@@ -229,7 +229,7 @@ bool ngraph::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
         ish[i] = -il * isc[i];
     }
 
-    for (int i = 0; i < output_size; i++) {
+    for (size_t i = 0; i < output_size; i++) {
         float ol = output_low[output_low.size() == 1 ? 0 : i];
         float oh = output_high[output_high.size() == 1 ? 0 : i];
 
@@ -276,13 +276,13 @@ std::vector<float> ngraph::snippets::pass::FakeQuantizeDecomposition::calculateS
         std::all_of(osc.cbegin(), osc.cend(), [](float val) { return val == 1.f; }) &&
         std::all_of(osh.cbegin(), osh.cend(), [](float val) { return std::abs(val + 128.f) < thr; })) {
         bool is_crop_aligned = true;
-        for (int i = 0; i < std::max(cl.size(), isc.size()); i++) {
+        for (size_t i = 0; i < std::max(cl.size(), isc.size()); i++) {
             if (std::abs(cl[cl.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] + 128.f) > thr) {
                 is_crop_aligned = false;
             }
         }
 
-        for (int i = 0; i < std::max(ch.size(), isc.size()); i++) {
+        for (size_t i = 0; i < std::max(ch.size(), isc.size()); i++) {
             if (std::abs(ch[ch.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] - 127.f) > thr) {
                 is_crop_aligned = false;
             }

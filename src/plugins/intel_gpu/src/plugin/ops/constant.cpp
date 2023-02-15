@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -98,6 +98,7 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
             }
         } else if (ngraph::op::is_binary_elementwise_arithmetic(outOp) ||
                    ngraph::op::is_binary_elementwise_logical(outOp) ||
+                   ngraph::op::is_binary_elementwise_comparison(outOp) ||
                    ngraph::is_type<ngraph::op::v0::SquaredDifference>(outOp)) {
             bool all_inputs_1d = true;
             for (size_t j = 0; j < outOp->get_input_size(); j++) {
@@ -201,12 +202,9 @@ void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::
         p.primitive_ids[initialconstPrimID] = constPrimID;
         p.profiling_ids.push_back(initialconstPrimID);
     } else {
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(debug_config->verbose >= 2) {
-            GPU_DEBUG_COUT << "[" << initialconstPrimID << ": constant]" << std::endl;
-        }
-        cldnn::memory::ptr mem = p.GetEngine().allocate_memory(constLayout, false);
-        auto& stream = p.GetEngine().get_program_stream();
+        GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant]" << std::endl;
+        cldnn::memory::ptr mem = p.get_engine().allocate_memory(constLayout, false);
+        auto& stream = p.get_engine().get_service_stream();
         cldnn::mem_lock<char> lock{mem, stream};
         auto buf = lock.data();
         auto bufSize = constLayout.bytes_count();

@@ -329,7 +329,7 @@ private:
 
         ASSERT_EQ(params.expected.size(), out_ptr.size());
         for (size_t i = 0; i < params.expected.size(); ++i) {
-            EXPECT_NEAR(params.expected[i], out_ptr[i], getError<T>()) << "format=" << target_format << ", i= " << i;
+            ASSERT_NEAR(params.expected[i], out_ptr[i], getError<T>()) << "format=" << target_format << ", i= " << i;
         }
     }
 };

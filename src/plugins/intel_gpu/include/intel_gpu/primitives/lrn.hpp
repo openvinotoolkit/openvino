@@ -1,18 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
+
 
 typedef enum { /*:int32_t*/
     lrn_norm_region_across_channel,
@@ -66,8 +60,15 @@ struct lrn : public primitive_base<lrn> {
     float beta;
     /// @brief Normalize across or within channel
     lrn_norm_region norm_region;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, size);
+        seed = hash_combine(seed, k);
+        seed = hash_combine(seed, alpha);
+        seed = hash_combine(seed, beta);
+        seed = hash_combine(seed, norm_region);
+        return seed;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

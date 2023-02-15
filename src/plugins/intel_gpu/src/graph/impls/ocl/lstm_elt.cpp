@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "lstm_elt_inst.h"
 #include "primitive_base.hpp"
@@ -28,8 +26,8 @@ struct lstm_elt_impl : typed_primitive_impl_ocl<lstm_elt> {
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<lstm_elt>& instance, int32_t) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, 0);
+    kernel_arguments_data get_arguments(const typed_primitive_inst<lstm_elt>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
 
         args.cell = instance.cell_term() ? instance.cell_memory() : nullptr;
         args.outputs = { instance.output_memory_ptr() };
@@ -84,7 +82,7 @@ public:
         auto& kernel_selector = kernel_selector::lstm_elt_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(lstm_elt_params, lstm_elt_optional_params);
 
-        return make_unique<lstm_elt_impl>(arg, best_kernel);
+        return make_unique<lstm_elt_impl>(best_kernel);
     }
 };
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,8 +49,8 @@ bool Concat::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
     return true;
 }
 
-Concat::Concat(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+Concat::Concat(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -282,7 +282,7 @@ void Concat::selectOptimalPrimitiveDescriptor() {
             maxCount = it.second;
             convertTo = it.first;
         } else if (it.second == maxCount) {
-            if (isInQuantizedGraph && it.first == LayoutType::nspc) {
+            if (context->isGraphQuantized() && it.first == LayoutType::nspc) {
                 convertTo = it.first;
             } else if (it.first == LayoutType::nCsp8c || it.first == LayoutType::nCsp16c) {
                 convertTo = it.first;
@@ -426,7 +426,7 @@ void Concat::prepareParams() {
         }
 
         auto primitive_desc = concat::primitive_desc(desc, static_cast<int>(axis), srcs_d, getEngine());
-        prim.reset(new concat(primitive_desc));
+        prim = concat(primitive_desc);
     }
 }
 
@@ -557,7 +557,7 @@ void Concat::execute(dnnl::stream strm) {
             mem_ags[DNNL_ARG_MULTIPLE_SRC + nonZeroInShapes] = srcMem.GetPrimitive();
             nonZeroInShapes++;
         }
-        (*prim).execute(strm, mem_ags);
+        prim.execute(strm, mem_ags);
     }
 }
 

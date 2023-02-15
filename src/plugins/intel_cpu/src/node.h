@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,6 @@
 #include "onednn/dnnl.h"
 #include "onednn/iml_type_mapper.h"
 #include "extension_mngr.h"
-#include "primitive.h"
 #include "weights_cache.hpp"
 #include "dnnl_scratch_pad.h"
 #include <openvino/itt.hpp>
@@ -37,6 +36,7 @@
 #include "utils/debug_capabilities.h"
 
 #include "dnnl_postops_composer.h"
+#include "graph_context.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -196,7 +196,7 @@ public:
 
     virtual void fuseInto(NodePtr& parentNode) {
         // The graph supports fusing only of consecutive nodes and some graph logic requires to know through which input port a node was fused into parent one.
-        for (int i = 0; i < getParentEdges().size(); i++) {
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
             if (getParentEdgesAtPort(i)[0]->getParent().get() == parentNode.get()) {
                 setFusingPort(i);
                 break;
@@ -205,7 +205,7 @@ public:
 
         auto parentFusedNodes = parentNode->getFusedWith();
         if (getFusingPort() < 0 && !parentFusedNodes.empty()) {
-            for (int i = 0; i < getParentEdges().size(); i++) {
+            for (size_t i = 0; i < getParentEdges().size(); i++) {
                 if (getParentEdgesAtPort(i)[0]->getParent().get() == parentFusedNodes[parentFusedNodes.size() - 1].get()) {
                     setFusingPort(i);
                     break;
@@ -265,14 +265,14 @@ public:
 
     inline const NodeDesc* getSelectedPrimitiveDescriptor() const {
         if (selectedPrimitiveDescriptorIndex < 0 ||
-            selectedPrimitiveDescriptorIndex >= supportedPrimitiveDescriptors.size())
+            static_cast<size_t>(selectedPrimitiveDescriptorIndex) >= supportedPrimitiveDescriptors.size())
             return nullptr;
         return &supportedPrimitiveDescriptors[selectedPrimitiveDescriptorIndex];
     }
 
     inline NodeDesc* getSelectedPrimitiveDescriptor() {
         if (selectedPrimitiveDescriptorIndex < 0 ||
-            selectedPrimitiveDescriptorIndex >= supportedPrimitiveDescriptors.size())
+            static_cast<size_t>(selectedPrimitiveDescriptorIndex) >= supportedPrimitiveDescriptors.size())
             return nullptr;
         return &supportedPrimitiveDescriptors[selectedPrimitiveDescriptorIndex];
     }
@@ -316,7 +316,7 @@ public:
     std::shared_ptr<T> getOutputMemDescAtPort(size_t portNum) const;
 
     void selectPrimitiveDescriptorByIndex(int index) {
-        if (index < 0 || index >= supportedPrimitiveDescriptors.size())
+        if (index < 0 || static_cast<size_t>(index) >= supportedPrimitiveDescriptors.size())
             selectedPrimitiveDescriptorIndex = -1;
         else
             selectedPrimitiveDescriptorIndex = index;
@@ -369,54 +369,6 @@ public:
      * This is an auxiliary method that allows to use information not available in Node constructor (e.g. connection information with other nodes)
      */
     virtual void init() {}
-
-    template <class PD, class D, typename FPD = bool>
-    PD createPrimitiveDescriptor(const dnnl::primitive_attr &attr = dnnl::primitive_attr()) {
-        auto descsCompatible = [](const std::vector<MemoryDescPtr>& srcDescs,
-                               const std::vector<PortConfig>& selectedDescs) {
-            if (srcDescs.empty() && selectedDescs.empty())
-                return true;
-            if (srcDescs.empty() || selectedDescs.empty())
-                return false;
-            for (size_t i = 0; i < srcDescs.size() && i < selectedDescs.size(); i++) {
-                if (!srcDescs[i]->isCompatible(*selectedDescs[i].getMemDesc()))
-                    return false;
-            }
-            return true;
-        };
-
-        const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
-        if (selected_pd == nullptr)
-            IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
-
-        for (const auto& desc : descs) {
-            auto itpd = desc.createPrimitiveDescriptorIterator(engine, attr);
-
-            while (static_cast<bool>(itpd))  {
-                std::vector<MemoryDescPtr> srcDescs;
-                for (size_t i = 0; i < descInputNumbers(desc); i++)
-                    srcDescs.push_back(getSrcMemDesc(itpd, i));
-
-                std::vector<MemoryDescPtr> dstDescs;
-                for (size_t i = 0; i < descOutputNumbers(desc); i++)
-                    dstDescs.push_back(getDstMemDesc(itpd, i));
-
-                impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-
-                if (impl_type == selected_pd->getImplementationType() &&
-                    descsCompatible(srcDescs, selected_pd->getConfig().inConfs) &&
-                    descsCompatible(dstDescs, selected_pd->getConfig().outConfs)) {
-                    prepareMemory(itpd);
-                    PD prim_desc = createPd<PD, D, FPD>(desc);
-                    return {itpd.get()};
-                }
-                if (!itpd.next_impl())
-                    break;
-            }
-        }
-
-        IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
-    }
 
     int getExecIndex() const {
         return execIndex;
@@ -527,10 +479,6 @@ public:
         return false;
     }
 
-    void setQuantizedGraphFlag(bool flag) {
-        isInQuantizedGraph = flag;
-    }
-
     bool canBePerformedAsScaleShift(const Node *parentNode = nullptr) const;
 
     bool isDynamicNode() const {
@@ -573,18 +521,6 @@ public:
     virtual void appendPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::unordered_map<int, MemoryPtr>& postOpsMem, const int channelAxis = 1);
     virtual void appendPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis = 1);
 
-    void setRuntimeCache(MultiCachePtr cache) {
-        rtParamsCache = cache;
-    }
-
-    void setRuntimeScratchPad(DnnlScratchPadPtr scratchPad) {
-        rtScratchPad = scratchPad;
-    }
-
-    void setSharedMutex(const std::shared_ptr<std::mutex>& mutex) {
-        sharedMutex = mutex;
-    }
-
 protected:
     bool canFuseSimpleOperation(const NodePtr& node) const;
 
@@ -618,8 +554,8 @@ protected:
 
     std::string originalLayers;  // contains names of the original layers separated by comma
 
-    Node(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache, const ShapeInferFactory& shapeInferFactory);
-    Node(const std::string& type, const std::string& name, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache);
+    Node(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr ctx, const ShapeInferFactory& shapeInferFactory);
+    Node(const std::string& type, const std::string& name, const GraphContext::CPtr ctx);
 
     int selectedPrimitiveDescriptorIndex = -1;
     bool permanent = false;
@@ -642,14 +578,12 @@ protected:
     std::vector<NodeDesc> supportedPrimitiveDescriptors;
     std::unordered_map<int, dnnl::memory> primArgs;
     std::unordered_map<int, MemoryPtr> postOpsArgs;
-    Primitive prim;
+    dnnl::primitive prim;
     std::vector<DnnlDesriptor> descs;
 
-    WeightsSharing::Ptr weightCache;
+    const GraphContext::CPtr context;
 
     Algorithm algorithm = Algorithm::Default;
-
-    bool isInQuantizedGraph = false;
 
     friend class Edge;
     friend class Graph;
@@ -715,25 +649,15 @@ protected:
         IE_THROW(NotImplemented) << "[DS] prapareParams not implemented for node with type " << NameFromType(getType());
     }
 
-    MultiCachePtr getRuntimeCache() const {
-        return rtParamsCache;
-    }
-
-    DnnlScratchPadPtr getRuntimeScratchPad() const {
-        return rtScratchPad;
-    }
-
     MemoryPtr getScratchPadMem(const const_dnnl_primitive_desc_t& pd) {
         auto scratchpadMemoryDesc = DnnlExtensionUtils::query_md(pd, dnnl::query::scratchpad_md);
-        scratchpadMem = getRuntimeScratchPad()->createScratchPadMem(scratchpadMemoryDesc);
+        scratchpadMem = context->getScratchPad()->createScratchPadMem(scratchpadMemoryDesc);
         return scratchpadMem;
     }
 
     std::vector<VectorDims> lastInputDims = {};
 
     std::shared_ptr<IShapeInfer> shapeInference;
-
-    std::shared_ptr<std::mutex> sharedMutex = nullptr;
 
 private:
     std::vector<EdgeWeakPtr> parentEdges;
@@ -744,7 +668,7 @@ private:
 
     int fusingPort;
 
-    dnnl::engine engine;
+    const dnnl::engine engine;
 
     std::string name;
     std::string typeStr;
@@ -756,26 +680,9 @@ private:
     PerfCount perfCounter;
     PerfCounters profiling;
 
-    MultiCachePtr rtParamsCache;
-    DnnlScratchPadPtr rtScratchPad;
     MemoryPtr scratchpadMem;
 
     bool isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) const;
-
-    template <class PD, class D, typename FPD>
-    typename std::enable_if<!std::is_same<FPD, bool>::value, PD>::type
-    createPd(DnnlDesriptor desc) {
-        std::shared_ptr<D> selected_desc_ptr = desc;
-        std::shared_ptr<FPD> backward_prim_desc_ptr = desc;
-        return PD(*selected_desc_ptr, engine, *backward_prim_desc_ptr);
-    }
-
-    template <class PD, class D, typename FPD>
-    typename std::enable_if<std::is_same<FPD, bool>::value, PD>::type
-    createPd(DnnlDesriptor desc) {
-        std::shared_ptr<D> selected_desc_ptr = desc;
-        return PD(*selected_desc_ptr, engine);
-    }
 
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2 };
     ConstantType checkConstant(LOOK look, std::vector<NodePtr>& checkNodes);
@@ -796,19 +703,17 @@ constexpr uint64_t PortMask(int n, T... rest) {
 
 class Node::NodesFactory : public openvino::cc::Factory<Type,
                                             Node*(const std::shared_ptr<ngraph::Node>& op,
-                                                  const dnnl::engine &,
-                                                  WeightsSharing::Ptr &)> {
+                                                  const GraphContext::CPtr)> {
 public:
     NodesFactory();
 
-    Node* create(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-                 const ExtensionManager::Ptr& extMgr, WeightsSharing::Ptr &w_cache);
+    Node* create(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 };
 
 template<typename NodeType>
 struct NodeImpl : public NodeType {
-    NodeImpl(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : NodeType(op, eng, cache) {
+    NodeImpl(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+        : NodeType(op, context) {
         NodeType::perfCounters().template buildClassCounters<NodeType>(NameFromType(NodeType::getType()));
     }
 };

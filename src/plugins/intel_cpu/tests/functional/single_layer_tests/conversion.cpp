@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,8 +52,18 @@ protected:
         std::tie(shapes, inPrc, outPrc, cpuParams) = GetParam();
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+        auto primitive = selectedType;
+        if (primitive.empty())
+            primitive = getPrimitiveType();
+        // WA: I32 precision support disabled in snippets => primitive has to be changed
+        // TODO: remove the WA after I32 is supported in snippets (ticket: 99803)
+        if (inPrc == InferenceEngine::Precision::I32 || outPrc == InferenceEngine::Precision::I32)
+            primitive = "unknown";
 
-        selectedType = std::string("unknown_") + (inPrc == InferenceEngine::Precision::U8 ? "I8" : inPrc.name());
+        auto exec_type_precision = inPrc != InferenceEngine::Precision::U8
+                                       ? inPrc
+                                       : InferenceEngine::Precision(InferenceEngine::Precision::I8);
+        selectedType = makeSelectedTypeStr(primitive, InferenceEngine::details::convertPrecision(exec_type_precision));
 
         for (size_t i = 0; i < shapes.second.size(); i++) {
             targetStaticShapes.push_back(std::vector<ngraph::Shape>{shapes.second[i]});
@@ -112,12 +122,10 @@ private:
 TEST_P(ConvertCPULayerTest, CompareWithRefs) {
     run();
 
-    CheckPluginRelatedResults(compiledModel, "Convert");
+    CheckPluginRelatedResults(compiledModel, std::set<std::string>{"Convert", "Subgraph"});
 }
 
-std::vector<InputShape> inShapes_4D = {
-        {{1, 2, 3, 4}, {{1, 2, 3, 4}}},
-        {{1, 1, 1080, 1920}, {{1, 1, 1080, 1920}}},
+std::vector<InputShape> inShapes_4D_dynamic = {
         {
             // dynamic
             {{-1, -1, -1, -1}},
@@ -154,27 +162,69 @@ const std::vector<Precision> precisions_floating_point = {
         Precision::BF16
 };
 
-std::vector<CPUSpecificParams> memForm4D = {
-        CPUSpecificParams({nchw}, {nchw}, {}, {}),
-        CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
-        CPUSpecificParams({nChw8c}, {nChw8c}, {}, {}),
-        CPUSpecificParams({nChw16c}, {nChw16c}, {}, {})
+std::vector<CPUSpecificParams> memForm4D_dynamic = {
+    CPUSpecificParams({nchw}, {nchw}, {}, "unknown"),
+    CPUSpecificParams({nhwc}, {nhwc}, {}, "unknown"),
+    CPUSpecificParams({nChw8c}, {nChw8c}, {}, "unknown"),
+    CPUSpecificParams({nChw16c}, {nChw16c}, {}, "unknown")
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_Dynamic, ConvertCPULayerTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(inShapes_4D_dynamic),
+                                ::testing::ValuesIn(precisions),
+                                ::testing::ValuesIn(precisions),
+                                ::testing::ValuesIn(memForm4D_dynamic)),
+                        ConvertCPULayerTest::getTestCaseName);
+
+std::vector<InputShape> inShapes_4D_static = {
+    {{1, 2, 3, 4}, {{1, 2, 3, 4}}},
+    {{1, 1, 1080, 1920}, {{1, 1, 1080, 1920}}},
+};
+
+std::vector<CPUSpecificParams> memForm4D_static_common = {
+    CPUSpecificParams({nchw}, {nchw}, {}, {}),
+    CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest, ConvertCPULayerTest,
                         ::testing::Combine(
-                                ::testing::ValuesIn(inShapes_4D),
+                                ::testing::ValuesIn(inShapes_4D_static),
                                 ::testing::ValuesIn(precisions),
                                 ::testing::ValuesIn(precisions),
-                                ::testing::ValuesIn(memForm4D)),
+                                ::testing::ValuesIn(memForm4D_static_common)),
                         ConvertCPULayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_BOOL, ConvertCPULayerTest,
+std::vector<InputShape> inShapes_4D_blocked = {
+    {{1, 16, 5, 5}, {{1, 16, 5, 5}}},
+};
+
+std::vector<CPUSpecificParams> memForm4D_static_blocked = {
+    CPUSpecificParams({nChw16c}, {nChw16c}, {}, {})
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_Blocked, ConvertCPULayerTest,
                         ::testing::Combine(
-                                ::testing::ValuesIn(inShapes_4D),
+                                ::testing::ValuesIn(inShapes_4D_blocked),
+                                ::testing::ValuesIn(precisions),
+                                ::testing::ValuesIn(precisions),
+                                ::testing::ValuesIn(filterCPUSpecificParams(memForm4D_static_blocked))),
+                        ConvertCPULayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_BOOL_Static, ConvertCPULayerTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(inShapes_4D_static),
                                 ::testing::ValuesIn(precisions_floating_point),
                                 ::testing::Values(Precision::BOOL),
                                 ::testing::Values(CPUSpecificParams({nchw}, {nchw}, {}, {}))),
+                        ConvertCPULayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_BOOL_Dynamic, ConvertCPULayerTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(inShapes_4D_dynamic),
+                                ::testing::ValuesIn(precisions_floating_point),
+                                ::testing::Values(Precision::BOOL),
+                                ::testing::Values(CPUSpecificParams({nchw}, {nchw}, {}, "unknown"))),
                         ConvertCPULayerTest::getTestCaseName);
 
 } // namespace CPULayerTestsDefinitions

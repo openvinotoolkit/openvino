@@ -6,15 +6,6 @@
 
 #include <gflags/gflags.h>
 
-// gflags supports uint32 starting from v2.2 only
-#ifndef DEFINE_uint32
-#   ifdef GFLAGS_NAMESPACE
-#       define DEFINE_uint32(name, val, txt) DEFINE_VARIABLE(GFLAGS_NAMESPACE::uint32, U, name, val, txt)
-#   else
-#       define DEFINE_uint32(name, val, txt) DEFINE_VARIABLE(gflags::uint32, U, name, val, txt)
-#   endif
-#endif
-
 #include <iostream>
 #include <string>
 #include <vector>
@@ -54,7 +45,7 @@ static const char infer_num_threads_message[] = "Optional. Number of threads to 
                                                 "(including HETERO and MULTI cases).";
 
 /// @brief message for #streams for CPU inference
-static const char infer_num_streams_message[] = "Optional. Number of streams to use for inference on the CPU, GPU or MYRIAD devices "
+static const char infer_num_streams_message[] = "Optional. Number of streams to use for inference on the CPU or GPU devices "
                                                 "(for HETERO and MULTI device cases use format <dev1>:<nstreams1>,<dev2>:<nstreams2> or just "
                                                 "<nstreams>). "
                                                 "Default value is determined automatically for a device.Please note that although the "
@@ -183,17 +174,17 @@ DEFINE_string(c, "", custom_cldnn_message);
 /// @brief Iterations count (default 0)
 /// Sync mode: iterations count
 /// Async mode: StartAsync counts
-DEFINE_uint32(niter, 0, iterations_count_message);
+DEFINE_uint64(niter, 0, iterations_count_message);
 
 /// @brief Time to execute topology in seconds
-DEFINE_uint32(t, 0, execution_time_message);
+DEFINE_uint64(t, 0, execution_time_message);
 
 /// @brief Number of infer requests in parallel
-DEFINE_uint32(nireq, 0, infer_requests_count_message);
+DEFINE_uint64(nireq, 0, infer_requests_count_message);
 
 /// @brief Number of threads to use for inference on the CPU in throughput mode (also affects Hetero
 /// cases)
-DEFINE_uint32(nthreads, 0, infer_num_threads_message);
+DEFINE_uint64(nthreads, 0, infer_num_threads_message);
 
 /// @brief Number of streams to use for inference on the CPU (also affects Hetero cases)
 DEFINE_string(nstreams, "", infer_num_streams_message);
@@ -203,7 +194,7 @@ DEFINE_bool(enforcebf16, false, enforce_bf16_message);
 
 /// @brief Define parameter for batch size <br>
 /// Default is 0 (that means don't specify)
-DEFINE_uint32(b, 0, batch_size_message);
+DEFINE_uint64(b, 0, batch_size_message);
 
 // @brief Enable plugin messages
 DEFINE_string(pin, "", infer_threads_pinning_message);

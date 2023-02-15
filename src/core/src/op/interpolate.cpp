@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -138,15 +138,6 @@ std::vector<int64_t> op::v4::Interpolate::get_axes() const {
 
 static constexpr float epsilon = 1.0e-6f;
 
-namespace {
-int64_t multiply_bound_and_scale(int64_t bound, float scale) {
-    if (bound == -1) {
-        return bound;
-    }
-    return static_cast<int64_t>(static_cast<float>(bound) * scale);
-}
-}  // namespace
-
 void op::v4::Interpolate::infer_using_scales(ov::PartialShape& output_shape,
                                              const std::vector<int64_t>& axes,
                                              const std::vector<float>& scales,
@@ -194,7 +185,7 @@ void op::v4::Interpolate::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this,
                           input_et == element::f32 || input_et == element::f16 || input_et == element::i8 ||
                               input_et == element::bf16 || input_et == element::u8 || input_et == element::i64 ||
-                              input_et == element::i32,
+                              input_et == element::i32 || input_et == element::dynamic,
                           "Input element type must be f32, f16, bf16, i8, u8, i64, i32");
 
     element::Type sizes_et = get_input_element_type(1);

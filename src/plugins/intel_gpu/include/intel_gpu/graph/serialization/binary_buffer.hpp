@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include <sstream>
@@ -85,12 +84,12 @@ public:
 
 #define ASSIGN_TYPE_NAME(cls_name) \
             namespace cldnn {                            \
-            const std::string cls_name::type = #cls_name; \
+            const std::string cls_name::type_for_serialization = #cls_name; \
             }
 
 #define BIND_BINARY_BUFFER_WITH_TYPE(cls_name) \
             namespace cldnn {                            \
-            const std::string cls_name::type = #cls_name; \
+            const std::string cls_name::type_for_serialization = #cls_name; \
             BIND_TO_BUFFER(BinaryOutputBuffer, cls_name) \
             BIND_TO_BUFFER(BinaryInputBuffer, cls_name)  \
             }

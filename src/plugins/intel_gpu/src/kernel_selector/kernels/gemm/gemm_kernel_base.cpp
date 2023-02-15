@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,7 +63,7 @@ KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params,
                      kernelName,
                      jit,
                      entry_point,
-                     DEFAULT,
+                     EXE_MODE_DEFAULT,
                      false,
                      false,
                      (uint32_t)prim_params.inputs.size(),
@@ -91,6 +91,13 @@ bool GemmKernelBase::Validate(const Params& p, const optional_params&) const {
     }
 
     return true;
+}
+
+DeviceFeaturesKey GemmKernelBase::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
+    return k;
 }
 
 Datatype GemmKernelBase::GetActivationType(const gemm_params& params) const {

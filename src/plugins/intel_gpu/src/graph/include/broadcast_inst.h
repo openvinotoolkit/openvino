@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "intel_gpu/primitives/broadcast.hpp"
@@ -38,6 +37,8 @@ public:
     template<typename ShapeType>
     static std::vector<layout> calc_output_layouts(broadcast_node const& /*node*/, const kernel_impl_params& impl_param);
     static layout calc_output_layout(broadcast_node const& node, kernel_impl_params const& impl_param);
+    static std::vector<size_t> extend_input_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t input_idx);
+    static std::vector<size_t> extend_output_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t output_idx);
     static std::string to_string(broadcast_node const& node);
     typed_primitive_inst(network& network, broadcast_node const& node);
 };

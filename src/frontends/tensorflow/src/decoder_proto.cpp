@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,16 +45,21 @@ void extract_tensor_content(const std::string& tensor_content, ov::Tensor* value
     std::copy(tensor_values, tensor_values + tensor_content_size / sizeof(T), values->data<T>());
 }
 
+#if defined(_MSC_VER)
+#    pragma warning(push)
+#    pragma warning(disable : 4244)  // possible loss of data
+#    pragma warning(disable : 4267)  // possible loss of data
+#endif
 template <typename T>
 void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_proto,
                                        int64_t val_size,
                                        ov::Tensor* values) {
     auto val_lastsaved = static_cast<T>(0);
     auto values_data = values->data<T>();
-    for (auto i = 0; i < values->get_size(); i++) {
+    for (size_t i = 0; i < values->get_size(); i++) {
         if (val_size == 0) {
             values_data[i] = static_cast<T>(0);
-        } else if (i < val_size) {
+        } else if (static_cast<int64_t>(i) < val_size) {
             auto val_i = static_cast<T>(0);
             switch (values->get_element_type()) {
             // TODO: there are more element types to support here
@@ -86,6 +91,9 @@ void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_p
         }
     }
 }
+#if defined(_MSC_VER)
+#    pragma warning(pop)
+#endif
 }  // namespace
 
 ov::Any DecoderProto::get_attribute(const std::string& name) const {
@@ -263,10 +271,11 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
                                 name,
                                 "' attribute is not supported.");
     case ::tensorflow::AttrValue::ValueCase::kFunc:
-        FRONT_END_GENERAL_CHECK(false,
-                                "Conversion from Tensorflow to OpenVINO data type failed: Function type for '",
-                                name,
-                                "' attribute is not supported.");
+        // attrs[0].func() returns NameAttrList object from which
+        // we retrieve the function name
+        // Further, InputModel object is created for FunctionDef with this name
+        // and is converted to ov::Model object.
+        return attrs[0].func().name();
     default:
         FRONT_END_GENERAL_CHECK(false, "Conversion from Tensorflow to OpenVINO data type failed.");
     }
@@ -279,12 +288,15 @@ size_t DecoderProto::get_input_size() const {
 void DecoderProto::get_input_node(size_t input_port_idx,
                                   std::string& producer_name,
                                   size_t& producer_output_port_index) const {
-    // TODO: handle body graph nodes with a couple of columns
+    // Body graph nodes may have two colons `:`, for example,
+    // producer_name:z:2 means that producer operation name is `producer_name`
+    // and output port is 2
     std::string producer_port_name = m_node_def->input(static_cast<int>(input_port_idx));
-    auto delim_pos = producer_port_name.find(':');
-    if (delim_pos != std::string::npos) {
-        producer_name = producer_port_name.substr(0, delim_pos);
-        auto port_id = producer_port_name.substr(delim_pos + 1);
+    auto first_colon = producer_port_name.find_first_of(":");
+    auto last_colon = producer_port_name.find_last_of(":");
+    if (first_colon != std::string::npos && last_colon != std::string::npos) {
+        producer_name = producer_port_name.substr(0, first_colon);
+        auto port_id = producer_port_name.substr(last_colon + 1);
         FRONT_END_GENERAL_CHECK(!port_id.empty() && std::all_of(port_id.begin(), port_id.end(), ::isdigit),
                                 "Port id is not specified or not a number. Value: ",
                                 port_id);

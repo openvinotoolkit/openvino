@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,9 +33,9 @@ TEST(prepare_primitive_fusing, fuse_activation_to_fc_dyn) {
     topology.add(activation("act", input_info("fc"), activation_func::relu));
     topology.add(reorder("reorder", input_info("act"), format::bfyx, data_types::f32));
 
-    build_options build_opts;
-    build_opts.set_option(build_option::allow_new_shape_infer(true));
-    auto prog = program::build_program(engine, topology, build_opts, false, true);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
 
     layout_optimizer lo(true);
 
@@ -59,9 +59,9 @@ TEST(prepare_primitive_fusing, dont_fuse_incompatible_eltwise) {
     topology.add(eltwise("eltw", { input_info("input"), input_info("reduce") }, eltwise_mode::sum));
     topology.add(reorder("reorder", input_info("eltw"), format::bfyx, data_types::f32));
 
-    build_options build_opts;
-    build_opts.set_option(build_option::allow_new_shape_infer(true));
-    auto prog = program::build_program(engine, topology, build_opts, false, true);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
 
     layout_optimizer lo(true);
 
@@ -85,10 +85,10 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_legal) {
     topology.add(eltwise("eltw", { input_info("fc"), input_info("extra_input") }, eltwise_mode::sum));
     topology.add(reorder("reorder", input_info("eltw"), format::bfyx, data_types::f32));
 
-    build_options build_opts;
-    build_opts.set_option(build_option::optimize_data(true));
-    build_opts.set_option(build_option::allow_new_shape_infer(true));
-    auto prog = program::build_program(engine, topology, build_opts, false, true);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
 
     layout_optimizer lo(true);
 
@@ -127,10 +127,10 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal) {
     topology.add(eltwise("eltw", { input_info("fc"), input_info("extra_input")}, eltwise_mode::sum));
     topology.add(reorder("reorder", input_info("eltw"), format::bfyx, data_types::f32));
 
-    build_options build_opts;
-    build_opts.set_option(build_option::optimize_data(true));
-    build_opts.set_option(build_option::allow_new_shape_infer(true));
-    auto prog = program::build_program(engine, topology, build_opts, false, true);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
 
     layout_optimizer lo(true);
 
@@ -183,10 +183,10 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal_const) {
     topology.add(eltwise("eltw", { input_info("fc"), input_info("extra_input") }, eltwise_mode::sum));
     topology.add(reorder("reorder", input_info("eltw"), format::bfyx, data_types::f32));
 
-    build_options build_opts;
-    build_opts.set_option(build_option::optimize_data(true));
-    build_opts.set_option(build_option::allow_new_shape_infer(true));
-    auto prog = program::build_program(engine, topology, build_opts, false, true);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
 
     layout_optimizer lo(true);
 
@@ -237,10 +237,10 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_legal_scalar_const_broadca
     topology.add(eltwise("eltw", { input_info("fc"), input_info("extra_input") }, eltwise_mode::sum));
     topology.add(reorder("reorder", input_info("eltw"), format::bfyx, data_types::f32));
 
-    build_options build_opts;
-    build_opts.set_option(build_option::optimize_data(true));
-    build_opts.set_option(build_option::allow_new_shape_infer(true));
-    auto prog = program::build_program(engine, topology, build_opts, false, true);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
 
     layout_optimizer lo(true);
 
@@ -294,10 +294,10 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal_1) {
     topology.add(activation("act_fc2", input_info("eltw"), activation_func::relu));
     topology.add(reorder("reorder", input_info("act_fc2"), format::bfyx, data_types::f32));
 
-    build_options build_opts;
-    build_opts.set_option(build_option::optimize_data(true));
-    build_opts.set_option(build_option::allow_new_shape_infer(true));
-    auto prog = program::build_program(engine, topology, build_opts, false, true);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
 
     layout_optimizer lo(true);
 
@@ -363,10 +363,10 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal_2) {
     topology.add(activation("act_fc3", input_info("eltw"), activation_func::relu));
     topology.add(reorder("reorder", input_info("act_fc3"), format::bfyx, data_types::f32));
 
-    build_options build_opts;
-    build_opts.set_option(build_option::optimize_data(true));
-    build_opts.set_option(build_option::allow_new_shape_infer(true));
-    auto prog = program::build_program(engine, topology, build_opts, false, true);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
 
     layout_optimizer lo(true);
 
