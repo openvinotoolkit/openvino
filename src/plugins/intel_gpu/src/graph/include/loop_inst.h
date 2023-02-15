@@ -482,7 +482,7 @@ private:
         }
 
         memory::ptr get_sliced_mem(int64_t iteration) const {
-            mem_lock<uint8_t> from_lock{ concatenated_mem, stream };
+            mem_lock<uint8_t, mem_lock_type::read> from_lock{ concatenated_mem, stream };
             int64_t batch_offset = 0;
             const int64_t iteration_offset = bytes_iteration_initial_offset +
                 bytes_iteration_stride * iteration;
