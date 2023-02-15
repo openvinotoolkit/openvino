@@ -25,17 +25,17 @@ namespace onnx_import {
 namespace transform {
 namespace {
 ONNX_NAMESPACE::TypeProto get_input_type(std::string const& name, ONNX_NAMESPACE::GraphProto& graph) {
-    for (auto& input : graph.input()) {
+    for (const auto& input : graph.input()) {
         if (input.name() == name) {
             return input.type();
         }
     }
-    for (auto& initializer : graph.initializer()) {
+    for (const auto& initializer : graph.initializer()) {
         if (initializer.name() == name) {
             ONNX_NAMESPACE::TypeProto ret;
             auto* tensor_type = ret.mutable_tensor_type();
             tensor_type->set_elem_type(initializer.data_type());
-            
+
             auto* tensor_shape = tensor_type->mutable_shape();
             tensor_shape->clear_dim();
             const auto& initializer_dims = initializer.dims();
@@ -46,7 +46,7 @@ ONNX_NAMESPACE::TypeProto get_input_type(std::string const& name, ONNX_NAMESPACE
             return ret;
         }
     }
-    for (auto& value_info : graph.value_info()) {
+    for (const auto& value_info : graph.value_info()) {
         if (value_info.name() == name) {
             return value_info.type();
         }
