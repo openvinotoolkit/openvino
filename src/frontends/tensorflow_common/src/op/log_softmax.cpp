@@ -14,10 +14,11 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_log_softmax_op(const NodeContext& node) {
-    auto ng_inp = node.get_input(0);
-    auto res = make_shared<LogSoftmax>(ng_inp, -1);
-    set_node_name(node.get_name(), res);
-    return res->outputs();
+    default_op_checks(node, 1, {"LogSoftmax", "LOG_SOFTMAX"});
+    auto logits = node.get_input(0);
+    auto log_softmax = make_shared<LogSoftmax>(logits, -1);
+    set_node_name(node.get_name(), log_softmax);
+    return {log_softmax};
 }
 }  // namespace op
 }  // namespace tensorflow
