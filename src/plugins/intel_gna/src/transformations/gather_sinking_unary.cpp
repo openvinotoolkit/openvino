@@ -10,8 +10,8 @@
 
 #include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/utils/gather_sinking_utils.hpp"
 #include "transformations/rt_info/gather_sinking_attr.hpp"
+#include "transformations/utils/gather_sinking_utils.hpp"
 
 using namespace ov;
 using namespace ov::opset9;
