@@ -50,7 +50,6 @@
 #include "nodes/concat.h"
 #include "nodes/softmax.h"
 #include "nodes/space_to_batch.h"
-#include "nodes/select.h"
 #include "nodes/topk.h"
 #include "nodes/broadcast.h"
 #include "nodes/matrix_nms.h"
