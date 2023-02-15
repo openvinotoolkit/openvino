@@ -30,6 +30,22 @@ ONNX_NAMESPACE::TypeProto get_input_type(std::string const& name, ONNX_NAMESPACE
             return input.type();
         }
     }
+    for (auto& initializer : graph.initializer()) {
+        if (initializer.name() == name) {
+            ONNX_NAMESPACE::TypeProto ret;
+            auto* tensor_type = ret.mutable_tensor_type();
+            tensor_type->set_elem_type(initializer.data_type());
+            
+            auto* tensor_shape = tensor_type->mutable_shape();
+            tensor_shape->clear_dim();
+            const auto& initializer_dims = initializer.dims();
+            for (auto&& dim : initializer_dims) {
+                auto* new_dim = tensor_shape->add_dim();
+                new_dim->set_dim_value(dim);
+            }
+            return ret;
+        }
+    }
     for (auto& value_info : graph.value_info()) {
         if (value_info.name() == name) {
             return value_info.type();
