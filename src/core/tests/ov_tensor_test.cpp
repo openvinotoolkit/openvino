@@ -10,6 +10,7 @@
 #include <openvino/core/shape.hpp>
 #include <openvino/core/strides.hpp>
 #include <openvino/core/type/element_type.hpp>
+#include <sstream>
 
 #include "ngraph/coordinate_transform.hpp"
 #include "openvino/core/except.hpp"
@@ -280,4 +281,53 @@ TEST_F(OVTensorTest, readRangeRoiBlob) {
             ASSERT_EQ(actual_addr, reinterpret_cast<const std::uint8_t*>(expected_addr));
         }
     }
+}
+
+TEST_F(OVTensorTest, serialize_tensor) {
+    ov::Tensor uninit_tensor;
+    {
+        std::stringstream str_stream;
+        str_stream << uninit_tensor;
+        std::cout << str_stream.str();
+        EXPECT_NE(str_stream.str().find("Tensor is not initialized!"), std::string::npos);
+    }
+    ov::Tensor empty_tensor(ov::element::i8, {0});
+    {
+        std::stringstream str_stream;
+        str_stream << empty_tensor;
+        std::cout << str_stream.str();
+        EXPECT_NE(str_stream.str().find("Tensor i8 [0]"), std::string::npos);
+        EXPECT_NE(str_stream.str().find("[]"), std::string::npos);
+    }
+    ov::Tensor small_tensor(ov::element::i32, {5});
+    {
+        const auto origPtr = small_tensor.data<int32_t>();
+        ASSERT_NE(nullptr, origPtr);
+        for (size_t i = 0; i < small_tensor.get_size(); ++i) {
+            origPtr[i] = static_cast<int32_t>(i);
+        }
+    }
+    {
+        std::stringstream str_stream;
+        str_stream << small_tensor;
+        std::cout << str_stream.str();
+        EXPECT_NE(str_stream.str().find("Tensor i32 [5]"), std::string::npos);
+        EXPECT_NE(str_stream.str().find("[0, 1, 2, 3, 4]"), std::string::npos);
+    }
+    ov::Tensor big_tensor{ov::element::i32, {1, 3, 4, 8}};
+    {
+        const auto origPtr = big_tensor.data<int32_t>();
+        ASSERT_NE(nullptr, origPtr);
+        for (size_t i = 0; i < big_tensor.get_size(); ++i) {
+            origPtr[i] = static_cast<int32_t>(i);
+        }
+    }
+    {
+        std::stringstream str_stream;
+        str_stream << big_tensor;
+        std::cout << str_stream.str();
+        EXPECT_NE(str_stream.str().find("Tensor i32 [1,3,4,8]"), std::string::npos);
+        EXPECT_NE(str_stream.str().find("[0, 1, 2, 3, 4, ..., 91, 92, 93, 94, 95]"), std::string::npos);
+    }
+    EXPECT_ANY_THROW(ov::Tensor unsupported_tensor(ov::element::dynamic, {5}));
 }
