@@ -73,7 +73,7 @@ OutputVector translate_index_put_(NodeContext& context) {
             auto broadcast =
                 context.mark_node(std::make_shared<v3::Broadcast>(split_indices->output(i), broadcast_index_shape));
             auto unsqueeze = context.mark_node(std::make_shared<v0::Unsqueeze>(broadcast, const_neg_1));
-            
+
             // change negative indices to positive indices
             auto const_i = context.mark_node(v0::Constant::create(element::i32, Shape{}, {i}));
             auto dim_i = context.mark_node(std::make_shared<v8::Gather>(input_shape, const_i, const_0));
