@@ -18,8 +18,6 @@
 #include <transformations/init_node_info.hpp>
 #include <openvino/core/model.hpp>
 
-#include "ie_common.h"
-
 #include "test_common.hpp"
 
 #include "graph_comparator.hpp"

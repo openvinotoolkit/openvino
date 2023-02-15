@@ -38,6 +38,7 @@ addIeTargetTest(
             unitTestUtils
             ngraphFunctions
             snippetsNgraphFunctions
+            snippets_test_utils
         ADD_CPPLINT
         LABELS
             CPU

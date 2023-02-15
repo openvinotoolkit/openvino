@@ -12,7 +12,6 @@
 #include <ie_data.h>
 #include <ie_input_info.hpp>
 #include <ie_blob.h>
-#include <ie_common.h>
 #include <ie_preprocess.hpp>
 #include "openvino/util/pp.hpp"
 

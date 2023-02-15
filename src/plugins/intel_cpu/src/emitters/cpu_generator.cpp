@@ -17,6 +17,7 @@
 
 #include "snippets_transformations/op/load_convert.hpp"
 #include "snippets_transformations/op/store_convert.hpp"
+#include "snippets_transformations/op/fused_mul_add.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "ngraph_transformations/op/swish_cpu.hpp"
 
@@ -71,6 +72,7 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
 
     // ternary
     jitters[ngraph::opset1::Select::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_select_emitter);
+    jitters[ov::intel_cpu::FusedMulAdd::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_mul_add_emitter);
 
     // binary
     jitters[ngraph::opset1::Add::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_add_emitter);
