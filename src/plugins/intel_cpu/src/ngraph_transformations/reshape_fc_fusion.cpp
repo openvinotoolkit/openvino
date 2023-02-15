@@ -34,7 +34,8 @@ ov::intel_cpu::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
         // Check that Reshape reshapes 4D tensor to 2D or input shape = output shape
         auto shape_in = reshape->input_value(0).get_shape();
         auto shape_out = reshape->get_shape();
-        if (!((shape_in.size() == 4 && reshape->get_shape().size() == 2) || (shape_in == shape_out && !shape_in.empty()))) {
+
+        if (!(shape_in == shape_out && !shape_in.empty())) {
             return false;
         }
 
