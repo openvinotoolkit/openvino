@@ -578,6 +578,9 @@ int main(int argc, char* argv[]) {
                 set_infer_precision();
             } else if (device.find("GNA") != std::string::npos) {
                 set_infer_precision();
+            } else if (device.find("NVIDIA") != std::string::npos) {
+                setThroughputStreams();
+                set_infer_precision();
             } else if (device.find("AUTO") != std::string::npos) {
                 setThroughputStreams();
                 set_infer_precision();

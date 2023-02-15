@@ -10,7 +10,7 @@ from openvino.runtime import Dimension
 from openvino.tools.benchmark.benchmark import Benchmark
 from openvino.tools.benchmark.parameters import parse_args
 from openvino.tools.benchmark.utils.constants import MULTI_DEVICE_NAME, \
-    CPU_DEVICE_NAME, GPU_DEVICE_NAME, \
+    CPU_DEVICE_NAME, GPU_DEVICE_NAME, NVIDIA_DEVICE_NAME, \
     BLOB_EXTENSION, AUTO_DEVICE_NAME
 from openvino.tools.benchmark.utils.inputs_filling import get_input_data
 from openvino.tools.benchmark.utils.logging import logger
@@ -298,6 +298,9 @@ def main():
                 set_infer_precision()
             elif GPU_DEVICE_NAME in device:
                 ## for GPU execution, more throughput-oriented execution via streams
+                set_throughput_streams()
+                set_infer_precision()
+            elif NVIDIA_DEVICE_NAME in device:
                 set_throughput_streams()
                 set_infer_precision()
             elif AUTO_DEVICE_NAME in device:
