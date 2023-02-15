@@ -3,7 +3,13 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-SCRIPT_DIR="$( cd "$( dirname "$(realpath "${BASH_SOURCE[0]}")" )" >/dev/null 2>&1 && pwd )"
+abs_path () {
+    path=$(eval echo "$1")
+    directory=$(dirname "$path")
+    echo "$(cd "$directory" || exit; pwd -P)/$(basename "$path")";
+}
+
+SCRIPT_DIR="$( cd "$( dirname "$(abs_path "${BASH_SOURCE[0]}")" )" >/dev/null 2>&1 && pwd )"
 INSTALLDIR="${SCRIPT_DIR}"
 export INTEL_OPENVINO_DIR="$INSTALLDIR"
 
@@ -79,10 +85,12 @@ fi
 
 # OpenCV environment
 if [ -f "$INSTALLDIR/opencv/setupvars.sh" ]; then
+    # shellcheck source=/dev/null
     source "$INSTALLDIR/opencv/setupvars.sh"
 fi
 
 if [ -f "$INSTALLDIR/extras/opencv/setupvars.sh" ]; then
+    # shellcheck source=/dev/null
     source "$INSTALLDIR/extras/opencv/setupvars.sh"
 fi
 
@@ -102,14 +110,15 @@ check_python_version () {
 
     # splitting Python version variable depending on the used shell
     if [ -n "$ZSH_VERSION" ]; then
-        version_arr=(${(@s:.:)python_version})
+        # shellcheck disable=SC2296
+        version_arr=("${(@s:.:)python_version}")
         if [ "${#version_arr[@]}" -ge "2" ]; then
             # zsh starts indexing from 1
             python_version_major=${version_arr[1]}
             python_version_minor=${version_arr[2]}
         fi
     else
-        version_arr=(${python_version//./ })
+        version_arr=("${python_version//./ }")
         if [ "${#version_arr[@]}" -ge "2" ]; then
             python_version_major=${version_arr[0]}
             python_version_minor=${version_arr[1]}
