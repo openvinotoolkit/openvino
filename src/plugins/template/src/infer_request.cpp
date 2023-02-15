@@ -59,13 +59,17 @@ TemplatePlugin::InferRequest::InferRequest(const std::shared_ptr<const TemplateP
     for (const auto& input : get_inputs()) {
         allocate_tensor(input, [input](ov::Tensor& tensor) {
             // Can add a check to avoid double work in case of shared tensors
-            allocate_tensor_impl(tensor, input.get_element_type(), input.get_shape());
+            allocate_tensor_impl(tensor,
+                                 input.get_element_type(),
+                                 input.get_partial_shape().is_dynamic() ? ov::Shape{0} : input.get_shape());
         });
     }
     for (const auto& output : get_outputs()) {
         allocate_tensor(output, [output](ov::Tensor& tensor) {
             // Can add a check to avoid double work in case of shared tensors
-            allocate_tensor_impl(tensor, output.get_element_type(), output.get_shape());
+            allocate_tensor_impl(tensor,
+                                 output.get_element_type(),
+                                 output.get_partial_shape().is_dynamic() ? ov::Shape{0} : output.get_shape());
         });
     }
 }
