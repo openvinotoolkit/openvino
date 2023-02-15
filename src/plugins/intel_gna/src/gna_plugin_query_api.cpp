@@ -78,7 +78,7 @@ Parameter GNAPlugin::GetMetric(const std::string& name,
                  return config.GetSupportedKeys();
              }},
             {METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS),
-             [this]() {
+             []() {
                  uint32_t nireq = 1;
                  return nireq;
              }},
@@ -102,11 +102,11 @@ Parameter GNAPlugin::GetMetric(const std::string& name,
                  return deviceName;
              }},
             {METRIC_KEY(GNA_LIBRARY_FULL_VERSION),
-             [this]() {
+             []() {
                  return GNADeviceHelper::GetGnaLibraryVersion();
              }},
             {METRIC_KEY(SUPPORTED_METRICS),
-             [&queryApiSupported, this]() {
+             [&queryApiSupported]() {
                  std::vector<std::string> availablesMetrics;
                  for (auto&& supportedAPI : queryApiSupported) {
                      availablesMetrics.push_back(supportedAPI.first);
@@ -132,7 +132,7 @@ Parameter GNAPlugin::GetAvailableDevices() const {
     try {
         GNADeviceHelper helper;
         devices.push_back("GNA_SW");
-        if (helper.hasGnaHw()) {
+        if (helper.is_hw_detected()) {
             devices.push_back("GNA_HW");
         }
     } catch (...) {

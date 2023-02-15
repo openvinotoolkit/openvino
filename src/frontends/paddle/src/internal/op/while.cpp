@@ -32,7 +32,7 @@ bool op::internal::While::visit_attributes(AttributeVisitor& visitor) {
 }
 
 void op::internal::While::validate_and_infer_types() {
-    for (auto i = 0; i < m_output_infos.size(); i++) {
+    for (size_t i = 0; i < m_output_infos.size(); i++) {
         set_output_type(i, m_output_infos[i].first, m_output_infos[i].second);
     }
 }

@@ -340,20 +340,21 @@ static void make_gna_pwl(const T* m,
 
         if (std::fabs(a) == std::numeric_limits<double>::infinity() ||
             std::fabs(b) == std::numeric_limits<double>::infinity()) {
-            return (a > 0 && b > 0 || a < 0 && b < 0) ? std::numeric_limits<double>::infinity()
-                                                      : -std::numeric_limits<double>::infinity();
+            return ((a > 0 && b > 0) || (a < 0 && b < 0)) ? std::numeric_limits<double>::infinity()
+                                                          : -std::numeric_limits<double>::infinity();
         }
 
         if (b != 0 && std::fabs(a) > std::numeric_limits<double>::max() / std::fabs(b)) {
-            return (a > 0 && b > 0 || a < 0 && b < 0) ? std::numeric_limits<double>::infinity()
-                                                      : -std::numeric_limits<double>::infinity();
+            return ((a > 0 && b > 0) || (a < 0 && b < 0)) ? std::numeric_limits<double>::infinity()
+                                                          : -std::numeric_limits<double>::infinity();
         }
 
         return a * b;
     };
 
     auto add_check_overflow = [](double a, double b) -> double {
-        if ((a > 0 && b > 0 || a < 0 && b < 0) && std::fabs(a) > std::numeric_limits<double>::max() - std::fabs(b)) {
+        if (((a > 0 && b > 0) || (a < 0 && b < 0)) &&
+            std::fabs(a) > std::numeric_limits<double>::max() - std::fabs(b)) {
             return a > 0 && b > 0 ? std::numeric_limits<double>::infinity() : -std::numeric_limits<double>::infinity();
         }
 
