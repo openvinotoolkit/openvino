@@ -19,10 +19,10 @@ void MockInferRequest::allocate_blobs() {
         m_outputs[it.first]->allocate();
     }
     for (const auto& input : m_compiled_model->m_model->inputs()) {
-        OPENVINO_ASSERT(m_inputs.find(ngraph::op::util::create_ie_output_name(input)) != m_inputs.end());
+        OPENVINO_ASSERT(m_inputs.find(ov::op::util::create_ie_output_name(input)) != m_inputs.end());
     }
     for (const auto& output : m_compiled_model->m_model->outputs()) {
-        OPENVINO_ASSERT(m_outputs.find(ngraph::op::util::create_ie_output_name(output.get_node()->input_value(0))) !=
+        OPENVINO_ASSERT(m_outputs.find(ov::op::util::create_ie_output_name(output.get_node()->input_value(0))) !=
                         m_outputs.end());
     }
 }
@@ -48,13 +48,13 @@ void MockInferRequest::InferImpl() {
     ov::TensorVector inputs;
     ov::TensorVector outputs;
     for (const auto& input : m_compiled_model->m_model->inputs()) {
-        const auto& blob = m_inputs[ngraph::op::util::create_ie_output_name(input)];
+        const auto& blob = m_inputs[ov::op::util::create_ie_output_name(input)];
         inputs.emplace_back(ov::Tensor(InferenceEngine::details::convertPrecision(blob->getTensorDesc().getPrecision()),
                                        blob->getTensorDesc().getDims(),
                                        blob->buffer()));
     }
     for (const auto& output : m_compiled_model->m_model->outputs()) {
-        const auto& blob = m_outputs[ngraph::op::util::create_ie_output_name(output.get_node()->input_value(0))];
+        const auto& blob = m_outputs[ov::op::util::create_ie_output_name(output.get_node()->input_value(0))];
         outputs.emplace_back(
             ov::Tensor(InferenceEngine::details::convertPrecision(blob->getTensorDesc().getPrecision()),
                        blob->getTensorDesc().getDims(),

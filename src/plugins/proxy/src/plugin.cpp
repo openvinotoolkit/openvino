@@ -293,7 +293,8 @@ void ov::proxy::Plugin::SetProperties(const ov::AnyMap& config) {
             configs[config_name][it.first] = it.second;
         }
     }
-    GetCore()->set_property(primary_dev, hw_config);
+    // TODO: Set property for primary plugin
+    // GetCore()->set_property(primary_dev, hw_config);
 }
 
 void ov::proxy::Plugin::SetConfig(const std::map<std::string, std::string>& config) {
@@ -353,6 +354,14 @@ InferenceEngine::Parameter ov::proxy::Plugin::GetConfig(
 
     if (name == ov::device::priorities) {
         return split(get_property(name, config_name), " ");
+    }
+    if (name == ov::available_devices) {
+        auto hidden_devices = get_hidden_devices();
+        std::vector<std::string> availableDevices(hidden_devices.size());
+        for (size_t i = 0; i < hidden_devices.size(); i++) {
+            availableDevices[i] = std::to_string(i);
+        }
+        return decltype(ov::available_devices)::value_type(availableDevices);
     }
 
     if (has_property(name, config_name))
@@ -611,10 +620,11 @@ std::string ov::proxy::Plugin::get_fallback_device(size_t idx) const {
     }
 }
 
-void ov::proxy::create_plugin(::std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) {
+void ov::proxy::create_plugin(::std::shared_ptr<::ov::IPlugin>& plugin) {
     static const InferenceEngine::Version version = {{2, 1}, CI_BUILD_NUMBER, "openvino_proxy_plugin"};
+    std::shared_ptr<::InferenceEngine::IInferencePlugin> ie_plugin;
     try {
-        plugin = ::std::make_shared<ov::proxy::Plugin>();
+        ie_plugin = ::std::make_shared<ov::proxy::Plugin>();
     } catch (const InferenceEngine::Exception&) {
         throw;
     } catch (const std::exception& ex) {
@@ -622,5 +632,6 @@ void ov::proxy::create_plugin(::std::shared_ptr<::InferenceEngine::IInferencePlu
     } catch (...) {
         IE_THROW(Unexpected);
     }
-    plugin->SetVersion(version);
+    ie_plugin->SetVersion(version);
+    plugin = convert_plugin(ie_plugin);
 }

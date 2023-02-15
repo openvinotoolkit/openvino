@@ -10,7 +10,7 @@
 namespace ov {
 namespace proxy {
 
-void create_plugin(std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin);
+void create_plugin(std::shared_ptr<ov::IPlugin>& plugin);
 
 /**
  * @brief Restore one fallback order from orders of different plugins

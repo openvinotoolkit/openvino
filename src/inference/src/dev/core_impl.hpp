@@ -200,6 +200,9 @@ private:
                                      const std::string& deviceFamily,
                                      const ov::AnyMap& origConfig) const;
 
+    bool is_hidden_device(const std::string& device_name) const;
+    void register_plugin_in_registry_unsafe(const std::string& device_name, PluginDescriptor& desc);
+
     // Legacy API
     void AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& extension) const;
     template <typename C, typename = FileUtils::enableIfSupportedChar<C>>
@@ -254,8 +257,7 @@ public:
             const auto& value = plugin.second;
             ov::AnyMap config = any_copy(value.m_default_config);
             PluginDescriptor desc{value.m_create_plugin_func, config, value.m_create_extension_func};
-            pluginRegistry[deviceName] = desc;
-            add_mutex(deviceName);
+            register_plugin_in_registry_unsafe(deviceName, desc);
         }
     }
 

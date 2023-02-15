@@ -53,10 +53,6 @@ void MockPluginAbc::SetConfig(const std::map<std::string, std::string>& _config)
     }
 }
 
-void MockPluginAbc::AddExtension(const ov::Extension::Ptr& extension) {
-    m_extensions.emplace_back(extension);
-}
-
 Parameter MockPluginAbc::GetConfig(const std::string& name,
                                    const std::map<std::string, InferenceEngine::Parameter>& options) const {
     std::string device_id;
@@ -181,7 +177,7 @@ std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> MockPluginAbc::Load
     IE_THROW(NotImplemented);
 }
 
-std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> MockPluginAbc::LoadNetwork(
+ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> MockPluginAbc::LoadNetwork(
     const std::string& modelPath,
     const std::map<std::string, std::string>& config) {
     return InferenceEngine::IInferencePlugin::LoadNetwork(modelPath, config);
@@ -226,11 +222,6 @@ InferenceEngine::QueryNetworkResult MockPluginAbc::QueryNetwork(
 
     std::unordered_set<std::string> supported_ops = {"Parameter", "Result", "Add", "Constant", "Reshape"};
 
-    for (const auto& ext : m_extensions) {
-        if (const auto& op_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext)) {
-            supported_ops.insert(op_ext->get_type_info().name);
-        }
-    }
     InferenceEngine::QueryNetworkResult res;
     for (const auto& op : model->get_ordered_ops()) {
         if (supported_ops.find(op->get_type_info().name) == supported_ops.end())

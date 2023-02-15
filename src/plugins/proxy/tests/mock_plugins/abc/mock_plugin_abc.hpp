@@ -31,7 +31,7 @@ public:
         const InferenceEngine::CNNNetwork& network,
         const std::map<std::string, std::string>& config) override;
 
-    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> LoadNetwork(
+    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> LoadNetwork(
         const std::string& modelPath,
         const std::map<std::string, std::string>& config) override;
 
@@ -63,10 +63,7 @@ public:
 
     std::string GetName() const noexcept override;
 
-    void AddExtension(const ov::Extension::Ptr& extension) override;
-
 private:
-    std::vector<ov::Extension::Ptr> m_extensions;
     int32_t num_streams{0};
     bool m_profiling = false;
 };

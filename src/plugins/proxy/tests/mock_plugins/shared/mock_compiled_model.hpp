@@ -17,7 +17,7 @@ public:
           m_config(config) {
         const auto& create_data = [](const ov::Output<const ov::Node>& output) {
             InferenceEngine::DataPtr data = std::make_shared<InferenceEngine::Data>(
-                ngraph::op::util::create_ie_output_name(output),
+                ov::op::util::create_ie_output_name(output),
                 InferenceEngine::TensorDesc(InferenceEngine::details::convertPrecision(output.get_element_type()),
                                             output.get_shape(),
                                             InferenceEngine::TensorDesc::getLayoutByDims(output.get_shape())));

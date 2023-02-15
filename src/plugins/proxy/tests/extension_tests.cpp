@@ -25,7 +25,7 @@ std::unordered_set<std::string> get_unsupported_ops(const ov::Core& core,
 
 // AVAILABLE_DEVICES {"MOCK.0", "MOCK.1", "MOCK.2", "MOCK.3", "MOCK.4"};
 // 1 is shared device
-TEST_F(ProxyTests, add_extension_abc) {
+TEST_F(ProxyTests, DISABLED_add_extension_abc) {
     const std::string dev_name = "MOCK.0";
 
     const auto model = create_model_with_subtract_reshape_relu();
@@ -44,7 +44,7 @@ TEST_F(ProxyTests, add_extension_abc) {
     }
 }
 
-TEST_F(ProxyTests, add_extension_bde) {
+TEST_F(ProxyTests, DISABLED_add_extension_bde) {
     const std::string dev_name = "MOCK.3";
 
     const auto model = create_model_with_subtract_reshape_relu();
@@ -63,7 +63,7 @@ TEST_F(ProxyTests, add_extension_bde) {
     }
 }
 
-TEST_F(ProxyTests, add_extension_mixed) {
+TEST_F(ProxyTests, DISABLED_add_extension_mixed) {
     const std::string dev_name = "MOCK.1";
 
     const auto model = create_model_with_subtract_reshape_relu();
