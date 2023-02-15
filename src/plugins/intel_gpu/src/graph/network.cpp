@@ -400,7 +400,7 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
 
     for (auto p_inst : _exec_order) {
         p_inst->rebuild_deps(_primitives);
-        p_inst->rebuild_exec_deps(_exec_order);
+        p_inst->rebuild_exec_deps(_primitives);
 
         if (p_inst->type() == cldnn::concatenation::type_id() && p_inst->can_be_optimized()) {
             // implicit concat

@@ -42,6 +42,8 @@ protected:
     size_t _width = 0;
     /// \brief data
     std::shared_ptr<unsigned char> _data;
+    /// \brief shape - data shape
+    std::vector<size_t> _shape;
 
 public:
     virtual ~Reader() = default;
@@ -60,6 +62,14 @@ public:
      */
     size_t height() const {
         return _height;
+    }
+
+    /**
+     * \brief Get full shape vector
+     * @return vector of size_t values determining data shape
+     */
+    std::vector<size_t> shape() const {
+        return _shape;
     }
 
     /**
