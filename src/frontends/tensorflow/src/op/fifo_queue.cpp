@@ -23,8 +23,7 @@ OutputVector translate_fifo_queue_op(const NodeContext& node) {
     auto container = node.get_attribute<string>("container", "");
     auto shared_name = node.get_attribute<string>("shared_name", "");
 
-    auto fifo_queue =
-        make_shared<FIFOQueue>(component_types, shapes, capacity, container, shared_name, node.get_decoder());
+    auto fifo_queue = make_shared<FIFOQueue>(component_types, shapes, capacity, container, shared_name);
     set_node_name(node.get_name(), fifo_queue);
     return {fifo_queue};
 }

@@ -25,7 +25,7 @@ OutputVector translate_iterator_op(const NodeContext& node) {
     auto output_types = node.get_attribute<vector<element::Type>>("output_types");
     auto output_shapes = node.get_attribute<vector<PartialShape>>("output_shapes");
 
-    auto iterator = make_shared<Iterator>(shared_name, container, output_types, output_shapes, node.get_decoder());
+    auto iterator = make_shared<Iterator>(shared_name, container, output_types, output_shapes);
     set_node_name(node.get_name(), iterator);
     return {iterator};
 }
