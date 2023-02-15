@@ -106,9 +106,11 @@ class TorchScriptPythonDecoder (Decoder):
         else:
             self.graph_element = graph_element
         self.pt_module = pt_module
+        self.raw_inputs = list(self.graph_element.inputs())
+        self.raw_outputs = list(self.graph_element.outputs())
 
     def inputs(self) -> list:
-        return [x.unique() for x in self.graph_element.inputs()]
+        return [x.unique() for x in self.raw_inputs]
 
     def get_input(self, index: int):
         return self.inputs()[index]
@@ -207,22 +209,16 @@ class TorchScriptPythonDecoder (Decoder):
         return self.graph_element.schema()
 
     def outputs(self) -> list:
-        return [x.unique() for x in self.graph_element.outputs()]
-
-    def _raw_outputs(self) -> list:
-        return list(self.graph_element.outputs())
+        return [x.unique() for x in self.raw_outputs]
 
     def _raw_output(self, index: int):
-        return self._raw_outputs()[index]
-
-    def _raw_inputs(self) -> list:
-        return list(self.graph_element.inputs())
+        return self.raw_outputs[index]
 
     def _raw_input(self, index: int):
-        return self._raw_inputs()[index]
+        return self.raw_inputs[index]
 
     def num_of_outputs(self):
-        return len(self.outputs())
+        return len(self.raw_outputs)
 
     def output(self, index: int):
         return self.outputs()[index]
