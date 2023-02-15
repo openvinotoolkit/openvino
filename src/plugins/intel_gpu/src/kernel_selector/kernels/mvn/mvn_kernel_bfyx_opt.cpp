@@ -94,22 +94,12 @@ JitConstants MVNKernelBfyxOpt::GetJitConstants(const mvn_params& params, MVNKern
             data_set_size = toVectorMulString({x, y, z, f});
             data_set_count = b;
         }
-        // since lws[0] is calculated by power of 2
-        // items_num can be calculated by dividing data_set_size by power of 2
         const std::string lws_0 = "get_local_size(0)";
-        const std::string calc_power = "({uint pos = 0; uint i = n; do { i >>= 1; ++pos; } while (i); pos - 1;})";
-        const std::string power = "CALC_POWER(" + lws_0 + ")";
-        const std::string items_num = "(DATA_SET_SIZE>>POWER)";
-        const std::string left_overs = "(DATA_SET_SIZE-(ITEMS_NUM<<POWER))";
         jit.AddConstants({
             MakeJitConstant("LWS", lws_0),
-            MakeJitConstant("CALC_POWER(n)", calc_power),
-            MakeJitConstant("POWER", power),
+            MakeJitConstant("SLM_SIZE", dispatchData.maxSlmSize),
             MakeJitConstant("DATA_SET_SIZE", data_set_size),
             MakeJitConstant("DATA_SETS_COUNT", data_set_count),
-            MakeJitConstant("SLM_SIZE", dispatchData.maxSlmSize),
-            MakeJitConstant("ITEMS_NUM", items_num),
-            MakeJitConstant("LEFTOVERS", left_overs),
         });
     } else {
         jit.AddConstants({
