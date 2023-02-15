@@ -34,14 +34,14 @@ struct reduce_test_params {
 
 class ReduceFusingTest : public ::BaseFusingTest<reduce_test_params> {
 public:
-    void execute(reduce_test_params& p) {
-        auto input_prim = get_mem(get_input_layout(p));
+    void execute(reduce_test_params& p) { execute(p, get_mem(get_input_layout(p))); }
+    void execute(reduce_test_params& p, cldnn::memory::ptr input_mem) {
 
         network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
         network network_fused(this->engine, this->topology_fused, cfg_fused);
 
-        network_fused.set_input_data("input", input_prim);
-        network_not_fused.set_input_data("input", input_prim);
+        network_fused.set_input_data("input", input_mem);
+        network_not_fused.set_input_data("input", input_mem);
 
         compare(network_not_fused, network_fused, p);
     }
@@ -99,6 +99,7 @@ public:
 #define CASE_REDUCE_F16_2 { 2, 4, 8, 4, 4 }, { 2, 4, 8, 4, 4 }, data_types::f16, format::bfzyx, data_types::f32, format::bfyx
 #define CASE_REDUCE_F16_3 { 3, 5, 3, 5, 7, 7 }, { 3, 5, 3, 5, 7, 7 }, data_types::f16, format::bfwzyx, data_types::f32, format::bfyx
 #define CASE_REDUCE_F16_4 { 2, 8, 4, 4 }, { 2, 8, 4, 4 }, data_types::f16, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
+#define CASE_REDUCE_F16_5 { 2, 2, 2, 2 }, { 2, 2, 2, 2 }, data_types::f16, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
 
 #define CASE_REDUCE_I32_0 { 3, 7, 5, 7 }, { 3, 7, 5, 7 }, data_types::i32, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
 #define CASE_REDUCE_I32_1 { 2, 8, 4, 4 }, { 2, 8, 4, 4 }, data_types::i32, format::bfyx, data_types::f32, format::bfyx
@@ -117,6 +118,38 @@ public:
 #define CASE_REDUCE_U8_2 { 2, 4, 8, 4, 4 }, { 2, 4, 8, 4, 4 }, data_types::u8, format::bfzyx, data_types::f32, format::bfyx
 #define CASE_REDUCE_U8_3 { 3, 5, 3, 5, 7, 7 }, { 3, 5, 3, 5, 7, 7 }, data_types::u8, format::bfwzyx, data_types::f32, format::bfyx
 #define CASE_REDUCE_U8_4 { 2, 8, 4, 4 }, { 2, 8, 4, 4 }, data_types::u8, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
+
+class reduce_eltwise : public ReduceFusingTest {};
+TEST_P(reduce_eltwise, basic) {
+    auto p = GetParam();
+    update_out_shape(p);
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+
+        reduce("reduce", input_info("input"), p.reduce_mode, p.reduce_axes, p.keep_dims),
+        
+        data("eltwise_data", get_mem(get_output_layout(p), 0, 0)),
+        eltwise("eltwise", { input_info("reduce"), input_info("eltwise_data") }, eltwise_mode::sum, p.default_type),
+
+        reorder("output", input_info("eltwise"), p.default_format, data_types::f32)
+    );
+    ov::intel_gpu::ImplementationDesc ref_reduce_impl = { format::b_fs_yx_fsv16, "reduce_ref", impl_types::ocl };
+    cfg_not_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "reduce", ref_reduce_impl } }));
+
+    tolerance = default_tolerance(p.data_type);
+    execute(p, get_mem(get_input_layout(p), 1, 2));
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, reduce_eltwise, ::testing::ValuesIn(std::vector<reduce_test_params>{
+    reduce_test_params{ CASE_REDUCE_F16_5, 2, 2, reduce_mode::sum, { 0, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F16_5, 2, 2, reduce_mode::mean, { 0, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F16_5, 2, 2, reduce_mode::min, { 0, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F16_5, 2, 2, reduce_mode::max, { 0, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F16_5, 2, 2, reduce_mode::prod, { 0, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F16_5, 2, 2, reduce_mode::l1, { 0, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F16_5, 2, 2, reduce_mode::l2, { 0, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F16_5, 2, 2, reduce_mode::log_sum, { 0, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+}));
 
 class reduce_eltwise_activation_quantize : public ReduceFusingTest {};
 TEST_P(reduce_eltwise_activation_quantize, basic) {
@@ -137,7 +170,7 @@ TEST_P(reduce_eltwise_activation_quantize, basic) {
         reorder("output_reorder", input_info("quantize"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1.f;
+    tolerance = default_tolerance(data_types::i8);
     execute(p);
 }
 
@@ -158,7 +191,7 @@ TEST_P(reduce_eltwise_activation_quantize, per_channel) {
         reorder("output_reorder", input_info("quantize"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1.f;
+    tolerance = default_tolerance(data_types::i8);
     execute(p);
 }
 
@@ -247,7 +280,7 @@ TEST_P(reduce_scale_activation, basic) {
     if (engine.get_device_info().supports_immad)
         p.expected_fused_primitives++;
 
-    tolerance = 1e-02f;
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
@@ -265,7 +298,7 @@ TEST_P(reduce_scale_activation, per_channel) {
     if (engine.get_device_info().supports_immad)
         p.expected_fused_primitives++;
 
-    tolerance = 1e-02f;
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
