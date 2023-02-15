@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,41 +9,40 @@
 #include <math.h>
 
 #include <memory>
-#include <ngraph/opsets/opset7.hpp>
-#include <ngraph/opsets/opset9.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset7.hpp>
 #include <openvino/opsets/opset9.hpp>
 
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-ngraph::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
+ov::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
     MATCHER_SCOPE(GeluFusionWithErfOne);
     // Replaces a sub-graph with a Gelu op
     // Shared by every pattern: (1 + erf(x / sqrt(2)))
-    auto input = ngraph::pattern::any_input();
-    auto div_constant = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
-    auto div = ngraph::pattern::wrap_type<ngraph::opset7::Divide>({input, div_constant});
-    auto erf = ngraph::pattern::wrap_type<ngraph::opset7::Erf>({div});
-    auto add_constant = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
-    auto add = ngraph::pattern::wrap_type<ngraph::opset7::Add>({add_constant, erf});
-    auto mul_constant = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
+    auto input = pass::pattern::any_input();
+    auto div_constant = ngraph::pattern::wrap_type<opset7::Constant>();
+    auto div = ngraph::pattern::wrap_type<opset7::Divide>({input, div_constant});
+    auto erf = ngraph::pattern::wrap_type<opset7::Erf>({div});
+    auto add_constant = ngraph::pattern::wrap_type<opset7::Constant>();
+    auto add = ngraph::pattern::wrap_type<opset7::Add>({add_constant, erf});
+    auto mul_constant = ngraph::pattern::wrap_type<opset7::Constant>();
 
     // (0.5 * x) * (1 + erf(x / sqrt(2))
-    auto mul_first = ngraph::pattern::wrap_type<ngraph::opset7::Multiply>({input, mul_constant});
-    auto mul = ngraph::pattern::wrap_type<ngraph::opset7::Multiply>({mul_first, add});
+    auto mul_first = ngraph::pattern::wrap_type<opset7::Multiply>({input, mul_constant});
+    auto mul = ngraph::pattern::wrap_type<opset7::Multiply>({mul_first, add});
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
-        auto div_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(
-            pattern_to_output.at(div_constant).get_node_shared_ptr());
-        auto add_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(
-            pattern_to_output.at(add_constant).get_node_shared_ptr());
-        auto mul_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(
-            pattern_to_output.at(mul_constant).get_node_shared_ptr());
+        auto div_const_value =
+            std::dynamic_pointer_cast<opset7::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
+        auto add_const_value =
+            std::dynamic_pointer_cast<opset7::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+        auto mul_const_value =
+            std::dynamic_pointer_cast<opset7::Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
 
         if (!div_const_value || !add_const_value || !mul_const_value) {
             return false;
@@ -58,7 +57,7 @@ ngraph::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
             return false;
         }
 
-        auto gelu = std::make_shared<ngraph::opset7::Gelu>(x_output);
+        auto gelu = std::make_shared<opset7::Gelu>(x_output);
 
         gelu->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info(
@@ -78,32 +77,32 @@ ngraph::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
     register_matcher(m, callback);
 }
 
-ngraph::pass::GeluFusionWithErfTwo::GeluFusionWithErfTwo() {
+ov::pass::GeluFusionWithErfTwo::GeluFusionWithErfTwo() {
     MATCHER_SCOPE(GeluFusionWithErfTwo);
     // Replaces a sub-graph with a Gelu op
     // Shared by every pattern: (1 + erf(x / sqrt(2)))
-    auto input = ngraph::pattern::any_input();
-    auto div_constant = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
-    auto div = ngraph::pattern::wrap_type<ngraph::opset7::Divide>({input, div_constant});
-    auto erf = ngraph::pattern::wrap_type<ngraph::opset7::Erf>({div});
-    auto add_constant = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
-    auto add = ngraph::pattern::wrap_type<ngraph::opset7::Add>({add_constant, erf});
-    auto mul_constant = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
+    auto input = pass::pattern::any_input();
+    auto div_constant = ngraph::pattern::wrap_type<opset7::Constant>();
+    auto div = ngraph::pattern::wrap_type<opset7::Divide>({input, div_constant});
+    auto erf = ngraph::pattern::wrap_type<opset7::Erf>({div});
+    auto add_constant = ngraph::pattern::wrap_type<opset7::Constant>();
+    auto add = ngraph::pattern::wrap_type<opset7::Add>({add_constant, erf});
+    auto mul_constant = ngraph::pattern::wrap_type<opset7::Constant>();
 
     // 0.5 * (x * (1 + erf(x / sqrt(2)))
-    auto mul_first = ngraph::pattern::wrap_type<ngraph::opset7::Multiply>({input, add});
-    auto mul = ngraph::pattern::wrap_type<ngraph::opset7::Multiply>({mul_constant, mul_first});
+    auto mul_first = ngraph::pattern::wrap_type<opset7::Multiply>({input, add});
+    auto mul = ngraph::pattern::wrap_type<opset7::Multiply>({mul_constant, mul_first});
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
-        auto div_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(
-            pattern_to_output.at(div_constant).get_node_shared_ptr());
-        auto add_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(
-            pattern_to_output.at(add_constant).get_node_shared_ptr());
-        auto mul_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(
-            pattern_to_output.at(mul_constant).get_node_shared_ptr());
+        auto div_const_value =
+            std::dynamic_pointer_cast<opset7::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
+        auto add_const_value =
+            std::dynamic_pointer_cast<opset7::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+        auto mul_const_value =
+            std::dynamic_pointer_cast<opset7::Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
 
         if (!div_const_value || !add_const_value || !mul_const_value) {
             return false;
@@ -118,7 +117,7 @@ ngraph::pass::GeluFusionWithErfTwo::GeluFusionWithErfTwo() {
             return false;
         }
 
-        auto gelu = std::make_shared<ngraph::opset7::Gelu>(x_output);
+        auto gelu = std::make_shared<opset7::Gelu>(x_output);
 
         gelu->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info(
@@ -138,32 +137,32 @@ ngraph::pass::GeluFusionWithErfTwo::GeluFusionWithErfTwo() {
     register_matcher(m, callback);
 }
 
-ngraph::pass::GeluFusionWithErfThree::GeluFusionWithErfThree() {
+ov::pass::GeluFusionWithErfThree::GeluFusionWithErfThree() {
     MATCHER_SCOPE(GeluFusionWithErfThree);
     // Replaces a sub-graph with a Gelu op
     // Shared by every pattern: (1 + erf(x / sqrt(2)))
-    auto input = ngraph::pattern::any_input();
-    auto div_constant = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
-    auto div = ngraph::pattern::wrap_type<ngraph::opset7::Divide>({input, div_constant});
-    auto erf = ngraph::pattern::wrap_type<ngraph::opset7::Erf>({div});
-    auto add_constant = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
-    auto add = ngraph::pattern::wrap_type<ngraph::opset7::Add>({add_constant, erf});
-    auto mul_constant = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
+    auto input = pass::pattern::any_input();
+    auto div_constant = ngraph::pattern::wrap_type<opset7::Constant>();
+    auto div = ngraph::pattern::wrap_type<opset7::Divide>({input, div_constant});
+    auto erf = ngraph::pattern::wrap_type<opset7::Erf>({div});
+    auto add_constant = ngraph::pattern::wrap_type<opset7::Constant>();
+    auto add = ngraph::pattern::wrap_type<opset7::Add>({add_constant, erf});
+    auto mul_constant = ngraph::pattern::wrap_type<opset7::Constant>();
 
     // x * (0.5 * (1 + erf(x / sqrt(2)))
-    auto mul_first = ngraph::pattern::wrap_type<ngraph::opset7::Multiply>({add, mul_constant});
-    auto mul = ngraph::pattern::wrap_type<ngraph::opset7::Multiply>({input, mul_first});
+    auto mul_first = ngraph::pattern::wrap_type<opset7::Multiply>({add, mul_constant});
+    auto mul = ngraph::pattern::wrap_type<opset7::Multiply>({input, mul_first});
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
-        auto div_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(
-            pattern_to_output.at(div_constant).get_node_shared_ptr());
-        auto add_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(
-            pattern_to_output.at(add_constant).get_node_shared_ptr());
-        auto mul_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(
-            pattern_to_output.at(mul_constant).get_node_shared_ptr());
+        auto div_const_value =
+            std::dynamic_pointer_cast<opset7::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
+        auto add_const_value =
+            std::dynamic_pointer_cast<opset7::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+        auto mul_const_value =
+            std::dynamic_pointer_cast<opset7::Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
 
         if (!div_const_value || !add_const_value || !mul_const_value) {
             return false;
@@ -178,7 +177,7 @@ ngraph::pass::GeluFusionWithErfThree::GeluFusionWithErfThree() {
             return false;
         }
 
-        auto gelu = std::make_shared<ngraph::opset7::Gelu>(x_output);
+        auto gelu = std::make_shared<opset7::Gelu>(x_output);
 
         gelu->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info(
@@ -229,10 +228,10 @@ ov::pass::GeluFusionWithErfFour::GeluFusionWithErfFour() {
             return false;
         }
 
-        bool valid_constant_values =
-            ngraph::op::util::has_constant_value<float>(mul1_const_value, 1.0f / M_SQRT2, 0.001f) &&
-            ngraph::op::util::has_constant_value<float>(add_const_value, 0.5f) &&
-            ngraph::op::util::has_constant_value<float>(mul2_const_value, 0.5f);
+        constexpr auto sqrt2 = static_cast<float>(M_SQRT2);
+        bool valid_constant_values = ov::op::util::has_constant_value<float>(mul1_const_value, 1.0f / sqrt2, 0.001f) &&
+                                     ov::op::util::has_constant_value<float>(add_const_value, 0.5f) &&
+                                     ov::op::util::has_constant_value<float>(mul2_const_value, 0.5f);
 
         if (!valid_constant_values) {
             return false;
@@ -250,48 +249,48 @@ ov::pass::GeluFusionWithErfFour::GeluFusionWithErfFour() {
     register_matcher(m, callback);
 }
 
-ngraph::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
+ov::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
     MATCHER_SCOPE(GeluFusionWithTanh);
     // Replaces a sub-graph with a Gelu (Tanh) op
     // Gaussian Error Linear Unit, TanH based approximation:
     // x * (0.5 * (1 + tanh([sqrt(2 / pi)] * [x + 0.044715^3]))
 
-    auto input = ngraph::pattern::any_input();
-    auto pow_constant = ngraph::pattern::wrap_type<ngraph::opset9::Constant>();
-    auto pow = ngraph::pattern::wrap_type<ngraph::opset9::Power>({input, pow_constant});
+    auto input = pass::pattern::any_input();
+    auto pow_constant = ngraph::pattern::wrap_type<opset9::Constant>();
+    auto pow = ngraph::pattern::wrap_type<opset9::Power>({input, pow_constant});
 
-    auto mul_0_constant = ngraph::pattern::wrap_type<ngraph::opset9::Constant>();
-    auto mul_0 = ngraph::pattern::wrap_type<ngraph::opset9::Multiply>({pow, mul_0_constant});
+    auto mul_0_constant = ngraph::pattern::wrap_type<opset9::Constant>();
+    auto mul_0 = ngraph::pattern::wrap_type<opset9::Multiply>({pow, mul_0_constant});
 
-    auto add_0 = ngraph::pattern::wrap_type<ngraph::opset9::Add>({input, mul_0});
+    auto add_0 = ngraph::pattern::wrap_type<opset9::Add>({input, mul_0});
 
-    auto mul_1_constant = ngraph::pattern::wrap_type<ngraph::opset9::Constant>();
-    auto mul_1 = ngraph::pattern::wrap_type<ngraph::opset9::Multiply>({add_0, mul_1_constant});
+    auto mul_1_constant = ngraph::pattern::wrap_type<opset9::Constant>();
+    auto mul_1 = ngraph::pattern::wrap_type<opset9::Multiply>({add_0, mul_1_constant});
 
-    auto tanh = ngraph::pattern::wrap_type<ngraph::opset9::Tanh>({mul_1});
+    auto tanh = ngraph::pattern::wrap_type<opset9::Tanh>({mul_1});
 
-    auto add_1_constant = ngraph::pattern::wrap_type<ngraph::opset9::Constant>();
-    auto add_1 = ngraph::pattern::wrap_type<ngraph::opset9::Add>({tanh, add_1_constant});
+    auto add_1_constant = ngraph::pattern::wrap_type<opset9::Constant>();
+    auto add_1 = ngraph::pattern::wrap_type<opset9::Add>({tanh, add_1_constant});
 
-    auto mul_2_constant = ngraph::pattern::wrap_type<ngraph::opset9::Constant>();
-    auto mul_2 = ngraph::pattern::wrap_type<ngraph::opset9::Multiply>({add_1, mul_2_constant});
+    auto mul_2_constant = ngraph::pattern::wrap_type<opset9::Constant>();
+    auto mul_2 = ngraph::pattern::wrap_type<opset9::Multiply>({add_1, mul_2_constant});
 
-    auto mul_3 = ngraph::pattern::wrap_type<ngraph::opset9::Multiply>({input, mul_2});
+    auto mul_3 = ngraph::pattern::wrap_type<opset9::Multiply>({input, mul_2});
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
-        auto pow_constant_value = std::dynamic_pointer_cast<ngraph::opset9::Constant>(
-            pattern_to_output.at(pow_constant).get_node_shared_ptr());
-        auto mul_0_constant_value = std::dynamic_pointer_cast<ngraph::opset9::Constant>(
-            pattern_to_output.at(mul_0_constant).get_node_shared_ptr());
-        auto mul_1_constant_value = std::dynamic_pointer_cast<ngraph::opset9::Constant>(
-            pattern_to_output.at(mul_1_constant).get_node_shared_ptr());
-        auto mul_2_constant_value = std::dynamic_pointer_cast<ngraph::opset9::Constant>(
-            pattern_to_output.at(mul_2_constant).get_node_shared_ptr());
-        auto add_1_constant_value = std::dynamic_pointer_cast<ngraph::opset9::Constant>(
-            pattern_to_output.at(add_1_constant).get_node_shared_ptr());
+        auto pow_constant_value =
+            std::dynamic_pointer_cast<opset9::Constant>(pattern_to_output.at(pow_constant).get_node_shared_ptr());
+        auto mul_0_constant_value =
+            std::dynamic_pointer_cast<opset9::Constant>(pattern_to_output.at(mul_0_constant).get_node_shared_ptr());
+        auto mul_1_constant_value =
+            std::dynamic_pointer_cast<opset9::Constant>(pattern_to_output.at(mul_1_constant).get_node_shared_ptr());
+        auto mul_2_constant_value =
+            std::dynamic_pointer_cast<opset9::Constant>(pattern_to_output.at(mul_2_constant).get_node_shared_ptr());
+        auto add_1_constant_value =
+            std::dynamic_pointer_cast<opset9::Constant>(pattern_to_output.at(add_1_constant).get_node_shared_ptr());
 
         if (!pow_constant_value || !add_1_constant_value || !mul_0_constant_value || !mul_1_constant_value ||
             !mul_2_constant_value) {
@@ -310,7 +309,7 @@ ngraph::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
             return false;
         }
 
-        auto gelu = std::make_shared<ngraph::opset9::Gelu>(x_output, op::GeluApproximationMode::TANH);
+        auto gelu = std::make_shared<opset9::Gelu>(x_output, op::GeluApproximationMode::TANH);
 
         gelu->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info(

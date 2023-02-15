@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -30,14 +30,14 @@ class TestUnique(CommonTFLayerTest):
         return tf_net, None
 
     test_data_basic = [
-        pytest.param(dict(x_shape=[1], data_type=tf.float32, out_idx=tf.int32),
-                     marks=pytest.mark.xfail(reason="95824")),
+        dict(x_shape=[1], data_type=tf.float32, out_idx=tf.int32),
         dict(x_shape=[50], data_type=tf.float32, out_idx=tf.int32),
         dict(x_shape=[100], data_type=tf.float32, out_idx=tf.int64),
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit_tf_fe
+    @pytest.mark.nightly
     def test_unique_basic(self, params, ie_device, precision, ir_version, temp_dir,
                           use_new_frontend, use_old_api):
         if not use_new_frontend:

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v0::Convert);
 
 op::Convert::Convert(const Output<Node>& arg, const element::Type& destination_type)
     : Op({arg}),
@@ -44,9 +42,7 @@ shared_ptr<Node> op::Convert::clone_with_new_inputs(const OutputVector& new_args
 namespace convert {
 namespace {
 template <element::Type_t INPUT_ET, element::Type_t OUTPUT_ET>
-bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out)
-
-{
+bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out) {
     out->set_shape(arg->get_shape());
     size_t element_count = shape_size(out->get_shape());
 
@@ -127,19 +123,20 @@ bool evaluate_convert(const HostTensorPtr& arg, const HostTensorPtr& out) {
     return rc;
 }
 
-bool evaluate_bound(const Node* node, const HostTensorVector& output_values, bool is_upper) {
-    NGRAPH_CHECK(node, validate_host_tensor_vector(output_values, 1));
+bool evaluate_bound(const Node* node, ov::TensorVector& output_values, bool is_upper) {
+    NGRAPH_CHECK(node, output_values.size() == 1);
     const auto& input = node->input_value(0);
     if (const auto& value = is_upper ? input.get_tensor().get_upper_value() : input.get_tensor().get_lower_value()) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
+        if (is_vector(value.get_shape()) && (value.get_shape().front() == 0)) {
+            return true;
+        }
         bool status = node->evaluate(output_values, {value});
-        OPENVINO_SUPPRESS_DEPRECATED_END
 
         if (!status)
             return status;
 
         const auto& input_element_type = input.get_element_type();
-        const auto& output_element_type = output_values[0]->get_element_type();
+        const auto& output_element_type = output_values[0].get_element_type();
         if ((input_element_type.is_integral() && input_element_type.bitwidth() <= 16) ||
             (output_element_type.is_integral() && output_element_type.bitwidth() <= 16)) {
             return status;
@@ -147,19 +144,25 @@ bool evaluate_bound(const Node* node, const HostTensorVector& output_values, boo
 
         // constants for dynamic values translation
         auto input_maximum_value = get_constant_max_of_type(input_element_type);
-        auto output_maximum_value = get_constant_max_of_type(output_values[0]->get_element_type());
+        auto output_maximum_value = get_constant_max_of_type(output_values[0].get_element_type());
         if (input_maximum_value == nullptr || output_maximum_value == nullptr)
             return false;
 
+        auto input_max = ov::Tensor(input_maximum_value->get_element_type(), input_maximum_value->get_shape());
+        memcpy(input_max.data(), input_maximum_value->get_data_ptr(), input_max.get_byte_size());
+
+        auto output_max = ov::Tensor(output_maximum_value->get_element_type(), output_maximum_value->get_shape());
+        memcpy(output_max.data(), output_maximum_value->get_data_ptr(), output_max.get_byte_size());
+
         // dynamic values translation
-        auto input_dynamic_mask = std::make_shared<HostTensor>(element::boolean, input.get_shape());
-        status =
-            op::v1::Equal().evaluate({input_dynamic_mask}, {value, std::make_shared<HostTensor>(input_maximum_value)});
+        auto input_dynamic_mask = ov::Tensor(element::boolean, input.get_shape());
+        auto outputs = ov::TensorVector{input_dynamic_mask};
+
+        status = op::v1::Equal().evaluate(outputs, {value, input_max});
         if (!status)
             return status;
-        status = op::v1::Select().evaluate(
-            output_values,
-            {input_dynamic_mask, std::make_shared<HostTensor>(output_maximum_value), output_values[0]});
+
+        status = op::v1::Select().evaluate(output_values, {input_dynamic_mask, output_max, output_values[0]});
         return status;
     } else
         return false;
@@ -221,11 +224,11 @@ bool op::v0::Convert::has_evaluate() const {
     return true;
 }
 
-bool op::v0::Convert::evaluate_lower(const HostTensorVector& output_values) const {
+bool op::v0::Convert::evaluate_lower(ov::TensorVector& output_values) const {
     return convert::evaluate_bound(this, output_values, false);
 }
 
-bool op::v0::Convert::evaluate_upper(const HostTensorVector& output_values) const {
+bool op::v0::Convert::evaluate_upper(ov::TensorVector& output_values) const {
     return convert::evaluate_bound(this, output_values, true);
 }
 

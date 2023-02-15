@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -970,7 +970,7 @@ static std::vector<dims_vec> map_reshaped_dimensions(const dims_vec input_shape,
 static std::vector<ov::Shape> map_reshaped_shapes(const ov::Shape unsquized_shape,
                                                   const std::vector<dims_vec> dims_map) {
     auto retval = std::vector<ov::Shape>();
-    for (const auto unsquized_dims : dims_map) {
+    for (const auto& unsquized_dims : dims_map) {
         auto cur_dim_shape = ov::Shape();
         for (const auto& dim : unsquized_dims)
             cur_dim_shape.push_back(unsquized_shape[dim]);
@@ -1243,7 +1243,7 @@ public:
                                     for (auto& ch : weights_mask_row->at(out_dim)) {
                                         NGRAPH_SUPPRESS_DEPRECATED_START
                                         auto iter = get_channel_iter(dims_shape[in_dim], unsquized_shift, ch);
-                                        for (const auto coord : iter)
+                                        for (const auto& coord : iter)
                                             cur_mask->at(in_dim).insert(iter.index(coord));
                                         NGRAPH_SUPPRESS_DEPRECATED_END
                                     }
@@ -1316,7 +1316,7 @@ public:
                                     for (auto& ch : input_mask_row->at(in_dim)) {
                                         NGRAPH_SUPPRESS_DEPRECATED_START
                                         auto iter = get_channel_iter(dims_shape[out_dim], unsquized_shift, ch);
-                                        for (const auto coord : iter)
+                                        for (const auto& coord : iter)
                                             cur_mask->at(out_dim).insert(iter.index(coord));
                                         NGRAPH_SUPPRESS_DEPRECATED_END
                                     }
@@ -1388,7 +1388,7 @@ public:
                 NGRAPH_DEBUG << "No input mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
                 return false;
             }
-            if (input_mask->size() != m_output.get_partial_shape().rank().get_length()) {
+            if (static_cast<int64_t>(input_mask->size()) != m_output.get_partial_shape().rank().get_length()) {
                 NGRAPH_DEBUG << "Transpose which change tensor rank is not supported yet.";
                 return false;
             }
@@ -1432,6 +1432,42 @@ public:
     }
 };
 
+static ngraph::Mask::Ptr create_connect_split_output_mask(ngraph::Mask::Ptr input_mask,
+                                                          const int64_t axis,
+                                                          const uint64_t split_start,
+                                                          const uint64_t split_end) {
+    auto output_mask = std::make_shared<ngraph::Mask>();
+    auto input_mask_raw = input_mask.get();
+    output_mask->add_callback(
+        [input_mask_raw, axis, split_start, split_end](ngraph::Mask::Ptr cur_mask) -> bool {
+            cur_mask->copy_and_slice_mask_from(input_mask_raw, axis, split_start, split_end);
+            return true;
+        },
+        input_mask);
+    auto output_mask_raw = output_mask.get();
+    input_mask->add_callback(
+        [output_mask_raw, axis, split_start, split_end](ngraph::Mask::Ptr cur_mask) -> bool {
+            auto& dim_mask = cur_mask->at(axis);
+            auto it = dim_mask.lower_bound(split_start);
+            while (it != dim_mask.end() && *it < split_end) {
+                it = dim_mask.erase(it);
+            }
+            for (size_t j = 0; j < output_mask_raw->size(); j++) {
+                const auto& dim_mask = output_mask_raw->at(j);
+                if (static_cast<int64_t>(j) == axis) {
+                    for (auto d : dim_mask)
+                        cur_mask->at(j).insert(d + split_start);
+                } else {
+                    cur_mask->at(j) = dim_mask;
+                }
+            }
+            return true;
+        },
+        output_mask);
+
+    return output_mask;
+}
+
 class ov::pass::mask_propagation::VariadicSplit : public MatcherPass {
 public:
     VariadicSplit() {
@@ -1466,9 +1502,9 @@ public:
             // split_lengths can contain -1 value
             int minus_one_length_idx = -1;
             int64_t total_lengths = 0;
-            for (int i = 0; i < split_lengths.size(); i++) {
+            for (size_t i = 0; i < split_lengths.size(); i++) {
                 if (split_lengths[i] == -1) {
-                    minus_one_length_idx = i;
+                    minus_one_length_idx = static_cast<int>(i);
                     continue;
                 }
                 total_lengths += split_lengths[i];
@@ -1484,45 +1520,14 @@ public:
             uint64_t split_start = 0;
             uint64_t split_end = 0;
             std::vector<ngraph::Mask::Ptr> output_masks;
-            std::vector<ngraph::Mask*> output_masks_raw;
-            auto input_mask_raw = input_mask.get();
             for (size_t i = 0; i < split->get_output_size(); i++) {
                 split_end += split_lengths[i];
-                auto output_mask = std::make_shared<ngraph::Mask>();
-                output_mask->copy_and_slice_mask_from(input_mask_raw, axis, split_start, split_end);
-                output_masks.push_back(output_mask);
-                output_masks_raw.push_back(output_mask.get());
-                output_mask->add_callback(
-                    [input_mask_raw, axis, split_start, split_end](ngraph::Mask::Ptr cur_mask) -> bool {
-                        cur_mask->copy_and_slice_mask_from(input_mask_raw, axis, split_start, split_end);
-                        return true;
-                    },
-                    input_mask);
-                split_start = split_end;
+                output_masks.push_back(create_connect_split_output_mask(input_mask, axis, split_start, split_end));
                 ngraph::setMask(split->output(i), output_masks[i]);
+                split_start = split_end;
             }
-
-            auto input_mask_callback = [output_masks_raw, axis, split_lengths](ngraph::Mask::Ptr cur_mask) -> bool {
-                cur_mask->clean_dim_values();
-                uint64_t split_start = 0;
-                for (size_t i = 0; i < output_masks_raw.size(); i++) {
-                    auto mask = output_masks_raw[i];
-                    for (size_t j = 0; j < mask->size(); j++) {
-                        const auto& dim_mask = mask->at(j);
-                        if (j == axis) {
-                            for (auto d : dim_mask)
-                                cur_mask->at(j).insert(d + split_start);
-                        } else if (!dim_mask.empty()) {
-                            cur_mask->at(j) = dim_mask;
-                        }
-                    }
-                    split_start += split_lengths[i];
-                }
-                return true;
-            };
-
-            for (size_t i = 0; i < split->get_output_size(); i++) {
-                input_mask->add_callback(input_mask_callback, output_masks[i]);
+            for (const auto& output_mask : output_masks) {
+                output_mask->apply_callback(input_mask);
             }
             return true;
         };
@@ -1565,46 +1570,14 @@ public:
             auto split_step = split_dim / num_splits;
             uint64_t split_end = split_step;
             std::vector<ngraph::Mask::Ptr> output_masks;
-            std::vector<ngraph::Mask*> output_masks_raw;
-            auto input_mask_raw = input_mask.get();
-            for (size_t i = 0; i < num_splits; i++) {
-                auto output_mask = std::make_shared<ngraph::Mask>();
-                output_mask->copy_and_slice_mask_from(input_mask_raw, axis, split_start, split_end);
-                output_masks.push_back(output_mask);
-                output_masks_raw.push_back(output_mask.get());
-                output_mask->add_callback(
-                    [input_mask_raw, axis, split_start, split_end](ngraph::Mask::Ptr cur_mask) -> bool {
-                        cur_mask->copy_and_slice_mask_from(input_mask_raw, axis, split_start, split_end);
-                        return true;
-                    },
-                    input_mask);
+            for (size_t i = 0; i < split->get_output_size(); i++) {
+                output_masks.push_back(create_connect_split_output_mask(input_mask, axis, split_start, split_end));
+                ngraph::setMask(split->output(i), output_masks[i]);
                 split_start = split_end;
                 split_end += split_step;
-                ngraph::setMask(split->output(i), output_masks[i]);
             }
-
-            auto input_mask_callback =
-                [output_masks_raw, axis, split_dim, split_step, num_splits](ngraph::Mask::Ptr cur_mask) -> bool {
-                cur_mask->clean_dim_values();
-                uint64_t split_start = 0;
-                for (auto mask : output_masks_raw) {
-                    for (size_t j = 0; j < mask->size(); j++) {
-                        const auto& dim_mask = mask->at(j);
-                        if (j == axis) {
-                            for (auto d : dim_mask)
-                                cur_mask->at(j).insert(d + split_start);
-                        } else if (!dim_mask.empty()) {
-                            cur_mask->at(j) = dim_mask;
-                        }
-                    }
-                    split_start += split_step;
-                }
-                cur_mask->initialize_dependencies();
-                return true;
-            };
-
-            for (size_t i = 0; i < split->get_output_size(); i++) {
-                input_mask->add_callback(input_mask_callback, output_masks[i]);
+            for (const auto& output_mask : output_masks) {
+                output_mask->apply_callback(input_mask);
             }
             return true;
         };

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,3 +29,4 @@
 #include "openvino/c/ov_rank.h"
 #include "openvino/c/ov_shape.h"
 #include "openvino/c/ov_tensor.h"
+#include "openvino/c/ov_remote_context.h"

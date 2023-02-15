@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ namespace node {
 
 class DFT : public Node {
 public:
-    DFT(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    DFT(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
     ~DFT() override = default;
 
     void getSupportedDescriptors() override;

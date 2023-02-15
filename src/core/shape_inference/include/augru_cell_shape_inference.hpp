@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
 
 #include "gru_cell_shape_inference.hpp"
-#include "ngraph_ops/augru_sequence.hpp"
+#include "ov_ops/augru_cell.hpp"
+#include "ov_ops/augru_sequence.hpp"
 #include "utils.hpp"
 
 namespace ov {

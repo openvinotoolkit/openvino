@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "bound_evaluate.hpp"
 #include "concat_shape_inference.hpp"
 #include "dimension_tracker.hpp"
 #include "itt.hpp"
@@ -15,8 +16,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(ov::op::v0::Concat);
 
 op::Concat::Concat(const OutputVector& args, int64_t axis) : Op(args), m_axis(axis) {
     constructor_validate_and_infer_types();
@@ -111,16 +110,44 @@ bool op::Concat::evaluate(const HostTensorVector& outputs, const HostTensorVecto
     return evaluate_concat(inputs, outputs[0], concat_axis);
 }
 
+bool op::Concat::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
+    OV_OP_SCOPE(v0_Concat_evaluate);
+    OPENVINO_ASSERT(!inputs.empty());
+    OPENVINO_ASSERT(outputs.size() == 1);
+
+    auto concat_axis = ov::normalize(get_axis(), inputs.front().get_shape().size());
+
+    std::vector<const char*> arg_bufs;
+    std::vector<ov::Shape> arg_shapes;
+
+    ov::Shape out_shape(inputs.front().get_shape());
+    out_shape[concat_axis] = 0;
+    for (auto& input : inputs) {
+        arg_bufs.push_back(static_cast<const char*>(input.data()));
+        arg_shapes.push_back(input.get_shape());
+        out_shape[concat_axis] += arg_shapes.back()[concat_axis];
+    }
+    outputs.front().set_shape(out_shape);
+    ngraph::runtime::reference::concat(arg_bufs,
+                                       static_cast<char*>(outputs.front().data()),
+                                       arg_shapes,
+                                       out_shape,
+                                       concat_axis,
+                                       outputs.front().get_element_type().size());
+
+    return true;
+}
+
 bool op::Concat::has_evaluate() const {
     OV_OP_SCOPE(v0_Concat_has_evaluate);
     return true;
 }
 
-bool op::Concat::evaluate_lower(const HostTensorVector& output_values) const {
+bool op::Concat::evaluate_lower(ov::TensorVector& output_values) const {
     return default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::Concat::evaluate_upper(const HostTensorVector& output_values) const {
+bool op::Concat::evaluate_upper(ov::TensorVector& output_values) const {
     return default_upper_bound_evaluator(this, output_values);
 }
 
@@ -133,7 +160,7 @@ bool op::Concat::evaluate_label(TensorLabelVector& output_labels) const {
         return false;
     }
 
-    HostTensorVector idx_inputs;
+    TensorVector idx_inputs;
     idx_inputs.reserve(inputs.size());
     for (const auto& input : inputs) {
         auto input_label = input.get_tensor().get_value_label();
@@ -144,12 +171,16 @@ bool op::Concat::evaluate_label(TensorLabelVector& output_labels) const {
             const auto& num_elements = shape_size(shape.to_shape());
             input_label.resize(num_elements, no_label);
         }
-        const auto& constant = Constant::create(element::u64, input.get_shape(), input_label);
-        idx_inputs.push_back(std::make_shared<HostTensor>(constant));
+        idx_inputs.emplace_back(element::from<label_t>(), input.get_shape());
+        std::copy_n(input_label.begin(), idx_inputs.back().get_size(), idx_inputs.back().data<ov::label_t>());
     }
 
-    const auto& output_tensor = std::make_shared<HostTensor>(element::u64, get_output_shape(0));
-    evaluate({output_tensor}, idx_inputs);
-    output_labels[0] = std::make_shared<Constant>(output_tensor)->cast_vector<size_t>();
-    return true;
+    auto outputs = TensorVector{{element::from<label_t>(), get_output_shape(0)}};
+    if (evaluate(outputs, idx_inputs)) {
+        output_labels.front() =
+            TensorLabel(outputs.front().data<label_t>(), outputs.front().data<label_t>() + outputs.front().get_size());
+        return true;
+    } else {
+        return false;
+    }
 }

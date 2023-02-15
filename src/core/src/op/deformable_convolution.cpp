@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,9 +13,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v1::DeformableConvolution);
-BWDCMP_RTTI_DEFINITION(op::v8::DeformableConvolution);
 
 op::v8::DeformableConvolution::DeformableConvolution(const Output<Node>& arg,
                                                      const Output<Node>& offsets,

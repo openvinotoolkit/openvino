@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "intel_gpu/primitives/tile.hpp"
@@ -28,6 +27,7 @@ using tile_node = typed_program_node<tile>;
 template <>
 class typed_primitive_inst<tile> : public typed_primitive_inst_base<tile> {
     using parent = typed_primitive_inst_base<tile>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,29 @@ bool ReduceKernelBase::Validate(const Params& p, const optional_params&) const {
 JitConstants ReduceKernelBase::GetJitConstants(const reduce_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", params.outputs[0].LogicalSize()));
+    const auto& output = params.outputs[0];
+    if (output.is_dynamic()) {
+        size_t output_offset = (1 + GetFusedPrimitiveInputsCount(params)) * 6;
+        auto x = toCodeString(output.X(), output_offset + 5);
+        auto y = toCodeString(output.Y(), output_offset + 4);
+        auto z = toCodeString(output.Z(), output_offset + 3);
+        auto w = toCodeString(output.W(), output_offset + 2);
+        auto f = toCodeString(output.Feature(), output_offset + 1);
+        auto b = toCodeString(output.Batch(), output_offset);
+
+        auto multiply = [](std::vector<std::string> dims) -> std::string {
+            std::string res = "(";
+            for (size_t i = 0; i < dims.size() - 1; ++i) {
+                res += dims[i] + "*";
+            }
+            res += dims.back() + ")";
+            return res;
+        };
+        jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", multiply({x, y, z, w, f, b})));
+    } else {
+        jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", params.outputs[0].LogicalSize()));
+    }
+
     jit.AddConstant(MakeJitConstant("REDUCE_" + toString(params.reduceMode) + "_MODE", 1));
     jit.AddConstant(MakeJitConstant("KEEP_DIMS", params.keepDims));
 
@@ -226,13 +248,21 @@ KernelsData ReduceKernelBase::GetCommonKernelsData(const Params& p,
     }
 
     const reduce_params& params = static_cast<const reduce_params&>(p);
-    DispatchData dispatchData = SetDefault(params, options);
+    DispatchData dispatchData = SetDefault(params);
 
     KernelData kd = KernelData::Default<reduce_params>(params);
 
     auto cldnn_jit = GetJitConstants(params);
     auto entry_point = GetEntryPoint(kernelName, params.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
+
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const reduce_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+    };
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel,
@@ -241,11 +271,13 @@ KernelsData ReduceKernelBase::GetCommonKernelsData(const Params& p,
                      kernelName,
                      jit,
                      entry_point,
-                     DEFAULT,
+                     EXE_MODE_DEFAULT,
                      false,
                      false,
                      1,
-                     GetFusedPrimitiveInputsCount(params));
+                     GetFusedPrimitiveInputsCount(params),
+                     1,
+                     params.inputs[0].is_dynamic());
 
     return {kd};
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,7 +40,6 @@ class Converter : public ColorConvert::Converter {
 public:
     Converter(Node *node);
 
-    Shapes shapeInfer() const override;
     bool singlePlane() const;
 
     template <typename T>
@@ -52,16 +51,6 @@ Converter::Converter(Node *node)
                     || node->getAlgorithm() == Algorithm::ColorConvertI420toRGB
                         ? ColorFormat { { 0, 1, 2 } }
                         : ColorFormat { { 2, 1, 0 } }) {
-}
-
-ColorConvert::Converter::Shapes
-Converter::shapeInfer() const {
-    const auto & dims = inputDims(0);
-    if (dims.size() != 4)
-        IE_THROW() <<"NV12Converter node has incorrect input dimensions";
-    return singlePlane()
-                ? Shapes { { dims[N_DIM], dims[H_DIM] * 2 / 3, dims[W_DIM], 3 } }
-                : Shapes { { dims[N_DIM], dims[H_DIM], dims[W_DIM], 3 } };
 }
 
 bool Converter::singlePlane() const {
@@ -186,7 +175,7 @@ void jit_uni_converter::yuv_to_rgb(const variable<float[N]> & y,
             std::array<uint8_t, N> mask {};
             for (uint8_t i = 0; i < mask.size(); ++i)
                 mask[(i * 3 + offset) % mask.size()] = i;
-            return std::move(mask);
+            return mask;
         };
 
         r.permute(genPermutationMask(0));
@@ -293,7 +282,7 @@ ColorConvert::Converter::PrimitiveDescs supportedPrimitiveDescs(Node *node) {
                             : impl_desc_type::ref,
                         true);
 
-    return std::move(descs);
+    return descs;
 }
 
 template<typename T, impl_desc_type I>
@@ -539,7 +528,7 @@ const jit_uni_converter & jit_converter_create() {
             IE_THROW() << "Can't create jit color converter kernel";
         }
 
-        return std::move(kernel);
+        return kernel;
     };
 
     static auto kernel = createKernel();
@@ -642,7 +631,7 @@ ColorConvert::Converter::PrimitiveDescs supportedPrimitiveDescs(Node *node) {
                             : impl_desc_type::ref,
                         true);
 
-    return std::move(descs);
+    return descs;
 }
 
 template<typename T, impl_desc_type I>
@@ -888,7 +877,7 @@ const jit_uni_converter & jit_converter_create() {
             IE_THROW() << "Can't create jit color converter kernel";
         }
 
-        return std::move(kernel);
+        return kernel;
     };
 
     static auto kernel = createKernel();
@@ -977,6 +966,44 @@ public:
 
 }   // namespace i420
 
+/**
+ * Implements Color Convert shape inference algorithm. Depending on wether it has only single plain H dimension is
+ * passed through or recalculated as 2/3 of the initial size.
+ * 
+ */
+class ColorConvertShapeInfer : public ShapeInferEmptyPads {
+public:
+    ColorConvertShapeInfer(bool singlePlain) : m_singlePlain(singlePlain) {}
+    std::vector<VectorDims> infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        const auto& dims = input_shapes.front().get();
+        if (dims.size() != 4)
+            IE_THROW() <<"NV12Converter node has incorrect input dimensions";
+        return m_singlePlain
+                    ? std::vector<VectorDims>{ { dims[Converter::N_DIM], dims[Converter::H_DIM] * 2 / 3, dims[Converter::W_DIM], 3 } }
+                    : std::vector<VectorDims>{ { dims[Converter::N_DIM], dims[Converter::H_DIM], dims[Converter::W_DIM], 3 } };
+    }
+
+    port_mask_t get_port_mask() const override {
+        return EMPTY_PORT_MASK;
+    }
+
+private:
+    bool m_singlePlain = false;
+};
+
+class ColorConvertShapeInferFactory : public ShapeInferFactory {
+public:
+    ColorConvertShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
+    ShapeInferPtr makeShapeInfer() const override {
+        bool isSinglePlain = m_op->get_input_size() == 1;
+        return std::make_shared<ColorConvertShapeInfer>(isSinglePlain);
+    }
+
+private:
+    std::shared_ptr<ov::Node> m_op;
+};
+
 }   // namespace
 
 ColorConvert::Converter::Converter(Node *node, const ColorFormat & colorFormat)
@@ -1010,10 +1037,8 @@ bool ColorConvert::isSupportedOperation(const std::shared_ptr<const ngraph::Node
     return alg != Algorithm::Default;
 }
 
-ColorConvert::ColorConvert(const std::shared_ptr<ngraph::Node>& op,
-                                               const dnnl::engine& eng,
-                                               WeightsSharing::Ptr &cache)
-    : Node(op, eng, cache) {
+ColorConvert::ColorConvert(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, ColorConvertShapeInferFactory(op)) {
     std::string errorMessage;
     std::tie(algorithm, errorMessage) = getAlgorithmFor(op);
     if (algorithm == Algorithm::Default)
@@ -1138,13 +1163,6 @@ void ColorConvert::execute(dnnl::stream strm) {
 
 bool ColorConvert::created() const {
     return getType() == Type::ColorConvert;
-}
-
-std::vector<VectorDims> ColorConvert::shapeInfer() const {
-    if (!_impl)
-        IE_THROW() << getTypeStr() + " node with name '" + getName() + "' "
-                   << "has no any implemented converter";
-    return _impl->shapeInfer();
 }
 
 bool ColorConvert::needPrepareParams() const {

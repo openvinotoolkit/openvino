@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
@@ -9,8 +9,7 @@ import warnings
 
 warnings.warn(
     message="The module is private and following namespace "
-    "`offline_transformations` will be removed in "
-    "the future, use `openvino.runtime.passes` instead!",
+    "`offline_transformations` will be removed in the future.",
     category=FutureWarning,
 )
 
@@ -41,8 +40,8 @@ def apply_fused_names_cleanup(model):
 
 
 @deprecated(version="2023.1", message="The module is private and following namespace " "`offline_transformations` will be removed in " "the future.")
-def apply_moc_transformations(model, cf):
-    _base.apply_moc_transformations(model, cf)
+def apply_moc_transformations(model, cf, smart_reshape=False):
+    _base.apply_moc_transformations(model, cf, smart_reshape)
 
 
 @deprecated(version="2023.1", message="The module is private and following namespace " "`offline_transformations` will be removed in " "the future.")
@@ -80,7 +79,11 @@ def compress_model_transformation(model):
     _base.compress_model_transformation(model)
 
 
-@deprecated(version="2023.1", message="The module is private and following namespace " "`offline_transformations` will be removed in " "the future.")
+@deprecated(version="2023.1", 
+            message="The module is private and following namespace " 
+            "`offline_transformations` will be removed in the future. " 
+            "This transformation will be enabled as a part of read_model method of ov::Core "
+            "and convert method of ov::Frontend classes.")
 def compress_quantize_weights_transformation(model):
     _base.compress_quantize_weights_transformation(model)
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,6 @@ namespace v9 {
 class OPENVINO_API SoftSign : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("SoftSign", "opset9", util::UnaryElementwiseArithmetic);
-    BWDCMP_RTTI_DECLARATION;
 
     SoftSign() = default;
     /// \brief Constructs a SoftSign operation.

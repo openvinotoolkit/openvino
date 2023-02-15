@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,7 @@ public:
         constructorCount++;
     }
 
-    ~DestructorTest() {
+    virtual ~DestructorTest() {
         destructorCount++;
     }
 
@@ -226,6 +226,13 @@ TEST_F(AnyTests, CompareAnysWithoutEqualOperator) {
     class TestClass {
     public:
         TestClass(int test, int* testPtr) : test(test), testPtr(testPtr) {}
+
+        int get_test() {
+            return test;
+        }
+        int* get_test_ptr() {
+            return testPtr;
+        }
 
     private:
         int test;
@@ -539,4 +546,14 @@ TEST_F(AnyTests, AddressofNoThrow) {
     ASSERT_EQ(nullptr, p.addressof());
     p = 42;
     ASSERT_NE(nullptr, p.addressof());
+}
+
+TEST_F(AnyTests, EmptyStringAsAny) {
+    Any p = "";
+    std::vector<float> ref_f;
+    std::vector<int> ref_i;
+    ASSERT_TRUE(p.is<std::string>());
+    ASSERT_EQ(p.as<int>(), 0);
+    ASSERT_EQ(p.as<std::vector<float>>(), ref_f);
+    ASSERT_EQ(p.as<std::vector<int>>(), ref_i);
 }

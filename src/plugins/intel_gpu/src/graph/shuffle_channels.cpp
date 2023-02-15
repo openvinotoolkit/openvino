@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,10 +10,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id shuffle_channels::type_id() {
-    static primitive_type_base<shuffle_channels> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(shuffle_channels)
 
 layout shuffle_channels_inst::calc_output_layout(shuffle_channels_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<shuffle_channels>();

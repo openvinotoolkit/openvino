@@ -23,6 +23,10 @@ public:
     static std::string to_string(const read_value_node& node);
 
     typed_primitive_inst(network& network, const read_value_node& desc);
+    typed_primitive_inst(network& network) : parent(network), memory_state::variable("") {}
+
+    void save(cldnn::BinaryOutputBuffer& ob) const override;
+    void load(cldnn::BinaryInputBuffer& ib) override;
 };
 
 using read_value_inst = typed_primitive_inst<read_value>;

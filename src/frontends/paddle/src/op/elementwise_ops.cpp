@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,6 +44,10 @@ NamedOutputs elementwise_equal(const NodeContext& node_context) {
 
 NamedOutputs elementwise_greater_equal(const NodeContext& node_context) {
     return elementwise_ops<default_opset::GreaterEqual>(node_context);
+}
+
+NamedOutputs elementwise_not_equal(const NodeContext& node_context) {
+    return elementwise_ops<default_opset::NotEqual>(node_context);
 }
 
 NamedOutputs elementwise_floordiv(const NodeContext& node_context) {

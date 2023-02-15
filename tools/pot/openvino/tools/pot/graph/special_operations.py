@@ -65,13 +65,11 @@ DETECTION_OUTPUT_FINAL_TYPES = [
     {'type': 'TopK'}
 ]
 
+# TODO: Add attributes to GraphTransformer hw_config
+TYPES_TO_QUANTIZABLE_PORTS = {'LSTMSequence': [0, 1, 4, 5], 'GRUSequence': [0, 1, 3, 4]}
+
 ELTWISE_TYPES = ['Add', 'Multiply', 'Subtract', 'Divide', 'Less', 'LessEqual', 'Greater', 'GreaterEqual',
                  'Equal', 'NotEqual', 'FloorMod', 'LogicalOr', 'LogicalXor', 'LogicalAnd', 'Maximum', 'Minimum']
-
-ELTWISE_ADD_SUB = [
-    {'type': 'Add'},
-    {'type': 'Subtract'}
-]
 
 
 def is_eltwise(node):

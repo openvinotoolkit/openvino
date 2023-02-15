@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,13 +40,17 @@ kernel_selector::matrix_nms_params::sort_result_type from(matrix_nms::sort_resul
 struct matrix_nms_impl : typed_primitive_impl_ocl<matrix_nms> {
     using parent = typed_primitive_impl_ocl<matrix_nms>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::matrix_nms_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::matrix_nms_params, kernel_selector::matrix_nms_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<matrix_nms_impl>(*this);
     }
 
 protected:
-    kernel_arguments_data get_arguments(matrix_nms_inst& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const matrix_nms_inst& instance) const override {
         kernel_arguments_data args;
         args.inputs = {instance.input_boxes_mem(),
                        instance.input_scores_mem(),
@@ -58,10 +62,10 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const matrix_nms_node& node, const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<matrix_nms>();
         auto params = get_default_params<kernel_selector::matrix_nms_params>(impl_param);
-        auto optional_params =
-            get_default_optional_params<kernel_selector::matrix_nms_optional_params>(node.get_program());
+        auto optional_params = get_default_optional_params<kernel_selector::matrix_nms_optional_params>(impl_param.get_program());
 
         const auto& scores_layout = impl_param.get_input_layout(1);
         const auto& second_output_layout = impl_param.get_input_layout(2);
@@ -71,7 +75,6 @@ public:
         params.inputs.push_back(convert_data_tensor(second_output_layout));
         params.inputs.push_back(convert_data_tensor(third_output_layout));
 
-        const auto& primitive = node.get_primitive();
         params.sort_type = from(primitive->attribs.sort_type);
         params.sort_result_across_batch = primitive->attribs.sort_result_across_batch;
         params.score_threshold = primitive->attribs.score_threshold;
@@ -83,17 +86,7 @@ public:
         params.post_threshold = primitive->attribs.post_threshold;
         params.normalized = primitive->attribs.normalized;
 
-        auto& kernel_selector = kernel_selector::matrix_nms_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(params, optional_params);
-
-        CLDNN_ERROR_BOOL(node.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this nodeuments");
-
-        auto matrix_nms_node = new matrix_nms_impl(node, best_kernels[0]);
-
-        return matrix_nms_node;
+        return {params, optional_params};
     }
 };
 
@@ -109,9 +102,11 @@ attach_matrix_nms_impl::attach_matrix_nms_impl() {
                     format::bs_fs_yx_bsv32_fsv16,
                     format::bs_fs_yx_bsv32_fsv32};
 
-    implementation_map<matrix_nms>::add(impl_types::ocl, matrix_nms_impl::create, types, formats);
+    implementation_map<matrix_nms>::add(impl_types::ocl, typed_primitive_impl_ocl<matrix_nms>::create<matrix_nms_impl>, types, formats);
 }
 
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::matrix_nms_impl)

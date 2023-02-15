@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -98,6 +98,7 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
             }
         } else if (ngraph::op::is_binary_elementwise_arithmetic(outOp) ||
                    ngraph::op::is_binary_elementwise_logical(outOp) ||
+                   ngraph::op::is_binary_elementwise_comparison(outOp) ||
                    ngraph::is_type<ngraph::op::v0::SquaredDifference>(outOp)) {
             bool all_inputs_1d = true;
             for (size_t j = 0; j < outOp->get_input_size(); j++) {
@@ -117,7 +118,7 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
         } else if (ngraph::is_type<ngraph::op::v0::PRelu>(outOp) && node.get_index() == 1) {
             // PReLU slope tensor reshape policy
             //
-            // 1. 1-dim slope is handled by 'getConstTensor'.
+            // 1. 1-dim slope is handled by 'getConstTensor' (if slope dimension is equal to the feature dimension of input).
             //   ex) [1] --> [1, 1, 1, 1]
             //       [N] --> [1, N, 1, 1]
             //
@@ -126,7 +127,8 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
             //   ex) [N, 1, 1] --> [1, N, 1, 1]
             //       [N, M, 1] --> [1, N, M, 1]
             auto input_shape = outOp->get_input_partial_shape(0);
-            if (constDims.size() != 1 && constDims.size() < input_shape.size()) {
+            if ((constDims.size() != 1 && constDims.size() < input_shape.size()) ||
+                (constDims.size() == 1 && input_shape.is_static() && static_cast<int64_t>(constDims[0]) != input_shape[1].get_length())) {
                 // Reshape 'constDims' according to the numpy broadcasting rule.
                 ngraph::Shape slope_shape(input_shape.size(), 1);
                 for (size_t j = 1; j <= constDims.size(); j++)
@@ -200,12 +202,9 @@ void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::
         p.primitive_ids[initialconstPrimID] = constPrimID;
         p.profiling_ids.push_back(initialconstPrimID);
     } else {
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(debug_config->verbose >= 2) {
-            GPU_DEBUG_COUT << "[" << initialconstPrimID << ": constant]" << std::endl;
-        }
-        cldnn::memory::ptr mem = p.GetEngine().allocate_memory(constLayout, false);
-        auto& stream = p.GetEngine().get_program_stream();
+        GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant]" << std::endl;
+        cldnn::memory::ptr mem = p.get_engine().allocate_memory(constLayout, false);
+        auto& stream = p.get_engine().get_service_stream();
         cldnn::mem_lock<char> lock{mem, stream};
         auto buf = lock.data();
         auto bufSize = constLayout.bytes_count();

@@ -1,18 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Performs elementwise select operation on two input primitives with selector primitive (mask)
 /// @notes
@@ -37,18 +30,15 @@ struct select : public primitive_base<select> {
     /// "numpy" means that numpy-tyle (ONNX) broadcasting is allowed,
     /// "none" means that all inputs need to have the same shape.
     select(const primitive_id& id,
-           const primitive_id& mask,
-           const primitive_id& input,
-           const primitive_id& input2,
+           const input_info& mask,
+           const input_info& input,
+           const input_info& input2,
            const ov::op::AutoBroadcastSpec& spec = ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY),
            const padding& output_padding = padding())
-        : primitive_base(id, {mask, input, input2}, output_padding),
+        : primitive_base(id, {mask, input, input2}, {output_padding}),
           broadcast_spec(spec.m_type, spec.m_axis) {}
 
     /// @brief Define auto broadcast rule specification.
     ov::op::AutoBroadcastSpec broadcast_spec;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

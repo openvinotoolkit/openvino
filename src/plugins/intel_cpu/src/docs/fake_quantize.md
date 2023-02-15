@@ -165,20 +165,91 @@ $\frac{1}{S_i}$ as the output scale of `conv` or `inner_produce` to optimize the
       inner_product --> ... --> eltwise --> FQ
 ```
 
-# FQCommon
 
-The actual tensor is stored in memory as floating point type. So `round` is not needed in this case. The output can be simplified as:
+# Optimization for inference
 
-$$
-\begin{align}
-   y =(x-il)*\frac{oh-ol}{ih-il} + ol \\
-   y =x*\frac{oh-ol}{ih-il} + c \\
-   c = -il*\frac{oh-ol}{ih-il} + ol
-\end{align}
-$$
+## push clip after the round step
 
- If the following conditions are ture, FQ can be optimized with output-scales $\frac{oh-ol}{ih-il}$.
+the original formula of FakeQuantize is changed from:
 
- $$
- |c/(oh-ol)| = |\frac{ol}{oh-ol} -\frac{il}{ih-il}| < 0.01
- $$
+```
+   x = clip(x, cropLow, cropHigh)
+   x = x*InputScale + InputShift
+   x = round(x)
+   x = x*OutputScale + OutputShift
+```
+
+into 
+
+```
+   x = x*InputScale + InputShift
+   x = round(x)
+   x = clip(x, cropLow2, cropHigh2)
+   x = x*OutputScale + OutputShift
+```
+
+In practice, the weights of conv/matmul are very likely quantized using per-output-channel setup, making a per-channel dequantization InputScale in following FQ node.  and according to definition of FQ, this also incurred per-channel crop/clip in original inference formula, however, since clip step is actually designed to limit the round result to fit [0,levels-1) range, if we use new formula, the clip step is very likely to become a per-tensor operation again, which can map to high-performance eltwise postOps in oneDNN.
+
+## drop redundant round/clip in some cases
+
+when FQ is the last the fused postOps and output type is s8/u8, oneDNN will saturate the FP32 intermediate result into [-128,127]or[0,255] range and round by default, if OutputScale is 1.0f and OutputShift is integer, we can further bring OutputShift across the clip/round step and fuse it into inputShift:
+
+```
+   x = x*InputScale + (InputShift + OutputShift)
+   x = round(x)
+   x = clip(x, cropLow2+OutputShift, cropHigh2+OutputShift)
+```
+
+if we found the clip range `[cropLow2+OutputShift, cropHigh2+OutputShift]` is superset of s8/u8's range, then we know this clip is futile and it can be dropped with the explicit round step.
+
+Note that this is actually a formalization of existing optimization strategy.
+
+## drop round step on some condition
+
+If FQ is not last post Ops, round step can possibly be dropped w/o affect accuracy, considering it only introduces quantization noise (we may need massive test to confirm it so it's not implemented yet).
+
+But existing implementation drops this rounding step inside residual structure (when FQ is followed by a SUM and another FQ), so we still keep this optimization (to avoid performance regression) and formalize it as following:
+
+```
+   x = (x*InputScale + InputShift) * OutputScale  + OutputShift
+     = x*combinedScale + combinedShift
+
+   x = clip(x, cropLow3, cropHigh3)
+```
+
+The combined shift can also be dropped when it's too small comparing to the clip ranges.
+
+## optimize Mappings from fused node to oneDNN's output_scale/postOps:
+
+Existing optimizations mixed the simplification of formula with mapping them into oneDNN's output_scale/postOps, I'm trying to separate these two task by introducing a internal helper class `DnnlPostOpsComposer`, the basic idea is optimized formula decomposed FQ into a serials of basic operation like multiply/add/round/clip(per-tensor or per-OC), but there are no fixed 1v1 mapping between these basic operations and oneDNN attr/postOps, for example, multiply can be mapped to:
+  - output_scales for INT8 inference 
+  - binary for per-OC case
+  - eltwise for per-Tensor case
+
+further more, it may even const-folds into previous binary multiply or output scales, for example:
+
+```
+  x = (x*A + B)*C = x*(A*C) + (B*C)
+```
+These optimization should be done in unit of basic operation instead of complex operation like FQ, thus these logic was implemented in class `DnnlPostOpsComposer` and any fused nodes can call its API to take advantage of this common optimization.
+
+So far in non-legacy cases, fused Eltwise & FQ nodes are based this new class.
+
+since there are too many optimizations can be done inside `DnnlPostOpsComposer` and design based on imaginary use case is likely to introduce bugs, so we only add optimization that we've really observed in practical model:
+
+ - use eltwise for all per-tensor operation
+ - skip multiply with 1.0f or add with 0.0f
+ - first multiply is mapped to output scales
+ - Relu is the only preceding postOps when append multiply, we switch the order and fuse the multiply into output scales `relu(x)*s = relu(x*s)`
+ - Sum is the only preceding postOps  when append per-tensor multiply, we fuse it into output scale and sum's scale `(x + dst[:])*s = (x*s + s*dst[:])`
+ - per-tensor multiply after another eltwise will be fused into that eltwise's scale `eltwise(x, scale, alpha, beta)*s = eltwise(x, (scale*s), alpha, beta)` 
+
+## INT8 deconvolution 
+
+INT8 `deconvolution_forward` primitive supports many standard stock oneDNN attr&postOps while `convolution_backward` primitive only supports legacy postOps, but we observed that bias is fused as postOps instead of being the bias input of the deconv node, so we :
+
+ - extended `FuseConvolutionMatMulAndBias` as `FuseConvolutionMatMulDeconvAndBias`
+ to fuse bias into deconv node
+ - extended `Deconv` node to support bias input
+
+which eventually allows bias to be applied with better performance and the per-channel FQ node following deconv to be mapped more efficiently as output scales.

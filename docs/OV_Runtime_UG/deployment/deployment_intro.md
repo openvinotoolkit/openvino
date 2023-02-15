@@ -1,4 +1,4 @@
-# Deploying Your Applications with OpenVINO™ {#openvino_deployment_guide}
+# Run and Deploy Locally {#openvino_deployment_guide}
 
 @sphinxdirective
 
@@ -6,12 +6,17 @@
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_install_guides_deployment_manager_tool
-   openvino_docs_deploy_local_distribution
+   Run Inference <openvino_docs_OV_UG_OV_Runtime_User_Guide>
+   Optimize Inference <openvino_docs_deployment_optimization_guide_dldt_optimization_guide>
+   Deploy Application with Deployment Manager <openvino_docs_install_guides_deployment_manager_tool>
+   Local Distribution Libraries <openvino_docs_deploy_local_distribution>
 
 @endsphinxdirective
 
-Once the [OpenVINO™ application development](../integrate_with_your_application.md) has been finished, application developers usually need to deploy their applications to end users. There are several ways to achieve that:
+> **NOTE**: Note that [running inference in OpenVINO Runtime](../openvino_intro.md) is the most basic form of deployment. Before moving forward, make sure you know how to create a proper Inference configuration and [develop your application properly](../integrate_with_your_application.md)
+
+
+## Local Deployment Options
 
 - Set a dependency on the existing prebuilt packages, also called "centralized distribution":
     - using Debian / RPM packages - a recommended way for Linux operating systems;
@@ -39,16 +44,15 @@ The table below shows which distribution type can be used for what target operat
 
 The granularity of OpenVINO packages may vary for different distribution types. For example, the PyPI distribution of OpenVINO has a [single 'openvino' package](https://pypi.org/project/openvino/) that contains all the runtime libraries and plugins, while a [local distribution](local-distribution.md) is a more configurable type providing higher granularity. Below are important details of the set of libraries included in the OpenVINO Runtime package:
 
-![deployment_simplified]
+![](../../img/deployment_simplified.svg)
 
 - The main library `openvino` is used by users' C++ applications to link against with. The library provides all OpenVINO Runtime public APIs, including both API 2.0 and the previous Inference Engine and nGraph APIs. For C language applications, `openvino_c` is additionally required for distribution.
 - The "optional" plugin libraries like `openvino_intel_cpu_plugin` (matching the `openvino_.+_plugin` pattern) are used to provide inference capabilities on specific devices or additional capabilities like [Hetero Execution](../hetero_execution.md) and [Multi-Device Execution](../multi_device.md).
-- The "optional" plugin libraries like `openvino_ir_frontend` (matching `openvino_.+_frontend`) are used to provide capabilities to read models of different file formats such as OpenVINO IR, ONNX, and PaddlePaddle.
+- The "optional" plugin libraries like `openvino_ir_frontend` (matching `openvino_.+_frontend`) are used to provide capabilities to read models of different file formats such as OpenVINO IR,
+TensorFlow (check [TensorFlow Frontend Capabilities and Limitations](../../resources/tensorflow_frontend.md)), ONNX, and PaddlePaddle.
 
 Here the term "optional" means that if the application does not use the capability enabled by the plugin, the plugin library or a package with the plugin is not needed in the final distribution.
 
 Building a local distribution will require more detailed information, and you will find it in the dedicated [Libraries for Local Distribution](local-distribution.md) article.
 
-> **NOTE**: Depending on your target OpenVINO devices, the following configurations might be needed for deployed machines: [Configurations for GPU](../../install_guides/configurations-for-intel-gpu.md), [Configurations for GNA](../../install_guides/configurations-for-intel-gna.md), [Configurations for NCS2](../../install_guides/configurations-for-ncs2.md), [Configurations for VPU](../../install_guides/configurations-for-ivad-vpu.md).
-
-[deployment_simplified]: ../../img/deployment_simplified.png
+> **NOTE**: Depending on your target OpenVINO devices, the following configurations might be needed for deployed machines: [Configurations for GPU](../../install_guides/configurations-for-intel-gpu.md), [Configurations for GNA](../../install_guides/configurations-for-intel-gna.md).

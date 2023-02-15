@@ -1,0 +1,45 @@
+# Copyright (C) 2018-2023 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+import pytest
+
+from pytorch_layer_test_class import PytorchLayerTest
+
+
+class TestTriuTril(PytorchLayerTest):
+    def _prepare_input(self, shape, dtype):
+        import numpy as np
+        return (np.random.randn(*shape).astype(dtype),)
+
+    def create_model(self, op, diagonal):
+
+        import torch
+
+        op_map = {
+            "tril": torch.tril,
+            "triu": torch.triu
+        }
+
+        pt_op = op_map[op]
+
+        class aten_trilu(torch.nn.Module):
+            def __init__(self, op, diagonal):
+                super(aten_trilu, self).__init__()
+                self.op = op
+                self.diagonal = diagonal
+
+            def forward(self, x):
+                return self.op(x, self.diagonal)
+
+        ref_net = None
+
+        return aten_trilu(pt_op, diagonal), ref_net, f"aten::{op}"
+
+    @pytest.mark.parametrize("input_shape", [(5, 5), (6, 4), (4, 6)])
+    @pytest.mark.parametrize("dtype", ["float32", "float64", "int32", "int64", "int8", "uint8", "bool"])
+    @pytest.mark.parametrize("diagonal", [0, 1, 2, -1, -2])
+    @pytest.mark.parametrize("op", ["triu", "tril"])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_trilu(self, input_shape, dtype, diagonal, op, ie_device, precision, ir_version):
+        self._test(*self.create_model(op, diagonal), ie_device, precision, ir_version, kwargs_to_prepare_input={"shape": input_shape, "dtype": dtype})

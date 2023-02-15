@@ -1,20 +1,19 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "openvino/op/op.hpp"
+#include "openvino/op/util/shape_of_base.hpp"
 
 namespace ov {
 namespace op {
 namespace v3 {
 /// \brief Operation that returns the shape of its input argument as a tensor.
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API ShapeOf : public Op {
+class OPENVINO_API ShapeOf : public util::ShapeOfBase {
 public:
-    OPENVINO_OP("ShapeOf", "opset3", op::Op, 3);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("ShapeOf", "opset3", util::ShapeOfBase, 3);
     ShapeOf() = default;
     /// \brief Constructs a shape-of operation.
     ShapeOf(const Output<Node>& arg, const element::Type output_type = element::i64);
@@ -37,10 +36,9 @@ public:
     bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate_lower(const HostTensorVector& output_values) const override;
-    bool evaluate_upper(const HostTensorVector& output_values) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& output_values, const TensorVector& input_values) const override;
+    bool evaluate_lower(TensorVector& output_values) const override;
+    bool evaluate_upper(TensorVector& output_values) const override;
     bool evaluate_label(TensorLabelVector& output_labels) const override;
     bool constant_fold(OutputVector& output_values, const OutputVector& input_values) override;
 
@@ -52,10 +50,9 @@ private:
 namespace v0 {
 /// \brief Operation that returns the shape of its input argument as a tensor.
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API ShapeOf : public Op {
+class OPENVINO_API ShapeOf : public util::ShapeOfBase {
 public:
-    OPENVINO_OP("ShapeOf", "opset1");
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("ShapeOf", "opset1", util::ShapeOfBase);
     ShapeOf() = default;
     /// \brief Constructs a shape-of operation.
     ShapeOf(const Output<Node>& arg);
@@ -69,10 +66,9 @@ public:
     bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate_lower(const HostTensorVector& output_values) const override;
-    bool evaluate_upper(const HostTensorVector& output_values) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& output_values, const TensorVector& input_values) const override;
+    bool evaluate_lower(TensorVector& output_values) const override;
+    bool evaluate_upper(TensorVector& output_values) const override;
     bool evaluate_label(TensorLabelVector& output_labels) const override;
     bool constant_fold(OutputVector& output_values, const OutputVector& input_values) override;
 };

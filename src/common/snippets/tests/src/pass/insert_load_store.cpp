@@ -25,17 +25,19 @@ std::string InsertLoadStoreTests::getTestCaseName(testing::TestParamInfo<insertL
 }
 
 void InsertLoadStoreTests::SetUp() {
-    TransformationTestsF::SetUp();
+    LoweringTests::SetUp();
     std::vector<Shape> inputShapes(3);
     std::vector<Shape> broadcastShapes(3);
     std::tie(inputShapes[0], inputShapes[1], inputShapes[2],
              broadcastShapes[0], broadcastShapes[1], broadcastShapes[2]) = this->GetParam();
-    snippets_function = std::make_shared<EltwiseThreeInputsLoweredFunction>(inputShapes, broadcastShapes);
+    snippets_function = std::make_shared<EltwiseThreeInputsLoweredFunction>(
+            std::vector<PartialShape> {inputShapes[0], inputShapes[1], inputShapes[2]}, broadcastShapes);
+    master_shape = inputShapes[0];
 }
 
 TEST_P(InsertLoadStoreTests, ThreeInputsEltwise) {
-    auto subgraph = getLoweredSubgraph(snippets_function->getOriginal());
-    function = subgraph->get_body();
+    auto subgraph = getLoweredSubgraph(snippets_function->getOriginal(), master_shape);
+    function = subgraph->body_ptr();
     function_ref = snippets_function->getLowered();
 }
 

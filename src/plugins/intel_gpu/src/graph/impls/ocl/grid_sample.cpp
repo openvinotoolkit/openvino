@@ -42,33 +42,29 @@ kernel_selector::grid_sample_params::PaddingMode from(GridSampleOp::PaddingMode 
 struct grid_sample_impl : public typed_primitive_impl_ocl<grid_sample> {
     using parent = typed_primitive_impl_ocl<grid_sample>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::grid_sample_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::grid_sample_params, kernel_selector::grid_sample_optional_params>;
+
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<grid_sample_impl>(*this);
     }
 
-    static primitive_impl* create(const grid_sample_node& arg, const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<grid_sample>();
         auto params = get_default_params<kernel_selector::grid_sample_params>(impl_param);
-        auto optional_params =
-            get_default_optional_params<kernel_selector::grid_sample_optional_params>(arg.get_program());
+        auto optional_params = get_default_optional_params<kernel_selector::grid_sample_optional_params>(impl_param.get_program());
 
         const auto grid_layout = impl_param.get_input_layout(1);
         params.inputs.push_back(convert_data_tensor(grid_layout));
 
-        const auto primitive = impl_param.typed_desc<grid_sample>();
         params.align_corners = primitive->attributes.align_corners;
         params.interpolation_mode = from(primitive->attributes.mode);
         params.padding_mode = from(primitive->attributes.padding_mode);
 
-        const auto& kernel_selector = kernel_selector::grid_sample_kernel_selector::Instance();
-        const auto best_kernels = kernel_selector.GetBestKernels(params, optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        return new grid_sample_impl(arg, best_kernels.front());
+        return {params, optional_params};
     }
 };
 
@@ -84,9 +80,11 @@ attach_grid_sample_impl::attach_grid_sample_impl() {
                     format::bs_fs_yx_bsv32_fsv32,
                     format::bs_fs_yx_bsv32_fsv16};
 
-    implementation_map<grid_sample>::add(impl_types::ocl, grid_sample_impl::create, types, formats);
+    implementation_map<grid_sample>::add(impl_types::ocl, typed_primitive_impl_ocl<grid_sample>::create<grid_sample_impl>, types, formats);
 }
 
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::grid_sample_impl)

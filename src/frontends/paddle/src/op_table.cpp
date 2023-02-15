@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "op_table.hpp"
@@ -14,6 +14,7 @@ OP_CONVERTER(assign_value);
 OP_CONVERTER(batch_norm);
 OP_CONVERTER(bicubic_interp_v2);
 OP_CONVERTER(bilinear_interp_v2);
+OP_CONVERTER(box_coder);
 OP_CONVERTER(cast);
 OP_CONVERTER(ceil);
 OP_CONVERTER(clip);
@@ -33,6 +34,7 @@ OP_CONVERTER(elementwise_max);
 OP_CONVERTER(elementwise_min);
 OP_CONVERTER(elementwise_mod);
 OP_CONVERTER(elementwise_mul);
+OP_CONVERTER(elementwise_not_equal);
 OP_CONVERTER(elementwise_pow);
 OP_CONVERTER(elementwise_sub);
 OP_CONVERTER(embedding);
@@ -80,6 +82,7 @@ OP_CONVERTER(reduce_sum);
 OP_CONVERTER(relu);
 OP_CONVERTER(relu6);
 OP_CONVERTER(reshape2);
+OP_CONVERTER(reverse);
 OP_CONVERTER(rnn);
 OP_CONVERTER(roi_align);
 OP_CONVERTER(scale);
@@ -119,6 +122,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"bilinear_interp_v2", op::bilinear_interp_v2},
             {"bilinear_interp", op::bilinear_interp_v2},
             {"bmm", op::matmul},
+            {"box_coder", op::box_coder},
             {"cast", op::cast},
             {"ceil", op::ceil},
             {"clip", op::clip},
@@ -177,6 +181,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"multiclass_nms3", op::multiclass_nms},
             {"nearest_interp_v2", op::nearest_interp_v2},
             {"nearest_interp", op::nearest_interp_v2},
+            {"not_equal", op::elementwise_not_equal},
             {"p_norm", op::p_norm},
             {"pad3d", op::pad3d},
             {"pow", op::pow},
@@ -191,6 +196,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"relu", op::relu},
             {"relu6", op::relu6},
             {"reshape2", op::reshape2},
+            {"reverse", op::reverse},
             {"rnn", op::rnn},
             {"roi_align", op::roi_align},
             {"scale", op::scale},

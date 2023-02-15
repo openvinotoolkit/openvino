@@ -4,12 +4,12 @@
 
 #include "transformations/common_optimizations/matmul_const_transposes_extraction.hpp"
 
-#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
+#include <openvino/opsets/opset8.hpp>
 
-ngraph::pass::MatMulConstTransposesExtraction::MatMulConstTransposesExtraction() {
+ov::pass::MatMulConstTransposesExtraction::MatMulConstTransposesExtraction() {
     auto data_pattern = pattern::any_input();
     auto weights_pattern = pattern::wrap_type<opset8::Constant, opset8::FakeQuantize>([](Output<Node> node) -> bool {
         const auto& pshape = node.get_partial_shape();
@@ -32,8 +32,8 @@ ngraph::pass::MatMulConstTransposesExtraction::MatMulConstTransposesExtraction()
         std::reverse(transpose_order.end() - 2, transpose_order.end());
         std::shared_ptr<Node> transpose = std::make_shared<opset8::Transpose>(
             weights,
-            op::Constant::create(element::i32, {transpose_order.size()}, transpose_order));
-        if (ov::is_type<op::Constant>(weights.get_node())) {
+            opset8::Constant::create(element::i32, {transpose_order.size()}, transpose_order));
+        if (ov::is_type<opset8::Constant>(weights.get_node())) {
             if (auto constant = get_constant_from_source(transpose))
                 transpose = constant;
         }

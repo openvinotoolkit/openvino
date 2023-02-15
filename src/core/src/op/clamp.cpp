@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <ngraph/validation_util.hpp>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/runtime/reference/clamp.hpp"
 #include "ngraph/util.hpp"
@@ -99,11 +100,10 @@ bool op::v0::Clamp::has_evaluate() const {
     return false;
 }
 
-BWDCMP_RTTI_DEFINITION(op::v0::Clamp);
-
-op::Clamp::Clamp() : Op(), m_min(), m_max() {}
-
-op::Clamp::Clamp(const Output<Node>& data, const double min, const double max) : Op({data}), m_min{min}, m_max{max} {
+op::Clamp::Clamp(const Output<Node>& data, const double min, const double max)
+    : util::UnaryElementwiseArithmetic(data),
+      m_min{min},
+      m_max{max} {
     constructor_validate_and_infer_types();
 }
 
@@ -138,4 +138,12 @@ bool op::Clamp::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("min", m_min);
     visitor.on_attribute("max", m_max);
     return true;
+}
+
+bool op::Clamp::evaluate_lower(ov::TensorVector& output_values) const {
+    return ov::default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::Clamp::evaluate_upper(ov::TensorVector& output_values) const {
+    return ov::default_upper_bound_evaluator(this, output_values);
 }

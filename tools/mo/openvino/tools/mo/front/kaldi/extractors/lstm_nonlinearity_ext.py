@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import numpy as np
 
@@ -22,7 +22,7 @@ class LSTMNonlinearityFrontExtractor(FrontExtractorOp):
         ifo_x_weights, ifo_x_weights_shape = read_binary_matrix(pb)
 
         try:
-            use_dropout = collect_until_token_and_read(pb, b'<UseDropout>', np.bool)
+            use_dropout = collect_until_token_and_read(pb, b'<UseDropout>', bool)
         except Error:
             # layer have not UseDropout attribute, so setup it to False
             use_dropout = False

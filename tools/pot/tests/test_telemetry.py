@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import json
 from unittest.mock import patch
 import pytest
 try:
@@ -22,6 +21,7 @@ from openvino.tools.pot.utils.ac_imports import ConfigReader
 from openvino.tools.pot.configs.config import Config
 from .utils.config import provide_dataset_path
 from .utils.path import TELEMETRY_CONFIG_PATH
+from .utils.data_helper import load_json
 
 TEST_MODEL = ('mobilenet-v2-pytorch', 'pytorch')
 TOOL_CONFIG_NAME = ['mobilenet-v2-pytorch.json', 'mobilenet-v2-pytorch_aa.json', 'mobilenet-v2-pytorch_sparsity.json']
@@ -44,8 +44,7 @@ class TelemetryTest(Telemetry):
 )
 def test_telemetry(config_name, tmp_path, models):
     telemetry = TelemetryTest()
-    with open(os.path.join(TELEMETRY_CONFIG_PATH, 'expected_values.txt')) as file:
-        expected = json.load(file)
+    expected = load_json(os.path.join(TELEMETRY_CONFIG_PATH, 'expected_values.txt'))
 
     @patch(func, new=telemetry.send_event)
     def compress_model():

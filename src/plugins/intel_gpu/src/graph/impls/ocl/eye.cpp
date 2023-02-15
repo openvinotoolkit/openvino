@@ -21,27 +21,23 @@ namespace ocl {
 struct eye_impl : typed_primitive_impl_ocl<eye> {
     using parent = typed_primitive_impl_ocl<eye>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::eye_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::eye_params, kernel_selector::eye_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<eye_impl>(*this);
     }
 
-    static primitive_impl* create(const eye_node& arg, const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<eye>();
         auto params = get_default_params<kernel_selector::eye_params>(impl_param);
-        auto op_params = get_default_optional_params<kernel_selector::eye_optional_params>(arg.get_program());
+        auto op_params = get_default_optional_params<kernel_selector::eye_optional_params>(impl_param.get_program());
 
-        auto primitive = arg.get_primitive();
         params.diagonal_index = primitive->shift;
 
-        auto& kernel_selector = kernel_selector::eye_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(params, op_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        return new eye_impl(arg, best_kernels[0]);
+        return {params, {}};
     }
 };
 
@@ -70,10 +66,12 @@ attach_eye_impl::attach_eye_impl() {
         format::bs_fs_zyx_bsv32_fsv32,
         format::bs_fs_zyx_bsv32_fsv16,
     };
-    implementation_map<eye>::add(impl_types::ocl, eye_impl::create, types, formats);
+    implementation_map<eye>::add(impl_types::ocl, typed_primitive_impl_ocl<eye>::create<eye_impl>, types, formats);
 }
 
 }  // namespace detail
 
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::eye_impl)

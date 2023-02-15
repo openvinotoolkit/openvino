@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,10 +22,24 @@ namespace {
             1, 2
     };
 
-    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GPU, CompileModelCacheTestBase,
+    static const std::vector<ov::element::Type> floatingPointPrecisionsGPU = {
+            ngraph::element::f32,
+            ngraph::element::f16,
+    };
+
+    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCaseAnyType_GPU, CompileModelCacheTestBase,
                             ::testing::Combine(
-                                    ::testing::ValuesIn(CompileModelCacheTestBase::getStandardFunctions()),
+                                    ::testing::ValuesIn(CompileModelCacheTestBase::getNumericAnyTypeFunctions()),
                                     ::testing::ValuesIn(precisionsGPU),
+                                    ::testing::ValuesIn(batchSizesGPU),
+                                    ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                    ::testing::Values(ov::AnyMap{})),
+                            CompileModelCacheTestBase::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCaseFloat_GPU, CompileModelCacheTestBase,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(CompileModelCacheTestBase::getFloatingPointOnlyFunctions()),
+                                    ::testing::ValuesIn(floatingPointPrecisionsGPU),
                                     ::testing::ValuesIn(batchSizesGPU),
                                     ::testing::Values(CommonTestUtils::DEVICE_GPU),
                                     ::testing::Values(ov::AnyMap{})),
@@ -37,16 +51,58 @@ namespace {
                                     ::testing::Values(std::make_pair(ov::AnyMap{}, "cl_cache"))),
                             CompiledKernelsCacheTest::getTestCaseName);
 
-    std::vector<std::pair<ov::AnyMap, std::string>> autoConfigs = {
+    auto autoConfigs = []() {
+        return std::vector<std::pair<ov::AnyMap, std::string>>{
             std::make_pair(ov::AnyMap{{ov::device::priorities(CommonTestUtils::DEVICE_GPU)}}, "cl_cache"),
-            std::make_pair(ov::AnyMap{{ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU)}}, "blob,cl_cache"),
-            std::make_pair(ov::AnyMap{{ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU)}}, "blob")
+            std::make_pair(
+                ov::AnyMap{{ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU)}},
+                "blob,cl_cache"),
+            std::make_pair(
+                ov::AnyMap{{ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU)}},
+                "blob")};
     };
 
     INSTANTIATE_TEST_SUITE_P(smoke_Auto_KernelCachingSupportCase_GPU, CompiledKernelsCacheTest,
                             ::testing::Combine(
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(autoConfigs)),
+                                    ::testing::ValuesIn(autoConfigs())),
                             CompiledKernelsCacheTest::getTestCaseName);
 
+    const std::vector<ov::AnyMap> LoadFromFileConfigs = {
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}
+    };
+    const std::vector<std::string> TestTargets =
+    {CommonTestUtils::DEVICE_AUTO,
+    CommonTestUtils::DEVICE_MULTI,
+    };
+
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_CachingSupportCase_GPU, CompileModelLoadFromFileTestBase,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(TestTargets),
+                                ::testing::ValuesIn(LoadFromFileConfigs)),
+                        CompileModelLoadFromFileTestBase::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_CachingSupportCase_GPU,
+                             CompileModelLoadFromMemoryTestBase,
+                             ::testing::Combine(::testing::ValuesIn(TestTargets),
+                                                ::testing::ValuesIn(LoadFromFileConfigs)),
+                             CompileModelLoadFromMemoryTestBase::getTestCaseName);
+
+    const std::vector<ov::AnyMap> GPULoadFromFileConfigs = {
+        {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
+        {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
+        {},
+    };
+    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GPU, CompileModelLoadFromFileTestBase,
+                        ::testing::Combine(
+                                ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                ::testing::ValuesIn(GPULoadFromFileConfigs)),
+                        CompileModelLoadFromFileTestBase::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GPU,
+                             CompileModelLoadFromMemoryTestBase,
+                             ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                                ::testing::ValuesIn(GPULoadFromFileConfigs)),
+                             CompileModelLoadFromMemoryTestBase::getTestCaseName);
 } // namespace

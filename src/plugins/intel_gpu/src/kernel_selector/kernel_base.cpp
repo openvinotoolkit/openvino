@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,8 +75,8 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params) c
     auto unitType = GetUnitType(params);
 
     JitConstants jit{
-        MakeJitConstant("FP64_SUPPORTED", params.engineInfo.bFP64Support),
-        MakeJitConstant("FP16_SUPPORTED", params.engineInfo.bFP16Support),
+        MakeJitConstant("FP64_SUPPORTED", params.engineInfo.supports_fp64),
+        MakeJitConstant("FP16_SUPPORTED", params.engineInfo.supports_fp16),
         MakeJitConstant("FP16_UNIT_USED", IsTypeUsedIn(Datatype::F16, params)),
         MakeJitConstant("INT8_UNIT_USED", IsTypeUsedIn(Datatype::INT8, params)),
         MakeJitConstant("INT32_UNIT_USED", IsTypeUsedIn(Datatype::INT32, params)),
@@ -89,14 +89,40 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params) c
     jit.Merge(MakeUnitTypeJitConstants(unitType));
     jit.Merge(MakeActivationJitConstants(params.activations, unitType));
 
+    size_t dyn_tensor_idx = 0;
+
     for (size_t i = 0; i < params.inputs.size(); i++) {
-        jit.AddConstant(MakeJitConstant("INPUT" + toCodeString(i), params.inputs[i]));
+        jit.AddConstant(MakeJitConstant("INPUT" + toCodeString(i), params.inputs[i], dyn_tensor_idx));
+        if (params.inputs[i].is_dynamic())
+            dyn_tensor_idx++;
+    }
+
+    for (size_t i = 0; i < params.fused_ops.size(); i++) {
+        auto& fused_op_inputs = params.fused_ops[i].tensors;
+
+        for (auto& t : fused_op_inputs) {
+            if (t.is_dynamic())
+                dyn_tensor_idx++;
+        }
     }
 
     // NOTE : until all cl kernels legacy is resolved, the outputs are to be OUTPUT, OUTPUT1, OUTPUT2, ...
-    jit.AddConstant(MakeJitConstant("OUTPUT", params.outputs[0]));
+    jit.AddConstant(MakeJitConstant("OUTPUT", params.outputs[0], dyn_tensor_idx));
+    if (params.outputs[0].is_dynamic())
+            dyn_tensor_idx++;
     for (size_t i = 1; i < params.outputs.size(); i++) {
-        jit.AddConstant(MakeJitConstant("OUTPUT" + toCodeString(i), params.outputs[i]));
+        jit.AddConstant(MakeJitConstant("OUTPUT" + toCodeString(i), params.outputs[i], dyn_tensor_idx));
+        if (params.outputs[0].is_dynamic())
+            dyn_tensor_idx++;
+    }
+
+    if (dyn_tensor_idx > 0) {
+        jit.AddConstant(MakeJitConstant("IS_DYNAMIC", 1));
+        jit.AddConstant(MakeJitConstant("OPTIONAL_SHAPE_INFO_ARG", "__global const int* shape_info,"));
+        jit.AddConstant(MakeJitConstant("OPTIONAL_SHAPE_INFO_TENSOR", "shape_info,"));
+    } else {
+        jit.AddConstant(MakeJitConstant("OPTIONAL_SHAPE_INFO_ARG", ""));
+        jit.AddConstant(MakeJitConstant("OPTIONAL_SHAPE_INFO_TENSOR", ""));
     }
 
 #ifndef NDEBUG
@@ -187,11 +213,18 @@ JitConstants KernelBase::MakeFusedOpsDeclsJitConstants(const kernel_selector::ba
         return jit;
 
     std::string input_decls = "";
+
+    size_t dynamic_in_tensors_count = 0;
+    for (size_t i = 0; i < params.inputs.size(); i++) {
+        if (params.inputs[i].is_dynamic())
+            dynamic_in_tensors_count++;
+    }
+
     for (size_t i = 0; i < params.fused_ops.size(); i++) {
         auto fused_dep_codegen = FusedOpsCodeGenerator(params.fused_ops[i]);
         std::string op_type = fused_dep_codegen.GetTypeStr();
 
-        jit.Merge(fused_dep_codegen.MakeFusedTensorJitConstants(conf[0]));
+        jit.Merge(fused_dep_codegen.MakeFusedTensorJitConstants(conf[0], dynamic_in_tensors_count));
         jit.Merge(fused_dep_codegen.MakeInputDeclsJitConstants(conf[0]));
         if (!params.fused_ops[i].tensors.empty()) {
             std::string optional_comma = (!input_decls.empty() ? "," : "");
@@ -217,6 +250,47 @@ bool KernelBase::IsFusedPrimitiveSupported(const fused_operation_desc& fused_op)
 
 std::vector<KernelBase::FusedOpType> KernelBase::GetSupportedFusedOps() const {
     return {};
+}
+
+DeviceFeaturesKey KernelBase::get_common_subgroups_device_features_key(const Params& params, const optional_params& /*options*/) const {
+    DeviceFeaturesKey k;
+
+    bool requires_blocked_read_write_char = false;
+    bool requires_blocked_read_write_short = false;
+    bool requires_blocked_read_write = false;
+    const auto& casted_params = static_cast<const base_params&>(params);
+
+    std::vector<Datatype> tensor_types;
+    for (auto& t : casted_params.inputs) {
+        tensor_types.push_back(t.GetDType());
+    }
+    for (auto& t : casted_params.outputs) {
+        tensor_types.push_back(t.GetDType());
+    }
+
+    for (auto& type : tensor_types) {
+        if (type == Datatype::F16) {
+            requires_blocked_read_write_short = true;
+        } else if (type == Datatype::F32) {
+            requires_blocked_read_write = true;
+        } else if (type == Datatype::UINT8 || type == Datatype::INT8) {
+            requires_blocked_read_write_char = true;
+        }
+    }
+
+    if (requires_blocked_read_write)
+        k.requires_blocked_read_write();
+
+    if (requires_blocked_read_write_short)
+        k.requires_blocked_read_write_short();
+
+    if (requires_blocked_read_write_char)
+        k.requires_blocked_read_write_char();
+
+    k.requires_subgroups();
+    k.requires_reqd_subgroup_size();
+
+    return k;
 }
 
 }  // namespace kernel_selector

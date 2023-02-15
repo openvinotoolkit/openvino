@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ void FusedNames::fuseWith(const FusedNames& names) {
     }
 }
 
-std::string ngraph::getFusedNames(const std::shared_ptr<ngraph::Node>& node) {
+std::string ov::getFusedNames(const std::shared_ptr<ngraph::Node>& node) {
     if (node) {
         const auto& rtInfo = node->get_rt_info();
         auto it_info = rtInfo.find(FusedNames::get_type_info_static());
@@ -47,7 +47,7 @@ std::string ngraph::getFusedNames(const std::shared_ptr<ngraph::Node>& node) {
     return {};
 }
 
-std::vector<std::string> ngraph::getFusedNamesVector(const std::shared_ptr<ngraph::Node>& node) {
+std::vector<std::string> ov::getFusedNamesVector(const std::shared_ptr<ngraph::Node>& node) {
     if (node) {
         const auto& rtInfo = node->get_rt_info();
         auto it_info = rtInfo.find(FusedNames::get_type_info_static());

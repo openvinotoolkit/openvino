@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,8 @@
 #include <functional>
 
 #include <fstream>
+
+#define GPU_DEBUG_LOG_PASS    GPU_DEBUG_LOG << "[" << get_name() << "] "
 
 namespace cldnn {
 class base_pass {
@@ -196,7 +198,6 @@ private:
     void fuse_sigmoid_mul_to_swish(program &p);
     void fuse_bias(program &p);
     void fuse_reorders(program& p);
-    void fuse_activations(program& p);
     void fuse_simple_primitives(program &p);
     void optimize_fused_ops(program &p);
     void remove_redundant_reshape(program &p);
@@ -274,11 +275,13 @@ public:
 
 private:
     void run(program& p) override;
-    std::list<std::pair<primitive_id, memory::ptr>> calculate(engine& engine, build_options bo);
+    std::list<std::pair<primitive_id, memory::ptr>> calculate(engine& engine,
+                                                              const ExecutionConfig& config,
+                                                              std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor);
     bool has_non_const_user(program_node& node) const;
     void handle_constant(program& prog, program_node& node);
     void add_constant(program& prog, program_node& node);
-    void add_deps_to_tpl(program& prog, const std::vector<program_node*>& node);
+    void add_deps_to_tpl(program& prog, const std::vector<std::pair<program_node*, int32_t>>& node);
 
     bool has_non_trivial_constants = false;
     std::list<typed_program_node<data>*> const_inputs;
@@ -373,8 +376,8 @@ public:
                 return;
             }
             for (auto subdep : dep->get_dependencies()) {
-                add_memory_dependency(node, subdep);
-                add_memory_dependency(subdep, node);
+                add_memory_dependency(node, subdep.first);
+                add_memory_dependency(subdep.first, node);
             }
         }
     }

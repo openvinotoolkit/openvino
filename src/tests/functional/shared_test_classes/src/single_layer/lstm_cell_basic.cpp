@@ -35,7 +35,7 @@ std::string LSTMCellBasicTest::getTestCaseName(const testing::TestParamInfo<LSTM
     result << "clip=" << clip << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice << "_";
-    for (const auto configEntry : additionalConfig) {
+    for (const auto& configEntry : additionalConfig) {
         result << configEntry.first << ", " << configEntry.second << ";";
     }
     return result.str();
@@ -70,7 +70,7 @@ void LSTMCellBasicTest::SetUp() {
     function = std::make_shared<ngraph::Function>(results, params, "lstm_cell");
     if (should_decompose) {
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::LSTMCellDecomposition>();
+        m.register_pass<ov::pass::LSTMCellDecomposition>();
         m.run_passes(function);
     }
 }

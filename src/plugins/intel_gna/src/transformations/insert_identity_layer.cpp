@@ -1,19 +1,20 @@
 // Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <openvino/cc/ngraph/itt.hpp>
-
 #include "transformations/insert_identity_layer.hpp"
-#include "transformations/rt_info/gna_precision_change_flag.hpp"
 
+#include <legacy/ngraph_ops/eltwise.hpp>
 #include <ngraph/opsets/opset9.hpp>
+#include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/cc/ngraph/itt.hpp>
 #include <ops/identity.hpp>
-#include <legacy/ngraph_ops/eltwise.hpp>
+
 #include "log/log.hpp"
 #include "ops/util/util.hpp"
+#include "transformations/rt_info/gna_precision_change_flag.hpp"
 
 using namespace ov::intel_gna;
 using namespace ov::intel_gna::pass;
@@ -21,9 +22,9 @@ using namespace ov::intel_gna::rt_info;
 using namespace ov::intel_gna::ngraph_util;
 
 namespace {
-void mark_for_identity_insertion(std::shared_ptr<ngraph::Node> node,
-                                 size_t input_index) {
-    log::debug() << "Mark input as candidate for identity insertion " << input_index << ":" << node->get_friendly_name() << std::endl;
+void mark_for_identity_insertion(std::shared_ptr<ngraph::Node> node, size_t input_index) {
+    log::debug() << "Mark input as candidate for identity insertion " << input_index << ":" << node->get_friendly_name()
+                 << std::endl;
     auto input = node->input(input_index);
     add_precision_change_flag(input, ov::element::i32, ov::element::i16);
 }
@@ -37,12 +38,11 @@ std::shared_ptr<ov::intel_gna::op::Identity> create_indentity(std::shared_ptr<ng
     return identity_op;
 }
 
-void insert_identity_layer_after(std::shared_ptr<ngraph::Node>& input_op,
-                                 size_t index) {
+void insert_identity_layer_after(std::shared_ptr<ngraph::Node>& input_op, size_t index) {
     NGRAPH_CHECK(input_op);
 
-    log::debug() << "Insert identity layer after " << input_op->get_friendly_name() <<
-        " (" << input_op->get_type_name() << "):"<< index << std::endl;
+    log::debug() << "Insert identity layer after " << input_op->get_friendly_name() << " (" << input_op->get_type_name()
+                 << "):" << index << std::endl;
 
     auto consumers = input_op->output(index).get_target_inputs();
     auto identity_op = create_indentity(input_op);
@@ -57,9 +57,9 @@ void insert_identity_layer_between(std::shared_ptr<ngraph::Node>& input_op,
     NGRAPH_CHECK(input_op);
     NGRAPH_CHECK(output_op);
 
-    log::debug() << "Insert identity layer after " << input_op->get_friendly_name() <<
-        " (" << input_op->get_type_name() << ") and before " << index << ":" <<
-         output_op->get_friendly_name() << " (" << output_op->get_type_name() << ")" << std::endl;
+    log::debug() << "Insert identity layer after " << input_op->get_friendly_name() << " (" << input_op->get_type_name()
+                 << ") and before " << index << ":" << output_op->get_friendly_name() << " ("
+                 << output_op->get_type_name() << ")" << std::endl;
 
     auto identity_op = create_indentity(input_op);
     output_op->input(index).replace_source_output(identity_op);
@@ -76,7 +76,8 @@ bool process_next_node(std::shared_ptr<ov::Node>& prev_node,
                        const std::shared_ptr<ov::Node>& node,
                        const size_t input_index) {
     // Check whether node is going to be skipped
-    bool to_be_skipped = (is_gna_precision_agnostic(node) && !std::dynamic_pointer_cast<ngraph::opset9::Concat>(node)) ||
+    bool to_be_skipped =
+        (is_gna_precision_agnostic(node) && !std::dynamic_pointer_cast<ngraph::opset9::Concat>(node)) ||
         is_pooling(node);
     if (to_be_skipped) {
         // if it is pooling, update previous node, since activation
@@ -116,7 +117,10 @@ bool walk_through_the_outputs(std::shared_ptr<ov::Node>& prev_node,
             if (first_iteration)
                 prev_node_output_index = i;
             // recursively check next node, skipping precision agnostic
-            if (process_next_node(prev_node, prev_node_output_index, input.get_node()->shared_from_this(), input.get_index())) {
+            if (process_next_node(prev_node,
+                                  prev_node_output_index,
+                                  input.get_node()->shared_from_this(),
+                                  input.get_index())) {
                 // graph is modified
                 is_identity_inserted = true;
                 // go to the next output, other target inputs are not interesting anymore
@@ -126,12 +130,12 @@ bool walk_through_the_outputs(std::shared_ptr<ov::Node>& prev_node,
     }
     return is_identity_inserted;
 }
-} // namespace
+}  // namespace
 
 bool MarkIdentityCandidates::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(MarkIdentityCandidates);
     for (auto& node : m->get_ordered_ops()) {
-        auto check_previos_node_and_mark = [&node](){
+        auto check_previos_node_and_mark = [&node]() {
             for (size_t i = 0; i < node->get_input_size(); i++) {
                 auto prev_node = node->get_input_node_shared_ptr(i);
                 prev_node = get_prev_node_skipping_certain(prev_node, is_gna_precision_agnostic);
@@ -165,9 +169,8 @@ bool MarkIdentityCandidates::run_on_model(const std::shared_ptr<ov::Model>& m) {
         } else if (std::dynamic_pointer_cast<ngraph::opset9::Concat>(node) != nullptr) {
             check_previos_node_and_mark();
         } else {
-            if (is_gna_precision_agnostic(node) || has_32bit_input(node) ||
-                ngraph::op::is_parameter(node) || ngraph::op::is_constant(node) ||
-                ngraph::op::is_output(node) || ngraph::op::is_sink(node)) {
+            if (is_gna_precision_agnostic(node) || has_32bit_input(node) || ngraph::op::is_parameter(node) ||
+                ngraph::op::is_constant(node) || ngraph::op::is_output(node) || ngraph::op::is_sink(node)) {
                 continue;
             }
             check_previos_node_and_mark();

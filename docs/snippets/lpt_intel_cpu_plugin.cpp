@@ -1,6 +1,6 @@
 #include <ie_core.hpp>
 
-#include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
+#include <transformations/low_precision/mark_dequantization_subgraph.hpp>
 
 #include <low_precision/common/quantization_granularity_restriction.hpp>
 #include <low_precision/convert_subtract_constant.hpp>
@@ -38,8 +38,8 @@ const bool useLpt = ngraph::pass::low_precision::LowPrecision::isFunctionQuantiz
 auto defaultPrecisions =
     useLpt ? ngraph::pass::low_precision::precision_set::int8_support : std::vector<ov::element::Type>{};
 if (useLpt) {
-    // disable constant folding on constant subgraph to use the subgraph for LPT
-    manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(defaultPrecisions);
+    // disable constant folding on dequantization subgraphs so they can be processed by LPT
+    manager.register_pass<ov::pass::MarkDequantizationSubgraph>(defaultPrecisions);
 }
 
 // nGraph common transformations happen here
@@ -53,12 +53,12 @@ if (useLpt) {
 
 if (useLpt) {
     // convert not supported cases FakeQuantize -> Convert -> Convert -> Subtract -> Multiply to a single FakeQuantize
-    pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([&defaultPrecisions](const std::shared_ptr<const ngraph::Node> &node) -> bool {
+    pass_config->set_callback<ov::pass::ConvertQuantizeDequantize>([&defaultPrecisions](const std::shared_ptr<const ngraph::Node> &node) -> bool {
         return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(node, defaultPrecisions);
     });
 
     // convert not supported cases FakeQuantize -> Convert -> Convert -> Subtract -> Multiply to a single FakeQuantize
-    pass_config->set_callback<ngraph::pass::ConvertSubtract>([&defaultPrecisions](const std::shared_ptr<const ngraph::Node> &node) -> bool {
+    pass_config->set_callback<ov::pass::ConvertSubtract>([&defaultPrecisions](const std::shared_ptr<const ngraph::Node> &node) -> bool {
         return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForSubtract(node, defaultPrecisions);
     });
 }

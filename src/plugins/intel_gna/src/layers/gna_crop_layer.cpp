@@ -1,15 +1,15 @@
 // Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "gna_crop_layer.hpp"
+
 #include <vector>
 
-#include "gna_crop_layer.hpp"
-#include "log/log.hpp"
 #include "log/debug.hpp"
+#include "log/log.hpp"
 
-using namespace ov::intel_gna;
-
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 
 SimpleCrop get_crop_params(const std::vector<int32_t>& axis_in,
                            const std::vector<int32_t>& offset_in,
@@ -57,4 +57,5 @@ SimpleCrop GetCropParams(InferenceEngine::CropLayer* cropLayer) {
     return out_val;
 }
 
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

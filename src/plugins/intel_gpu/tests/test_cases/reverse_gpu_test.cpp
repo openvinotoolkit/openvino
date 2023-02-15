@@ -67,13 +67,13 @@ public:
         if (reorder_needed) {
             const std::string r_reverse_input_id = "r_reverse_input";
             const std::string r_axes_id = "r_reverse_axes";
-            tp.add(reorder(r_reverse_input_id, reverse_input_id, params.input_format, type_to_data_type<T>::value));
-            tp.add(reorder(r_axes_id, axes_id, params.input_format, type_to_data_type<T>::value));
-            tp.add(reverse(reverse_id, r_reverse_input_id, r_axes_id, mode));
+            tp.add(reorder(r_reverse_input_id, input_info(reverse_input_id), params.input_format, type_to_data_type<T>::value));
+            tp.add(reorder(r_axes_id, input_info(axes_id), params.input_format, type_to_data_type<T>::value));
+            tp.add(reverse(reverse_id, input_info(r_reverse_input_id), input_info(r_axes_id), mode));
             ouput_op_name = "reversed_result";
-            tp.add(reorder(ouput_op_name, reverse_id, fmt, type_to_data_type<T>::value));
+            tp.add(reorder(ouput_op_name, input_info(reverse_id), fmt, type_to_data_type<T>::value));
         } else {
-            tp.add(reverse(reverse_id, reverse_input_id, axes_id, mode));
+            tp.add(reverse(reverse_id, input_info(reverse_input_id), input_info(axes_id), mode));
         }
 
         network network(engine, tp);
@@ -86,7 +86,7 @@ public:
 
         ASSERT_EQ(params.expected_out.size(), out_ptr.size());
         for (size_t i = 0; i < params.expected_out.size(); ++i) {
-            EXPECT_NEAR(params.expected_out[i], out_ptr[i], 0.0001) << "at i = " << i;
+            ASSERT_NEAR(params.expected_out[i], out_ptr[i], 0.0001) << "at i = " << i;
         }
     }
 };

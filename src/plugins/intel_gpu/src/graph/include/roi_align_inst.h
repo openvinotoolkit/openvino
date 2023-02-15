@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -14,6 +14,7 @@ using roi_align_node = typed_program_node<roi_align>;
 template <>
 class typed_primitive_inst<roi_align> : public typed_primitive_inst_base<roi_align> {
     using parent = typed_primitive_inst_base<roi_align>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(roi_align_node const& node, kernel_impl_params const& impl_param);

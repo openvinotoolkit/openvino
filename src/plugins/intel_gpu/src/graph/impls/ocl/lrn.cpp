@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,43 +16,37 @@ namespace ocl {
 struct lrn_impl : typed_primitive_impl_ocl<lrn> {
     using parent = typed_primitive_impl_ocl<lrn>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::lrn_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::lrn_params, kernel_selector::lrn_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<lrn_impl>(*this);
     }
 
-    static primitive_impl* create(const lrn_node& arg, const kernel_impl_params& impl_param) {
-        const auto& primitive = arg.get_primitive();
-        auto lrn_params = get_default_params<kernel_selector::lrn_params>(impl_param);
-        auto lrn_optional_params = get_default_optional_params<kernel_selector::lrn_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<lrn>();
+        auto params = get_default_params<kernel_selector::lrn_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::lrn_optional_params>(impl_param.get_program());
 
-        lrn_params.alpha = primitive->alpha;
-        lrn_params.beta = primitive->beta;
-        lrn_params.k = primitive->k;
-        lrn_params.localSize = primitive->size;
-        lrn_params.divMode = kernel_selector::kernel_divider_mode::FIXED;
-        lrn_params.normMode = primitive->norm_region == lrn_norm_region_within_channel
+        params.alpha = primitive->alpha;
+        params.beta = primitive->beta;
+        params.k = primitive->k;
+        params.localSize = primitive->size;
+        params.divMode = kernel_selector::kernel_divider_mode::FIXED;
+        params.normMode = primitive->norm_region == lrn_norm_region_within_channel
                                   ? kernel_selector::lrn_mode::WITHIN_CHANNEL
                                   : kernel_selector::lrn_mode::ACROSS_CHANNEL;
 
-        auto& kernel_selector = kernel_selector::lrn_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(lrn_params, lrn_optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto lrn = new lrn_impl(arg, best_kernels[0]);
-
-        return lrn;
+        return {params, optional_params};
     }
 };
 
 namespace detail {
 
 attach_lrn_impl::attach_lrn_impl() {
-    implementation_map<lrn>::add(impl_types::ocl, lrn_impl::create, {
+    implementation_map<lrn>::add(impl_types::ocl, typed_primitive_impl_ocl<lrn>::create<lrn_impl>, {
         std::make_tuple(data_types::f32, format::yxfb),
         std::make_tuple(data_types::f16, format::yxfb),
         std::make_tuple(data_types::u8, format::yxfb),
@@ -98,3 +92,5 @@ attach_lrn_impl::attach_lrn_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::lrn_impl)

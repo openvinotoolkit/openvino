@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,8 @@ const char *debug_configuration::prefix = "GPU_Debug: ";
 // Default policy is that dump_configuration will override other configuration from IE.
 
 #ifdef GPU_DEBUG_CONFIG
+
+#define GPU_DEBUG_COUT std::cout << cldnn::debug_configuration::prefix
 
 template<typename T>
 void print_option(std::string option_name, T option_value) {
@@ -120,9 +122,9 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_AfterProc", "Run inference after the specified process PIDs are finished, separated by space."
                               " Supported on only on linux.");
     message_list.emplace_back("OV_GPU_SerialCompile", "Serialize creating primitives and compiling kernels");
-    message_list.emplace_back("OV_GPU_ForceImplType", "Force implementation type of a target primitive or layer. [primitive or layout_name]:[impl_type]"
-                              " For primitives, fc:onednn, fc:ocl, do:cpu, do:ocl, reduce:onednn, reduce:ocl, concat:onednn,"
-                              " and concat:ocl are supported");
+    message_list.emplace_back("OV_GPU_ForceImplTypes", "Force implementation type of a target primitive or layer. [primitive or layout_name]:[impl_type]"
+                              " For example fc:onednn gemm:onednn reduce:ocl do:cpu"
+                              " For primitives fc, gemm, do, reduce, concat are supported. Separated by space.");
     message_list.emplace_back("OV_GPU_MaxKernelsPerBatch", "Maximum number of kernels in a batch during compiling kernels");
 
     auto max_name_length_item = std::max_element(message_list.begin(), message_list.end(),
@@ -156,7 +158,6 @@ debug_configuration::debug_configuration()
         , dump_layers_limit_batch(std::numeric_limits<int>::max())
         , base_batch_for_memory_estimation(-1)
         , serialize_compile(0)
-        , forced_impl_type(std::string())
         , max_kernels_per_batch(0) {
 #ifdef GPU_DEBUG_CONFIG
     get_gpu_debug_env_var("Help", help);
@@ -179,7 +180,8 @@ debug_configuration::debug_configuration()
     std::string after_proc_str;
     get_gpu_debug_env_var("AfterProc", after_proc_str);
     get_gpu_debug_env_var("SerialCompile", serialize_compile);
-    get_gpu_debug_env_var("ForceImplType", forced_impl_type);
+    std::string forced_impl_types_str;
+    get_gpu_debug_env_var("ForceImplTypes", forced_impl_types_str);
     get_gpu_debug_env_var("MaxKernelsPerBatch", max_kernels_per_batch);
 
     if (help > 0) {
@@ -193,6 +195,15 @@ debug_configuration::debug_configuration()
         std::string layer;
         while (ss >> layer) {
             dump_layers.push_back(layer);
+        }
+    }
+
+    if (forced_impl_types_str.length() > 0) {
+        forced_impl_types_str = " " + forced_impl_types_str + " "; // Insert delimiter for easier parsing when used
+        std::stringstream ss(forced_impl_types_str);
+        std::string type;
+        while (ss >> type) {
+            forced_impl_types.push_back(type);
         }
     }
 

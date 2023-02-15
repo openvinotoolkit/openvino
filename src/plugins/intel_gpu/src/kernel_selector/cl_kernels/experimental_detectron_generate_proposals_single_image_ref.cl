@@ -4,47 +4,43 @@
 
 #if INPUT0_TYPE_SIZE == 2 //f16
 #define HALF_ONE 0.5h
-#define ZERO 0.0h
 #else
 #define HALF_ONE 0.5f
-#define ZERO 0.0f
 #endif
+
+#define ZERO INPUT0_VAL_ZERO
 
 #ifdef EDGPSI_STAGE_0
 
-#    define COORDINATES_OFFSET 1
+#define COORDINATES_OFFSET INPUT0_VAL_ONE
 
 // 0. Refine anchors
 KERNEL(edgpsi_ref_stage_0)
 (const __global INPUT0_TYPE* im_info,
- const __global INPUT0_TYPE* anchors,
- const __global INPUT0_TYPE* deltas,
- const __global INPUT0_TYPE* scores,
- __global INPUT0_TYPE* proposals) {
-    const INPUT0_TYPE img_H = im_info[0];
-    const INPUT0_TYPE img_W = im_info[1];
+ const __global INPUT1_TYPE* anchors,
+ const __global INPUT2_TYPE* deltas,
+ const __global INPUT3_TYPE* scores,
+ __global OUTPUT_TYPE* proposals) {
+    const INPUT0_TYPE img_H = im_info[INPUT0_GET_INDEX(0, 0, 0, 0)];
+    const INPUT0_TYPE img_W = im_info[INPUT0_GET_INDEX(1, 0, 0, 0)];
 
     const uint h = get_global_id(0);
     const uint w = get_global_id(1);
     const uint anchor = get_global_id(2);
 
-    const uint offset = h * BOTTOM_W + w;
-    const uint anchor_idx = (offset * ANCHORS_NUM + anchor) * 4;
-    const uint proposal_idx = (offset * ANCHORS_NUM + anchor) * 5;
-    const uint score_idx = offset + BOTTOM_AREA * anchor;
-    const uint delta_idx = offset + BOTTOM_AREA * anchor * 4;
+    const uint anchor_idx = (h * BOTTOM_W + w) * ANCHORS_NUM + anchor;
 
-    INPUT0_TYPE x0 = anchors[anchor_idx + 0];
-    INPUT0_TYPE y0 = anchors[anchor_idx + 1];
-    INPUT0_TYPE x1 = anchors[anchor_idx + 2];
-    INPUT0_TYPE y1 = anchors[anchor_idx + 3];
+    INPUT0_TYPE x0 = anchors[INPUT1_GET_INDEX(anchor_idx, 0, 0, 0)];
+    INPUT0_TYPE y0 = anchors[INPUT1_GET_INDEX(anchor_idx, 1, 0, 0)];
+    INPUT0_TYPE x1 = anchors[INPUT1_GET_INDEX(anchor_idx, 2, 0, 0)];
+    INPUT0_TYPE y1 = anchors[INPUT1_GET_INDEX(anchor_idx, 3, 0, 0)];
 
-    const INPUT0_TYPE dx = deltas[delta_idx + 0 * BOTTOM_AREA];
-    const INPUT0_TYPE dy = deltas[delta_idx + 1 * BOTTOM_AREA];
-    const INPUT0_TYPE d_log_w = deltas[delta_idx + 2 * BOTTOM_AREA];
-    const INPUT0_TYPE d_log_h = deltas[delta_idx + 3 * BOTTOM_AREA];
+    const INPUT0_TYPE dx = deltas[INPUT2_GET_INDEX(anchor * 4 + 0 , h, w, 0)];
+    const INPUT0_TYPE dy = deltas[INPUT2_GET_INDEX(anchor * 4 + 1 , h , w, 0)];
+    const INPUT0_TYPE d_log_w = deltas[INPUT2_GET_INDEX(anchor * 4 + 2 , h, w, 0)];
+    const INPUT0_TYPE d_log_h = deltas[INPUT2_GET_INDEX(anchor * 4 + 3 , h, w, 0)];
 
-    const INPUT0_TYPE score = scores[score_idx];
+    const INPUT0_TYPE score = scores[INPUT3_GET_INDEX(anchor, h, w, 0)];
 
     // width & height of box
     const INPUT0_TYPE ww = x1 - x0 + COORDINATES_OFFSET;
@@ -77,6 +73,7 @@ KERNEL(edgpsi_ref_stage_0)
     const INPUT0_TYPE box_w = x1 - x0 + COORDINATES_OFFSET;
     const INPUT0_TYPE box_h = y1 - y0 + COORDINATES_OFFSET;
 
+    const uint proposal_idx = anchor_idx * 5;
     proposals[proposal_idx + 0] = x0;
     proposals[proposal_idx + 1] = y0;
     proposals[proposal_idx + 2] = x1;
@@ -84,7 +81,7 @@ KERNEL(edgpsi_ref_stage_0)
     proposals[proposal_idx + 4] = ((MIN_SIZE <= box_w) && (MIN_SIZE <= box_h)) ? score : 0.f;
 }
 
-#    undef COORDINATES_OFFSET
+#undef COORDINATES_OFFSET
 
 #endif /* EDGPSI_STAGE_0 */
 
@@ -179,7 +176,7 @@ inline void FUNC(quickSortIterative)(__global Box* arr, int l, int h) {
 }
 
 // 1. Sort boxes by scores
-KERNEL(edgpsi_ref_stage_1)(__global INPUT0_TYPE* proposals) {
+KERNEL(edgpsi_ref_stage_1)(__global OUTPUT_TYPE* proposals) {
     __global Box* boxes = (__global Box*)proposals;
 
     FUNC_CALL(quickSortIterative)(boxes, 0, NUM_PROPOSALS-1);
@@ -262,17 +259,17 @@ KERNEL(edgpsi_ref_stage_3)
     const uint rois_offset = i * 4;
 
     if (i < *num_outputs) {
-        rois[rois_offset + 0] = boxes[box_offset + 0];
-        rois[rois_offset + 1] = boxes[box_offset + 1];
-        rois[rois_offset + 2] = boxes[box_offset + 2];
-        rois[rois_offset + 3] = boxes[box_offset + 3];
-        roi_scores[i] = boxes[box_offset + 4];
+        rois[OUTPUT_GET_INDEX(i, 0, 0, 0)] = boxes[box_offset + 0];
+        rois[OUTPUT_GET_INDEX(i, 1, 0, 0)] = boxes[box_offset + 1];
+        rois[OUTPUT_GET_INDEX(i, 2, 0, 0)] = boxes[box_offset + 2];
+        rois[OUTPUT_GET_INDEX(i, 3, 0, 0)] = boxes[box_offset + 3];
+        roi_scores[INPUT4_GET_INDEX(i, 0, 0, 0)] = boxes[box_offset + 4];
     } else {
-        rois[rois_offset + 0] = 0.0f;
-        rois[rois_offset + 1] = 0.0f;
-        rois[rois_offset + 2] = 0.0f;
-        rois[rois_offset + 3] = 0.0f;
-        roi_scores[i] = 0.0f;
+        rois[OUTPUT_GET_INDEX(i, 0, 0, 0)] = 0.0f;
+        rois[OUTPUT_GET_INDEX(i, 1, 0, 0)] = 0.0f;
+        rois[OUTPUT_GET_INDEX(i, 2, 0, 0)] = 0.0f;
+        rois[OUTPUT_GET_INDEX(i, 3, 0, 0)] = 0.0f;
+        roi_scores[INPUT4_GET_INDEX(i, 0, 0, 0)] = 0.0f;
     }
 }
 #endif /* EDGPSI_STAGE_3 */

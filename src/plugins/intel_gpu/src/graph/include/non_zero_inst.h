@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/non_zero.hpp"
 #include "primitive_inst.h"
@@ -33,6 +32,7 @@ using count_nonzero_node = typed_program_node<count_nonzero>;
 template <>
 class typed_primitive_inst<count_nonzero> : public typed_primitive_inst_base<count_nonzero> {
     using parent = typed_primitive_inst_base<count_nonzero>;
+    using parent::parent;
 
 public:
     template <typename ShapeType>
@@ -72,6 +72,7 @@ using gather_nonzero_node = typed_program_node<gather_nonzero>;
 template <>
 class typed_primitive_inst<gather_nonzero> : public typed_primitive_inst_base<gather_nonzero> {
     using parent = typed_primitive_inst_base<gather_nonzero>;
+    using parent::parent;
 
 public:
     template <typename ShapeType>

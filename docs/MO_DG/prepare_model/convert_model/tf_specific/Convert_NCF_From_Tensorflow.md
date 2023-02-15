@@ -25,7 +25,7 @@ where `rating/BiasAdd` is an output node.
  3. Convert the model to the OpenVINO format. If you look at your frozen model, you can see that
 it has one input that is split into four `ResourceGather` layers. (Click image to zoom in.)
 
-![NCF model beginning](../../../img/NCF_start.png)
+![NCF model beginning](../../../img/NCF_start.svg)
 
  However, as the Model Optimizer does not support such data feeding, you should skip it. Cut
 the edges incoming in `ResourceGather` port 1:

@@ -50,9 +50,9 @@ struct roll_test : testing::TestWithParam<roll_test_params<T>> {
 
         topology topology;
         topology.add(input_layout("input", input->get_layout()));
-        topology.add(reorder("reordered_input", "input", input_format, type_to_data_type<T>::value));
-        topology.add(roll("roll", "reordered_input", tensor(input_format, p.shift)));
-        topology.add(reorder("reordered_roll", "roll", plane_format, type_to_data_type<T>::value));
+        topology.add(reorder("reordered_input", input_info("input"), input_format, type_to_data_type<T>::value));
+        topology.add(roll("roll", input_info("reordered_input"), tensor(input_format, p.shift)));
+        topology.add(reorder("reordered_roll", input_info("roll"), plane_format, type_to_data_type<T>::value));
 
         network network(engine, topology);
         network.set_input_data("input", input);
@@ -63,7 +63,7 @@ struct roll_test : testing::TestWithParam<roll_test_params<T>> {
 
         ASSERT_EQ(output_ptr.size(), p.expected_values.size());
         for (size_t i = 0; i < output_ptr.size(); ++i) {
-            EXPECT_NEAR(p.expected_values[i], output_ptr[i], 1e-5f);
+            ASSERT_NEAR(p.expected_values[i], output_ptr[i], 1e-5f);
         }
     }
 

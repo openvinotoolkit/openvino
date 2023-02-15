@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -110,14 +110,12 @@ void shape_infer(const VariadicSplit* op,
 
                 auto out_shape = data_shape;
                 out_shape[axis] = Dimension::dynamic();
-                for (int64_t output = 0; output < num_outputs; ++output)
-                    output_shapes.push_back(out_shape);
+                output_shapes.resize(num_outputs, out_shape);
             }
         } else {
             // we only know num_outputs, only predict the rank
             auto out_shape = ov::PartialShape::dynamic(data_shape.rank());
-            for (int64_t output = 0; output < num_outputs; ++output)
-                output_shapes.push_back(out_shape);
+            output_shapes.resize(num_outputs, out_shape);
         }
     } else {
         // we don't even known the number of outputs in this case.

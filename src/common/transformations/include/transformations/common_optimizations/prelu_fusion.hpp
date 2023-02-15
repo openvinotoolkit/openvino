@@ -5,11 +5,11 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 #include <utility>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API PReluFusion;
@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API PReluFusionMultiplyAdd;
 class TRANSFORMATIONS_API PReluFusionMultiplySub;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -36,9 +36,9 @@ class TRANSFORMATIONS_API PReluFusionMultiplySub;
  *          \     /
  *            Add
  */
-class ngraph::pass::PReluFusionNegativeAdd : public ngraph::pass::MatcherPass {
+class ov::pass::PReluFusionNegativeAdd : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("PReluFusionNegativeAdd", "0");
     PReluFusionNegativeAdd();
 };
 
@@ -55,9 +55,9 @@ public:
  *          \     /
  *            Sub
  */
-class ngraph::pass::PReluFusionNegativeSub : public ngraph::pass::MatcherPass {
+class ov::pass::PReluFusionNegativeSub : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("PReluFusionNegativeSub", "0");
     PReluFusionNegativeSub();
 };
 
@@ -74,9 +74,9 @@ public:
  *          \     /
  *            Add
  */
-class ngraph::pass::PReluFusionMultiplyAdd : public ngraph::pass::MatcherPass {
+class ov::pass::PReluFusionMultiplyAdd : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("PReluFusionMultiplyAdd", "0");
     PReluFusionMultiplyAdd();
 };
 
@@ -93,9 +93,9 @@ public:
  *          \     /
  *            Sub
  */
-class ngraph::pass::PReluFusionMultiplySub : public ngraph::pass::MatcherPass {
+class ov::pass::PReluFusionMultiplySub : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("PReluFusionMultiplySub", "0");
     PReluFusionMultiplySub();
 };
 
@@ -103,13 +103,13 @@ public:
  * @ingroup ie_transformation_common_api
  * @brief PReluFusion transformation replaces various sub-graphs with a PRelu op.
  */
-class ngraph::pass::PReluFusion : public ngraph::pass::GraphRewrite {
+class ov::pass::PReluFusion : public ov::pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("PReluFusion", "0");
     PReluFusion() {
-        add_matcher<ngraph::pass::PReluFusionNegativeAdd>();
-        add_matcher<ngraph::pass::PReluFusionNegativeSub>();
-        add_matcher<ngraph::pass::PReluFusionMultiplyAdd>();
-        add_matcher<ngraph::pass::PReluFusionMultiplySub>();
+        add_matcher<ov::pass::PReluFusionNegativeAdd>();
+        add_matcher<ov::pass::PReluFusionNegativeSub>();
+        add_matcher<ov::pass::PReluFusionMultiplyAdd>();
+        add_matcher<ov::pass::PReluFusionMultiplySub>();
     }
 };

@@ -35,27 +35,14 @@ static ov::NodeTypeInfo get_type(const std::string& type_name) {
     // Get operation type name
     std::string operation_type(it, type_name.end());
 
-    // TODO: create generic opset factory in Core so it can be reused
-    const std::unordered_map<std::string, std::function<const ngraph::OpSet&()>> get_opset{
-        {"opset1", ngraph::get_opset1},
-        {"opset2", ngraph::get_opset2},
-        {"opset3", ngraph::get_opset3},
-        {"opset4", ngraph::get_opset4},
-        {"opset5", ngraph::get_opset5},
-        {"opset6", ngraph::get_opset6},
-        {"opset7", ngraph::get_opset7},
-        {"opset8", ngraph::get_opset8},
-        {"opset9", ngraph::get_opset9},
-        {"opset10", ngraph::get_opset10},
-    };
-
-    if (!get_opset.count(opset_type)) {
-        throw std::runtime_error("Unsupported opset type: " + opset_type);
+    const auto& opsets = ov::get_available_opsets();
+    if (!opsets.count(opset_type)) {
+        throw ov::Exception("Unsupported opset type: " + opset_type);
     }
 
-    const ngraph::OpSet& m_opset = get_opset.at(opset_type)();
+    const ov::OpSet& m_opset = opsets.at(opset_type)();
     if (!m_opset.contains_type(operation_type)) {
-        throw std::runtime_error("Unrecognized operation type: " + operation_type);
+        throw ov::Exception("Unrecognized operation type: " + operation_type);
     }
 
     return m_opset.create(operation_type)->get_type_info();

@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <memory>
 #include <string>
@@ -17,6 +16,7 @@ using matrix_nms_node = typed_program_node<matrix_nms>;
 template <>
 class typed_primitive_inst<matrix_nms> : public typed_primitive_inst_base<matrix_nms> {
     using parent = typed_primitive_inst_base<matrix_nms>;
+    using parent::parent;
 
 public:
     typed_primitive_inst(network& network, const matrix_nms_node& node) : parent(network, node) {}

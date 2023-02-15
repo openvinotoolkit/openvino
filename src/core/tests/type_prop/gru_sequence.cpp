@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -128,8 +128,8 @@ TEST(type_prop, gru_sequence_bidirectional) {
     const auto B = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, 3 * hidden_size});
 
     const auto direction = op::RecurrentSequenceDirection::BIDIRECTIONAL;
-    const std::vector<float> activations_alpha = {2.7, 7.0, 32.367};
-    const std::vector<float> activations_beta = {0.0, 5.49, 6.0};
+    const std::vector<float> activations_alpha = {2.7f, 7.0f, 32.367f};
+    const std::vector<float> activations_beta = {0.0f, 5.49f, 6.0f};
     const std::vector<std::string> activations = {"tanh", "sigmoid"};
 
     const auto sequence = make_shared<opset5::GRUSequence>(X,

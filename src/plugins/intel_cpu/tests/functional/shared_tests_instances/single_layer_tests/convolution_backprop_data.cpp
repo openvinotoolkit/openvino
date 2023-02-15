@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -140,6 +140,27 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_AutoPadding_OutputPaddi
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes2D),
                                 ::testing::ValuesIn(emptyOutputShape),
+                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                        ConvolutionBackpropDataLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData2D_RoundingOfPadding, ConvolutionBackpropDataLayerTest,
+                        ::testing::Combine(
+                                ::testing::Combine(
+                                        ::testing::Values(std::vector<size_t>({31, 1})),
+                                        ::testing::Values(std::vector<size_t>({2, 1})),
+                                        ::testing::Values(std::vector<ptrdiff_t>({14, 0})),
+                                        ::testing::Values(std::vector<ptrdiff_t>({15, 0})),
+                                        ::testing::Values(std::vector<size_t>({1, 1})),
+                                        ::testing::Values(size_t(4)),
+                                        ::testing::Values(ngraph::op::PadType::SAME_LOWER),
+                                        ::testing::Values(std::vector<ptrdiff_t>({0, 0}))),
+                                ::testing::Values(InferenceEngine::Precision::FP32),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(std::vector<size_t>({ 1, 512, 2, 1 })),
+                                ::testing::Values(std::vector<size_t>({ 16, 1 })),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         ConvolutionBackpropDataLayerTest::getTestCaseName);
 

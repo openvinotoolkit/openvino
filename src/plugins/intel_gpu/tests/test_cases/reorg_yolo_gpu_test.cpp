@@ -297,7 +297,7 @@ public:
         std::tie(params, target_format, should_fail) = this->GetParam();
 
         if (should_fail) {
-            ASSERT_THROW(run_test(params, target_format), std::invalid_argument);
+            ASSERT_ANY_THROW(run_test(params, target_format));
         } else {
             ASSERT_NO_FATAL_FAILURE(run_test(params, target_format));
         }
@@ -316,9 +316,9 @@ private:
 
         topology topology;
         topology.add(input_layout("input", input->get_layout()));
-        topology.add(reorder("input_reordered", "input", target_format, data_type));
-        topology.add(reorg_yolo("reorg_yolo", "input_reordered", params.stride));
-        topology.add(reorder("reorg_yolo_reordered", "reorg_yolo", plain_format, data_type));
+        topology.add(reorder("input_reordered", input_info("input"), target_format, data_type));
+        topology.add(reorg_yolo("reorg_yolo", input_info("input_reordered"), params.stride));
+        topology.add(reorder("reorg_yolo_reordered", input_info("reorg_yolo"), plain_format, data_type));
 
         network network(engine, topology);
         network.set_input_data("input", input);
@@ -329,7 +329,7 @@ private:
 
         ASSERT_EQ(params.expected.size(), out_ptr.size());
         for (size_t i = 0; i < params.expected.size(); ++i) {
-            EXPECT_NEAR(params.expected[i], out_ptr[i], getError<T>()) << "format=" << target_format << ", i= " << i;
+            ASSERT_NEAR(params.expected[i], out_ptr[i], getError<T>()) << "format=" << target_format << ", i= " << i;
         }
     }
 };

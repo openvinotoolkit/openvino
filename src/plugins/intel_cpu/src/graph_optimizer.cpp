@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,7 +62,7 @@ GraphOptimizer::GraphOptimizer() {}
 
 void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
     OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::intel_cpu_LT, "ApplyCommonGraphOptimizations", "FuseConvolutionAndBias");
-    FuseConvolutionMatMulAndBias(graph);
+    FuseConvolutionMatMulDeconvAndBias(graph);
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseMultiplyAndAdd");
@@ -173,14 +173,23 @@ void GraphOptimizer::ApplyImplSpecificGraphOptimizations(Graph &graph) {
     graph.RemoveDroppedEdges();
 }
 
-void GraphOptimizer::FuseConvolutionMatMulAndBias(Graph &graph) {
+void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
     auto& graphNodes = graph.GetNodes();
 
     auto isSuitableParentNode = [](const NodePtr& node) {
-        return (node->getType() == Type::Convolution || node->getType() == Type::MatMul) &&
-               node->getChildEdges().size() == 1 &&
-               node->getParentEdges().size() == 2 &&
-               node->getFusedWith().empty();
+        const auto deconv = std::dynamic_pointer_cast<Deconvolution>(node);
+        // bias should be the first child
+        if (!node->getFusedWith().empty())
+            return false;
+        // no other child other than bias-add
+        if (node->getChildEdges().size() != 1)
+            return false;
+
+        if (!deconv)
+            return (node->getType() == Type::Convolution || node->getType() == Type::MatMul) &&
+                   node->getParentEdges().size() == 2;
+        else
+            return deconv->canFuseBias();
     };
 
     auto isSuitableChildNode = [&](const NodePtr& parentNode, const NodePtr& childNode) {
@@ -2075,13 +2084,14 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
         auto parentParentConstNode = parentNode->getParentEdgesAtPort(1)[0]->getParent();
         auto childChildNode = childNode->getChildEdgeAt(0)->getChild();
 
-        auto &remEdge = parentParentConstNode->getChildEdgeAt(0);
+        auto remEdge = parentNode->getParentEdgesAtPort(1)[0];
         remEdge->drop();
         auto& edges = graph.GetEdges();
         for (auto it = edges.begin(); it != edges.end(); it++) {
             if ((*it) == remEdge) {
                 edges.erase(it);
-                parentParentConstNode->remove();
+                if (parentParentConstNode->getChildEdges().empty())
+                    parentParentConstNode->remove();
                 break;
             }
         }
@@ -2196,10 +2206,10 @@ void GraphOptimizer::reshapeRnnSeq(Graph &graph) {
                                                             parentNode->getOutputShapeAtPort(0).toPartialShape()), secondInput);
             unsqueeze->set_friendly_name(parentNode->getName() + "_abc_a1bc_" + std::to_string(j));
 
-            const auto cpuUnsqueeze = std::make_shared<Reshape>(unsqueeze, graph.getEngine(), graph.weightsCache);
+            const auto cpuUnsqueeze = std::make_shared<Reshape>(unsqueeze, graph.getGraphContext());
             graph.InsertNode(parentNode, childNode, cpuUnsqueeze, edge->getInputNum(), edge->getOutputNum(), false);
 
-            const auto cpuConstant = std::make_shared<node::Input>(secondInput, graph.getEngine(), graph.weightsCache);
+            const auto cpuConstant = std::make_shared<node::Input>(secondInput, graph.getGraphContext());
             EdgePtr newEdge(new Edge(cpuConstant, cpuUnsqueeze, 0, 1));
             cpuUnsqueeze->addEdge(newEdge);
             auto &graphEdges = graph.GetEdges();

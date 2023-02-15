@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,6 @@
 using namespace std;
 
 // *** AvgPool OP SET 1 ***
-BWDCMP_RTTI_DEFINITION(ov::op::v1::AvgPool);
-
 ov::op::v1::AvgPool::AvgPool(const Output<Node>& arg,
                              const Strides& strides,
                              const Shape& pads_begin,

@@ -1,17 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #pragma once
 #include "primitive.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief ROIAlign is a pooling layer used over feature maps of
 /// non-uniform input sizes and outputs a feature map of a fixed size.
@@ -35,7 +30,7 @@ struct roi_align : public primitive_base<roi_align> {
     /// @param pooling_mode Method to perform pooling to produce output feature map elements.
     /// @param aligned_mode Method to coordinates alignment.
     roi_align(const primitive_id& id,
-              const std::vector<primitive_id>& inputs,
+              const std::vector<input_info>& inputs,
               int pooled_h,
               int pooled_w,
               int sampling_ratio,
@@ -43,7 +38,7 @@ struct roi_align : public primitive_base<roi_align> {
               PoolingMode pooling_mode,
               AlignedMode aligned_mode,
               const padding& output_padding = padding())
-        : primitive_base(id, inputs, output_padding),
+        : primitive_base(id, inputs, {output_padding}),
           pooled_h{pooled_h},
           pooled_w{pooled_w},
           sampling_ratio{sampling_ratio},
@@ -64,8 +59,14 @@ struct roi_align : public primitive_base<roi_align> {
     PoolingMode pooling_mode;
     /// @brief Method to coordinate alignment.
     AlignedMode aligned_mode;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, sampling_ratio);
+        seed = hash_combine(seed, spatial_scale);
+        seed = hash_combine(seed, pooling_mode);
+        seed = hash_combine(seed, aligned_mode);
+        return seed;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

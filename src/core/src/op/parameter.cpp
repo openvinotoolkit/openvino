@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v0::Parameter);
 
 op::Parameter::Parameter(const element::Type& element_type, const ov::PartialShape& pshape)
     : m_partial_shape(pshape),
@@ -68,8 +66,6 @@ void op::Parameter::set_partial_shape(const PartialShape& partial_shape) {
                     ". Layout is not compatible with shape");
     m_partial_shape = partial_shape;
 }
-
-BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ParameterVector>);
 
 ov::AttributeAdapter<ParameterVector>::AttributeAdapter(ParameterVector& ref) : m_ref(ref) {}
 

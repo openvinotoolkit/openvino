@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -210,7 +210,7 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph
 
 #ifdef CPU_DEBUG_CAPS
 void serialize(const Graph &graph) {
-    const std::string& path = graph.getConfig().execGraphPath;
+    const std::string& path = graph.getConfig().debugCaps.execGraphPath;
 
     if (path.empty())
         return;
@@ -257,7 +257,7 @@ void serializeToCout(const Graph &graph) {
 }
 
 void summary_perf(const Graph &graph) {
-    const std::string& summaryPerf = graph.getConfig().summaryPerf;
+    const std::string& summaryPerf = graph.getConfig().debugCaps.summaryPerf;
 
     if (summaryPerf.empty())
         return;

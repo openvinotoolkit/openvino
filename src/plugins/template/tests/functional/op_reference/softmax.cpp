@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -87,8 +87,8 @@ std::vector<SoftmaxParams> generateSoftmaxFloatParams() {
     auto d1_a0 = expf(-20) + expf(-50);
     auto d2_a0 = expf(-30) + expf(-60);
 
-    auto low = std::numeric_limits<T>::lowest();
-    auto high = std::numeric_limits<T>::max();
+    auto low = static_cast<float>(std::numeric_limits<T>::lowest());
+    auto high = static_cast<float>(std::numeric_limits<T>::max());
 
     auto d0_uf = expf(low) + expf(3);
     auto d1_uf = expf(1) + expf(4);

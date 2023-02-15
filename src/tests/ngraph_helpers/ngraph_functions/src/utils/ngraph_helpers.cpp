@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -721,6 +721,15 @@ std::ostream& operator<<(std::ostream & os, ngraph::helpers::ComparisonTypes typ
             break;
         case ngraph::helpers::ComparisonTypes::GREATER_EQUAL:
             os << "GreaterEqual";
+            break;
+        case ngraph::helpers::ComparisonTypes::IS_FINITE:
+            os << "IsFinite";
+            break;
+        case ngraph::helpers::ComparisonTypes::IS_INF:
+            os << "IsInf";
+            break;
+        case ngraph::helpers::ComparisonTypes::IS_NAN:
+            os << "IsNaN";
             break;
         case ngraph::helpers::ComparisonTypes::LESS:
             os << "Less";

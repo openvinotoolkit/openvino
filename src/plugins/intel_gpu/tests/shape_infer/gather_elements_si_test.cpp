@@ -36,7 +36,7 @@ TEST_P(gather_elements_test, shape_infer) {
 
     auto data_layout_prim = std::make_shared<input_layout>("data", p.data_layout);
     auto indices_layout_prim = std::make_shared<input_layout>("indices", p.indices_layout);
-    auto gather_prim = std::make_shared<gather_elements>("output", "data", "indices", p.axis);
+    auto gather_prim = std::make_shared<gather_elements>("output", input_info("data"), input_info("indices"), p.axis);
 
     cldnn::program prog(engine);
 

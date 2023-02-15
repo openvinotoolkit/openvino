@@ -3,7 +3,7 @@
 The Intel® Gaussian & Neural Accelerator (GNA) is a low-power neural coprocessor for continuous inference at the edge.
 
 Intel® GNA is not intended to replace typical inference devices such as the
-CPU, graphics processing unit (GPU), or vision processing unit (VPU). It is designed for offloading
+CPU and GPU. It is designed for offloading
 continuous inference workloads including but not limited to noise reduction or speech recognition
 to save power and free CPU resources.
 
@@ -51,7 +51,7 @@ For details, see a description of the `ov::intel_gna::execution_mode` property.
 
 GNA is designed for real-time workloads i.e., noise reduction.
 For such workloads, processing should be time constrained. Otherwise, extra delays may cause undesired effects such as
-*audio glitches*. The GNA driver provides a Quality of Service (QoS) mechanism to ensure that processing can satisfy real-time requirements. 
+*audio glitches*. The GNA driver provides a Quality of Service (QoS) mechanism to ensure that processing can satisfy real-time requirements.
 The mechanism interrupts requests that might cause high-priority Windows audio processes to miss
 the schedule. As a result, long running GNA tasks terminate early.
 
@@ -101,7 +101,7 @@ GNA plugin supports the `i16` and `i8` quantized data types as inference precisi
 * Accuracy (i16 weights)
 * Performance (i8 weights)
 
-For POT quantized model, the `ov::hint::inference_precision` property has no effect except cases described in <a href="#support-for-2d-convolutions-using-pot">Support for 2D Convolutions using POT</a>.
+For POT quantized model, the `ov::inference_precision` property has no effect except cases described in <a href="#support-for-2d-convolutions-using-pot">Support for 2D Convolutions using POT</a>.
 
 ## Supported Features
 
@@ -206,7 +206,7 @@ In order to take effect, the following parameters must be set before model compi
 
 - ov::cache_dir
 - ov::enable_profiling
-- ov::hint::inference_precision
+- ov::inference_precision
 - ov::hint::num_requests
 - ov::intel_gna::compile_target
 - ov::intel_gna::firmware_model_image_path
@@ -272,7 +272,7 @@ The following tables provide a more explicit representation of the Intel(R) GNA 
 
 For POT to successfully work with the models including GNA3.0 2D convolutions, the following requirements must be met:
 * All convolution parameters are natively supported by HW (see tables above).
-* The runtime precision is explicitly set by the `ov::hint::inference_precision` property as `i8` for the models produced by the `performance mode` of POT, and as `i16` for the models produced by the `accuracy mode` of POT.
+* The runtime precision is explicitly set by the `ov::inference_precision` property as `i8` for the models produced by the `performance mode` of POT, and as `i16` for the models produced by the `accuracy mode` of POT.
 
 ### Batch Size Limitation
 
@@ -322,7 +322,7 @@ then set batch size:
 
 Increasing batch size only improves efficiency of `MatMul` layers.
 
-> **NOTE**: For models with `Convolution`, `LSTMCell`, or `ReadValue`/`Assign` operations, the only supported batch size is 1.
+> **NOTE**: For models with `Convolution`, `LSTMCell`, `GRUCell`, or `ReadValue`/`Assign` operations, the only supported batch size is 1.
 
 ### Compatibility with Heterogeneous mode
 

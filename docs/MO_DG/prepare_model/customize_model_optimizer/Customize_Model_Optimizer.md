@@ -102,7 +102,7 @@ The next step is to parse framework-dependent operation representation saved in 
 attributes with the operation specific attributes. There are three options to do this.
 
 1.  The extractor extension approach. This is a recommended way to extract attributes for an operation and it is
-explained in details in the [Operation Extractor](#extension-extractor) section.
+explained in details in the [Operation Extractor](#operation-extractor) section.
 
 2.  The legacy approach with a built-in extractor. The `mo/front/<FRAMEWORK>/extractor.py` file (for example, the one
 for Caffe) defines a dictionary with extractors for specific operation types. A key in the dictionary is a type of an
@@ -256,10 +256,8 @@ There are several middle transformations responsible for changing model layout f
 
 This layout change is disabled automatically if the model does not have operations that OpenVINO&trade needs to execute in the NCHW layout, for example, Convolutions in NHWC layout.
 
-It is still possible to force Model Optimizer to do a layout change, using `--disable_nhwc_to_nchw` command-line parameter, although it is not advised.
 
-
-Layout change is a complex problem and will be addressed here very briefly. For more details on how it works, refer to the source code of the transformations mentioned in the below summary of the process: 
+For more details on how it works, refer to the source code of the transformations mentioned in the below summary of the process: 
 
 1. Model Optimizer changes output shapes of most of operations producing 4D and 5D (four dimensional and five
 dimensional) tensors as if they were in NHWC layout to NCHW layout: `nchw_shape = np.array(nhwc_shape)[0, 3, 1, 2]` for
@@ -270,9 +268,12 @@ calculation in order to perform shape calculation in a correct layout.
 3. Model Optimizer inserts [Transpose](../../../ops/movement/Transpose_1.md) operations for some operations with
 specific conditions, identified during a model conversion, to produce correct inference results.
 
-The list of main transformations responsible for a layout change are: `extensions/middle/ApplyPermutations.py`,
-`extensions/middle/InsertLayoutPropagationTransposes.py`, `extensions/middle/MarkSubgraphsWithCorrectLayout.py`,
-`extensions/middle/ApplyNHWCtoNCHWpermutation.py` and `extensions/middle/LayoutChangeForConstantShapePaths.py`.
+The main transformations responsible for a layout change are: 
+* `extensions/middle/ApplyPermutations.py`
+* `extensions/middle/InsertLayoutPropagationTransposes.py`
+* `extensions/middle/MarkSubgraphsWithCorrectLayout.py`
+* `extensions/middle/ApplyNHWCtoNCHWpermutation.py`
+* `extensions/middle/LayoutChangeForConstantShapePaths.py`
 
 ### Back Phase <a name="back-phase"></a>
 The back phase starts after the layout change to NCHW. This phase contains mostly the following transformations:
@@ -585,7 +586,7 @@ only parameter and returns a string with the value to be saved to the IR. Exampl
 second element is the name of the `Node` attribute to get the value from. Examples of this case are `pool-method` and
 `exclude-pad`.
 
-### Operation Extractor <a name="extension-extractor"></a>
+### Operation Extractor <a name="operation-extractor"></a>
 Model Optimizer runs specific extractor for each operation in the model during the model loading. For more information about this process, refer to the
 [operations-attributes-extracting](#operations-attributes-extracting) section.
 
@@ -736,7 +737,7 @@ sub-graph of the original graph isomorphic to the specified pattern.
 node with a specific `op` attribute value.
 3. [Generic Front Phase Transformations](#generic-front-phase-transformations).
 4. Manually enabled transformation, defined with a JSON configuration file (for TensorFlow, ONNX, Apache MXNet, and PaddlePaddle models), specified using the `--transformations_config` command-line parameter:
-    1. [Node Name Pattern Front Phase Transformations](#node-name-pattern-front-phase-transformation).
+    1. [Node Name Pattern Front Phase Transformations](#node-name-pattern-front-phase-transformations).
     2. [Front Phase Transformations Using Start and End Points](#start-end-points-front-phase-transformations).
     3. [Generic Front Phase Transformations Enabled with Transformations Configuration File](#generic-transformations-config-front-phase-transformations).
 
@@ -754,8 +755,6 @@ works differently:
    required to write the transformation and connect the newly created nodes to the rest of the graph.
    2. The `generate_sub_graph(self, graph, match)` override the method. This case is not recommended for use because it is
    the most complicated approach. It can be effectively replaced with one of two previous approaches. 
-   The explanation of this function is provided in the 
-   [Node Name Defined Sub-Graph Transformations](#node-name-defined-sub-graph-transformations) section.
 
 The sub-graph pattern is defined in the `pattern()` function. This function should return a dictionary with two keys:
 `nodes` and `edges`:
@@ -1134,7 +1133,7 @@ For other examples of transformations with points, refer to the
 ##### Generic Front Phase Transformations Enabled with Transformations Configuration File <a name="generic-transformations-config-front-phase-transformations"></a>
 This type of transformation works similarly to the [Generic Front Phase Transformations](#generic-front-phase-transformations)
 but require a JSON configuration file to enable it similarly to
-[Node Name Pattern Front Phase Transformations](#node-name-pattern-front-phase-transformation) and
+[Node Name Pattern Front Phase Transformations](#node-name-pattern-front-phase-transformations) and
 [Front Phase Transformations Using Start and End Points](#start-end-points-front-phase-transformations).
 
 The base class for this type of transformation is

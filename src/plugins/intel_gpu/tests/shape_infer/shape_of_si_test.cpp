@@ -34,7 +34,7 @@ TEST_P(shape_of_test, shape_infer) {
     auto& engine = get_test_engine();
 
     auto data_layout_prim = std::make_shared<input_layout>("data", p.data_layout);
-    auto shape_of_prim = std::make_shared<shape_of>("output", "data", p.out_dt);
+    auto shape_of_prim = std::make_shared<shape_of>("output", input_info("data"), p.out_dt);
 
     cldnn::program prog(engine);
 

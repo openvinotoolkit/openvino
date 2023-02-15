@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@
 ov::pass::RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
     MATCHER_SCOPE(RemoveConcatZeroDimInput);
     auto concat_pattern = pattern::wrap_type<opset8::Concat>();
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto concat = m.get_match_root();
         const auto& rt_info = concat->get_rt_info();
         if (rt_info.count(DisableRemoveConcatZeroDimInput::get_type_info_static())) {
@@ -45,11 +45,24 @@ ov::pass::RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
 
         bool inputs_removed = concat->get_input_size() > concat_inputs.size();
         if (inputs_removed) {
-            concat->set_arguments(concat_inputs);
+            if (concat_inputs.empty()) {
+                if (concat->get_output_element_type(0).is_dynamic())
+                    return false;
+                if (concat->get_output_partial_shape(0).is_dynamic())
+                    return false;
+                const auto& empty_constant = opset8::Constant::create(concat->get_output_element_type(0),
+                                                                      concat->get_output_partial_shape(0).to_shape(),
+                                                                      {});
+                copy_runtime_info(concat, empty_constant);
+                concat->output(0).replace(empty_constant);
+                empty_constant->set_friendly_name(concat->get_friendly_name());
+            } else {
+                concat->set_arguments(concat_inputs);
+            }
         }
         return inputs_removed;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(concat_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(concat_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
 

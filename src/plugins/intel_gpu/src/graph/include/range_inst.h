@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,6 +26,9 @@ using range_node = typed_program_node<range>;
 
 template <>
 class typed_primitive_inst<range> : public typed_primitive_inst_base<range> {
+    using parent = typed_primitive_inst_base<range>;
+    using parent::parent;
+
 public:
     template<typename ShapeType>
     static std::vector<layout> calc_output_layouts(range_node const& /*node*/, const kernel_impl_params& impl_param);

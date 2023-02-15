@@ -1,14 +1,11 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 if(NOT ENABLE_AUTO AND NOT ENABLE_MULTI)
     return()
 endif()
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    ie_add_compiler_flags(/wd4101)
-    ie_add_compiler_flags(/wd4267)
-endif()
+
 
 set (TARGET_NAME "openvino_auto_plugin")
 

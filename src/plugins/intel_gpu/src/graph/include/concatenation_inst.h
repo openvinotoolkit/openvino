@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/concatenation.hpp"
 #include "primitive_inst.h"
@@ -33,6 +32,7 @@ using concatenation_node = typed_program_node<concatenation>;
 template <>
 class typed_primitive_inst<concatenation> : public typed_primitive_inst_base<concatenation> {
     using parent = typed_primitive_inst_base<concatenation>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>

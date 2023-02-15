@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ namespace intel_gpu {
 
 static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Select>& op) {
     validate_inputs_count(op, {3});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     auto output_pshape = op->get_output_partial_shape(0);
@@ -31,7 +31,7 @@ static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Sel
 
     if (broadcast_type.m_type == ngraph::op::AutoBroadcastType::NUMPY) {
         // Preprocess inputs
-        for (size_t i = 0; i < inputPrimitives.size(); ++i) {
+        for (size_t i = 0; i < inputs.size(); ++i) {
             auto input_pshape = op->get_input_partial_shape(i);
 
             if (input_pshape.is_static() && !p.use_new_shape_infer()) {
@@ -45,15 +45,15 @@ static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Sel
                     auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
                     auto targetDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(i));
                     auto reorderPrim = cldnn::reorder(reorderName,
-                                                    inputPrimitives[i],
-                                                    targetFormat,
-                                                    targetDatatype,
-                                                    std::vector<float>(),
-                                                    cldnn::reorder_mean_mode::subtract);
+                                                      inputs[i],
+                                                      targetFormat,
+                                                      targetDatatype,
+                                                      std::vector<float>(),
+                                                      cldnn::reorder_mean_mode::subtract);
 
                     p.add_primitive(*op, reorderPrim);
 
-                    inputPrimitives[i] = reorderName;
+                    inputs[i] = cldnn::input_info(reorderName);
                 }
 
                 // Reshape input if they differ or select specific shape matches default one
@@ -65,20 +65,20 @@ static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Sel
 
                     auto targetShape = tensor_from_dims(input_shape);
 
-                    auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape);
+                    auto reshapePrim = cldnn::reshape(reshapeName, inputs[i], targetShape);
 
                     p.add_primitive(*op, reshapePrim);
 
-                    inputPrimitives[i] = reshapeName;
+                    inputs[i] = cldnn::input_info(reshapeName);
                 }
             }
         }
     }
 
     auto selectPrim = cldnn::select(layerName,
-                                    inputPrimitives[0],
-                                    inputPrimitives[1],
-                                    inputPrimitives[2],
+                                    inputs[0],
+                                    inputs[1],
+                                    inputs[2],
                                     broadcast_type,
                                     cldnn::padding());
 

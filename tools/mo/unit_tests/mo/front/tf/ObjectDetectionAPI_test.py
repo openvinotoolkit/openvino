@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
@@ -17,6 +17,7 @@ from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.mo.utils.pipeline_config_test import file_content
 from unit_tests.utils.graph import const, regular_op, result, build_graph, connect_front
+from openvino.runtime import PartialShape
 
 
 class FakePipelineConfig:
@@ -71,7 +72,7 @@ class TestCalculatePlaceholderSpatialShape(unittest.TestCase):
     def test_fixed_shape_resizer_overrided_by_user(self):
         self.pipeline_config._model_params['resizer_image_height'] = 300
         self.pipeline_config._model_params['resizer_image_width'] = 600
-        self.graph.graph['user_shapes'] = {'image_tensor': [{'shape': [1, 400, 500, 3]}]}
+        self.graph.graph['user_shapes'] = {'image_tensor': [{'shape': PartialShape([1, 400, 500, 3])}]}
         self.assertTupleEqual((400, 500),
                               calculate_placeholder_spatial_shape(self.graph, self.match, self.pipeline_config))
 
@@ -84,7 +85,7 @@ class TestCalculatePlaceholderSpatialShape(unittest.TestCase):
     def test_keep_aspect_ratio_resizer_overrided_by_user(self):
         self.pipeline_config._model_params['resizer_min_dimension'] = 600
         self.pipeline_config._model_params['resizer_max_dimension'] = 1024
-        self.graph.graph['user_shapes'] = {'image_tensor': [{'shape': [1, 400, 300, 3]}]}
+        self.graph.graph['user_shapes'] = {'image_tensor': [{'shape': PartialShape([1, 400, 300, 3])}]}
         self.assertTupleEqual((800, 600),
                               calculate_placeholder_spatial_shape(self.graph, self.match, self.pipeline_config))
 
@@ -92,7 +93,7 @@ class TestCalculatePlaceholderSpatialShape(unittest.TestCase):
         self.pipeline_config._model_params['resizer_min_dimension'] = 600
         self.pipeline_config._model_params['resizer_max_dimension'] = 1024
         self.pipeline_config._model_params['pad_to_max_dimension'] = True
-        self.graph.graph['user_shapes'] = {'image_tensor': [{'shape': [1, 400, 300, 3]}]}
+        self.graph.graph['user_shapes'] = {'image_tensor': [{'shape': PartialShape([1, 400, 300, 3])}]}
         self.assertTupleEqual((1024, 1024),
                               calculate_placeholder_spatial_shape(self.graph, self.match, self.pipeline_config))
 

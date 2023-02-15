@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,15 +65,18 @@ kernel_selector_base::kernel_selector_base() {
 #endif
 }
 
-KernelsData kernel_selector_base::GetNaiveBestKernel(const Params& params,
-                                                     const optional_params& options,
-                                                     KernelType kType) const {
+KernelData kernel_selector_base::get_best_kernel(const Params& params, const optional_params& options) const {
+    auto kernels = GetBestKernels(params, options);
+    OPENVINO_ASSERT(!kernels.empty(), "[GPU] Couldn't find a suitable kernel for ", params.layerID, " params raw string: ", params.to_cache_string_v2());
+    return kernels[0];
+}
+
+
+KernelsData kernel_selector_base::GetNaiveBestKernel(const KernelList& all_impls, const Params& params, const optional_params& options) const {
     KernelsData kernelsData;
     std::string kernelName;
 
-    auto allImplementations = GetAllImplementations(params, options, kType);
-
-    for (const auto& implementation : allImplementations) {
+    for (const auto& implementation : all_impls) {
         // TODO: Unify this check with the Validate virtual method. Make
         // sure that the method is called here only, not in all the
         // GetKernelsData implementations.
@@ -81,32 +84,14 @@ KernelsData kernel_selector_base::GetNaiveBestKernel(const Params& params,
             KernelsData kds = implementation->GetKernelsData(params, options);
 
             if (kds.size() && kds[0].kernels.size()) {
-#ifdef ENABLE_ENV
-                const auto& it = forceKernels.find(implementation->GetName());
-                if (it != forceKernels.end()) {
-                    if (it->second == true) {
-                        ENV_PRINTF("Force: %s\n", it->first.c_str());
-                        return kds;
-                    } else {
-                        ENV_PRINTF("Deny: %s\n", it->first.c_str());
-                    }
-                } else {
-#endif
-                    kernelsData = kds;
-                    kernelName = implementation->GetName();
-                    break;
-#ifdef ENABLE_ENV
-                }
-#endif
+                kernelsData = kds;
+                kernelName = implementation->GetName();
+                break;
             }
         } catch (std::runtime_error& ex) {
             // we have to handle it in order to avoid exception in KernelSelector as much we can
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(debug_config->verbose >= 3) {
-                kernelName = (implementation != nullptr)? implementation->GetName() : "[impl is null]";
-                GPU_DEBUG_COUT << "layerID: " << params.layerID << " kenrel: "
-                    << kernelName << " - " << ex.what() << std::endl;
-            }
+            kernelName = (implementation != nullptr)? implementation->GetName() : "[impl is null]";
+            GPU_DEBUG_TRACE << "layerID: " << params.layerID << " kernel: " << kernelName << " - " << ex.what() << std::endl;
         }
     }
 
@@ -118,10 +103,11 @@ KernelsData kernel_selector_base::GetNaiveBestKernel(const Params& params,
 
     return kernelsData;
 }
+KernelsData kernel_selector_base::GetNaiveBestKernel(const Params& params, const optional_params& options, KernelType kType) const {
+    return GetNaiveBestKernel(GetAllImplementations(params, options, kType), params, options);
+}
 
-KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
-                                                        const optional_params& options,
-                                                        KernelType kType) const {
+KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params, const optional_params& options, KernelType kType) const {
     KernelsData kernelsData;
     std::string kernelName;
 
@@ -129,16 +115,8 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
     auto kernel_params = static_cast<const base_params&>(params);
     bool int8_kernel = kernel_params.inputs[0].GetDType() == Datatype::INT8 || kernel_params.inputs[0].GetDType() == Datatype::UINT8;
     std::tuple<std::string, int> cachedKernelConfig;
-    if (options.tuningParams.mode == TuningMode::TUNING_DISABLED && !int8_kernel) {  // Try to load kernel/config from offline cache
-#if ENABLE_OFFLINE_TUNING_CACHE
-        cachedKernelConfig = autoTuner.LoadKernelOffline(params.engineInfo.deviceCache.get(), params);
-#else
-        return GetNaiveBestKernel(params, options, kType);
-#endif
-    } else if (UseCached(options.tuningParams.mode)) {  // Try to load kernel/config from on-line cache
-        cachedKernelConfig = autoTuner.LoadKernelOnline(options.tuningParams.mode,
-                                                        options.tuningParams.cacheFilePath,
-                                                        params);
+    if (!int8_kernel) {  // Try to load kernel/config from offline cache
+        cachedKernelConfig = autoTuner.LoadKernelOffline(params);
     }
     bool hashFoundInCache = !std::get<0>(cachedKernelConfig).empty();
 
@@ -164,91 +142,7 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
         }
     }
 
-    // Cache is not valid, remove it if performing update tasks.
-    if (hashFoundInCache && PerformUpdates(options.tuningParams.mode)) {
-        autoTuner.RemoveKernel(options.tuningParams.cacheFilePath, params);
-    }
-
-    if (hashFoundInCache ||  // Cache is not valid - hash exists in cache but kernelsData was empty or kernel
-                             // doesn't support the required key.
-        !PerformTuning(options.tuningParams.mode) ||  // On-line tuning is not allowed.
-        !options.tuningParams.runner) {  // Runner is invalid - can't run on-line tuning
-        // Fall back to the default path.
-        return GetNaiveBestKernel(params, options, kType);
-    }
-
-    // Start on-line tuning
-    assert(options.tuningParams.runner);
-
-    for (const auto& implementation : allImplementations) {
-        const ParamsKey implKey = implementation->GetSupportedKey();
-        if (implKey.TuningSupport()) {
-            try {
-                KernelsData kds = implementation->GetKernelsDataForAutoTune(params, options);
-                auto runTimes = options.tuningParams.runner->run_kernels(kds);
-
-                for (size_t i = 0; i < kds.size(); i++) {
-                    kds[i].runTime = runTimes[i].count();
-                    if (kernelsData.size() == 0 || kds[i].runTime < kernelsData[0].runTime) {
-                        kernelsData = {kds[i]};
-                        kernelName = implementation->GetName();
-                    }
-                }
-            } catch (std::runtime_error& ex) {
-                // we have to handle it in order to avoid exception in KernelSelector as much we can
-                GPU_DEBUG_GET_INSTANCE(debug_config);
-                GPU_DEBUG_IF(debug_config->verbose >= 3) {
-                    kernelName = (implementation != nullptr)? implementation->GetName() : "[impl is null]";
-                    GPU_DEBUG_COUT << "layerID: " << params.layerID << " kenrel: "
-                        << kernelName << " - " << ex.what() << std::endl;
-                }
-            }
-        }
-    }
-
-    // try to fallback to reference kernels if no optimized were found during tuning
-    if (!kernelsData.size()) {
-        for (const auto& implementation : allImplementations) {
-            const ParamsKey implKey = implementation->GetSupportedKey();
-            // this time, check only implementations that have disabled tuning
-            if (!implKey.TuningSupport()) {
-                try {
-                    KernelsData kds = implementation->GetKernelsDataForAutoTune(params, options);
-                    auto runTimes = options.tuningParams.runner->run_kernels(kds);
-
-                    for (size_t i = 0; i < kds.size(); i++) {
-                        kds[i].runTime = runTimes[i].count();
-                        if (kernelsData.size() == 0 || kds[i].runTime < kernelsData[0].runTime) {
-                            kernelsData = {kds[i]};
-                            kernelName = implementation->GetName();
-                        }
-                    }
-                } catch (std::runtime_error& ex) {
-                    // we have to handle it in order to avoid exception in KernelSelector as much we can
-                    GPU_DEBUG_GET_INSTANCE(debug_config);
-                    GPU_DEBUG_IF(debug_config->verbose >= 3) {
-                        kernelName = (implementation != nullptr)? implementation->GetName() : "[impl is null]";
-                        GPU_DEBUG_COUT << "layerID: " << params.layerID << " kenrel: "
-                            << kernelName << " - " << ex.what() << std::endl;
-                    }
-                }
-            }
-        }
-    }
-
-    if (kernelsData.size()) {
-        kernelsData[0].kernelName = kernelName;
-        kernelsData[0].kernels[0].params.layerID = params.layerID;
-        autoTuner.StoreKernel(options.tuningParams.cacheFilePath,
-                                params,
-                                kernelName,
-                                kernelsData[0].autoTuneIndex);
-    } else {
-        // Tuning failed, fall back to naive path
-        return GetNaiveBestKernel(params, options, kType);
-    }
-
-    return kernelsData;
+    return GetNaiveBestKernel(allImplementations, params, options);
 }
 
 KernelList kernel_selector_base::GetAllImplementations(const Params& params, const optional_params& options, KernelType kType) const {
@@ -260,6 +154,8 @@ KernelList kernel_selector_base::GetAllImplementations(const Params& params, con
     std::multiset<PriorityPair, decltype(comparePriority)> sortedImpls(comparePriority);
     KernelList result;
 
+    auto device_features_key = params.engineInfo.get_supported_device_features_key();
+
     if (params.GetType() == kType && options.GetType() == kType) {
         ParamsKey requireKey = params.GetParamsKey().Merge(options.GetSupportedKey());
         bool forceImplementation = !params.forceImplementation.empty();
@@ -267,6 +163,11 @@ KernelList kernel_selector_base::GetAllImplementations(const Params& params, con
             const ParamsKey implKey = impl->GetSupportedKey();
             if (!implKey.Support(requireKey))
                 continue;
+
+            auto required_device_features_key = impl->get_required_device_features_key(params, options);
+            if (!device_features_key.supports(required_device_features_key))
+                continue;
+
             if (forceImplementation && params.forceImplementation != impl->GetName())
                 continue;
             sortedImpls.emplace(impl->GetKernelsPriority(params, options), impl);

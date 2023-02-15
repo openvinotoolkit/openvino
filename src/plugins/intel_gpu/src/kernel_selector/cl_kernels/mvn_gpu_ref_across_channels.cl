@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "include/batch_headers/fetch_data.cl"
-#include "include/batch_headers/data_types.cl"
 
 
 KERNEL (mvn_gpu_ref_across_channels)(
+    OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* restrict output
 #if HAS_FUSED_OPS_DECLS

@@ -2,18 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief experimental detectron generate proposals single image
 struct experimental_detectron_generate_proposals_single_image
@@ -32,18 +25,18 @@ struct experimental_detectron_generate_proposals_single_image
     /// @param pre_nms_count number of top-n proposals before NMS
     /// @param post_nms_count number of top-n proposals after NMS
     experimental_detectron_generate_proposals_single_image(const primitive_id& id,
-           const primitive_id& input_im_info,
-           const primitive_id& input_anchors,
-           const primitive_id& input_deltas,
-           const primitive_id& input_scores,
-           const primitive_id& output_roi_scores,
+           const input_info& input_im_info,
+           const input_info& input_anchors,
+           const input_info& input_deltas,
+           const input_info& input_scores,
+           const input_info& output_roi_scores,
            float min_size,
            float nms_threshold,
            int64_t pre_nms_count,
            int64_t post_nms_count,
            const padding& output_padding = {}) :
-            primitive_base{id, {input_im_info, input_anchors, input_deltas, input_scores, output_roi_scores}, output_padding},
-            output_roi_scores{output_roi_scores},
+            primitive_base{id, {input_im_info, input_anchors, input_deltas, input_scores, output_roi_scores}, {output_padding}},
+            output_roi_scores{output_roi_scores.pid},
             min_size{min_size},
             nms_threshold{nms_threshold},
             pre_nms_count{pre_nms_count},
@@ -55,6 +48,16 @@ struct experimental_detectron_generate_proposals_single_image
     int64_t pre_nms_count;
     int64_t post_nms_count;
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, min_size);
+        seed = hash_combine(seed, nms_threshold);
+        seed = hash_combine(seed, pre_nms_count);
+        seed = hash_combine(seed, post_nms_count);
+        seed = hash_combine(seed, output_roi_scores.empty());
+        return seed;
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
@@ -63,7 +66,4 @@ protected:
         return ret;
     }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

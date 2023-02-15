@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -37,7 +37,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     add_compile_options(/wd4244)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     add_compile_options(-Wno-deprecated-register -Wno-range-loop-analysis)
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+elseif(OV_COMPILER_IS_APPLECLANG)
     add_link_options(-stdlib=libc++)
     add_compile_options(-Wno-unused-value -Wno-range-loop-analysis)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")

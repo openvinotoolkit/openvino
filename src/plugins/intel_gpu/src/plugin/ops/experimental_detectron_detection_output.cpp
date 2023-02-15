@@ -21,7 +21,7 @@ static void CreateExperimentalDetectronDetectionOutputOp(
         IE_THROW() << "ExperimentalDetectronDetectionOutput requires 3 outputs";
     }
 
-    auto inputs = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
 
     const auto& attrs = op->get_attrs();
 
@@ -33,24 +33,24 @@ static void CreateExperimentalDetectronDetectionOutputOp(
     const cldnn::layout mutable_layout1{cldnn::element_type_to_data_type(mutable_precision1),
                                         cldnn::format::get_default_format(output_shape1.size()),
                                         tensor_from_dims(output_shape1)};
-    cldnn::memory::ptr shared_memory1{p.GetEngine().allocate_memory(mutable_layout1)};
+    cldnn::memory::ptr shared_memory1{p.get_engine().allocate_memory(mutable_layout1)};
 
     const auto mutable_id_w1 = layer_type_name + "_md_write.1";
     const cldnn::mutable_data mutable_prim_w{mutable_id_w1, shared_memory1};
     p.add_primitive(*op, mutable_prim_w);
-    inputs.push_back(mutable_id_w1);
+    inputs.push_back(cldnn::input_info(mutable_id_w1));
 
     const auto mutable_precision2 = op->get_output_element_type(2);
     const auto output_shape2 = op->get_output_shape(2);
     const cldnn::layout mutable_layout2{cldnn::element_type_to_data_type(mutable_precision2),
                                         cldnn::format::get_default_format(output_shape2.size()),
                                         tensor_from_dims(output_shape2)};
-    cldnn::memory::ptr shared_memory2{p.GetEngine().allocate_memory(mutable_layout2)};
+    cldnn::memory::ptr shared_memory2{p.get_engine().allocate_memory(mutable_layout2)};
 
     const auto mutable_id_w2 = layer_type_name + "_md_write.2";
     const cldnn::mutable_data mutable_prim_w2{mutable_id_w2, shared_memory2};
     p.add_primitive(*op, mutable_prim_w2);
-    inputs.push_back(mutable_id_w2);
+    inputs.push_back(cldnn::input_info(mutable_id_w2));
 
     const auto expectedPrimInputCount = 4 + 2; // 4 operation inputs plus 2 input-outputs
     if (inputs.size() != expectedPrimInputCount) {
@@ -76,11 +76,11 @@ static void CreateExperimentalDetectronDetectionOutputOp(
     p.add_primitive(*op, prim);
 
     const auto mutable_id_r1 = layer_type_name + ".out1";
-    const cldnn::mutable_data mutable_prim_r1{mutable_id_r1, {layer_name}, shared_memory1};
+    const cldnn::mutable_data mutable_prim_r1{mutable_id_r1, {cldnn::input_info(layer_name)}, shared_memory1};
     p.add_primitive(*op, mutable_prim_r1);
 
     const auto mutable_id_r2 = layer_type_name + ".out2";
-    const cldnn::mutable_data mutable_prim_r2{mutable_id_r2, {layer_name}, shared_memory2};
+    const cldnn::mutable_data mutable_prim_r2{mutable_id_r2, {cldnn::input_info(layer_name)}, shared_memory2};
     p.add_primitive(*op, mutable_prim_r2);
 }
 

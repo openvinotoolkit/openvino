@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,8 +7,7 @@
 #include "mock_worker.hpp"
 #include "request/worker_pool_impl.hpp"
 
-using namespace GNAPluginNS;
-using namespace request;
+using namespace ov::intel_gna::request;
 using namespace testing;
 
 class GNA_Request_WorkerPoolImplTest : public ::testing::Test {
@@ -18,7 +17,7 @@ public:
 const constexpr uint32_t GNA_Request_WorkerPoolImplTest::kExpectedIndex;
 
 TEST_F(GNA_Request_WorkerPoolImplTest, initDeinit) {
-    ASSERT_NO_THROW(GNAPluginNS::request::WorkerPoolImpl());
+    ASSERT_NO_THROW(WorkerPoolImpl());
 }
 
 TEST_F(GNA_Request_WorkerPoolImplTest, addModelWorker_nullptr) {

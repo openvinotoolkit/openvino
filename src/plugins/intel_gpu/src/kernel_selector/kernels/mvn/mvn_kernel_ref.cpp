@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,7 @@ ParamsKey MVNKernelRef::GetSupportedKey() const {
     k.EnableMVNMode(MVNMode::ACROSS_CHANNELS);
     k.EnableMVNMode(MVNMode::WITHIN_CHANNELS);
     k.EnableMVNNormalizeVariance();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 

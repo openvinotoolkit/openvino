@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@ public:
     explicit Exception(const char* what_arg) : std::runtime_error(what_arg) {}
 
     explicit Exception(const std::stringstream& what_arg) : std::runtime_error(what_arg.str()) {}
+    virtual ~Exception();
 };
 
 static inline std::ostream& write_all_to_stream(std::ostream& str) {
@@ -39,6 +40,7 @@ class OPENVINO_API AssertFailure : public Exception {
 public:
     AssertFailure(const CheckLocInfo& check_loc_info, const std::string& context_info, const std::string& explanation)
         : Exception(make_what(check_loc_info, context_info, explanation)) {}
+    ~AssertFailure() override;
 
 private:
     static std::string make_what(const CheckLocInfo& check_loc_info,
@@ -51,6 +53,7 @@ class OPENVINO_API NotImplemented : public AssertFailure {
 public:
     NotImplemented(const CheckLocInfo& check_loc_info, const std::string& context_info, const std::string& explanation)
         : AssertFailure(check_loc_info, context_info, explanation) {}
+    ~NotImplemented() override;
 };
 }  // namespace ov
 

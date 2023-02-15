@@ -62,14 +62,14 @@ public:
 
         topology topo;
         topo.add(data("output_size", output_size_input));
-        topo.add(reorder("reordered_output_size", "output_size", target_format, input_data_type));
+        topo.add(reorder("reordered_output_size", input_info("output_size"), target_format, input_data_type));
         topo.add(data("image_size", image_size_input));
-        topo.add(reorder("reordered_image_size", "image_size", target_format, input_data_type));
+        topo.add(reorder("reordered_image_size", input_info("image_size"), target_format, input_data_type));
 
         set_values<InputType>(output_size_input, output_size);
         set_values<InputType>(image_size_input, image_size);
 
-        std::vector<primitive_id> inputs{"reordered_output_size", "reordered_image_size"};
+        std::vector<input_info> inputs{ input_info("reordered_output_size"), input_info("reordered_image_size")};
         const auto prior_box = cldnn::prior_box("blocked_prior_box",
                                                 inputs,
                                                 output_size_tensor,
@@ -88,11 +88,11 @@ public:
                                                 attrs.step,
                                                 attrs.min_max_aspect_ratios_order);
         topo.add(prior_box);
-        topo.add(reorder("prior_box", "blocked_prior_box", plain_format, output_data_type));
+        topo.add(reorder("prior_box", input_info("blocked_prior_box"), plain_format, output_data_type));
 
-        build_options bo;
-        bo.set_option(build_option::optimize_data(false));
-        network network(engine, topo, bo);
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::optimize_data(false));
+        network network(engine, topo, config);
         const auto outputs = network.execute();
         const auto output = outputs.at("prior_box").get_memory();
 
@@ -100,7 +100,7 @@ public:
 
         ASSERT_EQ(output_ptr.size(), expected_values.size());
         for (size_t i = 0; i < output_ptr.size(); ++i) {
-            EXPECT_NEAR(output_ptr[i], expected_values[i], 2e-3)
+            ASSERT_NEAR(output_ptr[i], expected_values[i], 2e-3)
                 << "target_format=" << fmt_to_str(target_format) << ", i=" << i;
         }
     }

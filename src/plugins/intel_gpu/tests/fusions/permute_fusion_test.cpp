@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,8 +47,8 @@ public:
 
     void execute(permute_params& p) {
         auto input_prim = get_mem(get_input_layout(p));
-        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-        network network_fused(this->engine, this->topology_fused, bo_fused);
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
 
@@ -69,8 +69,8 @@ public:
 
     void execute(permute_reorder_params& p) {
         auto input_prim = get_mem(get_input_layout(p));
-        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-        network network_fused(this->engine, this->topology_fused, bo_fused);
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
         compare(network_not_fused, network_fused, p, true);
@@ -79,6 +79,16 @@ public:
     layout get_input_layout(permute_reorder_params& p) {
         return layout{ p.permute_type, p.permute_format, p.in_shape, padding{} };
     }
+
+    layout get_elt_input_layout(permute_reorder_params&p) {
+        ov::Shape output_shape;
+        auto input_shape = get_input_layout(p).get_dims();
+        for (int32_t o = 0; o < static_cast<int32_t>(p.permute_order1.size()); ++o) {
+            output_shape.push_back(input_shape[p.permute_order1[o]]);
+        }
+        return layout{ ov::PartialShape(output_shape), p.permute_type, p.permute_format, padding{} };
+    }
+
 };
 }  // namespace
 
@@ -165,11 +175,11 @@ TEST_P(permute_activation_scale_eltwise, basic) {
         input_layout("input", get_input_layout(p)),
         data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, p.out_shape })),
         data("scale_data", get_mem(get_per_channel_layout(p), 5e-1f)),
-        permute("permute", "input", p.permute_order),
-        eltwise("scale", { "permute", "scale_data" }, eltwise_mode::prod, p.default_type),
-        activation("actv", "scale", activation_func::relu),
-        eltwise("eltwise", { "actv", "eltwise_data" }, eltwise_mode::sum, p.data_type),
-        reorder("reorder_bfyx", "eltwise", p.default_format, p.default_type)
+        permute("permute", input_info("input"), p.permute_order),
+        eltwise("scale", { input_info("permute"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
+        activation("actv", input_info("scale"), activation_func::relu),
+        eltwise("eltwise", { input_info("actv"), input_info("eltwise_data") }, eltwise_mode::sum, p.data_type),
+        reorder("reorder_bfyx", input_info("eltwise"), p.default_format, p.default_type)
     );
 
     tolerance = 1e-5f;
@@ -260,9 +270,10 @@ TEST_P(permute_quant_u8, basic) {
         data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), 0)),
         data("out_hi", get_mem(get_single_element_layout(p), 255)),
-        permute("permute", "input", p.permute_order),
-        quantize("quant", "permute", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::u8),
-        reorder("reorder_bfyx", "quant", p.default_format, p.default_type)
+        permute("permute", input_info("input"), p.permute_order),
+        quantize("quant", input_info("permute"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 256, data_types::u8),
+        reorder("reorder_bfyx", input_info("quant"), p.default_format, p.default_type)
     );
 
     tolerance = 1.f;
@@ -289,14 +300,15 @@ TEST_P(permute_scale_actv_eltw_scale_actv_quant_i8, basic) {
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
         data("eltw_data", get_mem(layout(p.data_type, p.input_format, p.out_shape))),
         data("scale2_data", get_mem(get_per_channel_layout(p), 1e-1f)),
-        permute("permute", "input", p.permute_order),
-        eltwise("scale1", { "permute", "scale1_data" }, eltwise_mode::prod, p.default_type),
-        activation("actv1", "scale1", activation_func::relu),
-        eltwise("eltw", { "actv1", "eltw_data" }, eltwise_mode::sum, p.data_type),
-        eltwise("scale2", { "eltw", "scale2_data" }, eltwise_mode::prod, p.default_type),
-        activation("actv2", "scale2", activation_func::relu),
-        quantize("quant", "actv2", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
-        reorder("out", "quant", p.default_format, p.default_type)
+        permute("permute", input_info("input"), p.permute_order),
+        eltwise("scale1", { input_info("permute"), input_info("scale1_data") }, eltwise_mode::prod, p.default_type),
+        activation("actv1", input_info("scale1"), activation_func::relu),
+        eltwise("eltw", { input_info("actv1"), input_info("eltw_data") }, eltwise_mode::sum, p.data_type),
+        eltwise("scale2", { input_info("eltw"), input_info("scale2_data") }, eltwise_mode::prod, p.default_type),
+        activation("actv2", input_info("scale2"), activation_func::relu),
+        quantize("quant", input_info("actv2"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
+        reorder("out", input_info("quant"), p.default_format, p.default_type)
     );
 
     tolerance = 1.f;
@@ -363,13 +375,13 @@ TEST_P(permute_scale_eltwise_actv_scale_actv, basic) {
         data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, p.out_shape })),
         data("scale_data1", get_mem(get_per_channel_layout(p), 1e-1f)),
         data("scale_data2", get_mem(get_per_channel_layout(p), 1e-1f)),
-        permute("permute", "input", p.permute_order),
-        eltwise("scale1", { "permute", "scale_data1" }, eltwise_mode::prod, p.default_type),
-        activation("actv1", "scale1", activation_func::relu),
-        eltwise("eltwise", { "actv1", "eltwise_data" }, eltwise_mode::sum, p.default_type),
-        eltwise("scale2", { "eltwise", "scale_data2" }, eltwise_mode::prod, p.default_type),
-        activation("actv2", "scale2", activation_func::relu),
-        reorder("reorder_bfyx", "actv2", p.default_format, p.default_type)
+        permute("permute", input_info("input"), p.permute_order),
+        eltwise("scale1", { input_info("permute"), input_info("scale_data1") }, eltwise_mode::prod, p.default_type),
+        activation("actv1", input_info("scale1"), activation_func::relu),
+        eltwise("eltwise", { input_info("actv1"), input_info("eltwise_data") }, eltwise_mode::sum, p.default_type),
+        eltwise("scale2", { input_info("eltwise"), input_info("scale_data2") }, eltwise_mode::prod, p.default_type),
+        activation("actv2", input_info("scale2"), activation_func::relu),
+        reorder("reorder_bfyx", input_info("actv2"), p.default_format, p.default_type)
     );
 
     tolerance = 1e-5f;
@@ -498,15 +510,16 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_scale_eltwise_actv_scale_actv, ::t
 #define CASE_PERMUTE_REORDER_TILED_F16_9 { 1, 24, 2, 3, 256 }, { 0, 2, 3, 4, 1 }, { 0, 3, 1, 2 },  data_types::f16, data_types::f32, format::bfzyx, format::bfyx
 #define CASE_PERMUTE_REORDER_TILED_F16_10 { 1, 35, 3, 253 }, { 0, 2, 3, 1 }, { 0, 4, 1, 3, 2 },  data_types::f16, data_types::f32, format::bfyx, format::bfzyx
 #define CASE_PERMUTE_REORDER_TILED_F16_11 { 1, 32, 3, 253 }, { 0, 2, 3, 1 }, { 0, 5, 1, 4, 2, 3 },  data_types::f16, data_types::f32, format::bfyx, format::bfwzyx
+#define CASE_PERMUTE_REORDER_TILED_F16_12 { 1, 768, 32, 32 }, { 0, 2, 3, 1 }, { 0, 4, 1, 3, 2},  data_types::f16, data_types::f32, format::bfyx, format::bfzyx
 
 class permute_redundant_reorder : public PermuteReorderFusingTest {};
 TEST_P(permute_redundant_reorder, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        permute("permute1", "input",    p.permute_order1),
-        reorder("reorder1", "permute1", p.output_format, p.output_type), // to be fused
-        permute("permute2", "reorder1", p.permute_order2)                  // dummy last op to make reorder fused
+        permute("permute1", input_info("input"), p.permute_order1),
+        reorder("reorder1", input_info("permute1"), p.output_format, p.output_type),    // to be fused
+        permute("permute2", input_info("reorder1"), p.permute_order2)                   // dummy last op to make reorder fused
     );
 
     tolerance = 1e-5f;
@@ -552,10 +565,10 @@ TEST_P(permute_act_reorder, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        permute("permute1", "input",    p.permute_order1),
-        activation("activation", "permute1", activation_func::abs),
-        reorder("reorder1", "activation", p.output_format, p.output_type),    // to be fused
-        permute("permute2", "reorder1", p.permute_order2)                // dummy last op to make reorder fused
+        permute("permute1", input_info("input"), p.permute_order1),
+        activation("activation", input_info("permute1"), activation_func::abs),
+        reorder("reorder1", input_info("activation"), p.output_format, p.output_type),  // to be fused
+        permute("permute2", input_info("reorder1"), p.permute_order2)                   // dummy last op to make reorder fused
     );
 
     tolerance = 1e-5f;
@@ -587,4 +600,31 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_act_reorder, ::testing::ValuesIn(s
     permute_reorder_params{ CASE_PERMUTE_REORDER_TILED_F16_9, 3, 5 },
     permute_reorder_params{ CASE_PERMUTE_REORDER_TILED_F16_10, 3, 5 },
     permute_reorder_params{ CASE_PERMUTE_REORDER_TILED_F16_11, 3, 5 },
+}));
+
+class permute_eltwise_reorder : public PermuteReorderFusingTest {};
+
+TEST_P(permute_eltwise_reorder, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("elt_data", get_mem(get_elt_input_layout(p))),
+        permute("permute1", input_info("input"), p.permute_order1),
+        eltwise("elt", { input_info("permute1"), input_info("elt_data") }, eltwise_mode::sum, p.permute_type),
+        reorder("reorder1", input_info("elt"), p.output_format, p.output_type),  // to be fused to prev permute
+        permute("permute2", input_info("reorder1"), p.permute_order2)            // dummy last op to make reorder fused
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+// Tiled opt kernel should not be fused with eltwise + reorder. Currently permute_ref will be selected and fused with eltwise + reorder
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_eltwise_reorder, ::testing::ValuesIn(std::vector<permute_reorder_params>{
+    permute_reorder_params{ CASE_PERMUTE_REORDER_TILED_F16_7, 3, 5 },
+    permute_reorder_params{ CASE_PERMUTE_REORDER_TILED_F16_8, 3, 5 },
+    permute_reorder_params{ CASE_PERMUTE_REORDER_TILED_F16_9, 3, 5 },
+    permute_reorder_params{ CASE_PERMUTE_REORDER_TILED_F16_10, 3, 5 },
+    permute_reorder_params{ CASE_PERMUTE_REORDER_TILED_F16_11, 3, 5 },
+    permute_reorder_params{ CASE_PERMUTE_REORDER_TILED_F16_12, 3, 5 },
 }));

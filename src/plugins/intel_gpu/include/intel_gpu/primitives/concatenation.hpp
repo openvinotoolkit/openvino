@@ -1,19 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @details Concatenation is used to concatenate multiple sources into one destination along specified dimension.
 /// @notes
@@ -45,10 +38,10 @@ struct concatenation : public primitive_base<concatenation> {
     /// @param axis Selected dimension for concatenation.
     concatenation(
         const primitive_id& id,
-        const std::vector<primitive_id>& input,
+        const std::vector<input_info>& input,
         const int64_t axis,
         const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding), axis(axis) {}
+        : primitive_base(id, {input}, {output_padding}), axis(axis) {}
 
     /// @li Constructs concatenation primitive.
     /// @param id This primitive id.
@@ -57,17 +50,19 @@ struct concatenation : public primitive_base<concatenation> {
     /// @param output_dt Data type of output tensor
     concatenation(
         const primitive_id& id,
-        const std::vector<primitive_id>& input,
+        const std::vector<input_info>& input,
         const int64_t axis,
         const data_types output_dt,
-        const padding& output_padding = padding(),
-        const std::vector<input_info>& inputs = {})
-        : primitive_base(id, {input}, output_padding, optional_data_type{output_dt}, inputs), axis(axis) {}
+        const padding& output_padding = padding())
+        : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_dt}}), axis(axis) {}
 
     /// @brief Dimension along which concatenation should take place
     int64_t axis;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, axis);
+        return seed;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

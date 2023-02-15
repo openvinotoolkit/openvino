@@ -34,7 +34,7 @@ TEST_P(pooling_si_test, shape_infer) {
     auto& engine = get_test_engine();
 
     auto data_layout_prim = std::make_shared<input_layout>("data", p.data_layout);
-    auto pooling_prim = std::make_shared<pooling>("output", "data", p.mode, p.kernel_size, p.stride, p.pads_begin, p.pads_end, p.auto_pad);
+    auto pooling_prim = std::make_shared<pooling>("output", input_info("data"), p.mode, p.kernel_size, p.stride, p.pads_begin, p.pads_end, p.auto_pad);
 
     cldnn::program prog(engine);
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,9 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v4::Mish);
-
-op::v4::Mish::Mish(const Output<Node>& arg) : Op({arg}) {
+op::v4::Mish::Mish(const Output<Node>& arg) : util::UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }
 
@@ -36,7 +34,6 @@ void op::v4::Mish::validate_and_infer_types() {
                           "Element must be of floating point type, Got: ",
                           data_batch_et);
 
-    set_output_size(1);
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 

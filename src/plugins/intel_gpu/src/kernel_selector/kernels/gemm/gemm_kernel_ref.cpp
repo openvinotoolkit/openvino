@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,22 +12,21 @@ ParamsKey GemmKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
+    k.EnableInputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
-    k.EnableInputLayout(DataLayout::bfyx);
-    k.EnableOutputLayout(DataLayout::bfyx);
-    k.EnableInputLayout(DataLayout::bfzyx);
-    k.EnableOutputLayout(DataLayout::bfzyx);
-    k.EnableInputLayout(DataLayout::bfwzyx);
-    k.EnableOutputLayout(DataLayout::bfwzyx);
+    k.EnableOutputDataType(Datatype::INT32);
+    k.EnableAllInputLayout();
+    k.EnableAllOutputLayout();
 
     k.EnableBatching();
     k.EnableDifferentTypes();
     k.EnableTensorPitches();
     k.EnableTensorOffset();
     k.EnableQuantization(QuantizationType::SYMMETRIC);
+    k.EnableDynamicShapesSupport();
 
     return k;
 }

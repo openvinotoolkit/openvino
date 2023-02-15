@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "pass_manager.h"
 #include "program_helpers.h"
@@ -45,7 +43,7 @@ void prepare_primitive_fusing_through::run(program& p) {
                 return false;
 
             // Not to fuse reshape after Reduce changing the order of un-reduced axes. It is expected to be optimized out.
-            if (node->is_type<reshape>() && node->get_dependencies().front()->is_type<reduce>())
+            if (node->is_type<reshape>() && node->get_dependencies().front().first->is_type<reduce>())
                 return false;
 
             return true;
@@ -134,10 +132,10 @@ void prepare_primitive_fusing_through::run(program& p) {
             continue;
 
         std::vector<cldnn::program_node*> dependencies;
-        for (auto dep : node->get_dependencies()) {
-            if (dep == input_node)
+        for (auto& dep : node->get_dependencies()) {
+            if (dep.first == input_node)
                 continue;
-            dependencies.push_back(dep);
+            dependencies.push_back(dep.first);
         }
 
         for (auto dep : dependencies)

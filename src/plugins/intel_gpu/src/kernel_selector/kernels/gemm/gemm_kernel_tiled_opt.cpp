@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,7 @@ ParamsKey GemmKernelTiledOpt::GetSupportedKey() const {
 
     k.EnableBatching();
     k.EnableDifferentTypes();
+    k.EnableDynamicShapesSupport();
 
     return k;
 }
@@ -32,19 +33,20 @@ GemmKernelBase::DispatchData GemmKernelTiledOpt::SetDefault(const gemm_params& p
     const auto& output = params.outputs[0];
 
     DispatchData dispatchData;
-    GemmTuningData td = SetTuningParams(params);
+    if (!params.has_dynamic_tensors()) {
+        GemmTuningData td = SetTuningParams(params);
 
-    auto total_batches = output.LogicalSize() / (output.X().v * output.Y().v);
-    std::vector<size_t> global = { output.X().v, output.Y().v, total_batches };
+        auto total_batches = output.LogicalSize() / (output.X().v * output.Y().v);
+        std::vector<size_t> global = { output.X().v, output.Y().v, total_batches };
 
-    dispatchData.gws[0] = Align(global[0], td.tile_n_size) / (td.tile_n_size / td.simd_size);
-    dispatchData.gws[1] = Align(global[1], td.tile_m_size) / td.tile_m_size;
-    dispatchData.gws[2] = global[2];
+        dispatchData.gws[0] = Align(global[0], td.tile_n_size) / (td.tile_n_size / td.simd_size);
+        dispatchData.gws[1] = Align(global[1], td.tile_m_size) / td.tile_m_size;
+        dispatchData.gws[2] = global[2];
 
-    dispatchData.lws[0] = td.simd_size;
-    dispatchData.lws[1] = 1;
-    dispatchData.lws[2] = 1;
-
+        dispatchData.lws[0] = td.simd_size;
+        dispatchData.lws[1] = 1;
+        dispatchData.lws[2] = 1;
+    }
     return dispatchData;
 }
 
@@ -53,25 +55,34 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
 
     GemmKernelTiledOpt::GemmTuningData tuning_data;
 
-    auto m_size = output.Y().v;
-    auto n_size = output.X().v;
-    auto k_size = params.transpose_input0 ? params.inputs[0].Y().v : params.inputs[0].X().v;
+     if (!params.is_shape_agnostic) {
+        auto m_size = output.Y().v;
+        auto n_size = output.X().v;
+        auto k_size = params.transpose_input0 ? params.inputs[0].Y().v : params.inputs[0].X().v;
 
-    auto total_batches = output.LogicalSize() / (output.X().v * output.Y().v);
-    tuning_data.simd_size = 8;
+        auto total_batches = output.LogicalSize() / (output.X().v * output.Y().v);
+        tuning_data.simd_size = 8;
 
-    tuning_data.tile_n_size = tuning_data.simd_size;
-    while (tuning_data.tile_n_size < 64 && n_size / (tuning_data.tile_n_size * 2) >= 1) {
-        tuning_data.tile_n_size *= 2;
-    }
+        tuning_data.tile_n_size = tuning_data.simd_size;
+        while (tuning_data.tile_n_size < 64 && n_size / (tuning_data.tile_n_size * 2) >= 1) {
+            tuning_data.tile_n_size *= 2;
+        }
 
-    // tuning_data.tile_k_size must be the same as simd_size when k % tile_k != 0
-    tuning_data.tile_k_size = tuning_data.simd_size;
-    tuning_data.tile_m_size = tuning_data.simd_size;
+        // tuning_data.tile_k_size must be the same as simd_size when k % tile_k != 0
+        tuning_data.tile_k_size = tuning_data.simd_size;
+        tuning_data.tile_m_size = tuning_data.simd_size;
 
-    bool leftovers = m_size % tuning_data.tile_m_size || k_size % tuning_data.tile_k_size || n_size % tuning_data.tile_n_size;
+        bool leftovers = m_size % tuning_data.tile_m_size || k_size % tuning_data.tile_k_size || n_size % tuning_data.tile_n_size;
 
-    if (leftovers || total_batches > 1 || params.transpose_input0 || params.transpose_input1) {
+        if (leftovers || total_batches > 1 || params.transpose_input0 || params.transpose_input1) {
+            tuning_data.simd_size = 16;
+            tuning_data.tile_n_size = tuning_data.simd_size;
+            tuning_data.tile_k_size = tuning_data.simd_size;
+            tuning_data.tile_m_size = tuning_data.simd_size;
+        }
+    } else {
+        // In shape agnostic kernel case, the vector size of FusedOpsConfiguration cannot be specified at build time,
+        // so the tile sizes must be the same as simd_size
         tuning_data.simd_size = 16;
         tuning_data.tile_n_size = tuning_data.simd_size;
         tuning_data.tile_k_size = tuning_data.simd_size;
@@ -86,33 +97,62 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
 
     const auto& output = params.outputs[0];
     GemmTuningData tuning_data = SetTuningParams(params);
-
-    auto m_size = output.Y().v;
-    auto n_size = output.X().v;
-    auto k_size = params.transpose_input0 ? params.inputs[0].Y().v : params.inputs[0].X().v;
-    auto leftover_m = m_size % tuning_data.tile_m_size;
-    auto leftover_n = n_size % tuning_data.tile_n_size;
-    auto leftover_k = k_size % tuning_data.tile_k_size;
     auto b_vec_size = tuning_data.tile_n_size / tuning_data.simd_size;
 
     jit.Merge(MakeTypeJitConstants(params.inputs[0].GetDType(), "ACCUMULATOR"));
+    if (params.has_dynamic_tensors()) {
+        auto m_size = params.transpose_input0 ? toCodeString(params.inputs[0].X(), 5) : toCodeString(params.inputs[0].Y(), 4);
+        auto n_size = params.transpose_input1 ? toCodeString(params.inputs[1].Y(), 10) : toCodeString(params.inputs[1].X(), 11);
+        auto k_size = params.transpose_input0 ? toCodeString(params.inputs[0].Y(), 4) : toCodeString(params.inputs[0].X(), 5);
+        const std::string leftover_m = "(" + m_size + "%" + std::to_string(tuning_data.tile_m_size) + ")";
+        const std::string leftover_n = "(" + n_size + "%" + std::to_string(tuning_data.tile_n_size) + ")";
+        const std::string leftover_k = "(" + k_size + "%" + std::to_string(tuning_data.tile_k_size) + ")";
+        const std::string not_divisible_m = "(" + leftover_m + "!=0)";
+        const std::string not_divisible_n = "(" + leftover_n + "!=0)";
+        const std::string not_divisible_k = "(" + leftover_k + "!=0)";
+        const std::string full_iteration_k = "(" + k_size + "/" + std::to_string(tuning_data.tile_k_size) + ")";
 
-    jit.AddConstants({
-        MakeJitConstant("M", m_size),
-        MakeJitConstant("K", k_size),
-        MakeJitConstant("N", n_size),
-        MakeJitConstant("SIMD_WIDTH", tuning_data.simd_size),
-        MakeJitConstant("TILE_M", tuning_data.tile_m_size),
-        MakeJitConstant("TILE_K", tuning_data.tile_k_size),
-        MakeJitConstant("TILE_N", tuning_data.tile_n_size),
-        MakeJitConstant("K_FULL_ITERATIONS", k_size / tuning_data.tile_k_size),
-        MakeJitConstant("TILE_M_NOT_DIVISIBLE", leftover_m != 0),
-        MakeJitConstant("TILE_K_NOT_DIVISIBLE", leftover_k != 0),
-        MakeJitConstant("TILE_N_NOT_DIVISIBLE", leftover_n != 0),
-        MakeJitConstant("TILE_M_LEFTOVER", leftover_m),
-        MakeJitConstant("TILE_K_LEFTOVER", leftover_k),
-        MakeJitConstant("TILE_N_LEFTOVER", leftover_n),
-    });
+        jit.AddConstants({
+            MakeJitConstant("M", m_size),
+            MakeJitConstant("K", k_size),
+            MakeJitConstant("N", n_size),
+            MakeJitConstant("SIMD_WIDTH", tuning_data.simd_size),
+            MakeJitConstant("TILE_M", tuning_data.tile_m_size),
+            MakeJitConstant("TILE_K", tuning_data.tile_k_size),
+            MakeJitConstant("TILE_N", tuning_data.tile_n_size),
+            MakeJitConstant("K_FULL_ITERATIONS", full_iteration_k),
+            MakeJitConstant("TILE_M_NOT_DIVISIBLE", not_divisible_m),
+            MakeJitConstant("TILE_K_NOT_DIVISIBLE", not_divisible_k),
+            MakeJitConstant("TILE_N_NOT_DIVISIBLE", not_divisible_n),
+            MakeJitConstant("TILE_M_LEFTOVER", leftover_m),
+            MakeJitConstant("TILE_K_LEFTOVER", leftover_k),
+            MakeJitConstant("TILE_N_LEFTOVER", leftover_n),
+        });
+    } else {
+        auto m_size = output.Y().v;
+        auto n_size = output.X().v;
+        auto k_size = params.transpose_input0 ? params.inputs[0].Y().v : params.inputs[0].X().v;
+        auto leftover_m = m_size % tuning_data.tile_m_size;
+        auto leftover_n = n_size % tuning_data.tile_n_size;
+        auto leftover_k = k_size % tuning_data.tile_k_size;
+
+        jit.AddConstants({
+            MakeJitConstant("M", m_size),
+            MakeJitConstant("K", k_size),
+            MakeJitConstant("N", n_size),
+            MakeJitConstant("SIMD_WIDTH", tuning_data.simd_size),
+            MakeJitConstant("TILE_M", tuning_data.tile_m_size),
+            MakeJitConstant("TILE_K", tuning_data.tile_k_size),
+            MakeJitConstant("TILE_N", tuning_data.tile_n_size),
+            MakeJitConstant("K_FULL_ITERATIONS", k_size / tuning_data.tile_k_size),
+            MakeJitConstant("TILE_M_NOT_DIVISIBLE", leftover_m != 0),
+            MakeJitConstant("TILE_K_NOT_DIVISIBLE", leftover_k != 0),
+            MakeJitConstant("TILE_N_NOT_DIVISIBLE", leftover_n != 0),
+            MakeJitConstant("TILE_M_LEFTOVER", leftover_m),
+            MakeJitConstant("TILE_K_LEFTOVER", leftover_k),
+            MakeJitConstant("TILE_N_LEFTOVER", leftover_n),
+        });
+    }
 
     if (tuning_data.tile_k_size > tuning_data.simd_size) {
         jit.AddConstants({
@@ -184,7 +224,9 @@ bool GemmKernelTiledOpt::Validate(const Params& params, const optional_params& o
     const auto& gmm_params = static_cast<const gemm_params&>(params);
     bool gemm_leftovers = gmm_params.inputs[0].X().v % 16 || gmm_params.inputs[0].Y().v % 16 ||
                           gmm_params.inputs[1].X().v % 16 || gmm_params.inputs[1].Y().v % 16;
-    if ((gmm_params.transpose_input0 || gmm_params.transpose_input1) && gemm_leftovers)
+    // If gmm_params has dynamic inputs, the correct dimension value cannot be obtained
+    // and leftovers cannot be calculated, so it returns false
+    if ((gmm_params.transpose_input0 || gmm_params.transpose_input1) && (gemm_leftovers || gmm_params.has_dynamic_inputs()))
         return false;
 
     for (size_t i = 1; i < gmm_params.inputs.size(); i++)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,10 +11,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id gather_elements::type_id() {
-    static primitive_type_base<gather_elements> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(gather_elements)
 
 layout gather_elements_inst::calc_output_layout(gather_elements_node const& node, kernel_impl_params const& impl_param) {
     auto op = impl_param.typed_desc<gather_elements>();

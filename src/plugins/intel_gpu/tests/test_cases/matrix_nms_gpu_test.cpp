@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -95,16 +95,16 @@ public:
         topology.add(mutable_data("selected_boxes", selected_boxes));
         topology.add(mutable_data("valid_outputs", valid_outputs));
 
-        topology.add(reorder("reordered_boxes", "boxes", blocked_format, data_type));
-        topology.add(reorder("reordered_scores", "scores", blocked_format, data_type));
+        topology.add(reorder("reordered_boxes", input_info("boxes"), blocked_format, data_type));
+        topology.add(reorder("reordered_scores", input_info("scores"), blocked_format, data_type));
 
         topology.add(matrix_nms("reordered_matrix_nms",
-                                "reordered_boxes",
-                                "reordered_scores",
-                                "selected_boxes",
-                                "valid_outputs",
+                                input_info("reordered_boxes"),
+                                input_info("reordered_scores"),
+                                input_info("selected_boxes"),
+                                input_info("valid_outputs"),
                                 attrs));
-        topology.add(reorder("matrix_nms", "reordered_matrix_nms", plain_format, data_type));
+        topology.add(reorder("matrix_nms", input_info("reordered_matrix_nms"), plain_format, data_type));
 
         network network(engine, topology);
         network.set_input_data("boxes", boxes);
@@ -121,17 +121,17 @@ public:
         const auto expected_output = convert<T>(test_inputs.expected_output);
         ASSERT_EQ(expected_output.size(), output_ptr.size());
         for (size_t i = 0; i < expected_output.size(); ++i) {
-            EXPECT_NEAR(expected_output[i], output_ptr[i], THRESHOLD);
+            ASSERT_NEAR(expected_output[i], output_ptr[i], THRESHOLD);
         }
 
         ASSERT_EQ(test_inputs.expected_selected_boxes.size(), selected_boxes_ptr.size());
         for (size_t i = 0; i < test_inputs.expected_selected_boxes.size(); ++i) {
-            EXPECT_EQ(test_inputs.expected_selected_boxes[i], selected_boxes_ptr[i]);
+            ASSERT_EQ(test_inputs.expected_selected_boxes[i], selected_boxes_ptr[i]);
         }
 
         ASSERT_EQ(test_inputs.expected_valid_outputs.size(), valid_outputs_ptr.size());
         for (size_t i = 0; i < test_inputs.expected_valid_outputs.size(); ++i) {
-            EXPECT_EQ(test_inputs.expected_valid_outputs[i], valid_outputs_ptr[i]);
+            ASSERT_EQ(test_inputs.expected_valid_outputs[i], valid_outputs_ptr[i]);
         }
     }
 

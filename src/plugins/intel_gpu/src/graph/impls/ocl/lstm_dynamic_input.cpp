@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "lstm_dynamic_input_inst.h"
 #include "primitive_base.hpp"
@@ -18,13 +16,17 @@ namespace ocl {
 struct lstm_dynamic_input_impl : typed_primitive_impl_ocl<lstm_dynamic_input> {
     using parent = typed_primitive_impl_ocl<lstm_dynamic_input>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::lstm_dynamic_input_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::lstm_dynamic_input_params, kernel_selector::lstm_dynamic_input_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<lstm_dynamic_input_impl>(*this);
     }
 
 protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<lstm_dynamic_input>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<lstm_dynamic_input>& instance) const override {
         kernel_arguments_data args;
         args.inputs = { instance.input_memory_ptr(), instance.dyn_length_memory()};
         args.outputs = { instance.output_memory_ptr() };
@@ -34,49 +36,37 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const lstm_dynamic_input_node& arg, const kernel_impl_params& impl_param) {
-        auto dlstm_input_params = get_default_params<kernel_selector::lstm_dynamic_input_params>(impl_param);
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<lstm_dynamic_input>();
+        auto params = get_default_params<kernel_selector::lstm_dynamic_input_params>(impl_param);
 
         const auto dyn_len_idx = 1;
         const auto weights_idx = 2;
         const auto bias_idx = 3;
 
-        const auto& weights_layout = impl_param.input_layouts[weights_idx];
-        dlstm_input_params.weights = convert_weights_tensor(weights_layout);
+        const auto& weights_layout = impl_param.get_input_layout(weights_idx);
+        params.weights = convert_weights_tensor(weights_layout);
 
-        if (arg.bias_term()) {
-            const auto& bias_layout = impl_param.input_layouts[bias_idx];
-            dlstm_input_params.bias.push_back(convert_data_tensor(bias_layout));
+        auto has_bias = !primitive->bias.empty();
+        if (has_bias) {
+            const auto& bias_layout = impl_param.get_input_layout(bias_idx);
+            params.bias.push_back(convert_data_tensor(bias_layout));
         }
 
-        // dyn length
         const auto& dyn_length_tensor = impl_param.input_layouts[dyn_len_idx];
-        dlstm_input_params.inputs.push_back(convert_data_tensor(dyn_length_tensor));
+        params.inputs.push_back(convert_data_tensor(dyn_length_tensor));
 
-        dlstm_input_params.direction = arg.direction();
+        params.direction = weights_layout.feature();
 
-        // finially get best kernel
-        auto lstm_dynamic_optional_params =
-            get_default_weights_bias_optional_params<kernel_selector::lstm_dynamic_input_optional_params>(arg.get_program());
-
-        auto& kernel_selector = kernel_selector::lstm_dynamic_input_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(dlstm_input_params, lstm_dynamic_optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto lstm_dynamic = new lstm_dynamic_input_impl(arg, best_kernels[0]);
-
-        return lstm_dynamic;
+        auto optional_params = get_default_weights_bias_optional_params<kernel_selector::lstm_dynamic_input_optional_params>(impl_param.get_program());
+        return {params, optional_params};
     }
 };
 
 namespace detail {
 
 attach_lstm_dynamic_input_impl::attach_lstm_dynamic_input_impl() {
-    implementation_map<lstm_dynamic_input>::add(impl_types::ocl, lstm_dynamic_input_impl::create, {
+    implementation_map<lstm_dynamic_input>::add(impl_types::ocl, typed_primitive_impl_ocl<lstm_dynamic_input>::create<lstm_dynamic_input_impl>, {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
     });
@@ -85,3 +75,5 @@ attach_lstm_dynamic_input_impl::attach_lstm_dynamic_input_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::lstm_dynamic_input_impl)

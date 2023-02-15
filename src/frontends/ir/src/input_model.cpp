@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 #include <pugixml.hpp>
 
 #include "openvino/core/validation_util.hpp"
+#include "openvino/opsets/opset.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -101,15 +102,15 @@ void ParsePreProcess(pugi::xml_node& root,
         mean_scalar_shape = {inputDims[1], 1, 1, 1};
         mean_shape = {1, inputDims[2], inputDims[3], inputDims[4]};
     }
-    const int64_t channels = mean_scalar_shape[0];
+    const size_t channels = mean_scalar_shape[0];
 
-    int64_t next_channel_id{0};
-    std::set<std::pair<int64_t, float>> mean_scalar_values;
-    std::set<std::pair<int64_t, std::pair<int64_t, int64_t>>> mean_values;
+    uint64_t next_channel_id{0};
+    std::set<std::pair<size_t, float>> mean_scalar_values;
+    std::set<std::pair<size_t, std::pair<int64_t, int64_t>>> mean_values;
 
     auto input_type = input_node->get_output_element_type(0);
     FOREACH_CHILD (chan, ppNode, "channel") {
-        int chanNo = XMLParseUtils::GetIntAttr(chan, "id", static_cast<int>(next_channel_id++));
+        auto chanNo = XMLParseUtils::GetUInt64Attr(chan, "id", next_channel_id++);
 
         auto meanNode = chan.child("mean");
         if (!meanNode.empty()) {
@@ -120,8 +121,8 @@ void ParsePreProcess(pugi::xml_node& root,
                 mean_scalar_values.insert({chanNo, XMLParseUtils::GetFloatAttr(meanNode, "value")});
             }
             if (meanNode.attribute("size") && meanNode.attribute("offset")) {
-                auto const_size = XMLParseUtils::GetIntAttr(meanNode, "size");
-                auto const_offset = XMLParseUtils::GetIntAttr(meanNode, "offset");
+                auto const_size = XMLParseUtils::GetUInt64Attr(meanNode, "size");
+                auto const_offset = XMLParseUtils::GetUInt64Attr(meanNode, "offset");
                 if (shape_size(mean_shape) * input_type.size() != const_size) {
                     IE_THROW() << "mean blob size mismatch expected input, got: " << const_size << " expecting "
                                << mean_shape << " x " << input_type.size();
@@ -206,16 +207,9 @@ public:
             IE_THROW() << res.description() << " at offset " << res.offset;
         }
         m_root = m_xml_doc.document_element();
-        m_opsets["opset1"] = ngraph::get_opset1();
-        m_opsets["opset2"] = ngraph::get_opset2();
-        m_opsets["opset3"] = ngraph::get_opset3();
-        m_opsets["opset4"] = ngraph::get_opset4();
-        m_opsets["opset5"] = ngraph::get_opset5();
-        m_opsets["opset6"] = ngraph::get_opset6();
-        m_opsets["opset7"] = ngraph::get_opset7();
-        m_opsets["opset8"] = ngraph::get_opset8();
-        m_opsets["opset9"] = ngraph::get_opset9();
-        m_opsets["opset10"] = ngraph::get_opset10();
+        for (const auto& it : ov::get_available_opsets()) {
+            m_opsets[it.first] = it.second();
+        }
     }
 
     std::shared_ptr<Function> convert();

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -113,7 +113,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_fail_rank) {
         auto bc = make_shared<TypeParam>(param, target_shape, axes_mapping);
         FAIL() << "Broadcast: target shape mismatch with input rank not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Broadcast axes_mapping shape {3} doesn't match rank of input tensor 2");
+        EXPECT_HAS_SUBSTRING(error.what(), "Broadcast axes_mapping shape [3] doesn't match rank of input tensor 2");
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
@@ -335,7 +335,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_explicit_const_target_shape_static_rank_i
         FAIL() << "Broadcast: Broadcast axes_mapping shape doesn't match rank of input tensor";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Broadcast axes_mapping shape {4} doesn't match rank of input tensor 3"));
+                             std::string("Broadcast axes_mapping shape [4] doesn't match rank of input tensor 3"));
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
@@ -954,7 +954,7 @@ TEST(type_prop, broadcast_v3_labels_in0_dynamic_mixed_dims_bidirectional) {
     PartialShape pshape_b{-1, 2, {3, 9}, 1, {3, 9}, -1, {1, 9}, -1, {3, 19}, {1, 10}};
 
     PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, -1, -1, {3, 19}, {4, 18}};
-    std::vector<size_t> expected_labels{10, 11, ov::no_label, 13, ov::no_label, 15, 16, 17, ov::no_label, 19};
+    ov::TensorLabel expected_labels{10, 11, ov::no_label, 13, ov::no_label, 15, 16, 17, ov::no_label, 19};
 
     set_shape_labels(pshape_a, {10, 11, 12, 13, 14, 15, 16, 17, 18, 19});
 
@@ -976,7 +976,7 @@ TEST(type_prop, broadcast_v3_labels_in1_dynamic_mixed_dims_bidirectional) {
     PartialShape pshape_b{-1, 2, {3, 9}, 1, {3, 9}, -1, {1, 9}, -1, {3, 19}, {1, 10}};
 
     PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, -1, -1, {3, 19}, {4, 18}};
-    std::vector<size_t> expected_labels{10, 11, 12, ov::no_label, 14, ov::no_label, 16, 17, 18, ov::no_label};
+    ov::TensorLabel expected_labels{10, 11, 12, ov::no_label, 14, ov::no_label, 16, 17, 18, ov::no_label};
 
     set_shape_labels(pshape_b, {10, 11, 12, 13, 14, 15, 16, 17, 18, 19});
 
@@ -998,7 +998,7 @@ TEST(type_prop, broadcast_v3_labels_different_dynamic_mixed_dims_broadcast_bidir
     PartialShape pshape_b{-1, 2, {3, 9}, 1, {3, 9}, -1, {1, 9}, -1, {3, 19}, {1, 10}};
 
     PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, -1, -1, {3, 19}, {4, 18}};
-    std::vector<size_t> expected_labels{ov::no_label, 21, 22, 13, 24, 15, ov::no_label, ov::no_label, 28, 19};
+    ov::TensorLabel expected_labels{ov::no_label, 21, 22, 13, 24, 15, ov::no_label, ov::no_label, 28, 19};
 
     set_shape_labels(pshape_a, {10, 11, 12, 13, 14, 15, 16, 17, 18, 19});
     set_shape_labels(pshape_b, {20, 21, 22, 23, 24, 25, 26, 27, 28, 29});
@@ -1021,7 +1021,7 @@ TEST(type_prop, broadcast_v3_labels_same_dynamic_mixed_dims_broadcast_bidirectio
     PartialShape pshape_b{-1, 2, {3, 9}, 1, {3, 9}, -1, {1, 9}, -1, {3, 19}, {1, 10}};
 
     PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, -1, -1, {3, 19}, {4, 18}};
-    std::vector<size_t> expected_labels{10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
+    ov::TensorLabel expected_labels{10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
 
     set_shape_labels(pshape_a, expected_labels);
     set_shape_labels(pshape_b, expected_labels);
@@ -1033,6 +1033,41 @@ TEST(type_prop, broadcast_v3_labels_same_dynamic_mixed_dims_broadcast_bidirectio
     auto op = make_shared<op::v3::Broadcast>(data, shape_of, "BIDIRECTIONAL");
 
     const auto out_shape = op->get_output_partial_shape(0);
+
+    EXPECT_EQ(out_shape, expected_shape);
+    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+}
+
+TEST(type_prop, broadcast_v3_in0_interval_in1_param_rank_bigger_bidirectional) {
+    PartialShape pshape_a{{4, 8}, 1};
+    auto data = make_shared<op::Parameter>(element::i32, pshape_a);
+    auto target_shape_param = make_shared<op::Parameter>(element::i32, Shape{3});
+    auto broadcast = make_shared<op::v3::Broadcast>(data, target_shape_param, op::BroadcastType::BIDIRECTIONAL);
+
+    EXPECT_EQ(broadcast->get_output_partial_shape(0), (PartialShape{-1, {4, 8}, -1}));
+}
+
+TEST(type_prop, broadcast_v3_in0_interval_in1_param_rank_smaller_bidirectional) {
+    PartialShape pshape_a{-1, 2, {1, 10}, {4, 8}, 1};
+    auto data = make_shared<op::Parameter>(element::i32, pshape_a);
+    auto target_shape_param = make_shared<op::Parameter>(element::i32, Shape{3});
+    auto broadcast = make_shared<op::v3::Broadcast>(data, target_shape_param, op::BroadcastType::BIDIRECTIONAL);
+
+    EXPECT_EQ(broadcast->get_output_partial_shape(0), (PartialShape{-1, 2, -1, {4, 8}, -1}));
+}
+
+TEST(type_prop, broadcast_v3_labels_in0_dims_in1_param_bidirectional) {
+    PartialShape pshape_a{-1, 2, 1, {4, 8}, {1, 10}};
+
+    PartialShape expected_shape{-1, 2, -1, {4, 8}, -1};
+    ov::TensorLabel expected_labels{10, 11, 12, 13, 14};
+    set_shape_labels(pshape_a, expected_labels);
+
+    auto data = std::make_shared<op::Parameter>(element::f32, pshape_a);
+    auto target_shape_param = std::make_shared<op::Parameter>(element::i32, Shape{5});
+    auto broadcast = make_shared<op::v3::Broadcast>(data, target_shape_param, op::BroadcastType::BIDIRECTIONAL);
+
+    const auto& out_shape = broadcast->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
     EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
@@ -1086,7 +1121,7 @@ TEST(type_prop, broadcast_v3_labels_in1_dynamic_mixed_dims_numpy) {
 
     PartialShape expected_shape = {-1, 2, {3, 9}, {4, 10}, -1, {5, 11}, -1, {6, 20}, {1, 10}};
     // Output shape is a copy of the target shape, `B` labels are propagated
-    std::vector<size_t> expected_labels{10, 11, 12, 13, 14, 15, 16, 17, 18};
+    ov::TensorLabel expected_labels{10, 11, 12, 13, 14, 15, 16, 17, 18};
 
     set_shape_labels(pshape_b, expected_labels);
 
@@ -1110,7 +1145,7 @@ TEST(type_prop, broadcast_v3_labels_both_inputs_dynamic_mixed_dims_numpy) {
 
     PartialShape expected_shape = {-1, 2, {3, 9}, {4, 10}, -1, {5, 11}, -1, {6, 20}, {1, 10}};
     // Output shape is a copy of the target shape, `B` labels are propagated
-    std::vector<size_t> expected_labels{20, 21, 22, 23, 24, 25, 26, 27, 28};
+    ov::TensorLabel expected_labels{20, 21, 22, 23, 24, 25, 26, 27, 28};
 
     set_shape_labels(pshape_a, {10, 11, 12, 13, 14, 15, 16, 17, 18});
     set_shape_labels(pshape_b, {20, 21, 22, 23, 24, 25, 26, 27, 28});
@@ -1132,7 +1167,7 @@ TEST(type_prop, broadcast_v3_labels_dynamic_mixed_dims_explicit) {
     PartialShape pshape_b{2, -1, {6, 8}, -1, 5};
 
     PartialShape expected_shape = {2, -1, {6, 8}, -1, 5};
-    std::vector<size_t> expected_labels{21, 22, 23, 24, 25};
+    ov::TensorLabel expected_labels{21, 22, 23, 24, 25};
 
     set_shape_labels(pshape_b, {21, 22, 23, 24, 25});
     auto axis_map = std::make_shared<op::Constant>(element::i32, Shape{3}, std::vector<int32_t>{0, 2, 3});
@@ -1157,7 +1192,7 @@ TEST(type_prop, broadcast_v3_eval_labels_static_dims_numpy) {
     PartialShape pshape_c{1, 3};
 
     PartialShape expected_shape = {2, 3};
-    std::vector<size_t> expected_labels{22, 23};
+    ov::TensorLabel expected_labels{22, 23};
 
     set_shape_labels(pshape_b, {22, 23});
 
@@ -1184,7 +1219,7 @@ TEST(type_prop, broadcast_v3_eval_labels_static_dims_bidirectional) {
     PartialShape pshape_c{1, 1};
 
     PartialShape expected_shape = {2, 3};
-    std::vector<size_t> expected_labels{22, 13};
+    ov::TensorLabel expected_labels{22, 13};
 
     set_shape_labels(pshape_a, {12, 13});
     set_shape_labels(pshape_b, {22, 23});

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ static inline std::string PadToString(ngraph::op::PadType pad) {
 
 static void CreateExtractImagePatchesOp(Program& p, const std::shared_ptr<ngraph::op::v3::ExtractImagePatches>& op) {
     validate_inputs_count(op, {1});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     std::vector<uint32_t> sizes = std::vector<uint32_t>(op->get_sizes().begin(), op->get_sizes().end());
@@ -34,7 +34,7 @@ static void CreateExtractImagePatchesOp(Program& p, const std::shared_ptr<ngraph
     std::string auto_pad = PadToString(op->get_auto_pad());
 
     auto extractImagePatchesPrim = cldnn::extract_image_patches(layerName,
-                                                                inputPrimitives[0],
+                                                                inputs[0],
                                                                 sizes,
                                                                 strides,
                                                                 rates,

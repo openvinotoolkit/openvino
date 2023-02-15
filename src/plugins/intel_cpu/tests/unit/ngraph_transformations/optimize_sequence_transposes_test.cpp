@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@
 #include <ngraph_transformations/rnn_sequences_optimization.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
-#include <ngraph_ops/type_relaxed.hpp>
+#include <ov_ops/type_relaxed.hpp>
 #include <ngraph/pass/manager.hpp>
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -55,7 +55,7 @@ TEST(TransformationTests, OptimizeLSTMSequenceTransposesTest) {
         f = std::make_shared<ngraph::Function>(ngraph::ResultVector{ Y_out, Ho, Co }, ngraph::ParameterVector{ X, Y, Z });
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<OptimizeLSTMSequenceTransposes>();
         m.run_passes(f);
     }
@@ -130,7 +130,7 @@ TEST(TransformationTests, OptimizeLSTMSequenceTransposesDynamicTest) {
         f = std::make_shared<ngraph::Function>(ngraph::ResultVector{ Y_out, Ho, Co }, ngraph::ParameterVector{ X, Y, Z });
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<OptimizeLSTMSequenceTransposes>();
         m.run_passes(f);
     }
@@ -205,7 +205,7 @@ TEST(TransformationTests, OptimizeRNNSequenceTransposesTest) {
         f = std::make_shared<ngraph::Function>(ngraph::ResultVector{ Y_out, Ho }, ngraph::ParameterVector{ X, Y });
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<OptimizeRNNSequenceTransposes>();
         m.run_passes(f);
     }
@@ -274,7 +274,7 @@ TEST(TransformationTests, OptimizeRNNSequenceTransposesDynamicTest) {
         f = std::make_shared<ngraph::Function>(ngraph::ResultVector{ Y_out, Ho }, ngraph::ParameterVector{ X, Y });
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<OptimizeRNNSequenceTransposes>();
         m.run_passes(f);
     }
@@ -346,7 +346,7 @@ TEST(TransformationTests, OptimizeGRUSequenceTransposesTest) {
         f = std::make_shared<ngraph::Function>(ngraph::ResultVector{ Y_out, Ho }, ngraph::ParameterVector{ X, Y });
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<OptimizeGRUSequenceTransposes>();
         m.run_passes(f);
     }
@@ -415,7 +415,7 @@ TEST(TransformationTests, OptimizeGRUSequenceTransposesDynamicTest) {
         f = std::make_shared<ngraph::Function>(ngraph::ResultVector{ Y_out, Ho }, ngraph::ParameterVector{ X, Y });
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<OptimizeGRUSequenceTransposes>();
         m.run_passes(f);
     }

@@ -1,18 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief SpaceToDepth operation rearranges data from the spatial dimensions of the input tensor into depth dimension of the output tensor.
 /// @details SpaceToDepth operation permutes element from the input tensor with shape [b, f, y, x]
@@ -60,19 +53,23 @@ struct space_to_depth : public primitive_base<space_to_depth> {
     /// @param depth_mode Depth mode (blocks_first / depth_first).
     /// @param block_size Block size (optional).
     space_to_depth(const primitive_id& id,
-                   const primitive_id& input,
+                   const input_info& input,
                    depth_mode mode,
                    const size_t block_size = 1,
                    const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding), mode(mode), block_size(block_size) {}
+        : primitive_base(id, {input}, {output_padding}), mode(mode), block_size(block_size) {}
 
     /// @brief Depth mode.
     depth_mode mode;
 
     /// @brief Block size.
     size_t block_size;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, mode);
+        seed = hash_combine(seed, block_size);
+        return seed;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

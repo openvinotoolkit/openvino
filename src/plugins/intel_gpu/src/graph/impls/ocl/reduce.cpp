@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,75 +69,74 @@ kernel_selector::reduce_mode cldnn_2_reduce_mode(reduce_mode mode) {
 struct reduce_impl : typed_primitive_impl_ocl<reduce> {
     using parent = typed_primitive_impl_ocl<reduce>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::reduce_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::reduce_params, kernel_selector::reduce_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<reduce_impl>(*this);
     }
 
-public:
-    static primitive_impl* create(const reduce_node& arg, const kernel_impl_params& impl_param) {
-        const auto& prim = arg.get_primitive();
-        auto reduce_params = get_default_params<kernel_selector::reduce_params>(impl_param);
-        auto reduce_optional_params = get_default_optional_params<kernel_selector::reduce_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<reduce>();
+        auto params = get_default_params<kernel_selector::reduce_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::reduce_optional_params>(impl_param.get_program());
 
-        reduce_params.reduceAxes = convert_axes(prim->axes, arg.get_output_layout().get_rank());
-        reduce_params.keepDims = prim->keep_dims;
-        reduce_params.reduceMode = cldnn_2_reduce_mode(prim->mode);
+        params.reduceAxes = convert_axes(primitive->axes, impl_param.input_layouts[0].get_rank());
+        params.keepDims = primitive->keep_dims;
+        params.reduceMode = cldnn_2_reduce_mode(primitive->mode);
 
-        auto& kernel_selector = kernel_selector::reduce_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(reduce_params, reduce_optional_params);
+        return {params, optional_params};
+    }
 
-        CLDNN_ERROR_BOOL(arg.id(), "Best_kernel.empty()", best_kernels.empty(), "Cannot find a proper kernel with this arguments");
-
-        auto reduce = new reduce_impl(arg, best_kernels[0]);
-        reduce->can_reuse_memory = best_kernels[0].can_reuse_memory;
-
-        return reduce;
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        auto kernel_params = get_kernel_params(impl_param);
+        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
     }
 };
 
 namespace detail {
 
 attach_reduce_impl::attach_reduce_impl() {
-    implementation_map<reduce>::add(impl_types::ocl, reduce_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
+    auto types = {
+        data_types::f32,
+        data_types::f16,
+        data_types::i32,
+        data_types::i8,
+        data_types::u8
+    };
 
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::i32, format::bfzyx),
-        std::make_tuple(data_types::i8, format::bfzyx),
-        std::make_tuple(data_types::u8, format::bfzyx),
+    auto static_formats = {
+        format::bfyx,
+        format::bfzyx,
+        format::bfwzyx,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::b_fs_zyx_fsv16
+    };
 
-        std::make_tuple(data_types::f32, format::bfwzyx),
-        std::make_tuple(data_types::f16, format::bfwzyx),
-        std::make_tuple(data_types::i32, format::bfwzyx),
-        std::make_tuple(data_types::i8, format::bfwzyx),
-        std::make_tuple(data_types::u8, format::bfwzyx),
+    implementation_map<reduce>::add(impl_types::ocl,
+                                    shape_types::static_shape,
+                                    typed_primitive_impl_ocl<reduce>::create<reduce_impl>,
+                                    types,
+                                    static_formats);
 
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::i32, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
+    auto dyn_formats = {
+        format::bfyx,
+        format::bfzyx,
+        format::bfwzyx
+    };
 
-        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::i32, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv16),
-
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::i32, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
-    });
+    implementation_map<reduce>::add(impl_types::ocl,
+                                    shape_types::dynamic_shape,
+                                    typed_primitive_impl_ocl<reduce>::create<reduce_impl>,
+                                    types,
+                                    dyn_formats);
 }
 
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reduce_impl)

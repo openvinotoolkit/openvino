@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@
 #include "ie_parallel.hpp"
 #include "ngraph/opsets/opset8.hpp"
 #include "utils/general_utils.h"
+#include <utils/shape_inference/shape_inference_internal_dyn.hpp>
 
 using namespace InferenceEngine;
 
@@ -47,8 +48,8 @@ bool MatrixNms::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& 
     return true;
 }
 
-MatrixNms::MatrixNms(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr& cache)
-    : Node(op, eng, cache) {
+MatrixNms::MatrixNms(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

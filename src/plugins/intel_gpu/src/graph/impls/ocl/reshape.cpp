@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,40 +16,53 @@ namespace ocl {
 struct reshape_impl : public typed_primitive_impl_ocl<reshape> {
     using parent = typed_primitive_impl_ocl<reshape>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::reshape_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::reshape_params, kernel_selector::reshape_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<reshape_impl>(*this);
     }
 
-public:
-    static primitive_impl* create(reshape_node const& arg, const kernel_impl_params& impl_param) {
-        if (arg.can_be_optimized()) {
-            return new reshape_impl(arg, {});
-        }
-        auto reorder_params = get_default_params<kernel_selector::reshape_params>(impl_param);
-        auto reorder_optional_params =
-            get_default_optional_params<kernel_selector::reshape_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        auto params = get_default_params<kernel_selector::reshape_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::reshape_optional_params>(impl_param.get_program());
 
-        auto& kernel_selector = kernel_selector::reshape_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(reorder_params, reorder_optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto reshape = new reshape_impl(arg, best_kernels[0]);
-
-        return reshape;
+        return {params, optional_params};
     }
+
+    void update_dispatch_data(const kernel_impl_params& impl_param) override { }
 };
 
 namespace detail {
 
 attach_reshape_impl::attach_reshape_impl() {
-    implementation_map<reshape>::add(impl_types::ocl, reshape_impl::create, {});
+    implementation_map<reshape>::add(impl_types::ocl, shape_types::static_shape, typed_primitive_impl_ocl<reshape>::create<reshape_impl>, {});
+
+    auto dyn_types = {
+        data_types::f32,
+        data_types::f16,
+        data_types::i8,
+        data_types::u8,
+        data_types::i32
+    };
+
+    auto dyn_formats = {
+        format::bfyx,
+        format::bfzyx,
+        format::bfwzyx
+    };
+
+    implementation_map<reshape>::add(impl_types::ocl,
+                                     shape_types::dynamic_shape,
+                                     typed_primitive_impl_ocl<reshape>::create<reshape_impl>,
+                                     dyn_types,
+                                     dyn_formats);
 }
 
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reshape_impl)

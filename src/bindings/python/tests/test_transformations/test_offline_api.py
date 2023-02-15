@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import pytest
 import numpy as np
 from openvino.runtime import serialize
 from openvino.offline_transformations import (
@@ -19,8 +20,10 @@ from openvino.offline_transformations import (
 from openvino.runtime import Model, PartialShape, Core
 import openvino.runtime as ov
 
+from tests.test_utils.test_utils import create_filename_for_test
 
-def get_test_model():
+
+def get_relu_model():
     param = ov.opset8.parameter(PartialShape([1, 3, 22, 22]), name="parameter")
     param.get_output_tensor(0).set_names({"parameter"})
     relu = ov.opset8.relu(param)
@@ -94,7 +97,7 @@ def get_gru_sequence_model():
 
 
 def test_moc_transformations():
-    model = get_test_model()
+    model = get_relu_model()
 
     apply_moc_transformations(model, False)
 
@@ -102,8 +105,17 @@ def test_moc_transformations():
     assert len(model.get_ops()) == 3
 
 
+def test_moc_with_smart_reshape():
+    model = get_relu_model()
+
+    apply_moc_transformations(model, cf=False, smart_reshape=True)
+
+    assert model is not None
+    assert len(model.get_ops()) == 3
+
+
 def test_pot_transformations():
-    model = get_test_model()
+    model = get_relu_model()
 
     apply_pot_transformations(model, "GNA")
 
@@ -112,7 +124,7 @@ def test_pot_transformations():
 
 
 def test_low_latency_transformation():
-    model = get_test_model()
+    model = get_relu_model()
 
     apply_low_latency_transformation(model, True)
 
@@ -121,7 +133,7 @@ def test_low_latency_transformation():
 
 
 def test_pruning_transformation():
-    model = get_test_model()
+    model = get_relu_model()
 
     apply_pruning_transformation(model)
 
@@ -130,7 +142,7 @@ def test_pruning_transformation():
 
 
 def test_make_stateful_transformations():
-    model = get_test_model()
+    model = get_relu_model()
 
     apply_make_stateful_transformation(model, {"parameter": "result"})
 
@@ -140,7 +152,7 @@ def test_make_stateful_transformations():
 
 
 def test_fused_names_cleanup():
-    model = get_test_model()
+    model = get_relu_model()
 
     for node in model.get_ops():
         node.get_rt_info()["fused_names_0"] = "test_op_name"
@@ -154,10 +166,20 @@ def test_fused_names_cleanup():
         assert len(node.get_rt_info()) == 0
 
 
-def test_serialize_pass_v2():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+@pytest.mark.parametrize("is_path_xml, is_path_bin", [  # noqa: PT006
+    (True, True),
+    (True, False),
+    (False, True),
+    (False, False),
+],
+)
+def test_serialize_pass_v2(request, tmp_path, is_path_xml, is_path_bin):
     core = Core()
-    xml_path = "./serialized_model.xml"
-    bin_path = "./serialized_model.bin"
+    xml_path, bin_path = create_filename_for_test(request.node.name,
+                                                  tmp_path,
+                                                  is_path_xml,
+                                                  is_path_bin)
     shape = [100, 100, 2]
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
@@ -190,10 +212,20 @@ def test_compress_model_transformation():
     assert elem_type == "f16"
 
 
-def test_version_default():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+@pytest.mark.parametrize("is_path_xml, is_path_bin", [  # noqa: PT006
+    (True, True),
+    (True, False),
+    (False, True),
+    (False, False),
+],
+)
+def test_version_default(request, tmp_path, is_path_xml, is_path_bin):
     core = Core()
-    xml_path = "./serialized_model.xml"
-    bin_path = "./serialized_model.bin"
+    xml_path, bin_path = create_filename_for_test(request.node.name,
+                                                  tmp_path,
+                                                  is_path_xml,
+                                                  is_path_bin)
     shape = [100, 100, 2]
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
@@ -210,20 +242,30 @@ def test_version_default():
     os.remove(bin_path)
 
 
-def test_serialize_default_bin():
-    xml_path = "./serialized_model.xml"
-    bin_path = "./serialized_model.bin"
-    model = get_test_model()
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+@pytest.mark.parametrize("is_path_xml, is_path_bin", [  # noqa: PT006
+    (True, True),
+    (True, False),
+    (False, True),
+    (False, False),
+],
+)
+def test_serialize_default_bin(request, tmp_path, is_path_xml, is_path_bin):
+    xml_path, bin_path = create_filename_for_test(request.node.name,
+                                                  tmp_path,
+                                                  is_path_xml,
+                                                  is_path_bin)
+    model = get_relu_model()
     serialize(model, xml_path)
     assert os.path.exists(bin_path)
     os.remove(xml_path)
     os.remove(bin_path)
 
 
-def test_version_ir_v10():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_version_ir_v10(request, tmp_path):
     core = Core()
-    xml_path = "./serialized_model.xml"
-    bin_path = "./serialized_model.bin"
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     shape = [100, 100, 2]
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
@@ -240,10 +282,10 @@ def test_version_ir_v10():
     os.remove(bin_path)
 
 
-def test_version_ir_v11():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_version_ir_v11(request, tmp_path):
     core = Core()
-    xml_path = "./serialized_model.xml"
-    bin_path = "./serialized_model.bin"
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     shape = [100, 100, 2]
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")

@@ -11,11 +11,7 @@
 #include "to_string_utils.h"
 
 namespace cldnn {
-
-primitive_type_id ctc_loss::type_id() {
-    static primitive_type_base<ctc_loss> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(ctc_loss)
 
 layout ctc_loss_inst::calc_output_layout(const ctc_loss_node& node, const kernel_impl_params& impl_param) {
     auto input_layout = impl_param.get_input_layout();

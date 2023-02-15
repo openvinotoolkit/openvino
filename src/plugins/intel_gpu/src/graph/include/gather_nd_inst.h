@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@ using gather_nd_node = typed_program_node<gather_nd>;
 template <>
 class typed_primitive_inst<gather_nd> : public typed_primitive_inst_base<gather_nd> {
     using parent = typed_primitive_inst_base<gather_nd>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(gather_nd_node const& node, kernel_impl_params const& impl_param);

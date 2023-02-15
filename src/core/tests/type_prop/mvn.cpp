@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,7 +40,7 @@ TEST(type_prop, mvn_6) {
     auto data = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
     auto axes = make_shared<op::Parameter>(element::i64, Shape{3});
 
-    auto mvn_func = make_shared<op::v6::MVN>(data, axes, true, 1e-6, op::MVNEpsMode::INSIDE_SQRT);
+    auto mvn_func = make_shared<op::v6::MVN>(data, axes, true, 1e-6f, op::MVNEpsMode::INSIDE_SQRT);
     EXPECT_EQ(mvn_func->get_element_type(), element::f32);
     EXPECT_EQ(mvn_func->get_shape(), (Shape{1, 2, 3, 4}));
 }
@@ -48,7 +48,7 @@ TEST(type_prop, mvn_6) {
 TEST(type_prop, mvn_6_partial) {
     auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), 5, 6});
     auto axes = make_shared<op::Parameter>(element::i64, Shape{3});
-    auto mvn_func = make_shared<op::v6::MVN>(data, axes, true, 1e-6, op::MVNEpsMode::INSIDE_SQRT);
+    auto mvn_func = make_shared<op::v6::MVN>(data, axes, true, 1e-6f, op::MVNEpsMode::INSIDE_SQRT);
     EXPECT_EQ(mvn_func->get_element_type(), element::f32);
     ASSERT_TRUE(mvn_func->get_output_partial_shape(0).same_scheme((PartialShape{1, Dimension::dynamic(), 5, 6})));
 
@@ -56,7 +56,7 @@ TEST(type_prop, mvn_6_partial) {
     auto mvn_partial = make_shared<op::v6::MVN>(make_shared<op::Parameter>(element::f32, PartialShape::dynamic()),
                                                 axes,
                                                 true,
-                                                1e-6,
+                                                1e-6f,
                                                 op::MVNEpsMode::INSIDE_SQRT);
     ASSERT_TRUE(mvn_partial->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }

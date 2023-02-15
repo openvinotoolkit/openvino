@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,30 +36,6 @@ size_t CumSumKernelBase::GetRealAxisIndex(const cum_sum_params& params) const {
     else if (params.outputs[0].Dimentions() == 5)
         return (index > 1) ? index + 1 : index;
     return (index > 1) ? index + 2 : index;
-}
-
-ParamsKey CumSumKernelBase::GetSupportedKey() const {
-    ParamsKey k;
-    k.EnableInputDataType(Datatype::F16);
-    k.EnableInputDataType(Datatype::F32);
-    k.EnableInputDataType(Datatype::INT32);
-    k.EnableInputDataType(Datatype::INT64);
-    k.EnableOutputDataType(Datatype::F16);
-    k.EnableOutputDataType(Datatype::F32);
-    k.EnableOutputDataType(Datatype::INT32);
-    k.EnableOutputDataType(Datatype::INT64);
-
-    k.EnableInputLayout(DataLayout::bfyx);
-    k.EnableInputLayout(DataLayout::bfzyx);
-    k.EnableInputLayout(DataLayout::bfwzyx);
-    k.EnableOutputLayout(DataLayout::bfyx);
-    k.EnableOutputLayout(DataLayout::bfzyx);
-    k.EnableOutputLayout(DataLayout::bfwzyx);
-
-    k.EnableTensorOffset();
-    k.EnableTensorPitches();
-    k.EnableBatching();
-    return k;
 }
 
 JitConstants CumSumKernelBase::GetJitConstants(const cum_sum_params& params, DispatchData) const {
@@ -104,9 +80,21 @@ KernelsData CumSumKernelBase::GetCommonKernelsData(const Params& params,
     auto cldnn_jit = GetJitConstants(newParams, dispatchData);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const cum_sum_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+    };
+
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
+                     "", false, false, 1,
+                     GetFusedPrimitiveInputsCount(params),
+                     1,
+                     newParams.outputs[0].is_dynamic());
 
     return {kd};
 }

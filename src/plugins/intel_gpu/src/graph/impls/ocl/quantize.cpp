@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,13 +18,17 @@ namespace ocl {
 struct quantize_impl : typed_primitive_impl_ocl<quantize> {
     using parent = typed_primitive_impl_ocl<quantize>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::quantize_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::quantize_params, kernel_selector::quantize_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<quantize_impl>(*this);
     }
 
 protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<quantize>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<quantize>& instance) const override {
         kernel_arguments_data args;
 
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
@@ -39,14 +43,16 @@ protected:
             }
         }
         args.outputs = { instance.output_memory_ptr() };
+        args.shape_info = instance.shape_info_memory_ptr();
+
         return args;
     }
 
 public:
-    static primitive_impl* create(const quantize_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const quantize_node& arg, const kernel_impl_params& impl_param) {
         auto quantize_params = get_default_params<kernel_selector::quantize_params>(impl_param);
         auto quantize_optional_params =
-            get_default_optional_params<kernel_selector::quantize_optional_params>(arg.get_program());
+            get_default_optional_params<kernel_selector::quantize_optional_params>(impl_param.get_program());
 
         quantize_params.levels = arg.get_levels();
         quantize_params.packed_binary_output = arg.get_packed_binary_output();
@@ -77,131 +83,78 @@ public:
         for (size_t i = 1; i < arg.inputs_count(); i++) {
             quantize_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
         }
-        const auto& output_layout = impl_param.output_layout;
-        quantize_params.outputs = { convert_data_tensor(output_layout) };
 
         auto& kernel_selector = kernel_selector::quantize_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(quantize_params, quantize_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(quantize_params, quantize_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
+        return make_unique<quantize_impl>(best_kernel);
+    }
 
-        auto quantize = new quantize_impl(arg, best_kernels[0]);
-
-        return quantize;
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        auto quantize_params = get_default_params<kernel_selector::quantize_params>(impl_param);
+        const auto& output_layout = impl_param.get_output_layout();
+        quantize_params.packed_binary_output = output_layout.data_type == data_types::bin;
+        (_kernel_data.update_dispatch_data_func)(quantize_params, _kernel_data);
     }
 };
 
 namespace detail {
 
 attach_quantize_impl::attach_quantize_impl() {
-    implementation_map<quantize>::add(impl_types::ocl, quantize_impl::create, {
-        std::make_tuple(data_types::f16, format::fs_b_yx_fsv32),
-        std::make_tuple(data_types::f32, format::fs_b_yx_fsv32),
-        std::make_tuple(data_types::i8, format::fs_b_yx_fsv32),
-        std::make_tuple(data_types::u8, format::fs_b_yx_fsv32),
+    std::set<implementation_map<quantize>::key_type> keys;
 
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
+    auto types = {
+        data_types::f16,
+        data_types::f32,
+        data_types::i8,
+        data_types::u8
+    };
 
-        std::make_tuple(data_types::f32, format::byxf),
-        std::make_tuple(data_types::f16, format::byxf),
-        std::make_tuple(data_types::u8, format::byxf),
-        std::make_tuple(data_types::i8, format::byxf),
+    auto formats = {
+        format::bfyx,
+        format::byxf,
+        format::b_fs_yx_fsv4,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::fs_b_yx_fsv32,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv16_fsv32,
+        format::bs_fs_yx_bsv32_fsv16,
+        format::bs_fs_yx_bsv32_fsv32,
 
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv4),
+        format::bfzyx,
+        format::b_fs_zyx_fsv16,
+        format::b_fs_zyx_fsv32,
+        format::bs_fs_zyx_bsv16_fsv16,
+        format::bs_fs_zyx_bsv16_fsv32,
+        format::bs_fs_zyx_bsv32_fsv16,
+        format::bs_fs_zyx_bsv32_fsv32,
 
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
+        format::bfwzyx
+    };
 
-        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv32),
-        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv32),
-        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv32),
-        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv32),
+    auto dyn_formats = {
+        format::bfyx,
+        format::bfzyx,
+        format::bfwzyx
+    };
 
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv16),
+    for (const auto type : types) {
+        for (const auto format : formats) {
+            keys.emplace(type, format);
+        }
+    }
 
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv32),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv32),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv32),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv32),
+    keys.emplace(data_types::f16, format::yxfb);
+    keys.emplace(data_types::f32, format::yxfb);
 
-        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv16_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv16_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv16_fsv16),
+    implementation_map<quantize>::add(impl_types::ocl, shape_types::static_shape, quantize_impl::create, keys);
 
-        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv32),
-        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv16_fsv32),
-        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv16_fsv32),
-        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv16_fsv32),
-
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-
-        std::make_tuple(data_types::f32, format::byxf),
-        std::make_tuple(data_types::f16, format::byxf),
-        std::make_tuple(data_types::i32, format::byxf),
-        std::make_tuple(data_types::u8, format::byxf),
-        std::make_tuple(data_types::i8, format::byxf),
-
-        std::make_tuple(data_types::f32, format::yxfb),
-        std::make_tuple(data_types::f16, format::yxfb),
-
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::i32, format::bfzyx),
-        std::make_tuple(data_types::u8, format::bfzyx),
-        std::make_tuple(data_types::i8, format::bfzyx),
-
-        std::make_tuple(data_types::f32, format::bfwzyx),
-        std::make_tuple(data_types::f16, format::bfwzyx),
-        std::make_tuple(data_types::i32, format::bfwzyx),
-        std::make_tuple(data_types::u8, format::bfwzyx),
-        std::make_tuple(data_types::i8, format::bfwzyx),
-
-        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv16),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv32),
-
-        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv32_fsv32),
-        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv32_fsv32),
-        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv32_fsv32),
-        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv32_fsv32),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv16),
-
-        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv32_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv32_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv32_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv32_fsv16),
-    });
+    implementation_map<quantize>::add(impl_types::ocl, shape_types::dynamic_shape, quantize_impl::create, types, dyn_formats);
 }
 
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::quantize_impl)

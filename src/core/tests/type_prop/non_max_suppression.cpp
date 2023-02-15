@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -540,11 +540,11 @@ TEST(type_prop, nms_v5_scalar_inputs_check) {
     }
 }
 
-TEST(type_prop, nms_v5_output_shape) {
+TEST(type_prop, nms_v9_output_shape) {
     const auto boxes = make_shared<op::Parameter>(element::f32, Shape{5, 2, 4});
     const auto scores = make_shared<op::Parameter>(element::f32, Shape{5, 3, 2});
 
-    const auto nms = make_shared<op::v5::NonMaxSuppression>(boxes, scores);
+    const auto nms = make_shared<op::v9::NonMaxSuppression>(boxes, scores);
 
     ASSERT_TRUE(nms->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 3}));
     ASSERT_TRUE(nms->get_output_partial_shape(1).same_scheme(PartialShape{Dimension::dynamic(), 3}));

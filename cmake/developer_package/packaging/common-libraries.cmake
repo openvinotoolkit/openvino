@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -14,10 +14,14 @@ macro(ov_common_libraries_cpack_set_dirs)
     set(OV_CPACK_TOOLSDIR ${CMAKE_INSTALL_BINDIR}) # only C++ tools are here
     set(OV_CPACK_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
     set(OV_CPACK_LIBRARYDIR ${CMAKE_INSTALL_LIBDIR})
-    set(OV_CPACK_RUNTIMEDIR ${CMAKE_INSTALL_LIBDIR})
+    if(WIN32)
+        set(OV_CPACK_RUNTIMEDIR ${CMAKE_INSTALL_BINDIR})
+    else()
+        set(OV_CPACK_RUNTIMEDIR ${CMAKE_INSTALL_LIBDIR})
+    endif()
     set(OV_WHEEL_RUNTIMEDIR ${OV_CPACK_RUNTIMEDIR})
     set(OV_CPACK_ARCHIVEDIR ${CMAKE_INSTALL_LIBDIR})
-    set(OV_CPACK_PLUGINSDIR ${CMAKE_INSTALL_LIBDIR}/openvino-${OpenVINO_VERSION})
+    set(OV_CPACK_PLUGINSDIR ${OV_CPACK_RUNTIMEDIR}/openvino-${OpenVINO_VERSION})
     set(OV_CPACK_IE_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/inferenceengine${OpenVINO_VERSION})
     set(OV_CPACK_NGRAPH_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/ngraph${OpenVINO_VERSION})
     set(OV_CPACK_OPENVINO_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/openvino${OpenVINO_VERSION})
@@ -65,7 +69,7 @@ macro(ov_override_component_names)
     # move requirements.txt to core-dev
     set(OV_CPACK_COMP_DEV_REQ_FILES "${OV_CPACK_COMP_CORE_DEV}")
     # move core_tools to core-dev
-    set(OV_CPACK_COMP_CORE_TOOLS "${OV_CPACK_COMP_CORE_DEV}")
+    # set(OV_CPACK_COMP_CORE_TOOLS "${OV_CPACK_COMP_CORE_DEV}")
 endmacro()
 
 ov_override_component_names()

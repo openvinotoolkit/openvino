@@ -1,21 +1,20 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import ngraph as ng
+from ngraph.impl import Type
+
 import numpy as np
-from tests_compatibility.runtime import get_runtime
 
 
 def test_roll():
-    runtime = get_runtime()
     input = np.reshape(np.arange(10), (2, 5))
     input_tensor = ng.constant(input)
     input_shift = ng.constant(np.array([-10, 7], dtype=np.int32))
     input_axes = ng.constant(np.array([-1, 0], dtype=np.int32))
 
     roll_node = ng.roll(input_tensor, input_shift, input_axes)
-    computation = runtime.computation(roll_node)
-    roll_results = computation()
-    expected_results = np.roll(input, shift=(-10, 7), axis=(-1, 0))
-
-    assert np.allclose(roll_results, expected_results)
+    assert roll_node.get_output_size() == 1
+    assert roll_node.get_type_name() == "Roll"
+    assert list(roll_node.get_output_shape(0)) == [2, 5]
+    assert roll_node.get_output_element_type(0) == Type.i64

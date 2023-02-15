@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,11 +8,7 @@
 #include <json_object.h>
 
 namespace cldnn {
-
-primitive_type_id slice::type_id() {
-    static primitive_type_base<slice> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(slice)
 
 slice_inst::typed_primitive_inst(network& network, slice_node const& node)
     : parent(network, node) {}

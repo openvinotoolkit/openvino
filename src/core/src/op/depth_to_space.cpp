@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,8 +16,6 @@
 #include "ngraph/shape.hpp"
 
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v0::DepthToSpace);
 
 op::DepthToSpace::DepthToSpace(const Output<Node>& data, const DepthToSpaceMode& mode, const size_t block_size)
     : Op({data}),
@@ -100,6 +98,4 @@ EnumNames<ngraph::op::DepthToSpace::DepthToSpaceMode>::get() {
          {"depth_first", ngraph::op::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST}});
     return enum_names;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::v0::DepthToSpace::DepthToSpaceMode>);
 }  // namespace ov

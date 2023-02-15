@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -131,10 +131,7 @@ inline std::string fileExt(const std::string& filename) {
 }
 
 inline slog::LogStream& operator<<(slog::LogStream& os, const ov::Version& version) {
-    os << version.description << " version ......... ";
-    os << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH << slog::endl;
-
-    os << "Build ........... ";
+    os << "Build ................................. ";
     os << version.buildNumber << slog::endl;
 
     return os;
@@ -439,10 +436,10 @@ static UNUSED void addRectangles(unsigned char* data,
             thickness = 1;
         }
 
-        if (static_cast<std::size_t>(x + w) >= width) {
+        if ((static_cast<std::size_t>(x) + w) >= width) {
             w = static_cast<int>(width - x - 1);
         }
-        if (static_cast<std::size_t>(y + h) >= height) {
+        if ((static_cast<std::size_t>(y) + h) >= height) {
             h = static_cast<int>(height - y - 1);
         }
 
@@ -610,10 +607,10 @@ static UNUSED void printPerformanceCounts(const std::map<std::string, ov::Profil
     }
     stream << std::setw(20) << std::left << "Total time: " + std::to_string(totalTime.count()) << " microseconds"
            << std::endl;
-    std::cout << std::endl;
-    std::cout << "Full device name: " << deviceName << std::endl;
-    std::cout << std::endl;
-    std::cout.flags(fmt);
+    stream << std::endl;
+    stream << "Full device name: " << deviceName << std::endl;
+    stream << std::endl;
+    stream.flags(fmt);
 }
 
 /**
@@ -1004,222 +1001,223 @@ inline std::string getFullDeviceName(ov::Core& core, std::string device) {
 static UNUSED void printPerformanceCounts(std::vector<ov::ProfilingInfo> performanceData,
                                           std::ostream& stream,
                                           std::string deviceName,
-                                          bool bshowHeader = true) {
+                                          bool bshowHeader = true,
+                                          int precision = 3) {
     std::chrono::microseconds totalTime = std::chrono::microseconds::zero();
+    std::chrono::microseconds totalTimeCpu = std::chrono::microseconds::zero();
     // Print performance counts
     if (bshowHeader) {
-        stream << std::endl << "performance counts:" << std::endl << std::endl;
+        stream << std::endl << "Performance counts:" << std::endl << std::endl;
     }
     std::ios::fmtflags fmt(std::cout.flags());
+    stream << std::fixed << std::setprecision(precision);
+
     for (const auto& it : performanceData) {
-        std::string toPrint(it.node_name);
-        const int maxLayerName = 30;
-
-        if (it.node_name.length() >= maxLayerName) {
-            toPrint = it.node_name.substr(0, maxLayerName - 4);
-            toPrint += "...";
-        }
-
-        stream << std::setw(maxLayerName) << std::left << toPrint;
-        switch (it.status) {
-        case ov::ProfilingInfo::Status::EXECUTED:
-            stream << std::setw(15) << std::left << "EXECUTED";
-            break;
-        case ov::ProfilingInfo::Status::NOT_RUN:
-            stream << std::setw(15) << std::left << "NOT_RUN";
-            break;
-        case ov::ProfilingInfo::Status::OPTIMIZED_OUT:
-            stream << std::setw(15) << std::left << "OPTIMIZED_OUT";
-            break;
-        }
-        stream << std::setw(30) << std::left << "layerType: " + std::string(it.node_type) + " ";
-        stream << std::setw(20) << std::left << "realTime: " + std::to_string(it.real_time.count());
-        stream << std::setw(20) << std::left << "cpu: " + std::to_string(it.cpu_time.count());
-        stream << " execType: " << it.exec_type << std::endl;
         if (it.real_time.count() > 0) {
             totalTime += it.real_time;
         }
+        if (it.cpu_time.count() > 0) {
+            totalTimeCpu += it.cpu_time;
+        }
+
+        std::string toPrint(it.node_name);
+        const int maxPrintLength = 20;
+
+        if (it.node_name.length() >= maxPrintLength) {
+            toPrint = it.node_name.substr(0, maxPrintLength - 5);
+            toPrint += "...";
+        }
+
+        stream << std::setw(maxPrintLength) << std::left << toPrint << " ";
+        switch (it.status) {
+        case ov::ProfilingInfo::Status::EXECUTED:
+            stream << std::setw(21) << std::left << "EXECUTED ";
+            break;
+        case ov::ProfilingInfo::Status::NOT_RUN:
+            stream << std::setw(21) << std::left << "NOT_RUN ";
+            break;
+        case ov::ProfilingInfo::Status::OPTIMIZED_OUT:
+            stream << std::setw(21) << std::left << "OPTIMIZED_OUT ";
+            break;
+        }
+
+        stream << "layerType: ";
+        if (it.node_type.length() >= maxPrintLength) {
+            stream << std::setw(maxPrintLength) << std::left << it.node_type.substr(0, maxPrintLength - 3) + "..."
+                   << " ";
+        } else {
+            stream << std::setw(maxPrintLength) << std::left << it.node_type << " ";
+        }
+
+        stream << std::setw(30) << std::left << "execType: " + std::string(it.exec_type) << " ";
+        stream << "realTime (ms): " << std::setw(10) << std::left << std::fixed << std::setprecision(3)
+               << it.real_time.count() / 1000.0 << " ";
+        stream << "cpuTime (ms): " << std::setw(10) << std::left << std::fixed << std::setprecision(3)
+               << it.cpu_time.count() / 1000.0 << " ";
+        stream << std::endl;
     }
-    stream << std::setw(20) << std::left << "Total time: " + std::to_string(totalTime.count()) << " microseconds"
-           << std::endl;
-    std::cout << std::endl;
-    std::cout << "Full device name: " << deviceName << std::endl;
-    std::cout << std::endl;
-    std::cout.flags(fmt);
+    stream << std::setw(25) << std::left << "Total time: " << std::fixed << std::setprecision(3)
+           << totalTime.count() / 1000.0 << " milliseconds" << std::endl;
+    stream << std::setw(25) << std::left << "Total CPU time: " << std::fixed << std::setprecision(3)
+           << totalTimeCpu.count() / 1000.0 << " milliseconds" << std::endl;
+    stream << std::endl;
+    stream << "Full device name: " << deviceName << std::endl;
+    stream << std::endl;
+    stream.flags(fmt);
 }
 
 static UNUSED void printPerformanceCounts(ov::InferRequest request,
                                           std::ostream& stream,
                                           std::string deviceName,
-                                          bool bshowHeader = true) {
+                                          bool bshowHeader = true,
+                                          int precision = 3) {
     auto performanceMap = request.get_profiling_info();
-    printPerformanceCounts(performanceMap, stream, deviceName, bshowHeader);
+    printPerformanceCounts(performanceMap, stream, deviceName, bshowHeader, precision);
 }
 
-static UNUSED void printPerformanceCountsNoSort(std::vector<ov::ProfilingInfo> performanceData,
-                                                std::ostream& stream,
-                                                std::string deviceName,
-                                                bool bshowHeader = true) {
-    std::chrono::microseconds totalTime = std::chrono::microseconds::zero();
-    // Print performance counts
-    if (bshowHeader) {
-        stream << std::endl << "performance counts:" << std::endl << std::endl;
-    }
-    std::ios::fmtflags fmt(std::cout.flags());
+static inline std::string double_to_string(const double number) {
+    std::stringstream ss;
+    ss << std::fixed << std::setprecision(2) << number;
+    return ss.str();
+}
 
-    for (const auto& it : performanceData) {
-        if (it.real_time.count() > 0) {
-            totalTime += it.real_time;
-        }
-    }
-    if (totalTime.count() != 0) {
-        for (const auto& it : performanceData) {
-            std::string toPrint(it.node_name);
-            const int maxLayerName = 30;
+template <typename T>
+using uniformDistribution = typename std::conditional<
+    std::is_floating_point<T>::value,
+    std::uniform_real_distribution<T>,
+    typename std::conditional<std::is_integral<T>::value, std::uniform_int_distribution<T>, void>::type>::type;
 
-            if (it.node_name.length() >= maxLayerName) {
-                toPrint = it.node_name.substr(0, maxLayerName - 4);
-                toPrint += "...";
-            }
-
-            stream << std::setw(maxLayerName) << std::left << toPrint;
-            switch (it.status) {
-            case ov::ProfilingInfo::Status::EXECUTED:
-                stream << std::setw(15) << std::left << "EXECUTED";
-                break;
-            case ov::ProfilingInfo::Status::NOT_RUN:
-                stream << std::setw(15) << std::left << "NOT_RUN";
-                break;
-            case ov::ProfilingInfo::Status::OPTIMIZED_OUT:
-                stream << std::setw(15) << std::left << "OPTIMIZED_OUT";
-                break;
-            }
-            stream << std::setw(30) << std::left << "layerType: " + std::string(it.node_type) + " ";
-            stream << std::setw(20) << std::left << "realTime: " + std::to_string(it.real_time.count());
-            stream << std::setw(15) << std::left << "cpu: " + std::to_string(it.cpu_time.count());
-            double opt_proportion = it.real_time.count() * 100.0 / totalTime.count();
-            std::stringstream opt_proportion_ss;
-            opt_proportion_ss << std::fixed << std::setprecision(2) << opt_proportion;
-            std::string opt_proportion_str = opt_proportion_ss.str();
-            if (opt_proportion_str == "0.00") {
-                opt_proportion_str = "N/A";
-            }
-            stream << std::setw(20) << std::left << "proportion: " + opt_proportion_str + "%";
-            stream << " execType: " << it.exec_type << std::endl;
-        }
+template <typename T, typename T2>
+static inline void fill_random(ov::Tensor& tensor,
+                               T rand_min = std::numeric_limits<uint8_t>::min(),
+                               T rand_max = std::numeric_limits<uint8_t>::max()) {
+    std::mt19937 gen(0);
+    size_t tensor_size = tensor.get_size();
+    if (0 == tensor_size) {
+        throw std::runtime_error(
+            "Models with dynamic shapes aren't supported. Input tensors must have specific shapes before inference");
     }
-    stream << std::setw(20) << std::left << "Total time: " + std::to_string(totalTime.count() / 1000.0)
-           << " microseconds" << std::endl;
-    std::cout << std::endl;
-    std::cout << "Full device name: " << deviceName << std::endl;
-    std::cout << std::endl;
-    std::cout.flags(fmt);
+    T* data = tensor.data<T>();
+    uniformDistribution<T2> distribution(rand_min, rand_max);
+    for (size_t i = 0; i < tensor_size; i++) {
+        data[i] = static_cast<T>(distribution(gen));
+    }
+}
+
+static inline void fill_tensor_random(ov::Tensor tensor) {
+    switch (tensor.get_element_type()) {
+    case ov::element::f32:
+        fill_random<float, float>(tensor);
+        break;
+    case ov::element::f64:
+        fill_random<double, double>(tensor);
+        break;
+    case ov::element::f16:
+        fill_random<short, short>(tensor);
+        break;
+    case ov::element::i32:
+        fill_random<int32_t, int32_t>(tensor);
+        break;
+    case ov::element::i64:
+        fill_random<int64_t, int64_t>(tensor);
+        break;
+    case ov::element::u8:
+        // uniform_int_distribution<uint8_t> is not allowed in the C++17
+        // standard and vs2017/19
+        fill_random<uint8_t, uint32_t>(tensor);
+        break;
+    case ov::element::i8:
+        // uniform_int_distribution<int8_t> is not allowed in the C++17 standard
+        // and vs2017/19
+        fill_random<int8_t, int32_t>(tensor, std::numeric_limits<int8_t>::min(), std::numeric_limits<int8_t>::max());
+        break;
+    case ov::element::u16:
+        fill_random<uint16_t, uint16_t>(tensor);
+        break;
+    case ov::element::i16:
+        fill_random<int16_t, int16_t>(tensor);
+        break;
+    case ov::element::boolean:
+        fill_random<uint8_t, uint32_t>(tensor, 0, 1);
+        break;
+    default:
+        throw ov::Exception("Input type is not supported for a tensor");
+    }
 }
 
 static UNUSED bool sort_pc_descend(const ov::ProfilingInfo& profiling1, const ov::ProfilingInfo& profiling2) {
     return profiling1.real_time > profiling2.real_time;
 }
 
-static UNUSED void printPerformanceCountsDescendSort(std::vector<ov::ProfilingInfo> performanceData,
-                                                     std::ostream& stream,
-                                                     std::string deviceName,
-                                                     bool bshowHeader = true) {
+static UNUSED void printPerformanceCountsSort(std::vector<ov::ProfilingInfo> performanceData,
+                                              std::ostream& stream,
+                                              std::string deviceName,
+                                              std::string sorttype,
+                                              bool bshowHeader = true,
+                                              int precision = 3) {
     std::chrono::microseconds totalTime = std::chrono::microseconds::zero();
+    std::chrono::microseconds totalTimeCpu = std::chrono::microseconds::zero();
+
     // Print performance counts
     if (bshowHeader) {
-        stream << std::endl << "performance counts:" << std::endl << std::endl;
+        stream << std::endl << "Performance counts:" << std::endl << std::endl;
     }
     std::ios::fmtflags fmt(std::cout.flags());
+    stream << std::fixed << std::setprecision(precision);
 
     for (const auto& it : performanceData) {
         if (it.real_time.count() > 0) {
             totalTime += it.real_time;
         }
-    }
-    if (totalTime.count() != 0) {
-        // sort perfcounter
-        std::vector<ov::ProfilingInfo> sortPerfCounts{std::begin(performanceData), std::end(performanceData)};
-        std::sort(sortPerfCounts.begin(), sortPerfCounts.end(), sort_pc_descend);
-
-        for (const auto& it : sortPerfCounts) {
-            std::string toPrint(it.node_name);
-            const int maxLayerName = 30;
-
-            if (it.node_name.length() >= maxLayerName) {
-                toPrint = it.node_name.substr(0, maxLayerName - 4);
-                toPrint += "...";
-            }
-
-            stream << std::setw(maxLayerName) << std::left << toPrint;
-            switch (it.status) {
-            case ov::ProfilingInfo::Status::EXECUTED:
-                stream << std::setw(15) << std::left << "EXECUTED";
-                break;
-            case ov::ProfilingInfo::Status::NOT_RUN:
-                stream << std::setw(15) << std::left << "NOT_RUN";
-                break;
-            case ov::ProfilingInfo::Status::OPTIMIZED_OUT:
-                stream << std::setw(15) << std::left << "OPTIMIZED_OUT";
-                break;
-            }
-            stream << std::setw(30) << std::left << "layerType: " + std::string(it.node_type) + " ";
-            stream << std::setw(20) << std::left << "realTime: " + std::to_string(it.real_time.count());
-            stream << std::setw(15) << std::left << "cpu: " + std::to_string(it.cpu_time.count());
-            double opt_proportion = it.real_time.count() * 100.0 / totalTime.count();
-            std::stringstream opt_proportion_ss;
-            opt_proportion_ss << std::fixed << std::setprecision(2) << opt_proportion;
-            std::string opt_proportion_str = opt_proportion_ss.str();
-            if (opt_proportion_str == "0.00") {
-                opt_proportion_str = "N/A";
-            }
-            stream << std::setw(20) << std::left << "proportion: " + opt_proportion_str + "%";
-            stream << " execType: " << it.exec_type << std::endl;
-        }
-    }
-    stream << std::setw(20) << std::left << "Total time: " + std::to_string(totalTime.count() / 1000.0)
-           << " microseconds" << std::endl;
-    std::cout << std::endl;
-    std::cout << "Full device name: " << deviceName << std::endl;
-    std::cout << std::endl;
-    std::cout.flags(fmt);
-}
-
-static UNUSED void printPerformanceCountsSimpleSort(std::vector<ov::ProfilingInfo> performanceData,
-                                                    std::ostream& stream,
-                                                    std::string deviceName,
-                                                    bool bshowHeader = true) {
-    std::chrono::microseconds totalTime = std::chrono::microseconds::zero();
-    // Print performance counts
-    if (bshowHeader) {
-        stream << std::endl << "performance counts:" << std::endl << std::endl;
-    }
-    std::ios::fmtflags fmt(std::cout.flags());
-
-    for (const auto& it : performanceData) {
-        if (it.real_time.count() > 0) {
-            totalTime += it.real_time;
+        if (it.cpu_time.count() > 0) {
+            totalTimeCpu += it.cpu_time;
         }
     }
     if (totalTime.count() != 0) {
-        // sort perfcounter
         std::vector<ov::ProfilingInfo> sortPerfCounts{std::begin(performanceData), std::end(performanceData)};
-        std::sort(sortPerfCounts.begin(), sortPerfCounts.end(), sort_pc_descend);
+        if (sorttype == pcSort || sorttype == pcSimpleSort) {
+            std::sort(sortPerfCounts.begin(), sortPerfCounts.end(), sort_pc_descend);
+        }
 
         for (const auto& it : sortPerfCounts) {
-            if (it.status == ov::ProfilingInfo::Status::EXECUTED) {
+            if ((sorttype == pcSimpleSort && it.status == ov::ProfilingInfo::Status::EXECUTED) ||
+                sorttype != pcSimpleSort) {
                 std::string toPrint(it.node_name);
-                const int maxLayerName = 30;
+                const int maxPrintLength = 20;
 
-                if (it.node_name.length() >= maxLayerName) {
-                    toPrint = it.node_name.substr(0, maxLayerName - 4);
+                if (it.node_name.length() >= maxPrintLength) {
+                    toPrint = it.node_name.substr(0, maxPrintLength - 5);
                     toPrint += "...";
                 }
 
-                stream << std::setw(maxLayerName) << std::left << toPrint;
-                stream << std::setw(15) << std::left << "EXECUTED";
-                stream << std::setw(30) << std::left << "layerType: " + std::string(it.node_type) + " ";
-                stream << std::setw(20) << std::left << "realTime: " + std::to_string(it.real_time.count());
-                stream << std::setw(15) << std::left << "cpu: " + std::to_string(it.cpu_time.count());
+                stream << std::setw(maxPrintLength) << std::left << toPrint << " ";
+                switch (it.status) {
+                case ov::ProfilingInfo::Status::EXECUTED:
+                    stream << std::setw(21) << std::left << "EXECUTED ";
+                    break;
+                case ov::ProfilingInfo::Status::NOT_RUN:
+                    stream << std::setw(21) << std::left << "NOT_RUN ";
+                    break;
+                case ov::ProfilingInfo::Status::OPTIMIZED_OUT:
+                    stream << std::setw(21) << std::left << "OPTIMIZED_OUT ";
+                    break;
+                }
+
+                stream << "layerType: ";
+                if (it.node_type.length() >= maxPrintLength) {
+                    stream << std::setw(maxPrintLength) << std::left
+                           << it.node_type.substr(0, maxPrintLength - 3) + "..."
+                           << " ";
+                } else {
+                    stream << std::setw(maxPrintLength) << std::left << it.node_type << " ";
+                }
+
+                stream << std::setw(30) << std::left << "execType: " + std::string(it.exec_type) << " ";
+                stream << "realTime (ms): " << std::setw(10) << std::left << std::fixed << std::setprecision(3)
+                       << it.real_time.count() / 1000.0 << " ";
+                stream << "cpuTime (ms): " << std::setw(10) << std::left << std::fixed << std::setprecision(3)
+                       << it.cpu_time.count() / 1000.0 << " ";
+
                 double opt_proportion = it.real_time.count() * 100.0 / totalTime.count();
                 std::stringstream opt_proportion_ss;
                 opt_proportion_ss << std::fixed << std::setprecision(2) << opt_proportion;
@@ -1228,28 +1226,14 @@ static UNUSED void printPerformanceCountsSimpleSort(std::vector<ov::ProfilingInf
                     opt_proportion_str = "N/A";
                 }
                 stream << std::setw(20) << std::left << "proportion: " + opt_proportion_str + "%";
-                stream << " execType: " << it.exec_type << std::endl;
+                stream << std::endl;
             }
         }
     }
-    stream << std::setw(20) << std::left << "Total time: " + std::to_string(totalTime.count() / 1000.0)
-           << " microseconds" << std::endl;
-    std::cout << std::endl;
-    std::cout << "Full device name: " << deviceName << std::endl;
-    std::cout << std::endl;
-    std::cout.flags(fmt);
-}
-
-static UNUSED void printPerformanceCountsSort(std::vector<ov::ProfilingInfo> performanceData,
-                                              std::ostream& stream,
-                                              std::string deviceName,
-                                              std::string sorttype,
-                                              bool bshowHeader = true) {
-    if (sorttype == pcNoSort) {
-        printPerformanceCountsNoSort(performanceData, stream, deviceName, bshowHeader);
-    } else if (sorttype == pcSort) {
-        printPerformanceCountsDescendSort(performanceData, stream, deviceName, bshowHeader);
-    } else if (sorttype == pcSimpleSort) {
-        printPerformanceCountsSimpleSort(performanceData, stream, deviceName, bshowHeader);
-    }
+    stream << std::setw(25) << std::left << "Total time: " + std::to_string(totalTime.count() / 1000.0)
+           << " milliseconds" << std::endl;
+    stream << std::endl;
+    stream << "Full device name: " << deviceName << std::endl;
+    stream << std::endl;
+    stream.flags(fmt);
 }

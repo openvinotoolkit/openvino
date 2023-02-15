@@ -32,9 +32,9 @@ each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/integrate_wi
 python hello_classification.py <path_to_model> <path_to_image> <device_name>
 ```
 
-To run the sample, you need specify a model and image:
-- you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
-- you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
+To run the sample, you need to specify a model and image:
+- You can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
+- You can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
 
 > **NOTES**:
 >
@@ -48,7 +48,7 @@ To run the sample, you need specify a model and image:
 
 1. Install the `openvino-dev` Python package to use Open Model Zoo Tools:
    ```
-   python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
+   python -m pip install openvino-dev[caffe]
    ```
 
 2. Download a pre-trained model:
@@ -100,17 +100,17 @@ The sample application logs each step in a standard output stream and outputs to
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 
-<!-- [openvino.runtime.Core]:
-[openvino.runtime.Core.read_model]:
-[openvino.runtime.Core.compile_model]:
-[openvino.runtime.CompiledModel.infer_new_request]:
-[openvino.runtime.Model.inputs]:
-[openvino.runtime.Model.outputs]:
-[openvino.preprocess.PrePostProcessor]:
-[openvino.preprocess.InputTensorInfo.set_element_type]:
-[openvino.preprocess.InputTensorInfo.set_layout]:
-[openvino.preprocess.InputTensorInfo.set_spatial_static_shape]:
-[openvino.preprocess.PreProcessSteps.resize]:
-[openvino.preprocess.InputModelInfo.set_layout]:
-[openvino.preprocess.OutputTensorInfo.set_element_type]:
-[openvino.preprocess.PrePostProcessor.build]: -->
+[openvino.runtime.Core]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Core.html
+[openvino.runtime.Core.read_model]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Core.html#openvino.runtime.Core.read_model
+[openvino.runtime.Core.compile_model]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Core.html#openvino.runtime.Core.compile_model
+[openvino.runtime.CompiledModel.infer_new_request]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.CompiledModel.html#openvino.runtime.CompiledModel.infer_new_request
+[openvino.runtime.Model.inputs]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.inputs
+[openvino.runtime.Model.outputs]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.outputs
+[openvino.preprocess.PrePostProcessor]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.preprocess.PrePostProcessor.html
+[openvino.preprocess.InputTensorInfo.set_element_type]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.preprocess.InputTensorInfo.html#openvino.preprocess.InputTensorInfo.set_element_type
+[openvino.preprocess.InputTensorInfo.set_layout]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.preprocess.InputTensorInfo.html#openvino.preprocess.InputTensorInfo.set_layout
+[openvino.preprocess.InputTensorInfo.set_spatial_static_shape]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.preprocess.InputTensorInfo.html#openvino.preprocess.InputTensorInfo.set_spatial_static_shape
+[openvino.preprocess.PreProcessSteps.resize]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.preprocess.PreProcessSteps.html#openvino.preprocess.PreProcessSteps.resize
+[openvino.preprocess.InputModelInfo.set_layout]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.preprocess.InputModelInfo.html#openvino.preprocess.InputModelInfo.set_layout
+[openvino.preprocess.OutputTensorInfo.set_element_type]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.preprocess.OutputTensorInfo.html#openvino.preprocess.OutputTensorInfo.set_element_type
+[openvino.preprocess.PrePostProcessor.build]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.preprocess.PrePostProcessor.html#openvino.preprocess.PrePostProcessor.build

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,7 @@ public:
     using Base = std::tuple<::ov::RuntimeAttribute>;
     virtual ~RuntimeAttribute() = default;
     virtual bool is_copyable() const;
+    virtual bool is_copyable(const std::shared_ptr<Node>& to) const;
     virtual Any init(const std::shared_ptr<Node>& node) const;
     virtual Any merge(const ov::NodeVector& nodes) const;
     virtual Any merge(const ov::OutputVector& outputs) const;

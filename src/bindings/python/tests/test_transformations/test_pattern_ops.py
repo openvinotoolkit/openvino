@@ -16,7 +16,7 @@ from openvino.runtime.passes import (
 )
 from openvino.runtime.utils.types import get_element_type
 
-from utils.utils import expect_exception
+from tests.test_transformations.utils.utils import expect_exception
 
 
 def test_wrap_type_pattern_type():

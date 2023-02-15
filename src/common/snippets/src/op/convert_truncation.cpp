@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,9 +7,6 @@
 #include "snippets/op/convert_truncation.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
-
-
-BWDCMP_RTTI_DEFINITION(ngraph::snippets::op::ConvertTruncation);
 
 ngraph::snippets::op::ConvertTruncation::ConvertTruncation(const Output<Node>& x, const ov::element::Type& destination_type)
     : ov::op::v0::Convert({x}, destination_type) {

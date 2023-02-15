@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/ops.hpp>
 #include <ngraph/op/constant.hpp>
-#include "ngraph_ops/type_relaxed.hpp"
+#include "ov_ops/type_relaxed.hpp"
 
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 #include "low_precision/rt_info/quantization_alignment_attribute.hpp"
@@ -48,10 +48,10 @@ std::shared_ptr<Node> makeElementwise(const std::shared_ptr<ngraph::Node> data, 
     if ((description.outPrecision == element::undefined) || (description.outPrecision == data->get_output_element_type(0))) {
         operation = std::make_shared<Operation>(data, operationConst);
     } else {
-        operation = std::make_shared<op::TypeRelaxed<Operation>>(
+        operation = std::make_shared<ov::op::TypeRelaxed<Operation>>(
             std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{},
-            ngraph::op::TemporaryReplaceOutputType(data, element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(operationConst, element::f32).get());
+            ov::op::TemporaryReplaceOutputType(data, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(operationConst, element::f32).get());
         ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(operation, description.outPrecision);
     }
 

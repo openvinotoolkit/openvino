@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,10 +13,7 @@
 #include "one_hot_shape_inference.hpp"
 
 namespace cldnn {
-primitive_type_id one_hot::type_id() {
-    static primitive_type_base<one_hot> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(one_hot)
 
 static bool is_output_bfzyx(const layout& input, int32_t axis) {
     if (input.format == format::bfzyx)
@@ -33,7 +30,7 @@ layout one_hot_inst::calc_output_layout(one_hot_node const& node, kernel_impl_pa
     auto input_layout = impl_param.get_input_layout();
     auto desc = impl_param.typed_desc<one_hot>();
 
-    auto dt = desc->output_data_type ? *desc->output_data_type : input_layout.data_type;
+    auto dt = desc->output_data_types[0].value_or(input_layout.data_type);
     auto format = input_layout.format;
 
     if (desc->one_hot_axis > 4) {
@@ -51,7 +48,7 @@ template<typename ShapeType>
 std::vector<layout> one_hot_inst::calc_output_layouts(const one_hot_node& /*node*/, const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<one_hot>();
     auto input_layout = impl_param.get_input_layout(0);
-    auto dt = desc->output_data_type.value_or(input_layout.data_type);
+    auto dt = desc->output_data_types[0].value_or(input_layout.data_type);
 
     ov::op::v1::OneHot op;
     try {

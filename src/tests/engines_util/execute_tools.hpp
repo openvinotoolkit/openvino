@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,10 +26,7 @@
 namespace ngraph {
 class TestOpMultiOut : public op::Op {
 public:
-    static constexpr NodeTypeInfo type_info{"TestOpMultiOut", static_cast<uint64_t>(0)};
-    const NodeTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_OP("TestOpMultiOut");
     TestOpMultiOut() = default;
 
     TestOpMultiOut(const Output<Node>& output_1, const Output<Node>& output_2) : Op({output_1, output_2}) {

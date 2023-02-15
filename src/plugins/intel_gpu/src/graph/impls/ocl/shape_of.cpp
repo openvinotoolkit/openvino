@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,39 +16,60 @@ namespace ocl {
 struct shape_of_impl : typed_primitive_impl_ocl<shape_of> {
     using parent = typed_primitive_impl_ocl<shape_of>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::shape_of_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::shape_of_params, kernel_selector::shape_of_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<shape_of_impl>(*this);
     }
 
-    static primitive_impl* create(const shape_of_node& arg, const kernel_impl_params& impl_param) {
-        auto shape_of_params = get_default_params<kernel_selector::shape_of_params>(impl_param);
-        auto shape_of_optional_params =
-            get_default_optional_params<kernel_selector::shape_of_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        auto params = get_default_params<kernel_selector::shape_of_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::shape_of_optional_params>(impl_param.get_program());
 
-        auto input_layout = impl_param.input_layouts[0];
-        shape_of_params.input_rank = input_layout.get_rank();
-        shape_of_params.input_dims = input_layout.get_dims();
+        auto input_layout = impl_param.get_input_layout(0);
+        params.input_rank = input_layout.is_dynamic() ? input_layout.get_partial_shape().size() : input_layout.get_rank();
+        params.input_dims = input_layout.is_dynamic() ? std::vector<cldnn::tensor::value_type>{} : input_layout.get_dims();
 
-        auto& kernel_selector = kernel_selector::shape_of_instance();
-        auto best_kernels = kernel_selector.GetBestKernels(shape_of_params, shape_of_optional_params);
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
+        return {params, optional_params};
+    }
 
-        auto shape_of = new shape_of_impl(arg, best_kernels[0]);
-
-        return shape_of;
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        auto kernel_params = get_kernel_params(impl_param);
+        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
     }
 };
 
 namespace detail {
 
 attach_shape_of_impl::attach_shape_of_impl() {
-    implementation_map<shape_of>::add(impl_types::ocl, shape_of_impl::create, {});
+    implementation_map<shape_of>::add(impl_types::ocl, shape_types::static_shape, typed_primitive_impl_ocl<shape_of>::create<shape_of_impl>, {});
+
+    auto dyn_types = {
+        data_types::f32,
+        data_types::f16,
+        data_types::i8,
+        data_types::u8,
+        data_types::i32
+    };
+
+    auto dyn_formats = {
+        format::bfyx,
+        format::bfzyx,
+        format::bfwzyx
+    };
+
+    implementation_map<shape_of>::add(impl_types::ocl,
+                                      shape_types::dynamic_shape,
+                                      typed_primitive_impl_ocl<shape_of>::create<shape_of_impl>,
+                                      dyn_types,
+                                      dyn_formats);
 }
 
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::shape_of_impl)

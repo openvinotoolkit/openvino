@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -185,12 +185,12 @@ def build_parser():
     plugin.add_argument('--plugin_path', '-pp', type=str, action=ExistingDirAction, help='Path to a plugin folder.')
     plugin.add_argument('--device', '-d', type=str, required=True,
                         help='The first target device to infer the model specified with the -m or --model option. '
-                             'CPU, GPU, HDDL or MYRIAD are acceptable.')
+                             'CPU, GPU or GNA are acceptable.')
     plugin.add_argument('--config', '-conf', type=str, action=ExistingFileAction,
                         help='Path to config file for -d or -device device plugin')
     plugin.add_argument('--reference_device', '-ref_d', type=str,
                         help='The second target device to infer the model and compare the metrics. '
-                             'CPU, GPU, HDDL or MYRIAD are acceptable.')
+                             'CPU, GPU or GNA are acceptable.')
     plugin.add_argument('--reference_config', '-ref_conf', type=str, action=ExistingFileAction,
                         help='Path to config file for -ref_d or -reference_device device plugin')
     plugin.add_argument('-l', type=str, action=ExistingFileAction,

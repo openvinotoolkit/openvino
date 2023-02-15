@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -120,7 +120,7 @@ TEST_P(ReferenceFakeQuantizeLayerTest, FakeQuantizeWithHardcodedRefs) {
 template <typename T>
 std::vector<T> iota_vector(size_t size) {
     std::vector<T> d(size);
-    std::iota(begin(d), end(d), 0);
+    std::iota(begin(d), end(d), 0.f);
     return d;
 }
 

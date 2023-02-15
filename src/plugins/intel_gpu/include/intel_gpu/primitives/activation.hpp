@@ -1,19 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief activation functions
 enum class activation_func {
@@ -87,11 +80,11 @@ struct activation : public primitive_base<activation> {
     /// @param activation_func activation function.
     /// @param additional_params additional params (slope/max_val/linear a,b).
     activation(const primitive_id& id,
-               const primitive_id& input,
+               const input_info& input,
                activation_func activation_function,
                activation_additional_params additional_params = {0.f, 0.f},
                const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           activation_function(activation_function),
           additional_params(additional_params),
           additional_params_input("") {}
@@ -103,11 +96,11 @@ struct activation : public primitive_base<activation> {
     /// Input x dimension should be equal to input feature size (one value per channel. in case of linear is one pair per channel).
     /// All other dimensions should be 1.
     activation(const primitive_id& id,
-               const primitive_id& input,
+               const input_info& input,
                const primitive_id& additional_params_input,
                activation_func activation_function,
                const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           activation_function(activation_function),
           additional_params({0, 0}),
           additional_params_input(additional_params_input) {}
@@ -123,6 +116,15 @@ struct activation : public primitive_base<activation> {
     /// All other dimensions should be 1.
     primitive_id additional_params_input;
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, activation_function);
+        seed = hash_combine(seed, additional_params.a);
+        seed = hash_combine(seed, additional_params.b);
+        seed = hash_combine(seed, additional_params_input.empty());
+        return seed;
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         if (additional_params_input.empty())
@@ -130,7 +132,4 @@ protected:
         return {additional_params_input};
     }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

@@ -1,7 +1,7 @@
 # Quantizing Cascaded Face detection Model {#pot_example_face_detection_README}
 
 This example demonstrates the use of the [Post-training Optimization Tool API](@ref pot_compression_api_README) for the task of quantizing a face detection model.
-The [MTCNN](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/mtcnn/mtcnn.md) model from Caffe* is used for this purpose.
+The [MTCNN](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/mtcnn) model from Caffe* is used for this purpose.
 A custom `DataLoader` is created to load [WIDER FACE](http://shuoyang1213.me/WIDERFACE/) dataset for a face detection task 
 and the implementation of Recall metric is used for the model evaluation. In addition, this example demonstrates how one can implement 
 an engine to infer a cascaded (composite) model that is represented by multiple submodels in an OpenVino&trade; Intermediate Representation (IR)

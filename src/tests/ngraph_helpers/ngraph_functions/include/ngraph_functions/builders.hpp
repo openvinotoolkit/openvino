@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -289,6 +289,17 @@ std::shared_ptr<ngraph::Node> makeStridedSlice(const ngraph::Output<Node> &in,
                                                const std::vector<int64_t> &shrink_mask = std::vector<int64_t>{},
                                                const std::vector<int64_t> &ellipsis_mask = std::vector<int64_t>{});
 
+std::shared_ptr<ov::Node> makeStridedSlice(const ov::Output<Node> &in,
+                                           const ov::Output<Node> &beginNode,
+                                           const ov::Output<Node> &endNode,
+                                           const ov::Output<Node> &strideNode,
+                                           const element::Type &type,
+                                           const std::vector<int64_t> &begin_mask,
+                                           const std::vector<int64_t> &end_mask,
+                                           const std::vector<int64_t> &new_axis_mask = std::vector<int64_t>{},
+                                           const std::vector<int64_t> &shrink_mask = std::vector<int64_t>{},
+                                           const std::vector<int64_t> &ellipsis_mask = std::vector<int64_t>{});
+
 std::shared_ptr<ngraph::Node> makeSlice(const ngraph::Output<Node> &in,
                                         const std::vector<int64_t> &begin,
                                         const std::vector<int64_t> &end,
@@ -494,6 +505,12 @@ std::shared_ptr<ngraph::Node> makePad(const ngraph::Output<Node>& data,
                                       const std::vector<int64_t>& padsEnd,
                                       float argPadValue,
                                       ngraph::helpers::PadMode padMode);
+
+std::shared_ptr<ov::Node> makePad(const ov::Output<Node>& in,
+                                  const ov::Output<Node>& beginNode,
+                                  const ov::Output<Node>& endNode,
+                                  const ov::Output<Node>& valueNode,
+                                  ngraph::helpers::PadMode padMode);
 
 std::shared_ptr<ngraph::Node> makeBatchNormInference(const ngraph::Output<Node>& data,
                                                      double epsilon);

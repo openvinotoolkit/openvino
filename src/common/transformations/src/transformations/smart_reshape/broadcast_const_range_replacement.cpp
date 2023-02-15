@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-ngraph::pass::BroadcastConstRangeReplacement::BroadcastConstRangeReplacement() {
+ov::pass::BroadcastConstRangeReplacement::BroadcastConstRangeReplacement() {
     MATCHER_SCOPE(BroadcastConstRangeReplacement);
     auto data_input = pattern::wrap_type<ngraph::opset8::Constant>();
     auto target_shape = pattern::any_input();

@@ -54,13 +54,13 @@ const std::vector<int64_t> adjust_axes(const std::vector<int64_t>& axes_to_align
 std::vector<int64_t> try_get_unsqueeze_axes_from_reshape(const ov::Shape& target_shape, const ov::Shape& input_shape) {
     std::vector<int64_t> result;
     if (input_shape.size() == 0) {  // scalar case - can be reshaped only to [1,..,1] shape
-        result.resize(target_shape.size());
+        result.resize(target_shape.size(), 0);
         std::iota(std::begin(result), std::end(result), 0);
         return result;
     }
-    auto cur_input_shape_elem_idx = 0;
+    size_t cur_input_shape_elem_idx = 0;
     auto cur_input_shape_elem = input_shape[cur_input_shape_elem_idx];
-    auto target_shape_idx = 0;
+    size_t target_shape_idx = 0;
     for (; target_shape_idx < target_shape.size(); ++target_shape_idx) {
         if (cur_input_shape_elem == target_shape[target_shape_idx] &&
             cur_input_shape_elem_idx + 1 < input_shape.size()) {
@@ -103,7 +103,7 @@ ov::pass::PullUnsqueezeThroughReduce::PullUnsqueezeThroughReduce() {
 
     const auto input = pattern::any_input(pattern::has_static_rank());
     const auto unsqueeze_axes = pattern::wrap_type<opset9::Constant>();
-    const auto unsqueeze = pattern::wrap_type<opset9::Unsqueeze>({input, unsqueeze_axes}, pattern::has_static_rank());
+    const auto unsqueeze = pattern::wrap_type<opset9::Unsqueeze>({input, unsqueeze_axes}, pattern::consumers_count(1));
     const auto reduce_axes = pattern::wrap_type<opset9::Constant>();
     const auto reduce = pattern::wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(
         {unsqueeze, reduce_axes});
@@ -120,6 +120,10 @@ ov::pass::PullUnsqueezeThroughReduce::PullUnsqueezeThroughReduce() {
             std::dynamic_pointer_cast<opset9::Constant>(pattern_map.at(reduce_axes).get_node_shared_ptr());
 
         if (!unsqueeze_axes_input || !reduce_axes_input || !reduce_node) {
+            return false;
+        }
+
+        if (unsqueeze_node->get_output_partial_shape(0).rank().is_dynamic()) {
             return false;
         }
 
@@ -172,7 +176,7 @@ ov::pass::PullReshapeThroughReduce::PullReshapeThroughReduce() {
     const auto input = pattern::any_input(pattern::has_static_shape());
     const auto reshape_target_shape = pattern::wrap_type<opset9::Constant>();
     const auto reshape =
-        pattern::wrap_type<opset9::Reshape>({input, reshape_target_shape}, pattern::has_static_shape());
+        pattern::wrap_type<opset9::Reshape>({input, reshape_target_shape}, pattern::consumers_count(1));
     const auto reduce_axes = pattern::wrap_type<opset9::Constant>();
     const auto reduce = pattern::wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(
         {reshape, reduce_axes});
@@ -186,6 +190,9 @@ ov::pass::PullReshapeThroughReduce::PullReshapeThroughReduce() {
             return false;
         }
         const auto reshape_node = pattern_map.at(reshape).get_node_shared_ptr();
+        if (reshape_node->get_output_partial_shape(0).is_dynamic()) {
+            return false;
+        }
         const auto unsqueeze_axes =
             try_get_unsqueeze_axes_from_reshape(reshape_node->get_shape(), input_node->get_shape());
         if (unsqueeze_axes.empty()) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,9 +61,9 @@ struct ProposalV1Params {
               attrs.infer_probs = false;
 
               std::vector<IT> inputShapeValues;
-              inputShapeValues.push_back(image_h);
-              inputShapeValues.push_back(image_w);
-              inputShapeValues.push_back(image_z);
+              inputShapeValues.push_back(static_cast<IT>(image_h));
+              inputShapeValues.push_back(static_cast<IT>(image_w));
+              inputShapeValues.push_back(static_cast<IT>(image_z));
               imageShapeData = CreateTensor(iType, inputShapeValues);
           }
 
@@ -132,9 +132,9 @@ struct ProposalV4Params {
               attrs.infer_probs = true;
 
               std::vector<IT> inputShapeValues;
-              inputShapeValues.push_back(image_h);
-              inputShapeValues.push_back(image_w);
-              inputShapeValues.push_back(image_z);
+              inputShapeValues.push_back(static_cast<IT>(image_h));
+              inputShapeValues.push_back(static_cast<IT>(image_w));
+              inputShapeValues.push_back(static_cast<IT>(image_z));
               imageShapeData = CreateTensor(iType, inputShapeValues);
           }
 

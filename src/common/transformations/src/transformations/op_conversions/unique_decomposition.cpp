@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,6 +67,27 @@ ov::pass::UniqueDecomposition::UniqueDecomposition() {
         auto x_type = x_unflatten.get_element_type();
         if (!x_type.is_real() && !x_type.is_integral_number()) {
             return false;
+        }
+
+        // in case the input with the single input, there is no transformation required
+        // this separate pass needed since now there is no handler for empty tensors
+        // that should be converted to empty Constant nodes
+        // x is already of rank equal to 1 after Reshape
+        auto x_shape = x->get_input_partial_shape(0);
+        if (x_shape[0].is_static() && x_shape[0] == 1) {
+            if (!unique_node->get_output_target_inputs(0).empty()) {
+                x->set_friendly_name(unique_node->get_friendly_name() + ".0");
+                unique_node->output(0).replace(x->output(0));
+            }
+
+            if (!unique_node->get_output_target_inputs(2).empty()) {
+                auto zero_const = rg.make<Constant>(output_indices_type, Shape{1}, 0);
+                zero_const->set_friendly_name(unique_node->get_friendly_name() + ".2");
+                unique_node->output(2).replace(zero_const->output(0));
+            }
+
+            copy_runtime_info(unique_node, rg.get());
+            return true;
         }
 
         // denote a number of elements in x as n

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,6 @@ namespace v10 {
 class OPENVINO_API IsInf : public Op {
 public:
     OPENVINO_OP("IsInf", "opset10");
-
     /// \brief A Structure which contains all IsInf attributes
     struct Attributes {
         // A flag which specifies whether to map negative infinities to true.

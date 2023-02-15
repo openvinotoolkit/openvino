@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """ Script to acquire model IRs for stress tests.
@@ -18,7 +18,7 @@ import sys
 from distutils.dir_util import copy_tree
 from inspect import getsourcefile
 from pathlib import Path
-from xml.etree import ElementTree as ET
+import defusedxml.ElementTree as ET
 
 log.basicConfig(format="{file}: [ %(levelname)s ] %(message)s".format(file=os.path.basename(__file__)),
                 level=log.INFO, stream=sys.stdout)

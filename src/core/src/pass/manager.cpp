@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,8 @@
 
 using namespace std;
 
+#ifdef ENABLE_PROFILING_ITT
+
 namespace ov {
 namespace pass {
 namespace {
@@ -35,6 +37,8 @@ PerfCounters& perf_counters() {
 }  // namespace
 }  // namespace pass
 }  // namespace ov
+
+#endif  // ENABLE_PROFILING_ITT
 
 ov::pass::Manager::Manager()
     : m_pass_config(std::make_shared<PassConfig>()),
