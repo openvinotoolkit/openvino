@@ -229,25 +229,26 @@ void FullyConnected::getSupportedDescriptors() {
     auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(DATA_ID));
     outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalOutputPrecisionAtPort(DATA_ID));
 
-    if (inputDataType == memory::data_type::f32) {
-        outputDataType = memory::data_type::f32;
-    }
-
     if (!fusedWith.empty()) {
         outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));
     }
     auto weightsDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(WEIGHTS_ID));
 
-    // FQ is allowed to be fused into non-INT8 parent Node, in such case it doesn't change the outputDataType
-
-    if ((!one_of(inputDataType , memory::data_type::u8, memory::data_type::s8) || weightsDataType != memory::data_type::s8)
-            && inputDataType != memory::data_type::bf16) {
-        inputDataType = outputDataType = memory::data_type::f32;
-    }
-
-    if (inputDataType == memory::data_type::bf16
-        && one_of(outputDataType , memory::data_type::u8, memory::data_type::s8)) {
-        outputDataType = memory::data_type::bf16;
+    // revert back outputDataType on special cases
+    if (inputDataType == memory::data_type::f32) {
+        // oneDNN only support f32 output when input is f32, even if FQ is fused
+        outputDataType = memory::data_type::f32;
+    } else if (inputDataType == memory::data_type::bf16) {
+        // bf16 input only supports bf16/f32 output, even if FQ is fused as post-ops
+        if (one_of(outputDataType , memory::data_type::u8, memory::data_type::s8)) {
+            outputDataType = memory::data_type::bf16;
+        }
+    } else if (one_of(inputDataType, memory::data_type::u8, memory::data_type::s8)) {
+        if (weightsDataType != memory::data_type::s8) {
+            // weight has to be s8 for INT8 mode, otherwise fallback to
+            // f32 mode
+            inputDataType = outputDataType = memory::data_type::f32;
+        }
     }
 
     inDims = isDynamicNode() ? makeDummyInputDims() : getInputShapeAtPort(DATA_ID).getStaticDims();
@@ -328,6 +329,10 @@ void FullyConnected::prepareParams() {
         }
         // fallback
         if (!execPtr) {
+            DEBUG_LOG(" ??? ", key.inp0->getDnnlDesc());
+            DEBUG_LOG(" ??? ", key.inp1->getDnnlDesc());
+            DEBUG_LOG(" ??? ", key.out->getDnnlDesc());
+
             auto inDesc = key.inp0->getDnnlDesc();
             if (inDesc.dims().size() == 3) {
                 auto inDims = inDesc.dims();
@@ -341,6 +346,8 @@ void FullyConnected::prepareParams() {
                 auto normalizedOutDims = { outDims[0] * outDims[1], outDims[2] };
                 outDesc = outDesc.reshape(normalizedOutDims);
             }
+            DEBUG_LOG(" ???=== inDesc ", inDesc);
+            DEBUG_LOG(" ???=== outDesc ", outDesc);
 
             std::shared_ptr<dnnl::inner_product_forward::desc> fcDsc;
             if (key.bias) {
