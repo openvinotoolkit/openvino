@@ -3,7 +3,6 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -12,7 +11,8 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_numel(NodeContext& context) {
-    return {numel(context, 0)};
+    num_inputs_check(context, 1, 1);
+    return {numel(context, context.get_input(0))};
 };
 
 }  // namespace op

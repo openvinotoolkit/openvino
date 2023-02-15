@@ -5,7 +5,6 @@
 #pragma once
 
 #include <cpu_memory.h>
-#include <primitive.h>
 #include <onednn/iml_type_mapper.h>
 
 namespace ov {
@@ -30,7 +29,7 @@ class DnnlExecutor {
         void exec(std::unordered_map<int, dnnl::memory> primArgs, dnnl::stream strm);
         bool needReordering() const;
         virtual ~DnnlExecutor() = default;
-        Primitive getExecPrim() const;
+        dnnl::primitive getExecPrim() const;
         const_dnnl_primitive_desc_t getPrimitiveDesc() const;
         dnnl::memory::desc getSrcDesc() const;
         dnnl::memory::desc getWeightDesc() const;
@@ -39,7 +38,7 @@ class DnnlExecutor {
 
     protected:
         DnnlExecutor() = default;
-        Primitive execPrim;
+        dnnl::primitive execPrim;
         // key is the port number for the primitive that needs memory reordering
         std::unordered_map<int, IntermReorder> inputReorders;
         std::unordered_map<int, IntermReorder> outputReorders;

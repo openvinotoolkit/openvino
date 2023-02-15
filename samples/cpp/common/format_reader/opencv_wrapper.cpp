@@ -27,6 +27,8 @@ OCVReader::OCVReader(const string& filename) {
     _size = img.size().width * img.size().height * img.channels();
     _width = img.size().width;
     _height = img.size().height;
+    _shape.push_back(_height);
+    _shape.push_back(_width);
 }
 
 std::shared_ptr<unsigned char> OCVReader::getData(size_t width = 0, size_t height = 0) {
