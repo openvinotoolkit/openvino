@@ -4,6 +4,7 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "utils.hpp"
 
@@ -13,10 +14,12 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_embedding(NodeContext& context) {
+    // aten::embedding(Tensor weight, Tensor indices, SymInt padding_idx=-1, bool scale_grad_by_freq=False, bool
+    // sparse=False) parameters 2, 3 and 4 used only for training case and connected with gradients propagation
     num_inputs_check(context, 5, 5);
     auto data = context.get_input(0);
     auto indices = context.get_input(1);
-    // TODO: find out the meaning of input idx 2
+    indices = context.mark_node(std::make_shared<ov::op::v0::Convert>(indices, element::i64));
     FRONT_END_OP_CONVERSION_CHECK(
         context.const_input<bool>(3) == false && context.const_input<bool>(4) == false,
         "Only False is supported on inputs with indexes 3 and 4 for aten::embedding translation");
