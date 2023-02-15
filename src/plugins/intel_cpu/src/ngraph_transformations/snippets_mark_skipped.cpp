@@ -484,7 +484,7 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
         } else if (isSuitableSubtractAsZeroPointsParent(node)) {
             SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
             channelAxis = DEFAULT_AXIS;
-        } else if (isSuitableConvert(node)) {
+        } else if (enableBF16 && isSuitableConvert(node)) {
             SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
             channelAxis = DEFAULT_AXIS;
         } else {
