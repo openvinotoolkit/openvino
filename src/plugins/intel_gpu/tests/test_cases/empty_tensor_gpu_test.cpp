@@ -75,9 +75,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_empty, test_empty_tensor,
             1
         },
         {
-            layout{ov::PartialShape{3, 1, 2, 5}, data_types::i32, format::bfyx},
-            layout{ov::PartialShape{4, 3}, data_types::i32, format::bfyx},
-            0
+            layout{ov::PartialShape{3, 1, 2, 5, 1}, data_types::i32, format::bfzyx},
+            layout{ov::PartialShape{5, 3}, data_types::i32, format::bfyx},
+            1
         }
     }));
 } // namespace
