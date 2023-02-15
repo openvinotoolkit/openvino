@@ -155,11 +155,15 @@ void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream, bool dump
     tmp_size.batch[0] = batch_size;
     if (tmp_size == size) {
         file_stream << "shape: " << size.to_string() << " ";
-        file_stream << "(count: " << size.count() << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format) << ")" << (dump_raw ? " raw data": "") << std::endl;
+        file_stream << "(count: " << size.count()
+                    << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format) << ")"
+                    << (dump_raw ? " raw data" : "") << std::endl;
     } else {
         file_stream << "shape: " << tmp_size.to_string() << " ";
-        file_stream << "(count: " << tmp_size.count() << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format)
-            << ", original shape: " << size.to_string() << ")" << (dump_raw ? " raw data": "")  << std::endl;
+        file_stream << "(count: " << tmp_size.count()
+                    << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format)
+                    << ", original shape: " << size.to_string() << ")"
+                    << (dump_raw ? " raw data" : "") << std::endl;
     }
 
     mem_lock<T, mem_lock_type::read> lock(mem, stream);
@@ -187,7 +191,7 @@ void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream, bool dump
             }
         }
     } else {
-        for (size_t i = 0; i < mem->count(); ++i) {
+        for (size_t i = 0; i < lock.size(); ++i) {
             buffer << std::fixed << std::setprecision(6) << convert_element(mem_ptr[i]) << std::endl;
         }
     }
@@ -223,7 +227,7 @@ void dump<uint32_t>(memory::ptr mem, stream& stream, std::ofstream& file_stream,
             }
         }
     } else {
-        for (size_t i = 0; i < mem->count(); ++i) {
+        for (size_t i = 0; i < lock.size(); ++i) {
             file_stream << std::fixed << std::setprecision(6) << mem_ptr[i] << std::endl;
         }
     }
@@ -991,11 +995,13 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                 std::cerr << inst->id() << std::endl;
             }
 
-            GPU_DEBUG_IF(debug_config->dump_layers_dst_only == 0 &&
-                            debug_config->is_dumped_layer(layer_name)) {
+            GPU_DEBUG_IF(debug_config->dump_layers_dst_only == 0 && debug_config->is_dumped_layer(layer_name)) {
                 for (size_t i = 0; i < get_primitive(inst->id())->dependencies().size(); i++) {
-                    log_memory_to_file(get_primitive(inst->id())->dep_memory_ptr(i), get_stream(),
-                                       layer_name + "_src_" + std::to_string(i), debug_config->dump_layers_raw);
+                    log_memory_to_file(get_primitive(inst->id())->dep_memory_ptr(i),
+                                       get_stream(),
+                                       "program_" + std::to_string(get_program()->get_id()) + "_" + layer_name +
+                                           "_src_" + std::to_string(i),
+                                       debug_config->dump_layers_raw);
                 }
             }
         }
@@ -1007,8 +1013,11 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
             const std::string layer_name = inst->id();
             GPU_DEBUG_IF(debug_config->is_dumped_layer(layer_name, inst->is_output())) {
                 for (size_t i = 0; i < get_primitive(inst->id())->outputs_memory_count(); i++) {
-                    log_memory_to_file(get_primitive(inst->id())->output_memory_ptr(i), get_stream(),
-                                       layer_name + "_dst_" + std::to_string(i), debug_config->dump_layers_raw);
+                    log_memory_to_file(get_primitive(inst->id())->output_memory_ptr(i),
+                                       get_stream(),
+                                       "program_" + std::to_string(get_program()->get_id()) + "_" + layer_name +
+                                           "_dst_" + std::to_string(i),
+                                       debug_config->dump_layers_raw);
                 }
             }
         }

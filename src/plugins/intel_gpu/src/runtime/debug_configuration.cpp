@@ -245,6 +245,8 @@ bool debug_configuration::is_dumped_layer(const std::string& layerName, bool is_
         return true;
     if (dump_layers.empty() && dump_layers_result == 0)
         return true;
+    if (dump_layers.size() == 1 && dump_layers[0] == "*")
+        return true;
 
     auto iter = std::find_if(dump_layers.begin(), dump_layers.end(), [&](const std::string& dl){
         return (layerName.compare(dl) == 0);
