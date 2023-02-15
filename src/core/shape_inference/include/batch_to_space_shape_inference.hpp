@@ -45,7 +45,7 @@ std::vector<TShape> shape_infer(const BatchToSpace* op,
 
     const ov::Rank data_rank = data_shape.rank();
     if (data_rank.is_static()) {
-        static constexpr size_t spatial_dim_offset = 1;
+        constexpr size_t spatial_dim_offset = 1;
         NODE_VALIDATION_CHECK(op,
                               (data_shape.size() > spatial_dim_offset),
                               "data input must have rank greater or equal than 2. Got: ",
