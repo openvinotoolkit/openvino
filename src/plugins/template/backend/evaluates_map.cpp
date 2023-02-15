@@ -35,12 +35,12 @@
 // #include <ngraph/runtime/reference/experimental_detectron_roi_feature_extractor.hpp>
 // #include <ngraph/runtime/reference/experimental_detectron_topk_rois.hpp>
 // #include <ngraph/runtime/reference/extract_image_patches.hpp>
-#include <ngraph/runtime/reference/fft.hpp>
-#include <ngraph/runtime/reference/gather.hpp>
-#include <ngraph/runtime/reference/gather_elements.hpp>
-#include <ngraph/runtime/reference/gather_nd.hpp>
-#include <ngraph/runtime/reference/gather_tree.hpp>
-#include <ngraph/runtime/reference/gelu.hpp>
+// #include <ngraph/runtime/reference/fft.hpp>
+// #include <ngraph/runtime/reference/gather.hpp>
+// #include <ngraph/runtime/reference/gather_elements.hpp>
+// #include <ngraph/runtime/reference/gather_nd.hpp>
+// #include <ngraph/runtime/reference/gather_tree.hpp>
+// #include <ngraph/runtime/reference/gelu.hpp>
 #include <ngraph/runtime/reference/generate_proposal.hpp>
 #include <ngraph/runtime/reference/greater.hpp>
 #include <ngraph/runtime/reference/grid_sample.hpp>
@@ -1613,235 +1613,6 @@ bool evaluate(const shared_ptr<op::v9::MulticlassNms>& op,
     return true;
 }
 
-namespace fft_v7 {
-struct InfoForFFT7 {
-    std::vector<float> input_data;
-    std::vector<int64_t> axes_data;
-    Shape input_data_shape;
-    Shape axes_data_shape;
-    Shape output_shape;
-};
-
-std::vector<int64_t> get_signal_size(const std::vector<std::shared_ptr<HostTensor>>& inputs, size_t num_of_axes) {
-    if (inputs.size() == 3) {
-        return get_integers(inputs[2], inputs[2]->get_shape());
-    }
-
-    return std::vector<int64_t>(num_of_axes, static_cast<int64_t>(-1));
-}
-
-InfoForFFT7 get_info_for_fft7_eval(const std::vector<std::shared_ptr<HostTensor>>& inputs) {
-    InfoForFFT7 result;
-
-    result.input_data_shape = inputs[0]->get_shape();
-    result.axes_data_shape = inputs[1]->get_shape();
-    result.input_data = get_floats(inputs[0], result.input_data_shape);
-    result.axes_data = get_integers(inputs[1], result.axes_data_shape);
-
-    auto output_shape = result.input_data_shape;
-
-    int64_t input_rank = static_cast<int64_t>(result.input_data_shape.size());
-    int64_t complex_data_rank = input_rank - 1;
-    auto canonicalized_axes =
-        runtime::reference::canonicalize_axes(result.axes_data.data(), result.axes_data_shape, complex_data_rank);
-
-    size_t num_of_axes = result.axes_data.size();
-    auto signal_size = get_signal_size(inputs, num_of_axes);
-
-    for (size_t i = 0; i < num_of_axes; ++i) {
-        int64_t current_axis = canonicalized_axes[i];
-        int64_t current_signal_size = signal_size[i];
-        if (current_signal_size != -1) {
-            output_shape[current_axis] = current_signal_size;
-        }
-    }
-
-    result.output_shape = output_shape;
-
-    return result;
-}
-}  // namespace fft_v7
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v7::DFT>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    auto info = fft_v7::get_info_for_fft7_eval(inputs);
-    outputs[0]->set_shape(info.output_shape);
-
-    std::vector<float> fft_result(shape_size(info.output_shape), 0.0f);
-    runtime::reference::fft(info.input_data.data(),
-                            info.input_data_shape,
-                            info.axes_data.data(),
-                            info.axes_data_shape,
-                            fft_result.data(),
-                            info.output_shape,
-                            runtime::reference::FFTKind::Forward);
-
-    const auto output_type = op->get_input_element_type(0);
-    runtime::reference::fft_postprocessing(outputs, output_type, fft_result);
-    return true;
-}
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v7::IDFT>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    auto info = fft_v7::get_info_for_fft7_eval(inputs);
-    outputs[0]->set_shape(info.output_shape);
-
-    std::vector<float> fft_result(shape_size(info.output_shape), 0.0f);
-    runtime::reference::fft(info.input_data.data(),
-                            info.input_data_shape,
-                            info.axes_data.data(),
-                            info.axes_data_shape,
-                            fft_result.data(),
-                            info.output_shape,
-                            runtime::reference::FFTKind::Inverse);
-
-    const auto output_type = op->get_input_element_type(0);
-    runtime::reference::fft_postprocessing(outputs, output_type, fft_result);
-    return true;
-}
-
-namespace rfft_v9 {
-struct InfoForRFFT9 {
-    std::vector<float> input_data;
-    std::vector<int64_t> axes_data;
-    Shape input_data_shape;
-    Shape axes_data_shape;
-    Shape fft_output_shape;
-    Shape output_shape;
-};
-
-InfoForRFFT9 get_info_for_rfft9_eval(const std::vector<std::shared_ptr<HostTensor>>& inputs) {
-    InfoForRFFT9 result;
-
-    result.input_data_shape = inputs[0]->get_shape();
-    result.axes_data_shape = inputs[1]->get_shape();
-    result.input_data = get_floats(inputs[0], result.input_data_shape);
-    result.axes_data = get_integers(inputs[1], result.axes_data_shape);
-
-    auto fft_output_shape = result.input_data_shape;
-    auto output_shape = result.input_data_shape;
-
-    int64_t input_rank = static_cast<int64_t>(result.input_data_shape.size());
-    auto canonicalized_axes =
-        runtime::reference::canonicalize_axes(result.axes_data.data(), result.axes_data_shape, input_rank);
-
-    size_t num_of_axes = result.axes_data.size();
-    auto signal_size = fft_v7::get_signal_size(inputs, num_of_axes);
-
-    const auto last_axis = canonicalized_axes.back();
-    for (size_t i = 0; i < num_of_axes; ++i) {
-        int64_t current_axis = canonicalized_axes[i];
-        int64_t current_signal_size = signal_size[i];
-        if (current_signal_size != -1) {
-            fft_output_shape[current_axis] = current_signal_size;
-            output_shape[current_axis] = current_signal_size;
-        }
-    }
-    output_shape[last_axis] = fft_output_shape[last_axis] / 2 + 1;
-    output_shape.push_back(2);
-    fft_output_shape.push_back(2);
-
-    result.fft_output_shape = fft_output_shape;
-    result.output_shape = output_shape;
-
-    result.axes_data = canonicalized_axes;
-
-    return result;
-}
-}  // namespace rfft_v9
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v9::RDFT>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    auto info = rfft_v9::get_info_for_rfft9_eval(inputs);
-    outputs[0]->set_shape(info.output_shape);
-
-    std::vector<float> rfft_result(shape_size(info.output_shape), 0.0f);
-    runtime::reference::rdft(info.input_data,
-                             info.input_data_shape,
-                             info.axes_data,
-                             info.fft_output_shape,
-                             rfft_result.data());
-
-    const auto output_type = op->get_input_element_type(0);
-    runtime::reference::fft_postprocessing(outputs, output_type, rfft_result);
-    return true;
-}
-
-namespace irfft_v9 {
-struct InfoForIRFFT9 {
-    std::vector<float> input_data;
-    std::vector<int64_t> axes_data;
-    Shape input_data_shape;
-    Shape axes_data_shape;
-    Shape fft_output_shape;
-    Shape output_shape;
-    int64_t last_signal_size;
-};
-
-InfoForIRFFT9 get_info_for_irfft9_eval(const std::vector<std::shared_ptr<HostTensor>>& inputs) {
-    InfoForIRFFT9 result;
-
-    result.input_data_shape = inputs[0]->get_shape();
-    result.axes_data_shape = inputs[1]->get_shape();
-    result.input_data = get_floats(inputs[0], result.input_data_shape);
-    result.axes_data = get_integers(inputs[1], result.axes_data_shape);
-
-    auto fft_output_shape = result.input_data_shape;
-    auto output_shape = result.input_data_shape;
-
-    int64_t input_rank = static_cast<int64_t>(result.input_data_shape.size());
-    int64_t complex_data_rank = input_rank - 1;
-    auto canonicalized_axes =
-        runtime::reference::canonicalize_axes(result.axes_data.data(), result.axes_data_shape, complex_data_rank);
-
-    size_t num_of_axes = result.axes_data.size();
-    auto signal_size = fft_v7::get_signal_size(inputs, num_of_axes);
-
-    const auto last_axis = canonicalized_axes.back();
-    for (size_t i = 0; i < num_of_axes; ++i) {
-        int64_t current_axis = canonicalized_axes[i];
-        int64_t current_signal_size = signal_size[i];
-        if (current_signal_size != -1) {
-            fft_output_shape[current_axis] = static_cast<size_t>(current_signal_size);
-            output_shape[current_axis] = static_cast<size_t>(current_signal_size);
-        }
-    }
-    result.last_signal_size = signal_size.back();
-    if (signal_size.back() == -1) {
-        output_shape[last_axis] = 2 * (result.input_data_shape[last_axis] - 1);
-        fft_output_shape[last_axis] = 2 * (result.input_data_shape[last_axis] - 1);
-        result.last_signal_size = 2 * (result.input_data_shape[last_axis] - 1);
-    }
-
-    output_shape.pop_back();
-
-    result.fft_output_shape = fft_output_shape;
-    result.output_shape = output_shape;
-    result.axes_data = canonicalized_axes;
-
-    return result;
-}
-}  // namespace irfft_v9
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v9::IRDFT>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    auto info = irfft_v9::get_info_for_irfft9_eval(inputs);
-    outputs[0]->set_shape(info.output_shape);
-
-    std::vector<float> irfft_result(shape_size(info.output_shape), 0.0f);
-    runtime::reference::irdft(info.input_data,
-                              info.input_data_shape,
-                              info.axes_data,
-                              irfft_result.data(),
-                              info.fft_output_shape,
-                              info.output_shape,
-                              info.last_signal_size);
-
-    const auto output_type = op->get_input_element_type(0);
-    runtime::reference::fft_postprocessing(outputs, output_type, irfft_result);
-    return true;
-}
-
 template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v0::LRN>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     using T = typename element_type_traits<ET>::value_type;
@@ -1961,26 +1732,6 @@ bool evaluate(const shared_ptr<op::v0::Selu>& op, const HostTensorVector& output
                                 shape_size(inputs[0]->get_shape()),
                                 shape_size(inputs[1]->get_shape()),
                                 shape_size(inputs[2]->get_shape()));
-    return true;
-}
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v0::Gelu>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::gelu<T>(inputs[0]->get_data_ptr<T>(),
-                                outputs[0]->get_data_ptr<T>(),
-                                op::GeluApproximationMode::ERF,
-                                shape_size(inputs[0]->get_shape()));
-    return true;
-}
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v7::Gelu>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::gelu<T>(inputs[0]->get_data_ptr<T>(),
-                                outputs[0]->get_data_ptr<T>(),
-                                op->get_approximation_mode(),
-                                shape_size(inputs[0]->get_shape()));
     return true;
 }
 
@@ -2633,23 +2384,6 @@ bool evaluate(const shared_ptr<op::v1::Pad>& op, const HostTensorVector& outputs
 }
 
 template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v1::GatherTree>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    runtime::reference::gather_tree(inputs[0]->get_data_ptr<const char>(),
-                                    inputs[1]->get_data_ptr<const char>(),
-                                    inputs[2]->get_data_ptr<const char>(),
-                                    inputs[3]->get_data_ptr<const char>(),
-                                    outputs[0]->get_data_ptr<char>(),
-                                    op->get_input_shape(0),
-                                    op->get_input_shape(1),
-                                    op->get_input_shape(2),
-                                    op->get_input_shape(3),
-                                    inputs[1]->get_element_type());
-    return true;
-}
-
-template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v0::NormalizeL2>& op,
               const HostTensorVector& outputs,
               const HostTensorVector& inputs) {
@@ -2664,76 +2398,6 @@ bool evaluate(const shared_ptr<op::v0::NormalizeL2>& op,
 }
 
 template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v9::GenerateProposals>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    const auto& attrs = op->get_attrs();
-
-    if (attrs.post_nms_count < 0) {
-        throw ngraph_error("The attribute post_nms_count of the operation "
-                           "GenerateProposals must be a "
-                           "nonnegative integer.");
-    }
-
-    const auto& output_type = op->get_input_element_type(0);
-
-    const auto& im_info_shape = inputs[0]->get_shape();
-    const auto& anchors_shape = inputs[1]->get_shape();
-    const auto& deltas_shape = inputs[2]->get_shape();
-    const auto& scores_shape = inputs[3]->get_shape();
-
-    const auto im_info_data = get_floats(inputs[0], im_info_shape);
-    const auto anchors_data = get_floats(inputs[1], anchors_shape);
-    const auto deltas_data = get_floats(inputs[2], deltas_shape);
-    const auto scores_data = get_floats(inputs[3], scores_shape);
-
-    std::vector<float> output_rois;
-    std::vector<float> output_scores;
-    std::vector<int64_t> output_num;
-
-    runtime::reference::generate_proposals(im_info_data,
-                                           anchors_data,
-                                           deltas_data,
-                                           scores_data,
-                                           attrs,
-                                           im_info_shape,
-                                           anchors_shape,
-                                           deltas_shape,
-                                           scores_shape,
-                                           output_rois,
-                                           output_scores,
-                                           output_num);
-
-    size_t num_selected = static_cast<size_t>(std::accumulate(output_num.begin(), output_num.end(), 0));
-
-    Shape output_rois_shape = Shape{num_selected, 4};
-    Shape output_scores_shape = Shape{num_selected};
-
-    outputs[0]->set_element_type(output_type);
-    outputs[0]->set_shape(output_rois_shape);
-    outputs[1]->set_element_type(output_type);
-    outputs[1]->set_shape(output_scores_shape);
-
-    const auto& roi_num_type = op->get_output_element_type(2);
-    Shape output_roi_num_shape = Shape{im_info_shape[0]};
-    outputs[2]->set_element_type(roi_num_type);
-    outputs[2]->set_shape(output_roi_num_shape);
-
-    runtime::reference::generate_proposals_postprocessing(outputs[0]->get_data_ptr(),
-                                                          outputs[1]->get_data_ptr(),
-                                                          outputs[2]->get_data_ptr(),
-                                                          output_type,
-                                                          roi_num_type,
-                                                          output_rois,
-                                                          output_scores,
-                                                          output_num,
-                                                          output_rois_shape,
-                                                          output_scores_shape);
-
-    return true;
-}
-
-template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v0::SquaredDifference>& op,
               const HostTensorVector& outputs,
               const HostTensorVector& inputs) {
@@ -2744,89 +2408,6 @@ bool evaluate(const shared_ptr<op::v0::SquaredDifference>& op,
                                               inputs[0]->get_shape(),
                                               inputs[1]->get_shape(),
                                               op->get_autob());
-    return true;
-}
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v6::GatherElements>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
-    Shape params_shape = inputs[0]->get_shape();
-    Shape indices_shape = inputs[1]->get_shape();
-
-    outputs[0]->set_shape(indices_shape);
-
-    if (inputs[1]->get_element_type() == element::i64) {
-        runtime::reference::gather_elements<T, int64_t>(inputs[0]->get_data_ptr<ET>(),
-                                                        inputs[1]->get_data_ptr<int64_t>(),
-                                                        outputs[0]->get_data_ptr<ET>(),
-                                                        inputs[0]->get_shape(),
-                                                        inputs[1]->get_shape(),
-                                                        outputs[0]->get_shape(),
-                                                        op->get_axis());
-    } else if (inputs[1]->get_element_type() == element::i32) {
-        runtime::reference::gather_elements<T, int32_t>(inputs[0]->get_data_ptr<ET>(),
-                                                        inputs[1]->get_data_ptr<int32_t>(),
-                                                        outputs[0]->get_data_ptr<ET>(),
-                                                        inputs[0]->get_shape(),
-                                                        inputs[1]->get_shape(),
-                                                        outputs[0]->get_shape(),
-                                                        op->get_axis());
-    } else {
-        throw ngraph_error("Unexpected indices type");
-    }
-
-    return true;
-}
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v5::GatherND>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
-    if (op->get_input_element_type(1) == element::i64) {
-        runtime::reference::gather_nd<T, int64_t>(inputs[0]->get_data_ptr<T>(),
-                                                  inputs[1]->get_data_ptr<int64_t>(),
-                                                  outputs[0]->get_data_ptr<T>(),
-                                                  inputs[0]->get_shape(),
-                                                  inputs[1]->get_shape(),
-                                                  outputs[0]->get_shape(),
-                                                  static_cast<int>(op->get_batch_dims()));
-    } else if (op->get_input_element_type(1) == element::i32) {
-        runtime::reference::gather_nd<T, int32_t>(inputs[0]->get_data_ptr<T>(),
-                                                  inputs[1]->get_data_ptr<int32_t>(),
-                                                  outputs[0]->get_data_ptr<T>(),
-                                                  inputs[0]->get_shape(),
-                                                  inputs[1]->get_shape(),
-                                                  outputs[0]->get_shape(),
-                                                  static_cast<int>(op->get_batch_dims()));
-    } else {
-        throw ngraph_error("Unexpected indices type for GatherND operation");
-    }
-    return true;
-}
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v8::GatherND>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
-    if (op->get_input_element_type(1) == element::i64) {
-        runtime::reference::gather_nd<T, int64_t>(inputs[0]->get_data_ptr<T>(),
-                                                  inputs[1]->get_data_ptr<int64_t>(),
-                                                  outputs[0]->get_data_ptr<T>(),
-                                                  inputs[0]->get_shape(),
-                                                  inputs[1]->get_shape(),
-                                                  outputs[0]->get_shape(),
-                                                  static_cast<int>(op->get_batch_dims()));
-    } else if (op->get_input_element_type(1) == element::i32) {
-        runtime::reference::gather_nd<T, int32_t>(inputs[0]->get_data_ptr<T>(),
-                                                  inputs[1]->get_data_ptr<int32_t>(),
-                                                  outputs[0]->get_data_ptr<T>(),
-                                                  inputs[0]->get_shape(),
-                                                  inputs[1]->get_shape(),
-                                                  outputs[0]->get_shape(),
-                                                  static_cast<int>(op->get_batch_dims()));
-    } else {
-        throw ngraph_error("Unexpected indices type for GatherND operation");
-    }
     return true;
 }
 
