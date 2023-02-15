@@ -15,9 +15,8 @@ NamedOutputs cross(const NodeContext &node) {
 
   auto data_format = node.get_attribute<std::string>("data_format", "NCHW");
 
-  auto node_prelu = std::make_shared<default_opset::PRelu>(x, weight);
-
-  return node_prelu;
+  return node.default_single_output_mapping(
+      {std::make_shared<ov::opset6::PRelu>(x, weight)}, {"Out"});
 }
 
 } // namespace op
