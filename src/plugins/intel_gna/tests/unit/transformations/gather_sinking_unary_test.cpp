@@ -44,7 +44,8 @@ std::vector<size_t> MakeGatherIndexes(size_t size) {
 
 std::shared_ptr<Gather> MakeGather(NodePtr input_node) {
     const ov::Shape& input_shape = input_node->get_output_shape(0);
-    const size_t input_shape_product = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<size_t>());
+    const size_t input_shape_product =
+        std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<size_t>());
     const std::vector<size_t> indexes = MakeGatherIndexes(input_shape_product);
     auto gather_indexes_node = Constant::create(element::i64, ov::Shape{indexes.size()}, indexes);
 
