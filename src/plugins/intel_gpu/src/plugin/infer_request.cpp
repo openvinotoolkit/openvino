@@ -524,13 +524,7 @@ void InferRequest::wait() {
 
         bool need_output_update = false;
 
-        if (outputLayout.bytes_count() == 0) { // Output is empty tensor. Just update the output blob shape
-            auto dims = SizeVector();
-            for (size_t i = 0; i < outputLayout.get_shape().size(); ++i) {
-                dims.push_back(outputLayout.get_shape()[i]);
-            }
-            _outputs[no.first]->setShape(dims);
-        } else if (_outputs.find(no.first) == _outputs.end() || _outputs.at(no.first)->byteSize() != outputMemory->size()) {
+        if (outputLayout.bytes_count() == 0 || _outputs.find(no.first) == _outputs.end() || _outputs.at(no.first)->byteSize() != outputMemory->size()) {
             need_output_update = true;
         }
 
