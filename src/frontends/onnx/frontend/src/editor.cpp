@@ -647,7 +647,7 @@ void onnx_editor::ONNXModelEditor::set_name_for_dimension(const std::string& nod
 
     const auto set_dim_param = [&shape_dim_index, &dim_name](ValueInfoProto* tensor) {
         const auto shape = tensor->mutable_type()->mutable_tensor_type()->mutable_shape();
-        int shape_dim_size = shape->dim_size();
+        size_t shape_dim_size = shape->dim_size();
 
         for (; shape_dim_size <= shape_dim_index; ++shape_dim_size)
             add_dim_to_onnx_shape(Dimension::dynamic(), *shape);
