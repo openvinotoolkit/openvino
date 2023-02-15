@@ -1,0 +1,65 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+#pragma once
+#include "openvino/op/deformable_psroi_pooling.hpp"
+
+namespace ov {
+namespace op {
+namespace v1 {
+
+template <class TShape>
+std::vector<TShape> shape_infer(const DeformablePSROIPooling* op, const std::vector<TShape>& input_shapes) {
+    NODE_VALIDATION_CHECK(op, input_shapes.size() >= 2);
+
+    const auto& input_pshape = input_shapes[0];
+    const auto& box_coords_pshape = input_shapes[1];
+
+    if (input_shapes.size() == 3)  // offsets input is provided
+    {
+        const auto& offsets_shape = input_shapes[2];
+        NODE_VALIDATION_CHECK(op,
+                              offsets_shape.rank().compatible(4),
+                              "Third input rank must be compatible with 4 (input rank: ",
+                              offsets_shape.rank(),
+                              ")");
+    }
+
+    NODE_VALIDATION_CHECK(op,
+                          input_pshape.rank().compatible(4),
+                          "First input rank must be compatible with 4 (input rank: ",
+                          input_pshape.rank(),
+                          ")");
+    NODE_VALIDATION_CHECK(op,
+                          box_coords_pshape.rank().compatible(2),
+                          "Second input rank must be compatible with 2 (input rank: ",
+                          box_coords_pshape.rank(),
+                          ")");
+
+    NODE_VALIDATION_CHECK(op, op->get_output_dim() > 0, "Value of `output_dim` attribute has to be greater than 0 ");
+    NODE_VALIDATION_CHECK(op, op->get_group_size() > 0, "Value of `group_size` attribute has to be greater than 0 ");
+
+    constexpr int64_t output_rank = 4;
+    TShape output_shape;
+    output_shape.resize(output_rank);
+
+    if (box_coords_pshape.rank().is_static()) {
+        output_shape[0] = box_coords_pshape[0];  // Number of ROIs
+    }
+    output_shape[1] = op->get_output_dim();
+    for (int i = 2; i < output_rank; ++i) {
+        output_shape[i] = op->get_group_size();
+    }
+
+    return {output_shape};
+}
+
+template <class TShape>
+void shape_infer(const DeformablePSROIPooling* op,
+                 const std::vector<TShape>& input_shapes,
+                 std::vector<TShape>& output_shapes) {
+    output_shapes = shape_infer(op, input_shapes);
+}
+}  // namespace v1
+}  // namespace op
+}  // namespace ov
