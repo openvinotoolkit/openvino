@@ -29,6 +29,7 @@ std::vector<std::string> IStreamsExecutor::Config::SupportedKeys() const {
         CONFIG_KEY(CPU_THREADS_NUM),
         CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM),
         CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS),
+        CONFIG_KEY_INTERNAL(BIG_CORE_LOGIC_STREAMS),
         CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS),
         CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG),
         CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL),
@@ -156,14 +157,11 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
         }
     } else if (key == CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) {
         if (value == CONFIG_VALUE(CPU_THROUGHPUT_NUMA)) {
-            std::cout << "----CPU_THROUGHPUT_NUMA----\n";
             _streams = static_cast<int>(getAvailableNUMANodes().size());
         } else if (value == CONFIG_VALUE(CPU_THROUGHPUT_AUTO)) {
-            std::cout << "----CPU_THROUGHPUT_AUTO----\n";
             // bare minimum of streams (that evenly divides available number of cores)
             _streams = GetDefaultNumStreams();
         } else {
-            std::cout << "----CPU_THROUGHPUT_value---- " << value << "\n";
             int val_i;
             try {
                 val_i = std::stoi(value);
@@ -181,16 +179,13 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
     } else if (key == ov::num_streams) {
         auto streams = ov::util::from_string(value, ov::streams::num);
         if (streams == ov::streams::NUMA) {
-            std::cout << "----num_streams NUMA----\n";
             _streams = static_cast<int32_t>(getAvailableNUMANodes().size());
         } else if (streams == ov::streams::AUTO) {
-            std::cout << "----num_streams AUTO----\n";
             // bare minimum of streams (that evenly divides available number of cores)
-            //if (!cpuMapAvailable()) {
+            if (!cpuMapAvailable()) {
                 _streams = GetDefaultNumStreams();
-            //}
+            }
         } else if (streams.num >= 0) {
-            std::cout << "----num_streams num---- " << streams.num << "\n";
             _streams = streams.num;
         } else {
             OPENVINO_UNREACHABLE("Wrong value for property key ",
@@ -238,6 +233,19 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
                        << ". Expected only non negative numbers (#streams)";
         }
         _big_core_streams = val_i;
+    } else if (key == CONFIG_KEY_INTERNAL(BIG_CORE_LOGIC_STREAMS)) {
+        int val_i;
+        try {
+            val_i = std::stoi(value);
+        } catch (const std::exception&) {
+            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(BIG_CORE_LOGIC_STREAMS)
+                       << ". Expected only non negative numbers (#streams)";
+        }
+        if (val_i < 0) {
+            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(BIG_CORE_LOGIC_STREAMS)
+                       << ". Expected only non negative numbers (#streams)";
+        }
+        _big_core_logic_streams = val_i;
     } else if (key == CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)) {
         int val_i;
         try {
@@ -338,6 +346,8 @@ Parameter IStreamsExecutor::Config::GetConfig(const std::string& key) const {
         return {std::to_string(_threadsPerStream)};
     } else if (key == CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)) {
         return {std::to_string(_big_core_streams)};
+    } else if (key == CONFIG_KEY_INTERNAL(BIG_CORE_LOGIC_STREAMS)) {
+        return {std::to_string(_big_core_logic_streams)};
     } else if (key == CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)) {
         return {std::to_string(_small_core_streams)};
     } else if (key == CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)) {
@@ -502,8 +512,8 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
             streamExecutorConfig._big_core_logic_streams = streamExecutorConfig._big_core_streams;
         }
     }
-    if (!bLatencyCase && (ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType ||
-                          ThreadBindingType::CORES == streamExecutorConfig._threadBindingType)) {
+    if ((!bLatencyCase && ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType) ||
+                          ThreadBindingType::CORES == streamExecutorConfig._threadBindingType) {
         streamExecutorConfig._bind_cores = true;
     }
     streamExecutorConfig._threads =
@@ -512,6 +522,15 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
                       streamExecutorConfig._threads_per_stream_big +
                   streamExecutorConfig._small_core_streams * streamExecutorConfig._threads_per_stream_small
             : streamExecutorConfig._threadsPerStream * streamExecutorConfig._streams;
+    std::cout << "[ p_e_core_info ] streams (threads): " << streamExecutorConfig._streams << "("
+              << streamExecutorConfig._threads_per_stream_big *
+                         (streamExecutorConfig._big_core_streams + streamExecutorConfig._big_core_logic_streams) +
+                     streamExecutorConfig._threads_per_stream_small * streamExecutorConfig._small_core_streams
+              << ") -- PCore: " << streamExecutorConfig._big_core_streams << "("
+              << streamExecutorConfig._threads_per_stream_big << ") " << streamExecutorConfig._big_core_logic_streams
+              << "(" << streamExecutorConfig._threads_per_stream_big
+              << ")  ECore: " << streamExecutorConfig._small_core_streams << "("
+              << streamExecutorConfig._threads_per_stream_small << ")";
     return streamExecutorConfig;
 }
 
