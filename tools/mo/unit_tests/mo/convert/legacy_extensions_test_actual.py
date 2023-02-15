@@ -2,19 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import subprocess
 import tempfile
 import unittest
-from pathlib import Path
 
-from openvino.runtime import get_version as get_rt_version
-from openvino.runtime import serialize
-from openvino.tools.mo import convert_model
-from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
-from openvino.tools.mo.utils.version import get_version
+import openvino.runtime as ov
+import tensorflow as tf
+from openvino.runtime import PartialShape, Model
 from openvino.test_utils import compare_functions
 
-import openvino as ov
-from openvino.runtime import PartialShape, Model
+from openvino.tools.mo import convert_model
 
 
 def create_tf_model():
@@ -39,8 +36,7 @@ def create_ref_model_1():
     shape = PartialShape(shape)
     param1 = ov.opset10.parameter(shape)
     param2 = ov.opset10.parameter(shape)
-    param2_convert = ov.opset10.convert_like(param2, param1)
-    add = ov.opset10.add(param1, param2_convert)
+    add = ov.opset10.add(param1, param2)
     relu = ov.opset10.relu(add)
     sin = ov.opset10.sin(relu)
     sigm = ov.opset10.sigmoid(sin)
@@ -54,8 +50,7 @@ def create_ref_model_2():
     shape = PartialShape(shape)
     param1 = ov.opset10.parameter(shape)
     param2 = ov.opset10.parameter(shape)
-    param2_convert = ov.opset10.convert_like(param2, param1)
-    add = ov.opset10.add(param1, param2_convert)
+    add = ov.opset10.add(param1, param2)
     relu = ov.opset10.relu(add)
     sin = ov.opset10.sin(relu)
     sigm = ov.opset10.sigmoid(sin)
@@ -68,10 +63,47 @@ def create_ref_model_2():
 class LegacyExtTest(unittest.TestCase):
     test_directory = os.path.dirname(os.path.realpath(__file__))
 
-    def test_meta_data_tf(self):
-
+    def test_legacy_extensions(self):
         with tempfile.TemporaryDirectory(dir=self.test_directory) as tmpdir:
+            ext_path1 = os.path.join(os.path.dirname(__file__), "test_legacy_exts/test_exts_dir1")
+            ext_path2 = os.path.join(os.path.dirname(__file__), "test_legacy_exts/test_exts_dir2")
             model = create_tf_model()
             out_xml = os.path.join(tmpdir, "model.xml")
 
-            ov_model = convert_model(model, extensions="test_legacy_exts/test_exts_dir1,test_legacy_exts/test_exts_dir2")
+            ov_model = convert_model(model, extensions=ext_path1)
+            flag, msg = compare_functions(ov_model, create_ref_model_1(), False)
+            assert flag, msg
+
+            ov_model = convert_model(model, extensions=[ext_path1, ext_path2])
+            flag, msg = compare_functions(ov_model, create_ref_model_2(), False)
+            assert flag, msg
+
+            ov_model = convert_model(model, extensions=','.join([ext_path1, ext_path2]))
+            flag, msg = compare_functions(ov_model, create_ref_model_2(), False)
+            assert flag, msg
+
+            tf.io.write_graph(model, tmpdir, 'model.pb', False)
+            inp_model = os.path.join(tmpdir, 'model.pb')
+            from openvino.runtime import Core
+            core = Core()
+
+            status = subprocess.run(
+                ["mo", "--input_model", inp_model, "--extensions", ext_path1, "--output_dir", tmpdir],
+                env=os.environ,
+                capture_output=True)
+            assert not status.returncode
+
+            ov_model = core.read_model(os.path.join(tmpdir, "model.xml"))
+            flag, msg = compare_functions(ov_model, create_ref_model_1(), False)
+            assert flag, msg
+
+            status = subprocess.run(
+                ["mo", "--input_model", inp_model, "--extensions", ','.join([ext_path1, ext_path2]), "--output_dir",
+                 tmpdir],
+                env=os.environ,
+                capture_output=True)
+            assert not status.returncode
+
+            ov_model = core.read_model(os.path.join(tmpdir, "model.xml"))
+            flag, msg = compare_functions(ov_model, create_ref_model_2(), False)
+            assert flag, msg
