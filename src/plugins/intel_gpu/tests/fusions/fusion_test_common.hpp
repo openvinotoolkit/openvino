@@ -119,7 +119,7 @@ public:
         } else if (l.data_type == data_types::i8 || l.data_type == data_types::u8) {
             set_values(prim, generate_random_1d<uint8_t>(cnt_base, min_random, max_random), ft);
         } else if (l.data_type == data_types::f16) {
-            set_values(prim, generate_random_1d<FLOAT16>(cnt_base, -1, 1), ft);
+            set_values(prim, generate_random_1d<uint16_t>(cnt_base, -1, 1), ft);
         } else if (l.data_type == data_types::f32) {
             set_values(prim, generate_random_1d<float>(cnt_base, -1, 1), ft);
         } else {
@@ -136,7 +136,7 @@ public:
         } else if (l.data_type == data_types::i8 || l.data_type == data_types::u8) {
             set_values(prim, VF<uint8_t>(cnt_base, fill_value), ft);
         } else if (l.data_type == data_types::f16) {
-            set_values(prim, VF<FLOAT16>(cnt_base, fill_value), ft);
+            set_values(prim, VF<uint16_t>(cnt_base, fill_value), ft);
         } else if (l.data_type == data_types::f32) {
             set_values(prim, VF<float>(cnt_base, fill_value), ft);
         } else {
