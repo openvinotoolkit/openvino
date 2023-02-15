@@ -165,5 +165,62 @@ protected:
     void k_type_check(const element::Type& k_element_type) const override;
 };
 }  // namespace v3
+
+namespace v11 {
+/// \brief Computes the top K elements of a given tensor along the specified axis.
+/// \ingroup ov_ops_cpp_api
+class OPENVINO_API TopK : public v3::TopK {
+public:
+    OPENVINO_OP("TopK", "opset11", op::Op, 11);
+    /// \brief Constructs a TopK operation
+    TopK() = default;
+    /// \brief Constructs a TopK operation with two outputs: values and indices.
+    ///
+    /// \param data The input tensor
+    /// \param k Specifies how many maximum/minimum elements should be computed
+    /// \param axis The axis along which the TopK operation should be executed
+    /// \param mode Specifies whether TopK selects the largest or the smallest elements from each slice
+    /// \param sort Specifies the order of corresponding elements of the output tensor
+    /// \param stable Specifies whether the equivalent elements should maintain their relative order 
+    ///               from the input tensor during sorting.
+    /// \param index_element_type Specifies the data type type of of the elements in the 'indices' output tensor.
+    TopK(const Output<Node>& data,
+         const Output<Node>& k,
+         const int64_t axis,
+         const std::string& mode,
+         const std::string& sort,
+         const bool stable = false,
+         const element::Type& index_element_type = element::i32);
+
+    /// \brief Constructs a TopK operation with two outputs: values and indices.
+    ///
+    /// \param data The input tensor
+    /// \param k Specifies how many maximum/minimum elements should be computed
+    /// \param axis The axis along which the TopK operation should be executed
+    /// \param mode Specifies whether TopK selects the largest or the smallest elements from each slice
+    /// \param sort Specifies the order of corresponding elements of the output tensor
+    /// \param stable Specifies whether the equivalent elements should maintain their relative order 
+    ///               from the input tensor during sorting.
+    /// \param index_element_type Specifies the data type type of of the elements in the 'indices' output tensor.
+    TopK(const Output<Node>& data,
+         const Output<Node>& k,
+         const int64_t axis,
+         const Mode mode,
+         const SortType sort,
+         const bool stable = false,
+         const element::Type& index_element_type = element::i32);
+    bool visit_attributes(AttributeVisitor& visitor) override;
+    void validate_and_infer_types() override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool has_evaluate() const override;
+
+protected:
+    bool m_stable = false;
+};
+}
 }  // namespace op
 }  // namespace ov
