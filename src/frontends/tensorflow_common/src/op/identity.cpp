@@ -27,6 +27,7 @@ OutputVector translate_identity_op(const NodeContext& node) {
 }
 
 OutputVector translate_identity_n_op(const NodeContext& node) {
+    default_op_checks(node, 1, {"IdentityN"});
     auto input_size = static_cast<int>(node.get_input_size());
     auto node_name = node.get_name();
 
