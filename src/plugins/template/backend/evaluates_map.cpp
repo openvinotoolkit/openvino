@@ -42,14 +42,14 @@
 // #include <ngraph/runtime/reference/gather_tree.hpp>
 // #include <ngraph/runtime/reference/gelu.hpp>
 #include <ngraph/runtime/reference/generate_proposal.hpp>
-#include <ngraph/runtime/reference/greater.hpp>
-#include <ngraph/runtime/reference/grid_sample.hpp>
-#include <ngraph/runtime/reference/grn.hpp>
-#include <ngraph/runtime/reference/group_convolution.hpp>
-#include <ngraph/runtime/reference/group_convolution_backprop_data.hpp>
-#include <ngraph/runtime/reference/gru_cell.hpp>
-#include <ngraph/runtime/reference/hard_sigmoid.hpp>
-#include <ngraph/runtime/reference/if.hpp>
+// #include <ngraph/runtime/reference/greater.hpp>
+// #include <ngraph/runtime/reference/grid_sample.hpp>
+// #include <ngraph/runtime/reference/grn.hpp>
+// #include <ngraph/runtime/reference/group_convolution.hpp>
+// #include <ngraph/runtime/reference/group_convolution_backprop_data.hpp>
+// #include <ngraph/runtime/reference/gru_cell.hpp>
+// #include <ngraph/runtime/reference/hard_sigmoid.hpp>
+// #include <ngraph/runtime/reference/if.hpp>
 #include <ngraph/runtime/reference/interpolate.hpp>
 #include <ngraph/runtime/reference/irdft.hpp>
 #include <ngraph/runtime/reference/is_finite.hpp>
@@ -98,288 +98,10 @@
 
 using namespace ngraph;
 using namespace std;
-
 namespace {
 template <element::Type_t ET>
 bool evaluate(shared_ptr<Node> op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     return false;
-}
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v1::Convolution>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    const auto filter_data = inputs[1]->get_data_ptr<ET>();
-    auto out_data_ptr = outputs[0]->get_data_ptr<ET>();
-    const auto in_data_ptr = inputs[0]->get_data_ptr<ET>();
-    const auto& out_shape = outputs[0]->get_shape();
-    const auto& in_shape = inputs[0]->get_shape();
-    const auto& filter_shape = inputs[1]->get_shape();
-    runtime::reference::convolution<typename element_type_traits<ET>::value_type>(in_data_ptr,
-                                                                                  filter_data,
-                                                                                  out_data_ptr,
-                                                                                  in_shape,
-                                                                                  filter_shape,
-                                                                                  out_shape,
-                                                                                  op->get_strides(),
-                                                                                  op->get_dilations(),
-                                                                                  op->get_pads_begin(),
-                                                                                  op->get_pads_end());
-    return true;
-}
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v1::ConvolutionBackpropData>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    const auto filter_data = inputs[1]->get_data_ptr<ET>();
-    auto out_data_ptr = outputs[0]->get_data_ptr<ET>();
-    const auto in_data_ptr = inputs[0]->get_data_ptr<ET>();
-    const auto& out_shape = outputs[0]->get_shape();
-    const auto& in_shape = inputs[0]->get_shape();
-    const auto& filter_shape = inputs[1]->get_shape();
-    Strides in_dilation(std::vector<size_t>(in_shape.size() - 2));
-    std::fill(in_dilation.begin(), in_dilation.end(), 1);
-    runtime::reference::convolution_backprop_in<typename element_type_traits<ET>::value_type>(in_data_ptr,
-                                                                                              filter_data,
-                                                                                              out_data_ptr,
-                                                                                              in_shape,
-                                                                                              filter_shape,
-                                                                                              out_shape,
-                                                                                              in_dilation,
-                                                                                              op->get_dilations(),
-                                                                                              op->get_pads_begin(),
-                                                                                              op->get_pads_end(),
-                                                                                              op->get_strides(),
-                                                                                              op->get_output_padding());
-    return true;
-}
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v1::GroupConvolution>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    const auto filter_data = inputs[1]->get_data_ptr<ET>();
-    auto out_data_ptr = outputs[0]->get_data_ptr<ET>();
-    const auto in_data_ptr = inputs[0]->get_data_ptr<ET>();
-    const auto& out_shape = outputs[0]->get_shape();
-    const auto& in_shape = inputs[0]->get_shape();
-    const auto& filter_shape = inputs[1]->get_shape();
-    runtime::reference::group_convolution<typename element_type_traits<ET>::value_type>(in_data_ptr,
-                                                                                        filter_data,
-                                                                                        out_data_ptr,
-                                                                                        in_shape,
-                                                                                        filter_shape,
-                                                                                        out_shape,
-                                                                                        op->get_strides(),
-                                                                                        op->get_dilations(),
-                                                                                        op->get_pads_begin(),
-                                                                                        op->get_pads_end());
-    return true;
-}
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v1::GroupConvolutionBackpropData>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    const auto in_data_ptr = inputs[0]->get_data_ptr<ET>();
-    const auto filter_data_ptr = inputs[1]->get_data_ptr<ET>();
-    const auto out_data_ptr = outputs[0]->get_data_ptr<ET>();
-    const auto in_shape = inputs[0]->get_shape();
-    const auto filter_shape = inputs[1]->get_shape();
-    const auto out_shape = outputs[0]->get_shape();
-    runtime::reference::group_convolution_backprop_data<typename element_type_traits<ET>::value_type>(
-        in_data_ptr,
-        filter_data_ptr,
-        out_data_ptr,
-        in_shape,
-        filter_shape,
-        out_shape,
-        op->get_strides(),
-        op->get_dilations(),
-        op->get_pads_begin(),
-        op->get_pads_end(),
-        op->get_output_padding());
-    return true;
-}
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v1::Greater>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    const auto in0_data_ptr = inputs[0]->get_data_ptr<ET>();
-    const auto in1_data_ptr = inputs[1]->get_data_ptr<ET>();
-    const auto out_data_ptr = outputs[0]->get_data_ptr<element::Type_t::boolean>();
-    const auto in0_shape = inputs[0]->get_shape();
-    const auto in1_shape = inputs[1]->get_shape();
-    const auto broadcast_spec = op->get_autob();
-    runtime::reference::greater<typename element_type_traits<ET>::value_type,
-                                typename element_type_traits<element::Type_t::boolean>::value_type>(in0_data_ptr,
-                                                                                                    in1_data_ptr,
-                                                                                                    out_data_ptr,
-                                                                                                    in0_shape,
-                                                                                                    in1_shape,
-                                                                                                    broadcast_spec);
-    return true;
-}
-
-namespace if_op {
-bool call(const HostTensorVector& func_outputs,
-          const HostTensorVector& func_inputs,
-          const std::shared_ptr<ngraph::Function>& function) {
-    // map function params -> HostTensor
-    std::unordered_map<descriptor::Tensor*, std::shared_ptr<HostTensor>> tensor_map;
-    size_t input_count = 0;
-    for (const auto& param : function->get_parameters()) {
-        for (size_t i = 0; i < param->get_output_size(); ++i) {
-            descriptor::Tensor* tensor = &param->output(i).get_tensor();
-            tensor_map.insert({tensor, func_inputs[input_count++]});
-        }
-    }
-
-    std::unordered_map<std::shared_ptr<ngraph::Node>, size_t> results_map;
-    // map function outputs -> HostTensor
-    for (size_t output_count = 0; output_count < function->get_results().size(); ++output_count) {
-        auto output = function->get_results()[output_count];
-        results_map[output] = output_count;
-    }
-
-    // for each ordered op in the graph
-    for (const auto& op : function->get_ordered_ops()) {
-        if (op::is_parameter(op)) {
-            continue;
-        }
-
-        // get op inputs from map
-        std::vector<std::shared_ptr<HostTensor>> op_inputs;
-        for (auto input : op->inputs()) {
-            descriptor::Tensor* tensor = &input.get_tensor();
-            op_inputs.push_back(tensor_map.at(tensor));
-        }
-
-        // get op outputs from map or create
-        std::vector<std::shared_ptr<HostTensor>> op_outputs;
-        for (size_t i = 0; i < op->get_output_size(); ++i) {
-            descriptor::Tensor* tensor = &op->output(i).get_tensor();
-            std::shared_ptr<HostTensor> host_tensor;
-            auto it = tensor_map.find(tensor);
-            if (op::is_output(op)) {
-                host_tensor = func_outputs[results_map[op]];
-            } else if (it == tensor_map.end()) {
-                host_tensor = std::make_shared<HostTensor>(op->output(i));
-                tensor_map.insert({tensor, host_tensor});
-            } else {
-                host_tensor = it->second;
-            }
-            op_outputs.push_back(host_tensor);
-        }
-        op->validate_and_infer_types();
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (!op->evaluate(op_outputs, op_inputs)) {
-            const auto& evaluates_map = ngraph::runtime::interpreter::get_evaluators_map();
-            auto it = evaluates_map.find(op->get_type_info());
-            if (!it->second(op, op_outputs, op_inputs)) {
-                return false;
-            }
-        }
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    }
-    return true;
-}
-
-void function(const std::shared_ptr<ngraph::Function>& function,
-              const HostTensorVector& inputs,
-              HostTensorVector& outputs) {
-    const auto& parameters = function->get_parameters();
-    const auto& parametersNumber = parameters.size();
-    const auto& inputsNumber = inputs.size();
-    NGRAPH_CHECK(parametersNumber == inputsNumber,
-                 "Got function (",
-                 function->get_friendly_name(),
-                 ") with ",
-                 parametersNumber,
-                 " parameters, but ",
-                 inputsNumber,
-                 " input blobs");
-
-    for (const auto& parameter : parameters) {
-        const auto& parameterIndex = function->get_parameter_index(parameter);
-        const auto& parameterShape = parameter->get_shape();
-        const auto& parameterType = parameter->get_element_type();
-        const auto& parameterSize = shape_size(parameterShape) * parameterType.size();
-
-        const auto& input = inputs[parameterIndex];
-        const auto& inputSize = input->get_size_in_bytes();
-        NGRAPH_CHECK(parameterSize == inputSize,
-                     "Got parameter (",
-                     parameter->get_friendly_name(),
-                     ") of size ",
-                     parameterSize,
-                     " bytes, but corresponding input with index ",
-                     parameterIndex,
-                     " has ",
-                     inputSize,
-                     " bytes");
-    }
-
-    const auto& results = function->get_results();
-    outputs.reserve(results.size());
-    for (size_t i = 0; i < results.size(); ++i) {
-        outputs.push_back(std::make_shared<HostTensor>());
-    }
-    call(outputs, inputs, function);
-}
-
-void if_reference(const std::vector<std::shared_ptr<Function>>& bodies,
-                  const std::vector<op::util::MultiSubgraphOutputDescriptionVector>& out_descs,
-                  const std::vector<op::util::MultiSubgraphInputDescriptionVector>& input_descs,
-                  const HostTensorVector& out,
-                  const HostTensorVector& args) {
-    NGRAPH_CHECK(args.size() > 0, "If operation must have input condition value");
-
-    auto condition_value = args[0]->get_data_ptr<bool>()[0];
-    auto branch_index = (condition_value) ? op::v8::If::THEN_BODY_INDEX : op::v8::If::ELSE_BODY_INDEX;
-    HostTensorVector inputs_to_body;
-    HostTensorVector outs_from_body;
-    inputs_to_body.resize(input_descs[branch_index].size());
-    auto inputs_size = args.size();
-    auto output_size = out.size();
-    for (const auto& input_desc : input_descs[branch_index]) {
-        NGRAPH_CHECK(inputs_size > input_desc->m_input_index,
-                     "Incorrect associating! If has not input with id ",
-                     input_desc->m_input_index);
-        inputs_to_body[input_desc->m_body_parameter_index] = args[input_desc->m_input_index];
-    }
-    function(bodies[branch_index], inputs_to_body, outs_from_body);
-    for (const auto& out_descr : out_descs[branch_index]) {
-        NGRAPH_CHECK(output_size > out_descr->m_output_index,
-                     "Incorrect associating! If has not output with id ",
-                     out_descr->m_output_index);
-        auto res = outs_from_body[out_descr->m_body_value_index];
-        out[out_descr->m_output_index]->set_shape(res->get_shape());
-        out[out_descr->m_output_index]->write(res->get_data_ptr(), res->get_size_in_bytes());
-    }
-}
-}  // namespace if_op
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v8::If>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    std::vector<std::shared_ptr<Function>> bodies;
-    for (size_t i = 0; i < op->get_internal_subgraphs_size(); i++) {
-        bodies.emplace_back(op->get_function(static_cast<int>(i)));
-    }
-    std::vector<ov::op::util::MultiSubGraphOp::MultiSubgraphInputDescriptionVector> in_descs;
-    for (size_t i = 0; i < op->get_input_descriptions_size(); i++) {
-        in_descs.emplace_back(op->get_input_descriptions(static_cast<int>(i)));
-    }
-    std::vector<ov::op::util::MultiSubGraphOp::MultiSubgraphOutputDescriptionVector> out_descs;
-    for (size_t i = 0; i < op->get_output_descriptions_size(); i++) {
-        out_descs.emplace_back(op->get_output_descriptions(static_cast<int>(i)));
-    }
-    try {
-        runtime::reference::if_reference(bodies, out_descs, in_descs, outputs, inputs);
-    } catch (...) {
-        if_op::if_reference(bodies, out_descs, in_descs, outputs, inputs);
-    }
-    return true;
 }
 
 template <element::Type_t ET>
@@ -1628,16 +1350,6 @@ bool evaluate(const shared_ptr<op::v0::LRN>& op, const HostTensorVector& outputs
 }
 
 template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v0::GRN>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::grn<T>(inputs[0]->get_data_ptr<ET>(),
-                               outputs[0]->get_data_ptr<ET>(),
-                               op->get_bias(),
-                               inputs[0]->get_shape());
-    return true;
-}
-
-template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v3::ScatterNDUpdate>& op,
               const HostTensorVector& outputs,
               const HostTensorVector& inputs) {
@@ -1662,19 +1374,6 @@ bool evaluate(const shared_ptr<op::v3::ScatterNDUpdate>& op,
     } else {
         throw ngraph_error("ScatterNDUpdate layer support only i32 and i64 'indices' input precision!");
     }
-    return true;
-}
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v0::HardSigmoid>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::hard_sigmoid<T>(inputs[0]->get_data_ptr<T>(),
-                                        inputs[1]->get_data_ptr<const T>()[0],
-                                        inputs[2]->get_data_ptr<const T>()[0],
-                                        outputs[0]->get_data_ptr<T>(),
-                                        shape_size(outputs[0]->get_shape()));
     return true;
 }
 
@@ -2782,29 +2481,6 @@ bool evaluate(const shared_ptr<op::v10::IsNaN>& op, const HostTensorVector& outp
         ngraph::runtime::reference::is_nan(inputs[0]->get_data_ptr<bfloat16>(),
                                            outputs[0]->get_data_ptr<element::Type_t::boolean>(),
                                            shape_size(inputs[0]->get_shape()));
-        break;
-    default:
-        return false;
-    }
-    return true;
-}
-
-template <element::Type_t DATA_ET>
-bool evaluate(const shared_ptr<op::v9::GridSample>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    const auto& attributes = op->get_attributes();
-    element::Type grid_et = op->get_input_element_type(1);
-    switch (grid_et) {
-    case element::Type_t::f32:
-        ngraph::runtime::reference::grid_sample(outputs[0]->get_data_ptr<DATA_ET>(),
-                                                inputs[0]->get_data_ptr<DATA_ET>(),
-                                                inputs[1]->get_data_ptr<element::Type_t::f32>(),
-                                                inputs[0]->get_shape(),
-                                                inputs[1]->get_shape(),
-                                                attributes.align_corners,
-                                                attributes.mode,
-                                                attributes.padding_mode);
         break;
     default:
         return false;
