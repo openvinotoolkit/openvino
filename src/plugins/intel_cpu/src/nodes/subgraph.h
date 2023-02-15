@@ -39,7 +39,7 @@ public:
     // Here we convert to canonical for & jit everything
     void createPrimitive() override;
     void prepareParams() override;
-    std::vector<VectorDims> shapeInfer() const override;
+    //std::vector<VectorDims> shapeInfer() const override;
     bool needPrepareParams() const override;
 
     bool canBeInPlace() const override;

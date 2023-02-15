@@ -349,65 +349,65 @@ void Snippet::createPrimitive() {
     buffer_scratchpad.resize(buffer_scratchpad_size * parallel_get_max_threads(), 0);
 }
 
-std::vector<VectorDims> Snippet::shapeInfer() const {
-    // todo: it's very strange that we don't have broadcast_merge_into for cpu shapes
-    auto broadcast_merge = [](VectorDims& dst, const VectorDims& src){
-        // Ranks are both static.
-        auto dst_rank = dst.size();
-        auto src_rank = src.size();
-        const auto new_rank = std::max(dst_rank, src_rank);
-        dst.insert(dst.begin(), new_rank - dst_rank, 1);
-        std::vector<Dimension> dims(new_rank);
-        bool success = true;
-        for (int64_t i = 0; i < new_rank; i++) {
-            auto dsti = i < (new_rank - dst_rank) ? 1 : dst[i - (new_rank - dst_rank)];
-            auto srci = i < (new_rank - src_rank) ? 1 : src[i - (new_rank - src_rank)];
-            if (dsti != srci && srci != Shape::UNDEFINED_DIM) {
-                if (dsti == 1 || dsti == Shape::UNDEFINED_DIM) {
-                    dsti = srci;
-                } else {
-                    success = false;
-                }
-            }
-        }
-        return success;
-    };
-    for (size_t i = 0; i < getParentEdges().size(); i++) {
-        VectorDims inDims {getParentEdgesAtPort(i)[0]->getMemory().GetShape().getDims()};
-        if (masterShapeIsBlocked && !inputShapeIsBlocked[i])
-            inDims.insert(inDims.end(), 1);
-        // todo: this is a simple master_shape inference for shape-agnostic operations,
-        //  we'll need to account for body operations semantics in the future
-        if (i == 0)
-            masterShape = inDims;
-        else
-            broadcast_merge(masterShape, inDims);
-        normInputShapes[i] = std::move(inDims);
-    }
-    if (std::any_of(masterShape.begin(), masterShape.end(), [](const Dim& d){ return d == Shape::UNDEFINED_DIM;})) {
-        std::ostringstream errorMessage;
-        errorMessage << "Can't compute static master shape for Snippet node with name: " << getName();
-        errorMessage << ". Input shapes = ( ";
-        for (size_t i = 0; i < getParentEdges().size(); i++) {
-            errorMessage << i << " port = " << getParentEdgesAtPort(i)[0]->getMemory().GetShape().toString() << ", ";
-        }
-        errorMessage << "). Master shape = ( " << Shape(masterShape).toString() << " )";
-        IE_THROW() << errorMessage.str();
-    }
+// std::vector<VectorDims> Snippet::shapeInfer() const {
+//     // todo: it's very strange that we don't have broadcast_merge_into for cpu shapes
+//     auto broadcast_merge = [](VectorDims& dst, const VectorDims& src){
+//         // Ranks are both static.
+//         auto dst_rank = dst.size();
+//         auto src_rank = src.size();
+//         const auto new_rank = std::max(dst_rank, src_rank);
+//         dst.insert(dst.begin(), new_rank - dst_rank, 1);
+//         std::vector<Dimension> dims(new_rank);
+//         bool success = true;
+//         for (int64_t i = 0; i < new_rank; i++) {
+//             auto dsti = i < (new_rank - dst_rank) ? 1 : dst[i - (new_rank - dst_rank)];
+//             auto srci = i < (new_rank - src_rank) ? 1 : src[i - (new_rank - src_rank)];
+//             if (dsti != srci && srci != Shape::UNDEFINED_DIM) {
+//                 if (dsti == 1 || dsti == Shape::UNDEFINED_DIM) {
+//                     dsti = srci;
+//                 } else {
+//                     success = false;
+//                 }
+//             }
+//         }
+//         return success;
+//     };
+//     for (size_t i = 0; i < getParentEdges().size(); i++) {
+//         VectorDims inDims {getParentEdgesAtPort(i)[0]->getMemory().GetShape().getDims()};
+//         if (masterShapeIsBlocked && !inputShapeIsBlocked[i])
+//             inDims.insert(inDims.end(), 1);
+//         // todo: this is a simple master_shape inference for shape-agnostic operations,
+//         //  we'll need to account for body operations semantics in the future
+//         if (i == 0)
+//             masterShape = inDims;
+//         else
+//             broadcast_merge(masterShape, inDims);
+//         normInputShapes[i] = std::move(inDims);
+//     }
+//     if (std::any_of(masterShape.begin(), masterShape.end(), [](const Dim& d){ return d == Shape::UNDEFINED_DIM;})) {
+//         std::ostringstream errorMessage;
+//         errorMessage << "Can't compute static master shape for Snippet node with name: " << getName();
+//         errorMessage << ". Input shapes = ( ";
+//         for (size_t i = 0; i < getParentEdges().size(); i++) {
+//             errorMessage << i << " port = " << getParentEdgesAtPort(i)[0]->getMemory().GetShape().toString() << ", ";
+//         }
+//         errorMessage << "). Master shape = ( " << Shape(masterShape).toString() << " )";
+//         IE_THROW() << errorMessage.str();
+//     }
 
-    if (normOutputShapes.size() == 1) {
-        normOutputShapes[0] = masterShape;
-        return {masterShape};
-    }
-    std::vector<VectorDims> outputDims;
-    std::vector<ov::Shape> new_shapes;
-    for (const auto& s : normInputShapes)
-        new_shapes.emplace_back(s);
-    const auto& outputShapes = snippet->reshape_body(new_shapes);
-    for (size_t i = 0; i < outputShapes.size(); i++)
-            normOutputShapes[i] = outputShapes[i];
-    return normOutputShapes;
-}
+//     if (normOutputShapes.size() == 1) {
+//         normOutputShapes[0] = masterShape;
+//         return {masterShape};
+//     }
+//     std::vector<VectorDims> outputDims;
+//     std::vector<ov::Shape> new_shapes;
+//     for (const auto& s : normInputShapes)
+//         new_shapes.emplace_back(s);
+//     const auto& outputShapes = snippet->reshape_body(new_shapes);
+//     for (size_t i = 0; i < outputShapes.size(); i++)
+//             normOutputShapes[i] = outputShapes[i];
+//     return normOutputShapes;
+// }
 
 void Snippet::prepareParams() {
     masterShape = getNormalizedDimsBySize(masterShape, tensorRank);
