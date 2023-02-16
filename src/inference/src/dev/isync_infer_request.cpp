@@ -4,6 +4,8 @@
 
 #include "openvino/runtime/isync_infer_request.hpp"
 
+#include <unordered_map>
+
 #include "cpp_interfaces/plugin_itt.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/layout.hpp"
@@ -121,6 +123,7 @@ ov::ISyncInferRequest::FoundPort ov::ISyncInferRequest::find_port(const ov::Outp
 }
 
 void ov::ISyncInferRequest::convert_batched_tensors() {
+    std::unordered_map<size_t, ov::Tensor> prepared_tensors;
     for (const auto& item : m_batched_tensors) {
         auto tmp_shape = item.second.at(0).get_shape();
         auto tmp_et = item.second.at(0).get_element_type();
@@ -139,14 +142,18 @@ void ov::ISyncInferRequest::convert_batched_tensors() {
         } else {
             input_tensor = ov::Tensor(tmp_et, tmp_shape);
         }
-        auto ptr = input_tensor.data<uint8_t>();
+        auto ptr = static_cast<uint8_t*>(input_tensor.data());
 
         // Perform memory copy
-        ov::parallel_for(input_tensor.get_size(), [&](size_t i) {
+        ov::parallel_for(item.second.size(), [&](size_t i) {
             const auto& tensor = item.second.at(i);
-            memcpy(ptr + i * tensor.get_byte_size(), tensor.data<uint8_t>(), tensor.get_byte_size());
+            memcpy(ptr + i * tensor.get_byte_size(), static_cast<uint8_t*>(tensor.data()), tensor.get_byte_size());
         });
-        set_tensor(get_inputs()[item.first], input_tensor);
+        prepared_tensors[item.first] = input_tensor;
+    }
+
+    for (const auto& item : prepared_tensors) {
+        set_tensor(get_inputs()[item.first], item.second);
     }
 }
 

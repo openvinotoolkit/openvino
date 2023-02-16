@@ -248,7 +248,11 @@ void ov::IAsyncInferRequest::stop_and_wait() {
 }
 
 void ov::IAsyncInferRequest::infer() {
-    m_sync_request->infer();
+    DisableCallbackGuard disableCallbackGuard{this};
+    infer_impl([&] {
+        infer_thread_unsafe();
+    });
+    wait();
 }
 
 void ov::IAsyncInferRequest::check_tensors() const {
