@@ -581,7 +581,6 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(ScatterElementsUpdate, entryIOC),
     _OV_OP_SHAPE_INFER_REG(ScatterNDUpdate, entryIO),
     _OV_OP_SHAPE_INFER_REG(Select, entryIO),
-    _OV_OP_SHAPE_INFER_REG(Select, entryIO),
     _OV_OP_SHAPE_INFER_REG(ShapeOf, entryIO),
     _OV_OP_SHAPE_INFER_REG(ShuffleChannels, entryIO),
     _OV_OP_SHAPE_INFER_REG(Slice, entryIOC),
