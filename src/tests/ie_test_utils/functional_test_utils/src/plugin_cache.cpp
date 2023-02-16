@@ -64,9 +64,9 @@ std::shared_ptr<InferenceEngine::Core> PluginCache::ie(const std::string &device
         std::vector<std::string> metrics;
         if (deviceToCheck.find(':') != std::string::npos) {
             std::string realDevice = deviceToCheck.substr(0, deviceToCheck.find(':'));
-            metrics = {(ie_core->GetMetric(realDevice, METRIC_KEY(SUPPORTED_METRICS))).as<std::string>()};
+            metrics = {ie_core->GetMetric(realDevice, METRIC_KEY(SUPPORTED_METRICS)).as<std::string>()};
         } else {
-            metrics = {(ie_core->GetMetric(deviceToCheck, METRIC_KEY(SUPPORTED_METRICS))).as<std::string>()};
+            metrics = {ie_core->GetMetric(deviceToCheck, METRIC_KEY(SUPPORTED_METRICS)).as<std::string>()};
         }
         if (std::find(metrics.begin(), metrics.end(), METRIC_KEY(AVAILABLE_DEVICES)) != metrics.end()) {
             auto availableDevices = ie_core->GetMetric(deviceToCheck, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();

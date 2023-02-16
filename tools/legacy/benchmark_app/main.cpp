@@ -227,7 +227,7 @@ int main(int argc, char* argv[]) {
                 const std::string key = device + "_THROUGHPUT_STREAMS";
                 if (device_nstreams.count(device)) {
                     // set to user defined value
-                    auto supported_config_keys = (ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS))).as<std::vector<std::string>>();
+                    auto supported_config_keys = ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
                     if (std::find(supported_config_keys.begin(), supported_config_keys.end(), key) == supported_config_keys.end()) {
                         throw std::logic_error("Device " + device + " doesn't support config key '" + key + "'! " +
                                                "Please specify -nstreams for correct devices in format  "

@@ -27,7 +27,7 @@ namespace BehaviorTestsDefinitions {
 #define ASSERT_EXEC_METRIC_SUPPORTED_IE(metricName)                  \
 {                                                                    \
     auto metrics =                               \
-        (exeNetwork.GetMetric(METRIC_KEY(SUPPORTED_METRICS))).as<std::vector<std::string>>();         \
+        exeNetwork.GetMetric(METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();         \
     auto it = std::find(metrics.begin(), metrics.end(), metricName); \
     ASSERT_NE(metrics.end(), it);                                    \
 }
