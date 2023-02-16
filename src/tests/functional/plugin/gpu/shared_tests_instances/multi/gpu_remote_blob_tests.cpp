@@ -10,7 +10,7 @@
 #include "common_test_utils/test_constants.hpp"
 #include <openvino/runtime/auto/properties.hpp>
 
-using MultiDevice_Bind_test = MultiDevice_Test;
+using MultiDevice_Bind_oversubsciption_test = MultiDevice_Test;
 
 auto device_names_and_support_for_remote_blobs = []() {
     return std::vector<DevicesNamesAndSupportTuple>{
@@ -63,7 +63,7 @@ TEST_P(MultiDevice_Test, cannotInferRemoteBlobIfNotInitializedForDevice) {
     ASSERT_THROW(req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY), InferenceEngine::Exception);
 }
 
-TEST_P(MultiDevice_Bind_test, oversubsciptionOfInferRequest) {
+TEST_P(MultiDevice_Bind_oversubsciption_test, oversubsciptionOfInferRequest) {
     InferenceEngine::CNNNetwork net(fn_ptr);
     auto ie = PluginCache::get().ie();
     // load a network to the GPU to make sure we have a remote context
@@ -120,17 +120,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_RemoteBlobInitializedWithoutGPU,
                          ::testing::ValuesIn(device_names_and_support_for_remote_blobs2()),
                          MultiDevice_Test::getTestCaseName);
 
-auto device_names_and_support_for_remote_blobs3 = []() {
-    return std::vector<DevicesNamseAndProperties>{
-#ifdef ENABLE_INTEL_CPU
-        {{CPU}, {ov::intel_auto::device_bind_buffer(true)}},  // stand-alone CPU via MULTI (no GPU), no OCL context
-#endif
-    };
+auto multi_bind_oversubsciption_test = []() {
+    return std::vector<DevicesNamseAndProperties>{{{GPU}, {ov::intel_auto::device_bind_buffer(true)}}};
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_RemoteBlobOversubsciptionInferRequest,
-                         MultiDevice_Bind_test,
-                         ::testing::ValuesIn(device_names_and_support_for_remote_blobs3()),
+                         MultiDevice_Bind_oversubsciption_test,
+                         ::testing::ValuesIn(multi_bind_oversubsciption_test()),
                          MultiDevice_Test::getTestCaseName);
 
 auto multi_device_names_and_support_for_remote_blobs = []() {

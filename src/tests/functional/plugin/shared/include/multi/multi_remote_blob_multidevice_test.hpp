@@ -20,8 +20,7 @@ TEST_P(MultiDeviceMultipleGPU_Test, canCreateRemoteTensorThenInferWithAffinity) 
     auto function = p.build();
     ov::CompiledModel exec_net;
     try {
-        exec_net = ie.compile_model(function, device_names, {ov::hint::allow_auto_batching(false),
-            ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)});
+        exec_net = ie.compile_model(function, device_names, ov::hint::allow_auto_batching(false));
     } catch (...) {
         // device is unavailable (e.g. for the "second GPU" test) or other (e.g. env) issues not related to the test
         return;
