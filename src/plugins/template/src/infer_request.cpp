@@ -108,6 +108,7 @@ void TemplatePlugin::InferRequest::infer_preprocess() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, m_profiling_task[Preprocess]);
     auto start = Time::now();
     convert_batched_tensors();
+    check_tensors();
 
     OPENVINO_ASSERT(get_inputs().size() == m_plugin_input_tensors.size());
     for (size_t i = 0; i < get_inputs().size(); i++) {
