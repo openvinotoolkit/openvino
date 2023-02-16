@@ -137,8 +137,8 @@ TEST_P(reduce_eltwise, basic) {
     ov::intel_gpu::ImplementationDesc ref_reduce_impl = { format::b_fs_yx_fsv16, "reduce_ref", impl_types::ocl };
     cfg_not_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "reduce", ref_reduce_impl } }));
 
-    tolerance = default_tolerance(p.data_type);
-    execute(p, get_mem(get_input_layout(p), 1, 2));
+    tolerance = default_tolerance(data_types::f16);
+    execute(p, get_mem(get_input_layout(p), 2, 3));
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, reduce_eltwise, ::testing::ValuesIn(std::vector<reduce_test_params>{
