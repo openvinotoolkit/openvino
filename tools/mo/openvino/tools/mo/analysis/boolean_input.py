@@ -10,7 +10,7 @@ from openvino.tools.mo.utils.model_analysis import AnalyzeAction
 class TrainingPhaseAnalysis(AnalyzeAction):
 
     def analyze(self, graph: Graph):
-        nodes = graph.get_op_nodes(op='Parameter', data_type=np.bool)
+        nodes = graph.get_op_nodes(op='Parameter', data_type=bool)
         names = ""
         params = ""
         if not nodes:

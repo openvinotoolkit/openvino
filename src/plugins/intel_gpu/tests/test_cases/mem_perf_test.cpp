@@ -85,7 +85,7 @@ TEST(mem_perf_test_to_device, DISABLED_buffer_no_lock) {
     std::cout << "Time of kernel execution" << std::endl;
 
     cl::Program program(ctx, kernel_code);
-    checkStatus(program.build(device, ""), "build");
+    checkStatus(program.build({device}, ""), "build");
     cl::Buffer input_buffer(ctx, CL_MEM_READ_WRITE, sizeof(uint8_t) * img_size * img_size);
     cl::Buffer output_buffer(ctx, CL_MEM_READ_WRITE, sizeof(float) * img_size * img_size);
     cl::Kernel kernel(program, "simple_reorder");
@@ -109,7 +109,7 @@ TEST(mem_perf_test_to_device, DISABLED_buffer_lock_rw) {
     std::cout << "Time of copying data from mapped to host cl::Buffer (ReadWrite access modifier) to device memory" << std::endl;
 
     cl::Program program(ctx, kernel_code);
-    checkStatus(program.build(device, ""), "build");
+    checkStatus(program.build({device}, ""), "build");
     cl::Buffer input_buffer(ctx, CL_MEM_READ_WRITE, sizeof(uint8_t) * img_size * img_size);
     cl::Buffer output_buffer(ctx, CL_MEM_READ_WRITE, sizeof(float) * img_size * img_size);
     cl::Kernel kernel(program, "simple_reorder");
@@ -142,7 +142,7 @@ TEST(mem_perf_test_to_device, DISABLED_buffer_lock_w) {
     std::cout << "Time of copying data from mapped to host cl::Buffer (Write access modifier) to device memory" << std::endl;
 
     cl::Program program(ctx, kernel_code);
-    checkStatus(program.build(device, ""), "build");
+    checkStatus(program.build({device}, ""), "build");
     cl::Buffer input_buffer(ctx, CL_MEM_READ_WRITE, sizeof(uint8_t) * img_size * img_size);
     cl::Buffer output_buffer(ctx, CL_MEM_READ_WRITE, sizeof(float) * img_size * img_size);
     cl::Kernel kernel(program, "simple_reorder");
@@ -175,7 +175,7 @@ TEST(mem_perf_test_to_device, DISABLED_buffer_copy) {
     std::cout << "Time of copying data from host buffer (std::vector) to cl::Buffer located in device memory" << std::endl;
 
     cl::Program program(ctx, kernel_code);
-    checkStatus(program.build(device, ""), "build");
+    checkStatus(program.build({device}, ""), "build");
     cl::Buffer input_buffer(ctx, CL_MEM_READ_WRITE, sizeof(uint8_t) * img_size * img_size);
     cl::Buffer output_buffer(ctx, CL_MEM_READ_WRITE, sizeof(float) * img_size * img_size);
     cl::Kernel kernel(program, "simple_reorder");
@@ -212,7 +212,7 @@ TEST(mem_perf_test_to_device, DISABLED_buffer_copy_usm_host) {
     std::cout << "Time of copying data from host buffer cl::UsmMemory (UsmHost type) to cl::Buffer located in device memory" << std::endl;
 
     cl::Program program(ctx, kernel_code);
-    checkStatus(program.build(device, ""), "build");
+    checkStatus(program.build({device}, ""), "build");
     cl::Buffer input_buffer(ctx, CL_MEM_READ_WRITE, sizeof(uint8_t) * img_size * img_size);
     cl::Buffer output_buffer(ctx, CL_MEM_READ_WRITE, sizeof(float) * img_size * img_size);
     cl::Kernel kernel(program, "simple_reorder");
@@ -252,7 +252,7 @@ TEST(mem_perf_test_to_device, DISABLED_usm_host) {
     std::cout << "Time of transfering data from host buffer cl::UsmMemory (UsmHost type) to device" << std::endl;
 
     cl::Program program(ctx, kernel_code);
-    checkStatus(program.build(device, ""), "build");
+    checkStatus(program.build({device}, ""), "build");
     cl::UsmMemory input_buffer(usm_helper);
     input_buffer.allocateHost(sizeof(uint8_t) * img_size * img_size);
     cl::UsmMemory output_buffer(usm_helper);
@@ -296,7 +296,7 @@ TEST(mem_perf_test_to_device, DISABLED_usm_device) {
     std::cout << "Time of copying data from device buffer cl::UsmMemory (UsmDevice type) to cl::UsmMemory (UsmDevice type)" << std::endl;
 
     cl::Program program(ctx, kernel_code);
-    checkStatus(program.build(device, ""), "build");
+    checkStatus(program.build({device}, ""), "build");
     cl::UsmMemory input_buffer_host(usm_helper);
     input_buffer_host.allocateHost(sizeof(uint8_t) * img_size * img_size);
     cl::UsmMemory input_buffer_device(usm_helper);
@@ -361,7 +361,7 @@ TEST(mem_perf_test_to_device, DISABLED_usm_device_copy) {
     std::cout << "Time of copying data from host buffer cl::UsmMemory (UsmHost type) to cl::UsmMemory (UsmDevice type)" << std::endl;
 
     cl::Program program(ctx, kernel_code);
-    checkStatus(program.build(device, ""), "build");
+    checkStatus(program.build({device}, ""), "build");
     cl::UsmMemory input_buffer_host(usm_helper);
     input_buffer_host.allocateHost(sizeof(uint8_t) * img_size * img_size);
     cl::UsmMemory input_buffer_device(usm_helper);
@@ -416,7 +416,7 @@ TEST(mem_perf_test_to_device, DISABLED_cl_buffer_to_usm_device) {
     std::cout << "Time of kernel execution w/o copying the data (input buffer is cl::Buffer located in device memory)" << std::endl;
 
     cl::Program program(ctx, kernel_code);
-    checkStatus(program.build(device, ""), "build");
+    checkStatus(program.build({device}, ""), "build");
     cl::Buffer input_buffer(ctx, CL_MEM_READ_WRITE, sizeof(uint8_t) * img_size * img_size);
     cl::UsmMemory input_buffer_host(usm_helper);
     input_buffer_host.allocateHost(sizeof(uint8_t) * img_size * img_size);
@@ -462,7 +462,7 @@ TEST(mem_perf_test_to_host, DISABLED_buffer_lock_rw) {
     std::cout << "Time of copying data from device buffer (cl::Buffer) to host via buffer mapping (ReadWrite access modifier)" << std::endl;
 
     cl::Program program(ctx, kernel_code);
-    checkStatus(program.build(device, ""), "build");
+    checkStatus(program.build({device}, ""), "build");
     cl::Buffer input_buffer(ctx, CL_MEM_READ_WRITE, sizeof(uint8_t) * img_size * img_size);
     cl::Buffer output_buffer(ctx, CL_MEM_READ_WRITE, sizeof(float) * img_size * img_size);
     cl::Kernel kernel(program, "simple_reorder");
@@ -506,7 +506,7 @@ TEST(mem_perf_test_to_host, DISABLED_buffer_lock_r) {
     std::cout << "Time of copying data from device buffer (cl::Buffer) to host via buffer mapping (Read access modifier)" << std::endl;
 
     cl::Program program(ctx, kernel_code);
-    checkStatus(program.build(device, ""), "build");
+    checkStatus(program.build({device}, ""), "build");
     cl::Buffer input_buffer(ctx, CL_MEM_READ_WRITE, sizeof(uint8_t) * img_size * img_size);
     cl::Buffer output_buffer(ctx, CL_MEM_READ_WRITE, sizeof(float) * img_size * img_size);
     cl::Kernel kernel(program, "simple_reorder");
@@ -560,7 +560,7 @@ TEST(mem_perf_test_to_host, DISABLED_buffer_copy_usm_host_ptr_blocking_r) {
     std::cout << "Time of copying data from device buffer (cl::Buffer) to host buffer cl::UsmMemory (UsmHost type) - Bloking call" << std::endl;
 
     cl::Program program(ctx, kernel_code);
-    checkStatus(program.build(device, ""), "build");
+    checkStatus(program.build({device}, ""), "build");
     cl::Buffer input_buffer(ctx, CL_MEM_READ_WRITE, sizeof(uint8_t) * img_size * img_size);
     cl::Buffer output_buffer(ctx, CL_MEM_READ_WRITE, sizeof(float) * img_size * img_size);
     cl::Kernel kernel(program, "simple_reorder");
@@ -601,7 +601,7 @@ TEST(mem_perf_test_to_host, DISABLED_buffer_copy_usm_host_ptr_events_r) {
     std::cout << "Time of copying data from device buffer (cl::Buffer) to host buffer cl::UsmMemory (UsmHost type) - Non-blocling call (events)" << std::endl;
 
     cl::Program program(ctx, kernel_code);
-    checkStatus(program.build(device, ""), "build");
+    checkStatus(program.build({device}, ""), "build");
     cl::Buffer input_buffer(ctx, CL_MEM_READ_WRITE, sizeof(uint8_t) * img_size * img_size);
     cl::Buffer output_buffer(ctx, CL_MEM_READ_WRITE, sizeof(float) * img_size * img_size);
     cl::Kernel kernel(program, "simple_reorder");
@@ -644,7 +644,7 @@ TEST(mem_perf_test_to_host, DISABLED_buffer_copy_host_ptr_events_r) {
     std::cout << "Time of copying data from device buffer (cl::Buffer) to host buffer (std::vector) - Non-blocling call (events)" << std::endl;
 
     cl::Program program(ctx, kernel_code);
-    checkStatus(program.build(device, ""), "build");
+    checkStatus(program.build({device}, ""), "build");
     cl::Buffer input_buffer(ctx, CL_MEM_READ_WRITE, sizeof(uint8_t) * img_size * img_size);
     cl::Buffer output_buffer(ctx, CL_MEM_READ_WRITE, sizeof(float) * img_size * img_size);
     cl::Kernel kernel(program, "simple_reorder");
@@ -687,7 +687,7 @@ TEST(mem_perf_test_to_host_and_back_to_device, DISABLED_buffer_copy_usm_host_ptr
               << "and back to device (cl::Buffer) - Non-blocling calls (events)" << std::endl;
 
     cl::Program program(ctx, kernel_code);
-    checkStatus(program.build(device, ""), "build");
+    checkStatus(program.build({device}, ""), "build");
     cl::Buffer input_buffer(ctx, CL_MEM_READ_WRITE, sizeof(uint8_t) * img_size * img_size);
     cl::Buffer output_buffer(ctx, CL_MEM_READ_WRITE, sizeof(float) * img_size * img_size);
     cl::Kernel kernel(program, "simple_reorder");
@@ -732,7 +732,7 @@ TEST(mem_perf_test_to_host_and_back_to_device, DISABLED_buffer_copy_host_ptr_eve
     std::cout << "Time of copying data from device buffer (cl::Buffer) to host buffer (std::vector) and back to device (cl::Buffer) - Non-blocling calls (events)" << std::endl;
 
     cl::Program program(ctx, kernel_code);
-    checkStatus(program.build(device, ""), "build");
+    checkStatus(program.build({device}, ""), "build");
     cl::Buffer input_buffer(ctx, CL_MEM_READ_WRITE, sizeof(uint8_t) * img_size * img_size);
     cl::Buffer output_buffer(ctx, CL_MEM_READ_WRITE, sizeof(float) * img_size * img_size);
     cl::Kernel kernel(program, "simple_reorder");

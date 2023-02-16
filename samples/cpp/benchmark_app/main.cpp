@@ -408,7 +408,7 @@ int main(int argc, char* argv[]) {
                             std::stringstream strm(it_device_nstreams->second);
                             std::map<std::string, std::string> devices_property;
                             ov::util::Read<std::map<std::string, std::string>>{}(strm, devices_property);
-                            for (auto it : devices_property) {
+                            for (const auto& it : devices_property) {
                                 if (device_config.find(it.first) == device_config.end() ||
                                     (is_load_config && is_dev_set_property[it.first])) {
                                     // Create ov::device::properties with ov::num_stream and
@@ -486,7 +486,7 @@ int main(int argc, char* argv[]) {
                             std::stringstream strm(it_device_infer_precision->second);
                             std::map<std::string, std::string> devices_property;
                             ov::util::Read<std::map<std::string, std::string>>{}(strm, devices_property);
-                            for (auto it : devices_property) {
+                            for (const auto& it : devices_property) {
                                 if (device_config.find(it.first) == device_config.end() ||
                                     (is_load_config && is_dev_set_property[it.first])) {
                                     // Create ov::device::properties with ov::inference_precision and

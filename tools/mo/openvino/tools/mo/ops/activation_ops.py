@@ -231,7 +231,7 @@ class LogicalNot(Activation):
 
     @staticmethod
     def type_infer(node: Node):
-        node.out_port(0).set_data_type(np.bool)
+        node.out_port(0).set_data_type(bool)
 
 
 class Log(Activation):

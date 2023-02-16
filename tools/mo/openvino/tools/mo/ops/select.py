@@ -90,7 +90,7 @@ class Select(Op):
                 # one of the branches is None (which is not selected)
                 # if we use np.where for such cases then dtype of output_value will be object (non numeric type)
                 # and subsequent numpy operation on such tensors will fail
-                output_value = resulting_tensors[not np.bool(condition_value.item(0))]
+                output_value = resulting_tensors[not bool(condition_value.item(0))]
                 if output_value is None:
                     return
                 if broadcast_rule == 'numpy':

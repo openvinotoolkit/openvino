@@ -16,7 +16,7 @@ class ExperimentalDetectronGroupNorm(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         attrs = {
-            'eps': mo_array(onnx_attr(node, 'eps', 'f', default=1e-6), dtype=np.float),
+            'eps': mo_array(onnx_attr(node, 'eps', 'f', default=1e-6), dtype=float),
             'num_groups': int64_array(onnx_attr(node, 'num_groups', 'i', default=1)),
         }
         GroupNorm.update_node_stat(node, attrs)
@@ -30,7 +30,7 @@ class GroupNormExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         attrs = {
-            'eps': mo_array(onnx_attr(node, 'eps', 'f', default=1e-6), dtype=np.float),
+            'eps': mo_array(onnx_attr(node, 'eps', 'f', default=1e-6), dtype=float),
             'num_groups': int64_array(onnx_attr(node, 'num_groups', 'i', default=1)),
         }
         GroupNorm.update_node_stat(node, attrs)

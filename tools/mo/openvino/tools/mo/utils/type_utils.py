@@ -9,7 +9,7 @@ from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.pipeline.common import convert_const_node_value_type
 from openvino.tools.mo.utils.error import Error
 
-np_map_cast = {np.bool: lambda x: bool_cast(x),
+np_map_cast = {bool: lambda x: bool_cast(x),
                np.int8: lambda x: np.int8(x),
                np.int16: lambda x: np.int16(x),
                np.int32: lambda x: np.int32(x),
@@ -21,14 +21,14 @@ np_map_cast = {np.bool: lambda x: bool_cast(x),
                np.float16: lambda x: np.float16(x),
                np.float32: lambda x: np.float32(x),
                np.double: lambda x: np.double(x),
-               np.str: lambda x: np.str(x)}
+               str: lambda x: str(x)}
 
 
 def bool_cast(x):
     if isinstance(x, str):
         return False if x.lower() in ['false', '0'] else True if x.lower() in ['true', '1'] else 'unknown_boolean_cast'
     else:
-        return np.bool(x)
+        return bool(x)
 
 
 def override_data_type_of_constant(node: Node, lhs_idx: int = 0, rhs_idx: int = 1):
