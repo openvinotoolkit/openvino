@@ -25,6 +25,14 @@ using namespace ov::intel_gna;
 using namespace ov::intel_gna::pass;
 using namespace ov::intel_gna::common;
 
+
+int max_segments_number() {
+    return 128;
+}
+
+//TODO remove
+static size_t expected_segments_num = max_segments_number();
+
 NGRAPH_RTTI_DEFINITION(PWLApproximation, "PWLApproximation", 0);
 NGRAPH_RTTI_DEFINITION(PWLApproximationWithFq, "PWLApproximationWithFq", 0);
 
@@ -59,7 +67,6 @@ double pivot_search(const details::Function<T>& activation_function,
                     double alpha_0,
                     double alpha_N,
                     bool negative,
-                    double max_error,
                     double threshold = 0.1) {
     std::vector<std::vector<double>> t(N + 1);
     std::vector<std::vector<double>> alpha(N + 1);
@@ -183,7 +190,6 @@ double pivot_search(const details::Function<T>& activation_function,
 
 template <typename T>
 double calculate_error_pct(const details::Function<T>& activation_function,
-                           const std::vector<details::Pwl>& segments,
                            double lower_bound,
                            double upper_bound,
                            const double offset,
@@ -213,7 +219,7 @@ template <typename T>
 bool is_negative(const details::Function<T>& activation_function, double upper_bound) {
     if (std::is_same<T, ngraph::opset8::Sigmoid>::value || std::is_same<T, ngraph::opset8::Tanh>::value ||
         std::is_same<T, ngraph::opset9::SoftSign>::value) {
-        return upper_bound == 0;
+        return AreFpEq(upper_bound, 0.0);
     }
 
     if (std::is_same<T, ngraph::opset8::Exp>::value) {
@@ -229,71 +235,66 @@ bool is_negative<ngraph::opset8::Power>(const details::Function<ngraph::opset8::
     return std::fmod(activation_function.m_exponent, 1.0) == 0;
 }
 
+void negative_pwl(std::vector<details::Pwl>& data) {
+    for (auto& e : data) {
+        e.m = -e.m;
+        e.b = -e.b;
+        e.beta = -e.beta;
+    }
+};
+
 template <typename T>
 std::vector<details::Pwl> pwl_search(const details::Function<T>& activation_function,
                                      double lower_bound,
-                                     double upper_bound,
-                                     double allowed_err_pct,
-                                     double& err_pct) {
-    std::vector<details::Pwl> pwl;
+                                     double upper_bound) {
     if (lower_bound > upper_bound) {
-        return pwl;
+        return {};
     }
 
-    if (split_search<T>(lower_bound, upper_bound)) {
-        auto negative_pwl = [](std::vector<details::Pwl>& data) {
-            for (auto& e : data) {
-                e.m = -e.m;
-                e.b = -e.b;
-                e.beta = -e.beta;
-            }
-        };
+    std::vector<details::Pwl> pwls;
+    auto segments_number = expected_segments_num;
 
-        double err_pct1 = 0.0;
-        double err_pct2 = 0.0;
+    if (split_search<T>(lower_bound, upper_bound)) {
         double break_bound = get_break_bound<T>();
-        pwl = pwl_search<T>(activation_function, lower_bound, break_bound, allowed_err_pct, err_pct1);
-        negative_pwl(pwl);
-        std::vector<details::Pwl> pwl2 =
-            pwl_search<T>(activation_function, break_bound, upper_bound, allowed_err_pct, err_pct2);
+        auto result_left_bound =
+            pwl_search_count<T>(activation_function, lower_bound, break_bound, segments_number / 2 - 1);
+        pwls = std::move(result_left_bound.first);
+        negative_pwl(pwls);
+        auto result_right_bound =
+            pwl_search_count<T>(activation_function, break_bound, upper_bound, segments_number / 2 - 1);
+        auto pwls_right = std::move(result_right_bound.first);
         if (std::is_same<T, ngraph::opset8::Exp>::value || std::is_same<T, ngraph::opset8::Power>::value) {
-            negative_pwl(pwl2);
+            negative_pwl(pwls_right);
         }
 
         // merge
-        if (!pwl.empty())
-            pwl.pop_back();                               // remove final alpha from first half
-        pwl.insert(pwl.end(), pwl2.begin(), pwl2.end());  // concatenate the two halves
-        err_pct = (err_pct1 + err_pct2) / 2;              // this is not quite correct but should give an indication
-    } else {
-        int segments_number = 1;
-        bool negative = is_negative<T>(activation_function, upper_bound);
-        auto err = pivot_search<T>(activation_function,
-                                   pwl,
-                                   segments_number,
-                                   lower_bound,
-                                   upper_bound,
-                                   negative,
-                                   allowed_err_pct);
-        err_pct = calculate_error_pct<T>(activation_function, pwl, lower_bound, upper_bound, err, negative);
-        while (segments_number < details::max_segments_number<T>() && allowed_err_pct < err_pct) {
-            segments_number++;
-            err = pivot_search<T>(activation_function,
-                                  pwl,
-                                  segments_number,
-                                  lower_bound,
-                                  upper_bound,
-                                  negative,
-                                  allowed_err_pct);
-            err_pct = calculate_error_pct<T>(activation_function, pwl, lower_bound, upper_bound, err, negative);
+        if (!pwls.empty()) {
+            pwls.pop_back();  // remove final alpha from first half
         }
+        pwls.insert(pwls.end(), pwls_right.begin(), pwls_right.end());  // concatenate the two halves
 
-        if (segments_number >= details::max_segments_number<T>()) {
-            throw std::runtime_error("Failed to converge in pwl_search!");
-        }
+        // TODO remove error if it will be not finally used for validation.
+        std::cout << "error1 " << result_left_bound.second << ", error2 " << result_right_bound.second << std::endl;
+    } else {
+        auto result = pwl_search_count(activation_function, lower_bound, upper_bound, segments_number - 2);
+        pwls = std::move(result.first);
+        std::cout << "error1 " << result.second << std::endl;
     }
 
-    return pwl;
+    return pwls;
+}
+
+template <typename T>
+std::pair<std::vector<details::Pwl>, double> pwl_search_count(const details::Function<T>& activation_function,
+                                                              double lower_bound,
+                                                              double upper_bound,
+                                                              size_t max_segments) {
+    std::vector<details::Pwl> pwl;
+    int segments_number = max_segments;
+    bool negative = is_negative<T>(activation_function, upper_bound);
+    auto err = pivot_search<T>(activation_function, pwl, segments_number, lower_bound, upper_bound, negative);
+    auto err_pct = calculate_error_pct<T>(activation_function, lower_bound, upper_bound, err, negative);
+    return {pwl, err_pct};
 }
 
 template <typename T>
@@ -326,13 +327,11 @@ std::pair<double, double> get_bounds<ngraph::opset8::Log>(const std::shared_ptr<
 template <typename T>
 bool pwl_search(const std::shared_ptr<T>& node,
                 const std::shared_ptr<ngraph::Node>& fake_quantize,
-                double allowed_err_pct,
-                double& err_pct,
                 std::vector<details::Pwl>& segments) {
     double lower_bound = 0;
     double upper_bound = 0;
     std::tie(lower_bound, upper_bound) = get_bounds<T>(fake_quantize);
-    segments = pwl_search<T>(details::Function<T>(), lower_bound, upper_bound, allowed_err_pct, err_pct);
+    segments = pwl_search<T>(details::Function<T>(), lower_bound, upper_bound);
     if (segments.size() <= 2) {
         return false;
     }
@@ -353,6 +352,8 @@ bool pwl_search(const std::shared_ptr<T>& node,
 
     segments.back().b = std::min(segments.back().beta, details::Function<T>::max_value());
     segments.push_back({0, 0, std::numeric_limits<double>::infinity()});
+    // TODO remove
+    std::cout << "Segments number: " << segments.size() << std::endl;
     return true;
 }
 
@@ -361,8 +362,6 @@ static bool pwl_search_power(const std::shared_ptr<ngraph::Node>& node,
                              double scale,
                              double offset,
                              const std::shared_ptr<ngraph::Node>& fake_quantize,
-                             double allowed_err_pct,
-                             double& err_pct,
                              std::vector<details::Pwl>& segments) {
     auto fq = std::dynamic_pointer_cast<ngraph::opset8::FakeQuantize>(fake_quantize);
     auto lower_bound = details::lower_bound<ngraph::opset8::Power>(exponent);
@@ -388,9 +387,7 @@ static bool pwl_search_power(const std::shared_ptr<ngraph::Node>& node,
 
     segments = pwl_search<ngraph::opset8::Power>(details::Function<ngraph::opset8::Power>(exponent, scale, offset),
                                                  lower_bound,
-                                                 upper_bound,
-                                                 allowed_err_pct > 0.015 ? 0.015 : allowed_err_pct,
-                                                 err_pct);
+                                                 upper_bound);
     if (segments.size() <= 2) {
         return false;
     }
@@ -406,8 +403,6 @@ static bool pwl_search_power(const std::shared_ptr<ngraph::Node>& node,
 template <>
 bool pwl_search<ngraph::opset8::Power>(const std::shared_ptr<ngraph::opset8::Power>& node,
                                        const std::shared_ptr<ngraph::Node>& fake_quantize,
-                                       double allowed_err_pct,
-                                       double& err_pct,
                                        std::vector<details::Pwl>& segments) {
     auto constant = std::dynamic_pointer_cast<ngraph::opset8::Constant>(node->get_input_node_shared_ptr(1));
     double exponent = 0;
@@ -415,34 +410,27 @@ bool pwl_search<ngraph::opset8::Power>(const std::shared_ptr<ngraph::opset8::Pow
         throw std::runtime_error("The unsupported type of element.");
     }
 
-    return pwl_search_power(node, exponent, 1, 0, fake_quantize, allowed_err_pct, err_pct, segments);
+    return pwl_search_power(node, exponent, 1, 0, fake_quantize, segments);
 }
 
 template <>
 bool pwl_search<ngraph::op::PowerIE>(const std::shared_ptr<ngraph::op::PowerIE>& node,
                                      const std::shared_ptr<ngraph::Node>& fake_quantize,
-                                     double allowed_err_pct,
-                                     double& err_pct,
                                      std::vector<details::Pwl>& segments) {
     auto power = std::dynamic_pointer_cast<ngraph::op::PowerIE>(node);
-    return pwl_search_power(node,
-                            power->power,
-                            power->scale,
-                            power->shift,
-                            fake_quantize,
-                            allowed_err_pct,
-                            err_pct,
-                            segments);
+    return pwl_search_power(node, power->power, power->scale, power->shift, fake_quantize, segments);
 }
 
 template <typename T>
-bool transform_to_pwl(const std::shared_ptr<ngraph::Node>& fake_quantize,
-                      const std::shared_ptr<T>& node,
-                      double allowed_err_pct) {
-    double err_pct = 0;
+bool transform_to_pwl(const std::shared_ptr<ngraph::Node>& fake_quantize, const std::shared_ptr<T>& node) {
     std::vector<details::Pwl> segments;
-    if (!pwl_search<T>(node, fake_quantize, allowed_err_pct, err_pct, segments)) {
+    if (!pwl_search<T>(node, fake_quantize, segments)) {
         return false;
+    }
+
+    // Final number of segments is known here
+    if (segments.size() - 1 > max_segments_number()) {
+        throw std::runtime_error("Failed to converge in pwl_search!");
     }
 
     std::vector<double> m(segments.size() - 1);
@@ -477,25 +465,22 @@ bool transform_to_pwl(const std::shared_ptr<ngraph::Node>& fake_quantize,
 
 static bool transform_to_pwl(std::tuple<>&&,
                              const std::shared_ptr<ngraph::Node>&,
-                             const std::shared_ptr<ngraph::Node>&,
-                             double) {
+                             const std::shared_ptr<ngraph::Node>&) {
     return false;
 }
 
 template <typename T, typename... Types>
 static bool transform_to_pwl(std::tuple<T, Types...>&&,
                              const std::shared_ptr<ngraph::Node>& fake_quantize,
-                             const std::shared_ptr<ngraph::Node>& node,
-                             double allowed_err_pct) {
+                             const std::shared_ptr<ngraph::Node>& node) {
     auto op = std::dynamic_pointer_cast<T>(node);
     if (op) {
-        return transform_to_pwl(fake_quantize, op, allowed_err_pct);
+        return transform_to_pwl(fake_quantize, op);
     }
-    return transform_to_pwl(std::tuple<Types...>(), fake_quantize, node, allowed_err_pct);
+    return transform_to_pwl(std::tuple<Types...>(), fake_quantize, node);
 }
 
 static std::shared_ptr<ngraph::pattern::Matcher> create_matcher(ov::graph_rewrite_callback& handler_callback,
-                                                                double allowed_err_pct,
                                                                 const std::string& matcher_name,
                                                                 bool fq) {
     auto activation_input = ngraph::pattern::any_input();
@@ -539,24 +524,34 @@ static std::shared_ptr<ngraph::pattern::Matcher> create_matcher(ov::graph_rewrit
                                 fake_quantize_iter != pattern_to_output.end()
                                     ? fake_quantize_iter->second.get_node_shared_ptr()
                                     : std::shared_ptr<ngraph::Node>(),
-                                iter->second.get_node_shared_ptr(),
-                                allowed_err_pct);
+                                iter->second.get_node_shared_ptr());
     };
 
     handler_callback = callback;
     return std::make_shared<ngraph::pattern::Matcher>(activation_function, matcher_name);
 }
 
+// TODO remove
+void set_segments(double segments) {
+    auto segments_number = std::round(segments);
+    if (segments_number > 1) {
+        expected_segments_num = segments_number;
+    }
+    std::cerr << "expected segments: " << expected_segments_num << std::endl;
+}
+
 PWLApproximation::PWLApproximation(double allowed_err_pct) {
     MATCHER_SCOPE(PWLApproximation);
     ov::graph_rewrite_callback callback;
-    auto m = create_matcher(callback, allowed_err_pct, matcher_name, false);
+    set_segments(allowed_err_pct);
+    auto m = create_matcher(callback, matcher_name, false);
     register_matcher(m, callback);
 }
 
 PWLApproximationWithFq::PWLApproximationWithFq(double allowed_err_pct) {
     MATCHER_SCOPE(PWLApproximationWithFq);
     ov::graph_rewrite_callback callback;
-    auto m = create_matcher(callback, allowed_err_pct, matcher_name, true);
+    set_segments(allowed_err_pct);
+    auto m = create_matcher(callback, matcher_name, true);
     register_matcher(m, callback);
 }

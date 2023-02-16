@@ -319,18 +319,16 @@ const char* name() {
 }
 
 template <typename T>
-int max_segments_number() {
-    return 128;
-}
-
-template <typename T>
 inline int max_iterations() {
-    return 2000;
+    // TODO required for greater number of segments
+    // TODO ensure that it is enough
+    return 10000;
 }
 
 template <>
 inline int max_iterations<ngraph::opset8::Log>() {
-    return 5000;
+    // TODO ensure that it is enough
+    return 15000;
 }
 
 }  // namespace details

@@ -303,8 +303,8 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
     if (FLAGS_cw_l < 0) {
         throw std::logic_error("Invalid value for 'cw_l' argument. It must be greater than or equal to 0");
     }
-
-    if (FLAGS_pwl_me < 0.0 || FLAGS_pwl_me > 100.0) {
+    // TODO revert - this is only for testing purposes
+    if (FLAGS_pwl_me < 0.0 || FLAGS_pwl_me > 128.0) {
         throw std::logic_error("Invalid value for 'pwl_me' argument. It must be greater than 0.0 and less than 100.0");
     }
 

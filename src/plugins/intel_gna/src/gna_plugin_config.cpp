@@ -222,7 +222,9 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
             float max_error;
             try {
                 max_error = InferenceEngine::CNNLayer::ie_parse_float(value);
-                if (max_error < 0.0f || max_error > 100.0f) {
+                // TODO revert - this is only for testing purposes
+                // Remove togather with option.
+                if (max_error < 0.0f || max_error > 128.0f) {
                     throw std::out_of_range("");
                 }
             } catch (std::invalid_argument&) {
