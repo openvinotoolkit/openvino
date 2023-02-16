@@ -12,7 +12,7 @@ protected:
     void SetUp() override {
         std::vector<size_t> inputShape;
         InferenceEngine::Precision netPrecision;
-        std::tie(inputShape, netPrecision, targetDevice, exportConfiguration, importConfiguration, applicationHeader) =
+        std::tie(inputShape, netPrecision, targetDevice, exportConfiguration, importConfiguration, m_model_version, applicationHeader) =
             this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
@@ -118,6 +118,10 @@ const std::vector<std::map<std::string, std::string>> importConfigsUnchanged = {
     {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "1"}},
     {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}}};
 
+const std::vector<kExportModelVersion> model_versions = {kExportModelVersion::UNKNOWN,
+                                                         kExportModelVersion::V2_8,
+                                                         kExportModelVersion::V2_7};
+
 const std::vector<std::string> appHeaders = {"", "APPLICATION_HEADER"};
 
 INSTANTIATE_TEST_SUITE_P(smoke_ImportNetworkGNA,
@@ -127,6 +131,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ImportNetworkGNA,
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                             ::testing::ValuesIn(exportConfigs),
                                             ::testing::ValuesIn(importConfigsUnchanged),
+                                            ::testing::ValuesIn(model_versions),
                                             ::testing::ValuesIn(appHeaders)),
                          ImportExportGNAModelUnchanged::getTestCaseName);
 
@@ -137,6 +142,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ImportNetworkGNA,
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                             ::testing::ValuesIn(exportConfigs),
                                             ::testing::ValuesIn(importConfigsChanged),
+                                            ::testing::Values(kExportModelVersion::UNKNOWN),
                                             ::testing::ValuesIn(appHeaders)),
                          ImportExportGNAModelChanged::getTestCaseName);
 

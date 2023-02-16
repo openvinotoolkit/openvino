@@ -18,7 +18,7 @@ protected:
     void SetUp() override {
         std::vector<size_t> inputShape;
         InferenceEngine::Precision netPrecision;
-        std::tie(inputShape, netPrecision, targetDevice, exportConfiguration, importConfiguration, applicationHeader) =
+        std::tie(inputShape, netPrecision, targetDevice, exportConfiguration, importConfiguration, m_model_version, applicationHeader) =
             this->GetParam();
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
@@ -62,6 +62,10 @@ const std::vector<std::map<std::string, std::string>> importConfigsUnchanged = {
     {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_1", "327.67"}},
 };
 
+const std::vector<kExportModelVersion> model_versions = {kExportModelVersion::UNKNOWN,
+                                                         kExportModelVersion::V2_8,
+                                                         kExportModelVersion::V2_7};
+
 INSTANTIATE_TEST_SUITE_P(smoke_ImportNetworkGNA,
                          ImportMultiInputUnchanged,
                          ::testing::Combine(::testing::ValuesIn(inputShape),
@@ -69,6 +73,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ImportNetworkGNA,
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                             ::testing::ValuesIn(exportConfigs),
                                             ::testing::ValuesIn(importConfigsUnchanged),
+                                            ::testing::ValuesIn(model_versions),
                                             ::testing::Values("")),
                          ImportMultiInputUnchanged::getTestCaseName);
 
@@ -79,6 +84,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ImportNetworkGNA,
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                             ::testing::ValuesIn(exportConfigs),
                                             ::testing::ValuesIn(importConfigsChanged),
+                                            ::testing::Values(kExportModelVersion::UNKNOWN),
                                             ::testing::Values("")),
                          ImportMultiInputChanged::getTestCaseName);
 
