@@ -121,7 +121,12 @@ std::vector<std::string> parse_devices(const std::string& device_string) {
     }
 
     auto devices = split(comma_separated_devices, ',');
-    result.insert(result.end(), devices.begin(), devices.end());
+    for (auto&& device : devices) {
+        // e.g. in AUTO:-CPU,-GPU
+        if (device.front() == '-')
+            device.erase(device.begin());
+        result.push_back(device);
+    }
     return result;
 }
 
