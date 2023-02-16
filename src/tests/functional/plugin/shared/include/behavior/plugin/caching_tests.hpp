@@ -58,7 +58,7 @@ public:
 };
 
 using LoadNetworkCacheTestBaseAnyType = LoadNetworkCacheTestBase;
-using LoadNetworkCacheTestBaseNumeric = LoadNetworkCacheTestBase;
+using LoadNetworkCacheTestBaseNumericType = LoadNetworkCacheTestBase;
 using LoadNetworkCacheTestBaseFloatingPoint = LoadNetworkCacheTestBase;
 
 using compileKernelsCacheParams = std::tuple<

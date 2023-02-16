@@ -28,17 +28,16 @@ namespace behavior {
     }
 
 using OVCompiledModelClassBaseTest = OVCompiledModelClassBaseTestP;
-using OVClassExecutableNetworkImportExportTestP = OVCompiledModelClassBaseTestP;
-using OVClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS = OVCompiledModelClassBaseTestP;
-using OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS = OVCompiledModelClassBaseTestP;
-using OVClassExecutableNetworkGetMetricTest_NETWORK_NAME = OVCompiledModelClassBaseTestP;
-using OVClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS = OVCompiledModelClassBaseTestP;
-using OVClassExecutableNetworkGetMetricTest_ThrowsUnsupported = OVCompiledModelClassBaseTestP;
+using CompiledModelImportExportTestP = OVCompiledModelClassBaseTestP;
+using CompiledModelGetMetricTest_SUPPORTED_CONFIG_KEYS = OVCompiledModelClassBaseTestP;
+using CompiledModelGetMetricTest_SUPPORTED_METRICS = OVCompiledModelClassBaseTestP;
+using CompiledModelGetMetricTest_NETWORK_NAME = OVCompiledModelClassBaseTestP;
+using CompiledModelGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS = OVCompiledModelClassBaseTestP;
+using CompiledModelGetMetricTest_ThrowsUnsupported = OVCompiledModelClassBaseTestP;
 using CompiledModelPropertyTest = OVCompiledModelClassBaseTestP;
-using OVClassExecutableNetworkSetConfigTest = OVCompiledModelClassBaseTestP;
-using CompiledModelPropertyTest = OVCompiledModelClassBaseTestP;
+using CompiledModelSetConfigTest = OVCompiledModelClassBaseTestP;
 
-class OVClassExecutableNetworkGetMetricTestForSpecificConfig :
+class CompiledModelGetMetricTestForSpecificConfig :
         public OVClassNetworkTest,
         public ::testing::WithParamInterface<std::tuple<std::string, std::pair<std::string, std::string>>>,
         public OVCompiledNetworkTestBase {
@@ -56,8 +55,8 @@ public:
     }
 };
 
-using OVClassExecutableNetworkSupportedConfigTest = OVClassExecutableNetworkGetMetricTestForSpecificConfig;
-using OVClassExecutableNetworkUnsupportedConfigTest = OVClassExecutableNetworkGetMetricTestForSpecificConfig;
+using CompiledModelSupportedConfigTest = CompiledModelGetMetricTestForSpecificConfig;
+using CompiledModelUnsupportedConfigTest = CompiledModelGetMetricTestForSpecificConfig;
 
 //
 // Hetero Executable network case

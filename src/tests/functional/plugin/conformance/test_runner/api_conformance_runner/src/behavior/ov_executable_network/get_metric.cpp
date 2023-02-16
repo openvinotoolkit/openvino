@@ -15,7 +15,7 @@ using namespace ov::test::conformance;
 //
 
 INSTANTIATE_TEST_SUITE_P(
-        ov_compiled_model, OVClassExecutableNetworkImportExportTestP,
+        ov_compiled_model, CompiledModelImportExportTestP,
         ::testing::ValuesIn(return_all_possible_device_combination()));
 
 //
@@ -23,23 +23,23 @@ INSTANTIATE_TEST_SUITE_P(
 //
 
 INSTANTIATE_TEST_SUITE_P(
-        ov_compiled_model, OVClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
+        ov_compiled_model, CompiledModelGetMetricTest_SUPPORTED_CONFIG_KEYS,
         ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
-        ov_compiled_model, OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
+        ov_compiled_model, CompiledModelGetMetricTest_SUPPORTED_METRICS,
         ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
-        ov_compiled_model, OVClassExecutableNetworkGetMetricTest_NETWORK_NAME,
+        ov_compiled_model, CompiledModelGetMetricTest_NETWORK_NAME,
         ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
-        ov_compiled_model, OVClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
+        ov_compiled_model, CompiledModelGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
         ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
-        ov_compiled_model, OVClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
+        ov_compiled_model, CompiledModelGetMetricTest_ThrowsUnsupported,
         ::testing::ValuesIn(return_all_possible_device_combination()));
 
 //
@@ -51,7 +51,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
-        ov_compiled_model, OVClassExecutableNetworkSetConfigTest,
+        ov_compiled_model, CompiledModelSetConfigTest,
         ::testing::ValuesIn(return_all_possible_device_combination()));
 
 ////

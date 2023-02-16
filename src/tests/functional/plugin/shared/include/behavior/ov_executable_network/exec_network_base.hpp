@@ -17,7 +17,7 @@ namespace test {
 namespace behavior {
 
 class OVCompiledModelBaseTest : public testing::WithParamInterface<InferRequestParams>,
-                                    public OVCompiledNetworkTestBase {
+                                public OVCompiledNetworkTestBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
         std::string targetDevice;
@@ -80,7 +80,7 @@ protected:
     void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_compiled_model; }
 };
 
-using OVAutoExecutableNetworkTest = OVCompiledModelBaseTest;
+using OVAutoCompiledModelTest = OVCompiledModelBaseTest;
 
 TEST_P(OVCompiledModelBaseTest, canCompileModel) {
     EXPECT_NO_THROW(auto execNet = core->compile_model(function, target_device, configuration));
@@ -141,7 +141,6 @@ TEST_P(OVCompiledModelBaseTest, canCompileModelFromMemory) {
 }
 
 TEST(OVCompiledModelBaseTest, canCompileModelToDefaultDevice) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     std::shared_ptr<ov::Model> function = ngraph::builder::subgraph::makeConvPoolRelu();
     EXPECT_NO_THROW(auto execNet = core->compile_model(function));
@@ -395,8 +394,6 @@ TEST_P(OVCompiledModelBaseTest, pluginDoesNotChangeOriginalModel) {
 }
 
 TEST_P(OVCompiledModelBaseTest, getInputFromFunctionWithSingleInput) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel execNet;
 
     execNet = core->compile_model(function, target_device, configuration);
@@ -422,8 +419,6 @@ TEST_P(OVCompiledModelBaseTest, getInputFromFunctionWithSingleInput) {
 }
 
 TEST_P(OVCompiledModelBaseTest, getOutputFromFunctionWithSingleInput) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel execNet;
 
     execNet = core->compile_model(function, target_device, configuration);
@@ -448,8 +443,6 @@ TEST_P(OVCompiledModelBaseTest, getOutputFromFunctionWithSingleInput) {
 }
 
 TEST_P(OVCompiledModelBaseTest, getInputsFromFunctionWithSeveralInputs) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel execNet;
 
     // Create simple function
@@ -519,8 +512,6 @@ TEST_P(OVCompiledModelBaseTest, getInputsFromFunctionWithSeveralInputs) {
 }
 
 TEST_P(OVCompiledModelBaseTest, getOutputsFromFunctionWithSeveralOutputs) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel execNet;
 
     // Create simple function
@@ -590,8 +581,6 @@ TEST_P(OVCompiledModelBaseTest, getOutputsFromFunctionWithSeveralOutputs) {
 }
 
 TEST_P(OVCompiledModelBaseTest, getOutputsFromSplitFunctionWithSeveralOutputs) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel execNet;
 
     // Create simple function
@@ -720,8 +709,6 @@ TEST_P(OVCompiledModelBaseTest, getCompiledModelFromInferRequest) {
 }
 
 TEST_P(OVCompiledModelBaseTest, loadIncorrectV10Model) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel execNet;
 
     // Create simple function
@@ -742,8 +729,6 @@ TEST_P(OVCompiledModelBaseTest, loadIncorrectV10Model) {
 }
 
 TEST_P(OVCompiledModelBaseTest, loadIncorrectV11Model) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel execNet;
 
     // Create simple function
@@ -763,7 +748,7 @@ TEST_P(OVCompiledModelBaseTest, loadIncorrectV11Model) {
     EXPECT_NO_THROW(core->compile_model(function, target_device, configuration));
 }
 
-TEST_P(OVAutoExecutableNetworkTest, AutoNotImplementedSetConfigToExecNet) {
+TEST_P(OVAutoCompiledModelTest, AutoNotImplementedSetConfigToExecNet) {
     std::map<std::string, ov::Any> config;
     for (const auto& confItem : configuration) {
         config.emplace(confItem.first, confItem.second);

@@ -231,7 +231,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunctionConstantResultOnly) {
     EXPECT_EQ(ov::element::Type(elementType), importedCompiledModel.output("data").get_element_type());
 }
 
-TEST_P(OVExecGraphImportExportTest, readModelFromMemory) {
+TEST_P(OVExecGraphImportExportTest, readModelFromMemoryIRv10) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>

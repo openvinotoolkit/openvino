@@ -241,7 +241,7 @@ using PriorityParams = std::tuple<
         std::string,            // Device name
         ov::AnyMap              // device priority Configuration key
 >;
-class OVClassExecutableNetworkGetMetricTest_Priority : public ::testing::WithParamInterface<PriorityParams>,
+class CompiledModelGetMetricTest_Priority : public ::testing::WithParamInterface<PriorityParams>,
                                                        public OVCompiledNetworkTestBase {
 protected:
     ov::AnyMap configuration;
@@ -256,8 +256,8 @@ public:
         simpleNetwork = ngraph::builder::subgraph::makeSingleConv();
     }
 };
-using OVClassExecutableNetworkGetMetricTest_DEVICE_PRIORITY = OVClassExecutableNetworkGetMetricTest_Priority;
-using OVClassExecutableNetworkGetMetricTest_MODEL_PRIORITY = OVClassExecutableNetworkGetMetricTest_Priority;
+using CompiledModelGetMetricTest_DEVICE_PRIORITY = CompiledModelGetMetricTest_Priority;
+using CompiledModelGetMetricTest_MODEL_PRIORITY = CompiledModelGetMetricTest_Priority;
 
 #define SKIP_IF_NOT_IMPLEMENTED(...)                   \
 {                                                      \

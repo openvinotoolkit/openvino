@@ -64,7 +64,7 @@ public:
 };
 
 using CompileModelCacheTestBaseAnyType = CompileModelCacheTestBase;
-using CompileModelCacheTestBaseNumeric = CompileModelCacheTestBase;
+using CompileModelCacheTestBaseNumericType = CompileModelCacheTestBase;
 using CompileModelCacheTestBaseFloatingPoint = CompileModelCacheTestBase;
 
 using compileModelLoadFromFileParams = std::tuple<

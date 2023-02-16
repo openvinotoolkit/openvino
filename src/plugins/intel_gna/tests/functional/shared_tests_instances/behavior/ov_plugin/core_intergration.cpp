@@ -63,7 +63,7 @@ const std::vector<std::tuple<std::string, std::pair<ov::AnyMap, std::string>>> G
     {"GNA", std::make_pair(ov::AnyMap{}, "GNA")}};
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-                         OVClassExecutableNetworkGetMetricTest_EXEC_DEVICES,
+                         CompiledModelGetMetricTest_EXEC_DEVICES,
                          ::testing::ValuesIn(GetMetricTest_ExecutionDevice_GNA),
                          OVCompileModelGetExecutionDeviceTests::getTestCaseName);
 

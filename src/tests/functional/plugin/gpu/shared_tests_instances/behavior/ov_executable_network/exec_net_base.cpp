@@ -41,8 +41,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatchBehaviorTests, OVCompiledModelBaseTest,
                          OVCompiledModelBaseTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
-                         OVCompiledModelBaseTest,
+                         OVAutoCompiledModelTest,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                             ::testing::ValuesIn(autoConfigs)),
-                         OVCompiledModelBaseTest::getTestCaseName);
+                         OVAutoCompiledModelTest::getTestCaseName);
 }  // namespace

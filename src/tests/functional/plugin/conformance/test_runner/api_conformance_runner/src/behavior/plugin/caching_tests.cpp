@@ -44,13 +44,13 @@ INSTANTIATE_TEST_SUITE_P(ie_plugin, LoadNetworkCacheTestBaseAnyType,
                                  ::testing::ValuesIn(return_all_possible_device_combination())),
                          LoadNetworkCacheTestBaseAnyType::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(ie_plugin, LoadNetworkCacheTestBaseNumeric,
+INSTANTIATE_TEST_SUITE_P(ie_plugin, LoadNetworkCacheTestBaseNumericType,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(LoadNetworkCacheTestBaseNumeric::getNumericTypeOnlyFunctions()),
+                                 ::testing::ValuesIn(LoadNetworkCacheTestBaseNumericType::getNumericTypeOnlyFunctions()),
                                  ::testing::ValuesIn(numericPrecisionsTemplate),
                                  ::testing::ValuesIn(batchSizesTemplate),
                                  ::testing::ValuesIn(return_all_possible_device_combination())),
-                         LoadNetworkCacheTestBaseNumeric::getTestCaseName);
+                         LoadNetworkCacheTestBaseNumericType::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ie_plugin, LoadNetworkCacheTestBaseFloatingPoint,
                          ::testing::Combine(

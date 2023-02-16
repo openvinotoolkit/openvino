@@ -133,25 +133,6 @@ TEST_P(OVInferRequestIOTensorTest, secondCallGetOutputAfterInferAsync) {
     ASSERT_EQ(tensor1.data(), tensor2.data());
 }
 
-<<<<<<< HEAD
-=======
-TEST_P(OVInferRequestIOTensorTest, canSetInputTensorForInferRequest) {
-    auto input_tensor = utils::create_and_fill_tensor(input.get_element_type(), input.get_shape());
-    OV_ASSERT_NO_THROW(req.set_tensor(input, input_tensor));
-    ov::Tensor actual_tensor;
-    OV_ASSERT_NO_THROW(actual_tensor = req.get_tensor(input));
-    ASSERT_EQ(input_tensor.data(), actual_tensor.data());
-}
-
-TEST_P(OVInferRequestIOTensorTest, canSetOutputTensorForInferRequest) {
-    auto output_tensor = utils::create_and_fill_tensor(output.get_element_type(), output.get_shape());
-    OV_ASSERT_NO_THROW(req.set_tensor(output, output_tensor));
-    ov::Tensor actual_tensor;
-    OV_ASSERT_NO_THROW(actual_tensor = req.get_tensor(output));
-    ASSERT_EQ(output_tensor.data(), actual_tensor.data());
-}
-
->>>>>>> [apiConformance] Fix test names
 TEST_P(OVInferRequestIOTensorTest, canInferWithSetInOutBlobs) {
     auto input_tensor = utils::create_and_fill_tensor(input.get_element_type(), input.get_shape());
     OV_ASSERT_NO_THROW(req.set_tensor(input, input_tensor));

@@ -471,7 +471,7 @@ TEST_P(OVClassGetMetricTest_GPU_OPTIMAL_BATCH_SIZE, GetMetricAndPrintNoThrow) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-        nightly_OVClassExecutableNetworkGetMetricTest, OVClassGetMetricTest_GPU_OPTIMAL_BATCH_SIZE,
+        nightly_CompiledModelGetMetricTest, OVClassGetMetricTest_GPU_OPTIMAL_BATCH_SIZE,
         ::testing::Values("GPU")
 );
 

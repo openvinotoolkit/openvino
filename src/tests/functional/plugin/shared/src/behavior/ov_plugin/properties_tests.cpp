@@ -261,7 +261,7 @@ TEST_P(OVCompileModelGetExecutionDeviceTests, CanGetExecutionDeviceInfo) {
         ASSERT_FALSE(property.empty());
 }
 
-TEST_P(OVClassExecutableNetworkGetMetricTest_EXEC_DEVICES, CanGetExecutionDeviceInfo) {
+TEST_P(CompiledModelGetMetricTest_EXEC_DEVICES, CanGetExecutionDeviceInfo) {
     ov::Core ie = createCoreWithTemplate();
     std::vector<std::string> expectedTargets = {expectedDeviceName};
     auto compiled_model = ie.compile_model(model, target_device, compileModelProperties);

@@ -155,7 +155,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVInferRequestCheckTensorPrecision.*type=u1.*)",
         R"(.*OVInferRequestCheckTensorPrecision.*type=u4.*)",
         // Issue: 75022
-        R"(.*OVCompiledModelBaseTest.*LoadNetworkToDefaultDeviceNoThrow.*)",
+        R"(.*OVCompiledModelBaseTest.*canCompileModelToDefaultDevice.*)",
         R"(.*IEClassBasicTest.*LoadNetworkToDefaultDeviceNoThrow.*)",
         // Issue: 77390
         R"(.*LoopLayerCPUTest.*exec_cond=0.*)",
@@ -178,11 +178,11 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 95590
         R"(.*CachingSupportCase.*CompileModelCacheTestBase.*(TIwithLSTMcell1|MatMulBias|2InputSubtract)_(u|i).*)",
         // Issue: 95607
-        R"(.*OVClass.*LoadNetwork.*LoadNetwork(HETEROAndDeviceIDThrows|MULTIwithAUTONoThrow|HETEROwithMULTINoThrow|MULTIwithHETERONoThrow).*)",
-        R"(.*OVClass.*LoadNetwork.*LoadNetwork(HETEROWithDeviceIDNoThrow|WithDeviceID|WithBigDeviceIDThrows|WithInvalidDeviceIDThrows|HETEROWithBigDeviceIDThrows).*)",
-        R"(.*OVClass.*QueryNetwork.*QueryNetwork(HETEROWithDeviceIDNoThrow|WithDeviceID|WithBigDeviceIDThrows|WithInvalidDeviceIDThrows|HETEROWithBigDeviceIDThrows).*)",
-        R"(.*OVClass.*LoadNetwork.*(DeviceID|MultiWithoutSettingDevicePrioritiesThrows).*)",
-        R"(.*OVClassCompileModelTest.*QueryNetwork(MULTIWithHETERO|HETEROWithMULTI)NoThrow_V10.*)",
+        R"(.*OVClass.*CompileModel.*CompileModel(HETEROAndDeviceIDThrows|MULTIwithAUTONoThrow|HETEROwithMULTINoThrow|MULTIwithHETERONoThrow).*)",
+        R"(.*OVClass.*CompileModel.*CompileModel(HETEROWithDeviceIDNoThrow|WithDeviceID|WithBigDeviceIDThrows|WithInvalidDeviceIDThrows|HETEROWithBigDeviceIDThrows).*)",
+        R"(.*OVClass.*QueryModel.*QueryModel(HETEROWithDeviceIDNoThrow|WithDeviceID|WithBigDeviceIDThrows|WithInvalidDeviceIDThrows|HETEROWithBigDeviceIDThrows).*)",
+        R"(.*OVClass.*CompileModel.*(DeviceID|MultiWithoutSettingDevicePrioritiesThrows).*)",
+        R"(.*OVClassCompileModelTest.*QueryModel(MULTIWithHETERO|HETEROWithMULTI)NoThrowMultinputNetwork.*)",
         R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*(TIwithLSTMcell1|MatMulBias|2InputSubtract)_(i|u).*)",
         R"(.*CachingSupportCase.*ReadConcatSplitAssign.*)",
         R"(.*IEClassQueryNetworkTest.*QueryNetwork.*)",

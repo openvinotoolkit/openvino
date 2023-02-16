@@ -55,7 +55,7 @@ public:
     }
 };
 
-class OVClassExecutableNetworkGetMetricTestForSpecificConfigGNA
+class CompiledModelGetMetricTestForSpecificConfigGNA
     : public OVClassNetworkTestGNA,
       public ::testing::WithParamInterface<std::tuple<std::string, std::pair<std::string, ov::Any>>> {
 protected:
@@ -73,28 +73,28 @@ public:
 };
 
 // TODO: Convolution with 3D input is not supported on GNA
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassExecutableNetworkGetMetricTest,
-                         OVClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_CompiledModelGetMetricTest,
+                         CompiledModelGetMetricTest_SUPPORTED_CONFIG_KEYS,
                          ::testing::Values("GNA" /*, "MULTI:GNA", "HETERO:GNA" */));
 
 // TODO: Convolution with 3D input is not supported on GNA
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassExecutableNetworkGetMetricTest,
-                         OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_CompiledModelGetMetricTest,
+                         CompiledModelGetMetricTest_SUPPORTED_METRICS,
                          ::testing::Values("GNA" /*, "MULTI:GNA",  "HETERO:GNA" */));
 
 // TODO: this metric is not supported by the plugin
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassExecutableNetworkGetMetricTest,
-                         OVClassExecutableNetworkGetMetricTest_NETWORK_NAME,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_CompiledModelGetMetricTest,
+                         CompiledModelGetMetricTest_NETWORK_NAME,
                          ::testing::Values("GNA", /* "MULTI:GNA", */ "HETERO:GNA"));
 
 // TODO: Convolution with 3D input is not supported on GNA
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassExecutableNetworkGetMetricTest,
-                         OVClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_CompiledModelGetMetricTest,
+                         CompiledModelGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
                          ::testing::Values("GNA" /*, "MULTI:GNA", "HETERO:GNA" */));
 
 // TODO: Convolution with 3D input is not supported on GNA
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassExecutableNetworkGetMetricTest,
-                         OVClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_CompiledModelGetMetricTest,
+                         CompiledModelGetMetricTest_ThrowsUnsupported,
                          ::testing::Values("GNA", /* "MULTI:GNA", */ "HETERO:GNA"));
 
 //
@@ -105,15 +105,15 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassExecutableNetworkGetMetricTest,
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_CompiledModelPropertyTest, CompiledModelPropertyTest, ::testing::Values("GNA"));
 
 // TODO: Convolution with 3D input is not supported on GNA
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassExecutableNetworkSetConfigTest,
-                         OVClassExecutableNetworkSetConfigTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_CompiledModelSetConfigTest,
+                         CompiledModelSetConfigTest,
                          ::testing::Values("GNA"));
 
 IE_SUPPRESS_DEPRECATED_START
 // TODO: Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_SUITE_P(
-    DISABLED_smoke_OVClassExecutableNetworkSupportedConfigTest,
-    OVClassExecutableNetworkSupportedConfigTest,
+    DISABLED_smoke_CompiledModelSupportedConfigTest,
+    CompiledModelSupportedConfigTest,
     ::testing::Combine(
         ::testing::Values("GNA"),
         ::testing::Values(std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), InferenceEngine::GNAConfigParams::GNA_HW),
@@ -124,8 +124,8 @@ IE_SUPPRESS_DEPRECATED_END
 
 // TODO: Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_SUITE_P(
-    DISABLED_smoke_OVClassExecutableNetworkUnsupportedConfigTest,
-    OVClassExecutableNetworkUnsupportedConfigTest,
+    DISABLED_smoke_CompiledModelUnsupportedConfigTest,
+    CompiledModelUnsupportedConfigTest,
     ::testing::Combine(::testing::Values("GNA"),
                        ::testing::Values(std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE),
                                                         InferenceEngine::GNAConfigParams::GNA_SW_FP32),
@@ -133,10 +133,10 @@ INSTANTIATE_TEST_SUITE_P(
                                          std::make_pair(CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(YES)),
                                          std::make_pair(GNA_CONFIG_KEY(COMPACT_MODE), CONFIG_VALUE(NO)))));
 
-using OVClassExecutableNetworkSetConfigFromFp32Test = OVClassExecutableNetworkGetMetricTestForSpecificConfigGNA;
-using OVClassExecutableNetworkSetConfigROProperties = OVClassExecutableNetworkGetMetricTestForSpecificConfigGNA;
+using CompiledModelSetConfigFromFp32Test = CompiledModelGetMetricTestForSpecificConfigGNA;
+using CompiledModelSetConfigROProperties = CompiledModelGetMetricTestForSpecificConfigGNA;
 
-TEST_P(OVClassExecutableNetworkSetConfigFromFp32Test, SetConfigFromFp32Throws) {
+TEST_P(CompiledModelSetConfigFromFp32Test, SetConfigFromFp32Throws) {
     ov::Core ie;
 
     ov::AnyMap initialConfig;
@@ -150,8 +150,8 @@ TEST_P(OVClassExecutableNetworkSetConfigFromFp32Test, SetConfigFromFp32Throws) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_OVClassExecutableNetworkSetConfigFromFp32Test,
-    OVClassExecutableNetworkSetConfigFromFp32Test,
+    smoke_CompiledModelSetConfigFromFp32Test,
+    CompiledModelSetConfigFromFp32Test,
     ::testing::Combine(
         ::testing::Values("GNA"),
         ::testing::Values(std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), InferenceEngine::GNAConfigParams::GNA_HW),
@@ -166,7 +166,7 @@ INSTANTIATE_TEST_SUITE_P(
                           ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_FP32),
                           ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::AUTO))));
 
-TEST_P(OVClassExecutableNetworkSetConfigROProperties, SetConfigROPropertiesThrows) {
+TEST_P(CompiledModelSetConfigROProperties, SetConfigROPropertiesThrows) {
     ov::Core ie;
     std::vector<ov::PropertyName> properties;
 
@@ -182,8 +182,8 @@ TEST_P(OVClassExecutableNetworkSetConfigROProperties, SetConfigROPropertiesThrow
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_OVClassExecutableNetworkSetConfigROProperties,
-    OVClassExecutableNetworkSetConfigROProperties,
+    smoke_CompiledModelSetConfigROProperties,
+    CompiledModelSetConfigROProperties,
     ::testing::Combine(
         ::testing::Values("GNA"),
         ::testing::Values(ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"0", 1.0f}}),

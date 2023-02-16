@@ -75,9 +75,12 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*LoadNetwork*.*LoadNetwork(HETEROWithDeviceIDNoThrow|WithBigDeviceID|WithInvalidDeviceID)*.*)",
         R"(.*QueryNetwork*.*QueryNetwork(HETEROWithDeviceIDNoThrow|WithBigDeviceID|WithInvalidDeviceID)*.*)",
         R"(.*LoadNetworkTest.*QueryNetwork(MULTIWithHETERO|HETEROWithMULTI)NoThrow_V10.*)",
+        R"(.*CompileModel*.*CompileModel(HETEROWithDeviceIDNoThrow|WithBigDeviceID|WithInvalidDeviceID)*.*)",
+        R"(.*QueryModel*.*QueryModel(HETEROWithDeviceIDNoThrow|WithBigDeviceID|WithInvalidDeviceID)*.*)",
+        R"(.*CompileModelTest.*QueryModel(MULTIWithHETERO|HETEROWithMULTI)NoThrow_V10.*)",
         R"(.*Behavior.*OVExecutableNetworkBaseTest.*get(Inputs|Outputs)FromFunctionWithSeveral(Inputs|Outputs).*)",
         // TODO: temporary disabled. Need to be enabled when PR 9282 is merged
-        R"(.*OVExecGraphImportExportTest.*readFromV10IR.*)",
+        R"(.*OVExecGraphImportExportTest.*readModelFromMemoryIRv10.*)",
         // Issue connected with OV2.0
         R"(.*EltwiseLayerTest.*NetType=f16.*)",
         // TODO: Issue: 69639

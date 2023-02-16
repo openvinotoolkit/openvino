@@ -47,14 +47,14 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin, CompileModelCacheTestBaseAnyType,
                          CompileModelCacheTestBaseAnyType::getTestCaseName);
 
 // Convolution/UnaryElementwiseArithmetic/BinaryElementwiseArithmetic is not supported boolean elemnt type
-INSTANTIATE_TEST_SUITE_P(ov_plugin, CompileModelCacheTestBaseNumeric,
+INSTANTIATE_TEST_SUITE_P(ov_plugin, CompileModelCacheTestBaseNumericType,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(CompileModelCacheTestBaseNumeric::getNumericTypeOnlyFunctions()),
+                                 ::testing::ValuesIn(CompileModelCacheTestBaseNumericType::getNumericTypeOnlyFunctions()),
                                  ::testing::ValuesIn(ovElemAnyNumericTypesTemplate),
                                  ::testing::ValuesIn(ovBatchSizesTemplate),
                                  ::testing::ValuesIn(return_all_possible_device_combination()),
                                  ::testing::Values(ov::AnyMap{})),
-                         CompileModelCacheTestBaseNumeric::getTestCaseName);
+                         CompileModelCacheTestBaseNumericType::getTestCaseName);
 
 // LSTMcell supported floating-point element type
 INSTANTIATE_TEST_SUITE_P(ov_plugin, CompileModelCacheTestBaseFloatingPoint,

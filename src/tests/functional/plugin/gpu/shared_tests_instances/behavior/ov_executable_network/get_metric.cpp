@@ -15,24 +15,24 @@ namespace {
 // Executable Network GetMetric
 //
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassExecutableNetworkGetMetricTest,
-                         OVClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
+INSTANTIATE_TEST_SUITE_P(nightly_CompiledModelGetMetricTest,
+                         CompiledModelGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
                          ::testing::Values("GPU", "MULTI:GPU", "HETERO:GPU", "AUTO:GPU,CPU", "BATCH:GPU"));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassExecutableNetworkGetMetricTest,
-                         OVClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
+INSTANTIATE_TEST_SUITE_P(nightly_CompiledModelGetMetricTest,
+                         CompiledModelGetMetricTest_SUPPORTED_CONFIG_KEYS,
                          ::testing::Values("GPU", "MULTI:GPU", "HETERO:GPU", "AUTO:GPU,CPU", "BATCH:GPU"));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassExecutableNetworkGetMetricTest,
-                         OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
+INSTANTIATE_TEST_SUITE_P(nightly_CompiledModelGetMetricTest,
+                         CompiledModelGetMetricTest_SUPPORTED_METRICS,
                          ::testing::Values("GPU", "MULTI:GPU", "HETERO:GPU", "AUTO:GPU,CPU", "BATCH:GPU"));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassExecutableNetworkGetMetricTest,
-                         OVClassExecutableNetworkGetMetricTest_NETWORK_NAME,
+INSTANTIATE_TEST_SUITE_P(nightly_CompiledModelGetMetricTest,
+                         CompiledModelGetMetricTest_NETWORK_NAME,
                          ::testing::Values("GPU", "MULTI:GPU", "HETERO:GPU", "AUTO:GPU,CPU", "BATCH:GPU"));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassExecutableNetworkGetMetricTest,
-                         OVClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
+INSTANTIATE_TEST_SUITE_P(nightly_CompiledModelGetMetricTest,
+                         CompiledModelGetMetricTest_ThrowsUnsupported,
                          ::testing::Values("GPU", "MULTI:GPU", "HETERO:GPU", "AUTO:GPU,CPU", "BATCH:GPU"));
 
 const std::vector<std::tuple<std::string, std::pair<ov::AnyMap, std::string>>> GetMetricTest_ExecutionDevice_GPU = {
@@ -40,8 +40,8 @@ const std::vector<std::tuple<std::string, std::pair<ov::AnyMap, std::string>>> G
         {"GPU.0", std::make_pair(ov::AnyMap{}, "GPU.0")},
         {"BATCH:GPU", std::make_pair(ov::AnyMap{}, "GPU.0")}};
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassExecutableNetworkGetMetricTest,
-                         OVClassExecutableNetworkGetMetricTest_EXEC_DEVICES,
+INSTANTIATE_TEST_SUITE_P(nightly_CompiledModelGetMetricTest,
+                         CompiledModelGetMetricTest_EXEC_DEVICES,
                          ::testing::ValuesIn(GetMetricTest_ExecutionDevice_GPU),
                          OVCompileModelGetExecutionDeviceTests::getTestCaseName);
 
@@ -51,8 +51,8 @@ auto multiDevicePriorityConfigs = []() {
                                    {ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU)}};
 };
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassExecutableNetworkGetMetricTest,
-                         OVClassExecutableNetworkGetMetricTest_DEVICE_PRIORITY,
+INSTANTIATE_TEST_SUITE_P(nightly_CompiledModelGetMetricTest,
+                         CompiledModelGetMetricTest_DEVICE_PRIORITY,
                          ::testing::Combine(::testing::Values("MULTI", "AUTO"),
                                             ::testing::ValuesIn(multiDevicePriorityConfigs())));
 
@@ -62,11 +62,11 @@ auto multiModelPriorityConfigs = []() {
                                    {ov::hint::model_priority(ov::hint::Priority::LOW)}};
 };
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassExecutableNetworkGetMetricTest,
-                         OVClassExecutableNetworkGetMetricTest_MODEL_PRIORITY,
+INSTANTIATE_TEST_SUITE_P(nightly_CompiledModelGetMetricTest,
+                         CompiledModelGetMetricTest_MODEL_PRIORITY,
                          ::testing::Combine(::testing::Values("AUTO"),
                                             ::testing::ValuesIn(multiModelPriorityConfigs())),
-                         OVClassExecutableNetworkGetMetricTest_MODEL_PRIORITY::getTestCaseName);
+                         CompiledModelGetMetricTest_MODEL_PRIORITY::getTestCaseName);
 
 
 //
@@ -77,8 +77,8 @@ INSTANTIATE_TEST_SUITE_P(nightly_CompiledModelPropertyTest,
                          CompiledModelPropertyTest,
                          ::testing::Values("GPU"));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassExecutableNetworkSetConfigTest,
-                         OVClassExecutableNetworkSetConfigTest,
+INSTANTIATE_TEST_SUITE_P(nightly_CompiledModelSetConfigTest,
+                         CompiledModelSetConfigTest,
                          ::testing::Values("GPU"));
 
 //

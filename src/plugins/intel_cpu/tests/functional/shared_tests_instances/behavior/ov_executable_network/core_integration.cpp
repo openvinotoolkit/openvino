@@ -18,7 +18,7 @@ namespace {
 
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassImportExportTestP, OVClassExecutableNetworkImportExportTestP,
+        smoke_OVClassImportExportTestP, CompiledModelImportExportTestP,
         ::testing::Values("HETERO:CPU"));
 
 //
@@ -26,30 +26,30 @@ INSTANTIATE_TEST_SUITE_P(
 //
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
+        smoke_CompiledModelGetMetricTest, CompiledModelGetMetricTest_SUPPORTED_CONFIG_KEYS,
         ::testing::Values("CPU", "MULTI:CPU", "HETERO:CPU", "AUTO:CPU"));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
+        smoke_CompiledModelGetMetricTest, CompiledModelGetMetricTest_SUPPORTED_METRICS,
         ::testing::Values("CPU", "MULTI:CPU", "HETERO:CPU", "AUTO:CPU"));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_NETWORK_NAME,
+        smoke_CompiledModelGetMetricTest, CompiledModelGetMetricTest_NETWORK_NAME,
         ::testing::Values("CPU", "MULTI:CPU", "HETERO:CPU", "AUTO:CPU"));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
+        smoke_CompiledModelGetMetricTest, CompiledModelGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
         ::testing::Values("CPU", "MULTI:CPU", "HETERO:CPU", "AUTO:CPU"));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
+        smoke_CompiledModelGetMetricTest, CompiledModelGetMetricTest_ThrowsUnsupported,
         ::testing::Values("CPU", "MULTI:CPU", "HETERO:CPU", "AUTO:CPU"));
 
 const std::vector<std::tuple<std::string, std::pair<ov::AnyMap, std::string>>> GetMetricTest_ExecutionDevice_CPU = {
         {"CPU", std::make_pair(ov::AnyMap{}, "CPU")}};
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_EXEC_DEVICES,
+        smoke_CompiledModelGetMetricTest, CompiledModelGetMetricTest_EXEC_DEVICES,
         ::testing::ValuesIn(GetMetricTest_ExecutionDevice_CPU),
         OVCompileModelGetExecutionDeviceTests::getTestCaseName);
 
@@ -62,7 +62,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values("CPU"));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassExecutableNetworkSetConfigTest, OVClassExecutableNetworkSetConfigTest,
+        smoke_CompiledModelSetConfigTest, CompiledModelSetConfigTest,
         ::testing::Values("CPU"));
 
 ////
