@@ -4,6 +4,7 @@
 
 #include "ngraph/op/scatter_nd_update.hpp"
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/scatter_nd_update.hpp"
@@ -28,11 +29,7 @@ bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg2,
               const HostTensorPtr& out) {
     using T = typename element_type_traits<ET>::value_type;
-    ov::Shape params_shape = arg0->get_shape();
-    ov::Shape indices_shape = arg1->get_shape();
-    ov::Shape updates_shape = arg1->get_shape();
-    const ov::Shape& out_shape(params_shape);
-    out->set_shape(out_shape);
+    out->set_shape(arg0->get_shape());
 
     if (arg1->get_element_type() == element::i64) {
         runtime::reference::scatterNdUpdate<T, int64_t>(arg0->get_data_ptr<ET>(),
@@ -113,4 +110,20 @@ bool op::v3::ScatterNDUpdate::has_evaluate() const {
         return false;
     }
     return true;
+}
+
+bool op::v3::ScatterNDUpdate::evaluate_lower(ov::TensorVector& output_values) const {
+    OV_OP_SCOPE(v3_ScatterNDUpdate_evaluate_lower);
+    return get_input_tensor(1).has_and_set_bound() && ov::default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v3::ScatterNDUpdate::evaluate_upper(ov::TensorVector& output_values) const {
+    OV_OP_SCOPE(v3_ScatterNDUpdate_evaluate_upper);
+    return get_input_tensor(1).has_and_set_bound() && ov::default_upper_bound_evaluator(this, output_values);
+}
+
+bool op::v3::ScatterNDUpdate::evaluate_label(TensorLabelVector& output_labels) const {
+    OV_OP_SCOPE(v3_ScatterNDUpdate_evaluate_label);
+
+    return ov::default_label_evaluator(this, {0, 2}, output_labels);
 }
