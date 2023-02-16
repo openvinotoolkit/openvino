@@ -117,7 +117,7 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_DumpLayersResult", "Dump output buffers of result layers only");
     message_list.emplace_back("OV_GPU_DumpLayersDstOnly", "Dump only output of layers");
     message_list.emplace_back("OV_GPU_DumpLayersLimitBatch", "Limit the size of batch to dump");
-    message_list.emplace_back("OV_GPU_DumpLayersRaw", "Dump memory of layers. If true, dump data is not formated.");
+    message_list.emplace_back("OV_GPU_DumpLayersRaw", "If true, dump data is stored in raw memory format.");
     message_list.emplace_back("OV_GPU_DryRunPath", "Dry run and serialize execution graph into the specified path");
     message_list.emplace_back("OV_GPU_BaseBatchForMemEstimation", "Base batch size to be used in memory estimation");
     message_list.emplace_back("OV_GPU_AfterProc", "Run inference after the specified process PIDs are finished, separated by space."
@@ -244,8 +244,6 @@ bool debug_configuration::is_dumped_layer(const std::string& layerName, bool is_
         (layerName.find("constant:") == std::string::npos))
         return true;
     if (dump_layers.empty() && dump_layers_result == 0)
-        return true;
-    if (dump_layers.size() == 1 && dump_layers[0] == "*")
         return true;
 
     auto iter = std::find_if(dump_layers.begin(), dump_layers.end(), [&](const std::string& dl){
