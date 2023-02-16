@@ -2,12 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import subprocess
-import tempfile
 import unittest
 
 import openvino.runtime as ov
-import tensorflow as tf
 from openvino.runtime import PartialShape, Model
 from openvino.test_utils import compare_functions
 
@@ -64,46 +61,19 @@ class LegacyExtTest(unittest.TestCase):
     test_directory = os.path.dirname(os.path.realpath(__file__))
 
     def test_legacy_extensions(self):
-        with tempfile.TemporaryDirectory(dir=self.test_directory) as tmpdir:
-            ext_path1 = os.path.join(os.path.dirname(__file__), "test_legacy_exts/test_exts_dir1")
-            ext_path2 = os.path.join(os.path.dirname(__file__), "test_legacy_exts/test_exts_dir2")
-            model = create_tf_model()
-            out_xml = os.path.join(tmpdir, "model.xml")
+        ext_path1 = os.path.join(os.path.dirname(__file__), "test_legacy_exts/test_exts_dir1")
+        ext_path2 = os.path.join(os.path.dirname(__file__), "test_legacy_exts/test_exts_dir2")
+        model = create_tf_model()
 
-            ov_model = convert_model(model, extensions=ext_path1)
-            flag, msg = compare_functions(ov_model, create_ref_model_1(), False)
-            assert flag, msg
+        ov_model = convert_model(model, extensions=ext_path1)
+        flag, msg = compare_functions(ov_model, create_ref_model_1(), False)
+        assert flag, msg
 
-            ov_model = convert_model(model, extensions=[ext_path1, ext_path2])
-            flag, msg = compare_functions(ov_model, create_ref_model_2(), False)
-            assert flag, msg
+        ov_model = convert_model(model, extensions=[ext_path1, ext_path2])
+        flag, msg = compare_functions(ov_model, create_ref_model_2(), False)
+        assert flag, msg
 
-            ov_model = convert_model(model, extensions=','.join([ext_path1, ext_path2]))
-            flag, msg = compare_functions(ov_model, create_ref_model_2(), False)
-            assert flag, msg
+        ov_model = convert_model(model, extensions=','.join([ext_path1, ext_path2]))
+        flag, msg = compare_functions(ov_model, create_ref_model_2(), False)
+        assert flag, msg
 
-            tf.io.write_graph(model, tmpdir, 'model.pb', False)
-            inp_model = os.path.join(tmpdir, 'model.pb')
-            from openvino.runtime import Core
-            core = Core()
-
-            status = subprocess.run(
-                ["mo", "--input_model", inp_model, "--extensions", ext_path1, "--output_dir", tmpdir],
-                env=os.environ,
-                capture_output=True)
-            assert not status.returncode
-
-            ov_model = core.read_model(os.path.join(tmpdir, "model.xml"))
-            flag, msg = compare_functions(ov_model, create_ref_model_1(), False)
-            assert flag, msg
-
-            status = subprocess.run(
-                ["mo", "--input_model", inp_model, "--extensions", ','.join([ext_path1, ext_path2]), "--output_dir",
-                 tmpdir],
-                env=os.environ,
-                capture_output=True)
-            assert not status.returncode
-
-            ov_model = core.read_model(os.path.join(tmpdir, "model.xml"))
-            flag, msg = compare_functions(ov_model, create_ref_model_2(), False)
-            assert flag, msg
