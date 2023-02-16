@@ -11,11 +11,11 @@ namespace intel_cpu {
 
 // Usage
 // 1. Include this headfile where JIT kennels of CPU plugin are implemented for Register printing
-// 2. Invoke RegPrinter::print method. Here are some examples. Note that if register name is not set,
-//    original Xbyak register name will be printed by default.
+// 2. Invoke RegPrinter::print method. Here are some examples. Note that user friendly register name
+//    will be printed, if it has been set. While original Xbyak register name will always be printed.
 //    Example 1:
 //    Invocation: RegPrinter::print<float>(*this, vmm_val, "vmm_val");
-//    Console:    vmm_val: {30, 20, 25, 29, 24, 31, 27, 23}
+//    Console:    vmm_val | ymm0: {30, 20, 25, 29, 24, 31, 27, 23}
 //
 //    Example 2:
 //    Invocation: RegPrinter::print<float>(*this, vmm_val);
@@ -23,11 +23,11 @@ namespace intel_cpu {
 //
 //    Example 3:
 //    Invocation: RegPrinter::print<int>(*this, vmm_idx, "vmm_idx");
-//    Console:    vmm_idx: {5, 6, 0, 2, 0, 6, 6, 6}
+//    Console:    vmm_idx | ymm1: {5, 6, 0, 2, 0, 6, 6, 6}
 //
 //    Example 4:
 //    Invocation: RegPrinter::print<int>(*this, reg_work_amount, "reg_work_amount");
-//    Console:    reg_work_amount: 8
+//    Console:    reg_work_amount | r13: 8
 //
 //    Example 5:
 //    Invocation: RegPrinter::print<int>(*this, reg_work_amount);
@@ -35,7 +35,7 @@ namespace intel_cpu {
 //
 //    Example 6:
 //    Invocation: RegPrinter::print<float>(*this, reg_tmp_64, "reg_tmp_64");
-//    Console:    reg_tmp_64: 1
+//    Console:    reg_tmp_64 | r15: 1
 //
 // Parameter
 // The following combinations of Register types and precisions are supported.
@@ -51,8 +51,16 @@ namespace intel_cpu {
 class RegPrinter {
 public:
     using jit_generator = dnnl::impl::cpu::x64::jit_generator;
-    template <typename PRC_T, typename REG_T>
-    static void print(jit_generator &h, REG_T reg, const char *name = nullptr);
+    template <typename PRC_T, typename REG_T,
+    typename std::enable_if<std::is_base_of<Xbyak::Xmm, REG_T>::value, int>::type = 0>
+    static void print(jit_generator &h, REG_T reg, const char *name = nullptr) {
+        print_vmm<PRC_T, REG_T>(h, reg, name);
+    }
+    template <typename PRC_T, typename REG_T,
+    typename std::enable_if<!std::is_base_of<Xbyak::Xmm, REG_T>::value, int>::type = 0>
+    static void print(jit_generator &h, REG_T reg, const char *name = nullptr) {
+        print_reg<PRC_T, REG_T>(h, reg, name);
+    }
 
 private:
     RegPrinter() {}
@@ -73,14 +81,10 @@ private:
     static void restore_vmm(jit_generator &h);
     static void save_reg(jit_generator &h);
     static void restore_reg(jit_generator &h);
+    template <typename REG_T>
+    static const char * get_name(REG_T reg, const char *name);
     static constexpr size_t reg_len = 8;
     static constexpr size_t reg_cnt = 16;
-    static constexpr size_t xmm_len = 16;
-    static constexpr size_t xmm_cnt = 16;
-    static constexpr size_t ymm_len = 32;
-    static constexpr size_t ymm_cnt = 16;
-    static constexpr size_t zmm_len = 64;
-    static constexpr size_t zmm_cnt = 32;
 };
 
 }   // namespace intel_cpu
