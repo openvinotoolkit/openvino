@@ -64,7 +64,8 @@ ov::element::Type ov::frontend::tensorflow_lite::get_ov_type(const tflite::Tenso
     return mapping.at(tf_type);
 }
 
-ov::PartialShape ov::frontend::tensorflow_lite::get_ov_shape(const flatbuffers::Vector<int32_t> * tf_shape, const flatbuffers::Vector<int32_t> * tf_shape_sig) {
+ov::PartialShape ov::frontend::tensorflow_lite::get_ov_shape(const flatbuffers::Vector<int32_t>* tf_shape,
+                                                             const flatbuffers::Vector<int32_t>* tf_shape_sig) {
     if (tf_shape_sig) {
         std::vector<int64_t> signature_vec{tf_shape_sig->begin(), tf_shape_sig->end()};
         return ov::PartialShape{signature_vec};
