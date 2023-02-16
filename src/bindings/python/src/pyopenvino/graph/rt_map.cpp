@@ -27,6 +27,7 @@ using PyRTMap = ov::RTMap;
 
 PYBIND11_MAKE_OPAQUE(PyRTMap);
 
+// Create our custom iterator to return python object not OVAny itself.
 class PyRTMapIterator {
 public:
     PyRTMapIterator(const PyRTMap& py_rt_map, py::object ref, bool is_value)

@@ -560,6 +560,23 @@ def test_serialize_complex_rt_info(request, tmp_path):
         assert model.get_rt_info(["config", "model_parameters", "labels", "label_groups", "ids"]) == ids
         assert model.get_rt_info(["config", "model_parameters", "mean_values"]) == mean
 
+        rt_info = model.get_rt_info()
+        assert rt_info["config"] == {"converter_type": "classification",
+                                     "model_parameters": {"labels": {"label_groups": {"ids": ids},
+                                                          "label_tree": {"directed": directed, "float_empty": empty,
+                                                                         "nodes": empty, "type": "tree"}},
+                                                          "max": max_val, "mean_values": mean,
+                                                          "min": min_val, "threshold": threshold},
+                                     "type_of_model": "classification"}
+
+        for key, value in rt_info.items():
+            if key == "config":
+                for config_value in value:
+                    assert config_value in ["type_of_model", "converter_type", "model_parameters"]
+
+        for rt_info_val in model.get_rt_info(["config", "model_parameters", "labels", "label_tree"]):
+            assert rt_info_val in ["float_empty", "nodes", "type", "directed"]
+
     core = Core()
     xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     input_shape = PartialShape([1])
