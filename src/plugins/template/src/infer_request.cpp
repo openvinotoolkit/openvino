@@ -28,6 +28,22 @@ void allocate_tensor_impl(ov::Tensor& tensor, const ov::element::Type& element_t
     }
 }
 
+ov::Strides get_default_strides(const ov::Shape& shape, const ov::element::Type& type) {
+    std::vector<size_t> strides(shape.size());
+    if (!shape.empty()) {
+        strides[shape.size() - 1] = 1;
+    }
+    auto size = shape.size();
+    for (size_t i = 1; i < size; i++) {
+        strides[size - i - 1] = strides[size - i] * shape[size - i];
+    }
+
+    ov::Strides byte_strides(strides.size());
+    for (size_t i = 0; i < strides.size(); ++i)
+        byte_strides[i] = strides[i] * type.size();
+    return byte_strides;
+}
+
 }  // namespace
 
 // ! [infer_request:ctor]
@@ -113,11 +129,43 @@ void TemplatePlugin::InferRequest::infer_preprocess() {
     OPENVINO_ASSERT(get_inputs().size() == m_plugin_input_tensors.size());
     for (size_t i = 0; i < get_inputs().size(); i++) {
         auto tensor = get_tensor(get_inputs()[i]);
-        // No ROI extraction is needed
-        m_plugin_input_tensors[i] =
-            get_template_model()->get_template_plugin()->_backend->create_tensor(tensor.get_element_type(),
-                                                                                 tensor.get_shape(),
-                                                                                 tensor.data());
+        if (get_default_strides(tensor.get_shape(), tensor.get_element_type()) == tensor.get_strides()) {
+            // No ROI extraction is needed
+            m_plugin_input_tensors[i] =
+                get_template_model()->get_template_plugin()->_backend->create_tensor(tensor.get_element_type(),
+                                                                                     tensor.get_shape(),
+                                                                                     tensor.data());
+        } else {
+            OPENVINO_ASSERT(tensor.get_element_type().bitwidth() % 8 == 0,
+                            "Template plugin: Unsupported ROI tensor with element type having ",
+                            std::to_string(tensor.get_element_type().bitwidth()),
+                            " bits size");
+            ov::Shape shape = tensor.get_shape();
+            // Perform manual extraction of ROI tensor
+            // Basic implementation doesn't take axis order into account `desc.getBlockingDesc().getOrder()`
+            // Performance of manual extraction is not optimal, but it is ok for template implementation
+            m_plugin_input_tensors[i] =
+                get_template_model()->get_template_plugin()->_backend->create_tensor(tensor.get_element_type(),
+                                                                                     tensor.get_shape());
+            auto* src_data = static_cast<uint8_t*>(tensor.data());
+            auto dst_tensor = std::dynamic_pointer_cast<ngraph::runtime::HostTensor>(m_plugin_input_tensors[i]);
+            OPENVINO_ASSERT(dst_tensor, "Template plugin error: Can't cast created tensor to HostTensor");
+            auto* dst_data = dst_tensor->get_data_ptr<uint8_t>();
+            std::vector<size_t> indexes(shape.size());
+            for (size_t dst_idx = 0; dst_idx < ov::shape_size(shape); dst_idx++) {
+                size_t val = dst_idx;
+                size_t src_idx = 0;
+                for (size_t j1 = 0; j1 < indexes.size(); j1++) {
+                    size_t j = indexes.size() - j1 - 1;
+                    indexes[j] = val % shape[j];
+                    val /= shape[j];
+                    src_idx += indexes[j] * tensor.get_strides()[j];
+                }
+                memcpy(dst_data + dst_idx * tensor.get_element_type().size(),
+                       src_data + src_idx,
+                       tensor.get_element_type().size());
+            }
+        }
     }
     OPENVINO_ASSERT(get_outputs().size() == m_plugin_output_tensors.size());
     for (size_t i = 0; i < get_outputs().size(); i++) {

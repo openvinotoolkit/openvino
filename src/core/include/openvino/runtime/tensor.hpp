@@ -29,6 +29,7 @@ class CoreImpl;
 class InferRequest;
 class RemoteContext;
 class VariableState;
+class ISyncInferRequest;
 class IInferRequestInternalWrapper;
 
 /**
@@ -54,6 +55,7 @@ protected:
     friend class ov::InferRequest;
     friend class ov::RemoteContext;
     friend class ov::VariableState;
+    friend class ov::ISyncInferRequest;
     friend class ov::IInferRequestInternalWrapper;
     friend class InferenceEngine::IAsyncInferRequestWrapper;
 

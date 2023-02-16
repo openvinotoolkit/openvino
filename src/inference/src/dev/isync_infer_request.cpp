@@ -65,6 +65,22 @@ void check_batched_tensors(const ov::Output<const ov::Node>& input, const std::v
     // In future consider checking if blobs point to contiguous range of memory and use single 'SetBlob' instead
     auto batched_shape = tensors[0].get_shape();
     auto element_type = tensors[0].get_element_type();
+    auto def_strides = [](const ov::Shape& shape, const ov::element::Type& type) {
+        InferenceEngine::TensorDesc desc(InferenceEngine::Precision::FP32,
+                                         shape,
+                                         InferenceEngine::TensorDesc::getLayoutByDims(shape));
+        const auto& element_strides = desc.getBlockingDesc().getStrides();
+        const size_t elem_size = type.size();
+        ov::Strides byte_strides;
+        byte_strides.resize(element_strides.size());
+        std::transform(element_strides.begin(),
+                       element_strides.end(),
+                       byte_strides.begin(),
+                       [&elem_size](size_t stride) {
+                           return stride * elem_size;
+                       });
+        return byte_strides;
+    }(batched_shape, element_type);
     batched_shape[batch_idx] = tensors_size;
     for (const auto& item : tensors) {
         auto item_shape = item.get_shape();
@@ -78,6 +94,7 @@ void check_batched_tensors(const ov::Output<const ov::Node>& input, const std::v
                         element_type,
                         " and shape ",
                         batched_shape);
+        OPENVINO_ASSERT(def_strides == item.get_strides(), "Strides for batched tensors should be equal.");
     }
 }
 
@@ -187,15 +204,11 @@ void ov::ISyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, c
     OV_ITT_SCOPED_TASK(InferenceEngine::itt::domains::Plugin, "set_tensor");
     auto found_port = find_port(port);
     OPENVINO_ASSERT(found_port.found(), "Cannot find tensor for port ", port);
-    OPENVINO_ASSERT(
-        port.get_element_type() == tensor.get_element_type(),
-        "Failed to set output tensor, the tensor element type is not corresponding with output element type");
-    OPENVINO_ASSERT(port.get_partial_shape().is_dynamic() || tensor.get_shape() == port.get_shape(),
-                    "Input tensor size is not equal with model input size (",
-                    tensor.get_shape(),
-                    " != ",
-                    port.get_shape(),
-                    ").");
+    try {
+        check_tensor(port, tensor);
+    } catch (const ov::Exception& ex) {
+        OPENVINO_UNREACHABLE("Failed to set tensor. ", ex.what());
+    }
     if (found_port.is_input()) {
         m_tensors.at(get_inputs().at(found_port.idx).get_tensor_ptr()) = tensor;
         m_batched_tensors.erase(found_port.idx);
@@ -240,6 +253,11 @@ void ov::ISyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
     bool is_input = ov::op::util::is_parameter(port.get_node());
     std::string tensor_type = is_input ? "input" : "output";
 
+    OPENVINO_ASSERT(port.get_element_type() == tensor.get_element_type(),
+                    "The tensor element type is not corresponding with output element type (",
+                    tensor.get_element_type(),
+                    " != ",
+                    port.get_element_type());
     bool is_dynamic = port.get_partial_shape().is_dynamic();
     OPENVINO_ASSERT(is_dynamic || port.get_shape() == tensor.get_shape(),
                     "The ",
@@ -252,6 +270,11 @@ void ov::ISyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
                     port.get_shape(),
                     ".");
     OPENVINO_ASSERT(tensor.data() != nullptr, "Tensor data equal nullptr!");
+
+    // FIXME: SyncInferRequest is a friend only to check that blob is correct
+    OPENVINO_ASSERT(ov::shape_size(tensor._impl->getTensorDesc().getDims()) ==
+                        ov::shape_size(tensor._impl->getTensorDesc().getBlockingDesc().getBlockDims()),
+                    "Tensor is corrupted!");
 }
 
 void ov::ISyncInferRequest::allocate_tensor(const ov::Output<const ov::Node>& port,
