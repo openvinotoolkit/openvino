@@ -882,12 +882,9 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
                 updateDeviceVec(iter);
             }
             for (auto&& device : deviceVec) {
-                if (!_pluginConfig.isSupportedDevice(device))
-                    continue;
-                allDevices += device + ",";
+                allDevices += device;
+                allDevices += ((device == deviceVec[deviceVec.size()-1]) ? "" : ",");
             }
-            if (allDevices.back() == ',')
-                allDevices.pop_back();
         }
     }
 
