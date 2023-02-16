@@ -65,24 +65,36 @@ struct gather_elements_impl : typed_primitive_impl_ocl<gather_elements> {
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
         return {params, optional_params};
     }
+
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+       auto kernel_params = get_kernel_params(impl_param);
+       (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+       update_kernels_list_to_skip();
+    }
 };
 
 namespace detail {
 
 attach_gather_elements_impl::attach_gather_elements_impl() {
-    implementation_map<gather_elements>::add(impl_types::ocl, typed_primitive_impl_ocl<gather_elements>::create<gather_elements_impl>, {
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::i32, format::bfzyx),
-        std::make_tuple(data_types::f32, format::bfwzyx),
-        std::make_tuple(data_types::f16, format::bfwzyx),
-        std::make_tuple(data_types::i32, format::bfwzyx),
-    });
+    auto types = {
+        data_types::f32,
+        data_types::f16,
+        data_types::i32,
+        data_types::i8,
+        data_types::u8
+    };
+
+    auto formats = {
+        format::bfyx,
+        format::bfzyx,
+        format::bfwzyx
+    };
+
+    implementation_map<gather_elements>::add(impl_types::ocl,
+                                             shape_types::any,
+                                             typed_primitive_impl_ocl<gather_elements>::create<gather_elements_impl>,
+                                             types,
+                                             formats);
 }
 
 }  // namespace detail
