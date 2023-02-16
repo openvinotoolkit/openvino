@@ -509,6 +509,17 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_expand_context_dependent_function) {
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_expand_function_with_initializers) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/transformations/celu_with_initializers.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_expected_output<float>({0.5, 1.0, 1.5, 2.0});
+    test_case.run();
+}
+
 // ############################################################################ OPERATOR TESTS
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_addmul_abc) {
     auto function = onnx_import::import_onnx_model(

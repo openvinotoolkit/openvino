@@ -144,7 +144,7 @@ def get_input_data(paths_to_input, app_input_info):
     return DataQueue(data, get_group_batch_sizes(app_input_info))
 
 
-def get_image_tensors(image_paths: List[str], info: AppInputInfo, batch_sizes: List[int]) -> List[Tensor]:  
+def get_image_tensors(image_paths: List[str], info: AppInputInfo, batch_sizes: List[int]) -> List[Tensor]:
     if 'cv2' not in sys.modules:
         logger.error("Loading images requires the opencv-python or opencv-python-headless package. "
                      "Please install it before continuing or run benchmark without "
