@@ -1,16 +1,15 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <memory>
+#include <openvino/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
 #include <utility>
 
-#include <transformations_visibility.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
-
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API SwishFusion;
@@ -20,15 +19,15 @@ class TRANSFORMATIONS_API SwishFusionWithBeta;
 class TRANSFORMATIONS_API SwishFusionWithoutBeta;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
  * @brief SwishFusionWithSigmoid replaces a sub-graphs x * Sigmoid(x) with a Swish op.
  */
-class ngraph::pass::SwishFusionWithSigmoid: public ngraph::pass::MatcherPass {
+class ov::pass::SwishFusionWithSigmoid : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SwishFusionWithSigmoid", "0");
     SwishFusionWithSigmoid();
 };
 
@@ -36,9 +35,9 @@ public:
  * @ingroup ie_transformation_common_api
  * @brief SwishFusionWithSigmoid replaces a sub-graphs x * Sigmoid(x * beta) with a Swish op.
  */
-class ngraph::pass::SwishFusionWithSigmoidWithBeta: public ngraph::pass::MatcherPass {
+class ov::pass::SwishFusionWithSigmoidWithBeta : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SwishFusionWithSigmoidWithBeta", "0");
     SwishFusionWithSigmoidWithBeta();
 };
 
@@ -46,9 +45,9 @@ public:
  * @ingroup ie_transformation_common_api
  * @brief SwishFusionWithSigmoid replaces a sub-graphs x / (1.0 + exp(-x * beta)) with a Swish op.
  */
-class ngraph::pass::SwishFusionWithBeta: public ngraph::pass::MatcherPass {
+class ov::pass::SwishFusionWithBeta : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SwishFusionWithBeta", "0");
     SwishFusionWithBeta();
 };
 
@@ -56,9 +55,9 @@ public:
  * @ingroup ie_transformation_common_api
  * @brief SwishFusionWithSigmoid replaces a sub-graphs x / (1.0 + exp(-x)) with a Swish op.
  */
-class ngraph::pass::SwishFusionWithoutBeta: public ngraph::pass::MatcherPass {
+class ov::pass::SwishFusionWithoutBeta : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SwishFusionWithoutBeta", "0");
     SwishFusionWithoutBeta();
 };
 
@@ -66,13 +65,13 @@ public:
  * @ingroup ie_transformation_common_api
  * @brief SwishFusion transformation replaces various sub-graphs with a Swish op.
  */
-class ngraph::pass::SwishFusion: public ngraph::pass::GraphRewrite {
+class ov::pass::SwishFusion : public ov::pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SwishFusion", "0");
     SwishFusion() {
-        add_matcher<ngraph::pass::SwishFusionWithSigmoid>();
-        add_matcher<ngraph::pass::SwishFusionWithSigmoidWithBeta>();
-        add_matcher<ngraph::pass::SwishFusionWithBeta>();
-        add_matcher<ngraph::pass::SwishFusionWithoutBeta>();
+        add_matcher<ov::pass::SwishFusionWithSigmoid>();
+        add_matcher<ov::pass::SwishFusionWithSigmoidWithBeta>();
+        add_matcher<ov::pass::SwishFusionWithBeta>();
+        add_matcher<ov::pass::SwishFusionWithoutBeta>();
     }
 };

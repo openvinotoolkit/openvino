@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 
 #include <vector>
 
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 
@@ -14,10 +14,10 @@ namespace ov {
 namespace op {
 namespace v0 {
 /// \brief  Iterate a body over tensors, accumulating into tensors.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API TensorIterator : public op::util::SubGraphOp {
 public:
     OPENVINO_OP("TensorIterator", "opset1", op::util::SubGraphOp);
-    BWDCMP_RTTI_DECLARATION;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -26,11 +26,11 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     /// \return the body of the iteration
-    std::shared_ptr<Function> get_body() const {
+    std::shared_ptr<Model> get_body() const {
         return m_bodies[0];
     }
     /// \param body set the body of the iteration
-    void set_body(const std::shared_ptr<Function>& body) {
+    void set_body(const std::shared_ptr<Model>& body) {
         set_function(body);
     }
     void validate_and_infer_types() override;

@@ -1,25 +1,26 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/result.hpp"
 
-#include "cldnn/primitives/reorder.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
 
 using namespace InferenceEngine;
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace intel_gpu {
 
 static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Result>& op) {
     OutputsDataMap networkOutputs = p.GetNetworkOutputs();
-    p.ValidateInputs(op, {1});
+    validate_inputs_count(op, {1});
 
     auto prev = op->get_input_node_shared_ptr(0);
     NGRAPH_SUPPRESS_DEPRECATED_START
-    auto inputID = op->get_input_source_output(0).get_tensor().get_name();
+    auto inputID = ov::descriptor::get_ov_tensor_legacy_name(op->get_input_source_output(0).get_tensor());
     NGRAPH_SUPPRESS_DEPRECATED_END
     if (inputID.empty()) {
         inputID = prev->get_friendly_name();
@@ -34,9 +35,16 @@ static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Res
     std::string originalOutName = it->first;
     DataPtr outputData = it->second;
 
-    auto inputs = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     const auto outputDesc = outputData->getTensorDesc();
-    const auto outputlayout = outputDesc.getLayout();
+    auto outputlayout = outputDesc.getLayout();
+
+    if (ngraph::is_type<ngraph::op::v8::NV12toRGB>(prev) ||
+        ngraph::is_type<ngraph::op::v8::NV12toBGR>(prev) ||
+        ngraph::is_type<ngraph::op::v8::I420toRGB>(prev) ||
+        ngraph::is_type<ngraph::op::v8::I420toBGR>(prev)) {
+        outputlayout = NHWC;
+    }
 
     // TODO: add precision check once there's an outputInfo object
     if (outputlayout != NCHW &&
@@ -53,24 +61,30 @@ static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Res
 
     auto outLayerName = layer_type_name_ID(op);
     Precision precision = outputData->getPrecision();
-    std::string outputID = inputs[0];
+    cldnn::input_info outputID = inputs[0];
 
-    p.AddPrimitive(cldnn::reorder(outLayerName,
-                                  outputID,
-                                  FormatFromLayout(outputData->getLayout()),
-                                  DataTypeFromPrecision(precision),
-                                  std::vector<float>(),
-                                  cldnn::reorder_mean_mode::subtract,
-                                  op->get_friendly_name()));
-    p.InitProfileInfo(outLayerName, "reorder");
-    p.profilingIDs.push_back(outLayerName);
-    p.primitiveIDs[outLayerName] = outLayerName;
-    p.primitiveIDs[originalOutName] = outLayerName;
+    if (p.use_new_shape_infer()
+        // Note:: Currently Split/Variadic Split are divided to multiple crops
+        && !ngraph::is_type<ngraph::op::v1::Split>(prev)
+        && !ngraph::is_type<ngraph::op::v1::VariadicSplit>(prev)) {
+        auto reorder_primitive = cldnn::reorder(outLayerName,
+                                                outputID,
+                                                FormatFromLayout(outputlayout),
+                                                DataTypeFromPrecision(precision));
+        p.add_primitive(*op, reorder_primitive, {originalOutName});
 
+    } else {
+        auto reorder_primitive = cldnn::reorder(outLayerName,
+                                                outputID,
+                                                FormatFromLayout(outputlayout),
+                                                DataTypeFromPrecision(precision));
+        p.add_primitive(*op, reorder_primitive, {originalOutName});
+    }
     p.outputDims[originalOutName] = outputDesc.getDims();
     p.prevPrimitiveIDs[outLayerName] = {originalOutName};
 }
 
 REGISTER_FACTORY_IMPL(v0, Result);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace ov

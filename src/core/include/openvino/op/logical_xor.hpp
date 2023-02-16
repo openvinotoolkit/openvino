@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,10 +13,10 @@ namespace op {
 namespace v1 {
 /// \brief Elementwise logical-xor operation.
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API LogicalXor : public util::BinaryElementwiseLogical {
 public:
     OPENVINO_OP("LogicalXor", "opset2", util::BinaryElementwiseLogical, 1);
-    BWDCMP_RTTI_DECLARATION;
     LogicalXor() = default;
     /// \brief Constructs a logical-xor operation.
     ///

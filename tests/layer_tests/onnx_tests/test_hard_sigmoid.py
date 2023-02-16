@@ -1,11 +1,11 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
-
 from common.layer_test_class import check_ir_version
 from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+
 from unit_tests.utils.graph import build_graph
 
 
@@ -66,7 +66,8 @@ class TestHardSigmoid(OnnxRuntimeLayerTest):
             nodes_attributes = {
                 'input': {'kind': 'op', 'type': 'Parameter'},
                 'input_data': {'shape': shape, 'kind': 'data'},
-                'input_alpha_data': {'kind': 'data', 'value': [alpha if alpha is not None else 0.2]},
+                'input_alpha_data': {'kind': 'data',
+                                     'value': [alpha if alpha is not None else 0.2]},
                 'alpha': {'kind': 'op', 'type': 'Const'},
                 'alpha_data': {'shape': [], 'kind': 'data'},
                 'input_beta_data': {'kind': 'data', 'value': [beta if beta is not None else 0.5]},
@@ -117,7 +118,7 @@ class TestHardSigmoid(OnnxRuntimeLayerTest):
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, output_shape)
 
         const_number = np.prod(shape)
-        constant = np.random.randint(-127, 127, const_number).astype(np.float)
+        constant = np.random.randint(-127, 127, const_number).astype(float)
         constant = np.reshape(constant, shape)
 
         node_const_def = onnx.helper.make_node(
@@ -165,7 +166,9 @@ class TestHardSigmoid(OnnxRuntimeLayerTest):
         #
         #   Create reference IR net
         #
-        constant = np.clip(constant * (alpha if alpha is not None else 0.2) + (beta if beta is not None else 0.5), 0, 1)
+        constant = np.clip(
+            constant * (alpha if alpha is not None else 0.2) + (beta if beta is not None else 0.5),
+            0, 1)
         if precision == 'FP16':
             constant = constant.astype(np.float16)
 
@@ -218,18 +221,20 @@ class TestHardSigmoid(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_hard_sigmoid(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_hard_sigmoid(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.nightly
-    def test_hard_sigmoid_const_precommit(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_hard_sigmoid_const_precommit(self, params, ie_device, precision, ir_version, temp_dir,
+                                          use_old_api):
         self._test(*self.create_net_const(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_hard_sigmoid_const(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_hard_sigmoid_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net_const(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)

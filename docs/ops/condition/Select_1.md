@@ -1,4 +1,4 @@
-## Select <a name="Select"></a> {#openvino_docs_ops_condition_Select_1}
+# Select {#openvino_docs_ops_condition_Select_1}
 
 **Versioned name**: *Select-1*
 

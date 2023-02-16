@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ op::v8::RandomUniform::RandomUniform(const Output<Node>& out_shape,
 }
 
 void op::v8::RandomUniform::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v8_RandomUniform_validate_and_infer_types);
+    OV_OP_SCOPE(v8_RandomUniform_validate_and_infer_types);
 
     const auto& shape_et = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
@@ -39,8 +39,11 @@ void op::v8::RandomUniform::validate_and_infer_types() {
         NODE_VALIDATION_CHECK(this,
                               input_shape.rank() == 1,
                               "The rank of the tensor defining output shape must be equal to 1.");
+
         if (const auto& const_shape = get_constant_from_source(input_value(0))) {
             output_shape = ov::PartialShape(const_shape->cast_vector<int64_t>());
+        } else {
+            output_shape = ov::PartialShape::dynamic(input_shape[0]);
         }
     }
 
@@ -107,7 +110,7 @@ void op::v8::RandomUniform::validate_and_infer_types() {
 }
 
 bool op::v8::RandomUniform::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v8_RandomUniform_visit_attributes);
+    OV_OP_SCOPE(v8_RandomUniform_visit_attributes);
     visitor.on_attribute("output_type", m_output_type);
     visitor.on_attribute("op_seed", m_op_seed);
     visitor.on_attribute("global_seed", m_global_seed);
@@ -115,18 +118,16 @@ bool op::v8::RandomUniform::visit_attributes(AttributeVisitor& visitor) {
 }
 
 shared_ptr<Node> op::v8::RandomUniform::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v8_RandomUniform_clone_with_new_inputs);
+    OV_OP_SCOPE(v8_RandomUniform_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<v8::RandomUniform>(new_args[0],
-                                          new_args[1],
-                                          new_args[2],
-                                          m_output_type,
-                                          m_global_seed,
-                                          m_op_seed);
+    auto ru_copy =
+        make_shared<v8::RandomUniform>(new_args[0], new_args[1], new_args[2], m_output_type, m_global_seed, m_op_seed);
+    ru_copy->m_state = this->m_state;
+    return ru_copy;
 }
 
 bool op::v8::RandomUniform::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v8_RandomUniform_evaluate);
+    OV_OP_SCOPE(v8_RandomUniform_evaluate);
     const uint64_t* out_shape;
     std::vector<uint64_t> out_shape_uint64(shape_size(inputs[0]->get_shape()));
 
@@ -197,7 +198,7 @@ bool op::v8::RandomUniform::evaluate(const HostTensorVector& outputs, const Host
 }
 
 bool op::v8::RandomUniform::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v8_RandomUniform_has_evaluate);
+    OV_OP_SCOPE(v8_RandomUniform_has_evaluate);
     if (get_input_element_type(0) != ngraph::element::i32 && get_input_element_type(0) != ngraph::element::i64) {
         return false;
     }

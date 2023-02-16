@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from collections import deque
@@ -10,32 +10,34 @@ from typing import Dict
 from typing import List, Set
 
 import numpy as np
-from extensions.back.ForceStrictPrecision import ForceStrictPrecision
-from extensions.back.compress_quantized_weights import CompressQuantizeWeights
-from extensions.ops.elementwise import Add
-from extensions.ops.Cast import Cast
-from extensions.ops.fakequantize import FakeQuantize
-from mo.back.replacement import BackReplacementPattern
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import Graph, Node, rename_node
-from mo.graph.port import Port
-from mo.middle.pattern_match import apply_pattern
-from mo.ops.const import Const
-from mo.middle.passes.convert_data_type import convert_blob
-from mo.middle.passes.infer import type_infer
+from openvino.tools.mo.back.ForceStrictPrecision import ForceStrictPrecision
+from openvino.tools.mo.back.compress_quantized_weights import CompressQuantizeWeights, ZeroPointOptimizer
+from openvino.tools.mo.ops.elementwise import Add
+from openvino.tools.mo.ops.Cast import Cast
+from openvino.tools.mo.ops.fakequantize import FakeQuantize
+from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.graph.graph import Graph, Node, rename_node
+from openvino.tools.mo.graph.port import Port
+from openvino.tools.mo.middle.pattern_match import apply_pattern
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.middle.passes.convert_data_type import convert_blob
 
 from . import editor as ge
 from . import node_utils as nu
+from .editor import get_nodes_by_type
 from .pattern_utils import get_fq_result_pattern
-from .special_operations import OPERATIONS_WITH_WEIGHTS, DETECTION_OUTPUT_FINAL_TYPES, SPLIT_OPERATIONS
+from .special_operations import OPERATIONS_WITH_WEIGHTS, DETECTION_OUTPUT_FINAL_TYPES, \
+    SPLIT_OPERATIONS, OPERATIONS_WITH_BIAS, TYPES_TO_QUANTIZABLE_PORTS
 from .utils import find_operation_matches, is_ignored, get_hw_aware_ignored_patterns
 from ..graph.node_utils import get_all_node_outputs, get_node_inputs, get_node_input, get_weights_for_node
 from ..graph.special_patterns import get_ignored_patterns
 from ..utils.logger import get_logger
+from .utils import get_hardware_config_operation_type
 
 logger = get_logger(__name__)
 
-
+#pylint: disable=C0302
 class SaveBNStatistics(FrontReplacementSubgraph):
     enabled = True
 
@@ -91,6 +93,22 @@ class InsertFakeQuantize(BackReplacementPattern):
         setattr(self, '_quantize_operations', value)
 
     @property
+    def quantize_output_operations(self):
+        return getattr(self, '_quantize_output_operations', [])
+
+    @quantize_output_operations.setter
+    def quantize_output_operations(self, value):
+        setattr(self, '_quantize_output_operations', value)
+
+    @property
+    def hardware_config(self):
+        return getattr(self, '_hardware_config', [])
+
+    @hardware_config.setter
+    def hardware_config(self, value):
+        setattr(self, '_hardware_config', value)
+
+    @property
     def ignored_params(self):
         return getattr(self, '_ignored_params', {'skip_model': False, 'scope': [], 'operations': []})
 
@@ -130,18 +148,36 @@ class InsertFakeQuantize(BackReplacementPattern):
             return
 
         if m_op.type in ['Convolution', 'ConvolutionBackpropData', 'MatMul']:
-            insert_fake_quantize(graph, m_op, [0, 1], ['fq_input', 'fq_weights'])
-        elif m_op.type == 'LSTMCell':
-            insert_fake_quantize(graph, m_op, [0, 1, 2, 3, 4])
+            insert_fake_quantize(graph, m_op, [0, 1], hw_config=self.hardware_config, input_priority_types=self.input_priority_types)
+        elif m_op.type in TYPES_TO_QUANTIZABLE_PORTS:
+            ports = TYPES_TO_QUANTIZABLE_PORTS[m_op.type]
+            insert_fake_quantize(graph, m_op, ports, hw_config=self.hardware_config, input_priority_types=self.input_priority_types)
         elif self.quantize_only_input(m_op):
-            insert_fake_quantize(graph, m_op, [0])
+            insert_fake_quantize(graph, m_op, [0], hw_config=self.hardware_config, input_priority_types=self.input_priority_types)
         else:
-            insert_fake_quantize(graph, m_op)
+            insert_fake_quantize(graph, m_op, hw_config=self.hardware_config, input_priority_types=self.input_priority_types)
+
+        biased_op = [op['type'] for op in OPERATIONS_WITH_BIAS]
+        if m_op.type in self.quantize_output_operations:
+            bias_node = nu.get_bias_for_node(m_op)
+            if m_op.type in biased_op and bias_node:
+                m_op = nu.get_node_output(bias_node, 0)[0]
+            insert_output_fake_quantize(graph, m_op, hw_config=self.hardware_config,
+                                        ignored_params=self.ignored_params)
 
 
 class FakeQuantizePropagation(BackReplacementPattern):
 
     enabled = False
+
+    @property
+    def hardware_config(self):
+        return getattr(self, '_hardware_config', [])
+
+    @hardware_config.setter
+    def hardware_config(self, value):
+        setattr(self, '_hardware_config', value)
+
 
     def remove_node_and_reset_connections(self, graph, node: Node, in_port):
         node.in_port(0).disconnect()
@@ -155,7 +191,7 @@ class FakeQuantizePropagation(BackReplacementPattern):
         # Disconnect FQ from input and reconnect outputs to input node
         self.remove_node_and_reset_connections(graph, fq, in_port)
 
-        return insert_fake_quantize(graph, op, [0])
+        return insert_fake_quantize(graph, op, [0], hw_config=self.hardware_config)
 
     def jump_to_all_inputs(self, graph: Graph, fq: Node) -> []:
         in_port = fq.in_port(0).get_source()
@@ -165,7 +201,7 @@ class FakeQuantizePropagation(BackReplacementPattern):
         self.remove_node_and_reset_connections(graph, fq, in_port)
 
         # Insert FQ operations for all inputs
-        return insert_fake_quantize(graph, op)
+        return insert_fake_quantize(graph, op, hw_config=self.hardware_config)
 
     def jump_to_all_branch_except_const(self, graph, fq: Node) -> []:
         in_port = fq.in_port(0).get_source()
@@ -176,7 +212,7 @@ class FakeQuantizePropagation(BackReplacementPattern):
         # Disconnect FQ from input and reconnect outputs to input node
         self.remove_node_and_reset_connections(graph, fq, in_port)
 
-        return insert_fake_quantize(graph, op, ports)
+        return insert_fake_quantize(graph, op, ports, hw_config=self.hardware_config)
 
     def jump_over_split_concat(self, graph: Graph, fq: Node) -> []:
         in_port = fq.in_port(0).get_source()
@@ -205,7 +241,8 @@ class FakeQuantizePropagation(BackReplacementPattern):
 
     jump_single_branch_ops = ['ReduceMax', 'MaxPool', 'Reshape', 'Flatten', 'Squeeze', 'Unsqueeze', 'Interpolate',
                               'Split', 'Crop', 'ReduceMean', 'AvgPool', 'Result', 'Tile', 'Transpose', 'StridedSlice',
-                              'VariadicSplit', 'ShuffleChannels', 'Broadcast', 'Minimum', 'Maximum', 'DepthToSpace']
+                              'VariadicSplit', 'ShuffleChannels', 'Broadcast', 'Minimum', 'Maximum', 'DepthToSpace',
+                              'Gather']
     remove_duplication_ops = ['FakeQuantize', 'Parameter']
     jump_multi_branch_ops = 'Concat'
     jump_multi_branch_ops_except_const = ['Pad', 'ConvertLike']
@@ -221,7 +258,6 @@ class FakeQuantizePropagation(BackReplacementPattern):
     }
 
     def delete_fq_non_quantizable_node_precision(self, graph):
-        type_infer(graph)
         fq_removal = RemoveFakeQuantize()
         fq_removal.quantize_agnostic_operations = self.quantize_agnostic_operations
         fq_removal.quantize_operations = self.quantize_operations
@@ -299,6 +335,14 @@ class FakeQuantizePropagation(BackReplacementPattern):
                     if not skip_ascent_map[input_parent_name]:
                         input_type = ('Split', 'VariadicSplit', 'Concat')
                         input_name = (input_node.name, input_parent_name)
+                if input_type == 'FakeQuantize':
+                    if fq['fq_config_priority'] > input_node['fq_config_priority']:
+                        input_node['fq_group'] = fq['fq_group']
+                        input_node['fq_config_priority'] = fq['fq_config_priority']
+                    for fq_config in fq['fq_configs']:
+                        if fq_config not in input_node['fq_configs']:
+                            input_node['fq_configs'].append(fq_config)
+                    logger.debug('FQ %s extended with %s configs', input_name, fq.name)
                 logger.debug('FQ %s jumped over %s (%s)', fq.name, input_type, input_name)
 
                 callback = self.map_op_to_fn[input_type]
@@ -406,6 +450,9 @@ class FakeQuantizeOptimization(BackReplacementPattern):
                 fq_consumers = sorted(fq_consumers, key=lambda x: x.name)
                 # Keep only first FakeQuantize and disconnect other
                 for fq in fq_consumers[1:]:
+                    for fq_config in fq['fq_configs']:
+                        if fq_config not in fq_consumers[0]['fq_configs']:
+                            fq_consumers[0]['fq_configs'].append(fq_config)
                     logger.debug('Removed useless FakeQuantize {}'.format(fq.name))
                     fq.in_port(0).disconnect()
                     fq.out_port(0).get_connection().set_source(fq_consumers[0].out_port(0))
@@ -488,6 +535,53 @@ class RemoveFakeQuantize:
             port.get_connection().set_source(parent_node_port)
         if parent_node.type == 'Const':
             parent_node['need_shape_inference'] = True
+
+    def optimize_for_gp_hw(self, graph, target_device):
+        """
+        Removing redundant FQs before operation Add for SPR(CPU) platform
+        """
+        def _walk_for_branch(node):
+            input_node = node
+            delete_const = lambda node: ([op for op in node if op is not None and op.type != 'Const'])
+            while True:
+                input_node = get_node_inputs(input_node)
+                input_node = delete_const(input_node)
+                if len(input_node) > 1:
+                    return False
+                input_node = input_node[0]
+                if input_node.type in ['Convolution', 'GroupConvolution', 'MatMul']:
+                    return True
+
+        def _check_const_input(node):
+            input_node = get_node_inputs(node)[0]
+            return nu.check_const_input(input_node)
+
+        def delete_one_fq(inputs_node):
+            fq_1, fq_2 = inputs_node
+            if len(get_all_node_outputs(fq_1)) > 1 \
+                and len(get_all_node_outputs(fq_2)) == 1 and _check_const_input(fq_2):
+                self.disconnect_fq_node(fq_2)
+                return
+            if _walk_for_branch(fq_1) and _walk_for_branch(fq_2):
+                if np.prod(nu.get_output_shape(fq_1, 0)) >= np.prod(nu.get_output_shape(fq_2, 0)):
+                    self.disconnect_fq_node(fq_1)
+                else:
+                    self.disconnect_fq_node(fq_2)
+                return
+
+        special_target_device = ['CPU_SPR']
+        if target_device not in special_target_device:
+            return
+
+        check_is_inputs_fq = lambda node: all([op.type == 'FakeQuantize' for op in node])
+        for op in get_nodes_by_type(graph, ['Add']):
+            if not nu.check_const_input(op):
+                inputs_node = get_node_inputs(op)
+                count_outputs_node = np.array([len(get_all_node_outputs(node)) for node in inputs_node])
+                indices = count_outputs_node.argsort()[::-1]
+                inputs_node = [inputs_node[idx] for idx in indices]
+                if check_is_inputs_fq(inputs_node):
+                    delete_one_fq(inputs_node)
 
     @staticmethod
     def undo_bias_correction(conv_node):
@@ -663,12 +757,12 @@ class FakeQuantizeNameSwapper(BackReplacementPattern):
             if len(input_node_outputs) > 1 and all([op.type == 'FakeQuantize' for op in input_node_outputs]):
                 new_fq_name += '.{}'.format(fq_node.in_port(0).get_source().idx)
 
-            fq_node['orig_fq_name'] = copy(fq_node.name)
-            rename_node(fq_node, new_fq_name)
+            fq_node['orig_fq_name'] = nu.reset_node_fullname(input_node.fullname, copy(fq_node.name))
 
             if 'orig_node_name' not in input_node:
-                input_node['orig_node_name'] = copy(input_node.name)
+                input_node['orig_node_name'] = copy(input_node.fullname)
                 rename_node(input_node, f'{input_node.name}/pre_fq_input')
+            rename_node(fq_node, new_fq_name)
 
         pattern = get_fq_result_pattern()
         apply_pattern(
@@ -710,17 +804,18 @@ def create_bias_node(graph: Graph, src_node):
 
     for destination_port in destination_ports:
         add_op.out_port(0).connect(destination_port)
-    add_bias.out_node(0)['Insert_Convert_operation_after'] = True
+    if bias_dtype != np.float32:
+        add_bias.out_node(0)['Insert_Convert_operation_after'] = True
 
 
-def create_fake_quantize_node(graph: Graph, name):
+def create_fake_quantize_node(graph: Graph, name, data_type=np.float32, **kwargs):
     fq = FakeQuantize(graph, {'name': name, 'levels': 0,
-                              'stop_value_propagation': True}).create_node()
+                              'stop_value_propagation': True, **kwargs}).create_node()
 
-    input_low = Const(graph, {'value': np.array(0.0).astype(np.float32)}).create_node()
-    input_height = Const(graph, {'value': np.array(0.0).astype(np.float32)}).create_node()
-    output_low = Const(graph, {'value': np.array(0.0).astype(np.float32)}).create_node()
-    output_height = Const(graph, {'value': np.array(0.0).astype(np.float32)}).create_node()
+    input_low = Const(graph, {'value': np.array(0.0, dtype=data_type)}).create_node()
+    input_height = Const(graph, {'value': np.array(0.0, dtype=data_type)}).create_node()
+    output_low = Const(graph, {'value': np.array(0.0, dtype=data_type)}).create_node()
+    output_height = Const(graph, {'value': np.array(0.0, dtype=data_type)}).create_node()
 
     input_low.out_port(0).connect(fq.in_port(1))
     input_height.out_port(0).connect(fq.in_port(2))
@@ -735,12 +830,17 @@ def create_fake_quantize_node(graph: Graph, name):
     return fq
 
 
-def insert_fake_quantize(graph, node, ports=None, names=None):
-    blobs_as_inputs_nodes_type = ['Convolution', 'Deconvolution', 'MatMul']
+def insert_fake_quantize(graph, node, ports=None, names=None, fq_types=None, hw_config=None, input_priority_types=[]):
+    blobs_as_inputs_nodes_type = ['Convolution', 'ConvolutionBackpropData', 'MatMul']
+    gru_node_types = ['GRUCell', 'GRUSequence']
 
     port_name = None
     if ports is not None and names is not None:
         port_name = dict(zip(ports, names))
+
+    fq_type = None
+    if fq_types is not None and ports is not None:
+        fq_type = dict(zip(ports, fq_types))
 
     new_fq = []
     for idx, port in node.in_ports().items():
@@ -752,22 +852,53 @@ def insert_fake_quantize(graph, node, ports=None, names=None):
             if 'bin' in node.in_edges()[idx]:
                 del node.in_edges()[idx]['bin']
 
+        # Temporary WA until oneDNN supports it (ticket 82164)
+        if node.type in gru_node_types and node.linear_before_reset:
+            continue
+
         if ports is not None and idx not in ports:
             continue
 
         # This condition blocks FQ insertion after the keep_shape_ops (KSO) generated sub-graph
         # to avoid quantization of integer-like tensors
-        if port.get_source().node.type != 'Const' and port.data.get_value() is not None:
+        in_port_type = port.get_source().node.type
+        if in_port_type != 'Const' and port.data.get_value() is not None:
             continue
 
-        name = 'fq_input'
+        is_weights = in_port_type == 'Const'
+
+        name = 'fq_weights' if is_weights else 'fq_input'
         if port_name is not None and idx in port_name:
             name = port_name[idx]
 
+        port_data_type = nu.get_node_data_type(node, idx)
+        port_data_type = port_data_type if port_data_type else np.float32
         # Create FakeQuantize operations
-        fq_input = create_fake_quantize_node(
-            graph, '{node_name}/{name}_{idx}'.format(node_name=node.name, name=name, idx=idx))
+        fq_group = 'weights' if is_weights else 'activations'
+        if fq_type is not None and idx in fq_type:
+            fq_group = fq_type[idx]
 
+        fq_configs = []
+        if hw_config is not None:
+            node_type = get_hardware_config_operation_type(node, list(hw_config.keys()))
+            if hw_config[node_type] and hw_config[node_type][fq_group]:
+                fq_configs = hw_config[node_type][fq_group]
+        else:
+            node_type = None
+
+        if node_type in input_priority_types:
+            fq_config_priority = 2
+        else:
+            fq_config_priority = 1
+
+        fq_options = {
+            'fq_group': fq_group,
+            'fq_configs': copy(fq_configs),
+            'fq_config_priority': fq_config_priority
+        }
+
+        fq_name = '{node_name}/{name}_{idx}'.format(node_name=node.name, name=name, idx=idx)
+        fq_input = create_fake_quantize_node(graph, fq_name, port_data_type, **fq_options)
         # Insert FakeQuantize after input
         if node.type == 'Result':
             in_port = port.get_source()
@@ -780,6 +911,53 @@ def insert_fake_quantize(graph, node, ports=None, names=None):
         fq_input.infer(fq_input)
 
         new_fq.append(fq_input)
+    return new_fq
+
+
+def insert_output_fake_quantize(graph, node, hw_config=None, ignored_params=None):
+    activation_nodes_type = ['Power', 'Sigmoid', 'Tanh', 'ReLU', 'PReLU',
+                            'Clamp', 'Log', 'Abs', 'Exp', 'Sign', 'SoftSign']
+
+    new_fq = []
+    for out_port_id, port in node.out_ports().items():
+        if port.disconnected():
+            continue
+
+        next_ports = port.get_destinations()
+        for next_port_id, next_port in enumerate(next_ports):
+            next_node = next_port.node
+
+            if next_node.type == 'ShapeOf':
+                continue
+
+            if ignored_params is not None and next_node.type != 'FakeQuantize' \
+                    and is_ignored(ignored_params, next_node):
+                continue
+
+            fq_name = '{node_name}/fq_output_{out_port_id}_{next_port_id}'.format(node_name=node.name,
+                                                                                  out_port_id=out_port_id,
+                                                                                  next_port_id=next_port_id)
+            fq_configs = hw_config[node.type]['outputs'] if hw_config is not None and hw_config[node.type] else []
+
+            fq_config_priority = 0
+            if node.type in activation_nodes_type + ['Parameter']:
+                fq_config_priority = 1
+            else:
+                fq_config_priority = 0
+
+            fq_options = {
+                'fq_group': 'outputs',
+                'fq_configs': copy(fq_configs),
+                'fq_config_priority': fq_config_priority
+            }
+            fq_output = create_fake_quantize_node(graph, fq_name, **fq_options)
+
+            in_port = next_port.get_source()
+            next_port.get_connection().set_source(fq_output.out_port(0))
+            in_port.connect(fq_output.in_port(0))
+            fq_output.infer(fq_output)
+            new_fq.append(fq_output)
+
     return new_fq
 
 
@@ -841,7 +1019,10 @@ def traverse_graph(node, move_fn, stop_criteria_fn=None, criteria_fns=None):
 
 def compress_weights(model: Graph):
     """Apply transformations to save model weights to INT8."""
+    add_removed_converts(model)
     CompressQuantizeWeights().find_and_replace_pattern(model)
+    model.clean_up()
+    ZeroPointOptimizer().find_and_replace_pattern(model)
     model.clean_up()
     ForceStrictPrecision().find_and_replace_pattern(model)
     model.clean_up()
@@ -888,16 +1069,18 @@ def find_shape_subgraph_endpoints(out_ports: List[Port], visited: set = None) ->
 
 
 def remove_converts(graph: Graph):
-    for op in graph.get_op_nodes(type='Convert'):
-        source_op = op.in_port(0).get_source().node
-        if source_op.type == 'Const' and source_op.data_type == np.float16:
-            # Get access to data node after Convert operation and set Insert_Convert_operation_after
-            # to restore Convert operation later
-            op.out_node(0)['Insert_Convert_operation_after'] = True
-            # Mark Const and Convert operation to fold them
-            source_op['need_shape_inference'] = True
-            op['stop_value_propagation'] = False
-            op['need_shape_inference'] = True
+    for op in graph.get_op_nodes():
+        if op.type == 'Convert':
+            source_op = op.in_port(0).get_source().node
+            if source_op.type == 'Const' and source_op.data_type == np.float16:
+                # Get access to data node after Convert operation and set Insert_Convert_operation_after
+                # to restore Convert operation later
+                op.out_node(0)['Insert_Convert_operation_after'] = True
+                # Mark Const and Convert operation to fold them
+                source_op['need_shape_inference'] = True
+                op.out_node(0)['old_rt_info'] = op['rt_info']
+                op['stop_value_propagation'] = False
+        op['need_shape_inference'] = True
     graph.clean_up()
 
 
@@ -906,18 +1089,26 @@ def add_removed_converts(graph: Graph):
         data_node = Node(graph, data_node_name)
         # Get access to Const node connected to data node
         const_op = data_node.in_node(0)
-        assert const_op.data_type == np.float32, "Error when try to insert Convert operation after Const: {}".\
-            format(const_op.soft_get('name'))
+
+        if const_op.type != 'Const':
+            logger.debug('Error when try to insert Convert operation after {} with {} type'.\
+                format(const_op.soft_get('name'), const_op.soft_get('type')))
+            continue
+
+        if const_op.data_type != np.float32:
+            logger.debug('Error when try to insert Convert operation after Const: {}'.\
+                format(const_op.soft_get('name')))
+            continue
 
         convert_op = Cast(graph, {'dst_type': np.float32,
                                   'name': const_op.name + '/restored_convert',
                                   'stop_value_propagation': True}).create_node()
 
         # Insert Convert operation after Const operation
-        consumer_port = const_op.out_port(0).get_connection().get_destination()
-        const_op.out_port(0).get_connection().set_destination(convert_op.in_port(0))
-        convert_op.out_port(0).connect(consumer_port)
+        const_op.out_port(0).get_connection().insert_node(convert_op)
+        convert_op.out_node().value = None
+        convert_op['rt_info'] = data_node['old_rt_info']
 
-        # Convert Const value to FP32 to make types in graph consistent
+        # Convert Const value to FP16 to make types in graph consistent
         const_op.value, _, _ = convert_blob(const_op.value, np.float16)
         const_op.infer(const_op)

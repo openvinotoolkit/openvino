@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,10 +9,12 @@
 namespace ov {
 namespace op {
 namespace v1 {
+/// \brief ReduceMean operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ReduceMean : public util::ArithmeticReductionKeepDims {
 public:
     OPENVINO_OP("ReduceMean", "opset1", util::ArithmeticReductionKeepDims, 1);
-    BWDCMP_RTTI_DECLARATION;
     ReduceMean() = default;
 
     /// \param arg The tensor to be summed.

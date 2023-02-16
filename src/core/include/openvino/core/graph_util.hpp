@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,22 +15,22 @@
 #include <vector>
 
 #include "openvino/core/core_visibility.hpp"
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/pass/serialize.hpp"
 
 namespace ov {
 
 OPENVINO_API
-void traverse_nodes(const std::shared_ptr<const Function>& p,
-                    const std::function<void(const std::shared_ptr<Node>&)>& f);
+void traverse_nodes(const std::shared_ptr<const Model>& p, const std::function<void(const std::shared_ptr<Node>&)>& f);
 
 OPENVINO_API
-void traverse_nodes(const Function* p, const std::function<void(const std::shared_ptr<Node>&)>& f);
+void traverse_nodes(const Model* p, const std::function<void(const std::shared_ptr<Node>&)>& f);
 
 /// \brief Visit each node in a sub-graph of the entire graph
 /// \param subgraph_results The output nodes of the sub-graph
-/// \param f Function to execute at each node in the traversal
+/// \param f Model to execute at each node in the traversal
 /// \param subgraph_params Input nodes of the sub-graph (optional)
 ///
 /// Traverses a sub-graph starting from subgraph_results moving up
@@ -193,7 +193,7 @@ OPENVINO_API
 void replace_node(const std::shared_ptr<Node>& target, const std::shared_ptr<Node>& replacement);
 
 /// \brief Replace multiple nodes in a function.
-/// \param f Function where replacement is taking place.
+/// \param f Model where replacement is taking place.
 /// \param parameter_replacement_map A mapping from parameter shared pointers to parameter
 ///                                  shared pointers. For each pair (k,v) in the map, parameter
 ///                                  k is replaced by parameter v, except if k==v or k is not a
@@ -214,7 +214,7 @@ void replace_node(const std::shared_ptr<Node>& target, const std::shared_ptr<Nod
 ///    - If a parameter node appears as a key in both `parameter_replacement_map` _and_ in
 ///      `body_replacement_map`, behavior is unspecified.
 OPENVINO_API
-void replace_nodes(const std::shared_ptr<Function>& f,
+void replace_nodes(const std::shared_ptr<Model>& f,
                    const std::unordered_map<std::shared_ptr<op::v0::Parameter>, std::shared_ptr<op::v0::Parameter>>&
                        parameter_replacement_map,
                    const std::unordered_map<std::shared_ptr<Node>, std::shared_ptr<Node>>& body_replacement_map);
@@ -260,16 +260,21 @@ std::vector<std::shared_ptr<Node>> topological_sort(T root_nodes) {
     return result;
 }
 
-// input function is cloned and returned
+// input Model is cloned and returned
 // NodeMap input may contain default node mapping i.e. pre-cloned nodes
-// NodeMap output (by reference) fully maps input and cloned function ops
+// NodeMap output (by reference) fully maps input and cloned Model ops
+OPENVINO_DEPRECATED(
+    "This method is deprecated and will be removed in 2024.0 release. Please use ov::Model::clone() instead.")
 OPENVINO_API
-std::shared_ptr<ov::Function> clone_function(const ov::Function& func,
-                                             std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
+std::shared_ptr<ov::Model> clone_model(const ov::Model& model,
+                                       std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
 
-// input function is cloned and returned
+/// \brief input model is cloned and returned
+/// \ingroup ov_model_cpp_api
+OPENVINO_DEPRECATED(
+    "This method is deprecated and will be removed in 2024.0 release. Please use ov::Model::clone() instead.")
 OPENVINO_API
-std::shared_ptr<ov::Function> clone_function(const ov::Function& func);
+std::shared_ptr<ov::Model> clone_model(const ov::Model& model);
 
 OPENVINO_API
 bool compare_constants(const std::shared_ptr<Node>& n1, const std::shared_ptr<Node>& n2);
@@ -279,4 +284,16 @@ bool replace_output_update_name(Output<Node> node, const Output<Node>& node_inpu
 
 OPENVINO_API
 bool replace_node_update_name(const std::shared_ptr<Node>& target, const std::shared_ptr<Node>& replacement);
+
+/// \brief Serialize given model into IR. The generated .xml and .bin files will be saved into provided paths.
+/// \param m Model which will be converted to IR representation.
+/// \param xml_path Path where .xml file will be saved.
+/// \param bin_path Path where .bin file will be saved (optional).
+///                 The same name as for xml_path will be used by default.
+/// \param version Version of the generated IR (optional).
+OPENVINO_API
+void serialize(const std::shared_ptr<const ov::Model>& m,
+               const std::string& xml_path,
+               const std::string& bin_path = "",
+               ov::pass::Serialize::Version version = ov::pass::Serialize::Version::UNSPECIFIED);
 }  // namespace ov

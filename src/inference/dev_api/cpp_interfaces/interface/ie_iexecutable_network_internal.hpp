@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,7 @@ class IInferencePlugin;
 class IInferRequestInternal;
 class RemoteContext;
 class IVariableStateInternal;
+class ICompiledModelWrapper;
 
 /**
  * @interface IExecutableNetworkInternal
@@ -123,6 +124,13 @@ public:
     virtual void SetPointerToPlugin(const std::shared_ptr<IInferencePlugin>& plugin);
 
     /**
+     * @brief      Gets the pointer to plugin so.
+     * @note Needed to correctly handle ownership between objects.
+     * @return A shared pointer to the plugin so
+     */
+    virtual std::shared_ptr<void> GetPointerToSo();
+
+    /**
      * @brief Sets configuration for current executable network
      * @param config Map of pairs: (config parameter name, config parameter value)
      */
@@ -148,8 +156,20 @@ public:
      */
     virtual std::shared_ptr<RemoteContext> GetContext() const;
 
+    /**
+     * @brief Raises the flag that model was loaded from cache
+     */
+    void loadedFromCache();
+
+    /**
+     * @brief Provides an information how model was loaded
+     *
+     * @return true if model was loaded from cache
+     */
+    bool isLoadedFromCache() const;
+
 protected:
-    ~IExecutableNetworkInternal() = default;
+    virtual ~IExecutableNetworkInternal() = default;
 
     /**
      * @brief      Creates an inference request internal implementation.
@@ -183,11 +203,24 @@ protected:
      * @note Needed to correctly handle ownership between objects.
      */
     std::shared_ptr<IInferencePlugin> _plugin;
+
+    /**
+     * @brief A pointer to a plugin library.
+     * @note Needed to correctly handle ownership between objects.
+     */
+    std::shared_ptr<void> _so;
+
+    /**
+     * @brief If true, it means that model was loaded from cache
+     */
+    bool _loadedFromCache = false;
+
+    friend InferenceEngine::ICompiledModelWrapper;
 };
 
 /**
  * @brief SoPtr to IExecutableNetworkInternal.
  */
-using SoExecutableNetworkInternal = ov::runtime::SoPtr<IExecutableNetworkInternal>;
+using SoExecutableNetworkInternal = ov::SoPtr<IExecutableNetworkInternal>;
 
 }  // namespace InferenceEngine

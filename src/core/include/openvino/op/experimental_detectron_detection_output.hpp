@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,10 +17,10 @@ namespace v6 {
 /// \brief An operation ExperimentalDetectronDetectionOutput performs
 /// non-maximum suppression to generate the detection output using
 /// information on location and score predictions.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ExperimentalDetectronDetectionOutput : public Op {
 public:
     OPENVINO_OP("ExperimentalDetectronDetectionOutput", "opset6", op::Op, 6);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Structure that specifies attributes of the operation
     struct Attributes {

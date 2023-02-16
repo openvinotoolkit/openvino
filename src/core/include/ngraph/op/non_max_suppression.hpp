@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,10 @@ using ov::op::v4::NonMaxSuppression;
 namespace v5 {
 using ov::op::v5::NonMaxSuppression;
 }  // namespace v5
+
+namespace v9 {
+using ov::op::v9::NonMaxSuppression;
+}  // namespace v9
 }  // namespace op
 using ov::operator<<;
 }  // namespace ngraph

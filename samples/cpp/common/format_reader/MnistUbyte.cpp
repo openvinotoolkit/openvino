@@ -1,12 +1,14 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <MnistUbyte.h>
-
+// clang-format off
 #include <fstream>
 #include <iostream>
 #include <string>
+
+#include "MnistUbyte.h"
+// clang-format on
 
 using namespace FormatReader;
 
@@ -47,6 +49,8 @@ MnistUbyte::MnistUbyte(const std::string& filename) {
     }
 
     size_t size = _width * _height * 1;
+    _shape.push_back(_height);
+    _shape.push_back(_width);
 
     _data.reset(new unsigned char[size], std::default_delete<unsigned char[]>());
     size_t count = 0;

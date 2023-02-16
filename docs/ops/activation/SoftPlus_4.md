@@ -1,4 +1,4 @@
-## SoftPlus <a name="SoftPlus"></a> {#openvino_docs_ops_activation_SoftPlus_4}
+# SoftPlus {#openvino_docs_ops_activation_SoftPlus_4}
 
 **Versioned name**: *SoftPlus-4*
 
@@ -7,8 +7,6 @@
 **Short description**: *SoftPlus* is a rectified-based element-wise activation function.
 
 **Detailed description**
-
-*SoftPlus* operation is introduced in this [article](https://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.165.6419).
 
 *SoftPlus* performs element-wise activation function on a given input tensor, based on the following mathematical formula:
 

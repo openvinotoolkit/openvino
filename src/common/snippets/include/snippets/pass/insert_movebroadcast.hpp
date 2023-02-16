@@ -1,10 +1,8 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
-
-#include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pattern/matcher.hpp>
@@ -15,13 +13,17 @@ namespace pass {
 
 /**
  * @interface InsertMoveBroadcast
- * @brief Inserts explicit MoveBroadcast instruction if broadcasting by most warying dimension is needed.
- * The pass is used to convert function to a canonical form for code generation
+ * @brief Inserts explicit MoveBroadcast instruction if broadcasting by most varying dimension is needed.
+ * The pass is used to convert model to a canonical form for code generation
  * @ingroup snippets
  */
-class TRANSFORMATIONS_API InsertMoveBroadcast: public ngraph::pass::MatcherPass {
+class InsertMoveBroadcast: public ngraph::pass::MatcherPass {
 public:
     InsertMoveBroadcast();
+
+    static Output<ngraph::Node> BroadcastNodeLastDim(const ngraph::Output<ngraph::Node>& value,
+                                                     const ov::PartialShape& target_shape,
+                                                     const ov::PartialShape& normalized_shape);
 };
 
 } // namespace pass

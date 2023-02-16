@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,68 +10,66 @@
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset4.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precisions_attribute.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
+#include "itt.hpp"
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MarkupPrecisions, "MarkupPrecisions", 0);
-
-ngraph::pass::low_precision::MarkupPrecisions::MarkupPrecisions(const std::vector<OperationPrecisionRestriction>& restrictions) {
+ngraph::pass::low_precision::MarkupPrecisions::MarkupPrecisions(
+    const std::vector<PrecisionsRestriction>& restrictions,
+    const std::vector<ngraph::element::Type>& defaultPrecisions) : defaultPrecisions(defaultPrecisions) {
     for (const auto& restriction : restrictions) {
         const auto it = restrictionsByOperation.find(restriction.operationType.name);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         if (it == restrictionsByOperation.end()) {
             Restriction r(restriction.specifyVersion);
-            r.precisionsByVersion.emplace(restriction.operationType.version, restriction.precisionsByPort);
+            r.precisionsByVersion.emplace(restriction.operationType.version, restriction.precisionsByPorts);
             restrictionsByOperation.emplace(restriction.operationType.name, r);
         } else {
-            it->second.add(restriction.operationType.version, restriction.precisionsByPort);
+            it->second.add(restriction.operationType.version, restriction.precisionsByPorts);
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 }
 
 namespace {
 void setRestriction(
     const std::shared_ptr<Node>& node,
-    const std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>>& precisionsByPort) {
-    if (precisionsByPort.empty()) {
+    const pass::low_precision::PrecisionsRestriction::PrecisionsByPorts& precisionsByPorts) {
+    if (precisionsByPorts.empty()) {
         // if available precisions for any port is empty then mark all input ports
         for (auto& input : node->inputs()) {
             auto& rt = input.get_rt_info();
-
-            auto attribute = ngraph::pass::low_precision::make_shared_attribute<PrecisionsAttribute>(std::vector<element::Type>());
-            auto attributeWrapper = std::make_shared<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(attribute);
-
             rt.emplace(
-                ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name,
-                attributeWrapper);
+                    PrecisionsAttribute::get_type_info_static(),
+                    PrecisionsAttribute(std::vector<element::Type>()));
         }
     } else {
-        for (const std::pair<size_t, std::vector<ngraph::element::Type>>& item : precisionsByPort) {
-            Input<Node> input = node->input(item.first);
-
-            auto precisionsAttribute = ngraph::pass::low_precision::getAttribute<std::shared_ptr<PrecisionsAttribute>>(input);
-            if ((precisionsAttribute != nullptr) &&
-                (precisionsAttribute->get()->sharedValue != nullptr) &&
-                (precisionsAttribute->get()->sharedValue->precisions.empty())) {
-                return;
+        for (const auto& item : precisionsByPorts) {
+            const auto attr = PrecisionsAttribute(item.second);
+            for (const auto& port : item.first) {
+                Input<Node> input = node->input(port);
+                auto& rt = input.get_rt_info();
+                auto precisionsAttribute = ngraph::pass::low_precision::getAttribute<PrecisionsAttribute>(input);
+                if ((!precisionsAttribute.empty()) && (precisionsAttribute.as<PrecisionsAttribute>().value().empty())) {
+                    return;
+                }
+                rt[PrecisionsAttribute::get_type_info_static()] = attr;
             }
-
-            auto attribute = ngraph::pass::low_precision::make_shared_attribute<PrecisionsAttribute>(item.second);
-            auto attributeWrapper = std::make_shared<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(attribute);
-
-            auto& rt = input.get_rt_info();
-            rt[ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name] = attributeWrapper;
         }
     }
 }
 } // namespace
 
-bool ngraph::pass::low_precision::MarkupPrecisions::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::low_precision::MarkupPrecisions::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+    RUN_ON_FUNCTION_SCOPE(MarkupPrecisions);
     for (const std::shared_ptr<Node>& node : f->get_ordered_ops()) {
         if (node->get_input_size() == 0) {
             continue;
@@ -81,11 +79,19 @@ bool ngraph::pass::low_precision::MarkupPrecisions::run_on_function(std::shared_
             continue;
         }
 
+        if (const auto multiSubGraph = ov::as_type_ptr<ngraph::op::util::MultiSubGraphOp>(node)) {
+            for (size_t i = 0; i < multiSubGraph->get_internal_subgraphs_size(); i++)
+                run_on_model(multiSubGraph->get_function(i));
+            continue;
+        }
+
         // TODO: don't need to set restrictions for not supported operations
         // if don't set restrictions for not supported operations then accuracy drop appears, issue #59197
         const bool supported = ov::is_type<opset1::Result>(node) || isSupported(node);
-        if (!supported || !LayerTransformation::canBeTransformedStatic(node)) {
-            setRestriction(node, std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>> { {0ul, {}}});
+        if (!supported && restrictionsByOperation.find(node->get_type_info().name) != restrictionsByOperation.end())
+            THROW_IE_LPT_EXCEPTION(*node) << "Restriction is set for unsupported operation";
+        if (!supported || !LayerTransformation::canBeTransformedStatic(node, defaultPrecisions)) {
+            setRestriction(node, pass::low_precision::PrecisionsRestriction::PrecisionsByPorts{{{0ul}, {}}});
             continue;
         }
 
@@ -93,9 +99,8 @@ bool ngraph::pass::low_precision::MarkupPrecisions::run_on_function(std::shared_
         if (precisionPreserved) {
             auto& rt = node->get_rt_info();
             rt.emplace(
-                ngraph::VariantWrapper<PrecisionPreservedAttributePtr>::type_info.name,
-                std::make_shared<::ngraph::VariantWrapper<PrecisionPreservedAttributePtr>>(
-                    make_shared_attribute<PrecisionPreservedAttribute>(precisionPreserved)));
+                PrecisionPreservedAttribute::get_type_info_static(),
+                PrecisionPreservedAttribute(precisionPreserved));
         }
 
         const auto& typeInfo = node->get_type_info();
@@ -103,18 +108,20 @@ bool ngraph::pass::low_precision::MarkupPrecisions::run_on_function(std::shared_
         if (it != restrictionsByOperation.end()) {
             const Restriction& r = it->second;
             if (r.versionIsRequired) {
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 const auto it2 = r.precisionsByVersion.find(typeInfo.version);
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 if (it2 == r.precisionsByVersion.end()) {
                     continue;
                 }
 
-                const std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>>& precisionsByPort = it2->second;
-                setRestriction(node, precisionsByPort);
+                const pass::low_precision::PrecisionsRestriction::PrecisionsByPorts& precisionsByPorts = it2->second;
+                setRestriction(node, precisionsByPorts);
             } else {
                 assert(r.precisionsByVersion.size() == 1ul);
 
-                const std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>>& precisionsByPort = r.precisionsByVersion.begin()->second;
-                setRestriction(node, precisionsByPort);
+                const pass::low_precision::PrecisionsRestriction::PrecisionsByPorts& precisionsByPorts = r.precisionsByVersion.begin()->second;
+                setRestriction(node, precisionsByPorts);
             }
         }
     }
@@ -136,6 +143,7 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const s
     static std::unordered_set<std::string> precisionPreservedOps = {
         { name<opset1::Concat>() },
         { name<opset1::DepthToSpace>() },
+        { name<opset1::Interpolate>() },
         { name<opset1::MaxPool>() },
         { name<opset1::ReduceMax>() },
         { name<opset1::ReduceMin>() },
@@ -212,7 +220,9 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isSupported(const std::share
         { name<opset1::Subtract>() },
         { name<opset1::Transpose>() },
         { name<opset1::Unsqueeze>() },
-        { name<opset1::VariadicSplit>() }
+        { name<opset1::VariadicSplit>() },
+        { name<opset5::LSTMSequence>() },
+        { name<opset6::GRUSequence>() },
     };
 
     return supportedOps.find(node->get_type_name()) != supportedOps.end();

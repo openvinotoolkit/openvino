@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,6 @@ namespace util {
 class OPENVINO_API FFTBase : public Op {
 public:
     OPENVINO_OP("FFTBase", "util");
-    BWDCMP_RTTI_DECLARATION;
     FFTBase() = default;
 
     void validate_and_infer_types() override;
@@ -34,7 +33,8 @@ protected:
     /// \param signal_size Signal sizes for 'axes'
     FFTBase(const Output<Node>& data, const Output<Node>& axes, const Output<Node>& signal_size);
 
-    void validate();
+    /// \brief Validates input data types of FFT operation.
+    void validate_types();
 };
 }  // namespace util
 }  // namespace op

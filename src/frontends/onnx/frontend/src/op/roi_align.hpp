@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,11 @@ namespace set_1 {
 OutputVector roi_align(const Node& node);
 
 }  // namespace set_1
+
+namespace set_16 {
+OutputVector roi_align(const Node& node);
+
+}  // namespace set_16
 
 }  // namespace op
 

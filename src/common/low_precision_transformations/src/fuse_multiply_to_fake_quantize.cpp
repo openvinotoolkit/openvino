@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,14 +9,15 @@
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 #include "low_precision/fake_quantize.hpp"
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
+#include "low_precision/rt_info/skip_cleanup_attribute.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation, "FuseMultiplyToFakeQuantizeTransformation", 0);
-
 FuseMultiplyToFakeQuantizeTransformation::FuseMultiplyToFakeQuantizeTransformation(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(FuseMultiplyToFakeQuantizeTransformation);
     auto matcher = pattern::wrap_type<opset1::Multiply>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
@@ -27,7 +28,7 @@ FuseMultiplyToFakeQuantizeTransformation::FuseMultiplyToFakeQuantizeTransformati
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "FuseMultiplyToFakeQuantizeTransformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -67,7 +68,7 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
     NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(3), outputLowConst_f32);
     NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(4), outputHighConst_f32);
 
-    auto newFakeQuantize = std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
+    auto newFakeQuantize = std::make_shared<ov::op::TypeRelaxed<opset1::FakeQuantize>>(
         opset1::FakeQuantize(
             fakeQuantize->input_value(0),
             inputLow,
@@ -80,9 +81,9 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
     replace_node(multiply, newFakeQuantize);
     NetworkHelper::copyInfo(fakeQuantize, newFakeQuantize);
 
-    const auto intervalAlignment = getAttribute<IntervalsAlignmentAttributePtr>(fakeQuantize);
-    if ((intervalAlignment != nullptr) && (intervalAlignment->get()->levels != 0ul)) {
-        newFakeQuantize->set_levels(intervalAlignment->get()->levels);
+    const auto intervalAlignment = getAttribute<IntervalsAlignmentAttribute>(fakeQuantize);
+    if (!intervalAlignment.empty() && (intervalAlignment.as<IntervalsAlignmentAttribute>().levels != 0ul)) {
+        newFakeQuantize->set_levels(intervalAlignment.as<IntervalsAlignmentAttribute>().levels);
     }
 
     updateOutput(context, newFakeQuantize, multiply);
@@ -95,6 +96,10 @@ bool FuseMultiplyToFakeQuantizeTransformation::canBeTransformed(const Transforma
     }
 
     if (!FakeQuantizeTransformation::checkElementwise(operation)) {
+        return false;
+    }
+
+    if (!getAttribute<SkipCleanupAttribute>(operation).empty()) {
         return false;
     }
 

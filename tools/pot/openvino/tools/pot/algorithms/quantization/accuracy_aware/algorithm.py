@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from ...algorithm import Algorithm
@@ -19,7 +19,9 @@ class AccuracyAwareQuantization(Algorithm):
             'CPU': 'AccuracyAwareCommon',
             'VPU': 'AccuracyAwareCommon',
             'GPU': 'AccuracyAwareCommon',
-            'GNA': 'AccuracyAwareGNA'
+            'GNA': 'AccuracyAwareGNA',
+            'GNA3': 'AccuracyAwareGNA',
+            'GNA3.5': 'AccuracyAwareGNA'
         }
         algo_name = algos_by_devices[config.get('target_device', 'ANY')]
         self._accuracy_aware_algo = COMPRESSION_ALGORITHMS.get(algo_name)(config, engine)

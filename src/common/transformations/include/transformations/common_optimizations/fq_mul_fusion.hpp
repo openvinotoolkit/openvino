@@ -1,23 +1,21 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <memory>
+#include <openvino/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
 #include <vector>
 
-#include <transformations_visibility.hpp>
-
-#include <ngraph/pass/graph_rewrite.hpp>
-
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API FakeQuantizeMulFusion;
 
-} // namespace pass
-} // namespace ngraph
+}  // namespace pass
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -26,8 +24,8 @@ class TRANSFORMATIONS_API FakeQuantizeMulFusion;
  * by the value that was originally below the FQ node.
  */
 
-class ngraph::pass::FakeQuantizeMulFusion : public ngraph::pass::MatcherPass {
+class ov::pass::FakeQuantizeMulFusion : public ov::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
-  FakeQuantizeMulFusion();
+    OPENVINO_RTTI("FakeQuantizeMulFusion", "0");
+    FakeQuantizeMulFusion();
 };

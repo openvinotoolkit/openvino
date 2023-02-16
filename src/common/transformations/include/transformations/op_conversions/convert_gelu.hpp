@@ -1,28 +1,24 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <vector>
 #include <memory>
-
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
+#include <vector>
 
-#include <ngraph/pass/graph_rewrite.hpp>
-
-#include "ngraph/op/gelu.hpp"
-
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertGELU;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::ConvertGELU: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertGELU : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertGELU", "0");
     ConvertGELU();
 };

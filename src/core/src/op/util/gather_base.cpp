@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/util/gather_base.hpp"
 
-#include <ngraph/validation_util.hpp>
-
+#include "bound_evaluate.hpp"
+#include "gather_shape_inference.hpp"
 #include "itt.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/constant.hpp"
@@ -15,8 +15,6 @@
 #include "ngraph/shape.hpp"
 
 using namespace std;
-
-BWDCMP_RTTI_DEFINITION(ov::op::util::GatherBase);
 
 ov::op::util::GatherBase::GatherBase(const Output<Node>& data,
                                      const Output<Node>& indices,
@@ -28,104 +26,16 @@ ov::op::util::GatherBase::GatherBase(const Output<Node>& data,
 }
 
 void ov::op::util::GatherBase::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(util_GatherBase_validate_and_infer_types);
+    OV_OP_SCOPE(util_GatherBase_validate_and_infer_types);
     const auto& data_type = get_input_element_type(0);
 
     const auto& data_pshape = get_input_partial_shape(0);
     const auto& indices_pshape = get_input_partial_shape(1);
     const auto& axis_pshape = get_input_partial_shape(2);
-    auto data_rank = data_pshape.rank();
-    auto indices_rank = indices_pshape.rank();
-    auto axis_rank = axis_pshape.rank();
-
-    if (axis_rank.is_static() && axis_pshape.is_static()) {
-        const auto axis_is_scalar = axis_rank.get_length() == 0;
-        const auto axis_has_one_elem = axis_rank.get_length() == 1 && axis_pshape[0].get_length() == 1;
-        NODE_VALIDATION_CHECK(this,
-                              axis_is_scalar || axis_has_one_elem,
-                              "Axis input must be scalar or have 1 element. But instead got axis_shape = ",
-                              axis_pshape);
-    }
-
-    int64_t batch_dims = m_batch_dims;
-    if (batch_dims < 0 && indices_rank.is_static()) {
-        batch_dims += indices_rank.get_length();
-    }
-
-    bool axis_is_set = false;
-    if (get_constant_from_source(input_value(2)))
-        axis_is_set = true;
-
-    if (axis_is_set) {
-        int64_t axis = get_axis();  // will be normalized to positive if data_rank is static
-
-        // batch_dims, axis both can be positive by default or after normalization if data_rank &
-        // indices_rank are static.
-        // If at least one of them is negative we cannot check their consistency.
-        NODE_VALIDATION_CHECK(this,
-                              batch_dims <= axis || batch_dims < 0 || axis < 0,
-                              "After normalization batch_dims must be <= axis. But instead got: batch_dims = ",
-                              batch_dims,
-                              ", axis = ",
-                              axis);
-
-        NODE_VALIDATION_CHECK(this,
-                              data_rank.is_dynamic() || (axis >= 0 && axis < data_rank.get_length()),
-                              "Normalized axis must be >= 0 and < data_rank. But instead got axis = ",
-                              axis,
-                              " data_rank = ",
-                              data_rank.get_interval());
-    }
-
-    if (indices_rank.is_static() && batch_dims >= 0) {
-        NODE_VALIDATION_CHECK(this,
-                              batch_dims <= indices_rank.get_length(),
-                              "The batch_dims must be <= indices_rank. But instead got: batch_dims = ",
-                              batch_dims,
-                              ", indices_rank = ",
-                              indices_rank.get_length());
-    }
-
-    if (data_rank.is_static() && indices_rank.is_static()) {
-        auto out_rank = data_rank.get_length() + indices_rank.get_length() - 1 - batch_dims;
-        PartialShape output_pshape = PartialShape::dynamic(out_rank);
-
-        // implementation of out_shape formula
-        // data.shape[:batch_dims] + data.shape[batch_dims:axis] + indices.shape[batch_dims:] +
-        // data.shape[axis + 1:]
-        int i = 0;
-        for (; i < batch_dims; i++) {
-            NODE_VALIDATION_CHECK(this,
-                                  data_pshape[i].compatible(indices_pshape[i]),
-                                  "Shapes ",
-                                  data_pshape,
-                                  " and ",
-                                  indices_pshape,
-                                  " are not consistent. data and indices must have equal or "
-                                  "intersecting sizes until batch_dims");
-
-            output_pshape[i] = data_pshape[i] & indices_pshape[i];
-        }
-
-        if (axis_is_set) {
-            int64_t axis = get_axis();
-            for (; i < axis; i++) {
-                output_pshape[i] = data_pshape[i];
-            }
-            for (; i < axis + indices_rank.get_length() - batch_dims; i++) {
-                output_pshape[i] = indices_pshape[batch_dims - axis + i];
-            }
-            for (; i < out_rank; i++) {
-                output_pshape[i] = data_pshape[batch_dims + 1 - indices_rank.get_length() + i];
-            }
-        }
-        set_output_type(0, data_type, output_pshape);
-    } else {
-        Rank out_rank = data_rank + indices_rank - 1 - batch_dims;
-        if (batch_dims < 0)
-            out_rank = out_rank - indices_rank.get_max_length();
-        set_output_type(0, data_type, PartialShape::dynamic(out_rank));
-    }
+    std::vector<PartialShape> input_shapes = {data_pshape, indices_pshape, axis_pshape},
+                              output_shapes = {PartialShape{}};
+    shape_infer(this, input_shapes, output_shapes, {});
+    set_output_type(0, data_type, output_shapes[0]);
 }
 
 int64_t ov::op::util::GatherBase::get_axis() const {
@@ -141,6 +51,14 @@ int64_t ov::op::util::GatherBase::get_axis() const {
         }
     }
     return axis;
+}
+
+const int64_t& ov::op::util::GatherBase::get_batch_dims() const {
+    return m_batch_dims;
+}
+
+void ov::op::util::GatherBase::set_batch_dims(int64_t batch_dims) {
+    m_batch_dims = batch_dims;
 }
 
 namespace gather {
@@ -187,7 +105,8 @@ bool evaluate(const ngraph::HostTensorPtr& arg0,
                                                        axis,
                                                        batch_dims);
     } else {
-        throw ov::Exception("Unexpected type");
+        throw ov::Exception(std::string("Unexpected type ") + arg1->get_element_type().c_type_string() +
+                            " for Gather evaluate method.");
     }
 
     return true;
@@ -274,7 +193,7 @@ bool cf_gather_with_subgraph(ov::OutputVector& output_values,
 }  // namespace gather
 
 bool ov::op::util::GatherBase::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(util_GatherBase_evaluate);
+    OV_OP_SCOPE(util_GatherBase_evaluate);
     NGRAPH_CHECK(ngraph::validate_host_tensor_vector(inputs, 3));
     NGRAPH_CHECK(ngraph::validate_host_tensor_vector(outputs, 1));
 
@@ -323,16 +242,22 @@ bool ov::op::util::GatherBase::evaluate(const HostTensorVector& outputs, const H
     return gather::evaluate_gather(inputs[0], inputs[1], outputs[0], axis, batch_dims);
 }
 
-bool ov::op::util::GatherBase::evaluate_lower(const HostTensorVector& output_values) const {
-    if (!input_value(1).get_tensor().has_and_set_bound() || !input_value(2).get_tensor().has_and_set_bound())
+bool ov::op::util::GatherBase::evaluate_lower(ov::TensorVector& output_values) const {
+    if (!get_input_tensor(1).has_and_set_bound() || !get_input_tensor(2).has_and_set_bound())
         return false;
-    return ngraph::default_lower_bound_evaluator(this, output_values);
+    return default_lower_bound_evaluator(this, output_values);
 }
 
-bool ov::op::util::GatherBase::evaluate_upper(const HostTensorVector& output_values) const {
-    if (!input_value(1).get_tensor().has_and_set_bound() || !input_value(2).get_tensor().has_and_set_bound())
+bool ov::op::util::GatherBase::evaluate_upper(ov::TensorVector& output_values) const {
+    if (!get_input_tensor(1).has_and_set_bound() || !get_input_tensor(2).has_and_set_bound())
         return false;
-    return ngraph::default_upper_bound_evaluator(this, output_values);
+    return default_upper_bound_evaluator(this, output_values);
+}
+
+bool ov::op::util::GatherBase::evaluate_label(TensorLabelVector& output_labels) const {
+    if (!get_input_tensor(1).has_and_set_bound() || !get_input_tensor(2).has_and_set_bound())
+        return false;
+    return default_label_evaluator(this, output_labels);
 }
 
 bool ov::op::util::GatherBase::constant_fold(OutputVector& output_values, const OutputVector& input_values) {

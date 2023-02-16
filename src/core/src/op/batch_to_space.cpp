@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/batch_to_space.hpp"
 
+#include <batch_to_space_shape_inference.hpp>
 #include <cmath>
 #include <cstddef>
 #include <memory>
@@ -24,8 +25,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v1::BatchToSpace);
-
 ngraph::op::v1::BatchToSpace::BatchToSpace(const ngraph::Output<ngraph::Node>& data,
                                            const ngraph::Output<ngraph::Node>& block_shape,
                                            const ngraph::Output<ngraph::Node>& crops_begin,
@@ -38,7 +37,7 @@ ngraph::op::v1::BatchToSpace::BatchToSpace(const ngraph::Output<ngraph::Node>& d
 }
 
 void op::v1::BatchToSpace::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_BatchToSpace_validate_and_infer_types);
+    OV_OP_SCOPE(v1_BatchToSpace_validate_and_infer_types);
 
     const auto& data_et = get_input_element_type(0);
     const auto& block_shape_et = get_input_element_type(1);
@@ -61,113 +60,23 @@ void op::v1::BatchToSpace::validate_and_infer_types() {
                           "block_shape and crops inputs must have integer element type. Got: ",
                           inputs_integer_et);
 
-    const ov::PartialShape& data_pshape = get_input_partial_shape(0);
-    const ov::PartialShape& block_shape_ps = get_input_partial_shape(1);
-    const ov::PartialShape& crops_begin_ps = get_input_partial_shape(2);
-    const ov::PartialShape& crops_end_ps = get_input_partial_shape(3);
-
-    ov::PartialShape inputs_same_ps{ov::PartialShape::dynamic()};
-    NODE_VALIDATION_CHECK(this,
-                          ov::PartialShape::merge_into(inputs_same_ps, crops_begin_ps) &&
-                              ov::PartialShape::merge_into(inputs_same_ps, crops_end_ps) &&
-                              ov::PartialShape::merge_into(inputs_same_ps, block_shape_ps),
-                          "block_shape, crops_begin and crops_end inputs must have the same shape. Got: ",
-                          block_shape_ps,
-                          ", ",
-                          crops_begin_ps,
-                          " and ",
-                          crops_end_ps);
-
-    const Rank inputs_rank_one = inputs_same_ps.rank();
-    NODE_VALIDATION_CHECK(this,
-                          inputs_rank_one.compatible(1),
-                          "block_shape and crops inputs must have rank 1. Got: ",
-                          inputs_rank_one);
-
-    const Rank data_rank = data_pshape.rank();
-    if (data_rank.is_static()) {
-        NODE_VALIDATION_CHECK(this,
-                              (data_rank.get_length() >= 2),
-                              "data input must have rank greater or equal than 2. Got: ",
-                              data_rank.get_length());
-
-        if (inputs_same_ps.is_static()) {
-            NODE_VALIDATION_CHECK(this,
-                                  data_rank.get_length() == inputs_same_ps[0].get_length(),
-                                  "block_shape and crop inputs must have same number of elements "
-                                  "as data input rank. Got: ",
-                                  inputs_same_ps[0],
-                                  " and ",
-                                  data_rank);
-        }
-    }
-
-    const auto block_const = get_constant_from_source(input_value(1));
-    const auto crops_begin_const = get_constant_from_source(input_value(2));
-    const auto crops_end_const = get_constant_from_source(input_value(3));
-
-    if (block_const && crops_begin_const && crops_end_const && data_pshape.is_static()) {
-        const ov::Shape& data_sshape = data_pshape.to_shape();
-
-        auto block_val = block_const->cast_vector<int64_t>();
-        auto crops_begin_val = crops_begin_const->cast_vector<int64_t>();
-        auto crops_end_val = crops_end_const->cast_vector<int64_t>();
-
-        bool block_vals_valid = std::all_of(begin(block_val), end(block_val), [](int64_t elem) {
-            return elem >= 1;
-        });
-        NODE_VALIDATION_CHECK(this, block_vals_valid, "Elements of block_shape input must be greater or equal to one.");
-
-        bool crops_begin_vals_valid = std::all_of(begin(crops_begin_val), end(crops_begin_val), [](int64_t elem) {
-            return elem >= 0;
-        });
-        bool crops_end_vals_valid = std::all_of(begin(crops_end_val), end(crops_end_val), [](int64_t elem) {
-            return elem >= 0;
-        });
-        NODE_VALIDATION_CHECK(this,
-                              crops_begin_vals_valid && crops_end_vals_valid,
-                              "Elements of crops_begin and crops_end inputs must be greater or equal to zero.");
-
-        int64_t block_prod = std::accumulate(begin(block_val), end(block_val), 1, std::multiplies<int64_t>());
-
-        NODE_VALIDATION_CHECK(this,
-                              data_sshape[0] % block_prod == 0,
-                              "The input data's 'batch' axis size: ",
-                              data_sshape[0],
-                              " must be a multiple of",
-                              " product of block_shape values: ",
-                              block_prod);
-
-        for (size_t idx = 0; idx < data_sshape.size(); idx++) {
-            const bool is_valid_crops_and_shape =
-                crops_begin_val[idx] + crops_end_val[idx] <= block_val[idx] * static_cast<int64_t>(data_sshape[idx]);
-            NODE_VALIDATION_CHECK(this,
-                                  is_valid_crops_and_shape,
-                                  "crops_begin[i] + crops_end[i] must be less or equal to "
-                                  "block_shape[i] * input_shape[i]");
-        }
-
-        ov::Shape output_sshape = {static_cast<size_t>(data_sshape[0] / block_prod)};
-        for (size_t idx = 1; idx < data_sshape.size(); ++idx) {
-            output_sshape.push_back(
-                static_cast<size_t>(data_sshape[idx] * block_val[idx] - crops_begin_val[idx] - crops_end_val[idx]));
-        }
-
-        set_output_size(1);
-        set_output_type(0, data_et, output_sshape);
-    } else {
-        set_output_type(0, data_et, ov::PartialShape::dynamic(data_rank));
-    }
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+    const std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
+                                                        get_input_partial_shape(1),
+                                                        get_input_partial_shape(2),
+                                                        get_input_partial_shape(3)};
+    shape_infer(this, input_shapes, output_shapes);
+    set_output_type(0, data_et, output_shapes[0]);
 }
 
 std::shared_ptr<ngraph::Node> ngraph::op::v1::BatchToSpace::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_BatchToSpace_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_BatchToSpace_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<BatchToSpace>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
 }
 
 bool ngraph::op::v1::BatchToSpace::visit_attributes(ngraph::AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_BatchToSpace_visit_attributes);
+    OV_OP_SCOPE(v1_BatchToSpace_visit_attributes);
     return true;
 }
 
@@ -212,7 +121,7 @@ bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVe
                  "Invalid element values of crops_begin/crops_end input/s");
 
     const std::size_t block_prod =
-        std::accumulate(block_values, block_values + block_values_size, 1UL, std::multiplies<std::size_t>());
+        std::accumulate(block_values, block_values + block_values_size, int64_t(1), std::multiplies<int64_t>());
     NGRAPH_CHECK(data_shape[0] % block_prod == 0,
                  "Invalid batch axis of data input with respect to block_shape values");
 
@@ -307,14 +216,14 @@ bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVe
 }  // namespace
 
 bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v1_BatchToSpace_evaluate);
+    OV_OP_SCOPE(v1_BatchToSpace_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 4));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
     return batch_to_space_evaluate(outputs, inputs);
 }
 
 bool ngraph::op::v1::BatchToSpace::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_BatchToSpace_has_evaluate);
+    OV_OP_SCOPE(v1_BatchToSpace_has_evaluate);
     return !get_input_partial_shape(0).is_dynamic() && get_input_shape(0).size() >= 2 &&
            get_input_shape(0).size() <= shape_size(get_input_shape(1));
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace {
 std::shared_ptr<ngraph::Node> onnx_softmax(const Output<ngraph::Node> data, const int64_t axis) {
-    const auto coerced_data = ngraph::builder::opset1::flatten(data, axis);
+    const auto coerced_data = ngraph::builder::opset1::flatten(data, static_cast<int>(axis));
     const auto result = std::make_shared<default_opset::Softmax>(coerced_data, 1);
     const auto data_shape = std::make_shared<default_opset::ShapeOf>(data);
     const bool special_zero = false;
@@ -37,17 +37,8 @@ OutputVector softmax(const Node& node) {
         result = default_opset::Constant::create(data.get_element_type(), Shape{}, {1});
         break;
     }
-    case 1: {
-        // checks if the axis belongs to the allowed values set (-1 and 0 for 1D)
-        ngraph::normalize_axis(node.get_description(), axis, data.get_partial_shape().rank());
-        result = std::make_shared<default_opset::Softmax>(data, 0);
-        break;
-    }
     default: {
-        const auto normalized_axis =
-            ngraph::normalize_axis(node.get_description(), axis, data.get_partial_shape().rank());
-
-        result = onnx_softmax(data, normalized_axis);
+        result = onnx_softmax(data, axis);
         break;
     }
     }
@@ -69,17 +60,8 @@ OutputVector softmax(const Node& node) {
         result = default_opset::Constant::create(data.get_element_type(), Shape{}, {1});
         break;
     }
-    case 1: {
-        // checks if the axis belongs to the allowed values set (-1 and 0 for 1D)
-        ngraph::normalize_axis(node.get_description(), axis, data.get_partial_shape().rank());
-        result = std::make_shared<default_opset::Softmax>(data, 0);
-        break;
-    }
     default: {
-        const auto normalized_axis =
-            ngraph::normalize_axis(node.get_description(), axis, data.get_partial_shape().rank());
-
-        result = std::make_shared<default_opset::Softmax>(data, normalized_axis);
+        result = std::make_shared<ov::op::v8::Softmax>(data, axis);
         break;
     }
     }
@@ -92,9 +74,8 @@ OutputVector softmax(const Node& node) {
     const auto data = node.get_ng_inputs().at(0);
 
     const auto axis = node.get_attribute_value<int64_t>("axis", -1);
-    const auto normalized_axis = ngraph::normalize_axis(node.get_description(), axis, data.get_partial_shape().rank());
 
-    return {std::make_shared<default_opset::Softmax>(data, normalized_axis)};
+    return {std::make_shared<ov::op::v8::Softmax>(data, axis)};
 }
 }  // namespace set_13
 }  // namespace op

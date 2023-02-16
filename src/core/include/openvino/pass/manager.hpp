@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,10 @@
 
 namespace ov {
 namespace pass {
+/**
+ * @brief Manager class allows to manage transformation passes
+ * @ingroup ov_pass_cpp_api
+ */
 class OPENVINO_API Manager {
 public:
     Manager();
@@ -47,7 +51,16 @@ public:
         return rc;
     }
 
-    void run_passes(std::shared_ptr<Function>);
+    std::shared_ptr<PassBase> register_pass_instance(std::shared_ptr<PassBase> pass) {
+        pass->set_pass_config(m_pass_config);
+        m_pass_list.push_back(pass);
+        if (m_per_pass_validation) {
+            push_pass<Validate>();
+        }
+        return pass;
+    }
+
+    void run_passes(std::shared_ptr<Model>);
 
     void set_pass_visualization(bool new_state) {
         m_visualize = new_state;

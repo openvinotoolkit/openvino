@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import deepcopy
@@ -14,7 +14,8 @@ from ....graph.special_operations import OPERATIONS_WITH_BIAS, OPERATIONS_CHANNE
 from ....samplers.creator import create_sampler
 from ....statistics.functions import activations as asf
 from ....statistics.functions import aggregation as agf
-from ....statistics.statistics import TensorStatisticAxis
+from ....statistics.statistics import TensorStatisticAxis, TensorStatistic
+from ..utils import get_input_shape_for_bias
 from ....utils.launcher import IELauncher
 from ....utils.logger import get_logger
 
@@ -32,12 +33,14 @@ class FastBiasCorrection(Algorithm):
             self._config.get(
                 'stat_subset_size', len(self._engine.data_loader)),
             len(self._engine.data_loader))
+        stat_batch_size = min(
+            self._config.get('stat_batch_size', 1), len(self._engine.data_loader))
         self.total_exec_steps = stat_subset_size
         self._threshold = float(self._config.get('threshold', 2.0))
         self._apply_for_all_nodes = self._config.get('apply_for_all_nodes', False)
         shuffle_data = self._config.get('shuffle_data', False)
         seed = self._config.get('seed', 0)
-        self._sampler = create_sampler(engine, stat_subset_size, shuffle_data, seed)
+        self._sampler = create_sampler(engine, stat_subset_size, shuffle_data, seed, stat_batch_size)
         self._channel_axis = {}
 
     @property
@@ -49,6 +52,7 @@ class FastBiasCorrection(Algorithm):
          :param model: model to apply algo
          :return with corrected biases for layers with bias
          """
+        mu.nx_type_infer(model)
         activations_statistics = self._stats_collector.get_statistics_for_algorithm(self.name)
         nodes_with_bias = mu.get_nodes_by_type(model, [op['type'] for op in OPERATIONS_WITH_BIAS])
         self.find_channel_axis(model)
@@ -73,7 +77,8 @@ class FastBiasCorrection(Algorithm):
                 input_node = nu.get_node_input(input_node, 0)
                 quantized_node = nu.get_node_input(op_node, 0)
 
-            input_shape = nu.get_input_shape_for_bias(op_node)
+            input_node_name = get_quantized_input_key(quantized_node)
+            input_shape = get_input_shape_for_bias(activations_statistics, input_node_name)
             op_model = mu.build_model_for_node(model, input_node.fullname, input_shape, op_node,
                                                remove_bias=True, target_device=self._config['target_device'])
 
@@ -82,7 +87,6 @@ class FastBiasCorrection(Algorithm):
                 bias = nu.get_bias_for_node(op_node)
                 after_biased_conv = nu.get_node_output(bias, 0)[0]
 
-            input_node_name = get_quantized_input_key(quantized_node)
             fp32_inputs = agf.mean(activations_statistics[input_node_name]["mean_per_channel"])
             fp32_outputs = agf.mean(activations_statistics[after_biased_conv.fullname]["mean_per_channel"])
 
@@ -90,8 +94,9 @@ class FastBiasCorrection(Algorithm):
                 launcher, input_node.fullname, input_shape, op_model, fp32_inputs, fp32_outputs)
             current_bias_value = nu.get_node_value(bias_node)
             # Reshaped since bias are broadcasted
-            add_out_shape = nu.get_input_shape_for_bias(after_biased_conv)
-            bias_shape = np.ones(len(add_out_shape), dtype=np.int)
+            after_biased_conv_node_name = get_quantized_input_key(after_biased_conv)
+            add_out_shape = get_input_shape_for_bias(activations_statistics, after_biased_conv_node_name)
+            bias_shape = np.ones(len(add_out_shape), dtype=int)
             axis_channel = self.get_channel_axis(input_node_name)
             bias_shape[axis_channel] = add_out_shape[axis_channel]
 
@@ -106,6 +111,7 @@ class FastBiasCorrection(Algorithm):
                 continue
 
             if bias_shift_magnitude < self._threshold:
+                logger.debug('Setting bias for %s. Magnitude: %f', op_node.fullname, bias_shift_magnitude)
                 op_node['original_bias'] = current_bias_value
                 nu.set_node_value(bias_node, bias_shift)
             else:
@@ -143,13 +149,23 @@ class FastBiasCorrection(Algorithm):
                     inputs_outputs_layout[op_output_name] = {
                         "mean_per_channel": TensorStatisticAxis(inplace_statistics=inplace_statistics,
                                                                 granularity='perchannel', type='mean',
+                                                                graph_depth=op_output_name.count('|'),
                                                                 channel=self._channel_axis)}
 
                 input_name = get_quantized_input_key(quantized_node)
                 inputs_outputs_layout[input_name] = {
                     "mean_per_channel": TensorStatisticAxis(inplace_statistics=inplace_statistics,
                                                             granularity='perchannel', type='mean',
+                                                            graph_depth=op_output_name.count('|'),
                                                             channel=self._channel_axis)}
+                inputs_outputs_layout[input_name]["shape"] = TensorStatistic(func=lambda x, **kwargs: x.shape,
+                                                                             shape_for_inference=True)
+                if nu.get_bias_for_node(op_node):
+                    bias = nu.get_bias_for_node(op_node)
+                    after_biased_conv = nu.get_node_output(bias, 0)[0]
+                    after_biased_conv_name = get_quantized_input_key(after_biased_conv)
+                    inputs_outputs_layout[after_biased_conv_name] = \
+                        {"shape": TensorStatistic(func=lambda x, **kwargs: x.shape, shape_for_inference=True)}
 
         return inputs_outputs_layout
 

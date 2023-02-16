@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,10 +11,10 @@ namespace op {
 namespace v6 {
 /// \brief Operator performing CTCGreedyDecoder
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API CTCGreedyDecoderSeqLen : public Op {
 public:
     OPENVINO_OP("CTCGreedyDecoderSeqLen", "opset6", op::Op, 6);
-    BWDCMP_RTTI_DECLARATION;
     CTCGreedyDecoderSeqLen() = default;
     /// \brief Constructs a CTCGreedyDecoderSeqLen operation
     ///
@@ -58,6 +58,14 @@ public:
     bool get_merge_repeated() const {
         return m_merge_repeated;
     }
+    /// \brief Set merge_repeated attribute
+    ///
+    /// \param merge_repeated A new value for the attribute
+    ///
+    void set_merge_repeated(bool merge_repeated) {
+        m_merge_repeated = merge_repeated;
+    }
+
     /// \brief Get classes_index_type attribute
     ///
     /// \return Current value of classes_index_type attribute
@@ -92,7 +100,7 @@ public:
     }
 
 private:
-    bool m_merge_repeated;
+    bool m_merge_repeated{true};
     element::Type m_classes_index_type{element::i32};
     element::Type m_sequence_length_type{element::i32};
 };

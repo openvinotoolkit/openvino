@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,9 +10,9 @@
 #pragma once
 
 #include <opencv2/opencv.hpp>
-#include <samples/common.hpp>
 
 #include "openvino/openvino.hpp"
+#include "samples/common.hpp"
 
 /**
  * @brief Sets image data stored in cv::Mat object to a given Blob object.
@@ -27,10 +27,9 @@ void matU8ToBlob(const cv::Mat& orig_image, InferenceEngine::Blob::Ptr& blob, in
     const size_t height = blobSize[2];
     const size_t channels = blobSize[1];
     InferenceEngine::MemoryBlob::Ptr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
-    if (!mblob) {
-        IE_THROW() << "We expect blob to be inherited from MemoryBlob in matU8ToBlob, "
-                   << "but by fact we were not able to cast inputBlob to MemoryBlob";
-    }
+    OPENVINO_ASSERT(mblob,
+                    "We expect blob to be inherited from MemoryBlob in matU8ToBlob, "
+                    "but by fact we were not able to cast inputBlob to MemoryBlob");
     // locked memory holder should be alive all time while access to its buffer happens
     auto mblobHolder = mblob->wmap();
 
@@ -69,8 +68,7 @@ static UNUSED InferenceEngine::Blob::Ptr wrapMat2Blob(const cv::Mat& mat) {
 
     bool is_dense = strideW == channels && strideH == channels * width;
 
-    if (!is_dense)
-        IE_THROW() << "Doesn't support conversion from not dense cv::Mat";
+    OPENVINO_ASSERT(is_dense, "Doesn't support conversion from not dense cv::Mat");
 
     InferenceEngine::TensorDesc tDesc(InferenceEngine::Precision::U8,
                                       {1, channels, height, width},
@@ -79,7 +77,7 @@ static UNUSED InferenceEngine::Blob::Ptr wrapMat2Blob(const cv::Mat& mat) {
     return InferenceEngine::make_shared_blob<uint8_t>(tDesc, mat.data);
 }
 
-static UNUSED ov::runtime::Tensor wrapMat2Tensor(const cv::Mat& mat) {
+static UNUSED ov::Tensor wrapMat2Tensor(const cv::Mat& mat) {
     const size_t channels = mat.channels();
     const size_t height = mat.size().height;
     const size_t width = mat.size().width;
@@ -90,5 +88,5 @@ static UNUSED ov::runtime::Tensor wrapMat2Tensor(const cv::Mat& mat) {
     const bool is_dense = strideW == channels && strideH == channels * width;
     OPENVINO_ASSERT(is_dense, "Doesn't support conversion from not dense cv::Mat");
 
-    return ov::runtime::Tensor(ov::element::u8, ov::Shape{1, height, width, channels}, mat.data);
+    return ov::Tensor(ov::element::u8, ov::Shape{1, height, width, channels}, mat.data);
 }

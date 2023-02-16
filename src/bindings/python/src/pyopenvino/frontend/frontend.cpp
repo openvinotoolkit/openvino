@@ -1,77 +1,86 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include "pyopenvino/frontend/frontend.hpp"
 
 #include <pybind11/functional.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
-#include "common/frontend_exceptions.hpp"
-#include "common/telemetry_extension.hpp"
-#include "manager.hpp"
-#include "pyopenvino/graph/function.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/frontend/extension/telemetry.hpp"
+#include "openvino/frontend/manager.hpp"
+#include "pyopenvino/graph/model.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
 using namespace ov::frontend;
 
+class MemoryBuffer : public std::streambuf {
+public:
+    MemoryBuffer(char* data, std::size_t size) {
+        setg(data, data, data + size);
+    }
+};
+
 void regclass_frontend_FrontEnd(py::module m) {
     py::class_<FrontEnd, std::shared_ptr<FrontEnd>> fem(m, "FrontEnd", py::dynamic_attr(), py::module_local());
-    fem.doc() = "ngraph.impl.FrontEnd wraps ngraph::frontend::FrontEnd";
+    fem.doc() = "openvino.frontend.FrontEnd wraps ov::frontend::FrontEnd";
 
     fem.def(
         "load",
-        [](FrontEnd& self, const std::string& s) {
-            return self.load(s);
+        [](FrontEnd& self, const py::object& py_obj) {
+            if (py::isinstance(py_obj, py::module_::import("pathlib").attr("Path")) ||
+                py::isinstance<py::str>(py_obj) || py::isinstance<py::bytes>(py_obj)) {
+                // check if model path is either a string/pathlib.Path/bytes
+                std::string model_path = Common::utils::convert_path_to_string(py_obj);
+                return self.load(model_path);
+            } else if (py::isinstance(py_obj, pybind11::module::import("io").attr("BytesIO"))) {
+                // support of BytesIO
+                py::buffer_info info = py::buffer(py_obj.attr("getbuffer")()).request();
+                MemoryBuffer mb(reinterpret_cast<char*>(info.ptr), info.size);
+                std::istream _istream(&mb);
+                return self.load(&_istream);
+            } else {
+                // Extended for one argument only for this time
+                return self.load({Common::utils::py_object_to_any(py_obj)});
+            }
         },
         py::arg("path"),
         R"(
-                Loads an input model by specified model file path.
+                Loads an input model.
 
-                Parameters
-                ----------
-                path : str
-                    Main model file path.
-
-                Returns
-                ----------
-                load : InputModel
-                    Loaded input model.
+                :param path: Object describing the model. It can be path to model file.
+                :type path: Any
+                :return: Loaded input model.
+                :rtype: openvino.frontend.InputModel
              )");
 
     fem.def("convert",
-            static_cast<std::shared_ptr<ov::Function> (FrontEnd::*)(InputModel::Ptr) const>(&FrontEnd::convert),
+            static_cast<std::shared_ptr<ov::Model> (FrontEnd::*)(const InputModel::Ptr&) const>(&FrontEnd::convert),
             py::arg("model"),
             R"(
                 Completely convert and normalize entire function, throws if it is not possible.
 
-                Parameters
-                ----------
-                model : InputModel
-                    Input model.
-
-                Returns
-                ----------
-                convert : Function
-                    Fully converted nGraph function.
+                :param model: Input model.
+                :type model: openvino.frontend.InputModel
+                :return: Fully converted OpenVINO Model.
+                :rtype: openvino.runtime.Model
              )");
 
     fem.def("convert",
-            static_cast<void (FrontEnd::*)(std::shared_ptr<ov::Function>) const>(&FrontEnd::convert),
-            py::arg("function"),
+            static_cast<void (FrontEnd::*)(const std::shared_ptr<ov::Model>&) const>(&FrontEnd::convert),
+            py::arg("model"),
             R"(
                 Completely convert the remaining, not converted part of a function.
 
-                Parameters
-                ----------
-                function : Function
-                    Partially converted nGraph function.
-
-                Returns
-                ----------
-                convert : Function
-                    Fully converted nGraph function.
+                :param model: Partially converted OpenVINO model.
+                :type model: openvino.frontend.Model
+                :return: Fully converted OpenVINO Model.
+                :rtype: openvino.runtime.Model
              )");
 
     fem.def("convert_partially",
@@ -82,15 +91,10 @@ void regclass_frontend_FrontEnd(py::module m) {
                 Converted parts are not normalized by additional transformations; normalize function or
                 another form of convert function should be called to finalize the conversion process.
 
-                Parameters
-                ----------
-                model : InputModel
-                    Input model.
-
-                Returns
-                ----------
-                convert_partially : Function
-                    Partially converted nGraph function.
+                :param model : Input model.
+                :type model: openvino.frontend.InputModel
+                :return: Partially converted OpenVINO Model.
+                :rtype: openvino.runtime.Model
              )");
 
     fem.def("decode",
@@ -101,27 +105,20 @@ void regclass_frontend_FrontEnd(py::module m) {
                 Each decoding node is an nGraph node representing a single FW operation node with
                 all attributes represented in FW-independent way.
 
-                Parameters
-                ----------
-                model : InputModel
-                    Input model.
-
-                Returns
-                ----------
-                decode : Function
-                    nGraph function after decoding.
+                :param model : Input model.
+                :type model: openvino.frontend.InputModel
+                :return: OpenVINO Model after decoding.
+                :rtype: openvino.runtime.Model
              )");
 
     fem.def("normalize",
             &FrontEnd::normalize,
-            py::arg("function"),
+            py::arg("model"),
             R"(
                 Runs normalization passes on function that was loaded with partial conversion.
 
-                Parameters
-                ----------
-                function : Function
-                    Partially converted nGraph function.
+                :param model : Partially converted OpenVINO model.
+                :type model: openvino.runtime.Model
              )");
 
     fem.def("get_name",
@@ -130,39 +127,31 @@ void regclass_frontend_FrontEnd(py::module m) {
                 Gets name of this FrontEnd. Can be used by clients
                 if frontend is selected automatically by FrontEndManager::load_by_model.
 
-                Parameters
-                ----------
-                get_name : str
-                    Current frontend name. Empty string if not implemented.
+                :return: Current frontend name. Returns empty string if not implemented.
+                :rtype: str
             )");
 
     fem.def("add_extension",
-            static_cast<void (FrontEnd::*)(const std::shared_ptr<ov::Extension>& extension)>(&FrontEnd::add_extension));
+            static_cast<void (FrontEnd::*)(const std::shared_ptr<ov::Extension>& extension)>(&FrontEnd::add_extension),
+            R"(
+                Add extension defined by an object inheriting from Extension 
+                used in order to extend capabilities of Frontend.
+
+                :param extension: Provided extension object.
+                :type extension: Extension
+            )");
+
+    fem.def("add_extension",
+            static_cast<void (FrontEnd::*)(const std::string& extension_path)>(&FrontEnd::add_extension),
+            R"(
+                Add extension defined in external library indicated by a extension_path 
+                used in order to extend capabilities of Frontend.
+
+                :param extension_path: A path to extension.
+                :type extension_path: str
+            )");
 
     fem.def("__repr__", [](const FrontEnd& self) -> std::string {
         return "<FrontEnd '" + self.get_name() + "'>";
     });
-}
-
-void regclass_frontend_Extension(py::module m) {
-    py::class_<ov::Extension, std::shared_ptr<ov::Extension>> ext(m, "Extension", py::dynamic_attr());
-}
-
-void regclass_frontend_TelemetryExtension(py::module m) {
-    {
-        py::class_<TelemetryExtension, std::shared_ptr<TelemetryExtension>, ov::Extension> ext(m,
-                                                                                               "TelemetryExtension",
-                                                                                               py::dynamic_attr());
-
-        ext.def(py::init([](const std::string& event_category,
-                            const TelemetryExtension::event_callback& send_event,
-                            const TelemetryExtension::error_callback& send_error,
-                            const TelemetryExtension::error_callback& send_stack_trace) {
-            return std::make_shared<TelemetryExtension>(event_category, send_event, send_error, send_stack_trace);
-        }));
-
-        ext.def("send_event", &TelemetryExtension::send_event);
-        ext.def("send_error", &TelemetryExtension::send_error);
-        ext.def("send_stack_trace", &TelemetryExtension::send_stack_trace);
-    }
 }

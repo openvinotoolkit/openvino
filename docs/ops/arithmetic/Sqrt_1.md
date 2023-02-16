@@ -1,4 +1,4 @@
-## Sqrt <a name="Sqrt"></a> {#openvino_docs_ops_arithmetic_Sqrt_1}
+# Sqrt {#openvino_docs_ops_arithmetic_Sqrt_1}
 
 **Versioned name**: *Sqrt-1*
 

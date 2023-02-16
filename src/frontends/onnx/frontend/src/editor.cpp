@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,8 @@
 #include "ngraph/log.hpp"
 #include "onnx_common/parser.hpp"
 #include "onnx_common/utils.hpp"
+#include "openvino/util/file_util.hpp"
+#include "utils/common.hpp"
 #include "utils/onnx_internal.hpp"
 
 using namespace ov;
@@ -173,21 +175,112 @@ void modify_initializer(TensorProto& initializer,
         tensor_type->set_elem_type(initializer.data_type());
     }
 }
+
+bool is_topologically_sorted(const GraphProto& graph) {
+    std::unordered_set<std::string> known_tensors;
+    std::transform(std::begin(graph.input()),
+                   std::end(graph.input()),
+                   std::inserter(known_tensors, std::end(known_tensors)),
+                   extract_name<ONNX_NAMESPACE::ValueInfoProto>);
+    std::transform(std::begin(graph.output()),
+                   std::end(graph.output()),
+                   std::inserter(known_tensors, std::end(known_tensors)),
+                   extract_name<ONNX_NAMESPACE::ValueInfoProto>);
+    std::transform(std::begin(graph.initializer()),
+                   std::end(graph.initializer()),
+                   std::inserter(known_tensors, std::end(known_tensors)),
+                   extract_name<ONNX_NAMESPACE::TensorProto>);
+
+    for (const auto& node : graph.node()) {
+        for (const auto& input : node.input()) {
+            if (input.empty()) {
+                continue;
+            }
+            if (known_tensors.count(input) == 0) {
+                return false;
+            }
+        }
+        for (const auto& output_name : node.output()) {
+            known_tensors.insert(output_name);
+        }
+    }
+    return true;
+}
+
+void graph_topological_sort(GraphProto* graph) {
+    if (!is_topologically_sorted(*graph)) {
+        std::stack<const NodeProto*, std::vector<const NodeProto*>> nodes_to_process;
+        std::unordered_set<const NodeProto*> processed_nodes;
+        std::multimap<std::string, const NodeProto*> output_name_to_node;
+        GraphProto result;
+
+        for (size_t i = 0; i < graph->node().size(); ++i) {
+            for (const auto& output_name : graph->node(i).output()) {
+                output_name_to_node.emplace(output_name, graph->mutable_node(static_cast<int>(i)));
+            }
+        }
+        auto get_node_by_out_name = [&output_name_to_node](const std::string& out_name) -> const NodeProto* {
+            const auto& idx_iter = output_name_to_node.find(out_name);
+            if (idx_iter != std::end(output_name_to_node)) {
+                return idx_iter->second;
+            }
+            return nullptr;
+        };
+        for (const auto& output : graph->output()) {
+            nodes_to_process.push(get_node_by_out_name(output.name()));
+        }
+
+        while (nodes_to_process.size() > 0) {
+            auto* node = nodes_to_process.top();
+            bool can_add = true;
+            for (const auto& in_name : node->input()) {
+                const auto* in_node = get_node_by_out_name(in_name);
+                if (in_node == nullptr) {  // can be an initializer or an model's input
+                    continue;
+                }
+                if (processed_nodes.count(in_node) == 0) {
+                    can_add = false;
+                    nodes_to_process.push(in_node);
+                }
+            }
+            if (can_add) {
+                auto* new_node = result.add_node();
+                new_node->MergeFrom(*node);
+                nodes_to_process.pop();
+                processed_nodes.insert(node);
+            }
+        }
+        graph->mutable_node()->Clear();
+        graph->mutable_node()->Swap(result.mutable_node());
+    }
+}
+
 class InferShapesAutoRelease {
 public:
     InferShapesAutoRelease(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto)
         : m_model_proto{model_proto},
           m_infer_shapes_was_run{false} {}
-    void infer_shapes() {
-        ONNX_NAMESPACE::shape_inference::InferShapes(*m_model_proto);
-        m_infer_shapes_was_run = true;
-    }
-    ~InferShapesAutoRelease() {
-        try {
-            if (m_infer_shapes_was_run) {
-                m_model_proto->mutable_graph()->clear_value_info();
-            }
+
+    bool infer_shapes() {
+        try {  // unexpected exceptions of external onnx lib
+            ONNX_NAMESPACE::shape_inference::InferShapes(*m_model_proto);
+            m_infer_shapes_was_run = true;
         } catch (...) {
+            release();
+        }
+        return m_infer_shapes_was_run;
+    }
+
+    void release() {
+        try {
+            m_model_proto->mutable_graph()->clear_value_info();
+        } catch (...) {
+        }
+    }
+
+    ~InferShapesAutoRelease() {
+        if (m_infer_shapes_was_run) {
+            release();
         }
     }
 
@@ -205,13 +298,15 @@ struct onnx_editor::ONNXModelEditor::Impl {
 
     Impl() = delete;
 
+    Impl(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto) : m_model_proto{model_proto} {
+        graph_topological_sort(m_model_proto->mutable_graph());
+    }
+
     Impl(const std::string& model_path)
-        : m_model_proto{
-              std::make_shared<ONNX_NAMESPACE::ModelProto>(ngraph::onnx_common::parse_from_file(model_path))} {}
+        : Impl(std::make_shared<ONNX_NAMESPACE::ModelProto>(ngraph::onnx_common::parse_from_file(model_path))) {}
 
     Impl(std::istream& model_stream)
-        : m_model_proto{
-              std::make_shared<ONNX_NAMESPACE::ModelProto>(ngraph::onnx_common::parse_from_istream(model_stream))} {}
+        : Impl(std::make_shared<ONNX_NAMESPACE::ModelProto>(ngraph::onnx_common::parse_from_istream(model_stream))) {}
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     Impl(const std::wstring& model_path)
@@ -220,19 +315,17 @@ struct onnx_editor::ONNXModelEditor::Impl {
 #endif
 };
 
-onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::string& model_path,
-                                              const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
-    : m_model_path{model_path},
-      m_telemetry(telemetry),
+onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::string& model_path, frontend::ExtensionHolder extensions)
+    : m_extensions{std::move(extensions)},
+      m_model_path{model_path},
       m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) {
                   delete impl;
               }} {}
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::wstring& model_path,
-                                              const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
-    : m_model_path{ngraph::file_util::wstring_to_string(model_path)},
-      m_telemetry(telemetry),
+onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::wstring& model_path, frontend::ExtensionHolder extensions)
+    : m_extensions{std::move(extensions)},
+      m_model_path{ov::util::wstring_to_string(model_path)},
       m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) {
                   delete impl;
               }} {}
@@ -240,9 +333,9 @@ onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::wstring& model_path,
 
 onnx_editor::ONNXModelEditor::ONNXModelEditor(std::istream& model_stream,
                                               const std::string& model_path,
-                                              const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
-    : m_model_path{model_path},
-      m_telemetry(telemetry),
+                                              frontend::ExtensionHolder extensions)
+    : m_extensions{std::move(extensions)},
+      m_model_path{model_path},
       m_pimpl{new ONNXModelEditor::Impl{model_stream}, [](Impl* impl) {
                   delete impl;
               }} {}
@@ -279,6 +372,25 @@ void onnx_editor::ONNXModelEditor::set_input_types(const std::map<std::string, e
     }
 }
 
+element::Type_t onnx_editor::ONNXModelEditor::get_input_type(const std::string& tensor_name) const {
+    auto* onnx_graph = m_pimpl->m_model_proto->mutable_graph();
+    auto* onnx_input = find_graph_input(*onnx_graph, tensor_name);
+
+    if (onnx_input != nullptr) {
+        const auto& type_proto = onnx_input->type();
+        if (!type_proto.has_tensor_type()) {
+            throw ov::Exception("The input is malformed - it doesn't contain the 'tensor_type' field. Cannot "
+                                "change the data type. Input name: " +
+                                onnx_input->name());
+        }
+        auto& tensor_type = type_proto.tensor_type();
+        auto type = tensor_type.elem_type();
+        return ngraph::onnx_import::common::get_ngraph_element_type(type);
+    } else {
+        throw ov::Exception("The tensor: " + tensor_name + " was not found in the input graph.");
+    }
+}
+
 void onnx_editor::ONNXModelEditor::set_input_shapes(const std::map<std::string, ngraph::PartialShape>& input_shapes) {
     auto* onnx_graph = m_pimpl->m_model_proto->mutable_graph();
 
@@ -307,9 +419,8 @@ PartialShape onnx_editor::ONNXModelEditor::get_tensor_shape(const std::string& t
     } else if (const auto initializer = find_graph_initializer(*onnx_graph, tensor_name)) {
         tensor = initializer;
     } else {
-        try {
-            onnx_shapes.infer_shapes();
-        } catch (const std::exception& e) {
+        auto shape_infer_applied = onnx_shapes.infer_shapes();
+        if (!shape_infer_applied) {
             NGRAPH_WARN << "Cannot replace existing shapes during get_tensor_shape";
             return PartialShape::dynamic();
         }
@@ -336,8 +447,9 @@ PartialShape onnx_editor::ONNXModelEditor::get_tensor_shape(const std::string& t
     }
 }
 
-void onnx_editor::ONNXModelEditor::cut_graph_fragment(const std::vector<InputEdge>& inputs,
-                                                      const std::vector<OutputEdge>& outputs) {
+void onnx_editor::ONNXModelEditor::extract_subgraph(const std::vector<InputEdge>& inputs,
+                                                    const std::vector<OutputEdge>& outputs,
+                                                    const bool merge_inputs) {
     if (inputs.empty() && outputs.empty()) {
         return;
     }
@@ -346,7 +458,7 @@ void onnx_editor::ONNXModelEditor::cut_graph_fragment(const std::vector<InputEdg
     onnx_shapes.infer_shapes();
 
     SubgraphExtractor editor{*(m_pimpl->m_model_proto->mutable_graph())};
-    editor.add_new_inputs(inputs);
+    editor.add_new_inputs(inputs, merge_inputs);
     editor.add_new_outputs(outputs);
     editor.extract_subgraph(outputs);
 
@@ -414,8 +526,8 @@ std::string onnx_editor::ONNXModelEditor::model_string() const {
     return m_pimpl->m_model_proto->SerializeAsString();
 }
 
-std::shared_ptr<Function> onnx_editor::ONNXModelEditor::get_function() const {
-    return ngraph::onnx_import::detail::import_onnx_model(m_pimpl->m_model_proto, m_model_path, m_telemetry);
+std::shared_ptr<Model> onnx_editor::ONNXModelEditor::get_function() const {
+    return ngraph::onnx_import::detail::import_onnx_model(m_pimpl->m_model_proto, m_model_path, m_extensions);
 }
 
 void onnx_editor::ONNXModelEditor::set_input_values(
@@ -467,12 +579,12 @@ void onnx_editor::ONNXModelEditor::set_tensor_name(const std::string& current_na
         *value_info->mutable_name() = new_name;
 
     for (size_t i = 0; i < graph->node().size(); ++i) {
-        const auto node = graph->mutable_node(i);
+        const auto node = graph->mutable_node(static_cast<int>(i));
 
         bool output_found = false;
         for (size_t j = 0; j < node->output().size(); ++j)
-            if (node->output(j) == current_name) {
-                *node->mutable_output(j) = new_name;
+            if (node->output(static_cast<int>(j)) == current_name) {
+                *node->mutable_output(static_cast<int>(j)) = new_name;
                 output_found = true;
                 break;
             }
@@ -480,8 +592,8 @@ void onnx_editor::ONNXModelEditor::set_tensor_name(const std::string& current_na
             continue;
 
         for (size_t j = 0; j < node->input().size(); ++j)
-            if (node->input(j) == current_name)
-                *node->mutable_input(j) = new_name;
+            if (node->input(static_cast<int>(j)) == current_name)
+                *node->mutable_input(static_cast<int>(j)) = new_name;
     }
 }
 
@@ -494,13 +606,25 @@ void onnx_editor::ONNXModelEditor::set_node_name(const EditorNode& node, const s
     *graph->mutable_node(node_idx)->mutable_name() = new_name;
 }
 
+std::string onnx_editor::ONNXModelEditor::get_node_name(const EditorNode& node) const {
+    if (node.m_node_index >= 0) {
+        if (node.m_node_index >= m_pimpl->m_model_proto->graph().node().size()) {
+            return "";
+        }
+        const auto& n = m_pimpl->m_model_proto->graph().node(node.m_node_index);
+        return n.has_name() ? n.name() : "";
+    } else {
+        return node.m_node_name;
+    }
+}
+
 void onnx_editor::ONNXModelEditor::clear_nodes_name(const std::string& name) {
     const auto graph = m_pimpl->m_model_proto->mutable_graph();
 
     m_pimpl->m_is_mapper_updated = false;
 
     for (size_t i = 0; i < graph->node().size(); ++i) {
-        const auto node = graph->mutable_node(i);
+        const auto node = graph->mutable_node(static_cast<int>(i));
         if (node->has_name() && node->name() == name)
             node->clear_name();
     }
@@ -528,7 +652,7 @@ void onnx_editor::ONNXModelEditor::set_name_for_dimension(const std::string& nod
         for (; shape_dim_size <= shape_dim_index; ++shape_dim_size)
             add_dim_to_onnx_shape(Dimension::dynamic(), *shape);
 
-        shape->mutable_dim(shape_dim_index)->set_dim_param(dim_name.c_str());
+        shape->mutable_dim(static_cast<int>(shape_dim_index))->set_dim_param(dim_name.c_str());
     };
 
     m_pimpl->m_is_mapper_updated = false;
@@ -593,6 +717,14 @@ std::vector<std::string> onnx_editor::ONNXModelEditor::get_output_ports(const Ed
     return m_pimpl->m_edge_mapper.get_output_ports(node);
 }
 
-std::shared_ptr<Function> onnx_editor::ONNXModelEditor::decode() {
-    return ngraph::onnx_import::detail::decode_to_framework_nodes(m_pimpl->m_model_proto, m_model_path, m_telemetry);
+std::shared_ptr<Model> onnx_editor::ONNXModelEditor::decode() {
+    return ngraph::onnx_import::detail::decode_to_framework_nodes(m_pimpl->m_model_proto, m_model_path, m_extensions);
+}
+
+void onnx_editor::ONNXModelEditor::add_output(const OutputEdge& output_edge) const {
+    auto onnx_graph = m_pimpl->m_model_proto->mutable_graph();
+    std::vector<onnx_editor::OutputEdge> onnx_output;
+    onnx_output.push_back(output_edge);
+    SubgraphExtractor editor{*onnx_graph};
+    editor.add_new_outputs(onnx_output);
 }

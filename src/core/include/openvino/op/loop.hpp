@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 
 #include <vector>
 
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
@@ -15,6 +15,7 @@ namespace ov {
 namespace op {
 namespace v5 {
 /// \brief  Iterate a body over tensors, accumulating into tensors.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Loop : public op::util::SubGraphOp {
 public:
     /// \brief  Allows to define the purpose of inputs/outputs in the body
@@ -31,7 +32,6 @@ public:
     };
 
     OPENVINO_OP("Loop", "opset5", op::util::SubGraphOp, 5);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a Loop operation.
     Loop() = default;
@@ -85,7 +85,6 @@ public:
         : DirectValueAccessor<op::v5::Loop::SpecialBodyPorts>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v5::Loop::SpecialBodyPorts>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

@@ -1,13 +1,14 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
-import mo
 import numpy as np
+from openvino.tools.mo import mo
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +80,20 @@ def allclose(cur_array, ref_array, atol, rtol):
     :param rtol: relative tolerance (threshold for relative difference)
     :return: bool value means that values of tensors are equal with tolerance or not
     """
-    abs_diff = np.absolute(cur_array - ref_array)
+    if cur_array.dtype == bool:
+        abs_diff = np.absolute(cur_array ^ ref_array)
+    else:
+        abs_diff = np.absolute(cur_array - ref_array)
     max_val = np.maximum(np.absolute(cur_array), np.absolute(ref_array))
     return ((abs_diff < atol) | (abs_diff < rtol * max_val)).all()
+
+
+def copy_files_by_pattern(directory: Path, pattern_to_find: str, pattern_to_copy: str):
+    for file in directory.glob("{}*".format(pattern_to_find)):
+        file_extension = ''.join(file.suffixes)
+        copied_file = file.parent / (pattern_to_copy + file_extension)
+        if not copied_file.exists() and file.exists():
+            logging.info('Copying file from {} to {}'.format(file, copied_file))
+            shutil.copy(str(file), str(copied_file))
+        else:
+            logging.info('File {} already exist or file {} does not exist'.format(copied_file, file))

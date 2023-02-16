@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -30,8 +30,12 @@ elseif(SELECTIVE_BUILD STREQUAL "ON")
         # After disabling a block of code, some variables might be unused.
         target_compile_options(${TARGET_NAME} INTERFACE
                                 -Wno-unused-function
+                                -Wno-unused-variable
                                 -Wno-unused-parameter
-                                -Wunused-local-typedefs)
+                                -Wno-unused-local-typedefs)
+        if(CMAKE_COMPILER_IS_GNUCXX)
+            target_compile_options(${TARGET_NAME} INTERFACE -Wno-unused-but-set-variable)
+        endif()
     endif()
 
     set(GENERATED_HEADER ${CMAKE_CURRENT_BINARY_DIR}/conditional_compilation_gen.h CACHE FILEPATH "")
@@ -46,8 +50,12 @@ elseif(SELECTIVE_BUILD STREQUAL "ON")
     ov_force_include(${TARGET_NAME} INTERFACE ${GENERATED_HEADER})
 endif()
 
-ov_install_static_lib(${TARGET_NAME} ngraph)
+ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 
 file(GLOB_RECURSE hdrs ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
-add_cpplint_target(${TARGET_NAME}_cpplint FOR_SOURCES ${hdrs})
+add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${hdrs})
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS openvino::conditional_compilation)
+
+if(ENABLE_TESTS)
+    add_subdirectory(tests)
+endif()

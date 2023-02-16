@@ -1,12 +1,15 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/reshape.hpp"
 
 #include <algorithm>
+#include <dimension_tracker.hpp>
 #include <ngraph/validation_util.hpp>
 
+#include "bound_evaluate.hpp"
+#include "compare.hpp"
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
@@ -30,17 +33,20 @@ bool evaluate_reshape(const HostTensorPtr& arg0, const HostTensorPtr& out, const
 
 template <element::Type_t ET>
 void compute_output_shape(const HostTensorPtr& shape_pattern, std::vector<int64_t>& output_shape) {
-    using T = typename element_type_traits<ET>::value_type;
-    T* shape_pattern_ptr = shape_pattern->get_data_ptr<ET>();
-    size_t output_rank = shape_pattern->get_shape().empty() ? 0 : shape_pattern->get_shape()[0];
+    size_t output_rank;
+    if (shape_pattern->get_partial_shape().is_static()) {
+        output_rank = shape_pattern->get_shape().empty() ? 0 : shape_pattern->get_shape()[0];
+    } else {
+        // Can be dynamic during shape infer as conversion result from empty ov::Tensor
+        output_rank = 0;
+    }
+
     for (size_t i = 0; i < output_rank; i++) {
-        output_shape.push_back(shape_pattern_ptr[i]);
+        output_shape.push_back(shape_pattern->get_data_ptr<ET>()[i]);
     }
 }
 }  // namespace
 }  // namespace reshapeop
-
-BWDCMP_RTTI_DEFINITION(op::v1::Reshape);
 
 op::v1::Reshape::Reshape(const Output<Node>& arg, const Output<Node>& shape_pattern, bool zero_flag)
     : Op({arg, shape_pattern}),
@@ -50,12 +56,12 @@ op::v1::Reshape::Reshape(const Output<Node>& arg, const Output<Node>& shape_patt
 }
 
 bool op::v1::Reshape::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_Reshape_visit_attributes);
+    OV_OP_SCOPE(v1_Reshape_visit_attributes);
     visitor.on_attribute("special_zero", m_special_zero);
     return true;
 }
 void op::v1::Reshape::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_Reshape_validate_and_infer_types);
+    OV_OP_SCOPE(v1_Reshape_validate_and_infer_types);
     auto shape_pattern_et = get_input_element_type(1);
     // check data types
     NODE_VALIDATION_CHECK(this,
@@ -81,13 +87,18 @@ void op::v1::Reshape::validate_and_infer_types() {
     bool shape_can_be_calculated = false;
     int64_t minus_one_idx = -1;
 
-    HostTensorPtr lb, ub;
+    ov::Tensor lb, ub;
     std::tie(lb, ub) = evaluate_both_bounds(get_input_source_output(1));
     if (lb && ub) {
-        const auto lower_bound = std::make_shared<op::v0::Constant>(lb)->cast_vector<int64_t>();
-        auto upper_bound = std::make_shared<op::v0::Constant>(ub)->cast_vector<int64_t>();
+        const auto lower_bound = std::make_shared<op::v0::Constant>(lb.get_element_type(), lb.get_shape(), lb.data())
+                                     ->cast_vector<int64_t>();
+        auto upper_bound = std::make_shared<op::v0::Constant>(ub.get_element_type(), ub.get_shape(), ub.data())
+                               ->cast_vector<int64_t>();
         shape_can_be_calculated = true;
         NGRAPH_CHECK(lower_bound.size() == upper_bound.size());
+        const TensorLabel& labels = get_input_source_output(1).get_tensor().get_value_label();
+        NGRAPH_CHECK(labels.empty() || lower_bound.size() == labels.size());
+
         for (size_t i = 0; i < lower_bound.size(); ++i) {
             NODE_VALIDATION_CHECK(this,
                                   lower_bound[i] >= -1 && upper_bound[i] >= -1,
@@ -104,8 +115,10 @@ void op::v1::Reshape::validate_and_infer_types() {
                 upper_bound[i] == std::numeric_limits<std::int32_t>::max()) {
                 upper_bound[i] = std::numeric_limits<std::int64_t>::max();
             }
-
-            reshape_pattern.emplace_back(lower_bound[i], upper_bound[i]);
+            auto d = Dimension(lower_bound[i], upper_bound[i]);
+            if (!labels.empty() && labels[i])
+                ov::DimensionTracker::set_label(d, labels[i]);
+            reshape_pattern.emplace_back(d);
         }
         // For scalar case reshape_patter should be empty but scalar reshape pattern should be empty
         // or equal to 1
@@ -126,14 +139,14 @@ void op::v1::Reshape::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v1::Reshape::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_Reshape_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_Reshape_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::Reshape>(new_args.at(0), new_args.at(1), m_special_zero);
 }
 
 #define COMPUTE_OUT_SHAPE_CASE(a, ...)                                    \
     case element::Type_t::a: {                                            \
-        NGRAPH_OP_SCOPE(OV_PP_CAT3(compute_reshape_out_shape, _, a));     \
+        OV_OP_SCOPE(OV_PP_CAT3(compute_reshape_out_shape, _, a));         \
         reshapeop::compute_output_shape<element::Type_t::a>(__VA_ARGS__); \
     } break;
 
@@ -176,14 +189,14 @@ bool op::v1::Reshape::evaluate_reshape(const HostTensorVector& outputs, const Ho
 }
 
 bool op::v1::Reshape::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v1_Reshape_evaluate);
+    OV_OP_SCOPE(v1_Reshape_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
     return evaluate_reshape(outputs, inputs);
 }
 
 bool op::v1::Reshape::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_Reshape_has_evaluate);
+    OV_OP_SCOPE(v1_Reshape_has_evaluate);
     switch (get_input_element_type(1)) {
     case ngraph::element::i8:
     case ngraph::element::i16:
@@ -200,20 +213,22 @@ bool op::v1::Reshape::has_evaluate() const {
     return false;
 }
 
-bool op::v1::Reshape::evaluate_lower(const HostTensorVector& output_values) const {
-    if (!input_value(1).get_tensor().has_and_set_bound())
-        return false;
-    return default_lower_bound_evaluator(this, output_values);
+bool op::v1::Reshape::evaluate_lower(ov::TensorVector& output_values) const {
+    return get_input_tensor(1).has_and_set_bound() && default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v1::Reshape::evaluate_upper(const HostTensorVector& output_values) const {
-    if (!input_value(1).get_tensor().has_and_set_bound())
+bool op::v1::Reshape::evaluate_upper(ov::TensorVector& output_values) const {
+    return get_input_tensor(1).has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
+}
+
+bool op::v1::Reshape::evaluate_label(TensorLabelVector& output_labels) const {
+    if (!get_input_tensor(1).has_and_set_bound())
         return false;
-    return default_upper_bound_evaluator(this, output_values);
+    return default_label_evaluator(this, output_labels);
 }
 
 bool op::v1::Reshape::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
-    if (get_output_partial_shape(0).is_dynamic()) {
+    if (get_output_partial_shape(0).is_dynamic() || is_const_fold_disabled()) {
         return false;
     }
 
@@ -226,20 +241,155 @@ bool op::v1::Reshape::constant_fold(OutputVector& output_values, const OutputVec
     return false;
 }
 
+namespace {
+bool fully_eq(const Dimension& rhs, const Dimension& lhs) {
+    return rhs == lhs && ov::DimensionTracker::get_label(rhs) == ov::DimensionTracker::get_label(lhs) &&
+           (ov::DimensionTracker::get_label(rhs) || rhs.is_static());
+}
+
+Dimension resolve_minus_one(const Node* reshape_node,
+                            vector<Dimension>& input_product,
+                            vector<Dimension>& output_product) {
+    std::vector<Dimension> to_delete_from_output, to_delete_from_input;
+    Dimension input_const_part(1), output_const_part(1);
+
+    for (const auto& dim : output_product)
+        if (!ov::DimensionTracker::get_label(dim) && dim.is_static()) {
+            output_const_part *= dim;
+            to_delete_from_output.push_back(dim);
+        }
+
+    for (const auto& dim : input_product)
+        if (!ov::DimensionTracker::get_label(dim) && dim.is_static()) {
+            input_const_part *= dim;
+            to_delete_from_input.push_back(dim);
+        }
+
+    for (const auto& dim : to_delete_from_input) {
+        input_product.erase(std::remove_if(input_product.begin(),
+                                           input_product.end(),
+                                           [=](const Dimension& d) {
+                                               return fully_eq(dim, d);
+                                           }),
+                            input_product.end());
+    }
+    for (const auto& dim : to_delete_from_output) {
+        output_product.erase(std::remove_if(output_product.begin(),
+                                            output_product.end(),
+                                            [=](const Dimension& d) {
+                                                return fully_eq(dim, d);
+                                            }),
+                             output_product.end());
+    }
+
+    to_delete_from_input.clear();
+    to_delete_from_output.clear();
+
+    if (input_const_part != output_const_part) {
+        input_product.push_back(input_const_part);
+        output_product.push_back(output_const_part);
+    }
+
+    for (const auto& out_dim : output_product) {
+        const auto& it = std::find_if(input_product.begin(), input_product.end(), [out_dim](const Dimension& in_dim) {
+            return fully_eq(out_dim, in_dim);
+        });
+        if (it != input_product.end()) {
+            to_delete_from_output.push_back(out_dim);
+            to_delete_from_input.push_back(out_dim);
+        }
+    }
+    for (const auto& dim : to_delete_from_input) {
+        input_product.erase(std::remove_if(input_product.begin(),
+                                           input_product.end(),
+                                           [=](const Dimension& d) {
+                                               return fully_eq(dim, d);
+                                           }),
+                            input_product.end());
+    }
+    for (const auto& dim : to_delete_from_output) {
+        output_product.erase(std::remove_if(output_product.begin(),
+                                            output_product.end(),
+                                            [=](const Dimension& d) {
+                                                return fully_eq(dim, d);
+                                            }),
+                             output_product.end());
+    }
+
+    if (output_product.empty() && input_product.size() == 1)
+        return input_product[0];
+
+    Dimension input_dim(1), output_dim(1);
+    for (const auto& i : input_product) {
+        input_dim *= i;
+    }
+    for (const auto& i : output_product) {
+        output_dim *= i;
+    }
+
+    if (output_dim == 0) {
+        NODE_VALIDATION_CHECK(reshape_node,
+                              input_dim == 0,
+                              "Cannot infer '-1' dimension with zero-size output "
+                              "dimension unless at least one input dimension is "
+                              "also zero-size");
+        return Dimension(0);
+    } else {
+        if (input_dim.is_static() && output_dim.is_static()) {
+            NODE_VALIDATION_CHECK(reshape_node,
+                                  input_dim.get_length() % output_dim.get_length() == 0,
+                                  "Non-'-1' output dimensions do not evenly divide the input dimensions");
+        }
+        if (output_dim.get_min_length() == 0 || output_dim == Dimension() || input_dim == Dimension()) {
+            return Dimension::dynamic();
+        } else {
+            Dimension::value_type lower;
+            if (input_dim.get_min_length() == 0)
+                lower = 0;
+            else if (input_dim.get_min_length() == -1 || output_dim.get_max_length() == 0 ||
+                     output_dim.get_max_length() == -1)
+                lower = -1;  // dynamic
+            else
+                lower = static_cast<Dimension::value_type>(
+                    ceil(static_cast<double>(input_dim.get_min_length()) / output_dim.get_max_length()));
+
+            Dimension::value_type upper;
+            if (input_dim.get_max_length() == 0)
+                upper = 0;
+            else if (input_dim.get_max_length() == -1 || output_dim.get_min_length() == 0 ||
+                     output_dim.get_min_length() == -1)
+                upper = -1;  // dynamic
+            else
+                upper = static_cast<Dimension::value_type>(
+                    floor(static_cast<double>(input_dim.get_max_length()) / output_dim.get_min_length()));
+
+            if (lower == -1)
+                return Dimension::dynamic();
+            else if (upper == -1)
+                return Dimension(lower, upper);
+            else if (lower > upper)  // empty intersection
+                return Dimension::dynamic();
+            else
+                return Dimension(lower, upper);
+        }
+    }
+}
+}  // namespace
+
 void op::v1::Reshape::calculate_output_shape(vector<Dimension>& reshape_pattern,
                                              const int64_t& minus_one_idx,
                                              const ov::PartialShape& input_pshape,
                                              vector<Dimension>& output_shape) const {
-    Dimension output_product(1);
+    std::vector<Dimension> output_product;
     for (int64_t i = 0; i < static_cast<int64_t>(reshape_pattern.size()); ++i) {
         if (i == minus_one_idx)  // resolving everything except -1
             continue;
 
         auto pattern_dim = reshape_pattern[i];
-        if (pattern_dim.get_min_length() == 0 && pattern_dim.get_max_length() == 0 && get_special_zero()) {
+        if (pattern_dim == 0 && get_special_zero()) {
             if (input_pshape.rank().is_dynamic()) {
                 output_shape[i] = Dimension::dynamic();
-                output_product *= Dimension::dynamic();
+                output_product.push_back(Dimension::dynamic());
             } else {
                 NODE_VALIDATION_CHECK(this, i < input_pshape.rank().get_length(), "'0' dimension is out of range");
                 output_shape[i] = input_pshape[i];
@@ -251,85 +401,35 @@ void op::v1::Reshape::calculate_output_shape(vector<Dimension>& reshape_pattern,
             }
         } else {
             output_shape[i] = pattern_dim;
-            output_product *= pattern_dim;
+            output_product.push_back(pattern_dim);
         }
     }
-    Dimension input_product(1);
+    std::vector<Dimension> input_product;
     if (input_pshape.rank().is_static())
         for (int64_t i = 0; i < input_pshape.rank().get_length(); ++i) {
             if (i < static_cast<int64_t>(reshape_pattern.size()) && reshape_pattern[i].get_min_length() == 0 &&
                 reshape_pattern[i].get_max_length() == 0)
                 continue;
-            input_product *= input_pshape[i];
+            input_product.push_back(input_pshape[i]);
         }
     else
-        input_product = Dimension::dynamic();
+        input_product.push_back(Dimension::dynamic());
 
     if (minus_one_idx != -1)  // resolving -1 masked dimension
-    {
-        if (output_product.get_min_length() == 0 && output_product.get_max_length() == 0) {
-            // TODO: Decide if this is desired behavior here. (NumPy seems
-            // to fail.)
-            NODE_VALIDATION_CHECK(this,
-                                  input_product.get_min_length() == 0 && input_product.get_max_length() == 0,
-                                  "Cannot infer '-1' dimension with zero-size output "
-                                  "dimension unless at least one input dimension is "
-                                  "also zero-size");
-            output_shape[minus_one_idx] = Dimension(0);
-        } else {
-            if (input_product.is_static() && output_product.is_static()) {
-                NODE_VALIDATION_CHECK(this,
-                                      input_product.get_length() % output_product.get_length() == 0,
-                                      "Non-'-1' output dimensions do not evenly divide the input dimensions");
-            }
-            if (output_product.get_min_length() == 0 || output_product == Dimension() || input_product == Dimension()) {
-                output_shape[minus_one_idx] = Dimension::dynamic();
-            } else {
-                Dimension::value_type lower;
-                if (input_product.get_min_length() == 0)
-                    lower = 0;
-                else if (input_product.get_min_length() == -1 || output_product.get_max_length() == 0 ||
-                         output_product.get_max_length() == -1)
-                    lower = -1;  // dynamic
-                else
-                    lower = static_cast<Dimension::value_type>(
-                        ceil(static_cast<double>(input_product.get_min_length()) / output_product.get_max_length()));
+        output_shape[minus_one_idx] = resolve_minus_one(this, input_product, output_product);
 
-                Dimension::value_type upper;
-                if (input_product.get_max_length() == 0)
-                    upper = 0;
-                else if (input_product.get_max_length() == -1 || output_product.get_min_length() == 0 ||
-                         output_product.get_min_length() == -1)
-                    upper = -1;  // dynamic
-                else
-                    upper = static_cast<Dimension::value_type>(
-                        floor(static_cast<double>(input_product.get_max_length()) / output_product.get_min_length()));
-
-                if (lower == -1)
-                    output_shape[minus_one_idx] = Dimension::dynamic();
-                else if (upper == -1)
-                    output_shape[minus_one_idx] = Dimension(lower, upper);
-                else if (lower > upper)  // empty intersection
-                    output_shape[minus_one_idx] = Dimension::dynamic();
-                else
-                    output_shape[minus_one_idx] = Dimension(lower, upper);
-            }
-        }
-    }
     ov::PartialShape output_pshape(output_shape);
     if (input_pshape.is_static() && output_pshape.is_static()) {
-        size_t zero_dims = std::count_if(reshape_pattern.begin(), reshape_pattern.end(), [](Dimension dim) {
-            return dim.get_max_length() == 0 && dim.get_min_length() == 0;
-        });
+        size_t zero_dims = std::count_if(reshape_pattern.begin(), reshape_pattern.end(), cmp::Equal<Dimension>(0));
 
         bool backward_compatible_check = (zero_dims && get_special_zero()) || minus_one_idx != -1;
-        bool in_out_elements_equal = shape_size(get_input_shape(0)) == shape_size(output_pshape.to_shape());
+        bool in_out_elements_equal = shape_size(input_pshape.get_shape()) == shape_size(output_pshape.to_shape());
 
         NODE_VALIDATION_CHECK(this,
                               backward_compatible_check || in_out_elements_equal,
                               "Requested output shape ",
                               output_shape,
                               " is incompatible with input shape ",
-                              get_input_shape(0));
+                              input_pshape);
     }
 }

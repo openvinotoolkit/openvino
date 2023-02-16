@@ -1,29 +1,28 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <vector>
 #include <memory>
+#include <openvino/pass/graph_rewrite.hpp>
+#include <vector>
 
-#include <ngraph/pass/graph_rewrite.hpp>
-
-namespace ngraph {
+namespace ov {
 namespace pass {
 
-class NGRAPH_API SetBatchSize;
+class TRANSFORMATIONS_API SetBatchSize;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
  * @brief Generic caller for all the transformations responsible to make model reshape-able by batch dimension
  */
 
-class ngraph::pass::SetBatchSize: public ngraph::pass::FunctionPass {
+class ov::pass::SetBatchSize : public ov::pass::ModelPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    OPENVINO_RTTI("SetBatchSize", "0");
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };

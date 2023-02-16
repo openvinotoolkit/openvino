@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2023 Intel Corporation
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -15,7 +15,7 @@ import os
 import yaml
 import sys
 import logging as log
-from common.samples_common_test_clas import Environment
+from common.samples_common_test_class import Environment
 from common.common_utils import fix_env_conf
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
@@ -45,7 +45,7 @@ def pytest_configure(config):
         try:
             Environment.env = fix_env_conf(yaml.safe_load(env_conf))
             # Check mandatory env variables:
-            mandatory_env_varibales = ['out_directory', 'public_models', 'icv_model_zoo_models', 'test_data', 'samples_data_zip', 'smoke_tests_path', 'samples_path']
+            mandatory_env_varibales = ['out_directory', 'models_path', 'test_data', 'samples_data_zip', 'smoke_tests_path', 'samples_path']
             missing_variables = []
             for variable in mandatory_env_varibales:
                 if variable not in Environment.env:

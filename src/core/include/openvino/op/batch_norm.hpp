@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,10 +11,12 @@
 namespace ov {
 namespace op {
 namespace v0 {
+/// \brief BatchNormInference operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API BatchNormInference : public Op {
 public:
     OPENVINO_OP("BatchNormInference", "opset1");
-    BWDCMP_RTTI_DECLARATION;
     BatchNormInference() = default;
     /// \param input [., C, ...]
     /// \param gamma gamma scaling for normalized value. [C]
@@ -48,14 +50,16 @@ private:
     static constexpr size_t INPUT_MEAN = 3;
     static constexpr size_t INPUT_VARIANCE = 4;
 
-    double m_epsilon;
+    double m_epsilon{0};
 };
 }  // namespace v0
 namespace v5 {
+/// \brief BatchNormInference operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API BatchNormInference : public Op {
 public:
     OPENVINO_OP("BatchNormInference", "opset5", op::Op, 5);
-    BWDCMP_RTTI_DECLARATION;
     BatchNormInference() = default;
     /// \param input [., C, ...]
     /// \param gamma gamma scaling for normalized value. [C]
@@ -89,7 +93,7 @@ private:
     static constexpr size_t INPUT_MEAN = 3;
     static constexpr size_t INPUT_VARIANCE = 4;
 
-    double m_epsilon;
+    double m_epsilon{0};
 };
 }  // namespace v5
 }  // namespace op

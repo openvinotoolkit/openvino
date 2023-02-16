@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,10 +13,10 @@ namespace op {
 namespace v3 {
 /// \brief Elementwise inverse hyperbolic tangent operation.
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Atanh : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Atanh", "opset4", util::UnaryElementwiseArithmetic, 3);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs an Atanh operation.
     Atanh() = default;

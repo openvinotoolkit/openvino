@@ -1,24 +1,21 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <vector>
 #include <memory>
-
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
+#include <vector>
 
-#include <ngraph/ops.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
-
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertBatchToSpace;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -33,9 +30,9 @@ class TRANSFORMATIONS_API ConvertBatchToSpace;
  *
  */
 
-class ngraph::pass::ConvertBatchToSpace: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertBatchToSpace : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertBatchToSpace", "0");
     explicit ConvertBatchToSpace(bool convert_by_elements = true) : MatcherPass() {
         if (convert_by_elements)
             convert_batch_to_space_by_elements();

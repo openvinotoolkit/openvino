@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,12 +7,11 @@
 #include <sstream>
 
 #include "itt.hpp"
+#include "layout_utils.hpp"
 #include "ngraph/attribute_visitor.hpp"
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v0::Parameter);
 
 op::Parameter::Parameter(const element::Type& element_type, const ov::PartialShape& pshape)
     : m_partial_shape(pshape),
@@ -22,20 +21,20 @@ op::Parameter::Parameter(const element::Type& element_type, const ov::PartialSha
 }
 
 bool op::Parameter::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_Parameter_visit_attributes);
+    OV_OP_SCOPE(v0_Parameter_visit_attributes);
     visitor.on_attribute("shape", m_partial_shape);
     visitor.on_attribute("element_type", m_element_type);
     return true;
 }
 
 void op::Parameter::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_Parameter_validate_and_infer_types);
+    OV_OP_SCOPE(v0_Parameter_validate_and_infer_types);
     Op::validate_and_infer_types();
     set_output_type(0, m_element_type, m_partial_shape);
 }
 
 shared_ptr<Node> op::Parameter::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Parameter_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_Parameter_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Parameter>(m_element_type, m_partial_shape);
 }
@@ -49,28 +48,24 @@ void op::Parameter::set_is_relevant_to_shapes(bool is_relevant) {
 }
 
 ov::Layout op::Parameter::get_layout() const {
-    auto it = output(0).get_rt_info().find(ov::LayoutAttribute::get_type_info_static());
-    if (it == output(0).get_rt_info().end()) {
-        return "";
-    }
-    auto layout = std::dynamic_pointer_cast<ov::LayoutAttribute>(it->second);
-    OPENVINO_ASSERT(layout,
-                    "'",
-                    ov::LayoutAttribute::get_type_info_static(),
-                    "' runtime info for parameter is invalid, use set_layout API");
-    return layout->get();
+    return ov::layout::get_layout(output(0));
 }
 
 void op::Parameter::set_layout(const ov::Layout& layout) {
-    if (layout.empty()) {
-        output(0).get_rt_info().erase(ov::LayoutAttribute::get_type_info_static());
-    } else {
-        output(0).get_rt_info()[ov::LayoutAttribute::get_type_info_static()] =
-            std::make_shared<ov::LayoutAttribute>(layout);
-    }
+    ov::layout::set_layout(output(0), layout);
 }
 
-BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ParameterVector>);
+void op::Parameter::set_partial_shape(const PartialShape& partial_shape) {
+    OPENVINO_ASSERT(ov::layout::utils::is_compatible(get_layout(), partial_shape),
+                    "Can't set partial shape ",
+                    partial_shape,
+                    " for Parameter ",
+                    *this,
+                    " with layout ",
+                    get_layout().to_string(),
+                    ". Layout is not compatible with shape");
+    m_partial_shape = partial_shape;
+}
 
 ov::AttributeAdapter<ParameterVector>::AttributeAdapter(ParameterVector& ref) : m_ref(ref) {}
 

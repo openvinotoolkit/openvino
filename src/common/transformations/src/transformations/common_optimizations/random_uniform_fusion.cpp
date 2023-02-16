@@ -1,25 +1,23 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/common_optimizations/random_uniform_fusion.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset8.hpp>
+#include <ngraph/ngraph.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <ngraph/ngraph.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::RandomUniformFusion, "RandomUniformFusion", 0);
-
-ngraph::pass::RandomUniformFusion::RandomUniformFusion() {
+ov::pass::RandomUniformFusion::RandomUniformFusion() {
     MATCHER_SCOPE(RandomUniformFusion);
-    const auto data_pattern = ngraph::pattern::any_input();
-    const auto ru_min_input_pattern = ngraph::pattern::any_input();
-    const auto ru_max_input_pattern = ngraph::pattern::any_input();
+    const auto data_pattern = pass::pattern::any_input();
+    const auto ru_min_input_pattern = pass::pattern::any_input();
+    const auto ru_max_input_pattern = pass::pattern::any_input();
     const auto random_uniform_pattern =
         ngraph::pattern::wrap_type<opset8::RandomUniform>({data_pattern, ru_min_input_pattern, ru_max_input_pattern},
                                                           pattern::consumers_count(1));
@@ -32,7 +30,7 @@ ngraph::pass::RandomUniformFusion::RandomUniformFusion() {
     const auto mul_add_pattern =
         ngraph::pattern::wrap_type<opset8::Multiply, opset8::Add>({random_uniform_or_convert_pattern, const_pattern});
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto data = pattern_map.at(data_pattern);
         const auto random_uniform = pattern_map.at(random_uniform_pattern);
@@ -54,7 +52,7 @@ ngraph::pass::RandomUniformFusion::RandomUniformFusion() {
             return false;
 
         const auto& value = old_const->cast_vector<double>();
-        auto new_const = op::Constant::create(ru->get_out_type(), Shape{}, value);
+        auto new_const = opset8::Constant::create(ru->get_out_type(), Shape{}, value);
 
         const auto& mul_add = pattern_map.at(mul_add_pattern);
         const auto mul_add_ptr = std::dynamic_pointer_cast<ngraph::Node>(mul_add.get_node_shared_ptr());
@@ -64,9 +62,8 @@ ngraph::pass::RandomUniformFusion::RandomUniformFusion() {
         const auto& folded_const1 = ngraph::get_constant_from_source(new_mul_add1);
         const auto& folded_const2 = ngraph::get_constant_from_source(new_mul_add2);
 
-        const auto new_ru = ru->clone_with_new_inputs({data,
-                                                       folded_const1 ? folded_const1 : new_mul_add1,
-                                                       folded_const2 ? folded_const2 : new_mul_add2});
+        const auto new_ru = ru->clone_with_new_inputs(
+            {data, folded_const1 ? folded_const1 : new_mul_add1, folded_const2 ? folded_const2 : new_mul_add2});
 
         if (pattern_map.count(convert_pattern)) {
             const auto& convert = pattern_map.at(convert_pattern);
@@ -76,7 +73,8 @@ ngraph::pass::RandomUniformFusion::RandomUniformFusion() {
             if (!cvt->get_element_type().is_real())
                 return false;
             const auto new_ru_conv = cvt->clone_with_new_inputs({new_ru});
-            copy_runtime_info({ru, cvt, mul_add.get_node_shared_ptr()}, {new_mul_add1, new_mul_add2, new_ru, new_ru_conv});
+            copy_runtime_info({ru, cvt, mul_add.get_node_shared_ptr()},
+                              {new_mul_add1, new_mul_add2, new_ru, new_ru_conv});
             new_ru_conv->set_friendly_name(m.get_match_root()->get_friendly_name());
             ngraph::replace_node(m.get_match_root(), new_ru_conv);
         } else {

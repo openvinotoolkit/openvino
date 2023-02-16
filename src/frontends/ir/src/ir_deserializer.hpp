@@ -1,15 +1,17 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <cctype>
 #include <istream>
 #include <memory>
 #include <pugixml.hpp>
 
 #include "ie_ngraph_utils.hpp"
-#include "ir_frontend/model.hpp"
+#include "input_model.hpp"
+#include "ngraph/opsets/opset.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/op_extension.hpp"
 #include "openvino/op/loop.hpp"
@@ -60,7 +62,7 @@ class XmlDeserializer : public ov::AttributeVisitor {
 public:
     explicit XmlDeserializer(const pugi::xml_node& node,
                              const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
-                             const std::unordered_map<std::string, ngraph::OpSet>& opsets,
+                             const std::unordered_map<std::string, ov::OpSet>& opsets,
                              const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
                              std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
                              size_t version)
@@ -109,7 +111,7 @@ public:
         adapter.set(stringToType<int64_t>(val));
     }
 
-    void on_adapter(const std::string& name, ov::ValueAccessor<std::shared_ptr<ov::Function>>& adapter) override;
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override;
 
     void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int32_t>>& adapter) override {
         std::vector<int32_t> value;
@@ -164,8 +166,8 @@ private:
     /// \param node xml node representation
     /// \param weights weights attached to current node
     /// \return shared pointer to function representing input node
-    std::shared_ptr<ov::Function> parse_function(const pugi::xml_node& root,
-                                                 const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights);
+    std::shared_ptr<ov::Model> parse_function(const pugi::xml_node& root,
+                                              const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights);
     /// \brief Traverses xml node representation in order to get the purpose attribute of
     /// inputs/outputs in the body of Loop op. \param node xml node representation \return struct
     /// with value of purpuse attribute
@@ -175,18 +177,24 @@ private:
 
     std::shared_ptr<ov::Node> createNode(const ov::OutputVector& inputs,
                                          const pugi::xml_node& node,
-                                         const ov::Weights& weights,
+                                         const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
                                          const GenericLayerParams& params);
+
+    void read_meta_data(const std::shared_ptr<ov::Model>& model, const pugi::xml_node& meta_section);
+
+    void read_legacy_meta_data(const std::shared_ptr<ov::Model>& model,
+                               const std::unordered_set<std::string>& names,
+                               const pugi::xml_node& root_section);
 
     // -- DATA --
     const pugi::xml_node m_node;
-    const ov::Weights& m_weights;
-    const std::unordered_map<std::string, ngraph::OpSet>& m_opsets;
+    const std::shared_ptr<ngraph::runtime::AlignedBuffer>& m_weights;
+    const std::unordered_map<std::string, ov::OpSet>& m_opsets;
     const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& m_extensions;
     std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& m_variables;
 
     ///
-    /// store information about parameters/results order during function creation
+    /// store information about parameters/results order during a model creation
     /// it will be used during Inputs/Outputs Description creation in SubGraph processing
     ///
     IoMap io_map;

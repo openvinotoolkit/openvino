@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,18 @@ using ov::op::v0::Result;
 }  // namespace v0
 }  // namespace op
 
-using ov::clone_function;
+inline std::shared_ptr<ngraph::Function> clone_function(const ngraph::Function& func, ngraph::NodeMap& node_map) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    return ov::clone_model(func, node_map);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+}
+
+inline std::shared_ptr<ngraph::Function> clone_function(const ngraph::Function& func) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    return ov::clone_model(func);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+}
+
 using ov::compare_constants;
 using ov::replace_node;
 using ov::replace_node_update_name;

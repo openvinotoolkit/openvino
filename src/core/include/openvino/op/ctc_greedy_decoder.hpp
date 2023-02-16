@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,10 +9,12 @@
 namespace ov {
 namespace op {
 namespace v0 {
+/// \brief CTCGreedyDecoder operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API CTCGreedyDecoder : public Op {
 public:
     OPENVINO_OP("CTCGreedyDecoder", "opset1");
-    BWDCMP_RTTI_DECLARATION;
 
     CTCGreedyDecoder() = default;
     /// \brief Constructs a CTCGreedyDecoder operation
@@ -30,8 +32,12 @@ public:
         return m_ctc_merge_repeated;
     }
 
+    void set_ctc_merge_repeated(bool ctc_merge_repeated) {
+        m_ctc_merge_repeated = ctc_merge_repeated;
+    }
+
 private:
-    bool m_ctc_merge_repeated;
+    bool m_ctc_merge_repeated{true};
 };
 }  // namespace v0
 }  // namespace op

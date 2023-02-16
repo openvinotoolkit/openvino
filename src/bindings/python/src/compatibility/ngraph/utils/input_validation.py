@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Helper functions for validating user input."""
@@ -28,27 +28,19 @@ def _check_value(op_name, attr_key, value, val_type, cond=None):
     # type: (str, str, Any, Type, Optional[Callable[[Any], bool]]) -> bool
     """Check whether provided value satisfies specified criteria.
 
-    @param      op_name:        The operator name which attributes are checked.
-    @param      attr_key:       The attribute name.
-    @param      value:          The value to check.
-    @param      val_type:       Required value type.
-    @param      cond:           The optional function running additional checks.
+    :param      op_name:        The operator name which attributes are checked.
+    :param      attr_key:       The attribute name.
+    :param      value:          The value to check.
+    :param      val_type:       Required value type.
+    :param      cond:           The optional function running additional checks.
 
     :raises     UserInputError:
-    @return    True if attribute satisfies all criterias. Otherwise False.
+    :return:    True if attribute satisfies all criterias. Otherwise False.
     """
     if not np.issubdtype(type(value), val_type):
-        raise UserInputError(
-            '{} operator attribute "{}" value must by of type {}.'.format(
-                op_name, attr_key, val_type
-            )
-        )
+        raise UserInputError('{} operator attribute "{}" value must by of type {}.'.format(op_name, attr_key, val_type))
     if cond is not None and not cond(value):
-        raise UserInputError(
-            '{} operator attribute "{}" value does not satisfy provided condition.'.format(
-                op_name, attr_key
-            )
-        )
+        raise UserInputError('{} operator attribute "{}" value does not satisfy provided condition.'.format(op_name, attr_key))
     return True
 
 
@@ -56,26 +48,22 @@ def check_valid_attribute(op_name, attr_dict, attr_key, val_type, cond=None, req
     # type: (str, dict, str, Type, Optional[Callable[[Any], bool]], Optional[bool]) -> bool
     """Check whether specified attribute satisfies given criteria.
 
-    @param  op_name:    The operator name which attributes are checked.
-    @param attr_dict:   Dictionary containing key-value attributes to check.
-    @param attr_key:    Key value for validated attribute.
-    @param val_type:    Value type for validated attribute.
-    @param cond:        Any callable wich accept attribute value and returns True or False.
-    @param required:    Whether provided attribute key is not required. This mean it may be missing
+    :param  op_name:    The operator name which attributes are checked.
+    :param attr_dict:   Dictionary containing key-value attributes to check.
+    :param attr_key:    Key value for validated attribute.
+    :param val_type:    Value type for validated attribute.
+    :param cond:        Any callable wich accept attribute value and returns True or False.
+    :param required:    Whether provided attribute key is not required. This mean it may be missing
                         from provided dictionary.
 
     :raises     UserInputError:
 
-    @return True if attribute satisfies all criterias. Otherwise False.
+    :return: True if attribute satisfies all criterias. Otherwise False.
     """
     result = True
 
     if required and attr_key not in attr_dict:
-        raise UserInputError(
-            'Provided dictionary is missing {} operator required attribute "{}"'.format(
-                op_name, attr_key
-            )
-        )
+        raise UserInputError('Provided dictionary is missing {} operator required attribute "{}"'.format(op_name, attr_key))
 
     if attr_key not in attr_dict:
         return result
@@ -99,9 +87,9 @@ def check_valid_attributes(
     # type: (...) -> bool
     """Perform attributes validation according to specified type, value criteria.
 
-    @param  op_name:        The operator name which attributes are checked.
-    @param  attributes:     The dictionary with user provided attributes to check.
-    @param  requirements:   The list of tuples describing attributes' requirements. The tuple should
+    :param  op_name:        The operator name which attributes are checked.
+    :param  attributes:     The dictionary with user provided attributes to check.
+    :param  requirements:   The list of tuples describing attributes' requirements. The tuple should
                             contain following values:
                             (attr_name: str,
                              is_required: bool,
@@ -109,7 +97,7 @@ def check_valid_attributes(
                              value_condition: Callable)
 
     :raises     UserInputError:
-    @return True if all attributes satisfies criterias. Otherwise False.
+    :return: True if all attributes satisfies criterias. Otherwise False.
     """
     for attr, required, val_type, cond in requirements:
         check_valid_attribute(op_name, attributes, attr, val_type, cond, required)
@@ -119,9 +107,9 @@ def check_valid_attributes(
 def is_positive_value(x):  # type: (Any) -> bool
     """Determine whether the specified x is positive value.
 
-    @param      x:    The value to check.
+    :param      x:    The value to check.
 
-    @return   True if the specified x is positive value, False otherwise.
+    :return:   True if the specified x is positive value, False otherwise.
     """
     return x > 0
 
@@ -129,8 +117,8 @@ def is_positive_value(x):  # type: (Any) -> bool
 def is_non_negative_value(x):  # type: (Any) -> bool
     """Determine whether the specified x is non-negative value.
 
-    @param      x:    The value to check.
+    :param      x:    The value to check.
 
-    @return   True if the specified x is non-negative value, False otherwise.
+    :return:   True if the specified x is non-negative value, False otherwise.
     """
     return x >= 0

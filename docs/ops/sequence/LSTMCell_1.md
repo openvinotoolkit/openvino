@@ -1,4 +1,4 @@
-## LSTMCell <a name="LSTMCell"></a> {#openvino_docs_ops_sequence_LSTMCell_1}
+# LSTMCell  {#openvino_docs_ops_sequence_LSTMCell_1}
 
 **Versioned name**: *LSTMCell-1*
 

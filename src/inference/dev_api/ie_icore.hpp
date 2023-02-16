@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,24 +16,24 @@
 #include "cpp/ie_cnn_network.h"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "ie_parameter.hpp"
-#include "threading/ie_itask_executor.hpp"
+#include "ie_remote_context.hpp"
+#include "openvino/runtime/icore.hpp"
+#include "openvino/runtime/properties.hpp"
 
 namespace InferenceEngine {
 
-/**
- * @interface ICore
- * @brief Minimal ICore interface to allow plugin to get information from Core Inference Engine class.
- * @ingroup ie_dev_api_plugin_api
- */
-class ICore {
+class ICore : public ov::ICore {
 public:
     /**
      * @brief Reads IR xml and bin (with the same name) files
      * @param model string with IR
      * @param weights shared pointer to constant blob with weights
+     * @param frontendMode read network without post-processing or other transformations
      * @return CNNNetwork
      */
-    virtual CNNNetwork ReadNetwork(const std::string& model, const Blob::CPtr& weights) const = 0;
+    virtual CNNNetwork ReadNetwork(const std::string& model,
+                                   const Blob::CPtr& weights,
+                                   bool frontendMode = false) const = 0;
 
     /**
      * @brief Reads IR xml and bin files
@@ -61,6 +61,43 @@ public:
                                                     const std::map<std::string, std::string>& config = {}) = 0;
 
     /**
+     * @brief Creates an executable network from a network object.
+     *
+     * Users can create as many networks as they need and use
+     *        them simultaneously (up to the limitation of the hardware resources)
+     *
+     * @param network CNNNetwork object acquired from Core::ReadNetwork
+     * @param remoteCtx  "Remote" (non-CPU) accelerator device-specific execution context to use
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation
+     * @return An executable network reference
+     */
+    virtual SoExecutableNetworkInternal LoadNetwork(const CNNNetwork& network,
+                                                    const RemoteContext::Ptr& remoteCtx,
+                                                    const std::map<std::string, std::string>& config = {}) = 0;
+
+    /**
+     * @brief Creates an executable network from a model memory.
+     *
+     * Users can create as many networks as they need and use
+     *        them simultaneously (up to the limitation of the hardware resources)
+     *
+     * @param modelStr String data of model
+     * @param weights Model's weights
+     * @param deviceName Name of device to load network to
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation
+     * @param val Optional callback to perform validation of loaded CNNNetwork, if ReadNetwork is triggered
+     * @return An executable network reference
+     */
+    virtual SoExecutableNetworkInternal LoadNetwork(
+        const std::string& modelStr,
+        const InferenceEngine::Blob::CPtr& weights,
+        const std::string& deviceName,
+        const std::map<std::string, std::string>& config,
+        const std::function<void(const InferenceEngine::CNNNetwork&)>& val = nullptr) = 0;
+
+    /**
      * @brief Creates an executable network from a model file.
      *
      * Users can create as many networks as they need and use
@@ -70,11 +107,13 @@ public:
      * @param deviceName Name of device to load network to
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation
+     * @param val Optional callback to perform validation of loaded CNNNetwork, if ReadNetwork is triggered
      * @return An executable network reference
      */
     virtual SoExecutableNetworkInternal LoadNetwork(const std::string& modelPath,
                                                     const std::string& deviceName,
-                                                    const std::map<std::string, std::string>& config) = 0;
+                                                    const std::map<std::string, std::string>& config,
+                                                    const std::function<void(const CNNNetwork&)>& val = nullptr) = 0;
 
     /**
      * @brief Creates an executable network from a previously exported network
@@ -110,9 +149,9 @@ public:
      * @param name - metric name to request.
      * @return Metric value corresponding to metric key.
      */
-    virtual Parameter GetMetric(const std::string& deviceName,
-                                const std::string& name,
-                                const ParamMap& options = {}) const = 0;
+    virtual ov::Any GetMetric(const std::string& deviceName,
+                              const std::string& name,
+                              const ov::AnyMap& options = {}) const = 0;
 
     /**
      * @brief Gets configuration dedicated to device behaviour.
@@ -123,12 +162,12 @@ public:
      * @param name  - config key.
      * @return Value of config corresponding to config key.
      */
-    virtual Parameter GetConfig(const std::string& deviceName, const std::string& name) const = 0;
+    virtual ov::Any GetConfig(const std::string& deviceName, const std::string& name) const = 0;
 
     /**
      * @brief Returns devices available for neural networks inference
      *
-     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, MYRIAD }
+     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, GNA }
      * If there more than one device of specific type, they are enumerated with .# suffix.
      */
     virtual std::vector<std::string> GetAvailableDevices() const = 0;
@@ -142,12 +181,32 @@ public:
      */
     virtual bool DeviceSupportsImportExport(const std::string& deviceName) const = 0;
 
+    /**
+     * @brief Create a new shared context object on specified accelerator device
+     * using specified plugin-specific low level device API parameters (device handle, pointer, etc.)
+     * @param deviceName Name of a device to create new shared context on.
+     * @param params Map of device-specific shared context parameters.
+     * @return A shared pointer to a created remote context.
+     */
+    virtual InferenceEngine::RemoteContext::Ptr CreateContext(const std::string& deviceName, const ov::AnyMap&) = 0;
+
+    /**
+     * @brief Get only configs that are suppored by device
+     * @param deviceName Name of a device
+     * @param config Map of configs that can contains configs that are not supported by device
+     * @return map of configs that are supported by device
+     */
+    virtual std::map<std::string, std::string> GetSupportedConfig(const std::string& deviceName,
+                                                                  const std::map<std::string, std::string>& config) = 0;
+
     virtual bool isNewAPI() const = 0;
 
     /**
-     * @brief Default virtual destructor
+     * @brief Get a pointer to default shared context object for the specified device.
+     * @param deviceName  - A name of a device to get create shared context from.
+     * @return A shared pointer to a default remote context.
      */
-    virtual ~ICore() = default;
+    virtual RemoteContext::Ptr GetDefaultContext(const std::string& deviceName) = 0;
 };
 
 /**
@@ -165,6 +224,7 @@ public:
 
     static std::vector<std::string> getHeteroDevices(std::string fallbackDevice);
     static std::vector<std::string> getMultiDevices(std::string devicesList);
+    static std::string getBatchDevice(std::string devicesList);
 };
 
 }  // namespace InferenceEngine

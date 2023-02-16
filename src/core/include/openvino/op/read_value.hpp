@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,10 +12,10 @@ namespace op {
 namespace v3 {
 /// \brief ReadValue operation creates the variable with `variable_id` and returns value
 /// of this variable.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ReadValue : public util::ReadValueBase {
 public:
     OPENVINO_OP("ReadValue", "opset3", util::ReadValueBase, 3);
-    BWDCMP_RTTI_DECLARATION;
     ReadValue() = default;
 
     /// \brief Constructs a ReadValue operation.
@@ -42,10 +42,10 @@ private:
 namespace v6 {
 /// \brief ReadValue operation gets an input value from the variable with `variable_id`
 /// and returns it as an output.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ReadValue : public util::ReadValueBase {
 public:
     OPENVINO_OP("ReadValue", "opset6", util::ReadValueBase, 6);
-    BWDCMP_RTTI_DECLARATION;
     ReadValue() = default;
 
     /// \brief Constructs a ReadValue operation.

@@ -17,6 +17,7 @@ of all possible parameters can be found in the default_quantization_spec.json */
 
     "engine": {
         "type": "simplified",
+        "layout": "NCHW",               // Layout of input data. Supported ["NCHW", "NHWC", "CHW", "CWH"] layout
         "data_source": "PATH_TO_SOURCE" // You can specify path to directory with images. Also you can
                                         // specify template for file names to filter images to load.
                                         // Templates are unix style (This option valid only in simplified mode)

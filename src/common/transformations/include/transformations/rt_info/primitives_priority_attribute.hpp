@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,13 +10,16 @@
 #pragma once
 
 #include <assert.h>
+
 #include <functional>
 #include <memory>
-#include <string>
 #include <set>
+#include <string>
 
-#include <ngraph/node.hpp>
-#include <ngraph/variant.hpp>
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/runtime_attribute.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 /**
@@ -24,22 +27,22 @@ namespace ov {
  * @brief getPrimitivesPriority return string with primitive priorities value
  * @param[in] node The node will be used to get PrimitivesPriority attribute
  */
-NGRAPH_API std::string getPrimitivesPriority(const std::shared_ptr<ngraph::Node> & node);
+TRANSFORMATIONS_API std::string getPrimitivesPriority(const std::shared_ptr<Node>& node);
 
-class NGRAPH_API PrimitivesPriority : public VariantImpl<std::string> {
+class TRANSFORMATIONS_API PrimitivesPriority : public ov::RuntimeAttribute {
 public:
     OPENVINO_RTTI("primitives_priority", "0");
 
     PrimitivesPriority() = default;
 
-    ~PrimitivesPriority() override = default;
+    PrimitivesPriority(const std::string& value) : value(value) {}
 
-    PrimitivesPriority(const value_type &value) : VariantImpl<value_type>(value) {}
+    Any merge(const NodeVector& nodes) const override;
 
-    Any merge(const ngraph::NodeVector & nodes) override;
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
-    Any init(const std::shared_ptr<ngraph::Node> & node) override;
+    std::string to_string() const override;
 
-    bool visit_attributes(AttributeVisitor & visitor) override;
+    std::string value;
 };
 }  // namespace ov

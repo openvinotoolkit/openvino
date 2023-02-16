@@ -1,40 +1,50 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "itt.hpp"
-#include <transformations/op_conversions/softmax_decomposition.hpp>
-
 #include <memory>
+#include <ngraph/pattern/op/or.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset8.hpp>
+#include <transformations/op_conversions/softmax_decomposition.hpp>
 #include <vector>
 
-#include <ngraph/rt_info.hpp>
-#include <ngraph/opsets/opset8.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SoftmaxDecomposition, "SoftmaxDecomposition", 0);
-
-ngraph::pass::SoftmaxDecomposition::SoftmaxDecomposition() {
+ov::pass::SoftmaxDecomposition::SoftmaxDecomposition() {
     MATCHER_SCOPE(SoftmaxDecomposition);
-    auto softmax = pattern::wrap_type<ngraph::opset8::Softmax>();
+    auto softmax = pattern::wrap_type<ov::opset1::Softmax, ov::opset8::Softmax>();
+    matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        auto m_softmax = m.get_match_root();
+        Output<Node> input;
+        int64_t softmax_axis;
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        auto node = std::dynamic_pointer_cast<opset8::Softmax>(m.get_match_root());
-        if (!node || transformation_callback(node)) {
+        if (transformation_callback(m_softmax)) {
             return false;
         }
 
-        auto input = node->input_value(0);
-        auto axis = opset8::Constant::create(element::i64, Shape{1}, {node->get_axis()});
-        auto reduce_max = std::make_shared<opset8::ReduceMax>(input, axis, true);
-        auto sub = std::make_shared<opset8::Subtract>(input, reduce_max);
-        auto exp = std::make_shared<opset8::Exp>(sub);
-        auto reduce_sum = std::make_shared<opset8::ReduceSum>(exp, axis, true);
-        auto div = std::make_shared<opset8::Divide>(exp, reduce_sum);
+        if (auto m_softmax_v1 = std::dynamic_pointer_cast<ov::opset1::Softmax>(m_softmax)) {
+            input = m_softmax_v1->input_value(0);
+            softmax_axis = static_cast<int64_t>(m_softmax_v1->get_axis());
+        } else if (auto m_softmax_v8 = std::dynamic_pointer_cast<ov::opset8::Softmax>(m_softmax)) {
+            input = m_softmax_v8->input_value(0);
+            softmax_axis = m_softmax_v8->get_axis();
+        } else {
+            return false;
+        }
 
-        replace_node(node, div);
-        copy_runtime_info(node, {reduce_max, reduce_sum, sub, exp, div});
-        div->set_friendly_name(node->get_friendly_name());
+        auto axis = ov::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {softmax_axis});
+        auto reduce_max = std::make_shared<ov::opset8::ReduceMax>(input, axis, true);
+        auto sub = std::make_shared<ov::opset8::Subtract>(input, reduce_max);
+        auto exp = std::make_shared<ov::opset8::Exp>(sub);
+        auto reduce_sum = std::make_shared<ov::opset8::ReduceSum>(exp, axis, true);
+        auto div = std::make_shared<ov::opset8::Divide>(exp, reduce_sum);
+
+        replace_node(m_softmax, div);
+        copy_runtime_info(m_softmax, {reduce_max, reduce_sum, sub, exp, div});
+        div->set_friendly_name(m_softmax->get_friendly_name());
         return true;
     };
 

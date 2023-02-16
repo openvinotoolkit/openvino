@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,12 +14,11 @@
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::pass::low_precision;
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::NormalizeL2Transformation, "NormalizeL2Transformation", 0);
 
 namespace normalize_l2 {
 
@@ -39,6 +38,7 @@ std::shared_ptr<ngraph::op::Constant> createNewScalesConst(const ngraph::op::Con
 } // namespace normalize_l2
 
 NormalizeL2Transformation::NormalizeL2Transformation(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(NormalizeL2Transformation);
     auto matcher = pattern::wrap_type<opset1::NormalizeL2>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
@@ -49,7 +49,7 @@ NormalizeL2Transformation::NormalizeL2Transformation(const Params& params) : Lay
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "NormalizeL2Transformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -58,7 +58,7 @@ bool NormalizeL2Transformation::canBeTransformed(const TransformationContext& co
         return false;
     }
 
-    const auto dequantization = NetworkHelper::getDequantization(operation);
+    const auto dequantization = NetworkHelper::getDequantization(operation, defaultPrecisions);
     if (dequantization.subtract != nullptr) {
         return false;
     }
@@ -81,6 +81,8 @@ bool NormalizeL2Transformation::canBeTransformed(const TransformationContext& co
     const Shape outputShape = scalesConst->get_shape();
     const size_t size = shape_size(outputShape);
     if (size != 1ul) {
+        if (operation->get_output_partial_shape(0).size() < 2)
+            return false;
         const auto channelsInterval = operation->get_output_partial_shape(0)[1];
         if (channelsInterval.is_dynamic() || static_cast<size_t>(channelsInterval.get_length()) != size) {
             return false;
@@ -100,10 +102,10 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph
         return false;
     }
 
-    auto normalize = ov::as_type_ptr<opset1::NormalizeL2>(NetworkHelper::separateInStandaloneBranch(operation));
+    auto normalize = ov::as_type_ptr<opset1::NormalizeL2>(NetworkHelper::separateInStandaloneBranch(operation, defaultPrecisions));
 
     const auto axes = ov::as_type_ptr<opset1::Constant>(normalize->get_input_node_shared_ptr(1));
-    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(normalize);
+    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(normalize, defaultPrecisions);
     auto scalesConst = ov::as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1));
     if (scalesConst == nullptr) {
         scalesConst = ov::as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(0));
@@ -125,20 +127,20 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph
         }
     }
 
-    auto newNormalize = std::make_shared<op::TypeRelaxed<opset1::NormalizeL2>>(
+    auto newNormalize = std::make_shared<ov::op::TypeRelaxed<opset1::NormalizeL2>>(
         std::vector<ngraph::element::Type>{ element::f32, axes->output(0).get_element_type() },
         std::vector<ngraph::element::Type>{deqPrecision},
-        ngraph::op::TemporaryReplaceOutputType(dequantization.subtract == nullptr ? dequantization.data : dequantization.subtract, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(dequantization.subtract == nullptr ? dequantization.data : dequantization.subtract, element::f32).get(),
         axes,
         normalize->get_eps(),
         normalize->get_eps_mode());
     NetworkHelper::copyInfo(normalize, newNormalize);
 
-    auto newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
+    auto newMultiply = std::make_shared<ov::op::TypeRelaxed<opset1::Multiply>>(
         std::vector<ngraph::element::Type>{ element::f32, element::f32 },
         std::vector<ngraph::element::Type>{normalize->get_output_element_type(0)},
-        ngraph::op::TemporaryReplaceOutputType(newNormalize, element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(newScalesConst, element::f32).get());
+        ov::op::TemporaryReplaceOutputType(newNormalize, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(newScalesConst, element::f32).get());
 
     NetworkHelper::insertDequantizationAfter(normalize, newMultiply, newNormalize);
     ngraph::copy_runtime_info({ normalize, newMultiply }, newMultiply);

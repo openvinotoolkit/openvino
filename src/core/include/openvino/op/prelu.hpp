@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,10 +13,10 @@ namespace v0 {
 /// x <  0 => f(x) = x * slope
 /// x >= 0 => f(x) = x
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API PRelu : public Op {
 public:
     OPENVINO_OP("PRelu", "opset1");
-    BWDCMP_RTTI_DECLARATION;
     PRelu();
     /// \brief Constructs a PRelu operation.
     ///

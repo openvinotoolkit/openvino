@@ -1,15 +1,16 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/extractimagepatches.hpp"
 
-#include "cldnn/primitives/extract_image_patches.hpp"
+#include "intel_gpu/primitives/extract_image_patches.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace intel_gpu {
 
 static inline std::string PadToString(ngraph::op::PadType pad) {
     switch (pad) {
@@ -23,8 +24,8 @@ static inline std::string PadToString(ngraph::op::PadType pad) {
 }
 
 static void CreateExtractImagePatchesOp(Program& p, const std::shared_ptr<ngraph::op::v3::ExtractImagePatches>& op) {
-    p.ValidateInputs(op, {1});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    validate_inputs_count(op, {1});
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     std::vector<uint32_t> sizes = std::vector<uint32_t>(op->get_sizes().begin(), op->get_sizes().end());
@@ -33,18 +34,17 @@ static void CreateExtractImagePatchesOp(Program& p, const std::shared_ptr<ngraph
     std::string auto_pad = PadToString(op->get_auto_pad());
 
     auto extractImagePatchesPrim = cldnn::extract_image_patches(layerName,
-                                                                inputPrimitives[0],
+                                                                inputs[0],
                                                                 sizes,
                                                                 strides,
                                                                 rates,
                                                                 auto_pad,
-                                                                CldnnTensorFromIEDims(op->get_output_shape(0)),
-                                                                op->get_friendly_name());
+                                                                tensor_from_dims(op->get_output_shape(0)));
 
-    p.AddPrimitive(extractImagePatchesPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, extractImagePatchesPrim);
 }
 
 REGISTER_FACTORY_IMPL(v3, ExtractImagePatches);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace ov

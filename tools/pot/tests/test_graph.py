@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from addict import Dict
@@ -11,7 +11,7 @@ from openvino.tools.pot.configs.hardware_config import HardwareConfig
 from openvino.tools.pot.graph.transformer import GraphTransformer
 from openvino.tools.pot.graph.model_utils import get_nodes_by_type, get_node_by_name
 from openvino.tools.pot.graph.node_utils import get_node_inputs, get_first_convolutions
-from tests.utils.path import TEST_ROOT, HARDWARE_CONFIG_PATH
+from tests.utils.path import HARDWARE_CONFIG_PATH
 from tests.utils.check_graph import check_model
 
 CPU_CONFIG_PATH = HARDWARE_CONFIG_PATH / 'cpu.json'
@@ -19,15 +19,21 @@ GNA_CONFIG_PATH = HARDWARE_CONFIG_PATH / 'gna.json'
 
 TEST_MODELS = [
     ('mobilenetv2_example', 'pytorch', 'ANY'),
-    ('resnet_example', 'pytorch', 'ANY'),
     ('googlenet_example', 'pytorch', 'ANY'),
     ('mobilenetv2_ssd_example', 'pytorch', 'ANY'),
     ('densenet121_example', 'pytorch', 'ANY'),
     ('multiple_out_ports_net', 'tf', 'ANY'),
+    ('gru_example', 'pytorch', 'GNA'),
     ('lstm_example', 'pytorch', 'GNA'),
-    ('multiple_outputs_net_example', 'dldt', 'GNA'),
-    # ('tensor_iterator_example', 'tf', 'ANY'),
+    #('multiple_outputs_net_example', 'tf', 'GNA'),
+    ('resnet_example', 'pytorch', 'CPU_SPR'),
+    ('tensor_iterator_example', 'tf', 'ANY'),
+    ('ti_decomposition_example', 'tf', 'GNA'),
+    ('softsign_example', 'tf', 'GNA'),
+    ('gather_example', 'tf', 'CPU'),
+    ('split_concat_example', 'pytorch', 'ANY'),
 ]
+
 
 CASCADE_MAP = Dict({
     'mtcnn': {
@@ -46,9 +52,9 @@ def test_build_quantization_graph(tmp_path, models, model_name, model_framework,
     model = load_model(model.model_params, target_device=target_device)
 
     if target_device == 'GNA':
-        hardware_config = HardwareConfig.from_json(GNA_CONFIG_PATH.as_posix())
+        hardware_config = HardwareConfig.from_json(GNA_CONFIG_PATH.as_posix(), target_device)
     else:
-        hardware_config = HardwareConfig.from_json(CPU_CONFIG_PATH.as_posix())
+        hardware_config = HardwareConfig.from_json(CPU_CONFIG_PATH.as_posix(), target_device)
 
     quantization_model = GraphTransformer(hardware_config).insert_fake_quantize(model)
 
@@ -59,7 +65,7 @@ MODELS_FOR_TESTING_IGNORED_PARAMS = [
     ('mobilenetv2_example', 'pytorch'),
     ('resnet_example', 'pytorch'),
     ('googlenet_example', 'pytorch'),
-    # ('mtcnn', 'caffe')
+    ('mtcnn', 'caffe')
 ]
 
 
@@ -84,8 +90,7 @@ def test_build_quantization_graph_with_ignored_params(
                 {
                     'type': 'Convolution',
                     'attributes': {
-                        'output': 1280,
-                        'group': 1
+                        'output': 1280
                     }
                 }
             ]
@@ -158,27 +163,21 @@ def test_build_quantization_graph_with_ignored_agnostic_params(
 
 
 TEST_MODELS_REMOVAL = [
-    ('mobilenetv2_ssd_example', 'caffe', ['Conv_8/WithoutBiases',
-                                          'Conv_172/WithoutBiases',
-                                          'Conv_129/WithoutBiases']),
-    ('squeezenet1_1_example', 'pytorch', ['Conv_14/WithoutBiases',
-                                          'Conv_51/WithoutBiases']),
-    ('mobilenet_example', 'pytorch', ['Conv_10/WithoutBiases',
-                                      'Conv_35/WithoutBiases',
-                                      'Conv_73/WithoutBiases']),
-    ('googlenet_example', 'tf', ['Conv_3/WithoutBiases',
-                                 'Conv_57/WithoutBiases',
-                                 'Conv_65/WithoutBiases',
-                                 'Conv_104/WithoutBiases',
-                                 'Conv_39/WithoutBiases']),
+    ('mobilenetv2_ssd_example', 'pytorch', ['Conv_12/WithoutBiases',
+                                            'Conv_26/WithoutBiases',
+                                            'Conv_41/WithoutBiases']),
+    ('squeezenet1_1_example', 'pytorch', ['Conv_5/WithoutBiases',
+                                          'Conv_47/WithoutBiases']),
+    ('mobilenetv2_example', 'pytorch', ['Conv_10/WithoutBiases',
+                                        'Conv_18/WithoutBiases',
+                                        'Conv_60/WithoutBiases']),
+    ('googlenet_example', 'pytorch', ['Conv_5/WithoutBiases',
+                                      'Conv_10/WithoutBiases',
+                                      'Conv_19/WithoutBiases',
+                                      'Conv_87/WithoutBiases',
+                                      'Conv_93/WithoutBiases']),
     ('multiple_out_ports_net', 'tf', ['add_indices'])
 ]
-
-
-@pytest.fixture(scope='module', params=TEST_MODELS_REMOVAL,
-                ids=['{}_{}'.format(m[0], m[1]) for m in TEST_MODELS_REMOVAL])
-def _params(request):
-    return request.param
 
 
 def cut_fq_node(model, node_list, graph_transformer, tmp_path):
@@ -195,8 +194,10 @@ def cut_fq_node(model, node_list, graph_transformer, tmp_path):
     check_model(tmp_path, cropped_model, model.model_name + '_cut_fq', model.framework)
 
 
-def test_cutting_fq_layers(_params, tmp_path, models):
-    model_name, model_framework, node_list = _params
+@pytest.mark.parametrize(
+    'model_name, model_framework, node_list', TEST_MODELS_REMOVAL,
+    ids=['{}_{}'.format(m[0], m[1]) for m in TEST_MODELS_REMOVAL])
+def test_cutting_fq_layers(tmp_path, models, model_name, model_framework, node_list):
     model = models.get(model_name, model_framework, tmp_path)
     hardware_config = HardwareConfig.from_json(CPU_CONFIG_PATH.as_posix())
     graph_transformer = GraphTransformer(hardware_config)
@@ -208,10 +209,10 @@ TEST_MODELS_WITH_PATTERNS = [
     ('efficientnet_b0_example', 'pytorch'),
     ('mobilenet_v3_small_example', 'pytorch'),
     # ('image-retrieval-0001', 'dldt'),
-    ('scaleshift_fuse', 'dldt'),
-    ('scaleshift_no_fuse_1', 'dldt'),
-    ('scaleshift_no_fuse_2', 'dldt'),
-    ('matmul_divide_const', 'dldt')
+    ('scaleshift_fuse', 'pytorch'),
+    ('scaleshift_no_fuse_1', 'pytorch'),
+    ('scaleshift_no_fuse_2', 'pytorch'),
+    ('matmul_divide_const', 'tf')
 ]
 
 
@@ -227,37 +228,44 @@ def test_build_quantization_graph_with_ignored_blocks(tmp_path, models, model_na
     check_model(tmp_path, quantization_model, model_name + '_ig_pt', model_framework)
 
 
-def test_multibranch_propagation_without_fq_moving():
-    TEST_CASES_PATH = TEST_ROOT / 'data' / 'test_cases_refs'
-    model_path = (TEST_CASES_PATH / 'test_ig_border_case_without_fq_moving.xml').as_posix()
-    weights_path = (TEST_CASES_PATH / 'test_ig_border_case_without_fq_moving.bin').as_posix()
+TEST_MODELS_WITHOUT_FQ_MOVING = [
+    ('test_multibranch_propogation_without_fq_moving', 'pytorch')
+]
 
+
+@pytest.mark.parametrize(
+    'model_name, model_framework', TEST_MODELS_WITHOUT_FQ_MOVING,
+    ids=['{}_{}'.format(m[0], m[1]) for m in TEST_MODELS_WITHOUT_FQ_MOVING])
+def test_multibranch_propagation_without_fq_moving(tmp_path, models, model_name, model_framework):
     ignored_params = {
+        # Ignoring quantization for the first 4 convolution in the model
         "scope": ['8/WithoutBiases', '9/WithoutBiases', '10/WithoutBiases', '11/WithoutBiases']
     }
 
-    config = Dict({'model': model_path, 'weights': weights_path})
-    model = load_model(config)
+    model = models.get(model_name, model_framework, tmp_path)
+    model = load_model(model.model_params)
 
     hardware_config = HardwareConfig.from_json((HARDWARE_CONFIG_PATH / 'cpu.json').as_posix())
     quantized_model = GraphTransformer(hardware_config).insert_fake_quantize(model, ignored_params)
 
+    # Checking last convolution has FQ at inputs
     node = get_node_by_name(quantized_model, '13/WithoutBiases')
     for node_input in get_node_inputs(node)[:2]:
         assert node_input.type == 'FakeQuantize'
+    # Checking ignored convolutions has no quantizers on inputs
     assert len(get_nodes_by_type(quantized_model, ['FakeQuantize'])) == 2
 
 
 MODELS_WITH_LSTM = [
     ('lstm_example', 'pytorch', {
-        'LSTM_15/TensorIterator/22/variable_1':
-            ['Assign_298'],
-        'LSTM_15/TensorIterator/24/variable_2':
-            ['Assign_305'],
-        'LSTM_19/TensorIterator/22/variable_1':
-            ['Assign_327'],
-        'LSTM_19/TensorIterator/24/variable_2':
-            ['Assign_334']
+        'ReadValue_2474':
+            ['Assign_2475'],
+        'ReadValue_2430':
+            ['Assign_2431'],
+        'ReadValue_2440':
+            ['Assign_2441'],
+        'ReadValue_2464':
+            ['Assign_2465']
     })
 ]
 
@@ -275,17 +283,22 @@ def test_lstm_ends(tmp_path, models):
         assert sorted(lstm_ends_names) == sorted(lstm_ends_ref[read_value.name])
 
 
-def test_multibranch_propagation_with_fq_moving():
-    TEST_CASES_PATH = TEST_ROOT / 'data' / 'test_cases_refs'
-    model_path = (TEST_CASES_PATH / 'test_ig_border_case_with_fq_moving.xml').as_posix()
-    weights_path = (TEST_CASES_PATH / 'test_ig_border_case_with_fq_moving.bin').as_posix()
+TEST_MODELS_WITHOUT_FQ_MOVING = [
+    ('test_multibranch_propogation_with_fq_moving', 'pytorch')
+]
 
+
+@pytest.mark.parametrize(
+    'model_name, model_framework', TEST_MODELS_WITHOUT_FQ_MOVING,
+    ids=['{}_{}'.format(m[0], m[1]) for m in TEST_MODELS_WITHOUT_FQ_MOVING])
+def test_multibranch_propagation_with_fq_moving(tmp_path, models, model_name, model_framework):
     ignored_params = {
+        # Ignoring quantization for the first 4 convolution in the model
         "scope": ['8/WithoutBiases', '9/WithoutBiases', '10/WithoutBiases', '11/WithoutBiases']
     }
 
-    config = Dict({'model': model_path, 'weights': weights_path})
-    model = load_model(config)
+    model = models.get(model_name, model_framework, tmp_path)
+    model = load_model(model.model_params)
 
     hardware_config = HardwareConfig.from_json((HARDWARE_CONFIG_PATH / 'cpu.json').as_posix())
     quantized_model = GraphTransformer(hardware_config).insert_fake_quantize(model, ignored_params)
@@ -308,14 +321,10 @@ MODELS_FOR_FIRST_CONV_TEST = [
 ]
 
 
-@pytest.fixture(scope='module', params=MODELS_FOR_FIRST_CONV_TEST,
-                ids=['{}_{}'.format(m[0], m[1]) for m in MODELS_FOR_FIRST_CONV_TEST])
-def _params(request):
-    return request.param
-
-
-def test_first_convolutions_search(_params, tmp_path, models):
-    model_name, model_framework, first_convs_ref = _params
+@pytest.mark.parametrize(
+    'model_name, model_framework, first_convs_ref', MODELS_FOR_FIRST_CONV_TEST,
+    ids=['{}_{}'.format(m[0], m[1]) for m in MODELS_FOR_FIRST_CONV_TEST])
+def test_first_convolutions_search(tmp_path, models, model_name, model_framework, first_convs_ref):
     model = models.get(model_name, model_framework, tmp_path)
     model = load_model(model.model_params)
     input_nodes = get_nodes_by_type(model, ['Parameter'])

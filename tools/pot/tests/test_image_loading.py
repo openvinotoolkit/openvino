@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -44,3 +44,31 @@ def test_check_image(tmp_path, models, model_name, model_framework):
     num_images_in_dir = len(os.listdir(path_image_data))
 
     assert num_images_from_data_loader == num_images_in_dir
+
+
+TEST_MODELS_LAYOUT = [
+    ('mobilenet-v2-pytorch', 'pytorch', 'NCHW', (3, 224, 224)),
+    ('mobilenet-v1-1.0-224-tf', 'tf', 'NHWC', (224, 224, 3)),
+    ('mobilenet-v2-pytorch', 'pytorch', None, (3, 224, 224)),
+    ('mobilenet-v1-1.0-224-tf', 'tf', None, (224, 224, 3))
+]
+
+
+@pytest.mark.parametrize(
+    'model_name, model_framework, layout, reference_shape', TEST_MODELS_LAYOUT,
+    ids=['{}_{}_{}_{}'.format(m[0], m[1], m[2], m[3]) for m in TEST_MODELS_LAYOUT])
+def test_check_layout(tmp_path, models, model_name, model_framework, layout, reference_shape):
+    test_dir = Path(__file__).parent
+    path_image_data = os.path.join(test_dir, "data/image_data")
+
+    engine_config = Dict({"device": "CPU",
+                          "type": "simplified",
+                          "layout": layout,
+                          "data_source": path_image_data})
+    model = models.get(model_name, model_framework, tmp_path)
+    model = load_model(model.model_params)
+
+    data_loader = create_data_loader(engine_config, model)
+    image = next(iter(data_loader))
+
+    assert image.shape == reference_shape

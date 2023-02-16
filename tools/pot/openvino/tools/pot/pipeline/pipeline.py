@@ -1,9 +1,13 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
+from openvino.tools.mo.utils.version import get_version as get_mo_version
 
 from ..algorithms.algorithm import Algorithm
 from ..statistics.collector import collect_statistics
 from ..utils.logger import get_logger
+from ..utils.utils import get_ie_version
+from ..version import get_version as get_pot_version
 
 logger = get_logger(__name__)
 
@@ -31,6 +35,9 @@ class Pipeline:
         :param model: initial model
         :return model after applying all added algorithms
         """
+        logger.info(f'Inference Engine version:                {get_ie_version()}')
+        logger.info(f'Model Optimizer version:                 {get_mo_version()}')
+        logger.info(f'Post-Training Optimization Tool version: {get_pot_version()}')
         current_algo_seq = []
         self.set_max_algorithms_steps(model)
         logger.reset_progress_total(self._algorithms_steps, self.default_steps_size)

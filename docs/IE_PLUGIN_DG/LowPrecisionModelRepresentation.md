@@ -1,4 +1,4 @@
-# Representation of low-precision models {#lp_representation}
+# Representation of low-precision models {#openvino_docs_ie_plugin_dg_lp_representation}
 The goal of this document is to describe how optimized models are represented in OpenVINO Intermediate Representation (IR) and provide guidance on interpretation rules for such models at runtime. 
 Currently, there are two groups of optimization methods that can influence on the IR after applying them to the full-precision model:
 - **Sparsity**. It is represented by zeros inside the weights and this is up to the hardware plugin how to interpret these zeros (use weights as is or apply special compression algorithms and sparse arithmetic). No additional mask is provided with the model.
@@ -14,5 +14,5 @@ Starting from OpenVINO 2020.2 release all the quantized models are represented i
 ![quantized_model_example]
 <div align="center">Figure 2. Example of compressed quantized model.</div>  
 
-[quantized_convolution]: ../images/quantized_convolution.png
-[quantized_model_example]: ../images/quantized_model_example.png
+[quantized_convolution]: images/quantized_convolution.png
+[quantized_model_example]: images/quantized_model_example.png

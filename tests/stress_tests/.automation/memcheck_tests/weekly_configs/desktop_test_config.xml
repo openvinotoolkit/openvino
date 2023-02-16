@@ -3,11 +3,14 @@
         <value>CPU</value>
         <value>GPU</value>
     </devices>
+    <api_versions>
+        <value>1</value>
+        <value>2</value>
+    </api_versions>
     <models>
         <!--Models with FP32 precision-->
         <model name="mobilenet-v2-1.4-224" precision="FP32" source="omz" />
         <model name="brain-tumor-segmentation-0001" precision="FP32" source="omz" />
-        <model name="octave-resnet-101-0.125" precision="FP32" source="omz" />
         <model name="faster_rcnn_inception_resnet_v2_atrous_coco" precision="FP32" source="omz" />
         <model name="efficientnet-b7_auto_aug" precision="FP32" source="omz" />
         <model name="yolo-v2-tf" precision="FP32" source="omz" />
@@ -15,35 +18,24 @@
         <model name="se-inception" precision="FP32" source="omz" />
         <model name="efficientnet-b0" precision="FP32" source="omz" />
         <model name="mobilenet-v1-1.0-224-tf" precision="FP32" source="omz" />
-        <model name="mask_rcnn_resnet101_atrous_coco" precision="FP32" source="omz" />
         <model name="ssd_mobilenet_v1_coco" precision="FP32" source="omz" />
-        <model name="se-resnet-152" precision="FP32" source="omz" />
         <model name="octave-resnext-50-0.25" precision="FP32" source="omz" />
         <model name="googlenet-v3" precision="FP32" source="omz" />
-        <model name="ssd_mobilenet_v2_coco" precision="FP32" source="omz" />
         <model name="alexnet" precision="FP32" source="omz" />
         <model name="license-plate-recognition-barrier-0007" precision="FP32" source="omz" />
-        <model name="mobilenet-v1-0.50-224" precision="FP32" source="omz" />
         <model name="ssd_mobilenet_v1_fpn_coco" precision="FP32" source="omz" />
         <model name="vgg16" precision="FP32" source="omz" />
         <model name="face-recognition-resnet34-arcface" precision="FP32" source="omz" />
         <model name="gmcnn-places2-tf" precision="FP32" source="omz" />
         <model name="mobilenet-v1-1.0-224" precision="FP32" source="omz" />
-        <model name="se-resnet-101" precision="FP32" source="omz" />
         <model name="face-detection-retail-0044" precision="FP32" source="omz" />
         <model name="face-recognition-mobilefacenet-arcface" precision="FP32" source="omz" />
         <model name="vehicle-license-plate-detection-barrier-0123" precision="FP32" source="omz" />
-        <model name="densenet-161" precision="FP32" source="omz" />
         <model name="mask_rcnn_inception_resnet_v2_atrous_coco" precision="FP32" source="omz" />
         <model name="octave-resnext-101-0.25" precision="FP32" source="omz" />
         <model name="face-recognition-resnet50-arcface" precision="FP32" source="omz" />
-        <model name="densenet-161-tf" precision="FP32" source="omz" />
-        <model name="octave-resnet-200-0.125" precision="FP32" source="omz" />
         <model name="mtcnn-p" precision="FP32" source="omz" />
-        <model name="se-resnext-101" precision="FP32" source="omz" />
-        <model name="efficientnet-b5" precision="FP32" source="omz" />
-        <model name="densenet-169-tf" precision="FP32" source="omz" />
-        <model name="densenet-201" precision="FP32" source="omz" />
+        <model name="se-resnext-50" precision="FP32" source="omz" />
         <model name="resnet-50-tf" precision="FP32" source="omz" />
         <model name="squeezenet1.1" precision="FP32" source="omz" />
         <model name="squeezenet1.0" precision="FP32" source="omz" />
@@ -52,21 +44,15 @@
         <model name="ssd300" precision="FP32" source="omz" />
         <model name="rfcn-resnet101-coco-tf" precision="FP32" source="omz" />
         <model name="vgg19" precision="FP32" source="omz" />
-        <model name="ctdet_coco_dlav0_384" precision="FP32" source="omz" />
-        <model name="efficientnet-b0_auto_aug" precision="FP32" source="omz" />
         <model name="googlenet-v1" precision="FP32" source="omz" />
-        <model name="faster_rcnn_inception_v2_coco" precision="FP32" source="omz" />
-        <model name="mask_rcnn_inception_v2_coco" precision="FP32" source="omz" />
         <model name="inception-resnet-v2-tf" precision="FP32" source="omz" />
         <model name="deeplabv3" precision="FP32" source="omz" />
         <model name="yolo-v3-tf" precision="FP32" source="omz" />
         <model name="mtcnn-o" precision="FP32" source="omz" />
-        <model name="octave-se-resnet-50-0.125" precision="FP32" source="omz" />
         <model name="yolo-v1-tiny-tf" precision="FP32" source="omz" />
         <model name="googlenet-v1-tf" precision="FP32" source="omz" />
         <model name="yolo-v2-tiny-tf" precision="FP32" source="omz" />
         <model name="ssd512" precision="FP32" source="omz" />
-        <model name="densenet-169" precision="FP32" source="omz" />
         <model name="brain-tumor-segmentation-0002" precision="FP32" source="omz" />
         <model name="Sphereface" precision="FP32" source="omz" />
         <model name="googlenet-v2" precision="FP32" source="omz" />
@@ -85,27 +71,18 @@
         <model name="faster_rcnn_resnet50_coco" precision="FP32" source="omz" />
         <model name="se-resnet-50" precision="FP32" source="omz" />
         <model name="mask_rcnn_resnet50_atrous_coco" precision="FP32" source="omz" />
-        <model name="octave-resnet-50-0.125" precision="FP32" source="omz" />
         <model name="densenet-121-tf" precision="FP32" source="omz" />
-        <model name="mobilenet-v1-0.50-160" precision="FP32" source="omz" />
+        <model name="mobilenet-v1-1.0-224" precision="FP32" source="omz" />
         <model name="densenet-121" precision="FP32" source="omz" />
-        <model name="faster_rcnn_resnet101_coco" precision="FP32" source="omz" />
-        <model name="octave-densenet-121-0.125" precision="FP32" source="omz" />
         <model name="colorization-v2" precision="FP32" source="omz" />
-        <model name="densenet-121-caffe2" precision="FP32" source="omz" />
         <model name="efficientnet-b0-pytorch" precision="FP32" source="omz" />
-        <model name="efficientnet-b5-pytorch" precision="FP32" source="omz" />
-        <model name="efficientnet-b7-pytorch" precision="FP32" source="omz" />
         <model name="googlenet-v3-pytorch" precision="FP32" source="omz" />
         <model name="human-pose-estimation-3d-0001" precision="FP32" source="omz" />
         <model name="midasnet" precision="FP32" source="omz" />
         <model name="mobilenet-v2-pytorch" precision="FP32" source="omz" />
         <model name="resnet-18-pytorch" precision="FP32" source="omz" />
-        <model name="resnet-50-caffe2" precision="FP32" source="omz" />
         <model name="resnet-50-pytorch" precision="FP32" source="omz" />
         <model name="single-human-pose-estimation-0001" precision="FP32" source="omz" />
-        <model name="squeezenet1.1-caffe2" precision="FP32" source="omz" />
-        <model name="vgg19-caffe2" precision="FP32" source="omz" />
         <model name="facial-landmarks-35-adas-0002" precision="FP32" source="omz" />
         <model name="vehicle-attributes-recognition-barrier-0039" precision="FP32" source="omz" />
         <model name="person-detection-action-recognition-0006" precision="FP32" source="omz" />
@@ -167,7 +144,6 @@
         <!--Models with FP16 precision-->
         <model name="mobilenet-v2-1.4-224" precision="FP16" source="omz" />
         <model name="brain-tumor-segmentation-0001" precision="FP16" source="omz" />
-        <model name="octave-resnet-101-0.125" precision="FP16" source="omz" />
         <model name="faster_rcnn_inception_resnet_v2_atrous_coco" precision="FP16" source="omz" />
         <model name="efficientnet-b7_auto_aug" precision="FP16" source="omz" />
         <model name="yolo-v2-tf" precision="FP16" source="omz" />
@@ -175,35 +151,24 @@
         <model name="se-inception" precision="FP16" source="omz" />
         <model name="efficientnet-b0" precision="FP16" source="omz" />
         <model name="mobilenet-v1-1.0-224-tf" precision="FP16" source="omz" />
-        <model name="mask_rcnn_resnet101_atrous_coco" precision="FP16" source="omz" />
         <model name="ssd_mobilenet_v1_coco" precision="FP16" source="omz" />
-        <model name="se-resnet-152" precision="FP16" source="omz" />
         <model name="octave-resnext-50-0.25" precision="FP16" source="omz" />
         <model name="googlenet-v3" precision="FP16" source="omz" />
-        <model name="ssd_mobilenet_v2_coco" precision="FP16" source="omz" />
         <model name="alexnet" precision="FP16" source="omz" />
         <model name="license-plate-recognition-barrier-0007" precision="FP16" source="omz" />
-        <model name="mobilenet-v1-0.50-224" precision="FP16" source="omz" />
         <model name="ssd_mobilenet_v1_fpn_coco" precision="FP16" source="omz" />
         <model name="vgg16" precision="FP16" source="omz" />
         <model name="face-recognition-resnet34-arcface" precision="FP16" source="omz" />
         <model name="gmcnn-places2-tf" precision="FP16" source="omz" />
         <model name="mobilenet-v1-1.0-224" precision="FP16" source="omz" />
-        <model name="se-resnet-101" precision="FP16" source="omz" />
         <model name="face-detection-retail-0044" precision="FP16" source="omz" />
         <model name="face-recognition-mobilefacenet-arcface" precision="FP16" source="omz" />
         <model name="vehicle-license-plate-detection-barrier-0123" precision="FP16" source="omz" />
-        <model name="densenet-161" precision="FP16" source="omz" />
         <model name="mask_rcnn_inception_resnet_v2_atrous_coco" precision="FP16" source="omz" />
         <model name="octave-resnext-101-0.25" precision="FP16" source="omz" />
         <model name="face-recognition-resnet50-arcface" precision="FP16" source="omz" />
-        <model name="densenet-161-tf" precision="FP16" source="omz" />
-        <model name="octave-resnet-200-0.125" precision="FP16" source="omz" />
         <model name="mtcnn-p" precision="FP16" source="omz" />
-        <model name="se-resnext-101" precision="FP16" source="omz" />
-        <model name="efficientnet-b5" precision="FP16" source="omz" />
-        <model name="densenet-169-tf" precision="FP16" source="omz" />
-        <model name="densenet-201" precision="FP16" source="omz" />
+        <model name="se-resnext-50" precision="FP16" source="omz" />
         <model name="resnet-50-tf" precision="FP16" source="omz" />
         <model name="squeezenet1.1" precision="FP16" source="omz" />
         <model name="squeezenet1.0" precision="FP16" source="omz" />
@@ -212,21 +177,15 @@
         <model name="ssd300" precision="FP16" source="omz" />
         <model name="rfcn-resnet101-coco-tf" precision="FP16" source="omz" />
         <model name="vgg19" precision="FP16" source="omz" />
-        <model name="ctdet_coco_dlav0_384" precision="FP16" source="omz" />
-        <model name="efficientnet-b0_auto_aug" precision="FP16" source="omz" />
         <model name="googlenet-v1" precision="FP16" source="omz" />
-        <model name="faster_rcnn_inception_v2_coco" precision="FP16" source="omz" />
-        <model name="mask_rcnn_inception_v2_coco" precision="FP16" source="omz" />
         <model name="inception-resnet-v2-tf" precision="FP16" source="omz" />
         <model name="deeplabv3" precision="FP16" source="omz" />
         <model name="yolo-v3-tf" precision="FP16" source="omz" />
         <model name="mtcnn-o" precision="FP16" source="omz" />
-        <model name="octave-se-resnet-50-0.125" precision="FP16" source="omz" />
         <model name="yolo-v1-tiny-tf" precision="FP16" source="omz" />
         <model name="googlenet-v1-tf" precision="FP16" source="omz" />
         <model name="yolo-v2-tiny-tf" precision="FP16" source="omz" />
         <model name="ssd512" precision="FP16" source="omz" />
-        <model name="densenet-169" precision="FP16" source="omz" />
         <model name="brain-tumor-segmentation-0002" precision="FP16" source="omz" />
         <model name="Sphereface" precision="FP16" source="omz" />
         <model name="googlenet-v2" precision="FP16" source="omz" />
@@ -245,28 +204,19 @@
         <model name="faster_rcnn_resnet50_coco" precision="FP16" source="omz" />
         <model name="se-resnet-50" precision="FP16" source="omz" />
         <model name="mask_rcnn_resnet50_atrous_coco" precision="FP16" source="omz" />
-        <model name="octave-resnet-50-0.125" precision="FP16" source="omz" />
         <model name="densenet-121-tf" precision="FP16" source="omz" />
-        <model name="mobilenet-v1-0.50-160" precision="FP16" source="omz" />
+        <model name="mobilenet-v1-1.0-224" precision="FP16" source="omz" />
         <model name="densenet-121" precision="FP16" source="omz" />
-        <model name="faster_rcnn_resnet101_coco" precision="FP16" source="omz" />
-        <model name="octave-densenet-121-0.125" precision="FP16" source="omz" />
         <model name="colorization-v2" precision="FP16" source="omz" />
-        <model name="densenet-121-caffe2" precision="FP16" source="omz" />
         <model name="efficientnet-b0-pytorch" precision="FP16" source="omz" />
-        <model name="efficientnet-b5-pytorch" precision="FP16" source="omz" />
-        <model name="efficientnet-b7-pytorch" precision="FP16" source="omz" />
         <model name="googlenet-v3-pytorch" precision="FP16" source="omz" />
         <model name="human-pose-estimation-3d-0001" precision="FP16" source="omz" />
         <model name="asl-recognition-0004" precision="FP16" source="omz" />
         <model name="midasnet" precision="FP16" source="omz" />
         <model name="mobilenet-v2-pytorch" precision="FP16" source="omz" />
         <model name="resnet-18-pytorch" precision="FP16" source="omz" />
-        <model name="resnet-50-caffe2" precision="FP16" source="omz" />
         <model name="resnet-50-pytorch" precision="FP16" source="omz" />
         <model name="single-human-pose-estimation-0001" precision="FP16" source="omz" />
-        <model name="squeezenet1.1-caffe2" precision="FP16" source="omz" />
-        <model name="vgg19-caffe2" precision="FP16" source="omz" />
         <!--Models with FP16-INT8 precision-->
         <model name="facial-landmarks-35-adas-0002" precision="FP16-INT8" source="omz" />
         <model name="vehicle-attributes-recognition-barrier-0039" precision="FP16-INT8" source="omz" />

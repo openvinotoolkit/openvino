@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,14 +53,14 @@ void HeteroInferRequest::CreateInferRequest(
         }
         if (output) {
             if (InferenceEngine::details::contains(_networkOutputs, blobName)) {
-                _subRequestFromBlobName.emplace(blobName, r._ptr.get());
+                _subRequestFromBlobName.emplace(blobName, r);
             } else {
                 auto blob = r->GetBlob(blobName);
                 _blobs.emplace(intermediateBlobName, r->GetBlob(blobName));
             }
         } else {
             if (InferenceEngine::details::contains(_networkInputs, blobName)) {
-                _subRequestFromBlobName.emplace(blobName, r._ptr.get());
+                _subRequestFromBlobName.emplace(blobName, r);
             } else {
                 r->SetBlob(blobName, _blobs.at(intermediateBlobName));
             }
@@ -69,7 +69,8 @@ void HeteroInferRequest::CreateInferRequest(
 
     // go over all subnet and create requests
     for (auto&& desc : _inferRequests) {
-        desc._request = {desc._network._so, desc._network->CreateInferRequest()};
+        desc._request = {desc._network->CreateInferRequest(), desc._network._so};
+        desc._request->setModelInputsOutputs(desc._network->getInputs(), desc._network->getOutputs());
         // go over all inputs and get blobs from subnet infer requests
         for (auto&& outputInfo : desc._network->GetOutputsInfo()) {
             requestBlob(outputInfo.first, desc._request, true);
@@ -97,6 +98,7 @@ InferenceEngine::Blob::Ptr HeteroInferRequest::GetBlob(const std::string& name) 
     if (itRequest == _subRequestFromBlobName.end()) {
         IE_THROW() << "There is no infer requests binded to blob with name: " << name;
     }
+    setPointerToSo(itRequest->second._so);
     return itRequest->second->GetBlob(name);
 }
 
@@ -123,6 +125,18 @@ void HeteroInferRequest::InferImpl() {
         assert(r);
         r->Infer();
     }
+}
+
+std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> HeteroInferRequest::QueryState() {
+    memoryStates = {};
+    for (auto&& desc : _inferRequests) {
+        auto& r = desc._request;
+        assert(r);
+        for (auto&& state : r->QueryState()) {
+            memoryStates.emplace_back(state);
+        }
+    }
+    return memoryStates;
 }
 
 std::map<std::string, InferenceEngineProfileInfo> HeteroInferRequest::GetPerformanceCounts() const {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,10 +34,33 @@
 #if defined _WIN32 || defined __CYGWIN__
 #    define OPENVINO_CORE_IMPORTS __declspec(dllimport)
 #    define OPENVINO_CORE_EXPORTS __declspec(dllexport)
+#    define _OPENVINO_HIDDEN_METHOD
 #elif defined(__GNUC__) && __GNUC__ >= 4
-#    define OPENVINO_CORE_IMPORTS __attribute__((visibility("default")))
-#    define OPENVINO_CORE_EXPORTS __attribute__((visibility("default")))
+#    define OPENVINO_CORE_IMPORTS   __attribute__((visibility("default")))
+#    define OPENVINO_CORE_EXPORTS   __attribute__((visibility("default")))
+#    define _OPENVINO_HIDDEN_METHOD __attribute__((visibility("hidden")))
 #else
 #    define OPENVINO_CORE_IMPORTS
 #    define OPENVINO_CORE_EXPORTS
+#    define _OPENVINO_HIDDEN_METHOD
+#endif
+
+// see https://sourceforge.net/p/predef/wiki/Architectures/
+#if defined(__arm__) || defined(_M_ARM) || defined(__ARMEL__)
+#    define OPENVINO_ARCH_ARM
+#    define OPENVINO_ARCH_32_BIT
+#elif defined(__aarch64__) || defined(_M_ARM64)
+#    define OPENVINO_ARCH_ARM64
+#    define OPENVINO_ARCH_64_BIT
+#elif defined(i386) || defined(__i386) || defined(__i386__) || defined(__IA32__) || defined(_M_I86) || \
+    defined(_M_IX86) || defined(__X86__) || defined(_X86_) || defined(__I86__) || defined(__386)
+#    define OPENVINO_ARCH_X86
+#    define OPENVINO_ARCH_32_BIT
+#elif defined(__amd64__) || defined(__amd64) || defined(__x86_64__) || defined(__x86_64) || defined(_M_X64) || \
+    defined(_M_AMD64)
+#    define OPENVINO_ARCH_X86_64
+#    define OPENVINO_ARCH_64_BIT
+#elif defined(__riscv)
+#    define OPENVINO_ARCH_RISCV64
+#    define OPENVINO_ARCH_64_BIT
 #endif

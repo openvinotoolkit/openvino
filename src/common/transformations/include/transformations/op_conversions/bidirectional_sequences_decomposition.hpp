@@ -1,18 +1,16 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <vector>
 #include <memory>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <string>
-
 #include <transformations_visibility.hpp>
+#include <vector>
 
-#include <ngraph/pass/graph_rewrite.hpp>
-
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API BidirectionalSequenceDecomposition;
@@ -22,7 +20,7 @@ class TRANSFORMATIONS_API BidirectionalGRUSequenceDecomposition;
 class TRANSFORMATIONS_API BidirectionalRNNSequenceDecomposition;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -30,9 +28,9 @@ class TRANSFORMATIONS_API BidirectionalRNNSequenceDecomposition;
  *
  */
 
-class ngraph::pass::BidirectionalLSTMSequenceDecomposition : public ngraph::pass::MatcherPass {
+class ov::pass::BidirectionalLSTMSequenceDecomposition : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("BidirectionalLSTMSequenceDecomposition", "0");
     BidirectionalLSTMSequenceDecomposition();
 };
 
@@ -42,9 +40,9 @@ public:
  *
  */
 
-class ngraph::pass::BidirectionalGRUSequenceDecomposition : public ngraph::pass::MatcherPass {
+class ov::pass::BidirectionalGRUSequenceDecomposition : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("BidirectionalGRUSequenceDecomposition", "0");
     BidirectionalGRUSequenceDecomposition();
 };
 
@@ -54,9 +52,9 @@ public:
  *
  */
 
-class ngraph::pass::BidirectionalRNNSequenceDecomposition : public ngraph::pass::MatcherPass {
+class ov::pass::BidirectionalRNNSequenceDecomposition : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("BidirectionalRNNSequenceDecomposition", "0");
     BidirectionalRNNSequenceDecomposition();
 };
 
@@ -66,12 +64,12 @@ public:
  *
  */
 
-class ngraph::pass::BidirectionalSequenceDecomposition : public ngraph::pass::GraphRewrite {
+class ov::pass::BidirectionalSequenceDecomposition : public ov::pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("BidirectionalSequenceDecomposition", "0");
     BidirectionalSequenceDecomposition() {
-        add_matcher<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
-        add_matcher<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
-        add_matcher<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
+        add_matcher<ov::pass::BidirectionalLSTMSequenceDecomposition>();
+        add_matcher<ov::pass::BidirectionalGRUSequenceDecomposition>();
+        add_matcher<ov::pass::BidirectionalRNNSequenceDecomposition>();
     }
 };

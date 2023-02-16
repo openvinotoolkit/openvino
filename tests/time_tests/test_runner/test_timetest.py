@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Main entry-point to run timetests tests.
@@ -34,14 +34,17 @@ from scripts.run_timetest import run_timetest
 REFS_FACTOR = 1.2      # 120%
 
 
-def test_timetest(instance, executable, niter, cl_cache_dir, model_cache_dir, test_info, temp_dir, validate_test_case,
-                  prepare_db_info):
+def test_timetest(instance, executable, niter, cl_cache_dir, model_cache, model_cache_dir,
+                  test_info, temp_dir, validate_test_case, prepare_db_info):
     """Parameterized test.
 
     :param instance: test instance. Should not be changed during test run
     :param executable: timetest executable to run
     :param niter: number of times to run executable
     :param cl_cache_dir: directory to store OpenCL cache
+    :param cpu_cache: flag to enable model CPU cache
+    :param vpu_compiler: flag to change VPUX compiler type
+    :param perf_hint: performance hint (optimize device for latency or throughput settings)
     :param model_cache_dir: directory to store IE model cache
     :param test_info: custom `test_info` field of built-in `request` pytest fixture
     :param temp_dir: path to a temporary directory. Will be cleaned up after test run
@@ -63,17 +66,19 @@ def test_timetest(instance, executable, niter, cl_cache_dir, model_cache_dir, te
         "executable": Path(executable),
         "model": Path(model_path),
         "device": instance["device"]["name"],
-        "niter": niter
+        "niter": niter,
+        "model_cache": model_cache,
     }
     logging.info("Run timetest once to generate any cache")
-    retcode, msg, _, _ = run_timetest({**exe_args, "niter": 1}, log=logging)
+    retcode, msg, _, _, _ = run_timetest({**exe_args, "niter": 1}, log=logging)
     assert retcode == 0, f"Run of executable for warm up failed: {msg}"
     if cl_cache_dir:
         assert os.listdir(cl_cache_dir), "cl_cache isn't generated"
     if model_cache_dir:
         assert os.listdir(model_cache_dir), "model_cache isn't generated"
 
-    retcode, msg, aggr_stats, raw_stats = run_timetest(exe_args, log=logging)
+    retcode, msg, aggr_stats, raw_stats, logs = run_timetest(exe_args, log=logging)
+    test_info["logs"] = "\n".join(logs)
     assert retcode == 0, f"Run of executable failed: {msg}"
 
     # Add timetest results to submit to database and save in new test conf as references

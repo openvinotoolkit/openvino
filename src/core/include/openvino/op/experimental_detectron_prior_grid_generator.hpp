@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,10 +16,10 @@ namespace op {
 namespace v6 {
 /// \brief An operation ExperimentalDetectronPriorGridGenerator generates prior
 /// grids of specified sizes.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ExperimentalDetectronPriorGridGenerator : public Op {
 public:
     OPENVINO_OP("ExperimentalDetectronPriorGridGenerator", "opset6", op::Op, 6);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Structure that specifies attributes of the operation
     struct Attributes {
@@ -60,8 +60,10 @@ public:
 
 private:
     Attributes m_attrs;
-
-    void validate();
+    template <class T>
+    friend void shape_infer(const ExperimentalDetectronPriorGridGenerator* op,
+                            const std::vector<T>& input_shapes,
+                            std::vector<T>& output_shapes);
 };
 }  // namespace v6
 }  // namespace op

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,15 +13,12 @@ namespace op {
 namespace v0 {
 /// \brief Elementwise absolute value operation.
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Abs : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Abs", "opset1", util::UnaryElementwiseArithmetic);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs an absolute value operation.
     Abs() = default;
-    bool visit_attributes(AttributeVisitor&) override {
-        return true;
-    }
     /// \brief Constructs an absolute value operation.
     ///
     /// \param arg Output that produces the input tensor.<br>

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,14 +8,14 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::SplitTransformation, "SplitTransformation", 0);
-
 SplitTransformation::SplitTransformation(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(SplitTransformation);
     auto matcher = pattern::wrap_type<opset1::Split>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
@@ -26,7 +26,7 @@ SplitTransformation::SplitTransformation(const Params& params) : LayerTransforma
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "SplitTransformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -35,8 +35,8 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
         return false;
     }
 
-    const auto split = NetworkHelper::separateInStandaloneBranch(m.get_match_root());
-    const auto dequantization = NetworkHelper::getDequantization(split);
+    const auto split = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
+    const auto dequantization = NetworkHelper::getDequantization(split, defaultPrecisions);
 
     OutputVector inputs = split->input_values();
     inputs[0] = dequantization.data;
@@ -90,12 +90,12 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
         }
 
         if (dequantization.subtract) {
-            const auto subtract = std::make_shared<opset1::Subtract>(parent, splitedSub[i]);
+            const auto subtract = NetworkHelper::makeDequantizationSubtract(parent, splitedSub[i]);
             copy_runtime_info({ newSplit, subtract }, subtract);
             parent = subtract;
         }
 
-        const auto multiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(parent, splitedMul[i]);
+        const auto multiply = std::make_shared<ov::op::TypeRelaxed<opset1::Multiply>>(parent, splitedMul[i]);
         NetworkHelper::setOutDataPrecisionForTypeRelaxed(multiply, dequantization.multiply->get_output_element_type(0));
         copy_runtime_info({ newSplit, multiply }, multiply);
 
@@ -153,20 +153,7 @@ bool SplitTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) cons
 }
 
 bool SplitTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    if (!LayerTransformation::canBeTransformed(context, layer) || NetworkHelper::getDequantization(layer).empty()) {
-        return false;
-    }
-
-    const auto consumers = NetworkHelper::consumers(layer);
-    const auto concat = ov::as_type_ptr<opset1::Concat>(consumers[0]);
-
-    // WA to avoid propagation of dequantization if after Split all consumers are the same unsupported Concat
-    if (concat && concat->get_axis() != 1ul) {
-        const size_t id = consumers[0]->get_instance_id();
-        return std::any_of(consumers.begin(), consumers.end(), [&](const std::shared_ptr<Node>& node) { return node->get_instance_id() != id; });
-    }
-
-    return true;
+    return !NetworkHelper::getDequantization(layer, defaultPrecisions).empty() && layer->get_input_partial_shape(0).rank().is_static();
 }
 
 } // namespace low_precision

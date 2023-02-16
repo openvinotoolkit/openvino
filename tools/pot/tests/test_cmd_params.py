@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -20,12 +20,14 @@ def check_wrong_parametrs(argv):
 test_params = [('', 'Either --config or --quantize option should be specified', ValueError),
                ('-e -m path_model', 'Either --config or --quantize option should be specified', ValueError),
                ('--quantize default -w path_weights -m path_model',
-                "--quantize option requires model, weights, "
-                "and AC config to be specified.", ValueError),
+                '--quantize option requires AC config to be specified '
+                'or --engine should be `simplified`.', ValueError),
                ('--quantize accuracy_aware -m path_model --ac-config path_config',
-                "--quantize option requires model, weights, "
-                "and AC config to be specified.", ValueError),
-               ('-c path_config -m path_model', 'Either --config or --model option should be specified', ValueError)]
+                '--quantize option requires model and weights to be specified.', ValueError),
+               ('-c path_config -m path_model', 'Either --config or --model option should be specified', ValueError),
+               ('--quantize default -w path_weights -m path_model --engine simplified',
+                'For Simplified mode `--data-source` option should be specified', ValueError),
+               ]
 @pytest.mark.parametrize('st, match, error', test_params,
                          ids=['{}_{}_{}'.format(v[0], v[1], v[2]) for v in test_params])
 def test_wrong_parametrs_cmd(st, match, error):

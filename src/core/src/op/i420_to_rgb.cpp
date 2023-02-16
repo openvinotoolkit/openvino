@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ ov::op::v8::I420toRGB::I420toRGB(const Output<Node>& arg_y, const Output<Node>& 
 }
 
 std::shared_ptr<ov::Node> ov::op::v8::I420toRGB::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_NV12toRGB_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_NV12toRGB_clone_with_new_inputs);
     OPENVINO_ASSERT(new_args.size() == 1 || new_args.size() == 3, "I420toRGB shall have one or three input nodes");
     if (new_args.size() == 1) {
         return std::make_shared<I420toRGB>(new_args.at(0));

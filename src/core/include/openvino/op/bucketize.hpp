@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,10 +10,10 @@ namespace ov {
 namespace op {
 namespace v3 {
 /// \brief Operation that bucketizes the input based on boundaries
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Bucketize : public Op {
 public:
     OPENVINO_OP("Bucketize", "opset3", op::Op, 3);
-    BWDCMP_RTTI_DECLARATION;
 
     Bucketize() = default;
     /// \brief Constructs a Bucketize node
@@ -51,7 +51,7 @@ public:
 
 private:
     element::Type m_output_type;
-    bool m_with_right_bound;
+    bool m_with_right_bound{true};
 };
 }  // namespace v3
 }  // namespace op

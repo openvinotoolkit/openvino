@@ -1,4 +1,4 @@
-## NonZero <a name="NonZero"></a> {#openvino_docs_ops_condition_NonZero_3}
+# NonZero {#openvino_docs_ops_condition_NonZero_3}
 
 **Versioned name**: *NonZero-3*
 
@@ -53,7 +53,7 @@
     <output>
         <port id="1">
             <dim>4</dim>
-            <dim>600000</dim>
+            <dim>-1</dim>
         </port>
     </output>
 </layer>

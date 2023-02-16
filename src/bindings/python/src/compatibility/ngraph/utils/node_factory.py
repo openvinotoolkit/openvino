@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -12,7 +12,7 @@ from ngraph.impl import Node, Output
 
 from ngraph.exceptions import UserInputError
 
-DEFAULT_OPSET = "opset8"
+DEFAULT_OPSET = "opset10"
 
 
 class NodeFactory(object):
@@ -21,7 +21,7 @@ class NodeFactory(object):
     def __init__(self, opset_version: str = DEFAULT_OPSET) -> None:
         """Create the NodeFactory object.
 
-        @param      opset_version:  The opset version the factory will use to produce ops from.
+        :param      opset_version:  The opset version the factory will use to produce ops from.
         """
         self.factory = _NodeFactory(opset_version)
 
@@ -35,11 +35,11 @@ class NodeFactory(object):
 
         The user does not have to provide all node's attributes, but only required ones.
 
-        @param      op_type_name:  The operator type name.
-        @param      arguments:     The operator arguments.
-        @param      attributes:    The operator attributes.
+        :param      op_type_name:  The operator type name.
+        :param      arguments:     The operator arguments.
+        :param      attributes:    The operator attributes.
 
-        @return   Node object representing requested operator with attributes set.
+        returns   Node object representing requested operator with attributes set.
         """
         if arguments is None and attributes is None:
             node = self.factory.create(op_type_name)
@@ -48,11 +48,7 @@ class NodeFactory(object):
             return node
 
         if arguments is None and attributes is not None:
-            raise UserInputError(
-                'Error: cannot create "{}" op without arguments.'.format(
-                    op_type_name
-                )
-            )
+            raise UserInputError('Error: cannot create "{}" op without arguments.'.format(op_type_name))
 
         if attributes is None:
             attributes = {}
@@ -101,9 +97,11 @@ class NodeFactory(object):
             if issubclass(type(argument), Output):
                 outputs.append(argument)
             else:
-                log.warning("Op arguments were passed as Node, please avoid passing arguments in "
-                            "this manner, and pass Output(s) instead, because accepting Nodes will "
-                            "be deprecated in a future release.")
+                log.warning(
+                    "Op arguments were passed as Node, please avoid passing arguments in "
+                    "this manner, and pass Output(s) instead, because accepting Nodes will "
+                    "be deprecated in a future release."
+                )
                 outputs.extend(argument.outputs())
         return outputs
 
@@ -111,10 +109,10 @@ class NodeFactory(object):
     def _normalize_attr_name(attr_name: str, prefix: str) -> str:
         """Normalize attribute name.
 
-        @param      attr_name:  The attribute name.
-        @param      prefix:     The prefix to attach to attribute name.
+        :param      attr_name:  The attribute name.
+        :param      prefix:     The prefix to attach to attribute name.
 
-        @return   The modified attribute name.
+        returns   The modified attribute name.
         """
         # Trim first part of the name if there is only one level of attribute hierarchy.
         if attr_name.count(".") == 1:
@@ -125,9 +123,9 @@ class NodeFactory(object):
     def _normalize_attr_name_getter(cls, attr_name: str) -> str:
         """Normalize atr name to be suitable for getter function name.
 
-        @param      attr_name:  The attribute name to normalize
+        :param      attr_name:  The attribute name to normalize
 
-        @return   The appropriate getter function name.
+        returns   The appropriate getter function name.
         """
         return cls._normalize_attr_name(attr_name, "get_")
 
@@ -135,9 +133,9 @@ class NodeFactory(object):
     def _normalize_attr_name_setter(cls, attr_name: str) -> str:
         """Normalize attribute name to be suitable for setter function name.
 
-        @param      attr_name:  The attribute name to normalize
+        :param      attr_name:  The attribute name to normalize
 
-        @return   The appropriate setter function name.
+        returns   The appropriate setter function name.
         """
         return cls._normalize_attr_name(attr_name, "set_")
 
@@ -145,10 +143,10 @@ class NodeFactory(object):
     def _get_node_attr_value(node: Node, attr_name: str) -> Any:
         """Get provided node attribute value.
 
-        @param      node:       The node we retrieve attribute value from.
-        @param      attr_name:  The attribute name.
+        :param      node:       The node we retrieve attribute value from.
+        :param      attr_name:  The attribute name.
 
-        @return   The node attribute value.
+        returns   The node attribute value.
         """
         if not node._attr_cache_valid:
             node._attr_cache = node.get_attributes()
@@ -159,9 +157,9 @@ class NodeFactory(object):
     def _set_node_attr_value(node: Node, attr_name: str, value: Any) -> None:
         """Set the node attribute value.
 
-        @param      node:       The node we change attribute value for.
-        @param      attr_name:  The attribute name.
-        @param      value:      The new attribute value.
+        :param      node:       The node we change attribute value for.
+        :param      attr_name:  The attribute name.
+        :param      value:      The new attribute value.
         """
         node.set_attribute(attr_name, value)
         node._attr_cache[attr_name] = value

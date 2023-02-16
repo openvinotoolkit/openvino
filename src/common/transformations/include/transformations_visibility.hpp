@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "ngraph/visibility.hpp"
+#include "openvino/core/visibility.hpp"
 
 /**
  * @file transformations_visibility.hpp
@@ -13,7 +13,7 @@
 
 /**
  * @defgroup ie_transformation_api Inference Engine Transformation API
- * @brief Defines Inference Engine Transformations API which is used to transform ngraph::Function
+ * @brief Defines Inference Engine Transformations API which is used to transform ov::Model
  *
  * @{
  * @defgroup ie_runtime_attr_api Runtime information
@@ -31,11 +31,11 @@
  */
 
 #ifdef OPENVINO_STATIC_LIBRARY
-#define TRANSFORMATIONS_API
+#    define TRANSFORMATIONS_API
 #else
-#ifdef inference_engine_transformations_EXPORTS
-#define TRANSFORMATIONS_API OPENVINO_CORE_EXPORTS
-#else
-#define TRANSFORMATIONS_API OPENVINO_CORE_IMPORTS
-#endif // inference_engine_transformations_EXPORTS
-#endif // OPENVINO_STATIC_LIBRARY
+#    ifdef IMPLEMENT_OPENVINO_API
+#        define TRANSFORMATIONS_API OPENVINO_CORE_EXPORTS
+#    else
+#        define TRANSFORMATIONS_API OPENVINO_CORE_IMPORTS
+#    endif  // IMPLEMENT_OPENVINO_API
+#endif      // OPENVINO_STATIC_LIBRARY

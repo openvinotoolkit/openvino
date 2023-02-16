@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -108,6 +108,18 @@ public:
     }
 
     /**
+     * @brief Changes the name of the input data provided by the user.
+     *
+     * @param newName A new name of the input data to set
+     */
+    void setName(const std::string& newName) {
+        if (!_inputData) {
+            IE_THROW() << "Data is empty!";
+        }
+        _inputData->setName(newName);
+    }
+
+    /**
      * @brief Gets the input data
      *
      * @return A smart pointer to the input data
@@ -137,21 +149,6 @@ public:
             IE_THROW() << "Data is empty!";
         }
         return _inputData->getTensorDesc();
-    }
-
-    /**
-     * @deprecated Use OpenVINO 2.0 API for dynamic shapes support
-     * @brief Returns the input shape. May have undefined dimensions.
-     * @return PartialShape object describing input shape.
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use OpenVINO 2.0 API for dynamic shapes support")
-    ngraph::PartialShape getPartialShape() {
-        if (!_inputData) {
-            IE_THROW() << "Data is empty!";
-        }
-        IE_SUPPRESS_DEPRECATED_START
-        return _inputData->getPartialShape();
-        IE_SUPPRESS_DEPRECATED_END
     }
 
     /**

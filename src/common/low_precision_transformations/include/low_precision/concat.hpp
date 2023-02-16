@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,26 +19,22 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief ConcatTransformation propagates dequantization operations through Concat operation.
+ *
+ * For more details about the transformation, refer to
+ * [ConcatTransformation](@ref openvino_docs_OV_UG_lpt_ConcatTransformation) page
+ * in the Inference Engine Developer Guide.
+ */
 class LP_TRANSFORMATIONS_API ConcatTransformation : public LayerTransformation {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConcatTransformation", "0");
     ConcatTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
-    static bool isQuantizedStatic(const std::shared_ptr<const Node>& layer) noexcept;
-
-protected:
-    static bool isHandled(
-        const TransformationContext& context,
-        const std::vector<std::shared_ptr<ngraph::Node>>& quantizationOperations);
-
-    void fillDequantizationNodes(
-        const std::vector<FakeQuantizeDequantization>& layerDequantizations,
-        const std::shared_ptr<Node> layer,
-        NodeVector& convertNodes,
-        NodeVector& subtractNodes,
-        NodeVector& multiplyNodes) const;
+    static bool isQuantizedStatic(const std::shared_ptr<const Node>& layer);
 };
 
 } // namespace low_precision

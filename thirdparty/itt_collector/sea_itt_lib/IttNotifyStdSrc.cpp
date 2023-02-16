@@ -99,7 +99,7 @@ inline bool operator==(const __itt_id& left, const __itt_id& right) {
 
 namespace sea {
 
-int64_t g_nRingBuffer = 1000000000ll * atoi(get_environ_value("INTEL_SEA_RING").c_str());     // in nanoseconds
+uint64_t g_nRingBuffer = 1000000000ll * atoi(get_environ_value("INTEL_SEA_RING").c_str());     // in nanoseconds
 uint64_t g_nAutoCut = 1024ull * 1024 * atoi(get_environ_value("INTEL_SEA_AUTOCUT").c_str());  // in MB
 uint64_t g_features = sea::GetFeatureSet();
 
@@ -1108,7 +1108,7 @@ __itt_timestamp get_timestamp() {
 void Pause() {
     static __itt_global* pGlobal = GetITTGlobal();
     while (pGlobal) {
-        pGlobal->state = __itt_collection_paused;
+        pGlobal->state = __itt_collection_init_fail;
         ___itt_domain* pDomain = pGlobal->domain_list;
         while (pDomain) {
             pDomain->flags =
@@ -1138,7 +1138,7 @@ void Resume() {
                 1;  // this flag is analyzed by static part of ITT to decide where to call dynamic part or not
             pDomain = pDomain->next;
         }
-        pGlobal->state = __itt_collection_normal;
+        pGlobal->state = __itt_collection_uninitialized;
         pGlobal = pGlobal->next;
     }
 }

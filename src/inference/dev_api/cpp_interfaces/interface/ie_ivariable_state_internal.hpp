@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,7 +54,7 @@ protected:
     /**
      * @brief A default dtor
      */
-    ~IVariableStateInternal() = default;
+    virtual ~IVariableStateInternal() = default;
 
     std::string name;
     Blob::Ptr state;
@@ -68,7 +68,7 @@ using IMemoryStateInternal = IVariableStateInternal;
 /**
  * @brief SoPtr to IVariableStateInternal.
  */
-using SoIVariableStateInternal = ov::runtime::SoPtr<IVariableStateInternal>;
+using SoIVariableStateInternal = ov::SoPtr<IVariableStateInternal>;
 
 /**
  * @brief For compatibility reasons.

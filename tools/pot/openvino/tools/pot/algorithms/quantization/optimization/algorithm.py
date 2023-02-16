@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import importlib
@@ -9,7 +9,6 @@ from functools import partial
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import scipy.optimize
 
 from ..qnoise_estimator.algorithm import QuantNoiseEstimator
@@ -17,7 +16,7 @@ from ...algorithm import Algorithm
 from ...algorithm_selector import COMPRESSION_ALGORITHMS
 from ...quantization import fake_quantize as fqut
 from ....graph.model_utils import save_model
-from ....samplers.index_sampler import IndexSampler
+from ....samplers.creator import create_sampler
 from ....utils.logger import get_logger
 
 try:
@@ -30,7 +29,7 @@ except ImportError:
         'Nevergrad package could not be imported. If you are planning to use '
         'any hyperparameter optimization algo, consider installing it '
         'using pip. This implies advanced usage of the tool. '
-        'Note that nevergrad is compatible only with Python 3.6+'
+        'Note that nevergrad is compatible only with Python 3.7+'
     )
 
 try:
@@ -166,7 +165,7 @@ class OptimizationAlgorithm(Algorithm):
             Path('/'.join(self._result_filename.split('/')[:-1])).mkdir(
                 parents=True, exist_ok=True
             )
-            pd.DataFrame(self._results).to_csv(self._result_filename)
+            np.savetxt(self._result_filename, self._results, delimiter=",", fmt='%s')
         if self._dump_model_prefix:
             dump_path = self._dump_model_prefix + '{:05}'.format(
                 self._optimization_iter
@@ -318,7 +317,10 @@ class OptimizationAlgorithm(Algorithm):
     def calculate_error_on_subset(self, subset_indices, model):
         def metric_error(subset_indices, model):
             self._engine.set_model(model)
-            metrics, _ = self._engine.predict(None, IndexSampler(subset_indices))
+
+            index_sampler = create_sampler(self._engine, samples=subset_indices)
+            metrics, _ = self._engine.predict(None , sampler=index_sampler)
+
             error_rate = 0
             if self._default_metrics_values is not None:
                 metrics_value = []

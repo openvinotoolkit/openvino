@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,10 +13,10 @@ namespace ov {
 namespace op {
 namespace v1 {
 /// \brief DeformableConvolution operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API DeformableConvolution : public op::util::DeformableConvolutionBase {
 public:
     OPENVINO_OP("DeformableConvolution", "opset1", op::util::DeformableConvolutionBase, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a conversion operation.
     DeformableConvolution() = default;
@@ -57,10 +57,12 @@ public:
 }  // namespace v1
 
 namespace v8 {
+/// \brief DeformableConvolution operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API DeformableConvolution : public op::util::DeformableConvolutionBase {
 public:
     OPENVINO_OP("DeformableConvolution", "opset8", op::util::DeformableConvolutionBase);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a conversion operation.
     DeformableConvolution() = default;
@@ -166,7 +168,7 @@ public:
     }
 
 private:
-    bool m_bilinear_interpolation_pad;
+    bool m_bilinear_interpolation_pad{false};
 };
 }  // namespace v8
 }  // namespace op

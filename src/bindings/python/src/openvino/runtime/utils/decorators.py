@@ -1,10 +1,11 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# -*- coding: utf-8 -*-
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from functools import wraps
 from typing import Any, Callable
 
-from openvino.runtime.impl import Node, Output
+from openvino.runtime import Node, Output
 from openvino.runtime.utils.types import NodeInput, as_node, as_nodes
 
 
@@ -54,6 +55,7 @@ def binary_op(node_factory_function: Callable) -> Callable:
 
 def custom_preprocess_function(custom_function: Callable) -> Callable:
     """Convert Node returned from custom_function to Output."""
+
     @wraps(custom_function)
     def wrapper(node: Node) -> Output:
         return Output._from_node(custom_function(node))

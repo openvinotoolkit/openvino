@@ -1,24 +1,37 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 add_subdirectory(common)
 
-if(NGRAPH_ONNX_FRONTEND_ENABLE)
+if(ENABLE_TESTS)
+    add_subdirectory(tests)
+endif()
+
+if(ENABLE_OV_ONNX_FRONTEND)
     add_subdirectory(onnx)
 endif()
 
-if(NGRAPH_PDPD_FRONTEND_ENABLE)
-    add_subdirectory(paddlepaddle)
+if(ENABLE_OV_PADDLE_FRONTEND)
+    add_subdirectory(paddle)
 endif()
 
-if(NGRAPH_IR_FRONTEND_ENABLE)
+if(ENABLE_OV_PYTORCH_FRONTEND)
+    add_subdirectory(pytorch)
+endif()
+
+if(ENABLE_OV_IR_FRONTEND)
     add_subdirectory(ir)
 endif()
 
-if(NGRAPH_TF_FRONTEND_ENABLE)
+if(ENABLE_OV_TF_FRONTEND OR ENABLE_OV_TF_LITE_FRONTEND)
+    add_subdirectory(tensorflow_common)
+endif()
+
+if(ENABLE_OV_TF_FRONTEND)
     add_subdirectory(tensorflow)
 endif()
 
-# used for static build
-ov_generate_frontends_hpp()
+if (ENABLE_OV_TF_LITE_FRONTEND)
+    add_subdirectory(tensorflow_lite)
+endif()

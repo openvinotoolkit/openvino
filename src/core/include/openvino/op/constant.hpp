@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,16 +19,20 @@ namespace ov {
 namespace op {
 namespace v0 {
 /// \brief Class for constants.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Constant : public Op {
 public:
     OPENVINO_OP("Constant", "opset1");
-    BWDCMP_RTTI_DECLARATION;
 
     Constant() = default;
 
     /// \brief Initialize a constant from tensor
     /// \param tensor The tensor with data
     Constant(const std::shared_ptr<ngraph::runtime::Tensor>& tensor);
+
+    /// \brief Initialize a constant from ov::Tensor
+    /// \param tensor The ov::Tensor with data
+    Constant(const ov::Tensor& tensor);
 
     /// \brief Constructs a tensor constant.
     ///
@@ -37,7 +41,8 @@ public:
     /// \param values A vector of literals for initializing the tensor constant. The
     ///               size of values must match the size of the shape.
     template <typename T>
-    Constant(const element::Type& type, const Shape& shape, const std::vector<T>& values) : Constant(type, shape) {
+    Constant(const element::Type& type, const Shape& shape, const std::vector<T>& values)
+        : Constant(false, type, shape) {
         NODE_VALIDATION_CHECK(this,
                               values.size() == 1 || values.size() == shape_size(m_shape),
                               "Did not get the expected number of literals for a constant of shape ",
@@ -54,7 +59,6 @@ public:
         } else {
             write_values(values);
         }
-        m_all_elements_bitwise_identical = are_all_data_elements_bitwise_identical();
     }
 
     /// \brief Create uninitialized constant
@@ -66,9 +70,8 @@ public:
     /// \param value A scalar for initializing the uniform tensor constant. The
     ///               value is broadcast to the specified shape.
     template <class T, class = typename std::enable_if<std::is_fundamental<T>::value>::type>
-    Constant(const element::Type& type, const Shape& shape, T value) : Constant(type, shape) {
+    Constant(const element::Type& type, const Shape& shape, T value) : Constant(false, type, shape) {
         fill_data(type, value);
-        m_all_elements_bitwise_identical = true;
     }
 
     template <typename T>
@@ -182,10 +185,8 @@ public:
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate_lower(const HostTensorVector& outputs) const override;
-    bool evaluate_upper(const HostTensorVector& outputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate_lower(TensorVector& outputs) const override;
+    bool evaluate_upper(TensorVector& outputs) const override;
 
     // Don't constant fold a constant; it would make a copy
     bool constant_fold(OutputVector& outputs, const OutputVector& inputs) override {
@@ -372,6 +373,9 @@ public:
     }
 
     bool get_all_data_elements_bitwise_identical() const {
+        if (!m_all_elements_bitwise_identical_checked) {
+            update_identical_flags(true, are_all_data_elements_bitwise_identical());
+        }
         return m_all_elements_bitwise_identical;
     }
     std::string convert_value_to_string(size_t index) const;
@@ -384,6 +388,8 @@ public:
     }
 
 private:
+    Constant(bool memset_allocation, const element::Type& type, const Shape& shape);
+
     template <element::Type_t Type,
               typename StorageDataType = fundamental_type_for<Type>,
               typename std::enable_if<Type != element::Type_t::u1 && Type != element::Type_t::u4 &&
@@ -500,6 +506,31 @@ private:
                                           Type != element::Type_t::i4,
                                       bool>::type = true>
     void fill_data(const T& value) {
+#ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wimplicit-const-int-float-conversion"
+#elif defined(__GNUC__)
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wsign-compare"
+#    pragma GCC diagnostic ignored "-Wbool-compare"
+#elif defined(_MSC_VER)
+#    pragma warning(push)
+#    pragma warning(disable : 4018)
+#    pragma warning(disable : 4804)
+#endif
+        if (!std::is_same<T, StorageDataType>::value) {
+            OPENVINO_ASSERT(!std::numeric_limits<T>::is_signed ||
+                            std::numeric_limits<StorageDataType>::lowest() <= value);
+            OPENVINO_ASSERT(std::numeric_limits<StorageDataType>::max() >= value);
+        }
+#if defined(_MSC_VER)
+#    pragma warning(pop)
+#elif defined(__clang__)
+#    pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#    pragma GCC diagnostic pop
+#endif
+
         const auto size = shape_size(m_shape);
         const auto v = static_cast<StorageDataType>(value);
         std::fill_n(get_data_ptr_nc<Type>(), size, v);
@@ -525,7 +556,7 @@ private:
         std::fill_n(get_data_ptr_nc<Type>(), mem_size(), v);
     }
 
-    void allocate_buffer();
+    void allocate_buffer(bool memset_allocation);
 
     void* get_data_ptr_nc() {
         return (m_data ? m_data->get_ptr() : nullptr);
@@ -690,6 +721,8 @@ private:
     }
 
     bool are_all_data_elements_bitwise_identical() const;
+    // This is 'const' as it updates only mutable data
+    void update_identical_flags(bool is_checked, bool identical_value) const;
     static constexpr size_t host_alignment() {
         return 64;
     }
@@ -709,7 +742,8 @@ private:
     element::Type m_element_type;
     Shape m_shape{};
     std::shared_ptr<ngraph::runtime::AlignedBuffer> m_data;
-    bool m_all_elements_bitwise_identical;
+    mutable std::atomic_bool m_all_elements_bitwise_identical{false};
+    mutable std::atomic_bool m_all_elements_bitwise_identical_checked{false};
     bool m_alloc_buffer_on_visit_attributes = true;
 };
 }  // namespace v0

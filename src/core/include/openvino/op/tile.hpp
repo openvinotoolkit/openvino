@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,10 +11,10 @@ namespace op {
 namespace v0 {
 /// \brief Dynamic Tiling operation which repeats a tensor multiple times
 ///        along each dimension
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Tile : public Op {
 public:
     OPENVINO_OP("Tile", "opset1");
-    BWDCMP_RTTI_DECLARATION;
 
     Tile() = default;
     /// \brief Perform dynamic padding of a tensor
@@ -31,7 +31,11 @@ public:
     OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate_lower(TensorVector& outputs) const override;
+    bool evaluate_upper(TensorVector& outputs) const override;
     bool has_evaluate() const override;
+    bool evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const override;
+    bool evaluate_label(TensorLabelVector& output_labels) const override;
 
 private:
     bool evaluate_tile(const HostTensorVector& outputs, const HostTensorVector& inputs) const;

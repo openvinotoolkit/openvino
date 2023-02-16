@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,10 +9,12 @@
 namespace ov {
 namespace op {
 namespace v1 {
+/// \brief ReduceMin operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ReduceMin : public util::ArithmeticReductionKeepDims {
 public:
     OPENVINO_OP("ReduceMin", "opset1", util::ArithmeticReductionKeepDims, 1);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a summation operation.
     ReduceMin() = default;
     /// \brief Constructs a summation operation.
@@ -28,10 +30,8 @@ public:
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate_lower(const HostTensorVector& outputs) const override;
-    bool evaluate_upper(const HostTensorVector& outputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate_lower(TensorVector& outputs) const override;
+    bool evaluate_upper(TensorVector& outputs) const override;
 };
 }  // namespace v1
 }  // namespace op

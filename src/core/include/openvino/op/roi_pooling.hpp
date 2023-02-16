@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,10 +9,12 @@
 namespace ov {
 namespace op {
 namespace v0 {
+/// \brief ROIPooling operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ROIPooling : public Op {
 public:
     OPENVINO_OP("ROIPooling", "opset2");
-    BWDCMP_RTTI_DECLARATION;
 
     ROIPooling() = default;
     /// \brief Constructs a ROIPooling operation
@@ -45,7 +47,7 @@ public:
 
 private:
     Shape m_output_size{0, 0};
-    float m_spatial_scale;
+    float m_spatial_scale{0};
     std::string m_method = "max";
 };
 }  // namespace v0

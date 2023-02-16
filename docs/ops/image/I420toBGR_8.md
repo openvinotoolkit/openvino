@@ -1,4 +1,4 @@
-## I420toBGR <a name="I420toBGR"></a> {#openvino_docs_ops_image_I420toBGR_8}
+# I420toBGR {#openvino_docs_ops_image_I420toBGR_8}
 
 **Versioned name**: *I420toBGR-8*
 

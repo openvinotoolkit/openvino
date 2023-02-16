@@ -1,4 +1,4 @@
-## AdaptiveAvgPool<a name="AdaptiveAvgPool"></a> {#openvino_docs_ops_pooling_AdaptiveAvgPool_8}
+## AdaptiveAvgPool {#openvino_docs_ops_pooling_AdaptiveAvgPool_8}
 
 **Versioned name**: *AdaptiveAvgPool-8*
 

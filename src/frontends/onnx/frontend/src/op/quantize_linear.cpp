@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -88,12 +88,12 @@ std::tuple<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>> get_inp
     input_low =
         std::make_shared<default_opset::Multiply>(y_scale,
                                                   std::make_shared<default_opset::Subtract>(output_low, zero_point));
-    if (auto constant = get_constant_from_source(input_low))
+    if (auto constant = ov::get_constant_from_source(input_low))
         input_low = constant;
     input_high =
         std::make_shared<default_opset::Multiply>(y_scale,
                                                   std::make_shared<default_opset::Subtract>(output_high, zero_point));
-    if (auto constant = get_constant_from_source(input_high))
+    if (auto constant = ov::get_constant_from_source(input_high))
         input_high = constant;
 
     return std::make_tuple(input_low, input_high);
@@ -114,7 +114,7 @@ std::shared_ptr<ngraph::Node> make_fake_quantize(const Output<ngraph::Node>& y_s
     std::tie(input_low, input_high) =
         detail::get_input_bands(y_scale, y_zero_point, output_low, output_high, data_type);
 
-    const std::size_t levels = 1 << destination_type.bitwidth();
+    const std::size_t levels = static_cast<size_t>(1) << destination_type.bitwidth();
 
     return std::make_shared<default_opset::Convert>(
         std::make_shared<default_opset::FakeQuantize>(data, input_low, input_high, output_low, output_high, levels),
@@ -158,7 +158,7 @@ OutputVector quantize_linear(Output<ngraph::Node> x,
     const auto& y_zero_point_shape = y_zero_point.get_partial_shape();
 
     if (y_scale_shape.rank().is_static() && y_scale_shape.rank().get_length() == 1 && x_shape.rank().is_static() &&
-        x_shape[axis].is_static()) {
+        x_shape.rank().get_length() > 0 && x_shape[axis].is_static()) {
         CHECK_VALID_NODE(node,
                          y_scale_shape[0].same_scheme(x_shape[axis]),
                          "The number of quantization scale elements ",
@@ -173,7 +173,7 @@ OutputVector quantize_linear(Output<ngraph::Node> x,
     }
 
     if (y_zero_point_shape.rank().is_static() && y_zero_point_shape.rank().get_length() == 1 &&
-        x_shape.rank().is_static() && x_shape[axis].is_static()) {
+        x_shape.rank().is_static() && x_shape.rank().get_length() > 0 && x_shape[axis].is_static()) {
         CHECK_VALID_NODE(node,
                          y_zero_point_shape[0].same_scheme(x_shape[axis]),
                          "The number of quantization zero point elements ",
@@ -199,9 +199,15 @@ OutputVector quantize_linear(const Node& node) {
                  "input. Got: ",
                  inputs.size());
 
-    const auto x = inputs[0];
-    auto scale = inputs[1];
-    auto zero_point = op::detail::get_zero_point(inputs);
+    const auto& x = inputs[0];
+    const auto& scale = inputs[1];
+    const auto zero_point = op::detail::get_zero_point(inputs);
+
+    // per-tensor quantization, axis attribute ignored
+    if (scale.get_partial_shape().rank().is_static() && scale.get_partial_shape().rank().get_length() == 0 &&
+        zero_point.get_partial_shape().rank().is_static() && zero_point.get_partial_shape().rank().get_length() == 0) {
+        return set_1::quantize_linear(node);
+    }
 
     return quantize_linear(x, scale, zero_point, node.get_attribute_value<int64_t>("axis", 1), node);
 }

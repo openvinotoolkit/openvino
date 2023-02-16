@@ -675,7 +675,7 @@ SHOW_NAMESPACES        = YES
 # The FILE_VERSION_FILTER tag can be used to specify a program or script that
 # doxygen should invoke to get the current version for each file (typically from
 # the version control system). Doxygen will invoke the program by executing (via
-# popen()) the command command input-file, where command is the value of the
+# popen()) the command input-file, where command is the value of the
 # FILE_VERSION_FILTER tag, and input-file is the name of an input file provided
 # by doxygen. Whatever the program writes to standard output is used as the file
 # version. For an example see the documentation.
@@ -862,13 +862,11 @@ EXCLUDE_SYMBOLS        =
 # that contain example code fragments that are included (see the \include
 # command).
 
-EXAMPLE_PATH           = ../template_plugin/src \
-                         ../template_plugin/include \
-                         ../template_plugin/src/CMakeLists.txt \
-                         ../template_plugin/tests/functional/CMakeLists.txt \
-                         ../template_plugin/tests/functional/transformations \
-                         ../template_plugin/tests/functional/shared_tests_instances/ \
-                         ../../inference-engine/tests/functional/plugin/shared/include \
+EXAMPLE_PATH           = ../../src/plugins/ \
+                         ../../src/plugins/template/tests/functional/CMakeLists.txt \
+                         ../../src/plugins/template/tests/functional/transformations \
+                         ../../src/plugins/template/tests/functional/shared_tests_instances/ \
+                         ../../src/tests/functional/plugin/shared/include \
                          ../snippets
 
 # If the value of the EXAMPLE_PATH tag contains directories, you can use the

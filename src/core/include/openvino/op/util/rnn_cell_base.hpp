@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,12 @@ enum class LSTMWeightsFormat {
     IOFC,  // ONNX
 };
 
+enum class LSTMPeepholesFormat {
+    FIO,  // IE
+    IOF,  // ONNX, PyTorch
+    IFO,  // CAFe, DNNL, TF, MxNet
+};
+
 ///
 /// \brief      Change data format of provided node.
 ///
@@ -43,6 +49,12 @@ std::shared_ptr<Node> OPENVINO_API convert_lstm_node_format(const Output<Node>& 
                                                             LSTMWeightsFormat to_format = LSTMWeightsFormat::FICO,
                                                             int64_t axis = 0);
 
+std::shared_ptr<Node> OPENVINO_API
+convert_lstm_peepholes_format(const Output<Node>& node,
+                              LSTMPeepholesFormat from_format,
+                              LSTMPeepholesFormat to_format = LSTMPeepholesFormat::FIO,
+                              int64_t axis = 0);
+
 /// \brief      Base class for all recurrent network cells.
 ///
 /// \note       It holds all common attributes.
@@ -50,7 +62,6 @@ std::shared_ptr<Node> OPENVINO_API convert_lstm_node_format(const Output<Node>& 
 class OPENVINO_API RNNCellBase : public Op {
 public:
     OPENVINO_OP("RNNCellBase", "util");
-    BWDCMP_RTTI_DECLARATION;
 
     ///
     /// \brief      Constructs a RNNCellBase class.

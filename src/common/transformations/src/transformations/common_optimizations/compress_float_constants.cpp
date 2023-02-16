@@ -1,17 +1,16 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/common_optimizations/compress_float_constants.hpp"
 
+#include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset8.hpp"
-#include "ngraph/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/old_api_map_element_type_attribute.hpp"
-#include "itt.hpp"
-
 
 namespace {
 template <ov::element::Type_t PREC_FROM>
@@ -26,22 +25,30 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<ov::
     if (dst_data == nullptr)
         return nullptr;
 
-    bool is_overflow = false;
+    int num_out_of_range = 0;
     for (size_t i = 0; i < size; ++i) {
-        if (src_data[i] > std::numeric_limits<ov::float16>::max()) {
+        // if it is smaller than the smallest positive normal fp16 but not zero
+        if (std::abs(src_data[i]) <= ov::float16::from_bits(0x0400) && src_data[i] != 0.0f) {
+            num_out_of_range++;
+        } else if (src_data[i] > std::numeric_limits<ov::float16>::max()) {
             dst_data[i] = std::numeric_limits<ov::float16>::max();
-            is_overflow = true;
+            num_out_of_range++;
         } else if (src_data[i] < std::numeric_limits<ov::float16>::lowest()) {
             dst_data[i] = std::numeric_limits<ov::float16>::lowest();
-            is_overflow = true;
+            num_out_of_range++;
         } else {
             dst_data[i] = static_cast<ov::float16>(src_data[i]);
         }
     }
-    if (is_overflow) {
-        std::cerr << "Warning: One or more of the values of the Constant can't fit in the float16 data type."
-            " Those values were casted to the nearest limit value, the model can produce incorrect results." << std::endl;
+
+    // if more than 75% of a FP32 constant do not fit into FP16 keep in FP32
+    float keep_threshold = 0.75f;
+    float out_of_range_proportion = static_cast<float>(num_out_of_range) / static_cast<float>(size);
+
+    if (out_of_range_proportion >= keep_threshold) {
+        return nullptr;
     }
+
     return new_constant;
 }
 }  // namespace
@@ -54,8 +61,7 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl() {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& const_node_pattern = pattern_map.at(const_pattern);
 
-        auto const_node = std::dynamic_pointer_cast<ov::opset8::Constant>(
-            const_node_pattern.get_node_shared_ptr());
+        auto const_node = std::dynamic_pointer_cast<ov::opset8::Constant>(const_node_pattern.get_node_shared_ptr());
         if (!const_node)
             return false;
 
@@ -71,10 +77,15 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl() {
         } else {
             return false;
         }
+
+        if (!new_const) {
+            return false;
+        }
         auto convert = std::make_shared<ov::opset8::Convert>(new_const, const_node->get_element_type());
 
+        new_const->set_friendly_name(const_node->get_friendly_name() + "_compressed");
         convert->set_friendly_name(const_node->get_friendly_name());
-        ngraph::copy_runtime_info(const_node, convert);
+        ov::copy_runtime_info(const_node, convert);
         ov::mark_as_decompression(convert);
 
         ov::replace_node(const_node, convert);

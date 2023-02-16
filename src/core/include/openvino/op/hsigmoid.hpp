@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,10 +14,10 @@ namespace v5 {
 /// f(x) = min(max(x + 3, 0), 6) / 6 or
 /// f(x) = min(ReLU(x + 3), 6) / 6
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API HSigmoid : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("HSigmoid", "opset5", op::util::UnaryElementwiseArithmetic, 5);
-    BWDCMP_RTTI_DECLARATION;
     HSigmoid() = default;
 
     /// \brief Constructs a HSigmoid operation.

@@ -1,4 +1,4 @@
-## Elu<a name="Elu"></a> {#openvino_docs_ops_activation_Elu_1}
+# Elu {#openvino_docs_ops_activation_Elu_1}
 
 **Versioned name**: *Elu-1*
 

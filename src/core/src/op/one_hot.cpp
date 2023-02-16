@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/one_hot.hpp"
+
+#include <one_hot_shape_inference.hpp>
 
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
@@ -13,8 +15,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v1::OneHot);
 
 op::v1::OneHot::OneHot(const Output<Node>& indices,
                        const Output<Node>& depth,
@@ -28,7 +28,7 @@ op::v1::OneHot::OneHot(const Output<Node>& indices,
 }
 
 void op::v1::OneHot::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_OneHot_validate_and_infer_types);
+    OV_OP_SCOPE(v1_OneHot_validate_and_infer_types);
     const auto& indices_et = get_input_element_type(0);
     const auto& depth_et = get_input_element_type(1);
     const auto& on_value_et = get_input_element_type(2);
@@ -51,65 +51,22 @@ void op::v1::OneHot::validate_and_infer_types() {
     const auto& on_value_shape = get_input_partial_shape(2);
     const auto& off_value_shape = get_input_partial_shape(3);
 
-    NODE_VALIDATION_CHECK(this,
-                          depth_shape.is_dynamic() || ngraph::is_scalar(depth_shape.to_shape()),
-                          "depth input must be scalar.");
+    std::vector<PartialShape> input_shapes = {indices_shape, depth_shape, on_value_shape, off_value_shape},
+                              output_shapes = {PartialShape{}};
+    resolve_axis(this);
+    shape_infer(this, input_shapes, output_shapes);
 
-    NODE_VALIDATION_CHECK(this,
-                          on_value_shape.is_dynamic() || ngraph::is_scalar(on_value_shape.to_shape()),
-                          "on_value input must be scalar.");
-
-    NODE_VALIDATION_CHECK(this,
-                          off_value_shape.is_dynamic() || ngraph::is_scalar(off_value_shape.to_shape()),
-                          "off_value input must be scalar.");
-
-    ov::PartialShape result_shape{ov::PartialShape::dynamic()};
-    const auto& depth = input_value(1).get_node_shared_ptr();
-    const auto& depth_constant = get_constant_from_source(input_value(1));
-    if (indices_shape.rank().is_static()) {
-        std::vector<Dimension> out_dims{indices_shape};
-        const auto indices_rank = indices_shape.rank().get_length();
-        m_axis = ngraph::normalize_axis(this, m_axis, indices_rank + 1, -indices_rank - 1, indices_rank);
-
-        auto depth_element_type = depth->get_output_element_type(0);
-        NODE_VALIDATION_CHECK(this,
-                              depth_element_type.is_integral(),
-                              "'depth' input element type must be an integer (got ",
-                              depth_element_type,
-                              ").");
-
-        NODE_VALIDATION_CHECK(this,
-                              ngraph::is_scalar(depth->get_shape()),
-                              "A scalar input should be provided as 'depth' to OneHot",
-                              " (got ",
-                              depth->get_shape(),
-                              " elements).");
-        if (depth_constant) {
-            int64_t depth_val = depth_constant->cast_vector<int64_t>()[0];
-            NODE_VALIDATION_CHECK(this,
-                                  depth_val > 0,
-                                  "The value of 'depth' must be a positive number.",
-                                  " (got ",
-                                  depth_val,
-                                  ").");
-            out_dims.insert(out_dims.begin() + m_axis, Dimension(depth_val));
-        } else {
-            out_dims.insert(out_dims.begin() + m_axis, Dimension::dynamic());
-        }
-        result_shape = out_dims;
-    }
-
-    set_output_type(0, on_value_et, result_shape);
+    set_output_type(0, on_value_et, output_shapes[0]);
 }
 
 bool ngraph::op::v1::OneHot::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_OneHot_visit_attributes);
+    OV_OP_SCOPE(v1_OneHot_visit_attributes);
     visitor.on_attribute("axis", m_axis);
     return true;
 }
 
 shared_ptr<Node> op::v1::OneHot::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_OneHot_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_OneHot_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::OneHot>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_axis);
 }
@@ -148,7 +105,7 @@ bool evaluate_onehot(const HostTensorVector& output_values, const HostTensorVect
 }  // namespace one_hot
 
 bool op::v1::OneHot::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
-    NGRAPH_OP_SCOPE(v1_OneHot_evaluate);
+    OV_OP_SCOPE(v1_OneHot_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(input_values, 4));
     NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
 
@@ -156,8 +113,8 @@ bool op::v1::OneHot::evaluate(const HostTensorVector& output_values, const HostT
     const auto& out_Pshape = output_values[0]->get_partial_shape();
     NGRAPH_CHECK(ind_Pshape.is_static() && out_Pshape.is_static(), "Only static input/output shapes are supported");
     const auto out_shape = out_Pshape.get_shape();
-    const size_t axis = get_axis();
-    NGRAPH_CHECK(axis >= 0 && axis < out_shape.size(), "Invalid axis value.");
+    const int64_t axis = get_axis();
+    NGRAPH_CHECK(axis >= 0 && static_cast<size_t>(axis) < out_shape.size(), "Invalid axis value.");
     const auto depth = std::make_shared<op::v0::Constant>(input_values[1])->cast_vector<int64_t>()[0];
     const auto ind_shape = ind_Pshape.get_shape();
     NGRAPH_CHECK(shape_size(ind_shape) * depth == shape_size(out_shape),
@@ -167,7 +124,7 @@ bool op::v1::OneHot::evaluate(const HostTensorVector& output_values, const HostT
 }
 
 bool op::v1::OneHot::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_OneHot_has_evaluate);
+    OV_OP_SCOPE(v1_OneHot_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
@@ -176,4 +133,9 @@ bool op::v1::OneHot::has_evaluate() const {
         break;
     }
     return false;
+}
+
+void op::v1::OneHot::set_axis(int64_t axis) {
+    m_axis = axis;
+    resolve_axis(this);
 }

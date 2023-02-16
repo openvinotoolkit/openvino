@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 
 
 #ifndef OPENCV_GAPI_GISLANDMODEL_HPP
@@ -140,7 +140,7 @@ public:
     // FIXME: This thing will likely break stuff once we introduce
     // "multi-source streaming", a better design needs to be proposed
     // at that stage.
-    virtual void handleNewStream() {}; // do nothing here by default
+    virtual void handleNewStream() {} // do nothing here by default
 
     // This method is called for every IslandExecutable when
     // the stream-based execution is stopped.
@@ -290,7 +290,11 @@ namespace GIslandModel
     //     from the original model (! don't mix with DataSlot)
     // FIXME: GAPI_EXPORTS because of tests only!
     ade::NodeHandle GAPI_EXPORTS producerOf(const ConstGraph &g, ade::NodeHandle &data_nh);
-
+    // traceIslandName - returns pretty island name for passed island node.
+    //     Function uses RTTI to assembly name.
+    //     In case if name of backend implementation class doesn't fit *G[Name]BackendImpl* pattern,
+    //     raw mangled name of class will be used.
+    std::string traceIslandName(const ade::NodeHandle& op_nh, const Graph& g);
 } // namespace GIslandModel
 
 }} // namespace cv::gimpl

@@ -1,42 +1,88 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
+# OpenVINO Legacy C API test sample
 set(TARGET_NAME "InferenceEngineCAPITests")
-
-# Find OpenCV components if exist
-find_package(OpenCV COMPONENTS core imgproc imgcodecs QUIET)
-if(NOT OpenCV_FOUND)
-    message(WARNING "OPENCV is disabled or not found, ${TARGET_NAME} is disabled")
-    return()
-endif()
 
 add_executable(${TARGET_NAME} ie_c_api_test.cpp test_model_repo.hpp)
 
-target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_c_api ${OpenCV_LIBRARIES}
-                                             commonTestUtils gtest_main)
+target_link_libraries(${TARGET_NAME} PRIVATE openvino_c commonTestUtils gtest_main)
 
 target_compile_definitions(${TARGET_NAME}
-        PRIVATE
-        $<$<BOOL:${ENABLE_GAPI_PREPROCESSING}>:ENABLE_GAPI_PREPROCESSING>
-        DATA_PATH=\"${DATA_PATH}\"
-        MODELS_PATH=\"${MODELS_PATH}\" )
+    PRIVATE
+    $<$<BOOL:${ENABLE_GAPI_PREPROCESSING}>:ENABLE_GAPI_PREPROCESSING>
+    DATA_PATH=\"${DATA_PATH}\"
+    MODELS_PATH=\"${MODELS_PATH}\")
 
-if(ENABLE_MULTI)
-    add_dependencies(${TARGET_NAME} MultiDevicePlugin)
+if(ENABLE_AUTO OR ENABLE_MULTI)
+    add_dependencies(${TARGET_NAME} openvino_auto_plugin)
 endif()
 
-if(ENABLE_MKL_DNN)
-    add_dependencies(${TARGET_NAME} MKLDNNPlugin)
+if(ENABLE_AUTO_BATCH)
+    add_dependencies(${TARGET_NAME} openvino_auto_batch_plugin)
+endif()
+
+if(ENABLE_INTEL_CPU)
+    add_dependencies(${TARGET_NAME} openvino_intel_cpu_plugin)
 endif()
 
 if(ENABLE_INTEL_GPU)
-    add_dependencies(${TARGET_NAME} ov_intel_gpu_plugin)
+    add_dependencies(${TARGET_NAME} openvino_intel_gpu_plugin)
 endif()
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 install(TARGETS ${TARGET_NAME}
-        RUNTIME DESTINATION tests
-        COMPONENT tests
-        EXCLUDE_FROM_ALL)
+    RUNTIME DESTINATION tests
+    COMPONENT tests
+    EXCLUDE_FROM_ALL)
+
+# OpenVINO 2.0 and Legacy C API test sample
+set(TARGET_NAME "ov_capi_test")
+
+file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/ov_*.cpp)
+file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
+
+if(NOT TARGET OpenCL::OpenCL)
+    list(FILTER SOURCES EXCLUDE REGEX ov_remote_context_test.cpp)
+endif()
+
+add_executable(${TARGET_NAME} ${SOURCES} ${HEADERS})
+target_link_libraries(${TARGET_NAME} PRIVATE openvino_c openvino::util
+    commonTestUtils gtest_main)
+
+target_include_directories(${TARGET_NAME} PUBLIC
+    $<BUILD_INTERFACE:${OPENVINO_API_SOURCE_DIR}/include>)
+
+target_compile_definitions(${TARGET_NAME}
+    PRIVATE
+    DATA_PATH=\"${DATA_PATH}\"
+    MODELS_PATH=\"${MODELS_PATH}\")
+
+if(TARGET OpenCL::OpenCL)
+    target_link_libraries(${TARGET_NAME} PRIVATE OpenCL::OpenCL)
+endif()
+
+if(ENABLE_AUTO OR ENABLE_MULTI)
+    add_dependencies(${TARGET_NAME} openvino_auto_plugin)
+endif()
+
+if(ENABLE_AUTO_BATCH)
+    add_dependencies(${TARGET_NAME} openvino_auto_batch_plugin)
+endif()
+
+if(ENABLE_INTEL_CPU)
+    add_dependencies(${TARGET_NAME} openvino_intel_cpu_plugin)
+endif()
+
+if(ENABLE_INTEL_GPU)
+    add_dependencies(${TARGET_NAME} openvino_intel_gpu_plugin)
+endif()
+
+add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+
+install(TARGETS ${TARGET_NAME}
+    RUNTIME DESTINATION tests
+    COMPONENT tests
+    EXCLUDE_FROM_ALL)

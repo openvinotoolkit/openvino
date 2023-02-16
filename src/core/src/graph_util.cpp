@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,18 +27,18 @@
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/rt_info.hpp"
 #include "ngraph/util.hpp"
+#include "openvino/core/descriptor/tensor.hpp"
 
 using namespace std;
-using namespace ngraph;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-void ov::traverse_nodes(const std::shared_ptr<const Function>& p,
+void ov::traverse_nodes(const std::shared_ptr<const Model>& p,
                         const std::function<void(const std::shared_ptr<Node>&)>& f) {
     traverse_nodes(p.get(), f);
 }
 
-void ov::traverse_nodes(const Function* p, const std::function<void(const std::shared_ptr<Node>&)>& f) {
+void ov::traverse_nodes(const Model* p, const std::function<void(const std::shared_ptr<Node>&)>& f) {
     NodeVector nodes;
 
     for (const auto& r : p->get_results()) {
@@ -83,7 +83,7 @@ void ov::traverse_nodes(const NodeVector& subgraph_results,
     }
 }
 
-NodeVector ngraph::find_common_args(std::shared_ptr<Node> node1, std::shared_ptr<Node> node2) {
+ngraph::NodeVector ngraph::find_common_args(std::shared_ptr<Node> node1, std::shared_ptr<Node> node2) {
     std::unordered_set<std::shared_ptr<Node>> node1_args;
 
     auto compute_node1_args = [&node1_args](const std::shared_ptr<Node>& node) {
@@ -114,7 +114,7 @@ void ov::replace_node(const std::shared_ptr<Node>& target,
                       const std::shared_ptr<Node>& replacement,
                       const std::vector<int64_t>& output_order) {
     if (ngraph::op::is_output(target)) {
-        throw ngraph_error("Result nodes cannot be replaced.");
+        throw ngraph::ngraph_error("Result nodes cannot be replaced.");
     }
 
     NGRAPH_CHECK(target->get_output_size() == output_order.size(),
@@ -140,7 +140,7 @@ void ov::replace_node(const std::shared_ptr<Node>& target,
 
 void ov::replace_node(const std::shared_ptr<Node>& target, const OutputVector& replacement_values) {
     if (ngraph::op::is_output(target)) {
-        throw ngraph_error("Result nodes cannot be replaced.");
+        throw ngraph::ngraph_error("Result nodes cannot be replaced.");
     }
 
     NGRAPH_CHECK(target->get_output_size() == replacement_values.size());
@@ -168,7 +168,7 @@ void ov::replace_node(const std::shared_ptr<Node>& target, const std::shared_ptr
     replace_node(target, replacement, default_output_order);
 }
 
-void ov::replace_nodes(const std::shared_ptr<Function>& f,
+void ov::replace_nodes(const std::shared_ptr<Model>& f,
                        const unordered_map<shared_ptr<ov::op::v0::Parameter>, shared_ptr<ov::op::v0::Parameter>>&
                            parameter_replacement_map,
                        const unordered_map<shared_ptr<Node>, shared_ptr<Node>>& body_replacement_map) {
@@ -214,6 +214,103 @@ bool ngraph::is_post_dominated(Node* X, Node* Y) {
     return true;
 }
 
+namespace {
+
+void clone_ov_nodes(const std::vector<std::shared_ptr<ov::Node>>& nodes,
+                    std::unordered_map<ov::Node*, std::shared_ptr<ov::Node>>& node_map) {
+    // for each node in topological order
+    for (const auto& node : nodes) {
+        if (!node_map.count(node.get())) {
+            // get (already) cloned arguments and clone the node
+            ov::OutputVector cloned_args;
+            for (const auto& input : node->inputs()) {
+                ov::Output<ov::Node> output = input.get_source_output();
+                cloned_args.push_back(output.for_node(node_map.at(output.get_node())));
+            }
+            std::vector<std::shared_ptr<ov::Node>> cloned_dependencies;
+            for (const auto& dependency : node->get_control_dependencies()) {
+                shared_ptr<ov::Node>& dependent = node_map.at(dependency.get());
+                if (find(cloned_dependencies.begin(), cloned_dependencies.end(), dependent) ==
+                    cloned_dependencies.end()) {
+                    cloned_dependencies.push_back(dependent);
+                }
+            }
+            auto cloned_node = node->copy_with_new_inputs(cloned_args, cloned_dependencies);
+            // There is a friendly name for this node so copy it
+            cloned_node->set_friendly_name(node->get_friendly_name());
+            cloned_node->get_rt_info() = node->get_rt_info();
+
+            for (const auto& output : node->outputs()) {
+                cloned_node->output(output.get_index()).get_tensor().clone_from(output.get_tensor());
+            }
+
+            for (const auto& input : node->inputs()) {
+                cloned_node->input(input.get_index()).get_rt_info() = input.get_rt_info();
+            }
+
+            cloned_node->set_op_annotations(node->get_op_annotations());
+
+            node_map[node.get()] = cloned_node;
+        }
+    }
+}
+
+}  // namespace
+
+namespace ov {
+
+std::shared_ptr<Model> clone_ov_model(const Model& func, std::unordered_map<Node*, std::shared_ptr<Node>>& node_map) {
+    // clone model operations
+    clone_ov_nodes(func.get_ordered_ops(), node_map);
+
+    // clone variables
+    auto variables = func.get_variables();
+    ngraph::VariableVector cloned_vars;
+    std::map<std::string, std::shared_ptr<ngraph::Variable>> var_map;
+    for (const auto& var : variables) {
+        auto cloned_var = std::make_shared<ngraph::Variable>(var->get_info());
+        cloned_vars.push_back(cloned_var);
+        var_map[cloned_var->get_info().variable_id] = cloned_var;
+    }
+    if (!variables.empty()) {
+        for (const auto& op : node_map) {
+            if (auto read_val = std::dynamic_pointer_cast<ngraph::VariableExtension>(op.second)) {
+                read_val->set_variable(var_map.at(read_val->get_variable_id()));
+            } else if (auto assign = std::dynamic_pointer_cast<ngraph::VariableExtension>(op.second)) {
+                assign->set_variable(var_map.at(assign->get_variable_id()));
+            }
+        }
+    }
+
+    // get cloned model results and sinks and parameters
+    ResultVector cloned_results;
+    for (shared_ptr<Node> node : func.get_results()) {
+        auto result = ov::as_type_ptr<op::v0::Result>(node_map.at(node.get()));
+        if (!result) {
+            throw ngraph::ngraph_error("Results should be of type op::Result");
+        }
+        cloned_results.push_back(result);
+    }
+    SinkVector cloned_sinks;
+    for (const auto& node : func.get_sinks()) {
+        cloned_sinks.push_back(static_pointer_cast<op::Sink>(node_map.at(node.get())));
+    }
+
+    std::vector<std::shared_ptr<op::v0::Parameter>> cloned_params;
+    for (const auto& param : func.get_parameters()) {
+        cloned_params.push_back(ov::as_type_ptr<op::v0::Parameter>(node_map.at(param.get())));
+    }
+
+    // create and return cloned model
+    auto result =
+        std::make_shared<ov::Model>(cloned_results, cloned_sinks, cloned_params, cloned_vars, func.get_friendly_name());
+    result->get_rt_info() = func.get_rt_info();
+    result->m_shared_object = func.m_shared_object;
+    return result;
+}
+
+}  // namespace ov
+
 std::vector<std::shared_ptr<ngraph::Node>> ngraph::clone_nodes(const std::vector<std::shared_ptr<ngraph::Node>>& nodes,
                                                                NodeMap& node_map) {
     // for each node in topological order
@@ -244,6 +341,12 @@ std::vector<std::shared_ptr<ngraph::Node>> ngraph::clone_nodes(const std::vector
                 const auto& output_rt_info = output.get_rt_info();
                 auto new_output = output.for_node(cloned_node);
                 new_output.get_rt_info() = output_rt_info;
+            }
+
+            for (auto input : node->inputs()) {
+                const auto& output_rt_info = input.get_rt_info();
+                auto new_input = cloned_node->input(input.get_index());
+                new_input.get_rt_info() = output_rt_info;
             }
 
             cloned_node->set_op_annotations(node->get_op_annotations());
@@ -306,61 +409,14 @@ std::list<std::shared_ptr<ngraph::Node>> ngraph::clone_nodes(const std::vector<s
     return cloned_nodes;
 }
 
-std::shared_ptr<ngraph::Function> ov::clone_function(const ngraph::Function& func) {
-    NodeMap nm;
-    return clone_function(func, nm);
+std::shared_ptr<ov::Model> ov::clone_model(const ov::Model& func) {
+    ngraph::NodeMap nm;
+    return clone_model(func, nm);
 }
 
-std::shared_ptr<ngraph::Function> ov::clone_function(const ngraph::Function& func, NodeMap& node_map) {
-    // clone function operations
-    clone_nodes(func.get_ops(), node_map);
-
-    // clone variables
-    auto variables = func.get_variables();
-    VariableVector cloned_vars;
-    std::map<std::string, std::shared_ptr<Variable>> var_map;
-    for (const auto& var : variables) {
-        auto cloned_var = std::make_shared<Variable>(var->get_info());
-        cloned_vars.push_back(cloned_var);
-        var_map[cloned_var->get_info().variable_id] = cloned_var;
-    }
-    if (!variables.empty()) {
-        for (const auto& op : node_map) {
-            if (auto read_val = std::dynamic_pointer_cast<VariableExtension>(op.second)) {
-                read_val->set_variable(var_map.at(read_val->get_variable_id()));
-            } else if (auto assign = std::dynamic_pointer_cast<VariableExtension>(op.second)) {
-                assign->set_variable(var_map.at(assign->get_variable_id()));
-            }
-        }
-    }
-
-    // get cloned function results and sinks and parameters
-    ResultVector cloned_results;
-    for (shared_ptr<Node> node : func.get_results()) {
-        auto result = ov::as_type_ptr<op::v0::Result>(node_map.at(node.get()));
-        if (!result) {
-            throw ngraph_error("Results should be of type op::Result");
-        }
-        cloned_results.push_back(result);
-    }
-    SinkVector cloned_sinks;
-    for (const auto& node : func.get_sinks()) {
-        cloned_sinks.push_back(static_pointer_cast<op::Sink>(node_map.at(node.get())));
-    }
-
-    std::vector<std::shared_ptr<op::v0::Parameter>> cloned_params;
-    for (const auto& param : func.get_parameters()) {
-        cloned_params.push_back(ov::as_type_ptr<op::v0::Parameter>(node_map.at(param.get())));
-    }
-
-    // create and return cloned function
-    auto result = std::make_shared<ngraph::Function>(cloned_results,
-                                                     cloned_sinks,
-                                                     cloned_params,
-                                                     cloned_vars,
-                                                     func.get_friendly_name());
-    result->get_rt_info() = func.get_rt_info();
-    return result;
+std::shared_ptr<ov::Model> ov::clone_model(const ov::Model& func,
+                                           std::unordered_map<Node*, std::shared_ptr<Node>>& node_map) {
+    return ov::clone_ov_model(func, node_map);
 }
 
 bool ngraph::is_equal_to_const_value(const std::string& const_value, const Output<Node>& reduce_constant) {
@@ -384,7 +440,7 @@ bool ngraph::is_equal_to_const_value(const std::string& const_value, const Outpu
 // |     +------[2]------>     |  |  |     +------[6]------>     |  |     +------[10]----->     |
 // |     <------[3]------+     |  |  |     <------[7]------+     |  |     <------[11]-----+     |
 // +-----+               +-----+  |  +-----+               +-----+  +-----+               +-----+
-pair<shared_ptr<op::Result>, shared_ptr<op::Parameter>> ngraph::insert_result_parameter_split(
+pair<shared_ptr<ngraph::op::Result>, shared_ptr<ngraph::op::Parameter>> ngraph::insert_result_parameter_split(
     const shared_ptr<Node>& src_node,
     const shared_ptr<Node>& dst_node) {
     if (src_node->get_output_size() != 1) {
@@ -481,7 +537,7 @@ void ngraph::insert_new_node_between(const shared_ptr<Node>& src_node,
     dst_input.replace_source_output(new_node->output(0));  // Remove [0] (again), add [8], remove [1], add [9]
 }
 
-std::shared_ptr<Node> ngraph::make_zero(const element::Type& element_type, const Shape& shape) {
+std::shared_ptr<ngraph::Node> ngraph::make_zero(const element::Type& element_type, const Shape& shape) {
     auto zero = op::Constant::create(element_type, Shape{}, {0.0});
     if (shape.size() > 0) {
         return std::make_shared<op::v1::Broadcast>(zero,
@@ -490,9 +546,9 @@ std::shared_ptr<Node> ngraph::make_zero(const element::Type& element_type, const
     return zero;
 }
 
-std::shared_ptr<Node> ngraph::make_constant_from_string(std::string val,
-                                                        const element::Type& element_type,
-                                                        const Shape& shape) {
+std::shared_ptr<ngraph::Node> ngraph::make_constant_from_string(std::string val,
+                                                                const element::Type& element_type,
+                                                                const Shape& shape) {
     auto cvals = std::vector<std::string>(shape_size(shape), val);
     return std::make_shared<op::Constant>(element_type, shape, cvals);
 }
@@ -507,10 +563,10 @@ bool ngraph::is_one(const Output<Node>& reduce_constant) {
     return result_bool;
 }
 
-NodeVector ngraph::get_subgraph_outputs(const NodeVector& nodes,
-                                        const NodeVector& exclusions,
-                                        bool ignore_unused,
-                                        bool ignore_output_duplicates) {
+ngraph::NodeVector ngraph::get_subgraph_outputs(const NodeVector& nodes,
+                                                const NodeVector& exclusions,
+                                                bool ignore_unused,
+                                                bool ignore_output_duplicates) {
     std::set<shared_ptr<Node>> exclusions_set(exclusions.begin(), exclusions.end());
     std::set<shared_ptr<Node>> nodes_set(nodes.begin(), nodes.end());
 
@@ -533,7 +589,7 @@ NodeVector ngraph::get_subgraph_outputs(const NodeVector& nodes,
     return outputs;
 }
 
-NodeVector ngraph::extract_subgraph(const NodeVector& results, const NodeVector& args) {
+ngraph::NodeVector ngraph::extract_subgraph(const NodeVector& results, const NodeVector& args) {
     NodeVector subgraph;
     traverse_nodes(
         results,
@@ -630,7 +686,7 @@ void ngraph::plot_graph(std::shared_ptr<Function> f,
     pass_manager.run_passes(std::move(f));
 }
 
-std::vector<Input<Node>> ngraph::get_inputs_from(Node& src, Node& dst) {
+std::vector<ngraph::Input<ngraph::Node>> ngraph::get_inputs_from(Node& src, Node& dst) {
     std::vector<Input<Node>> result;
 
     for (auto& input : dst.inputs()) {
@@ -642,7 +698,7 @@ std::vector<Input<Node>> ngraph::get_inputs_from(Node& src, Node& dst) {
     return result;
 }
 
-std::vector<Output<Node>> ngraph::get_outputs_to(Node& src, Node& dst) {
+std::vector<ngraph::Output<ngraph::Node>> ngraph::get_outputs_to(Node& src, Node& dst) {
     std::vector<Output<Node>> result;
 
     for (auto& output : src.outputs()) {
@@ -747,37 +803,50 @@ bool ngraph::check_for_cycles(const ngraph::Function* func, ngraph::NodeVector& 
 }
 
 bool ov::replace_output_update_name(Output<Node> output, const Output<Node>& replacement) {
-    bool has_result_output = false;
-    for (auto& target_input : output.get_target_inputs()) {
-        if (ov::is_type<op::v0::Result>(target_input.get_node())) {
-            // ignore trivial elimination
-            has_result_output = true;
-            if (ov::is_type<ngraph::op::Parameter>(replacement.get_node())) {
-                return false;
-            }
-            break;
+    // output port consumers can be reconnected to replacement port only when:
+    // 1. output has no Result consumers (so we do not propagate node name)
+    // 2. output has Result consumers and single output port and replacement doesn't have Results consumers
+    //    and has exactly one output port
+    // In all other cases output name will be lost or changed, so we don't perform the replacement
+
+    auto has_result_consumers = [](const Output<Node>& port) {
+        const auto& consumers = port.get_target_inputs();
+        return std::any_of(consumers.cbegin(), consumers.cend(), [](const Input<Node>& consumer) {
+            return ov::is_type<op::v0::Result>(consumer.get_node());
+        });
+    };
+
+    bool preserve_legacy_output_name = false;
+    if (has_result_consumers(output)) {
+        preserve_legacy_output_name = true;
+        if (output.get_node()->get_output_size() != 1 || replacement.get_node()->get_output_size() != 1 ||
+            is_type<ngraph::op::Parameter>(replacement.get_node()) || has_result_consumers(replacement)) {
+            return false;
         }
     }
-    if (!has_result_output || replacement.get_node()->get_users().size() == 1) {
-        if (has_result_output && !ov::is_type<ngraph::op::Parameter>(replacement.get_node())) {
-            replacement.get_node()->set_friendly_name(output.get_node()->get_friendly_name());
-            // Update output tensor name
-            replacement.get_tensor().set_name(output.get_node()->get_friendly_name());
+
+    if (preserve_legacy_output_name) {
+        replacement.get_node()->set_friendly_name(output.get_node()->get_friendly_name());
+        // Update output tensor name
+        const auto& output_tensor_name = ov::descriptor::get_ov_tensor_legacy_name(output.get_tensor());
+        if (!output_tensor_name.empty()) {
+            ov::descriptor::set_ov_tensor_legacy_name(replacement.get_tensor(), output_tensor_name);
+        } else {
+            ov::descriptor::set_ov_tensor_legacy_name(replacement.get_tensor(), output.get_node()->get_friendly_name());
         }
-
-        // Save replacement tensor names before replacement as they will be
-        // overrided by the output tensor names
-        auto output_names = replacement.get_tensor_ptr()->get_names();
-        output.replace(replacement);
-
-        // Restore back original replacement tensor names
-        replacement.get_tensor().add_names(output_names);
-
-        copy_runtime_info({replacement.get_node_shared_ptr(), output.get_node_shared_ptr()},
-                          replacement.get_node_shared_ptr());
-        return true;
     }
-    return false;
+
+    // Save replacement tensor name before replacement as they will be overridden by the output tensor name
+    const auto tensor_name = ov::descriptor::get_ov_tensor_legacy_name(replacement.get_tensor());
+
+    output.replace(replacement);
+
+    // Restore back original replacement tensor name
+    ov::descriptor::set_ov_tensor_legacy_name(replacement.get_tensor(), tensor_name);
+
+    copy_runtime_info({replacement.get_node_shared_ptr(), output.get_node_shared_ptr()},
+                      replacement.get_node_shared_ptr());
+    return true;
 }
 
 bool ov::replace_node_update_name(const std::shared_ptr<Node>& target, const std::shared_ptr<Node>& replacement) {
@@ -791,4 +860,13 @@ bool ov::replace_node_update_name(const std::shared_ptr<Node>& target, const std
     replacement->set_friendly_name(target->get_friendly_name());
     copy_runtime_info(target, replacement);
     return true;
+}
+
+void ov::serialize(const std::shared_ptr<const ov::Model>& m,
+                   const std::string& xml_path,
+                   const std::string& bin_path,
+                   ov::pass::Serialize::Version version) {
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::Serialize>(xml_path, bin_path, version);
+    manager.run_passes(std::const_pointer_cast<ov::Model>(m));
 }

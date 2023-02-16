@@ -1,20 +1,17 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_FE_NAME "mock_py_ov_frontend")
 set(PYBIND_FE_NAME "pybind_mock_frontend")
 
 set(PYBIND_FE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/pyngraph_mock_frontend_api.cpp)
 
 source_group("src" FILES ${PYBIND_FE_SRC})
 
-pybind11_add_module(${PYBIND_FE_NAME} MODULE ${PYBIND_FE_SRC})
+pybind11_add_module(${PYBIND_FE_NAME} MODULE NO_EXTRAS ${PYBIND_FE_SRC})
 
-target_link_libraries(${PYBIND_FE_NAME} PRIVATE ${TARGET_FE_NAME} frontend_common::static)
+target_link_libraries(${PYBIND_FE_NAME} PRIVATE openvino::frontend::mock_py)
 
 add_clang_format_target(${PYBIND_FE_NAME}_clang FOR_TARGETS ${PYBIND_FE_NAME})
 
-install(TARGETS ${PYBIND_FE_NAME}
-        DESTINATION python/${PYTHON_VERSION}
-        COMPONENT tests EXCLUDE_FROM_ALL)
+install(TARGETS ${PYBIND_FE_NAME} DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)

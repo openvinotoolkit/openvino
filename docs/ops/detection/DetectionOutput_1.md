@@ -1,4 +1,4 @@
-## DetectionOutput <a name="DetectionOutput"></a> {#openvino_docs_ops_detection_DetectionOutput_1}
+# DetectionOutput {#openvino_docs_ops_detection_DetectionOutput_1}
 
 **Versioned name**: *DetectionOutput-1*
 
@@ -101,8 +101,8 @@ At each feature map cell, *DetectionOutput* predicts the offsets relative to the
 
   * **Description**: *decrease_label_id* flag that denotes how to perform NMS.
   * **Range of values**:
-    * false - perform NMS like in Caffe\*.
-    * true - perform NMS like in MxNet\*.
+    * false - perform NMS like in Caffe.
+    * true - perform NMS like in Apache MxNet.
   * **Type**: boolean
   * **Default value**: false
   * **Required**: *no*

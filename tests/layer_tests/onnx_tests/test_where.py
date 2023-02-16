@@ -1,18 +1,18 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
-
 from common.layer_test_class import check_ir_version
 from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+
 from unit_tests.utils.graph import build_graph
 
 
 class TestWhere(OnnxRuntimeLayerTest):
     def _prepare_input(self, inputs_dict):
         for input in inputs_dict.keys():
-            inputs_dict[input] = np.random.randint(0, 2, inputs_dict[input]).astype(np.bool)
+            inputs_dict[input] = np.random.randint(0, 2, inputs_dict[input]).astype(bool)
         return inputs_dict
 
     def create_net(self, condition_shape, shape_than, else_shape, ir_version):
@@ -86,12 +86,15 @@ class TestWhere(OnnxRuntimeLayerTest):
                  dict(condition_shape=[15, 3, 5], shape_than=[15, 1, 5], else_shape=[15, 3, 5]),
                  dict(condition_shape=[2, 3, 4, 5], shape_than=[], else_shape=[2, 3, 4, 5]),
                  dict(condition_shape=[2, 3, 4, 5], shape_than=[5], else_shape=[2, 3, 4, 5]),
-                 dict(condition_shape=[2, 3, 4, 5], shape_than=[2, 1, 1, 5], else_shape=[2, 3, 4, 5]),
-                 dict(condition_shape=[2, 3, 4, 5], shape_than=[2, 3, 4, 5], else_shape=[1, 3, 1, 5]),
-                ]
+                 dict(condition_shape=[2, 3, 4, 5], shape_than=[2, 1, 1, 5],
+                      else_shape=[2, 3, 4, 5]),
+                 dict(condition_shape=[2, 3, 4, 5], shape_than=[2, 3, 4, 5],
+                      else_shape=[1, 3, 1, 5]),
+                 ]
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_where(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_where(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, use_old_api=use_old_api)

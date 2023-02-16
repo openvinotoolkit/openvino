@@ -1,10 +1,8 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
-
-#include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pattern/matcher.hpp>
@@ -14,27 +12,27 @@ namespace snippets {
 namespace pass {
 
 /**
- * @interface ReplaceLoadsWithScalarLoads
- * @brief Replases vector loads with scalar versions.
- * The pass is used to cange alement type of function in a canonical form vector to scalar.
+ * @interface SetScalarCountForLoad
+ * @brief Set count `1` for Load to represent as ScalarLoad
+ * The pass is used to change element count to loading to "1" to load scalar value
  * Used for tail generation
  * @ingroup snippets
  */
-class TRANSFORMATIONS_API ReplaceLoadsWithScalarLoads: public ngraph::pass::MatcherPass {
+class SetScalarCountForLoad: public ngraph::pass::MatcherPass {
 public:
-    ReplaceLoadsWithScalarLoads();
+    SetScalarCountForLoad();
 };
 
 /**
- * @interface ReplaceStoresWithScalarStores
- * @brief Replases vector stores with scalar versions.
- * The pass is used to cange alement type of function in a canonical form vector to scalar.
+ * @interface SetScalarCountForStore
+ * @brief Set count `1` for Store to represent as ScalarStore
+ * The pass is used to change element count to stroring to "1" to store scalar valuw
  * Used for tail generation
  * @ingroup snippets
  */
-class TRANSFORMATIONS_API ReplaceStoresWithScalarStores: public ngraph::pass::MatcherPass {
+class SetScalarCountForStore: public ngraph::pass::MatcherPass {
 public:
-    ReplaceStoresWithScalarStores();
+    SetScalarCountForStore();
 };
 
 } // namespace pass

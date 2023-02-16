@@ -1,4 +1,4 @@
-## Transpose<a name="Transpose"></a> {#openvino_docs_ops_movement_Transpose_1}
+# Transpose {#openvino_docs_ops_movement_Transpose_1}
 
 **Versioned name**: *Transpose-1*
 
@@ -53,7 +53,7 @@
 </layer>
 ```
 
-*Example 2: input_order = empty 1D tensor of Shape[0]
+*Example 2: input_order = empty 1D tensor of Shape[0]*
 
 ```xml
 <layer ... type="Transpose">

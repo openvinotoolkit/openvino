@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,10 +9,12 @@
 namespace ov {
 namespace op {
 namespace v1 {
+/// \brief DeformablePSROIPooling operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API DeformablePSROIPooling : public Op {
 public:
     OPENVINO_OP("DeformablePSROIPooling", "opset1", op::Op, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     DeformablePSROIPooling() = default;
     /// \brief Constructs a DeformablePSROIPooling operation
@@ -94,8 +96,8 @@ public:
     }
 
 private:
-    int64_t m_output_dim;
-    float m_spatial_scale;
+    int64_t m_output_dim{0};
+    float m_spatial_scale{0};
     int64_t m_group_size = 1;
     std::string m_mode = "bilinear_deformable";
     int64_t m_spatial_bins_x = 1;

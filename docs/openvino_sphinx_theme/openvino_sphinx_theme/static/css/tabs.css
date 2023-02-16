@@ -1,0 +1,104 @@
+:root {
+  --tabs--label-text: #8c8c8c;
+  --tabs--label-text--active: #368ce2;
+  --tabs--label-text--hover: #1d73c9;
+  --tabs--label-background--active: transparent;
+  --tabs--label-background--hover: #f7f7f7;
+  --tabs--border: #e6e6e6;
+  --tabs--border--active: var(--tabs--label-text--active);
+}
+/* Hide radio buttons */
+.tab-set > input {
+  position: absolute;
+  opacity: 0;
+}
+
+/* Tab set container */
+.tab-set {
+  border-radius: 2px;
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0.75em 0;
+  position: relative;
+}
+
+/* Tab label */
+.tab-set > label {
+  z-index: 1;
+  cursor: pointer;
+  box-sizing: border-box;
+  border-style: solid;
+  border-width: 1px;
+  color: inherit;
+  width: auto;
+  height: 32px;
+  font-size: 14px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  padding-inline-end: 16px;
+  padding-inline-start: 16px;
+  font-weight: 500;
+  line-height: 1.5;
+
+  color: var(--bttn-prm-color)!important;
+  border-color: var(--bttn-sec-border-color)!important;
+  background-color: var(--bttn-prm-bg-color)!important;
+}
+
+.tab-set > label:hover {
+  background-color: var(--bttn-prm-bg-color-hover)!important;
+}
+
+/* Active tab label */
+.tab-set > input:checked + label {
+  color: var(--bttn-act-color)!important;
+  border-color: transparent!important;
+  background-color: var(--bttn-act-bg)!important;
+}
+.tab-set > input:checked + label:hover {
+  background-color: var(--bttn-act-bg-hover)!important;
+}
+
+/* Focused tab label */
+.tab-set > input:focus + label {
+  outline-style: auto;
+}
+
+.tab-set > input:not(.focus-visible) + label {
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Tab content */
+.tab-content {
+  order: 99;
+  display: none;
+  width: 100%;
+  box-shadow: 0 -0.0625rem var(--tabs--border);
+}
+/* Show content, when input is checked. */
+.tab-set > input:checked + label + .tab-content {
+  display: block;
+}
+.tab-content > p:first-child {
+  margin-top: 0.75rem;
+}
+/* Remove the top border on first code block */
+.tab-content > [class^="highlight-"]:first-child .highlight {
+  border-top: none;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+/* Remove margins on children */
+.tab-content > *:first-child {
+  margin-top: 0;
+}
+.tab-content > *:last-child {
+  margin-bottom: 0;
+}
+
+/* Remove margins on nested tabs */
+.tab-content > .tab-set {
+  margin: 0;
+}

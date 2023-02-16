@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,25 +6,23 @@
 
 #include <algorithm>
 
+#include "bound_evaluate.hpp"
+#include "compare.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/op/gather.hpp"
 #include "ngraph/op/shape_of.hpp"
-#include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/strided_slice.hpp"
 #include "ngraph/slice_plan.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
-#include "ngraph/validation_util.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include "strided_slice_shape_inference.hpp"
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v1::StridedSlice);
 
 op::v1::StridedSlice::StridedSlice(const Output<Node>& data,
                                    const Output<Node>& begin,
@@ -88,7 +86,7 @@ op::v1::StridedSlice::StridedSlice(const Output<Node>& data,
                    ellipsis_mask) {}
 
 bool op::v1::StridedSlice::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_StridedSlice_visit_attributes);
+    OV_OP_SCOPE(v1_StridedSlice_visit_attributes);
     visitor.on_attribute("begin_mask", m_begin_mask);
     visitor.on_attribute("end_mask", m_end_mask);
     visitor.on_attribute("new_axis_mask", m_new_axis_mask);
@@ -98,7 +96,7 @@ bool op::v1::StridedSlice::visit_attributes(AttributeVisitor& visitor) {
 }
 
 void op::v1::StridedSlice::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_StridedSlice_validate_and_infer_types);
+    OV_OP_SCOPE(v1_StridedSlice_validate_and_infer_types);
     const auto& begin_mask_et = get_input_element_type(1);
     const auto& end_mask_et = get_input_element_type(2);
     NODE_VALIDATION_CHECK(this,
@@ -110,9 +108,7 @@ void op::v1::StridedSlice::validate_and_infer_types() {
                           "End mask must be an integral number, but is: ",
                           end_mask_et);
 
-    auto are_mask_elem_in_range = [](size_t e) {
-        return e == 0 || e == 1;
-    };
+    constexpr auto are_mask_elem_in_range = cmp::Between<int64_t, cmp::BOTH>(0, 1);
     NODE_VALIDATION_CHECK(
         this,
         std::all_of(m_begin_mask.begin(), m_begin_mask.end(), are_mask_elem_in_range) &&
@@ -132,24 +128,6 @@ void op::v1::StridedSlice::validate_and_infer_types() {
     });
     NODE_VALIDATION_CHECK(this, are_attr_sizes_eq, "All masks of StridedSlice must have the same size");
 
-    const auto& data_rank = get_input_partial_shape(0).rank();
-    const auto& begin_shape = get_input_partial_shape(1);
-    if (begin_shape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(this,
-                              begin_shape.rank().get_length() == 1,
-                              "Begin input must be 1D (begin rank: ",
-                              begin_shape.rank(),
-                              ").");
-    }
-    const auto& end_shape = get_input_partial_shape(2);
-    if (end_shape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(this,
-                              end_shape.rank().get_length() == 1,
-                              "End input must be 1D (end rank: ",
-                              end_shape.rank(),
-                              ").");
-    }
-
     // Fill up strides input with default strides if not set by this point.
     if (get_input_size() < 4) {
         set_argument(3, calculate_default_strides(get_input_node_ptr(1)->output(0), get_input_node_ptr(2)->output(0)));
@@ -159,26 +137,12 @@ void op::v1::StridedSlice::validate_and_infer_types() {
     set_input_is_relevant_to_shape(2);
     set_input_is_relevant_to_shape(3);
 
-    auto begin_const = get_constant_from_source(input_value(1));
-    auto end_const = get_constant_from_source(input_value(2));
-    auto strides = get_constant_from_source(input_value(3));
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    auto output_shapes = std::vector<ov::PartialShape>(1, PartialShape::dynamic());
 
-    if (begin_const && end_const && strides) {
-        set_output_type(0,
-                        get_input_element_type(0),
-                        infer_slice_shape(this,
-                                          get_input_partial_shape(0),
-                                          begin_const->cast_vector<int64_t>(),
-                                          end_const->cast_vector<int64_t>(),
-                                          strides->cast_vector<int64_t>(),
-                                          convert_mask_to_axis_set(get_begin_mask()),
-                                          convert_mask_to_axis_set(get_end_mask()),
-                                          convert_mask_to_axis_set(get_new_axis_mask()),
-                                          convert_mask_to_axis_set(get_shrink_axis_mask()),
-                                          convert_mask_to_axis_set(get_ellipsis_mask())));
-    } else {
-        set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic(data_rank));
-    }
+    shape_infer(this, input_shapes, output_shapes);
+
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
 AxisSet op::v1::StridedSlice::convert_mask_to_axis_set(const std::vector<int64_t>& mask) const {
@@ -192,7 +156,7 @@ AxisSet op::v1::StridedSlice::convert_mask_to_axis_set(const std::vector<int64_t
 }
 
 shared_ptr<Node> op::v1::StridedSlice::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_StridedSlice_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_StridedSlice_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::StridedSlice>(new_args.at(0),
                                          new_args.at(1),
@@ -248,7 +212,7 @@ bool evaluate_strided_slice(const HostTensorPtr& in,
 }  // namespace strided_slice
 
 bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
-    NGRAPH_OP_SCOPE(v1_StridedSlice_evaluate);
+    OV_OP_SCOPE(v1_StridedSlice_evaluate);
     // FIXME: 4th input is optional, but it is required by the following code
     NGRAPH_CHECK(validate_host_tensor_vector(input_values, 4));
     NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
@@ -265,20 +229,29 @@ bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values, const
 }
 
 bool op::v1::StridedSlice::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_StridedSlice_has_evaluate);
+    OV_OP_SCOPE(v1_StridedSlice_has_evaluate);
     return get_input_size() == 4;
 }
 
-bool op::v1::StridedSlice::evaluate_lower(const HostTensorVector& output_values) const {
-    if (!input_value(1).get_tensor().has_and_set_bound() || !input_value(2).get_tensor().has_and_set_bound() ||
-        !input_value(3).get_tensor().has_and_set_bound())
+namespace {
+bool strided_slice_input_check(const ov::Node* node) {
+    if (!node->get_input_tensor(1).has_and_set_bound() || !node->get_input_tensor(2).has_and_set_bound() ||
+        !node->get_input_tensor(3).has_and_set_bound())
         return false;
-    return default_lower_bound_evaluator(this, output_values);
+    return true;
+}
+}  // namespace
+
+bool op::v1::StridedSlice::evaluate_lower(ov::TensorVector& output_values) const {
+    return strided_slice_input_check(this) && default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v1::StridedSlice::evaluate_upper(const HostTensorVector& output_values) const {
-    if (!input_value(1).get_tensor().has_and_set_bound() || !input_value(2).get_tensor().has_and_set_bound() ||
-        !input_value(3).get_tensor().has_and_set_bound())
+bool op::v1::StridedSlice::evaluate_upper(ov::TensorVector& output_values) const {
+    return strided_slice_input_check(this) && default_upper_bound_evaluator(this, output_values);
+}
+
+bool op::v1::StridedSlice::evaluate_label(TensorLabelVector& output_labels) const {
+    if (!strided_slice_input_check(this))
         return false;
-    return default_upper_bound_evaluator(this, output_values);
+    return default_label_evaluator(this, output_labels);
 }

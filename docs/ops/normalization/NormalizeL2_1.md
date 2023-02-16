@@ -1,4 +1,4 @@
-## NormalizeL2 <a name="NormalizeL2"></a> {#openvino_docs_ops_normalization_NormalizeL2_1}
+# NormalizeL2 {#openvino_docs_ops_normalization_NormalizeL2_1}
 
 **Versioned name**: *NormalizeL2-1*
 

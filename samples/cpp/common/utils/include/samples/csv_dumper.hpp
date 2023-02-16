@@ -1,16 +1,17 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <time.h>
-
+#include <ctime>
 #include <fstream>
+#include <iosfwd>
 #include <iostream>
-#include <samples/slog.hpp>
 #include <sstream>
 #include <string>
+
+#include "samples/slog.hpp"
 
 /**
  * @class CsvDumper
@@ -35,8 +36,9 @@ public:
      * @brief A constructor. Disables dumping in case dump file cannot be created
      * @param enabled - True if dumping is enabled by default.
      * @param name - name of file to dump to. File won't be created if first parameter is false.
+     * @param precision - floating point numbers' decimal places to print.
      */
-    explicit CsvDumper(bool enabled = true, const std::string& name = "") : canDump(enabled) {
+    explicit CsvDumper(bool enabled = true, const std::string& name = "", const int precision = 3) : canDump(enabled) {
         if (!canDump) {
             return;
         }
@@ -45,6 +47,8 @@ public:
         if (!file) {
             slog::warn << "Cannot create dump file! Disabling dump." << slog::endl;
             canDump = false;
+        } else {
+            setPrecision(precision);
         }
     }
 
@@ -55,6 +59,18 @@ public:
      */
     void setDelimiter(char c) {
         delimiter = c;
+    }
+
+    /**
+     * @brief Sets a precision used to print floating point values
+     * @param precision - Decimal places to print
+     * @return
+     */
+    void setPrecision(int precision) {
+        if (canDump) {
+            file.precision(precision);
+            file.setf(std::ios::fixed);
+        }
     }
 
     /**

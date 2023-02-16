@@ -1,25 +1,23 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "itt.hpp"
 #include "transformations/op_conversions/rnn_cell_decomposition.hpp"
 
 #include <memory>
+#include <ngraph/op/util/activation_functions.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset4.hpp>
 #include <transformations/utils/utils.hpp>
 
-#include <ngraph/opsets/opset4.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/op/util/activation_functions.hpp>
+#include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::RNNCellDecomposition, "RNNCellDecomposition", 0);
-
-ngraph::pass::RNNCellDecomposition::RNNCellDecomposition() {
+ov::pass::RNNCellDecomposition::RNNCellDecomposition() {
     MATCHER_SCOPE(RNNCellDecomposition);
     auto rnn_cell = ngraph::pattern::wrap_type<opset4::RNNCell>();
-    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
-        auto rnn_cell = std::dynamic_pointer_cast<ngraph::opset4::RNNCell> (m.get_match_root());
+    matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
+        auto rnn_cell = std::dynamic_pointer_cast<ov::opset4::RNNCell>(m.get_match_root());
         if (!rnn_cell || transformation_callback(rnn_cell)) {
             return false;
         }
@@ -44,7 +42,7 @@ ngraph::pass::RNNCellDecomposition::RNNCellDecomposition() {
             clamp = std::make_shared<opset4::Clamp>(i_t, -clip, clip);
             ngraph::copy_runtime_info(rnn_cell, clamp);
         }
-        auto out = ngraph::op::util::activation(rnn_cell->get_activations()[0], clamp);
+        auto out = ov::op::util::activation(rnn_cell->get_activations()[0], clamp);
         out->set_friendly_name(rnn_cell->get_friendly_name());
         ngraph::copy_runtime_info(rnn_cell, {Xt_W, Ht_R, add, i_t, out});
         ngraph::replace_node(rnn_cell, out);

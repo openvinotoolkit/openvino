@@ -1,14 +1,15 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import deepcopy
 from pathlib import Path
 
+from scipy.stats import mode
+
 from .range_estimator import get_range_estimator_config
 from ...api.engine import Engine
 from ...configs.hardware_config import HardwareConfig
 from ...engines.ac_engine import ACEngine
-from ...graph.node_utils import get_input_shape
 from ...statistics.function_selector import ACTIVATIONS, WEIGHTS, get_stats_function, AGGREGATION_FN
 from ...statistics.statistics import TensorStatistic
 
@@ -17,8 +18,11 @@ __HARDWARE_CONFIG_DIR = Path(__file__).parent.parent.parent.absolute() / 'config
 __HARDWARE_CONFIGS_MAP = {'ANY': 'cpu.json',
                           'CPU': 'cpu.json',
                           'GNA': 'gna.json',
-                          'GPU': 'cpu.json',
-                          'VPU': 'vpu.json'}
+                          'GNA3': 'gna3.json',
+                          'GNA3.5': 'gna3.json',
+                          'GPU': 'gpu.json',  # Same as cpu.json but without LSTM/GRUSequence quantization
+                          'VPU': 'vpu.json',
+                          'CPU_SPR': 'cpu.json'}
 
 
 def load_hardware_config(config):
@@ -29,7 +33,7 @@ def load_hardware_config(config):
         raise ValueError('Unsupported target_device : {}'.format(config['target_device']))
 
     hardware_config_path = __HARDWARE_CONFIG_DIR / __HARDWARE_CONFIGS_MAP.get(config['target_device'], "cpu.json")
-    return HardwareConfig.from_json(hardware_config_path.as_posix())
+    return HardwareConfig.from_json(hardware_config_path.as_posix(), config['target_device'])
 
 
 def append_estimator_configs(quantization_configs, is_weights, config, opt_conf=None):
@@ -244,33 +248,6 @@ def get_quantize_op_config(op, config, opt_conf=None):
     return qconfig
 
 
-def get_hardware_config_operation_type(node, available_types):
-    """ This function gets type by child
-    for hardware configuration of FQ node
-    :param node: node-type object
-    :param available_types: available types with config
-    :return: default or special type of layer as string
-    """
-
-    def _is_depth_wise(node):
-        if node.type == 'Convolution' and node.has_valid('group'):
-            group = node['group']
-            output = node['output']
-            input_shape = get_input_shape(node, 0)
-            if group == output and input_shape[1] == output:
-                return True
-        return False
-
-    type_checkers = {
-        'DepthWiseConvolution': _is_depth_wise
-    }
-
-    for real_type in type_checkers:
-        if real_type in available_types and type_checkers[real_type](node):
-            return real_type
-    return node.type
-
-
 def get_tensor_statistics(range_estimator_config, for_weights, **kwargs):
     stats = {}
     for stats_name in ['min', 'max']:
@@ -292,7 +269,8 @@ def get_tensor_statistics(range_estimator_config, for_weights, **kwargs):
         stat_mod_name = get_stat_name_by_config(range_estimator_config, stats_name)
         if fn_type in ['quantile', 'abs_quantile']:
             q_value = range_estimator_config[stats_name]['outlier_prob']
-            ts_args['inplace_statistics'] = False
+            if not for_weights:
+                ts_args['inplace_statistics'] = False
             if stats_name == 'max':
                 q_value = 1 - q_value
             ts_args.update({'q': q_value})
@@ -336,9 +314,16 @@ def get_stat_name_by_config(config, stat_type):
     return '_'.join(name_list)
 
 
+def get_input_shape_for_bias(activations_statistics, input_node_name):
+    input_shape = mode(activations_statistics[input_node_name]['shape'])[0][0]
+    if len(input_shape) > 1:
+        input_shape[0] = 1
+    return input_shape
+
+
 def get_ignored_operations(model):
     operation = {"transformer": [{"type": "Add"}, {"type": "Power"},
                                  {"type": "Squeeze"}, {"type": "Multiply"},
                                  {"type": "Subtract"}, {"type": "ReduceMean"},
-                                 {"type": "SquaredDifference"}]}
+                                 {"type": "SquaredDifference"}, {"type": "MVN"}]}
     return operation[model]

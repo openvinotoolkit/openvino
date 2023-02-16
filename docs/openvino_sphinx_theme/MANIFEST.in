@@ -1,0 +1,5 @@
+include openvino_sphinx_theme/theme.conf
+recursive-include openvino_sphinx_theme *.html *.rst
+recursive-include openvino_sphinx_theme/templates *.html *.rst
+recursive-include openvino_sphinx_theme/static *.js *.png *.css *.svg
+recursive-include openvino_sphinx_theme/directives *.py

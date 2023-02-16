@@ -1,87 +1,108 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <common/frontend_exceptions.hpp>
-#include <common/telemetry_extension.hpp>
+#include <google/protobuf/stubs/logging.h>
+
 #include <fstream>
 #include <input_model.hpp>
-#include <manager.hpp>
-#include <onnx_frontend/frontend.hpp>
 #include <onnx_import/onnx.hpp>
+#include <onnx_import/onnx_utils.hpp>
+#include <openvino/frontend/exception.hpp>
+#include <openvino/frontend/manager.hpp>
+#include <openvino/frontend/onnx/extension/conversion.hpp>
+#include <openvino/frontend/onnx/frontend.hpp>
+#include <openvino/frontend/onnx/visibility.hpp>
 #include <sstream>
 #include <utils/onnx_internal.hpp>
 
+#include "legacy_op_extension.hpp"
 #include "onnx_common/onnx_model_validator.hpp"
+#include "openvino/frontend/extension/telemetry.hpp"
+#include "ops_bridge.hpp"
+#include "so_extension.hpp"
 
 using namespace ov;
-using namespace ov::frontend;
+using namespace ov::frontend::onnx;
 
-using VariantString = VariantWrapper<std::string>;
-using VariantWString = VariantWrapper<std::wstring>;
-using VariantIstreamPtr = VariantWrapper<std::istream*>;
-
-ONNX_FRONTEND_C_API FrontEndVersion GetAPIVersion() {
+ONNX_FRONTEND_C_API ov::frontend::FrontEndVersion GetAPIVersion() {
     return OV_FRONTEND_API_VERSION;
 }
 
 ONNX_FRONTEND_C_API void* GetFrontEndData() {
-    FrontEndPluginInfo* res = new FrontEndPluginInfo();
+    ov::frontend::FrontEndPluginInfo* res = new ov::frontend::FrontEndPluginInfo();
     res->m_name = "onnx";
     res->m_creator = []() {
-        return std::make_shared<FrontEndONNX>();
+        return std::make_shared<FrontEnd>();
     };
+#ifndef OPENVINO_DEBUG_ENABLE
+    // disable protobuf logging
+    google::protobuf::SetLogHandler(nullptr);
+#endif
     return res;
 }
 
-InputModel::Ptr FrontEndONNX::load_impl(const std::vector<std::shared_ptr<Variant>>& variants) const {
-    if (variants.size() == 0) {
+InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
+    if (variants.empty()) {
         return nullptr;
     }
-    if (ov::is_type<VariantString>(variants[0])) {
-        const auto path = ov::as_type_ptr<VariantString>(variants[0])->get();
-        return std::make_shared<InputModelONNX>(path, m_telemetry);
+    if (variants[0].is<std::string>()) {
+        const auto path = variants[0].as<std::string>();
+        return std::make_shared<InputModel>(path, m_extensions);
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    if (ov::is_type<VariantWString>(variants[0])) {
-        const auto path = ov::as_type_ptr<VariantWString>(variants[0])->get();
-        return std::make_shared<InputModelONNX>(path, m_telemetry);
+    if (variants[0].is<std::wstring>()) {
+        const auto path = variants[0].as<std::wstring>();
+        return std::make_shared<InputModel>(path, m_extensions);
     }
 #endif
-    if (ov::is_type<VariantIstreamPtr>(variants[0])) {
-        const auto stream = ov::as_type_ptr<VariantIstreamPtr>(variants[0])->get();
-        if (variants.size() > 1 && ov::is_type<VariantString>(variants[1])) {
-            const auto path = ov::as_type_ptr<VariantString>(variants[1])->get();
-            return std::make_shared<InputModelONNX>(*stream, path, m_telemetry);
+    if (variants[0].is<std::istream*>()) {
+        const auto stream = variants[0].as<std::istream*>();
+        if (variants.size() > 1 && variants[1].is<std::string>()) {
+            const auto path = variants[0].as<std::string>();
+            return std::make_shared<InputModel>(*stream, path, m_extensions);
         }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        if (variants.size() > 1 && ov::is_type<VariantWString>(variants[1])) {
-            const auto path = ov::as_type_ptr<VariantWString>(variants[1])->get();
-            return std::make_shared<InputModelONNX>(*stream, path, m_telemetry);
+        if (variants.size() > 1 && variants[1].is<std::wstring>()) {
+            const auto path = variants[1].as<std::wstring>();
+            return std::make_shared<InputModel>(*stream, path, m_extensions);
         }
 #endif
-        return std::make_shared<InputModelONNX>(*stream, m_telemetry);
+        return std::make_shared<InputModel>(*stream, m_extensions);
     }
     return nullptr;
 }
 
-std::shared_ptr<ngraph::Function> FrontEndONNX::convert(InputModel::Ptr model) const {
-    auto model_onnx = std::dynamic_pointer_cast<InputModelONNX>(model);
+std::shared_ptr<ngraph::Function> FrontEnd::convert(const InputModel::Ptr& model) const {
+    auto model_onnx = std::dynamic_pointer_cast<InputModel>(model);
     NGRAPH_CHECK(model_onnx != nullptr, "Invalid input model");
+
+    if (!m_transformation_extensions.empty()) {
+        auto function = decode(model);
+
+        ov::pass::Manager manager;
+        for (const auto& transformation : m_transformation_extensions) {
+            transformation->register_pass(manager);
+        }
+        manager.run_passes(function);
+        convert(function);
+        return function;
+    }
+
     return model_onnx->convert();
 }
 
-void FrontEndONNX::convert(std::shared_ptr<ngraph::Function> partially_converted) const {
+void FrontEnd::convert(const std::shared_ptr<ov::Model>& partially_converted) const {
     ngraph::onnx_import::detail::convert_decoded_function(partially_converted);
 }
 
-std::shared_ptr<ngraph::Function> FrontEndONNX::decode(InputModel::Ptr model) const {
-    auto model_onnx = std::dynamic_pointer_cast<InputModelONNX>(model);
+std::shared_ptr<ngraph::Function> FrontEnd::decode(const InputModel::Ptr& model) const {
+    auto model_onnx = std::dynamic_pointer_cast<InputModel>(model);
     NGRAPH_CHECK(model_onnx != nullptr, "Invalid input model");
     return model_onnx->decode();
 }
 
-std::string FrontEndONNX::get_name() const {
+std::string FrontEnd::get_name() const {
     return "onnx";
 }
 
@@ -107,18 +128,18 @@ private:
 };
 }  // namespace
 
-bool FrontEndONNX::supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const {
+bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     if (variants.size() == 0) {
         return false;
     }
     std::ifstream model_stream;
-    if (ov::is_type<VariantString>(variants[0])) {
-        const auto path = ov::as_type_ptr<VariantString>(variants[0])->get();
+    if (variants[0].is<std::string>()) {
+        const auto path = variants[0].as<std::string>();
         model_stream.open(path, std::ios::in | std::ifstream::binary);
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    else if (ov::is_type<VariantWString>(variants[0])) {
-        const auto path = ov::as_type_ptr<VariantWString>(variants[0])->get();
+    else if (variants[0].is<std::wstring>()) {
+        const auto path = variants[0].as<std::wstring>();
         model_stream.open(path, std::ios::in | std::ifstream::binary);
     }
 #endif
@@ -128,16 +149,33 @@ bool FrontEndONNX::supported_impl(const std::vector<std::shared_ptr<Variant>>& v
         model_stream.close();
         return is_valid_model;
     }
-    if (ov::is_type<VariantIstreamPtr>(variants[0])) {
-        const auto stream = ov::as_type_ptr<VariantIstreamPtr>(variants[0])->get();
+    if (variants[0].is<std::istream*>()) {
+        const auto stream = variants[0].as<std::istream*>();
         StreamRewinder rwd{*stream};
         return ngraph::onnx_common::is_valid_model(*stream);
     }
+
     return false;
 }
 
-void FrontEndONNX::add_extension(const std::shared_ptr<ov::Extension>& extension) {
+void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
-        m_telemetry = telemetry;
+        m_extensions.telemetry = telemetry;
+    } else if (auto transformation = std::dynamic_pointer_cast<DecoderTransformationExtension>(extension)) {
+        m_transformation_extensions.push_back(transformation);
+    } else if (const auto& so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension)) {
+        add_extension(so_ext->extension());
+        m_other_extensions.push_back(so_ext);
+    } else if (auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
+        m_extensions.conversions.push_back(common_conv_ext);
+    } else if (const auto onnx_conv_ext = std::dynamic_pointer_cast<onnx::ConversionExtension>(extension)) {
+        m_extensions.conversions.push_back(onnx_conv_ext);
+    } else if (auto progress_reporter = std::dynamic_pointer_cast<ProgressReporterExtension>(extension)) {
+        m_extensions.progress_reporter = progress_reporter;
+    } else if (const auto& legacy_ext = std::dynamic_pointer_cast<ov::LegacyOpExtension>(extension)) {
+        m_other_extensions.push_back(legacy_ext);
+        std::call_once(has_legacy_extension, [this] {
+            m_extensions.conversions.push_back(ngraph::onnx_import::detail::get_legacy_conversion_extension());
+        });
     }
 }

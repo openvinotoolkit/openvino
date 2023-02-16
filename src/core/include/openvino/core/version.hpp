@@ -1,7 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
+
+#include <map>
+#include <ostream>
 
 #include "openvino/core/core_visibility.hpp"
 
@@ -16,8 +19,8 @@
  * @brief Defines OpenVINO patch version
  */
 
-#define OPENVINO_VERSION_MAJOR 2022
-#define OPENVINO_VERSION_MINOR 1
+#define OPENVINO_VERSION_MAJOR 2023
+#define OPENVINO_VERSION_MINOR 0
 #define OPENVINO_VERSION_PATCH 0
 
 namespace ov {
@@ -39,6 +42,12 @@ struct Version {
     const char* description;
 };
 #pragma pack(pop)
+
+OPENVINO_API
+std::ostream& operator<<(std::ostream& s, const Version& version);
+
+OPENVINO_API
+std::ostream& operator<<(std::ostream& s, const std::map<std::string, Version>& versions);
 
 /**
  * @brief Gets the current OpenVINO version

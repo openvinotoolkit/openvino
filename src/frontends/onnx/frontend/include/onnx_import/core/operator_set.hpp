@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ namespace onnx_import {
 using Operator = std::function<OutputVector(const Node&)>;
 
 /// \brief      Map which contains ONNX operators accessible by std::string value as a key.
-using OperatorSet = std::unordered_map<std::string, std::reference_wrapper<const Operator>>;
+using OperatorSet = std::unordered_map<std::string, Operator>;
 
 }  // namespace onnx_import
 

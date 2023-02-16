@@ -1,4 +1,4 @@
-## Exp<a name="Exp"></a> {#openvino_docs_ops_activation_Exp_1}
+# Exp {#openvino_docs_ops_activation_Exp_1}
 
 **Versioned name**: *Exp-1*
 

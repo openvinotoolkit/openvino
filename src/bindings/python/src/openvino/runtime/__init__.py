@@ -1,59 +1,49 @@
-# Copyright (C) 2021 Intel Corporation
+# -*- coding: utf-8 -*-
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """openvino module namespace, exposing factory functions for all ops and other classes."""
 # noqa: F401
 
-import os
-import sys
+from openvino.utils import add_openvino_libs_to_path
 
-from pkg_resources import get_distribution, DistributionNotFound
+add_openvino_libs_to_path()
 
-try:
-    __version__ = get_distribution("openvino-core").version
-except DistributionNotFound:
-    __version__ = "0.0.0.dev0"
+from openvino._pyopenvino import get_version
 
-if sys.platform == "win32":
-    # Installer, yum, pip installs openvino dlls to the different directories
-    # and those paths need to be visible to the openvino modules
-    #
-    # If you're using a custom installation of openvino,
-    # add the location of openvino dlls to your system PATH.
-    #
-    # looking for the libs in the pip installation path by default.
-    openvino_libs = [os.path.join(os.path.dirname(__file__), "..", "..", ".."),
-                     os.path.join(os.path.dirname(__file__), "..", "..", "openvino", "libs")]
-    # setupvars.bat script set all libs paths to OPENVINO_LIB_PATHS environment variable.
-    openvino_libs_installer = os.getenv("OPENVINO_LIB_PATHS")
-    if openvino_libs_installer:
-        openvino_libs.extend(openvino_libs_installer.split(";"))
-    for lib in openvino_libs:
-        lib_path = os.path.join(os.path.dirname(__file__), lib)
-        if os.path.isdir(lib_path):
-            # On Windows, with Python >= 3.8, DLLs are no longer imported from the PATH.
-            if (3, 8) <= sys.version_info:
-                os.add_dll_directory(os.path.abspath(lib_path))
-            else:
-                os.environ["PATH"] = os.path.abspath(lib_path) + ";" + os.environ["PATH"]
-
+__version__ = get_version()
 
 # Openvino pybind bindings and python extended classes
-from openvino.runtime.impl import Dimension
-from openvino.runtime.impl import Function
-from openvino.runtime.impl import Node
-from openvino.runtime.impl import PartialShape
-from openvino.runtime.impl import Layout
-
+from openvino._pyopenvino import Dimension
+from openvino._pyopenvino import Model
+from openvino._pyopenvino import Input
+from openvino._pyopenvino import Output
+from openvino._pyopenvino import Node
+from openvino._pyopenvino import Type
+from openvino._pyopenvino import PartialShape
+from openvino._pyopenvino import Shape
+from openvino._pyopenvino import Strides
+from openvino._pyopenvino import CoordinateDiff
+from openvino._pyopenvino import DiscreteTypeInfo
+from openvino._pyopenvino import AxisSet
+from openvino._pyopenvino import AxisVector
+from openvino._pyopenvino import Coordinate
+from openvino._pyopenvino import Layout
+from openvino._pyopenvino import ConstOutput
+from openvino._pyopenvino import layout_helpers
+from openvino._pyopenvino import OVAny
+from openvino._pyopenvino import RTMap
 from openvino.runtime.ie_api import Core
-from openvino.runtime.ie_api import ExecutableNetwork
+from openvino.runtime.ie_api import CompiledModel
 from openvino.runtime.ie_api import InferRequest
 from openvino.runtime.ie_api import AsyncInferQueue
-from openvino.pyopenvino import Version
-from openvino.pyopenvino import Parameter
-from openvino.pyopenvino import Tensor
-from openvino.pyopenvino import ProfilingInfo
-from openvino.pyopenvino import get_version
+from openvino._pyopenvino import Version
+from openvino._pyopenvino import Tensor
+from openvino._pyopenvino import Extension
+from openvino._pyopenvino import ProfilingInfo
+from openvino._pyopenvino import get_batch
+from openvino._pyopenvino import set_batch
+from openvino._pyopenvino import serialize
 
 # Import opsets
 from openvino.runtime import opset1
@@ -64,25 +54,31 @@ from openvino.runtime import opset5
 from openvino.runtime import opset6
 from openvino.runtime import opset7
 from openvino.runtime import opset8
+from openvino.runtime import opset9
+from openvino.runtime import opset10
+
+# Import properties API
+from openvino._pyopenvino import properties
 
 # Helper functions for openvino module
 from openvino.runtime.ie_api import tensor_from_file
 from openvino.runtime.ie_api import compile_model
 
+
 # Extend Node class to support binary operators
-Node.__add__ = opset8.add
-Node.__sub__ = opset8.subtract
-Node.__mul__ = opset8.multiply
-Node.__div__ = opset8.divide
-Node.__truediv__ = opset8.divide
-Node.__radd__ = lambda left, right: opset8.add(right, left)
-Node.__rsub__ = lambda left, right: opset8.subtract(right, left)
-Node.__rmul__ = lambda left, right: opset8.multiply(right, left)
-Node.__rdiv__ = lambda left, right: opset8.divide(right, left)
-Node.__rtruediv__ = lambda left, right: opset8.divide(right, left)
-Node.__eq__ = opset8.equal
-Node.__ne__ = opset8.not_equal
-Node.__lt__ = opset8.less
-Node.__le__ = opset8.less_equal
-Node.__gt__ = opset8.greater
-Node.__ge__ = opset8.greater_equal
+Node.__add__ = opset10.add
+Node.__sub__ = opset10.subtract
+Node.__mul__ = opset10.multiply
+Node.__div__ = opset10.divide
+Node.__truediv__ = opset10.divide
+Node.__radd__ = lambda left, right: opset10.add(right, left)
+Node.__rsub__ = lambda left, right: opset10.subtract(right, left)
+Node.__rmul__ = lambda left, right: opset10.multiply(right, left)
+Node.__rdiv__ = lambda left, right: opset10.divide(right, left)
+Node.__rtruediv__ = lambda left, right: opset10.divide(right, left)
+Node.__eq__ = opset10.equal
+Node.__ne__ = opset10.not_equal
+Node.__lt__ = opset10.less
+Node.__le__ = opset10.less_equal
+Node.__gt__ = opset10.greater
+Node.__ge__ = opset10.greater_equal

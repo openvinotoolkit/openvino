@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,10 +12,10 @@ namespace v0 {
 /// \brief Calculates an element-wise squared difference between two tensors
 ///
 /// y[i] = (x1[i] - x2[i])^2
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API SquaredDifference : public util::BinaryElementwiseArithmetic {
 public:
     OPENVINO_OP("SquaredDifference", "opset1", util::BinaryElementwiseArithmetic);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constrcuts an uninitialized squared difference operation
     SquaredDifference() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}

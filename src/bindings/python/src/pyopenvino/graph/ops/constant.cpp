@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,11 +18,11 @@
 namespace py = pybind11;
 
 template <typename T>
-std::vector<ssize_t> _get_byte_strides(const ov::Shape& s) {
-    std::vector<ssize_t> byte_strides;
+std::vector<size_t> _get_byte_strides(const ov::Shape& s) {
+    std::vector<size_t> byte_strides;
     std::vector<size_t> element_strides = ov::row_major_strides(s);
     for (auto v : element_strides) {
-        byte_strides.push_back(static_cast<ssize_t>(v) * sizeof(T));
+        byte_strides.push_back(static_cast<size_t>(v) * sizeof(T));
     }
     return byte_strides;
 }
@@ -30,11 +30,11 @@ std::vector<ssize_t> _get_byte_strides(const ov::Shape& s) {
 template <typename T>
 py::buffer_info _get_buffer_info(const ov::op::v0::Constant& c) {
     ov::Shape shape = c.get_shape();
-    return py::buffer_info(const_cast<void*>(c.get_data_ptr()),               /* Pointer to buffer */
-                           static_cast<ssize_t>(c.get_element_type().size()), /* Size of one scalar */
+    return py::buffer_info(const_cast<void*>(c.get_data_ptr()),              /* Pointer to buffer */
+                           static_cast<size_t>(c.get_element_type().size()), /* Size of one scalar */
                            py::format_descriptor<T>::format(),               /* Python struct-style format descriptor */
-                           static_cast<ssize_t>(shape.size()),               /* Number of dimensions */
-                           std::vector<ssize_t>{shape.begin(), shape.end()}, /* Buffer dimensions */
+                           static_cast<size_t>(shape.size()),                /* Number of dimensions */
+                           std::vector<size_t>{shape.begin(), shape.end()},  /* Buffer dimensions */
                            _get_byte_strides<T>(shape)                       /* Strides (in bytes) for each index */
     );
 }
@@ -42,11 +42,11 @@ py::buffer_info _get_buffer_info(const ov::op::v0::Constant& c) {
 template <>
 py::buffer_info _get_buffer_info<ov::float16>(const ov::op::v0::Constant& c) {
     ov::Shape shape = c.get_shape();
-    return py::buffer_info(const_cast<void*>(c.get_data_ptr()),               /* Pointer to buffer */
-                           static_cast<ssize_t>(c.get_element_type().size()), /* Size of one scalar */
+    return py::buffer_info(const_cast<void*>(c.get_data_ptr()),              /* Pointer to buffer */
+                           static_cast<size_t>(c.get_element_type().size()), /* Size of one scalar */
                            std::string(1, 'H'),                              /* Python struct-style format descriptor */
-                           static_cast<ssize_t>(shape.size()),               /* Number of dimensions */
-                           std::vector<ssize_t>{shape.begin(), shape.end()}, /* Buffer dimensions */
+                           static_cast<size_t>(shape.size()),                /* Number of dimensions */
+                           std::vector<size_t>{shape.begin(), shape.end()},  /* Buffer dimensions */
                            _get_byte_strides<ov::float16>(shape)             /* Strides (in bytes) for each index */
     );
 }
@@ -57,11 +57,17 @@ py::array _cast_vector(const ov::op::v0::Constant& self) {
     return py::array(vec.size(), vec.data());
 }
 
+template <>
+py::array _cast_vector<ov::float16>(const ov::op::v0::Constant& self) {
+    auto vec = self.cast_vector<ov::float16>();
+    return py::array(py::dtype("float16"), vec.size(), vec.data());
+}
+
 void regclass_graph_op_Constant(py::module m) {
     py::class_<ov::op::v0::Constant, std::shared_ptr<ov::op::v0::Constant>, ov::Node> constant(m,
                                                                                                "Constant",
                                                                                                py::buffer_protocol());
-    constant.doc() = "openvino.impl.op.Constant wraps ov::op::v0::Constant";
+    constant.doc() = "openvino.runtime.op.Constant wraps ov::op::v0::Constant";
     constant.def(py::init<const ov::element::Type&, const ov::Shape&, const std::vector<char>&>());
     constant.def(py::init<const ov::element::Type&, const ov::Shape&, const std::vector<ov::float16>&>());
     constant.def(py::init<const ov::element::Type&, const ov::Shape&, const std::vector<float>&>());
@@ -74,6 +80,12 @@ void regclass_graph_op_Constant(py::module m) {
     constant.def(py::init<const ov::element::Type&, const ov::Shape&, const std::vector<uint16_t>&>());
     constant.def(py::init<const ov::element::Type&, const ov::Shape&, const std::vector<uint32_t>&>());
     constant.def(py::init<const ov::element::Type&, const ov::Shape&, const std::vector<uint64_t>&>());
+    constant.def(py::init([](const ov::element::Type& et, const ov::Shape& sh, int64_t p) {
+        // restore pointer from integer
+        // TODO: Align on bit width
+        void* pp = reinterpret_cast<void*>(p);
+        return std::make_shared<ov::op::v0::Constant>(et, sh, pp);
+    }));
 
     constant.def("get_value_strings", &ov::op::v0::Constant::get_value_strings);
 

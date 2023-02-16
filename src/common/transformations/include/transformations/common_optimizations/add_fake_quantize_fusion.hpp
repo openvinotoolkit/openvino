@@ -1,23 +1,21 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <vector>
 #include <memory>
-
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
+#include <vector>
 
-#include <ngraph/pass/graph_rewrite.hpp>
-
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API AddFakeQuantizeFusion;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -26,8 +24,8 @@ class TRANSFORMATIONS_API AddFakeQuantizeFusion;
  * Restrictions:
  * - second input to Add is a Constant
  */
-class ngraph::pass::AddFakeQuantizeFusion: public ngraph::pass::MatcherPass {
+class ov::pass::AddFakeQuantizeFusion : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("AddFakeQuantizeFusion", "0");
     AddFakeQuantizeFusion();
 };

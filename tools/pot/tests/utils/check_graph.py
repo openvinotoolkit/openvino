@@ -1,9 +1,9 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import shutil
 
-from mo.utils.ir_engine.ir_engine import IREngine
+from openvino.tools.mo.utils.ir_engine.ir_engine import IREngine
 from openvino.tools.pot.graph.graph_utils import save_graph
 from tests.utils.path import REFERENCE_MODELS_PATH
 
@@ -44,9 +44,9 @@ def check_graph(tmp_path, graph, model_name, model_framework, check_weights=Fals
 
 def check_model(tmp_path, model, model_name, model_framework, check_weights=False):
     """
-        Checking that graphs of models are equal to their references by comparing topologies and
-        all weights if check_weights is specified as True.
-        """
+    Checking that graphs of models are equal to their references by comparing topologies and
+    all weights if check_weights is specified as True.
+    """
     model_name_ = model_name
     for model_dict in model.models:
         if model.is_cascade:

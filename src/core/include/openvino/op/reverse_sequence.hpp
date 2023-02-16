@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,10 +9,12 @@
 namespace ov {
 namespace op {
 namespace v0 {
+/// \brief ReverseSequence operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ReverseSequence : public Op {
 public:
     OPENVINO_OP("ReverseSequence", "opset1");
-    BWDCMP_RTTI_DECLARATION;
 
     ReverseSequence() = default;
     /// \brief Constructs a ReverseSequence operation.
@@ -32,30 +34,24 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    size_t get_batch_axis() const {
-        return m_normalized_batch_axis;
-    }
+    size_t get_batch_axis() const;
     int64_t get_origin_batch_axis() const {
         return m_batch_axis;
     }
-    void set_batch_axis(int64_t batch_axis) {
-        m_batch_axis = batch_axis;
-    }
+    void set_batch_axis(int64_t batch_axis);
+
     size_t get_sequence_axis() const {
         return m_normalized_seq_axis;
     }
     int64_t get_origin_sequence_axis() const {
         return m_seq_axis;
     }
-    void set_sequence_axis(int64_t sequence_axis) {
-        m_seq_axis = sequence_axis;
-    }
+    void set_sequence_axis(int64_t sequence_axis);
 
 private:
-    int64_t m_batch_axis;
-    int64_t m_seq_axis = 1;
-    size_t m_normalized_batch_axis;
-    size_t m_normalized_seq_axis;
+    int64_t m_batch_axis{};
+    int64_t m_seq_axis{1};
+    size_t m_normalized_seq_axis{};
 };
 }  // namespace v0
 }  // namespace op

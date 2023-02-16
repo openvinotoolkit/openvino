@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,29 +37,44 @@ class OperatorsBridge {
 public:
     static constexpr const int LATEST_SUPPORTED_ONNX_OPSET_VERSION = ONNX_OPSET_VERSION;
 
-    OperatorsBridge(const OperatorsBridge&) = delete;
-    OperatorsBridge& operator=(const OperatorsBridge&) = delete;
-    OperatorsBridge(OperatorsBridge&&) = delete;
-    OperatorsBridge& operator=(OperatorsBridge&&) = delete;
+    OperatorsBridge();
 
-    static OperatorSet get_operator_set(const std::string& domain, std::int64_t version = -1) {
-        return instance()._get_operator_set(domain, version);
+    OperatorsBridge(const OperatorsBridge&) = default;
+    OperatorsBridge& operator=(const OperatorsBridge&) = default;
+    OperatorsBridge(OperatorsBridge&&) = default;
+    OperatorsBridge& operator=(OperatorsBridge&&) = default;
+
+    OperatorSet get_operator_set(const std::string& domain, std::int64_t version = -1) const;
+
+    template <typename Container = std::set<std::string>>
+    Container get_supported_operators(int64_t version, std::string domain) const {
+        if (domain == "ai.onnx") {
+            domain = "";
+        }
+
+        Container ops{};
+        const auto dm = m_map.find(domain);
+        if (dm == std::end(m_map)) {
+            return ops;
+        }
+
+        std::insert_iterator<Container> inserter{ops, std::begin(ops)};
+
+        std::transform(std::begin(dm->second),
+                       std::end(dm->second),
+                       inserter,
+                       [](const DomainOpset::value_type& op_in_domain) {
+                           return op_in_domain.first;
+                       });
+
+        return ops;
     }
 
-    static void register_operator(const std::string& name,
-                                  std::int64_t version,
-                                  const std::string& domain,
-                                  Operator fn) {
-        instance()._register_operator(name, version, domain, std::move(fn));
-    }
+    void register_operator(const std::string& name, std::int64_t version, const std::string& domain, Operator fn);
+    void unregister_operator(const std::string& name, std::int64_t version, const std::string& domain);
+    bool is_operator_registered(const std::string& name, std::int64_t version, const std::string& domain) const;
 
-    static void unregister_operator(const std::string& name, std::int64_t version, const std::string& domain) {
-        instance()._unregister_operator(name, version, domain);
-    }
-
-    static bool is_operator_registered(const std::string& name, std::int64_t version, const std::string& domain) {
-        return instance()._is_operator_registered(name, version, domain);
-    }
+    void overwrite_operator(const std::string& name, const std::string& domain, Operator fn);
 
 private:
     // Registered operators structure
@@ -76,25 +91,11 @@ private:
     //    domain_2: { ... },
     //    ...
     // }
-    std::unordered_map<std::string, std::unordered_map<std::string, std::map<std::int64_t, Operator>>> m_map;
-
-    OperatorsBridge();
-
-    static OperatorsBridge& instance() {
-        static OperatorsBridge instance;
-        return instance;
-    }
-
-    void _register_operator(const std::string& name, std::int64_t version, const std::string& domain, Operator fn);
-    void _unregister_operator(const std::string& name, std::int64_t version, const std::string& domain);
-    OperatorSet _get_operator_set(const std::string& domain, std::int64_t version);
-
-    bool _is_operator_registered(const std::string& name, std::int64_t version, const std::string& domain);
-
-    std::mutex lock;
+    using DomainOpset = std::unordered_map<std::string, std::map<std::int64_t, Operator>>;
+    std::unordered_map<std::string, DomainOpset> m_map;
 };
 
-const std::string OPENVINO_ONNX_DOMAIN = "org.openvinotoolkit";
+constexpr const char* OPENVINO_ONNX_DOMAIN = "org.openvinotoolkit";
 
 }  // namespace onnx_import
 

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,6 +32,20 @@ FakeQuantizeDequantization::FakeQuantizeDequantization(
     subtractConstant(subtractConstant),
     multiply(multiply),
     multiplyConstant(multiplyConstant) {
+    // for most node with layout NC, NCHW, NCDWH, index of channel dimension is 1
+    channelDimIndex = 1ul;
+
+    const auto rank = data.get_partial_shape().rank();
+    if (rank.is_static()) {
+        std::string data_src_type = data.get_node()->get_type_name();
+        if (data_src_type == "MatMul" && data.get_index() == 0) {
+            // for MatMul, index of channel dimension is the last one
+            channelDimIndex = static_cast<size_t>(rank.get_length()) - 1;
+        } else if (rank.get_length() == 1) {
+            // special 1D case: C
+            channelDimIndex = 0ul;
+        }
+    }
 }
 
 bool FakeQuantizeDequantization::empty() const noexcept {
@@ -75,7 +89,7 @@ bool FakeQuantizeDequantization::isLowPrecision() const {
     return DataPrecision::isSupported(data.get_element_type());
 }
 
-bool FakeQuantizeDequantization::checkShape(const std::shared_ptr<ngraph::Node>& elementwise) noexcept {
+bool FakeQuantizeDequantization::checkShape(const std::shared_ptr<ngraph::Node>& elementwise) {
     std::shared_ptr<ngraph::opset1::Convert> convert;
     std::shared_ptr<ngraph::opset1::Constant> constant;
     const int branchIndex = FakeQuantizeDequantization::fillDequantizationParams(elementwise, convert, constant);
@@ -90,7 +104,7 @@ bool FakeQuantizeDequantization::checkShape(const std::shared_ptr<ngraph::Node>&
     }
 
     if (!inPShape.rank().is_dynamic()) {
-        for (int i = 0; i < inPShape.rank().get_length(); ++i) {
+        for (size_t i = 0; i < inPShape.size(); ++i) {
             if (inPShape[i] != outPShape[i] && !inPShape[i].is_dynamic()) {
                 return false;
             }
@@ -100,7 +114,8 @@ bool FakeQuantizeDequantization::checkShape(const std::shared_ptr<ngraph::Node>&
     return true;
 }
 
-bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::Node>& dequantizationElementwise) {
+// check if elementwise operation inside dequantization subgraph satisfy per-tensor/per-OC broadcast requirement
+bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::Node>& dequantizationElementwise) const {
     std::shared_ptr<ngraph::opset1::Convert> convert;
     std::shared_ptr<ngraph::opset1::Constant> constant;
     FakeQuantizeDequantization::fillDequantizationParams(dequantizationElementwise, convert, constant);
@@ -114,51 +129,87 @@ bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::
         return false;
     }
 
-    if ((constShape.size() <= 1ul) || (std::all_of(constShape.begin(), constShape.end(), [](const size_t value) { return value == 1ul; }))) {
+    // scalar-like const tensor is broadcastable to any shape of data
+    if (ngraph::shape_size(constShape) == 1) {
         return true;
     }
 
-    const auto partialShape = dequantizationElementwise->get_input_partial_shape(0);
+    const auto partialShape = dequantizationElementwise->get_output_partial_shape(0);
     if (partialShape.rank().is_dynamic()) {
         return false;
     }
 
-    const auto channelsDimension = partialShape[1];
+    auto dimc = channelDimIndex;
+
+    const auto channelsDimension = partialShape[dimc];
     if (channelsDimension.is_dynamic()) {
         return false;
     }
 
     const size_t channelsShapeVal = channelsDimension.get_length();
-    const size_t rank = partialShape.rank().get_length();
-    if (constShape.size() == rank) {
-        if ((constShape[0] != 1ul) || (constShape[1] != channelsShapeVal)) {
-            return false;
-        }
-        for (size_t i = 2ul; i < constShape.size(); ++i) {
-            if (constShape[i] != 1ul) {
-                return false;
-            }
-        }
-    } else if (constShape.size() == (rank - 1)) {
-        if (constShape[0] != channelsShapeVal) {
-            return false;
-        }
-        for (size_t i = 1ul; i < constShape.size(); ++i) {
-            if (constShape[i] != 1ul) {
-                return false;
-            }
-        }
-    } else {
-        return false;
+
+    // special case: 1D const tensor is considered to be per-channel w/o comparing actual shapes using broadcast rules
+    // as long as the number of elements matches channel dimension.
+    if (constShape.size() == 1ul) {
+        return constShape[0] == channelsShapeVal;
     }
 
-    return true;
+    auto checkConstShape = [&constShape, &channelsShapeVal] (const size_t chDimIdx) {
+        for (size_t i = 0ul; i < constShape.size(); ++i) {
+            auto curDim = constShape[i];
+            if (curDim == 1ul)
+                continue;
+            if (i == chDimIdx && curDim == channelsShapeVal)
+                continue;
+            return false;
+        }
+        return true;
+    };
+
+    const size_t rank = partialShape.rank().get_length();
+    if (constShape.size() == rank) {
+        // special case: ND const tensor with N matches data rank
+        // element-wise comparing works under any broadcast rules.
+        return checkConstShape(dimc);
+    } else if (constShape.size() < rank) {
+        // rank mismatch, we have to apply broadcast rules to align dimensions, all dequantization nodes are constructed
+        // by LPT itself, thus should has default NUMPY type
+        if (dequantizationElementwise->get_autob() != ov::op::AutoBroadcastType::NUMPY)
+            return false;
+        // the prepended dimensions are all 1 and can be skipped;
+        // derive index of channel dimension in const tensor after right aligned
+        if (dimc < rank - constShape.size())
+            return false;
+        return checkConstShape(dimc - (rank - constShape.size()));
+    }
+
+    return false;
+}
+
+std::shared_ptr<Node> FakeQuantizeDequantization::copyWithNewInput(const std::shared_ptr<Node>& input) const {
+    auto lastNode = input;
+    if (convert) {
+        lastNode = convert->copy_with_new_inputs({lastNode});
+    }
+    if (subtract) {
+        std::shared_ptr<Node> input1 = nullptr;
+        if (subtractConvert) {
+            input1 = subtractConvert;
+        } else {
+            input1 = subtractConstant;
+        }
+        lastNode = subtract->copy_with_new_inputs({lastNode, input1});
+    }
+    if (multiply) {
+        lastNode = multiply->copy_with_new_inputs({lastNode, multiplyConstant});
+    }
+    return lastNode;
 }
 
 int FakeQuantizeDequantization::fillDequantizationParams(
     const std::shared_ptr<ngraph::Node>& elementwise,
     std::shared_ptr<ngraph::opset1::Convert>& convert,
-    std::shared_ptr<ngraph::opset1::Constant>& constant) noexcept {
+    std::shared_ptr<ngraph::opset1::Constant>& constant) {
     auto fill = [](
         const std::shared_ptr<ngraph::Node>& elementwise,
         const size_t branchIndex,
@@ -191,7 +242,7 @@ int FakeQuantizeDequantization::fillDequantizationParams(
 
 int FakeQuantizeDequantization::fillDequantizationParams(
     const std::shared_ptr<ngraph::Node>& elementwise,
-    std::shared_ptr<ngraph::opset1::Constant>& constant) noexcept {
+    std::shared_ptr<ngraph::opset1::Constant>& constant) {
     constant = elementwise->get_input_element_type(1ul).is_real() ?
         ov::as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(1ul)) :
         nullptr;

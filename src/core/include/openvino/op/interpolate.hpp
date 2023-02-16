@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,10 +17,10 @@ namespace op {
 namespace v0 {
 
 /// \brief Layer which performs bilinear interpolation
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Interpolate : public Op {
 public:
     OPENVINO_OP("Interpolate", "opset1");
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Structure that specifies attributes for interpolation
     struct Attributes {
         // specify dimension indices where interpolation is applied, and `axes` is any
@@ -77,10 +77,12 @@ private:
 }  // namespace v0
 
 namespace v4 {
+/// \brief Interpolate operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Interpolate : public Op {
 public:
     OPENVINO_OP("Interpolate", "opset4", op::Op, 4);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief PartialShape calculation mode
     ///
@@ -249,6 +251,9 @@ public:
     const InterpolateAttrs& get_attrs() const {
         return m_attrs;
     }
+    void set_attrs(const InterpolateAttrs& attrs) {
+        this->m_attrs = attrs;
+    }
 
 protected:
     /// \return The interpolation axes.
@@ -299,6 +304,20 @@ private:
     void infer_using_shapes(PartialShape& output_shape,
                             const std::vector<int64_t>& axes,
                             const std::vector<int64_t>& sizes) const;
+
+    template <class T>
+    friend void correct_pads_attr(const Interpolate* op,
+                                  std::vector<size_t>& pads_begin,
+                                  std::vector<size_t>& pads_end,
+                                  const std::vector<T>& input_shapes);
+
+    template <class T>
+    friend void shape_infer(const Interpolate* op,
+                            std::vector<size_t>& pads_begin,
+                            std::vector<size_t>& pads_end,
+                            const std::vector<T>& input_shapes,
+                            std::vector<T>& output_shapes,
+                            const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data);
 };
 }  // namespace v4
 }  // namespace op
@@ -329,7 +348,6 @@ public:
         : EnumAttributeAdapterBase<op::v0::Interpolate::InterpolateMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v0::Interpolate::InterpolateMode>");
-    BWDCMP_RTTI_DECLARATION;
 };
 template <>
 class OPENVINO_API AttributeAdapter<op::v4::Interpolate::InterpolateMode>
@@ -339,7 +357,6 @@ public:
         : EnumAttributeAdapterBase<op::v4::Interpolate::InterpolateMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v4::Interpolate::InterpolateMode>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -350,7 +367,6 @@ public:
         : EnumAttributeAdapterBase<op::v4::Interpolate::CoordinateTransformMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v4::Interpolate::CoordinateTransformMode>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -361,7 +377,6 @@ public:
         : EnumAttributeAdapterBase<op::v4::Interpolate::NearestMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v4::Interpolate::NearestMode>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -372,6 +387,5 @@ public:
         : EnumAttributeAdapterBase<op::v4::Interpolate::ShapeCalcMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v4::Interpolate::ShapeCalcMode>");
-    BWDCMP_RTTI_DECLARATION;
 };
 }  // namespace ov

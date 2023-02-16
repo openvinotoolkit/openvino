@@ -1,10 +1,13 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-add_definitions(-DIN_NGRAPH_LIBRARY)
+# enable LTO globally for all libraries below
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-set(NGRAPH_INCLUDE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/include)
+add_definitions(-DIN_OV_CORE_LIBRARY)
+
+set(OV_CORE_INCLUDE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wmissing-declarations)
@@ -18,56 +21,78 @@ add_subdirectory(builder)
 add_subdirectory(reference)
 add_subdirectory(shape_inference)
 
-# WA for Tensor implementation via ie::Blob::Ptr
-set(IE_SHARED_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/src/ie_legacy/blob_factory.cpp"
-                   "${CMAKE_CURRENT_SOURCE_DIR}/src/ie_legacy/ie_blob_common.cpp"
-                   "${CMAKE_CURRENT_SOURCE_DIR}/src/ie_legacy/ie_layouts.cpp"
-                   "${CMAKE_CURRENT_SOURCE_DIR}/src/ie_legacy/system_allocator.cpp")
-set(MIXED_SRC ${IE_SHARED_SRCS}
+set(MIXED_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/allocator.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/ov_tensor.cpp")
 
 set_property(SOURCE ${MIXED_SRC}
     APPEND PROPERTY INCLUDE_DIRECTORIES
-        $<TARGET_PROPERTY:inference_engine,SOURCE_DIR>/src
-        $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src
         $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
-set_source_files_properties(${MIXED_SRC}
-    PROPERTIES COMPILE_DEFINITIONS IMPLEMENT_INFERENCE_ENGINE_API)
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    ie_add_compiler_flags(/wd4244)
+endif()
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
 
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 
+#
+# Create ov_core_dev library
+#
+
+add_library(ov_core_dev INTERFACE)
+add_library(openvino::core::dev ALIAS ov_core_dev)
+
+target_include_directories(ov_core_dev INTERFACE
+    $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/dev_api>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/common/include>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/transformations/include>)
+
+target_link_libraries(ov_core_dev INTERFACE openvino::itt openvino::util)
+
+set_target_properties(ov_core_dev PROPERTIES EXPORT_NAME core::dev)
+openvino_developer_export_targets(COMPONENT core TARGETS openvino::core::dev)
+
+# Install interface libraries for case BUILD_SHARED_LIBS=OFF
+ov_install_static_lib(ov_core_dev ${OV_CPACK_COMP_CORE})
+
+#
 # Create static or shared library depending on BUILD_SHARED_LIBS
-add_library(ngraph ${LIBRARY_SRC} ${PUBLIC_HEADERS} ${IE_SHARED_SRCS})
+#
 
+add_library(ngraph_obj OBJECT ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
-ie_faster_build(ngraph
+if(ENABLE_SYSTEM_PUGIXML)
+    # system pugixml has /usr/include as include directories
+    # we cannot use them as system ones, leads to compilation errors
+    set_target_properties(ngraph_obj PROPERTIES NO_SYSTEM_FROM_IMPORTED ON)
+endif()
+
+target_compile_definitions(ngraph_obj PRIVATE IMPLEMENT_OPENVINO_API)
+
+ie_faster_build(ngraph_obj
     UNITY
     PCH PRIVATE "src/precomp.hpp")
 
-ie_add_api_validator_post_build_step(TARGET ngraph)
-
-ie_add_vs_version_file(NAME ngraph
-                       FILEDESCRIPTION "nGraph library")
-
 addVersionDefines(src/version.cpp CI_BUILD_NUMBER)
 
-target_link_libraries(ngraph PRIVATE ngraph::builder ngraph::reference openvino::util pugixml::static ov_shape_inference)
+target_link_libraries(ngraph_obj PRIVATE ngraph::builder ngraph::reference openvino::util
+                                         openvino::pugixml ov_shape_inference openvino::core::dev)
 
-ie_mark_target_as_cc(ngraph)
+ie_mark_target_as_cc(ngraph_obj)
 
-ov_ncc_naming_style(FOR_TARGET ngraph
-                    INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include")
+ov_ncc_naming_style(FOR_TARGET ngraph_obj
+                    SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-add_clang_format_target(ngraph_clang FOR_TARGETS ngraph)
+add_clang_format_target(ngraph_clang FOR_TARGETS ngraph_obj)
 
 if(NOT BUILD_SHARED_LIBS)
-    target_compile_definitions(ngraph PUBLIC OPENVINO_STATIC_LIBRARY)
+    target_compile_definitions(ngraph_obj PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
@@ -85,7 +110,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         set(link_type PUBLIC)
     endif()
 
-    target_link_options(ngraph ${link_type} "/IGNORE:4217,4286")
+    target_link_options(ngraph_obj ${link_type} "/IGNORE:4217,4286")
+    ie_add_compiler_flags(/wd4267)
 endif()
 
 # some sources are located in ngraph, while headers are in inference_engine_transformations
@@ -93,60 +119,46 @@ file(GLOB_RECURSE smart_reshape_srcs ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/smart_
 file(GLOB_RECURSE rt_info_srcs ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/rt_info/*.cpp)
 set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precision.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_fp32_to_fp16.cpp"
+                            "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/fix_rt_info.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/init_node_info.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/serialize.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/op/type_relaxed.cpp"
-                            "${CMAKE_CURRENT_SOURCE_DIR}/src/function.cpp" # for SmartReshape
+                            "${CMAKE_CURRENT_SOURCE_DIR}/src/preprocess/preprocess_steps_impl.cpp"
+                            "${CMAKE_CURRENT_SOURCE_DIR}/src/model.cpp" # for SmartReshape
                             ${smart_reshape_srcs} ${rt_info_srcs}
         PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Defines macro in C++ to load backend plugin
-target_include_directories(ngraph PUBLIC $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}>
-                                  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_include_directories(ngraph_obj PUBLIC $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
+                                      PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
+add_library(ngraph INTERFACE)
+target_link_libraries(ngraph INTERFACE openvino::runtime)
 # Add an alias so that library can be used inside the build tree, e.g. when testing
-add_library(ngraph::ngraph ALIAS ngraph)
 add_library(openvino::core ALIAS ngraph)
 
-target_link_libraries(ngraph PRIVATE ${CMAKE_DL_LIBS})
-
-#-----------------------------------------------------------------------------------------------
-# Export for build tree
-#-----------------------------------------------------------------------------------------------
-
-set_target_properties(ngraph PROPERTIES EXPORT_NAME core)
-export(TARGETS ngraph NAMESPACE openvino::
-       APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
+target_include_directories(ngraph INTERFACE $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>)
 
 #-----------------------------------------------------------------------------------------------
 # Installation logic...
 #-----------------------------------------------------------------------------------------------
 
-ie_cpack_add_component(ngraph REQUIRED)
-ie_cpack_add_component(ngraph_dev REQUIRED DEPENDS ngraph)
-
-install(TARGETS ngraph EXPORT OpenVINOTargets
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ngraph
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ngraph
-        INCLUDES DESTINATION runtime/include)
-
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
-        DESTINATION "runtime/include"
-        COMPONENT ngraph_dev
+        DESTINATION ${OV_CPACK_INCLUDEDIR}
+        COMPONENT ${OV_CPACK_COMP_CORE_DEV}
         FILES_MATCHING
             PATTERN "*.hpp"
             PATTERN "*.h")
 
 configure_package_config_file(${OpenVINO_SOURCE_DIR}/cmake/templates/ngraphConfig.cmake.in
-    ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
-    INSTALL_DESTINATION cmake)
+    ${CMAKE_BINARY_DIR}/ngraphConfig.cmake
+    INSTALL_DESTINATION ${OV_CPACK_NGRAPH_CMAKEDIR})
 
-write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion.cmake
-    VERSION ${IE_VERSION_MAJOR}.${IE_VERSION_MINOR}.${IE_VERSION_PATCH}
+write_basic_package_version_file(${CMAKE_BINARY_DIR}/ngraphConfigVersion.cmake
+    VERSION ${OpenVINO_VERSION_MAJOR}.${OpenVINO_VERSION_MINOR}.${OpenVINO_VERSION_PATCH}
     COMPATIBILITY SameMajorVersion)
 
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
-              ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion.cmake
-        DESTINATION "runtime/cmake"
-        COMPONENT ngraph_dev)
+install(FILES ${CMAKE_BINARY_DIR}/ngraphConfig.cmake
+              ${CMAKE_BINARY_DIR}/ngraphConfigVersion.cmake
+        DESTINATION ${OV_CPACK_NGRAPH_CMAKEDIR}
+        COMPONENT ${OV_CPACK_COMP_CORE_DEV})

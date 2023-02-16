@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/op/parameter.hpp"
 
@@ -17,7 +17,6 @@ namespace util {
 class OPENVINO_API MultiSubGraphOp : public Op {
 public:
     OPENVINO_OP("MultiSubGraphOp", "util");
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Abstract class describes a connection between a MultiSubGraphOp input and
     /// the body.
     class InputDescription {
@@ -74,7 +73,6 @@ public:
     class OPENVINO_API SliceInputDescription : public InputDescription {
     public:
         OPENVINO_RTTI("SliceInputDescription");
-        BWDCMP_RTTI_DECLARATION;
         ///
         /// \brief      Constructs a new instance.
         ///
@@ -109,7 +107,6 @@ public:
     class OPENVINO_API MergedInputDescription : public InputDescription {
     public:
         OPENVINO_RTTI("MergedInputDescription");
-        BWDCMP_RTTI_DECLARATION;
         ///
         /// \brief      Constructs a new instance.
         ///
@@ -131,7 +128,6 @@ public:
     class OPENVINO_API ConcatOutputDescription : public OutputDescription {
     public:
         OPENVINO_RTTI("ConcatOutputDescription");
-        BWDCMP_RTTI_DECLARATION;
         ///
         /// \brief      Constructs a new instance.
         ///
@@ -164,7 +160,6 @@ public:
     class OPENVINO_API InvariantInputDescription : public InputDescription {
     public:
         OPENVINO_RTTI("InvariantInputDescription");
-        BWDCMP_RTTI_DECLARATION;
         ///
         /// \brief      Constructs a new instance.
         ///
@@ -180,7 +175,6 @@ public:
     class OPENVINO_API BodyOutputDescription : public MultiSubGraphOp::OutputDescription {
     public:
         OPENVINO_RTTI("BodyOutputDescription");
-        BWDCMP_RTTI_DECLARATION;
         ///
         /// \brief      Constructs a new instance.
         ///
@@ -200,15 +194,15 @@ public:
     /// \brief     Gets internal sub-graph by index in MultiSubGraphOp
     ///
     /// \param     index sub-graph's index in op
-    /// \return pointer to Function with sub-graph
-    virtual const std::shared_ptr<Function>& get_function(int index) const {
+    /// \return pointer to Model with sub-graph
+    virtual const std::shared_ptr<Model>& get_function(size_t index) const {
         return m_bodies[index];
     };
     /// \brief     Adds sub-graph to MultiSubGraphOp
     ///
     /// \param index   index of new sub-graph
-    /// \param func    func new sub_graph as Function
-    virtual void set_function(int index, const std::shared_ptr<Function>& func) {
+    /// \param func    func new sub_graph as Model
+    virtual void set_function(int index, const std::shared_ptr<Model>& func) {
         m_bodies[index] = func;
     }
     /// \brief     Gets vector with connections beewtwen operation inputs
@@ -295,6 +289,10 @@ public:
         return m_output_descriptions.size();
     }
 
+    bool get_transformations_allowed() const {
+        return m_transformations_allowed;
+    }
+
     MultiSubGraphOp(const MultiSubGraphOp&) = delete;
     MultiSubGraphOp(MultiSubGraphOp&&) = default;
 
@@ -310,9 +308,15 @@ protected:
     MultiSubGraphOp(const OutputVector& args, size_t number_of_bodies);
     explicit MultiSubGraphOp(const OutputVector& args);
 
-    std::vector<std::shared_ptr<Function>> m_bodies;
+    using OutputMap = std::map<int64_t, std::shared_ptr<MultiSubGraphOp::OutputDescription>>;
+    void validate_and_infer_type_body(const std::shared_ptr<ov::Model>& body,
+                                      const MultiSubgraphInputDescriptionVector& input_descriptors);
+    OutputMap get_mapping_outputs_on_body_description(const MultiSubgraphOutputDescriptionVector& output_descriptors);
+
+    std::vector<std::shared_ptr<Model>> m_bodies;
     std::vector<MultiSubgraphInputDescriptionVector> m_input_descriptions;
     std::vector<MultiSubgraphOutputDescriptionVector> m_output_descriptions;
+    bool m_transformations_allowed = true;
 };
 }  // namespace util
 }  // namespace op
@@ -325,7 +329,6 @@ public:
         : DirectValueAccessor<std::vector<std::shared_ptr<op::util::MultiSubGraphOp::InputDescription>>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::InputDescription>>>")
-    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -336,7 +339,6 @@ public:
         : DirectValueAccessor<std::vector<std::shared_ptr<op::util::MultiSubGraphOp::OutputDescription>>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::OutputDescription>>>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

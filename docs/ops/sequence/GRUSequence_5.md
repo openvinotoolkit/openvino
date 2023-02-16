@@ -1,4 +1,4 @@
-## GRUSequence <a name="GRUSequence"></a> {#openvino_docs_ops_sequence_GRUSequence_5}
+# GRUSequence  {#openvino_docs_ops_sequence_GRUSequence_5}
 
 **Versioned name**: *GRUSequence-5*
 
@@ -65,7 +65,7 @@ A single cell in the sequence is implemented in the same way as in <a href="#GRU
 
 * **2**: `initial_hidden_state` - 3D tensor of type *T1* `[batch_size, num_directions, hidden_size]`, input hidden state data. **Required.**
 
-* **3**: `sequence_lengths` - 1D tensor of type *T2* `[batch_size]`, specifies real sequence lengths for each batch element. **Required.**
+* **3**: `sequence_lengths` - 1D tensor of type *T2* `[batch_size]`, specifies real sequence lengths for each batch element. In case of negative values in this input, the operation behavior is undefined. **Required.**
 
 * **4**: `W` - 3D tensor of type *T1* `[num_directions, 3 * hidden_size, input_size]`, the weights for matrix multiplication, gate order: zrh. **Required.**
 

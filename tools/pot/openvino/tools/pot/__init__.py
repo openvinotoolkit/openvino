@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from .algorithms.quantization.accuracy_aware.algorithm import AccuracyAwareQuantization
@@ -30,9 +30,16 @@ from .algorithms.quantization.weight_bias_correction.algorithm import (
 from .algorithms.sparsity.magnitude_sparsity.algorithm import MagnitudeSparsity
 from .algorithms.sparsity.default.algorithm import WeightSparsity
 from .algorithms.sparsity.default.base_algorithm import BaseWeightSparsity
-from .optimization.tpe.base_algorithm import Tpe
 from .algorithms.quantization.overflow_correction.algorithm import OverflowCorrection
-from .algorithms.quantization.ranger.algorithm import Ranger
+from .algorithms.quantization.range_supervision.algorithm import RangeSupervision
+
+from .api.data_loader import DataLoader
+from .api.metric import Metric
+from .api.engine import Engine
+from .engines.ie_engine import IEEngine
+from .graph import load_model, save_model
+from .graph.model_utils import compress_model_weights
+from .pipeline.initializer import create_pipeline
 
 QUANTIZATION_ALGORITHMS = [
     'MinMaxQuantization',
@@ -47,13 +54,12 @@ QUANTIZATION_ALGORITHMS = [
     'AccuracyAwareCommon',
     'INT4MixedQuantization',
     'TunableQuantization',
-    'Tpe',
     'QuantNoiseEstimator',
     'OutlierChannelSplitting',
     'WeightBiasCorrection',
     'ParamsGridSearchAlgorithm',
     'OverflowCorrection',
-    'Ranger',
+    'RangeSupervision',
 ]
 
 SPARSITY_ALGORITHMS = ['WeightSparsity',

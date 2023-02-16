@@ -1,17 +1,15 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <memory>
 #include <functional>
-
+#include <memory>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 
-#include <ngraph/pass/graph_rewrite.hpp>
-
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvolutionMultiplyFusion;
@@ -20,28 +18,28 @@ class TRANSFORMATIONS_API ConvolutionBackpropDataMultiplyFusion;
 class TRANSFORMATIONS_API GroupConvolutionBackpropDataMultiplyFusion;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::ConvolutionMultiplyFusion: public ngraph::pass::MatcherPass {
+class ov::pass::ConvolutionMultiplyFusion : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvolutionMultiplyFusion", "0");
     ConvolutionMultiplyFusion();
 };
 
-class ngraph::pass::GroupConvolutionMultiplyFusion: public ngraph::pass::MatcherPass {
+class ov::pass::GroupConvolutionMultiplyFusion : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("GroupConvolutionMultiplyFusion", "0");
     GroupConvolutionMultiplyFusion();
 };
 
-class ngraph::pass::ConvolutionBackpropDataMultiplyFusion: public ngraph::pass::MatcherPass {
+class ov::pass::ConvolutionBackpropDataMultiplyFusion : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvolutionBackpropDataMultiplyFusion", "0");
     ConvolutionBackpropDataMultiplyFusion();
 };
 
-class ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion: public ngraph::pass::MatcherPass {
+class ov::pass::GroupConvolutionBackpropDataMultiplyFusion : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("GroupConvolutionBackpropDataMultiplyFusion", "0");
     GroupConvolutionBackpropDataMultiplyFusion();
 };

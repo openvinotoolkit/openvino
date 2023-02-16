@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,10 +9,12 @@
 namespace ov {
 namespace op {
 namespace v1 {
+/// \brief OneHot operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API OneHot : public Op {
 public:
     OPENVINO_OP("OneHot", "opset1", op::Op, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a one-hot operation.
     OneHot() = default;
@@ -42,15 +44,16 @@ public:
     bool has_evaluate() const override;
 
     /// \return The index of the one-hot axis.
-    int64_t get_axis() const {
+    const int64_t& get_axis() const {
         return m_axis;
     }
-    void set_axis(int64_t axis) {
-        m_axis = axis;
-    }
+    void set_axis(int64_t axis);
 
 protected:
     int64_t m_axis;
+
+private:
+    friend void inline resolve_axis(OneHot* op);
 };
 }  // namespace v1
 }  // namespace op

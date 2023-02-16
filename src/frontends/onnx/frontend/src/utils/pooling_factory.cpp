@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,11 +27,6 @@ std::shared_ptr<default_opset::Constant> transposition_axis_order(const Rank& in
     std::reverse(axes.begin() + 2, axes.end());
 
     return std::make_shared<default_opset::Constant>(element::i32, Shape{rank}, axes);
-}
-
-std::shared_ptr<ngraph::Node> identity(Output<ngraph::Node> node_output) {
-    const auto zero = default_opset::Constant::create(node_output.get_element_type(), {}, {0});
-    return std::make_shared<default_opset::Add>(node_output, zero);
 }
 }  // namespace
 
@@ -64,13 +59,13 @@ OutputVector PoolingFactory::make_avg_pool() const {
 }
 
 OutputVector PoolingFactory::make_max_pool() const {
-    return {std::make_shared<default_opset::MaxPool>(m_inputs.at(0),
-                                                     m_strides,
-                                                     m_padding_below,
-                                                     m_padding_above,
-                                                     m_kernel_shape,
-                                                     m_rounding_type,
-                                                     m_auto_pad)};
+    return {std::make_shared<op::v1::MaxPool>(m_inputs.at(0),
+                                              m_strides,
+                                              m_padding_below,
+                                              m_padding_above,
+                                              m_kernel_shape,
+                                              m_rounding_type,
+                                              m_auto_pad)};
 }
 
 OutputVector PoolingFactory::make_max_pool_with_indices() const {
@@ -89,7 +84,7 @@ OutputVector PoolingFactory::make_max_pool_with_indices() const {
 
         return {max_pool->output(0), transposed_indices};
     } else {
-        return {identity(max_pool->output(0)), identity(max_pool->output(1))};
+        return {max_pool->output(0), max_pool->output(1)};
     }
 }
 }  // namespace pooling

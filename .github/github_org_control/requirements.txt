@@ -1,0 +1,2 @@
+PyGithub==1.55
+ldap3==2.7

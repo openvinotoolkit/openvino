@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include <memory>
 #include <ngraph/validation_util.hpp>
 #include <numeric>
+#include <space_to_batch_shape_inference.hpp>
 
 #include "itt.hpp"
 #include "ngraph/builder/make_constant.hpp"
@@ -22,8 +23,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v1::SpaceToBatch);
-
 ngraph::op::v1::SpaceToBatch::SpaceToBatch(const ngraph::Output<ngraph::Node>& data,
                                            const ngraph::Output<ngraph::Node>& block_shape,
                                            const ngraph::Output<ngraph::Node>& pads_begin,
@@ -36,8 +35,7 @@ ngraph::op::v1::SpaceToBatch::SpaceToBatch(const ngraph::Output<ngraph::Node>& d
 }
 
 void op::v1::SpaceToBatch::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_SpaceToBatch_validate_and_infer_types);
-    ov::PartialShape data_pshape = get_input_partial_shape(0);
+    OV_OP_SCOPE(v1_SpaceToBatch_validate_and_infer_types);
     const auto& data_type = get_input_element_type(0);
     const auto& block_shape_type = get_input_element_type(1);
     const auto& pads_begin_type = get_input_element_type(2);
@@ -60,64 +58,23 @@ void op::v1::SpaceToBatch::validate_and_infer_types() {
                           "pads_end must be an integral number but got (",
                           pads_end_type,
                           ").");
-
-    auto data = input_value(0);
-    auto block = input_value(1);
-    auto pads_begin = input_value(2);
-    auto pads_end = input_value(3);
-
-    const auto& block_const = get_constant_from_source(block);
-    const auto& pads_begin_const = get_constant_from_source(pads_begin);
-    const auto& pads_end_const = get_constant_from_source(pads_end);
-
-    if (block_const && pads_begin_const && pads_end_const && data_pshape.is_static()) {
-        const auto& data_shape = data.get_shape();
-
-        NODE_VALIDATION_CHECK(this,
-                              (data_shape.size() >= 2),
-                              "The data tensor with rank lower than 2 is not supported (data rank: ",
-                              data_shape.size(),
-                              ")");
-
-        auto block_val = block_const->cast_vector<int64_t>();
-        auto pads_begin_val = pads_begin_const->cast_vector<int64_t>();
-        auto pads_end_val = pads_end_const->cast_vector<int64_t>();
-
-        int64_t block_prod = 1;
-        for (long idx : block_val)
-            block_prod *= idx;
-
-        ov::Shape output_shape = {static_cast<size_t>(data_shape[0] * block_prod)};
-        for (size_t idx = 1; idx < data_shape.size(); ++idx) {
-            NODE_VALIDATION_CHECK(this, block_val.at(idx) > 0, "block_shape values must be greater than 0");
-            NODE_VALIDATION_CHECK(
-                this,
-                (pads_begin_val.at(idx) + data_shape.at(idx) + pads_end_val.at(idx)) % block_val.at(idx) == 0,
-                "The dimension on position: ",
-                idx,
-                " equal to: ",
-                pads_begin_val.at(idx) + data_shape.at(idx) + pads_end_val.at(idx),
-                " must be a multiple of block_values[i]: ",
-                block_val.at(idx));
-            output_shape.push_back(static_cast<size_t>(pads_begin_val[idx] + data_shape[idx] + pads_end_val[idx]) /
-                                   block_val[idx]);
-        }
-
-        set_output_size(1);
-        set_output_type(0, data_type, output_shape);
-    } else {
-        set_output_type(0, data_type, ov::PartialShape::dynamic(data_pshape.rank()));
-    }
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+    const std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
+                                                        get_input_partial_shape(1),
+                                                        get_input_partial_shape(2),
+                                                        get_input_partial_shape(3)};
+    shape_infer(this, input_shapes, output_shapes);
+    set_output_type(0, data_type, output_shapes[0]);
 }
 
 std::shared_ptr<Node> ngraph::op::v1::SpaceToBatch::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_SpaceToBatch_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_SpaceToBatch_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<SpaceToBatch>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
 }
 
 bool ngraph::op::v1::SpaceToBatch::visit_attributes(ngraph::AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_SpaceToBatch_visit_attributes);
+    OV_OP_SCOPE(v1_SpaceToBatch_visit_attributes);
     return true;
 }
 
@@ -235,12 +192,12 @@ bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVecto
 }
 
 bool ngraph::op::v1::SpaceToBatch::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v1_SpaceToBatch_evaluate);
+    OV_OP_SCOPE(v1_SpaceToBatch_evaluate);
     return evaluate_space_to_batch(outputs, inputs);
 }
 
 bool ngraph::op::v1::SpaceToBatch::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_SpaceToBatch_has_evaluate);
+    OV_OP_SCOPE(v1_SpaceToBatch_has_evaluate);
     return !get_input_partial_shape(0).is_dynamic() &&
            (get_input_shape(0).size() == 4 || get_input_shape(0).size() == 5);
 }

@@ -26,8 +26,6 @@ Model specific arguments:
                         Path to an input image file or multi-input file to
                         infer. Generates input(s) from normal distribution if
                         empty
-  --batch BATCH, -b BATCH
-                        Overrides batch size. Default is inherited from model
   --model MODEL, -m MODEL
                         Path to an .xml file that represents the first IR of
                         the trained model to infer.
@@ -38,11 +36,11 @@ Model specific arguments:
                         Defines layers to check. Options: all, None - for
                         output layers check, list of comma-separated layer
                         names to check. Default value is None.
-  --mapping MAPPING, -map MAPPING
-                        Model Optimizer provided mapping for --model/-m
-  --reference_mapping REFERENCE_MAPPING, -ref_map REFERENCE_MAPPING
-                        Model Optimizer provided mapping for
-                        --reference_model/-ref_model
+  --ref_layers REFERENCE_LAYERS, -reference_layers REFERENCE_LAYERS
+                        Defines layers to check in reference model. Options: all, None - for
+                        output layers check, list of comma-separated layer
+                        names to check. If not specified the same layers will
+                        be processed as in --layers parameter.
   --num_of_iterations NUM_OF_ITERATIONS, -ni NUM_OF_ITERATIONS
                         Number of iterations to collect all over the net
                         performance
@@ -52,18 +50,17 @@ Plugin specific arguments:
                         Path to a plugin folder.
   --device DEVICE, -d DEVICE
                         The first target device to infer the model specified
-                        with the -m or --model option. CPU, GPU, HDDL or
-                        MYRIAD are acceptable.
+                        with the -m or --model option. CPU, GPU or GNA are acceptable.
   --config CONFIG, -conf CONFIG
                         Path to config file for -d or -device device plugin
   --reference_device REFERENCE_DEVICE, -ref_d REFERENCE_DEVICE
                         The second target device to infer the model and
-                        compare the metrics. CPU, GPU, HDDL or MYRIAD are
+                        compare the metrics. CPU, GPU or GNA are
                         acceptable.
   --reference_config REFERENCE_CONFIG, -ref_conf REFERENCE_CONFIG
                         Path to config file for -ref_d or -reference_device
                         device plugin
-  -l L                  Required for MKLDNN (CPU)-targeted custom layers.
+  -l L                  Required for (CPU)-targeted custom layers.
                         Comma separated paths to a shared libraries with the
                         kernels implementation.
 
@@ -178,7 +175,7 @@ In this case, to run the tool, call `cross_check_tool` on the command line with 
    ```sh
    $python3 cross_check_tool.py    -i <path_to_input_image_or_multi_input_file> \
                    -m <path_to_FP16_xml>                        \
-                   -d MYRIAD                                    \
+                   -d GNA                                       \
                    --dump                                       \
                    --layers <comma_separated_list_of_layers>
    ```

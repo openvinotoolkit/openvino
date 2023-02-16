@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,16 +32,16 @@ class ICompletionCallbackWrapper;
  * It can throw exceptions safely for the application, where it is properly handled.
  */
 class INFERENCE_ENGINE_API_CLASS(InferRequest) {
-    std::shared_ptr<void> _so;
     std::shared_ptr<IInferRequestInternal> _impl;
+    std::shared_ptr<void> _so;
 
     /**
      * @brief Constructs InferRequest from the initialized std::shared_ptr
+     * @param impl Initialized shared pointer
      * @param so Plugin to use. This is required to ensure that InferRequest can work properly even if plugin object is
      * destroyed.
-     * @param impl Initialized shared pointer
      */
-    InferRequest(const std::shared_ptr<void>& so, const std::shared_ptr<IInferRequestInternal>& impl);
+    InferRequest(const std::shared_ptr<IInferRequestInternal>& impl, const std::shared_ptr<void>& so);
     friend class ExecutableNetwork;
 
 public:
@@ -61,10 +61,31 @@ public:
      */
     using Ptr = std::shared_ptr<InferRequest>;
 
-    /**
-     * @brief Default constructor
-     */
+    /// @brief Default constructor
     InferRequest() = default;
+
+    /// @brief Default copy constructor
+    /// @param other other InferRequest object
+    InferRequest(const InferRequest& other) = default;
+
+    /// @brief Default copy assignment operator
+    /// @param other other InferRequest object
+    /// @return reference to the current object
+    InferRequest& operator=(const InferRequest& other) = default;
+
+    /// @brief Default move constructor
+    /// @param other other InferRequest object
+    InferRequest(InferRequest&& other) = default;
+
+    /// @brief Default move assignment operator
+    /// @param other other InferRequest object
+    /// @return reference to the current object
+    InferRequest& operator=(InferRequest&& other) = default;
+
+    /**
+     * @brief Destructor preserves unloading order of implementation object and reference to library
+     */
+    ~InferRequest();
 
     /**
      * @brief Sets input/output data to infer
@@ -86,12 +107,14 @@ public:
     Blob::Ptr GetBlob(const std::string& name);
 
     /**
+     * @deprecated This method will be removed in 2023.1 release
      * @brief Sets blob with a pre-process information
      * @note Returns an error in case if data blob is output
      * @param name Name of input blob.
      * @param data A reference to input. The type of Blob must correspond to the network input precision and size.
      * @param info Preprocess info for blob.
      */
+    INFERENCE_ENGINE_DEPRECATED("This method is deprecated and will be removed in 2023.1 release")
     void SetBlob(const std::string& name, const Blob::Ptr& data, const PreProcessInfo& info);
 
     /**

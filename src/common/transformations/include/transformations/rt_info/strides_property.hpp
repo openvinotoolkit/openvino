@@ -1,25 +1,32 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <ngraph/strides.hpp>
-#include <ngraph/node_input.hpp>
-#include <ngraph/variant.hpp>
 #include <transformations_visibility.hpp>
 
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_input.hpp"
+#include "openvino/core/runtime_attribute.hpp"
+
 namespace ov {
-class TRANSFORMATIONS_API StridesPropagation : public VariantImpl<ngraph::Strides> {
+
+TRANSFORMATIONS_API bool has_strides_prop(const Input<Node>& node);
+TRANSFORMATIONS_API ov::Strides get_strides_prop(const Input<Node>& node);
+TRANSFORMATIONS_API void insert_strides_prop(Input<Node>& node, const Strides& strides);
+TRANSFORMATIONS_API void remove_strides_prop(Input<Node>& node);
+
+class TRANSFORMATIONS_API StridesPropagation : public ov::RuntimeAttribute {
 public:
     OPENVINO_RTTI("strides_propagation", "0");
-
     StridesPropagation() = default;
+    StridesPropagation(const ov::Strides& value) : value{value} {}
 
-    StridesPropagation(const value_type& value) : VariantImpl<value_type>(value) {}
+    bool is_copyable() const override {
+        return false;
+    }
+
+    ov::Strides value;
 };
-
-TRANSFORMATIONS_API bool has_strides_prop(const ngraph::Input<ngraph::Node>& node);
-TRANSFORMATIONS_API ngraph::Strides get_strides_prop(const ngraph::Input<ngraph::Node>& node);
-TRANSFORMATIONS_API void insert_strides_prop(ngraph::Input<ngraph::Node>& node, const ngraph::Strides& strides);
-} // namespace ov
+}  // namespace ov

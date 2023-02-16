@@ -1,20 +1,23 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/parameter.hpp"
 
-#include "cldnn/primitives/input_layout.hpp"
-#include "cldnn/primitives/reorder.hpp"
-#include "cldnn/primitives/data.hpp"
-#include "cldnn/primitives/concatenation.hpp"
+#include "intel_gpu/primitives/input_layout.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/data.hpp"
+#include "intel_gpu/primitives/concatenation.hpp"
+
+#include "openvino/core/preprocess/input_tensor_info.hpp"
 
 using namespace InferenceEngine;
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace intel_gpu {
 
 static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::Parameter>& op) {
     auto networkInputs = p.GetNetworkInputs();
@@ -25,84 +28,31 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
     auto inputInfo = networkInputs.at(op->get_friendly_name());
     // first create and add the input layout
     const auto inputDesc = inputInfo->getTensorDesc();
-    const auto inputDims = inputDesc.getDims();
-    Layout l = inputDesc.getLayout();
-    Precision ip = inputDesc.getPrecision();
+    auto input_pshape = op->get_partial_shape();
+    InferenceEngine::Layout l = inputDesc.getLayout();
+    InferenceEngine::Precision ip = inputDesc.getPrecision();
 
     cldnn::format inputFormat = cldnn::format::bfyx;
-    if (Layout::BLOCKED == l && 6 == inputDims.size()) {
+    if (input_pshape.is_dynamic()) {
+        inputFormat = cldnn::format::get_default_format(input_pshape.size());
+    } else if (InferenceEngine::Layout::BLOCKED == l && 6 == input_pshape.size()) {
         inputFormat = cldnn::format::bfwzyx;
     } else {
         inputFormat = FormatFromLayout(l);
     }
 
-    cldnn::tensor dataTensor;
-    cldnn::tensor::value_type batch = (p.m_max_batch <= 1) ? (!inputDims.empty() ? TensorValue(inputDims[0]) : 1)
-                                                           : TensorValue(p.m_curBatch);
-    switch (inputDims.size()) {
-    case 6:
-        dataTensor = cldnn::tensor(cldnn::batch(batch),
-                                   cldnn::feature(inputDims[1]),
-                                   cldnn::spatial(inputDims[5], inputDims[4], inputDims[3], inputDims[2]));
-        break;
-    case 5:
-        if (Layout::NCDHW == l) {
-            dataTensor = cldnn::tensor(cldnn::batch(batch),
-                                       cldnn::feature(inputDims[1]),
-                                       cldnn::spatial(inputDims[4], inputDims[3], inputDims[2]));
-        } else {
-            IE_THROW()  << "Unsupported layout (" << l << ") in 5D input " << inputInfo->name();
-        }
-        break;
-    case 4:
-        if (Layout::NCHW == l || Layout::CHW == l) {
-            dataTensor = cldnn::tensor(batch,
-                                       TensorValue(inputDims[1]), TensorValue(inputDims[3]), TensorValue(inputDims[2]));
-        } else if (Layout::NHWC == l) {
-            dataTensor = cldnn::tensor(batch,
-                                       TensorValue(inputDims[1]), TensorValue(inputDims[3]), TensorValue(inputDims[2]));
-        } else {
-            IE_THROW() << "Unsupported layout (" << l << ") in 4D input " + inputInfo->name();
-        }
-        break;
-    case 3:
-        if (Layout::CHW == l) {
-            dataTensor = cldnn::tensor(TensorValue(inputDims[0]), TensorValue(inputDims[1]), 1, TensorValue(inputDims[2]));
-        } else {
-            IE_THROW() << "Unsupported layout (" << l << ") in 3D input " + inputInfo->name();
-        }
-        break;
-    case 2:
-        if (Layout::NCHW == l || NC == l) {
-            dataTensor = cldnn::tensor(batch, TensorValue(inputDims[1]), 1, 1);
-        } else {
-            IE_THROW() << "Unsupported layout (" << l << ") in 2D input " << inputInfo->name();
-        }
-        break;
-    case 1:
-        dataTensor = cldnn::tensor(TensorValue(inputDims[0]), 1, 1, 1);
-        break;
-    case 0:
-        dataTensor = cldnn::tensor(1, 1, 1, 1);
-        break;
-    default: IE_THROW() << "Invalid data dimensions";
-    }
-    cldnn::layout networkInputLayout(DataTypeFromPrecision(ip),
-                                     inputFormat,
-                                     dataTensor);
-
     // look at the expected color format of this input
     auto inputName = layer_type_name_ID(op);
     auto preProcess = inputInfo->getPreProcess();
     size_t meanChannels = preProcess.getNumberOfChannels();
-    networkInputLayout.format = inputFormat;
-    networkInputLayout.size = networkInputLayout.size.transform(inputFormat, 1);
-    networkInputLayout.data_type = DataTypeFromPrecision(op->get_output_element_type(0));
+    cldnn::layout networkInputLayout(input_pshape,
+                                     cldnn::element_type_to_data_type(op->get_output_element_type(0)),
+                                     inputFormat);
     cldnn::primitive_id meanBlobID = inputName + Program::m_meanValuesTag;
     std::vector<float> meanValues;
 
     if ((meanChannels > 0) &&
-        (meanChannels != networkInputLayout.size.feature[0])) {
+        (meanChannels != static_cast<size_t>(networkInputLayout.feature()))) {
         IE_THROW() << "Mismatched mean values channels in input " << inputName;
     }
 
@@ -122,7 +72,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         IE_ASSERT(meanChannels);
         // first merge all mean values to a single blob
         // todo make sure mean blob precision is the same as the input precision
-        auto meanDims = inputDims;
+        auto meanDims = input_pshape;
         // overwrite batches with 1
         switch (meanDims.size()) {
         case 4: meanDims[0] = 1;
@@ -130,7 +80,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         default:
             IE_THROW() << "Missing batch dimensions in input image";
         }
-        const TensorDesc desc(Precision::FP32, meanDims, TensorDesc::getLayoutByDims(meanDims));
+        const TensorDesc desc(Precision::FP32, meanDims.to_shape(), TensorDesc::getLayoutByDims(meanDims.to_shape()));
         TBlob<float> meanBlob(desc);
         meanBlob.allocate();
         auto meanBlobData = meanBlob.data();
@@ -148,25 +98,25 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         auto meanBlobPtr = std::make_shared<TBlob<float>>(meanBlob);
 
         // mean values will use external format (sub in the input format before convert to new format)
-        cldnn::tensor meanBlobTensor(networkInputLayout.size);
+        cldnn::tensor meanBlobTensor(networkInputLayout.get_tensor());
         meanBlobTensor.batch[0] = 1;  // mean values have no batches
         cldnn::layout meanBlobLayout(cldnn::data_types::f32, cldnn::format::bfyx, meanBlobTensor);
 
         auto data = static_cast<const char *>(meanBlobPtr->buffer());
 
-        auto bufIter = p.blobMemCache.find(std::make_pair(data, meanDims));
+        auto bufIter = p.blobMemCache.find(std::make_pair(data, meanDims.to_shape()));
         if (bufIter != p.blobMemCache.end()) {
             meanBlobID = bufIter->second;
         } else {
-            auto mem = p.GetEngine().allocate_memory(meanBlobLayout, false);
-            cldnn::mem_lock<int8_t> tmpPointer{ mem, p.GetEngine().get_program_stream() };
+            auto mem = p.get_engine().allocate_memory(meanBlobLayout, false);
+            cldnn::mem_lock<int8_t> tmpPointer{ mem, p.get_engine().get_service_stream() };
             auto buf = tmpPointer.data();
             auto bufSize = meanBlobLayout.bytes_count();
 
             std::memcpy(&buf[0], &data[0], bufSize);
 
-            p.AddPrimitive(cldnn::data(meanBlobID, mem));
-            p.blobMemCache[std::make_pair(data, meanDims)] = meanBlobID;
+            p.add_primitive(*op, cldnn::data(meanBlobID, mem));
+            p.blobMemCache[std::make_pair(data, meanDims.to_shape())] = meanBlobID;
         }
         break;
     }
@@ -174,110 +124,173 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         break;
     }
 
-    if (ColorFormat::NV12 == preProcess.getColorFormat() && p.GetConfig().nv12_two_inputs) {
-        // for NV12, create two input layouts with reorder instead of one,
-        // and then would expect compound blob in inferRequest
-        if (Layout::NCHW != l &&
-            (Precision::I8 != ip || Precision::U8 != ip)) {
-            IE_THROW() << "Unsupported layout (" << l << ") or precision "
-                               << ip.name() << ") for NV12 input " + inputInfo->name();
+    auto is_convert_color_type = [](const std::shared_ptr<ov::Node> &node) {
+        return ngraph::is_type<ngraph::op::v8::NV12toRGB>(node) ||
+               ngraph::is_type<ngraph::op::v8::NV12toBGR>(node) ||
+               ngraph::is_type<ngraph::op::v8::I420toRGB>(node) ||
+               ngraph::is_type<ngraph::op::v8::I420toBGR>(node);
+    };
+
+    std::function<bool(const std::shared_ptr<ov::Node>&, size_t)> recursive_search_convert_color =
+        [&](const std::shared_ptr<ov::Node> &node, size_t curr_depth) -> bool {
+        bool convert_color_found = is_convert_color_type(node);
+        if (curr_depth != 0) {
+            for (auto& user : node->get_users()) {
+                convert_color_found |= recursive_search_convert_color(user, curr_depth - 1);
+            }
         }
-        int height = inputDims[2];
-        int width = inputDims[3];
-        std::vector<cldnn::primitive_id> reorders;
+        return convert_color_found;
+    };
 
-        for (auto i = 0; i < inputDims[0]; i++) {
-            auto preprocessPrimID = "reorder:" + inputName + std::to_string(i) + Program::m_preProcessTag;
-            std::string y_name = inputName + "_Y" + std::to_string(i);
-            std::string uv_name = inputName + "_UV" + std::to_string(i);
+    std::function<bool(const std::shared_ptr<ov::Node>&)> has_surface_input =
+        [](const std::shared_ptr<ov::Node> &node) -> bool {
+        bool surface_input_found = false;
+        if (node->output(0).get_rt_info().count(ov::preprocess::TensorInfoMemoryType::get_type_info_static())) {
+            std::string mem_type = node->output(0).get_rt_info().at(ov::preprocess::TensorInfoMemoryType::get_type_info_static())
+                                                                .as<ov::preprocess::TensorInfoMemoryType>().value;
+            if (mem_type.find(GPU_CONFIG_KEY(SURFACE)) != std::string::npos) {
+                surface_input_found = true;
+            }
+        }
+        return surface_input_found;
+    };
 
-            cldnn::layout y_layout(DataTypeFromPrecision(ip),
-                                    cldnn::format::nv12, { 1, 1, width, height });
-            cldnn::layout uv_layout(DataTypeFromPrecision(ip),
-                                    cldnn::format::nv12, { 1, 2, width / 2, height / 2 });
-            auto inputY = cldnn::input_layout(y_name, y_layout, inputInfo->name());
-            auto inputUV = cldnn::input_layout(uv_name, uv_layout, inputInfo->name());
+    size_t search_depth = 3;
+    bool is_convert_color_input = recursive_search_convert_color(op, search_depth);
+    bool is_surface_input = has_surface_input(op);
 
-            p.AddPrimitive(inputY);
-            p.inputLayouts.insert({ inputInfo->name() + "_Y" + std::to_string(i), y_layout });
-            p.AddPrimitive(inputUV);
-            p.inputLayouts.insert({ inputInfo->name() + "_UV" + std::to_string(i), uv_layout });
+    if (is_surface_input) {
+        size_t batch = input_pshape[0].get_length();
+        networkInputLayout.format = cldnn::format::nv12;
+        networkInputLayout.set_partial_shape({ 1, input_pshape[3], input_pshape[1], input_pshape[2] });
+
+        std::string suffix = "";
+        std::vector<cldnn::input_info> surfaces_inputs;
+        for (size_t i = 0; i < batch; ++i) {
+            if (batch > 1)
+                suffix = "_" + std::to_string(i);
+            std::string batched_name = inputName + suffix;
+            p.inputLayouts.insert({ inputInfo->name() + suffix, networkInputLayout });
+            p.add_primitive(*op, cldnn::input_layout(batched_name, networkInputLayout));
+
+            auto reorder_layout = networkInputLayout;
+            reorder_layout.format = cldnn::format::bfyx;
+
+            auto preprocessPrimID = "reorder:" + inputName + Program::m_preProcessTag + suffix;
+            auto reorder = cldnn::reorder(preprocessPrimID,
+                                          cldnn::input_info(batched_name),
+                                          reorder_layout);
+            reorder.input_mem_type = cldnn::reorder::memory_type::surface;
+            p.add_primitive(*op, reorder);
+            surfaces_inputs.push_back(cldnn::input_info(preprocessPrimID));
+        }
+
+        if (batch > 1 && !is_convert_color_input)
+            p.add_primitive(*op, cldnn::concatenation(inputName, surfaces_inputs, 0));
+        else
+            p.primitive_ids[inputName] = "reorder:" + inputName + Program::m_preProcessTag;
+    } else if (is_convert_color_input) {
+        networkInputLayout.format = cldnn::format::byxf;
+
+        networkInputLayout.set_partial_shape({ input_pshape[0], input_pshape[3], input_pshape[1], input_pshape[2] });
+
+        p.inputLayouts.insert({ inputInfo->name(), networkInputLayout });
+        p.add_primitive(*op, cldnn::input_layout(inputName, networkInputLayout));
+    } else {
+        if (ColorFormat::NV12 == preProcess.getColorFormat() && p.get_config().get_property(ov::intel_gpu::nv12_two_inputs)) {
+            // for NV12, create two input layouts with reorder instead of one,
+            // and then would expect compound blob in inferRequest
+            if (InferenceEngine::Layout::NCHW != l &&
+               (InferenceEngine::Precision::I8 != ip || InferenceEngine::Precision::U8 != ip)) {
+                IE_THROW() << "Unsupported layout (" << l << ") or precision "
+                                   << ip.name() << ") for NV12 input " + inputInfo->name();
+            }
+            int height = input_pshape[2].get_length();
+            int width = input_pshape[3].get_length();
+            size_t batch = input_pshape[0].get_length();
+            std::vector<cldnn::input_info> reorders;
+
+            for (size_t i = 0; i < batch; i++) {
+                auto preprocessPrimID = "reorder:" + inputName + std::to_string(i) + Program::m_preProcessTag;
+                std::string y_name = inputName + "_Y" + std::to_string(i);
+                std::string uv_name = inputName + "_UV" + std::to_string(i);
+
+                cldnn::layout y_layout(DataTypeFromPrecision(ip),
+                                       cldnn::format::nv12, { 1, 1, width, height });
+                cldnn::layout uv_layout(DataTypeFromPrecision(ip),
+                                        cldnn::format::nv12, { 1, 2, width / 2, height / 2 });
+                auto inputY = cldnn::input_layout(y_name, y_layout);
+                auto inputUV = cldnn::input_layout(uv_name, uv_layout);
+
+                p.add_primitive(*op, inputY);
+                p.inputLayouts.insert({ inputInfo->name() + "_Y" + std::to_string(i), y_layout });
+                p.add_primitive(*op, inputUV);
+                p.inputLayouts.insert({ inputInfo->name() + "_UV" + std::to_string(i), uv_layout });
+                switch (preProcess.getMeanVariant()) {
+                case NONE:
+                case MEAN_VALUE: {
+                    p.add_primitive(*op, cldnn::reorder(preprocessPrimID,
+                                                        cldnn::input_info(y_name),
+                                                        cldnn::input_info(uv_name),
+                                                        networkInputLayout,
+                                                        meanValues,
+                                                        cldnn::reorder_mean_mode::subtract), {inputName});
+                    break;
+                }
+                case MEAN_IMAGE: {
+                    p.add_primitive(*op, cldnn::reorder(preprocessPrimID,
+                                                        cldnn::input_info(y_name),
+                                                        cldnn::input_info(uv_name),
+                                                        networkInputLayout,
+                                                        meanBlobID,
+                                                        cldnn::reorder_mean_mode::subtract), {inputName});
+                    break;
+                }
+                default: IE_THROW(Unexpected) << "Invalid mean variant in input " + inputName;
+                    break;
+                }
+
+                reorders.push_back(cldnn::input_info(preprocessPrimID));
+            }
+
+            if (input_pshape[0].get_length() > 1) {
+                auto concatPrimID = "concat:" + inputName + Program::m_preProcessTag;
+                p.add_primitive(*op, cldnn::concatenation(concatPrimID, reorders, 0));
+            }
+        } else {
+            auto preprocessPrimID = "reorder:" + inputName + Program::m_preProcessTag;
+            cldnn::layout inputLayout(networkInputLayout);
+            inputLayout.data_type = DataTypeFromPrecision(ip);
+            p.inputLayouts.insert({ inputInfo->name(), inputLayout });
+
+            p.add_primitive(*op, cldnn::input_layout(inputName, inputLayout));
+
             switch (preProcess.getMeanVariant()) {
             case NONE:
             case MEAN_VALUE: {
-                p.AddPrimitive(cldnn::reorder(preprocessPrimID,
-                                              y_name,
-                                              uv_name,
-                                              networkInputLayout,
-                                              meanValues,
-                                              cldnn::reorder_mean_mode::subtract,
-                                              inputInfo->name()));
+                p.add_primitive(*op, cldnn::reorder(preprocessPrimID,
+                                                    cldnn::input_info(inputName),
+                                                    networkInputLayout,
+                                                    meanValues,
+                                                    cldnn::reorder_mean_mode::subtract), {inputName});
                 break;
             }
             case MEAN_IMAGE: {
-                p.AddPrimitive(cldnn::reorder(preprocessPrimID,
-                                              y_name,
-                                              uv_name,
-                                              networkInputLayout,
-                                              meanBlobID,
-                                              cldnn::reorder_mean_mode::subtract,
-                                              inputInfo->name()));
+                p.add_primitive(*op, cldnn::reorder(preprocessPrimID,
+                                                    cldnn::input_info(inputName),
+                                                    networkInputLayout,
+                                                    meanBlobID,
+                                                    cldnn::reorder_mean_mode::subtract), {inputName});
                 break;
             }
-            default: IE_THROW(Unexpected) << "Invalid mean variant in input " + inputName;
+            default: IE_THROW() << "Invalid mean variant in input " << inputName;
                 break;
             }
-
-            p.profilingIDs.push_back(preprocessPrimID);
-            p.InitProfileInfo(preprocessPrimID, "Reorder");
-            p.primitiveIDs[inputName] = preprocessPrimID;  // If it is batched blob, it will be overwritten afterwards.
-            p.primitiveIDs[preprocessPrimID] = preprocessPrimID;
-            reorders.push_back(preprocessPrimID);
         }
-
-        if (inputDims[0] > 1) {
-            auto concatPrimID = "concat:" + inputName + Program::m_preProcessTag;
-            p.AddPrimitive(cldnn::concatenation(concatPrimID, reorders, cldnn::concatenation::along_b, op->get_friendly_name()));
-            p.primitiveIDs[inputName] = concatPrimID;
-        }
-    } else {
-        auto preprocessPrimID = "reorder:" + inputName + Program::m_preProcessTag;
-        cldnn::layout inputLayout(networkInputLayout);
-        inputLayout.data_type = DataTypeFromPrecision(ip);
-        p.inputLayouts.insert({ inputInfo->name(), inputLayout });
-
-        p.AddPrimitive(cldnn::input_layout(inputName, inputLayout, inputInfo->name()));
-
-        switch (preProcess.getMeanVariant()) {
-        case NONE:
-        case MEAN_VALUE: {
-            p.AddPrimitive(cldnn::reorder(preprocessPrimID,
-                                          inputName,
-                                          networkInputLayout,
-                                          meanValues,
-                                          cldnn::reorder_mean_mode::subtract,
-                                          op->get_friendly_name()));
-            break;
-        }
-        case MEAN_IMAGE: {
-            p.AddPrimitive(cldnn::reorder(preprocessPrimID,
-                                          inputName,
-                                          networkInputLayout,
-                                          meanBlobID,
-                                          cldnn::reorder_mean_mode::subtract,
-                                          op->get_friendly_name()));
-            break;
-        }
-        default: IE_THROW() << "Invalid mean variant in input " << inputName;
-            break;
-        }
-        p.InitProfileInfo(preprocessPrimID, "reorder");
-        p.primitiveIDs[preprocessPrimID] = preprocessPrimID;
-        p.primitiveIDs[inputName] = preprocessPrimID;
-        p.profilingIDs.push_back(preprocessPrimID);
     }
 }
 
 REGISTER_FACTORY_IMPL(v0, Parameter);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace ov

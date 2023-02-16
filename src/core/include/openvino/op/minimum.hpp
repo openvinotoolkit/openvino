@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,10 +10,10 @@ namespace ov {
 namespace op {
 namespace v1 {
 /// \brief Elementwise minimum operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Minimum : public util::BinaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Minimum", "opset1", op::util::BinaryElementwiseArithmetic, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a minimum operation.
     Minimum() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}

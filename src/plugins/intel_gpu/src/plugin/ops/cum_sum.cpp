@@ -1,75 +1,46 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/cum_sum.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "cldnn/primitives/cum_sum.hpp"
+#include "intel_gpu/primitives/cum_sum.hpp"
 
-namespace CLDNNPlugin {
-
-static inline cldnn::cum_sum::cum_sum_axis GetCumSumAxis(int32_t axis, uint32_t rank) {
-    if (axis < 0)
-        axis += rank;
-    if (axis < 0 || axis >= rank)
-        IE_THROW() << "CumSum axis is not correspond to number of dimensions";
-
-    // Difference in dimension ordering between IE and clDNN,
-    // reverse spatial dimensions after batch and feature.
-    uint32_t cldnn_axis = axis;
-    if (axis >= 2) {
-        auto spatial_axis = axis - 2;
-        // Default and minimum number of dimensions is 4
-        auto spatial_size = std::max(rank, 4u) - 2;
-        cldnn_axis = spatial_size - spatial_axis - 1 + 2;
-    }
-
-    switch (cldnn_axis) {
-        case 0: return cldnn::cum_sum::cum_sum_axis::along_b;
-        case 1: return cldnn::cum_sum::cum_sum_axis::along_f;
-        case 2: return cldnn::cum_sum::cum_sum_axis::along_x;
-        case 3: return cldnn::cum_sum::cum_sum_axis::along_y;
-        case 4: return cldnn::cum_sum::cum_sum_axis::along_z;
-        case 5: return cldnn::cum_sum::cum_sum_axis::along_w;
-        default: IE_THROW() << "Unsupported CumSum axis: " << axis;
-    }
-
-    return cldnn::cum_sum::cum_sum_axis::along_f;  // shouldn't get here
-}
+namespace ov {
+namespace intel_gpu {
 
 static void CreateCumSumOp(Program& p, const std::shared_ptr<ngraph::op::v0::CumSum>& op) {
-    p.ValidateInputs(op, {1, 2});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    validate_inputs_count(op, {1, 2});
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     auto exclusive = op->is_exclusive();
     auto reverse = op->is_reverse();
 
-    size_t rank = op->get_input_shape(0).size();
-    int32_t axis = 0;
+    int64_t axis = 0;
     if (op->get_input_size() == 2) {
         auto axes_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));
         if (!axes_constant) {
             IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         }
-        axis = axes_constant->cast_vector<int32_t>()[0];
+        axis = axes_constant->cast_vector<int64_t>()[0];
     }
+    axis = ov::normalize_axis(op.get(), axis, op->get_input_partial_shape(0).rank());
 
     auto primitive = cldnn::cum_sum(layerName,
-                                    inputPrimitives[0],
-                                    GetCumSumAxis(axis, rank),
+                                    inputs[0],
+                                    axis,
                                     exclusive,
-                                    reverse,
-                                    op->get_friendly_name());
+                                    reverse);
 
-    p.AddPrimitive(primitive);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, primitive);
 }
 
 REGISTER_FACTORY_IMPL(v0, CumSum);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace ov

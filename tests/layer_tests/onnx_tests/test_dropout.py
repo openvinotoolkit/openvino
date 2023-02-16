@@ -1,13 +1,13 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 
-from common.onnx_layer_test_class import Caffe2OnnxLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest
 
 
-class TestDropout(Caffe2OnnxLayerTest):
+class TestDropout(OnnxRuntimeLayerTest):
     def create_net(self, shape, ratio, ir_version, opset=None):
         """
             ONNX net                                IR net
@@ -77,7 +77,7 @@ class TestDropout(Caffe2OnnxLayerTest):
         from onnx import helper
         from onnx import TensorProto
 
-        constant = np.random.randint(-127, 127, shape).astype(np.float)
+        constant = np.random.randint(-127, 127, shape).astype(float)
 
         concat_axis = 0
         output_shape = shape.copy()
@@ -146,24 +146,28 @@ class TestDropout(Caffe2OnnxLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_dropout_opset6(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, opset=6, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_dropout_opset6(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+        self._test(*self.create_net(**params, opset=6, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_dropout(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_dropout(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_dropout_const_opset6(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_const(**params, opset=6, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_dropout_const_opset6(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+        self._test(*self.create_net_const(**params, opset=6, ir_version=ir_version), ie_device,
+                   precision, ir_version,
+                   temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_dropout_const(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_const(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_dropout_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+        self._test(*self.create_net_const(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, use_old_api=use_old_api)

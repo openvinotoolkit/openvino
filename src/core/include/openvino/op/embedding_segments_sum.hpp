@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,10 +11,10 @@ namespace ov {
 namespace op {
 namespace v3 {
 /// \brief Returns embeddings for given indices
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API EmbeddingSegmentsSum : public Op {
 public:
     OPENVINO_OP("EmbeddingSegmentsSum", "opset3", op::Op, 3);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a EmbeddingSegmentsSum operation.
     EmbeddingSegmentsSum() = default;
     /// \brief Constructs a EmbeddingSegmentsSum operation.

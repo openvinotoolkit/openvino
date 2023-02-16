@@ -1,25 +1,23 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "itt.hpp"
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
 
 #include <memory>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <vector>
 
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSpaceToDepth, "ConvertSpaceToDepth", 0);
-
-ngraph::pass::ConvertSpaceToDepth::ConvertSpaceToDepth() {
+ov::pass::ConvertSpaceToDepth::ConvertSpaceToDepth() {
     MATCHER_SCOPE(ConvertSpaceToDepth);
-    auto dts = ngraph::pattern::wrap_type<ngraph::opset1::SpaceToDepth>({pattern::any_input(pattern::has_static_shape())});
+    auto dts = ngraph::pattern::wrap_type<ov::opset1::SpaceToDepth>({pattern::any_input(pattern::has_static_shape())});
 
-    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto std_node = std::dynamic_pointer_cast<ngraph::opset1::SpaceToDepth> (m.get_match_root());
+    matcher_pass_callback callback = [this](pattern::Matcher& m) {
+        auto std_node = std::dynamic_pointer_cast<ov::opset1::SpaceToDepth>(m.get_match_root());
         if (!std_node || transformation_callback(std_node)) {
             return false;
         }
@@ -57,12 +55,12 @@ ngraph::pass::ConvertSpaceToDepth::ConvertSpaceToDepth() {
         }
 
         switch (mode) {
-            case ngraph::opset1::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST:
-                order.push_back(1);
-                break;
-            case ngraph::opset1::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST:
-                order.insert(order.begin() + 1, 1);
-                break;
+        case ov::opset1::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST:
+            order.push_back(1);
+            break;
+        case ov::opset1::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST:
+            order.insert(order.begin() + 1, 1);
+            break;
         }
 
         for (size_t i = 0, j = 2; i < spatial_dims; ++i, j += 2) {
@@ -78,13 +76,13 @@ ngraph::pass::ConvertSpaceToDepth::ConvertSpaceToDepth() {
         }
         shape_end.insert(shape_end.begin() + 1, C);
 
-        auto create_constant = [](std::vector<int64_t > & v) -> std::shared_ptr<opset1::Constant> {
+        auto create_constant = [](std::vector<int64_t>& v) -> std::shared_ptr<opset1::Constant> {
             return opset1::Constant::create(element::i64, Shape{v.size()}, v);
         };
 
-        auto reshape_begin = std::make_shared<ngraph::opset1::Reshape>(input, create_constant(shape_begin), true);
-        auto transpose = std::make_shared<ngraph::opset1::Transpose>(reshape_begin, create_constant(order));
-        auto reshape_end = std::make_shared<ngraph::opset1::Reshape>(transpose, create_constant(shape_end), true);
+        auto reshape_begin = std::make_shared<ov::opset1::Reshape>(input, create_constant(shape_begin), true);
+        auto transpose = std::make_shared<ov::opset1::Transpose>(reshape_begin, create_constant(order));
+        auto reshape_end = std::make_shared<ov::opset1::Reshape>(transpose, create_constant(shape_end), true);
         reshape_end->set_friendly_name(std_node->get_friendly_name());
         ngraph::copy_runtime_info(std_node, {reshape_begin, transpose, reshape_end});
         ngraph::replace_node(std_node, reshape_end);

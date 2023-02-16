@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@
 #include "ngraph/deprecated.hpp"
 #include "ngraph/version.hpp"
 
-#ifdef IN_NGRAPH_LIBRARY
+#ifdef IN_OV_CORE_LIBRARY
 #    error("ngraph.hpp is for external use only")
 #endif
 

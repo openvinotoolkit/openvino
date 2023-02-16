@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,10 +10,10 @@ namespace ov {
 namespace op {
 namespace v0 {
 /// \brief Elementwise negative operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Negative : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Negative", "opset1", util::UnaryElementwiseArithmetic);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a negative operation.
     Negative() = default;
     /// \brief Constructs a negative operation.

@@ -1,11 +1,13 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "bmp.h"
-
+// clang-format off
 #include <fstream>
 #include <iostream>
+
+#include "bmp.h"
+// clang-format on
 
 using namespace std;
 using namespace FormatReader;
@@ -35,6 +37,8 @@ BitMap::BitMap(const string& filename) {
     bool rowsReversed = infoHeader.height < 0;
     _width = infoHeader.width;
     _height = abs(infoHeader.height);
+    _shape.push_back(_height);
+    _shape.push_back(_width);
 
     if (infoHeader.bits != 24) {
         cerr << "[BMP] 24bpp only supported. But input has:" << infoHeader.bits << "\n";

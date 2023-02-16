@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,10 +10,10 @@ namespace ov {
 namespace op {
 namespace v4 {
 /// \brief Range operation, analogous to `arange()` in Numpy.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Range : public Op {
 public:
     OPENVINO_OP("Range", "opset4", op::Op, 4);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs an unitialized range operation.
     Range() = default;
 
@@ -39,6 +39,11 @@ public:
     void set_output_type(element::Type output_type) {
         m_output_type = output_type;
     }
+
+    const element::Type& get_output_type() const {
+        return m_output_type;
+    }
+
     // Overload collision with method on Node
     using Node::set_output_type;
 
@@ -48,10 +53,10 @@ private:
 }  // namespace v4
 namespace v0 {
 /// \brief Range operation, analogous to `range()` in Python.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Range : public Op {
 public:
     OPENVINO_OP("Range", "opset1");
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs an unitialized range operation.
     Range() = default;

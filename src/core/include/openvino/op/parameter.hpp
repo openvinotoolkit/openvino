@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,15 +10,15 @@
 namespace ov {
 namespace op {
 namespace v0 {
-/// \brief A function parameter.
+/// \brief A model parameter.
 ///
 /// Parameters are nodes that represent the arguments that will be passed to
-/// user-defined functions. Function creation requires a sequence of parameters.
-/// Basic graph operations do not need parameters attached to a function.
+/// user-defined models. Model creation requires a sequence of parameters.
+/// Basic graph operations do not need parameters attached to a model.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Parameter : public op::Op {
 public:
     OPENVINO_OP("Parameter", "opset1");
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructions a tensor-typed parameter node.
     Parameter() = default;
     /// \brief Constructions a tensor-typed parameter node.
@@ -42,9 +42,9 @@ public:
     PartialShape& get_partial_shape() {
         return m_partial_shape;
     }
-    void set_partial_shape(const PartialShape& partial_shape) {
-        m_partial_shape = partial_shape;
-    }
+
+    void set_partial_shape(const PartialShape& partial_shape);
+
     const element::Type& get_element_type() const {
         return m_element_type;
     }
@@ -77,7 +77,6 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     OPENVINO_RTTI("AttributeAdapter<ParameterVector>");
-    BWDCMP_RTTI_DECLARATION;
 
 protected:
     ParameterVector& m_ref;

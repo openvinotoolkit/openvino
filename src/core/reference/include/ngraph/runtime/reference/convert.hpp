@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,8 +32,8 @@ inline uint8_t get_u1(const uint8_t* buf, size_t idx) {
 inline void set_u4(uint8_t* buf, size_t idx, uint8_t val) {
     const size_t byte_idx = idx / 2;
     const uint8_t bit_shift = 4 * (++idx % 2);
-    buf[byte_idx] &= ~(0xF << bit_shift);  // half byte zeroed
-    buf[byte_idx] |= (val << bit_shift);   // set 1's
+    buf[byte_idx] &= ~(0xF << bit_shift);         // half byte zeroed
+    buf[byte_idx] |= ((val & 0xF) << bit_shift);  // set 1's
 }
 
 inline uint8_t get_u4(const uint8_t* buf, size_t idx) {
@@ -45,8 +45,8 @@ inline uint8_t get_u4(const uint8_t* buf, size_t idx) {
 inline void set_i4(uint8_t* buf, size_t idx, int8_t val) {
     const size_t byte_idx = idx / 2;
     const uint8_t bit_shift = 4 * (++idx % 2);
-    buf[byte_idx] &= ~(0xF << bit_shift);  // half byte zeroed
-    buf[byte_idx] |= (val << bit_shift);   // set 1's
+    buf[byte_idx] &= ~(0xF << bit_shift);         // half byte zeroed
+    buf[byte_idx] |= ((val & 0xF) << bit_shift);  // set 1's
 }
 
 inline int8_t get_i4(const uint8_t* buf, size_t idx) {
@@ -100,6 +100,8 @@ typename std::enable_if<!std::is_same<TO, char>::value>::type convert(const TI* 
     }
 }
 
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+
 template <>
 void convert<uint8_t, float16>(const uint8_t* arg, float16* out, size_t count);
 template <>
@@ -109,6 +111,8 @@ void convert<float, int8_t>(const float* arg, int8_t* out, size_t count);
 template <>
 void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count);
 
+#endif  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
+
 // overload to handle ngraph::boolean (it is stored as char)
 template <typename TI, typename TO>
 typename std::enable_if<std::is_same<TO, char>::value>::type convert(const TI* arg, TO* out, size_t count) {
@@ -116,8 +120,7 @@ typename std::enable_if<std::is_same<TO, char>::value>::type convert(const TI* a
         out[i] = static_cast<char>(static_cast<bool>(arg[i]));
     }
 }
+
 }  // namespace reference
-
 }  // namespace runtime
-
 }  // namespace ngraph

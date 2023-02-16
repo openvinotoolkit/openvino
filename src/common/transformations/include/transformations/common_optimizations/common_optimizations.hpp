@@ -1,27 +1,24 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <vector>
 #include <memory>
-
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
+#include <vector>
 
-#include <ngraph/pass/graph_rewrite.hpp>
-
-
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API CommonOptimizations;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::CommonOptimizations: public ngraph::pass::FunctionPass {
+class ov::pass::CommonOptimizations : public ov::pass::ModelPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    OPENVINO_RTTI("CommonOptimizations", "0");
+    bool run_on_model(const std::shared_ptr<ov::Model>& f) override;
 };

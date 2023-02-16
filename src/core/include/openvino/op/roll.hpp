@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,10 +10,10 @@ namespace ov {
 namespace op {
 namespace v7 {
 /// \brief Tensor roll operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Roll : public Op {
 public:
     OPENVINO_OP("Roll", "opset7", op::Op, 7);
-    BWDCMP_RTTI_DECLARATION;
 
     Roll() = default;
 

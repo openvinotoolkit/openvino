@@ -1,10 +1,11 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 from common.layer_test_class import check_ir_version
 from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+
 from unit_tests.utils.graph import build_graph
 
 
@@ -17,7 +18,8 @@ class TestDequantizeLinear(OnnxRuntimeLayerTest):
                                                    dtype=self.inp_type)
         return inputs_dict
 
-    def create_dequanize_linear(self, shape, y_scale: np.array, y_zero_point=None, axis=None, opset=10, ir_version='10'):
+    def create_dequanize_linear(self, shape, y_scale: np.array, y_zero_point=None, axis=None,
+                                opset=10, ir_version='10'):
         """
             ONNX net                              IR net
 
@@ -137,69 +139,87 @@ class TestDequantizeLinear(OnnxRuntimeLayerTest):
         return onnx_net, ref_net
 
     test_data = [
-        dict(shape=[8], y_scale=np.array(2, dtype=np.float), y_zero_point=np.array(128, dtype=np.uint8)),
-        dict(shape=[8], y_scale=np.array(2, dtype=np.float), y_zero_point=np.array(1, dtype=np.int8)),
-        dict(shape=[2, 4], y_scale=np.array(2, dtype=np.float), y_zero_point=np.array(128, dtype=np.uint8)),
-        dict(shape=[2, 4], y_scale=np.array(2, dtype=np.float), y_zero_point=np.array(1, dtype=np.int8)),
-        dict(shape=[2, 4, 6], y_scale=np.array(2, dtype=np.float), y_zero_point=np.array(128, dtype=np.uint8)),
-        dict(shape=[2, 4, 6], y_scale=np.array(2, dtype=np.float), y_zero_point=np.array(1, dtype=np.int8)),
-        dict(shape=[2, 4, 6, 8], y_scale=np.array(2, dtype=np.float), y_zero_point=np.array(128, dtype=np.uint8)),
-        dict(shape=[2, 4, 6, 8], y_scale=np.array(2, dtype=np.float), y_zero_point=np.array(1, dtype=np.int8)),
-        dict(shape=[2, 4, 6, 8, 10], y_scale=np.array(2, dtype=np.float), y_zero_point=np.array(128, dtype=np.uint8)),
-        dict(shape=[2, 4, 6, 8, 10], y_scale=np.array(2, dtype=np.float), y_zero_point=np.array(1, dtype=np.int8)),
+        dict(shape=[8], y_scale=np.array(2, dtype=float),
+             y_zero_point=np.array(128, dtype=np.uint8)),
+        dict(shape=[8], y_scale=np.array(2, dtype=float),
+             y_zero_point=np.array(1, dtype=np.int8)),
+        dict(shape=[2, 4], y_scale=np.array(2, dtype=float),
+             y_zero_point=np.array(128, dtype=np.uint8)),
+        dict(shape=[2, 4], y_scale=np.array(2, dtype=float),
+             y_zero_point=np.array(1, dtype=np.int8)),
+        dict(shape=[2, 4, 6], y_scale=np.array(2, dtype=float),
+             y_zero_point=np.array(128, dtype=np.uint8)),
+        dict(shape=[2, 4, 6], y_scale=np.array(2, dtype=float),
+             y_zero_point=np.array(1, dtype=np.int8)),
+        dict(shape=[2, 4, 6, 8], y_scale=np.array(2, dtype=float),
+             y_zero_point=np.array(128, dtype=np.uint8)),
+        dict(shape=[2, 4, 6, 8], y_scale=np.array(2, dtype=float),
+             y_zero_point=np.array(1, dtype=np.int8)),
+        dict(shape=[2, 4, 6, 8, 10], y_scale=np.array(2, dtype=float),
+             y_zero_point=np.array(128, dtype=np.uint8)),
+        dict(shape=[2, 4, 6, 8, 10], y_scale=np.array(2, dtype=float),
+             y_zero_point=np.array(1, dtype=np.int8)),
     ]
     test_data_def_zerop = [
-        dict(shape=[8], y_scale=np.array(2, dtype=np.float)),
-        dict(shape=[2, 4], y_scale=np.array(2, dtype=np.float)),
-        dict(shape=[2, 4, 6], y_scale=np.array(2, dtype=np.float)),
-        dict(shape=[2, 4, 6, 8], y_scale=np.array(2, dtype=np.float)),
-        dict(shape=[2, 4, 6, 8, 10], y_scale=np.array(2, dtype=np.float)),
+        dict(shape=[8], y_scale=np.array(2, dtype=float)),
+        dict(shape=[2, 4], y_scale=np.array(2, dtype=float)),
+        dict(shape=[2, 4, 6], y_scale=np.array(2, dtype=float)),
+        dict(shape=[2, 4, 6, 8], y_scale=np.array(2, dtype=float)),
+        dict(shape=[2, 4, 6, 8, 10], y_scale=np.array(2, dtype=float)),
     ]
 
     test_data_axis = [
-        dict(shape=[2, 4], y_scale=np.array([2, 2.5, 3, 2.3], dtype=np.float), axis=1),
-        dict(shape=[2, 4], y_scale=np.array([2, 2.5, 3, 2.3], dtype=np.float),
+        dict(shape=[2, 4], y_scale=np.array([2, 2.5, 3, 2.3], dtype=float), axis=1),
+        dict(shape=[2, 4], y_scale=np.array([2, 2.5, 3, 2.3], dtype=float),
              y_zero_point=np.array([128, 128, 128, 128], dtype=np.uint8), axis=1),
-        dict(shape=[2, 4], y_scale=np.array([2, 2.5, 3, 2.3], dtype=np.float),
+        dict(shape=[2, 4], y_scale=np.array([2, 2.5, 3, 2.3], dtype=float),
              y_zero_point=np.array([1, 1, 1, 1], dtype=np.int8), axis=1),
-        dict(shape=[2, 4, 6], y_scale=np.array([2, 2.5, 3, 2.3], dtype=np.float), axis=1),
-        dict(shape=[2, 4, 6], y_scale=np.array([2, 2.5, 3, 2.3], dtype=np.float),
+        dict(shape=[2, 4, 6], y_scale=np.array([2, 2.5, 3, 2.3], dtype=float), axis=1),
+        dict(shape=[2, 4, 6], y_scale=np.array([2, 2.5, 3, 2.3], dtype=float),
              y_zero_point=np.array([128, 128, 128, 128], dtype=np.uint8), axis=1),
-        dict(shape=[2, 4, 6], y_scale=np.array([2, 2.5, 3, 2.3], dtype=np.float),
+        dict(shape=[2, 4, 6], y_scale=np.array([2, 2.5, 3, 2.3], dtype=float),
              y_zero_point=np.array([1, 1, 1, 1], dtype=np.int8), axis=1),
-        dict(shape=[2, 4, 6, 8], y_scale=np.array([2, 2.5, 3, 2.3], dtype=np.float), axis=1),
-        dict(shape=[2, 4, 6, 8], y_scale=np.array([2, 2.5, 3, 2.3], dtype=np.float),
+        dict(shape=[2, 4, 6, 8], y_scale=np.array([2, 2.5, 3, 2.3], dtype=float), axis=1),
+        dict(shape=[2, 4, 6, 8], y_scale=np.array([2, 2.5, 3, 2.3], dtype=float),
              y_zero_point=np.array([128, 128, 128, 128], dtype=np.uint8), axis=1),
-        dict(shape=[2, 4, 6, 8], y_scale=np.array([2, 2.5, 3, 2.3], dtype=np.float),
+        dict(shape=[2, 4, 6, 8], y_scale=np.array([2, 2.5, 3, 2.3], dtype=float),
              y_zero_point=np.array([1, 1, 1, 1], dtype=np.int8), axis=1),
-        dict(shape=[2, 4, 6, 8, 10], y_scale=np.array([2, 2.5, 3, 2.3], dtype=np.float), axis=1),
-        dict(shape=[2, 4, 6, 8, 10], y_scale=np.array([2, 2.5, 3, 2.3], dtype=np.float),
+        dict(shape=[2, 4, 6, 8, 10], y_scale=np.array([2, 2.5, 3, 2.3], dtype=float), axis=1),
+        dict(shape=[2, 4, 6, 8, 10], y_scale=np.array([2, 2.5, 3, 2.3], dtype=float),
              y_zero_point=np.array([128, 128, 128, 128], dtype=np.uint8), axis=1),
-        dict(shape=[2, 4, 6, 8, 10], y_scale=np.array([2, 2.5, 3, 2.3], dtype=np.float),
+        dict(shape=[2, 4, 6, 8, 10], y_scale=np.array([2, 2.5, 3, 2.3], dtype=float),
              y_zero_point=np.array([1, 1, 1, 1], dtype=np.int8), axis=1),
     ]
 
     @pytest.mark.parametrize("params", test_data_def_zerop)
     @pytest.mark.nightly
     @pytest.mark.xfail(reason='Defualt zero_point fails on onnxruntime')
-    def test_quantize_linear_def_zerop_opset10(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_dequanize_linear(**params, ir_version=ir_version), ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_quantize_linear_def_zerop_opset10(self, params, ie_device, precision, ir_version,
+                                               temp_dir, use_old_api):
+        self._test(*self.create_dequanize_linear(**params, ir_version=ir_version), ie_device,
+                   precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_quantize_linear_opset10(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_dequanize_linear(**params, ir_version=ir_version), ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_quantize_linear_opset10(self, params, ie_device, precision, ir_version, temp_dir,
+                                     use_old_api):
+        self._test(*self.create_dequanize_linear(**params, ir_version=ir_version), ie_device,
+                   precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data + test_data_def_zerop)
     @pytest.mark.nightly
     @pytest.mark.skip(reason='DequantizeLinear-13 is unsupported in MO')
-    def test_quantize_linear_opset13(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_dequanize_linear(**params, opset=13, ir_version=ir_version), ie_device, precision,
-                   ir_version, temp_dir=temp_dir)
+    def test_quantize_linear_opset13(self, params, ie_device, precision, ir_version, temp_dir,
+                                     use_old_api):
+        self._test(*self.create_dequanize_linear(**params, opset=13, ir_version=ir_version),
+                   ie_device, precision,
+                   ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_axis)
     @pytest.mark.nightly
     @pytest.mark.skip(reason='DequantizeLinear-13 is unsupported in MO')
-    def test_quantize_linear_axis_opset13(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_dequanize_linear(**params, opset=13, ir_version=ir_version), ie_device, precision,
-                   ir_version, temp_dir=temp_dir)
+    def test_quantize_linear_axis_opset13(self, params, ie_device, precision, ir_version, temp_dir,
+                                          use_old_api):
+        self._test(*self.create_dequanize_linear(**params, opset=13, ir_version=ir_version),
+                   ie_device, precision,
+                   ir_version, temp_dir=temp_dir, use_old_api=use_old_api)

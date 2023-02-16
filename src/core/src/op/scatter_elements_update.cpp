@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/scatter_elements_update.hpp"
+
+#include <scatter_elements_update_shape_inference.hpp>
 
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
@@ -13,8 +15,6 @@
 using namespace ngraph;
 using namespace std;
 
-BWDCMP_RTTI_DEFINITION(op::v3::ScatterElementsUpdate);
-
 op::v3::ScatterElementsUpdate::ScatterElementsUpdate(const Output<Node>& data,
                                                      const Output<Node>& indices,
                                                      const Output<Node>& updates,
@@ -24,21 +24,16 @@ op::v3::ScatterElementsUpdate::ScatterElementsUpdate(const Output<Node>& data,
 }
 
 bool op::v3::ScatterElementsUpdate::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_visit_attributes);
+    OV_OP_SCOPE(v3_ScatterElementsUpdate_visit_attributes);
     return true;
 }
 
 void op::v3::ScatterElementsUpdate::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_validate_and_infer_types);
+    OV_OP_SCOPE(v3_ScatterElementsUpdate_validate_and_infer_types);
     element::Type data_et = get_input_element_type(0);
     element::Type indices_et = get_input_element_type(1);
     element::Type updates_et = get_input_element_type(2);
     element::Type axis_et = get_input_element_type(3);
-
-    const ov::PartialShape& data_shape = get_input_partial_shape(0);
-    const ov::PartialShape& indices_shape = get_input_partial_shape(1);
-    const ov::PartialShape& updates_shape = get_input_partial_shape(2);
-    const ov::PartialShape& axis_shape = get_input_partial_shape(3);
 
     NODE_VALIDATION_CHECK(this,
                           indices_et.is_integral(),
@@ -47,64 +42,31 @@ void op::v3::ScatterElementsUpdate::validate_and_infer_types() {
 
     NODE_VALIDATION_CHECK(this, axis_et.is_integral(), "Axis element type must be integral_number, but is: ", axis_et);
 
+    element::Type merged_type;
     NODE_VALIDATION_CHECK(this,
-                          data_et == updates_et,
+                          element::Type::merge(merged_type, data_et, updates_et),
                           "Data type and updates type are required to be the same. ",
                           "Got: ",
                           data_et,
                           " and: ",
                           updates_et);
 
-    NODE_VALIDATION_CHECK(this,
-                          axis_shape.compatible(ov::PartialShape{}) || axis_shape.compatible(ov::PartialShape{1}),
-                          "Axis input shape are required to be scalar or 1D tensor. ",
-                          "Got: ",
-                          axis_shape);
+    const auto& data = get_input_partial_shape(0);
+    const auto& indices = get_input_partial_shape(1);
+    const auto& updates = get_input_partial_shape(2);
+    const auto& axis = get_input_partial_shape(3);
 
-    NODE_VALIDATION_CHECK(this,
-                          indices_shape.rank().compatible(data_shape.rank()),
-                          "Indices rank and data rank are required to be equal. ",
-                          "Got: ",
-                          indices_shape.rank(),
-                          " and: ",
-                          data_shape.rank());
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
+    std::vector<ov::PartialShape> input_shapes = {data, indices, updates, axis};
 
-    NODE_VALIDATION_CHECK(this,
-                          indices_shape.compatible(updates_shape),
-                          "Indices and updates input shapes are required to be equal. ",
-                          "Got: ",
-                          indices_shape,
-                          " and: ",
-                          updates_shape);
-
-    set_output_size(1);
-    set_output_type(0, data_et, data_shape);
-
-    if (data_shape.is_dynamic())
+    shape_infer(this, input_shapes, output_shapes);
+    set_output_type(0, data_et, output_shapes[0]);
+    if (output_shapes[0].is_dynamic())
         set_input_is_relevant_to_shape(0);
-    if (data_shape.rank().is_dynamic())
-        return;
-
-    if (const auto& axis_input = get_constant_from_source(input_value(3))) {
-        auto axis = axis_input->cast_vector<int64_t>().at(0);
-
-        int64_t data_rank_length = data_shape.rank().get_length();
-        NODE_VALIDATION_CHECK(this,
-                              (-data_rank_length <= axis) && (axis <= data_rank_length - 1),
-                              "Axis value has to be in range [-r, r-1] where r is rank of data shape. ",
-                              " Data rank: ",
-                              data_rank_length,
-                              ", range:[",
-                              -data_rank_length,
-                              ", ",
-                              data_rank_length - 1,
-                              "]. Got axis value: ",
-                              axis);
-    }
 }
 
 shared_ptr<Node> op::v3::ScatterElementsUpdate::clone_with_new_inputs(const OutputVector& inputs) const {
-    NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_clone_with_new_inputs);
+    OV_OP_SCOPE(v3_ScatterElementsUpdate_clone_with_new_inputs);
     NODE_VALIDATION_CHECK(this,
                           inputs.size() == get_input_size(),
                           "clone_with_new_inputs() required inputs size: ",
@@ -140,10 +102,10 @@ bool evaluate(const HostTensorPtr& data,
     return true;
 }
 
-#define TYPE_AXS_CASE(a, ...)                                          \
-    case element::Type_t::a: {                                         \
-        NGRAPH_OP_SCOPE(OV_PP_CAT3(scatter_element_update_axs, _, a)); \
-        rc = evaluate<DT, IT, element::Type_t::a>(__VA_ARGS__);        \
+#define TYPE_AXS_CASE(a, ...)                                      \
+    case element::Type_t::a: {                                     \
+        OV_OP_SCOPE(OV_PP_CAT3(scatter_element_update_axs, _, a)); \
+        rc = evaluate<DT, IT, element::Type_t::a>(__VA_ARGS__);    \
     } break;
 
 template <element::Type_t DT, element::Type_t IT>
@@ -174,10 +136,10 @@ bool evaluate(const HostTensorPtr& arg0,
     return rc;
 }
 
-#define TYPE_IND_CASE(a, ...)                                          \
-    case element::Type_t::a: {                                         \
-        NGRAPH_OP_SCOPE(OV_PP_CAT3(scatter_element_update_ind, _, a)); \
-        rc = evaluate<DT, element::Type_t::a>(__VA_ARGS__);            \
+#define TYPE_IND_CASE(a, ...)                                      \
+    case element::Type_t::a: {                                     \
+        OV_OP_SCOPE(OV_PP_CAT3(scatter_element_update_ind, _, a)); \
+        rc = evaluate<DT, element::Type_t::a>(__VA_ARGS__);        \
     } break;
 
 template <element::Type_t DT>
@@ -258,12 +220,12 @@ bool op::v3::ScatterElementsUpdate::evaluate_scatter_element_update(const HostTe
 }
 
 bool op::v3::ScatterElementsUpdate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_evaluate);
+    OV_OP_SCOPE(v3_ScatterElementsUpdate_evaluate);
     return evaluate_scatter_element_update(outputs, inputs);
 }
 
 bool op::v3::ScatterElementsUpdate::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_has_evaluate);
+    OV_OP_SCOPE(v3_ScatterElementsUpdate_has_evaluate);
 
     switch (get_output_element_type(0)) {
     case ngraph::element::i16:

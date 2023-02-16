@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,12 +16,10 @@
 #include "ngraph/specialize_function.hpp"
 
 using namespace std;
-using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v8::If);
-op::v8::If::If() : MultiSubGraphOp(2) {}
+ov::op::v8::If::If() : MultiSubGraphOp(2) {}
 
-op::v8::If::If(const Output<Node>& execution_condition) : If() {
+ov::op::v8::If::If(const Output<Node>& execution_condition) : If() {
     set_argument(0, execution_condition);
 }
 
@@ -35,17 +33,25 @@ static ov::PartialShape resolve_shape(const ov::PartialShape& then_pshape, const
 
     // if rangs of shapes are not equal or rang of one of them is dynamic function
     // return shape with dynamic rank
-    if (then_rank.is_dynamic() || else_rank.is_dynamic() || then_rank.get_length() != else_rank.get_length()) {
-        return ov::PartialShape::dynamic(ngraph::Rank::dynamic());
+    if (then_rank.is_dynamic() || else_rank.is_dynamic()) {
+        return ov::PartialShape::dynamic();
     }
-    std::vector<Dimension> new_dims;
+    if (then_rank.get_length() != else_rank.get_length()) {
+        // Union of scalar and 1D case
+        if (then_rank.get_length() <= 1 && else_rank.get_length() <= 1) {
+            return ov::PartialShape::dynamic(1);
+        } else {
+            return ov::PartialShape::dynamic();
+        }
+    }
+    std::vector<ov::Dimension> new_dims;
 
     // If rangs are equal each dimesion of then_body output is union with each dimension of
     // else_body
     for (auto then_it = then_pshape.cbegin(), else_it = else_pshape.cbegin(); then_it != then_pshape.cend();
          then_it++, else_it++) {
         if ((*then_it).is_dynamic() || (*else_it).is_dynamic()) {
-            new_dims.push_back(Dimension::dynamic());
+            new_dims.push_back(ov::Dimension::dynamic());
         } else if (*then_it == *else_it) {
             new_dims.emplace_back(*then_it);
         } else {
@@ -58,32 +64,19 @@ static ov::PartialShape resolve_shape(const ov::PartialShape& then_pshape, const
     return ov::PartialShape(new_dims);
 }
 
-bool op::v8::If::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v8_If_visit_attributes);
+bool ov::op::v8::If::visit_attributes(AttributeVisitor& visitor) {
+    OV_OP_SCOPE(v8_If_visit_attributes);
     visitor.on_attribute("then_body", m_bodies[THEN_BODY_INDEX]);
-    visitor.on_attribute("else_body", m_bodies[ELSE_BODY_INDEX]);
     visitor.on_attribute("then_inputs", m_input_descriptions[THEN_BODY_INDEX]);
-    visitor.on_attribute("else_inputs", m_input_descriptions[ELSE_BODY_INDEX]);
     visitor.on_attribute("then_outputs", m_output_descriptions[THEN_BODY_INDEX]);
+    visitor.on_attribute("else_body", m_bodies[ELSE_BODY_INDEX]);
+    visitor.on_attribute("else_inputs", m_input_descriptions[ELSE_BODY_INDEX]);
     visitor.on_attribute("else_outputs", m_output_descriptions[ELSE_BODY_INDEX]);
     return true;
 }
 
-void op::v8::If::validate_and_infer_type_body(
-    const std::shared_ptr<Function>& body,
-    const ngraph::op::util::MultiSubgraphInputDescriptionVector& input_descriptors) {
-    for (const auto& input_description : input_descriptors) {
-        auto index = input_description->m_input_index;
-
-        auto body_parameter = body->get_parameters().at(input_description->m_body_parameter_index);
-        auto input_partial_shape = input_value(index).get_partial_shape();
-        body_parameter->set_partial_shape(input_partial_shape);
-    }
-    body->validate_nodes_and_infer_types();
-}
-
-void op::v8::If::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v8_If_validate_and_infer_types);
+void ov::op::v8::If::validate_and_infer_types() {
+    OV_OP_SCOPE(v8_If_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this, m_bodies.size() == 2, "If contains incorrect number of bodies:", m_bodies.size());
 
@@ -112,12 +105,12 @@ void op::v8::If::validate_and_infer_types() {
                               val.size() == 1,
                               "The number of values in the If condition constant is greater than 1");
 
-        auto cond_index = val[0] ? THEN_BODY_INDEX : ELSE_BODY_INDEX;
-        auto body = m_bodies[cond_index];
-        auto input_descriptors = m_input_descriptions[cond_index];
-        validate_and_infer_type_body(body, input_descriptors);
+        validate_and_infer_type_body(get_then_body(), m_input_descriptions[THEN_BODY_INDEX]);
+        validate_and_infer_type_body(get_else_body(), m_input_descriptions[ELSE_BODY_INDEX]);
         auto output_nodes = outputs();
 
+        auto cond_index = val[0] ? THEN_BODY_INDEX : ELSE_BODY_INDEX;
+        auto body = m_bodies[cond_index];
         // shape and type inference for outputs from If operations
         for (const auto& output_descr : m_output_descriptions[cond_index]) {
             auto body_value = body->get_results().at(output_descr->m_body_value_index)->input_value(0);
@@ -159,20 +152,26 @@ void op::v8::If::validate_and_infer_types() {
             auto else_node_result =
                 m_bodies[ELSE_BODY_INDEX]->get_results().at(else_desc->m_body_value_index)->input_value(0);
 
+            element::Type merged_type;
             NODE_VALIDATION_CHECK(this,
-                                  then_node_result.get_element_type() == else_node_result.get_element_type(),
-                                  "type of then_body output is not equal type of else_body output");
+                                  element::Type::merge(merged_type,
+                                                       then_node_result.get_element_type(),
+                                                       else_node_result.get_element_type()),
+                                  "type of then_body output ",
+                                  then_node_result.get_element_type(),
+                                  " is not equal type of else_body output",
+                                  else_node_result.get_element_type());
 
             // shape inference for output and associated with it body outputs
             auto partial_shape =
                 resolve_shape(then_node_result.get_partial_shape(), else_node_result.get_partial_shape());
-            set_output_type(output_index, then_node_result.get_element_type(), partial_shape);
+            set_output_type(output_index, merged_type, partial_shape);
         }
     }
 }
 
-std::shared_ptr<Node> op::v8::If::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v8_If_clone_with_new_inputs);
+std::shared_ptr<ov::Node> ov::op::v8::If::clone_with_new_inputs(const OutputVector& new_args) const {
+    OV_OP_SCOPE(v8_If_clone_with_new_inputs);
 
     check_new_args_count(this, new_args);
     auto op = make_shared<op::v8::If>();
@@ -180,8 +179,8 @@ std::shared_ptr<Node> op::v8::If::clone_with_new_inputs(const OutputVector& new_
 
     op->set_arguments(new_args);
     op->set_output_size(m_output_descriptions[0].size());
-    op->set_then_body(clone_function(*get_then_body()));
-    op->set_else_body(clone_function(*get_else_body()));
+    op->set_then_body(get_then_body()->clone());
+    op->set_else_body(get_else_body()->clone());
 
     for (auto body_index = 0; body_index < 2; ++body_index) {
         for (const auto& m_input_descr : m_input_descriptions[body_index]) {
@@ -196,33 +195,9 @@ std::shared_ptr<Node> op::v8::If::clone_with_new_inputs(const OutputVector& new_
     return op;
 }
 
-op::v8::If::OutputMap op::v8::If::get_mapping_outputs_on_body_description(
-    const ngraph::op::util::MultiSubgraphOutputDescriptionVector& output_descriptors) {
-    OutputMap outputs_map = OutputMap();
-    std::unordered_set<int64_t> checked_results_in_body;
-
-    for (const auto& output_description : output_descriptors) {
-        auto out_index = output_description->m_output_index;
-        auto internal_result_index = output_description->m_body_value_index;
-        NODE_VALIDATION_CHECK(this,
-                              checked_results_in_body.count(internal_result_index) == 0,
-                              "Incorrect associating in then_body! Result ",
-                              internal_result_index,
-                              " is already associated with another output!");
-        NODE_VALIDATION_CHECK(this,
-                              outputs_map.count(out_index) == 0,
-                              "Incorrect associating in then_body! Several results try to "
-                              "associate with the same output!");
-        checked_results_in_body.insert(internal_result_index);
-        outputs_map.insert({out_index, output_description});
-    }
-
-    return outputs_map;
-}
-
-void op::v8::If::set_input(const Output<Node>& value,
-                           const std::shared_ptr<v0::Parameter>& then_parameter,
-                           const std::shared_ptr<v0::Parameter>& else_parameter) {
+void ov::op::v8::If::set_input(const Output<Node>& value,
+                               const std::shared_ptr<v0::Parameter>& then_parameter,
+                               const std::shared_ptr<v0::Parameter>& else_parameter) {
     NGRAPH_CHECK(then_parameter != nullptr || else_parameter != nullptr,
                  "Missing parameters! Both parameters are nullptr!");
     auto then_param_index = m_bodies[THEN_BODY_INDEX]->get_parameter_index(then_parameter);
@@ -238,8 +213,8 @@ void op::v8::If::set_input(const Output<Node>& value,
     set_invariant_inputs(value, {then_parameter, else_parameter});
 }
 
-Output<Node> op::v8::If::set_output(const std::shared_ptr<v0::Result>& then_result,
-                                    const std::shared_ptr<v0::Result>& else_result) {
+ov::Output<ov::Node> ov::op::v8::If::set_output(const std::shared_ptr<v0::Result>& then_result,
+                                                const std::shared_ptr<v0::Result>& else_result) {
     NGRAPH_CHECK(then_result != nullptr, "Incorrect result in \"then_body\"! Result cant be \'nullptr\'");
     NGRAPH_CHECK(else_result != nullptr, "Incorrect result in \"else_body\"! Result cant be \'nullptr\'");
     auto then_result_id = m_bodies[THEN_BODY_INDEX]->get_result_index(then_result);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ ov::op::v8::NV12toRGB::NV12toRGB(const Output<Node>& arg_y, const Output<Node>& 
 }
 
 std::shared_ptr<ov::Node> ov::op::v8::NV12toRGB::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_NV12toRGB_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_NV12toRGB_clone_with_new_inputs);
     OPENVINO_ASSERT(new_args.size() == 1 || new_args.size() == 2, "NV12toRGB shall have one or two input nodes");
     if (new_args.size() == 1) {
         return std::make_shared<NV12toRGB>(new_args.at(0));

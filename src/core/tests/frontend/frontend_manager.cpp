@@ -1,38 +1,30 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <common/frontend_exceptions.hpp>
-#include <manager.hpp>
 #include <memory>
+#include <openvino/frontend/exception.hpp>
+#include <openvino/frontend/manager.hpp>
 
-#include "backend.hpp"
+#include "common_test_utils/file_utils.hpp"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
+#include "ngraph/util.hpp"
+#include "openvino/util/file_util.hpp"
 
-#ifdef _WIN32
-const char FrontEndPathSeparator[] = ";";
-#else
-const char FrontEndPathSeparator[] = ":";
-#endif  // _WIN32
-
-using namespace ngraph;
 using namespace ov::frontend;
 
-static int set_test_env(const char* name, const char* value) {
-#ifdef _WIN32
-    return _putenv_s(name, value);
-#elif defined(__linux) || defined(__APPLE__)
-    std::string var = std::string(name) + "=" + value;
-    return setenv(name, value, 0);
-#endif
+static std::string mock_fe_path() {
+    static auto lib_name = std::string(FRONTEND_LIB_PREFIX) + "mock1" + std::string(FRONTEND_LIB_SUFFIX);
+    return ov::util::path_join({CommonTestUtils::getExecutableDirectory(), lib_name});
 }
 
 TEST(FrontEndManagerTest, testAvailableFrontEnds) {
     FrontEndManager fem;
+    class MockFrontEnd : public FrontEnd {};
     ASSERT_NO_THROW(fem.register_front_end("mock", []() {
-        return std::make_shared<FrontEnd>();
+        return std::make_shared<MockFrontEnd>();
     }));
     auto frontends = fem.get_available_front_ends();
     ASSERT_NE(std::find(frontends.begin(), frontends.end(), "mock"), frontends.end());
@@ -48,33 +40,92 @@ TEST(FrontEndManagerTest, testAvailableFrontEnds) {
     ASSERT_EQ(std::find(frontends.begin(), frontends.end(), "mock"), frontends.end());
 }
 
-TEST(FrontEndManagerTest, testMockPluginFrontEnd) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    std::string fePath =
-        ngraph::file_util::get_directory(ngraph::runtime::Backend::get_backend_shared_library_search_directory());
-    fePath = fePath + FrontEndPathSeparator + "someInvalidPath";
-    set_test_env("OV_FRONTEND_PATH", fePath.c_str());
-
+TEST(FrontEndManagerTest, testFailRegisterFEByWrongPath) {
     FrontEndManager fem;
+    ASSERT_THROW(fem.register_front_end("mock1", mock_fe_path() + "_wrong"), ov::frontend::GeneralFailure);
+}
+
+TEST(FrontEndManagerTest, testMockPluginFrontEnd) {
+    FrontEndManager fem;
+    fem.register_front_end("mock1", mock_fe_path());
     auto frontends = fem.get_available_front_ends();
-    ASSERT_NE(std::find(frontends.begin(), frontends.end(), "mock1"), frontends.end());
+    EXPECT_NE(std::find(frontends.begin(), frontends.end(), "mock1"), frontends.end());
+
     FrontEnd::Ptr fe;
     ASSERT_NO_THROW(fe = fem.load_by_framework("mock1"));
-    ASSERT_EQ(fe->get_name(), "mock1");
-    set_test_env("OV_FRONTEND_PATH", "");
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    EXPECT_EQ(fe->get_name(), "mock1");
+}
+
+TEST(FrontEndManagerTest, testFEMDestroy_FrontEndHolder) {
+    FrontEnd::Ptr fe;
+    {
+        FrontEndManager fem;
+        fem.register_front_end("mock1", mock_fe_path());
+        auto frontends = fem.get_available_front_ends();
+        EXPECT_NE(std::find(frontends.begin(), frontends.end(), "mock1"), frontends.end());
+        ASSERT_NO_THROW(fe = fem.load_by_framework("mock1"));
+    }
+    EXPECT_EQ(fe->get_name(), "mock1");
+}
+
+TEST(FrontEndManagerTest, testFEMDestroy_InputModelHolder) {
+    InputModel::Ptr input_model;
+    {
+        std::shared_ptr<ov::Model> model;
+        FrontEndManager fem;
+        fem.register_front_end("mock1", mock_fe_path());
+        auto fe = fem.load_by_framework("mock1");
+        input_model = fe->load("test");
+        model = fe->convert(input_model);
+        EXPECT_EQ(model->get_friendly_name(), "mock1_model");
+    }
+    ASSERT_TRUE(input_model);
+}
+
+TEST(FrontEndManagerTest, testFEMDestroy_OVModelHolder) {
+    std::shared_ptr<ov::Model> model;
+    {
+        FrontEndManager fem;
+        fem.register_front_end("mock1", mock_fe_path());
+        auto fe = fem.load_by_framework("mock1");
+        auto input_model = fe->load("test");
+        model = fe->convert(input_model);
+        EXPECT_EQ(model->get_friendly_name(), "mock1_model");
+        EXPECT_TRUE(model->get_rt_info().count("mock_test"));
+        EXPECT_EQ(model->get_rt_info()["mock_test"].as<std::string>(), std::string(1024, 't'));
+    }
+    EXPECT_EQ(model->get_friendly_name(), "mock1_model");
+}
+
+TEST(FrontEndManagerTest, testFEMDestroy_OVModelHolder_Clone) {
+    std::shared_ptr<ov::Model> model_clone;
+    {
+        FrontEndManager fem;
+        fem.register_front_end("mock1", mock_fe_path());
+        auto fe = fem.load_by_framework("mock1");
+        auto input_model = fe->load("test");
+        auto model = fe->convert(input_model);
+        EXPECT_EQ(model->get_friendly_name(), "mock1_model");
+        EXPECT_TRUE(model->get_rt_info().count("mock_test"));
+        EXPECT_EQ(model->get_rt_info()["mock_test"].as<std::string>(), std::string(1024, 't'));
+        model_clone = model->clone();
+    }
+    EXPECT_EQ(model_clone->get_rt_info()["mock_test"].as<std::string>(), std::string(1024, 't'));
+    EXPECT_EQ(model_clone->get_friendly_name(), "mock1_model");
 }
 
 TEST(FrontEndManagerTest, testDefaultFrontEnd) {
     FrontEndManager fem;
+    fem.register_front_end("mock1", mock_fe_path());
     FrontEnd::Ptr fe;
     ASSERT_NO_THROW(fe = fem.load_by_model(""));
-    ASSERT_FALSE(fe);
+    ASSERT_EQ(nullptr, fe);
 
-    std::unique_ptr<FrontEnd> fePtr(new FrontEnd());  // to verify base destructor
-    fe = std::make_shared<FrontEnd>();
+    class MockFrontEnd : public FrontEnd {};
+    std::unique_ptr<FrontEnd> fePtr(new MockFrontEnd());  // to verify base destructor
+    fe = std::make_shared<MockFrontEnd>();
     ASSERT_ANY_THROW(fe->load(""));
-    ASSERT_ANY_THROW(fe->convert(std::shared_ptr<Function>(nullptr)));
+    ASSERT_ANY_THROW(fe->convert(std::shared_ptr<ov::Model>(nullptr)));
     ASSERT_ANY_THROW(fe->convert(InputModel::Ptr(nullptr)));
     ASSERT_ANY_THROW(fe->convert_partially(nullptr));
     ASSERT_ANY_THROW(fe->decode(nullptr));
@@ -83,8 +134,9 @@ TEST(FrontEndManagerTest, testDefaultFrontEnd) {
 }
 
 TEST(FrontEndManagerTest, testDefaultInputModel) {
-    std::unique_ptr<InputModel> imPtr(new InputModel());  // to verify base destructor
-    InputModel::Ptr im = std::make_shared<InputModel>();
+    class MockInputModel : public InputModel {};
+    std::unique_ptr<InputModel> imPtr(new MockInputModel());  // to verify base destructor
+    InputModel::Ptr im = std::make_shared<MockInputModel>();
     ASSERT_EQ(im->get_inputs(), std::vector<Place::Ptr>{});
     ASSERT_EQ(im->get_outputs(), std::vector<Place::Ptr>{});
     ASSERT_ANY_THROW(im->override_all_inputs({nullptr}));
@@ -112,8 +164,9 @@ TEST(FrontEndManagerTest, testDefaultInputModel) {
 }
 
 TEST(FrontEndManagerTest, testDefaultPlace) {
-    std::unique_ptr<Place> placePtr(new Place());  // to verify base destructor
-    Place::Ptr place = std::make_shared<Place>();
+    class MockPlace : public Place {};
+    std::unique_ptr<Place> placePtr(new MockPlace());  // to verify base destructor
+    Place::Ptr place = std::make_shared<MockPlace>();
     ASSERT_ANY_THROW(place->get_names());
     ASSERT_EQ(place->get_consuming_operations(), std::vector<Place::Ptr>{});
     ASSERT_EQ(place->get_consuming_operations(0), std::vector<Place::Ptr>{});
@@ -146,6 +199,8 @@ TEST(FrontEndManagerTest, testDefaultPlace) {
     ASSERT_ANY_THROW(place->is_equal(nullptr));
     ASSERT_ANY_THROW(place->is_equal_data(nullptr));
 }
+
+// clang-format off
 
 TEST(FrontEndExceptionTest, frontend_general_error_no_throw) {
     EXPECT_NO_THROW(FRONT_END_GENERAL_CHECK(true));
@@ -251,4 +306,176 @@ TEST(FrontEndExceptionTest, frontend_initialization_error_throw_info) {
         FAIL() << "Not expected exception type.";
     }
     FAIL() << "Test is expected to throw an exception.";
+}
+
+// FrontEndManager exception safety
+#define CHECK_EXCEPTION_FRONTEND(statement)                                                             \
+    try {                                                                                               \
+        FrontEndManager fem;                                                                            \
+        fem.register_front_end("mock1", mock_fe_path());                                                \
+        auto fe = fem.load_by_framework("mock1");                                                       \
+        auto input_model = fe->load("throw_next");                                                      \
+        statement;                                                                                      \
+        FAIL() << "Throw was expected";                                                                 \
+    } catch (ov::frontend::GeneralFailure & error) {                                                    \
+        EXPECT_NE(std::string(error.what()).find("Test exception"), std::string::npos) << error.what(); \
+    } catch (...) {                                                                                     \
+        FAIL() << "Unexpected error is thrown";                                                         \
+    }
+
+TEST(FrontEndManagerTest, Exception_Safety_FrontEnd_Load_By_Framework) {
+    EXPECT_ANY_THROW({
+        FrontEndManager fem;
+        fem.register_front_end("mock1", mock_fe_path());
+        auto fe = fem.load_by_framework("mock1");
+        fe->load("throw_now");
+    });
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_FrontEnd_Convert){
+    CHECK_EXCEPTION_FRONTEND(fe->convert(input_model))
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_FrontEnd_Convert_OV_Model) {
+    CHECK_EXCEPTION_FRONTEND(fe->convert(std::shared_ptr<ov::Model>()))
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_FrontEnd_Get_Name) {
+    CHECK_EXCEPTION_FRONTEND(fe->get_name())
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_FrontEnd_Supported) {
+    EXPECT_ANY_THROW({
+        FrontEndManager fem;
+        fem.register_front_end("mock1", mock_fe_path());
+        auto fe = fem.load_by_framework("mock1");
+        fe->supported("throw_now");
+    });
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_FrontEnd_Add_Extension) {
+    CHECK_EXCEPTION_FRONTEND(fe->add_extension(std::make_shared<ov::Extension>()))}
+
+TEST(FrontEndManagerTest, Exception_Safety_FrontEnd_Convert_Partially) {
+    CHECK_EXCEPTION_FRONTEND(fe->convert_partially(input_model))
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_FrontEnd_Normalize) {
+    CHECK_EXCEPTION_FRONTEND(fe->normalize(nullptr))
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_FrontEnd_Decode) {
+    CHECK_EXCEPTION_FRONTEND(fe->decode(input_model))
+}
+
+// InputModel exception safety
+
+#define CHECK_EXCEPTION_INPUT_MODEL(statement)                                                          \
+    try {                                                                                               \
+        FrontEndManager fem;                                                                            \
+        fem.register_front_end("mock1", mock_fe_path());                                                \
+        auto fe = fem.load_by_framework("mock1");                                                       \
+        auto input_model = fe->load("throw_model");                                                     \
+        statement;                                                                                      \
+        FAIL() << "Throw was expected";                                                                 \
+    } catch (ov::frontend::GeneralFailure & error) {                                                    \
+        EXPECT_NE(std::string(error.what()).find("Test exception"), std::string::npos) << error.what(); \
+    } catch (...) {                                                                                     \
+        FAIL() << "Unexpected error is thrown";                                                         \
+    }
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_get_inputs) {
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->get_inputs())
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_get_outputs) {
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->get_outputs())
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_get_place_by_tensor_name) {
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->get_place_by_tensor_name({}))
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_get_place_by_operation_name) {
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->get_place_by_operation_name({}))
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_get_place_by_operation_name_and_input_port) {
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->get_place_by_operation_name_and_input_port({}, {}))
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_get_place_by_operation_name_and_output_port) {
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->get_place_by_operation_name_and_output_port({}, {}))
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_set_name_for_tensor) {
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->set_name_for_tensor({}, {}))
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_add_name_for_tensor) {
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->add_name_for_tensor({}, {}))
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_set_name_for_operation) {
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->set_name_for_operation({}, {}))
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_free_name_for_tensor) {
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->free_name_for_tensor({}))
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_free_name_for_operation) {
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->free_name_for_operation({}))
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_set_name_for_dimension) {
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->set_name_for_dimension({}, {}, {}))
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_cut_and_add_new_input) {
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->cut_and_add_new_input({}, {}))
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_cut_and_add_new_output) {
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->cut_and_add_new_output({}, {}))
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_add_output) {
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->add_output({}))
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_remove_output) {
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->remove_output({}))
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_override_all_outputs) {
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->override_all_outputs({}))
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_override_all_inputs) {
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->override_all_inputs({}))
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_extract_subgraph) {
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->extract_subgraph({}, {}))
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_set_partial_shape) {
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->set_partial_shape({}, {}))
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_get_partial_shape) {
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->get_partial_shape({}))
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_set_element_type) {
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->set_element_type({}, {}))
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_set_tensor_value) {
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->set_tensor_value({}, {}))
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_set_tensor_partial_value) {
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->set_tensor_partial_value({}, {}, {}))
 }

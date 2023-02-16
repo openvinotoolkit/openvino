@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,10 +18,10 @@ namespace v0 {
 ///
 ///        Output node produces a tensor with shape:
 ///        [N, C/(blocksize * blocksize), H * blocksize, W * blocksize]
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API DepthToSpace : public Op {
 public:
     OPENVINO_OP("DepthToSpace", "opset1");
-    BWDCMP_RTTI_DECLARATION;
 
     enum class DepthToSpaceMode {
         // The input depth is divided to [block_size, ..., block_size, new_depth]
@@ -42,7 +42,7 @@ public:
     DepthToSpace(const Output<Node>& data, const std::string& mode, std::size_t block_size = 1);
     bool visit_attributes(AttributeVisitor& visitor) override;
 
-    std::size_t get_block_size() const {
+    const std::size_t& get_block_size() const {
         return m_blocksize;
     }
     DepthToSpaceMode get_mode() const {
@@ -73,7 +73,6 @@ public:
         : EnumAttributeAdapterBase<op::v0::DepthToSpace::DepthToSpaceMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v0::DepthToSpace::DepthToSpaceMode>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

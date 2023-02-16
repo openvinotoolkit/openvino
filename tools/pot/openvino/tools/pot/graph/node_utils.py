@@ -1,8 +1,8 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-from mo.graph.graph import Node
+from openvino.tools.mo.graph.graph import Node
 
 
 def get_node_inputs(node: Node):
@@ -140,9 +140,9 @@ def get_bias_for_node(node: Node):
     if len(node_outputs) == 1:
         potential_bias = node_outputs[0]
         if potential_bias.type == 'Add' and len(get_node_inputs(potential_bias)) > 1:
-            potential_bias_const = get_node_input(potential_bias, 1)
-            if potential_bias_const.type == 'Const':
-                return potential_bias_const
+            for potential_bias_const in get_node_inputs(potential_bias):
+                if potential_bias_const.type == 'Const':
+                    return potential_bias_const
     return None
 
 
@@ -191,7 +191,12 @@ def get_quantized_input_key(quantized_node):
     If input node of quantized node have one output port -> key is name of fq_input node.
     Otherwise, key is tuple (fq_input name, output port number)
     """
-    quantized_input = get_node_input(quantized_node, 0)
+    if quantized_node.type == 'Add':
+        for quantized_node_input in get_node_inputs(quantized_node):
+            if quantized_node_input.type != 'Const':
+                quantized_input = quantized_node_input
+    else:
+        quantized_input = get_node_input(quantized_node, 0)
     key = quantized_input.fullname
     if len(quantized_input.out_ports()) > 1:
         port_number = quantized_node.in_port(0).get_source().out
@@ -210,18 +215,6 @@ def node_with_quantized_weights(node):
         return True
 
     return False
-
-
-def get_input_shape_for_bias(op_node):
-    """
-    Generate input shape for bias node
-    :param op_node: output node for bias
-    :return: new shape
-    """
-    input_shape = get_input_shape(op_node, 0).copy()
-    if len(input_shape) > 1:
-        input_shape[0] = 1
-    return input_shape
 
 
 def get_input_data_value(node: Node, port: int):
@@ -267,12 +260,29 @@ def get_lstm_ends(read_value, assigns, ignore_nodes):
     return lstm_outputs
 
 
-def get_node_data_type(node):
-    if node.type != 'Const' and node.in_port(0).get_source() is not None \
-            and node.in_port(0).get_source().is_data_type_defined():
-        return node.in_port(0).get_source().get_data_type()
+def create_node_name(input_node, mode=tuple):
+    """
+    Returns key for node input.
+    If input node has one output port -> key is name of input node.
+    Otherwise, key is tuple (input name, output port number)
+    """
+    key = input_node.fullname
+    if len(input_node.out_ports()) > 1:
+        port_number = input_node.in_port(0).get_source().out
+        key = (input_node.fullname, port_number) if mode == tuple else f"{input_node.fullname}.{port_number}"
+    return key
+
+
+def get_node_data_type(node, port_id=0):
+    if node.type != 'Const' and port_id in node.in_ports() \
+            and node.in_port(port_id).get_source() is not None \
+            and node.in_port(port_id).get_source().is_data_type_defined():
+        return node.in_port(port_id).get_source().get_data_type()
     return None
 
 
 def reset_node_fullname(old_fullname, node_name):
     return '|'.join(old_fullname.split('|')[:-1] + [node_name])
+
+def convert_to_outputs_name(node_name):
+    return node_name if isinstance(node_name, tuple) else (node_name, 0)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,38 +9,32 @@
  * @file init_node_info.hpp
  */
 
-#include <vector>
 #include <memory>
+#include <openvino/pass/graph_rewrite.hpp>
+#include <vector>
 
-#include <ngraph/pass/graph_rewrite.hpp>
+#include "transformations_visibility.hpp"
 
-/**
- * @brief ngraph namespace
- */
-namespace ngraph {
-
-/**
- * @brief ngraph::pass namespace
- */
+namespace ov {
 namespace pass {
 
-class NGRAPH_API InitNodeInfo;
+class TRANSFORMATIONS_API InitNodeInfo;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
  * @brief InitNodeInfo transformation helps to set runtime info attributes in a single place.
- * 
+ *
  * Every runtime info attribute that needs to be initialized should be registered
  * in run_on_function method. Also do not forget to override init methods for registered
  * attribute.
  * This transformations should be called first in transformation pipeline. If attribute was
  * already set initialization will be skipped for this node.
  */
-class ngraph::pass::InitNodeInfo: public ngraph::pass::FunctionPass {
+class ov::pass::InitNodeInfo : public ov::pass::ModelPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    OPENVINO_RTTI("InitNodeInfo", "0");
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };

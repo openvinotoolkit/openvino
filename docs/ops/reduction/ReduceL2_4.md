@@ -1,4 +1,4 @@
-## ReduceLp <a name="ReduceL2"></a> {#openvino_docs_ops_reduction_ReduceL2_4}
+# ReduceL2 {#openvino_docs_ops_reduction_ReduceL2_4}
 
 **Versioned name**: *ReduceL2-4*
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,10 +14,10 @@ namespace op {
 namespace v1 {
 /// \brief Computes indices and values of the k maximum/minimum values
 ///        for each slice along specified axis.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API TopK : public Op {
 public:
     OPENVINO_OP("TopK", "opset1", op::Op, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     using SortType = TopKSortType;
     using Mode = TopKMode;
@@ -64,6 +64,7 @@ public:
         return m_axis;
     }
     void set_axis(const int64_t axis);
+    void set_axis(const Rank& input_rank, const int64_t axis);
     Mode get_mode() const {
         return m_mode;
     }
@@ -111,17 +112,17 @@ protected:
     Shape compute_output_shape(const std::string& node_description,
                                const PartialShape input_partial_shape,
                                const int64_t k) const;
-    void set_axis(const Rank input_rank, const int64_t axis);
+    virtual void k_type_check(const element::Type& k_element_type) const;
 };
 }  // namespace v1
 
 namespace v3 {
 /// \brief Computes indices and values of the k maximum/minimum values
 ///        for each slice along specified axis.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API TopK : public v1::TopK {
 public:
     OPENVINO_OP("TopK", "opset3", op::Op, 3);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a TopK operation
     TopK() = default;
     /// \brief Constructs a TopK operation with two outputs: values and indices.
@@ -161,6 +162,7 @@ public:
 protected:
     size_t read_k_from_constant_node(const std::shared_ptr<Node>& node,
                                      const element::Type& k_element_type) const override;
+    void k_type_check(const element::Type& k_element_type) const override;
 };
 }  // namespace v3
 }  // namespace op

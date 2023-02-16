@@ -1,12 +1,11 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import deepcopy
-import numpy as np
 
-from mo.graph.graph import Graph
+from openvino.tools.mo.graph.graph import Graph
 
-from openvino.tools.pot.graph.node_utils import get_node_input, get_node_inputs
+from openvino.tools.pot.graph.node_utils import get_node_data_type, get_node_input, get_node_inputs
 from .editor import create_node, connect_nodes_by_name, get_node_by_name
 
 
@@ -53,25 +52,25 @@ def make_copy_fake_quantize(nodes, edges, fq):
         fq_attrs['levels'] = int(fq_attrs['levels'])
 
     nodes.extend([
-        (fq.name, fq.type, fq_attrs),
-        (input_low.name, input_low.type,
+        (fq.fullname, fq.type, fq_attrs),
+        (input_low.fullname, input_low.type,
          {'value': input_low.value}),
-        (input_height.name, input_height.type,
+        (input_height.fullname, input_height.type,
          {'value': input_height.value}),
-        (output_low.name, output_low.type,
+        (output_low.fullname, output_low.type,
          {'value': output_low.value}),
-        (output_height.name, output_height.type,
+        (output_height.fullname, output_height.type,
          {'value': output_height.value}),
-        (weights.name, weights.type, {'value': weights.value.copy()})])
+        (weights.fullname, weights.type, {'value': weights.value.copy()})])
 
     edges.extend([
-        (weights.name, fq.name, {'out': 0, 'in': 0}),
-        (input_low.name, fq.name, {'out': 0, 'in': 1}),
-        (input_height.name, fq.name, {'out': 0, 'in': 2}),
-        (output_low.name, fq.name, {'out': 0, 'in': 3}),
-        (output_height.name, fq.name, {'out': 0, 'in': 4})
+        (weights.fullname, fq.fullname, {'out': 0, 'in': 0}),
+        (input_low.fullname, fq.fullname, {'out': 0, 'in': 1}),
+        (input_height.fullname, fq.fullname, {'out': 0, 'in': 2}),
+        (output_low.fullname, fq.fullname, {'out': 0, 'in': 3}),
+        (output_height.fullname, fq.fullname, {'out': 0, 'in': 4})
     ])
-    return fq.name
+    return fq.fullname
 
 
 def make_copy_graph_attrs(model, input_name, input_shape):
@@ -96,7 +95,7 @@ def make_copy_graph_attrs(model, input_name, input_shape):
 
 
 def build_graph_for_node(model, input_name, input_shape, node, remove_bias=False, remove_fake_quantize=False):
-    """ Build the Graph (input - node - output). The Convolution, FullyConnected node types are supported.
+    """ Build the Graph (input - node - output). The Convolution, MatMul node types are supported.
      :param model: source model
      :param input_name: name of the input node in the generated graph
      :param input_shape: shape of the input node in the generated graph
@@ -105,47 +104,51 @@ def build_graph_for_node(model, input_name, input_shape, node, remove_bias=False
      :param remove_fake_quantize: remove fake quantize nodes in the generated graph
      :return: generated graph.
     """
+    input_data_type = get_node_data_type(node, 0)
     nodes, edges = [], []
-    nodes.append((input_name, 'Parameter', {'name': input_name, 'shape': input_shape, 'type': 'Parameter'}))
+    nodes.append((input_name, 'Parameter', {'name': input_name, 'shape': input_shape,
+                                            'type': 'Parameter', 'data_type': input_data_type}))
 
     node_attrs = deepcopy(node.attrs())
     if node.has_valid('output') and node.has_valid('get_output_feature_dim'):
         node_attrs['get_output_feature_dim'] = None
 
-    nodes.append((node.name, node.type, node_attrs))
-    edges.append((input_name, node.name, {'out': 0, 'in': 0}))
+    nodes.append((node.fullname, node.type, node_attrs))
+    edges.append((input_name, node.fullname, {'out': 0, 'in': 0}))
 
     parent_nodes = get_node_inputs(node)
     if parent_nodes[1].type == 'FakeQuantize' and not remove_fake_quantize:
         fq = parent_nodes[1]
         fq_name = make_copy_fake_quantize(nodes, edges, fq)
-        edges.append((fq_name, node.name, {'out': 0, 'in': 1}))
+        edges.append((fq_name, node.fullname, {'out': 0, 'in': 1}))
     else:
         weights = parent_nodes[1]
-        nodes.append((weights.name, weights.type, {'value': weights.value.copy()}))
-        edges.append((weights.name, node.name, {'out': 0, 'in': 1}))
+        nodes.append((weights.fullname, weights.type, {'value': weights.value.copy()}))
+        edges.append((weights.fullname, node.fullname, {'out': 0, 'in': 1}))
 
     if not remove_bias:
         if parent_nodes[2].type == 'FakeQuantize' and not remove_fake_quantize:
             fq = parent_nodes[1]
             fq_name = make_copy_fake_quantize(nodes, edges, fq)
-            edges.append((fq_name, node.name, {'out': 0, 'in': 2}))
+            edges.append((fq_name, node.fullname, {'out': 0, 'in': 2}))
         else:
             weights = parent_nodes[2]
-            nodes.append((weights.name, weights.type, {'value': weights.value.copy()}))
-            edges.append((weights.name, node.name, {'out': 0, 'in': 2}))
+            nodes.append((weights.fullname, weights.type, {'value': weights.value.copy()}))
+            edges.append((weights.fullname, node.fullname, {'out': 0, 'in': 2}))
 
-    result_name = '{}/out'.format(node.name)
+    result_name = '{}/out'.format(node.fullname)
     nodes.append((result_name, 'Result', {}))
-    edges.append((node.name, result_name, {'out': 0, 'in': 0}))
+    edges.append((node.fullname, result_name, {'out': 0, 'in': 0}))
     graph = build_graph(*make_copy_graph_attrs(model, input_name, input_shape), nodes, edges)
-    graph.ir_v10 = True
 
     # Add the neccessary attribute to the new graph
-    src_node = get_node_by_name(graph, node.name)
+    src_node = get_node_by_name(graph, node.fullname)
     weights_node = get_node_input(src_node, 1)
     weights_node = get_node_input(weights_node, 0) \
         if weights_node.type == 'FakeQuantize' else weights_node
-    if weights_node.out_port(0).get_data_type() == np.float16:
+    weights_out_dtype = weights_node.out_port(0).get_data_type()
+    src_out_dtype = src_node.out_port(0).get_data_type()
+    if weights_out_dtype != src_out_dtype:
         weights_node.out_node(0)['Insert_Convert_operation_after'] = True
+
     return graph

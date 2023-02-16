@@ -1,17 +1,15 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <memory>
 #include <functional>
-
+#include <memory>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 
-#include <ngraph/pass/graph_rewrite.hpp>
-
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API MultiplyConvolutionFusion;
@@ -20,7 +18,7 @@ class TRANSFORMATIONS_API MultiplyConvolutionBackpropDataFusion;
 class TRANSFORMATIONS_API MultiplyGroupConvolutionBackpropDataFusion;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -73,32 +71,32 @@ class TRANSFORMATIONS_API MultiplyGroupConvolutionBackpropDataFusion;
  * Restrictions:
  * - weights' shape is static
  * - if the constant input to Multiply has the same rank as 'input', the constant first dimension has to be 1
- * - constant input to Multiply has to be broadcastable to weights when 'Convolution Op' is either Convolution or GroupConvolution
- * - shape of a constant input to Multiply has to be in one of following forms: (1), (1, 1, ..., 1), (C, 1, ..., 1), (1, C, 1, ..., 1)
- *   when 'Convolution Op' is either ConvolutionBackpropData or GroupConvolutionBackpropData
+ * - constant input to Multiply has to be broadcastable to weights when 'Convolution Op' is either Convolution or
+ * GroupConvolution
+ * - shape of a constant input to Multiply has to be in one of following forms: (1), (1, 1, ..., 1), (C, 1, ..., 1), (1,
+ * C, 1, ..., 1) when 'Convolution Op' is either ConvolutionBackpropData or GroupConvolutionBackpropData
  */
 
-
-class ngraph::pass::MultiplyConvolutionFusion: public ngraph::pass::MatcherPass {
+class ov::pass::MultiplyConvolutionFusion : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("MultiplyConvolutionFusion", "0");
     MultiplyConvolutionFusion();
 };
 
-class ngraph::pass::MultiplyGroupConvolutionFusion: public ngraph::pass::MatcherPass {
+class ov::pass::MultiplyGroupConvolutionFusion : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("MultiplyGroupConvolutionFusion", "0");
     MultiplyGroupConvolutionFusion();
 };
 
-class ngraph::pass::MultiplyConvolutionBackpropDataFusion: public ngraph::pass::MatcherPass {
+class ov::pass::MultiplyConvolutionBackpropDataFusion : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("MultiplyConvolutionBackpropDataFusion", "0");
     MultiplyConvolutionBackpropDataFusion();
 };
 
-class ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion: public ngraph::pass::MatcherPass {
+class ov::pass::MultiplyGroupConvolutionBackpropDataFusion : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("MultiplyGroupConvolutionBackpropDataFusion", "0");
     MultiplyGroupConvolutionBackpropDataFusion();
 };

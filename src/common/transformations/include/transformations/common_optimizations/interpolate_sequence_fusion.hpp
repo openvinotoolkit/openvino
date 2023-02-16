@@ -1,33 +1,30 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <vector>
 #include <memory>
-
+#include <openvino/pass/graph_rewrite.hpp>
+#include <openvino/pass/pattern/matcher.hpp>
 #include <transformations_visibility.hpp>
+#include <vector>
 
-#include <ngraph/ngraph.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
-#include "ngraph/pattern/matcher.hpp"
-
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API InterpolateSequenceFusion;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
  * @brief InterpolateSequenceFusion transformation replaces a sequence of
  *        operations to Interpolate op.
  */
-class ngraph::pass::InterpolateSequenceFusion : public ngraph::pass::MatcherPass {
+class ov::pass::InterpolateSequenceFusion : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("InterpolateSequenceFusion", "0");
     InterpolateSequenceFusion();
 };

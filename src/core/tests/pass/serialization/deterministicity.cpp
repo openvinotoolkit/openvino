@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,19 +6,27 @@
 
 #include <fstream>
 
+#include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/util/file_util.hpp"
 #include "read_ir.hpp"
-#include "util/graph_comparator.hpp"
 #include "util/test_common.hpp"
 
 class SerializationDeterministicityTest : public ov::test::TestsCommon {
 protected:
-    std::string test_name = GetTestName();
-    std::string m_out_xml_path_1 = test_name + "1" + ".xml";
-    std::string m_out_bin_path_1 = test_name + "1" + ".bin";
-    std::string m_out_xml_path_2 = test_name + "2" + ".xml";
-    std::string m_out_bin_path_2 = test_name + "2" + ".bin";
+    std::string m_out_xml_path_1;
+    std::string m_out_bin_path_1;
+    std::string m_out_xml_path_2;
+    std::string m_out_bin_path_2;
+
+    void SetUp() override {
+        std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+        m_out_xml_path_1 = filePrefix + "1" + ".xml";
+        m_out_bin_path_1 = filePrefix + "1" + ".bin";
+        m_out_xml_path_2 = filePrefix + "2" + ".xml";
+        m_out_bin_path_2 = filePrefix + "2" + ".bin";
+    }
 
     void TearDown() override {
         std::remove(m_out_xml_path_1.c_str());
@@ -47,14 +55,15 @@ protected:
     }
 };
 
-#ifdef NGRAPH_ONNX_FRONTEND_ENABLE
+#ifdef ENABLE_OV_ONNX_FRONTEND
 
 TEST_F(SerializationDeterministicityTest, BasicModel) {
-    const std::string model = ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc.onnx"});
+    const std::string model =
+        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc.onnx"}));
 
     auto expected = ov::test::readModel(model, "");
-    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(expected);
-    ov::pass::Serialize(m_out_xml_path_2, m_out_bin_path_2).run_on_function(expected);
+    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(expected);
+    ov::pass::Serialize(m_out_xml_path_2, m_out_bin_path_2).run_on_model(expected);
 
     std::ifstream xml_1(m_out_xml_path_1, std::ios::in | std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::in | std::ios::binary);
@@ -66,11 +75,12 @@ TEST_F(SerializationDeterministicityTest, BasicModel) {
 }
 
 TEST_F(SerializationDeterministicityTest, ModelWithMultipleLayers) {
-    const std::string model = ov::util::path_join({SERIALIZED_ZOO, "ir/addmul_abc.onnx"});
+    const std::string model =
+        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/addmul_abc.onnx"}));
 
     auto expected = ov::test::readModel(model, "");
-    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(expected);
-    ov::pass::Serialize(m_out_xml_path_2, m_out_bin_path_2).run_on_function(expected);
+    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(expected);
+    ov::pass::Serialize(m_out_xml_path_2, m_out_bin_path_2).run_on_model(expected);
 
     std::ifstream xml_1(m_out_xml_path_1, std::ios::in | std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::in | std::ios::binary);
@@ -84,12 +94,14 @@ TEST_F(SerializationDeterministicityTest, ModelWithMultipleLayers) {
 #endif
 
 TEST_F(SerializationDeterministicityTest, ModelWithMultipleOutputs) {
-    const std::string model = ov::util::path_join({SERIALIZED_ZOO, "ir/split_equal_parts_2d.xml"});
-    const std::string weights = ov::util::path_join({SERIALIZED_ZOO, "ir/split_equal_parts_2d.bin"});
+    const std::string model =
+        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/split_equal_parts_2d.xml"}));
+    const std::string weights =
+        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/split_equal_parts_2d.bin"}));
 
     auto expected = ov::test::readModel(model, weights);
-    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(expected);
-    ov::pass::Serialize(m_out_xml_path_2, m_out_bin_path_2).run_on_function(expected);
+    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(expected);
+    ov::pass::Serialize(m_out_xml_path_2, m_out_bin_path_2).run_on_model(expected);
 
     std::ifstream xml_1(m_out_xml_path_1, std::ios::in | std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::in | std::ios::binary);
@@ -101,12 +113,14 @@ TEST_F(SerializationDeterministicityTest, ModelWithMultipleOutputs) {
 }
 
 TEST_F(SerializationDeterministicityTest, ModelWithConstants) {
-    const std::string model = ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc_initializers.xml"});
-    const std::string weights = ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc_initializers.bin"});
+    const std::string model =
+        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc_initializers.xml"}));
+    const std::string weights =
+        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc_initializers.bin"}));
 
     auto expected = ov::test::readModel(model, weights);
-    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(expected);
-    ov::pass::Serialize(m_out_xml_path_2, m_out_bin_path_2).run_on_function(expected);
+    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(expected);
+    ov::pass::Serialize(m_out_xml_path_2, m_out_bin_path_2).run_on_model(expected);
 
     std::ifstream xml_1(m_out_xml_path_1, std::ios::in | std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::in | std::ios::binary);

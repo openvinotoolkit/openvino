@@ -1,10 +1,8 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
-
-#include <transformations_visibility.hpp>
 
 #include "ngraph/op/op.hpp"
 
@@ -17,11 +15,11 @@ namespace op {
  * @brief Added to a subgraph if explicit broadcast instruction should be generated
  * @ingroup snippets
  */
-class TRANSFORMATIONS_API BroadcastMove : public ngraph::op::Op {
+class BroadcastMove : public ngraph::op::Op {
 public:
     OPENVINO_OP("BroadcastMove", "SnippetsOpset");
 
-    BroadcastMove(const Output<Node>& x, Shape output_shape);
+    BroadcastMove(const Output<Node>& x, ov::PartialShape output_shape);
     BroadcastMove() = default;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
@@ -30,12 +28,9 @@ public:
 
     void validate_and_infer_types() override;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
 protected:
-    Shape output_shape;
+    ov::PartialShape output_shape;
 };
 
 } // namespace op

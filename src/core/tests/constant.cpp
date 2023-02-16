@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,6 @@
 
 #include "ngraph/ngraph.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "runtime/ie/ie_tensor.hpp"
 #include "util/type_prop.hpp"
 
 using namespace ngraph;
@@ -1719,15 +1718,78 @@ TEST(constant, hold_host_tensor) {
     ASSERT_EQ(constDataPtr, hostDataPtr);
 }
 
-TEST(constant, copy_unknown_tensor) {
-    Shape shape{4};
-    void* hostDataPtr = nullptr;
-    std::shared_ptr<op::Constant> constOp;
+// Test verifies 2 things:
+// a) Checks that bitwise comparison happens on first call of 'get_all_data_elements_bitwise_identical'
+// b) Next call of 'get_all_data_elements_bitwise_identical' takes already calculated value
+TEST(constant, lazy_bitwise_identical) {
+    auto shape = Shape{10, 1000, 1000};
+    auto type = element::i32;
+    auto byte_size = shape_size(shape) * sizeof(int32_t);
+    auto aligned_weights_buffer = std::make_shared<ngraph::runtime::AlignedBuffer>(byte_size);
+    std::memset(aligned_weights_buffer->get_ptr<char>(), 1, byte_size);
+    auto weights = std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
+        aligned_weights_buffer->get_ptr<char>(),
+        aligned_weights_buffer->size(),
+        aligned_weights_buffer);
+
+    using namespace std::chrono;
+    auto create_constant = [&]() {
+        auto constant1 = std::make_shared<op::v0::Constant>(type, shape, weights);
+        return constant1;
+    };
+    const int TIMEOUT_MS = 300;
+    size_t created_count = 0;
     {
-        auto tensor = std::make_shared<runtime::ie::IETensor>(element::f32, Shape{1, 2, 3, 3});
-        hostDataPtr = const_cast<void*>(tensor->get_data_ptr());
-        constOp = std::make_shared<op::Constant>(tensor);
+        auto start = steady_clock::now();
+        while (duration_cast<milliseconds>(steady_clock::now() - start).count() < TIMEOUT_MS) {
+            create_constant();  // shall be O(1)
+            created_count++;
+        }
     }
-    const void* constDataPtr = constOp->get_data_ptr();
-    ASSERT_NE(constDataPtr, hostDataPtr);
+    size_t bitwise_check_count = 0;
+    {
+        auto start = steady_clock::now();
+        while (duration_cast<milliseconds>(steady_clock::now() - start).count() < TIMEOUT_MS) {
+            auto constant1 = create_constant();
+            EXPECT_TRUE(constant1->get_all_data_elements_bitwise_identical());  // can be O(N)
+            bitwise_check_count++;
+        }
+    }
+
+    size_t bitwise_check_count_only = 0;
+    auto constant1 = create_constant();
+    EXPECT_TRUE(constant1->get_all_data_elements_bitwise_identical());  // first time calculation can be O(N)
+    {
+        auto start = steady_clock::now();
+        while (duration_cast<milliseconds>(steady_clock::now() - start).count() < TIMEOUT_MS) {
+            EXPECT_TRUE(constant1->get_all_data_elements_bitwise_identical());  // next calls shall be O(1)
+            bitwise_check_count_only++;
+        }
+    }
+    std::cout << "Created: " << created_count << ", Created+Checked=" << bitwise_check_count
+              << ", Checked_cached_value=" << bitwise_check_count_only << "\n";
+    // Comparing creation from pre-allocated buffer with creation + checking identical
+    // '10' times is guaranteed to be faster here (typical value is ~10'000)
+    EXPECT_GT(created_count, bitwise_check_count * 10);
+
+    // Comparing getting comparison value from cache with first-time calculation
+    // '10' times is guaranteed to be faster here (typical value is ~200'000)
+    EXPECT_GT(bitwise_check_count_only, bitwise_check_count * 10);
+}
+
+// Disabled just because of long execution time. Enable for nightly builds in future
+TEST(constant, DISABLED_nightly_huge_size_4GB) {
+    size_t start = 1llu << 32;
+    size_t s = start + 5;
+    std::vector<uint8_t> data(s);
+    for (size_t i = start; i < s; i++) {
+        data[i] = static_cast<uint8_t>(i - start + 42);
+    }
+    Shape shape{s};
+    op::Constant c(element::u8, shape, data.data());
+    auto v = c.get_vector<uint8_t>();
+    ASSERT_EQ(v.size(), shape_size(shape));
+    for (size_t i = start; i < s; i++) {
+        EXPECT_EQ(v[i], i - start + 42) << i << " failed";
+    }
 }

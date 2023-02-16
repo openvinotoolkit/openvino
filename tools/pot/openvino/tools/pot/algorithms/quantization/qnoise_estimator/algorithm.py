@@ -1,11 +1,10 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import deepcopy
 
 import numpy as np
-import pandas as pd
-from mo.graph.graph import rename_node
+from openvino.tools.mo.graph.graph import rename_node
 
 from .utils import get_composite_model
 from ..utils import load_hardware_config
@@ -98,7 +97,7 @@ class QuantNoiseEstimator(Algorithm):
             'layer_name': list(stat_calculation_layers.values()),
         }
         if 'results_dump_filename' in self._config:
-            pd.DataFrame(noise_data).to_csv(self._config['results_dump_filename'])
+            np.savetxt(self._config['results_dump_filename'], noise_data, delimiter=",", fmt='%s')
         return noise_data
 
     def layerwise_fq_noise(self, model):
@@ -175,7 +174,7 @@ class QuantNoiseEstimator(Algorithm):
 
         noise_data = {'noise_metric': qnoise_values, 'layer_name': node_names}
         if 'results_dump_filename' in self._config:
-            pd.DataFrame(noise_data).to_csv(self._config['results_dump_filename'])
+            np.savetxt(self._config['results_dump_filename'], noise_data, delimiter=",", fmt='%s')
         return noise_data
 
     def get_nonquantized_model(self, model):

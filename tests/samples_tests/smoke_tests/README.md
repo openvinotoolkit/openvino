@@ -5,7 +5,7 @@ These tests execute IE samples on pregenerated IR
 You can run tests not only from the <INSTALL_DIR>, but in this case you need to remember to adjust the environment variables like as WORKSPACE and SHARE
 
 To install smoke tests:
-    ``` bash
+    ``` bash                                            			
     - cd <working directory>/tests/samples_tests/smoke_tests
     - mkdir build && cd build
     - cmake ../..

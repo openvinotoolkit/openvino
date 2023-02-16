@@ -1,28 +1,24 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <vector>
 #include <memory>
-
-#include <vector>
-#include <memory>
-
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
+#include <vector>
 
-#include <ngraph/pass/graph_rewrite.hpp>
-
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertTensorIteratorToLSTMSequence;
 class TRANSFORMATIONS_API ConvertTensorIteratorToRNNSequence;
 class TRANSFORMATIONS_API ConvertTensorIteratorToGRUSequence;
+class TRANSFORMATIONS_API ConvertTensorIteratorToSequence;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -30,9 +26,9 @@ class TRANSFORMATIONS_API ConvertTensorIteratorToGRUSequence;
  * converts this pattern to LSTMSequence layer and replaces them TensorIterator.
  */
 
-class ngraph::pass::ConvertTensorIteratorToLSTMSequence: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertTensorIteratorToLSTMSequence : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertTensorIteratorToLSTMSequence", "0");
     ConvertTensorIteratorToLSTMSequence();
 };
 
@@ -42,9 +38,9 @@ public:
  * converts this pattern to RNNSequence layer and replaces them TensorIterator.
  */
 
-class ngraph::pass::ConvertTensorIteratorToRNNSequence: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertTensorIteratorToRNNSequence : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertTensorIteratorToRNNSequence", "0");
     ConvertTensorIteratorToRNNSequence();
 };
 
@@ -54,8 +50,14 @@ public:
  * converts this pattern to GRUSequence layer and replaces them TensorIterator.
  */
 
-class ngraph::pass::ConvertTensorIteratorToGRUSequence: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertTensorIteratorToGRUSequence : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertTensorIteratorToGRUSequence", "0");
     ConvertTensorIteratorToGRUSequence();
+};
+
+class ov::pass::ConvertTensorIteratorToSequence : public GraphRewrite {
+public:
+    OPENVINO_RTTI("ConvertTensorIteratorToSequence", "0");
+    ConvertTensorIteratorToSequence();
 };

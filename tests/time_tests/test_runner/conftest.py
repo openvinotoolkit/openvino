@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 """
@@ -32,7 +32,7 @@ sys.path.insert(0, str(UTILS_DIR))
 
 from path_utils import check_positive_int
 from platform_utils import get_os_name, get_os_version, get_cpu_info
-from utils import upload_data, metadata_from_manifest, DB_COLLECTIONS
+from utils import upload_data, metadata_from_manifest, push_to_db_facade, modify_data_for_push_to_new_db, DB_COLLECTIONS
 
 # -------------------- CLI options --------------------
 
@@ -43,7 +43,7 @@ def pytest_addoption(parser):
     test_args_parser.addoption(
         "--test_conf",
         type=Path,
-        help="path to a test config",
+        help="Path to a test config",
         default=Path(__file__).parent / "test_config.yml"
     )
     test_args_parser.addoption(
@@ -51,20 +51,25 @@ def pytest_addoption(parser):
         required=True,
         dest="executable",
         type=Path,
-        help="path to a timetest binary to execute"
+        help="Path to a timetest binary to execute"
     )
     test_args_parser.addoption(
         "--niter",
         type=check_positive_int,
-        help="number of iterations to run executable and aggregate results",
+        help="Number of iterations to run executable and aggregate results",
         default=3
+    )
+    test_args_parser.addoption(
+        "--model_cache",
+        action='store_true',
+        help="Enable model cache usage",
     )
     db_args_parser = parser.getgroup("timetest database use")
     db_args_parser.addoption(
         '--db_submit',
         metavar="RUN_ID",
         type=str,
-        help='submit results to the database. ' \
+        help='Submit results to the database. ' \
              '`RUN_ID` should be a string uniquely identifying the run' \
              ' (like Jenkins URL or time)'
     )
@@ -79,19 +84,27 @@ def pytest_addoption(parser):
         '--db_collection',
         type=str,
         required=is_db_used,
-        help='collection name in database',
+        help='Collection name in database',
         choices=DB_COLLECTIONS
     )
     db_args_parser.addoption(
         '--db_metadata',
         type=str,
         default=None,
-        help='path to JSON-formatted file to extract additional information')
+        help='Path to JSON-formatted file to extract additional information'
+    )
     db_args_parser.addoption(
         '--manifest',
         type=Path,
         required=is_db_used,
-        help='path to build manifest to extract commit information')
+        help='Path to build manifest to extract commit information'
+    )
+    db_args_parser.addoption(
+        '--db_api_handler',
+        type=str,
+        help='API handler url for push data to database',
+        default=''
+    )
 
 
 @pytest.fixture(scope="session")
@@ -112,7 +125,14 @@ def niter(request):
     return request.config.getoption('niter')
 
 
+@pytest.fixture(scope="session")
+def model_cache(request):
+    """Fixture function for command-line option."""
+    return request.config.getoption('model_cache')
+
+
 # -------------------- CLI options --------------------
+
 
 @pytest.fixture(scope="function")
 def temp_dir(pytestconfig):
@@ -235,6 +255,9 @@ def prepare_db_info(request, test_info, executable, niter, manifest_metadata):
     if db_meta_path:
         with open(db_meta_path, "r") as db_meta_f:
             test_info["db_info"].update(json.load(db_meta_f))
+
+    # add model cache status
+    test_info["db_info"].update({"model_cache": request.config.getoption("model_cache")})
 
     # add test info
     info = {
@@ -396,3 +419,9 @@ def pytest_runtest_makereport(item, call):
         logging.info(f"Upload data to {db_url}/{'timetests'}.{db_collection}. "
                      f"Data: {data}")
         upload_data(data, db_url, 'timetests', db_collection)
+
+        db_api_handler = item.config.getoption("db_api_handler")
+        if db_api_handler and call.when == "call":
+            new_format_records = modify_data_for_push_to_new_db(data)
+            new_format_records['data'][0]["log"] = item._request.test_info["logs"]
+            push_to_db_facade(new_format_records, db_api_handler)

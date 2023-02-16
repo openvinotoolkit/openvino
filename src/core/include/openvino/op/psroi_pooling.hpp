@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,10 +9,12 @@
 namespace ov {
 namespace op {
 namespace v0 {
+/// \brief PSROIPooling operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API PSROIPooling : public Op {
 public:
     OPENVINO_OP("PSROIPooling", "opset1");
-    BWDCMP_RTTI_DECLARATION;
 
     PSROIPooling() = default;
     /// \brief Constructs a PSROIPooling operation

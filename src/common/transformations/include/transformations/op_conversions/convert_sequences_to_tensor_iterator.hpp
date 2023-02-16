@@ -1,25 +1,24 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <vector>
 #include <memory>
-
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
+#include <vector>
 
-#include <ngraph/pass/graph_rewrite.hpp>
-
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertRNNSequenceToTensorIterator;
 class TRANSFORMATIONS_API ConvertGRUSequenceToTensorIterator;
 class TRANSFORMATIONS_API ConvertLSTMSequenceToTensorIterator;
+class TRANSFORMATIONS_API ConvertSequenceToTensorIterator;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -27,9 +26,9 @@ class TRANSFORMATIONS_API ConvertLSTMSequenceToTensorIterator;
  * *
  */
 
-class ngraph::pass::ConvertRNNSequenceToTensorIterator: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertRNNSequenceToTensorIterator : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertRNNSequenceToTensorIterator", "0");
     ConvertRNNSequenceToTensorIterator();
 };
 
@@ -39,9 +38,9 @@ public:
  * *
  */
 
-class ngraph::pass::ConvertGRUSequenceToTensorIterator: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertGRUSequenceToTensorIterator : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertGRUSequenceToTensorIterator", "0");
     ConvertGRUSequenceToTensorIterator();
 };
 
@@ -51,8 +50,14 @@ public:
  * *
  */
 
-class ngraph::pass::ConvertLSTMSequenceToTensorIterator: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertLSTMSequenceToTensorIterator : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertLSTMSequenceToTensorIterator", "0");
     ConvertLSTMSequenceToTensorIterator();
+};
+
+class ov::pass::ConvertSequenceToTensorIterator : public GraphRewrite {
+public:
+    OPENVINO_RTTI("ConvertSequenceToTensorIterator", "0");
+    ConvertSequenceToTensorIterator();
 };

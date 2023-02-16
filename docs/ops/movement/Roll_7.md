@@ -1,4 +1,4 @@
-## Roll <a name="Roll"></a> {#openvino_docs_ops_movement_Roll_7}
+# Roll {#openvino_docs_ops_movement_Roll_7}
 
 **Versioned name**: *Roll-7*
 

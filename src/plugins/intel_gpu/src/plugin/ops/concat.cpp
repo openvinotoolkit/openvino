@@ -1,57 +1,34 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/concat.hpp"
 
-#include "cldnn/primitives/concatenation.hpp"
+#include "intel_gpu/primitives/concatenation.hpp"
 
-namespace CLDNNPlugin {
-
-static cldnn::concatenation::concatenation_axis GetConcatAxis(int32_t axis, size_t rank) {
-    unsigned cldnn_axis = axis >= 0 ? axis : axis + static_cast<int32_t>(rank);
-    if (cldnn_axis >= rank)
-        IE_THROW() << "Concatenation axis exceeds number of dimensions";
-
-    // Difference in dimension ordering between IE and clDNN,
-    // reverse spatial dimensions after batch and feature.
-    if (cldnn_axis >= 2) {
-        auto spatial_axis = cldnn_axis - 2;
-        // Default and minimum number of dimensions is 4
-        auto spatial_size = std::max<size_t>(rank, 4) - 2;
-        cldnn_axis = spatial_size - spatial_axis - 1 + 2;
-    }
-
-    switch (cldnn_axis) {
-        case 0: return cldnn::concatenation::concatenation_axis::along_b;
-        case 1: return cldnn::concatenation::concatenation_axis::along_f;
-        case 2: return cldnn::concatenation::concatenation_axis::along_x;
-        case 3: return cldnn::concatenation::concatenation_axis::along_y;
-        case 4: return cldnn::concatenation::concatenation_axis::along_z;
-        case 5: return cldnn::concatenation::concatenation_axis::along_w;
-        default: IE_THROW() << "Unsupported concatenation axis: " << axis;
-    }
-
-    return cldnn::concatenation::concatenation_axis::along_f;  // shouldn't get here
-}
+namespace ov {
+namespace intel_gpu {
 
 static void CreateConcatOp(Program& p, const std::shared_ptr<ngraph::op::v0::Concat>& op) {
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
+    int64_t axis = op->get_axis();
+    if (axis < 0)
+        axis = axis + static_cast<int64_t>(op->get_input_partial_shape(0).rank().get_length());
+
     auto concatPrim = cldnn::concatenation(
         layerName,
-        inputPrimitives,
-        GetConcatAxis(op->get_axis(), op->get_input_shape(0).size()),
-        DataTypeFromPrecision(op->get_output_element_type(0)),
-        op->get_friendly_name());
+        inputs,
+        axis,
+        cldnn::element_type_to_data_type(op->get_output_element_type(0)));
 
-    p.AddPrimitive(concatPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, concatPrim);
 }
 
 REGISTER_FACTORY_IMPL(v0, Concat);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace ov

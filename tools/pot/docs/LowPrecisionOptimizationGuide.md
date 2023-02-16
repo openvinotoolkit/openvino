@@ -1,4 +1,4 @@
-# Low Precision Optimization Guide {#pot_docs_LowPrecisionOptimizationGuide}
+# Low Precision Optimization Guide
 
 ## Introduction
 This document provides the best-known methods on how to use low-precision capabilities of the OpenVINO™ toolkit to transform models
@@ -25,25 +25,24 @@ with additional retraining/fine-tuning.
 Starting from the OpenVINO 2020.1 release all the quantized models are represented using so-called `FakeQuantize` layer which is
 a very expressive primitive and is able to represent such operations as `Quantize`, `Dequantize`, `Requantize`, and even more. This operation is
 inserted into the model during quantization procedure and is aimed to store quantization parameters for the layers. For more details about this operation
-please refer to the following [description](https://docs.openvinotoolkit.org/latest/_docs_ops_quantization_FakeQuantize_1.html).
+please refer to the following [description](@ref openvino_docs_ops_quantization_FakeQuantize_1).
 
 In order to execute such "fake-quantized" models, OpenVINO has a low-precision runtime which is a part of Inference Engine and consists of a 
 generic component translating the model to real integer representation and HW-specific part implemented in the corresponding HW plug-ins. 
 
 ## Model Optimization Workflow
 We propose a common workflow which aligns with what other DL frameworks have. It contains two main components: post-training quantization and Quantization-Aware Training (QAT). 
-The first component is the the easiest way to get optimized models where the latter one can be considered as an alternative or an addition when the first does not give
+The first component is the easiest way to get optimized models where the latter one can be considered as an alternative or an addition when the first does not give
 accurate results.
 
 The diagram below shows the optimization flow for the new model with OpenVINO and relative tools.
 
 ![](images/low_precision_flow.png)
 
-- **Step 0: Model enabling**. In this step we should ensure that the model trained on the target dataset can be successfully inferred with OpenVINO 
-[Inference Engine](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_inference_engine_intro.html) in floating-point precision.
-This process involves use of [Model Optimizer](https://docs.openvinotoolkit.org/latest/_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html) tool to convert the model from the source framework 
+- **Step 0: Model enabling**. In this step we should ensure that the model trained on the target dataset can be successfully inferred with [OpenVINO™ Runtime](@ref openvino_docs_OV_UG_OV_Runtime_User_Guide) in floating-point precision.
+This process involves use of [Model Optimizer](@ref openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide) tool to convert the model from the source framework 
 to the OpenVINO Intermediate Representation (IR) and run it on CPU with Inference Engine. 
-  > **NOTE**: This step presumes that the model has the same accuracy as in the original training framework and enabled in the [Accuracy Checker](@ref omz_tools_accuracy_checker_README) tool or through the custom validation sample.
+  > **NOTE**: This step presumes that the model has the same accuracy as in the original training framework and enabled in the [Accuracy Checker](@ref omz_tools_accuracy_checker) tool or through the custom validation sample.
 - **Step 1: Post-training quantization**. As the first step for optimization, we suggest using INT8 quantization from POT where in most cases it is possible to get an accurate quantized model. At this step you do not need model re-training. The only thing required is a representative dataset which is usually several hundreds of images and it is used to collect statistics during the quantization process.
 Post-training quantization is also really fast and usually takes several minutes depending on the model size and used HW. And, generally, a regular desktop system is enough to quantize most of [OpenVINO Model Zoo](https://github.com/opencv/open_model_zoo).
 For more information on best practices of post-training optimization please refer to the [Post-training Optimization Best practices](BestPractices.md).

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,10 +9,12 @@
 namespace ov {
 namespace op {
 namespace v3 {
+/// \brief ExtractImagePatches operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ExtractImagePatches : public Op {
 public:
     OPENVINO_OP("ExtractImagePatches", "opset3", op::Op, 3);
-    BWDCMP_RTTI_DECLARATION;
 
     ExtractImagePatches() = default;
     /// \brief Constructs a ExtractImagePatches operation
@@ -64,7 +66,11 @@ private:
     Shape m_patch_sizes;
     Strides m_patch_movement_strides;
     Shape m_patch_selection_rates;
-    PadType m_padding;
+    PadType m_padding{PadType::EXPLICIT};
+    template <class T>
+    friend void shape_infer(const ExtractImagePatches* op,
+                            const std::vector<T>& input_shapes,
+                            std::vector<T>& output_shapes);
 };
 }  // namespace v3
 }  // namespace op

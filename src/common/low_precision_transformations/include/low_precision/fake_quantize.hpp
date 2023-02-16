@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,26 +7,33 @@
 #include <memory>
 #include <ngraph/ngraph.hpp>
 #include "layer_transformation.hpp"
-#include "low_precision/fuse_fake_quantize.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief FakeQuantizeTransformation fuses dequantization operations into FakeQuantize operation.
+ *
+ * For more details about the transformation, refer to
+ * [FakeQuantizeTransformation](@ref openvino_docs_OV_UG_lpt_FakeQuantizeTransformation) page
+ * in the Inference Engine Developer Guide.
+ */
 class LP_TRANSFORMATIONS_API FakeQuantizeTransformation : public LayerTransformation {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("FakeQuantizeTransformation", "0");
     FakeQuantizeTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 
     static bool checkElementwise(const std::shared_ptr<Node>& eltwise);
 
-private:
-    std::shared_ptr<opset1::FakeQuantize> fuseElementwise(
+    static std::shared_ptr<opset1::FakeQuantize> fuseElementwise(
             TransformationContext& context,
             MatcherPass* matcherPass,
-            const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) const;
+            const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize,
+            const bool updatePrecisions);
 };
 
 } // namespace low_precision

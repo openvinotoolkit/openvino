@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,8 @@
 
 using namespace std;
 
+#ifdef ENABLE_PROFILING_ITT
+
 namespace ov {
 namespace pass {
 namespace {
@@ -36,9 +38,12 @@ PerfCounters& perf_counters() {
 }  // namespace pass
 }  // namespace ov
 
+#endif  // ENABLE_PROFILING_ITT
+
 ov::pass::Manager::Manager()
     : m_pass_config(std::make_shared<PassConfig>()),
-      m_visualize(ov::util::getenv_bool("NGRAPH_ENABLE_VISUALIZE_TRACING")) {}
+      m_visualize(ov::util::getenv_bool("NGRAPH_ENABLE_VISUALIZE_TRACING") ||
+                  ov::util::getenv_bool("OV_ENABLE_VISUALIZE_TRACING")) {}
 
 ov::pass::Manager::~Manager() = default;
 
@@ -48,11 +53,12 @@ void ov::pass::Manager::set_per_pass_validation(bool new_state) {
     m_per_pass_validation = new_state;
 }
 
-void ov::pass::Manager::run_passes(shared_ptr<ov::Function> func) {
+void ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
     NGRAPH_SUPPRESS_DEPRECATED_START
-    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "pass::Manager::run_passes");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "pass::Manager::run_passes");
 
-    static bool profile_enabled = ov::util::getenv_bool("NGRAPH_PROFILE_PASS_ENABLE");
+    static bool profile_enabled =
+        ov::util::getenv_bool("NGRAPH_PROFILE_PASS_ENABLE") || ov::util::getenv_bool("OV_PROFILE_PASS_ENABLE");
 
     size_t index = 0;
     ngraph::stopwatch pass_timer;
@@ -65,7 +71,7 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Function> func) {
             continue;
         }
 
-        OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::nGraphPass_LT, pass::perf_counters()[pass->get_type_info()]);
+        OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ov_pass, pass::perf_counters()[pass->get_type_info()]);
 
         pass_timer.start();
 
@@ -74,33 +80,33 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Function> func) {
             // static shape but the function state is dynamic.
             if (matcher_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic()) {
                 NGRAPH_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
-                             << "function is dynamic. Skipping this transformation";
+                             << "model is dynamic. Skipping this transformation";
                 continue;
             }
             // GraphRewrite is a temporary container for MatcherPass to make execution
             // on on entire ngraph::Function
-            function_changed = GraphRewrite(matcher_pass).run_on_function(func);
-        } else if (auto function_pass = dynamic_pointer_cast<FunctionPass>(pass)) {
+            function_changed = GraphRewrite(matcher_pass).run_on_model(func);
+        } else if (auto function_pass = dynamic_pointer_cast<ModelPass>(pass)) {
             // This checks is to skip the graph transformation when the graph pass relies on
             // static shape but the function state is dynamic.
             if (function_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic()) {
                 NGRAPH_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
-                             << "function is dynamic. Skipping this transformation";
+                             << "model is dynamic. Skipping this transformation";
                 continue;
             }
 
             if (dynamic_pointer_cast<Validate>(pass)) {
                 if (function_changed) {
-                    function_pass->run_on_function(func);
+                    function_pass->run_on_model(func);
                     function_changed = false;
                 }
             } else {
-                function_changed = function_pass->run_on_function(func);
+                function_changed = function_pass->run_on_model(func);
             }
         } else if (auto node_pass = dynamic_pointer_cast<ngraph::pass::NodePass>(pass)) {
             if (node_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic()) {
                 NGRAPH_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
-                             << "function is dynamic. Skipping this transformation";
+                             << "model is dynamic. Skipping this transformation";
                 continue;
             }
             for (const shared_ptr<Node>& n : func->get_ops()) {
@@ -116,10 +122,9 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Function> func) {
             auto base_filename = func->get_name() + std::string("_") + index_str + std::string("_") + pass->get_name();
 
             if (m_visualize) {
-                static const string format = ov::util::getenv_string("NGRAPH_VISUALIZE_TRACING_FORMAT");
-                auto file_ext = format.empty() ? "svg" : format;
+                auto file_ext = "svg";
                 pass::VisualizeTree vt(base_filename + std::string(".") + file_ext);
-                vt.run_on_function(func);
+                vt.run_on_model(func);
             }
         }
         index++;

@@ -1,28 +1,28 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 
-#include <ngraph/pass/graph_rewrite.hpp>
-
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ReshapeSequenceFusion;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief ReshpaeSequenceFusion fuses sequence of Reshape operation into single Reshape
+ * @brief ReshapeSequenceFusion fuses sequence of Reshape operation into single Reshape or eliminates full redundant
+ * sequence
  */
 
-class ngraph::pass::ReshapeSequenceFusion: public ngraph::pass::MatcherPass {
+class ov::pass::ReshapeSequenceFusion : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
-    ReshapeSequenceFusion();
+    OPENVINO_RTTI("ReshapeSequenceFusion", "0");
+    ReshapeSequenceFusion(bool use_shape_for_elimination = true);
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,9 +10,9 @@
 #pragma once
 
 #include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <functional>
-#include <inference_engine.hpp>
 #include <iomanip>
 #include <iostream>
 #include <limits>
@@ -23,8 +23,17 @@
 #include <utility>
 #include <vector>
 
+using std::setprecision;
+
+// clang-format off
 #include "openvino/openvino.hpp"
 #include "slog.hpp"
+// clang-format on
+
+// @brief performance counters sort
+static constexpr char pcSort[] = "sort";
+static constexpr char pcNoSort[] = "no_sort";
+static constexpr char pcSimpleSort[] = "simple_sort";
 
 #ifndef UNUSED
 #    if defined(_MSC_VER) && !defined(__clang__)
@@ -121,32 +130,9 @@ inline std::string fileExt(const std::string& filename) {
     return filename.substr(pos + 1);
 }
 
-inline slog::LogStream& operator<<(slog::LogStream& os, const InferenceEngine::Version& version) {
-    os << version.description << " version ......... ";
-    os << IE_VERSION_MAJOR << "." << IE_VERSION_MINOR << "." << IE_VERSION_PATCH << slog::endl;
-
-    os << "Build ........... ";
-    os << version.buildNumber << slog::endl;
-
-    return os;
-}
-
 inline slog::LogStream& operator<<(slog::LogStream& os, const ov::Version& version) {
-    os << version.description << " version ......... ";
-    os << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH << slog::endl;
-
-    os << "Build ........... ";
+    os << "Build ................................. ";
     os << version.buildNumber << slog::endl;
-
-    return os;
-}
-
-inline slog::LogStream& operator<<(slog::LogStream& os,
-                                   const std::map<std::string, InferenceEngine::Version>& versions) {
-    for (auto&& version : versions) {
-        os << version.first << slog::endl;
-        os << version.second << slog::endl;
-    }
 
     return os;
 }
@@ -250,9 +236,12 @@ static UNUSED void writeOutputBmp(std::vector<std::vector<size_t>> data, size_t 
     auto height = data.size();
     auto width = data.at(0).size();
 
-    if (height > (size_t)std::numeric_limits<int32_t>::max || width > (size_t)std::numeric_limits<int32_t>::max) {
-        IE_THROW() << "File size is too big: " << height << " X " << width;
-    }
+    OPENVINO_ASSERT(
+        height < (size_t)std::numeric_limits<int32_t>::max && width < (size_t)std::numeric_limits<int32_t>::max,
+        "File size is too big: ",
+        height,
+        " X ",
+        width);
 
     int padSize = static_cast<int>(4 - (width * 3) % 4) % 4;
     int sizeData = static_cast<int>(width * height * 3 + height * padSize);
@@ -342,9 +331,12 @@ static UNUSED bool writeOutputBmp(std::string name, unsigned char* data, size_t 
         0,    0,    0, 0,  // #important colors
     };
 
-    if (height > (size_t)std::numeric_limits<int32_t>::max || width > (size_t)std::numeric_limits<int32_t>::max) {
-        IE_THROW() << "File size is too big: " << height << " X " << width;
-    }
+    OPENVINO_ASSERT(
+        height < (size_t)std::numeric_limits<int32_t>::max && width < (size_t)std::numeric_limits<int32_t>::max,
+        "File size is too big: ",
+        height,
+        " X ",
+        width);
 
     int padSize = static_cast<int>(4 - (width * 3) % 4) % 4;
     int sizeData = static_cast<int>(width * height * 3 + height * padSize);
@@ -411,6 +403,7 @@ static UNUSED void addRectangles(unsigned char* data,
                                  {180, 130, 70},  {60, 20, 220},  {0, 0, 255},   {142, 0, 0},     {70, 0, 0},
                                  {100, 60, 0},    {90, 0, 0},     {230, 0, 0},   {32, 11, 119},   {0, 74, 111},
                                  {81, 0, 81}};
+
     if (rectangles.size() % 4 != 0 || rectangles.size() / 4 != classes.size()) {
         return;
     }
@@ -433,21 +426,21 @@ static UNUSED void addRectangles(unsigned char* data,
             h = 0;
 
         if (static_cast<std::size_t>(x) >= width) {
-            x = width - 1;
+            x = static_cast<int>(width - 1);
             w = 0;
             thickness = 1;
         }
         if (static_cast<std::size_t>(y) >= height) {
-            y = height - 1;
+            y = static_cast<int>(height - 1);
             h = 0;
             thickness = 1;
         }
 
-        if (static_cast<std::size_t>(x + w) >= width) {
-            w = width - x - 1;
+        if ((static_cast<std::size_t>(x) + w) >= width) {
+            w = static_cast<int>(width - x - 1);
         }
-        if (static_cast<std::size_t>(y + h) >= height) {
-            h = height - y - 1;
+        if ((static_cast<std::size_t>(y) + h) >= height) {
+            h = static_cast<int>(height - y - 1);
         }
 
         thickness = std::min(std::min(thickness, w / 2 + 1), h / 2 + 1);
@@ -521,9 +514,12 @@ static UNUSED bool writeOutputBmp(unsigned char* data, size_t height, size_t wid
         0,    0,    0, 0,  // #important colors
     };
 
-    if (height > (size_t)std::numeric_limits<int32_t>::max || width > (size_t)std::numeric_limits<int32_t>::max) {
-        IE_THROW() << "File size is too big: " << height << " X " << width;
-    }
+    OPENVINO_ASSERT(
+        height < (size_t)std::numeric_limits<int32_t>::max && width < (size_t)std::numeric_limits<int32_t>::max,
+        "File size is too big: ",
+        height,
+        " X ",
+        width);
 
     int padSize = static_cast<int>(4 - (width * 3) % 4) % 4;
     int sizeData = static_cast<int>(width * height * 3 + height * padSize);
@@ -569,35 +565,18 @@ static UNUSED bool writeOutputBmp(unsigned char* data, size_t height, size_t wid
     return true;
 }
 
-static std::vector<std::pair<std::string, InferenceEngine::InferenceEngineProfileInfo>> perfCountersSorted(
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap) {
-    using perfItem = std::pair<std::string, InferenceEngine::InferenceEngineProfileInfo>;
-    std::vector<perfItem> sorted;
-    for (auto& kvp : perfMap)
-        sorted.push_back(kvp);
-
-    std::stable_sort(sorted.begin(), sorted.end(), [](const perfItem& l, const perfItem& r) {
-        return l.second.execution_index < r.second.execution_index;
-    });
-
-    return sorted;
-}
-
-static UNUSED void printPerformanceCounts(
-    const std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& performanceMap,
-    std::ostream& stream,
-    std::string deviceName,
-    bool bshowHeader = true) {
-    long long totalTime = 0;
+static UNUSED void printPerformanceCounts(const std::map<std::string, ov::ProfilingInfo>& performanceMap,
+                                          std::ostream& stream,
+                                          std::string deviceName,
+                                          bool bshowHeader = true) {
+    std::chrono::microseconds totalTime = std::chrono::microseconds::zero();
     // Print performance counts
     if (bshowHeader) {
         stream << std::endl << "performance counts:" << std::endl << std::endl;
     }
     std::ios::fmtflags fmt(std::cout.flags());
 
-    auto performanceMapSorted = perfCountersSorted(performanceMap);
-
-    for (const auto& it : performanceMapSorted) {
+    for (const auto& it : performanceMap) {
         std::string toPrint(it.first);
         const int maxLayerName = 30;
 
@@ -608,72 +587,30 @@ static UNUSED void printPerformanceCounts(
 
         stream << std::setw(maxLayerName) << std::left << toPrint;
         switch (it.second.status) {
-        case InferenceEngine::InferenceEngineProfileInfo::EXECUTED:
+        case ov::ProfilingInfo::Status::EXECUTED:
             stream << std::setw(15) << std::left << "EXECUTED";
             break;
-        case InferenceEngine::InferenceEngineProfileInfo::NOT_RUN:
+        case ov::ProfilingInfo::Status::NOT_RUN:
             stream << std::setw(15) << std::left << "NOT_RUN";
             break;
-        case InferenceEngine::InferenceEngineProfileInfo::OPTIMIZED_OUT:
+        case ov::ProfilingInfo::Status::OPTIMIZED_OUT:
             stream << std::setw(15) << std::left << "OPTIMIZED_OUT";
             break;
         }
-        stream << std::setw(30) << std::left << "layerType: " + std::string(it.second.layer_type) + " ";
-        stream << std::setw(20) << std::left << "realTime: " + std::to_string(it.second.realTime_uSec);
-        stream << std::setw(20) << std::left << "cpu: " + std::to_string(it.second.cpu_uSec);
+        stream << std::setw(30) << std::left << "layerType: " + std::string(it.second.node_type) + " ";
+        stream << std::setw(20) << std::left << "realTime: " + std::to_string(it.second.real_time.count());
+        stream << std::setw(20) << std::left << "cpu: " + std::to_string(it.second.cpu_time.count());
         stream << " execType: " << it.second.exec_type << std::endl;
-        if (it.second.realTime_uSec > 0) {
-            totalTime += it.second.realTime_uSec;
+        if (it.second.real_time.count() > 0) {
+            totalTime += it.second.real_time;
         }
     }
-    stream << std::setw(20) << std::left << "Total time: " + std::to_string(totalTime) << " microseconds" << std::endl;
-    std::cout << std::endl;
-    std::cout << "Full device name: " << deviceName << std::endl;
-    std::cout << std::endl;
-    std::cout.flags(fmt);
-}
-
-static UNUSED void printPerformanceCounts(InferenceEngine::InferRequest request,
-                                          std::ostream& stream,
-                                          std::string deviceName,
-                                          bool bshowHeader = true) {
-    auto performanceMap = request.GetPerformanceCounts();
-    printPerformanceCounts(performanceMap, stream, deviceName, bshowHeader);
-}
-
-inline std::map<std::string, std::string> getMapFullDevicesNames(InferenceEngine::Core& ie,
-                                                                 std::vector<std::string> devices) {
-    std::map<std::string, std::string> devicesMap;
-    InferenceEngine::Parameter p;
-    for (std::string& deviceName : devices) {
-        if (deviceName != "") {
-            try {
-                p = ie.GetMetric(deviceName, METRIC_KEY(FULL_DEVICE_NAME));
-                devicesMap.insert(std::pair<std::string, std::string>(deviceName, p.as<std::string>()));
-            } catch (InferenceEngine::Exception&) {
-            }
-        }
-    }
-    return devicesMap;
-}
-
-inline std::string getFullDeviceName(std::map<std::string, std::string>& devicesMap, std::string device) {
-    std::map<std::string, std::string>::iterator it = devicesMap.find(device);
-    if (it != devicesMap.end()) {
-        return it->second;
-    } else {
-        return "";
-    }
-}
-
-inline std::string getFullDeviceName(InferenceEngine::Core& ie, std::string device) {
-    InferenceEngine::Parameter p;
-    try {
-        p = ie.GetMetric(device, METRIC_KEY(FULL_DEVICE_NAME));
-        return p.as<std::string>();
-    } catch (InferenceEngine::Exception&) {
-        return "";
-    }
+    stream << std::setw(20) << std::left << "Total time: " + std::to_string(totalTime.count()) << " microseconds"
+           << std::endl;
+    stream << std::endl;
+    stream << "Full device name: " << deviceName << std::endl;
+    stream << std::endl;
+    stream.flags(fmt);
 }
 
 /**
@@ -951,7 +888,7 @@ public:
                 rec.push_back(recall);
             }
 
-            int num = rec.size();
+            int num = static_cast<int>(rec.size());
 
             // 11point from Caffe
             double ap = 0;
@@ -1031,100 +968,9 @@ static UNUSED void addRectangles(unsigned char* data,
     }
 }
 
-inline std::size_t getTensorWidth(const InferenceEngine::TensorDesc& desc) {
-    const auto& layout = desc.getLayout();
-    const auto& dims = desc.getDims();
-    const auto& size = dims.size();
-    if ((size >= 2) && (layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC ||
-                        layout == InferenceEngine::Layout::NCDHW || layout == InferenceEngine::Layout::NDHWC ||
-                        layout == InferenceEngine::Layout::OIHW || layout == InferenceEngine::Layout::GOIHW ||
-                        layout == InferenceEngine::Layout::OIDHW || layout == InferenceEngine::Layout::GOIDHW ||
-                        layout == InferenceEngine::Layout::CHW || layout == InferenceEngine::Layout::HW)) {
-        // Regardless of layout, dimensions are stored in fixed order
-        return dims.back();
-    } else {
-        IE_THROW() << "Tensor does not have width dimension";
-    }
-    return 0;
-}
-
-inline std::size_t getTensorHeight(const InferenceEngine::TensorDesc& desc) {
-    const auto& layout = desc.getLayout();
-    const auto& dims = desc.getDims();
-    const auto& size = dims.size();
-    if ((size >= 2) && (layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC ||
-                        layout == InferenceEngine::Layout::NCDHW || layout == InferenceEngine::Layout::NDHWC ||
-                        layout == InferenceEngine::Layout::OIHW || layout == InferenceEngine::Layout::GOIHW ||
-                        layout == InferenceEngine::Layout::OIDHW || layout == InferenceEngine::Layout::GOIDHW ||
-                        layout == InferenceEngine::Layout::CHW || layout == InferenceEngine::Layout::HW)) {
-        // Regardless of layout, dimensions are stored in fixed order
-        return dims.at(size - 2);
-    } else {
-        IE_THROW() << "Tensor does not have height dimension";
-    }
-    return 0;
-}
-
-inline std::size_t getTensorChannels(const InferenceEngine::TensorDesc& desc) {
-    const auto& layout = desc.getLayout();
-    if (layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC ||
-        layout == InferenceEngine::Layout::NCDHW || layout == InferenceEngine::Layout::NDHWC ||
-        layout == InferenceEngine::Layout::C || layout == InferenceEngine::Layout::CHW ||
-        layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::CN) {
-        // Regardless of layout, dimensions are stored in fixed order
-        const auto& dims = desc.getDims();
-        switch (desc.getLayoutByDims(dims)) {
-        case InferenceEngine::Layout::C:
-            return dims.at(0);
-        case InferenceEngine::Layout::NC:
-            return dims.at(1);
-        case InferenceEngine::Layout::CHW:
-            return dims.at(0);
-        case InferenceEngine::Layout::NCHW:
-            return dims.at(1);
-        case InferenceEngine::Layout::NCDHW:
-            return dims.at(1);
-        case InferenceEngine::Layout::SCALAR:   // [[fallthrough]]
-        case InferenceEngine::Layout::BLOCKED:  // [[fallthrough]]
-        default:
-            IE_THROW() << "Tensor does not have channels dimension";
-        }
-    } else {
-        IE_THROW() << "Tensor does not have channels dimension";
-    }
-    return 0;
-}
-
-inline std::size_t getTensorBatch(const InferenceEngine::TensorDesc& desc) {
-    const auto& layout = desc.getLayout();
-    if (layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC ||
-        layout == InferenceEngine::Layout::NCDHW || layout == InferenceEngine::Layout::NDHWC ||
-        layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::CN) {
-        // Regardless of layout, dimensions are stored in fixed order
-        const auto& dims = desc.getDims();
-        switch (desc.getLayoutByDims(dims)) {
-        case InferenceEngine::Layout::NC:
-            return dims.at(0);
-        case InferenceEngine::Layout::NCHW:
-            return dims.at(0);
-        case InferenceEngine::Layout::NCDHW:
-            return dims.at(0);
-        case InferenceEngine::Layout::CHW:      // [[fallthrough]]
-        case InferenceEngine::Layout::C:        // [[fallthrough]]
-        case InferenceEngine::Layout::SCALAR:   // [[fallthrough]]
-        case InferenceEngine::Layout::BLOCKED:  // [[fallthrough]]
-        default:
-            IE_THROW() << "Tensor does not have channels dimension";
-        }
-    } else {
-        IE_THROW() << "Tensor does not have channels dimension";
-    }
-    return 0;
-}
-
 inline void showAvailableDevices() {
-    InferenceEngine::Core ie;
-    std::vector<std::string> devices = ie.GetAvailableDevices();
+    ov::Core core;
+    std::vector<std::string> devices = core.get_available_devices();
 
     std::cout << std::endl;
     std::cout << "Available target devices:";
@@ -1143,3 +989,251 @@ inline void showAvailableDevices() {
  * @param comment - lines starting with symbol `comment` are skipped
  */
 std::map<std::string, std::string> parseConfig(const std::string& configName, char comment = '#');
+
+inline std::string getFullDeviceName(ov::Core& core, std::string device) {
+    try {
+        return core.get_property(device, ov::device::full_name);
+    } catch (ov::Exception&) {
+        return {};
+    }
+}
+
+static UNUSED void printPerformanceCounts(std::vector<ov::ProfilingInfo> performanceData,
+                                          std::ostream& stream,
+                                          std::string deviceName,
+                                          bool bshowHeader = true,
+                                          int precision = 3) {
+    std::chrono::microseconds totalTime = std::chrono::microseconds::zero();
+    std::chrono::microseconds totalTimeCpu = std::chrono::microseconds::zero();
+    // Print performance counts
+    if (bshowHeader) {
+        stream << std::endl << "Performance counts:" << std::endl << std::endl;
+    }
+    std::ios::fmtflags fmt(std::cout.flags());
+    stream << std::fixed << std::setprecision(precision);
+
+    for (const auto& it : performanceData) {
+        if (it.real_time.count() > 0) {
+            totalTime += it.real_time;
+        }
+        if (it.cpu_time.count() > 0) {
+            totalTimeCpu += it.cpu_time;
+        }
+
+        std::string toPrint(it.node_name);
+        const int maxPrintLength = 20;
+
+        if (it.node_name.length() >= maxPrintLength) {
+            toPrint = it.node_name.substr(0, maxPrintLength - 5);
+            toPrint += "...";
+        }
+
+        stream << std::setw(maxPrintLength) << std::left << toPrint << " ";
+        switch (it.status) {
+        case ov::ProfilingInfo::Status::EXECUTED:
+            stream << std::setw(21) << std::left << "EXECUTED ";
+            break;
+        case ov::ProfilingInfo::Status::NOT_RUN:
+            stream << std::setw(21) << std::left << "NOT_RUN ";
+            break;
+        case ov::ProfilingInfo::Status::OPTIMIZED_OUT:
+            stream << std::setw(21) << std::left << "OPTIMIZED_OUT ";
+            break;
+        }
+
+        stream << "layerType: ";
+        if (it.node_type.length() >= maxPrintLength) {
+            stream << std::setw(maxPrintLength) << std::left << it.node_type.substr(0, maxPrintLength - 3) + "..."
+                   << " ";
+        } else {
+            stream << std::setw(maxPrintLength) << std::left << it.node_type << " ";
+        }
+
+        stream << std::setw(30) << std::left << "execType: " + std::string(it.exec_type) << " ";
+        stream << "realTime (ms): " << std::setw(10) << std::left << std::fixed << std::setprecision(3)
+               << it.real_time.count() / 1000.0 << " ";
+        stream << "cpuTime (ms): " << std::setw(10) << std::left << std::fixed << std::setprecision(3)
+               << it.cpu_time.count() / 1000.0 << " ";
+        stream << std::endl;
+    }
+    stream << std::setw(25) << std::left << "Total time: " << std::fixed << std::setprecision(3)
+           << totalTime.count() / 1000.0 << " milliseconds" << std::endl;
+    stream << std::setw(25) << std::left << "Total CPU time: " << std::fixed << std::setprecision(3)
+           << totalTimeCpu.count() / 1000.0 << " milliseconds" << std::endl;
+    stream << std::endl;
+    stream << "Full device name: " << deviceName << std::endl;
+    stream << std::endl;
+    stream.flags(fmt);
+}
+
+static UNUSED void printPerformanceCounts(ov::InferRequest request,
+                                          std::ostream& stream,
+                                          std::string deviceName,
+                                          bool bshowHeader = true,
+                                          int precision = 3) {
+    auto performanceMap = request.get_profiling_info();
+    printPerformanceCounts(performanceMap, stream, deviceName, bshowHeader, precision);
+}
+
+static inline std::string double_to_string(const double number) {
+    std::stringstream ss;
+    ss << std::fixed << std::setprecision(2) << number;
+    return ss.str();
+}
+
+template <typename T>
+using uniformDistribution = typename std::conditional<
+    std::is_floating_point<T>::value,
+    std::uniform_real_distribution<T>,
+    typename std::conditional<std::is_integral<T>::value, std::uniform_int_distribution<T>, void>::type>::type;
+
+template <typename T, typename T2>
+static inline void fill_random(ov::Tensor& tensor,
+                               T rand_min = std::numeric_limits<uint8_t>::min(),
+                               T rand_max = std::numeric_limits<uint8_t>::max()) {
+    std::mt19937 gen(0);
+    size_t tensor_size = tensor.get_size();
+    if (0 == tensor_size) {
+        throw std::runtime_error(
+            "Models with dynamic shapes aren't supported. Input tensors must have specific shapes before inference");
+    }
+    T* data = tensor.data<T>();
+    uniformDistribution<T2> distribution(rand_min, rand_max);
+    for (size_t i = 0; i < tensor_size; i++) {
+        data[i] = static_cast<T>(distribution(gen));
+    }
+}
+
+static inline void fill_tensor_random(ov::Tensor tensor) {
+    switch (tensor.get_element_type()) {
+    case ov::element::f32:
+        fill_random<float, float>(tensor);
+        break;
+    case ov::element::f64:
+        fill_random<double, double>(tensor);
+        break;
+    case ov::element::f16:
+        fill_random<short, short>(tensor);
+        break;
+    case ov::element::i32:
+        fill_random<int32_t, int32_t>(tensor);
+        break;
+    case ov::element::i64:
+        fill_random<int64_t, int64_t>(tensor);
+        break;
+    case ov::element::u8:
+        // uniform_int_distribution<uint8_t> is not allowed in the C++17
+        // standard and vs2017/19
+        fill_random<uint8_t, uint32_t>(tensor);
+        break;
+    case ov::element::i8:
+        // uniform_int_distribution<int8_t> is not allowed in the C++17 standard
+        // and vs2017/19
+        fill_random<int8_t, int32_t>(tensor, std::numeric_limits<int8_t>::min(), std::numeric_limits<int8_t>::max());
+        break;
+    case ov::element::u16:
+        fill_random<uint16_t, uint16_t>(tensor);
+        break;
+    case ov::element::i16:
+        fill_random<int16_t, int16_t>(tensor);
+        break;
+    case ov::element::boolean:
+        fill_random<uint8_t, uint32_t>(tensor, 0, 1);
+        break;
+    default:
+        throw ov::Exception("Input type is not supported for a tensor");
+    }
+}
+
+static UNUSED bool sort_pc_descend(const ov::ProfilingInfo& profiling1, const ov::ProfilingInfo& profiling2) {
+    return profiling1.real_time > profiling2.real_time;
+}
+
+static UNUSED void printPerformanceCountsSort(std::vector<ov::ProfilingInfo> performanceData,
+                                              std::ostream& stream,
+                                              std::string deviceName,
+                                              std::string sorttype,
+                                              bool bshowHeader = true,
+                                              int precision = 3) {
+    std::chrono::microseconds totalTime = std::chrono::microseconds::zero();
+    std::chrono::microseconds totalTimeCpu = std::chrono::microseconds::zero();
+
+    // Print performance counts
+    if (bshowHeader) {
+        stream << std::endl << "Performance counts:" << std::endl << std::endl;
+    }
+    std::ios::fmtflags fmt(std::cout.flags());
+    stream << std::fixed << std::setprecision(precision);
+
+    for (const auto& it : performanceData) {
+        if (it.real_time.count() > 0) {
+            totalTime += it.real_time;
+        }
+        if (it.cpu_time.count() > 0) {
+            totalTimeCpu += it.cpu_time;
+        }
+    }
+    if (totalTime.count() != 0) {
+        std::vector<ov::ProfilingInfo> sortPerfCounts{std::begin(performanceData), std::end(performanceData)};
+        if (sorttype == pcSort || sorttype == pcSimpleSort) {
+            std::sort(sortPerfCounts.begin(), sortPerfCounts.end(), sort_pc_descend);
+        }
+
+        for (const auto& it : sortPerfCounts) {
+            if ((sorttype == pcSimpleSort && it.status == ov::ProfilingInfo::Status::EXECUTED) ||
+                sorttype != pcSimpleSort) {
+                std::string toPrint(it.node_name);
+                const int maxPrintLength = 20;
+
+                if (it.node_name.length() >= maxPrintLength) {
+                    toPrint = it.node_name.substr(0, maxPrintLength - 5);
+                    toPrint += "...";
+                }
+
+                stream << std::setw(maxPrintLength) << std::left << toPrint << " ";
+                switch (it.status) {
+                case ov::ProfilingInfo::Status::EXECUTED:
+                    stream << std::setw(21) << std::left << "EXECUTED ";
+                    break;
+                case ov::ProfilingInfo::Status::NOT_RUN:
+                    stream << std::setw(21) << std::left << "NOT_RUN ";
+                    break;
+                case ov::ProfilingInfo::Status::OPTIMIZED_OUT:
+                    stream << std::setw(21) << std::left << "OPTIMIZED_OUT ";
+                    break;
+                }
+
+                stream << "layerType: ";
+                if (it.node_type.length() >= maxPrintLength) {
+                    stream << std::setw(maxPrintLength) << std::left
+                           << it.node_type.substr(0, maxPrintLength - 3) + "..."
+                           << " ";
+                } else {
+                    stream << std::setw(maxPrintLength) << std::left << it.node_type << " ";
+                }
+
+                stream << std::setw(30) << std::left << "execType: " + std::string(it.exec_type) << " ";
+                stream << "realTime (ms): " << std::setw(10) << std::left << std::fixed << std::setprecision(3)
+                       << it.real_time.count() / 1000.0 << " ";
+                stream << "cpuTime (ms): " << std::setw(10) << std::left << std::fixed << std::setprecision(3)
+                       << it.cpu_time.count() / 1000.0 << " ";
+
+                double opt_proportion = it.real_time.count() * 100.0 / totalTime.count();
+                std::stringstream opt_proportion_ss;
+                opt_proportion_ss << std::fixed << std::setprecision(2) << opt_proportion;
+                std::string opt_proportion_str = opt_proportion_ss.str();
+                if (opt_proportion_str == "0.00") {
+                    opt_proportion_str = "N/A";
+                }
+                stream << std::setw(20) << std::left << "proportion: " + opt_proportion_str + "%";
+                stream << std::endl;
+            }
+        }
+    }
+    stream << std::setw(25) << std::left << "Total time: " + std::to_string(totalTime.count() / 1000.0)
+           << " milliseconds" << std::endl;
+    stream << std::endl;
+    stream << "Full device name: " << deviceName << std::endl;
+    stream << std::endl;
+    stream.flags(fmt);
+}

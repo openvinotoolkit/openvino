@@ -1,22 +1,111 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "threading/ie_executor_manager.hpp"
 
+#include "ie_parallel.hpp"
+#include "threading/ie_cpu_streams_executor.hpp"
+#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
+#    if (TBB_INTERFACE_VERSION < 12000)
+#        include <tbb/task_scheduler_init.h>
+#    else
+#        include <oneapi/tbb/global_control.h>
+#    endif
+#endif
+
 #include <memory>
+#include <mutex>
 #include <string>
 #include <utility>
 
-#include "threading/ie_cpu_streams_executor.hpp"
-
 namespace InferenceEngine {
+namespace {
+class ExecutorManagerImpl : public ExecutorManager {
+public:
+    ~ExecutorManagerImpl();
+    ITaskExecutor::Ptr getExecutor(const std::string& id) override;
+    IStreamsExecutor::Ptr getIdleCPUStreamsExecutor(const IStreamsExecutor::Config& config) override;
+    size_t getExecutorsNumber() const override;
+    size_t getIdleCPUStreamsExecutorsNumber() const override;
+    void clear(const std::string& id = {}) override;
+    void setTbbFlag(bool flag) override;
+    bool getTbbFlag() override;
 
-ITaskExecutor::Ptr ExecutorManagerImpl::getExecutor(std::string id) {
+private:
+    void resetTbb();
+    std::unordered_map<std::string, ITaskExecutor::Ptr> executors;
+    std::vector<std::pair<IStreamsExecutor::Config, IStreamsExecutor::Ptr>> cpuStreamsExecutors;
+    mutable std::mutex streamExecutorMutex;
+    mutable std::mutex taskExecutorMutex;
+    bool tbbTerminateFlag = false;
+    mutable std::mutex tbbMutex;
+    bool tbbThreadsCreated = false;
+#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
+#    if (TBB_INTERFACE_VERSION < 12000)
+    std::shared_ptr<tbb::task_scheduler_init> tbbTaskScheduler = nullptr;
+#    else
+    std::shared_ptr<oneapi::tbb::task_scheduler_handle> tbbTaskScheduler = nullptr;
+#    endif
+#endif
+};
+
+}  // namespace
+
+ExecutorManagerImpl::~ExecutorManagerImpl() {
+    resetTbb();
+}
+
+void ExecutorManagerImpl::setTbbFlag(bool flag) {
+    std::lock_guard<std::mutex> guard(tbbMutex);
+    tbbTerminateFlag = flag;
+#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
+    if (tbbTerminateFlag) {
+        if (!tbbTaskScheduler) {
+#    if (TBB_INTERFACE_VERSION < 12000)
+            tbbTaskScheduler = std::make_shared<tbb::task_scheduler_init>();
+#    elif (TBB_INTERFACE_VERSION < 12060)
+            tbbTaskScheduler =
+                std::make_shared<oneapi::tbb::task_scheduler_handle>(oneapi::tbb::task_scheduler_handle::get());
+#    else
+            tbbTaskScheduler = std::make_shared<oneapi::tbb::task_scheduler_handle>(tbb::attach{});
+#    endif
+        }
+    } else {
+        tbbTaskScheduler = nullptr;
+    }
+#endif
+}
+
+bool ExecutorManagerImpl::getTbbFlag() {
+    std::lock_guard<std::mutex> guard(tbbMutex);
+    return tbbTerminateFlag;
+}
+
+void ExecutorManagerImpl::resetTbb() {
+    std::lock_guard<std::mutex> guard(tbbMutex);
+    if (tbbTerminateFlag) {
+#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
+        if (tbbTaskScheduler && tbbThreadsCreated) {
+#    if (TBB_INTERFACE_VERSION < 12000)
+            tbbTaskScheduler->terminate();
+#    else
+            tbb::finalize(*tbbTaskScheduler, std::nothrow);
+#    endif
+        }
+        tbbThreadsCreated = false;
+        tbbTaskScheduler = nullptr;
+#endif
+        tbbTerminateFlag = false;
+    }
+}
+
+ITaskExecutor::Ptr ExecutorManagerImpl::getExecutor(const std::string& id) {
     std::lock_guard<std::mutex> guard(taskExecutorMutex);
     auto foundEntry = executors.find(id);
     if (foundEntry == executors.end()) {
         auto newExec = std::make_shared<CPUStreamsExecutor>(IStreamsExecutor::Config{id});
+        tbbThreadsCreated = true;
         executors[id] = newExec;
         return newExec;
     }
@@ -41,17 +130,18 @@ IStreamsExecutor::Ptr ExecutorManagerImpl::getIdleCPUStreamsExecutor(const IStre
                 return executor;
     }
     auto newExec = std::make_shared<CPUStreamsExecutor>(config);
+    tbbThreadsCreated = true;
     cpuStreamsExecutors.emplace_back(std::make_pair(config, newExec));
     return newExec;
 }
 
-// for tests purposes
-size_t ExecutorManagerImpl::getExecutorsNumber() {
+size_t ExecutorManagerImpl::getExecutorsNumber() const {
+    std::lock_guard<std::mutex> guard(taskExecutorMutex);
     return executors.size();
 }
 
-// for tests purposes
-size_t ExecutorManagerImpl::getIdleCPUStreamsExecutorsNumber() {
+size_t ExecutorManagerImpl::getIdleCPUStreamsExecutorsNumber() const {
+    std::lock_guard<std::mutex> guard(streamExecutorMutex);
     return cpuStreamsExecutors.size();
 }
 
@@ -73,65 +163,38 @@ void ExecutorManagerImpl::clear(const std::string& id) {
     }
 }
 
-std::mutex ExecutorManager::_mutex;
-ExecutorManager* ExecutorManager::_instance = nullptr;
+namespace {
+
+class ExecutorManagerHolder {
+    std::mutex _mutex;
+    std::weak_ptr<ExecutorManager> _manager;
+
+public:
+    ExecutorManagerHolder(const ExecutorManagerHolder&) = delete;
+    ExecutorManagerHolder& operator=(const ExecutorManagerHolder&) = delete;
+
+    ExecutorManagerHolder() = default;
+
+    ExecutorManager::Ptr get() {
+        std::lock_guard<std::mutex> lock(_mutex);
+        auto manager = _manager.lock();
+        if (!manager) {
+            _manager = manager = std::make_shared<ExecutorManagerImpl>();
+        }
+        return manager;
+    }
+};
+
+}  // namespace
+
+ExecutorManager::Ptr executorManager() {
+    static ExecutorManagerHolder executorManagerHolder;
+    return executorManagerHolder.get();
+}
 
 ExecutorManager* ExecutorManager::getInstance() {
-    /*
-     * 1) We do not use singleton implementation via STATIC LOCAL object like
-     *
-     *   getInstance() {
-     *       static ExecutorManager _instance;
-     *       return &instance;
-     *   }
-     *
-     * Because of problem with destruction order on program exit.
-     * Some IE classes like MKLDNN::Engine use this singleton in destructor.
-     * But they has no direct dependency from c++ runtime point of view and
-     * it's possible that _instance local static variable  will be destroyed
-     * before MKLDNN::~Engine call. Any further manipulation with destroyed
-     * object will lead to exception or crashes.
-     *
-     * 2) We do not use singleton implementation via STATIC object like:
-     *
-     *   ExecutorManager ExecutorManager::_instance;
-     *   getInstance() {
-     *       return &instance;
-     *   }
-     *
-     * Because of problem with double destruction. In some test cases we use
-     * double link with IE module via static and dynamic version. Both modules
-     * have static object with same export name and it leads to double construction
-     * and double destruction of that object. For some c++ compilers (ex gcc 5.4)
-     * it lead to crash with "double free".
-     *
-     * That's why we use manual allocation of singleton instance on heap.
-     */
-    std::lock_guard<std::mutex> guard(_mutex);
-    if (_instance == nullptr) {
-        _instance = new ExecutorManager();
-    }
-    return _instance;
-}
-
-ITaskExecutor::Ptr ExecutorManager::getExecutor(std::string id) {
-    return _impl.getExecutor(id);
-}
-
-size_t ExecutorManager::getExecutorsNumber() {
-    return _impl.getExecutorsNumber();
-}
-
-size_t ExecutorManager::getIdleCPUStreamsExecutorsNumber() {
-    return _impl.getIdleCPUStreamsExecutorsNumber();
-}
-
-void ExecutorManager::clear(const std::string& id) {
-    _impl.clear(id);
-}
-
-IStreamsExecutor::Ptr ExecutorManager::getIdleCPUStreamsExecutor(const IStreamsExecutor::Config& config) {
-    return _impl.getIdleCPUStreamsExecutor(config);
+    static auto ptr = executorManager().get();
+    return ptr;
 }
 
 }  // namespace InferenceEngine

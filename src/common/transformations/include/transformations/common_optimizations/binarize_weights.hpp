@@ -1,20 +1,21 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API BinarizeWeights;
 
-} // namespace pass
-} // namespace ngraph
+}  // namespace pass
+}  // namespace ov
 
+// clang-format off
 /**
  * @ingroup ie_transformation_common_api
  * @brief This transformation converts weights to -1/+1 form
@@ -71,9 +72,10 @@ class TRANSFORMATIONS_API BinarizeWeights;
  * Normalization factors are chosen based output_high value.
  * If it's zero - norm factor is equal to output_low and output_high otherwise
  */
+// clang-format on
 
-class ngraph::pass::BinarizeWeights : public ngraph::pass::MatcherPass {
+class ov::pass::BinarizeWeights : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("BinarizeWeights", "0");
     BinarizeWeights();
 };

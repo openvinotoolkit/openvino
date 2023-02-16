@@ -1,11 +1,11 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-
 from common.layer_test_class import check_ir_version
 from common.tf_layer_test_class import CommonTFLayerTest
 from common.utils.tf_utils import permute_nchw_to_nhwc
+
 from unit_tests.utils.graph import build_graph
 
 
@@ -17,10 +17,6 @@ class TestReLU6(CommonTFLayerTest):
             Input->ReLU6       =>       Input->Clamp
 
         """
-
-        #
-        #   Create Tensorflow model
-        #
 
         import tensorflow as tf
 
@@ -68,18 +64,25 @@ class TestReLU6(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_relu6_precommit(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
-        self._test(*self.create_relu6_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
+    @pytest.mark.nightly
+    def test_relu6_precommit(self, params, ie_device, precision, ir_version, temp_dir,
+                             use_new_frontend, use_old_api):
+        self._test(*self.create_relu6_net(**params, ir_version=ir_version,
+                                          use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data = [dict(shape=[1]),
-                 dict(shape=[1, 224]),
-                 pytest.param(dict(shape=[1, 3, 224]), marks=pytest.mark.xfail(reason="*-19053")),
+                 pytest.param(dict(shape=[1, 224]), marks=pytest.mark.precommit_tf_fe),
+                 dict(shape=[1, 3, 224]),
                  dict(shape=[1, 3, 100, 224]),
                  dict(shape=[1, 3, 50, 100, 224])]
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_relu6(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
-        self._test(*self.create_relu6_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
+    def test_relu6(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
+                   use_old_api):
+        self._test(*self.create_relu6_net(**params, ir_version=ir_version,
+                                          use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)

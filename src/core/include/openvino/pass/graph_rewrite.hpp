@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,52 @@ using graph_rewrite_callback = std::function<bool(pass::pattern::Matcher& m)>;
 using recurrent_graph_rewrite_callback = std::function<bool(pass::pattern::RecurrentMatcher& m)>;
 using handler_callback = std::function<bool(const std::shared_ptr<Node>& node)>;
 namespace pass {
+/// \brief Register openvino node pointers into container.
+/// Can create and/or add existing node pointers into register
+class NodeRegistry {
+public:
+    /// \brief Make new node and add it to register.
+    ///
+    /// \tparam T     Node type.
+    /// \tparam Args  Node ctor args types.
+    ///
+    /// \param args   New node ctor arguments.
+    /// \return Shared pointer to node of type T.
+    template <typename T, class... Args>
+    std::shared_ptr<T> make(Args&&... args) {
+        auto node = std::make_shared<T>(std::forward<Args>(args)...);
+        return add(node);
+    }
+
+    /// \brief Add node to register
+    ///
+    /// \tparam T  Node type.
+    ///
+    /// \param node  Node to add
+    ///
+    /// \return Shared pointer to new node added of type T.
+    template <typename T>
+    std::shared_ptr<T> add(const std::shared_ptr<T>& node) {
+        m_nodes.push_back(node);
+        return node;
+    }
+
+    /// \brief Get nodes container.
+    ///
+    /// \return Const reference to nodes container.
+    const std::vector<std::shared_ptr<Node>>& get() const {
+        return m_nodes;
+    }
+
+    /// \brief Clear register.
+    void clear() {
+        m_nodes.clear();
+    }
+
+private:
+    std::vector<std::shared_ptr<Node>> m_nodes;  //!< Stores added nodes.
+};
+
 /// \brief MatcherPass is a basic block for pattern based transformations. It describes
 /// pattern and
 /// action that is applied if pattern is matched.
@@ -40,7 +86,7 @@ namespace pass {
 /// or has ov::pass::pattern::op::WrapType. That will help GraphRewrite to execute matcher
 /// passes more
 /// efficient.
-
+/// \ingroup ov_pass_cpp_api
 class OPENVINO_API MatcherPass : public PassBase {
 public:
     OPENVINO_RTTI("ov::pass::MatcherPass");
@@ -61,40 +107,49 @@ public:
         set_property(property, true);
     }
 
+    MatcherPass(const std::shared_ptr<pattern::Matcher>& m, const matcher_pass_callback& callback) : PassBase() {
+        register_matcher(m, callback);
+    }
+
     bool apply(std::shared_ptr<ov::Node> node);
 
     template <typename T, class... Args>
     std::shared_ptr<T> register_new_node(Args&&... args) {
-        auto node = std::make_shared<T>(std::forward<Args>(args)...);
-        m_new_nodes.push_back(node);
-        return node;
+        return m_new_nodes.make<T>(std::forward<Args>(args)...);
     }
 
     template <typename T>
     std::shared_ptr<T> register_new_node(const std::shared_ptr<T>& node) {
-        m_new_nodes.push_back(node);
-        return node;
+        return m_new_nodes.add(node);
+    }
+
+    std::shared_ptr<ov::Node> register_new_node_(const std::shared_ptr<ov::Node>& node) {
+        return register_new_node(node);
     }
 
     const std::vector<std::shared_ptr<ov::Node>>& get_new_nodes() {
-        return m_new_nodes;
+        return m_new_nodes.get();
     }
+
     void clear_new_nodes() {
         m_new_nodes.clear();
     }
+
     std::shared_ptr<pattern::Matcher> get_matcher() {
         return m_matcher;
     }
 
 protected:
     void register_matcher(const std::shared_ptr<pattern::Matcher>& m,
-                          const graph_rewrite_callback& callback,
-                          const PassPropertyMask& property = PassProperty::CHANGE_DYNAMIC_STATE);
+                          const matcher_pass_callback& callback,
+                          const PassPropertyMask& property);
+
+    void register_matcher(const std::shared_ptr<pattern::Matcher>& m, const matcher_pass_callback& callback);
 
 private:
     handler_callback m_handler;
     std::shared_ptr<pattern::Matcher> m_matcher;
-    std::vector<std::shared_ptr<ov::Node>> m_new_nodes;
+    NodeRegistry m_new_nodes;
 };
 
 /// \brief GraphRewrite is a container for MatcherPasses that allows to run them on Function
@@ -116,14 +171,14 @@ private:
 /// or has ov::pattern::op::WrapType. That will help GraphRewrite to execute matcher
 /// passes more
 /// efficient.
-
-class OPENVINO_API GraphRewrite : public FunctionPass {
+/// \ingroup ov_pass_cpp_api
+class OPENVINO_API GraphRewrite : public ModelPass {
 public:
     OPENVINO_RTTI("ov::pass::GraphRewrite");
 
     GraphRewrite() = default;
 
-    explicit GraphRewrite(const std::shared_ptr<MatcherPass>& pass) : FunctionPass() {
+    explicit GraphRewrite(const std::shared_ptr<MatcherPass>& pass) : ModelPass() {
         m_matchers.push_back(pass);
     }
 
@@ -195,6 +250,13 @@ public:
         }
     }
 
+    std::shared_ptr<MatcherPass> add_matcher(const std::shared_ptr<MatcherPass>& pass) {
+        auto pass_config = get_pass_config();
+        pass->set_pass_config(pass_config);
+        m_matchers.push_back(pass);
+        return pass;
+    }
+
     OPENVINO_DEPRECATED("Use MatcherPass instead")
     void add_matcher(const std::shared_ptr<pattern::Matcher>& m,
                      const graph_rewrite_callback& callback,
@@ -203,12 +265,12 @@ public:
     OPENVINO_DEPRECATED("Use MatcherPass instead")
     void add_matcher(const std::shared_ptr<pattern::Matcher>& m, const ov::graph_rewrite_callback& callback);
 
-    bool run_on_function(std::shared_ptr<ov::Function> f) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
     void set_pass_config(const std::shared_ptr<PassConfig>& pass_config) override;
 
 protected:
-    bool apply_matcher_passes(std::shared_ptr<Function> f, std::deque<std::weak_ptr<Node>> nodes_to_run);
+    bool apply_matcher_passes(std::shared_ptr<Model> f, std::deque<std::weak_ptr<Node>> nodes_to_run);
 
     bool m_enable_shape_inference = false;
 
@@ -223,27 +285,7 @@ public:
 
     explicit BackwardGraphRewrite(const std::shared_ptr<MatcherPass>& pass) : GraphRewrite(pass) {}
 
-    bool run_on_function(std::shared_ptr<ov::Function> f) override;
-};
-
-class OPENVINO_API RecurrentGraphRewrite : public FunctionPass {
-public:
-    RecurrentGraphRewrite(size_t num_iters = 10) : FunctionPass(), m_num_iters(num_iters) {}
-
-    void add_matcher(const std::shared_ptr<pattern::RecurrentMatcher>& m,
-                     const ov::recurrent_graph_rewrite_callback& callback,
-                     const PassPropertyMask& property);
-
-    // TODO: This interface may deprecate after all passes are refactored.
-    void add_matcher(const std::shared_ptr<pattern::RecurrentMatcher>& m,
-                     const ov::recurrent_graph_rewrite_callback& callback);
-
-    bool run_on_function(std::shared_ptr<ov::Function> f) override;
-
-private:
-    size_t m_num_iters;
-
-    std::vector<std::shared_ptr<ov::pass::MatcherPass>> m_matchers;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 }  // namespace pass
 }  // namespace ov

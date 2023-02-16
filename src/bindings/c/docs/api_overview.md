@@ -1,4 +1,4 @@
-# Overview of Inference Engine C* API {#openvino_inference_engine_ie_bridges_c_docs_api_overview}
+# Overview of Inference Engine C* API
 
 > **NOTE**: It is a preview version of the Inference Engine C* API for evaluation purpose only.
 > Module structure and API itself may be changed in future releases.
@@ -205,7 +205,9 @@ enum colorformat_e {
 
 ​    RGB,         ///< RGB color format
 
-​    BGR,         ///< BGR color format, default in DLDT
+​    BGR,         ///< BGR color format, default in OpenVINO
+
+​    GRAY,        ///< GRAY color format
 
 ​    RGBX,        ///< RGBX color format with X ignored during inference
 
@@ -352,7 +354,7 @@ This strcut represents an Inference Engine entity and allows you to manipulate w
   - Parameters:
 
     - `core` -A pointer to `ie_core_t` instance.
-    - `device_name` - Name of the the registered plugin.
+    - `device_name` - Name of the registered plugin.
   - `version_result` - Dictionary mapping a plugin name .
 
   - Return value: Status  of the operation: OK(0) for success.
@@ -398,12 +400,12 @@ This strcut represents an Inference Engine entity and allows you to manipulate w
     - `ie_core_config` - A dictionary of configuration parameters as keys and their values.
     - `device_name` - A device name of a target plugin.
   - Return value: Status code of the operation: OK(0) for success.
-- `IEStatusCode ie_core_register_plugin(ie_core_t *core, const char *plugin_name, const char *device_name )`
+- `IEStatusCode ie_core_register_plugin(ie_core_t *core, const char *plugin, const char *device_name )`
 
   - Description: Registers a new device and a plugin which implement this device inside Inference Engine.
   - Parameters:
-    - `core`- A pointer to `ie_core_t` instance.
-    - `plugin_name` - A name of a plugin. Depending on a platform, plugin_name is wrapped with a shared library suffix and a prefix to identify a full name of the library.
+    - `core` - A pointer to `ie_core_t` instance.
+    - `plugin` - A path (absolute or relative) or name of a plugin. Depending on platform, plugin is wrapped with shared library suffix and prefix to identify library full name
     - `device_name` - A target device name for the plugin. If not specified, the method registers.
       a plugin with the default name.
   - Return value: Status code of the operation: OK(0) for success.

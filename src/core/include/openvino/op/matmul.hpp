@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,10 +10,10 @@ namespace ov {
 namespace op {
 namespace v0 {
 /// \brief Operator performing Matrix Multiplication.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API MatMul : public Op {
 public:
     OPENVINO_OP("MatMul", "opset1");
-    BWDCMP_RTTI_DECLARATION;
     MatMul() = default;
     /// \brief Constructs an Matrix Multiplication operation.
     ///

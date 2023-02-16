@@ -1,4 +1,4 @@
-## ROIAlign <a name="ROIAlign"></a> {#openvino_docs_ops_detection_ROIAlign_3}
+# ROIAlign {#openvino_docs_ops_detection_ROIAlign_3}
 
 **Versioned name**: *ROIAlign-3*
 
