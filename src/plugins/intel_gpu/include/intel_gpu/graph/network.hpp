@@ -41,11 +41,16 @@ struct network_output {
         return _result;
     }
 
+    layout get_layout() const { // Last tensor memory might be null (e.g., {N, 0} shape) but we should be able to get the layout
+        return _layout;
+    }
+
 private:
     event::ptr _event;
     memory::ptr _result;
     stream::ptr _stream;
-    network_output(event::ptr evt, memory::ptr mem, stream::ptr stream) : _event(evt), _result(mem), _stream(stream) {}
+    layout _layout;
+    network_output(event::ptr evt, memory::ptr mem, stream::ptr stream, layout layout) : _event(evt), _result(mem), _stream(stream), _layout(layout) {}
     friend struct network;
 };
 
@@ -126,7 +131,7 @@ public:
         event::ptr evt;
         if (get_stream().get_queue_type() == QueueTypes::out_of_order)
             evt = get_primitive_event(output_id);
-        return network_output(evt, get_output_memory(output_id), get_stream_ptr());
+        return network_output(evt, get_output_memory(output_id), get_stream_ptr(), get_output_layout(output_id));
     }
     layout get_node_output_layout(const primitive_id& output_id) const;
     memory::ptr get_output_memory(const primitive_id& output_id);

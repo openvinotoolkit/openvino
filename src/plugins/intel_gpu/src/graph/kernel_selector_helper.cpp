@@ -1071,16 +1071,6 @@ bool use_legacy_fused_ops(const kernel_impl_params& param_info) {
     return true;
 }
 
-bool is_shape_agnostic(const kernel_impl_params& param_info) {
-    const auto& program = param_info.prog;
-    const auto& node = program->get_node(param_info.desc->id);
-
-    if (node.is_dynamic())
-        return true;
-
-    return false;
-}
-
 void set_params(const kernel_impl_params& param_info, kernel_selector::params& params) {
     const auto& program = param_info.prog;
     const auto& device_info = program->get_engine().get_device_info();

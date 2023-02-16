@@ -86,6 +86,12 @@ KernelsData kernel_selector_base::GetNaiveBestKernel(const KernelList& all_impls
             if (kds.size() && kds[0].kernels.size()) {
                 kernelsData = kds;
                 kernelName = implementation->GetName();
+                if (!params.is_shape_agnostic) {
+                    for (size_t k = 0; k < kds[0].kernels.size(); ++k) {
+                        auto gws = kds[0].kernels[k].params.workGroups.global;
+                        kernelsData[0].kernels[k].skip_execution = (std::accumulate(gws.begin(), gws.end(), 1, std::multiplies<size_t>()) == 0);
+                    }
+                }
                 break;
             }
         } catch (std::runtime_error& ex) {
