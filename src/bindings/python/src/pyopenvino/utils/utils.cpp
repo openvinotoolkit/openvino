@@ -105,7 +105,7 @@ py::object from_ov_any(const ov::Any& any) {
     // Check for std::map<element::Type, float>
     else if (any.is<std::map<ov::element::Type, float>>()) {
         return py::cast(any.as<std::map<ov::element::Type, float>>());
-    }  // Check for ov::AnyMap (std::map<std::string, ov::Any)
+    }  // Check for ov::AnyMap (std::map<std::string, ov::Any>)
     else if (any.is<ov::AnyMap>()) {
         return from_ov_any_map(any.as<ov::AnyMap>());
     }
