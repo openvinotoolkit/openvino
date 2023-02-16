@@ -837,11 +837,8 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
     uint32_t num_rows_out = num_rows_in;
     uint32_t num_padding = ALIGN(num_rows_in, noOfInputsDivisor) - num_rows_in;
 
-    size_t num_data_bytes_out = InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims())) *
-                                outputs->getPrecision().size();
-
-    size_t num_data_bytes_in = InferenceEngine::details::product(begin(input->getDims()), end(input->getDims())) *
-                               input->getPrecision().size();
+    size_t num_data_bytes_out = num_columns_in * (num_rows_out + num_padding) * outputs->getPrecision().size();
+    size_t num_data_bytes_in = num_columns_in * (num_rows_in + num_padding) * input->getPrecision().size();
 
     if (power.power == 1.0f) {
         void* ptr_inputs = nullptr;
@@ -875,8 +872,8 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
 
         if (gna_config.gnaFlags.sw_fp32) {
             IE_ASSERT(quantized == nullptr);
-            gnamem->getQueue(REGION_RO)->push_value(layer, ptr_weights, power.scale, num_rows_out, 64);
-            gnamem->getQueue(REGION_RO)->push_value(layer, ptr_biases, power.offset, num_rows_out, 64);
+            gnamem->getQueue(REGION_RO)->push_value(layer, ptr_weights, power.scale, num_rows_out + num_padding, 64);
+            gnamem->getQueue(REGION_RO)->push_value(layer, ptr_biases, power.offset, num_rows_out + num_padding, 64);
         } else {
             IE_ASSERT(quantized != nullptr);
             if (!gna_config.gnaFlags.input_low_precision) {
@@ -884,15 +881,31 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
                     std::min(quantized->_weights_quant.GetScale() * power.scale, static_cast<float>(INT16_MAX)));
                 auto quantizedOffset = FloatToInt32(
                     std::min(quantized->_dst_quant.GetScale() * power.offset, static_cast<float>(INT32_MAX)));
-                gnamem->getQueue(REGION_RO)->push_value<int16_t>(layer, ptr_weights, quantizedScale, num_rows_out, 64);
-                gnamem->getQueue(REGION_RO)->push_value<int32_t>(layer, ptr_biases, quantizedOffset, num_rows_out, 64);
+                gnamem->getQueue(REGION_RO)->push_value<int16_t>(layer,
+                                                                 ptr_weights,
+                                                                 quantizedScale,
+                                                                 num_rows_out + num_padding,
+                                                                 64);
+                gnamem->getQueue(REGION_RO)->push_value<int32_t>(layer,
+                                                                 ptr_biases,
+                                                                 quantizedOffset,
+                                                                 num_rows_out + num_padding,
+                                                                 64);
             } else {
                 auto quantizedScale = FloatToInt8(
                     std::min(quantized->_weights_quant.GetScale() * power.scale, static_cast<float>(INT8_MAX)));
                 auto quantizedOffset = FloatToInt8(
                     std::min(quantized->_dst_quant.GetScale() * power.offset, static_cast<float>(INT8_MAX)));
-                gnamem->getQueue(REGION_RO)->push_value<int8_t>(layer, ptr_weights, quantizedScale, num_rows_out, 64);
-                gnamem->getQueue(REGION_RO)->push_value<int8_t>(layer, ptr_biases, quantizedOffset, num_rows_out, 64);
+                gnamem->getQueue(REGION_RO)->push_value<int8_t>(layer,
+                                                                ptr_weights,
+                                                                quantizedScale,
+                                                                num_rows_out + num_padding,
+                                                                64);
+                gnamem->getQueue(REGION_RO)->push_value<int8_t>(layer,
+                                                                ptr_biases,
+                                                                quantizedOffset,
+                                                                num_rows_out + num_padding,
+                                                                64);
             }
         }
     } else {
@@ -1408,9 +1421,7 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
         ptr_weights,
         ptr_biases,
         true);
-    size_t num_data_bytes_out = InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims())) *
-                                outputs->getPrecision().size();
-
+    size_t num_data_bytes_out = num_columns_in * (num_rows_out + num_padding) * outputs->getPrecision().size();
     size_t num_data_bytes_in = num_columns_in * (num_rows_in + num_padding) * inputs2Bytes->getPrecision().size();
 
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
@@ -1419,7 +1430,7 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
     switch (eltwise._operation) {
     case EltwiseLayer::Sub:
         if (quantized == nullptr) {
-            gnamem->getQueue(REGION_RO)->push_value(layer, ptr_weights, -1.0f, num_rows_out, 64);
+            gnamem->getQueue(REGION_RO)->push_value(layer, ptr_weights, -1.0f, num_rows_out + num_padding, 64);
         } else {
             auto scaledIdentity = -quantized->_weights_quant.GetScale();
 
@@ -1428,7 +1439,7 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
                 gnamem->getQueue(REGION_RO)->push_value<int16_t>(layer,
                                                                  ptr_weights,
                                                                  quantizedIdentity,
-                                                                 num_rows_out,
+                                                                 num_rows_out + num_padding,
                                                                  64);
             } else {
                 auto quantizedIdentity = FloatToInt8(std::min(scaledIdentity, static_cast<float>(INT8_MAX)));
@@ -1436,7 +1447,7 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
                 gnamem->getQueue(REGION_RO)->push_value<int8_t>(layer,
                                                                 ptr_weights,
                                                                 quantizedIdentity,
-                                                                num_rows_out,
+                                                                num_rows_out + num_padding,
                                                                 64);
             }
         }
@@ -1444,7 +1455,7 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
         break;
     case EltwiseLayer::Sum:
         if (quantized == nullptr) {
-            gnamem->getQueue(REGION_RO)->push_value(layer, ptr_weights, 1.0f, num_rows_out, 64);
+            gnamem->getQueue(REGION_RO)->push_value(layer, ptr_weights, 1.0f, num_rows_out + num_padding, 64);
         } else {
             auto scaledIdentity = quantized->_weights_quant.GetScale();
 
@@ -1454,7 +1465,7 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
                 gnamem->getQueue(REGION_RO)->push_value<int16_t>(layer,
                                                                  ptr_weights,
                                                                  quantizedIdentity,
-                                                                 num_rows_out,
+                                                                 num_rows_out + num_padding,
                                                                  64);
             } else {
                 auto quantizedIdentity = FloatToInt8(std::min(scaledIdentity, static_cast<float>(INT8_MAX)));
@@ -1462,7 +1473,7 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
                 gnamem->getQueue(REGION_RO)->push_value<int8_t>(layer,
                                                                 ptr_weights,
                                                                 quantizedIdentity,
-                                                                num_rows_out,
+                                                                num_rows_out + num_padding,
                                                                 64);
             }
         }
@@ -1471,12 +1482,12 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
 
     case EltwiseLayer::Prod:
         if (quantized == nullptr) {
-            gnamem->getQueue(REGION_RO)->push_value(layer, ptr_biases, 0.0f, num_rows_out, 64);
+            gnamem->getQueue(REGION_RO)->push_value(layer, ptr_biases, 0.0f, num_rows_out + num_padding, 64);
         } else {
             if (gna_config.gnaFlags.input_low_precision == false) {
-                gnamem->getQueue(REGION_RO)->push_value<int32_t>(layer, ptr_biases, 0, num_rows_out, 64);
+                gnamem->getQueue(REGION_RO)->push_value<int32_t>(layer, ptr_biases, 0, num_rows_out + num_padding, 64);
             } else {
-                gnamem->getQueue(REGION_RO)->push_value<int8_t>(layer, ptr_biases, 0, num_rows_out, 64);
+                gnamem->getQueue(REGION_RO)->push_value<int8_t>(layer, ptr_biases, 0, num_rows_out + num_padding, 64);
             }
         }
         connectInput(layer, ptr_weights, num_data_bytes_in, 0, biasesLayerIdx);
@@ -1496,7 +1507,8 @@ void GNAGraphCompiler::GemmPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto input_1 = layer->insData[0].lock();
     auto input_2 = layer->insData[1].lock();  // the second input corresponds to ptr_weights in component
     auto outputs = *layer->outData.begin();
-    auto inputPrecision = quantized ? Precision(Precision::I16) : input_1->getPrecision();
+    auto input1_precision = quantized ? Precision(Precision::I16) : input_1->getPrecision();
+    auto input2_precision = quantized ? Precision(Precision::I16) : input_2->getPrecision();
     uint32_t noOfInputsDivisor = limitations::noOfInputsDivisor;
 
     auto in_dims = input_1->getDims();
@@ -1505,7 +1517,6 @@ void GNAGraphCompiler::GemmPrimitive(InferenceEngine::CNNLayerPtr layer) {
     uint32_t num_columns_in = batch_size;
     const auto out_dims = outputs->getDims();
     const auto out_dims_size = ngraph::shape_size(out_dims);
-    const auto bytes_per_output = outputs->getPrecision().size();
     uint32_t num_rows_out = InferenceEngine::GetDimFromBack(out_dims, 1);
     uint32_t num_padding = ALIGN(num_rows_in, noOfInputsDivisor) - num_rows_in;
 
@@ -1521,9 +1532,9 @@ void GNAGraphCompiler::GemmPrimitive(InferenceEngine::CNNLayerPtr layer) {
                              num_rows_in + num_padding,
                              num_columns_in,
                              num_rows_out,
-                             inputPrecision.size(),
-                             bytes_per_output,
-                             quantized == nullptr ? input_2->getPrecision().size() : 2,
+                             input1_precision.size(),
+                             outputs->getPrecision().size(),
+                             input2_precision.size(),
                              quantized == nullptr ? input_2->getPrecision().size() : 4,
                              GetScaleFactor(layer, QuantizedDataType::weights),
                              GetScaleFactor(layer, QuantizedDataType::output),
@@ -1533,12 +1544,9 @@ void GNAGraphCompiler::GemmPrimitive(InferenceEngine::CNNLayerPtr layer) {
                              ptr_biases,
                              false);
 
-    const auto num_data_bytes_out = out_dims_size * bytes_per_output;
-
-    size_t num_data_bytes_in_1 = InferenceEngine::details::product(begin(input_1->getDims()), end(input_1->getDims())) *
-                                 input_1->getPrecision().size();
-    size_t num_data_bytes_in_2 = InferenceEngine::details::product(begin(input_2->getDims()), end(input_2->getDims())) *
-                                 input_2->getPrecision().size();
+    size_t num_data_bytes_out = out_dims_size * outputs->getPrecision().size();
+    size_t num_data_bytes_in_1 = (num_rows_in + num_padding) * num_columns_in * input1_precision.size();
+    size_t num_data_bytes_in_2 = (num_rows_in + num_padding) * num_columns_in * num_rows_out * input2_precision.size();
 
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
     connectInput(layer, ptr_input_1, num_data_bytes_in_1);
@@ -2655,9 +2663,11 @@ ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
     // const input
     if (LayerInfo(prevLayer).isConst()) {
         if (connectTo) {
-            gnamem->getQueue(REGION_AUTO)->bind_ptr(layer, ptr, const_connections[prevLayer->name], offset);
+            gnamem->getQueue(REGION_AUTO)
+                ->bind_ptr(layer, ptr, const_connections[prevLayer->name], offset, num_data_bytes_in);
         } else {
-            gnamem->getQueue(REGION_AUTO)->bind_ptr(layer, const_connections[prevLayer->name], ptr, offset);
+            gnamem->getQueue(REGION_AUTO)
+                ->bind_ptr(layer, const_connections[prevLayer->name], ptr, offset, num_data_bytes_in);
         }
 
         return prevLayer;
