@@ -115,6 +115,9 @@ class TorchScriptPythonDecoder (Decoder):
     def get_input(self, index: int):
         return self.inputs()[index]
 
+    def get_input_debug_name(self, index: int) -> str:
+        return self._raw_input(index).debugName()
+
     def get_input_shape(self, index: int):
         raw_input = self._raw_input(index)
         return self.get_shape_for_value(raw_input)
@@ -122,6 +125,9 @@ class TorchScriptPythonDecoder (Decoder):
     def get_input_type(self, index: int):
         raw_input = self._raw_input(index)
         return self.get_type_for_value(raw_input)
+
+    def get_output_debug_name(self, index: int) -> str:
+        return self._raw_output(index).debugName()
 
     def get_output_shape(self, index: int):
         output = self._raw_output(index)
