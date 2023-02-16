@@ -262,3 +262,26 @@ TEST_F(TransformationTestsF, ModelWithSaveV2) {
         model_ref = make_shared<Model>(OutputVector{add}, ParameterVector{x});
     }
 }
+
+TEST_F(TransformationTestsF, ModelWithConstResultSubgraphs) {
+    { model = convert_model("model_with_const_result/model_with_const_result.pb"); }
+    {
+        // create a reference graph
+        auto x = make_shared<Parameter>(element::f32, PartialShape{Dimension::dynamic(), 60, 60, 1});
+        auto perm_order = make_shared<Constant>(element::i64, Shape{4}, vector<int64_t>{0, 3, 1, 2});
+        auto transpose_to_nchw = make_shared<Transpose>(x, perm_order);
+        auto max_pool = make_shared<MaxPool>(transpose_to_nchw,
+                                             Strides{2, 2},
+                                             Strides{1, 1},
+                                             Shape{0, 0},
+                                             Shape{0, 0},
+                                             Shape{2, 2},
+                                             ov::op::RoundingType::FLOOR,
+                                             ov::op::PadType::VALID,
+                                             element::i64);
+        auto inverse_order = make_shared<Constant>(element::i64, Shape{4}, vector<int64_t>{0, 2, 3, 1});
+        auto transpose_to_nhwc = make_shared<Transpose>(max_pool, inverse_order);
+
+        model_ref = make_shared<Model>(OutputVector{transpose_to_nhwc}, ParameterVector{x});
+    }
+}
