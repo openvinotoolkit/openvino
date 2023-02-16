@@ -152,9 +152,11 @@ void ov::ISyncInferRequest::convert_batched_tensors() {
         prepared_tensors[item.first] = input_tensor;
     }
 
+    auto batched_copy = m_batched_tensors;
     for (const auto& item : prepared_tensors) {
         set_tensor(get_inputs()[item.first], item.second);
     }
+    m_batched_tensors = batched_copy;
 }
 
 ov::Tensor& ov::ISyncInferRequest::get_ref_tensor(const ov::Output<const ov::Node>& port) const {
