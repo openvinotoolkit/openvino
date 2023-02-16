@@ -42,29 +42,34 @@ public:
 
         std::ostringstream result;
         result << "prec=" << precision;
-        result << "_shapes=(";
         for (size_t i = 0; i < shapes.size(); i++) {
-            if (shapes[i].first.size() == 0)
-                result << shapes[i].second[0];
-            else
-                result << shapes[i].first;
-            if (i < shapes.size() - 1)
-                result << ",";
+            result << "_IS" << i << "=" << CommonTestUtils::partialShape2str({shapes[i].first});
+            result << "_TS" << i << "=(";
+            for (size_t j = 0; j < shapes[i].second.size(); j++) {
+                result << CommonTestUtils::vec2str(shapes[i].second[j]);
+                if (j < shapes[i].second.size() - 1)
+                    result << "_";
+            }
+            result << ")";
         }
-        result << "_axes=";
+        result << "_constAxes=" << std::boolalpha << constAxes;
+        result << "_axes=(";
         for (size_t i = 0; i < axes.size(); i++) {
             result << CommonTestUtils::vec2str(axes[i]);
             if (i < axes.size() - 1)
-                result << ",";
+                result << "_";
         }
-        result << "_signalSizes=";
-        for (size_t i = 0; i < signalSizes.size(); i++) {
-            result << CommonTestUtils::vec2str(signalSizes[i]);
-            if (i < signalSizes.size() - 1)
-                result << ",";
+        if (signalSizes.size() > 0) {
+            result << ")_constSignalSizes=" << std::boolalpha << constSignalSizes;
+            result << "_signalSizes=(";
+            for (size_t i = 0; i < signalSizes.size(); i++) {
+                result << CommonTestUtils::vec2str(signalSizes[i]);
+                if (i < signalSizes.size() - 1)
+                    result << "_";
+                }
         }
 
-        result << "_isInverse=" << inverse
+        result << ")_isInverse=" << inverse
                << CPUTestsBase::getTestCaseName(cpuParams);
         return result.str();
     }
