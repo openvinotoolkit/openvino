@@ -279,6 +279,17 @@ TEST(type_prop, pad_v1_dynamic_input_type_with_static_value) {
     EXPECT_EQ(pad->get_output_partial_shape(0), PartialShape::dynamic(3));
 }
 
+TEST(type_prop, pad_v1_pads_with_static_rank_and_dynamic_shapes) {
+    auto arg = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(3));
+    auto pads_begin = make_shared<op::Parameter>(element::i32, PartialShape::dynamic(1));
+    auto pads_end = make_shared<op::Parameter>(element::i32, PartialShape::dynamic(1));
+    auto arg_pad_value = op::Constant::create(element::f32, Shape{}, {0});
+
+    auto pad = make_shared<op::v1::Pad>(arg, pads_begin, pads_end, arg_pad_value, op::PadMode::CONSTANT);
+    EXPECT_EQ(pad->get_output_element_type(0), element::f32);
+    EXPECT_EQ(pad->get_output_partial_shape(0), PartialShape::dynamic(3));
+}
+
 TEST(type_prop, pad_v1_preserve_partial_values_and_labels_via_evaluates_bounds) {
     auto arg_shape = PartialShape{1, {2, 5}, {1, 3}};
     auto begin_shape = PartialShape{{2, 4}, 0, {0, 2}};

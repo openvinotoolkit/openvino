@@ -126,13 +126,15 @@ std::vector<TShape> shape_infer(const Pad* op,
             }
         } else {
             NODE_VALIDATION_CHECK(op,
-                                  pads_begin_rank.is_dynamic() || pads_begin_shape[0].get_length() <= arg_rank_len,
+                                  pads_begin_rank.is_dynamic() || pads_begin_shape[0].is_dynamic() ||
+                                      pads_begin_shape[0].get_length() <= arg_rank_len,
                                   "Number of elements of pads_begin must be >= 0 and <= arg rank "
                                   "(pads_begin_shape[0]: ",
                                   pads_begin_shape[0],
                                   ").");
             NODE_VALIDATION_CHECK(op,
-                                  pads_begin_rank.is_dynamic() || pads_end_shape[0].get_length() <= arg_rank_len,
+                                  pads_begin_rank.is_dynamic() || pads_end_shape[0].is_dynamic() ||
+                                      pads_end_shape[0].get_length() <= arg_rank_len,
                                   "Number of elements of pads_end must be >= 0 and <= arg rank (pads_end_shape[0]: ",
                                   pads_end_shape[0],
                                   ").");
