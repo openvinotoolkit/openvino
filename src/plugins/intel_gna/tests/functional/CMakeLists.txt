@@ -11,6 +11,7 @@ addIeTargetTest(
             openvino_intel_gna_plugin
         LINK_LIBRARIES
             funcSharedTests
+            ov_gna_tests_commons_func
         ADD_CLANG_FORMAT
         LABELS
             GNA
