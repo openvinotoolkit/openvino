@@ -17,18 +17,10 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_argsort(NodeContext& context) {
-    auto const input_tensor = context.get_input(0);
-
-    int64_t dim{-1};
-    if (!context.input_is_none(1)) {
-        dim = context.const_input<int>(1);
-    }
-
-    bool descending{false};
-    if (!context.input_is_none(2)) {
-        descending = context.const_input<bool>(2);
-    }
-    auto mode = descending ? TopKMode::MAX : TopKMode::MIN;
+    const auto input_tensor = context.get_input(0);
+    const int64_t dim = !context.input_is_none(1) ? context.const_input<int64_t>(1) : -1;
+    const bool descending = !context.input_is_none(2) ? context.const_input<bool>(2) : false;
+    const auto mode = descending ? TopKMode::MAX : TopKMode::MIN;
 
     // bool stable{false};
     // if (!context.input_is_none(3)) {
