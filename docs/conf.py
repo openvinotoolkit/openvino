@@ -65,8 +65,13 @@ templates_path = ['_templates']
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['_build', 'Thumbs.db',
-                    '.DS_Store', 'openvino/inference-engine']
+exclude_patterns = ['_build',
+                    'Thumbs.db',
+                    '.DS_Store',
+                    'openvino/inference-engine',
+                    'home_zh_CN.rst',
+                    'index_zh_CN.rst',
+                    'documentation_zh_CN.rst']
 
 
 panels_add_bootstrap_css = False
