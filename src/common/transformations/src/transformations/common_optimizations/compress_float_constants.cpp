@@ -42,7 +42,7 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<ov::
     }
 
     // if more than 75% of a FP32 constant do not fit into FP16 keep in FP32
-    float keep_threshold = 0.75f;
+    float keep_threshold = 0.80f;  // todo: provide more solid justification about choosing threshold
     float out_of_range_proportion = static_cast<float>(num_out_of_range) / static_cast<float>(size);
 
     if (out_of_range_proportion >= keep_threshold) {
