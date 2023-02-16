@@ -223,8 +223,11 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     manager.register_pass<ov::pass::ConvertNMS4ToNMS9>();
     manager.register_pass<ov::pass::ConvertNMS5ToNMS9>();
     manager.register_pass<ov::pass::ConvertNMS9ToNMSIEInternal>();
+    manager.register_pass<ov::pass::Validate>();
     manager.register_pass<ov::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
+    manager.register_pass<ov::pass::Validate>();
     manager.register_pass<ov::pass::ConvertMatrixNmsToMatrixNmsIE>();
+    manager.register_pass<ov::pass::Validate>();
     manager.register_pass<ov::pass::TransposeMatMul>();
     manager.register_pass<ov::pass::ConstantFolding>();
 
@@ -504,6 +507,7 @@ void Transformations::PostLpt() {
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, PostLpt);
 
     ov::pass::Manager postLPTPassManager;
+    postLPTPassManager.set_per_pass_validation(false);
     postLPTPassManager.register_pass<ov::pass::UnrollTensorIterator>();
     postLPTPassManager.register_pass<ov::pass::ReshapePRelu>();
     postLPTPassManager.get_pass_config()->set_callback<ov::pass::UnrollTensorIterator>([](const_node_ptr &node) -> bool {
@@ -560,6 +564,7 @@ void Transformations::MainSnippets(void) {
         return;
 
     ngraph::pass::Manager snippetsManager;
+    snippetsManager.set_per_pass_validation(false);
     if (snippetsMode != Config::SnippetsMode::IgnoreCallback)
         snippetsManager.register_pass<SnippetsMarkSkipped>();
     snippetsManager.register_pass<ngraph::snippets::pass::SnippetsTokenization>();
@@ -637,6 +642,7 @@ void Transformations::MainSnippets(void) {
 
 void Transformations::PostSnippets(void) {
     ov::pass::Manager postSnippetsManager;
+    postSnippetsManager.set_per_pass_validation(false);
     postSnippetsManager.register_pass<ov::pass::FakeQuantizeDecomposition>();
     postSnippetsManager.get_pass_config()->set_callback<ov::pass::FakeQuantizeDecomposition>([](const_node_ptr& node) -> bool {
         std::string errMsg;
