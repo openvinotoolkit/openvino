@@ -89,7 +89,6 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
     }
 
     const concatenation_params& orgParams = static_cast<const concatenation_params&>(params);
-
     KernelData kd = KernelData::Default<concatenation_params>(params, orgParams.inputs.size());
 
     uint32_t lastOffset = 0;
@@ -113,7 +112,7 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
         kernel.code.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);
         kernel.params.workGroups.global = dispatchData.gws;
         kernel.params.workGroups.local = dispatchData.lws;
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, (uint32_t)i });
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, (uint32_t) i});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
         ScalarDescriptor s;
