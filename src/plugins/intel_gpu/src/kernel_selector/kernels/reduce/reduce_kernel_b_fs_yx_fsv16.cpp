@@ -216,13 +216,12 @@ JitConstants ReduceKernel_b_fs_yx_fsv16::GetJitConstants(const reduce_params& pa
         }
     }
 
-    // MIN/MAX mode should handle feature remainder in case reduce axes includes feature
-    if (params.reduceMode == ReduceMode::MIN || params.reduceMode == ReduceMode::MAX) {
-        if (count(params.reduceAxes.begin(), params.reduceAxes.end(), 1) > 0) {
-            if (params.inputs[0].Feature().v % 16 != 0) {
-                jit.AddConstant(MakeJitConstant("HANDLE_FEATURE_REMAINDER", 1));
-            }
-        }
+    bool zero_invariant_mode = params.reduceMode == ReduceMode::L1 || params.reduceMode == ReduceMode::L2 ||
+                             params.reduceMode == ReduceMode::LOG_SUM || params.reduceMode == ReduceMode::LOG_SUM_EXP ||
+                             params.reduceMode == ReduceMode::MEAN || params.reduceMode == ReduceMode::OR ||
+                             params.reduceMode == ReduceMode::SUM || params.reduceMode == ReduceMode::SUM_SQUARE;
+    if(zero_invariant_mode || params.inputs[0].Feature().v % 16 == 0){
+        jit.AddConstant(MakeJitConstant("ZERO_INVARIANT_MODE", 1));
     }
 
     return jit;

@@ -336,7 +336,9 @@ uint offset = batch_out * input_batch_pitch + ((feature_out + FSV - 1) / FSV) * 
         for (uint fi = feature_out; fi < feature_max_val; fi += FSV) {
             for (uint yi = y_out; yi < y_max_val; ++yi) {
                 for (uint xi = x_out; xi < x_max_val; ++xi) {
-#if HANDLE_FEATURE_REMAINDER
+#if ZERO_INVARIANT_MODE
+                    INPUT_VEC input = BLOCK_READ(data, offset);
+#else
                     INPUT_VEC input = (INPUT_VEC)(INPUT_INIT_VAL);
                     #if REDUCE_FEATURE && (INPUT0_FEATURE_NUM % FSV != 0)
                         if (fi + FSV <= INPUT0_FEATURE_NUM)
@@ -348,8 +350,6 @@ uint offset = batch_out * input_batch_pitch + ((feature_out + FSV - 1) / FSV) * 
                     #else
                         input = BLOCK_READ(data, offset);
                     #endif
-#else
-                    INPUT_VEC input = BLOCK_READ(data, offset);
 #endif
                     unroll_for (int i = 0; i < READ_OFFSET; ++i)
                         acc[i] = FUNC_CALL(apply_reduce)(acc[i], input[i]);
