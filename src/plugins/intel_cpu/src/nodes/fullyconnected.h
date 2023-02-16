@@ -42,7 +42,7 @@ public:
 
     void initSupportedPrimitiveDescriptors() override;
     void initOptimalPrimitiveDescriptor() override;
-    // void createPrimitive() override;
+    void createPrimitive() override;
     std::shared_ptr<MemoryDesc> getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
     std::shared_ptr<MemoryDesc> getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 
@@ -51,8 +51,6 @@ public:
     bool canFuse(const NodePtr& node) const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
-
-    std::shared_ptr<dnnl::primitive_attr> initPrimitiveAttr() override;
 
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override;
@@ -69,7 +67,7 @@ private:
     VectorDims inDims;
     VectorDims outDims;
 
-    void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool initWeights = false);
+    void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims);
 
     bool withBiases = false;
 
@@ -89,6 +87,7 @@ private:
     // When weightCache is enabled, it holds weight ptr reference since weightCache does not hold the
     // reference
     std::unordered_map<std::string, MemoryPtr> privateWeightCache;
+    dnnl::primitive_attr attr;
 
     class ExecutorInnerProduct : public DnnlExecutor {
         public:
