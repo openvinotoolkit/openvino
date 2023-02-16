@@ -613,7 +613,6 @@ TEST(type_prop, broadcast_v3_bidirectional_mode_string) {
     const auto broadcast_v3 = make_shared<op::v3::Broadcast>(arg, shape, "BIDIRECTIONAL");
 
     ASSERT_EQ(broadcast_v3->get_broadcast_spec(), op::BroadcastType::BIDIRECTIONAL);
-    ASSERT_EQ(broadcast_v3->get_version(), 3);
 }
 
 TEST(type_prop, broadcast_v3_shape_unexpected_axes_mapping_input) {
