@@ -417,7 +417,7 @@ bool Program::IsOpSupported(const InferenceEngine::CNNNetwork& network, const st
 
 void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, const std::shared_ptr<ngraph::Node>& op) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Program::CreateSingleLayerPrimitive");
-    GPU_DEBUG_LOG << "Process " << "op::v" << op->get_type_info().version << "::" << op->get_type_name() << " operation "
+    GPU_DEBUG_LOG << "Process " << "op::v" << op->get_type_info().version_id << "::" << op->get_type_name() << " operation "
                   << "(friendly_name=" << op->get_friendly_name() << ")" << std::endl;
 
     bool is_created = false;
@@ -441,7 +441,7 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, const std::s
     if (!is_created) {
         IE_THROW() << "Operation: " << op->get_friendly_name()
                    << " of type " << op->get_type_name()
-                   << "(op::v" << op->get_type_info().version << ") is not supported";
+                   << "(op::v" << op->get_type_info().version_id << ") is not supported";
     }
 }
 
@@ -558,7 +558,7 @@ void validate_inputs_count(const std::shared_ptr<ngraph::Node>& op, std::vector<
 
     IE_THROW() << "Invalid inputs count (" << op->get_input_size() << ") in "
                << op->get_friendly_name() << " (" << op->get_type_name()
-               << " op::v" << op->get_type_info().version << ")";
+               << " op::v" << op->get_type_info().version_id << ")";
 }
 
 }  // namespace intel_gpu

@@ -52,25 +52,22 @@ TEST(type_info, compare_new_with_old_type) {
 }
 
 TEST(type_info, check_hash_value) {
-    const auto& hash_val = [](const char* name, const char* version_id, uint64_t version) -> size_t {
+    const auto& hash_val = [](const char* name, const char* version_id) -> size_t {
         size_t name_hash = name ? std::hash<std::string>()(std::string(name)) : 0;
-        size_t version_hash = std::hash<decltype(version)>()(version);
         size_t version_id_hash = version_id ? std::hash<std::string>()(std::string(version_id)) : 0;
         // don't use parent for hash calculation, it is not a part of type (yet)
-        return ov::util::hash_combine(std::vector<size_t>{name_hash, version_hash, version_id_hash});
+        return ov::util::hash_combine(std::vector<size_t>{name_hash, version_id_hash});
     };
     ov::DiscreteTypeInfo type("type1", 0, "version1");
     ov::DiscreteTypeInfo type_old("type1", 1);
     ov::DiscreteTypeInfo type_with_version("type1", 1, "version1");
     ov::DiscreteTypeInfo type_empty_name("", static_cast<uint64_t>(0));
     ov::DiscreteTypeInfo type_empty_ver("type", static_cast<uint64_t>(0), "");
-    EXPECT_EQ(hash_val(type.name, type.version_id, type.version), type.hash());
-    EXPECT_EQ(hash_val(type_old.name, type_old.version_id, type_old.version), type_old.hash());
-    EXPECT_EQ(hash_val(type_with_version.name, type_with_version.version_id, type_with_version.version),
-              type_with_version.hash());
-    EXPECT_EQ(hash_val(type_empty_name.name, type_empty_name.version_id, type_empty_name.version),
-              type_empty_name.hash());
-    EXPECT_EQ(hash_val(type_empty_ver.name, type_empty_ver.version_id, type_empty_ver.version), type_empty_ver.hash());
+    EXPECT_EQ(hash_val(type.name, type.version_id), type.hash());
+    EXPECT_EQ(hash_val(type_old.name, type_old.version_id), type_old.hash());
+    EXPECT_EQ(hash_val(type_with_version.name, type_with_version.version_id), type_with_version.hash());
+    EXPECT_EQ(hash_val(type_empty_name.name, type_empty_name.version_id), type_empty_name.hash());
+    EXPECT_EQ(hash_val(type_empty_ver.name, type_empty_ver.version_id), type_empty_ver.hash());
 }
 
 TEST(type_info, find_in_map) {
