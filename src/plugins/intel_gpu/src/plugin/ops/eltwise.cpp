@@ -41,7 +41,7 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cl
     auto out_rank = out_pshape.size();
     // New shape infer is supposed to work w/o extra reshapes/reorders
     // So the code below must be removed once new shape infer is enabled
-    if (out_pshape.is_static()) {
+    if (out_pshape.is_static() && !p.use_new_shape_infer()) {
         for (size_t i = 0; i < inputs.size(); ++i) {
             auto input_pshape = op->get_input_partial_shape(i);
             auto input_rank = input_pshape.size();
