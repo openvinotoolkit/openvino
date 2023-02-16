@@ -51,7 +51,8 @@ std::string TensorExternalData::load_external_data(const std::string& model_dir)
     if (filesize == -1) {
         throw error::invalid_external_data{*this};
     }
-    if (m_offset + m_data_length > (uint64_t)filesize) {
+    uint64_t u_filesize = static_cast<uint64_t>(filesize);
+    if (m_offset + m_data_length > u_filesize) {
         throw error::invalid_external_data{*this};
     }
 
