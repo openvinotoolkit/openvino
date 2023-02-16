@@ -227,16 +227,19 @@ macro(ie_register_plugins_dynamic)
 
     # Combine all <device_name>.xml files into plugins.xml
 
-    add_custom_command(TARGET ${IE_REGISTER_MAIN_TARGET} POST_BUILD
-                      COMMAND
-                        "${CMAKE_COMMAND}"
-                        -D "CMAKE_SHARED_MODULE_PREFIX=${CMAKE_SHARED_MODULE_PREFIX}"
-                        -D "IE_CONFIG_OUTPUT_FILE=${config_output_file}"
-                        -D "IE_CONFIGS_DIR=${CMAKE_BINARY_DIR}/plugins"
-                        -P "${IEDevScripts_DIR}/plugins/register_plugin_cmake.cmake"
-                      COMMENT
-                        "Registering plugins to plugins.xml config file"
-                      VERBATIM)
+    ie_option(GENERATE_PLUGINS_XML "Generate plugins.xml configuration file or not" OFF)
+    if(GENERATE_PLUGINS_XML)
+        add_custom_command(TARGET ${IE_REGISTER_MAIN_TARGET} POST_BUILD
+                          COMMAND
+                            "${CMAKE_COMMAND}"
+                            -D "CMAKE_SHARED_MODULE_PREFIX=${CMAKE_SHARED_MODULE_PREFIX}"
+                            -D "IE_CONFIG_OUTPUT_FILE=${config_output_file}"
+                            -D "IE_CONFIGS_DIR=${CMAKE_BINARY_DIR}/plugins"
+                            -P "${IEDevScripts_DIR}/plugins/register_plugin_cmake.cmake"
+                          COMMENT
+                            "Registering plugins to plugins.xml config file"
+                          VERBATIM)
+    endif()
 endmacro()
 
 #
