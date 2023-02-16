@@ -346,16 +346,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     ov::ParameterVector ordered_params = reorder_ops_by_names(input_names, params);
     ov::ResultVector ordered_results = reorder_ops_by_names(output_names, results);
 
-    // after auto-pruning (IteratorGetNext), isolated Parameter nodes created by the auto-pruning
-    // can be remained in the graph so we need to clean them up
-    ov::ParameterVector final_params;
-    for (const auto& param : ordered_params) {
-        if (param->get_output_target_inputs(0).size() > 0) {
-            final_params.push_back(param);
-        }
-    }
-
-    ov_model = std::make_shared<ov::Model>(ordered_results, final_params, m_model_name);
+    ov_model = std::make_shared<ov::Model>(ordered_results, ordered_params, m_model_name);
 }
 
 std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string& body_graph_name) {
