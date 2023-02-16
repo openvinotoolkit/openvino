@@ -161,7 +161,7 @@ TEST_P(pooling_f32_activation, basic) {
         reorder("output_reorder", input_info("act"), format::bfyx, data_types::f32)
     );
 
-    tolerance = 1e-05f;
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
@@ -200,7 +200,7 @@ TEST_P(pooling_f32_scale, basic) {
         reorder("output_reorder", input_info("scale"), format::bfyx, data_types::f32)
     );
 
-    tolerance = 1e-05f;
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
@@ -221,7 +221,7 @@ TEST_P(pooling_f32_scale, fp16_scale_out) {
         reorder("output_reorder", input_info("scale"), format::bfyx, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
@@ -265,7 +265,7 @@ TEST_P(pooling_scale_activation_quantize, basic) {
         reorder("output_reorder", input_info("quantize"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1.0f;
+    tolerance = default_tolerance(data_types::u8);
     execute(p);
 }
 
@@ -293,7 +293,7 @@ TEST_P(pooling_scale_activation_quantize, i8_output_data_type) {
         reorder("output_reorder", input_info("quantize"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1.0f;
+    tolerance = default_tolerance(data_types::i8);
     execute(p);
 }
 
@@ -321,7 +321,7 @@ TEST_P(pooling_scale_activation_quantize, per_channel) {
         reorder("output_reorder", input_info("quantize"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1.0f;
+    tolerance = default_tolerance(data_types::u8);
     execute(p);
 }
 
@@ -386,7 +386,7 @@ TEST_P(pooling_scale_activation, basic) {
         reorder("output_reorder", input_info("activation"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-05f;
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
@@ -408,7 +408,7 @@ TEST_P(pooling_scale_activation, eltwise_mul) {
         reorder("output_reorder", input_info("activation"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-05f;
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
@@ -600,7 +600,7 @@ TEST_P(pooling_onednn_activation1, basic) {
         reorder("output_reorder", input_info("act"), format::bfyx, data_types::f32)
     );
 
-    tolerance = 1e-05f;
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
@@ -621,7 +621,7 @@ TEST_P(pooling_onednn_activation2, basic) {
         reorder("output_reorder", input_info("act"), format::bfyx, data_types::f32)
     );
 
-    tolerance = 1e-05f;
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
