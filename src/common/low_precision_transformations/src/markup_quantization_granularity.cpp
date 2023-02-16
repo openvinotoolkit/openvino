@@ -17,15 +17,13 @@ ngraph::pass::low_precision::MarkupQuantizationGranularity::MarkupQuantizationGr
     const std::vector<QuantizationGranularityRestriction>& restrictions) {
     for (const auto& restriction : restrictions) {
         const auto it = restrictionsByOperation.find(restriction.operationType.name);
-        OPENVINO_SUPPRESS_DEPRECATED_START
         if (it == restrictionsByOperation.end()) {
             PerTensorQuantization r(restriction.specifyVersion);
-            r.portsByVersion.emplace(restriction.operationType.version, restriction.restrictions);
+            r.portsByVersion.emplace(restriction.operationType.version_id, restriction.restrictions);
             restrictionsByOperation.emplace(restriction.operationType.name, r);
         } else {
-            it->second.add(restriction.operationType.version, restriction.restrictions);
+            it->second.add(restriction.operationType.version_id, restriction.restrictions);
         }
-        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 }
 
@@ -74,9 +72,7 @@ bool ngraph::pass::low_precision::MarkupQuantizationGranularity::run_on_model(co
         }
 
         if (restriction.versionIsRequired) {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            const auto it2 = restriction.portsByVersion.find(node->get_type_info().version);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            const auto it2 = restriction.portsByVersion.find(node->get_type_info().version_id);
             if (it2 == restriction.portsByVersion.end()) {
                 continue;
             }
