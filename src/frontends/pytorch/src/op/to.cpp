@@ -30,6 +30,13 @@ OutputVector translate_to(NodeContext& context) {
         // Input with index 1 is device we skip that input.
         dtype_idx = 2;
         memory_format_idx = 5;
+    } else if (context.get_input_size() == 8) {
+        // aten::to(Tensor(a) self, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool?
+        // pin_memory=None,
+        // bool non_blocking=False, bool copy=False, MemoryFormat? memory_format=None)
+        dtype_idx = 1;
+        memory_format_idx = 7;
+
     } else {
         FRONT_END_OP_CONVERSION_CHECK(false, "Unknown aten::to format");
     }

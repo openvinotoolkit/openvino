@@ -195,10 +195,13 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
         metaDevices.push_back({actualDeviceName, {{CONFIG_KEY(PERFORMANCE_HINT),
                     InferenceEngine::PluginConfigParams::THROUGHPUT}}, actualCustomerNum, ""});
         // enable autoBatch
-        IE_SET_METRIC(OPTIMAL_BATCH_SIZE, optimalBatchNum, 8);
+        IE_SET_METRIC(OPTIMAL_BATCH_SIZE, gpuOptimalBatchNum, 8);
+        IE_SET_METRIC(OPTIMAL_BATCH_SIZE, keembayOptimalBatchNum, 1);
         IE_SET_METRIC(RANGE_FOR_STREAMS, rangeOfStreams, std::make_tuple<unsigned int, unsigned int>(1, 3));
         ON_CALL(*core.get(), GetMetric(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(METRIC_KEY(OPTIMAL_BATCH_SIZE)), _))
-            .WillByDefault(RETURN_MOCK_VALUE(optimalBatchNum));
+            .WillByDefault(RETURN_MOCK_VALUE(gpuOptimalBatchNum));
+        ON_CALL(*core.get(), GetMetric(StrEq(CommonTestUtils::DEVICE_KEEMBAY), StrEq(METRIC_KEY(OPTIMAL_BATCH_SIZE)), _))
+            .WillByDefault(RETURN_MOCK_VALUE(keembayOptimalBatchNum));
         ON_CALL(*core.get(), GetMetric(_, StrEq(METRIC_KEY(RANGE_FOR_STREAMS)), _))
             .WillByDefault(RETURN_MOCK_VALUE(rangeOfStreams));
         ON_CALL(*core.get(), GetConfig(_, StrEq(CONFIG_KEY(PERFORMANCE_HINT))))
@@ -213,6 +216,7 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
     } else {
         metaDevices.push_back({CommonTestUtils::DEVICE_CPU, {}, cpuCustomerNum, ""});
         metaDevices.push_back({actualDeviceName, {}, actualCustomerNum, ""});
+        ON_CALL(*core, GetConfig(_, StrEq(GPU_CONFIG_KEY(MAX_NUM_THREADS)))).WillByDefault(Return(8));
     }
     ON_CALL(*plugin, SelectDevice(_, _, _)).WillByDefault(Return(metaDevices[1]));
     ON_CALL(*plugin, ParseMetaDevices(_, _)).WillByDefault(Return(metaDevices));
