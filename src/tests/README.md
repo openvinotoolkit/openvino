@@ -15,7 +15,7 @@ This is OpenVINO Inference Engine testing framework. OpenVINO Inference Engine t
     files.
     
     > **Example**: We have `ie_reshaper.cpp` within the `src/shape_infer` subfolder of the tested module. In this case
-    new `shape_infer` subfolder should be created within the root of the Unit Test folder for this module. And new
+    new `shape_infer` subfolder should be created within the the root of the Unit Test folder for this module. And new
     `ie_reshaper_test.cpp` file should be created within this newly created subfolder. This test file should cover all
     the classes and methods from the original file.
   
@@ -47,7 +47,7 @@ This is OpenVINO Inference Engine testing framework. OpenVINO Inference Engine t
     creating of a CNNNetwork using it. If a required layer is not covered by Ngraph it's allowed to build IR file using
     `xml_net_builder` utility (please refer to the `ir_net.hpp` file). IR XML files hardcoded as strings within the test
     code should not be used.
-  * All the plugin test cases are parametrized with (at least) the device name and included to the common
+  * All the plugin test cases are parameterized with (at least) the device name and included to the common
     `funcSharedTests` static library. This library is linked to the Plugin Test binaries. And all the plugin
     developers just add required test instantiations based on the linked test definitions to own test binary. It should
     be done to make all the **shared** test cases always visible and available to instantiate by other plugins. 
@@ -67,3 +67,8 @@ This is OpenVINO Inference Engine testing framework. OpenVINO Inference Engine t
   separate utilities by domains.
   > **NOTE**: All the utilities libraries are added to the developer package and available for closed source
   development.
+
+  ## See also
+ * [OpenVINO™ README](../../README.md)
+ * [OpenVINO Core Components](../README.md)
+ * [Developer documentation](../../docs/dev/index.md)
