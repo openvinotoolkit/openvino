@@ -9,6 +9,8 @@
 #include "transformations_visibility.hpp"
 
 namespace ov {
+namespace intel_gna {
+namespace rt_info {
 
 TRANSFORMATIONS_API void mark_as_no_gather_sinking_node(const std::shared_ptr<Node>& node);
 
@@ -21,13 +23,15 @@ TRANSFORMATIONS_API bool is_gather_sinking_node(ov::Output<ov::Node> output);
  * @brief NoGatherSinkingAttr class represents runtime info attribute that marks gather
  * operation should not be moved be backward sinking propagation.
  */
-class TRANSFORMATIONS_API NoGatherSinkingAttr : public RuntimeAttribute {
+class NoGatherSinkingAttr : public RuntimeAttribute {
 public:
     OPENVINO_RTTI("no_gather_sinking", "0");
-
+    virtual ~NoGatherSinkingAttr() = default;
     bool is_copyable() const override {
         return false;
     }
 };
 
+}  // namespace rt_info
+}  // namespace intel_gna
 }  // namespace ov

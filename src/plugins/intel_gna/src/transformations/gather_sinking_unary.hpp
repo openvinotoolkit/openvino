@@ -11,11 +11,6 @@ namespace ov {
 namespace intel_gna {
 namespace pass {
 
-class TRANSFORMATIONS_API GatherSinkingUnaryForward;
-class TRANSFORMATIONS_API GatherSinkingUnaryBackwardSingleConsumer;
-class TRANSFORMATIONS_API GatherSinkingUnaryBackwardMultiConsumers;
-class TRANSFORMATIONS_API GatherSinkingUnaryBackward;
-
 /**
  * @brief Moves Gather layer forward from the start to the end of the graph
  * through the unary operations UnaryElementwiseArithmetic, Clamp, Elu, SoftPlus, LogicalNot, Convert

@@ -19,6 +19,7 @@
 namespace gather_sinking {
 
 using namespace ov;
+using namespace ov::intel_gna::rt_info;
 using namespace ov::opset9;
 
 using NodePtr = std::shared_ptr<Node>;

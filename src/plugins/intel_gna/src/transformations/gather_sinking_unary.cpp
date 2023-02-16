@@ -19,6 +19,7 @@ using namespace ov::pass::pattern;
 using namespace ov::op::util;
 using namespace gather_sinking;
 using namespace ov::intel_gna::pass;
+using namespace ov::intel_gna::rt_info;
 
 namespace {
 
