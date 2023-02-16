@@ -7,6 +7,7 @@
 #include "gmock/gmock.h"
 #include "openvino/opsets/opset9.hpp"
 #include "sequnce_generator.hpp"
+#include "shape_util.hpp"
 #include "type_prop.hpp"
 
 namespace {
@@ -40,7 +41,7 @@ protected:
         transpose = std::make_shared<Transpose>(arg, order);
 
         // prepare result tensors for evaluation
-        result = exp_result = TensorVector{Tensor(dtype, {0})};
+        result = exp_result = TensorVector{Tensor(dtype, ov::util::make_dynamic_shape())};
     }
 
     void node_set_lower_and_upper(Node* node, const ov::Tensor& lower, const ov::Tensor& upper) {
@@ -132,7 +133,7 @@ TEST_P(TransposeEvalBoundTest, evaluate_upper_but_order_has_no_bounds_set) {
 }
 
 TEST_P(TransposeEvalBoundTest, evaluate_label_but_empty_label_set) {
-    exp_result = TensorVector{Tensor(label_dtype, {0})};
+    exp_result = TensorVector{Tensor(label_dtype, ov::util::make_dynamic_shape())};
 
     labels.resize(shape_size(p_shape.get_shape()), 0);
     arg->get_default_output().get_tensor().set_value_label(labels);
@@ -143,7 +144,7 @@ TEST_P(TransposeEvalBoundTest, evaluate_label_but_empty_label_set) {
 }
 
 TEST_P(TransposeEvalBoundTest, evaluate_label_but_order_has_no_bound_set) {
-    exp_result = TensorVector{Tensor(label_dtype, {0})};
+    exp_result = TensorVector{Tensor(label_dtype, ov::util::make_dynamic_shape())};
 
     std::generate_n(std::back_inserter(labels), shape_size(p_shape.get_shape()), SeqGen<label_t>(30));
     arg->get_default_output().get_tensor().set_value_label(labels);
@@ -152,7 +153,7 @@ TEST_P(TransposeEvalBoundTest, evaluate_label_but_order_has_no_bound_set) {
 }
 
 TEST_P(TransposeEvalBoundTest, evaluate_label) {
-    exp_result = TensorVector{Tensor(label_dtype, {0})};
+    exp_result = TensorVector{Tensor(label_dtype, ov::util::make_dynamic_shape())};
 
     std::generate_n(std::back_inserter(labels), shape_size(p_shape.get_shape()), SeqGen<label_t>(5));
     arg->get_default_output().get_tensor().set_value_label(labels);

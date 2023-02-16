@@ -16,6 +16,7 @@
 #include "ngraph/op/select.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/divide.hpp"
+#include "shape_util.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -72,7 +73,7 @@ ov::Tensor equality_mask(const ov::Tensor& tensor, const shared_ptr<op::Constant
 }
 
 ov::Tensor or_tensor(const ov::Tensor& lhs, const ov::Tensor& rhs) {
-    auto outs = ov::TensorVector{{lhs.get_element_type(), Shape{0}}};
+    auto outs = ov::TensorVector{{lhs.get_element_type(), ov::util::make_dynamic_shape()}};
 
     op::v1::LogicalOr(std::make_shared<op::Parameter>(lhs.get_element_type(), lhs.get_shape()),
                       std::make_shared<op::Parameter>(rhs.get_element_type(), rhs.get_shape()),

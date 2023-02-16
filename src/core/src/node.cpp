@@ -20,7 +20,9 @@
 #include "ngraph/pattern/matcher.hpp"
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/pass/constant_folding.hpp"
+#include "shape_util.hpp"
 #include "shared_node_info.hpp"
+#include "tensor_conversion_util.hpp"
 
 using namespace std;
 
@@ -693,30 +695,21 @@ protected:
     }
 };
 
-inline ov::Tensor create_tensor_from_output(const ov::Output<ov::Node>& output) {
-    if (output.get_element_type().is_dynamic()) {
-        return ov::Tensor();
-    } else if (output.get_partial_shape().is_dynamic()) {
-        return ov::Tensor(output.get_element_type(), {0});
+inline ngraph::HostTensorPtr make_tmp_host_tensor(const ov::Tensor& t) {
+    if (!t) {
+        return std::make_shared<DynamicTensor>(ov::element::dynamic);
+    } else if (ov::util::is_dynamic_shape(t.get_shape())) {
+        return std::make_shared<DynamicTensor>(t.get_element_type());
+    } else {
+        return std::make_shared<ngraph::runtime::HostTensor>(t.get_element_type(), t.get_shape(), t.data());
     }
-    return ov::Tensor(output.get_element_type(), output.get_shape());
 }
 
 inline ngraph::HostTensorVector create_tmp_tensors(const ov::TensorVector& tensors) {
     ngraph::HostTensorVector result;
     result.reserve(tensors.size());
     for (const auto& tensor : tensors) {
-        if (!tensor || tensor.get_shape() == ov::Shape{0}) {
-            auto el_type = ov::element::dynamic;
-            if (tensor)
-                el_type = tensor.get_element_type();
-            // Create dynamic tensor
-            result.emplace_back(std::make_shared<DynamicTensor>(el_type));
-        } else {
-            result.emplace_back(std::make_shared<ngraph::runtime::HostTensor>(tensor.get_element_type(),
-                                                                              tensor.get_shape(),
-                                                                              tensor.data()));
-        }
+        result.push_back(make_tmp_host_tensor(tensor));
     }
     return result;
 }
@@ -801,7 +794,7 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
 
     TensorVector output_tensors;
     for (const auto& output : outputs()) {
-        output_tensors.push_back(create_tensor_from_output(output));
+        output_tensors.push_back(ov::util::make_tmp_tensor(output));
     }
 
     OPENVINO_SUPPRESS_DEPRECATED_START

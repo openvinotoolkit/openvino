@@ -7,6 +7,8 @@
 #include "ngraph/validation_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "shape_util.hpp"
+#include "tensor_conversion_util.hpp"
 
 namespace {
 using namespace ov;
@@ -79,18 +81,7 @@ ov::Tensor evaluate_bound(const Output<Node>& output, bool is_upper, bool invali
         for (const auto& node : order) {
             ov::TensorVector outputs;
             for (const auto& out : node->outputs()) {
-                const auto& out_shape = out.get_partial_shape();
-                const auto& out_et = out.get_element_type();
-
-                if (out_et.is_dynamic()) {
-                    outputs.emplace_back();
-                } else if (out_shape.is_static()) {
-                    outputs.emplace_back(out_et, out_shape.to_shape());
-                } else if (out_shape.rank().is_static()) {
-                    outputs.emplace_back(out_et, Shape(out_shape.rank().get_length()));
-                } else {
-                    outputs.emplace_back(out_et, Shape{0});
-                }
+                outputs.push_back(util::make_tmp_tensor(out));
             }
 
             if (is_upper ? node->evaluate_upper(outputs) : node->evaluate_lower(outputs)) {
@@ -175,7 +166,7 @@ ov::Tensor equality_mask(const ov::Tensor& tensor, const std::shared_ptr<op::v0:
 }
 
 ov::Tensor or_tensor(const ov::Tensor& lhs, const ov::Tensor& rhs) {
-    auto outs = ov::TensorVector{{lhs.get_element_type(), Shape{0}}};
+    auto outs = ov::TensorVector{{lhs.get_element_type(), util::make_dynamic_shape()}};
     op::v1::LogicalOr(std::make_shared<op::v0::Parameter>(lhs.get_element_type(), lhs.get_shape()),
                       std::make_shared<op::v0::Parameter>(rhs.get_element_type(), rhs.get_shape()),
                       ngraph::op::AutoBroadcastType::NUMPY)

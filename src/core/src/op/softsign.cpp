@@ -9,6 +9,7 @@
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/op/softsign.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "shape_util.hpp"
 
 namespace {
 template <ov::element::Type_t ET>
@@ -90,6 +91,11 @@ bool ov::op::v9::SoftSign::evaluate(ov::TensorVector& outputs,
 
     const auto& in = inputs[0];
     auto& out = outputs[0];
-    out.set_shape(in.get_shape());
+
+    if (ov::util::is_dynamic_shape(out.get_shape())) {
+        out = Tensor(in.get_element_type(), in.get_shape());
+    } else {
+        out.set_shape(in.get_shape());
+    }
     return evaluate_softsign(in, out);
 }

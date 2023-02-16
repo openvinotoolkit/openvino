@@ -27,6 +27,7 @@
 #include "ngraph/util.hpp"
 #include "openvino/op/ops.hpp"
 #include "sequnce_generator.hpp"
+#include "shape_util.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
@@ -1228,7 +1229,7 @@ bool ov::default_label_evaluator(const Node* node, TensorLabelVector& output_lab
             for (size_t i = 0; i < outputs_count; ++i) {
                 const auto& partial_shape = node->get_output_partial_shape(i);
                 // Set shape for static or Shape{0} for dynamic to postpone memory allocation
-                auto shape = partial_shape.is_static() ? partial_shape.to_shape() : Shape{0};
+                auto shape = partial_shape.is_static() ? partial_shape.to_shape() : util::make_dynamic_shape();
                 outputs.emplace_back(element::from<label_t>(), shape);
             }
 
