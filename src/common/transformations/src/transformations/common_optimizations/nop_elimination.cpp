@@ -290,7 +290,8 @@ static bool eliminate_unsqueeze(const shared_ptr<Node>& node) {
 
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateReshape, opset3::Reshape, eliminate_reshape_v1);
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateUnsqueeze, opset3::Unsqueeze, eliminate_unsqueeze);
-SIMPLE_MATCHER_PASS_DEFINITION(EliminateBroadcast, op::v1::Broadcast, eliminate_nop);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateBroadcast_v1, op::v1::Broadcast, eliminate_nop);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateBroadcast_v3, op::v3::Broadcast, eliminate_nop);
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateGather, opset3::Gather, simplify_gather);
 
 pass::EliminatePad::EliminatePad() {
@@ -761,7 +762,8 @@ ov::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
         ADD_MATCHER_FOR_THIS(EliminateReshape)
         ADD_MATCHER_FOR_THIS(EliminateSqueeze)
         ADD_MATCHER_FOR_THIS(EliminateUnsqueeze)
-        ADD_MATCHER_FOR_THIS(EliminateBroadcast)
+        ADD_MATCHER_FOR_THIS(EliminateBroadcast_v1)
+        ADD_MATCHER_FOR_THIS(EliminateBroadcast_v3)
         ADD_MATCHER_FOR_THIS(EliminateGather)
     }
 }
