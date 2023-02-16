@@ -27,6 +27,7 @@
 #    define get_absolute_path(result, path) _fullpath(result, path.c_str(), MAX_ABS_PATH)
 /// @brief Windows-specific 'stat' wrapper
 #    define stat _stat
+#    define wstat _wstat
 /// @brief Windows-specific 'mkdir' wrapper
 #    define makedir(dir) _mkdir(dir)
 // Copied from linux libc sys/stat.h:
@@ -398,6 +399,15 @@ bool ov::util::directory_exists(const std::string& path) {
     struct stat sb;
 
     if (stat(path.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode)) {
+        return true;
+    }
+    return false;
+}
+
+bool ov::util::directory_exists(const std::wstring& path) {
+    struct stat sb;
+
+    if (wstat(path.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode)) {
         return true;
     }
     return false;
