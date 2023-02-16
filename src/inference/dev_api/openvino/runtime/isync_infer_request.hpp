@@ -122,11 +122,6 @@ protected:
     };
 
     /**
-     * @brief Finds input or output port
-     * @return structure which contains index of Input/Output or report that port wasn't found
-     */
-    FoundPort find_port(const ov::Output<const ov::Node>& port) const;
-    /**
      * @brief Converts batched tensors to tensor
      */
     void convert_batched_tensors();
@@ -153,6 +148,12 @@ private:
     // Mutable to return reference to ov::Tensor
     mutable std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, ov::Tensor> m_tensors;
     ov::Tensor& get_ref_tensor(const ov::Output<const ov::Node>& port) const;
+
+    /**
+     * @brief Finds input or output port
+     * @return structure which contains index of Input/Output or report that port wasn't found
+     */
+    FoundPort find_port(const ov::Output<const ov::Node>& port) const;
 };
 
 };  // namespace ov

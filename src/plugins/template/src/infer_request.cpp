@@ -176,7 +176,14 @@ void TemplatePlugin::InferRequest::infer_postprocess() {
 // ! [infer_request:set_blobs_impl]
 void TemplatePlugin::InferRequest::set_tensors_impl(const ov::Output<const ov::Node> port,
                                                     const std::vector<ov::Tensor>& tensors) {
-    m_batched_tensors[find_port(port).idx] = tensors;
+    const auto& inputs = get_inputs();
+    for (size_t i = 0; i < inputs.size(); i++) {
+        if (inputs[i] == port) {
+            m_batched_tensors[i] = tensors;
+            return;
+        }
+    }
+    OPENVINO_UNREACHABLE("Cannot find input tensors for port ", port);
 }
 // ! [infer_request:set_blobs_impl]
 

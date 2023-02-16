@@ -110,10 +110,19 @@ const std::shared_ptr<const ov::ICompiledModel>& ov::ISyncInferRequest::get_comp
 }
 
 ov::ISyncInferRequest::FoundPort ov::ISyncInferRequest::find_port(const ov::Output<const ov::Node>& port) const {
+    auto check_nodes = [](const ov::Node* node1, const ov::Node* node2) {
+        return node1 == node2 ||
+               (node1->get_friendly_name() == node2->get_friendly_name() &&
+                node1->get_type_info() == node2->get_type_info() &&
+                node1->outputs().size() == node2->outputs().size() && node1->inputs().size() == node2->inputs().size());
+    };
     ov::ISyncInferRequest::FoundPort::Type type = ov::ISyncInferRequest::FoundPort::Type::INPUT;
     for (const auto& ports : {get_inputs(), get_outputs()}) {
         for (size_t i = 0; i < ports.size(); i++) {
-            if (ports[i] == port) {
+            // TODO: Fix port comparison
+            // if (ports[i] == port) {
+            if (ports[i].get_index() == port.get_index() && ports[i].get_names() == port.get_names() &&
+                check_nodes(ports[i].get_node(), port.get_node())) {
                 return {i, type};
             }
         }
