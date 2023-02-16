@@ -167,14 +167,10 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
                 if (i == 0 && !_autoSchedule->_loadContext[CPU].executableNetwork._ptr) {
                     continue;
                 } else {
-                    std::string exeDevices_string = _autoSchedule->_loadContext[i].workName.substr(_autoSchedule->_loadContext[i].workName.find(":") + 1);
+                    std::string exeDevices_string = _autoSchedule->_loadContext[i].workName;
                     if (exeDevices_string == "CPU_HELP")
                         exeDevices_string = "(CPU)";
-                    std::stringstream ss(exeDevices_string);
-                    std::string item;
-                    while (getline(ss, item, ',')) {
-                        exeDevices.push_back(item);
-                    }
+                    exeDevices.push_back(exeDevices_string);
                     break;
                 }
             }
