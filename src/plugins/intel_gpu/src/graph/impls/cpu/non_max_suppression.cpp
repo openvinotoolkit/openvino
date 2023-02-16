@@ -330,7 +330,7 @@ void store_third_output(stream& stream, memory::ptr mem, const std::vector<resul
 }
 
 void run(non_max_suppression_inst& instance) {
-    auto prim = instance.node->get_primitive();
+    auto prim = instance.get_typed_desc<non_max_suppression>();
     auto& stream = instance.get_network().get_stream();
 
     auto boxes = load_boxes(stream, instance.input_boxes_mem(), prim->center_point_box);
@@ -436,3 +436,4 @@ attach_non_max_suppression_impl::attach_non_max_suppression_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::non_max_suppression_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::non_max_suppression)

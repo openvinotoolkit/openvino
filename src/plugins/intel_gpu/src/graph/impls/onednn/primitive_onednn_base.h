@@ -296,6 +296,8 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     }
 
 private:
+    using primitive_impl::get_arguments;
+
     std::string get_cache_directory(const ExecutionConfig& config) const {
         auto path = config.get_property(ov::cache_dir);
         if (path.empty()) {
@@ -378,6 +380,7 @@ protected:
                 case onednn_post_op_type::eltwise_clip:
                 case onednn_post_op_type::eltwise_linear:
                 case onednn_post_op_type::eltwise_round:
+                case onednn_post_op_type::eltwise_hardsigmoid:
                 {
                     // onednn elwise doesn't need any data from memory buffers
                     break;

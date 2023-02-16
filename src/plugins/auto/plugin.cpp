@@ -538,7 +538,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                              deviceName.c_str(),
                              sThreadNums.c_str());
             }
-        } catch (...) {
+        } catch (const IE::Exception&) {
             LOG_DEBUG_TAG("deviceName:%s cannot get streamNums and threadNums from exec_net", deviceName.c_str());
         }
         std::unique_lock<std::mutex> lock{load_mutex};
@@ -597,7 +597,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                 num_plugins_supporting_perf_counters +=
                         n.second->GetConfig(PluginConfigParams::KEY_PERF_COUNT).as<std::string>() ==
                         PluginConfigParams::YES;
-            } catch (...) {
+            } catch (const IE::Exception&) {
             }
     }
     // MULTI can enable the perf counters only if all  devices support/enable that

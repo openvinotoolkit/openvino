@@ -84,7 +84,7 @@ void StatisticsReport::dump_performance_counters_request(CsvDumper& dumper, cons
 
     for (const auto& layer : perfCounts) {
         dumper << layer.node_name;  // layer name
-        dumper << ((int)layer.status < (sizeof(status_names) / sizeof(status_names[0]))
+        dumper << ((size_t)layer.status < (sizeof(status_names) / sizeof(status_names[0]))
                        ? status_names[(int)layer.status]
                        : "INVALID_STATUS");
         dumper << layer.node_type << layer.exec_type;
@@ -107,7 +107,6 @@ void StatisticsReport::dump_sort_performance_counters_request(CsvDumper& dumper,
                                                               const PerformanceCounters& perfCounts) {
     std::chrono::microseconds total = std::chrono::microseconds::zero();
     std::chrono::microseconds total_cpu = std::chrono::microseconds::zero();
-    int layersize = 0;
 
     dumper << "layerName"
            << "execStatus"
@@ -131,14 +130,13 @@ void StatisticsReport::dump_sort_performance_counters_request(CsvDumper& dumper,
     for (const auto& layer : profiling) {
         if (std::string(status_names[(int)layer.status]).compare("EXECUTED") == 0) {
             dumper << layer.node_name;  // layer name
-            dumper << ((int)layer.status < (sizeof(status_names) / sizeof(status_names[0]))
+            dumper << ((size_t)layer.status < (sizeof(status_names) / sizeof(status_names[0]))
                            ? status_names[(int)layer.status]
                            : "INVALID_STATUS");
             dumper << layer.node_type << layer.exec_type;
             dumper << layer.real_time.count() / 1000.0 << layer.cpu_time.count() / 1000.0;
             dumper << (layer.real_time * 1.0 / total) * 100;
             dumper.endLine();
-            layersize += 1;
         }
     }
 
@@ -159,7 +157,7 @@ StatisticsReport::PerformanceCounters StatisticsReport::get_average_performance_
         // iterate over each layer from sorted vector and add required PM data
         // to the per-layer maps
         for (const auto& pm : perfCounts[i]) {
-            int idx = 0;
+            size_t idx = 0;
             for (; idx < performanceCountersAvg.size(); idx++) {
                 if (performanceCountersAvg[idx].node_name == pm.node_name) {
                     performanceCountersAvg[idx].real_time += pm.real_time;
@@ -284,8 +282,8 @@ const nlohmann::json StatisticsReportJSON::perf_counters_to_json(
 
         item["name"] = layer.node_name;  // layer name
         item["status"] =
-            ((int)layer.status < (sizeof(status_names) / sizeof(status_names[0])) ? status_names[(int)layer.status]
-                                                                                  : "INVALID_STATUS");
+            ((size_t)layer.status < (sizeof(status_names) / sizeof(status_names[0])) ? status_names[(int)layer.status]
+                                                                                     : "INVALID_STATUS");
         item["node_type"] = layer.node_type;
         item["exec_type"] = layer.exec_type;
         item["real_time"] = layer.real_time.count() / 1000.0;
@@ -320,8 +318,8 @@ const nlohmann::json StatisticsReportJSON::sort_perf_counters_to_json(
         nlohmann::json item;
         item["name"] = layer.node_name;  // layer name
         item["status"] =
-            ((int)layer.status < (sizeof(status_names) / sizeof(status_names[0])) ? status_names[(int)layer.status]
-                                                                                  : "INVALID_STATUS");
+            ((size_t)layer.status < (sizeof(status_names) / sizeof(status_names[0])) ? status_names[(int)layer.status]
+                                                                                     : "INVALID_STATUS");
         item["node_type"] = layer.node_type;
         item["exec_type"] = layer.exec_type;
         item["real_time"] = layer.real_time.count() / 1000.0;

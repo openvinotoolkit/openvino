@@ -162,6 +162,11 @@ void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
             << ", original shape: " << size.to_string() << ")" << std::endl;
     }
 
+    if (size.count() == 0) {
+        file_stream << "Empty buffer" << std::endl;
+        return;
+    }
+
     mem_lock<T, mem_lock_type::read> lock(mem, stream);
     auto mem_ptr = lock.data();
     auto x_pitch = get_x_pitch(mem->get_layout());
@@ -226,8 +231,12 @@ void log_memory_to_file(memory::ptr mem, stream& stream, std::string layerName) 
     std::replace(filename.begin(), filename.end(), ' ', '_');
     std::replace(filename.begin(), filename.end(), ':', '_');
     filename = debug_config->dump_layers_path + filename + ".txt";
-
     std::ofstream file_stream(filename);
+    if (!mem) {
+        file_stream << "Empty" << std::endl;
+        return;
+    }
+
     auto mem_dt = mem->get_layout().data_type;
     if (mem_dt == cldnn::data_types::f32)
         dump<float>(mem, stream, file_stream);
@@ -313,7 +322,7 @@ network::network(program::ptr program, const ExecutionConfig& config, stream::pt
                                                                           kernel_selector::KernelBase::get_db().get_batch_header_str()));
         _impls_cache = std::unique_ptr<ImplementationsCache>(new ImplementationsCache(_impls_cache_capacity));
         _in_mem_kernels_cache = std::unique_ptr<KernelsCache>(new KernelsCache(_in_mem_kernels_cache_capacity));
-        _compilation_context = std::move(ICompilationContext::create(program->get_engine(), program->get_config(), program->get_id()));
+        _compilation_context = ICompilationContext::create(program->get_engine(), program->get_config(), program->get_id());
     }
 }
 
@@ -400,7 +409,7 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
 
     for (auto p_inst : _exec_order) {
         p_inst->rebuild_deps(_primitives);
-        p_inst->rebuild_exec_deps(_exec_order);
+        p_inst->rebuild_exec_deps(_primitives);
 
         if (p_inst->type() == cldnn::concatenation::type_id() && p_inst->can_be_optimized()) {
             // implicit concat
@@ -570,17 +579,22 @@ void network::set_arguments() {
 }
 
 void network::reset_execution(bool wait) {
-    if (wait && _events.size() > 0) {
-        std::vector<event::ptr> events;
-        for (auto& pair : _events) {
-            auto& ev = pair.second;
-            if (ev->is_set())
-                continue;
+    if (wait) {
+        auto queue_type = get_config().get_property(ov::intel_gpu::queue_type);
+        if (queue_type == QueueTypes::in_order) {
+            get_stream().finish();
+        } else if (queue_type == QueueTypes::out_of_order && _events.size() > 0) {
+            std::vector<event::ptr> events;
+            for (auto& pair : _events) {
+                auto& ev = pair.second;
+                if (ev->is_set())
+                    continue;
 
-            events.push_back(ev);
+                events.push_back(ev);
+            }
+
+            get_stream().wait_for_events(events);
         }
-
-        get_stream().wait_for_events(events);
     }
     _events.clear();
 }
