@@ -13,6 +13,9 @@
 #include "gna2-model-api.h"
 #include "gna_device_allocation.hpp"
 #include "serial/headers/latest/gna_model_header.hpp"
+#include "pre_post_process/transposition_info.hpp"
+
+using namespace ov::intel_gna::pre_post_process;
 
 /**
  * @brief helper class for GNAGraph serialization tasks

@@ -27,16 +27,17 @@
 #include "gna_plugin_config.hpp"
 #include "log/debug.hpp"
 #include "log/log.hpp"
-#include "preprocessing.hpp"
+#include "pre_post_process/transposition_info.hpp"
 
 namespace ov {
 namespace intel_gna {
 namespace request {
-
 class ModelWrapper;
 class WorkerPool;
 class Worker;
 }  // namespace request
+
+using namespace ov::intel_gna::pre_post_process;
 
 class GNAPlugin : public InferenceEngine::IInferencePlugin {
 protected:
@@ -54,8 +55,7 @@ protected:
     uint32_t activeLayerIndex = 0xffffffff;
     TranspositionInfoMap transpose_inputs_info;
     TranspositionInfoMap transpose_outputs_info;
-
-    SubgraphCPUMap subgraph_cpu_map;
+    PrePostProcessModels subgraph_cpu_map;
 
     uint32_t dnn_dump_write_index = 0;
     intel_dnn_number_type_t output_type = kDnnInt;
@@ -192,6 +192,9 @@ protected:
 
     void DumpXNNToFile() const;
 
+    /**
+     * Run ngraph model on CPU to modify inputs/outputs
+     */
     void pre_post_process(InferenceEngine::Blob::Ptr input_blob,
                           InferenceEngine::Blob::Ptr output_blob,
                           std::shared_ptr<ov::Model> model);
@@ -226,17 +229,6 @@ protected:
                        uint32_t num_vector_stride,
                        intel_dnn_orientation_t orientation,
                        float scaleFactor);
-
-    // TODO: Need to remove this conversation when ngraph NCHW<->NHWC transformation is enabled
-    template <class T1, class T2>
-    inline void ConvertTransposeMapToModel(T1& transposes, T2& nodes) {
-        for (auto&& node : nodes) {
-            auto t_it = transposes.find(node.name);
-            if (t_it != transposes.end() && !t_it->second.empty()) {
-                node.pre_post_process_model = ToProcessModel(t_it->second);
-            }
-        }
-    };
 
     void UpdateFieldsFromConfig();
     void UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network);

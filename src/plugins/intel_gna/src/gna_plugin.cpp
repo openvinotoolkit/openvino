@@ -46,7 +46,8 @@
 #include "log/log.hpp"
 #include "memory/gna_memory_state.hpp"
 #include "orientation_helper.hpp"
-#include "preprocessing.hpp"
+#include "pre_post_process/preprocessing.hpp"
+#include "pre_post_process/transposition_info.hpp"
 #include "request/model_wrapper_factory.hpp"
 #include "request/worker_factory.hpp"
 #include "request/worker_pool_impl.hpp"
@@ -1535,7 +1536,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
         }
     }
 
-    // TODO: Need to remove this conversation when ngraph NCHW<->NHWC transformation is enabled
+    //  Support models versions <= 2.8
     if (!transpose_inputs_info.empty()) {
         ConvertTransposeMapToModel(transpose_inputs_info, inputs_ptr_->Get());
     }
