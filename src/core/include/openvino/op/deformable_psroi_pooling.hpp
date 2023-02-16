@@ -73,8 +73,14 @@ public:
     int64_t get_output_dim() const {
         return m_output_dim;
     }
+    void set_output_dim(int64_t output_dim) {
+        m_output_dim = output_dim;
+    }
     int64_t get_group_size() const {
         return m_group_size;
+    }
+    void set_group_size(int64_t group_size) {
+        m_group_size = group_size;
     }
     float get_spatial_scale() const {
         return m_spatial_scale;
