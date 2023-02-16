@@ -19,19 +19,9 @@
 #include "mock_common.hpp"
 #include <thread>
 
-using ::testing::MatcherCast;
-using ::testing::AllOf;
-using ::testing::Throw;
-using ::testing::Matches;
 using ::testing::_;
 using ::testing::StrEq;
 using ::testing::Return;
-using ::testing::Property;
-using ::testing::Eq;
-using ::testing::ReturnRef;
-using ::testing::AtLeast;
-using ::testing::AnyNumber;
-using ::testing::InvokeWithoutArgs;
 using ::testing::NiceMock;
 using Config = std::map<std::string, std::string>;
 using namespace MockMultiDevice;
