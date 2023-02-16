@@ -292,13 +292,16 @@ std::vector<ov::Tensor> ReadIRTest::calculate_refs() {
         if (!ref_data_ifstream.is_open())
             IE_THROW() << "Weights file " << path_to_cache << " cannot be opened!";
 
-
-        std::vector<unsigned char> ref_buffer(std::istreambuf_iterator<char>(ref_data_ifstream), {});
-        auto ref_data = ref_buffer.data();
+        size_t buf_size = 0;
+        for (const auto& output : functionRefs->outputs()) {
+            buf_size += (sizeof output.get_element_type() * ov::shape_size(output.get_partial_shape().get_shape()));
+        }
+        char* ref_buffer;
+        ref_data_ifstream.read(ref_buffer, buf_size);
 
         size_t pos = 0;
         for (const auto& output : functionRefs->outputs()) {
-            auto out_tensor = ov::runtime::Tensor(output.get_element_type(), output.get_shape(), &ref_data[pos]);
+            auto out_tensor = ov::runtime::Tensor(output.get_element_type(), output.get_shape(), &ref_buffer[pos]);
             pos += out_tensor.get_byte_size();
         }
     }
@@ -313,4 +316,5 @@ std::vector<ov::Tensor> ReadIRTest::calculate_refs() {
 } // namespace subgraph
 } // namespace test
 } // namespace ov
+
 
