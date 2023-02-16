@@ -24,7 +24,7 @@ OutputVector translate_embedding(NodeContext& context) {
     // padding_idx - if specified, the entries at padding_idx do not contribute to the gradient
     // scale_grad_by_freq - if given, this will scale gradients by the inverse of frequency of
     //                      the words in the mini-batch.
-    // sparce - if True, gradient will be represented as sparce tensor
+    // sparse - if True, gradient will be represented as sparse tensor
     auto axis_0 = context.mark_node(ov::op::v0::Constant::create(element::i64, Shape{}, {0}));
     return {context.mark_node(std::make_shared<ov::op::v8::Gather>(data, indices, axis_0))};
 };
