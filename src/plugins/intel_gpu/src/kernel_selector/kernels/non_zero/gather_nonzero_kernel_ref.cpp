@@ -50,18 +50,7 @@ JitConstants GatherNonzeroKernelRef::GetJitConstants(const gather_nonzero_params
         auto f = toCodeString(input.Feature(), 1);
         auto b = toCodeString(input.Batch(), 0);
 
-        auto multiply = [](std::vector<std::string> dims) -> std::string {
-            std::string res = "(";
-            for (size_t i = 0; i < dims.size(); i++) {
-                auto& d = dims[i];
-                res += d;
-                if (i != dims.size() - 1)
-                    res += "*";
-            }
-            res += ")";
-            return res;
-        };
-        const std::string total_data_size = multiply({x, y, z, w, f, b});
+        const std::string total_data_size = toVectorMulString({x, y, z, w, f, b});
         jit.AddConstant(MakeJitConstant("TOTAL_DATA_SIZE", total_data_size));
         jit.AddConstant(MakeJitConstant("MAX_LOCAL_MEM_SIZE", max_local_mem_size));
     } else {

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <legacy/ngraph_ops/convolution_ie.hpp>
 #include <ngraph/opsets/opset7.hpp>
 
 namespace ov {
@@ -41,6 +42,14 @@ struct ConvData {
  * @return void
  */
 void GetConvData(std::shared_ptr<ngraph::opset7::Convolution> conv, ConvData& conv_data);
+
+/**
+ * @brief gets all legacy convolution related data into a struct for further processing
+ * @param conv legacy convolution node to get data of
+ * @param conv_data convolution data structure to put data into
+ * @return void
+ */
+void GetConvData(std::shared_ptr<ngraph::op::ConvolutionIE> conv, ConvData& conv_data);
 
 /**
  * @brief ngraph matcher predicate fusing existing predicates for consumers count and rank of a layer
