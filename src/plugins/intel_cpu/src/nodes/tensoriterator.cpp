@@ -312,7 +312,6 @@ void DynamicBuffer::move_buffer(dnnl::memory& new_buffer) {
     const auto dst_stride = new_buffer.get_desc().dims()[1] * len;
 
     const auto valid_size = chunk_unit_in_byte * num_execs;
-    
     const auto src_offset_in_byte = stride > 0 ? 0 : (src_stride - valid_size);
     chunk_offset_in_byte = stride > 0 ? 0 : (dst_stride - valid_size);  // reset chunk_offset_in_byte
 

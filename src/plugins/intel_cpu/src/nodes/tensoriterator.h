@@ -70,6 +70,7 @@ public:
     void transfer(const Node* node);
 
     void reset(int max_iter_count_);   // reset local
+
 private:
     void init(const dnnl::engine& eng);
 
