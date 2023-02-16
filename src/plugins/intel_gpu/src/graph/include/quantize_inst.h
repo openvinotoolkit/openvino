@@ -169,6 +169,8 @@ public:
     static std::string to_string(quantize_node const& node);
 
     typed_primitive_inst(network& network, quantize_node const& desc);
+
+    bool scale_shift_opt;   // This is for serialization. Please do not remove it.
 };
 
 using quantize_inst = typed_primitive_inst<quantize>;

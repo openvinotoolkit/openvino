@@ -68,8 +68,7 @@ std::vector<float>,
 bool,
 bool,
 float,
-float,
-bool
+float
 >
 GemmParams;
 
@@ -84,12 +83,11 @@ protected:
     bool transpose_input1;
     float alpha;
     float beta;
-    bool is_caching_test;
 
     virtual void fill_gemm_params() {
         GemmParams params = testing::TestWithParam<GemmParams>::GetParam();
         std::tie(shapes, input_data, fmt, type, out_data, transpose_input0,
-                 transpose_input1, alpha, beta, is_caching_test) = params;
+                 transpose_input1, alpha, beta) = params;
     }
 
     virtual void process_program(program::ptr) {
@@ -97,7 +95,7 @@ protected:
 
 public:
     virtual ~GemmGPUTest() {}
-    void test() {
+    void test(bool is_caching_test = false) {
 
         fill_gemm_params();
 
@@ -126,12 +124,31 @@ public:
         tp.add(g);
         tp.add(reorder("output", input_info("gemm_output"), format::bfyx, data_types::f32));
 
-        network network(engine, tp);
-        for (auto &input : network_inputs) {
-            network.set_input_data(input.first, input.second);
+        cldnn::network::ptr network;
+        if (is_caching_test) {
+            std::cout << "cached" << std::endl;
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, tp);
+                process_program(_network.get_program());
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, tp);
+            process_program(network->get_program());
         }
-        auto outputs = network.execute();
-        process_program(network.get_program());
+
+        for (auto &input : network_inputs) {
+            network->set_input_data(input.first, input.second);
+        }
+        auto outputs = network->execute();
         auto output = outputs.at("output").get_memory();
         cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
@@ -222,7 +239,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(planar_formats), ::testing::ValuesIn(float_types),
         ::testing::Values(std::vector<float>{}),
         ::testing::Values(true), ::testing::Values(false),
-        ::testing::Values(1.0f), ::testing::Values(0.0f), ::testing::Values(false)));
+        ::testing::Values(1.0f), ::testing::Values(0.0f)));
 
 INSTANTIATE_TEST_SUITE_P(
     GemmGPUTest_basic_t2, GemmGPUTestRandom,
@@ -233,7 +250,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(planar_formats), ::testing::ValuesIn(float_types),
         ::testing::Values(std::vector<float>{}),
         ::testing::Values(false), ::testing::Values(true),
-        ::testing::Values(1.0f), ::testing::Values(0.0f), ::testing::Values(false)));
+        ::testing::Values(1.0f), ::testing::Values(0.0f)));
 
 template <typename T>
 void test_basic_bfyx_t2_inplace_crop_with_pad(bool is_caching_test) {
@@ -277,25 +294,7 @@ void test_basic_bfyx_t2_inplace_crop_with_pad(bool is_caching_test) {
 
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
-    cldnn::network::ptr network;
-
-    if (is_caching_test) {
-        membuf mem_buf;
-        {
-            cldnn::network _network(engine, topology, config);
-            std::ostream out_mem(&mem_buf);
-            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-            _network.save(ob);
-        }
-        {
-            std::istream in_mem(&mem_buf);
-            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-            network = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
-        }
-    } else {
-        network = std::make_shared<cldnn::network>(engine, topology, config);
-    }
-
+    cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
     network->set_input_data("input", input);
     network->set_input_data("input2", input2);
     auto outputs = network->execute();
@@ -311,10 +310,6 @@ void test_basic_bfyx_t2_inplace_crop_with_pad(bool is_caching_test) {
 
 TEST(gemm_gpu, basic_bfyx_t2_inplace_crop_with_pad) {
     test_basic_bfyx_t2_inplace_crop_with_pad<float>(false);
-}
-
-TEST(gemm_gpu, basic_bfyx_t2_inplace_crop_with_pad_cached) {
-    test_basic_bfyx_t2_inplace_crop_with_pad<float>(true);
 }
 
 TEST(gemm_gpu, dynamic) {
@@ -564,8 +559,7 @@ INSTANTIATE_TEST_SUITE_P(
             ::testing::Values(true),
             ::testing::Values(true),
             ::testing::Values(1.0f),
-            ::testing::Values(0.0f),
-            ::testing::Values(false)
+            ::testing::Values(0.0f)
             )
         );
 
@@ -593,7 +587,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(planar_formats), ::testing::ValuesIn(all_types),
         ::testing::Values(std::vector<float>{26.0f, 26.0f, 28.0f, 10.0f}),
         ::testing::Values(false), ::testing::Values(false),
-        ::testing::Values(2.0f), ::testing::Values(10.0f), ::testing::Values(false)));
+        ::testing::Values(2.0f), ::testing::Values(10.0f)));
 
 INSTANTIATE_TEST_SUITE_P(
         GemmGPUTest_input3_t1t2,
@@ -629,8 +623,7 @@ INSTANTIATE_TEST_SUITE_P(
                     ::testing::Values(true),
                     ::testing::Values(true),
                     ::testing::Values(2.0f),
-                    ::testing::Values(3.0f),
-                    ::testing::Values(false)
+                    ::testing::Values(3.0f)
             )
 );
 
@@ -671,8 +664,7 @@ INSTANTIATE_TEST_SUITE_P(
                     ::testing::Values(false),
                     ::testing::Values(false),
                     ::testing::Values(2.0f),
-                    ::testing::Values(3.0f),
-                    ::testing::Values(false)
+                    ::testing::Values(3.0f)
             )
 );
 
@@ -712,8 +704,7 @@ INSTANTIATE_TEST_SUITE_P(
                     ::testing::Values(false),
                     ::testing::Values(true),
                     ::testing::Values(2.0f),
-                    ::testing::Values(3.0f),
-                    ::testing::Values(false)
+                    ::testing::Values(3.0f)
             )
 );
 
@@ -752,8 +743,7 @@ INSTANTIATE_TEST_SUITE_P(
                     ::testing::Values(true),
                     ::testing::Values(false),
                     ::testing::Values(2.0f),
-                    ::testing::Values(3.0f),
-                    ::testing::Values(false)
+                    ::testing::Values(3.0f)
             )
 );
 
@@ -769,8 +759,7 @@ INSTANTIATE_TEST_SUITE_P(
                     ::testing::Values(false),
                     ::testing::Values(false),
                     ::testing::Values(1.0f),
-                    ::testing::Values(0.0f),
-                    ::testing::Values(false)
+                    ::testing::Values(0.0f)
             )
 );
 
@@ -780,15 +769,14 @@ INSTANTIATE_TEST_SUITE_P(
         GemmGPUTestRandom,
                 ::testing::Combine(
                     ::testing::Values(std::vector<std::vector<int32_t>>{{ 5, 1, 500, 9 }, { 5, 1, 1, 500 }}),
-            ::testing::Values(std::vector<std::vector<float>>{{}, {}}),
+                    ::testing::Values(std::vector<std::vector<float>>{{}, {}}),
                     ::testing::ValuesIn(planar_formats),
                     ::testing::ValuesIn(float_types),
                     ::testing::Values(std::vector<float>{}),
                     ::testing::Values(false),
                     ::testing::Values(false),
                     ::testing::Values(1.0f),
-                    ::testing::Values(0.0f),
-                    ::testing::Values(false)
+                    ::testing::Values(0.0f)
             )
 );
 
@@ -804,8 +792,7 @@ INSTANTIATE_TEST_SUITE_P(
                     ::testing::Values(false),
                     ::testing::Values(false),
                     ::testing::Values(1.0f),
-                    ::testing::Values(0.0f),
-                    ::testing::Values(false)
+                    ::testing::Values(0.0f)
             )
 );
 
@@ -821,8 +808,7 @@ INSTANTIATE_TEST_SUITE_P(
                     ::testing::Values(false),
                     ::testing::Values(false),
                     ::testing::Values(1.0f),
-                    ::testing::Values(0.0f),
-                    ::testing::Values(false)
+                    ::testing::Values(0.0f)
             )
 );
 
@@ -838,8 +824,7 @@ INSTANTIATE_TEST_SUITE_P(
                     ::testing::Values(false),
                     ::testing::Values(false),
                     ::testing::Values(1.0f),
-                    ::testing::Values(0.0f),
-                    ::testing::Values(false)
+                    ::testing::Values(0.0f)
             )
 );
 // TODO: enable in scope of CVS-85940
@@ -855,8 +840,7 @@ INSTANTIATE_TEST_SUITE_P(
                     ::testing::Values(false),
                     ::testing::Values(false),
                     ::testing::Values(1.0f),
-                    ::testing::Values(0.0f),
-                    ::testing::Values(false)
+                    ::testing::Values(0.0f)
             )
 );
 
@@ -872,8 +856,7 @@ INSTANTIATE_TEST_SUITE_P(
                     ::testing::Values(false),
                     ::testing::Values(false),
                     ::testing::Values(1.0f),
-                    ::testing::Values(0.0f),
-                    ::testing::Values(false)
+                    ::testing::Values(0.0f)
             )
 );
 
@@ -1223,7 +1206,7 @@ public:
         return (x % x_size) * x_pitch + (y % y_size) * y_pitch + (f % f_num) * f_pitch + (b % b_num) * b_pitch;
     }
 
-    void execute(gemm_params& p) {
+    void execute(gemm_params& p, bool is_caching_test = false) {
         auto& engine = get_test_engine();
         if (!engine.get_device_info().supports_immad)
             return;
@@ -1335,13 +1318,13 @@ public:
 #endif
         cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm_bfyx", gemm_impl} }));
 
-        network network(engine, topology, cfg);
-        network.set_input_data("input0", input0_mem);
-        network.set_input_data("input1", input1_mem);
+        cldnn::network::ptr network = get_network(engine, topology, cfg, get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input0", input0_mem);
+        network->set_input_data("input1", input1_mem);
         if (p.beta != 0) {
-            network.set_input_data("input2", input2_mem);
+            network->set_input_data("input2", input2_mem);
         }
-        auto outputs = network.execute();
+        auto outputs = network->execute();
         auto output = outputs.at("reorder_bfyx").get_memory();
         cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
@@ -1690,4 +1673,50 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_tiled_nn_broadcast_tests, ::testing
 
 #endif // ENABLE_ONEDNN_FOR_GPU
 
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+TEST_P(GemmGPUTest, basic_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}
+
+TEST_P(GemmGPUTestRandom, basic_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+TEST_P(gemm_int8_simple_tests_onednn, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_uint8_simple_tests_onednn, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_fp16_simple_tests_onednn, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_fp32_simple_tests_onednn, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_int8_transposition_tests_onednn, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_uint8_transposition_tests_onednn, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_fp16_transposition_tests_onednn, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_fp32_transposition_tests_onednn, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_int8_broadcasting_tests_onednn, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_fp16_broadcasting_tests_onednn, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_fp32_broadcasting_tests_onednn, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_int8_combo_tests_onednn, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_uint8_combo_tests_onednn, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_fp16_combo_tests_onednn, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_fp32_combo_tests_onednn, basic_cached) { auto p = GetParam(); execute(p, true); }
+#else
+TEST_P(gemm_int8_transposition_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_int8_broadcast_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_int8_leftovers_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_int8_combo_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_int8_slm_combo_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_fp32_tiled_nn_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_fp32_tiled_nt_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_fp32_tiled_tn_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_fp32_tiled_tt_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_fp32_tiled_nn_broadcast_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_fp16_tiled_nn_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_fp16_tiled_nt_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_fp16_tiled_tn_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_fp16_tiled_tt_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_fp16_tiled_nn_broadcast_tests, basic_cached) { auto p = GetParam(); execute(p); }
+#endif // ENABLE_ONEDNN_FOR_GPU
+#endif // RUN_ALL_MODEL_CACHING_TESTS
+TEST(gemm_gpu, basic_bfyx_t2_inplace_crop_with_pad_cached) {
+    test_basic_bfyx_t2_inplace_crop_with_pad<float>(true);
+}
 } // namespace
