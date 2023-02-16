@@ -61,10 +61,8 @@ def main():
 
         command_line_arguments = get_command_line_arguments(sys.argv)
         if args.report_type:
-            if args.json_stats:
-                statistics = JsonStatisticsReport(StatisticsReport.Config(args.report_type, args.report_folder))
-            else:
-                statistics = CsvStatisticsReport(StatisticsReport.Config(args.report_type, args.report_folder))
+            _statistics_class = JsonStatisticsReport if args.json_stats else CsvStatisticsReport
+            statistics = _statistics_class(StatisticsReport.Config(args.report_type, args.report_folder))
             statistics.add_parameters(StatisticsReport.Category.COMMAND_LINE_PARAMETERS, command_line_arguments)
 
         def is_flag_set_in_command_line(flag):
