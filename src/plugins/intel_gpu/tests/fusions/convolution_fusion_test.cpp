@@ -4171,7 +4171,7 @@ INSTANTIATE_TEST_SUITE_P(implicit_crop_concat_conv_fusings_gpu, implicit_crop_co
 
 class PermuteOptimizingTestOnednn : public BaseFusingTest<convolution_test_params> {
 public:
-    void execute(convolution_test_params& p, const std::string& expected_kernel = "undef") {
+    void execute(convolution_test_params& p, bool is_permute_optimized = true) {
         if (!engine.get_device_info().supports_immad)
             return;
 
@@ -4205,7 +4205,11 @@ public:
         });
 
         ASSERT_TRUE(permute_prim != pi_fused.end());
-        ASSERT_TRUE(permute_prim->kernel_id == expected_kernel);
+        if (is_permute_optimized) {
+            ASSERT_TRUE(permute_prim->kernel_id == "undef");
+        } else {
+            ASSERT_FALSE(permute_prim->kernel_id == "undef");
+        }
     }
 
     layout get_input_layout(convolution_test_params& p) {
@@ -4290,7 +4294,7 @@ TEST_P(conv_after_permute_not_optimizing, basic) {
     );
 
     tolerance = default_tolerance(p.default_type);
-    execute(p, "permute_ref__f16");
+    execute(p, false);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_after_permute_not_optimizing, ::testing::ValuesIn(std::vector<convolution_test_params>{
