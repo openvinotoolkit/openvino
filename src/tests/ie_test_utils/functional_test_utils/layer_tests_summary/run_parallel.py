@@ -359,7 +359,7 @@ class TestParallelRunner:
         total_seconds = (t_end - t_start).total_seconds()
         sec = round(total_seconds % 60, 2)
         min = int(total_seconds / 60) % 60
-        h = int(total_seconds / 360) % 60
+        h = int(total_seconds / 3600) % 60
         logger.info(f"Run test parallel is finished successfully. Total time is {h}h:{min}m:{sec}s")
 
 
