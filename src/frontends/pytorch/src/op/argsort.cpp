@@ -44,7 +44,7 @@ OutputVector translate_argsort(NodeContext& context) {
         auto flattened_input_tensor = context.mark_node(std::make_shared<v1::Reshape>(input_tensor, k, false));
         auto flattened_topk =
             context.mark_node(std::make_shared<v3::TopK>(flattened_input_tensor, k, -1, mode, TopKSortType::NONE));
-        output_indices = context.mark_node(std::make_shared<v1::Reshape>(flattened_topk->output(1), shape));
+        output_indices = context.mark_node(std::make_shared<v1::Reshape>(flattened_topk->output(1), shape, false));
     } else {
         auto zero_axis = context.mark_node(v0::Constant::create(element::i64, Shape({1}), {0}));
         auto dim_axis = context.mark_node(v0::Constant::create(element::i64, Shape({1}), {dim}));
