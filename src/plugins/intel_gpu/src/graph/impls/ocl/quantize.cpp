@@ -84,6 +84,7 @@ public:
             quantize_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
         }
 
+        quantize_params.is_shape_agnostic = impl_param.is_dynamic();
         auto& kernel_selector = kernel_selector::quantize_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(quantize_params, quantize_optional_params);
 
@@ -95,6 +96,7 @@ public:
         const auto& output_layout = impl_param.get_output_layout();
         quantize_params.packed_binary_output = output_layout.data_type == data_types::bin;
         (_kernel_data.update_dispatch_data_func)(quantize_params, _kernel_data);
+        update_kernels_list_to_skip();
     }
 };
 

@@ -4,6 +4,7 @@
 
 #include "bound_evaluate.hpp"
 
+#include "dimension_tracker.hpp"
 #include "ngraph/validation_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset10.hpp"
@@ -80,8 +81,17 @@ ov::Tensor evaluate_bound(const Output<Node>& output, bool is_upper, bool invali
             ov::TensorVector outputs;
             for (const auto& out : node->outputs()) {
                 const auto& out_shape = out.get_partial_shape();
-                auto shape = out_shape.is_static() ? out_shape.to_shape() : Shape(out_shape.rank().get_length());
-                outputs.emplace_back(out.get_element_type(), shape);
+                const auto& out_et = out.get_element_type();
+
+                if (out_et.is_dynamic()) {
+                    outputs.emplace_back();
+                } else if (out_shape.is_static()) {
+                    outputs.emplace_back(out_et, out_shape.to_shape());
+                } else if (out_shape.rank().is_static()) {
+                    outputs.emplace_back(out_et, Shape(out_shape.rank().get_length()));
+                } else {
+                    outputs.emplace_back(out_et, Shape{0});
+                }
             }
 
             if (is_upper ? node->evaluate_upper(outputs) : node->evaluate_lower(outputs)) {
@@ -407,4 +417,67 @@ bool ov::has_and_set_equal_bounds(const Output<Node>& source) {
 
     auto bounds = ov::evaluate_both_bounds(source);
     return are_same_tensor(bounds.first, bounds.second);
+}
+
+bool ov::have_node_inputs_bounds_set(const Node* const node, const size_t first_idx, const size_t last_idx) {
+    bool have_bound_set = last_idx <= node->get_input_size();
+    for (size_t i = first_idx; have_bound_set && (i <= last_idx); ++i) {
+        have_bound_set = node->get_input_tensor(i).has_and_set_bound();
+    }
+    return have_bound_set;
+}
+
+bool ov::default_label_evaluator(const Node* node,
+                                 std::initializer_list<size_t> labeled_inputs,
+                                 TensorLabelVector& output_labels) {
+    bool has_any_input_labels = false;
+    const auto& inputs_count = node->get_input_size();
+
+    TensorVector inputs;
+    inputs.reserve(inputs_count);
+
+    for (size_t i = 0; i < inputs_count; ++i) {
+        if (std::find(labeled_inputs.begin(), labeled_inputs.end(), i) != labeled_inputs.end()) {
+            auto labels = node->get_input_tensor(i).get_value_label();
+            if (!has_no_labels(labels) && !has_any_input_labels) {
+                has_any_input_labels = true;
+            }
+
+            if (node->get_input_partial_shape(i).is_static()) {
+                labels.resize(shape_size(node->get_input_shape(i)), no_label);
+                inputs.emplace_back(element::from<label_t>(), node->get_input_shape(i));
+                std::copy(labels.begin(), labels.end(), inputs.back().data<label_t>());
+            } else {
+                return false;
+            }
+        } else {
+            if (node->get_input_tensor(i).has_and_set_bound()) {
+                inputs.push_back(node->get_input_tensor(i).get_lower_value());
+            } else {
+                return false;
+            }
+        }
+    }
+
+    if (has_any_input_labels) {
+        const auto& outputs_count = node->get_output_size();
+        TensorVector outputs;
+        outputs.reserve(outputs_count);
+
+        for (size_t i = 0; i < outputs_count; ++i) {
+            const auto& partial_shape = node->get_output_partial_shape(i);
+            // Set shape for static or Shape{0} for dynamic to postpone memory allocation
+            auto shape = partial_shape.is_static() ? partial_shape.to_shape() : Shape{0};
+            outputs.emplace_back(element::from<label_t>(), shape);
+        }
+
+        if (node->evaluate(outputs, inputs)) {
+            std::transform(outputs.cbegin(), outputs.cend(), output_labels.begin(), [](const Tensor& t) {
+                // Return empty label tensor if input tensor not valid (can have Shape{0})
+                return t ? TensorLabel(t.data<label_t>(), t.data<label_t>() + t.get_size()) : TensorLabel();
+            });
+            return true;
+        }
+    }
+    return false;
 }
