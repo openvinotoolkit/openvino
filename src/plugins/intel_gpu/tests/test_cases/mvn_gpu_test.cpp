@@ -571,6 +571,41 @@ TEST(mvn_gpu_test, mvn_test_within_channels_inside_sqrt_bfyx_normalize_variance_
     mvn_compute_mean_within_channels<FLOAT16>(output, true);
 }
 
+TEST(mvn_gpu_test, dynamic_within_channels_inside_sqrt_bfyx_normalize_variance_fp16) {
+    // mvn within channels fp16 test with normalize_variance set to true
+    using namespace cldnn;
+    using namespace ::tests;
+
+    auto& engine = get_test_engine();
+
+    ov::Shape in_shape = {7, 10, 17, 13};
+    auto in_layout = layout{ov::PartialShape::dynamic(in_shape.size()), data_types::f16, format::bfyx};
+    auto input = engine.allocate_memory(layout{ov::PartialShape(in_shape), data_types::f16, format::bfyx});
+
+    tests::set_random_values<FLOAT16>(input, true, 8, 100);
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(mvn("mvn", input_info("input"), true, 1e-10f, true, false));
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto inst = network.get_primitive("mvn");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "mvn");
+
+    auto output = outputs.begin()->second.get_memory();
+    mvn_compute_mean_within_channels<FLOAT16>(output, true);
+}
+
 struct mvn_basic_test_params {
     format::type input_format;
     data_types input_type;
