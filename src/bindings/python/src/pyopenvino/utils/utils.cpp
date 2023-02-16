@@ -12,8 +12,8 @@
 #include <vector>
 
 #include "Python.h"
+#include "meta_data.hpp"
 #include "openvino/frontend/decoder.hpp"
-// #include "meta_data.hpp"
 
 using Version = ov::pass::Serialize::Version;
 
@@ -23,9 +23,7 @@ namespace utils {
 py::object from_ov_any_map(const ov::AnyMap& map) {
     std::map<std::string, py::object> result;
     for (const auto& entry : map) {
-        // std::cout << "Processing " << entry.first << std::endl;
         result[entry.first] = from_ov_any(entry.second);
-       // std::cout << "\tResut is " << py::type(result[entry.first]) << std::endl;
     }
     return py::cast(result);
 }
@@ -34,7 +32,7 @@ py::object from_ov_any(const ov::Any& any) {
     // Check for py::object
     if (any.is<py::object>()) {
         return any.as<py::object>();
-    } // Check for std::string
+    }  // Check for std::string
     else if (any.is<std::string>()) {
         return py::cast(any.as<std::string>().c_str());
     }
@@ -107,8 +105,8 @@ py::object from_ov_any(const ov::Any& any) {
     // Check for std::map<element::Type, float>
     else if (any.is<std::map<ov::element::Type, float>>()) {
         return py::cast(any.as<std::map<ov::element::Type, float>>());
-    } else if (any.is<ov::AnyMap>()) {
-        std::cout<<"oko"<<std::endl;
+    }  // Check for ov::AnyMap (std::map<std::string, ov::Any)
+    else if (any.is<ov::AnyMap>()) {
         return from_ov_any_map(any.as<ov::AnyMap>());
     }
     // Check for std::vector<ov::PropertyName>
@@ -121,6 +119,9 @@ py::object from_ov_any(const ov::Any& any) {
             PyDict_SetItemString(dict, property_name.c_str(), PyUnicode_FromString(mutability.c_str()));
         }
         return py::cast<py::object>(dict);
+    } else if (any.is<std::shared_ptr<ov::Meta>>()) {
+        const ov::AnyMap& as_map = *any.as<std::shared_ptr<ov::Meta>>();
+        return from_ov_any_map(as_map);
     } else if (any.is<ov::element::Type>()) {
         return py::cast(any.as<ov::element::Type>());
     } else if (any.is<ov::hint::Priority>()) {

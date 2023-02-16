@@ -3,7 +3,7 @@
 //
 
 #include "extension.hpp"
-#include "utils.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 #include <pybind11/functional.h>
 #include <pybind11/pybind11.h>

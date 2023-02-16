@@ -772,17 +772,11 @@ void regclass_graph_Model(py::module m) {
     model.def(
         "has_rt_info",
         [](const ov::Model& self, const py::list& path) -> bool {
-            // FIXME: understand why has_rt_info causes Python crash
-            try {
-                std::vector<std::string> cpp_args(path.size());
-                for (size_t i = 0; i < path.size(); i++) {
-                    cpp_args[i] = path[i].cast<std::string>();
-                }
-                self.get_rt_info<ov::Any>(cpp_args);
-                return true;
-            } catch (ov::Exception&) {
-                return false;
+            std::vector<std::string> cpp_args(path.size());
+            for (size_t i = 0; i < path.size(); i++) {
+                cpp_args[i] = path[i].cast<std::string>();
             }
+            return self.has_rt_info(cpp_args);
         },
         py::arg("path"),
         R"(
