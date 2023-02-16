@@ -9,9 +9,8 @@
 #include "dev/converter_utils.hpp"
 #include "dev/core_impl.hpp"
 #include "ie_itt.hpp"
-#include "so_extension.hpp"
-
 #include "ie_plugins.hpp"
+#include "so_extension.hpp"
 
 namespace {
 std::string resolve_extension_path(const std::string& path) {
@@ -46,18 +45,17 @@ public:
 Core::Core(const std::string& xml_config_file) {
     _impl = std::make_shared<Impl>();
 
-#ifdef OPENVINO_STATIC_LIBRARY
-    OV_CORE_CALL_STATEMENT(_impl->register_plugins_in_registry(::getStaticPluginsRegistry());)
-#else
     std::string xmlConfigFile = ov::findPluginXML(xml_config_file);
-    if (xmlConfigFile.empty())
-        OV_CORE_CALL_STATEMENT(
-            // XML not found? use compile-time configuration
-            _impl->register_compile_time_plugins();)
-    else
+    if (!xmlConfigFile.empty())
         OV_CORE_CALL_STATEMENT(
             // If XML is default, load default plugins by absolute paths
             _impl->register_plugins_in_registry(xmlConfigFile, xml_config_file.empty());)
+#ifdef OPENVINO_STATIC_LIBRARY
+    // Load statically linked plugins
+    OV_CORE_CALL_STATEMENT(_impl->register_plugins_in_registry(::getStaticPluginsRegistry());)
+#else
+    // Load plugins from pre-compiled list
+    OV_CORE_CALL_STATEMENT(_impl->register_compile_time_plugins();)
 #endif
 }
 
