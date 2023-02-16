@@ -10,17 +10,18 @@
 using namespace BehaviorTestsDefinitions;
 
 namespace {
-#ifdef ENABLE_INTEL_CPU
 std::vector<memoryStateParams> memoryStateTestCases = {
+#ifdef ENABLE_INTEL_CPU
     memoryStateParams(InferRequestVariableStateTest::getNetwork(),
                       {"c_1-3", "r_1-3"},
                       CommonTestUtils::DEVICE_MULTI,
                       {{MULTI_CONFIG_KEY(DEVICE_PRIORITIES),
-                        CommonTestUtils::DEVICE_GPU + std::string(",") + CommonTestUtils::DEVICE_CPU}})};
+                        CommonTestUtils::DEVICE_GPU + std::string(",") + CommonTestUtils::DEVICE_CPU}})
 #endif
+};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
                          InferRequestQueryStateExceptionTest,
                          ::testing::ValuesIn(memoryStateTestCases),
                          InferRequestQueryStateExceptionTest::getTestCaseName);
-} // namespace
+}  // namespace

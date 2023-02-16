@@ -34,7 +34,13 @@ auto configs = []() {
 };
 
 auto Multiconfigs = []() {
-    return std::vector<ov::AnyMap>{{ov::device::priorities(CommonTestUtils::DEVICE_GPU)}};
+    return std::vector<ov::AnyMap>{
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU)},
+#ifdef ENABLE_INTEL_CPU
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU), ov::enable_profiling(true)},
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU), ov::enable_profiling(true)}
+#endif
+    };
 };
 
 auto Autoconfigs = []() {
@@ -73,10 +79,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, OVInferRequestPerfCounte
                                  ::testing::ValuesIn(AutoBatchConfigs())),
                          OVInferRequestPerfCountersTest::getTestCaseName);
 
-#ifdef ENABLE_INTEL_CPU
 auto MulticonfigsTest = []() {
-    return std::vector<ov::AnyMap>{{ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU),
-                                    ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU)}};
+    return std::vector<ov::AnyMap>{
+#ifdef ENABLE_INTEL_CPU
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU),
+         ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU)}
+#endif
+    };
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
@@ -84,5 +93,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                             ::testing::ValuesIn(MulticonfigsTest())),
                          OVInferRequestPerfCountersExceptionTest::getTestCaseName);
-#endif
 }  // namespace
