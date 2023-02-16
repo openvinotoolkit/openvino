@@ -296,7 +296,7 @@ std::vector<ov::Tensor> ReadIRTest::calculate_refs() {
         for (const auto& output : functionRefs->outputs()) {
             buf_size += (sizeof output.get_element_type() * ov::shape_size(output.get_partial_shape().get_shape()));
         }
-        char* ref_buffer;
+        char* ref_buffer = nullptr;
         ref_data_ifstream.read(ref_buffer, buf_size);
 
         size_t pos = 0;
