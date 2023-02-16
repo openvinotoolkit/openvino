@@ -88,12 +88,9 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    std::vector<int> getAxes() const;
     std::vector<int> getSignalSizes(const std::vector<int>& newAxes) const;
-    std::vector<int> getInputSignalDimensions(const std::vector<int>& newAxes) const;
-    bool axesChanged(const std::vector<int>& newAxes) const;
-    bool signalSizesChanged(const std::vector<int>& newAxes) const;
-    bool inputSignalDimensionsChanged(const std::vector<int>& newAxes) const;
+    bool axesChanged() const;
+    bool signalSizesChanged() const;
 
     bool needShapeInfer() const override;
     bool needPrepareParams() const override;
@@ -102,7 +99,6 @@ private:
     bool inverse;
     std::vector<int> axes;
     std::vector<int> signalSizes;
-    std::vector<int> inputSignalDimensions;
     std::vector<std::vector<float>> twiddles;
     std::shared_ptr<RDFTExecutor> executor;
     bool isAxesConstant = false;
