@@ -16,7 +16,7 @@ class TensorLitePlace;
 class QuantizationInfo;
 
 ov::element::Type get_ov_type(const tflite::TensorType& tf_type);
-ov::PartialShape get_ov_shape(const flatbuffers::Vector<int32_t>* tf_shape);
+ov::PartialShape get_ov_shape(const flatbuffers::Vector<int32_t>* tf_shape, const flatbuffers::Vector<int32_t>* tf_shape_sig);
 std::shared_ptr<QuantizationInfo> get_quantization(const tflite::QuantizationParameters* tf_quantization);
 void apply_quantization(ov::Output<ov::Node>& output, ov::element::Type type);
 void dequantize_inputs(OutputVector& deq_inputs);
