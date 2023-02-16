@@ -69,8 +69,7 @@ std::shared_ptr<InferenceEngine::Core> PluginCache::ie(const std::string &device
             metrics = {(ie_core->GetMetric(deviceToCheck, METRIC_KEY(SUPPORTED_METRICS))).as<std::string>()};
         }
         if (std::find(metrics.begin(), metrics.end(), METRIC_KEY(AVAILABLE_DEVICES)) != metrics.end()) {
-            std::vector<std::string> availableDevices = (ie_core->GetMetric(deviceToCheck,
-                                                                           METRIC_KEY(AVAILABLE_DEVICES))).as<std::vector<std::string>>();
+            auto availableDevices = ie_core->GetMetric(deviceToCheck, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
 
             if (availableDevices.empty()) {
                 std::cerr << "No available devices for " << deviceToCheck << std::endl;

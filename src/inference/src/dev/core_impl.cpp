@@ -203,7 +203,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             }
             allowNotImplemented([&]() {
                 // Add device specific value to support device_name.device_id cases
-                std::vector<std::string> supportedConfigKeys =
+                auto supportedConfigKeys =
                     plugin.get_property(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {}).as<std::vector<std::string>>();
                 auto config_iter = std::find(supportedConfigKeys.begin(),
                                              supportedConfigKeys.end(),
@@ -784,8 +784,8 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
                 configCopy.erase(CONFIG_KEY(CACHE_DIR));
             }
             // Add device specific value to support device_name.device_id cases
-            std::vector<std::string> supportedConfigKeys =
-                (plugin.second.get_property(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {})).as<std::vector<std::string>>();
+            auto supportedConfigKeys =
+                plugin.second.get_property(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {}).as<std::vector<std::string>>();
             auto config_iter = std::find(supportedConfigKeys.begin(),
                                          supportedConfigKeys.end(),
                                          CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID));
@@ -1023,7 +1023,7 @@ ov::CoreImpl::CoreConfig::CacheConfig ov::CoreImpl::CoreConfig::get_cache_config
     ov::AnyMap& parsedConfig) const {
     if (parsedConfig.count(CONFIG_KEY(CACHE_DIR))) {
         CoreConfig::CacheConfig tempConfig;
-        CoreConfig::fill_config(tempConfig, (parsedConfig.at(CONFIG_KEY(CACHE_DIR))).as<std::string>());
+        CoreConfig::fill_config(tempConfig, parsedConfig.at(CONFIG_KEY(CACHE_DIR)).as<std::string>());
         if (!device_supports_cache_dir) {
             parsedConfig.erase(CONFIG_KEY(CACHE_DIR));
         }

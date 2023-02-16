@@ -16,7 +16,7 @@ class GnaLayerTestCheck {
 public:
     void SetUp(const std::string deviceName) {
         InferenceEngine::Core ieCore;
-        std::vector<std::string> metrics =
+        auto metrics =
             ieCore.GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
 
         if (deviceName == CommonTestUtils::DEVICE_GNA) {
