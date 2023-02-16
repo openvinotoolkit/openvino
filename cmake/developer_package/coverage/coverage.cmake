@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 set(OV_COVERAGE_GCDA_DATA_DIRECTORY "${CMAKE_BINARY_DIR}")

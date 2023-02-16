@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # To add new kernel please add a .cl file to kernels directory

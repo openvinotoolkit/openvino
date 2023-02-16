@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2023 Intel Corporation
 
 #include "gapi_ocv_stateful_kernel_test_utils.hpp"
 #include <opencv2/gapi/cpu/core.hpp>
