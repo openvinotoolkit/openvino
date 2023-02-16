@@ -191,8 +191,7 @@ class TypeRelaxed : public BaseOp, public TypeRelaxedBase {
 public:
     OPENVINO_OP(BaseOp::get_type_info_static().name,
                 BaseOp::get_type_info_static().version_id,
-                BaseOp,
-                BaseOp::get_type_info_static().version);
+                BaseOp);
 
     using BaseOp::BaseOp;
 
