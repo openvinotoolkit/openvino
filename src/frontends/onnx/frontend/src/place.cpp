@@ -267,7 +267,8 @@ ov::frontend::Place::Ptr PlaceOp::get_output_port() const {
 
 ov::frontend::Place::Ptr PlaceOp::get_output_port(int output_port_index) const {
     check_if_valid();
-    if (output_port_index < (int)m_editor->get_output_ports(m_node).size()) {
+    int m_editor_size = static_cast<int>((int)m_editor->get_output_ports(m_node).size());
+    if (output_port_index < m_editor_size) {
         return std::make_shared<PlaceOutputEdge>(
             m_editor->find_output_edge(m_node, onnx_editor::EditorOutput{output_port_index}),
             m_editor);
@@ -295,7 +296,8 @@ ov::frontend::Place::Ptr PlaceOp::get_input_port() const {
 
 ov::frontend::Place::Ptr PlaceOp::get_input_port(int input_port_index) const {
     check_if_valid();
-    if (input_port_index < (int)m_editor->get_input_ports(m_node).size()) {
+    int m_editor_size = static_cast<int>((int)m_editor->get_output_ports(m_node).size());
+    if (input_port_index < m_editor_size) {
         return std::make_shared<PlaceInputEdge>(
             m_editor->find_input_edge(m_node, onnx_editor::EditorInput{input_port_index}),
             m_editor);
