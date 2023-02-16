@@ -43,6 +43,7 @@ public:
         U64 = 73,          /**< 64bit unsigned integer value */
         BIN = 71,          /**< 1bit integer value */
         BOOL = 41,         /**< 8bit bool type */
+        STRING = 79,       /**< string type, most likely std::string in C++, TODO: choose valid number */
         CUSTOM = 80        /**< custom precision has it's own name and size of elements */
     };
 
@@ -133,6 +134,7 @@ public:
                 CASE(BOOL, uint8_t);
                 CASE2(Q78, int16_t, uint16_t);
                 CASE2(BIN, int8_t, uint8_t);
+                CASE(STRING, std::string);
             default:
                 return areSameStrings(name(), typeName == nullptr ? typeid(T).name() : typeName);
 #undef CASE
@@ -247,6 +249,7 @@ public:
             PRECISION_NAME(FP16),
             PRECISION_NAME(MIXED),
             PRECISION_NAME(BIN),
+            PRECISION_NAME(STRING),
 #undef PRECISION_NAME
         };
         auto i = names.find(str);
@@ -353,6 +356,7 @@ protected:
             CASE(MIXED);
             CASE(BIN);
             CASE(BOOL);
+            CASE(STRING);
         default:
             return makePrecisionInfo<UNSPECIFIED>("UNSPECIFIED");
 #undef CASE
@@ -463,6 +467,12 @@ inline uint8_t type_size_or_zero() {
 template <>
 struct PrecisionTrait<Precision::UNSPECIFIED> {
     using value_type = void;
+    enum { is_float = false };
+};
+
+template <>
+struct PrecisionTrait<Precision::STRING> {
+    using value_type = std::string;
     enum { is_float = false };
 };
 

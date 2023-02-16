@@ -662,6 +662,8 @@ std::string get_precision_name(const ngraph::element::Type& elem_type) {
         return "BIN";
     case ::ngraph::element::Type_t::boolean:
         return "BOOL";
+    case ::ngraph::element::Type_t::string:
+        return "STRING";
     default:
         std::stringstream msg;
         msg << "Unsupported precision: " << elem_type;

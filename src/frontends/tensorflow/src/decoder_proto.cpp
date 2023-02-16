@@ -28,11 +28,14 @@ const std::map<::tensorflow::DataType, ov::element::Type>& TYPE_MAP() {
         {::tensorflow::DataType::DT_DOUBLE, ov::element::f64},
         {::tensorflow::DataType::DT_UINT8, ov::element::u8},
         {::tensorflow::DataType::DT_INT8, ov::element::i8},
-        {::tensorflow::DataType::DT_BFLOAT16, ov::element::bf16}};
+        {::tensorflow::DataType::DT_BFLOAT16, ov::element::bf16},
+        {::tensorflow::DataType::DT_STRING, ov::element::string}};
     return type_map;
 }
 
-template <typename T>
+template <
+        typename T,
+        typename std::enable_if<!std::is_same<T, std::string>::value, bool>::type = true>
 void extract_tensor_content(const std::string& tensor_content, ov::Tensor* values) {
     const auto tensor_content_size = tensor_content.size();
     FRONT_END_GENERAL_CHECK(tensor_content_size % sizeof(T) == 0,
@@ -47,7 +50,20 @@ void extract_tensor_content(const std::string& tensor_content, ov::Tensor* value
     std::copy(tensor_values, tensor_values + tensor_content_size / sizeof(T), values->data<T>());
 }
 
-template <typename T>
+
+template <
+        typename T,
+        typename std::enable_if<std::is_same<T, std::string>::value, bool>::type = true>
+void extract_tensor_content(const std::string& tensor_content, ov::Tensor* values) {
+    // FIXME: Works for scalars only
+
+    std::cerr << "[ TF FE STR ] 1 Trying to decode this '" << tensor_content << "' as a string scalar value to initialize a tensor\n";
+    *values->data<std::string>() = tensor_content;
+}
+
+template <
+        typename T,
+        typename std::enable_if<!std::is_same<T, std::string>::value, bool>::type = true>
 void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_proto,
                                        int64_t val_size,
                                        ov::Tensor* values) {
@@ -85,6 +101,47 @@ void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_p
             val_lastsaved = val_i;
         } else {
             values_data[i] = val_lastsaved;
+        }
+    }
+}
+
+
+// FIXME: make it more specialized by avoiding mentioning T because it is always std::string
+template <
+        typename T,
+        typename std::enable_if<std::is_same<T, std::string>::value, bool>::type = true>
+void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_proto,
+                                       int64_t val_size,
+                                       ov::Tensor* values) {
+    std::cerr << "[ TF FE STR ] 2 Trying to decode tensor proto to string tensor\n";
+    auto val_lastsaved = std::string();
+    std::cerr << ">>>> 1\n";
+    auto values_data = values->data<T>();
+    std::cerr << ">>>> 2\n";
+    for (auto i = 0; i < values->get_size(); i++) {
+        std::cerr << ">>>> 3\n";
+        if (val_size == 0) {
+            values_data[i] = std::string();
+        } else if (i < val_size) {
+            auto val_i = std::string();
+            switch (values->get_element_type()) {
+            case ov::element::string:
+                std::cerr << "[ TF FE STR ] Trying to decode this '" << tensor_proto.string_val()[i] <<  "' as one of string element values to initialize a tensor\n";
+                val_i = tensor_proto.string_val()[i];
+                break;
+            default:
+                FRONT_END_THROW("Encountered unknown element type " + values->get_element_type().get_type_name());
+            }
+            std::cerr << ">>>> 4\n";
+            values_data[i] = val_i;
+            std::cerr << ">>>> 5\n";
+
+            val_lastsaved = val_i;
+            std::cerr << ">>>> 6\n";
+        } else {
+            std::cerr << ">>>> 7\n";
+            values_data[i] = val_lastsaved;
+            std::cerr << ">>>> 8\n";
         }
     }
 }
@@ -202,6 +259,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         FRONT_END_GENERAL_CHECK(pshape.is_static(), "Dynamic shapes are not supported for Tensor attribute.");
         const auto& tf_type = tensor_proto.dtype();
         std::cerr << "[ BEFORE ]\n";
+        #if 1  // TODO: change to 0 if raw string tensors are required
         if(tf_type == ::tensorflow::DT_STRING) {
             std::cerr << "[ PROCESS STR CONSTANT ]\n";
             auto tensor_content = tensor_proto.tensor_content();
@@ -213,7 +271,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
                     throw StructuralTypeWA(ov::element::StructuralType::Str(), res);
                 }
             } else {
-                if(pshape.get_shape().size() == 0) {   // TODO: it works for scalars only
+                if(pshape.get_shape().size() == 0) {   // FIXME: it works for scalars only
                     std::cerr << "[ COMPRESSED TENSOR ]\n";
                     auto tensor_content = tensor_proto.string_val()[0];
                     ov::Tensor res(element::u8, Shape{tensor_content.length()});
@@ -223,13 +281,17 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
             }
             std::cerr << "[ FAILED TO PROCESS STR CONSTANT ]\n";
         }
+        #endif
         FRONT_END_GENERAL_CHECK(
             TYPE_MAP().count(tf_type),
             "Encountered unknown element type " + DataType_Name(tf_type) + " on an empty tensor_proto");
         std::cerr << "[ AFTER ]\n";
         auto ov_type = TYPE_MAP().at(tf_type);
+        if(ov_type == element::string)std::cerr << "HHHHHHHHHHHH\n";
         ov::Tensor res(ov_type, pshape.get_shape());
+        if(ov_type == element::string)std::cerr << "VVVVVVVVVVVV\n";
         auto tensor_content = tensor_proto.tensor_content();
+        if(ov_type == element::string)std::cerr << "XXXXXXXXXXXX\n";
         if (!tensor_content.empty() && tensor_proto.has_tensor_shape()) {
             std::cerr << "[ FIRST IF ]\n";
             switch (ov_type) {
@@ -260,6 +322,9 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
             case ov::element::bf16:
                 extract_tensor_content<bfloat16>(tensor_content, &res);
                 break;
+            case ov::element::string:
+                extract_tensor_content<std::string>(tensor_content, &res);
+                break;
             default:
                 FRONT_END_THROW("Encountered unknown element type " + ov_type.get_type_name());
             }
@@ -289,6 +354,13 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
             case ov::element::f64:
                 val_size = tensor_proto.double_val_size();
                 extract_compressed_tensor_content<double>(tensor_proto, val_size, &res);
+                break;
+            case ov::element::string:
+                if(ov_type == element::string)std::cerr << "1\n";
+                val_size = tensor_proto.string_val_size();
+                if(ov_type == element::string)std::cerr << "2\n";
+                extract_compressed_tensor_content<std::string>(tensor_proto, val_size, &res);
+                if(ov_type == element::string)std::cerr << "3\n";
                 break;
             default:
                 FRONT_END_THROW("Encountered unknown element type " + ov_type.get_type_name());

@@ -878,18 +878,18 @@ class OPENVINO_API StructPack : public ov::op::Op {
 public:
     OPENVINO_OP("INTERNAL::StructPack");
 
-    StructPack(const OutputVector& arguments, Any res_type, const PartialShape& res_shape)
-        : ov::op::Op(arguments), m_res_type(res_type), m_res_shape(res_shape) {
+    StructPack(const OutputVector& arguments, Any res_type, const PartialShape& res_shape, element::Type_t element_type = element::dynamic)
+        : ov::op::Op(arguments), m_res_type(res_type), m_res_shape(res_shape), m_element_type(element_type) {
         constructor_validate_and_infer_types();
     }
 
     void validate_and_infer_types() override {
-        set_output_type(0, element::dynamic, m_res_shape);
+        set_output_type(0, m_element_type, m_res_shape);
         get_output_tensor(0).get_rt_info()["structural_type"] = StructuralTypeAttribute(m_res_type);
     }
 
     std::shared_ptr<ov::Node> clone_with_new_inputs(const OutputVector& inputs) const override {
-        return make_shared<StructPack>(inputs, m_res_type, m_res_shape);
+        return make_shared<StructPack>(inputs, m_res_type, m_res_shape, m_element_type);
     }
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override {
@@ -906,7 +906,63 @@ public:
 
     Any m_res_type;
     PartialShape m_res_shape;
+    element::Type_t m_element_type;
 };
+
+
+class OPENVINO_API StringTensorUnpack : public ov::op::Op {
+public:
+    OPENVINO_OP("StringTensorUnpack");
+
+    StringTensorUnpack(OutputVector inputs, const std::string& mode = "begins_ends")
+        : ov::op::Op(inputs), m_mode(mode) {
+        constructor_validate_and_infer_types();
+    }
+
+    void validate_and_infer_types() override {
+        OPENVINO_ASSERT(
+            get_input_size() == 1,
+            "Number of inputs for StringTensorUnpack is not equal to 1");
+
+        OPENVINO_ASSERT(
+            get_input_element_type(0) == element::string ||
+            get_input_element_type(0) == element::dynamic,
+            "Unsupported input element type for StringTensorUnpack");
+
+        OPENVINO_ASSERT(
+            get_input_partial_shape(0).rank().is_static(),
+            "StringTensorUnpack supports only static input rank");
+
+        if (m_mode == "begins_ends") {
+            if(get_input_partial_shape(0).rank().get_length() == 0) {
+                set_output_type(0, element::u8, PartialShape{Dimension()});     // TODO: In case if input is constant, can compute the size exactly
+            } else {
+                set_output_type(0, element::i32, get_input_partial_shape(0));
+                set_output_type(1, element::i32, get_input_partial_shape(0));
+                set_output_type(2, element::u8, PartialShape{Dimension()});     // TODO: In case if input is constant, can compute the size exactly
+            }
+        } else {
+            throw std::string("Unknown mode ") + m_mode + " for StringTensorUnpack";
+        }
+    }
+
+    std::shared_ptr<ov::Node> clone_with_new_inputs(const OutputVector& inputs) const override {
+        return make_shared<StringTensorUnpack>(inputs, m_mode);
+    }
+
+    bool visit_attributes(ov::AttributeVisitor& visitor) override {
+        // FIXME: Serialization only, there is no deserialization
+        visitor.on_attribute("mode", m_mode);
+        return true;
+    }
+
+    bool has_evaluate() const {
+        return false;
+    }
+
+    std::string m_mode;
+};
+
 
 class OPENVINO_API SpyOp : public ov::op::Op {
 public:

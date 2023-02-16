@@ -26,6 +26,7 @@ void Tensor::type_check(const Tensor&) {}
 
 Tensor::~Tensor() {
     _impl = {};
+    // TODO: Destroy non-trivially constructed elements or is it done in _impl dtor?
 }
 
 Tensor::Tensor(const std::shared_ptr<ie::Blob>& impl, const std::vector<std::shared_ptr<void>>& so)
@@ -138,9 +139,9 @@ void* Tensor::data(const element::Type element_type) const {
     auto host_accesable_implementation = TYPE_CHECK(bool) || TYPE_CHECK(int8_t) || TYPE_CHECK(uint8_t) ||
                                          TYPE_CHECK(int16_t) || TYPE_CHECK(uint16_t) || TYPE_CHECK(int32_t) ||
                                          TYPE_CHECK(uint32_t) || TYPE_CHECK(int64_t) || TYPE_CHECK(uint64_t) ||
-                                         TYPE_CHECK(float) || TYPE_CHECK(double);
+                                         TYPE_CHECK(float) || TYPE_CHECK(double) || TYPE_CHECK(std::string);
 #undef TYPE_CHECK
-    OPENVINO_ASSERT(host_accesable_implementation, "Tensor implementation type dose not contains host accessable data");
+    OPENVINO_ASSERT(host_accesable_implementation, "Tensor implementation type does not contains host accessable data");
     if (element_type != element::undefined) {
         OPENVINO_ASSERT(element_type == get_element_type(),
                         "Tensor data with element type ",

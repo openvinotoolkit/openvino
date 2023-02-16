@@ -34,6 +34,11 @@ OutputVector translate_const_op(const NodeContext& node) {
             auto tensor = node.get_attribute<Tensor>("value");
             const_node = std::make_shared<Constant>(tensor.get_element_type(), tensor.get_shape(), tensor.data());
         }
+
+        if(const_node->get_element_type() == element::string) {
+            std::cerr << "[ TF FE STR ] >>>>>>>>>>>>>>>>>>>>>>>   String tensor was created   <<<<<<<<<<<<<<<<<<<<<<<<<<<\n";
+        }
+
         set_node_name(node.get_name(), const_node);
         return {const_node};
     } catch(const StructuralTypeWA& str_wa) {

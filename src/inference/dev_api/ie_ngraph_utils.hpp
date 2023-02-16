@@ -53,6 +53,8 @@ inline ::ngraph::element::Type convertPrecision(const Precision& precision) {
         return ::ngraph::element::Type(::ngraph::element::Type_t::boolean);
     case Precision::BIN:
         return ::ngraph::element::Type(::ngraph::element::Type_t::u1);
+    case Precision::STRING:
+        return ::ngraph::element::Type(::ngraph::element::Type_t::string);
     case Precision::Q78:
     case Precision::MIXED:
     case Precision::CUSTOM:
@@ -94,6 +96,8 @@ inline ::ngraph::element::Type convertPrecision(const std::string& precision) {
         return ::ngraph::element::Type(::ngraph::element::Type_t::u64);
     } else if (precision == "boolean" || precision == "BOOL") {
         return ::ngraph::element::Type(::ngraph::element::Type_t::boolean);
+    } else if (precision == "string" || precision == "STRING") {
+        return ::ngraph::element::Type(::ngraph::element::Type_t::string);
     } else if (precision == "undefined") {
         return ::ngraph::element::Type(::ngraph::element::Type_t::undefined);
     } else {
@@ -137,6 +141,8 @@ inline Precision convertPrecision(const ::ngraph::element::Type& precision) {
         return Precision(Precision::BIN);
     case ::ngraph::element::Type_t::boolean:
         return Precision(Precision::BOOL);
+    case ::ngraph::element::Type_t::string:
+        return Precision(Precision::STRING);
     case ::ngraph::element::Type_t::dynamic:
         return Precision(Precision::UNSPECIFIED);
     default:

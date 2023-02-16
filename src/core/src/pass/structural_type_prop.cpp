@@ -263,7 +263,8 @@ bool DecomposeStrParameters::run_on_model(const std::shared_ptr<Model>& model) {
             auto struct_pack = make_shared<StructPack>(
                 results,
                 element::StructuralType::Str(),
-                PartialShape{indices.size() - 1}
+                PartialShape{indices.size() - 1},
+                element::string
             );
 
             replace_node(parameter, struct_pack);
@@ -281,6 +282,7 @@ bool DecomposeStrParameters::run_on_model(const std::shared_ptr<Model>& model) {
         //parameter->set_partial_shape(PartialShape{Dimension()});
         parameter->validate_and_infer_types();
         if(
+            parameter->get_element_type() == element::string ||
             parameter->get_element_type() == element::dynamic &&
             StructuralTypeAttribute::has_type(rt_info, element::StructuralType::Str()))
             // TODO: Also should capture Tensor(Str), not only Str
@@ -288,6 +290,8 @@ bool DecomposeStrParameters::run_on_model(const std::shared_ptr<Model>& model) {
             if(rank.is_static() && rank.get_length() == 1) {
                 std::cerr << "Applying decomposition for parameter: " << parameter->get_name() << "\n";
                 OutputVector inputs_for_struct_pack;
+
+                #if 0
 
                 bind_inputs.push_back(StructuralTypeProxy::BindInput(
                     {new_parameters.size(), new_parameters.size() + 1, new_parameters.size() + 2},
@@ -309,29 +313,56 @@ bool DecomposeStrParameters::run_on_model(const std::shared_ptr<Model>& model) {
                 new_parameters.push_back(new_parameter);
                 inputs_for_struct_pack.push_back(new_parameter);
 
+                #else
+
+                auto target_inputs = parameter->get_output_target_inputs(0);
+                auto pack_op = make_shared<StringTensorUnpack>(OutputVector{parameter}, "begins_ends");
+                inputs_for_struct_pack = pack_op->outputs();
+
+                #endif
+
                 auto struct_pack = make_shared<StructPack>(
                     inputs_for_struct_pack,
                     element::StructuralType::Str(), // parameter->get_rt_info()["structural_type"].as<StructuralTypeAttribute>().value
-                    parameter->get_partial_shape()
+                    parameter->get_partial_shape(),
+                    element::string
                 );
 
+                #if 1
+                for(auto input: target_inputs) {
+                    input.replace_source_output(struct_pack->output(0));
+                }
+                #else
                 replace_node(parameter, struct_pack);
                 model->remove_parameter({parameter});
+                #endif
                 continue;
             } else if(rank.is_static() && rank.get_length() == 0) {
                 std::cerr << "Parameter override to u8/1d\n";
+                #if 0
                 bind_inputs.push_back(StructuralTypeProxy::BindInput(
                     {new_parameters.size()},
                     element::StructuralType::Tensor(element::StructuralType::Str())));
                 auto new_parameter = make_shared<opset9::Parameter>(element::u8, PartialShape{Dimension()});
+                #else
+                auto target_inputs = parameter->get_output_target_inputs(0);
+                auto new_parameter = make_shared<StringTensorUnpack>(OutputVector{parameter});
+                #endif
                 auto struct_pack = make_shared<StructPack>(
                     new_parameter->outputs(),
                     element::StructuralType::Str(), // parameter->get_rt_info()["structural_type"].as<StructuralTypeAttribute>().value
-                    parameter->get_partial_shape()
+                    parameter->get_partial_shape(),
+                    element::string
                 );
+                #if 1
+                for(auto input: target_inputs) {
+                    input.replace_source_output(struct_pack->output(0));
+                }
+                #else
                 new_parameters.push_back(new_parameter);
                 replace_node(parameter, struct_pack);
                 model->remove_parameter({parameter});
+                #endif
                 continue;
             }
         }/* else if (parameter->get_element_type() == element::dynamic && rt_info.find("structural_type") == rt_info.end()) {
@@ -342,6 +373,7 @@ bool DecomposeStrParameters::run_on_model(const std::shared_ptr<Model>& model) {
 
         // Handly untouched parameters in the same way as new parameters to make index adjustment easier
         // and maintain the same order of parameter groups (straight and decomposed)
+        #if 0
         Any element_type = StructuralTypeAttribute::get(rt_info);
         if(element_type.empty()) {
             element_type = parameter->get_element_type();
@@ -349,10 +381,12 @@ bool DecomposeStrParameters::run_on_model(const std::shared_ptr<Model>& model) {
         bind_inputs.push_back(StructuralTypeProxy::BindInput({new_parameters.size()}, element::StructuralType::Tensor(element_type)));
         new_parameters.push_back(parameter);
         model->remove_parameter({parameter});
+        #endif
     }
-
+#if 0
     model->add_parameters(new_parameters);
     StructuralTypeProxy::StructuralTypeMapAttribute(bind_inputs).set_input(model->get_rt_info());
+#endif
     return true;
 }
 
@@ -596,6 +630,8 @@ ThroughNotEqualProp::ThroughNotEqualProp() {
 
 bool DecomposeStructResults::run_on_model(const std::shared_ptr<Model>& model) {
     // Search for Parameter with List[Tensor] types
+
+    std::cerr << "Skipping Result decomposition pass\n";
 
     StructuralTypeProxy::BindInputs bind_outputs;
 
