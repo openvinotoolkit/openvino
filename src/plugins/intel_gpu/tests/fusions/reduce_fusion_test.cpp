@@ -118,6 +118,7 @@ public:
 #define CASE_REDUCE_U8_2 { 2, 4, 8, 4, 4 }, { 2, 4, 8, 4, 4 }, data_types::u8, format::bfzyx, data_types::f32, format::bfyx
 #define CASE_REDUCE_U8_3 { 3, 5, 3, 5, 7, 7 }, { 3, 5, 3, 5, 7, 7 }, data_types::u8, format::bfwzyx, data_types::f32, format::bfyx
 #define CASE_REDUCE_U8_4 { 2, 8, 4, 4 }, { 2, 8, 4, 4 }, data_types::u8, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
+#define CASE_REDUCE_U8_5 { 2, 2, 2, 2 }, { 2, 2, 2, 2 }, data_types::u8, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
 
 class reduce_eltwise : public ReduceFusingTest {};
 TEST_P(reduce_eltwise, basic) {
@@ -128,7 +129,7 @@ TEST_P(reduce_eltwise, basic) {
 
         reduce("reduce", input_info("input"), p.reduce_mode, p.reduce_axes, p.keep_dims),
         
-        data("eltwise_data", get_mem(get_output_layout(p), 0, 0)),
+        data("eltwise_data", get_mem(get_output_layout(p), 0, 1)),
         eltwise("eltwise", { input_info("reduce"), input_info("eltwise_data") }, eltwise_mode::sum, p.default_type),
 
         reorder("output", input_info("eltwise"), p.default_format, data_types::f32)
@@ -149,6 +150,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, reduce_eltwise, ::testing::ValuesIn(std::v
     reduce_test_params{ CASE_REDUCE_F16_5, 2, 2, reduce_mode::l1, { 0, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
     reduce_test_params{ CASE_REDUCE_F16_5, 2, 2, reduce_mode::l2, { 0, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
     reduce_test_params{ CASE_REDUCE_F16_5, 2, 2, reduce_mode::log_sum, { 0, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_U8_5, 2, 2, reduce_mode::logical_and, { 0, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
 }));
 
 class reduce_eltwise_activation_quantize : public ReduceFusingTest {};
