@@ -5,7 +5,12 @@
 #include "threading/ie_executor_manager.hpp"
 
 #include "ie_parallel.hpp"
+#include "openvino/runtime/threading/executor_manager.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
+#include "openvino/runtime/threading/itask_executor.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"
+#include "threading/ie_istreams_executor.hpp"
+#include "threading/ie_itask_executor.hpp"
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
 #    if (TBB_INTERFACE_VERSION < 12000)
 #        include <tbb/task_scheduler_init.h>
@@ -19,148 +24,107 @@
 #include <string>
 #include <utility>
 
-namespace InferenceEngine {
 namespace {
-class ExecutorManagerImpl : public ExecutorManager {
+
+class TaskExecutorWrapper : public InferenceEngine::ITaskExecutor {
 public:
-    ~ExecutorManagerImpl();
-    ITaskExecutor::Ptr getExecutor(const std::string& id) override;
-    IStreamsExecutor::Ptr getIdleCPUStreamsExecutor(const IStreamsExecutor::Config& config) override;
-    size_t getExecutorsNumber() const override;
-    size_t getIdleCPUStreamsExecutorsNumber() const override;
-    void clear(const std::string& id = {}) override;
-    void setTbbFlag(bool flag) override;
-    bool getTbbFlag() override;
+    TaskExecutorWrapper(const std::shared_ptr<ov::ITaskExecutor>& task_executor) : m_task_executor(task_executor) {}
+
+    void run(InferenceEngine::Task task) override {
+        m_task_executor->run(task);
+    }
+
+    void runAndWait(const std::vector<InferenceEngine::Task>& tasks) override {
+        m_task_executor->run_and_wait(tasks);
+    }
 
 private:
-    void resetTbb();
-    std::unordered_map<std::string, ITaskExecutor::Ptr> executors;
-    std::vector<std::pair<IStreamsExecutor::Config, IStreamsExecutor::Ptr>> cpuStreamsExecutors;
-    mutable std::mutex streamExecutorMutex;
-    mutable std::mutex taskExecutorMutex;
-    bool tbbTerminateFlag = false;
-    mutable std::mutex tbbMutex;
-    bool tbbThreadsCreated = false;
-#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-#    if (TBB_INTERFACE_VERSION < 12000)
-    std::shared_ptr<tbb::task_scheduler_init> tbbTaskScheduler = nullptr;
-#    else
-    std::shared_ptr<oneapi::tbb::task_scheduler_handle> tbbTaskScheduler = nullptr;
-#    endif
-#endif
+    std::shared_ptr<ov::ITaskExecutor> m_task_executor;
 };
+
+class StreamsExecutorWrapper : public InferenceEngine::IStreamsExecutor {
+public:
+    StreamsExecutorWrapper(const std::shared_ptr<ov::IStreamsExecutor>& streams_executor)
+        : m_streams_executor(streams_executor) {}
+
+    int GetStreamId() override {
+        return m_streams_executor->get_stream_id();
+    }
+
+    /**
+     * @brief Return the id of current NUMA Node
+     * @return `ID` of current NUMA Node, or throws exceptions if called not from stream thread
+     */
+    int GetNumaNodeId() override {
+        return m_streams_executor->get_numa_node_id();
+    }
+
+    /**
+     * @brief Execute the task in the current thread using streams executor configuration and constraints
+     * @param task A task to start
+     */
+    void Execute(InferenceEngine::Task task) override {
+        m_streams_executor->execute(task);
+    }
+
+    void run(InferenceEngine::Task task) override {
+        m_streams_executor->run(task);
+    }
+
+    void runAndWait(const std::vector<InferenceEngine::Task>& tasks) override {
+        m_streams_executor->run_and_wait(tasks);
+    }
+
+private:
+    std::shared_ptr<ov::IStreamsExecutor> m_streams_executor;
+};
+
+ov::IStreamsExecutor::Config convert_config(const InferenceEngine::IStreamsExecutor::Config& config) {
+    ov::IStreamsExecutor::Config ov_config(config._name,
+                                           config._streams,
+                                           config._threadsPerStream,
+                                           config._threadBindingType,
+                                           config._threadBindingStep,
+                                           config._threadBindingOffset,
+                                           config._threads,
+                                           config._threadPreferredCoreType);
+    return ov_config;
+}
 
 }  // namespace
 
-ExecutorManagerImpl::~ExecutorManagerImpl() {
-    resetTbb();
+namespace InferenceEngine {
+
+ExecutorManager::ExecutorManager(const std::shared_ptr<ov::ExecutorManager>& manager) : m_manager(manager) {}
+
+ExecutorManager::~ExecutorManager() = default;
+
+void ExecutorManager::setTbbFlag(bool flag) {
+    m_manager->set_tbb_flag(flag);
 }
 
-void ExecutorManagerImpl::setTbbFlag(bool flag) {
-    std::lock_guard<std::mutex> guard(tbbMutex);
-    tbbTerminateFlag = flag;
-#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-    if (tbbTerminateFlag) {
-        if (!tbbTaskScheduler) {
-#    if (TBB_INTERFACE_VERSION < 12000)
-            tbbTaskScheduler = std::make_shared<tbb::task_scheduler_init>();
-#    elif (TBB_INTERFACE_VERSION < 12060)
-            tbbTaskScheduler =
-                std::make_shared<oneapi::tbb::task_scheduler_handle>(oneapi::tbb::task_scheduler_handle::get());
-#    else
-            tbbTaskScheduler = std::make_shared<oneapi::tbb::task_scheduler_handle>(tbb::attach{});
-#    endif
-        }
-    } else {
-        tbbTaskScheduler = nullptr;
-    }
-#endif
+bool ExecutorManager::getTbbFlag() {
+    return m_manager->get_tbb_flag();
 }
 
-bool ExecutorManagerImpl::getTbbFlag() {
-    std::lock_guard<std::mutex> guard(tbbMutex);
-    return tbbTerminateFlag;
+ITaskExecutor::Ptr ExecutorManager::getExecutor(const std::string& id) {
+    return std::make_shared<TaskExecutorWrapper>(m_manager->get_executor(id));
 }
 
-void ExecutorManagerImpl::resetTbb() {
-    std::lock_guard<std::mutex> guard(tbbMutex);
-    if (tbbTerminateFlag) {
-#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-        if (tbbTaskScheduler && tbbThreadsCreated) {
-#    if (TBB_INTERFACE_VERSION < 12000)
-            tbbTaskScheduler->terminate();
-#    else
-            tbb::finalize(*tbbTaskScheduler, std::nothrow);
-#    endif
-        }
-        tbbThreadsCreated = false;
-        tbbTaskScheduler = nullptr;
-#endif
-        tbbTerminateFlag = false;
-    }
+IStreamsExecutor::Ptr ExecutorManager::getIdleCPUStreamsExecutor(const IStreamsExecutor::Config& config) {
+    return std::make_shared<StreamsExecutorWrapper>(m_manager->get_idle_cpu_streams_executor(convert_config(config)));
 }
 
-ITaskExecutor::Ptr ExecutorManagerImpl::getExecutor(const std::string& id) {
-    std::lock_guard<std::mutex> guard(taskExecutorMutex);
-    auto foundEntry = executors.find(id);
-    if (foundEntry == executors.end()) {
-        auto newExec = std::make_shared<CPUStreamsExecutor>(IStreamsExecutor::Config{id});
-        tbbThreadsCreated = true;
-        executors[id] = newExec;
-        return newExec;
-    }
-    return foundEntry->second;
+size_t ExecutorManager::getExecutorsNumber() const {
+    return m_manager->get_executors_number();
 }
 
-IStreamsExecutor::Ptr ExecutorManagerImpl::getIdleCPUStreamsExecutor(const IStreamsExecutor::Config& config) {
-    std::lock_guard<std::mutex> guard(streamExecutorMutex);
-    for (const auto& it : cpuStreamsExecutors) {
-        const auto& executor = it.second;
-        if (executor.use_count() != 1)
-            continue;
-
-        const auto& executorConfig = it.first;
-        if (executorConfig._name == config._name && executorConfig._streams == config._streams &&
-            executorConfig._threadsPerStream == config._threadsPerStream &&
-            executorConfig._threadBindingType == config._threadBindingType &&
-            executorConfig._threadBindingStep == config._threadBindingStep &&
-            executorConfig._threadBindingOffset == config._threadBindingOffset)
-            if (executorConfig._threadBindingType != IStreamsExecutor::ThreadBindingType::HYBRID_AWARE ||
-                executorConfig._threadPreferredCoreType == config._threadPreferredCoreType)
-                return executor;
-    }
-    auto newExec = std::make_shared<CPUStreamsExecutor>(config);
-    tbbThreadsCreated = true;
-    cpuStreamsExecutors.emplace_back(std::make_pair(config, newExec));
-    return newExec;
+size_t ExecutorManager::getIdleCPUStreamsExecutorsNumber() const {
+    return m_manager->get_idle_cpu_streams_executors_number();
 }
 
-size_t ExecutorManagerImpl::getExecutorsNumber() const {
-    std::lock_guard<std::mutex> guard(taskExecutorMutex);
-    return executors.size();
-}
-
-size_t ExecutorManagerImpl::getIdleCPUStreamsExecutorsNumber() const {
-    std::lock_guard<std::mutex> guard(streamExecutorMutex);
-    return cpuStreamsExecutors.size();
-}
-
-void ExecutorManagerImpl::clear(const std::string& id) {
-    std::lock_guard<std::mutex> stream_guard(streamExecutorMutex);
-    std::lock_guard<std::mutex> task_guard(taskExecutorMutex);
-    if (id.empty()) {
-        executors.clear();
-        cpuStreamsExecutors.clear();
-    } else {
-        executors.erase(id);
-        cpuStreamsExecutors.erase(
-            std::remove_if(cpuStreamsExecutors.begin(),
-                           cpuStreamsExecutors.end(),
-                           [&](const std::pair<IStreamsExecutor::Config, IStreamsExecutor::Ptr>& it) {
-                               return it.first._name == id;
-                           }),
-            cpuStreamsExecutors.end());
-    }
+void ExecutorManager::clear(const std::string& id) {
+    m_manager->clear(id);
 }
 
 namespace {
@@ -179,7 +143,7 @@ public:
         std::lock_guard<std::mutex> lock(_mutex);
         auto manager = _manager.lock();
         if (!manager) {
-            _manager = manager = std::make_shared<ExecutorManagerImpl>();
+            _manager = manager = std::make_shared<ExecutorManager>(ov::executor_manager());
         }
         return manager;
     }

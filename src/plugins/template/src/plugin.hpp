@@ -8,6 +8,7 @@
 #include "compiled_model.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/threading/itask_executor.hpp"
 #include "template_config.hpp"
 
 //! [plugin:header]
@@ -50,7 +51,7 @@ private:
 
     std::shared_ptr<ngraph::runtime::Backend> _backend;
     Configuration _cfg;
-    InferenceEngine::ITaskExecutor::Ptr _waitExecutor;
+    std::shared_ptr<ov::ITaskExecutor> m_waitExecutor;
 };
 
 }  // namespace TemplatePlugin

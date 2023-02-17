@@ -7,13 +7,14 @@
 #include <memory>
 
 #include "openvino/runtime/isync_infer_request.hpp"
+#include "openvino/runtime/threading/immediate_executor.hpp"
 #include "openvino/runtime/variable_state.hpp"
 #include "threading/ie_immediate_executor.hpp"
 #include "threading/ie_istreams_executor.hpp"
 
 namespace {
 
-struct ImmediateStreamsExecutor : public InferenceEngine::ITaskExecutor {
+struct ImmediateStreamsExecutor : public ov::ITaskExecutor {
     explicit ImmediateStreamsExecutor(const InferenceEngine::IStreamsExecutor::Ptr& streamsExecutor)
         : _streamsExecutor{streamsExecutor} {}
     void run(InferenceEngine::Task task) override {
@@ -29,8 +30,8 @@ ov::IAsyncInferRequest::~IAsyncInferRequest() {
 }
 
 ov::IAsyncInferRequest::IAsyncInferRequest(const std::shared_ptr<IInferRequest>& request,
-                                           const InferenceEngine::ITaskExecutor::Ptr& task_executor,
-                                           const InferenceEngine::ITaskExecutor::Ptr& callback_executor)
+                                           const std::shared_ptr<ov::ITaskExecutor>& task_executor,
+                                           const std::shared_ptr<ov::ITaskExecutor>& callback_executor)
     : m_sync_request(request),
       m_request_executor(task_executor),
       m_callback_executor(callback_executor) {
@@ -39,7 +40,7 @@ ov::IAsyncInferRequest::IAsyncInferRequest(const std::shared_ptr<IInferRequest>&
                            m_sync_request->infer();
                        }}};
     if (m_sync_request)
-        m_sync_pipeline = {{std::make_shared<InferenceEngine::ImmediateExecutor>(), [this] {
+        m_sync_pipeline = {{std::make_shared<ov::ImmediateExecutor>(), [this] {
                                 m_sync_request->infer();
                             }}};
     auto streams_executor = std::dynamic_pointer_cast<InferenceEngine::IStreamsExecutor>(m_request_executor);
@@ -116,7 +117,7 @@ void ov::IAsyncInferRequest::start_async_thread_unsafe() {
 
 void ov::IAsyncInferRequest::run_first_stage(const Pipeline::iterator itBeginStage,
                                              const Pipeline::iterator itEndStage,
-                                             const InferenceEngine::ITaskExecutor::Ptr callbackExecutor) {
+                                             const std::shared_ptr<ov::ITaskExecutor> callbackExecutor) {
     auto& firstStageExecutor = std::get<Stage_e::EXECUTOR>(*itBeginStage);
     OPENVINO_ASSERT(nullptr != firstStageExecutor);
     firstStageExecutor->run(make_next_stage_task(itBeginStage, itEndStage, std::move(callbackExecutor)));
@@ -125,9 +126,9 @@ void ov::IAsyncInferRequest::run_first_stage(const Pipeline::iterator itBeginSta
 InferenceEngine::Task ov::IAsyncInferRequest::make_next_stage_task(
     const Pipeline::iterator itStage,
     const Pipeline::iterator itEndStage,
-    const InferenceEngine::ITaskExecutor::Ptr callbackExecutor) {
+    const std::shared_ptr<ov::ITaskExecutor> callbackExecutor) {
     return std::bind(
-        [this, itStage, itEndStage](InferenceEngine::ITaskExecutor::Ptr& callbackExecutor) mutable {
+        [this, itStage, itEndStage](std::shared_ptr<ov::ITaskExecutor>& callbackExecutor) mutable {
             std::exception_ptr currentException = nullptr;
             auto& thisStage = *itStage;
             auto itNextStage = itStage + 1;

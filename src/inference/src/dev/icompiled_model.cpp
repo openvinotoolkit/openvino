@@ -11,8 +11,8 @@
 
 ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model,
                                    const std::shared_ptr<const ov::IPlugin>& plugin,
-                                   const InferenceEngine::ITaskExecutor::Ptr& task_executor,
-                                   const InferenceEngine::ITaskExecutor::Ptr& callback_executor)
+                                   const std::shared_ptr<ov::ITaskExecutor>& task_executor,
+                                   const std::shared_ptr<ov::ITaskExecutor>& callback_executor)
     : m_plugin(plugin),
       m_task_executor(task_executor),
       m_callback_executor(callback_executor) {
@@ -86,10 +86,10 @@ std::shared_ptr<ov::IAsyncInferRequest> ov::ICompiledModel::create_infer_request
 const std::shared_ptr<const ov::IPlugin>& ov::ICompiledModel::get_plugin() const {
     return m_plugin;
 }
-const InferenceEngine::ITaskExecutor::Ptr ov::ICompiledModel::get_task_executor() const {
+const std::shared_ptr<ov::ITaskExecutor> ov::ICompiledModel::get_task_executor() const {
     return m_task_executor;
 }
-const InferenceEngine::ITaskExecutor::Ptr ov::ICompiledModel::get_callback_executor() const {
+const std::shared_ptr<ov::ITaskExecutor> ov::ICompiledModel::get_callback_executor() const {
     return m_callback_executor;
 }
 

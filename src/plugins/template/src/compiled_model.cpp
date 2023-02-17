@@ -5,10 +5,12 @@
 #include "compiled_model.hpp"
 
 #include <memory>
+#include <vector>
 
 #include "async_infer_request.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "plugin.hpp"
 #include "template/config.hpp"
 #include "template_itt.hpp"
@@ -79,7 +81,7 @@ void fill_output_info(const ov::Output<ov::Node>& output, InferenceEngine::DataP
 // ! [executable_network:ctor_cnnnetwork]
 TemplatePlugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
-                                             const InferenceEngine::ITaskExecutor::Ptr& task_executor,
+                                             const std::shared_ptr<ov::ITaskExecutor>& task_executor,
                                              const Configuration& cfg)
     : ov::ICompiledModel(model, plugin, task_executor),  // Disable default threads creation
       _cfg(cfg),
@@ -116,7 +118,7 @@ std::shared_ptr<ov::IAsyncInferRequest> TemplatePlugin::CompiledModel::create_in
     auto async_infer_request =
         std::make_shared<AsyncInferRequest>(std::static_pointer_cast<TemplatePlugin::InferRequest>(internal_request),
                                             get_task_executor(),
-                                            get_template_plugin()->_waitExecutor,
+                                            get_template_plugin()->m_waitExecutor,
                                             get_callback_executor());
 
     return async_infer_request;
@@ -148,7 +150,7 @@ std::shared_ptr<const Plugin> TemplatePlugin::CompiledModel::get_template_plugin
 }
 
 // ! [executable_network:get_config]
-InferenceEngine::Parameter TemplatePlugin::CompiledModel::get_property(const std::string& name) const {
+ov::Any TemplatePlugin::CompiledModel::get_property(const std::string& name) const {
     const auto& add_ro_properties = [](const std::string& name, std::vector<ov::PropertyName>& properties) {
         properties.emplace_back(ov::PropertyName{name, ov::PropertyMutability::RO});
     };
@@ -179,7 +181,8 @@ InferenceEngine::Parameter TemplatePlugin::CompiledModel::get_property(const std
         return to_string_vector(metrics);
     } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         auto configs = default_rw_properties();
-        auto streamExecutorConfigKeys = InferenceEngine::IStreamsExecutor::Config{}.SupportedKeys();
+        auto streamExecutorConfigKeys =
+            ov::IStreamsExecutor::Config{}.get_property(ov::supported_properties.name()).as<std::vector<std::string>>();
         for (auto&& configKey : streamExecutorConfigKeys) {
             configs.emplace_back(configKey);
         }

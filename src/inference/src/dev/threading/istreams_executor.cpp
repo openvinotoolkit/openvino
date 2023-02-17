@@ -2,49 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "threading/ie_istreams_executor.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
 
-#include <algorithm>
-#include <openvino/util/log.hpp>
-#include <string>
-#include <thread>
-#include <vector>
+#include <sstream>
 
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
-#include "ie_parallel.hpp"
-#include "ie_parallel_custom_arena.hpp"
-#include "ie_parameter.hpp"
-#include "ie_plugin_config.hpp"
-#include "ie_system_conf.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "openvino/runtime/threading/istreams_executor.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/runtime/system_conf.hpp"
+#include "openvino/util/log.hpp"
+#include "threading/ie_parallel_custom_arena.hpp"
 
-namespace InferenceEngine {
-IStreamsExecutor::~IStreamsExecutor() {}
+ov::IStreamsExecutor::~IStreamsExecutor() {}
 
-std::vector<std::string> IStreamsExecutor::Config::SupportedKeys() const {
-    return {
-        CONFIG_KEY(CPU_THROUGHPUT_STREAMS),
-        CONFIG_KEY(CPU_BIND_THREAD),
-        CONFIG_KEY(CPU_THREADS_NUM),
-        CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM),
-        CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS),
-        CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS),
-        CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG),
-        CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL),
-        CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET),
-        CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD),
-        ov::num_streams.name(),
-        ov::inference_num_threads.name(),
-        ov::affinity.name(),
-    };
-}
-int IStreamsExecutor::Config::GetDefaultNumStreams(const bool enable_hyper_thread) {
-    const int sockets = static_cast<int>(getAvailableNUMANodes().size());
+int ov::IStreamsExecutor::Config::GetDefaultNumStreams(const bool enable_hyper_thread) {
+    const int sockets = static_cast<int>(get_available_numa_nodes().size());
     // bare minimum of streams (that evenly divides available number of core)
-    const int num_cores = sockets == 1 ? (enable_hyper_thread ? parallel_get_max_threads() : getNumberOfCPUCores())
-                                       : getNumberOfCPUCores();
+    const int num_cores = sockets == 1 ? (enable_hyper_thread ? parallel_get_max_threads() : get_number_of_cpu_cores())
+                                       : get_number_of_cpu_cores();
     if (0 == num_cores % 4)
         return std::max(4, num_cores / 4);
     else if (0 == num_cores % 5)
@@ -55,10 +31,10 @@ int IStreamsExecutor::Config::GetDefaultNumStreams(const bool enable_hyper_threa
         return 1;
 }
 
-int IStreamsExecutor::Config::GetHybridNumStreams(std::map<std::string, std::string>& config, const int stream_mode) {
+int ov::IStreamsExecutor::Config::GetHybridNumStreams(ov::AnyMap& config, const int stream_mode) {
     const int num_cores = parallel_get_max_threads();
-    const int num_cores_phy = getNumberOfCPUCores();
-    const int num_big_cores_phy = getNumberOfCPUCores(true);
+    const int num_cores_phy = get_number_of_cpu_cores();
+    const int num_big_cores_phy = get_number_of_cpu_cores(true);
     const int num_small_cores = num_cores_phy - num_big_cores_phy;
     const int num_big_cores = num_cores > num_cores_phy ? num_big_cores_phy * 2 : num_big_cores_phy;
     int big_core_streams = 0;
@@ -66,7 +42,7 @@ int IStreamsExecutor::Config::GetHybridNumStreams(std::map<std::string, std::str
     int threads_per_stream_big = 0;
     int threads_per_stream_small = 0;
 
-    if (stream_mode == ov::IStreamsExecutor::Config::DEFAULT) {
+    if (stream_mode == DEFAULT) {
         // bare minimum of streams (that evenly divides available number of core)
         if (0 == num_big_cores_phy % 4) {
             threads_per_stream_big = 4;
@@ -92,212 +68,236 @@ int IStreamsExecutor::Config::GetHybridNumStreams(std::map<std::string, std::str
         } else {
             small_core_streams = num_small_cores / threads_per_stream_small;
         }
-    } else if (stream_mode == ov::IStreamsExecutor::Config::AGGRESSIVE) {
+    } else if (stream_mode == AGGRESSIVE) {
         big_core_streams = num_big_cores;
         small_core_streams = num_small_cores;
         threads_per_stream_big = num_big_cores / big_core_streams;
         threads_per_stream_small = num_small_cores == 0 ? 0 : num_small_cores / small_core_streams;
-    } else if (stream_mode == ov::IStreamsExecutor::Config::LESSAGGRESSIVE) {
+    } else if (stream_mode == LESSAGGRESSIVE) {
         big_core_streams = num_big_cores / 2;
         small_core_streams = num_small_cores / 2;
         threads_per_stream_big = num_big_cores / big_core_streams;
         threads_per_stream_small = num_small_cores == 0 ? 0 : num_small_cores / small_core_streams;
     } else {
-        IE_THROW() << "Wrong stream mode to get num of streams: " << stream_mode;
+        OPENVINO_UNREACHABLE("Wrong stream mode to get number of streams: ", stream_mode);
     }
-    config[CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)] = std::to_string(big_core_streams);
-    config[CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)] = std::to_string(small_core_streams);
-    config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)] = std::to_string(threads_per_stream_big);
-    config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)] = std::to_string(threads_per_stream_small);
+    config[CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)] = big_core_streams;
+    config[CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)] = small_core_streams;
+    config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)] = threads_per_stream_big;
+    config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)] = threads_per_stream_small;
     // This is default setting for specific CPU which Pcore is in front and Ecore is in the back.
     config[CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)] = std::to_string(num_small_cores == 0 ? 0 : num_big_cores);
     return big_core_streams + small_core_streams;
 }
 
-void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::string& value) {
-    if (key == CONFIG_KEY(CPU_BIND_THREAD)) {
-        if (value == CONFIG_VALUE(YES) || value == CONFIG_VALUE(NUMA)) {
+void ov::IStreamsExecutor::Config::set_property(const std::string& key, const ov::Any& value) {
+    set_property(ov::AnyMap{{key, value}});
+}
+void ov::IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
+    for (const auto& it : property) {
+        const auto& key = it.first;
+        const auto value = it.second;
+        if (key == CONFIG_KEY(CPU_BIND_THREAD)) {
+            if (value.as<std::string>() == CONFIG_VALUE(YES) || value.as<std::string>() == CONFIG_VALUE(NUMA)) {
 #if (defined(__APPLE__) || defined(_WIN32))
-            _threadBindingType = IStreamsExecutor::ThreadBindingType::NUMA;
+                _threadBindingType = IStreamsExecutor::ThreadBindingType::NUMA;
 #else
-            _threadBindingType = (value == CONFIG_VALUE(YES)) ? IStreamsExecutor::ThreadBindingType::CORES
-                                                              : IStreamsExecutor::ThreadBindingType::NUMA;
+                _threadBindingType = (value == CONFIG_VALUE(YES)) ? IStreamsExecutor::ThreadBindingType::CORES
+                                                                  : IStreamsExecutor::ThreadBindingType::NUMA;
 #endif
-        } else if (value == CONFIG_VALUE(HYBRID_AWARE)) {
-            _threadBindingType = IStreamsExecutor::ThreadBindingType::HYBRID_AWARE;
-        } else if (value == CONFIG_VALUE(NO)) {
-            _threadBindingType = IStreamsExecutor::ThreadBindingType::NONE;
-        } else {
-            IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_BIND_THREAD)
-                       << ". Expected only YES(binds to cores) / NO(no binding) / NUMA(binds to NUMA nodes) / "
-                          "HYBRID_AWARE (let the runtime recognize and use the hybrid cores)";
-        }
-    } else if (key == ov::affinity) {
-        ov::Affinity affinity;
-        std::stringstream{value} >> affinity;
-        switch (affinity) {
-        case ov::Affinity::NONE:
-            _threadBindingType = ThreadBindingType::NONE;
-            break;
-        case ov::Affinity::CORE: {
+            } else if (value.as<std::string>() == CONFIG_VALUE(HYBRID_AWARE)) {
+                _threadBindingType = IStreamsExecutor::ThreadBindingType::HYBRID_AWARE;
+            } else if (value.as<std::string>() == CONFIG_VALUE(NO)) {
+                _threadBindingType = IStreamsExecutor::ThreadBindingType::NONE;
+            } else {
+                IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_BIND_THREAD)
+                           << ". Expected only YES(binds to cores) / NO(no binding) / NUMA(binds to NUMA nodes) / "
+                              "HYBRID_AWARE (let the runtime recognize and use the hybrid cores)";
+            }
+        } else if (key == ov::affinity) {
+            ov::Affinity affinity;
+            std::stringstream{value.as<std::string>()} >> affinity;
+            switch (affinity) {
+            case ov::Affinity::NONE:
+                _threadBindingType = ThreadBindingType::NONE;
+                break;
+            case ov::Affinity::CORE: {
 #if (defined(__APPLE__) || defined(_WIN32))
-            _threadBindingType = ThreadBindingType::NUMA;
+                _threadBindingType = ThreadBindingType::NUMA;
 #else
-            _threadBindingType = ThreadBindingType::CORES;
+                _threadBindingType = ThreadBindingType::CORES;
 #endif
-        } break;
-        case ov::Affinity::NUMA:
-            _threadBindingType = ThreadBindingType::NUMA;
-            break;
-        case ov::Affinity::HYBRID_AWARE:
-            _threadBindingType = ThreadBindingType::HYBRID_AWARE;
-            break;
-        default:
-            OPENVINO_UNREACHABLE("Unsupported affinity type");
-        }
-    } else if (key == CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) {
-        if (value == CONFIG_VALUE(CPU_THROUGHPUT_NUMA)) {
-            _streams = static_cast<int>(getAvailableNUMANodes().size());
-        } else if (value == CONFIG_VALUE(CPU_THROUGHPUT_AUTO)) {
-            // bare minimum of streams (that evenly divides available number of cores)
-            _streams = GetDefaultNumStreams();
-        } else {
+            } break;
+            case ov::Affinity::NUMA:
+                _threadBindingType = ThreadBindingType::NUMA;
+                break;
+            case ov::Affinity::HYBRID_AWARE:
+                _threadBindingType = ThreadBindingType::HYBRID_AWARE;
+                break;
+            default:
+                OPENVINO_UNREACHABLE("Unsupported affinity type");
+            }
+        } else if (key == CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) {
+            if (value.as<std::string>() == CONFIG_VALUE(CPU_THROUGHPUT_NUMA)) {
+                _streams = static_cast<int>(get_available_numa_nodes().size());
+            } else if (value.as<std::string>() == CONFIG_VALUE(CPU_THROUGHPUT_AUTO)) {
+                // bare minimum of streams (that evenly divides available number of cores)
+                _streams = GetDefaultNumStreams();
+            } else {
+                int val_i;
+                try {
+                    val_i = value.as<int>();
+                } catch (const std::exception&) {
+                    IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THROUGHPUT_STREAMS)
+                               << ". Expected only positive numbers (#streams) or "
+                               << "PluginConfigParams::CPU_THROUGHPUT_NUMA/CPU_THROUGHPUT_AUTO";
+                }
+                if (val_i < 0) {
+                    IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THROUGHPUT_STREAMS)
+                               << ". Expected only positive numbers (#streams)";
+                }
+                _streams = val_i;
+            }
+        } else if (key == ov::num_streams) {
+            auto streams = value.as<ov::streams::Num>();
+            if (streams == ov::streams::NUMA) {
+                _streams = static_cast<int32_t>(get_available_numa_nodes().size());
+            } else if (streams == ov::streams::AUTO) {
+                // bare minimum of streams (that evenly divides available number of cores)
+                _streams = GetDefaultNumStreams();
+            } else if (streams.num >= 0) {
+                _streams = streams.num;
+            } else {
+                OPENVINO_UNREACHABLE("Wrong value for property key ",
+                                     ov::num_streams.name(),
+                                     ". Expected non negative numbers (#streams) or ",
+                                     "ov::streams::NUMA|ov::streams::AUTO, Got: ",
+                                     streams);
+            }
+        } else if (key == CONFIG_KEY(CPU_THREADS_NUM) || key == ov::inference_num_threads) {
             int val_i;
             try {
-                val_i = std::stoi(value);
+                val_i = value.as<int>();
             } catch (const std::exception&) {
-                IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THROUGHPUT_STREAMS)
-                           << ". Expected only positive numbers (#streams) or "
-                           << "PluginConfigParams::CPU_THROUGHPUT_NUMA/CPU_THROUGHPUT_AUTO";
+                IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THREADS_NUM)
+                           << ". Expected only positive numbers (#threads)";
             }
             if (val_i < 0) {
-                IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THROUGHPUT_STREAMS)
-                           << ". Expected only positive numbers (#streams)";
+                IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THREADS_NUM)
+                           << ". Expected only positive numbers (#threads)";
             }
-            _streams = val_i;
-        }
-    } else if (key == ov::num_streams) {
-        auto streams = ov::util::from_string(value, ov::streams::num);
-        if (streams == ov::streams::NUMA) {
-            _streams = static_cast<int32_t>(getAvailableNUMANodes().size());
-        } else if (streams == ov::streams::AUTO) {
-            // bare minimum of streams (that evenly divides available number of cores)
-            _streams = GetDefaultNumStreams();
-        } else if (streams.num >= 0) {
-            _streams = streams.num;
+            _threads = val_i;
+        } else if (key == CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM)) {
+            int val_i;
+            try {
+                val_i = value.as<int>();
+            } catch (const std::exception&) {
+                IE_THROW() << "Wrong value for property key " << CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM)
+                           << ". Expected only non negative numbers (#threads)";
+            }
+            if (val_i < 0) {
+                IE_THROW() << "Wrong value for property key " << CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM)
+                           << ". Expected only non negative numbers (#threads)";
+            }
+            _threadsPerStream = val_i;
+        } else if (key == CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)) {
+            int val_i;
+            try {
+                val_i = value.as<int>();
+            } catch (const std::exception&) {
+                IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)
+                           << ". Expected only non negative numbers (#streams)";
+            }
+            if (val_i < 0) {
+                IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)
+                           << ". Expected only non negative numbers (#streams)";
+            }
+            _big_core_streams = val_i;
+        } else if (key == CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)) {
+            int val_i;
+            try {
+                val_i = value.as<int>();
+            } catch (const std::exception&) {
+                IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)
+                           << ". Expected only non negative numbers (#streams)";
+            }
+            if (val_i < 0) {
+                IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)
+                           << ". Expected only non negative numbers (#streams)";
+            }
+            _small_core_streams = val_i;
+        } else if (key == CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)) {
+            int val_i;
+            try {
+                val_i = value.as<int>();
+            } catch (const std::exception&) {
+                IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)
+                           << ". Expected only non negative numbers (#threads)";
+            }
+            if (val_i < 0) {
+                IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)
+                           << ". Expected only non negative numbers (#threads)";
+            }
+            _threads_per_stream_big = val_i;
+        } else if (key == CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)) {
+            int val_i;
+            try {
+                val_i = value.as<int>();
+            } catch (const std::exception&) {
+                IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)
+                           << ". Expected only non negative numbers (#threads)";
+            }
+            if (val_i < 0) {
+                IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)
+                           << ". Expected only non negative numbers (#threads)";
+            }
+            _threads_per_stream_small = val_i;
+        } else if (key == CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)) {
+            int val_i;
+            try {
+                val_i = value.as<int>();
+            } catch (const std::exception&) {
+                IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)
+                           << ". Expected only non negative numbers";
+            }
+            if (val_i < 0) {
+                IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)
+                           << ". Expected only non negative numbers";
+            }
+            _small_core_offset = val_i;
+        } else if (key == CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD)) {
+            if (value.as<std::string>() == CONFIG_VALUE(YES)) {
+                _enable_hyper_thread = true;
+            } else if (value.as<std::string>() == CONFIG_VALUE(NO)) {
+                _enable_hyper_thread = false;
+            } else {
+                OPENVINO_UNREACHABLE("Unsupported enable hyper thread type");
+            }
         } else {
-            OPENVINO_UNREACHABLE("Wrong value for property key ",
-                                 ov::num_streams.name(),
-                                 ". Expected non negative numbers (#streams) or ",
-                                 "ov::streams::NUMA|ov::streams::AUTO, Got: ",
-                                 streams);
+            IE_THROW() << "Wrong value for property key " << key;
         }
-    } else if (key == CONFIG_KEY(CPU_THREADS_NUM) || key == ov::inference_num_threads) {
-        int val_i;
-        try {
-            val_i = std::stoi(value);
-        } catch (const std::exception&) {
-            IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THREADS_NUM)
-                       << ". Expected only positive numbers (#threads)";
-        }
-        if (val_i < 0) {
-            IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THREADS_NUM)
-                       << ". Expected only positive numbers (#threads)";
-        }
-        _threads = val_i;
-    } else if (key == CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM)) {
-        int val_i;
-        try {
-            val_i = std::stoi(value);
-        } catch (const std::exception&) {
-            IE_THROW() << "Wrong value for property key " << CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM)
-                       << ". Expected only non negative numbers (#threads)";
-        }
-        if (val_i < 0) {
-            IE_THROW() << "Wrong value for property key " << CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM)
-                       << ". Expected only non negative numbers (#threads)";
-        }
-        _threadsPerStream = val_i;
-    } else if (key == CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)) {
-        int val_i;
-        try {
-            val_i = std::stoi(value);
-        } catch (const std::exception&) {
-            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)
-                       << ". Expected only non negative numbers (#streams)";
-        }
-        if (val_i < 0) {
-            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)
-                       << ". Expected only non negative numbers (#streams)";
-        }
-        _big_core_streams = val_i;
-    } else if (key == CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)) {
-        int val_i;
-        try {
-            val_i = std::stoi(value);
-        } catch (const std::exception&) {
-            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)
-                       << ". Expected only non negative numbers (#streams)";
-        }
-        if (val_i < 0) {
-            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)
-                       << ". Expected only non negative numbers (#streams)";
-        }
-        _small_core_streams = val_i;
-    } else if (key == CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)) {
-        int val_i;
-        try {
-            val_i = std::stoi(value);
-        } catch (const std::exception&) {
-            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)
-                       << ". Expected only non negative numbers (#threads)";
-        }
-        if (val_i < 0) {
-            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)
-                       << ". Expected only non negative numbers (#threads)";
-        }
-        _threads_per_stream_big = val_i;
-    } else if (key == CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)) {
-        int val_i;
-        try {
-            val_i = std::stoi(value);
-        } catch (const std::exception&) {
-            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)
-                       << ". Expected only non negative numbers (#threads)";
-        }
-        if (val_i < 0) {
-            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)
-                       << ". Expected only non negative numbers (#threads)";
-        }
-        _threads_per_stream_small = val_i;
-    } else if (key == CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)) {
-        int val_i;
-        try {
-            val_i = std::stoi(value);
-        } catch (const std::exception&) {
-            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)
-                       << ". Expected only non negative numbers";
-        }
-        if (val_i < 0) {
-            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)
-                       << ". Expected only non negative numbers";
-        }
-        _small_core_offset = val_i;
-    } else if (key == CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD)) {
-        if (value == CONFIG_VALUE(YES)) {
-            _enable_hyper_thread = true;
-        } else if (value == CONFIG_VALUE(NO)) {
-            _enable_hyper_thread = false;
-        } else {
-            OPENVINO_UNREACHABLE("Unsupported enable hyper thread type");
-        }
-    } else {
-        IE_THROW() << "Wrong value for property key " << key;
     }
 }
 
-Parameter IStreamsExecutor::Config::GetConfig(const std::string& key) const {
-    if (key == ov::affinity) {
+ov::Any ov::IStreamsExecutor::Config::get_property(const std::string& key) const {
+    if (key == ov::supported_properties) {
+        std::vector<std::string> properties{
+            CONFIG_KEY(CPU_THROUGHPUT_STREAMS),
+            CONFIG_KEY(CPU_BIND_THREAD),
+            CONFIG_KEY(CPU_THREADS_NUM),
+            CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM),
+            CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS),
+            CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS),
+            CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG),
+            CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL),
+            CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET),
+            CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD),
+            ov::num_streams.name(),
+            ov::inference_num_threads.name(),
+            ov::affinity.name(),
+        };
+        return properties;
+    } else if (key == ov::affinity) {
         switch (_threadBindingType) {
         case IStreamsExecutor::ThreadBindingType::NONE:
             return ov::Affinity::NONE;
@@ -342,15 +342,15 @@ Parameter IStreamsExecutor::Config::GetConfig(const std::string& key) const {
     } else if (key == CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD)) {
         return {_enable_hyper_thread ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO)};
     } else {
-        IE_THROW() << "Wrong value for property key " << key;
+        OPENVINO_UNREACHABLE("Wrong value for property key ", key);
     }
     return {};
 }
 
-void IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config) {
+void ov::IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config) {
     const auto num_cores = parallel_get_max_threads();
-    const auto num_cores_phys = getNumberOfCPUCores();
-    const auto num_big_cores_phys = getNumberOfCPUCores(true);
+    const auto num_cores_phys = get_number_of_cpu_cores();
+    const auto num_big_cores_phys = get_number_of_cpu_cores(true);
     const auto num_big_cores = num_cores > num_cores_phys ? num_big_cores_phys * 2 : num_big_cores_phys;
     const auto num_small_cores_phys = num_cores_phys - num_big_cores_phys;
     const auto threads = config._threads ? config._threads : num_cores;
@@ -410,23 +410,24 @@ void IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config) {
     }
 }
 
-IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(const IStreamsExecutor::Config& initial,
-                                                                            const bool fp_intesive) {
+ov::IStreamsExecutor::Config ov::IStreamsExecutor::Config::MakeDefaultMultiThreaded(
+    const IStreamsExecutor::Config& initial,
+    const bool fp_intesive) {
     const auto envThreads = parallel_get_env_threads();
-    const auto& numaNodes = getAvailableNUMANodes();
+    const auto& numaNodes = get_available_numa_nodes();
     const int numaNodesNum = static_cast<int>(numaNodes.size());
     auto streamExecutorConfig = initial;
     const bool bLatencyCase = streamExecutorConfig._streams <= numaNodesNum;
 
     // by default, do not use the hyper-threading (to minimize threads synch overheads)
-    int num_cores_default = getNumberOfCPUCores();
+    int num_cores_default = get_number_of_cpu_cores();
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
     // additional latency-case logic for hybrid processors:
     if (ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType) {
         const auto core_types = custom::info::core_types();
         const auto num_little_cores =
             custom::info::default_concurrency(custom::task_arena::constraints{}.set_core_type(core_types.front()));
-        const auto num_big_cores_phys = getNumberOfCPUCores(true);
+        const auto num_big_cores_phys = get_number_of_cpu_cores(true);
         const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
         const int fp32_threshold = 2;  // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
         // by default the latency case uses (faster) Big cores only, depending on the compute ratio
@@ -482,5 +483,3 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
             : streamExecutorConfig._threadsPerStream * streamExecutorConfig._streams;
     return streamExecutorConfig;
 }
-
-}  //  namespace InferenceEngine

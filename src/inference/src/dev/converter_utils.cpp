@@ -34,6 +34,7 @@
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/runtime/variable_state.hpp"
 #include "so_ptr.hpp"
+#include "threading/ie_executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
@@ -194,7 +195,7 @@ public:
         version.description = ver.description;
         SetVersion(version);
         _isNewAPI = plugin->is_new_api();
-        _executorManager = plugin->get_executor_manager();
+        _executorManager = std::make_shared<InferenceEngine::ExecutorManager>(plugin->get_executor_manager());
     }
     std::string GetName() const noexcept override {
         return m_plugin->get_device_name();

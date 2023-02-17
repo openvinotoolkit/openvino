@@ -9,12 +9,14 @@
 
 #pragma once
 
+#include <memory>
 #include <mutex>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
+#include "openvino/runtime/threading/executor_manager.hpp"
 #include "threading/ie_istreams_executor.hpp"
 #include "threading/ie_itask_executor.hpp"
 
@@ -31,6 +33,7 @@ namespace InferenceEngine {
  */
 class INFERENCE_ENGINE_API_CLASS(ExecutorManager) {
 public:
+    ExecutorManager(const std::shared_ptr<ov::ExecutorManager>& ov_manager);
     /**
      * A shared pointer to ExecutorManager interface
      */
@@ -41,24 +44,24 @@ public:
      * @param id An unique identificator of device (Usually string representation of TargetDevice)
      * @return A shared pointer to existing or newly ITaskExecutor
      */
-    virtual ITaskExecutor::Ptr getExecutor(const std::string& id) = 0;
+    ITaskExecutor::Ptr getExecutor(const std::string& id);
 
     /// @private
-    virtual IStreamsExecutor::Ptr getIdleCPUStreamsExecutor(const IStreamsExecutor::Config& config) = 0;
+    IStreamsExecutor::Ptr getIdleCPUStreamsExecutor(const IStreamsExecutor::Config& config);
 
     /**
      * @cond
      */
-    virtual size_t getExecutorsNumber() const = 0;
+    size_t getExecutorsNumber() const;
 
-    virtual size_t getIdleCPUStreamsExecutorsNumber() const = 0;
+    size_t getIdleCPUStreamsExecutorsNumber() const;
 
-    virtual void clear(const std::string& id = {}) = 0;
+    void clear(const std::string& id = {});
     /**
      * @endcond
      */
 
-    virtual ~ExecutorManager() = default;
+    ~ExecutorManager();
 
     /**
      * @brief      Returns a global instance of ExecutorManager
@@ -74,8 +77,11 @@ public:
      * False to not terminate tbb during destruction
      * @return void
      */
-    virtual void setTbbFlag(bool flag) = 0;
-    virtual bool getTbbFlag() = 0;
+    void setTbbFlag(bool flag);
+    bool getTbbFlag();
+
+private:
+    std::shared_ptr<ov::ExecutorManager> m_manager;
 };
 
 INFERENCE_ENGINE_API_CPP(ExecutorManager::Ptr) executorManager();

@@ -17,8 +17,9 @@
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/remote_context.hpp"
-#include "threading/ie_cpu_streams_executor.hpp"
-#include "threading/ie_itask_executor.hpp"
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
+#include "openvino/runtime/threading/itask_executor.hpp"
 
 namespace InferenceEngine {
 class ICompiledModelWrapper;
@@ -49,12 +50,10 @@ public:
      */
     ICompiledModel(const std::shared_ptr<const ov::Model>& model,
                    const std::shared_ptr<const ov::IPlugin>& plugin,
-                   const InferenceEngine::ITaskExecutor::Ptr& task_executor =
-                       std::make_shared<InferenceEngine::CPUStreamsExecutor>(InferenceEngine::IStreamsExecutor::Config{
-                           "Default"}),
-                   const InferenceEngine::ITaskExecutor::Ptr& callback_executor =
-                       std::make_shared<InferenceEngine::CPUStreamsExecutor>(InferenceEngine::IStreamsExecutor::Config{
-                           "Callback"}));
+                   const std::shared_ptr<ov::ITaskExecutor>& task_executor =
+                       std::make_shared<ov::CPUStreamsExecutor>(ov::IStreamsExecutor::Config{"Default"}),
+                   const std::shared_ptr<ov::ITaskExecutor>& callback_executor =
+                       std::make_shared<ov::CPUStreamsExecutor>(ov::IStreamsExecutor::Config{"Callback"}));
 
     /**
      * @brief Gets all outputs from compiled model
@@ -119,8 +118,8 @@ private:
     std::vector<ov::Output<const ov::Node>> m_inputs;
     std::vector<ov::Output<const ov::Node>> m_outputs;
 
-    InferenceEngine::ITaskExecutor::Ptr m_task_executor = nullptr;      //!< Holds a task executor
-    InferenceEngine::ITaskExecutor::Ptr m_callback_executor = nullptr;  //!< Holds a callback executor
+    std::shared_ptr<ov::ITaskExecutor> m_task_executor = nullptr;      //!< Holds a task executor
+    std::shared_ptr<ov::ITaskExecutor> m_callback_executor = nullptr;  //!< Holds a callback executor
 
     friend ov::CoreImpl;
     friend ov::IExecutableNetworkWrapper;
@@ -163,8 +162,8 @@ protected:
      * @return OpenVINO Plugin interface
      */
     const std::shared_ptr<const ov::IPlugin>& get_plugin() const;
-    const InferenceEngine::ITaskExecutor::Ptr get_task_executor() const;
-    const InferenceEngine::ITaskExecutor::Ptr get_callback_executor() const;
+    const std::shared_ptr<ov::ITaskExecutor> get_task_executor() const;
+    const std::shared_ptr<ov::ITaskExecutor> get_callback_executor() const;
 };
 
 }  // namespace ov
