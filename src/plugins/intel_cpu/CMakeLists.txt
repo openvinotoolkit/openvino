@@ -8,11 +8,12 @@ endif()
 
 set(TARGET_NAME "openvino_intel_cpu_plugin")
 
-if(CMAKE_COMPILER_IS_GNUCC)
-    ie_add_compiler_flags(-Wno-all)
-endif()
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+if(CMAKE_COMPILER_IS_GNUCXX)
+    ie_add_compiler_flags(-Wno-sign-compare)
+    ie_add_compiler_flags(-Wno-sequence-point)
+    ie_add_compiler_flags(-Wno-strict-aliasing)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-class-memaccess")
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # C4267, 4244 issues from mkl-dnn headers conversion from 'XXX' to 'YYY', possible loss of data
     ie_add_compiler_flags(/wd4267)
     ie_add_compiler_flags(/wd4244)
@@ -40,11 +41,9 @@ file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
 addVersionDefines(${CMAKE_CURRENT_SOURCE_DIR}/src/plugin.cpp CI_BUILD_NUMBER)
 
 add_subdirectory(thirdparty)
+
 if(ENABLE_TESTS)
-    add_subdirectory(tests/unit)
-endif()
-if(ENABLE_FUNCTIONAL_TESTS)
-    add_subdirectory(tests/functional)
+    add_subdirectory(tests)
 endif()
 
 # create plugin
@@ -57,13 +56,6 @@ ie_add_plugin(NAME ${TARGET_NAME}
 set_ie_threading_interface_for(${TARGET_NAME})
 
 ie_mark_target_as_cc(${TARGET_NAME})
-
-if(SELECTIVE_BUILD STREQUAL "ON")
-    # After disabling a block of code, some variables might be unused.
-    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
-        target_compile_options(${TARGET_NAME} PRIVATE -Wno-unused-variable)
-    endif()
-endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE dnnl
                                              ov_shape_inference

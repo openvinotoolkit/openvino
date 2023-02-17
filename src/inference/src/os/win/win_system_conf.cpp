@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "ie_system_conf.h"
+#include "streams_executor.hpp"
 #include "threading/ie_parallel_custom_arena.hpp"
 
 namespace InferenceEngine {
@@ -59,7 +60,6 @@ void parse_processor_info_win(const char* base_ptr,
     int list_len = 0;
     int base_proc = 0;
     int proc_count = 0;
-    int mask_len = 0;
     int group = 0;
     _sockets = -1;
 
@@ -90,7 +90,6 @@ void parse_processor_info_win(const char* base_ptr,
         if (info->Relationship == RelationProcessorPackage) {
             _sockets++;
             MaskToList(info->Processor.GroupMask->Mask);
-            mask_len = list_len;
             if (0 == _sockets) {
                 _proc_type_table.push_back(line_value_0);
             } else {
@@ -162,7 +161,7 @@ void parse_processor_info_win(const char* base_ptr,
         _proc_type_table[0] = line_value_0;
 
         for (int m = 1; m <= _sockets; m++) {
-            for (int n = 0; n <= EFFICIENT_CORE_PROC; n++) {
+            for (int n = 0; n < PROC_TYPE_TABLE_SIZE; n++) {
                 _proc_type_table[0][n] += _proc_type_table[m][n];
             }
         }
