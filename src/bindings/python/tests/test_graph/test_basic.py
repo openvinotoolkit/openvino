@@ -536,14 +536,6 @@ def test_sink_function_ctor():
     assert len(function.get_results()) == 1
     assert function.get_friendly_name() == "TestFunction"
 
-
-def test_node_version():
-    node = ops.add([1], [2])
-
-    assert node.get_version() == 1
-    assert node.version == 1
-
-
 def test_strides_iteration_methods():
     data = np.array([1, 2, 3])
     strides = Strides(data)

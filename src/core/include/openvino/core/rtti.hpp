@@ -25,16 +25,16 @@
 #define _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT(TYPE_NAME, VERSION_NAME, PARENT_CLASS) \
     _OPENVINO_RTTI_WITH_TYPE_VERSIONS_PARENT(TYPE_NAME, VERSION_NAME, PARENT_CLASS)
 
-#define _OPENVINO_RTTI_WITH_TYPE_VERSIONS_PARENT(TYPE_NAME, VERSION_NAME, PARENT_CLASS)              \
-    _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {            \
-        static ::ov::DiscreteTypeInfo type_info_static{TYPE_NAME,                                    \
-                                                       VERSION_NAME,                                 \
-                                                       &PARENT_CLASS::get_type_info_static()};       \
-        type_info_static.hash();                                                                     \
-        return type_info_static;                                                                     \
-    }                                                                                                \
-    const ::ov::DiscreteTypeInfo& get_type_info() const override {                                   \
-        return get_type_info_static();                                                               \
+#define _OPENVINO_RTTI_WITH_TYPE_VERSIONS_PARENT(TYPE_NAME, VERSION_NAME, PARENT_CLASS)        \
+    _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {      \
+        static ::ov::DiscreteTypeInfo type_info_static{TYPE_NAME,                              \
+                                                       VERSION_NAME,                           \
+                                                       &PARENT_CLASS::get_type_info_static()}; \
+        type_info_static.hash();                                                               \
+        return type_info_static;                                                               \
+    }                                                                                          \
+    const ::ov::DiscreteTypeInfo& get_type_info() const override {                             \
+        return get_type_info_static();                                                         \
     }
 
 /// Helper macro that puts necessary declarations of RTTI block inside a class definition.
