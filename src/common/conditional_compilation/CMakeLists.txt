@@ -33,7 +33,7 @@ elseif(SELECTIVE_BUILD STREQUAL "ON")
                                 -Wno-unused-variable
                                 -Wno-unused-parameter
                                 -Wno-unused-local-typedefs)
-        if(CMAKE_COMPILER_IS_GNUCXX)
+        if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 13.0)
             target_compile_options(${TARGET_NAME} INTERFACE -Wno-unused-but-set-variable)
         endif()
     endif()

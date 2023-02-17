@@ -8,7 +8,7 @@ add_subdirectory(c)
 # used by tests_deprecated
 if(TARGET format_reader)
     install(TARGETS format_reader
-            RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL
+            ARCHIVE DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL
             LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
 endif()
 
