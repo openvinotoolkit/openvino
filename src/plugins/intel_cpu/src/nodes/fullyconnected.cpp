@@ -265,6 +265,13 @@ void FullyConnected::getSupportedDescriptors() {
     }
 }
 
+void FullyConnected::createPrimitive() {
+    setPostOps(attr, outDims);
+    attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
+    Node::createPrimitive();
+    appendPostOpArgs(attr, primArgs, postOpsArgs);
+}
+
 void FullyConnected::prepareParams() {
     auto srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
     auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
@@ -283,10 +290,6 @@ void FullyConnected::prepareParams() {
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 
-    AttrPtr attr = std::make_shared<dnnl::primitive_attr>();
-    setPostOps(*attr, dstMemPtr->getStaticDims());
-    (*attr).set_scratchpad_mode(dnnl::scratchpad_mode::user);
-
     DnnlMemoryDescPtr weightDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weightDescIP);
     DnnlMemoryDescCPtr biasDesc = nullptr;
     if (biasMemPtr) {
@@ -301,7 +304,7 @@ void FullyConnected::prepareParams() {
                  weightDesc,
                  biasDesc,
                  outDesc,
-                 *attr,
+                 attr,
                  implementationTypeIP,
                  useConv1x1};
 
@@ -425,8 +428,6 @@ void FullyConnected::prepareParams() {
             primArgs[DNNL_ARG_BIAS] = biasMemPtr->GetPrimitive();
         }
 
-        appendPostOpArgs(*attr, primArgs, postOpsArgs);
-
         auto pd = execPtr->getPrimitiveDesc();
         auto scratchpadMem = getScratchPadMem(pd);
         primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
@@ -504,7 +505,7 @@ bool FullyConnected::canFuse(const NodePtr& node) const {
     return canFuseSimpleOperation(node);
 }
 
-void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims_ext, bool initWeights) {
+void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims_ext) {
     dnnl::post_ops ops;
 
     // accoridng to https://oneapi-src.github.io/oneDNN/dev_guide_inner_product.html
@@ -595,14 +596,6 @@ const std::vector<impl_desc_type>& FullyConnected::getPrimitivesPriority() {
             implPriorities.push_back(impl);
     }
     return implPriorities;
-}
-
-Node::AttrPtr FullyConnected::initPrimitiveAttr() {
-    auto attr = std::make_shared<dnnl::primitive_attr>(dnnl::primitive_attr());
-
-    setPostOps(*attr, outDims);
-
-    return attr;
 }
 
 // WA: creation DnnlMemoryDesc with format == any is prohibited
@@ -892,11 +885,11 @@ bool FullyConnected::canBeExecutedInConv1x1() const {
 }
 
 FullyConnected::ExecutorInnerProduct::ExecutorInnerProduct(const dnnl::inner_product_forward::primitive_desc& pd) {
-    execPrim.reset(new dnnl::inner_product_forward(pd));
+    execPrim = dnnl::inner_product_forward(pd);
 }
 
 FullyConnected::ExecutorConv1x1::ExecutorConv1x1(const dnnl::convolution_forward::primitive_desc& pd) {
-    execPrim.reset(new dnnl::convolution_forward(pd));
+    execPrim = dnnl::convolution_forward(pd);
 }
 
 MemoryPtr FullyConnected::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {

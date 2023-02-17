@@ -269,9 +269,9 @@ void Core::SetConfig(const std::map<std::string, std::string>& config, const std
 
     ov::AnyMap conf = ov::any_copy(config);
     if (deviceName.empty()) {
-        _impl->set_property_for_devivce(conf, std::string());
+        _impl->set_property_for_device(conf, std::string());
     } else {
-        _impl->set_property_for_devivce(conf, deviceName);
+        _impl->set_property_for_device(conf, deviceName);
     }
 }
 

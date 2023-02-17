@@ -4,12 +4,7 @@
 
 #pragma once
 
-#include <memory>
-
-#include "openvino/core/any.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/node_output.hpp"
-#include "openvino/core/partial_shape.hpp"
 #include "openvino/frontend/decoder.hpp"
 
 namespace ov {
@@ -29,15 +24,15 @@ public:
 
     // TODO: set of input and output methods are not aligned; also they are not aligned with the rest of FEs
 
-    // Input tensor id
-    virtual size_t input(size_t index) const = 0;
-
     virtual const std::vector<size_t>& inputs() const = 0;
 
     // ------------------------------
     // TODO: physically inputs and outputs refer to PT Values so shape/type is not a property of input/output
     // Do we need a separate Decoder for Tensor to request properties of it instead of having an impression
     // that inputs/outputs have types and shapes?
+
+    // Return debug name of the input tensor
+    virtual const std::string& get_input_debug_name(size_t index) const = 0;
 
     // Return shape if inputs has torch::Tensor type in the original model, otherwise returns the shape [] of a scalar
     virtual PartialShape get_input_shape(size_t index) const = 0;
@@ -49,8 +44,8 @@ public:
     // TODO: Consider deleting this method, probably it doesn't make sence outside Torch JIT execution
     virtual const std::vector<size_t>& get_input_transpose_order(size_t index) const = 0;
 
-    // TODO: Consider deleting this method, probably it doesn't make sence outside Torch JIT execution
-    virtual const std::vector<size_t>& get_output_transpose_order(size_t index) const = 0;
+    // Return debug name of the input tensor
+    virtual const std::string& get_output_debug_name(size_t index) const = 0;
 
     // Return shape if inputs has torch::Tensor type in the original model, otherwise returns the shape [] of a scalar
     virtual PartialShape get_output_shape(size_t index) const = 0;
@@ -58,6 +53,9 @@ public:
     // Return element::Type when it the original type can be represented, otherwise returns PT-sepcific data type object
     // (see custom_type.hpp)
     virtual Any get_output_type(size_t index) const = 0;
+
+    // TODO: Consider deleting this method, probably it doesn't make sence outside Torch JIT execution
+    virtual const std::vector<size_t>& get_output_transpose_order(size_t index) const = 0;
     // ------------------------------
 
     // TODO: required? can be implemented in the context of a single node?
@@ -94,19 +92,6 @@ public:
     // the representation of this mapping is specific for particular decored type and may be NOP
     // returns the same node as syntactically convenient way to make nested sentences in code
     virtual std::shared_ptr<Node> mark_node(std::shared_ptr<Node> ov_node) const = 0;
-
-    // Call mark_node for each node from the vector
-    void mark_nodes(std::vector<std::shared_ptr<Node>> ov_nodes) const {
-        for (auto& ov_node : ov_nodes) {
-            mark_node(ov_node);
-        }
-    }
-
-    // Syntactic sugar around mark_node -- just calls it for corresponding node for the passed output port
-    Output<Node> mark_output(Output<Node> ov_output) const {
-        mark_node(ov_output.get_node_shared_ptr());
-        return ov_output;
-    }
 
     /// \brief Returns the number of sub-graphs that can be enumerated with get_subgraph
     virtual size_t get_subgraph_size() const = 0;
