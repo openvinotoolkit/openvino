@@ -17,7 +17,7 @@ namespace pytorch {
 namespace op {
 
 #define mark(...) context.mark_node(__VA_ARGS__)
-#define shared    std::make_shared
+#define shared std::make_shared
 
 using namespace opset10;
 
@@ -31,13 +31,11 @@ OutputVector translate_argsort(NodeContext& context) {
     auto zero_axis = mark(Constant::create(element::i64, Shape({1}), {0}));
     auto dim_axis = mark(Constant::create(element::i64, Shape({1}), {dim}));
     auto shape = mark(shared<ShapeOf>(input_tensor));
-
     auto elements_node = mark(shared<Gather>(shape, dim_axis, zero_axis));
     auto elements_count = mark(shared<Squeeze>(elements_node));
-
     auto topk = mark(shared<TopK>(input_tensor, elements_count, dim, mode, ov::op::TopKSortType::NONE));
-
     auto indices = mark(shared<Convert>(topk->output(1), element::i64));
+
     return {indices};
 };
 
