@@ -93,26 +93,16 @@ struct CPUStreamsExecutor::Impl {
                     (stream_id < _impl->_config._big_core_streams + _impl->_config._big_core_logic_streams)
                         ? custom::info::core_types().back()
                         : custom::info::core_types().front();
-                if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
+                if (ThreadBindingType::CORES == _impl->_config._threadBindingType ||
+                    ThreadBindingType::NONE == _impl->_config._threadBindingType ||
+                    _streamId >= _impl->_config._streams) {
+                    _taskArena.reset(new custom::task_arena{concurrency});
+                } else if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
                     _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
-                } else {
-                    if (Config::PreferredCoreType::ROUND_ROBIN != _impl->_config._threadPreferredCoreType) {
-                        if (Config::PreferredCoreType::ANY == _impl->_config._threadPreferredCoreType) {
-                            _taskArena.reset(new custom::task_arena{concurrency});
-                        } else {
-                            const auto core_type =
-                                Config::PreferredCoreType::BIG == _impl->_config._threadPreferredCoreType
-                                    ? custom::info::core_types().back()    // running on Big cores only
-                                    : custom::info::core_types().front();  // running on Little cores only
-                            _taskArena.reset(new custom::task_arena{
-                                custom::task_arena::constraints{}.set_core_type(core_type).set_max_concurrency(
-                                    concurrency)});
-                        }
-                    } else {
-                        _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
-                                                                    .set_core_type(selected_core_type)
-                                                                    .set_max_concurrency(concurrency)});
-                    }
+                } else if (ThreadBindingType::HYBRID_AWARE == _impl->_config._threadBindingType) {
+                    _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
+                                                                .set_core_type(selected_core_type)
+                                                                .set_max_concurrency(concurrency)});
                 }
                 if (_impl->_config._bind_cores && _streamId < _impl->_config._streams) {
                     const auto cpu_core_type =

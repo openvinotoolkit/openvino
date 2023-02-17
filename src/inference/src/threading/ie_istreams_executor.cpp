@@ -435,102 +435,93 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
     auto streamExecutorConfig = initial;
     const bool bLatencyCase = streamExecutorConfig._streams <= numaNodesNum;
 
-    // by default, do not use the hyper-threading (to minimize threads synch overheads)
-    int num_cores_default = getNumberOfCPUCores();
+    if (cpuMapAvailable()) {
+        if ((!bLatencyCase && ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType) ||
+            ThreadBindingType::CORES == streamExecutorConfig._threadBindingType) {
+            streamExecutorConfig._bind_cores = true;
+        }
+        streamExecutorConfig._threads =
+            (streamExecutorConfig._big_core_streams + streamExecutorConfig._big_core_logic_streams) *
+                streamExecutorConfig._threads_per_stream_big +
+            streamExecutorConfig._small_core_streams * streamExecutorConfig._threads_per_stream_small;
+        std::cout << "[ p_e_core_info ] streams (threads): " << streamExecutorConfig._streams << "("
+                  << streamExecutorConfig._threads_per_stream_big *
+                             (streamExecutorConfig._big_core_streams + streamExecutorConfig._big_core_logic_streams) +
+                         streamExecutorConfig._threads_per_stream_small * streamExecutorConfig._small_core_streams
+                  << ") -- PCore: " << streamExecutorConfig._big_core_streams << "("
+                  << streamExecutorConfig._threads_per_stream_big << ") "
+                  << streamExecutorConfig._big_core_logic_streams << "(" << streamExecutorConfig._threads_per_stream_big
+                  << ")  ECore: " << streamExecutorConfig._small_core_streams << "("
+                  << streamExecutorConfig._threads_per_stream_small << ")\n";
+    } else {
+        // by default, do not use the hyper-threading (to minimize threads synch overheads)
+        int num_cores_default = getNumberOfCPUCores();
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-    // additional latency-case logic for hybrid processors:
-    if (ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType) {
-        const auto core_types = custom::info::core_types();
-        const auto num_little_cores =
-            custom::info::default_concurrency(custom::task_arena::constraints{}.set_core_type(core_types.front()));
-        const auto num_big_cores_phys = getNumberOfCPUCores(true);
-        const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
-        const int fp32_threshold = 2;  // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
-        // by default the latency case uses (faster) Big cores only, depending on the compute ratio
-        const bool bLatencyCaseBigOnly =
-            num_big_cores_phys > (num_little_cores / (fp_intesive ? fp32_threshold : int8_threshold));
-        // selecting the preferred core type
-        streamExecutorConfig._threadPreferredCoreType =
-            bLatencyCase ? (bLatencyCaseBigOnly ? IStreamsExecutor::Config::PreferredCoreType::BIG
-                                                : IStreamsExecutor::Config::PreferredCoreType::ANY)
-                         : IStreamsExecutor::Config::PreferredCoreType::ROUND_ROBIN;
-        // additionally selecting the #cores to use in the "Big-only" case
-        if (bLatencyCaseBigOnly) {
-            const int hyper_threading_threshold =
-                2;  // min #cores, for which the hyper-threading becomes useful for the latency case
-            const auto num_big_cores =
-                custom::info::default_concurrency(custom::task_arena::constraints{}.set_core_type(core_types.back()));
-            num_cores_default = (num_big_cores_phys <= hyper_threading_threshold) ? num_big_cores : num_big_cores_phys;
+        // additional latency-case logic for hybrid processors:
+        if (ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType) {
+            const auto core_types = custom::info::core_types();
+            const auto num_little_cores =
+                custom::info::default_concurrency(custom::task_arena::constraints{}.set_core_type(core_types.front()));
+            const auto num_big_cores_phys = getNumberOfCPUCores(true);
+            const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
+            const int fp32_threshold = 2;  // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
+            // by default the latency case uses (faster) Big cores only, depending on the compute ratio
+            const bool bLatencyCaseBigOnly =
+                num_big_cores_phys > (num_little_cores / (fp_intesive ? fp32_threshold : int8_threshold));
+            // selecting the preferred core type
+            streamExecutorConfig._threadPreferredCoreType =
+                bLatencyCase ? (bLatencyCaseBigOnly ? IStreamsExecutor::Config::PreferredCoreType::BIG
+                                                    : IStreamsExecutor::Config::PreferredCoreType::ANY)
+                             : IStreamsExecutor::Config::PreferredCoreType::ROUND_ROBIN;
+            // additionally selecting the #cores to use in the "Big-only" case
+            if (bLatencyCaseBigOnly) {
+                const int hyper_threading_threshold =
+                    2;  // min #cores, for which the hyper-threading becomes useful for the latency case
+                const auto num_big_cores = custom::info::default_concurrency(
+                    custom::task_arena::constraints{}.set_core_type(core_types.back()));
+                num_cores_default =
+                    (num_big_cores_phys <= hyper_threading_threshold) ? num_big_cores : num_big_cores_phys;
+            }
+            // if nstreams or nthreads are set, need to calculate the Hybrid aware parameters here
+            if (!bLatencyCase && (streamExecutorConfig._big_core_streams == 0 || streamExecutorConfig._threads)) {
+                UpdateHybridCustomThreads(streamExecutorConfig);
+            }
+            OPENVINO_DEBUG << "[ p_e_core_info ] streams (threads): " << streamExecutorConfig._streams << "("
+                           << streamExecutorConfig._threads_per_stream_big * streamExecutorConfig._big_core_streams +
+                                  streamExecutorConfig._threads_per_stream_small *
+                                      streamExecutorConfig._small_core_streams
+                           << ") -- PCore: " << streamExecutorConfig._big_core_streams << "("
+                           << streamExecutorConfig._threads_per_stream_big << ") "
+                           << streamExecutorConfig._big_core_logic_streams << "("
+                           << streamExecutorConfig._threads_per_stream_big
+                           << ")  ECore: " << streamExecutorConfig._small_core_streams << "("
+                           << streamExecutorConfig._threads_per_stream_small << ")";
         }
-        // if nstreams or nthreads are set, need to calculate the Hybrid aware parameters here
-        if (!bLatencyCase && (streamExecutorConfig._big_core_streams == 0 || streamExecutorConfig._threads)) {
-            UpdateHybridCustomThreads(streamExecutorConfig);
-        }
-        // temporary change for core binding refactor
-        if (streamExecutorConfig._big_core_streams * streamExecutorConfig._threads_per_stream_big >
-                num_big_cores_phys &&
-            cpuMapAvailable()) {
-            streamExecutorConfig._big_core_streams /= 2;
-            streamExecutorConfig._big_core_logic_streams = streamExecutorConfig._big_core_streams;
-        }
-        OPENVINO_DEBUG << "[ p_e_core_info ] streams (threads): " << streamExecutorConfig._streams << "("
-                       << streamExecutorConfig._threads_per_stream_big *
-                                  (streamExecutorConfig._big_core_streams +
-                                   streamExecutorConfig._big_core_logic_streams) +
-                              streamExecutorConfig._threads_per_stream_small * streamExecutorConfig._small_core_streams
-                       << ") -- PCore: " << streamExecutorConfig._big_core_streams << "("
-                       << streamExecutorConfig._threads_per_stream_big << ") "
-                       << streamExecutorConfig._big_core_logic_streams << "("
-                       << streamExecutorConfig._threads_per_stream_big
-                       << ")  ECore: " << streamExecutorConfig._small_core_streams << "("
-                       << streamExecutorConfig._threads_per_stream_small << ")";
-    }
 #endif
-    const auto hwCores =
-        !bLatencyCase && numaNodesNum == 1
-            // throughput case on a single-NUMA node machine uses all available cores
-            ? (streamExecutorConfig._enable_hyper_thread ? parallel_get_max_threads() : num_cores_default)
-            // in the rest of cases:
-            //    multi-node machine
-            //    or
-            //    latency case, single-node yet hybrid case that uses
-            //      all core types
-            //      or
-            //      big-cores only, but the #cores is "enough" (pls see the logic above)
-            // it is usually beneficial not to use the hyper-threading (which is default)
-            : num_cores_default;
-    const auto threads =
-        streamExecutorConfig._threads ? streamExecutorConfig._threads : (envThreads ? envThreads : hwCores);
-    streamExecutorConfig._threadsPerStream =
-        streamExecutorConfig._streams ? std::max(1, threads / streamExecutorConfig._streams) : threads;
-    // temporary change for core binding refactor
-    if (streamExecutorConfig._big_core_streams == 0 && cpuMapAvailable()) {
-        streamExecutorConfig._big_core_streams = streamExecutorConfig._streams;
-        streamExecutorConfig._threads_per_stream_big = streamExecutorConfig._threadsPerStream;
-        if (streamExecutorConfig._big_core_streams * streamExecutorConfig._threads_per_stream_big > num_cores_default) {
-            streamExecutorConfig._big_core_streams /= 2;
-            streamExecutorConfig._big_core_logic_streams = streamExecutorConfig._big_core_streams;
-        }
+        const auto hwCores =
+            !bLatencyCase && numaNodesNum == 1
+                // throughput case on a single-NUMA node machine uses all available cores
+                ? (streamExecutorConfig._enable_hyper_thread ? parallel_get_max_threads() : num_cores_default)
+                // in the rest of cases:
+                //    multi-node machine
+                //    or
+                //    latency case, single-node yet hybrid case that uses
+                //      all core types
+                //      or
+                //      big-cores only, but the #cores is "enough" (pls see the logic above)
+                // it is usually beneficial not to use the hyper-threading (which is default)
+                : num_cores_default;
+        const auto threads =
+            streamExecutorConfig._threads ? streamExecutorConfig._threads : (envThreads ? envThreads : hwCores);
+        streamExecutorConfig._threadsPerStream =
+            streamExecutorConfig._streams ? std::max(1, threads / streamExecutorConfig._streams) : threads;
+        streamExecutorConfig._threads =
+            (!bLatencyCase && ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType)
+                ? (streamExecutorConfig._big_core_streams + streamExecutorConfig._big_core_logic_streams) *
+                          streamExecutorConfig._threads_per_stream_big +
+                      streamExecutorConfig._small_core_streams * streamExecutorConfig._threads_per_stream_small
+                : streamExecutorConfig._threadsPerStream * streamExecutorConfig._streams;
     }
-    if ((!bLatencyCase && ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType) ||
-                          ThreadBindingType::CORES == streamExecutorConfig._threadBindingType) {
-        streamExecutorConfig._bind_cores = true;
-    }
-    streamExecutorConfig._threads =
-        (!bLatencyCase && ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType)
-            ? (streamExecutorConfig._big_core_streams + streamExecutorConfig._big_core_logic_streams) *
-                      streamExecutorConfig._threads_per_stream_big +
-                  streamExecutorConfig._small_core_streams * streamExecutorConfig._threads_per_stream_small
-            : streamExecutorConfig._threadsPerStream * streamExecutorConfig._streams;
-    std::cout << "[ p_e_core_info ] streams (threads): " << streamExecutorConfig._streams << "("
-              << streamExecutorConfig._threads_per_stream_big *
-                         (streamExecutorConfig._big_core_streams + streamExecutorConfig._big_core_logic_streams) +
-                     streamExecutorConfig._threads_per_stream_small * streamExecutorConfig._small_core_streams
-              << ") -- PCore: " << streamExecutorConfig._big_core_streams << "("
-              << streamExecutorConfig._threads_per_stream_big << ") " << streamExecutorConfig._big_core_logic_streams
-              << "(" << streamExecutorConfig._threads_per_stream_big
-              << ")  ECore: " << streamExecutorConfig._small_core_streams << "("
-              << streamExecutorConfig._threads_per_stream_small << ")";
     return streamExecutorConfig;
 }
 
