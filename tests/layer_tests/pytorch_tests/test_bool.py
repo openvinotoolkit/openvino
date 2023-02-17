@@ -9,7 +9,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 class TestBool(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
-        return (np.random.randn(1).astype(np.int32),)
+        return (np.random.randint(0, 10, 1).astype(np.int32),)
 
     def create_model(self, input_type):
         import torch

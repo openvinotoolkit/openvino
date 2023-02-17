@@ -41,16 +41,19 @@ static void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>
             }
             return output_data_types;
         };
+
+        auto topk_constant = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
         auto argmaxPrim = cldnn::arg_max_min(layerName,
-                                             inputs,
-                                             mode,
-                                             top_k,
-                                             chosen_axis,
-                                             stype,
-                                             true,
-                                             cldnn::padding({0, 0, 0, 0}, 0),
-                                             cldnn::element_type_to_data_type(op->get_output_element_type(0)),
-                                             num_outputs);
+                                            inputs[0],
+                                            inputs[1],
+                                            mode,
+                                            (topk_constant ? top_k : 0),
+                                            chosen_axis,
+                                            stype,
+                                            true,
+                                            cldnn::padding({0, 0, 0, 0}, 0),
+                                            cldnn::element_type_to_data_type(op->get_output_element_type(0)),
+                                            num_outputs);
         argmaxPrim.output_paddings = get_output_paddings();
         argmaxPrim.output_data_types = get_output_data_types();
         p.add_primitive(*op, argmaxPrim);

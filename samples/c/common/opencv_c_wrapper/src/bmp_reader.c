@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include "bmp_reader.h"
 
 #include <memory.h>
@@ -96,7 +100,7 @@ int readBmpImage(const char* fileName, BitMap* image) {
     int i;
     int image_height = image->height;
     for (i = 0; i < image_height; i++) {
-        unsigned int storeAt = image->infoHeader.height < 0 ? i : (unsigned int)image_height - 1 - i;
+        int storeAt = image->infoHeader.height < 0 ? i : image_height - 1 - i;
         cnt = fread(image->data + row_size * storeAt, row_size, sizeof(unsigned char), input);
         if (cnt != sizeof(unsigned char)) {
             printf("[BMP] file read error\n");
