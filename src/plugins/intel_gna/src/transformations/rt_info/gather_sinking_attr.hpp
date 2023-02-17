@@ -12,11 +12,11 @@ namespace ov {
 namespace intel_gna {
 namespace rt_info {
 
-TRANSFORMATIONS_API void mark_as_no_gather_sinking_node(const std::shared_ptr<Node>& node);
+void mark_as_no_gather_sinking_node(const std::shared_ptr<Node>& node);
 
-TRANSFORMATIONS_API bool is_gather_sinking_node(const std::shared_ptr<Node>& node);
-TRANSFORMATIONS_API bool is_gather_sinking_node(const Node* node);
-TRANSFORMATIONS_API bool is_gather_sinking_node(ov::Output<ov::Node> output);
+bool is_gather_sinking_node(const std::shared_ptr<Node>& node);
+bool is_gather_sinking_node(const Node* node);
+bool is_gather_sinking_node(ov::Output<ov::Node> output);
 
 /**
  * @ingroup ie_runtime_attr_api
