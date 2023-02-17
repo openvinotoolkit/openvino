@@ -64,12 +64,13 @@ TEST(nop_elimination, convert_type_agnostic) {
     ASSERT_EQ(count_ops_of_type<op::v0::Convert>(f), 0);
 }
 
-TEST(nop_elimination, eliminate_broadcast) {
+template <typename Op>
+void test_nop_eliminate_broadcast() {
     std::shared_ptr<Function> f;
     {
         Shape shape{1};
         auto A = make_shared<op::Parameter>(element::f32, shape);
-        auto b = make_shared<op::v1::Broadcast>(A, op::Constant::create(element::u64, Shape{1}, {1}));
+        auto b = make_shared<Op>(A, op::Constant::create(element::u64, Shape{1}, {1}));
         f = make_shared<Function>(make_shared<op::v0::Abs>(b), ParameterVector{A});
     }
 
@@ -77,7 +78,15 @@ TEST(nop_elimination, eliminate_broadcast) {
     pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::v1::Broadcast>(f), 0);
+    ASSERT_EQ(count_ops_of_type<Op>(f), 0);
+}
+
+TEST(nop_elimination, eliminate_broadcast_v1) {
+    test_nop_eliminate_broadcast<op::v1::Broadcast>();
+}
+
+TEST(nop_elimination, eliminate_broadcast_v3) {
+    test_nop_eliminate_broadcast<op::v3::Broadcast>();
 }
 
 TEST(nop_elimination, pass_property) {
