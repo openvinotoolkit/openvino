@@ -209,8 +209,8 @@ GatherInfo GetGatherInfo(Node* node) {
 }
 
 Node* FindFirstConsumer(NodePtr node) {
-    for (size_t output_idx = 0; output_idx < node->get_output_size(); ++output_idx) {
-        auto inputs = node->get_output_target_inputs(output_idx);
+    for (auto output : node->outputs()) {
+        auto inputs = output.get_target_inputs();
         if (inputs.empty())
             continue;
         return inputs.begin()->get_node();
