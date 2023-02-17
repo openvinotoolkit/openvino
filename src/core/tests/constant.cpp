@@ -1779,17 +1779,17 @@ TEST(constant, lazy_bitwise_identical) {
 
 // Disabled just because of long execution time. Enable for nightly builds in future
 TEST(constant, DISABLED_nightly_huge_size_4GB) {
-    size_t start = 1llu << 32;
-    size_t s = start + 5;
+    uint64_t start = 1llu << 32;
+    uint64_t s = start + 5;
     std::vector<uint8_t> data(s);
-    for (size_t i = start; i < s; i++) {
+    for (uint64_t i = start; i < s; i++) {
         data[i] = static_cast<uint8_t>(i - start + 42);
     }
-    Shape shape{s};
+    Shape shape{static_cast<Shape::size_type>(s)};
     op::Constant c(element::u8, shape, data.data());
     auto v = c.get_vector<uint8_t>();
     ASSERT_EQ(v.size(), shape_size(shape));
-    for (size_t i = start; i < s; i++) {
+    for (uint64_t i = start; i < s; i++) {
         EXPECT_EQ(v[i], i - start + 42) << i << " failed";
     }
 }
