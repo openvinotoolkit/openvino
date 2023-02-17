@@ -140,7 +140,7 @@ inline derived_type& downcast(base_type& base) {
     } catch (std::bad_cast& /* ex */) {
         throw std::runtime_error("Unable to cast reference from base to derived type");
     }
-    throw std::runtime_error("downcast failed with unhadnled exception");
+    throw std::runtime_error("downcast failed with unhandled exception");
 }
 
 template <typename T>

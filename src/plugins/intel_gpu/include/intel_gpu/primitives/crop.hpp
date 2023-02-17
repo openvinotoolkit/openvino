@@ -134,5 +134,18 @@ struct crop : public primitive_base<crop> {
         seed = hash_combine(seed, op_mode);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const crop>(rhs);
+
+        return reference_input == rhs_casted.reference_input &&
+               offsets == rhs_casted.offsets &&
+               output_idx == rhs_casted.output_idx &&
+               num_splits == rhs_casted.num_splits &&
+               op_mode == rhs_casted.op_mode;
+    }
 };
 }  // namespace cldnn

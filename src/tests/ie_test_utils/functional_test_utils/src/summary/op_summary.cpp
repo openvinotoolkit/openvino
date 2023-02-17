@@ -133,20 +133,29 @@ void OpSummary::updateOPsStats(const std::shared_ptr<ov::Model> &model, const Pa
     if (model->get_parameters().empty()) {
         return;
     }
-    bool isFunctionalGraph = false;
+    bool isFunctionalGraph = false, isReportConvert = true;
     for (const auto &op : model->get_ordered_ops()) {
         if (!std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) &&
             !std::dynamic_pointer_cast<ov::op::v0::Constant>(op) &&
             !std::dynamic_pointer_cast<ov::op::v0::Result>(op)) {
+            // find all features
+            if (!std::dynamic_pointer_cast<ov::op::v0::Convert>(op)) {
+                isReportConvert = false;
+            }
             isFunctionalGraph = true;
-            break;
+            if (!isReportConvert && isFunctionalGraph) {
+                break;
+            }
         }
     }
 
     for (const auto &op : model->get_ordered_ops()) {
-        if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) ||
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(op) ||
-            std::dynamic_pointer_cast<ov::op::v0::Result>(op) || isFunctionalGraph) {
+        if ((std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) ||
+             std::dynamic_pointer_cast<ov::op::v0::Constant>(op) ||
+             std::dynamic_pointer_cast<ov::op::v0::Result>(op)) && isFunctionalGraph) {
+            continue;
+        }
+        if (!isReportConvert && std::dynamic_pointer_cast<ov::op::v0::Convert>(op)) {
             continue;
         }
         if (extractBody) {
