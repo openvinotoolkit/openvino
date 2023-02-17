@@ -5,6 +5,7 @@
 #include "openvino/op/loop.hpp"
 
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "translate_session.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -31,10 +32,10 @@ OutputVector translate_loop(NodeContext& context) {
         loop->set_invariant_inputs(inputs[i], {body_parameters[i - 1]});
     }
     // Connect inputs from external context
+    auto session = context.get_session();
     for (auto i = inputs.size() - 1; i < body_parameters.size(); i++) {
         auto param = body_parameters[i];
-        auto name = param->get_output_tensor(0).get_any_name();
-        size_t input_idx = (size_t)std::stoll(name);
+        auto input_idx = session->decode_tensor_name(param->output(0));
         auto external_output = context.get_tensor_from_model_or_create_input(input_idx);
         loop->set_invariant_inputs(external_output, {param});
     }
@@ -45,8 +46,7 @@ OutputVector translate_loop(NodeContext& context) {
     // 0 output is condition, do not need to connect it
     for (size_t i = 1; i < body_results.size(); i++) {
         auto result = body_results[i];
-        auto name = result->input(0).get_tensor().get_any_name();
-        size_t out_idx = (size_t)std::stoll(name);
+        auto out_idx = session->decode_tensor_name(result->input(0).get_source_output());
         FRONT_END_OP_CONVERSION_CHECK(output_idxs.count(out_idx) == 0,
                                       "More then one body output with same tensor name.");
         output_idxs.insert(out_idx);
