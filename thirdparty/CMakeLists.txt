@@ -254,7 +254,7 @@ if(ENABLE_GAPI_PREPROCESSING)
     if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
         target_compile_options(fluid PRIVATE "-Wno-maybe-uninitialized")
     endif()
-    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 13.0)
+    if(UNUSED_BUT_SET_VARIABLE_SUPPORTED)
         target_compile_options(fluid PRIVATE "-Wno-unused-but-set-variable")
     endif()
 

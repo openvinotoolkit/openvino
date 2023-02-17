@@ -22,7 +22,6 @@ static constexpr const char* kGnaTarget3_0 = "GNA_TARGET_3_0";
 static constexpr const char* kGnaTarget3_1 = "GNA_TARGET_3_1";
 static constexpr const char* kGnaTarget3_5 = "GNA_TARGET_3_5";
 static constexpr const char* kGnaTarget3_5_e = "GNA_TARGET_3_5_E";
-static constexpr const char* kGnaDefaultTarget = kGnaTarget3_0;
 
 static const std::unordered_map<HWGeneration, DeviceVersion> HWGenerationDeviceMap{
     {HWGeneration::GNA_2_0, DeviceVersion::GNA2_0},

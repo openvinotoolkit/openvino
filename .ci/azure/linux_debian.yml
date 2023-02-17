@@ -109,7 +109,7 @@ jobs:
   - script: |
       set -e
       sudo -E $(REPO_DIR)/install_build_dependencies.sh
-      # 'clang' compiler is to check that samples can be built using it
+      # 'clang' is used as a default compiler
       sudo apt --assume-yes install clang
       sudo apt --assume-yes install --no-install-recommends libopencv-imgproc-dev libopencv-imgcodecs-dev
       # For opencv-python: python3-setuptools and pip upgrade
@@ -165,6 +165,8 @@ jobs:
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
         -DCMAKE_CXX_LINKER_LAUNCHER=ccache
         -DCMAKE_C_LINKER_LAUNCHER=ccache
+        -DCMAKE_CXX_COMPILER=clang++
+        -DCMAKE_C_COMPILER=clang
         -DCPACK_GENERATOR=DEB
         -S $(REPO_DIR)
         -B $(BUILD_DIR)
@@ -284,12 +286,6 @@ jobs:
 
   - script: $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -i $(INSTALL_DIR)
     displayName: 'Build cpp samples'
-
-  - script: $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -i $(INSTALL_DIR)
-    env:
-      CC: clang
-      CXX: clang++
-    displayName: 'Build cpp samples - clang'
 
   - script: $(SAMPLES_INSTALL_DIR)/c/build_samples.sh -i $(INSTALL_DIR)
     displayName: 'Build c samples'
