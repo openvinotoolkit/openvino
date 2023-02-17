@@ -17,6 +17,12 @@ def make_positive_array(inputs_dict):
     return inputs_dict
 
 
+def short_range(inputs_dict):
+    for input in inputs_dict.keys():
+        inputs_dict[input] = np.random.randint(-1, 1, inputs_dict[input]).astype(np.float32)
+    return inputs_dict
+
+
 def make_boolean_array(inputs_dict):
     for input in inputs_dict.keys():
         inputs_dict[input] = np.random.randint(0, 1, inputs_dict[input]) > 1
@@ -25,6 +31,7 @@ def make_boolean_array(inputs_dict):
 
 data_generators = {
     'positive': make_positive_array,
+    'short_range': short_range,
     'boolean': make_boolean_array,
 }
 
@@ -82,14 +89,14 @@ class TestTFLiteUnaryLayerTest(TFLiteLayerTest):
             return super()._prepare_input(inputs_dict)
         return data_generators[generator](inputs_dict)
 
-
     def make_model(self, params):
         assert len(set(params.keys()).intersection({'op_name', 'op_func', 'shape'})) == 3, \
             'Unexpected parameters for test: ' + ','.join(params.keys())
         self.allowed_ops = [params['op_name']]
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
-            place_holder = tf.compat.v1.placeholder(params.get('dtype', tf.float32), params['shape'], name=TestTFLiteUnaryLayerTest.inputs[0])
+            place_holder = tf.compat.v1.placeholder(params.get('dtype', tf.float32), params['shape'],
+                                                    name=TestTFLiteUnaryLayerTest.inputs[0])
             params['op_func'](place_holder, name=TestTFLiteUnaryLayerTest.outputs[0])
             net = sess.graph_def
         return net
