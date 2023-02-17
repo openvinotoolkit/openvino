@@ -35,6 +35,16 @@ public:
         return (opts->*member)();
     }
 
+    template<class Ret, class Class>
+    bool has_attribute(Ret (Class::*member)() const) const {
+        const auto opts = m_node_def->builtin_options_as<Class>();
+        if (opts == nullptr)
+            return false;
+        return (opts->*member)();
+    }
+
+
+
     ov::Any get_attribute(const std::string& name) const override {
         return {};
     }

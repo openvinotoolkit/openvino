@@ -38,9 +38,10 @@ void del_output_names(OutputVector& outputs) {
 void get_conv(ov::OutputVector& output,
               const ov::frontend::NodeContext& node,
               const std::shared_ptr<ov::frontend::tensorflow_lite::DecoderMap>& decoder,
-              ov::OutputVector (*converter)(const ov::frontend::NodeContext&)) {
+              ov::OutputVector (*converter)(const ov::frontend::NodeContext&),
+              ov::AxisVector transpose_axes) {
     ov::OutputVector inputs = {node.get_input(0),
-                               ov::frontend::tensorflow::make_transpose(node.get_input(1), ov::AxisVector{1, 2, 3, 0})};
+                               ov::frontend::tensorflow::make_transpose(node.get_input(1), transpose_axes)};
     auto context = ov::frontend::tensorflow_lite::NodeContext(decoder, inputs);
     output = converter(context);
     del_output_names(output);
@@ -58,11 +59,10 @@ void get_pool(ov::OutputVector& output,
 
 void get_bias(ov::OutputVector& output,
               const ov::frontend::NodeContext& node,
-              const std::shared_ptr<ov::frontend::tensorflow_lite::DecoderMap>& decoder) {
+              const std::shared_ptr<ov::frontend::DecoderBase>& decoder) {
     if (node.get_input_size() == 3) {
         const OutputVector inputs_for_bias = {output[0], node.get_input(2)};
         auto context_for_bias_add = ov::frontend::tensorflow_lite::NodeContext(decoder, inputs_for_bias);
-        // FIXME: dependence on layout?
         output = ov::frontend::tensorflow::op::translate_binary_op<ov::opset10::Add>(context_for_bias_add);
         del_output_names(output);
     }
@@ -71,12 +71,13 @@ void get_bias(ov::OutputVector& output,
 void get_activation(ov::OutputVector& output,
                     const ov::frontend::tensorflow_lite::NodeContext& node,
                     const std::string& activation) {
+    auto context = ov::frontend::tensorflow_lite::NodeContext(node.get_decoder(), output);
     if (activation == "RELU") {
-        output = ov::frontend::tensorflow::op::translate_unary_op<opset10::Relu>(node);
+        output = ov::frontend::tensorflow::op::translate_unary_op<opset10::Relu>(context);
     } else if (activation == "RELU6") {
-        output = ov::frontend::tensorflow::op::translate_relu_6_op(node);
+        output = ov::frontend::tensorflow::op::translate_relu_6_op(context);
     } else if (activation == "TANH") {
-        output = ov::frontend::tensorflow::op::translate_unary_op<opset10::Tanh>(node);
+        output = ov::frontend::tensorflow::op::translate_unary_op<opset10::Tanh>(context);
     } else {
         // TODO: Fused activation to support:
         //          RELU_N1_TO_1 = 2,
@@ -125,7 +126,8 @@ OutputVector attribute_helper(const ov::frontend::tensorflow_lite::NodeContext& 
                               const std::map<std::string, ov::Any>& attrs,
                               ov::OutputVector (*converter)(const ov::frontend::NodeContext&),
                               std::string new_op_type,
-                              bool empty_name) {
+                              bool empty_name,
+                              ov::OutputVector inputs) {
     const auto& original_decoder = std::dynamic_pointer_cast<DecoderFlatBuffer>(node.get_decoder());
     FRONT_END_GENERAL_CHECK(original_decoder != nullptr,
                             "Unexpected decoder during operation translation. Expected DecoderFlatBuffer");
@@ -135,7 +137,8 @@ OutputVector attribute_helper(const ov::frontend::tensorflow_lite::NodeContext& 
         (new_op_type.empty() ? original_decoder->get_op_type() : new_op_type),
         empty_name);
 
-    OutputVector inputs = node.get_inputs();
+    if (inputs.size() == 0)
+        inputs = node.get_inputs();
     auto context = ov::frontend::tensorflow_lite::NodeContext(decoder, inputs);
     auto outputs = converter(context);
     del_output_names(outputs);
@@ -147,6 +150,16 @@ std::shared_ptr<DecoderFlatBuffer> get_decoder(const ov::frontend::tensorflow_li
     FRONT_END_GENERAL_CHECK(decoder != nullptr,
                             "Unexpected decoder during operation translation. Expected DecoderFlatBuffer");
     return decoder;
+}
+
+void transform_reduce_name(std::string& op_type) {
+    std::string substring = "REDUCE_";
+    auto ind = op_type.find(substring);
+    if (ind != std::string::npos)
+        op_type.erase(ind, substring.length());
+    std::transform(op_type.begin() + 1, op_type.end(), op_type.begin() + 1, [](unsigned char c) {
+        return std::tolower(c);
+    });
 }
 
 }  // namespace op
