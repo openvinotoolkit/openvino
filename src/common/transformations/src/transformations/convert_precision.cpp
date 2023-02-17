@@ -160,8 +160,11 @@ bool convert_node_input_precision(const std::shared_ptr<ngraph::Node>& node,
                                   const type_to_fuse_map& type_to_extend) {
     // For some operations we need to extend their input types to support new type
     auto it = type_to_extend.find(node->get_type_info());
-    if (it != type_to_extend.end()) {
-        return it->second(node, precisions);
+    if (it != type_to_extend.end() && it->second(node, precisions)) {
+        if (!node_is_replaced(node)) {
+            node->revalidate_and_infer_types();
+        }
+        return true;
     }
     return false;
 }
