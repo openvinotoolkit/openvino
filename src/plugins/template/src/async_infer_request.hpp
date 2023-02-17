@@ -15,15 +15,14 @@ namespace TemplatePlugin {
 // ! [async_infer_request:header]
 class AsyncInferRequest : public ov::IAsyncInferRequest {
 public:
-    AsyncInferRequest(const std::shared_ptr<InferRequest>& inferRequest,
-                      const InferenceEngine::ITaskExecutor::Ptr& taskExecutor,
-                      const InferenceEngine::ITaskExecutor::Ptr& waitExecutor,
-                      const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor);
+    AsyncInferRequest(const std::shared_ptr<InferRequest>& request,
+                      const InferenceEngine::ITaskExecutor::Ptr& task_executor,
+                      const InferenceEngine::ITaskExecutor::Ptr& wait_executor,
+                      const InferenceEngine::ITaskExecutor::Ptr& callback_executor);
 
     ~AsyncInferRequest();
 
 private:
-    std::shared_ptr<InferRequest> get_template_infer_request();
     InferenceEngine::ITaskExecutor::Ptr m_wait_executor;
 };
 // ! [async_infer_request:header]

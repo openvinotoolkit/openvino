@@ -138,10 +138,25 @@ protected:
      */
     void check_tensors() const override;
 
-    std::unordered_map<size_t, std::vector<ov::Tensor>> m_batched_tensors;
-
+    /**
+     * @brief Allocate tensor with using custom allocator
+     *
+     * @param port input/output port for tensor
+     * @param allocate_callback function which allocates the tensor
+     */
     void allocate_tensor(const ov::Output<const ov::Node>& port,
                          const std::function<void(ov::Tensor& tensor)>& allocate_callback);
+
+    /**
+     * @brief Check that tensor has default strides
+     *
+     * @param tensor OpenVINO tensor
+     *
+     * @return true if strides are default
+     */
+    bool has_default_strides(const ov::Tensor& tensor) const;
+
+    std::unordered_map<size_t, std::vector<ov::Tensor>> m_batched_tensors;
 
 private:
     std::shared_ptr<const ov::ICompiledModel> m_compiled_model;
@@ -154,6 +169,13 @@ private:
      * @return structure which contains index of Input/Output or report that port wasn't found
      */
     FoundPort find_port(const ov::Output<const ov::Node>& port) const;
+    /**
+     * @brief Check that vector of tensors can be converted to tensor with batch
+     *
+     * @param input Input port
+     * @param tensors vector of tensors
+     */
+    void check_batched_tensors(const ov::Output<const ov::Node>& input, const std::vector<ov::Tensor>& tensors) const;
 };
 
 };  // namespace ov

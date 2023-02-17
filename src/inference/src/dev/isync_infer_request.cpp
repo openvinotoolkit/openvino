@@ -16,90 +16,6 @@
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/tensor.hpp"
 
-namespace {
-
-void check_batched_tensors(const ov::Output<const ov::Node>& input, const std::vector<ov::Tensor>& tensors) {
-    OPENVINO_ASSERT(!tensors.empty(), "set_input_tensors/set_tensors can't be called with empty tensors");
-    OPENVINO_ASSERT(
-        tensors.size() != 1,
-        "Internal error (plugin): check_batched_tensors is not allowed to have only one tensor inside batch");
-
-    auto layout = ov::layout::get_layout(input);
-    OPENVINO_ASSERT(ov::layout::has_batch(layout),
-                    "set_input_tensors/set_tensors can be used only for inputs with N(batch) dimension"
-                    " 'layout' defined. Current layout is ",
-                    layout.to_string());
-    auto batch_idx = ov::layout::batch_idx(layout);
-    if (batch_idx < 0) {
-        // TODO: Do we need this logic?
-        batch_idx += static_cast<int64_t>(tensors[0].get_shape().size());
-    }
-    OPENVINO_ASSERT(batch_idx == 0,
-                    "set_input_tensors/set_tensors is not currently supported for batch dimension index ",
-                    batch_idx,
-                    " != 0");
-    std::for_each(tensors.begin(), tensors.end(), [&batch_idx](const ov::Tensor& item) {
-        OPENVINO_ASSERT(item.get_shape()[batch_idx] == 1,
-                        "set_input_tensors/set_tensors. Tensors shall represent one item in a batch, ",
-                        item.get_shape()[batch_idx],
-                        " provided");
-    });
-    auto tensors_size = static_cast<int>(tensors.size());
-    if (input.get_partial_shape().rank().is_static()) {
-        OPENVINO_ASSERT(batch_idx >= 0 && batch_idx < input.get_partial_shape().rank().get_length(),
-                        "set_input_tensors/set_tensors error. Layout ",
-                        layout.to_string(),
-                        " is incorrect for operation with shape ",
-                        input.get_partial_shape());
-        auto batch = input.get_partial_shape()[batch_idx];
-
-        OPENVINO_ASSERT(batch.is_dynamic() || batch.get_length() == tensors_size,
-                        "set_input_tensors/set_tensors error. Input shape ",
-                        input.get_partial_shape(),
-                        "batch ",
-                        batch,
-                        "doesn't match with total blobs count: ",
-                        tensors_size);
-    }
-
-    // In future consider checking if blobs point to contiguous range of memory and use single 'SetBlob' instead
-    auto batched_shape = tensors[0].get_shape();
-    auto element_type = tensors[0].get_element_type();
-    auto def_strides = [](const ov::Shape& shape, const ov::element::Type& type) {
-        InferenceEngine::TensorDesc desc(InferenceEngine::Precision::FP32,
-                                         shape,
-                                         InferenceEngine::TensorDesc::getLayoutByDims(shape));
-        const auto& element_strides = desc.getBlockingDesc().getStrides();
-        const size_t elem_size = type.size();
-        ov::Strides byte_strides;
-        byte_strides.resize(element_strides.size());
-        std::transform(element_strides.begin(),
-                       element_strides.end(),
-                       byte_strides.begin(),
-                       [&elem_size](size_t stride) {
-                           return stride * elem_size;
-                       });
-        return byte_strides;
-    }(batched_shape, element_type);
-    batched_shape[batch_idx] = tensors_size;
-    for (const auto& item : tensors) {
-        auto item_shape = item.get_shape();
-        item_shape[batch_idx] = batched_shape[batch_idx];
-        OPENVINO_ASSERT(item_shape == batched_shape && item.get_element_type() == element_type &&
-                            "set_input_tensors/set_tensors error. Tensor with element type ",
-                        item.get_element_type(),
-                        " and shape ",
-                        item_shape,
-                        " is not compatible with batched tensor with element type ",
-                        element_type,
-                        " and shape ",
-                        batched_shape);
-        OPENVINO_ASSERT(def_strides == item.get_strides(), "Strides for batched tensors should be equal.");
-    }
-}
-
-}  // namespace
-
 ov::IInferRequest::~IInferRequest() = default;
 
 ov::ISyncInferRequest::ISyncInferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model)
@@ -240,6 +156,71 @@ void ov::ISyncInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
     set_tensors_impl(port, tensors);
 }
 
+void ov::ISyncInferRequest::check_batched_tensors(const ov::Output<const ov::Node>& input,
+                                                  const std::vector<ov::Tensor>& tensors) const {
+    OPENVINO_ASSERT(!tensors.empty(), "set_input_tensors/set_tensors can't be called with empty tensors");
+    OPENVINO_ASSERT(
+        tensors.size() != 1,
+        "Internal error (plugin): check_batched_tensors is not allowed to have only one tensor inside batch");
+
+    auto layout = ov::layout::get_layout(input);
+    OPENVINO_ASSERT(ov::layout::has_batch(layout),
+                    "set_input_tensors/set_tensors can be used only for inputs with N(batch) dimension"
+                    " 'layout' defined. Current layout is ",
+                    layout.to_string());
+    auto batch_idx = ov::layout::batch_idx(layout);
+    if (batch_idx < 0) {
+        // TODO: Do we need this logic?
+        batch_idx += static_cast<int64_t>(tensors[0].get_shape().size());
+    }
+    OPENVINO_ASSERT(batch_idx == 0,
+                    "set_input_tensors/set_tensors is not currently supported for batch dimension index ",
+                    batch_idx,
+                    " != 0");
+    std::for_each(tensors.begin(), tensors.end(), [&batch_idx](const ov::Tensor& item) {
+        OPENVINO_ASSERT(item.get_shape()[batch_idx] == 1,
+                        "set_input_tensors/set_tensors. Tensors shall represent one item in a batch, ",
+                        item.get_shape()[batch_idx],
+                        " provided");
+    });
+    auto tensors_size = static_cast<int>(tensors.size());
+    if (input.get_partial_shape().rank().is_static()) {
+        OPENVINO_ASSERT(batch_idx >= 0 && batch_idx < input.get_partial_shape().rank().get_length(),
+                        "set_input_tensors/set_tensors error. Layout ",
+                        layout.to_string(),
+                        " is incorrect for operation with shape ",
+                        input.get_partial_shape());
+        auto batch = input.get_partial_shape()[batch_idx];
+
+        OPENVINO_ASSERT(batch.is_dynamic() || batch.get_length() == tensors_size,
+                        "set_input_tensors/set_tensors error. Input shape ",
+                        input.get_partial_shape(),
+                        "batch ",
+                        batch,
+                        "doesn't match with total blobs count: ",
+                        tensors_size);
+    }
+
+    // In future consider checking if blobs point to contiguous range of memory and use single 'SetBlob' instead
+    auto batched_shape = tensors[0].get_shape();
+    auto element_type = tensors[0].get_element_type();
+    batched_shape[batch_idx] = tensors_size;
+    for (const auto& item : tensors) {
+        auto item_shape = item.get_shape();
+        item_shape[batch_idx] = batched_shape[batch_idx];
+        OPENVINO_ASSERT(item_shape == batched_shape && item.get_element_type() == element_type &&
+                            "set_input_tensors/set_tensors error. Tensor with element type ",
+                        item.get_element_type(),
+                        " and shape ",
+                        item_shape,
+                        " is not compatible with batched tensor with element type ",
+                        element_type,
+                        " and shape ",
+                        batched_shape);
+        OPENVINO_ASSERT(has_default_strides(item), "Strides for batched tensors should be default.");
+    }
+}
+
 void ov::ISyncInferRequest::set_tensors_impl(const ov::Output<const ov::Node> port,
                                              const std::vector<ov::Tensor>& tensors) {
     OPENVINO_ASSERT_HELPER(::ov::NotImplemented,
@@ -292,4 +273,25 @@ void ov::ISyncInferRequest::check_tensors() const {
     for (size_t i = 0; i < outputs.size(); i++) {
         check_tensor(outputs[i], m_tensors.at(outputs[i].get_tensor_ptr()));
     }
+}
+
+bool ov::ISyncInferRequest::has_default_strides(const ov::Tensor& tensor) const {
+    if (tensor.get_element_type().bitwidth() < 8)
+        // OpenVINO doesn't support strides for lp types
+        return true;
+    const auto& shape = tensor.get_shape();
+    const auto& type = tensor.get_element_type();
+    std::vector<size_t> strides(shape.size());
+    if (!shape.empty()) {
+        strides[shape.size() - 1] = 1;
+    }
+    auto size = shape.size();
+    for (size_t i = 1; i < size; i++) {
+        strides[size - i - 1] = strides[size - i] * shape[size - i];
+    }
+
+    ov::Strides byte_strides(strides.size());
+    for (size_t i = 0; i < strides.size(); ++i)
+        byte_strides[i] = strides[i] * type.size();
+    return byte_strides == tensor.get_strides();
 }

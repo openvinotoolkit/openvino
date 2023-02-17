@@ -4,8 +4,7 @@
 
 #include <numeric>
 
-#include "blob_factory.hpp"  // IE private header
-#include "ie_common.h"
+#include "blob_factory.hpp"     // IE private header
 #include "ie_ngraph_utils.hpp"  // IE private header
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -40,8 +39,9 @@ Tensor::Tensor(const element::Type element_type, const Shape& shape, const Alloc
     auto allocator_impl = dynamic_cast<const BlobAllocator*>(allocator._impl.get());
     auto blob_allocator =
         (allocator_impl != nullptr) ? allocator_impl->_impl : std::make_shared<ie::BlobAllocator>(allocator._impl);
-    ie::Layout layout = ie::TensorDesc::getLayoutByDims(shape);
-    _impl = make_blob_with_precision({ie::details::convertPrecision(element_type), shape, layout}, blob_allocator);
+    _impl = make_blob_with_precision(
+        {ie::details::convertPrecision(element_type), shape, ie::TensorDesc::getLayoutByDims(shape)},
+        blob_allocator);
     _impl->allocate();
 }
 

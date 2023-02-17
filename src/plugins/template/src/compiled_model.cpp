@@ -9,11 +9,9 @@
 #include "async_infer_request.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
-#include "openvino/core/except.hpp"
-#include "openvino/runtime/iinfer_request.hpp"
-#include "openvino/runtime/isync_infer_request.hpp"
 #include "plugin.hpp"
 #include "template/config.hpp"
+#include "template_itt.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace TemplatePlugin;

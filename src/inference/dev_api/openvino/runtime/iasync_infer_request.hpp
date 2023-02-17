@@ -184,7 +184,6 @@ protected:
      * @brief Check that all tensors are valid. Throws an exception if it's not.
      */
     void check_tensors() const override;
-    const std::shared_ptr<IInferRequest>& get_sync_infer_request() const;
 
     Pipeline m_pipeline;       //!< Pipeline variable that should be filled by inherited class.
     Pipeline m_sync_pipeline;  //!< Synchronous pipeline variable that should be filled by inherited class.
