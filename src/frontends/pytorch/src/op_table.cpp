@@ -88,6 +88,7 @@ OP_CONVERTER(translate_repeat);
 OP_CONVERTER(translate_repeat_interleave);
 OP_CONVERTER(translate_reshape);
 OP_CONVERTER(translate_reshape_as);
+OP_CONVERTER(translate_roi_align);
 OP_CONVERTER(translate_roll);
 OP_CONVERTER(translate_rsqrt);
 OP_CONVERTER(translate_rsub);
@@ -317,6 +318,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"prim::NumToTensor", op::skip_node},  // In openvino we already store number as tensor with shape []
         {"prim::requires_grad", op::return_false_scalar},
         {"torchvision::nms", op::translate_nms},
+        {"torchvision::roi_align", op::translate_roi_align},
     };
 };
 
