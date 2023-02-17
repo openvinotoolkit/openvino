@@ -92,10 +92,6 @@ bool ov::op::v9::SoftSign::evaluate(ov::TensorVector& outputs,
     const auto& in = inputs[0];
     auto& out = outputs[0];
 
-    if (ov::util::is_dynamic_shape(out.get_shape())) {
-        out = Tensor(in.get_element_type(), in.get_shape());
-    } else {
-        out.set_shape(in.get_shape());
-    }
+    out.set_shape(in.get_shape());
     return evaluate_softsign(in, out);
 }
