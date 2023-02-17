@@ -40,7 +40,6 @@
 #include <ie_algorithm.hpp>
 
 #include <ngraph/function.hpp>
-#include <ngraph/variant.hpp>
 #include <ngraph/graph_util.hpp>
 #include <ngraph/op/result.hpp>
 #include <ngraph/op/parameter.hpp>

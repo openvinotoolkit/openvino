@@ -16,7 +16,6 @@
 #include "ngraph/function.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/opsets/opset6.hpp"
-#include "ngraph/variant.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 

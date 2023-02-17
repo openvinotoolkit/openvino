@@ -5,8 +5,7 @@
 #pragma once
 
 #include <string>
-
-#include <ngraph/variant.hpp>
+#include "openvino/core/runtime_attribute.hpp"
 #include <low_precision/lpt_visibility.hpp>
 
 namespace ngraph {

@@ -6,7 +6,6 @@
 
 #include <memory>
 #include <vector>
-#include <ngraph/variant.hpp>
 
 using namespace ngraph;
 using namespace ov;

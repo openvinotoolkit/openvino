@@ -7,7 +7,6 @@
 #include <memory>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
-#include <ngraph/variant.hpp>
 #include <vector>
 
 #include "itt.hpp"

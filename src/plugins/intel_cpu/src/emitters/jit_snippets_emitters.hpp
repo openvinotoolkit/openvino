@@ -5,7 +5,6 @@
 #pragma once
 
 #include <ngraph/rt_info.hpp>
-#include <ngraph/variant.hpp>
 #include <ie_ngraph_utils.hpp>
 
 #include "jit_emitter.hpp"

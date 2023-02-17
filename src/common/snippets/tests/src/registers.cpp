@@ -6,7 +6,6 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <ngraph/variant.hpp>
 
 #include <snippets/snippets_isa.hpp>
 #include <snippets/pass/assign_registers.hpp>

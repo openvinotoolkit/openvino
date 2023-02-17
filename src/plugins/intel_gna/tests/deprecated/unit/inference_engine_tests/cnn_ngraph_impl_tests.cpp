@@ -29,7 +29,6 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <ngraph/variant.hpp>
 #include <openvino/core/model.hpp>
 #include <openvino/core/node_vector.hpp>
 #include <sstream>
