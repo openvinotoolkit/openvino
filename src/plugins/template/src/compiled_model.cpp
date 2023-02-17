@@ -11,6 +11,7 @@
 #include "ie_plugin_config.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "plugin.hpp"
 #include "template/config.hpp"
@@ -89,13 +90,9 @@ TemplatePlugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& m
     // Init properties
     get_properties()
         .add(m_rw_properties.m_properties)
-        .add(ov::model_name,
+        .add(ov::common_property(ov::model_name),
              [this]() {
                  return decltype(ov::model_name)::value_type(m_model->get_friendly_name());
-             })
-        .add(ov::legacy_property(METRIC_KEY(NETWORK_NAME)),
-             [this]() {
-                 return m_model->get_friendly_name();
              })
         .add(ov::common_property(ov::optimal_number_of_infer_requests),
              std::ref(m_rw_properties._streamsExecutorConfig._streams));
