@@ -21,8 +21,14 @@ namespace op {
 
 TF_OP_CONVERTER(translate_if_op);
 TF_OP_CONVERTER(translate_block_lstm_op);
+TF_OP_CONVERTER(translate_fifo_queue_op);
 TF_OP_CONVERTER(translate_gru_block_cell_op);
+TF_OP_CONVERTER(translate_hash_table_op);
+TF_OP_CONVERTER(translate_iterator_get_next_op);
+TF_OP_CONVERTER(translate_iterator_op);
+TF_OP_CONVERTER(translate_lookup_table_insert_op);
 TF_OP_CONVERTER(translate_partitioned_call_op);
+TF_OP_CONVERTER(translate_queue_dequeue_op);
 TF_OP_CONVERTER(translate_sparse_fill_empty_rows_op);
 TF_OP_CONVERTER(translate_sparse_reshape_op);
 TF_OP_CONVERTER(translate_sparse_segment_sum_op);
@@ -130,6 +136,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"ExtractImagePatches", translate_extract_image_patches_op},
         {"FakeQuantWithMinMaxVars", translate_fake_quant_op},
         {"FakeQuantWithMinMaxVarsPerChannel", translate_fake_quant_op},
+        {"FIFOQueue", translate_fifo_queue_op},
+        {"FIFOQueueV2", translate_fifo_queue_op},
         {"Fill", translate_fill_op},
         {"FloorDiv", translate_floor_div_op},
         {"FusedBatchNorm", translate_fused_batch_norm_op},
@@ -138,10 +146,15 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Gather", translate_gather_op},
         {"GatherV2", translate_gather_v2_op},
         {"GatherNd", translate_gather_nd_op},
+        {"HashTable", translate_hash_table_op},
+        {"HashTableV2", translate_hash_table_op},
         {"Identity", translate_identity_op},
         {"IdentityN", translate_identity_n_op},
         {"If", translate_if_op},
         {"input_arg", translate_input_arg_op},
+        {"Iterator", translate_iterator_op},
+        {"IteratorGetNext", translate_iterator_get_next_op},
+        {"IteratorV2", translate_iterator_op},
         {"output_arg", translate_output_arg_op},
         {"L2Loss", translate_l2_loss_op},
         {"LeakyRelu", translate_leaky_relu_op},
@@ -149,6 +162,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"ListDiff", translate_list_diff_op},
         {"LogSoftmax", translate_log_softmax_op},
         {"Log1p", translate_log_1p_op},
+        {"LookupTableInsert", translate_lookup_table_insert_op},
+        {"LookupTableInsertV2", translate_lookup_table_insert_op},
         {"LRN", translate_lrn_op},
         {"MatMul", translate_mat_mul_op},
         {"MatrixDiag", translate_matrix_diag_op},
@@ -156,6 +171,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"MaxPoolV2", translate_max_pool_op},
         {"MaxPool3D", translate_max_pool_op},
         {"MirrorPad", translate_mirror_pad_op},
+        {"MutableHashTable", translate_hash_table_op},
+        {"MutableHashTableV2", translate_hash_table_op},
         {"NonMaxSuppression", translate_non_max_suppression_op},
         {"NonMaxSuppressionV2", translate_non_max_suppression_op},
         {"NonMaxSuppressionV3", translate_non_max_suppression_op},
@@ -164,9 +181,15 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"NoOp", translate_no_op},  // do nothing
         {"NormalizeL2", translate_normalize_l2_op},
         {"OneHot", translate_one_hot_op},
+        {"OneShotIterator", translate_iterator_op},
         {"Pack", translate_pack_op},
         {"Pad", translate_pad_op},
         {"PadV2", translate_padv2_op},
+        {"QueueDequeue", translate_queue_dequeue_op},
+        {"QueueDequeueV2", translate_queue_dequeue_op},
+        {"QueueDequeueUpTo", translate_queue_dequeue_op},
+        {"QueueDequeueUpToV2", translate_queue_dequeue_op},
+        {"QueueDequeueMany", translate_queue_dequeue_op},
         {"DynamicStitch", translate_parallel_dynamic_stitch_op},
         {"ParallelDynamicStitch", translate_parallel_dynamic_stitch_op},
         {"PartitionedCall", translate_partitioned_call_op},
