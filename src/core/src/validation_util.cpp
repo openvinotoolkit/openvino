@@ -890,10 +890,11 @@ std::vector<size_t> ov::normalize_axes(const std::string& node_description,
                                        const Rank& tensor_rank) {
     std::vector<size_t> new_axes;
     new_axes.reserve(axes.size());
+    std::cout << "XXXXXX2" << std::endl;
     for (const auto& axis : axes) {
         new_axes.push_back(normalize_axis(node_description, axis, tensor_rank));
     }
-
+    std::cout << "XXXXXX3" << std::endl;
     return new_axes;
 }
 
