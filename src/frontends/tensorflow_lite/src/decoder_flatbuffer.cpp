@@ -81,7 +81,7 @@ std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> DecoderFlatBuffe
 
     return std::make_shared<ov::frontend::tensorflow_lite::TensorLitePlace>(
         model,
-        ov::frontend::tensorflow_lite::get_ov_shape(tensor->shape()),
+        ov::frontend::tensorflow_lite::get_ov_shape(tensor->shape(), tensor->shape_signature()),
         ov::frontend::tensorflow_lite::get_ov_type(tensor->type()),
         names,
         ov::frontend::tensorflow_lite::get_quantization(tensor->quantization()),

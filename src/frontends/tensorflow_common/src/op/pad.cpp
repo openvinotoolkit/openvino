@@ -19,13 +19,10 @@ static void slice_pads_begin_end(const Output<Node>& paddings,
     // TODO: fix IR reader to accept padding of i32 type
     auto paddings_i64 = make_shared<Convert>(paddings, element::i64);
     auto axis = make_shared<Constant>(element::i32, Shape{}, 1);
-    auto index_zero = make_shared<Constant>(element::i32, Shape{1}, 0);
-    auto index_one = make_shared<Constant>(element::i32, Shape{1}, 1);
-    auto unsqueeze_pad_begin = make_shared<Gather>(paddings_i64, index_zero, axis);
-    auto unsqueeze_pad_end = make_shared<Gather>(paddings_i64, index_one, axis);
-
-    pads_begin = make_shared<Squeeze>(unsqueeze_pad_begin, axis);
-    pads_end = make_shared<Squeeze>(unsqueeze_pad_end, axis);
+    auto index_zero = make_shared<Constant>(element::i32, Shape{}, 0);
+    auto index_one = make_shared<Constant>(element::i32, Shape{}, 1);
+    pads_begin = make_shared<Gather>(paddings_i64, index_zero, axis);
+    pads_end = make_shared<Gather>(paddings_i64, index_one, axis);
 }
 
 static OutputVector translate_pad_base_op(const NodeContext& node,
