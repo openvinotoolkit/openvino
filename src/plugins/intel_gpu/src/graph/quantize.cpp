@@ -78,4 +78,13 @@ quantize_inst::typed_primitive_inst(network& network, quantize_node const& node)
     scale_shift_opt = node.get_scale_shift_opt();
 }
 
+void quantize_inst::save(cldnn::BinaryOutputBuffer& ob) const {
+    parent::save(ob);
+    ob << scale_shift_opt;
+}
+
+void quantize_inst::load(BinaryInputBuffer& ib) {
+    parent::load(ib);
+    ib >> scale_shift_opt;
+}
 }  // namespace cldnn

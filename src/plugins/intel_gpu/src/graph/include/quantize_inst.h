@@ -167,6 +167,8 @@ public:
     static std::vector<layout> calc_output_layouts(quantize_node const& node, kernel_impl_params const& impl_param);
     static layout calc_output_layout(quantize_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(quantize_node const& node);
+    void save(BinaryOutputBuffer& ob) const override;
+    void load(BinaryInputBuffer& ib) override;
 
     typed_primitive_inst(network& network, quantize_node const& desc);
 
