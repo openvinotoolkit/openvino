@@ -14,15 +14,16 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_one_hot_op(const NodeContext& node) {
-    auto ng_features = node.get_input(0);
-    auto ng_depth = node.get_input(1);
-    auto ng_on = node.get_input(2);
-    auto ng_off = node.get_input(3);
+    default_op_checks(node, 4, {"OneHot"});
+    auto indices = node.get_input(0);
+    auto depth = node.get_input(1);
+    auto on_value = node.get_input(2);
+    auto off_value = node.get_input(3);
 
-    auto one_hot_axis = node.get_attribute<int64_t>("axis");
-    auto res = make_shared<OneHot>(ng_features, ng_depth, ng_on, ng_off, one_hot_axis);
-    set_node_name(node.get_name(), res);
-    return res->outputs();
+    auto axis = node.get_attribute<int64_t>("axis", -1);
+    auto one_hot = make_shared<OneHot>(indices, depth, on_value, off_value, axis);
+    set_node_name(node.get_name(), one_hot);
+    return {one_hot};
 }
 }  // namespace op
 }  // namespace tensorflow
