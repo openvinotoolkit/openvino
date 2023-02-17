@@ -7,6 +7,7 @@ file(GLOB SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/pass/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/pass/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ops/*.cpp"
     )
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
