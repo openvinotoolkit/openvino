@@ -42,6 +42,7 @@ resources:
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/openvino_contrib
+    ref: refs/pull/570/head
 
   - repository: testdata
     type: github
