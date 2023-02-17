@@ -91,6 +91,6 @@ bool ov::pass::ModelPass::run_on_function(std::shared_ptr<ov::Model> m) {
     return sts;
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::NodePass, "ngraph::pass::NodePass", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::NodePass, "ngraph::pass::NodePass");
 
 ngraph::pass::NodePass::~NodePass() = default;

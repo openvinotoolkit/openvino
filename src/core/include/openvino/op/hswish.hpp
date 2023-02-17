@@ -17,7 +17,7 @@ namespace v4 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API HSwish : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OP("HSwish", "opset4", op::util::UnaryElementwiseArithmetic, 4);
+    OPENVINO_OP("HSwish", "opset4", op::util::UnaryElementwiseArithmetic);
     HSwish() = default;
 
     /// \brief Constructs a HSwish (hard version of Swish) operation.

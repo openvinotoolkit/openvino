@@ -16,7 +16,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API DeformableConvolution : public op::util::DeformableConvolutionBase {
 public:
-    OPENVINO_OP("DeformableConvolution", "opset1", op::util::DeformableConvolutionBase, 1);
+    OPENVINO_OP("DeformableConvolution", "opset1", op::util::DeformableConvolutionBase);
 
     /// \brief Constructs a conversion operation.
     DeformableConvolution() = default;

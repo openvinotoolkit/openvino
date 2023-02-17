@@ -514,7 +514,7 @@ public:
     DummyConstant& operator=(const DummyConstant&) = delete;
 
     const NodeTypeInfo& get_type_info() const override {
-        static const NodeTypeInfo type_info{typeid(this).name(), static_cast<uint64_t>(0)};
+        static const NodeTypeInfo type_info{typeid(this).name()};
         return type_info;
     }
 

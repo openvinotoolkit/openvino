@@ -15,7 +15,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API MaxPool : public op::util::MaxPoolBase {
 public:
-    OPENVINO_OP("MaxPool", "opset1", op::util::MaxPoolBase, 1);
+    OPENVINO_OP("MaxPool", "opset1", op::util::MaxPoolBase);
 
     /// \brief Constructs a batched max pooling operation.
     MaxPool() = default;
