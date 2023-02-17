@@ -1804,7 +1804,9 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
                 // In this case, it can be handled by changing only the shape of permute without the kernel execution.
                 if (node.get_output_layout().get_rank() == 4 && node.get_dependency(0).is_type<permute>()) {
                     auto& pnode = node.get_dependency(0).as<permute>();
-                    can_optimize_permute = pnode.get_users().size() == 1 && pnode.get_dependencies().size() == 1
+                    can_optimize_permute = pnode.get_users().size() == 1
+                        && pnode.get_output_layout().data_type == node.get_output_layout().data_type
+                        && !pnode.has_fused_primitives()
                         && !pnode.is_output() && pnode.get_dependency(0).get_output_layout().is_static()
                         && pnode.is_reverse_rotating_except_batch();
                 }
@@ -1839,7 +1841,8 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
             if (node.get_output_layout().get_rank() == 4
                 && node.get_users().size() == 1 && node.get_users().front()->is_type<permute>()) {
                 auto& pnode = node.get_users().front()->as<permute>();
-                auto can_optimize_permute = pnode.get_dependencies().size() == 1
+                auto can_optimize_permute = pnode.get_output_layout().data_type == node.get_output_layout().data_type
+                    && !pnode.has_fused_primitives()
                     && !pnode.is_output() && pnode.get_dependency(0).get_output_layout().is_static()
                     && pnode.is_rotating_except_batch();
                 if (can_optimize_permute) {
