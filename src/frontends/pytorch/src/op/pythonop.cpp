@@ -3,8 +3,8 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/op/util/op_types.hpp"
 #include "pt_framework_node.hpp"
+#include "translate_session.hpp"
 
 namespace ov {
 namespace frontend {
@@ -16,21 +16,22 @@ OutputVector translate_pythonop(NodeContext& context) {
     FRONT_END_OP_CONVERSION_CHECK(decoder->get_subgraph_size() == 1,
                                   "PythonOp must have 1 subgraph to be able to translate it to OV.");
     auto body = context.convert_subgraph(0);
+    auto session = context.get_session();
 
     std::map<size_t, ParameterVector> inputs_map;
     for (const auto& param : body->get_parameters()) {
-        auto tensor_idx = m_translate_session->decode_tensor_name(param->output(0));
-        if (inputs_map.count(input_idx)) {
-            inputs_map[input_idx] = {param};
+        auto tensor_idx = session->decode_tensor_name(param->output(0));
+        if (inputs_map.count(tensor_idx)) {
+            inputs_map[tensor_idx] = {param};
         } else {
-            inputs_map[input_idx].push_back(param);
+            inputs_map[tensor_idx].push_back(param);
         }
     }
     for (const auto& input : inputs_map) {
         auto external_output = context.get_tensor_from_model(input.first);
         if (external_output.get_node()) {
             for (auto input_node : input.second) {
-                replace_node(input_node, context.get_input(input.first).get_node_shared_ptr());
+                replace_node(input_node, context.get_input((int)input.first).get_node_shared_ptr());
             }
         }
     }
