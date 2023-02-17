@@ -83,7 +83,7 @@ class CsvStatisticsReport(StatisticsReport):
             logger.info(f"Statistics report is stored to {f.name}")
 
     def dump_performance_counters(self, prof_info_list):
-        def dump_performance_counters_request(self, f, prof_info):
+        def dump_performance_counters_request(f, prof_info):
             total, total_cpu = timedelta(), timedelta()
 
             f.write(self.csv_separator.join(['layerName', 'execStatus', 'layerType', 'execType', 'realTime (ms)', 'cpuTime (ms)\n']))
