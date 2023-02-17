@@ -385,7 +385,7 @@ public:
      * @note  `deviceName` is not allowed in form of MULTI:CPU, HETERO:GPU,CPU, AUTO:CPU
      *        just simple forms like CPU, GPU, MULTI, GPU.0, etc
      */
-    void set_property_for_devivce(const ov::AnyMap& configMap, const std::string& deviceName);
+    void set_property_for_device(const ov::AnyMap& configMap, const std::string& deviceName);
 
     void add_extension(const std::vector<ov::Extension::Ptr>& extensions);
 
