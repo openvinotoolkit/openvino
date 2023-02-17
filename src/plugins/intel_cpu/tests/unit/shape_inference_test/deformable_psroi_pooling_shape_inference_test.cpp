@@ -48,7 +48,7 @@ TEST_F(DeformablePSROIPoolingV1StaticShapeInferenceTest, default_ctor) {
 }
 
 TEST_F(DeformablePSROIPoolingV1StaticShapeInferenceTest, no_offsets_input) {
-    const float spatial_scale = 0.05;
+    const float spatial_scale = 0.05f;
     const int64_t output_dim = 88;
     const int64_t group_size = 2;
 
@@ -67,7 +67,7 @@ TEST_F(DeformablePSROIPoolingV1StaticShapeInferenceTest, no_offsets_input) {
 }
 
 TEST_F(DeformablePSROIPoolingV1StaticShapeInferenceTest, offsets_input) {
-    const float spatial_scale = 0.05;
+    const float spatial_scale = 0.05f;
     const int64_t output_dim = 88;
     const int64_t group_size = 2;
 

@@ -32,7 +32,7 @@ TEST(type_prop, deformable_psroi_pooling_default_ctor) {
 }
 
 TEST(type_prop, deformable_psroi_pooling_interval_labels) {
-    const float spatial_scale = 0.05;
+    const float spatial_scale = 0.05f;
     const int64_t output_dim = 48;
     const int64_t group_size = 2;
 
