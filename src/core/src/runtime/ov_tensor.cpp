@@ -7,6 +7,8 @@
 #include "blob_factory.hpp"     // IE private header
 #include "ie_ngraph_utils.hpp"  // IE private header
 #include "openvino/core/except.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/strides.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "runtime/blob_allocator.hpp"
 
@@ -93,6 +95,28 @@ Tensor::Tensor(const Tensor& owner, const Coordinate& begin, const Coordinate& e
     }
 }
 
+Tensor::Tensor(const ov::Output<ov::Node>& port, const Allocator& allocator)
+    : Tensor(port.get_element_type(),
+             port.get_partial_shape().is_dynamic() ? ov::Shape{0} : port.get_shape(),
+             allocator) {}
+
+Tensor::Tensor(const ov::Output<ov::Node>& port, void* host_ptr, const Strides& byte_strides)
+    : Tensor(port.get_element_type(),
+             port.get_partial_shape().is_dynamic() ? ov::Shape{0} : port.get_shape(),
+             host_ptr,
+             byte_strides) {}
+
+Tensor::Tensor(const ov::Output<const ov::Node>& port, const Allocator& allocator)
+    : Tensor(port.get_element_type(),
+             port.get_partial_shape().is_dynamic() ? ov::Shape{0} : port.get_shape(),
+             allocator) {}
+
+Tensor::Tensor(const ov::Output<const ov::Node>& port, void* host_ptr, const Strides& byte_strides)
+    : Tensor(port.get_element_type(),
+             port.get_partial_shape().is_dynamic() ? ov::Shape{0} : port.get_shape(),
+             host_ptr,
+             byte_strides) {}
+
 element::Type Tensor::get_element_type() const {
     OV_TENSOR_STATEMENT(return ie::details::convertPrecision(_impl->getTensorDesc().getPrecision()));
 }
@@ -103,6 +127,104 @@ void Tensor::set_shape(const ov::Shape& shape) {
 
 Shape Tensor::get_shape() const {
     OV_TENSOR_STATEMENT({ return _impl->getTensorDesc().getDims(); });
+}
+
+void Tensor::copy_to(const ov::Tensor& dst) const {
+    OPENVINO_ASSERT(dst.get_element_type() == get_element_type(),
+                    "Tensor element types are not equal. (src: ",
+                    get_element_type(),
+                    " != dst: ",
+                    dst.get_element_type(),
+                    ")");
+    OPENVINO_ASSERT(dst.get_shape() == get_shape(),
+                    "Tensor shapes are not equal. (src: ",
+                    get_shape(),
+                    " != dst: ",
+                    dst.get_shape(),
+                    ")");
+    const auto& shape = get_shape();
+    auto* src_data = static_cast<const uint8_t*>(data());
+    auto* dst_data = static_cast<uint8_t*>(dst.data());
+    size_t tensor_size = ov::shape_size(get_shape());
+    ov::Strides src_strides{1};
+    ov::Strides dst_strides{1};
+    size_t step(1);
+
+    if (get_element_type().bitwidth() < 8 || (get_strides() == dst.get_strides() /* && is_continuous() */)) {
+        // OpenVINO doesn't support strides for LP types
+        // or both tensors have default strides
+        step = tensor_size * get_element_type().size();
+    } else {
+        // Tensors have default strides
+        const auto& type = get_element_type();
+        std::vector<size_t> strides(shape.size());
+        if (!shape.empty()) {
+            strides[shape.size() - 1] = 1;
+        }
+        auto size = shape.size();
+        for (size_t i = 1; i < size; i++) {
+            strides[size - i - 1] = strides[size - i] * shape[size - i];
+        }
+
+        ov::Strides default_strides(strides.size());
+        for (size_t i = 0; i < strides.size(); ++i)
+            default_strides[i] = strides[i] * type.size();
+
+        src_strides = get_strides();
+        dst_strides = dst.get_strides();
+
+        ov::Strides src_str;
+        ov::Strides dst_str;
+
+        // Calculate src and dst shapes
+        bool found_step = false;
+        for (size_t i = 0; i < shape.size(); i++) {
+            size_t inverted_idx = shape.size() - i - 1;
+            if (!found_step) {
+                if (default_strides[inverted_idx] == src_strides[inverted_idx] &&
+                    src_strides[inverted_idx] == dst_strides[inverted_idx]) {
+                    continue;
+                } else {
+                    found_step = true;
+                    size_t strides_size = inverted_idx + 1;
+                    if (i != 0)
+                        // Take step from previous stride
+                        step = default_strides[strides_size];
+                    // Set right size
+                    src_str.resize(strides_size);
+                    dst_str.resize(strides_size);
+                }
+            }
+            src_str[inverted_idx] = src_strides[inverted_idx];
+            dst_str[inverted_idx] = dst_strides[inverted_idx];
+        }
+    }
+
+    const auto update_index =
+        [](size_t& shift, size_t idx, const ov::Shape shape, const ov::Strides& strides, size_t step) {
+            // TODO: calculate shift based on step, strides and index
+        };
+    for (size_t dst_idx = 0, src_idx = 0, idx = 1; dst_idx < tensor_size && src_idx < tensor_size; idx++) {
+        memcpy(dst_data + dst_idx, src_data + src_idx, step);
+        // update indexes
+        update_index(src_idx, idx, shape, src_strides, step);
+        update_index(dst_idx, idx, shape, dst_strides, step);
+    }
+
+    std::vector<size_t> indexes(shape.size());
+    for (size_t dst_idx = 0; dst_idx < ov::shape_size(shape); dst_idx++) {
+        size_t val = dst_idx;
+        size_t src_idx = 0;
+        for (size_t j1 = 0; j1 < indexes.size(); j1++) {
+            size_t j = indexes.size() - j1 - 1;
+            indexes[j] = val % shape[j];
+            val /= shape[j];
+            src_idx += indexes[j] * tensor.get_strides()[j];
+        }
+        memcpy(dst_data + dst_idx * tensor.get_element_type().size(),
+               src_data + src_idx,
+               tensor.get_element_type().size());
+    }
 }
 
 Strides Tensor::get_strides() const {
