@@ -12,9 +12,11 @@ namespace ov {
 namespace intel_gna {
 namespace rt_info {
 
-TRANSFORMATIONS_API void add_transpose_fusable(const std::shared_ptr<Node>& node);
-TRANSFORMATIONS_API void remove_transpose_fusable(const std::shared_ptr<Node>& node);
-TRANSFORMATIONS_API bool is_transpose_fusable(const std::shared_ptr<Node>& node);
+void add_transpose_fusable(const std::shared_ptr<Node>& node);
+
+void remove_transpose_fusable(const std::shared_ptr<Node>& node);
+
+bool is_transpose_fusable(const std::shared_ptr<Node>& node);
 
 /**
  * @ingroup ie_runtime_attr_api
