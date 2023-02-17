@@ -12,7 +12,6 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wno-sign-compare)
     ie_add_compiler_flags(-Wno-sequence-point)
     ie_add_compiler_flags(-Wno-strict-aliasing)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-class-memaccess")
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # C4267, 4244 issues from mkl-dnn headers conversion from 'XXX' to 'YYY', possible loss of data
     ie_add_compiler_flags(/wd4267)
