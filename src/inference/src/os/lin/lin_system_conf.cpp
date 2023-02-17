@@ -313,7 +313,9 @@ bool cpuMapAvailable() {
     return cpu._cpu_mapping_table.size() > 0;
 }
 
-std::vector<int> getAvailableCPUs(const column_of_processor_type_table core_type, const int num_cpus, const bool cpu_task) {
+std::vector<int> getAvailableCPUs(const column_of_processor_type_table core_type,
+                                  const int num_cpus,
+                                  const bool cpu_task) {
     std::vector<int> cpu_ids;
     const int used_flag = cpu_task ? -1 : 2;
     if (core_type < PROC_TYPE_TABLE_SIZE && core_type >= ALL_PROC) {
