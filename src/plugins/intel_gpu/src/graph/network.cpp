@@ -1018,7 +1018,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                                        get_stream(),
                                        "program" + std::to_string(get_program()->get_id()) +
                                        "_network" + std::to_string(get_id()) +
-                                       "_" + layer_name + "_src" + std::to_string(i),
+                                       "_" + layer_name + "_dst" + std::to_string(i),
                                        debug_config->dump_layers_raw);
                 }
             }
