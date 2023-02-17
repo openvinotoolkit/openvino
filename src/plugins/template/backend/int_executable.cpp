@@ -145,8 +145,8 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
             }
         }
 
-        const auto tensor_inputs = ov::util::make_tmp_tensors(op_inputs);
-        auto tensor_outputs = ov::util::make_tmp_tensors(op_outputs);
+        const auto tensor_inputs = ov::util::wrap_tensors(op_inputs);
+        auto tensor_outputs = ov::util::wrap_tensors(op_outputs);
 
         // Call evaluate for cloned_node with static shapes
         if (cloned_node->evaluate(tensor_outputs, tensor_inputs, eval_context)) {

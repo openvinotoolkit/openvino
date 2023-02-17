@@ -15,7 +15,8 @@ namespace util {
  *
  * @return 2-D shape with {0, SIZE_MAX}
  */
-OPENVINO_API Shape make_dynamic_shape();
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
+Shape make_dynamic_shape();
 
 /**
  * @brief Check if Shape is marked as dynamic.
@@ -23,6 +24,7 @@ OPENVINO_API Shape make_dynamic_shape();
  * @param s  Shape for check.
  * @return True if shape is dynamic otherwise false.
  */
-OPENVINO_API bool is_dynamic_shape(const Shape& s);
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
+bool is_dynamic_shape(const Shape& s);
 }  // namespace util
 }  // namespace ov

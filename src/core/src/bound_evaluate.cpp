@@ -81,7 +81,7 @@ ov::Tensor evaluate_bound(const Output<Node>& output, bool is_upper, bool invali
         for (const auto& node : order) {
             ov::TensorVector outputs;
             for (const auto& out : node->outputs()) {
-                outputs.push_back(util::make_tmp_tensor(out));
+                outputs.push_back(util::wrap_tensor(out));
             }
 
             if (is_upper ? node->evaluate_upper(outputs) : node->evaluate_lower(outputs)) {

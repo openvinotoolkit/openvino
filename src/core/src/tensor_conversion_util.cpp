@@ -8,8 +8,8 @@
 
 namespace ov {
 namespace util {
-
-Tensor make_tmp_tensor(const ngraph::HostTensorPtr& t) {
+OPENVINO_SUPPRESS_DEPRECATED_START
+Tensor wrap_tensor(const ngraph::HostTensorPtr& t) {
     const auto& et = t->get_element_type();
     const auto& p_shape = t->get_partial_shape();
 
@@ -22,7 +22,7 @@ Tensor make_tmp_tensor(const ngraph::HostTensorPtr& t) {
     }
 }
 
-Tensor make_tmp_tensor(const Output<Node>& output) {
+Tensor wrap_tensor(const Output<Node>& output) {
     const auto& et = output.get_element_type();
     const auto& p_shape = output.get_partial_shape();
 
@@ -35,11 +35,11 @@ Tensor make_tmp_tensor(const Output<Node>& output) {
     }
 }
 
-ov::TensorVector make_tmp_tensors(const std::vector<ngraph::HostTensorPtr>& tensors) {
+ov::TensorVector wrap_tensors(const std::vector<ngraph::HostTensorPtr>& tensors) {
     ov::TensorVector out;
     out.reserve(tensors.size());
     for (const auto& ht : tensors) {
-        out.push_back(ov::util::make_tmp_tensor(ht));
+        out.push_back(ov::util::wrap_tensor(ht));
     }
     return out;
 }
@@ -57,6 +57,6 @@ void update_output_host_tensors(const std::vector<ngraph::HostTensorPtr>& output
         }
     }
 }
-
+OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace util
 }  // namespace ov

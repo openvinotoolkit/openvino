@@ -489,10 +489,12 @@ int64_t ov::Model::get_result_index(const Output<const Node>& value) const {
 bool ov::Model::evaluate(const HostTensorVector& output_tensors,
                          const HostTensorVector& input_tensors,
                          EvaluationContext evaluation_context) const {
-    auto outputs = ov::util::make_tmp_tensors(output_tensors);
-    auto inputs = ov::util::make_tmp_tensors(input_tensors);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    auto outputs = ov::util::wrap_tensors(output_tensors);
+    auto inputs = ov::util::wrap_tensors(input_tensors);
     bool sts = evaluate(outputs, inputs, std::move(evaluation_context));
     ov::util::update_output_host_tensors(output_tensors, outputs);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return sts;
 }
 
@@ -524,7 +526,7 @@ bool ov::Model::evaluate(ov::TensorVector& output_tensors,
             for (const auto& v : node->outputs()) {
                 auto it = output_tensor_map.find(v);
                 if (it == output_tensor_map.end()) {
-                    output_tensors.push_back(util::make_tmp_tensor(v));
+                    output_tensors.push_back(util::wrap_tensor(v));
                 } else {
                     output_tensors.push_back(it->second);
                 }

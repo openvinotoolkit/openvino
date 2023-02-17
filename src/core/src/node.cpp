@@ -696,6 +696,7 @@ protected:
 };
 
 inline ngraph::HostTensorPtr make_tmp_host_tensor(const ov::Tensor& t) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (!t) {
         return std::make_shared<DynamicTensor>(ov::element::dynamic);
     } else if (ov::util::is_dynamic_shape(t.get_shape())) {
@@ -703,6 +704,7 @@ inline ngraph::HostTensorPtr make_tmp_host_tensor(const ov::Tensor& t) {
     } else {
         return std::make_shared<ngraph::runtime::HostTensor>(t.get_element_type(), t.get_shape(), t.data());
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 inline ngraph::HostTensorVector create_tmp_tensors(const ov::TensorVector& tensors) {
@@ -793,11 +795,11 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
     }
 
     TensorVector output_tensors;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     for (const auto& output : outputs()) {
-        output_tensors.push_back(ov::util::make_tmp_tensor(output));
+        output_tensors.push_back(ov::util::wrap_tensor(output));
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
     if (evaluate(output_tensors, input_tensors)) {
         for (size_t i = 0; i < output_tensors.size(); ++i) {
             output_values[i] = make_shared<ngraph::op::Constant>(output_tensors[i]);
