@@ -151,7 +151,7 @@ using ov::check_new_args_count;
         }
 #endif
 
-#define _NGRAPH_RTTI_DEFINITION_WITH_PARENT(CLASS, TYPE_NAME, PARENT_CLASS)               \
+#define _NGRAPH_RTTI_DEFINITION_WITH_PARENT(CLASS, TYPE_NAME, PARENT_CLASS)                               \
     const ::ngraph::Node::type_info_t& CLASS::get_type_info_static() {                                    \
         static const ::ngraph::Node::type_info_t type_info_static{TYPE_NAME,                              \
                                                                   &PARENT_CLASS::get_type_info_static()}; \
