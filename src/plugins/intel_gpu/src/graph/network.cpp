@@ -166,6 +166,11 @@ void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream, bool dump
                     << (dump_raw ? " raw data" : "") << std::endl;
     }
 
+    if (size.count() == 0) {
+        file_stream << "Empty buffer" << std::endl;
+        return;
+    }
+
     mem_lock<T, mem_lock_type::read> lock(mem, stream);
     auto mem_ptr = lock.data();
     auto x_pitch = get_x_pitch(mem->get_layout());
@@ -242,8 +247,12 @@ void log_memory_to_file(memory::ptr mem, stream& stream, std::string layerName, 
     std::replace(filename.begin(), filename.end(), ' ', '_');
     std::replace(filename.begin(), filename.end(), ':', '_');
     filename = debug_config->dump_layers_path + filename + ".txt";
-
     std::ofstream file_stream(filename);
+    if (!mem) {
+        file_stream << "Empty" << std::endl;
+        return;
+    }
+
     auto mem_dt = mem->get_layout().data_type;
     if (mem_dt == cldnn::data_types::f32)
         dump<float>(mem, stream, file_stream, dump_raw);
