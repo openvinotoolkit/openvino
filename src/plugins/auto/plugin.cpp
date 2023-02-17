@@ -823,9 +823,6 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
                 continue;
             allDevices += device + ",";
         }
-        // remove the last ',' if exist
-        if (allDevices.back() == ',')
-            allDevices.pop_back();
     } else {
         auto priorities = deviceListConfig->second;
         // parsing the string and splitting the comma-separated tokens
@@ -886,10 +883,12 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
                     continue;
                 allDevices += device + ",";
             }
-            if (allDevices.back() == ',')
-                allDevices.pop_back();
         }
     }
+
+    // remove the last ',' if exist
+    if (allDevices.back() == ',')
+        allDevices.pop_back();
 
     if (allDevices.empty()) {
         IE_THROW() << "Please, check environment due to no supported devices can be used";
