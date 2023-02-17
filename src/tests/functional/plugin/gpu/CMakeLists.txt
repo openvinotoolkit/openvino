@@ -48,5 +48,6 @@ if (ENABLE_INTEL_CPU)
         "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_infer_request/perf_counters.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/multi/gpu_remote_blob_tests.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/infer_request/memory_states.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_executable_network/exec_net_base.cpp"
         PROPERTIES COMPILE_DEFINITIONS ENABLE_INTEL_CPU=1)
 endif()
