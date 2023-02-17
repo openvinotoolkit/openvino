@@ -49,6 +49,16 @@ struct random_uniform : public primitive_base<random_uniform> {
         seed = hash_combine(seed, op_seed);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const random_uniform>(rhs);
+
+        return global_seed == rhs_casted.global_seed &&
+               op_seed == rhs_casted.op_seed;
+    }
 };
 
 }  // namespace cldnn
