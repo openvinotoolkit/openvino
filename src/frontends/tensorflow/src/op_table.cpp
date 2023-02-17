@@ -179,7 +179,6 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"NonMaxSuppressionV4", translate_non_max_suppression_op},
         {"NonMaxSuppressionV5", translate_non_max_suppression_op},
         {"NoOp", translate_no_op},  // do nothing
-        {"NormalizeL2", translate_normalize_l2_op},
         {"OneHot", translate_one_hot_op},
         {"OneShotIterator", translate_iterator_op},
         {"Pack", translate_pack_op},
