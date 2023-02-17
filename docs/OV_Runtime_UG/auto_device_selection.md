@@ -122,7 +122,7 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 | |                                           | |       `true`                                                       |
 | |                                           | |       `false`                                                      |
 | |                                           | |                                                                    |
-| |                                           | | Enable/disable CPU as acceleration (or helper device) at the       |
+| |                                           | | Enables/disables CPU as acceleration (or the helper device) in the       |
 | |                                           | | beginning. The default value is `true`.                            |
 +---------------------------------------------+----------------------------------------------------------------------+
 
