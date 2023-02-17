@@ -71,5 +71,15 @@ struct space_to_depth : public primitive_base<space_to_depth> {
         seed = hash_combine(seed, block_size);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const space_to_depth>(rhs);
+
+        return mode == rhs_casted.mode &&
+               block_size == rhs_casted.block_size;
+    }
 };
 }  // namespace cldnn
