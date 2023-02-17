@@ -88,7 +88,6 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    std::vector<int> getSignalSizes(const std::vector<int>& newAxes) const;
     bool axesChanged() const;
     bool signalSizesChanged() const;
 
