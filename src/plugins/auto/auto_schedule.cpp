@@ -160,7 +160,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
     bool isActualDevCPU =
         _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") !=std::string::npos && !isCumulative;
     // if Actual device is CPU or perf_hint is cumulative, disabled _loadContext[CPU], only use _loadContext[ACTUALDEVICE]
-    if (isActualDevCPU || isCumulative) {
+    if (isActualDevCPU || isCumulative || !_autoSContext->_startupfallback) {
         _loadContext[CPU].isEnabled = false;
     } else {
         const auto CPUIter = std::find_if(_autoSContext->_devicePriorities.begin(), _autoSContext->_devicePriorities.end(),
@@ -212,7 +212,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                                         deviceName.c_str(),
                                         cfg.c_str(),
                                         contextPtr->executableNetwork->GetConfig(cfg).as<std::string>().c_str());
-                                } catch (...) {
+                                } catch (const IE::Exception&) {
                                 }
                             }
                         });
@@ -323,7 +323,7 @@ void AutoSchedule::TryToLoadNetWork(AutoLoadContext& context, const std::string&
             int maxNumThreads = 0;
             try {
                 maxNumThreads = _autoSContext->_core->GetConfig(device, GPU_CONFIG_KEY(MAX_NUM_THREADS)).as<int>();
-            } catch (...) {
+            } catch (const IE::Exception&) {
                 LOG_DEBUG_TAG("cannot get MAX_NUM_THREADS from GPU");
             }
             if (maxNumThreads == static_cast<int>(std::thread::hardware_concurrency())) {
@@ -537,7 +537,7 @@ IInferPtr AutoSchedule::CreateInferRequest() {
         try {
             perfmode = _passthroughExeNet->GetConfig(
                                 CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>();
-        } catch(...) {
+        } catch (const IE::Exception&) {
             LOG_INFO("query perf hint from passthrough network failed");
         }
         if (_autoSContext->_batchingDisabled || perfmode != CONFIG_VALUE(THROUGHPUT)) {
