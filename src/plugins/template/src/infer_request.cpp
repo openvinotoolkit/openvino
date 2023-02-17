@@ -52,8 +52,8 @@ TemplatePlugin::InferRequest::InferRequest(const std::shared_ptr<const TemplateP
     m_executable = get_template_model()->get_template_plugin()->_backend->compile(get_template_model()->m_model);
 
     // Allocate plugin backend specific memory handles
-    m_plugin_input_tensors.resize(get_inputs().size());
-    m_plugin_output_tensors.resize(get_outputs().size());
+    m_backend_input_tensors.resize(get_inputs().size());
+    m_backend_output_tensors.resize(get_outputs().size());
 
     // Allocate input/output tensors
     for (const auto& input : get_inputs()) {
@@ -87,10 +87,7 @@ std::shared_ptr<const TemplatePlugin::CompiledModel> TemplatePlugin::InferReques
 }
 
 // ! [infer_request:dtor]
-TemplatePlugin::InferRequest::~InferRequest() {
-    auto compiled_model = std::const_pointer_cast<TemplatePlugin::CompiledModel>(get_template_model());
-    compiled_model->_requestId--;
-}
+TemplatePlugin::InferRequest::~InferRequest() = default;
 // ! [infer_request:dtor]
 
 // ! [infer_request:infer_impl]
@@ -110,12 +107,13 @@ void TemplatePlugin::InferRequest::infer_preprocess() {
     convert_batched_tensors();
     check_tensors();
 
-    OPENVINO_ASSERT(get_inputs().size() == m_plugin_input_tensors.size());
+    // Allocate backend tensors
+    OPENVINO_ASSERT(get_inputs().size() == m_backend_input_tensors.size());
     for (size_t i = 0; i < get_inputs().size(); i++) {
         auto tensor = get_tensor(get_inputs()[i]);
-        if (has_default_strides(tensor)) {
+        if (tensor.is_continuous()) {
             // No ROI extraction is needed
-            m_plugin_input_tensors[i] =
+            m_backend_input_tensors[i] =
                 get_template_model()->get_template_plugin()->_backend->create_tensor(tensor.get_element_type(),
                                                                                      tensor.get_shape(),
                                                                                      tensor.data());
@@ -128,11 +126,11 @@ void TemplatePlugin::InferRequest::infer_preprocess() {
             // Perform manual extraction of ROI tensor
             // Basic implementation doesn't take axis order into account `desc.getBlockingDesc().getOrder()`
             // Performance of manual extraction is not optimal, but it is ok for template implementation
-            m_plugin_input_tensors[i] =
+            m_backend_input_tensors[i] =
                 get_template_model()->get_template_plugin()->_backend->create_tensor(tensor.get_element_type(),
                                                                                      tensor.get_shape());
             auto* src_data = static_cast<uint8_t*>(tensor.data());
-            auto dst_tensor = std::dynamic_pointer_cast<ngraph::runtime::HostTensor>(m_plugin_input_tensors[i]);
+            auto dst_tensor = std::dynamic_pointer_cast<ngraph::runtime::HostTensor>(m_backend_input_tensors[i]);
             OPENVINO_ASSERT(dst_tensor, "Template plugin error: Can't cast created tensor to HostTensor");
             auto* dst_data = dst_tensor->get_data_ptr<uint8_t>();
             std::vector<size_t> indexes(shape.size());
@@ -151,15 +149,16 @@ void TemplatePlugin::InferRequest::infer_preprocess() {
             }
         }
     }
-    OPENVINO_ASSERT(get_outputs().size() == m_plugin_output_tensors.size());
+    // Tensors can be dynamic, so in this case we need to allocate tensors with right shape
+    OPENVINO_ASSERT(get_outputs().size() == m_backend_output_tensors.size());
     for (size_t i = 0; i < get_outputs().size(); i++) {
         const auto& result = get_template_model()->m_model->get_results()[i];
         if (result->get_output_partial_shape(0).is_dynamic()) {
-            m_plugin_output_tensors[i] = get_template_model()->get_template_plugin()->_backend->create_tensor();
+            m_backend_output_tensors[i] = get_template_model()->get_template_plugin()->_backend->create_tensor();
             continue;
         }
         auto tensor = get_tensor(get_outputs()[i]);
-        m_plugin_output_tensors[i] =
+        m_backend_output_tensors[i] =
             get_template_model()->get_template_plugin()->_backend->create_tensor(tensor.get_element_type(),
                                                                                  tensor.get_shape(),
                                                                                  tensor.data());
@@ -172,7 +171,7 @@ void TemplatePlugin::InferRequest::infer_preprocess() {
 void TemplatePlugin::InferRequest::start_pipeline() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, m_profiling_task[StartPipeline])
     auto start = Time::now();
-    m_executable->call(m_plugin_output_tensors, m_plugin_input_tensors);
+    m_executable->call(m_backend_output_tensors, m_backend_input_tensors);
     m_durations[StartPipeline] = Time::now() - start;
 }
 // ! [infer_request:start_pipeline]
@@ -189,11 +188,11 @@ void TemplatePlugin::InferRequest::wait_pipeline() {
 void TemplatePlugin::InferRequest::infer_postprocess() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, m_profiling_task[Postprocess]);
     auto start = Time::now();
-    OPENVINO_ASSERT(get_outputs().size() == m_plugin_output_tensors.size());
+    OPENVINO_ASSERT(get_outputs().size() == m_backend_output_tensors.size());
     for (size_t i = 0; i < get_outputs().size(); i++) {
         const auto& result = get_template_model()->m_model->get_results()[i];
         if (result->get_output_partial_shape(0).is_dynamic()) {
-            auto host_tensor = m_plugin_output_tensors[i];
+            auto host_tensor = m_backend_output_tensors[i];
             ov::Output<const ov::Node> output{result->output(0).get_node(), result->output(0).get_index()};
             allocate_tensor(output, [host_tensor](ov::Tensor& tensor) {
                 allocate_tensor_impl(tensor, host_tensor->get_element_type(), host_tensor->get_shape());
@@ -209,10 +208,9 @@ void TemplatePlugin::InferRequest::infer_postprocess() {
 // ! [infer_request:set_blobs_impl]
 void TemplatePlugin::InferRequest::set_tensors_impl(const ov::Output<const ov::Node> port,
                                                     const std::vector<ov::Tensor>& tensors) {
-    const auto& inputs = get_inputs();
-    for (size_t i = 0; i < inputs.size(); i++) {
-        if (inputs[i] == port) {
-            m_batched_tensors[i] = tensors;
+    for (const auto& input : get_inputs()) {
+        if (input == port) {
+            m_batched_tensors[input.get_tensor_ptr()] = tensors;
             return;
         }
     }

@@ -48,8 +48,8 @@ private:
     // for performance counters
     std::array<std::chrono::duration<float, std::micro>, numOfStages> m_durations;
 
-    std::vector<std::shared_ptr<ngraph::runtime::Tensor>> m_plugin_input_tensors;
-    std::vector<std::shared_ptr<ngraph::runtime::Tensor>> m_plugin_output_tensors;
+    std::vector<std::shared_ptr<ngraph::runtime::Tensor>> m_backend_input_tensors;
+    std::vector<std::shared_ptr<ngraph::runtime::Tensor>> m_backend_output_tensors;
     std::shared_ptr<ngraph::runtime::Executable> m_executable;
 };
 // ! [infer_request:header]

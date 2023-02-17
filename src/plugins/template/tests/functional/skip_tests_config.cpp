@@ -122,8 +122,6 @@ std::vector<std::string> disabledTestPatterns() {
         // New plugin API doesn't support changes of pre-processing
         R"(.*InferRequestPreprocessTest.*SetPreProcessToInputInfo.*)",
         R"(.*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
-        // New API throws different exception type
-        R"(.*InferRequestWaitTests.*returnDeviceBusyOnSetBlobAfterAsyncInfer.*)"
     };
 
 #ifdef _WIN32

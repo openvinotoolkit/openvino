@@ -140,6 +140,13 @@ public:
     Shape get_shape() const;
 
     /**
+     * @brief Reports whether the tensor is continuous or not
+     *
+     * @return true if blob is continuous
+     */
+    bool is_continuous() const;
+
+    /**
      * @brief Returns the total number of elements (a product of all the dims or 1 for scalar)
      * @return The total number of elements
      */
