@@ -83,7 +83,9 @@ Shape make_dynamic_shape() {
 }
 
 bool is_dynamic_shape(const Shape& s) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     static const auto dyn_shape = make_dynamic_shape();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return s == dyn_shape;
 }
 }  // namespace util
