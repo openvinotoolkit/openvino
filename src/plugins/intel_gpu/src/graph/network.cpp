@@ -162,6 +162,11 @@ void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
             << ", original shape: " << size.to_string() << ")" << std::endl;
     }
 
+    if (size.count() == 0) {
+        file_stream << "Empty buffer" << std::endl;
+        return;
+    }
+
     mem_lock<T, mem_lock_type::read> lock(mem, stream);
     auto mem_ptr = lock.data();
     auto x_pitch = get_x_pitch(mem->get_layout());
@@ -226,8 +231,12 @@ void log_memory_to_file(memory::ptr mem, stream& stream, std::string layerName) 
     std::replace(filename.begin(), filename.end(), ' ', '_');
     std::replace(filename.begin(), filename.end(), ':', '_');
     filename = debug_config->dump_layers_path + filename + ".txt";
-
     std::ofstream file_stream(filename);
+    if (!mem) {
+        file_stream << "Empty" << std::endl;
+        return;
+    }
+
     auto mem_dt = mem->get_layout().data_type;
     if (mem_dt == cldnn::data_types::f32)
         dump<float>(mem, stream, file_stream);
@@ -400,7 +409,7 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
 
     for (auto p_inst : _exec_order) {
         p_inst->rebuild_deps(_primitives);
-        p_inst->rebuild_exec_deps(_exec_order);
+        p_inst->rebuild_exec_deps(_primitives);
 
         if (p_inst->type() == cldnn::concatenation::type_id() && p_inst->can_be_optimized()) {
             // implicit concat
