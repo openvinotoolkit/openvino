@@ -160,7 +160,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
     bool isActualDevCPU =
         _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") !=std::string::npos && !isCumulative;
     // if Actual device is CPU or perf_hint is cumulative, disabled _loadContext[CPU], only use _loadContext[ACTUALDEVICE]
-    if (isActualDevCPU || isCumulative) {
+    if (isActualDevCPU || isCumulative || !_autoSContext->_startupfallback) {
         _loadContext[CPU].isEnabled = false;
     } else {
         const auto CPUIter = std::find_if(_autoSContext->_devicePriorities.begin(), _autoSContext->_devicePriorities.end(),
