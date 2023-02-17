@@ -3,7 +3,7 @@
 ## Description
 Conformance suites certify plugin functionality using a set of tests with plugin specificity independent parameters. There are two types of conformance validation.
 
-### `API Conformance`
+### API Conformance
 The suite checks the following OpenVINO API entities in a plugin implementation:
 * plugin
 * compiled model (executable network)
@@ -18,7 +18,7 @@ A result of the `apiConformanceTests` run is two xml files: `report_api.xml` and
 
 
 
-### `Opset Conformance`
+### Opset Conformance
 The suite validates an OpenVINO operation plugin implementation, using simple single operation graphs (Conformance IR) taken from models. The plugin inference output is compared with the reference.
 
  The suite contains:
@@ -74,6 +74,8 @@ The script has the following arguments:
                         Specify gtest filter to apply when running test. E.g. *Add*:*BinaryConv*. The default value is None
 * `-c OV_CONFIG_PATH, --ov_config_path OV_CONFIG_PATH`
                         Specify path to file contains plugin config 
+* `-sh SHAPE_MODE, --shape_mode SHAPE_MODE`
+                        Specify shape mode for conformance. Default value is ``. Possible values: `static`, `dynamic`, ``
 
 > **NOTE**:
 > All arguments are optional and have default values to reproduce OMZ conformance results in a default way.
@@ -163,5 +165,7 @@ python3 summarize.py --xml /opt/repo/infrastructure-master/thirdparty/gtest-para
 
 The report contains statistics based on conformance results and filter fields at the top of the page.
 
-
-
+## See also
+ * [OpenVINO™ README](../../../../../../README.md)
+ * [OpenVINO Core Components](../../../../../README.md)
+ * [Developer documentation](../../../../../../docs/dev/index.md)

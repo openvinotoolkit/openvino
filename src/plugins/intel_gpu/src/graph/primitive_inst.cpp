@@ -91,7 +91,9 @@ bool is_any_user_cpu(const std::list<const program_node*>& users) {
 uint32_t primitive_inst::get_network_id() const { return _network.get_id(); }
 
 void primitive_inst::check_memory_to_set(const memory& mem, const layout& layout) const {
-    OPENVINO_ASSERT((mem.get_layout() == layout) || layout.is_dynamic(), "[GPU] Unexpected layout of input memory");
+    OPENVINO_ASSERT((mem.get_layout() == layout) || layout.is_dynamic(), "[GPU] Unexpected layout of input memory for ", id(), " node!\n",
+                     "Node layout: ", layout.to_short_string(), "\n",
+                     "Memory layout: ", mem.get_layout().to_short_string());
 
     // check shared image/buffer compatibility, if applicable
     auto params = mem.get_internal_params();
@@ -262,6 +264,8 @@ void primitive_inst::realloc_if_needed() {
     }
     // intermediate memory allocation is required for primitives consisting of multiple kernels in dynamic case
     {
+        if (_impl == nullptr)
+            return;
         const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
         if (ibuf_layouts.empty())
             return;
@@ -354,7 +358,6 @@ bool primitive_inst::update_impl() {
                     std::lock_guard<std::mutex> lock(get_network().get_impl_cache_mutex());
                     cache.add(impl_key, impl->clone());
                 });
-
                 _impl = _dynamic_impl->clone();
                 _impl->update_dispatch_data(*_impl_params);
 
@@ -384,13 +387,17 @@ bool primitive_inst::update_impl() {
 event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     const auto primitive_id = id();
     OPENVINO_ASSERT(_has_valid_input, primitive_id, " has invalid/unset input");
-
     GPU_DEBUG_GET_INSTANCE(debug_config);
 
     std::vector<event::ptr> dependencies;
     if (is_dynamic()) {
         OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
         update_shape();
+        if (_impl_params->output_layouts[0].bytes_count() == 0) {
+            auto ev = get_network().get_stream().create_user_event(true);
+            return ev;
+        }
+
         if (!is_valid_fusion()) {
             auto subgraph = get_unfused_subgraph();
 
@@ -421,8 +428,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
 
         // Try update impl if current impl is dynamic because opt kernel may be added to impl cache through async compilation.
         // Only try update weight and realloc when impl is updated.
-        if (shape_changed() || !_impl
-            || (!shape_changed() && _impl->is_dynamic())) {
+        if (shape_changed() || !_impl || (!shape_changed() && _impl->is_dynamic())) {
             if (update_impl()) {
                 auto ev = update_weights();
                 if (ev)

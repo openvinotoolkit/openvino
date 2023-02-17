@@ -33,22 +33,34 @@ struct range_impl : typed_primitive_impl_ocl<range> {
 
         return {params, optional_params};
     }
+
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+       auto kernel_params = get_kernel_params(impl_param);
+       (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+    }
 };
 
 namespace detail {
 
 attach_range_impl::attach_range_impl() {
-    implementation_map<range>::add(
-        impl_types::ocl,
-        typed_primitive_impl_ocl<range>::create<range_impl>,
-        {
-            std::make_tuple(data_types::u8, format::bfyx),
-            std::make_tuple(data_types::i8, format::bfyx),
-            std::make_tuple(data_types::f16, format::bfyx),
-            std::make_tuple(data_types::f32, format::bfyx),
-            std::make_tuple(data_types::i32, format::bfyx),
-            std::make_tuple(data_types::i64, format::bfyx),
-        });
+    auto types = {
+        data_types::f32,
+        data_types::f16,
+        data_types::i32,
+        data_types::i64,
+        data_types::i8,
+        data_types::u8
+    };
+
+    auto formats = {
+        format::bfyx
+    };
+
+    implementation_map<range>::add(impl_types::ocl,
+                                   shape_types::any,
+                                   typed_primitive_impl_ocl<range>::create<range_impl>,
+                                   types,
+                                   formats);
 }
 
 }  // namespace detail
