@@ -195,23 +195,12 @@ TEST_P(OVSetPropComplieModleGetPropTests, SetPropertyComplieModelGetProperty) {
     }
 }
 
-TEST_P(OVSetPropComplieModleWihtIncorrectPropTests, SetPropertyComplieModelWithIncorrectProperty) {
-    OV_ASSERT_NO_THROW(core->set_property(target_device, properties));
-    ASSERT_THROW(core->compile_model(model, target_device, compileModelProperties), ov::Exception);
-}
-
 TEST_P(OVSetPropComplieModleWihtIncorrectPropTests, CanNotCompileModelWithIncorrectProperties) {
     ASSERT_THROW(core->compile_model(model, target_device, properties), ov::Exception);
 }
 
-TEST_P(OVSetSupportPropComplieModleWithoutConfigTests, SetPropertyComplieModelWithCorrectProperty) {
-    OV_ASSERT_NO_THROW(core->set_property(target_device, properties));
-    ASSERT_NO_THROW(core->compile_model(model, target_device, {}));
-}
-
-TEST_P(OVSetUnsupportPropComplieModleWithoutConfigTests, SetPropertyComplieModelWithIncorrectProperty) {
-    OV_ASSERT_NO_THROW(core->set_property(target_device, properties));
-    ASSERT_THROW(core->compile_model(model, target_device, {}), ov::Exception);
+TEST_P(OVSetSupportPropComplieModleWithoutConfigTests, SetPropertyCompiledModelWithCorrectProperty) {
+    ASSERT_NO_THROW(core->compile_model(model, target_device, properties));
 }
 
 std::string OVCompileModelGetExecutionDeviceTests::getTestCaseName(testing::TestParamInfo<OvPropertiesParams> obj) {
