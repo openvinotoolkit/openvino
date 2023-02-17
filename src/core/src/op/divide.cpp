@@ -73,12 +73,12 @@ ov::Tensor equality_mask(const ov::Tensor& tensor, const shared_ptr<op::Constant
 }
 
 ov::Tensor or_tensor(const ov::Tensor& lhs, const ov::Tensor& rhs) {
-    auto outs = ov::TensorVector{{lhs.get_element_type(), ov::util::make_dynamic_shape()}};
+    auto logical_or = op::v1::LogicalOr(std::make_shared<op::Parameter>(lhs.get_element_type(), lhs.get_shape()),
+                                        std::make_shared<op::Parameter>(rhs.get_element_type(), rhs.get_shape()),
+                                        ngraph::op::AutoBroadcastType::NUMPY);
 
-    op::v1::LogicalOr(std::make_shared<op::Parameter>(lhs.get_element_type(), lhs.get_shape()),
-                      std::make_shared<op::Parameter>(rhs.get_element_type(), rhs.get_shape()),
-                      ngraph::op::AutoBroadcastType::NUMPY)
-        .evaluate(outs, ov::TensorVector{lhs, rhs});
+    auto outs = ov::TensorVector{{lhs.get_element_type(), logical_or.get_output_shape(0)}};
+    logical_or.evaluate(outs, ov::TensorVector{lhs, rhs});
     return outs.front();
 }
 
