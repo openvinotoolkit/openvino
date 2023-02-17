@@ -237,10 +237,10 @@ def fe_input_user_data_repack(
         model_inputs = input_model.get_inputs()
         frozen_names = freeze_placeholder.keys()
         assert len(model_inputs) == len(frozen_names) + 1, "Please check the conversion command-line. " \
-                                                           "Total number of model inputs must match to a number " \
-                                                           "of input shapes along with frozen inputs."
+                                                           f"Total number of model inputs ({len(model_inputs)} detected) must match to a number " \
+                                                           f"of input shapes along with frozen inputs ({len(frozen_names) + 1} in total)."
         for node in model_inputs:
-            assert len(node.get_names()) > 0, "Original input models must have names."
+            assert len(node.get_names()) > 0, f"Original model inputs must have tensor names."
             input_name = node.get_names()[0]
             if input_name not in frozen_names:
                 _input_shapes.append(
