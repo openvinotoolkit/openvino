@@ -40,11 +40,12 @@ std::vector<TShape> shape_infer(const DeformablePSROIPooling* op, const std::vec
     NODE_VALIDATION_CHECK(op, op->get_group_size() > 0, "Value of `group_size` attribute has to be greater than 0 ");
 
     using DimType = typename TShape::value_type;
+    using DimTypeVal = typename DimType::value_type;
     // The output shape: [num_rois, output_dim, group_size, group_size]
     return {TShape{box_coords_pshape.rank().is_static() ? box_coords_pshape[0] : DimType{},
-                   op->get_output_dim(),
-                   op->get_group_size(),
-                   op->get_group_size()}};
+                   static_cast<DimTypeVal>(op->get_output_dim()),
+                   static_cast<DimTypeVal>(op->get_group_size()),
+                   static_cast<DimTypeVal>(op->get_group_size())}};
 }
 
 template <class TShape>
