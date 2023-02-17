@@ -11,6 +11,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "template/config.hpp"
+#include "template_itt.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
