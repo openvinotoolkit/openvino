@@ -10,6 +10,7 @@
 #include <pybind11/iostream.h>
 
 #include <openvino/core/type/element_type.hpp>
+#include <ngraph/runtime/shared_buffer.hpp>
 #include <string>
 #include <iterator>
 
@@ -20,6 +21,7 @@
 #include "openvino/pass/serialize.hpp"
 #include "pyopenvino/core/containers.hpp"
 #include "pyopenvino/graph/any.hpp"
+#include "pyopenvino/graph/ops/constant.hpp"
 
 namespace py = pybind11;
 
@@ -28,13 +30,38 @@ const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype();
 
 const std::map<std::string, ov::element::Type>& dtype_to_ov_type();
 
-ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const ov::element::Type& ov_type);
+// Helpers for numpy arrays
+namespace array_helpers {
 
-ov::Tensor tensor_from_numpy(py::array& array, bool shared_memory);
+inline bool is_contiguous(const py::array& array);
 
-ov::PartialShape partial_shape_from_list(const py::list& shape);
+inline ov::element::Type get_ov_type(const py::array& array);
+
+inline std::vector<size_t> get_shape(const py::array& array);
+
+inline std::vector<size_t> get_strides(const py::array& array);
 
 py::array as_contiguous(py::array& array, ov::element::Type type);
+
+}; // namespace array_helpers
+
+template <typename T>
+T create_copied(py::array& array);
+
+template <typename T>
+T create_shared(py::array& array);
+
+template <typename T>
+T object_from_numpy(py::array& array, bool shared_memory) {
+    if (shared_memory) {
+        return create_shared<T>(array);
+    }
+    return create_copied<T>(array);
+}
+
+ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const ov::element::Type& ov_type);
+
+ov::PartialShape partial_shape_from_list(const py::list& shape);
 
 const ov::Tensor& cast_to_tensor(const py::handle& tensor);
 

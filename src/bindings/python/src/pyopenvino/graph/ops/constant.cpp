@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/constant.hpp"
+#include "pyopenvino/graph/ops/constant.hpp"
 
 #include <pybind11/buffer_info.h>
 #include <pybind11/numpy.h>
@@ -13,7 +13,7 @@
 #include <vector>
 
 #include "openvino/core/shape.hpp"
-#include "pyopenvino/graph/ops/constant.hpp"
+#include "pyopenvino/core/common.hpp"
 
 namespace py = pybind11;
 
@@ -68,6 +68,12 @@ void regclass_graph_op_Constant(py::module m) {
                                                                                                "Constant",
                                                                                                py::buffer_protocol());
     constant.doc() = "openvino.runtime.op.Constant wraps ov::op::v0::Constant";
+    // Numpy-based constructors
+    constant.def(py::init([](py::array& array, bool shared_memory) {
+                     return Common::object_from_numpy<ov::op::v0::Constant>(array, shared_memory);
+                 }),
+                 py::arg("array"),
+                 py::arg("shared_memory") = false);
     constant.def(py::init<const ov::element::Type&, const ov::Shape&, const std::vector<char>&>());
     constant.def(py::init<const ov::element::Type&, const ov::Shape&, const std::vector<ov::float16>&>());
     constant.def(py::init<const ov::element::Type&, const ov::Shape&, const std::vector<float>&>());
@@ -86,6 +92,14 @@ void regclass_graph_op_Constant(py::module m) {
         void* pp = reinterpret_cast<void*>(p);
         return std::make_shared<ov::op::v0::Constant>(et, sh, pp);
     }));
+    // // Tensor-based constructors
+    // constant.def(py::init([](ov::Tensor& tensor, bool shared_memory) {
+    //         // TODO: Is Tensor always aligned?... As it stores memory as either copy or C-style reference.g
+    //         // Create
+    //     }),
+    //     py::arg("tensor"),
+    //     py::arg("shared_memory") = false
+    // );
 
     constant.def("get_value_strings", &ov::op::v0::Constant::get_value_strings);
 

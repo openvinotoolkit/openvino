@@ -6,6 +6,8 @@
 
 #include <pybind11/pybind11.h>
 
+#include "openvino/op/constant.hpp"
+
 namespace py = pybind11;
 
 void regclass_graph_op_Constant(py::module m);
