@@ -10,7 +10,7 @@ endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
     ie_add_compiler_flags(-Wno-unused-variable)
-    if(CMAKE_COMPILER_IS_GNUCXX)
+    if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 13.0)
         ie_add_compiler_flags(-Wno-unused-variable -Wno-unused-but-set-variable)
     endif()
 endif()
