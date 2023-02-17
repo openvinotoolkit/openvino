@@ -17,7 +17,7 @@ namespace pytorch {
 namespace op {
 
 #define mark(...) context.mark_node(__VA_ARGS__)
-#define shared std::make_shared
+#define shared    std::make_shared
 
 using namespace opset10;
 
