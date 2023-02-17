@@ -125,6 +125,18 @@ struct activation : public primitive_base<activation> {
         return seed;
     }
 
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const activation>(rhs);
+
+        return activation_function == rhs_casted.activation_function &&
+               additional_params.a == rhs_casted.additional_params.a &&
+               additional_params.b == rhs_casted.additional_params.b &&
+               additional_params_input.empty() == rhs_casted.additional_params_input.empty();
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         if (additional_params_input.empty())

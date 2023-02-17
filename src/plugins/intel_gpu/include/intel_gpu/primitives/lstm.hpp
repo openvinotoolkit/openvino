@@ -143,6 +143,32 @@ struct lstm : public primitive_base<lstm> {
         return seed;
     }
 
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const lstm>(rhs);
+
+        bool act_params_eq = activation_params.size() == rhs_casted.activation_params.size();
+        for (size_t i = 0; i < activation_params.size(); ++i) {
+            act_params_eq &= activation_params[i].a == rhs_casted.activation_params[i].a &&
+                             activation_params[i].b == rhs_casted.activation_params[i].b;
+        }
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return act_params_eq &&
+               cmp_fields(clip) &&
+               cmp_fields(input_forget) &&
+               cmp_fields(activations) &&
+               cmp_fields(output_selection) &&
+               cmp_fields(offset_order) &&
+               cmp_fields(initial_hidden.empty()) &&
+               cmp_fields(initial_cell.empty()) &&
+               cmp_fields(peepholes.empty()) &&
+               cmp_fields(bias.empty());
+        #undef cmp_fields
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
@@ -203,6 +229,17 @@ struct lstm_gemm : public primitive_base<lstm_gemm> {
         seed = hash_combine(seed, bias.empty());
         seed = hash_combine(seed, hidden.empty());
         return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const lstm_gemm>(rhs);
+
+        return direction == rhs_casted.direction &&
+               bias.empty() == rhs_casted.bias.empty() &&
+               hidden.empty() == rhs_casted.hidden.empty();
     }
 
 protected:
@@ -280,6 +317,29 @@ struct lstm_elt : public primitive_base<lstm_elt> {
         seed = hash_combine(seed, direction);
         seed = hash_combine(seed, cell.empty());
         return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const lstm_elt>(rhs);
+
+        bool act_params_eq = activation_params.size() == rhs_casted.activation_params.size();
+        for (size_t i = 0; i < activation_params.size(); ++i) {
+            act_params_eq &= activation_params[i].a == rhs_casted.activation_params[i].a &&
+                             activation_params[i].b == rhs_casted.activation_params[i].b;
+        }
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return act_params_eq &&
+               cmp_fields(clip) &&
+               cmp_fields(input_forget) &&
+               cmp_fields(activations) &&
+               cmp_fields(offset_order) &&
+               cmp_fields(direction) &&
+               cmp_fields(cell.empty());
+        #undef cmp_fields
     }
 
 protected:

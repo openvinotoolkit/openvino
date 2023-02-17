@@ -34,5 +34,14 @@ struct scatter_nd_update : public primitive_base<scatter_nd_update> {
         seed = hash_combine(seed, indices_rank);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const scatter_nd_update>(rhs);
+
+        return indices_rank == rhs_casted.indices_rank;
+    }
 };
 }  // namespace cldnn

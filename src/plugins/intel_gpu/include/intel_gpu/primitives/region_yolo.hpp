@@ -51,6 +51,19 @@ struct region_yolo : public primitive_base<region_yolo> {
         seed = hash_combine(seed, do_softmax);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const region_yolo>(rhs);
+
+        return coords == rhs_casted.coords &&
+               classes == rhs_casted.classes &&
+               num == rhs_casted.num &&
+               mask_size == rhs_casted.mask_size &&
+               do_softmax == rhs_casted.do_softmax;
+    }
 };
 }  // namespace cldnn
 #pragma once

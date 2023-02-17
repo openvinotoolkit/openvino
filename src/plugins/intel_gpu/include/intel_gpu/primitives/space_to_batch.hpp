@@ -68,5 +68,16 @@ struct space_to_batch : public primitive_base<space_to_batch> {
         seed = hash_combine(seed, pads_end.hash());
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const space_to_batch>(rhs);
+
+        return block_shape == rhs_casted.block_shape &&
+               pads_begin == rhs_casted.pads_begin &&
+               pads_end == rhs_casted.pads_end;
+    }
 };
 }  // namespace cldnn

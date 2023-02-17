@@ -48,6 +48,15 @@ struct lstm_dynamic_input : public primitive_base<lstm_dynamic_input> {
         return seed;
     }
 
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const lstm_dynamic_input>(rhs);
+
+        return bias.empty() == rhs_casted.bias.empty();
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;

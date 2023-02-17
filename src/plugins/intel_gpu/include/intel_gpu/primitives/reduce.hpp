@@ -68,5 +68,16 @@ struct reduce : public primitive_base<reduce> {
         seed = hash_combine(seed, keep_dims);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const reduce>(rhs);
+
+        return mode == rhs_casted.mode &&
+               axes == rhs_casted.axes &&
+               keep_dims == rhs_casted.keep_dims;
+    }
 };
 }  // namespace cldnn

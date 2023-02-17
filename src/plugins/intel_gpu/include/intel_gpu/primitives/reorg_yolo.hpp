@@ -34,6 +34,15 @@ struct reorg_yolo : public primitive_base<reorg_yolo> {
         seed = hash_combine(seed, stride);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const reorg_yolo>(rhs);
+
+        return stride == rhs_casted.stride;
+    }
 };
 }  // namespace cldnn
 #pragma once

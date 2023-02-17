@@ -68,5 +68,19 @@ struct roi_align : public primitive_base<roi_align> {
         seed = hash_combine(seed, aligned_mode);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const roi_align>(rhs);
+
+        return pooled_h == rhs_casted.pooled_h &&
+               pooled_w == rhs_casted.pooled_w &&
+               sampling_ratio == rhs_casted.sampling_ratio &&
+               spatial_scale == rhs_casted.spatial_scale &&
+               pooling_mode == rhs_casted.pooling_mode &&
+               aligned_mode == rhs_casted.aligned_mode;
+    }
 };
 }  // namespace cldnn

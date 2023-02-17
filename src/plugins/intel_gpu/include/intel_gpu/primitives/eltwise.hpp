@@ -177,5 +177,17 @@ struct eltwise : public primitive_base<eltwise> {
         }
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const eltwise>(rhs);
+
+        return mode == rhs_casted.mode &&
+               coefficients == rhs_casted.coefficients &&
+               broadcast_spec == rhs_casted.broadcast_spec &&
+               stride == rhs_casted.stride;
+    }
 };
 }  // namespace cldnn

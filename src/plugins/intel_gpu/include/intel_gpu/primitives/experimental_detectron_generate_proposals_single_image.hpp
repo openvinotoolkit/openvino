@@ -58,6 +58,19 @@ struct experimental_detectron_generate_proposals_single_image
         return seed;
     }
 
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const experimental_detectron_generate_proposals_single_image>(rhs);
+
+        return min_size == rhs_casted.min_size &&
+               nms_threshold == rhs_casted.nms_threshold &&
+               pre_nms_count == rhs_casted.pre_nms_count &&
+               post_nms_count == rhs_casted.post_nms_count &&
+               output_roi_scores.empty() == rhs_casted.output_roi_scores.empty();
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;

@@ -38,5 +38,14 @@ struct tile : public primitive_base<tile> {
         seed = hash_range(seed, repeats.begin(), repeats.end());
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const tile>(rhs);
+
+        return repeats == rhs_casted.repeats;
+    }
 };
 }  // namespace cldnn

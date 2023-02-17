@@ -26,9 +26,9 @@ struct condition : public primitive_base<condition> {
     /// @param id                 An identifier of new primitive.
     /// @param input              An identifier of primitive which is an input for newly created
     ///                           condition primitive.
-    /// @param topology_true      Topolgoy containg primitives, which will be executed when comparsion results
+    /// @param topology_true      Topology containg primitives, which will be executed when comparsion results
     ///                           true.
-    /// @param topology_false     Topolgoy containg primitives, which will be executed when comparsion results
+    /// @param topology_false     Topology containg primitives, which will be executed when comparsion results
     ///                           false..
     /// @param compare_Data       An identifier of primitive which contains compare values
     /// @param func               Used function during comparison.

@@ -143,6 +143,34 @@ struct detection_output : public primitive_base<detection_output> {
         return seed;
     }
 
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const detection_output>(rhs);
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(num_classes) &&
+               cmp_fields(keep_top_k) &&
+               cmp_fields(share_location) &&
+               cmp_fields(background_label_id) &&
+               cmp_fields(nms_threshold) &&
+               cmp_fields(top_k) &&
+               cmp_fields(eta) &&
+               cmp_fields(code_type) &&
+               cmp_fields(variance_encoded_in_target) &&
+               cmp_fields(confidence_threshold) &&
+               cmp_fields(prior_info_size) &&
+               cmp_fields(prior_coordinates_offset) &&
+               cmp_fields(prior_is_normalized) &&
+               cmp_fields(input_width) &&
+               cmp_fields(input_height) &&
+               cmp_fields(decrease_label_id) &&
+               cmp_fields(clip_before_nms) &&
+               cmp_fields(clip_after_nms);
+        #undef cmp_fields
+    }
+
 protected:
 };
 

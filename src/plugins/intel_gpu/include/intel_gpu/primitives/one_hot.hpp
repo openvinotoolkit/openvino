@@ -95,5 +95,17 @@ struct one_hot : public primitive_base<one_hot> {
         seed = hash_combine(seed, off_value);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const one_hot>(rhs);
+
+        return one_hot_axis == rhs_casted.one_hot_axis &&
+               depth == rhs_casted.depth &&
+               on_value == rhs_casted.on_value &&
+               off_value == rhs_casted.off_value;
+    }
 };
 }  // namespace cldnn

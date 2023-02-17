@@ -29,5 +29,9 @@ struct range: public primitive_base<range> {
 
     /// @brief requested range output layout
     layout output_layout;
+
+    bool operator==(const primitive& rhs) const override {
+        return compare_common_params(rhs);
+    }
 };
 }  // namespace cldnn

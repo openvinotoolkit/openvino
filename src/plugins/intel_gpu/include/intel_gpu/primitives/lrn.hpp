@@ -70,5 +70,18 @@ struct lrn : public primitive_base<lrn> {
         seed = hash_combine(seed, norm_region);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const lrn>(rhs);
+
+        return size == rhs_casted.size &&
+               k == rhs_casted.k &&
+               alpha == rhs_casted.alpha &&
+               beta == rhs_casted.beta &&
+               norm_region == rhs_casted.norm_region;
+    }
 };
 }  // namespace cldnn

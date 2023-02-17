@@ -186,6 +186,36 @@ struct proposal : public primitive_base<proposal> {
         return seed;
     }
 
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const proposal>(rhs);
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(max_proposals) &&
+               cmp_fields(iou_threshold) &&
+               cmp_fields(base_bbox_size) &&
+               cmp_fields(min_bbox_size) &&
+               cmp_fields(feature_stride) &&
+               cmp_fields(pre_nms_topn) &&
+               cmp_fields(post_nms_topn) &&
+               cmp_fields(ratios) &&
+               cmp_fields(scales) &&
+               cmp_fields(coordinates_offset) &&
+               cmp_fields(box_coordinate_scale) &&
+               cmp_fields(box_size_scale) &&
+               cmp_fields(for_deformable) &&
+               cmp_fields(swap_xy) &&
+               cmp_fields(initial_clip) &&
+               cmp_fields(clip_before_nms) &&
+               cmp_fields(clip_after_nms) &&
+               cmp_fields(round_ratios) &&
+               cmp_fields(shift_anchors) &&
+               cmp_fields(normalize);
+        #undef cmp_fields
+    }
+
     void save(BinaryOutputBuffer& ob) const override {
         ob << max_proposals;
         ob << iou_threshold;

@@ -36,5 +36,15 @@ struct shuffle_channels : public primitive_base<shuffle_channels> {
         seed = hash_combine(seed, axis);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const shuffle_channels>(rhs);
+
+        return group == rhs_casted.group &&
+               axis == rhs_casted.axis;
+    }
 };
 }  // namespace cldnn

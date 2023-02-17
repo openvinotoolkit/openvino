@@ -60,6 +60,23 @@ struct experimental_detectron_prior_grid_generator
         seed = hash_combine(seed, image_width);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const experimental_detectron_prior_grid_generator>(rhs);
+
+        return flatten == rhs_casted.flatten &&
+               h == rhs_casted.h &&
+               w == rhs_casted.w &&
+               stride_x == rhs_casted.stride_x &&
+               stride_y == rhs_casted.stride_y &&
+               featmap_height == rhs_casted.featmap_height &&
+               featmap_width == rhs_casted.featmap_width &&
+               image_height == rhs_casted.image_height &&
+               image_width == rhs_casted.image_width;
+    }
 };
 
 }  // namespace cldnn

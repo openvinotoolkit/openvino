@@ -205,6 +205,36 @@ struct prior_box : public primitive_base<prior_box> {
         return seed;
     }
 
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const prior_box>(rhs);
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(img_size) &&
+               cmp_fields(min_sizes) &&
+               cmp_fields(max_sizes) &&
+               cmp_fields(aspect_ratios) &&
+               cmp_fields(flip) &&
+               cmp_fields(clip) &&
+               cmp_fields(variance) &&
+               cmp_fields(step_width) &&
+               cmp_fields(step_height) &&
+               cmp_fields(offset) &&
+               cmp_fields(scale_all_sizes) &&
+               cmp_fields(fixed_ratio) &&
+               cmp_fields(fixed_size) &&
+               cmp_fields(density) &&
+               cmp_fields(support_opset8) &&
+               cmp_fields(step) &&
+               cmp_fields(min_max_aspect_ratios_order) &&
+               cmp_fields(widths) &&
+               cmp_fields(heights) &&
+               cmp_fields(clustered);
+        #undef cmp_fields
+    }
+
 private:
     bool clustered;
 

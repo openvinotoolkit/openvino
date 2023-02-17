@@ -66,5 +66,17 @@ struct pyramid_roi_align : public primitive_base<pyramid_roi_align> {
         seed = hash_combine(seed, pyramid_starting_level);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const pyramid_roi_align>(rhs);
+
+        return output_size == rhs_casted.output_size &&
+               sampling_ratio == rhs_casted.sampling_ratio &&
+               pyramid_scales == rhs_casted.pyramid_scales &&
+               pyramid_starting_level == rhs_casted.pyramid_starting_level;
+    }
 };
 }  // namespace cldnn

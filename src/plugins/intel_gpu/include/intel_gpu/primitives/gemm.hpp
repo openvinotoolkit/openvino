@@ -76,6 +76,20 @@ struct gemm : public primitive_base<gemm> {
         seed = hash_combine(seed, beta);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const gemm>(rhs);
+
+        return transpose_input0 == rhs_casted.transpose_input0 &&
+               transpose_input1 == rhs_casted.transpose_input1 &&
+               alpha == rhs_casted.alpha &&
+               beta == rhs_casted.beta &&
+               input_rank == rhs_casted.input_rank &&
+               weight_rank == rhs_casted.weight_rank;
+    }
 };
 
 }  // namespace cldnn
