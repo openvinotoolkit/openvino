@@ -6,23 +6,7 @@
 #include <stdio.h>
 
 #ifdef __cplusplus
-#    define OPENCV_C_EXTERN extern "C"
-#else
-#    define OPENCV_C_EXTERN
-#endif
-
-#if defined(__GNUC__) && (__GNUC__ < 4)
-#    define OPENCV_C_WRAPPER(...) OPENCV_C_EXTERN __VA_ARGS__
-#else
-#    if defined(_WIN32)
-#        ifdef opencv_c_wrapper_EXPORTS
-#            define OPENCV_C_WRAPPER(...) OPENCV_C_EXTERN __declspec(dllexport) __VA_ARGS__ __cdecl
-#        else
-#            define OPENCV_C_WRAPPER(...) OPENCV_C_EXTERN __declspec(dllimport) __VA_ARGS__ __cdecl
-#        endif
-#    else
-#        define OPENCV_C_WRAPPER(...) OPENCV_C_EXTERN __attribute__((visibility("default"))) __VA_ARGS__
-#    endif
+extern "C" {
 #endif
 
 /**
@@ -65,7 +49,7 @@ typedef struct color {
  * @param img A pointer to the newly created c_mat_t.
  * @return Status of the operation: 0 for success, -1 for fail.
  */
-OPENCV_C_WRAPPER(int) image_read(const char* img_path, c_mat_t* img);
+int image_read(const char* img_path, c_mat_t* img);
 
 /**
  * @brief  Resizes an image.
@@ -75,8 +59,7 @@ OPENCV_C_WRAPPER(int) image_read(const char* img_path, c_mat_t* img);
  * @param height The height of dst_img.
  * @return Status of the operation: 0 for success, -1 for fail.
  */
-OPENCV_C_WRAPPER(int)
-image_resize(const c_mat_t* src_img, c_mat_t* dst_img, const int width, const int height);
+int image_resize(const c_mat_t* src_img, c_mat_t* dst_img, const int width, const int height);
 
 /**
  * @brief Saves an image to a specified file.The image format is chosen based on the filename
@@ -85,14 +68,14 @@ image_resize(const c_mat_t* src_img, c_mat_t* dst_img, const int width, const in
  * @param img Image to be saved.
  * @return Status of the operation: 0 for success, -1 for fail.
  */
-OPENCV_C_WRAPPER(int) image_save(const char* img_path, c_mat_t* img);
+int image_save(const char* img_path, c_mat_t* img);
 
 /**
  * @brief Releases memory occupied by a c_mat_t instance.
  * @param img A pointer to the c_mat_t instance to free memory.
  * @return Status of the operation: 0 for success, -1 for fail.
  */
-OPENCV_C_WRAPPER(int) image_free(c_mat_t* img);
+int image_free(c_mat_t* img);
 
 /**
  * @brief Adds colored rectangles to the image
@@ -103,5 +86,8 @@ OPENCV_C_WRAPPER(int) image_free(c_mat_t* img);
  * @param thickness - thickness of a line (in pixels) to be used for bounding boxes
  * @return Status of the operation: 0 for success, -1 for fail.
  */
-OPENCV_C_WRAPPER(int)
-image_add_rectangles(c_mat_t* img, rectangle_t rects[], int classes[], int num, int thickness);
+int image_add_rectangles(c_mat_t* img, rectangle_t rects[], int classes[], int num, int thickness);
+
+#ifdef __cplusplus
+}
+#endif
