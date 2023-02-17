@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "behavior/ov_executable_network/import_export.hpp"
+#include "behavior/ov_compiled_model/import_export.hpp"
 #include "ov_api_conformance_helpers.hpp"
 
 #include "ie_plugin_config.hpp"

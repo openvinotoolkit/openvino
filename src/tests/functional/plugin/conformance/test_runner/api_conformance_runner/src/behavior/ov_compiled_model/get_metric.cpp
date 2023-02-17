@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/ov_executable_network/get_metric.hpp"
+#include "behavior/ov_compiled_model/get_metric.hpp"
 #include "openvino/runtime/core.hpp"
 #include "ov_api_conformance_helpers.hpp"
 

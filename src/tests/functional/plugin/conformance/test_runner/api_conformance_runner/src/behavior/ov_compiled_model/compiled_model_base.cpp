@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/ov_executable_network/compiled_model_base.hpp"
+#include "behavior/ov_compiled_model/compiled_model_base.hpp"
 #include "ie_plugin_config.hpp"
 #include "ov_api_conformance_helpers.hpp"
 

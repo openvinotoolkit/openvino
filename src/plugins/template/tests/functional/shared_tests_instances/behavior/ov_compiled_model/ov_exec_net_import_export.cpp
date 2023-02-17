@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "behavior/ov_executable_network/import_export.hpp"
+#include "behavior/ov_compiled_model/import_export.hpp"
 
 #include "ie_plugin_config.hpp"
 #include <common_test_utils/test_constants.hpp>
@@ -24,16 +24,16 @@ const std::vector<ov::AnyMap> configs = {
         {},
 };
 const std::vector<ov::AnyMap> multiConfigs = {
-        {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}};
+        {ov::device::priorities(CommonTestUtils::DEVICE_TEMPLATE)}};
 
 const std::vector<ov::AnyMap> heteroConfigs = {
-        {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}};
+        {ov::device::priorities(CommonTestUtils::DEVICE_TEMPLATE)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVExecGraphImportExportTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(netPrecisions),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
                                  ::testing::ValuesIn(configs)),
                          OVExecGraphImportExportTest::getTestCaseName);
 
