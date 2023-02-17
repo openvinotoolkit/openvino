@@ -427,6 +427,54 @@ void IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config) {
     }
 }
 
+IStreamsExecutor::Config IStreamsExecutor::Config::SetExecutorConfig(std::string name,
+                                                                     int num_streams,
+                                                                     ThreadBindingType thread_binding_type,
+                                                                     PreferredCoreType thread_core_type) {
+    Config streamExecutorConfig = Config{name, num_streams};
+    if (cpuMapAvailable()) {
+        if (name.find("CPU") == std::string::npos) {
+            streamExecutorConfig._logic_core_disable = true;
+            streamExecutorConfig._cpu_task = false;
+        }
+        streamExecutorConfig._threads = num_streams;
+        streamExecutorConfig._threadBindingType = thread_binding_type;
+        streamExecutorConfig._threadPreferredCoreType = thread_core_type;
+        if (streamExecutorConfig._threadBindingType == CORES) {
+            streamExecutorConfig._bind_cores = true;
+        }
+        if (streamExecutorConfig._threadPreferredCoreType == LITTLE) {
+            streamExecutorConfig._small_core_streams = num_streams;
+            streamExecutorConfig._threads_per_stream_small = 1;
+        } else {
+            streamExecutorConfig._big_core_streams = num_streams;
+            streamExecutorConfig._threads_per_stream_big = 1;
+        }
+        if (streamExecutorConfig._bind_cores && !streamExecutorConfig._cpu_task) {
+            auto core_type =
+                streamExecutorConfig._threadPreferredCoreType == LITTLE ? EFFICIENT_CORE_PROC : MAIN_CORE_PROC;
+            auto num_cores = streamExecutorConfig._threadPreferredCoreType == LITTLE
+                                 ? streamExecutorConfig._small_core_streams
+                                 : streamExecutorConfig._big_core_streams;
+            auto cpu_ids = getAvailableCPUs(core_type, num_cores);
+            setCpuUsed(cpu_ids, 2);
+        }
+    }
+    OPENVINO_DEBUG << "[ " << name << " SetExecutorConfig ] streams: " << num_streams
+                   << " thread_binding_type: " << thread_binding_type << " thread_core_type: " << thread_core_type
+                   << " streams (threads): " << streamExecutorConfig._streams << "("
+                   << streamExecutorConfig._threads_per_stream_big *
+                              (streamExecutorConfig._big_core_streams + streamExecutorConfig._big_core_logic_streams) +
+                          streamExecutorConfig._threads_per_stream_small * streamExecutorConfig._small_core_streams
+                   << ") -- PCore: " << streamExecutorConfig._big_core_streams << "("
+                   << streamExecutorConfig._threads_per_stream_big << ") "
+                   << streamExecutorConfig._big_core_logic_streams << "("
+                   << streamExecutorConfig._threads_per_stream_big
+                   << ")  ECore: " << streamExecutorConfig._small_core_streams << "("
+                   << streamExecutorConfig._threads_per_stream_small << ")";
+    return streamExecutorConfig;
+}
+
 IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(const IStreamsExecutor::Config& initial,
                                                                             const bool fp_intesive) {
     const auto envThreads = parallel_get_env_threads();
@@ -444,15 +492,17 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
             (streamExecutorConfig._big_core_streams + streamExecutorConfig._big_core_logic_streams) *
                 streamExecutorConfig._threads_per_stream_big +
             streamExecutorConfig._small_core_streams * streamExecutorConfig._threads_per_stream_small;
-        std::cout << "[ p_e_core_info ] streams (threads): " << streamExecutorConfig._streams << "("
-                  << streamExecutorConfig._threads_per_stream_big *
-                             (streamExecutorConfig._big_core_streams + streamExecutorConfig._big_core_logic_streams) +
-                         streamExecutorConfig._threads_per_stream_small * streamExecutorConfig._small_core_streams
-                  << ") -- PCore: " << streamExecutorConfig._big_core_streams << "("
-                  << streamExecutorConfig._threads_per_stream_big << ") "
-                  << streamExecutorConfig._big_core_logic_streams << "(" << streamExecutorConfig._threads_per_stream_big
-                  << ")  ECore: " << streamExecutorConfig._small_core_streams << "("
-                  << streamExecutorConfig._threads_per_stream_small << ")\n";
+        OPENVINO_DEBUG << "[ p_e_core_info ] streams (threads): " << streamExecutorConfig._streams << "("
+                       << streamExecutorConfig._threads_per_stream_big *
+                                  (streamExecutorConfig._big_core_streams +
+                                   streamExecutorConfig._big_core_logic_streams) +
+                              streamExecutorConfig._threads_per_stream_small * streamExecutorConfig._small_core_streams
+                       << ") -- PCore: " << streamExecutorConfig._big_core_streams << "("
+                       << streamExecutorConfig._threads_per_stream_big << ") "
+                       << streamExecutorConfig._big_core_logic_streams << "("
+                       << streamExecutorConfig._threads_per_stream_big
+                       << ")  ECore: " << streamExecutorConfig._small_core_streams << "("
+                       << streamExecutorConfig._threads_per_stream_small << ")";
     } else {
         // by default, do not use the hyper-threading (to minimize threads synch overheads)
         int num_cores_default = getNumberOfCPUCores();
@@ -491,8 +541,6 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
                                   streamExecutorConfig._threads_per_stream_small *
                                       streamExecutorConfig._small_core_streams
                            << ") -- PCore: " << streamExecutorConfig._big_core_streams << "("
-                           << streamExecutorConfig._threads_per_stream_big << ") "
-                           << streamExecutorConfig._big_core_logic_streams << "("
                            << streamExecutorConfig._threads_per_stream_big
                            << ")  ECore: " << streamExecutorConfig._small_core_streams << "("
                            << streamExecutorConfig._threads_per_stream_small << ")";

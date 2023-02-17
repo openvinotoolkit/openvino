@@ -155,10 +155,18 @@ std::vector<int> getAvailableNUMANodes() {
 int getNumberOfLogicalCPUCores(bool) {
     return parallel_get_max_threads();
 }
+std::vector<std::vector<int>> getNumOfAvailableCPUCores() {
+    std::vector<std::vector<int>> proc_type_table;
+    proc_type_table.resize(1, std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
+    return proc_type_table;
+}
 bool cpuMapAvailable() {
     return false;
 }
-std::vector<int> getAvailableCPUs(const cpu_core_type_of_processor core_type, const int num_cpus) {
+std::vector<int> getAvailableCPUs(const cpu_core_type_of_processor core_type, const int num_cpus, const bool cpu_task) {
+    return {};
+}
+std::vector<int> getLogicCores(std::vector<int> cpu_ids) {
     return {};
 }
 void setCpuUsed(std::vector<int> cpu_ids, int used) {}

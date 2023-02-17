@@ -114,7 +114,11 @@ struct CPUStreamsExecutor::Impl {
                     const auto small_core_threads_3 = cpu_core_type == EFFICIENT_CORE_PROC && concurrency == 3 &&
                                                       _impl->_config._small_core_streams > 1;
                     const auto num_cpus = small_core_threads_3 ? concurrency + 1 : concurrency;
-                    _cpu_ids = getAvailableCPUs(cpu_core_type, num_cpus);
+                    _cpu_ids = getAvailableCPUs(cpu_core_type, num_cpus, _impl->_config._cpu_task);
+                    if (cpu_core_type == MAIN_CORE_PROC && _impl->_config._logic_core_disable == true) {
+                        std::vector<int> logic_cores = getLogicCores(_cpu_ids);
+                        _cpu_ids.insert(_cpu_ids.end(), logic_cores.begin(), logic_cores.end());
+                    }
                     setCpuUsed(_cpu_ids, 1);
                     CpuSet processMask;
                     int ncpus = 0;
@@ -262,7 +266,7 @@ struct CPUStreamsExecutor::Impl {
                 _impl->_streamIdQueue.push(_streamId);
             }
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-            setCpuUsed(_cpu_ids, 0);
+            setCpuUsed(_cpu_ids, -1);
             if (nullptr != _observer) {
                 _observer->observe(false);
             }

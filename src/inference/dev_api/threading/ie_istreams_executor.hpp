@@ -106,6 +106,8 @@ public:
         int _small_core_offset = 0;         //!< Calculate small core start offset when binding cpu cores
         bool _enable_hyper_thread = true;   //!< enable hyper thread
         bool _bind_cores = false;
+        bool _logic_core_disable = false;
+        bool _cpu_task = true;
         enum StreamMode { DEFAULT, AGGRESSIVE, LESSAGGRESSIVE };
         enum PreferredCoreType {
             ANY,
@@ -115,6 +117,12 @@ public:
                          // (for large #streams)
         } _threadPreferredCoreType =
             PreferredCoreType::ANY;  //!< In case of @ref HYBRID_AWARE hints the TBB to affinitize
+
+        // Generate IStreamsExecutor Config
+        static Config SetExecutorConfig(std::string name,
+                                        int num_streams = 1,
+                                        ThreadBindingType thread_binding_type = NUMA,
+                                        PreferredCoreType thread_core_type = BIG);
 
         /**
          * @brief      A constructor with arguments
