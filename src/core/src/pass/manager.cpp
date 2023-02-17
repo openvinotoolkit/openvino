@@ -40,14 +40,20 @@ PerfCounters& perf_counters() {
 
 #endif  // ENABLE_PROFILING_ITT
 
-ov::pass::Manager::Manager()
-    : m_pass_config(std::make_shared<PassConfig>()),
-      m_visualize(ov::util::getenv_bool("NGRAPH_ENABLE_VISUALIZE_TRACING") ||
-                  ov::util::getenv_bool("OV_ENABLE_VISUALIZE_TRACING")) {}
+namespace {
+bool getenv_visualize_tracing() {
+    return ov::util::getenv_bool("NGRAPH_ENABLE_VISUALIZE_TRACING") ||
+           ov::util::getenv_bool("OV_ENABLE_VISUALIZE_TRACING");
+}
+}  // namespace
+
+ov::pass::Manager::Manager() : m_pass_config(std::make_shared<PassConfig>()), m_visualize(getenv_visualize_tracing()) {}
 
 ov::pass::Manager::~Manager() = default;
 
-ov::pass::Manager::Manager(std::shared_ptr<ov::pass::PassConfig> pass_config) : m_pass_config(std::move(pass_config)) {}
+ov::pass::Manager::Manager(std::shared_ptr<ov::pass::PassConfig> pass_config)
+    : m_pass_config(std::move(pass_config)),
+      m_visualize(getenv_visualize_tracing()) {}
 
 void ov::pass::Manager::set_per_pass_validation(bool new_state) {
     m_per_pass_validation = new_state;
