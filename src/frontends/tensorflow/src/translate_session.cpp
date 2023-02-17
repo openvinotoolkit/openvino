@@ -238,14 +238,13 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
         // register OV node outputs in the map for new operation node
         for (const auto& output : ov_outputs) {
-            if (auto result = std::dynamic_pointer_cast<ov::opset10::Result>(output.get_node_shared_ptr())) {
+            if (auto result = as_type_ptr<ov::opset10::Result>(output.get_node_shared_ptr())) {
                 // do not add RetVal type operation to ng_op_map
                 results.push_back(result);
             } else {
-                auto param = std::dynamic_pointer_cast<ov::opset8::Parameter>(output.get_node_shared_ptr());
+                auto param = as_type_ptr<ov::opset8::Parameter>(output.get_node_shared_ptr());
                 // avoid duplicating Parameter nodes if they are already in the Parameters vector
-                if (param && operation_decoder->get_op_type() != "Identity" &&
-                    std::find(params.begin(), params.end(), param) == params.end()) {
+                if (param && std::find(params.begin(), params.end(), param) == params.end()) {
                     params.push_back(param);
                 }
                 ng_op_map[operation_name].push_back(output);
