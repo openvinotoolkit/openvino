@@ -28,7 +28,12 @@ void allocate_tensor_impl(ov::Tensor& tensor, const ov::element::Type& element_t
     }
 }
 
-ov::Strides get_default_strides(const ov::Shape& shape, const ov::element::Type& type) {
+bool has_default_strides(const ov::Tensor& tensor) {
+    if (tensor.get_element_type().bitwidth() < 8)
+        // OpenVINO doesn't support strides for lp types
+        return true;
+    const auto& shape = tensor.get_shape();
+    const auto& type = tensor.get_element_type();
     std::vector<size_t> strides(shape.size());
     if (!shape.empty()) {
         strides[shape.size() - 1] = 1;
@@ -41,7 +46,7 @@ ov::Strides get_default_strides(const ov::Shape& shape, const ov::element::Type&
     ov::Strides byte_strides(strides.size());
     for (size_t i = 0; i < strides.size(); ++i)
         byte_strides[i] = strides[i] * type.size();
-    return byte_strides;
+    return byte_strides == tensor.get_strides();
 }
 
 }  // namespace
@@ -129,7 +134,7 @@ void TemplatePlugin::InferRequest::infer_preprocess() {
     OPENVINO_ASSERT(get_inputs().size() == m_plugin_input_tensors.size());
     for (size_t i = 0; i < get_inputs().size(); i++) {
         auto tensor = get_tensor(get_inputs()[i]);
-        if (get_default_strides(tensor.get_shape(), tensor.get_element_type()) == tensor.get_strides()) {
+        if (has_default_strides(tensor)) {
             // No ROI extraction is needed
             m_plugin_input_tensors[i] =
                 get_template_model()->get_template_plugin()->_backend->create_tensor(tensor.get_element_type(),
