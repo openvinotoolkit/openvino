@@ -3,6 +3,7 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+#include <ie_metric_helpers.hpp>
 #include "ie_performance_hints.hpp"
 #include "auto_executable_network.hpp"
 
@@ -26,13 +27,6 @@ void AutoExecutableNetwork::SetConfig(const std::map<std::string, IE::Parameter>
 }
 
 IE::Parameter AutoExecutableNetwork::GetConfig(const std::string& name) const {
-    {
-        std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
-        auto it = _autoSContext->_config.find(name);
-        if (it != _autoSContext->_config.end()) {
-            return it->second;
-        }
-    }
     IE_THROW(NotFound) << name << " not found in the ExecutableNetwork config";
 }
 
@@ -177,11 +171,17 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
             }
         }
         return decltype(ov::available_devices)::value_type {exeDevices};
+    } else if (name == ov::model_name) {
+        return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetMetric(name);
+    } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS,
+                             {METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS),
+                              METRIC_KEY(SUPPORTED_METRICS),
+                              METRIC_KEY(NETWORK_NAME),
+                              METRIC_KEY(SUPPORTED_CONFIG_KEYS)});
+    } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, {});
     }
-    if (_autoSchedule->_loadContext[ACTUALDEVICE].isAlready) {
-        return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetMetric(
-                name);
-    }
-    return _autoSchedule->_loadContext[CPU].executableNetwork->GetMetric(name);
+    IE_THROW() << "Unsupported metric key: " << name;
 }
 }  // namespace MultiDevicePlugin
