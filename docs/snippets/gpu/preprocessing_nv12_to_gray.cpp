@@ -22,15 +22,15 @@ int main() {
 
     auto compiled_model = core.compile_model(model_with_preproc, "GPU");
     auto remote_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
-    auto input = model->get_parameters().at(0);
+    auto input = model->input(0);
     auto infer_request = compiled_model.create_infer_request();
 
 {
     //! [single_batch]
     cl::Image2D img_y_plane;
-    auto input_y = model_with_preproc->get_parameters().at(0);
-    auto remote_y_tensor = remote_context.create_tensor(input_y->get_element_type(), input->get_shape(), img_y_plane);
-    infer_request.set_tensor(*input_y->output(0).get_tensor().get_names().begin(), remote_y_tensor);
+    auto input_y = model_with_preproc->input(0);
+    auto remote_y_tensor = remote_context.create_tensor(input_y.get_element_type(), input.get_shape(), img_y_plane);
+    infer_request.set_tensor(input_y.get_any_name(), remote_y_tensor);
     infer_request.infer();
     //! [single_batch]
 }
@@ -38,11 +38,11 @@ int main() {
 {
     //! [batched_case]
     cl::Image2D img_y_plane_0, img_y_plane_l;
-    auto input_y = model_with_preproc->get_parameters().at(0);
-    auto remote_y_tensor_0 = remote_context.create_tensor(input_y->get_element_type(), input->get_shape(), img_y_plane_0);
-    auto remote_y_tensor_1 = remote_context.create_tensor(input_y->get_element_type(), input->get_shape(), img_y_plane_l);
+    auto input_y = model_with_preproc->input(0);
+    auto remote_y_tensor_0 = remote_context.create_tensor(input_y.get_element_type(), input.get_shape(), img_y_plane_0);
+    auto remote_y_tensor_1 = remote_context.create_tensor(input_y.get_element_type(), input.get_shape(), img_y_plane_l);
     std::vector<ov::Tensor> y_tensors = {remote_y_tensor_0, remote_y_tensor_1};
-    infer_request.set_tensors(*input_y->output(0).get_tensor().get_names().begin(), y_tensors);
+    infer_request.set_tensors(input_y.get_any_name(), y_tensors);
     infer_request.infer();
     //! [batched_case]
 }
