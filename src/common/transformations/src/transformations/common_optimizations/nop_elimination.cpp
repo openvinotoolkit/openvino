@@ -273,13 +273,13 @@ static bool eliminate_unsqueeze(const shared_ptr<Node>& node) {
 
 #define ECHO(NAME) #NAME
 #define STR(NAME)  ECHO(NAME)
-#define SIMPLE_MATCHER_PASS_DEFINITION(NAME, OP, FUNC)                                  \
+#define SIMPLE_MATCHER_PASS_DEFINITION(NAME, FUNC, ...)                                 \
     class NAME : public ov::pass::MatcherPass {                                         \
     public:                                                                             \
         OPENVINO_RTTI(STR(NAME), "0");                                                  \
         NAME() {                                                                        \
             MATCHER_SCOPE(NAME);                                                        \
-            auto match_node = ov::pass::pattern::wrap_type<OP>();                       \
+            auto match_node = ov::pass::pattern::wrap_type<__VA_ARGS__>();              \
             ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {   \
                 return FUNC(m.get_match_root());                                        \
             };                                                                          \
@@ -288,11 +288,10 @@ static bool eliminate_unsqueeze(const shared_ptr<Node>& node) {
         }                                                                               \
     };
 
-SIMPLE_MATCHER_PASS_DEFINITION(EliminateReshape, opset3::Reshape, eliminate_reshape_v1);
-SIMPLE_MATCHER_PASS_DEFINITION(EliminateUnsqueeze, opset3::Unsqueeze, eliminate_unsqueeze);
-SIMPLE_MATCHER_PASS_DEFINITION(EliminateBroadcast_v1, op::v1::Broadcast, eliminate_nop);
-SIMPLE_MATCHER_PASS_DEFINITION(EliminateBroadcast_v3, op::v3::Broadcast, eliminate_nop);
-SIMPLE_MATCHER_PASS_DEFINITION(EliminateGather, opset3::Gather, simplify_gather);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateReshape, eliminate_reshape_v1, opset3::Reshape);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateUnsqueeze, eliminate_unsqueeze, opset3::Unsqueeze);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateBroadcast, eliminate_nop, op::v1::Broadcast, op::v3::Broadcast);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateGather, simplify_gather, opset3::Gather);
 
 pass::EliminatePad::EliminatePad() {
     MATCHER_SCOPE(EliminatePad);
@@ -762,8 +761,7 @@ ov::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
         ADD_MATCHER_FOR_THIS(EliminateReshape)
         ADD_MATCHER_FOR_THIS(EliminateSqueeze)
         ADD_MATCHER_FOR_THIS(EliminateUnsqueeze)
-        ADD_MATCHER_FOR_THIS(EliminateBroadcast_v1)
-        ADD_MATCHER_FOR_THIS(EliminateBroadcast_v3)
+        ADD_MATCHER_FOR_THIS(EliminateBroadcast)
         ADD_MATCHER_FOR_THIS(EliminateGather)
     }
 }
