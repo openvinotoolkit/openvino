@@ -40,7 +40,7 @@ bool Transpose::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
 class TransposeShapeInfer : public ShapeInferEmptyPads {
 public:
     TransposeShapeInfer(const size_t& out_rank, const std::vector<size_t>& axes_vec)
-    : m_out_rank(out_rank), m_axes_vec(axes_vec), m_outputShape(std::move(VectorDims(out_rank, 1))), m_needReverse(axes_vec.empty()) {}
+    : m_out_rank(out_rank), m_axes_vec(axes_vec), m_outputShape(out_rank, 1), m_needReverse(axes_vec.empty()) {}
 
     std::vector<VectorDims> infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
@@ -77,7 +77,7 @@ public:
             const auto axes_vec = order->cast_vector<size_t>();
             return std::make_shared<TransposeShapeInfer>(m_op->get_output_partial_shape(0).rank().get_length(), axes_vec);
         } else {
-            IE_THROW() << "Unexpected operation type in the Transpose shape inference factory";
+            IE_THROW() << "The second input is NOT a constant node, which is unexpected in the Transpose shape inference factory";
         }
     }
 
