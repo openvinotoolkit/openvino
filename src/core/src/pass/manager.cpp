@@ -53,7 +53,7 @@ void ov::pass::Manager::set_per_pass_validation(bool new_state) {
     m_per_pass_validation = new_state;
 }
 
-void ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
+bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
     NGRAPH_SUPPRESS_DEPRECATED_START
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "pass::Manager::run_passes");
 
@@ -65,6 +65,7 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
     ngraph::stopwatch overall_timer;
     overall_timer.start();
     bool function_changed = false;
+    bool needs_validate = false;
     for (auto& pass : m_pass_list) {
         if (m_pass_config->is_disabled(pass->get_type_info())) {
             NGRAPH_DEBUG << "Pass " << pass->get_name() << " is disabled";
@@ -96,9 +97,9 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
             }
 
             if (dynamic_pointer_cast<Validate>(pass)) {
-                if (function_changed) {
+                if (needs_validate) {
                     function_pass->run_on_model(func);
-                    function_changed = false;
+                    needs_validate = false;
                 }
             } else {
                 function_changed = function_pass->run_on_model(func);
@@ -132,9 +133,12 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
         if (profile_enabled) {
             cout << setw(7) << pass_timer.get_milliseconds() << "ms " << pass->get_name() << "\n";
         }
+        needs_validate = function_changed;
     }
     if (profile_enabled) {
         cout << "passes done in " << overall_timer.get_milliseconds() << "ms\n";
     }
     NGRAPH_SUPPRESS_DEPRECATED_END
+
+    return function_changed;
 }

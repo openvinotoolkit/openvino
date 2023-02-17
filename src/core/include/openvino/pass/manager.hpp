@@ -60,7 +60,7 @@ public:
         return pass;
     }
 
-    void run_passes(std::shared_ptr<Model>);
+    bool run_passes(std::shared_ptr<Model>);
 
     void set_pass_visualization(bool new_state) {
         m_visualize = new_state;
