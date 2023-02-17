@@ -123,6 +123,7 @@ public:
     bool                                           _needPerfCounters;
     bool                                           _batchingDisabled = {false};
     bool                                           _bindBuffer = false;
+    bool                                           _startupfallback = true;
     virtual ~MultiScheduleContext() = default;
 };
 

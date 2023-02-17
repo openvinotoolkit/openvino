@@ -28,7 +28,9 @@ const std::vector<ov::AnyMap> multi_Auto_properties = {
         {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
         {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)},
         {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::intel_auto::device_bind_buffer("YES")},
-        {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::intel_auto::device_bind_buffer("NO")}
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::intel_auto::device_bind_buffer("NO")},
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::intel_auto::enable_startup_fallback("YES")},
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::intel_auto::enable_startup_fallback("NO")}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiBehaviorTests, OVPropertiesTests,
@@ -81,6 +83,7 @@ const std::vector<ov::AnyMap> default_properties = {
         {ov::hint::allow_auto_batching(true)},
         {ov::auto_batch_timeout("1000")},
         {ov::intel_auto::device_bind_buffer(false)},
+        {ov::intel_auto::enable_startup_fallback(true)},
         {ov::device::priorities("")}
 };
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBehaviorTests, OVPropertiesDefaultTests,
