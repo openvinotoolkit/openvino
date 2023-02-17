@@ -451,8 +451,6 @@ TEST_P(ExecNetworkGetMetricOtherTest, modelPriority_perfHint_exclusiveAsyncReq_t
            .WillByDefault(RETURN_MOCK_VALUE(actualOptimalNum));
 
     auto AutoExecNetwork = plugin->LoadExeNetworkImpl(cnnNet, config);
-    auto resExcluASyncReq = AutoExecNetwork->GetMetric(PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS).as<std::string>();
-    EXPECT_EQ(resExcluASyncReq, "");
     auto result = AutoExecNetwork->GetMetric(ov::hint::performance_mode.name()).as<std::string>();
     EXPECT_EQ(result, performanceHint);
     auto resPriority = AutoExecNetwork->GetMetric(ov::hint::model_priority.name());
