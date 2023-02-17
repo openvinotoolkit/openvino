@@ -100,7 +100,7 @@ TemplatePlugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& m
         .set(cfg)
         // IF we need to make some properties read only use ov::PropertyAccess::ro() with property name
         .ro(ov::streams::num)
-        .ro(ov::infer_property);
+        .ro(ov::stream_executor_property);
     // TODO: if your plugin supports device ID (more that single instance of device can be on host machine)
     // you should select proper device based on KEY_DEVICE_ID or automatic behavior
     // In this case, _waitExecutor should also be created per device.

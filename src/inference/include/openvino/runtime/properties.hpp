@@ -1077,7 +1077,7 @@ static constexpr Property<Affinity> affinity{"AFFINITY"};
 static constexpr Property<std::vector<std::string>, PropertyMutability::RO> execution_devices{"EXECUTION_DEVICES"};
 
 /**
- * @brief Sub set of properties used for inference
+ * @brief Sub set of properties used for stream executor
  */
-static constexpr NamedProperties infer_property{"INFER"};
+static constexpr NamedProperties stream_executor_property{"STREAM_EXECUTOR"};
 }  // namespace ov

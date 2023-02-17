@@ -85,8 +85,8 @@ static std::vector<T> flatten_supported(const std::vector<T>& properties, bool f
 
 PropertySupervisor::PropertySupervisor() {
     add(ov::supported_properties, [this](const AnyMap& args) {
-        auto supporeted_properties = get_supported();
-        auto flattened = flatten_supported(supporeted_properties, util::contains(args, "OV_FULL_PROPERTIES_ROUTS"));
+        auto supported_properties = get_supported();
+        auto flattened = flatten_supported(supported_properties, util::contains(args, "OV_FULL_PROPERTIES_ROUTS"));
         std::vector<PropertyName> properties;
         for (auto property : flattened) {
             for (std::string str : {std::string{'.'} + ov::legacy_property.name() + '.',
@@ -494,26 +494,6 @@ PropertySupervisor& PropertySupervisor::set(const AnyMap& properties, bool skip_
     }
     return *this;
 }
-
-static Any& find_ref(const std::string& name, AnyMap& any_map, const std::vector<std::string>& path_) {
-    auto path = path_;
-    if (path.front() == name) {
-        path = {path.begin() + 1, path.end()};
-    }
-    if (path.size() > 1) {
-        auto it_any = any_map.find(path.front());
-        if (it_any == any_map.end())
-            OPENVINO_ASSERT(it_any != any_map.end());
-        return find_ref(name, it_any->second.as<AnyMap>(), {path.begin() + 1, path.end()});
-    } else if (path.size() == 1) {
-        auto it_any = any_map.find(path.front());
-        if (it_any == any_map.end())
-            OPENVINO_ASSERT(it_any != any_map.end());
-        return it_any->second;
-    } else {
-        OPENVINO_UNREACHABLE("Path not found");
-    }
-};
 
 AnyMap PropertySupervisor::merge(const AnyMap& properties,
                                  const PropertyMutability mutability,
