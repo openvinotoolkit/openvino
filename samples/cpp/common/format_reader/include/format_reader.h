@@ -13,22 +13,6 @@
 #include <string>
 #include <vector>
 
-#if defined(_WIN32)
-#    ifdef IMPLEMENT_FORMAT_READER
-#        define FORMAT_READER_API(type) extern "C" __declspec(dllexport) type
-#    else
-#        define FORMAT_READER_API(type) extern "C" type
-#    endif
-#elif (__GNUC__ >= 4)
-#    ifdef IMPLEMENT_FORMAT_READER
-#        define FORMAT_READER_API(type) extern "C" __attribute__((visibility("default"))) type
-#    else
-#        define FORMAT_READER_API(type) extern "C" type
-#    endif
-#else
-#    define FORMAT_READER_API(TYPE) extern "C" TYPE
-#endif
-
 namespace FormatReader {
 /**
  * \class FormatReader
@@ -85,10 +69,11 @@ public:
      */
     virtual size_t size() const = 0;
 };
-}  // namespace FormatReader
 
 /**
  * \brief Function for create reader
- * @return FormatReader pointer
+ * @return Reader pointer
  */
-FORMAT_READER_API(FormatReader::Reader*) CreateFormatReader(const char* filename);
+Reader* CreateFormatReader(const char* filename);
+
+}  // namespace FormatReader
