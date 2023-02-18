@@ -146,9 +146,13 @@ void ReadIRTest::SetUp() {
         doc.load_file(metaFile.c_str());
         auto models = doc.child("meta_info").child("models");
         source_model = models.child("initial_model").attribute("name").as_string();
+        size_t model_len = 0, occurance = 0;
         for (const auto &model : models.children("model")) {
             ocurance_in_models.push_back({model.attribute("name").as_string(), model.attribute("count").as_uint()});
+            model_len++;
+            occurance += model.attribute("count").as_uint();
         }
+        k = model_len + 0.5 * occurance;
         auto portsInfo = doc.child("meta_info").child("ports_info");
         auto getPortInfo = [&](size_t id) {
             LayerTestsUtils::PortInfo info;
@@ -264,6 +268,7 @@ void ReadIRTest::SetUp() {
     if (inputShapes.empty()) {
         GTEST_SKIP() << "The graph is constant. The case is not applicable for Operation conformance scenario";
     }
+    std::cout << "[ CONFORMANCE ] Influence coefficient: " << k << std::endl;
     init_input_shapes(inputShapes);
     is_report_stages = true;
 }
