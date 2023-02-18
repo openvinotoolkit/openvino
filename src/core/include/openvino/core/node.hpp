@@ -417,10 +417,6 @@ public:
         OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
-    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon.")
-    virtual std::shared_ptr<Node> get_default_value() const {
-        return nullptr;
-    }
     /// Use instance ids for comparison instead of memory addresses to improve determinism
     bool operator<(const Node& other) const {
         return m_instance_id < other.m_instance_id;
