@@ -13,7 +13,6 @@
 #include "ngraph/descriptor/input.hpp"
 #include "ngraph/descriptor/tensor.hpp"
 #include "ngraph/node_output.hpp"
-#include "ngraph/variant.hpp"
 #include "openvino/core/descriptor/output.hpp"
 
 namespace ngraph {

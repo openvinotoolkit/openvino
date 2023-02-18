@@ -25,6 +25,7 @@ struct PluginConfig {
                 _devicePriority(""),
                 _modelPriority(1),
                 _deviceBindBuffer(false),
+                _enableStartupFallback(true),
                 _logLevel("LOG_NONE") {
         adjustKeyMapValues();
     }
@@ -37,6 +38,7 @@ struct PluginConfig {
             res.push_back(ov::hint::model_priority.name());
             res.push_back(ov::log::level.name());
             res.push_back(ov::intel_auto::device_bind_buffer.name());
+            res.push_back(ov::intel_auto::enable_startup_fallback.name());
             return res;
         }();
         auto multi_supported_configKeys = supported_configKeys;
@@ -61,7 +63,8 @@ struct PluginConfig {
                                                        RW_property(ov::enable_profiling.name()),
                                                        RW_property(ov::hint::performance_mode.name()),
                                                        RW_property(ov::hint::num_requests.name()),
-                                                       RW_property(ov::intel_auto::device_bind_buffer.name())};
+                                                       RW_property(ov::intel_auto::device_bind_buffer.name()),
+                                                       RW_property(ov::intel_auto::enable_startup_fallback.name())};
             std::vector<ov::PropertyName> supportedProperties;
             supportedProperties.reserve(roProperties.size() + rwProperties.size());
             supportedProperties.insert(supportedProperties.end(), roProperties.begin(), roProperties.end());
@@ -176,6 +179,12 @@ struct PluginConfig {
                         IE_THROW() << "Unsupported config value: " << kvp.second << " for key: " << kvp.first;
                     }
                 }
+            } else if (kvp.first == ov::intel_auto::enable_startup_fallback.name()) {
+                if (kvp.second == PluginConfigParams::YES) _enableStartupFallback = true;
+                else if (kvp.second == PluginConfigParams::NO) _enableStartupFallback = false;
+                else
+                    IE_THROW() << "Unsupported config value: " << kvp.second
+                            << " for key: " << kvp.first;
             } else {
                 if (pluginName.find("AUTO") != std::string::npos || !supportHWProprety)
                     // AUTO and MULTI just only accept its own properites and secondary property when calling
@@ -259,7 +268,10 @@ struct PluginConfig {
             _keyConfigMap[ov::intel_auto::device_bind_buffer.name()] = PluginConfigParams::YES;
         else
             _keyConfigMap[ov::intel_auto::device_bind_buffer.name()] = PluginConfigParams::NO;
-
+        if (_enableStartupFallback)
+            _keyConfigMap[ov::intel_auto::enable_startup_fallback.name()] = PluginConfigParams::YES;
+        else
+            _keyConfigMap[ov::intel_auto::enable_startup_fallback.name()] = PluginConfigParams::NO;
         _keyConfigMap[ov::auto_batch_timeout.name()] = _batchTimeout;
 
         _keyConfigMap[ov::log::level.name()] = _logLevel;
@@ -279,6 +291,7 @@ struct PluginConfig {
     std::string _devicePriority;
     int _modelPriority;
     bool _deviceBindBuffer;
+    bool _enableStartupFallback;
     std::string _logLevel;
     PerfHintsConfig  _perfHintsConfig;
     // Add this flag to check if user app sets hint with none value that is equal to the default value of hint.

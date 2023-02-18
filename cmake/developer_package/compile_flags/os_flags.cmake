@@ -412,11 +412,6 @@ else()
     # Warn if an undefined identifier is evaluated in an #if directive. Such identifiers are replaced with zero.
     ie_add_compiler_flags(-Wundef)
 
-    check_cxx_compiler_flag("-Wsuggest-override" SUGGEST_OVERRIDE_SUPPORTED)
-    if(SUGGEST_OVERRIDE_SUPPORTED)
-        set(CMAKE_CXX_FLAGS "-Wsuggest-override ${CMAKE_CXX_FLAGS}")
-    endif()
-
     #
     # Warnings as errors
     #
@@ -467,6 +462,13 @@ endif()
 if(OV_COMPILER_IS_CLANG)
     ie_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
 endif()
+
+check_cxx_compiler_flag("-Wsuggest-override" SUGGEST_OVERRIDE_SUPPORTED)
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    set(CMAKE_CXX_FLAGS "-Wsuggest-override ${CMAKE_CXX_FLAGS}")
+endif()
+
+check_cxx_compiler_flag("-Wunused-but-set-variable" UNUSED_BUT_SET_VARIABLE_SUPPORTED)
 
 #
 # link_system_libraries(target <PUBLIC | PRIVATE | INTERFACE> <lib1 [lib2 lib3 ...]>)

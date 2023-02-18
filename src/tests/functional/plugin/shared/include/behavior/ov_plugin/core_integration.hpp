@@ -327,6 +327,21 @@ TEST(OVClassBasicTest, smoke_SetConfigHeteroThrows) {
     OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_HETERO, ov::enable_profiling(true)));
 }
 
+TEST(OVClassBasicTest, smoke_SetConfigDevicePropertiesThrows) {
+    ov::Core ie = createCoreWithTemplate();
+    ASSERT_THROW(ie.set_property("", ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::enable_profiling(true))),
+                 ov::Exception);
+    ASSERT_THROW(ie.set_property(CommonTestUtils::DEVICE_CPU,
+                                 ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::enable_profiling(true))),
+                 ov::Exception);
+    ASSERT_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO,
+                                 ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::enable_profiling(true))),
+                 ov::Exception);
+    ASSERT_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO,
+                                 ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::num_streams(4))),
+                 ov::Exception);
+}
+
 TEST_P(OVClassBasicTestP, SetConfigHeteroTargetFallbackThrows) {
     ov::Core ie = createCoreWithTemplate();
     OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_HETERO, ov::device::priorities(target_device)));
@@ -359,38 +374,6 @@ TEST(OVClassBasicTest, smoke_SetConfigAutoNoThrows) {
     OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::HIGH)));
     OV_ASSERT_NO_THROW(value = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority));
     EXPECT_EQ(value, ov::hint::Priority::HIGH);
-}
-
-TEST(OVClassBasicTest, smoke_SetConfigWithNoChangeToHWPluginThroughMetaPluginNoThrows) {
-    ov::Core ie = createCoreWithTemplate();
-    int32_t preValue = -1, curValue = -1;
-
-    ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_CPU, {ov::num_streams(20)}));
-    ASSERT_NO_THROW(curValue = ie.get_property(CommonTestUtils::DEVICE_CPU, ov::num_streams));
-    EXPECT_EQ(curValue, 20);
-    std::vector<std::string> metaDevices = {CommonTestUtils::DEVICE_AUTO,
-                                            CommonTestUtils::DEVICE_MULTI,
-                                            CommonTestUtils::DEVICE_HETERO};
-
-    for (auto&& metaDevice : metaDevices) {
-        ASSERT_NO_THROW(preValue = ie.get_property(CommonTestUtils::DEVICE_CPU, ov::num_streams));
-        ASSERT_NO_THROW(
-            ie.set_property(metaDevice, {ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::num_streams(20))}));
-        ASSERT_NO_THROW(curValue = ie.get_property(CommonTestUtils::DEVICE_CPU, ov::num_streams));
-        EXPECT_EQ(curValue, preValue);
-    }
-    ASSERT_THROW(ie.set_property(CommonTestUtils::DEVICE_CPU,
-                                 {ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::num_streams(20))}),
-                 ov::Exception);
-    ASSERT_THROW(ie.set_property(CommonTestUtils::DEVICE_GPU,
-                                 {ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::num_streams(20))}),
-                 ov::Exception);
-    ASSERT_THROW(ie.set_property(CommonTestUtils::DEVICE_GPU,
-                                 {ov::device::properties("GPU.0", ov::num_streams(20))}),
-                 ov::Exception);
-    ASSERT_THROW(ie.set_property("GPU.0",
-                                 {ov::device::properties("GPU.0", ov::num_streams(20))}),
-                 ov::Exception);
 }
 
 TEST_P(OVClassSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
