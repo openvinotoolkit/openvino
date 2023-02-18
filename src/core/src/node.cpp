@@ -38,7 +38,6 @@ ov::Node::Node(const Node& node)
       m_inputs(node.m_inputs)  // will be modified in the body
       // skip m_outputs -- should be initialized outside
       ,
-      m_op_annotations(node.m_op_annotations),
       m_rt_info(node.m_rt_info) {
     // cannot do it without copying node.m_inputs first due to too limiting const qualifiers
     for (auto& input : m_inputs) {
@@ -53,7 +52,6 @@ ov::Node& ov::Node::operator=(const Node& node) {
     this->m_instance_id = m_next_instance_id.fetch_add(1);
     this->m_friendly_name = node.m_friendly_name;
     this->m_inputs = node.m_inputs;
-    this->m_op_annotations = node.m_op_annotations;
     this->m_rt_info = node.m_rt_info;
     // cannot do it without copying node.m_inputs first due to too limiting const qualifiers
     for (auto& input : m_inputs) {
