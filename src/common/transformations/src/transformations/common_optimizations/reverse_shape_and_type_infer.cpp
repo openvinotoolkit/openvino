@@ -68,11 +68,37 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                 param->set_element_type(output_type);
                 is_changed = true;
             }
-        } else if (std::dynamic_pointer_cast<Convolution>(op) ||
-                   std::dynamic_pointer_cast<GroupConvolutionBackpropData>(op) ||
-                   std::dynamic_pointer_cast<ConvolutionBackpropData>(op) ||
-                   std::dynamic_pointer_cast<GroupConvolution>(op)) {
+        } else if (std::dynamic_pointer_cast<Convolution>(op)) {
             is_changed |= inherit_output_rank(op, {0, 1});
+            // Inherit channels from weights
+            const auto& weigths_pshape = op->get_input_partial_shape(1);
+            if (weigths_pshape.rank().is_static() && op->get_input_partial_shape(1).rank().is_static()) {
+                op->get_input_tensor(0).m_partial_shape[1] = weigths_pshape[1];
+            }
+            is_changed |= inherit_output_type(op, {0, 1});
+        } else if (std::dynamic_pointer_cast<GroupConvolution>(op)) {
+            is_changed |= inherit_output_rank(op, {0, 1});
+            // Inherit channels from weights
+            const auto& weigths_pshape = op->get_input_partial_shape(1);
+            if (weigths_pshape.rank().is_static() && op->get_input_partial_shape(1).rank().is_static()) {
+                op->get_input_tensor(0).m_partial_shape[1] = weigths_pshape[0] * weigths_pshape[2];
+            }
+            is_changed |= inherit_output_type(op, {0, 1});
+        } else if (std::dynamic_pointer_cast<ConvolutionBackpropData>(op)) {
+            is_changed |= inherit_output_rank(op, {0, 1});
+            // Inherit channels from weights
+            const auto& weigths_pshape = op->get_input_partial_shape(1);
+            if (weigths_pshape.rank().is_static() && op->get_input_partial_shape(1).rank().is_static()) {
+                op->get_input_tensor(0).m_partial_shape[1] = weigths_pshape[0];
+            }
+            is_changed |= inherit_output_type(op, {0, 1});
+        } else if (std::dynamic_pointer_cast<GroupConvolutionBackpropData>(op)) {
+            is_changed |= inherit_output_rank(op, {0, 1});
+            // Inherit channels from weights
+            const auto& weigths_pshape = op->get_input_partial_shape(1);
+            if (weigths_pshape.rank().is_static() && op->get_input_partial_shape(1).rank().is_static()) {
+                op->get_input_tensor(0).m_partial_shape[1] = weigths_pshape[0] * weigths_pshape[1];
+            }
             is_changed |= inherit_output_type(op, {0, 1});
         } else if (std::dynamic_pointer_cast<DeformableConvolution>(op)) {
             is_changed |= inherit_output_rank(op, {0, 1, 2, 3});
