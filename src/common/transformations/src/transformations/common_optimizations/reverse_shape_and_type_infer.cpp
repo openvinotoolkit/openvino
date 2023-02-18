@@ -72,7 +72,8 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
             is_changed |= inherit_output_rank(op, {0, 1});
             // Inherit channels from weights
             const auto& weigths_pshape = op->get_input_partial_shape(1);
-            if (weigths_pshape.rank().is_static() && op->get_input_partial_shape(1).rank().is_static()) {
+            if (weigths_pshape.rank().is_static() && op->get_input_partial_shape(1).rank().is_static() &&
+                weigths_pshape[1] != 1) {
                 op->get_input_tensor(0).m_partial_shape[1] = weigths_pshape[1];
             }
             is_changed |= inherit_output_type(op, {0, 1});
@@ -80,7 +81,8 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
             is_changed |= inherit_output_rank(op, {0, 1});
             // Inherit channels from weights
             const auto& weigths_pshape = op->get_input_partial_shape(1);
-            if (weigths_pshape.rank().is_static() && op->get_input_partial_shape(1).rank().is_static()) {
+            if (weigths_pshape.rank().is_static() && op->get_input_partial_shape(1).rank().is_static() &&
+                weigths_pshape[2] != 1) {
                 op->get_input_tensor(0).m_partial_shape[1] = weigths_pshape[0] * weigths_pshape[2];
             }
             is_changed |= inherit_output_type(op, {0, 1});
@@ -88,7 +90,8 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
             is_changed |= inherit_output_rank(op, {0, 1});
             // Inherit channels from weights
             const auto& weigths_pshape = op->get_input_partial_shape(1);
-            if (weigths_pshape.rank().is_static() && op->get_input_partial_shape(1).rank().is_static()) {
+            if (weigths_pshape.rank().is_static() && op->get_input_partial_shape(1).rank().is_static() &&
+                weigths_pshape[0] != 1) {
                 op->get_input_tensor(0).m_partial_shape[1] = weigths_pshape[0];
             }
             is_changed |= inherit_output_type(op, {0, 1});
@@ -96,7 +99,8 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
             is_changed |= inherit_output_rank(op, {0, 1});
             // Inherit channels from weights
             const auto& weigths_pshape = op->get_input_partial_shape(1);
-            if (weigths_pshape.rank().is_static() && op->get_input_partial_shape(1).rank().is_static()) {
+            if (weigths_pshape.rank().is_static() && op->get_input_partial_shape(1).rank().is_static() &&
+                weigths_pshape[1] != 1) {
                 op->get_input_tensor(0).m_partial_shape[1] = weigths_pshape[0] * weigths_pshape[1];
             }
             is_changed |= inherit_output_type(op, {0, 1});
