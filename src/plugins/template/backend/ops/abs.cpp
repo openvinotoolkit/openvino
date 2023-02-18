@@ -3,6 +3,7 @@
 //
 
 #include "ngraph/runtime/reference/abs.hpp"
+
 #include "evaluates_map.hpp"
 #include "openvino/op/abs.hpp"
 
