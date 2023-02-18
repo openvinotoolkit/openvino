@@ -998,7 +998,7 @@ ov::Any ov::CoreImpl::CoreConfig::get_core_config(const std::string& config_name
         return item->second;
     }
 
-    if (config_name == ov::core_properties.name()) {
+    if (config_name == ov::core_property_keys.name()) {
         std::set<std::string> res;
         for (auto& it : _core_plugin_properties._properties) {
             res.emplace(it.first);
@@ -1012,7 +1012,7 @@ ov::Any ov::CoreImpl::CoreConfig::get_core_config(const std::string& config_name
 bool ov::CoreImpl::CoreConfig::is_core_config(const std::string& config_name) const {
     auto ret = _core_plugin_properties._properties.find(config_name) != _core_plugin_properties._properties.end() ||
                _core_global_properties._properties.find(config_name) != _core_global_properties._properties.end() ||
-               config_name == ov::core_properties.name();
+               config_name == ov::core_property_keys.name();
     return ret;
 }
 

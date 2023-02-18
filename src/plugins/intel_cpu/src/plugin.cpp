@@ -434,7 +434,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     // update the props after the perf mode translated to configs
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
-    auto core_config = GetCore() ? GetCore()->GetMetric({}, ov::core_properties.name()).as<std::set<std::string>>()
+    auto core_config = GetCore() ? GetCore()->GetMetric({}, ov::core_property_keys.name()).as<std::set<std::string>>()
                                  : std::set<std::string>();
     conf.readProperties(config, core_config);
     if (conf.enableDynamicBatch) {
@@ -648,7 +648,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
 
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
-    auto core_config = GetCore() ? GetCore()->GetMetric({}, ov::core_properties.name()).as<std::set<std::string>>()
+    auto core_config = GetCore() ? GetCore()->GetMetric({}, ov::core_property_keys.name()).as<std::set<std::string>>()
                                  : std::set<std::string>();
     conf.readProperties(config, core_config);
 
@@ -716,7 +716,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
     deserializer >> cnnnetwork;
 
     Config conf = engConfig;
-    auto core_config = GetCore() ? GetCore()->GetMetric({}, ov::core_properties.name()).as<std::set<std::string>>()
+    auto core_config = GetCore() ? GetCore()->GetMetric({}, ov::core_property_keys.name()).as<std::set<std::string>>()
                                  : std::set<std::string>();
     conf.readProperties(config, core_config);
 

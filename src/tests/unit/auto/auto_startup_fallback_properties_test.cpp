@@ -23,6 +23,7 @@ using ::testing::_;
 using ::testing::StrEq;
 using ::testing::Return;
 using ::testing::NiceMock;
+using ::testing::AnyNumber;
 using Config = std::map<std::string, std::string>;
 using namespace MockMultiDevice;
 
@@ -92,8 +93,12 @@ public:
        IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, supportConfigs, {});
        ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _))
            .WillByDefault(Return(supportConfigs));
+       EXPECT_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _)).Times(AnyNumber());
        ON_CALL(*core, GetConfig(_, StrEq(GPU_CONFIG_KEY(MAX_NUM_THREADS))))
            .WillByDefault(Return(12));
+       std::set<std::string> coreConfigs = {"CACHE_DIR", "AUTO_BATCH_TIMEOUT", "ALLOW_AUTO_BATCHING"};
+       ON_CALL(*core, GetMetric(_, StrEq("CORE_PROPERTY_KEYS"), _)).WillByDefault(Return(coreConfigs));
+       EXPECT_CALL(*core, GetMetric(_, StrEq("CORE_PROPERTY_KEYS"), _)).Times(AnyNumber());
     }
 };
 

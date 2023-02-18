@@ -88,7 +88,7 @@ using IEClassGetMetricTest_DEVICE_TYPE = BehaviorTestsUtils::IEClassBaseTestP;
 using IEClassGetMetricTest_NUMBER_OF_WAITING_INFER_REQUESTS = BehaviorTestsUtils::IEClassBaseTestP;
 using IEClassGetMetricTest_NUMBER_OF_EXEC_INFER_REQUESTS = BehaviorTestsUtils::IEClassBaseTestP;
 using IEClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS = BehaviorTestsUtils::IEClassBaseTestP;
-using IEClassGetMetricTest_CORE_PROPERTIES = BehaviorTestsUtils::IEClassBaseTestP;
+using IEClassGetMetricTest_CORE_PROPERTY_KEYS = BehaviorTestsUtils::IEClassBaseTestP;
 using IEClassGetMetricTest_ThrowUnsupported = BehaviorTestsUtils::IEClassBaseTestP;
 using IEClassGetConfigTest = BehaviorTestsUtils::IEClassBaseTestP;
 using IEClassGetConfigTest_ThrowUnsupported = BehaviorTestsUtils::IEClassBaseTestP;
@@ -738,11 +738,11 @@ TEST_P(IEClassGetMetricTest_RANGE_FOR_STREAMS, GetMetricAndPrintNoThrow) {
     ASSERT_METRIC_SUPPORTED_IE(METRIC_KEY(RANGE_FOR_STREAMS));
 }
 
-TEST_P(IEClassGetMetricTest_CORE_PROPERTIES, GetMetricAndPrintNoThrow) {
+TEST_P(IEClassGetMetricTest_CORE_PROPERTY_KEYS, GetMetricAndPrintNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    ASSERT_NO_THROW(p = ie.GetMetric(target_device, ov::core_properties.name()));
+    ASSERT_NO_THROW(p = ie.GetMetric(target_device, ov::core_property_keys.name()));
     std::set<std::string> t = p;
 
     std::cout << "Supported core properties: " << std::endl;
@@ -753,11 +753,11 @@ TEST_P(IEClassGetMetricTest_CORE_PROPERTIES, GetMetricAndPrintNoThrow) {
     ASSERT_EQ(t.size(), 3);
 }
 
-TEST_P(IEClassGetMetricTest_CORE_PROPERTIES, GetMetricWithEmptyDevice) {
+TEST_P(IEClassGetMetricTest_CORE_PROPERTY_KEYS, GetMetricWithEmptyDevice) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    ASSERT_NO_THROW(p = ie.GetMetric({}, ov::core_properties.name()));
+    ASSERT_NO_THROW(p = ie.GetMetric({}, ov::core_property_keys.name()));
     std::set<std::string> t = p;
 
     std::cout << "Supported core properties: " << std::endl;

@@ -166,7 +166,7 @@ public:
             .WillByDefault(Return("0"));
 
         std::set<std::string> coreConfigs = {"CACHE_DIR", "AUTO_BATCH_TIMEOUT", "ALLOW_AUTO_BATCHING"};
-        ON_CALL(*core, GetMetric(_, StrEq("CORE_PROPERTIES"), _)).WillByDefault(Return(coreConfigs));
+        ON_CALL(*core, GetMetric(_, StrEq("CORE_PROPERTY_KEYS"), _)).WillByDefault(Return(coreConfigs));
 
         std::vector<std::string> availableDevs = {"CPU", "GPU"};
         ON_CALL(*core, GetAvailableDevices()).WillByDefault(Return(availableDevs));

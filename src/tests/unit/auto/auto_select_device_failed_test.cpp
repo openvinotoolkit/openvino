@@ -162,8 +162,8 @@ public:
            .WillByDefault(Return(supportConfigs));
        EXPECT_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _)).Times(AnyNumber());
        std::set<std::string> coreConfigs = {"CACHE_DIR", "AUTO_BATCH_TIMEOUT", "ALLOW_AUTO_BATCHING"};
-       ON_CALL(*core, GetMetric(_, StrEq("CORE_PROPERTIES"), _)).WillByDefault(Return(coreConfigs));
-       EXPECT_CALL(*core, GetMetric(_, StrEq("CORE_PROPERTIES"), _)).Times(AnyNumber());
+       ON_CALL(*core, GetMetric(_, StrEq("CORE_PROPERTY_KEYS"), _)).WillByDefault(Return(coreConfigs));
+       EXPECT_CALL(*core, GetMetric(_, StrEq("CORE_PROPERTY_KEYS"), _)).Times(AnyNumber());
        ON_CALL(*core, GetConfig(_, StrEq(GPU_CONFIG_KEY(MAX_NUM_THREADS))))
            .WillByDefault(Return(12));
     }

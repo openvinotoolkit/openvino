@@ -175,7 +175,7 @@ struct PluginConfig {
                             IE_THROW() << "Unsupported config value: " << kvp.second << " for key: " << kvp.first;
                         }
                         _batchTimeout = kvp.second;
-                    } catch (...) {
+                    } catch (const IE::Exception&) {
                         IE_THROW() << "Unsupported config value: " << kvp.second << " for key: " << kvp.first;
                     }
                 }

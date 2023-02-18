@@ -36,7 +36,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(return_all_possible_device_combination(false)));
 
 INSTANTIATE_TEST_SUITE_P(
-        ov_plugin, OVClassGetMetricTest_CORE_PROPERTIES,
+        ov_plugin, OVClassGetMetricTest_CORE_PROPERTY_KEYS,
         ::testing::ValuesIn(return_all_possible_device_combination(false)));
 
 INSTANTIATE_TEST_SUITE_P(

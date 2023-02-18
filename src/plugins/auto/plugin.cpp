@@ -223,7 +223,7 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetConfig(const std::stri
     Parameter result;
     const bool is_new_api = IsNewAPI();
 
-    auto core_config = GetCore()->GetMetric({}, ov::core_properties.name()).as<std::set<std::string>>();
+    auto core_config = GetCore()->GetMetric({}, ov::core_property_keys.name()).as<std::set<std::string>>();
     if (core_config.count(name)) {
         IE_THROW() << "Unsupported get core config, key : " << name;
     }
@@ -335,7 +335,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     // to use plugin's name as the log tag
     _LogTag = GetName();
     auto loadConfig = _pluginConfig;
-    auto core_config = GetCore()->GetMetric({}, ov::core_properties.name()).as<std::set<std::string>>();
+    auto core_config = GetCore()->GetMetric({}, ov::core_property_keys.name()).as<std::set<std::string>>();
     // updateFromMap will check config valid
     loadConfig.UpdateFromMap(config, GetName(), core_config, true);
     auto fullConfig = loadConfig._keyConfigMap;
@@ -647,7 +647,7 @@ QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&   
     queryResult.supportedLayersMap.clear();
 
     auto queryconfig = _pluginConfig;
-    auto core_config = GetCore()->GetMetric({}, ov::core_properties.name()).as<std::set<std::string>>();
+    auto core_config = GetCore()->GetMetric({}, ov::core_property_keys.name()).as<std::set<std::string>>();
     // updateFromMap will check config valid
     queryconfig.UpdateFromMap(config, GetName(), core_config, true);
     auto fullConfig = queryconfig._keyConfigMap;
