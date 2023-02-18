@@ -7,7 +7,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/visibility.hpp"
 
-#define _OPENVINO_RTTI_EXPAND(X) X
+#define _OPENVINO_RTTI_EXPAND(X)                                  X
 #define _OPENVINO_RTTI_DEFINITION_SELECTOR(_1, _2, _3, NAME, ...) NAME
 
 #define _OPENVINO_RTTI_WITH_TYPE(TYPE_NAME) _OPENVINO_RTTI_WITH_TYPE_VERSION(TYPE_NAME, "util")
