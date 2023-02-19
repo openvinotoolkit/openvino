@@ -21,7 +21,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # 'argument': conversion from 'size_t' to 'int', possible loss of data
     ie_add_compiler_flags(/wd4267)
     ie_add_compiler_flags(/wd4244)
-elseif(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 13.0)
+endif()
+if(UNUSED_BUT_SET_VARIABLE_SUPPORTED)
     ie_add_compiler_flags(-Wno-unused-but-set-variable)
 endif()
 
