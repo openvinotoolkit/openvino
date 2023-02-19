@@ -13,7 +13,7 @@ namespace InferenceEngine {
 
 /**
  * @enum       column_of_cpu_streams_info_table
- * @brief      This enum contains defination of each columns in cpu streams infomation table.
+ * @brief      This enum contains definition of each columns in cpu streams information table.
  *
  * The following are two example of processor type table.
  *  1. 8 streams on hybrid platform which has 4 threads per stream (TPS).
