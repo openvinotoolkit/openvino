@@ -42,6 +42,6 @@ void Registry::RegisterReader(CreatorFunction f) {
     _data.push_back(f);
 }
 
-FORMAT_READER_API(Reader*) CreateFormatReader(const char* filename) {
+Reader* FormatReader::CreateFormatReader(const char* filename) {
     return Registry::CreateReader(filename);
 }
