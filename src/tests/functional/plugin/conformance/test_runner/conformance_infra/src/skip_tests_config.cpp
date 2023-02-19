@@ -15,6 +15,7 @@ namespace conformance {
 
 const char *targetDevice = "";
 const char *targetPluginName = "";
+const char *refCachePath = "";
 
 std::vector<std::string> IRFolderPaths = {};
 std::vector<std::string> disabledTests = {};

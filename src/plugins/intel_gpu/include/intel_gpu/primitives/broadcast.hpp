@@ -135,5 +135,16 @@ struct broadcast : public primitive_base<broadcast> {
         seed = hash_range(seed, axes_mapping.begin(), axes_mapping.end());
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const broadcast>(rhs);
+
+        return axes_mapping == rhs_casted.axes_mapping &&
+               broadcast_mode == rhs_casted.broadcast_mode &&
+               broadcast_sizes == rhs_casted.broadcast_sizes;
+    }
 };
 }  // namespace cldnn

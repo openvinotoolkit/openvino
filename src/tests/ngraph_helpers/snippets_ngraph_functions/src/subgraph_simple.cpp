@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -307,7 +307,6 @@ std::shared_ptr<ov::Model> BroadcastSelectFunction::initOriginal() const {
 
     return std::make_shared<Model>(NodeVector{select}, ParameterVector{data0, data1, data2});
 }
-
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

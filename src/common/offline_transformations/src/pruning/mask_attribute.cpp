@@ -6,7 +6,6 @@
 
 #include <functional>
 #include <ngraph/node.hpp>
-#include <ngraph/variant.hpp>
 #include <ostream>
 
 namespace ngraph {
