@@ -29,6 +29,8 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
         file \
         `# build tools` \
         build-essential \
+        ninja-build \
+        scons \
         ccache \
         "${cmake_packages[@]}" \
         "${x86_64_specific_packages[@]}" \
@@ -93,6 +95,8 @@ elif [ -f /etc/redhat-release ] || grep -q "rhel" /etc/os-release ; then
         `# build tools` \
         cmake3 \
         ccache \
+        ninja-build \
+        scons \
         gcc \
         gcc-c++ \
         make \
@@ -129,6 +133,8 @@ elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
         `# build tools` \
         build-essential \
         ccache \
+        ninja-build \
+        scons \
         `# to find dependencies` \
         pkg-config \
         `# to deternime product version via git` \

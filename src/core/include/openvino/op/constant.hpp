@@ -508,7 +508,13 @@ private:
     void fill_data(const T& value) {
 #ifdef __clang__
 #    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wimplicit-const-int-float-conversion"
+#    ifdef __has_warning
+#        if __has_warning("-Wimplicit-const-int-float-conversion")
+#            pragma clang diagnostic ignored "-Wimplicit-const-int-float-conversion"
+#        elif __has_warning("-Wimplicit-int-float-conversion")
+#            pragma clang diagnostic ignored "-Wimplicit-int-float-conversion"
+#        endif
+#    endif
 #elif defined(__GNUC__)
 #    pragma GCC diagnostic push
 #    pragma GCC diagnostic ignored "-Wsign-compare"
