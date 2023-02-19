@@ -47,8 +47,9 @@ public:
         const std::map<std::string, std::string>& config) override {
         std::lock_guard<std::mutex> lock{syncCallsToLoadExeNetworkImpl};
         Config updated_config(defaultConfig);
-        auto core_config = GetCore() ? GetCore()->GetMetric({}, ov::core_property_keys.name()).as<std::set<std::string>>()
-                                     : std::set<std::string>();
+        auto core_config = GetCore()
+                               ? GetCore()->GetMetric({}, ov::core_property_keys.name()).as<std::set<std::string>>()
+                               : std::set<std::string>();
         updated_config.UpdateFromMap(config, core_config);
 
         auto _config = updated_config.keyConfigMap;
@@ -67,8 +68,9 @@ public:
         const std::string& modelFileName,
         const std::map<std::string, std::string>& config) override {
         Config updated_config(defaultConfig);
-        auto core_config = GetCore() ? GetCore()->GetMetric({}, ov::core_property_keys.name()).as<std::set<std::string>>()
-                                     : std::set<std::string>();
+        auto core_config = GetCore()
+                               ? GetCore()->GetMetric({}, ov::core_property_keys.name()).as<std::set<std::string>>()
+                               : std::set<std::string>();
         updated_config.UpdateFromMap(config, core_config);
 
         auto _config = updated_config.keyConfigMap;
@@ -86,8 +88,9 @@ public:
         std::istream& networkModel,
         const std::map<std::string, std::string>& config) override {
         Config updated_config(defaultConfig);
-        auto core_config = GetCore() ? GetCore()->GetMetric({}, ov::core_property_keys.name()).as<std::set<std::string>>()
-                                     : std::set<std::string>();
+        auto core_config = GetCore()
+                               ? GetCore()->GetMetric({}, ov::core_property_keys.name()).as<std::set<std::string>>()
+                               : std::set<std::string>();
         updated_config.UpdateFromMap(config, core_config);
 
         auto _config = updated_config.keyConfigMap;
@@ -129,8 +132,9 @@ public:
     InferenceEngine::Parameter GetConfig(
         const std::string& name,
         const std::map<std::string, InferenceEngine::Parameter>& options) const override {
-        auto core_config = GetCore() ? GetCore()->GetMetric({}, ov::core_property_keys.name()).as<std::set<std::string>>()
-                                     : std::set<std::string>();
+        auto core_config = GetCore()
+                               ? GetCore()->GetMetric({}, ov::core_property_keys.name()).as<std::set<std::string>>()
+                               : std::set<std::string>();
         if (core_config.count(name)) {
             THROW_GNA_EXCEPTION << "GetConfig: Unsupported GNA config key: " << name.c_str();
         }

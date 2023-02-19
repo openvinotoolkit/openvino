@@ -11,10 +11,10 @@
 #pragma once
 
 #include <map>
+#include <set>
 #include <string>
 #include <tuple>
 #include <vector>
-#include <set>
 
 #include "ie_precision.hpp"
 
