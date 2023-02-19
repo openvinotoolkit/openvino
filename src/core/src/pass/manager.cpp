@@ -64,6 +64,7 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
     ngraph::stopwatch pass_timer;
     ngraph::stopwatch overall_timer;
     overall_timer.start();
+    bool pass_applied = false;
     bool function_changed = false;
     bool needs_validate = false;
     for (auto& pass : m_pass_list) {
@@ -86,7 +87,7 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
             }
             // GraphRewrite is a temporary container for MatcherPass to make execution
             // on on entire ngraph::Function
-            function_changed = GraphRewrite(matcher_pass).run_on_model(func);
+            pass_applied = GraphRewrite(matcher_pass).run_on_model(func);
         } else if (auto function_pass = dynamic_pointer_cast<ModelPass>(pass)) {
             // This checks is to skip the graph transformation when the graph pass relies on
             // static shape but the function state is dynamic.
@@ -102,7 +103,7 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
                     needs_validate = false;
                 }
             } else {
-                function_changed = function_pass->run_on_model(func);
+                pass_applied = function_pass->run_on_model(func);
             }
         } else if (auto node_pass = dynamic_pointer_cast<ngraph::pass::NodePass>(pass)) {
             if (node_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic()) {
@@ -111,7 +112,7 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
                 continue;
             }
             for (const shared_ptr<Node>& n : func->get_ops()) {
-                function_changed |= node_pass->run_on_node(n);
+                pass_applied |= node_pass->run_on_node(n);
             }
         }
 
@@ -133,7 +134,8 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
         if (profile_enabled) {
             cout << setw(7) << pass_timer.get_milliseconds() << "ms " << pass->get_name() << "\n";
         }
-        needs_validate = function_changed;
+        function_changed = function_changed || pass_applied;
+        needs_validate = needs_validate || pass_applied;
     }
     if (profile_enabled) {
         cout << "passes done in " << overall_timer.get_milliseconds() << "ms\n";
