@@ -225,13 +225,6 @@ public:
     ///        Repeated values are allowed.
     AxisSet get_axis_set_val() const;
 
-    /// \brief Update Constant shape. New shape size must equal to the data elements
-    /// count
-    ///
-    /// \param shape The shape of the tensor constant.
-    OPENVINO_DEPRECATED("Use Constant c-tor with shape argument instead")
-    void set_data_shape(const Shape& shape);
-
     /// \brief Return data size in bytes
     size_t get_byte_size() const {
         return m_data->size();
