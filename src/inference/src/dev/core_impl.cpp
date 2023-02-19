@@ -31,6 +31,7 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "preprocessing/preprocessing.hpp"
+#include "transformations/common_optimizations/enable_shapeof_constant_folding.hpp"
 #include "transformations/common_optimizations/moc_transformations.hpp"
 #include "transformations/low_precision/compress_quantize_weights.hpp"
 #include "xml_parse_utils.h"
@@ -1166,6 +1167,7 @@ static void apply_moc_transformations(const std::shared_ptr<ov::Model>& model) {
     manager.register_pass<ov::pass::MOCTransformations>(false);
     manager.register_pass<ngraph::pass::CompressQuantizeWeights>();
     manager.register_pass<ngraph::pass::ZeroPointOptimizer>();
+    manager.register_pass<ov::pass::EnableShapeOfConstantFolding>();
     manager.run_passes(model);
 }
 
