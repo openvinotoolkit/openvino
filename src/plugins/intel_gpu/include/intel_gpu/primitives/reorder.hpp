@@ -165,6 +165,19 @@ struct reorder : public primitive_base<reorder> {
         return seed;
     }
 
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const reorder>(rhs);
+
+        return subtract_per_feature == rhs_casted.subtract_per_feature &&
+               mean_mode == rhs_casted.mean_mode &&
+               input_mem_type == rhs_casted.input_mem_type &&
+               truncate == rhs_casted.truncate &&
+               mean.empty() == rhs_casted.mean.empty();
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         if (mean.empty())

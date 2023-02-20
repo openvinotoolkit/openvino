@@ -52,5 +52,16 @@ struct gather : public primitive_base<gather> {
         seed = hash_combine(seed, support_neg_ind);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const gather>(rhs);
+
+        return axis == rhs_casted.axis &&
+               batch_dim == rhs_casted.batch_dim &&
+               support_neg_ind == rhs_casted.support_neg_ind;
+    }
 };
 }  // namespace cldnn

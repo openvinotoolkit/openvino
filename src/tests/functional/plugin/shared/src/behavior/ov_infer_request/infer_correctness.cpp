@@ -45,6 +45,13 @@ void OVInferConsistencyTest::SetUp() {
     for (auto&& item : _deviceConfigs) {
         ModelContext modelContext;
         modelContext._model = core->compile_model(function, item.first, item.second);
+        if (_inferReqNumPerModel == 0) {
+            try {
+                _inferReqNumPerModel =  modelContext._model.get_property(ov::optimal_number_of_infer_requests);
+            } catch (...) {
+                throw("cannot deduce infer request number");
+            }
+        }
         for (auto i = 0; i < _inferReqNumPerModel; i++) {
             InferContext inferContext;
             inferContext._inferRequest = modelContext._model.create_infer_request();
