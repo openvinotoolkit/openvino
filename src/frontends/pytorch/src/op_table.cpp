@@ -69,6 +69,7 @@ OP_CONVERTER(translate_max_poolnd);
 OP_CONVERTER(translate_mean);
 OP_CONVERTER(translate_meshgrid);
 OP_CONVERTER(translate_min);
+OP_CONVERTER(translate_narrow);
 OP_CONVERTER(translate_neg);
 OP_CONVERTER(translate_new_full);
 OP_CONVERTER(translate_new_ones);
@@ -239,6 +240,7 @@ const std::map<std::string, PytorchCreatorFunction> get_supported_ops() {
         {"aten::mm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::mul", op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>},
         {"aten::mul_", op::inplace_op<op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>>},
+        {"aten::narrow", op::translate_narrow},
         {"aten::ne", op::translate_1to1_match_2_inputs_align_types<opset10::NotEqual>},
         {"aten::neg", op::translate_neg},
         {"aten::new_full", op::translate_new_full},
