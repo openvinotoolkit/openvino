@@ -127,7 +127,11 @@ bool PinThreadToVacantCore(int thrIdx,
                            const CpuSet& procMask,
                            std::vector<int> cpu_ids,
                            int cpuIdxOffset) {
+#    if defined(_WIN32)
     return 0 != SetThreadAffinityMask(GetCurrentThread(), DWORD_PTR(1) << cpu_ids[thrIdx]);
+#    else
+    return false;
+#    endif
 }
 bool PinCurrentThreadByMask(int ncores, const CpuSet& procMask) {
     return false;
