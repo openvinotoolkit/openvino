@@ -151,12 +151,10 @@ def test_init_with_numpy_copy_memory(ov_type, numpy_dtype):
 def test_init_with_numpy_fail():
     arr = np.asfortranarray(generate_image())
 
-    with pytest.warns(RuntimeWarning) as w:
+    with pytest.raises(RuntimeError) as e:
         _ = Tensor(array=arr, shared_memory=True)
 
-    tensor_warning = w.pop()
-    assert isinstance(RuntimeWarning(), tensor_warning.category)
-    assert "SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE!" in str(tensor_warning.message)
+    assert "SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE!" in str(e.value)
 
 
 def test_init_with_roi_tensor():

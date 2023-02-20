@@ -135,14 +135,9 @@ ov::op::v0::Constant create_shared(py::array& array) {
                                                                        array);
         return ov::op::v0::Constant(array_helpers::get_ov_type(array), array_helpers::get_shape(array), memory);
     }
-    // If passed array is not C-style, show warning and use approach that copies memory.
-    std::stringstream warning_msg;
-    warning_msg
-        << "SHARED MEMORY MODE FOR THIS CONSTANT IS NOT APPLICABLE! Passed numpy array must be C contiguous, data "
-           "will be copied.";
-    PyErr_WarnEx(PyExc_RuntimeWarning, warning_msg.str().data(), 2);
-
-    return create_copied<ov::op::v0::Constant>(array);
+    // If passed array is not C-style, throw an error.
+    throw ov::Exception(
+        "SHARED MEMORY MODE FOR THIS CONSTANT IS NOT APPLICABLE! Passed numpy array must be C contiguous.");
 }
 
 template <>
@@ -170,14 +165,9 @@ ov::Tensor create_shared(py::array& array) {
                           const_cast<void*>(array.data(0)),
                           array_helpers::get_strides(array));
     }
-    // If passed array is not C-style, show warning and use approach that copies memory.
-    std::stringstream warning_msg;
-    warning_msg
-        << "SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! Passed numpy array must be C contiguous, data "
-           "will be copied.";
-    PyErr_WarnEx(PyExc_RuntimeWarning, warning_msg.str().data(), 2);
-
-    return create_copied<ov::Tensor>(array);
+    // If passed array is not C-style, throw an error.
+    throw ov::Exception(
+        "SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! Passed numpy array must be C contiguous.");
 }
 
 ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const ov::element::Type& type) {
@@ -185,9 +175,9 @@ ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const o
 
     if (array_helpers::is_contiguous(array)) {
         return ov::Tensor(element_type, shape, const_cast<void*>(array.data(0)), {});
-    } else {
-        throw ov::Exception("Tensor with shared memory must be C contiguous!");
     }
+    throw ov::Exception(
+        "SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! Passed numpy array must be C contiguous.");
 }
 
 ov::PartialShape partial_shape_from_list(const py::list& shape) {
