@@ -1117,13 +1117,10 @@ pass::Serialize::Serialize(const std::string& xmlPath,
       m_binPath{provide_bin_path(xmlPath, binPath)},
       m_version{version} {}
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 pass::StreamSerialize::StreamSerialize(std::ostream& stream,
-                                       std::map<std::string, ngraph::OpSet>&& custom_opsets,
                                        const std::function<void(std::ostream&)>& custom_data_serializer,
                                        Serialize::Version version)
     : m_stream(stream),
-      m_custom_opsets(std::move(custom_opsets)),
       m_custom_data_serializer(custom_data_serializer),
       m_version(version) {
     if (version != Serialize::Version::UNSPECIFIED && version != Serialize::Version::IR_V10 &&
@@ -1131,12 +1128,6 @@ pass::StreamSerialize::StreamSerialize(std::ostream& stream,
         throw ngraph_error("Unsupported version");
     }
 }
-
-pass::StreamSerialize::StreamSerialize(std::ostream& stream,
-                                       const std::function<void(std::ostream&)>& custom_data_serializer,
-                                       Serialize::Version version)
-    : StreamSerialize(stream, {}, custom_data_serializer, version) {}
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_MODEL_SCOPE(StreamSerialize);

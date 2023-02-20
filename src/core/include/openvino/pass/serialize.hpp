@@ -68,11 +68,6 @@ public:
 
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
-    OPENVINO_DEPRECATED("This constructor is deprecated. Please use new extension API")
-    StreamSerialize(std::ostream& stream,
-                    std::map<std::string, ngraph::OpSet>&& custom_opsets = {},
-                    const std::function<void(std::ostream&)>& custom_data_serializer = {},
-                    Serialize::Version version = Serialize::Version::UNSPECIFIED);
     StreamSerialize(std::ostream& stream,
                     const std::function<void(std::ostream&)>& custom_data_serializer = {},
                     Serialize::Version version = Serialize::Version::UNSPECIFIED);
