@@ -80,14 +80,15 @@ private:
 };
 
 ov::IStreamsExecutor::Config convert_config(const InferenceEngine::IStreamsExecutor::Config& config) {
-    ov::IStreamsExecutor::Config ov_config(config._name,
-                                           config._streams,
-                                           config._threadsPerStream,
-                                           config._threadBindingType,
-                                           config._threadBindingStep,
-                                           config._threadBindingOffset,
-                                           config._threads,
-                                           config._threadPreferredCoreType);
+    ov::IStreamsExecutor::Config ov_config(
+        config._name,
+        config._streams,
+        config._threadsPerStream,
+        static_cast<ov::IStreamsExecutor::ThreadBindingType>(config._threadBindingType),
+        config._threadBindingStep,
+        config._threadBindingOffset,
+        config._threads,
+        static_cast<ov::IStreamsExecutor::Config::PreferredCoreType>(config._threadPreferredCoreType));
     return ov_config;
 }
 

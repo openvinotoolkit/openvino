@@ -39,7 +39,15 @@ public:
     /**
      * @brief Defines inference thread binding type
      */
-    using ThreadBindingType = ov::IStreamsExecutor::ThreadBindingType;
+    enum ThreadBindingType : std::uint8_t {
+        NONE,   //!< Don't bind the inference threads
+        CORES,  //!< Bind inference threads to the CPU cores (round-robin)
+        // the following modes are implemented only for the TBB code-path:
+        NUMA,  //!< Bind to the NUMA nodes (default mode for the non-hybrid CPUs on the Win/MacOS, where the 'CORES' is
+               //!< not implemeneted)
+        HYBRID_AWARE  //!< Let the runtime bind the inference threads depending on the cores type (default mode for the
+                      //!< hybrid CPUs)
+    };
 
     /**
      * @brief Defines IStreamsExecutor configuration
@@ -98,8 +106,13 @@ public:
         int _small_core_offset = 0;         //!< Calculate small core start offset when binding cpu cores
         bool _enable_hyper_thread = true;   //!< enable hyper thread
         using StreamMode = ov::IStreamsExecutor::Config::StreamMode;
-        using PreferredCoreType = ov::IStreamsExecutor::Config::PreferredCoreType;
-        PreferredCoreType _threadPreferredCoreType =
+        enum PreferredCoreType {
+            ANY,
+            LITTLE,
+            BIG,
+            ROUND_ROBIN  // used w/multiple streams to populate the Big cores first, then the Little, then wrap around
+                         // (for large #streams)
+        } _threadPreferredCoreType =
             PreferredCoreType::ANY;  //!< In case of @ref HYBRID_AWARE hints the TBB to affinitize
 
         /**
