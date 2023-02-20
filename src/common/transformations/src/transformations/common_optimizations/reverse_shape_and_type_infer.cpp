@@ -156,7 +156,7 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                 if (in1_pshape.is_static()) {
                     auto num_dims = in1_pshape.size() == 0 ? 1 : in1_pshape[0].get_length();
                     op->get_input_tensor(0).m_partial_shape =
-                        PartialShape::dynamic(output_shape.rank().get_length() - num_dims);
+                        PartialShape::dynamic(output_shape.rank().get_length() + num_dims);
                 }
             }
             is_changed |= inherit_output_type(op, {0});
@@ -166,7 +166,7 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
             if (output_shape.rank().is_static() && in0_rank.is_dynamic() && in1_pshape.is_static()) {
                 auto num_dims = in1_pshape.size() == 0 ? 1 : in1_pshape[0].get_length();
                 op->get_input_tensor(0).m_partial_shape =
-                    PartialShape::dynamic(output_shape.rank().get_length() + num_dims);
+                    PartialShape::dynamic(output_shape.rank().get_length() - num_dims);
             }
             is_changed |= inherit_output_type(op, {0});
         } else if (const auto& if_op = std::dynamic_pointer_cast<If>(op)) {
@@ -226,6 +226,11 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                         else_body_params.at(body_indx)->get_element_type();
                     is_changed = true;
                 }
+            }
+            // Set type for If condition
+            if (if_op->get_input_element_type(0).is_dynamic()) {
+                if_op->get_input_tensor(0).m_element_type = element::boolean;
+                is_changed = true;
             }
         } else if (std::dynamic_pointer_cast<ConvertLike>(op)) {
             is_changed |= inherit_output_shape(op, {0});
