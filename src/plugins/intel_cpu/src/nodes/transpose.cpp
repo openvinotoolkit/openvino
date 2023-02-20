@@ -37,6 +37,20 @@ bool Transpose::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
     return true;
 }
 
+class TransposeDynShapeInfer : public ShapeInferEmptyPads {
+public:
+    TransposeDynShapeInfer() = default;
+    std::vector<VectorDims> infer(
+        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        IE_THROW(NotImplemented) << "TODO: Support parameterized Order input for dynamic shapes.";
+    }
+    port_mask_t get_port_mask() const override {
+        return EMPTY_PORT_MASK;
+    }
+private:
+};
+
 class TransposeShapeInfer : public ShapeInferEmptyPads {
 public:
     TransposeShapeInfer(const size_t& out_rank, const std::vector<size_t>& axes_vec)
@@ -77,7 +91,7 @@ public:
             const auto axes_vec = order->cast_vector<size_t>();
             return std::make_shared<TransposeShapeInfer>(m_op->get_output_partial_shape(0).rank().get_length(), axes_vec);
         } else {
-            IE_THROW() << "The second input is NOT a constant node, which is unexpected in the Transpose shape inference factory";
+            return std::make_shared<TransposeDynShapeInfer>();
         }
     }
 
