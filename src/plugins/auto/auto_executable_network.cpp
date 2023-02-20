@@ -172,6 +172,7 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
         }
         return decltype(ov::available_devices)::value_type {exeDevices};
     } else if (name == ov::model_name) {
+        std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
         if (_autoSchedule->_loadContext[CPU].isEnabled && _autoSchedule->_loadContext[CPU].isAlready)
             return _autoSchedule->_loadContext[CPU].executableNetwork->GetMetric(name);
         return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetMetric(name);
