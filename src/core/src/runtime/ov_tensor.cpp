@@ -9,6 +9,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "runtime/blob_allocator.hpp"
+#include "shape_util.hpp"
 
 namespace ov {
 
@@ -98,7 +99,14 @@ element::Type Tensor::get_element_type() const {
 }
 
 void Tensor::set_shape(const ov::Shape& shape) {
-    OV_TENSOR_STATEMENT(_impl->setShape({shape.begin(), shape.end()}));
+    // WA for tensor conversion from host tensor with dynamic shape.
+    if (util::is_dynamic_shape(get_shape())) {
+        _impl = make_blob_with_precision(
+            {_impl->getTensorDesc().getPrecision(), shape, ie::TensorDesc::getLayoutByRank(shape.size())});
+        _impl->allocate();
+    } else {
+        OV_TENSOR_STATEMENT(_impl->setShape({shape.begin(), shape.end()}));
+    }
 }
 
 Shape Tensor::get_shape() const {
