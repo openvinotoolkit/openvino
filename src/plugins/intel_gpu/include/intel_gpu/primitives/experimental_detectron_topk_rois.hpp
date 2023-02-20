@@ -37,6 +37,15 @@ struct experimental_detectron_topk_rois : public primitive_base<experimental_det
         seed = hash_combine(seed, max_rois);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const experimental_detectron_topk_rois>(rhs);
+
+        return max_rois == rhs_casted.max_rois;
+    }
 };
 
 }  // namespace cldnn

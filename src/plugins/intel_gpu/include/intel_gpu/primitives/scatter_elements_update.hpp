@@ -34,5 +34,14 @@ struct scatter_elements_update : public primitive_base<scatter_elements_update> 
         seed = hash_combine(seed, axis);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const scatter_elements_update>(rhs);
+
+        return axis == rhs_casted.axis;
+    }
 };
 }  // namespace cldnn
