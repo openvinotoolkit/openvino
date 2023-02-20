@@ -587,4 +587,3 @@ TEST_F(TransformationTestsF, TransposeWithConstantOrderReverseInfer) {
         model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
     }
 }
-
