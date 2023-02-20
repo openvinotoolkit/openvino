@@ -521,7 +521,9 @@ void PSROIPooling::executeSpecified() {
         }
     });
 
-    memset(dstData + realRois * nc * nh * nw, 0, (nn - realRois) * nc * nh * nw * sizeof(outputType));
+    memset(reinterpret_cast<void*>(dstData + realRois * nc * nh * nw),
+           0,
+           (nn - realRois) * nc * nh * nw * sizeof(outputType));
 }
 
 namespace {
