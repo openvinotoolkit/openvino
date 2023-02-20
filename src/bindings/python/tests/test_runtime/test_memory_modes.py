@@ -67,12 +67,23 @@ def test_with_external_memory(cls, shared_flag):
         def __init__(self, array) -> None:
             self.data = array
 
+        @property
+        def shape(self):
+            return self.data.shape
+
+        @property
+        def dtype(self):
+            return self.data.dtype
+
         def to_numpy(self):
             return self.data
 
-
     external_object = ArrayLikeObject(np.ascontiguousarray(generate_image()))
     ov_object = cls(array=external_object.to_numpy(), shared_memory=shared_flag)
+
+    assert np.array_equal(ov_object.data.dtype, external_object.dtype)
+    assert np.array_equal(ov_object.data.shape, external_object.shape)
+    assert np.array_equal(ov_object.data, external_object.to_numpy())
 
     if shared_flag is True:
         assert np.shares_memory(external_object.to_numpy(), ov_object.data)
