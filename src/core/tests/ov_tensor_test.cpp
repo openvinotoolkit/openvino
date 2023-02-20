@@ -13,6 +13,8 @@
 
 #include "ngraph/coordinate_transform.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -38,6 +40,26 @@ TEST_F(OVTensorTest, canCreateTensor) {
     ASSERT_EQ(ov::element::f32.size() * totalSize, t.get_byte_size());
     ASSERT_THROW(t.data(ov::element::i64), ov::Exception);
     ASSERT_THROW(t.data<std::int32_t>(), ov::Exception);
+}
+
+TEST_F(OVTensorTest, createTensorFromPort) {
+    auto parameter1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f64, ov::Shape{1, 3, 2, 2});
+    auto parameter2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3});
+    auto parameter3 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+    float data[] = {5.f, 6.f, 7.f};
+    ov::Tensor t1{parameter1->output(0)};
+    ov::Tensor t2{parameter2->output(0), data};
+    ov::Tensor t3{parameter3->output(0)};
+    ov::Tensor t4{parameter3->output(0), data};
+
+    EXPECT_EQ(t1.get_shape(), parameter1->get_shape());
+    EXPECT_EQ(t1.get_element_type(), parameter1->get_element_type());
+    EXPECT_EQ(t2.get_shape(), parameter2->get_shape());
+    EXPECT_EQ(t2.get_element_type(), parameter2->get_element_type());
+    EXPECT_EQ(t3.get_shape(), ov::Shape{0});
+    EXPECT_EQ(t3.get_element_type(), parameter3->get_element_type());
+    EXPECT_EQ(t4.get_shape(), ov::Shape{0});
+    EXPECT_EQ(t4.get_element_type(), parameter3->get_element_type());
 }
 
 TEST_F(OVTensorTest, canAccessF16Tensor) {

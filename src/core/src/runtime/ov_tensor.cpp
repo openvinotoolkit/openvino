@@ -95,17 +95,6 @@ Tensor::Tensor(const Tensor& owner, const Coordinate& begin, const Coordinate& e
     }
 }
 
-Tensor::Tensor(const ov::Output<ov::Node>& port, const Allocator& allocator)
-    : Tensor(port.get_element_type(),
-             port.get_partial_shape().is_dynamic() ? ov::Shape{0} : port.get_shape(),
-             allocator) {}
-
-Tensor::Tensor(const ov::Output<ov::Node>& port, void* host_ptr, const Strides& byte_strides)
-    : Tensor(port.get_element_type(),
-             port.get_partial_shape().is_dynamic() ? ov::Shape{0} : port.get_shape(),
-             host_ptr,
-             byte_strides) {}
-
 Tensor::Tensor(const ov::Output<const ov::Node>& port, const Allocator& allocator)
     : Tensor(port.get_element_type(),
              port.get_partial_shape().is_dynamic() ? ov::Shape{0} : port.get_shape(),
@@ -148,6 +137,8 @@ void Tensor::copy_to(const ov::Tensor& dst) const {
     size_t tensor_size = ov::shape_size(get_shape());
     ov::Strides src_strides{1};
     ov::Strides dst_strides{1};
+    ov::Shape cur_pos{0};
+    ov::Shape max_pos{1};
     size_t step(1);
 
     if (get_element_type().bitwidth() < 8 || (get_strides() == dst.get_strides() /* && is_continuous() */)) {
@@ -173,8 +164,7 @@ void Tensor::copy_to(const ov::Tensor& dst) const {
         src_strides = get_strides();
         dst_strides = dst.get_strides();
 
-        ov::Strides src_str;
-        ov::Strides dst_str;
+        ov::Strides src_str, dst_str;
 
         // Calculate src and dst shapes
         bool found_step = false;
@@ -186,44 +176,58 @@ void Tensor::copy_to(const ov::Tensor& dst) const {
                     continue;
                 } else {
                     found_step = true;
-                    size_t strides_size = inverted_idx + 1;
+                    size_t strides_size = inverted_idx + 2;
                     if (i != 0)
                         // Take step from previous stride
                         step = default_strides[strides_size];
                     // Set right size
                     src_str.resize(strides_size);
                     dst_str.resize(strides_size);
+                    max_pos.resize(strides_size);
+                    cur_pos.resize(strides_size);
+
+                    src_str[inverted_idx + 1] = step;
+                    src_str[inverted_idx + 1] = step;
+                    max_pos[inverted_idx + 1] = 1;
+                    cur_pos[inverted_idx + 1] = 0;
                 }
             }
             src_str[inverted_idx] = src_strides[inverted_idx];
-            dst_str[inverted_idx] = dst_strides[inverted_idx];
+            src_str[inverted_idx] = src_strides[inverted_idx];
+            max_pos[inverted_idx] = shape[inverted_idx];
+            cur_pos[inverted_idx] = 0;
         }
     }
 
-    const auto update_index =
-        [](size_t& shift, size_t idx, const ov::Shape shape, const ov::Strides& strides, size_t step) {
-            // TODO: calculate shift based on step, strides and index
-        };
-    for (size_t dst_idx = 0, src_idx = 0, idx = 1; dst_idx < tensor_size && src_idx < tensor_size; idx++) {
+    const auto update_index = [](const ov::Shape& pos, const ov::Shape& shape, const ov::Strides& strides) {
+        ov::Shape off_v = pos;
+        size_t size = pos.size(), offset = 0;
+
+        for (size_t i = 1; i <= size; i++) {
+            size_t blocked_shift = off_v[size - i] % shape[size - i];
+            off_v[size - i] /= shape[size - i];
+            offset += blocked_shift * strides[size - i];
+        }
+        return offset;
+    };
+
+    const auto& update_pos = [](ov::Shape& cur_pos, const ov::Shape& max_pos) {
+        for (size_t i = 0; i < cur_pos.size(); i++) {
+            size_t inverted_idx = cur_pos.size() - i - 1;
+            cur_pos[inverted_idx]++;
+            if (cur_pos[inverted_idx] != max_pos[inverted_idx]) {
+                break;
+            }
+            cur_pos[inverted_idx] = 0;
+        }
+    };
+
+    for (size_t dst_idx = 0, src_idx = 0; dst_idx < tensor_size && src_idx < tensor_size;) {
         memcpy(dst_data + dst_idx, src_data + src_idx, step);
         // update indexes
-        update_index(src_idx, idx, shape, src_strides, step);
-        update_index(dst_idx, idx, shape, dst_strides, step);
-    }
-
-    std::vector<size_t> indexes(shape.size());
-    for (size_t dst_idx = 0; dst_idx < ov::shape_size(shape); dst_idx++) {
-        size_t val = dst_idx;
-        size_t src_idx = 0;
-        for (size_t j1 = 0; j1 < indexes.size(); j1++) {
-            size_t j = indexes.size() - j1 - 1;
-            indexes[j] = val % shape[j];
-            val /= shape[j];
-            src_idx += indexes[j] * tensor.get_strides()[j];
-        }
-        memcpy(dst_data + dst_idx * tensor.get_element_type().size(),
-               src_data + src_idx,
-               tensor.get_element_type().size());
+        update_pos(cur_pos, max_pos);
+        src_idx = update_index(cur_pos, max_pos, src_strides);
+        dst_idx = update_index(cur_pos, max_pos, dst_strides);
     }
 }
 

@@ -115,23 +115,6 @@ public:
      * @param port port from node
      * @param allocator allocates memory for internal tensor storage
      */
-    Tensor(const ov::Output<ov::Node>& port, const Allocator& allocator = {});
-
-    /**
-     * @brief Constructs Tensor using port from node. Wraps allocated host memory.
-     * @note Does not perform memory allocation internally
-     * @param port port from node
-     * @param host_ptr Pointer to pre-allocated host memory
-     * @param strides Optional strides parameters in bytes. Strides are supposed to be computed automatically based
-     * on shape and element size
-     */
-    Tensor(const ov::Output<ov::Node>& port, void* host_ptr, const Strides& strides = {});
-
-    /**
-     * @brief Constructs Tensor using port from node. Allocate internal host storage using default allocator
-     * @param port port from node
-     * @param allocator allocates memory for internal tensor storage
-     */
     Tensor(const ov::Output<const ov::Node>& port, const Allocator& allocator = {});
 
     /**
