@@ -553,7 +553,7 @@ TEST_F(TransformationTestsF, TransposeWithDynamicOrderReverseInfer) {
         manager.register_pass<pass::ReverseShapeAndTypeInfer>();
     }
     {
-        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape{DYN, 3, DYN, DYN});
+        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic(4));
         auto order = std::make_shared<opset10::Parameter>(element::i32, PartialShape::dynamic());
         auto transpose = std::make_shared<opset10::Transpose>(data, order);
         // Convolution is needed to produce static rank
