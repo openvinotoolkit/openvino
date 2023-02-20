@@ -5,7 +5,7 @@
 
 #include "transposition_info.hpp"
 #include "log/debug.hpp"
-#include "ngraph/opsets/opset9.hpp"
+#include "openvino/opsets/opset9.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/shape.hpp"
 
@@ -21,6 +21,10 @@ using namespace ngraph::opset9;
 std::shared_ptr<ov::Model> ToProcessModel(const TranspositionInfo& t_info) {
     int32_t c_size = t_info.num_transpose_rows;
     int32_t hw_size = t_info.num_transpose_columns;
+
+    if (!t_info.transpose) {
+        return nullptr;
+    }
 
     ov::PartialShape input_shape{1, c_size, hw_size};
     auto param = std::make_shared<Parameter>(ov::element::f32, input_shape);
@@ -46,6 +50,18 @@ std::shared_ptr<ov::Model> ToProcessModel(const TranspositionInfo& t_info) {
  * Convert transposition info to preprocessing model using Gather layer
  */
 std::shared_ptr<ov::Model> ToProcessModel(const std::vector<TranspositionInfo>& transposes) {
+    // count transposition parts need to be transposed
+    int count_transposes = std::count_if(transposes.begin(),
+                                         transposes.end(),
+                                         [](TranspositionInfo t_info) {
+                                            return t_info.transpose ||
+                                                   t_info.num_transpose_rows != 1 ||
+                                                   t_info.num_transpose_rows != 1;
+                                         });
+    if (count_transposes == 0) {
+        return nullptr;
+    }
+
     // case when the input should be transposed entirely
     if (transposes.size() == 1) {
         return ToProcessModel(transposes.front());
