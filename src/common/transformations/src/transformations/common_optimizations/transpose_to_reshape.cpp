@@ -85,7 +85,6 @@ ov::pass::TransposeToReshape::TransposeToReshape() {
             std::vector<int64_t> reshape_value(input_shape_rank, 0);
             for (const auto& item : dims) {
                 reshape_value[item.pos] = item.dim.is_dynamic() ? -1 : item.dim.get_length();
-                std::cout << reshape_value[item.pos] << std::endl;
             }
             reshape_dim = opset3::Constant::create(element::i64, Shape{reshape_value.size()}, reshape_value);
         } else {
