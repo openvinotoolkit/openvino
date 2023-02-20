@@ -155,7 +155,7 @@ std::vector<int> getAvailableNUMANodes() {
 int getNumberOfLogicalCPUCores(bool) {
     return parallel_get_max_threads();
 }
-std::vector<std::vector<int>> getNumOfAvailableCPUCores(const int plugin_task) {
+std::vector<std::vector<int>> get_num_available_cpu_cores(const int plugin_task) {
     std::vector<std::vector<int>> proc_type_table;
     proc_type_table.resize(1, std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
     return proc_type_table;
@@ -163,7 +163,7 @@ std::vector<std::vector<int>> getNumOfAvailableCPUCores(const int plugin_task) {
 bool cpu_map_available() {
     return false;
 }
-std::vector<int> get_available_cpus(const cpu_core_type_of_processor core_type,
+std::vector<int> get_available_cpus(const column_of_processor_type_table core_type,
                                     const int num_cpus,
                                     const bool cpu_task) {
     return {};
@@ -171,7 +171,7 @@ std::vector<int> get_available_cpus(const cpu_core_type_of_processor core_type,
 std::vector<int> get_logic_cores(const std::vector<int> cpu_ids) {
     return {};
 }
-void setCpuUsed(std::vector<int> cpu_ids, int used) {}
+void set_cpu_used(std::vector<int> cpu_ids, int used) {}
 
 #else
 int getNumberOfLogicalCPUCores(bool bigCoresOnly) {

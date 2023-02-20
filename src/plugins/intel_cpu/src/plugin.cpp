@@ -235,7 +235,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
 
         int model_prefer = GetModelPreferThreads(ngraphFunc);
         const std::vector<std::vector<int>> proc_type_table =
-            getNumOfAvailableCPUCores(engConfig.streamExecutorConfig._plugin_task);
+            get_num_available_cpu_cores(engConfig.streamExecutorConfig._plugin_task);
         const std::vector<std::vector<int>> stream_info_table =
             get_streams_info_table(nstreams, engConfig.streamExecutorConfig._threads, model_prefer, proc_type_table);
         streams_info = ParseStreamsTable(stream_info_table);

@@ -145,7 +145,7 @@ INFERENCE_ENGINE_API_CPP(bool) cpu_map_available();
  * @param[in]  cpu_ids cpus in cup_mapping.
  * @param[in]  used flag bit
  */
-INFERENCE_ENGINE_API_CPP(void) setCpuUsed(std::vector<int> cpu_ids, int used);
+INFERENCE_ENGINE_API_CPP(void) set_cpu_used(std::vector<int> cpu_ids, int used);
 
 /**
  * @brief      Returns number of CPU cores on Linux/Windows
@@ -153,7 +153,7 @@ INFERENCE_ENGINE_API_CPP(void) setCpuUsed(std::vector<int> cpu_ids, int used);
  * @param[in]  plugin_task plugin task.
  * @return     Number of CPU cores with core_type.
  */
-INFERENCE_ENGINE_API_CPP(std::vector<std::vector<int>>) getNumOfAvailableCPUCores(const int plugin_task);
+INFERENCE_ENGINE_API_CPP(std::vector<std::vector<int>>) get_num_available_cpu_cores(const int plugin_task);
 
 /**
  * @brief      Returns corresponding logical cores

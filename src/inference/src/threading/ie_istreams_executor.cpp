@@ -457,7 +457,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::SetExecutorConfig(std::string
                                  ? streamExecutorConfig._small_core_streams
                                  : streamExecutorConfig._big_core_streams;
             auto cpu_ids = get_available_cpus(core_type, num_cores);
-            setCpuUsed(cpu_ids, 2);
+            set_cpu_used(cpu_ids, GPU_PRE_USED);
         }
     }
     OPENVINO_DEBUG << "[ " << name << " SetExecutorConfig ] streams: " << num_streams

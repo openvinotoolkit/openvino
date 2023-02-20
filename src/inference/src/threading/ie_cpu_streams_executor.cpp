@@ -120,7 +120,7 @@ struct CPUStreamsExecutor::Impl {
                             std::vector<int> logic_cores = get_logic_cores(_cpu_ids);
                             _cpu_ids.insert(_cpu_ids.end(), logic_cores.begin(), logic_cores.end());
                         }
-                        setCpuUsed(_cpu_ids, CPU_USED);
+                        set_cpu_used(_cpu_ids, CPU_USED);
                         CpuSet processMask;
                         int ncpus = 0;
                         std::tie(processMask, ncpus) = GetProcessMask();
@@ -275,7 +275,7 @@ struct CPUStreamsExecutor::Impl {
                 _impl->_streamIdQueue.push(_streamId);
             }
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-            setCpuUsed(_cpu_ids, NOT_USED);
+            set_cpu_used(_cpu_ids, NOT_USED);
             if (nullptr != _observer) {
                 _observer->observe(false);
             }

@@ -280,7 +280,7 @@ int getNumberOfCPUCores(bool bigCoresOnly) {
     return phys_cores;
 }
 
-std::vector<std::vector<int>> getNumOfAvailableCPUCores(const int plugin_task) {
+std::vector<std::vector<int>> get_num_available_cpu_cores(const int plugin_task) {
     std::vector<std::vector<int>> proc_type_table;
     std::vector<int> all_table;
 
@@ -353,7 +353,7 @@ std::vector<int> get_logic_cores(const std::vector<int> cpu_ids) {
     return logic_cores;
 }
 
-void setCpuUsed(std::vector<int> cpu_ids, int used) {
+void set_cpu_used(std::vector<int> cpu_ids, int used) {
     const auto cpu_size = static_cast<int>(cpu_ids.size());
     for (int i = 0; i < cpu_size; i++) {
         if (cpu_ids[i] < cpu._processors) {
