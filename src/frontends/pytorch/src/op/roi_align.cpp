@@ -50,14 +50,14 @@ OutputVector translate_roi_align(NodeContext& context) {
         aligned ? v9::ROIAlign::AlignedMode::HALF_PIXEL_FOR_NN : v9::ROIAlign::AlignedMode::ASYMMETRIC;
 
     auto roi_align = context.mark_node(std::make_shared<v9::ROIAlign>(input_real_type,
-                                                                        rois,
-                                                                        batch_indices,
-                                                                        output_size_h,
-                                                                        output_size_w,
-                                                                        sampling_ratio,
-                                                                        spatial_scale,
-                                                                        v9::ROIAlign::PoolingMode::AVG,
-                                                                        aligned_mode));
+                                                                      rois,
+                                                                      batch_indices,
+                                                                      output_size_h,
+                                                                      output_size_w,
+                                                                      sampling_ratio,
+                                                                      spatial_scale,
+                                                                      v9::ROIAlign::PoolingMode::AVG,
+                                                                      aligned_mode));
 
     return {roi_align};
 };
