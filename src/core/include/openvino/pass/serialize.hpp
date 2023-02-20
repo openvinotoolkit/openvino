@@ -34,18 +34,8 @@ public:
     };
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
-    OPENVINO_DEPRECATED("This constructor is deprecated. Please use new extension API")
-    Serialize(std::ostream& xmlFile,
-              std::ostream& binFile,
-              std::map<std::string, ngraph::OpSet> custom_opsets,
-              Version version = Version::UNSPECIFIED);
     Serialize(std::ostream& xmlFile, std::ostream& binFile, Version version = Version::UNSPECIFIED);
 
-    OPENVINO_DEPRECATED("This constructor is deprecated. Please use new extension API")
-    Serialize(const std::string& xmlPath,
-              const std::string& binPath,
-              std::map<std::string, ngraph::OpSet> custom_opsets,
-              Version version = Version::UNSPECIFIED);
     Serialize(const std::string& xmlPath, const std::string& binPath, Version version = Version::UNSPECIFIED);
 
 private:

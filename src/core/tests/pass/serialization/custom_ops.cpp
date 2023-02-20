@@ -109,7 +109,6 @@ TEST_F(CustomOpsSerializationTest, CustomOpNoExtensions) {
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>(m_out_xml_path,
                                                m_out_bin_path,
-                                               extension->getOpSets(),
                                                ov::pass::Serialize::Version::IR_V10);
     manager.run_passes(expected);
     auto result = core.read_model(m_out_xml_path, m_out_bin_path);
