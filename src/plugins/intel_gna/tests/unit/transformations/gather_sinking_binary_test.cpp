@@ -87,7 +87,10 @@ std::shared_ptr<Gather> MakeGather(NodePtr input_node, CreateIndicesF create_ind
 }
 
 template <typename CreateIndicesF>
-std::shared_ptr<Gather> MakeGather(NodePtr input_node, CreateIndicesF create_indices_func, size_t axis, size_t indices_size) {
+std::shared_ptr<Gather> MakeGather(NodePtr input_node,
+                                   CreateIndicesF create_indices_func,
+                                   size_t axis,
+                                   size_t indices_size) {
     const std::vector<size_t> indexes = create_indices_func(indices_size, 0);
     auto gather_indexes_node = Constant::create(ngraph::element::i64, ov::Shape{indexes.size()}, indexes);
 
@@ -393,7 +396,7 @@ using TestBinaryParams = std::tuple<BinaryFactoryPtr,
                                     size_t>;            /* binary_gather_input_idx */
 
 class GatherSinkingBinaryTestFixture : public ::testing::WithParamInterface<TestBinaryParams>,
-                                          public TransformationTestsF {
+                                       public TransformationTestsF {
 public:
     static std::string get_test_name(const testing::TestParamInfo<TestBinaryParams>& obj) {
         BinaryFactoryPtr binary_factory;
@@ -470,9 +473,8 @@ INSTANTIATE_TEST_SUITE_P(
 
 // --------------------------------------------------------------------------------------
 
-using CreateGraphBinaryIncompatShapesF = std::function<std::shared_ptr<Model>(BinaryFactoryPtr unary_factory,
-                                                                              element::Type input_type,
-                                                                              size_t binary_gather_input_idx)>;
+using CreateGraphBinaryIncompatShapesF = std::function<
+    std::shared_ptr<Model>(BinaryFactoryPtr unary_factory, element::Type input_type, size_t binary_gather_input_idx)>;
 
 using TestBinaryIncompatShapesParams = std::tuple<BinaryFactoryPtr,
                                                   PassFactoryPtr,
@@ -548,7 +550,7 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
 
     return std::make_shared<Model>(ov::OutputVector{binary_op}, ov::ParameterVector{X});
 }
-} // namespace insert_gather
+}  // namespace insert_gather
 
 namespace no_insert_gather {
 std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
@@ -584,7 +586,7 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
 
     return std::make_shared<Model>(ov::OutputVector{binary_op}, ov::ParameterVector{X});
 }
-} // namespace no_insert_gather
+}  // namespace no_insert_gather
 
 }  // namespace incompat_shapes
 }  // namespace backward
@@ -628,7 +630,7 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
 
     return std::make_shared<Model>(ov::OutputVector{gather1}, ov::ParameterVector{X});
 }
-} // namespace insert_gather
+}  // namespace insert_gather
 
 namespace no_insert_gather {
 std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
@@ -665,9 +667,9 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
 
     return std::make_shared<Model>(ov::OutputVector{gather1}, ov::ParameterVector{X});
 }
-} // namespace no_insert_gather
+}  // namespace no_insert_gather
 
-} // namespace gather_small_input
+}  // namespace gather_small_input
 
 namespace gather_large_input {
 namespace insert_gather {
@@ -706,9 +708,9 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
 
     return std::make_shared<Model>(ov::OutputVector{gather1}, ov::ParameterVector{X});
 }
-} // namespace insert_gather
+}  // namespace insert_gather
 
-} // namespace gather_large_input
+}  // namespace gather_large_input
 
 }  // namespace incompat_shapes
 }  // namespace forward
@@ -719,56 +721,68 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
 INSTANTIATE_TEST_SUITE_P(
     GatherSinkingBinaryIncompatShapesBackwardInsertGatherTestSuite,
     GatherSinkingBinaryIncompatShapesTestFixture,
-    ::testing::Combine(::testing::ValuesIn(binary_elementwise_factories),
-                       ::testing::Values(CREATE_PASS_FACTORY(GatherSinkingBinaryBackward)),
-                       ::testing::Values(binary::single_consumer::backward::incompat_shapes::insert_gather::CreateFunction),
-                       ::testing::Values(binary::single_consumer::backward::incompat_shapes::insert_gather::CreateReferenceFunction),
-                       ::testing::Values(element::f32),
-                       ::testing::ValuesIn(binary_transpose_input_indexes)),
+    ::testing::Combine(
+        ::testing::ValuesIn(binary_elementwise_factories),
+        ::testing::Values(CREATE_PASS_FACTORY(GatherSinkingBinaryBackward)),
+        ::testing::Values(binary::single_consumer::backward::incompat_shapes::insert_gather::CreateFunction),
+        ::testing::Values(binary::single_consumer::backward::incompat_shapes::insert_gather::CreateReferenceFunction),
+        ::testing::Values(element::f32),
+        ::testing::ValuesIn(binary_transpose_input_indexes)),
     GatherSinkingBinaryIncompatShapesTestFixture::get_test_name);
 
 INSTANTIATE_TEST_SUITE_P(
     GatherSinkingBinaryIncompatShapesBackwardNoGatherInsertTestSuite,
     GatherSinkingBinaryIncompatShapesTestFixture,
-    ::testing::Combine(::testing::ValuesIn(binary_elementwise_factories),
-                       ::testing::Values(CREATE_PASS_FACTORY(GatherSinkingBinaryBackward)),
-                       ::testing::Values(binary::single_consumer::backward::incompat_shapes::no_insert_gather::CreateFunction),
-                       ::testing::Values(binary::single_consumer::backward::incompat_shapes::no_insert_gather::CreateReferenceFunction),
-                       ::testing::Values(element::f32),
-                       ::testing::ValuesIn(binary_transpose_input_indexes)),
+    ::testing::Combine(
+        ::testing::ValuesIn(binary_elementwise_factories),
+        ::testing::Values(CREATE_PASS_FACTORY(GatherSinkingBinaryBackward)),
+        ::testing::Values(binary::single_consumer::backward::incompat_shapes::no_insert_gather::CreateFunction),
+        ::testing::Values(
+            binary::single_consumer::backward::incompat_shapes::no_insert_gather::CreateReferenceFunction),
+        ::testing::Values(element::f32),
+        ::testing::ValuesIn(binary_transpose_input_indexes)),
     GatherSinkingBinaryIncompatShapesTestFixture::get_test_name);
 
 INSTANTIATE_TEST_SUITE_P(
     GatherSinkingBinaryIncompatShapesGatherSmallInputForwardInsertGatherTestSuite,
     GatherSinkingBinaryIncompatShapesTestFixture,
-    ::testing::Combine(::testing::ValuesIn(binary_elementwise_factories),
-                       ::testing::Values(CREATE_PASS_FACTORY(GatherSinkingBinaryForward)),
-                       ::testing::Values(binary::single_consumer::forward::incompat_shapes::gather_small_input::insert_gather::CreateFunction),
-                       ::testing::Values(binary::single_consumer::forward::incompat_shapes::gather_small_input::insert_gather::CreateReferenceFunction),
-                       ::testing::Values(element::f32),
-                       ::testing::ValuesIn(binary_transpose_input_indexes)),
+    ::testing::Combine(
+        ::testing::ValuesIn(binary_elementwise_factories),
+        ::testing::Values(CREATE_PASS_FACTORY(GatherSinkingBinaryForward)),
+        ::testing::Values(
+            binary::single_consumer::forward::incompat_shapes::gather_small_input::insert_gather::CreateFunction),
+        ::testing::Values(binary::single_consumer::forward::incompat_shapes::gather_small_input::insert_gather::
+                              CreateReferenceFunction),
+        ::testing::Values(element::f32),
+        ::testing::ValuesIn(binary_transpose_input_indexes)),
     GatherSinkingBinaryIncompatShapesTestFixture::get_test_name);
 
 INSTANTIATE_TEST_SUITE_P(
     GatherSinkingBinaryIncompatShapesGatherSmallInputForwardNoGatherInsertTestSuite,
     GatherSinkingBinaryIncompatShapesTestFixture,
-    ::testing::Combine(::testing::ValuesIn(binary_elementwise_factories),
-                       ::testing::Values(CREATE_PASS_FACTORY(GatherSinkingBinaryForward)),
-                       ::testing::Values(binary::single_consumer::forward::incompat_shapes::gather_small_input::no_insert_gather::CreateFunction),
-                       ::testing::Values(binary::single_consumer::forward::incompat_shapes::gather_small_input::no_insert_gather::CreateReferenceFunction),
-                       ::testing::Values(element::f32),
-                       ::testing::ValuesIn(binary_transpose_input_indexes)),
+    ::testing::Combine(
+        ::testing::ValuesIn(binary_elementwise_factories),
+        ::testing::Values(CREATE_PASS_FACTORY(GatherSinkingBinaryForward)),
+        ::testing::Values(
+            binary::single_consumer::forward::incompat_shapes::gather_small_input::no_insert_gather::CreateFunction),
+        ::testing::Values(binary::single_consumer::forward::incompat_shapes::gather_small_input::no_insert_gather::
+                              CreateReferenceFunction),
+        ::testing::Values(element::f32),
+        ::testing::ValuesIn(binary_transpose_input_indexes)),
     GatherSinkingBinaryIncompatShapesTestFixture::get_test_name);
 
 INSTANTIATE_TEST_SUITE_P(
     GatherSinkingBinaryIncompatShapesGatherLargeInputInsertGatherForwardTestSuite,
     GatherSinkingBinaryIncompatShapesTestFixture,
-    ::testing::Combine(::testing::ValuesIn(binary_elementwise_factories),
-                       ::testing::Values(CREATE_PASS_FACTORY(GatherSinkingBinaryForward)),
-                       ::testing::Values(binary::single_consumer::forward::incompat_shapes::gather_large_input::insert_gather::CreateFunction),
-                       ::testing::Values(binary::single_consumer::forward::incompat_shapes::gather_large_input::insert_gather::CreateReferenceFunction),
-                       ::testing::Values(element::f32),
-                       ::testing::ValuesIn(binary_transpose_input_indexes)),
+    ::testing::Combine(
+        ::testing::ValuesIn(binary_elementwise_factories),
+        ::testing::Values(CREATE_PASS_FACTORY(GatherSinkingBinaryForward)),
+        ::testing::Values(
+            binary::single_consumer::forward::incompat_shapes::gather_large_input::insert_gather::CreateFunction),
+        ::testing::Values(binary::single_consumer::forward::incompat_shapes::gather_large_input::insert_gather::
+                              CreateReferenceFunction),
+        ::testing::Values(element::f32),
+        ::testing::ValuesIn(binary_transpose_input_indexes)),
     GatherSinkingBinaryIncompatShapesTestFixture::get_test_name);
 
 }  // namespace one_input_transpose
@@ -1154,9 +1168,8 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
 
 }  // namespace backward
 
-using CreateGraphF = std::function<std::shared_ptr<Model>(BinaryFactoryPtr binary_factory,
-                                                          element::Type input_type,
-                                                          size_t binary_gather_input_idx)>;
+using CreateGraphF = std::function<
+    std::shared_ptr<Model>(BinaryFactoryPtr binary_factory, element::Type input_type, size_t binary_gather_input_idx)>;
 
 struct CreateGraphFunctionDesc {
     CreateGraphFunctionDesc() = default;

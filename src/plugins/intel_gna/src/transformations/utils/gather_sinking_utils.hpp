@@ -42,7 +42,7 @@ bool IfNodeHasGatherInputs(const ov::Output<ov::Node>& output, GatherInfoPredica
     GatherInputsInfo inputs_info = GetFirstGatherInput(output.get_node_shared_ptr());
     if (inputs_info.isEmpty())
         return false;
-    
+
     return gather_info_predicate(inputs_info);
 }
 
@@ -76,10 +76,8 @@ void RemoveInputNode(std::shared_ptr<ov::Node>, size_t input_idx);
 /**
  * @brief Inserts Gather on each main_node output with the order specified in @arg GatherInputsInfo
  */
-ov::NodeVector InsertOutputGather(std::shared_ptr<ov::Node> main_node,
-                                      const GatherInputsInfo&);
+ov::NodeVector InsertOutputGather(std::shared_ptr<ov::Node> main_node, const GatherInputsInfo&);
 }  // namespace sink_forward
-
 
 namespace sink_backward {
 /**
@@ -104,11 +102,12 @@ bool HasSameOutputGatherNodes(const ov::Output<ov::Node>&);
  */
 void RemoveSingleOutputConsumers(std::shared_ptr<ov::Node>);
 
-bool constant_has_rank_not_more_than(const std::shared_ptr<ov::opset9::Constant>&, const ov::Rank::value_type expected_rank);
+bool constant_has_rank_not_more_than(const std::shared_ptr<ov::opset9::Constant>&,
+                                     const ov::Rank::value_type expected_rank);
 
 /**
  * Checks if output has rank not more than expected
-*/
+ */
 std::function<bool(ov::Output<ov::Node>)> rank_not_more_than(const ov::Rank::value_type expected_rank);
 
 }  // namespace gather_sinking
