@@ -92,35 +92,35 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool allo
     // that we observed in real models.
 
     // @TODO ONEDNN_3_0 limitation does not allow per-channel scales
-    if (allowBinary) {
-        appendBinary(dnnl::algorithm::binary_mul, scale);
-        return true;
-    }
+    // if (allowBinary) {
+    //     appendBinary(dnnl::algorithm::binary_mul, scale);
+    //     return true;
+    // }
     // fuse into existing output scale (only when isINT8)
     bool can_fuse_into_oscale = false;
-    if (isINT8 && scale.size() == 1) {
-        if (ops.len() == 0)
-            can_fuse_into_oscale = true;
+    // if (isINT8 && scale.size() == 1) {
+    //     if (ops.len() == 0)
+    //         can_fuse_into_oscale = true;
 
-        // relu(x)*s = relu(x*s)
-        // prelu(x)*s = prelu(x*s)
-        if (ops.len() == 1) {
-            auto& cur_op = ops.get()->entry_[0];
-            if ((cur_op.kind == dnnl::impl::primitive_kind::eltwise && cur_op.eltwise.alg == dnnl_eltwise_relu) ||
-                (cur_op.kind == dnnl::impl::primitive_kind::binary && cur_op.binary.alg == dnnl_binary_prelu)) {
-                can_fuse_into_oscale = true;
-            }
-        }
+    //     // relu(x)*s = relu(x*s)
+    //     // prelu(x)*s = prelu(x*s)
+    //     if (ops.len() == 1) {
+    //         auto& cur_op = ops.get()->entry_[0];
+    //         if ((cur_op.kind == dnnl::impl::primitive_kind::eltwise && cur_op.eltwise.alg == dnnl_eltwise_relu) ||
+    //             (cur_op.kind == dnnl::impl::primitive_kind::binary && cur_op.binary.alg == dnnl_binary_prelu)) {
+    //             can_fuse_into_oscale = true;
+    //         }
+    //     }
 
-        // (x + dst[:])*s = (x*s + s*dst[:])
-        if (scale.size() == 1 && ops.len() == 1) {
-            auto& cur_op = ops.get()->entry_.back();
-            if (cur_op.kind == dnnl::impl::primitive_kind::sum) {
-                cur_op.sum.scale *= scale[0];
-                can_fuse_into_oscale = true;
-            }
-        }
-    }
+    //     // (x + dst[:])*s = (x*s + s*dst[:])
+    //     if (scale.size() == 1 && ops.len() == 1) {
+    //         auto& cur_op = ops.get()->entry_.back();
+    //         if (cur_op.kind == dnnl::impl::primitive_kind::sum) {
+    //             cur_op.sum.scale *= scale[0];
+    //             can_fuse_into_oscale = true;
+    //         }
+    //     }
+    // }
 
     if (can_fuse_into_oscale) {
         if (scale.size() > 1) {
