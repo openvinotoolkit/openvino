@@ -9,16 +9,18 @@ ov_coverage_clean(REPOSITORY "openvino"
 ov_coverage_capture(INFO_FILE "openvino"
                     BASE_DIRECTORY "${OV_COVERAGE_BASE_DIRECTORY}"
                     DIRECTORY "${OV_COVERAGE_GCDA_DATA_DIRECTORY}"
-                    EXCLUDE_PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/*.pb.cc" 
-                                     "${OV_COVERAGE_BASE_DIRECTORY}/*.pb.h" 
-                                     "${OV_COVERAGE_BASE_DIRECTORY}/*/tests/*" 
-                                     "${OV_COVERAGE_BASE_DIRECTORY}/*/tests_deprecated/*" 
-                                     "${OV_COVERAGE_BASE_DIRECTORY}/thirdparty/*") # Skip some pb files, tests and thirdparty
+                    EXCLUDE_PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/*.pb.cc"
+                                     "${OV_COVERAGE_BASE_DIRECTORY}/*.pb.h"
+                                     "${OV_COVERAGE_BASE_DIRECTORY}/*/tests/*"
+                                     "${OV_COVERAGE_BASE_DIRECTORY}/*/tests_deprecated/*"
+                                     "${OV_COVERAGE_BASE_DIRECTORY}/thirdparty/*"
+                                     "${OV_COVERAGE_BASE_DIRECTORY}/CMakeCXXCompilerId.cpp"
+                                     "${OV_COVERAGE_BASE_DIRECTORY}/CMakeCCompilerId.c") # Skip some service files, tests and thirdparty
+# Generate reports
+
 # Common report
 ov_coverage_genhtml(INFO_FILE "openvino"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
-
-# Generate reports
 
 ##################### Core Components #####################
 ov_coverage_extract(INPUT "openvino" OUTPUT "inference"

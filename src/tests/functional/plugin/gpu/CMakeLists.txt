@@ -11,6 +11,7 @@ addIeTargetTest(
             ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}
+            $<TARGET_PROPERTY:openvino_intel_gpu_plugin,SOURCE_DIR>/include/
         DEPENDENCIES
             openvino_intel_gpu_plugin
         LINK_LIBRARIES
@@ -45,5 +46,6 @@ if (ENABLE_INTEL_CPU)
         "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_plugin/life_time.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_plugin/properties_tests.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/multi/gpu_remote_blob_tests.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_executable_network/exec_net_base.cpp"
         PROPERTIES COMPILE_DEFINITIONS ENABLE_INTEL_CPU=1)
 endif()

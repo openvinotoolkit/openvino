@@ -21,14 +21,23 @@ struct assign : public primitive_base<assign> {
     /// @param variable_id Variable id
     /// @param output_layout Memory layout
     assign(const primitive_id &id,
-               const std::vector<input_info>& inputs,
-               const std::string& variable_id,
-               const layout& output_layout)
-                : primitive_base(id, inputs, {padding()}, {optional_data_type{output_layout.data_type}}),
-                  variable_id{variable_id},
-                  output_layout{output_layout} {}
+           const std::vector<input_info>& inputs,
+           const std::string& variable_id,
+           const layout& output_layout)
+      : primitive_base(id, inputs, {padding()}, {optional_data_type{output_layout.data_type}}),
+        variable_id{variable_id},
+        output_layout{output_layout} {}
 
     std::string variable_id;
     layout output_layout;
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const assign>(rhs);
+
+        return variable_id == rhs_casted.variable_id;
+    }
 };
 }  // namespace cldnn

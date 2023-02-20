@@ -13,6 +13,7 @@
 #include <process.h>
 #endif
 
+#include "openvino/pass/manager.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "transformations/convert_precision.hpp"
@@ -278,11 +279,6 @@ void SubgraphBaseTest::infer() {
 }
 
 std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
-    if (is_report_stages) {
-        std::cout << "[ REFERENCE   ] `SubgraphBaseTest::calculate_refs()` is started"<< std::endl;
-    }
-    auto start_time = std::chrono::system_clock::now();
-
     using InputsMap = std::map<std::shared_ptr<ov::Node>, ov::Tensor>;
 
     auto functionToProcess = functionRefs->clone();
@@ -340,11 +336,6 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
     functionToProcess = p.build();
 
     auto results = ngraph::helpers::interpretFunction(functionToProcess, inputs);
-    if (is_report_stages) {
-        auto end_time = std::chrono::system_clock::now();
-        std::chrono::duration<double> duration = end_time - start_time;
-        std::cout << "[ REFERENCE   ] `SubgraphBaseTest::calculate_refs()` is finished successfully. Duration is " << duration.count() << "s" << std::endl;
-    }
     return results;
 }
 

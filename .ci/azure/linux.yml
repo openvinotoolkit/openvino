@@ -100,12 +100,12 @@ jobs:
     BUILD_PYTHON: $(WORK_DIR)/build_python
     INSTALL_PYTHON: $(INSTALL_OPENVINO)/extras/python
     LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
-    OV_PYTHON_VERSION: 3.10.9 # Newest version of Python 3.10. Full version of Python its required for LD_LIBRARY_PATH and required for successful Task setupPython
+    OV_PYTHON_VERSION: 3.10.10 # Full version of Python its required for LD_LIBRARY_PATH. More details https://github.com/microsoft/azure-pipelines-tool-lib/blob/master/docs/overview.md#tool-cache
 
   steps:
   - task: UsePythonVersion@0
     inputs:
-      versionSpec: '3.10'
+      versionSpec: '$(OV_PYTHON_VERSION)' # Setting only major & minor version will download latest release from GH repo example 3.10 will be 3.10.10. 
       addToPath: true
       disableDownloadFromRegistry: false
       architecture: 'x64'
@@ -300,7 +300,7 @@ jobs:
 
   - script: ls -alR $(INSTALL_DIR)
     displayName: 'List install test files'
-  
+
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
       export LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$(LD_LIBRARY_PATH)
