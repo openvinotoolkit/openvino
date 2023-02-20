@@ -179,7 +179,7 @@ class GemmGPUTestRandom : public GemmGPUTest {
             auto &v = input_data[i];
             v.resize(size);
             for(size_t i = 0; i < size; ++i) {
-                v[i] = generate_random_value() / 10.f;
+                v[i] = generate_random_value() / 20.f;
             }
         }
     }
