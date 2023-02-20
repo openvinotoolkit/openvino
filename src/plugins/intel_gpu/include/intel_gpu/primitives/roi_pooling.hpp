@@ -96,6 +96,28 @@ struct roi_pooling : public primitive_base<roi_pooling> {
         seed = hash_combine(seed, spatial_bins_y);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const roi_pooling>(rhs);
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(mode) &&
+               cmp_fields(position_sensitive) &&
+               cmp_fields(pooled_width) &&
+               cmp_fields(pooled_height) &&
+               cmp_fields(spatial_scale) &&
+               cmp_fields(trans_std) &&
+               cmp_fields(no_trans) &&
+               cmp_fields(output_dim) &&
+               cmp_fields(part_size) &&
+               cmp_fields(group_size) &&
+               cmp_fields(spatial_bins_x) &&
+               cmp_fields(spatial_bins_y);
+        #undef cmp_fields
+    }
 };
 
 }  // namespace cldnn
