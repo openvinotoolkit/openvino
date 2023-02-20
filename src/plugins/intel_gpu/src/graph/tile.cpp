@@ -6,6 +6,7 @@
 #include "tile_shape_inference.hpp"
 
 #include "primitive_type_base.h"
+#include "memory_adapter.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/format.hpp"
@@ -13,35 +14,6 @@
 #include <string>
 
 namespace cldnn {
-
-/**
- * @brief cldnn Memory adapter to access its data as Tensor.
- *
- * This adapter takes data ownership by store the memory lock and release when object will be destroyed.
- *
- * @note This is example how to use it with tensor data accessor function instead creating a map.
- * Make it more generic for GPU plugin.
- */
-class MemoryAdapter : public ov::ITensorDataAdapter {
-public:
-    MemoryAdapter(cldnn::memory::ptr ptr, const cldnn::stream& stream) : m_ptr{ptr}, m_ptr_lock{ptr, stream} {}
-
-    ov::element::Type_t get_element_type() const override {
-        return data_type_to_element_type(m_ptr->get_layout().data_type);
-    }
-
-    size_t get_size() const override {
-        return ov::shape_size(m_ptr->get_layout().get_shape());
-    };
-
-    const void* data() const override {
-        return m_ptr_lock.data();
-    }
-
-private:
-    cldnn::memory::ptr m_ptr;                                  //!< Pointer to cldnn::memory.
-    cldnn::mem_lock<uint8_t, mem_lock_type::read> m_ptr_lock;  //!< Store cldnn memory lock.
-};
 
 GPU_DEFINE_PRIMITIVE_TYPE_ID(tile)
 
