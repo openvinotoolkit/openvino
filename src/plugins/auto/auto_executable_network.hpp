@@ -30,6 +30,8 @@ public:
     IE::Parameter GetConfig(const std::string& name) const override;
     IE::Parameter GetMetric(const std::string& name) const override;
     std::shared_ptr<IE::RemoteContext> GetContext() const override;
+    void Export(std::ostream& model) override;
+    void Export(const std::string& modelFileName) override;
     virtual ~AutoExecutableNetwork() = default;
 
 private:

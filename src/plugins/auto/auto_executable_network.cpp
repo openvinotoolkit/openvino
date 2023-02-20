@@ -184,4 +184,19 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
     }
     IE_THROW() << "Unsupported metric key: " << name;
 }
+
+void AutoExecutableNetwork::Export(std::ostream& model) {
+    if (_autoSchedule->_loadContext[ACTUALDEVICE].isAlready) {
+        return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->Export(model);
+    }
+    return _autoSchedule->_loadContext[CPU].executableNetwork->Export(model);
+}
+
+void AutoExecutableNetwork::Export(const std::string& modelFileName) {
+    if (_autoSchedule->_loadContext[ACTUALDEVICE].isAlready) {
+        return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->Export(modelFileName);
+    }
+    return _autoSchedule->_loadContext[CPU].executableNetwork->Export(modelFileName);
+}
+
 }  // namespace MultiDevicePlugin

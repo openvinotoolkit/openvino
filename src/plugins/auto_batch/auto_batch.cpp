@@ -624,6 +624,14 @@ InferenceEngine::Parameter AutoBatchExecutableNetwork::GetConfig(const std::stri
     }
 }
 
+void AutoBatchExecutableNetwork::Export(std::ostream& model) {
+    _networkWithoutBatch->Export(model);
+}
+
+void AutoBatchExecutableNetwork::Export(const std::string& modelFileName) {
+    _networkWithoutBatch->Export(modelFileName);
+}
+
 InferenceEngine::Parameter AutoBatchExecutableNetwork::GetMetric(const std::string& name) const {
     if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
         auto reqs = 0;
