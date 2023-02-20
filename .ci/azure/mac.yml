@@ -143,9 +143,6 @@ jobs:
         -DBUILD_nvidia_plugin=OFF \
         -S $(REPO_DIR) \
         -B $(BUILD_DIR)
-    env:
-      CC: gcc
-      CXX: g++
     displayName: 'CMake OpenVINO'
 
   - script: ls -alR $(REPO_DIR)/temp/
