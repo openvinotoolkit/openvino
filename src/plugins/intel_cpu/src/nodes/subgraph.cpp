@@ -678,7 +678,7 @@ bool Snippet::SnippetJitExecutor::optimizeExecDomain(std::vector<VectorDims>& in
             size_t nextJitWorkAmount = currentJitWorkAmount * domain[domain.size() - 2];
             if (fullWorkAmount / nextJitWorkAmount >= minimalConcurrency) {
                 currentJitWorkAmount = nextJitWorkAmount;
-                // if we cannot use dim collapsing we should use tile2D.
+                // if we cannot use dim collapsing we should use tile2D
                 if (!canCollapse) {
                     if (TileRank < maxTileRank) {
                         TileRank++;

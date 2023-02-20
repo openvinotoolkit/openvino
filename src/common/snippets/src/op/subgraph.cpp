@@ -423,6 +423,55 @@ bool snippets::op::Subgraph::check_broadcast(const std::shared_ptr<const ov::Nod
         (elementwise->get_autob().m_type != ov::op::AutoBroadcastType::PDPD);
 }
 
+ov::PartialShape snippets::op::Subgraph::compute_master_shape(const std::vector<Shape>& outputShapes, const std::vector<Shape>& inputShapes) {
+    reshape_body(inputShapes);
+    auto skipStartEndOnes = [](const PartialShape& shape) {
+        auto begin = shape.begin();
+        auto end = shape.end();
+        while (begin != end && *begin == 1)
+            begin++;
+        while (begin != end && *(end-1) == 1)
+            end--;
+
+        PartialShape trimmedShape(std::vector<ov::Dimension> (end - begin, 1));
+        std::copy(begin, end, trimmedShape.begin());
+        return trimmedShape;
+    };
+
+    // Check that output shapes are broadcastable => can be scheduled
+    const auto& body_results = body_ptr()->get_results();
+    PartialShape outPShape = body_results[0]->get_input_partial_shape(0);
+    // todo: we need a slightly more general approach for backward ROI propagation
+    const auto& result_parent = body_results[0]->get_input_node_shared_ptr(0);
+    if (body_results.size() == 1 &&
+        ov::is_type<opset1::Transpose>(result_parent) &&
+        ov::is_type<opset1::MatMul>(result_parent->get_input_node_shared_ptr(0))) {
+        outPShape = result_parent->get_input_partial_shape(0);
+    } else {
+        for (size_t i = 0; i < body_results.size(); i++) {
+            auto shape_i = body_results[i]->get_input_partial_shape(0);
+            auto outputShape_i = outputShapes[i];
+            // Check that the produced output shape corresponds to the passed shape
+            // Some produced shapes may have been changed to be broadcastable (e.g. blocked + planar outputs),
+            // so we need to remove leading and trailing "1" before the comparison
+            PartialShape pShape_i(skipStartEndOnes(shape_i));
+            bool compatibleWithPassedShape = PartialShape::broadcast_merge_into(pShape_i,
+                                                                                skipStartEndOnes(outputShape_i),
+                                                                                ::ngraph::op::AutoBroadcastType::NUMPY);
+            NODE_VALIDATION_CHECK(this, compatibleWithPassedShape,
+                                  "Inferred and passed results shapes are incompatible for snippet ");
+            // Check that output shapes are broadcastable to each other => can be scheduled
+            bool compatibleWithOtherOutputs = PartialShape::broadcast_merge_into(outPShape, shape_i,
+                                                                                 ::ngraph::op::AutoBroadcastType::NUMPY);
+            NODE_VALIDATION_CHECK(this, compatibleWithOtherOutputs,
+                                  "Snippets output shapes must be numpy broadcastable");
+        }
+    }
+
+    master_shape = outPShape;
+    return master_shape;
+}
+
 void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outputShapes,
                                                  const BlockedShapeVector& inputShapes) {
     // We should insert Convert before Results to set original output element type if needed

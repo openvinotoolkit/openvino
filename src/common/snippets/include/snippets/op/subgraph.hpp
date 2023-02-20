@@ -118,6 +118,7 @@ public:
     ov::PartialShape canonicalize(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes);
     std::vector<PartialShape> reshape_body(const std::vector<PartialShape>& input_shapes);
     std::vector<Shape> reshape_body(const std::vector<Shape>& input_shapes);
+    ov::PartialShape compute_master_shape(const std::vector<Shape>& outputShapes, const std::vector<Shape>& inputShapes);
 
     // plugin sets generator for a snippet to some specific generator.
     // it's going to be replaced with Jitters table later
