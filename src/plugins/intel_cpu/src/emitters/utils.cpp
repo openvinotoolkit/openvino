@@ -131,16 +131,19 @@ const char * RegPrinter::get_name(REG_T reg, const char *name) {
     if (name == nullptr) {
         return reg_name;
     } else {
+        constexpr size_t cnt = 1024;
         constexpr size_t len = 64;
         constexpr size_t aux_len = 3;
-        static char full_name[len];
+        static size_t i = 0;
+        static char full_names[cnt][len];
 
         size_t total_len = std::strlen(name) + std::strlen(reg_name) + aux_len + 1;
-        if (total_len > len) {
-           return reg_name;
+        if (total_len > len || i >= cnt) {
+            return reg_name;
         } else {
-           snprintf(full_name, len, "%s | %s", name, reg_name);
-           return full_name;
+            char *full_name = full_names[i++];
+            snprintf(full_name, len, "%s | %s", name, reg_name);
+            return full_name;
         }
     }
 }
