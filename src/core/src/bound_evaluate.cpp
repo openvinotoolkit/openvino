@@ -8,6 +8,8 @@
 #include "ngraph/validation_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "shape_util.hpp"
+#include "tensor_conversion_util.hpp"
 
 namespace {
 using namespace ov;
@@ -80,18 +82,9 @@ ov::Tensor evaluate_bound(const Output<Node>& output, bool is_upper, bool invali
         for (const auto& node : order) {
             ov::TensorVector outputs;
             for (const auto& out : node->outputs()) {
-                const auto& out_shape = out.get_partial_shape();
-                const auto& out_et = out.get_element_type();
-
-                if (out_et.is_dynamic()) {
-                    outputs.emplace_back();
-                } else if (out_shape.is_static()) {
-                    outputs.emplace_back(out_et, out_shape.to_shape());
-                } else if (out_shape.rank().is_static()) {
-                    outputs.emplace_back(out_et, Shape(out_shape.rank().get_length()));
-                } else {
-                    outputs.emplace_back(out_et, Shape{0});
-                }
+                OPENVINO_SUPPRESS_DEPRECATED_START
+                outputs.push_back(util::wrap_tensor(out));
+                OPENVINO_SUPPRESS_DEPRECATED_END
             }
 
             if (is_upper ? node->evaluate_upper(outputs) : node->evaluate_lower(outputs)) {
@@ -176,11 +169,12 @@ ov::Tensor equality_mask(const ov::Tensor& tensor, const std::shared_ptr<op::v0:
 }
 
 ov::Tensor or_tensor(const ov::Tensor& lhs, const ov::Tensor& rhs) {
-    auto outs = ov::TensorVector{{lhs.get_element_type(), Shape{0}}};
-    op::v1::LogicalOr(std::make_shared<op::v0::Parameter>(lhs.get_element_type(), lhs.get_shape()),
-                      std::make_shared<op::v0::Parameter>(rhs.get_element_type(), rhs.get_shape()),
-                      ngraph::op::AutoBroadcastType::NUMPY)
-        .evaluate(outs, ov::TensorVector{lhs, rhs});
+    auto logical_or = op::v1::LogicalOr(std::make_shared<op::v0::Parameter>(lhs.get_element_type(), lhs.get_shape()),
+                                        std::make_shared<op::v0::Parameter>(rhs.get_element_type(), rhs.get_shape()),
+                                        op::AutoBroadcastType::NUMPY);
+
+    auto outs = ov::TensorVector{{lhs.get_element_type(), logical_or.get_output_shape(0)}};
+    logical_or.evaluate(outs, ov::TensorVector{lhs, rhs});
     return outs.front();
 }
 
@@ -466,8 +460,10 @@ bool ov::default_label_evaluator(const Node* node,
 
         for (size_t i = 0; i < outputs_count; ++i) {
             const auto& partial_shape = node->get_output_partial_shape(i);
-            // Set shape for static or Shape{0} for dynamic to postpone memory allocation
-            auto shape = partial_shape.is_static() ? partial_shape.to_shape() : Shape{0};
+            // Set shape for static or special dynamic if partial shape is dynamic.
+            OPENVINO_SUPPRESS_DEPRECATED_START
+            auto shape = partial_shape.is_static() ? partial_shape.to_shape() : util::make_dynamic_shape();
+            OPENVINO_SUPPRESS_DEPRECATED_END
             outputs.emplace_back(element::from<label_t>(), shape);
         }
 
