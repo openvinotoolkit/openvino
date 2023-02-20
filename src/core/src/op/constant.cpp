@@ -460,7 +460,7 @@ ov::AxisSet ov::op::v0::Constant::get_axis_set_val() const {
     std::vector<int64_t> out_axis_set = cast_vector<int64_t>();
     AxisSet output_axis_set;
     for (auto& axis : out_axis_set) {
-        output_axis_set.insert(axis > 0 ? axis : 0);
+        output_axis_set.insert(axis);
     }
     return output_axis_set;
 }
