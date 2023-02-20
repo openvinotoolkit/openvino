@@ -13,7 +13,7 @@ namespace ov {
 namespace intel_gna {
 namespace pre_post_process {
 
-using namespace ngraph::opset9;
+using namespace ov::opset9;
 
 /*
  * Convert transposition info to preprocessing model using Transpose layer
