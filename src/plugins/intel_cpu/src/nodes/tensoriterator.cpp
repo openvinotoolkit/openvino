@@ -267,12 +267,10 @@ void DynamicBuffer::init(const dnnl::engine& eng) {
     if (!mem_holder_buffer) { // else reuse buffer holder of last inference
         // preallocate a large chunk of memory to hold intermediate concated outputs of all iterations.
         mem_holder_buffer = create_buffer(eng);
-        const auto& mem_holder_dims = mem_holder_buffer.get_desc().dims();
-        mem_holder_buffer_size = std::accumulate(mem_holder_dims.begin(), mem_holder_dims.end(), elem_size, std::multiplies<size_t>());
     }
 
     // reset chunk_offset_in_byte since the first execution
-    chunk_stride_in_byte = mem_holder_buffer_size / count;
+    chunk_stride_in_byte = mem_holder_buffer->GetSize() / count;
     chunk_offset_in_byte = stride > 0 ? 0 : (chunk_stride_in_byte - chunk_unit_in_byte);
     num_execs = 0;
 }
@@ -286,7 +284,7 @@ bool DynamicBuffer::check_buffer() {
     return false;
 }
 
-dnnl::memory DynamicBuffer::create_buffer(const dnnl::engine& eng) {
+MemoryPtr DynamicBuffer::create_buffer(const dnnl::engine& eng) {
     const auto abs_stride = std::abs(map_rule.stride);
 
     const auto estimate_iters = [&] () {
@@ -296,33 +294,32 @@ dnnl::memory DynamicBuffer::create_buffer(const dnnl::engine& eng) {
         return (num_execs == 0) ? 1 : 2 * num_execs; // growth factor 2
     };
     const auto estimated_iters = estimate_iters();
+    const Shape _shape = Shape({count, static_cast<size_t>(abs_stride * estimated_iters), len/elem_size});
+    auto _descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
+    auto new_buffer_desc = _descCreator->createSharedDesc(from->getDesc().getPrecision(), _shape);
 
-    const auto dims = dnnl::memory::dims({static_cast<signed long>(count), abs_stride * estimated_iters, static_cast<signed long>(len/elem_size)});
-
-    dnnl::memory::desc new_buffer_desc(dims, from->GetDataType(), DnnlExtensionUtils::GetPlainFormatByRank(dims.size()));
-
-    return dnnl::memory(new_buffer_desc, eng);
+    auto _ptr = MemoryPtr(new Memory(eng));
+    _ptr->Create(*new_buffer_desc);
+    return _ptr;
 }
 
-void DynamicBuffer::move_buffer(dnnl::memory& new_buffer) {
+void DynamicBuffer::move_buffer(MemoryPtr& new_buffer) {
     const auto stride = map_rule.stride;
 
     // copy data from old buffer to new buffer
     const auto src_stride = chunk_stride_in_byte;
-    const auto dst_stride = new_buffer.get_desc().dims()[1] * len;
+    const auto dst_stride = new_buffer->getDesc().as<BlockedMemoryDesc>()->getBlockDims()[1] * len;
 
     const auto valid_size = chunk_unit_in_byte * num_execs;
     const auto src_offset_in_byte = stride > 0 ? 0 : (src_stride - valid_size);
     chunk_offset_in_byte = stride > 0 ? 0 : (dst_stride - valid_size);  // reset chunk_offset_in_byte
 
-    copy(get_ptr(mem_holder_buffer) + src_offset_in_byte, get_ptr(new_buffer) + chunk_offset_in_byte,
+    copy(reinterpret_cast<uint8_t*>(mem_holder_buffer->GetPtr()) + src_offset_in_byte, reinterpret_cast<uint8_t*>(new_buffer->GetPtr()) + chunk_offset_in_byte,
         src_stride, dst_stride, count, valid_size);
 
     // assign mem_holder_buffer
     mem_holder_buffer = new_buffer;
-    const auto& mem_holder_dims = mem_holder_buffer.get_desc().dims();
-    mem_holder_buffer_size = std::accumulate(mem_holder_dims.begin(), mem_holder_dims.end(), elem_size, std::multiplies<size_t>());
-    chunk_stride_in_byte = mem_holder_buffer_size / count;
+    chunk_stride_in_byte = mem_holder_buffer->GetSize() / count;
 
     // adjust for next execution
     if (stride > 0) {
@@ -336,7 +333,7 @@ void DynamicBuffer::move_data() {
     const auto src_stride = abs(map_rule.stride) * len;
     const auto dst_stride = chunk_stride_in_byte;
 
-    copy(reinterpret_cast<const uint8_t*>(from->GetPtr()), get_ptr(mem_holder_buffer) + chunk_offset_in_byte,
+    copy(reinterpret_cast<const uint8_t*>(from->GetPtr()), reinterpret_cast<uint8_t*>(mem_holder_buffer->GetPtr()) + chunk_offset_in_byte,
          src_stride, dst_stride, count, chunk_unit_in_byte);
 
     // adjust for next execution
@@ -367,7 +364,7 @@ void DynamicBuffer::transfer(const Node* node) {
         const auto dst_stride = to.front()->getStaticDims()[axis] * len;
         const auto valid_size = chunk_unit_in_byte * num_execs;
         const auto src_offset_in_byte = stride > 0 ? 0 : (src_stride - valid_size);
-        copy(get_ptr(mem_holder_buffer) + src_offset_in_byte, reinterpret_cast<uint8_t*>(to.front()->GetPtr()),
+        copy(reinterpret_cast<uint8_t*>(mem_holder_buffer->GetPtr()) + src_offset_in_byte, reinterpret_cast<uint8_t*>(to.front()->GetPtr()),
             src_stride, dst_stride, count, dst_stride);
     } else {
         VectorDims newDims = to.front()->GetShape().getDims();
@@ -382,13 +379,6 @@ void DynamicBuffer::copy(const uint8_t* src, uint8_t* dst, const size_t src_stri
     parallel_for(count, [&](const size_t i) {
         cpu_memcpy(&dst[i * dst_stride], &src[i * src_stride], len);
     });
-}
-
-uint8_t* DynamicBuffer::get_ptr(dnnl::memory& prim) {
-    auto ptr = static_cast<uint8_t*>(prim.get_data_handle());
-    auto md = prim.get_desc().data;
-    dnnl::impl::memory_desc_wrapper wrapper(md);
-    return ptr + wrapper.offset0() * wrapper.data_type_size();
 }
 
 bool TensorIterator::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {

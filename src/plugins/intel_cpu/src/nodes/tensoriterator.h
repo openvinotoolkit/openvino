@@ -76,12 +76,12 @@ private:
 
     /* methods for resize and refill buffer */
     bool check_buffer();
-    dnnl::memory create_buffer(const dnnl::engine& eng);
-    void move_buffer(dnnl::memory& new_buffer);
+    MemoryPtr create_buffer(const dnnl::engine& eng);
+    void move_buffer(MemoryPtr& new_buffer);
     void move_data();
 
     static void copy(const uint8_t* src, uint8_t* dst, const size_t src_stride, const size_t dst_stride, const size_t count, const size_t len);
-    static uint8_t* get_ptr(dnnl::memory& prim);
+    static uint8_t* get_ptr(MemoryPtr& prim);
 
     /* variable states */
     size_t len = 1lu;
@@ -99,8 +99,7 @@ private:
     PortMap map_rule;
     size_t elem_size = 0lu;
 
-    dnnl::memory mem_holder_buffer;
-    size_t mem_holder_buffer_size = 0lu;
+    MemoryPtr mem_holder_buffer;
 };
 
 class TensorIterator : public Node {
