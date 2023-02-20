@@ -182,7 +182,7 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
             _streams = static_cast<int32_t>(getAvailableNUMANodes().size());
         } else if (streams == ov::streams::AUTO) {
             // bare minimum of streams (that evenly divides available number of cores)
-            if (!cpuMapAvailable()) {
+            if (!cpu_map_available()) {
                 _streams = GetDefaultNumStreams();
             }
         } else if (streams.num >= 0) {
@@ -432,7 +432,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::SetExecutorConfig(std::string
                                                                      ThreadBindingType thread_binding_type,
                                                                      PreferredCoreType thread_core_type) {
     Config streamExecutorConfig = Config{name, num_streams};
-    if (cpuMapAvailable()) {
+    if (cpu_map_available()) {
         if (name.find("CPU") == std::string::npos) {
             streamExecutorConfig._logic_core_disable = true;
             streamExecutorConfig._plugin_task = GPU_PRE_USED;
@@ -456,7 +456,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::SetExecutorConfig(std::string
             auto num_cores = streamExecutorConfig._threadPreferredCoreType == LITTLE
                                  ? streamExecutorConfig._small_core_streams
                                  : streamExecutorConfig._big_core_streams;
-            auto cpu_ids = getAvailableCPUs(core_type, num_cores);
+            auto cpu_ids = get_available_cpus(core_type, num_cores);
             setCpuUsed(cpu_ids, 2);
         }
     }
@@ -483,7 +483,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
     auto streamExecutorConfig = initial;
     const bool bLatencyCase = streamExecutorConfig._streams <= numaNodesNum;
 
-    if (cpuMapAvailable()) {
+    if (cpu_map_available()) {
         if ((!bLatencyCase && ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType) ||
             ThreadBindingType::CORES == streamExecutorConfig._threadBindingType) {
             streamExecutorConfig._bind_cores = true;

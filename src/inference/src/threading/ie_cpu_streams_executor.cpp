@@ -82,7 +82,7 @@ struct CPUStreamsExecutor::Impl {
                                                           _impl->_usedNumaNodes.size()))
                               : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-            if (cpuMapAvailable()) {
+            if (cpu_map_available()) {
                 std::lock_guard<std::mutex> lock{_impl->_cpumap_mutex};
                 const auto stream_id = _streamId >= _impl->_config._streams ? _impl->_config._streams - 1 : _streamId;
                 const auto concurrency =
@@ -114,10 +114,10 @@ struct CPUStreamsExecutor::Impl {
                     const auto small_core_threads_3 = cpu_core_type == EFFICIENT_CORE_PROC && concurrency == 3 &&
                                                       _impl->_config._small_core_streams > 1;
                     const auto num_cpus = small_core_threads_3 ? concurrency + 1 : concurrency;
-                    _cpu_ids = getAvailableCPUs(cpu_core_type, num_cpus, _impl->_config._plugin_task);
+                    _cpu_ids = get_available_cpus(cpu_core_type, num_cpus, _impl->_config._plugin_task);
                     if (_cpu_ids.size() > 0) {
                         if (cpu_core_type == MAIN_CORE_PROC && _impl->_config._logic_core_disable == true) {
-                            std::vector<int> logic_cores = getLogicCores(_cpu_ids);
+                            std::vector<int> logic_cores = get_logic_cores(_cpu_ids);
                             _cpu_ids.insert(_cpu_ids.end(), logic_cores.begin(), logic_cores.end());
                         }
                         setCpuUsed(_cpu_ids, CPU_USED);

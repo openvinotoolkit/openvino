@@ -51,7 +51,7 @@ private:
     void SetStreamtoConfig(const std::map<std::string, std::string> &config);
 
     struct StreamCfg {
-        int num_streams;
+        int num_streams;               // Number of streams
         int big_core_streams;          // Number of streams in Performance-core(big core)
         int big_core_logic_streams;    // Number of streams in Performance logical core(big core)
         int small_core_streams;        // Number of streams in Efficient-core(small core)
@@ -59,7 +59,6 @@ private:
         int threads_per_stream_small;  // Threads per stream in small cores
         int small_core_offset;
     };
-    enum StreamMode { DEFAULT, AGGRESSIVE, LESSAGGRESSIVE };
     StreamCfg ParseStreamsTable(std::vector<std::vector<int>> streams_table) const;
     StreamCfg GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBindingType thread_binding_type,
                             int stream_mode,

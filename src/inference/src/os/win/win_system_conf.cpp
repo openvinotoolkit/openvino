@@ -239,13 +239,13 @@ std::vector<std::vector<int>> getNumOfAvailableCPUCores(const int plugin_task) {
     return proc_type_table;
 }
 
-bool cpuMapAvailable() {
+bool cpu_map_available() {
     return cpu._cpu_mapping_table.size() > 0;
 }
 
-std::vector<int> getAvailableCPUs(const column_of_processor_type_table core_type,
-                                  const int num_cpus,
-                                  const int plugin_task) {
+std::vector<int> get_available_cpus(const column_of_processor_type_table core_type,
+                                    const int num_cpus,
+                                    const int plugin_task) {
     std::vector<int> cpu_ids;
     if (core_type < PROC_TYPE_TABLE_SIZE && core_type >= ALL_PROC) {
         for (int i = 0; i < cpu._processors; i++) {
@@ -263,20 +263,23 @@ std::vector<int> getAvailableCPUs(const column_of_processor_type_table core_type
     return cpu_ids;
 }
 
-std::vector<int> getLogicCores(std::vector<int> cpu_ids) {
+std::vector<int> get_logic_cores(const std::vector<int> cpu_ids) {
     std::vector<int> logic_cores;
-    int cpu_size = static_cast<int>(cpu_ids.size());
-    for (int i = 0; i < cpu._processors; i++) {
-        for (int j = 0; j < cpu_size; j++) {
-            if (cpu._cpu_mapping_table[i][CPU_MAP_CORE_ID] == cpu._cpu_mapping_table[cpu_ids[j]][CPU_MAP_CORE_ID] &&
-                cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID] != cpu_ids[j]) {
-                logic_cores.push_back(cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
+    if (cpu._proc_type_table[0][HYPER_THREADING_PROC] > 0) {
+        int cpu_size = static_cast<int>(cpu_ids.size());
+        for (int i = 0; i < cpu._processors; i++) {
+            for (int j = 0; j < cpu_size; j++) {
+                if (cpu._cpu_mapping_table[i][CPU_MAP_CORE_ID] == cpu._cpu_mapping_table[cpu_ids[j]][CPU_MAP_CORE_ID] &&
+                    cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID] != cpu_ids[j]) {
+                    logic_cores.push_back(cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
+                }
+            }
+            if (cpu_ids.size() == logic_cores.size()) {
+                break;
             }
         }
-        if (cpu_ids.size() == logic_cores.size()) {
-            break;
-        }
     }
+
     return logic_cores;
 }
 

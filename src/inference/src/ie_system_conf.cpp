@@ -160,13 +160,15 @@ std::vector<std::vector<int>> getNumOfAvailableCPUCores(const int plugin_task) {
     proc_type_table.resize(1, std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
     return proc_type_table;
 }
-bool cpuMapAvailable() {
+bool cpu_map_available() {
     return false;
 }
-std::vector<int> getAvailableCPUs(const cpu_core_type_of_processor core_type, const int num_cpus, const bool cpu_task) {
+std::vector<int> get_available_cpus(const cpu_core_type_of_processor core_type,
+                                    const int num_cpus,
+                                    const bool cpu_task) {
     return {};
 }
-std::vector<int> getLogicCores(std::vector<int> cpu_ids) {
+std::vector<int> get_logic_cores(const std::vector<int> cpu_ids) {
     return {};
 }
 void setCpuUsed(std::vector<int> cpu_ids, int used) {}

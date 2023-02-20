@@ -223,6 +223,16 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
 
     auto getNumStreams = [&](int nstreams) {
         StreamCfg streams_info;
+
+        auto num_requests = config.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
+        if (num_requests != config.end()) {  // arrived with config to the LoadNetwork (and thus higher pri)
+            auto val = PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second);
+            if (val > 0)
+                nstreams = std::min(nstreams, val);
+        } else if (engConfig.perfHintsConfig.ovPerfHintNumRequests) {  // set thru SetConfig to the plugin, 2nd priority
+            nstreams = std::min(nstreams, engConfig.perfHintsConfig.ovPerfHintNumRequests);
+        }
+
         int model_prefer = GetModelPreferThreads(ngraphFunc);
         const std::vector<std::vector<int>> proc_type_table =
             getNumOfAvailableCPUCores(engConfig.streamExecutorConfig._plugin_task);
@@ -230,15 +240,6 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
             get_streams_info_table(nstreams, engConfig.streamExecutorConfig._threads, model_prefer, proc_type_table);
         streams_info = ParseStreamsTable(stream_info_table);
 
-        auto num_requests = config.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
-        if (num_requests != config.end()) {  // arrived with config to the LoadNetwork (and thus higher pri)
-            auto val = PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second);
-            if (val > 0)
-                streams_info.num_streams = std::min(streams_info.num_streams, val);
-        } else if (engConfig.perfHintsConfig.ovPerfHintNumRequests) {  // set thru SetConfig to the plugin, 2nd priority
-            streams_info.num_streams =
-                std::min(streams_info.num_streams, engConfig.perfHintsConfig.ovPerfHintNumRequests);
-        }
         return std::pair<std::string, Engine::StreamCfg>(std::to_string(streams_info.num_streams), streams_info);
     };
 
@@ -275,7 +276,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
     ngraphFunc->set_rt_info(hints_props, "intel_cpu_hints_config");
 
     const auto perf_hint_name = getPerfHintName();
-    if (cpuMapAvailable()) {
+    if (cpu_map_available()) {
         int streams = engConfig.streamExecutorConfig._streams;
         if (perf_hint_name == CONFIG_VALUE(LATENCY)) {
             streams = static_cast<int>(getAvailableNUMANodes().size());
@@ -385,7 +386,7 @@ Engine::StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::Threa
                                         const bool enable_hyper_thread) const {
     const int sockets = static_cast<int>(getAvailableNUMANodes().size());
     const int num_cores =
-        thread_binding_type == InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
+        thread_binding_type == IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
             ? parallel_get_max_threads()
             : (sockets == 1 ? (enable_hyper_thread ? parallel_get_max_threads() : getNumberOfCPUCores())
                             : getNumberOfCPUCores());
@@ -395,9 +396,9 @@ Engine::StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::Threa
     const int num_big_cores = num_cores > num_cores_phy ? num_big_cores_phy * 2 : num_big_cores_phy;
     StreamCfg stream_cfg = {0};
 
-    if (stream_mode == DEFAULT) {
+    if (stream_mode == IStreamsExecutor::Config::StreamMode::DEFAULT) {
         // bare minimum of streams (that evenly divides available number of core)
-        if (thread_binding_type == InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE) {
+        if (thread_binding_type == IStreamsExecutor::ThreadBindingType::HYBRID_AWARE) {
             if (0 == num_big_cores_phy % 4) {
                 stream_cfg.threads_per_stream_big = 4;
             } else if (0 == num_big_cores_phy % 5) {
@@ -432,8 +433,8 @@ Engine::StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::Threa
             else  // if user disables some cores say in BIOS, so we got weird #cores which is not easy to divide
                 stream_cfg.num_streams = 1;
         }
-    } else if (stream_mode == AGGRESSIVE) {
-        if (thread_binding_type == InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE) {
+    } else if (stream_mode == IStreamsExecutor::Config::StreamMode::AGGRESSIVE) {
+        if (thread_binding_type == IStreamsExecutor::ThreadBindingType::HYBRID_AWARE) {
             stream_cfg.big_core_streams = num_big_cores;
             stream_cfg.small_core_streams = num_small_cores;
             stream_cfg.threads_per_stream_big = num_big_cores / stream_cfg.big_core_streams;
@@ -442,8 +443,8 @@ Engine::StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::Threa
         } else {
             stream_cfg.num_streams = num_cores_phy;
         }
-    } else if (stream_mode == LESSAGGRESSIVE) {
-        if (thread_binding_type == InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE) {
+    } else if (stream_mode == IStreamsExecutor::Config::StreamMode::LESSAGGRESSIVE) {
+        if (thread_binding_type == IStreamsExecutor::ThreadBindingType::HYBRID_AWARE) {
             stream_cfg.big_core_streams = num_big_cores / 2;
             stream_cfg.small_core_streams = num_small_cores / 2;
             stream_cfg.threads_per_stream_big = num_big_cores / stream_cfg.big_core_streams;
@@ -580,7 +581,7 @@ void Engine::SetStreamtoConfig(const std::map<std::string, std::string>& config)
     auto set_enable = config.count(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) ||
                       config.count(ov::num_streams.name()) || config.count(CONFIG_KEY(CPU_THREADS_NUM)) ||
                       config.count(ov::inference_num_threads.name());
-    if (set_enable && cpuMapAvailable()) {
+    if (set_enable && cpu_map_available()) {
         engConfig.readProperties(config);
     }
 }
