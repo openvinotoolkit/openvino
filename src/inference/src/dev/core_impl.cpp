@@ -25,10 +25,12 @@
 #include "openvino/core/op_extension.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/core/version.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/shared_object.hpp"
+#include "preprocessing/preprocessing.hpp"
 #include "xml_parse_utils.h"
 
 ov::ICore::~ICore() = default;
@@ -40,6 +42,7 @@ void allowNotImplemented(F&& f) {
     try {
         f();
     } catch (const InferenceEngine::NotImplemented&) {
+    } catch (const ov::NotImplemented&) {
     }
 }
 
@@ -328,16 +331,22 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(ov::Plugin& plugin,
                                                           const std::shared_ptr<const ov::Model>& model,
                                                           const ov::RemoteContext& context,
                                                           const ov::AnyMap& config) const {
+    std::shared_ptr<const ov::Model> prepared_model = model;
     ov::SoPtr<ov::ICompiledModel> compiled_model;
 
     if (!is_new_api() && !std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin.m_ptr)) {
-        OPENVINO_NOT_IMPLEMENTED;
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::AddPreprocessing>();
+
+        auto cloned_model = model->clone();
+        manager.run_passes(cloned_model);
+        prepared_model = cloned_model;
     }
 
     if (!context._impl) {
-        compiled_model = plugin.compile_model(model, config);
+        compiled_model = plugin.compile_model(prepared_model, config);
     } else {
-        compiled_model = plugin.compile_model(model, context, config);
+        compiled_model = plugin.compile_model(prepared_model, context, config);
     }
     return compiled_model;
 }
@@ -606,24 +615,19 @@ void ov::CoreImpl::set_property(const std::string& device_name, const AnyMap& pr
                     "set_property is supported only for BATCH itself (without devices). "
                     "You can configure the devices with set_property before creating the BATCH on top.");
 
-    bool isMetaDevice = device_name.find("AUTO") != std::string::npos ||
-                        device_name.find("MULTI") != std::string::npos ||
-                        device_name.find("HETERO") != std::string::npos;
-    if (!isMetaDevice) {
-        // unsupport to set ov::device::properties to HW device through this function
-        auto devices = get_registered_devices();
-        for (auto&& config : properties) {
-            auto parsed = parseDeviceNameIntoConfig(config.first);
-            auto is_secondary_config_for_hw_device =
-                std::any_of(devices.begin(), devices.end(), [&](const std::string& device) {
-                    return device == parsed._deviceName;
-                });
-            OPENVINO_ASSERT(!is_secondary_config_for_hw_device,
-                            "set_property only supported ov::device::propreties for Meta device (AUTO/MULTI/HETERO). "
-                            "You can configure the devices through the compile_model()/loadNetwork() API.");
-        }
+    // unsupport to set ov::device::properties to HW device through this function
+    auto devices = get_registered_devices();
+    for (auto&& config : properties) {
+        auto parsed = parseDeviceNameIntoConfig(config.first);
+        auto is_secondary_config_for_hw_device =
+            std::any_of(devices.begin(), devices.end(), [&](const std::string& device) {
+                return device == parsed._deviceName;
+            });
+        OPENVINO_ASSERT(!is_secondary_config_for_hw_device,
+                        "set_property do not support ov::device::propreties. "
+                        "You can configure the devices through the compile_model()/loadNetwork() API.");
     }
-    set_property_for_devivce(properties, device_name);
+    set_property_for_device(properties, device_name);
 }
 
 ov::Any ov::CoreImpl::get_property_for_core(const std::string& name) const {
@@ -715,7 +719,7 @@ std::vector<std::string> ov::CoreImpl::get_registered_devices() const {
  * @note  `deviceName` is not allowed in form of MULTI:CPU, HETERO:GPU,CPU, AUTO:CPU
  *        just simple forms like CPU, GPU, MULTI, GPU.0, etc
  */
-void ov::CoreImpl::set_property_for_devivce(const ov::AnyMap& configMap, const std::string& deviceName) {
+void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const std::string& deviceName) {
     auto config = configMap;
     if (config.empty()) {
         return;
@@ -849,8 +853,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_impl(const std::shared
                                                                bool forceDisableCache) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::compile_model_impl");
     ov::SoPtr<ov::ICompiledModel> execNetwork;
-    execNetwork =
-        context._impl ? plugin.compile_model(model, context, parsedConfig) : plugin.compile_model(model, parsedConfig);
+    execNetwork = compile_model(plugin, model, context, parsedConfig);
     if (!forceDisableCache && cacheContent.cacheManager && device_supports_import_export(plugin)) {
         try {
             // need to export network for further import from "cache"

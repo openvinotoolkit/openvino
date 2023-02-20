@@ -70,10 +70,17 @@ class PytorchLayerTest:
             im = fe.load(decoder)
             om = fe.convert(im)
 
+        torch_inps = [torch.from_numpy(inp) if isinstance(inp, np.ndarray) else inp for inp in inputs]
+        
         params = om.get_parameters()
         # todo: support lists and dicts
         for i in range(len(inputs)):
             inp = inputs[i]
+            if isinstance(inp, list):
+                inputs[i] = np.array(inp)
+                if inputs[i].dtype == np.int64:
+                    inputs[i] = inputs[i].astype(np.int32)
+                inp = inputs[i]
             assert inp.dtype.name in self._type_map, f"Unknown type {inp.dtype}."
             params[i].set_element_type(self._type_map[inp.dtype.name])
             shape = [-1] * len(inp.shape) if dynamic_shapes else inp.shape
@@ -90,7 +97,6 @@ class PytorchLayerTest:
             return
 
         # Framework infer:
-        torch_inps = [torch.from_numpy(inp) for inp in inputs]
         fw_res = model(*torch_inps)
 
         if not isinstance(fw_res, (tuple)):
@@ -99,11 +105,22 @@ class PytorchLayerTest:
         output_list = list(infer_res.values())
 
         flatten_fw_res = []
-        for res_item in fw_res:
-            # if None is at output we skip it
-            if res_item is None:
-                continue
-            flatten_fw_res.append(res_item)
+
+        def flattenize_list_outputs(res):
+            results = []
+            for res_item in res:
+                # if None is at output we skip it
+                if res_item is None:
+                    continue
+                # If input is list or tuple flattenize it
+                if isinstance(res_item, (list, tuple)):
+                    decomposed_res = flattenize_list_outputs(res_item)
+                    results.extend(decomposed_res)
+                    continue
+                results.append(res_item)
+            return results 
+       
+        flatten_fw_res = flattenize_list_outputs(fw_res)
 
         assert len(flatten_fw_res) == len(
             output_list), f'number of outputs not equal, {len(flatten_fw_res)} != {len(output_list)}'
@@ -111,7 +128,7 @@ class PytorchLayerTest:
         for fw_tensor, ov_tensor in zip(flatten_fw_res, output_list):
             if not isinstance(fw_tensor, torch.Tensor):
                 if np.isscalar(fw_tensor):
-                    assert fw_tensor == np.array(ov_tensor).item()
+                    assert fw_tensor == np.array(ov_tensor).item(), f"{fw_tensor} != {np.array(ov_tensor).item()}"
                 else:
                     if isinstance(fw_tensor, list):
                         ov_tensor = ov_tensor.tolist()

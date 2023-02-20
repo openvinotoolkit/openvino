@@ -408,7 +408,7 @@ struct Params {
     virtual ParamsKey GetParamsKey() const;
 
 protected:
-    Params(KernelType kt, const std::string& id) : kType(kt), layerID(id) {}
+    Params(KernelType kt, const std::string& id) : kType(kt), layerID(id), is_shape_agnostic(false) {}
     KernelType kType;
 
 public:
@@ -416,7 +416,7 @@ public:
     std::string forceImplementation;
     EngineInfo engineInfo;
     std::string uniqueID;
-
+    bool is_shape_agnostic;
     virtual std::string to_string() const;
     virtual std::string to_cache_string_v2() const;
 };

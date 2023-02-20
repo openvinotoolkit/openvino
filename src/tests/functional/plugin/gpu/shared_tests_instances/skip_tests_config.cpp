@@ -97,7 +97,6 @@ std::vector<std::string> disabledTestPatterns() {
             // Not supported yet
             R"(.*CompileModelCacheTestBase.*ConvBias.*)",
             R"(.*CompileModelCacheTestBase.*KSOFunction.*)",
-            R"(.*CompileModelCacheTestBase.*ReadConcatSplitAssign.*)",
             R"(.*LoadNetworkCacheTestBase.*)",
             // Issue: 83014
             R"(.*smoke_RemoteBlob.*canInferOnUserQueue.*)",
@@ -107,7 +106,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_VirtualPlugin_BehaviorTests.*LoadedRemoteContext.*)",
             // Issue: CVS-88667 - Need to verify hetero interoperability
             R"(.*nightly_OVClassHeteroExecutableNetworlGetMetricTest.*SUPPORTED_(CONFIG_KEYS|METRICS).*)",
-            R"(.*VirtualPlugin.*BehaviorTests.*OVHoldersTest.*LoadedTensor.*target_device=AUTO.*)",
             // TODO: Issue: 89555
             R"(.*CoreThreadingTests.*smoke.*Network.*)",
             // Assign-3/ReadValue-3 does not have evaluate() methods; ref implementation does not save the value across the inferences.
@@ -118,8 +116,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(smoke_AutoBatch_BehaviorTests/OVInferRequestIOTensorTest.InferStaticNetworkSetInputTensor/targetDevice=BATCH.*)",
             // TODO: range input with one element should NOT be regarded as dynamic batch model in Program::IsDynBatchModel().
             R"(.*smoke_select_CompareWithRefsNumpy_dynamic_range.*)",
-            // Issue: 90183
-            R"(.*VirtualPlugin.*BehaviorTests.*OVHoldersTestWithConfig.*LoadedTensor.*target_device=MULTI.*)",
             R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*CompareWithRefImpl.*)",
 #if defined(_WIN32) || defined(_WIN64)
             R"(.*Auto_KernelCachingSupportCase.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)",

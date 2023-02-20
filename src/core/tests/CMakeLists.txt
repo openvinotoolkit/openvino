@@ -1,6 +1,13 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # 'argument': conversion from 'size_t' to 'int', possible loss of data
+    ie_add_compiler_flags(/wd4267)
+    ie_add_compiler_flags(/wd4244)
+endif()
+
 set(TARGET_NAME ov_core_unit_tests)
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
@@ -75,7 +82,7 @@ target_compile_definitions(${TARGET_NAME}
         SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
         FRONTEND_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}${FRONTEND_NAME_PREFIX}"
         # Assume <lib>.so is an existed symlink to <lib><version>.so (or <lib>.so<version>
-        FRONTEND_LIB_SUFFIX="${FRONTEND_NAME_SUFFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
+        FRONTEND_LIB_SUFFIX="${FRONTEND_NAME_SUFFIX}${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
         )
 
 add_dependencies(${TARGET_NAME} ${UNIT_TESTS_DEPENDENCIES})

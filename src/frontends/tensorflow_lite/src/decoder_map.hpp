@@ -20,8 +20,8 @@ public:
                const std::map<std::string, ov::Any>& attrs,
                bool empty_name = false)
         : ov::frontend::DecoderBase(),
-          m_decoder(std::move(decoder)),
           m_attrs(attrs),
+          m_decoder(std::move(decoder)),
           m_empty_name(empty_name) {}
 
     DecoderMap(std::shared_ptr<ov::frontend::DecoderBase> decoder,
@@ -29,8 +29,8 @@ public:
                std::string type,
                bool empty_name = false)
         : ov::frontend::DecoderBase(),
-          m_decoder(std::move(decoder)),
           m_attrs(attrs),
+          m_decoder(std::move(decoder)),
           m_type(type),
           m_empty_name(empty_name) {}
 
@@ -39,8 +39,10 @@ public:
     /// \param name Attribute name
     /// \return Shared pointer to appropriate value converted to openvino data type if it exists, 'nullptr' otherwise
     ov::Any get_attribute(const std::string& name) const override {
-        FRONT_END_GENERAL_CHECK(m_attrs.count(name), "DecoderMap was requested attribute that doesn't exist: ", name);
-        return m_attrs.at(name);
+        if (m_attrs.count(name))
+            return m_attrs.at(name);
+        else
+            return {};
     }
 
     /// \brief Get a number of inputs

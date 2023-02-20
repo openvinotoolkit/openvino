@@ -26,7 +26,7 @@ public:
 
 class DummyTargetMachine : public ngraph::snippets::TargetMachine {
 public:
-    DummyTargetMachine();
+    DummyTargetMachine(const std::vector<ov::Node::type_info_t>& custom_opset = {});
     bool is_supported() const override { return true; }
     ngraph::snippets::code get_snippet() const override { return nullptr; }
     size_t get_lanes() const override { return 10; }
@@ -35,6 +35,7 @@ public:
 class DummyGenerator : public ngraph::snippets::Generator {
 public:
     DummyGenerator() : ngraph::snippets::Generator(std::make_shared<DummyTargetMachine>()) {}
+    DummyGenerator(const std::shared_ptr<ngraph::snippets::TargetMachine>& t) : ngraph::snippets::Generator(t) {}
 };
 
 class LoweringTests : public TransformationTestsF {
@@ -47,7 +48,9 @@ public:
 protected:
     static std::shared_ptr<ngraph::snippets::op::Subgraph> getSubgraph(const std::shared_ptr<Model>& f);
     static std::shared_ptr<ngraph::snippets::op::Subgraph> getLoweredSubgraph(const std::shared_ptr<Model>& f,
-                                                                              const ov::PartialShape& master_shape);
+                                                                              const ov::PartialShape& master_shape,
+                                                                              ov::pass::Manager target_optimizations = {},
+                                                                              const std::shared_ptr<ngraph::snippets::Generator> generator = nullptr);
     static std::shared_ptr<ngraph::snippets::op::Subgraph> getTokenizedSubgraph(const std::shared_ptr<Model>& f);
     ov::PartialShape master_shape{};
 };

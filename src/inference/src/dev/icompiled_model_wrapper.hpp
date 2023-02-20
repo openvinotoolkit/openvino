@@ -13,11 +13,11 @@ namespace InferenceEngine {
 class ICompiledModelWrapper : public ov::ICompiledModel {
 public:
     ICompiledModelWrapper(const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& model);
-    std::shared_ptr<InferenceEngine::IInferRequestInternal> create_infer_request() const override;
+    std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 
     void export_model(std::ostream& model) const override;
 
-    std::shared_ptr<ov::Model> get_runtime_model() const override;
+    std::shared_ptr<const ov::Model> get_runtime_model() const override;
 
     void set_property(const ov::AnyMap& properties) override;
 
@@ -30,7 +30,7 @@ public:
 private:
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> m_model;
 
-    std::shared_ptr<InferenceEngine::IInferRequestInternal> create_sync_infer_request() const override {
+    std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override {
         OPENVINO_NOT_IMPLEMENTED;
     }
 };

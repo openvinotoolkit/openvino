@@ -102,6 +102,12 @@ void InputModel::InputModelTFLiteImpl::loadModel() {
                                                                  data);
                     constant->set_friendly_name(name);
                     m_tensor_values[name] = constant;
+                } else if (place->get_partial_shape() == PartialShape{0}) {  // empty constant
+                    auto constant = ov::op::v0::Constant::create(place->get_element_type(),
+                                                                 place->get_partial_shape().to_shape(),
+                                                                 {});
+                    constant->set_friendly_name(name);
+                    m_tensor_values[name] = constant;
                 } else {
                     FRONT_END_GENERAL_CHECK(false,
                                             "This tensor should be either input, constant or ",
@@ -160,8 +166,8 @@ void InputModel::InputModelTFLiteImpl::loadModel() {
 
 InputModel::InputModelTFLiteImpl::InputModelTFLiteImpl(const GraphIteratorFlatBuffer::Ptr& graph_iterator,
                                                        const ov::frontend::InputModel& input_model)
-    : m_input_model(input_model),
-      m_graph_iterator(graph_iterator) {
+    : m_graph_iterator(graph_iterator),
+      m_input_model(input_model) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
     loadModel();
 }
@@ -169,8 +175,8 @@ InputModel::InputModelTFLiteImpl::InputModelTFLiteImpl(const GraphIteratorFlatBu
 InputModel::InputModelTFLiteImpl::InputModelTFLiteImpl(const GraphIteratorFlatBuffer::Ptr& graph_iterator,
                                                        const ov::frontend::InputModel& input_model,
                                                        const std::shared_ptr<TelemetryExtension>& telemetry)
-    : m_input_model(input_model),
-      m_graph_iterator(graph_iterator),
+    : m_graph_iterator(graph_iterator),
+      m_input_model(input_model),
       m_telemetry(telemetry) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
     loadModel();

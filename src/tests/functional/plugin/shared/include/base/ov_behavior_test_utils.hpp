@@ -250,6 +250,7 @@ protected:
     std::shared_ptr<ngraph::Function> simpleNetwork;
 
 public:
+    static std::string getTestCaseName(testing::TestParamInfo<PriorityParams> obj);
     void SetUp() override {
         std::tie(target_device, configuration) = GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();

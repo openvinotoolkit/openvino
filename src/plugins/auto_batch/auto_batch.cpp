@@ -505,7 +505,7 @@ std::pair<AutoBatchExecutableNetwork::WorkerInferRequest&, int> AutoBatchExecuta
         workerRequestPtr->_batchSize = _device.batchForDevice;
         workerRequestPtr->_completionTasks.resize(workerRequestPtr->_batchSize);
         workerRequestPtr->_inferRequestBatched->SetCallback(
-            [workerRequestPtr, this](std::exception_ptr exceptionPtr) mutable {
+            [workerRequestPtr](std::exception_ptr exceptionPtr) mutable {
                 if (exceptionPtr)
                     workerRequestPtr->_exceptionPtr = exceptionPtr;
                 IE_ASSERT(workerRequestPtr->_completionTasks.size() == (size_t)workerRequestPtr->_batchSize);
@@ -902,7 +902,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         if (!batched_inputs.size() || !batched_outputs.size())
             IE_THROW(NotImplemented)
                 << "Auto-batching supports only networks with inputs/outputs featuring batched dim!";
-    } catch (...) {
+    } catch (const InferenceEngine::Exception&) {
         metaDevice.batchForDevice = 1;
     }
 
@@ -969,7 +969,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
             reshaped.reshape(shapes);
             executableNetworkWithBatch = ctx ? core->LoadNetwork(reshaped, ctx, deviceConfigNoAutoBatch)
                                              : core->LoadNetwork(reshaped, deviceName, deviceConfigNoAutoBatch);
-        } catch (...) {
+        } catch (const InferenceEngine::Exception&) {
             metaDevice.batchForDevice = 1;
         }
     }

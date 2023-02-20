@@ -109,7 +109,7 @@ jobs:
   - script: |
       set -e
       sudo -E $(REPO_DIR)/install_build_dependencies.sh
-      # 'clang' compiler is to check that samples can be built using it
+      # 'clang' is used as a default compiler
       sudo apt --assume-yes install clang
       sudo apt --assume-yes install --no-install-recommends libopencv-imgproc-dev libopencv-imgcodecs-dev
       # For opencv-python: python3-setuptools and pip upgrade
@@ -165,6 +165,8 @@ jobs:
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
         -DCMAKE_CXX_LINKER_LAUNCHER=ccache
         -DCMAKE_C_LINKER_LAUNCHER=ccache
+        -DCMAKE_CXX_COMPILER=clang++
+        -DCMAKE_C_COMPILER=clang
         -DCPACK_GENERATOR=DEB
         -S $(REPO_DIR)
         -B $(BUILD_DIR)
@@ -229,6 +231,8 @@ jobs:
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py \
         --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
+    env:
+      LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
     displayName: 'nGraph and IE Python Bindings Tests'
 
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
@@ -246,7 +250,8 @@ jobs:
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_backend.py -v
     displayName: 'Python API 2.0 Tests'
 
-  - script: python3 -m pytest -s $(INSTALL_TEST_DIR)/mo/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-ModelOptimizer.xml
+  - script: |
+      python3 -m pytest -s $(INSTALL_TEST_DIR)/mo/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-ModelOptimizer.xml
     displayName: 'Model Optimizer UT'
 
   - script: |
@@ -262,8 +267,7 @@ jobs:
       sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
       echo "deb https://apt.repos.intel.com/openvino/2022 focal main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
       sudo apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/intel-openvino-2022.list
-      # TODO: sudo apt-get install openvino -y || exit 1
-      sudo apt-get install openvino -y
+      sudo apt-get install openvino -y || exit 1
       # install our local one and make sure the conflicts are resolved
       sudo apt-get install --no-install-recommends dpkg-dev -y
       rm -r _CPack_Packages
@@ -282,12 +286,6 @@ jobs:
 
   - script: $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -i $(INSTALL_DIR)
     displayName: 'Build cpp samples'
-
-  - script: $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -i $(INSTALL_DIR)
-    env:
-      CC: clang
-      CXX: clang++
-    displayName: 'Build cpp samples - clang'
 
   - script: $(SAMPLES_INSTALL_DIR)/c/build_samples.sh -i $(INSTALL_DIR)
     displayName: 'Build c samples'
@@ -332,7 +330,6 @@ jobs:
 
   - script: $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieMultiPluginUnitTests.xml
     displayName: 'MULTI UT'
-    enabled: 'false'
 
   - script:  |
       $(INSTALL_TEST_DIR)/ov_template_func_tests --gtest_filter=*smoke* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-templateFuncTests.xml

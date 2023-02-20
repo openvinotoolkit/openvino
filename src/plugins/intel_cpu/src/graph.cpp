@@ -46,7 +46,6 @@
 
 #include <ngraph/node.hpp>
 #include <ngraph/function.hpp>
-#include <ngraph/variant.hpp>
 #include <ngraph/ops.hpp>
 #include <transformations/utils/utils.hpp>
 #include <low_precision/low_precision.hpp>
@@ -140,7 +139,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
         return -1;
     };
 
-    for (const auto op : subgraph->get_ordered_ops()) {
+    for (const auto& op : subgraph->get_ordered_ops()) {
         const NodePtr node {Node::factory().create(op, context)};
 
         graphNodes.push_back(node);
@@ -880,7 +879,7 @@ void Graph::CreatePrimitives() {
         node->createPrimitive();
 #ifdef CPU_DEBUG_CAPS
         if (node->prim) {
-            auto pd_c = (*node->prim).get_primitive_desc();
+            auto pd_c = node->prim.get_primitive_desc();
             auto* pd = reinterpret_cast<const dnnl_primitive_desc*>(pd_c);
             DEBUG_LOG("verbose##", node->getName(), "##", pd->info(), "\n");
         }

@@ -1,7 +1,5 @@
 #include <openvino/runtime/core.hpp>
 #include <openvino/runtime/intel_gpu/properties.hpp>
-
-#define OV_GPU_USE_OPENCL_HPP
 #include <openvino/runtime/intel_gpu/ocl/ocl.hpp>
 
 #ifdef WIN32

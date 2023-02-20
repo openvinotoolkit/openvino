@@ -105,6 +105,7 @@ TEST_F(TransformationTestsF, CompressConstants_f32) {
 
         function_ref = std::make_shared<ov::Model>(ov::NodeVector{resize}, ov::ParameterVector{input});
     }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 TEST_F(TransformationTestsF, CompressConstants_f32_If) {
@@ -234,6 +235,7 @@ TEST_F(TransformationTestsF, CompressConstants_f32_If) {
         function_ref =
             std::make_shared<ngraph::Function>(ngraph::NodeVector{if_result}, ngraph::ParameterVector{input});
     }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 TEST_F(TransformationTestsF, CompressConstants_f64) {
@@ -270,10 +272,11 @@ TEST_F(TransformationTestsF, CompressConstants_f64) {
                                                               ov::Strides{1, 1});
         function_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
     }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 TEST_F(TransformationTestsF, CompressConstants_keep_in_f32_small_eps_out_of_range) {
-    float fp16_eps = static_cast<float>(ov::float16::from_bits(0x0400));
+    float fp16_eps = 0.00000001f;  // smaller than fp16 minimal value: float16::from_bits(0x0001)
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
 
@@ -305,6 +308,8 @@ TEST_F(TransformationTestsF, CompressConstants_keep_in_f32_small_eps_out_of_rang
 
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
+        // fp16_eps is lesser that fp16 minimal value,
+        // they must be stored in fp32 because of a big proportion of such out of range values
         auto const_weights = ov::opset8::Constant::create(ov::element::f32,
                                                           ov::Shape{1, 3, 4, 1},
                                                           {0.0f,
@@ -327,6 +332,7 @@ TEST_F(TransformationTestsF, CompressConstants_keep_in_f32_small_eps_out_of_rang
                                                               ov::Strides{1, 1});
         function_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
     }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 TEST_F(TransformationTestsF, CompressConstants_keep_in_f32_max_out_of_range_val) {
@@ -386,6 +392,7 @@ TEST_F(TransformationTestsF, CompressConstants_keep_in_f32_max_out_of_range_val)
                                                               ov::Strides{1, 1});
         function_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
     }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 TEST_F(TransformationTestsF, CompressConstants_compress_to_f16_max_out_of_range_val) {
@@ -427,6 +434,7 @@ TEST_F(TransformationTestsF, CompressConstants_compress_to_f16_max_out_of_range_
                                                               ov::Strides{1, 1});
         function_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
     }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 TEST_F(TransformationTestsF, CompressConstants_not_keep_in_f32_when_zeros) {
@@ -466,4 +474,45 @@ TEST_F(TransformationTestsF, CompressConstants_not_keep_in_f32_when_zeros) {
                                                               ov::Strides{1, 1});
         function_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
     }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, CompressConstants_compress_to_f16_denormal_vals) {
+    float fp16_denormal = 0.00001f;
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
+
+        // only one third of values are out of fp16 normal range, therefore they will be compressed to fp16
+        auto const_weights = ov::opset8::Constant::create(
+            ov::element::f32,
+            ov::Shape{1, 3, 3, 1},
+            {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, fp16_denormal, fp16_denormal, fp16_denormal});
+        auto conv = std::make_shared<ov::opset8::Convolution>(input,
+                                                              const_weights,
+                                                              ov::Strides{1, 1},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::Strides{1, 1});
+        function = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
+
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
+        manager.register_pass<ov::pass::CompressFloatConstants>();
+    }
+
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
+        auto const_weights = ov::opset8::Constant::create(
+            ov::element::f16,
+            ov::Shape{1, 3, 3, 1},
+            {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, fp16_denormal, fp16_denormal, fp16_denormal});
+        auto convert_ins1 = std::make_shared<ov::opset8::Convert>(const_weights, ov::element::f32);
+        auto conv = std::make_shared<ov::opset8::Convolution>(input,
+                                                              convert_ins1,
+                                                              ov::Strides{1, 1},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::Strides{1, 1});
+        function_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }

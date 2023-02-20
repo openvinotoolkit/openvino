@@ -57,10 +57,16 @@ void regmodule_properties(py::module m) {
         .value("THROUGHPUT", ov::hint::PerformanceMode::THROUGHPUT)
         .value("CUMULATIVE_THROUGHPUT", ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT);
 
+    py::enum_<ov::hint::ExecutionMode>(m_hint, "ExecutionMode", py::arithmetic())
+        .value("UNDEFINED", ov::hint::ExecutionMode::UNDEFINED)
+        .value("PERFORMANCE", ov::hint::ExecutionMode::PERFORMANCE)
+        .value("ACCURACY", ov::hint::ExecutionMode::ACCURACY);
+
     // Submodule hint - properties
     wrap_property_RW(m_hint, ov::hint::inference_precision, "inference_precision");
     wrap_property_RW(m_hint, ov::hint::model_priority, "model_priority");
     wrap_property_RW(m_hint, ov::hint::performance_mode, "performance_mode");
+    wrap_property_RW(m_hint, ov::hint::execution_mode, "execution_mode");
     wrap_property_RW(m_hint, ov::hint::num_requests, "num_requests");
     wrap_property_RW(m_hint, ov::hint::model, "model");
     wrap_property_RW(m_hint, ov::hint::allow_auto_batching, "allow_auto_batching");
