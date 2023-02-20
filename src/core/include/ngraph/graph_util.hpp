@@ -190,12 +190,6 @@ NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API
 size_t get_user_count(Node* node);
 
-// Return true if a node's user could potentially overwrite
-// the output of this node with in-place kernels
-NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
-NGRAPH_API
-bool possibly_overwritten(Node* node);
-
 NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API
 bool is_strided(const Strides& strides);
