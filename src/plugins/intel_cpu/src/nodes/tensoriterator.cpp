@@ -303,7 +303,7 @@ MemoryPtr DynamicBuffer::create_buffer(const dnnl::engine& eng) {
     return _ptr;
 }
 
-void DynamicBuffer::move_buffer(MemoryPtr& new_buffer) {
+void DynamicBuffer::move_buffer(const MemoryPtr& new_buffer) {
     const auto stride = map_rule.stride;
 
     // copy data from old buffer to new buffer
