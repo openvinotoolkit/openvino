@@ -114,18 +114,27 @@ struct CPUStreamsExecutor::Impl {
                     const auto small_core_threads_3 = cpu_core_type == EFFICIENT_CORE_PROC && concurrency == 3 &&
                                                       _impl->_config._small_core_streams > 1;
                     const auto num_cpus = small_core_threads_3 ? concurrency + 1 : concurrency;
-                    _cpu_ids = getAvailableCPUs(cpu_core_type, num_cpus, _impl->_config._cpu_task);
-                    if (cpu_core_type == MAIN_CORE_PROC && _impl->_config._logic_core_disable == true) {
-                        std::vector<int> logic_cores = getLogicCores(_cpu_ids);
-                        _cpu_ids.insert(_cpu_ids.end(), logic_cores.begin(), logic_cores.end());
+                    _cpu_ids = getAvailableCPUs(cpu_core_type, num_cpus, _impl->_config._plugin_task);
+                    if (_cpu_ids.size() > 0) {
+                        if (cpu_core_type == MAIN_CORE_PROC && _impl->_config._logic_core_disable == true) {
+                            std::vector<int> logic_cores = getLogicCores(_cpu_ids);
+                            _cpu_ids.insert(_cpu_ids.end(), logic_cores.begin(), logic_cores.end());
+                        }
+                        setCpuUsed(_cpu_ids, CPU_USED);
+                        CpuSet processMask;
+                        int ncpus = 0;
+                        std::tie(processMask, ncpus) = GetProcessMask();
+                        _observer.reset(new Observer{*_taskArena,
+                                                     std::move(processMask),
+                                                     ncpus,
+                                                     0,
+                                                     concurrency,
+                                                     0,
+                                                     0,
+                                                     0,
+                                                     _cpu_ids});
+                        _observer->observe(true);
                     }
-                    setCpuUsed(_cpu_ids, 1);
-                    CpuSet processMask;
-                    int ncpus = 0;
-                    std::tie(processMask, ncpus) = GetProcessMask();
-                    _observer.reset(
-                        new Observer{*_taskArena, std::move(processMask), ncpus, 0, concurrency, 0, 0, 0, _cpu_ids});
-                    _observer->observe(true);
                 }
             } else {
                 const auto concurrency = (0 == _impl->_config._threadsPerStream) ? custom::task_arena::automatic
@@ -266,7 +275,7 @@ struct CPUStreamsExecutor::Impl {
                 _impl->_streamIdQueue.push(_streamId);
             }
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-            setCpuUsed(_cpu_ids, -1);
+            setCpuUsed(_cpu_ids, NOT_USED);
             if (nullptr != _observer) {
                 _observer->observe(false);
             }

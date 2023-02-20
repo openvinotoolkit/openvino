@@ -48,6 +48,8 @@ private:
 
     int GetModelPreferThreads(const std::shared_ptr<ngraph::Function>& ngraphFunc) const;
 
+    void SetStreamtoConfig(const std::map<std::string, std::string> &config);
+
     struct StreamCfg {
         int num_streams;
         int big_core_streams;          // Number of streams in Performance-core(big core)

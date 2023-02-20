@@ -107,7 +107,7 @@ public:
         bool _enable_hyper_thread = true;   //!< enable hyper thread
         bool _bind_cores = false;
         bool _logic_core_disable = false;
-        bool _cpu_task = true;
+        int _plugin_task = -1;
         enum StreamMode { DEFAULT, AGGRESSIVE, LESSAGGRESSIVE };
         enum PreferredCoreType {
             ANY,

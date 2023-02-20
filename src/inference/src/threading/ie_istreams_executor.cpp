@@ -435,7 +435,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::SetExecutorConfig(std::string
     if (cpuMapAvailable()) {
         if (name.find("CPU") == std::string::npos) {
             streamExecutorConfig._logic_core_disable = true;
-            streamExecutorConfig._cpu_task = false;
+            streamExecutorConfig._plugin_task = GPU_PRE_USED;
         }
         streamExecutorConfig._threads = num_streams;
         streamExecutorConfig._threadBindingType = thread_binding_type;
@@ -450,7 +450,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::SetExecutorConfig(std::string
             streamExecutorConfig._big_core_streams = num_streams;
             streamExecutorConfig._threads_per_stream_big = 1;
         }
-        if (streamExecutorConfig._bind_cores && !streamExecutorConfig._cpu_task) {
+        if (streamExecutorConfig._bind_cores && streamExecutorConfig._plugin_task > 0) {
             auto core_type =
                 streamExecutorConfig._threadPreferredCoreType == LITTLE ? EFFICIENT_CORE_PROC : MAIN_CORE_PROC;
             auto num_cores = streamExecutorConfig._threadPreferredCoreType == LITTLE

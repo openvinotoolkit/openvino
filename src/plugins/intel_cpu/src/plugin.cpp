@@ -224,7 +224,8 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
     auto getNumStreams = [&](int nstreams) {
         StreamCfg streams_info;
         int model_prefer = GetModelPreferThreads(ngraphFunc);
-        const std::vector<std::vector<int>> proc_type_table = getNumOfAvailableCPUCores();
+        const std::vector<std::vector<int>> proc_type_table =
+            getNumOfAvailableCPUCores(engConfig.streamExecutorConfig._plugin_task);
         const std::vector<std::vector<int>> stream_info_table =
             get_streams_info_table(nstreams, engConfig.streamExecutorConfig._threads, model_prefer, proc_type_table);
         streams_info = ParseStreamsTable(stream_info_table);
@@ -538,6 +539,8 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
         }
     }
 
+    SetStreamtoConfig(config);
+
     ApplyPerformanceHints(config, nGraphFunc);
     transformations.CpuSpecificOpSet();
 
@@ -571,6 +574,15 @@ void Engine::SetConfig(const std::map<std::string, std::string> &config) {
     streamsExplicitlySetForEngine = streamsSet(config);
 
     engConfig.readProperties(config);
+}
+
+void Engine::SetStreamtoConfig(const std::map<std::string, std::string>& config) {
+    auto set_enable = config.count(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) ||
+                      config.count(ov::num_streams.name()) || config.count(CONFIG_KEY(CPU_THREADS_NUM)) ||
+                      config.count(ov::inference_num_threads.name());
+    if (set_enable && cpuMapAvailable()) {
+        engConfig.readProperties(config);
+    }
 }
 
 bool Engine::isLegacyAPI() const {

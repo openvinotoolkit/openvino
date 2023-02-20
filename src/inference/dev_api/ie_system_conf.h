@@ -150,9 +150,10 @@ INFERENCE_ENGINE_API_CPP(void) setCpuUsed(std::vector<int> cpu_ids, int used);
 /**
  * @brief      Returns number of CPU cores on Linux/Windows
  * @ingroup    ie_dev_api_system_conf
+ * @param[in]  plugin_task plugin task.
  * @return     Number of CPU cores with core_type.
  */
-INFERENCE_ENGINE_API_CPP(std::vector<std::vector<int>>) getNumOfAvailableCPUCores();
+INFERENCE_ENGINE_API_CPP(std::vector<std::vector<int>>) getNumOfAvailableCPUCores(const int plugin_task);
 
 /**
  * @brief      Returns corresponding logical cores
@@ -197,7 +198,7 @@ typedef enum {
  * @return     Array of available cpu ids.
  */
 INFERENCE_ENGINE_API_CPP(std::vector<int>)
-getAvailableCPUs(const column_of_processor_type_table core_type, const int num_cpus, const bool cpu_task = true);
+getAvailableCPUs(const column_of_processor_type_table core_type, const int num_cpus, const int plugin_task = -1);
 
 /**
  * @enum       column_of_cpu_mapping_table
@@ -231,5 +232,15 @@ typedef enum {
     CPU_MAP_USED_FLAG = 5,     //!< column for resource management of the processor
     CPU_MAP_TABLE_SIZE = 6     //!< Size of CPU mapping table
 } column_of_cpu_mapping_table;
+
+/**
+ * @enum       cpu_use_status
+ * @brief      Defination of CPU_MAP_USED_FLAG column in CPU mapping table.
+ */
+typedef enum {
+    NOT_USED = -1,          //!< CPU is not bound to thread
+    CPU_USED = 1,           //!< CPU is in using
+    GPU_PRE_USED = 100,     //!< GPU need to use
+} cpu_use_status;
 
 }  // namespace InferenceEngine

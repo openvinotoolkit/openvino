@@ -205,28 +205,36 @@ int getNumberOfCPUCores(bool bigCoresOnly) {
 std::vector<int> getAvailableNUMANodes() { return {-1}; }
 #endif
 
-std::vector<std::vector<int>> getNumOfAvailableCPUCores() {
+std::vector<std::vector<int>> getNumOfAvailableCPUCores(const int plugin_task) {
     std::vector<std::vector<int>> proc_type_table;
     std::vector<int> all_table;
 
-    proc_type_table.resize(cpu._sockets, std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
-    all_table.resize(PROC_TYPE_TABLE_SIZE, 0);
-    for (int i = 0; i < cpu._processors; i++) {
-        for (int socket_id = 0; socket_id < cpu._sockets; socket_id++) {
-            for (int type = MAIN_CORE_PROC; type < PROC_TYPE_TABLE_SIZE; type++) {
-                if (cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == type &&
-                    cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] == socket_id &&
-                    cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] <= 0) {
-                    proc_type_table[socket_id][type]++;
-                    proc_type_table[socket_id][ALL_PROC]++;
-                    all_table[type]++;
-                    all_table[ALL_PROC]++;
+    if (plugin_task < 0) {
+        proc_type_table = cpu._proc_type_table;
+    } else {
+        if (cpu._sockets == 1) {
+            proc_type_table.resize(1, std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
+        } else {
+            proc_type_table.resize(2, std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
+        }
+        all_table.resize(PROC_TYPE_TABLE_SIZE, 0);
+        for (int i = 0; i < cpu._processors; i++) {
+            for (int socket_id = 0; socket_id < cpu._sockets; socket_id++) {
+                for (int type = MAIN_CORE_PROC; type < PROC_TYPE_TABLE_SIZE; type++) {
+                    if (cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == type &&
+                        cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] == socket_id &&
+                        cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] == NOT_USED) {
+                        proc_type_table[socket_id][type]++;
+                        proc_type_table[socket_id][ALL_PROC]++;
+                        all_table[type]++;
+                        all_table[ALL_PROC]++;
+                    }
                 }
             }
         }
-    }
-    if (cpu._sockets > 1) {
-        proc_type_table.insert(proc_type_table.begin(), all_table);
+        if (cpu._sockets > 1) {
+            proc_type_table.insert(proc_type_table.begin(), all_table);
+        }
     }
     return proc_type_table;
 }
@@ -237,13 +245,12 @@ bool cpuMapAvailable() {
 
 std::vector<int> getAvailableCPUs(const column_of_processor_type_table core_type,
                                   const int num_cpus,
-                                  const bool cpu_task) {
+                                  const int plugin_task) {
     std::vector<int> cpu_ids;
-    const int used_flag = cpu_task ? -1 : 2;
     if (core_type < PROC_TYPE_TABLE_SIZE && core_type >= ALL_PROC) {
         for (int i = 0; i < cpu._processors; i++) {
             if (cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == core_type &&
-                cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] == used_flag) {
+                cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] == plugin_task) {
                 cpu_ids.push_back(cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
             }
             if (static_cast<int>(cpu_ids.size()) == num_cpus) {

@@ -155,7 +155,7 @@ std::vector<int> getAvailableNUMANodes() {
 int getNumberOfLogicalCPUCores(bool) {
     return parallel_get_max_threads();
 }
-std::vector<std::vector<int>> getNumOfAvailableCPUCores() {
+std::vector<std::vector<int>> getNumOfAvailableCPUCores(const int plugin_task) {
     std::vector<std::vector<int>> proc_type_table;
     proc_type_table.resize(1, std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
     return proc_type_table;
