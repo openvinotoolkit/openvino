@@ -124,7 +124,7 @@ public:
     }
 
     void Export(const std::string& fileName);
-    virtual void Export(std::ostream& networkModel);
+    void Export(std::ostream& networkModel);
     InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(
         const std::string& modelFileName,
         const std::map<std::string, std::string>& config) override {

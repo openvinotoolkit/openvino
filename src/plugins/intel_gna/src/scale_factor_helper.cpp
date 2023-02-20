@@ -37,7 +37,7 @@ static void ApplyScaleFactorsLegacy(const std::vector<float>& input_scale_factor
     for (size_t id = 0; id < inputs.size(); ++id) {
         log::warning() << "Using input scale factor: " << input_scale_factors[id]
                        << ", defined in configuration for input id: " << id << std::endl;
-        if (input_scale_factors.size() > id && !AreFpEq(input_scale_factors[id], kScaleFactorDefault)) {
+        if (input_scale_factors.size() > id) {
             inputs.Get().at(id).scale_factor = input_scale_factors[id];
         } else {
             log::warning() << "Using default input scale factor: " << kScaleFactorDefault << " for input id: " << id

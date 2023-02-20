@@ -26,7 +26,7 @@ protected:
         InferenceEngine::Precision netPrecision;
         std::vector<size_t> inputShape;
         std::string _;
-        std::tie(inputShape, netPrecision, targetDevice, exportConfiguration, importConfiguration, m_model_version, _) =
+        std::tie(inputShape, netPrecision, targetDevice, exportConfiguration, importConfiguration, _) =
             this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
@@ -69,10 +69,6 @@ const std::vector<std::map<std::string, std::string>> importConfigs = {{{"GNA_DE
 
 const std::vector<std::string> appHeader = {""};
 
-const std::vector<kExportModelVersion> model_versions = {kExportModelVersion::UNKNOWN,
-                                                         kExportModelVersion::V2_8,
-                                                         kExportModelVersion::V2_7};
-
 INSTANTIATE_TEST_SUITE_P(smoke_ImportNetworkBatchCase,
                          ImportBatchTest,
                          ::testing::Combine(::testing::ValuesIn(inputShapes),
@@ -80,7 +76,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_ImportNetworkBatchCase,
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                             ::testing::ValuesIn(exportConfigs),
                                             ::testing::ValuesIn(importConfigs),
-                                            ::testing::ValuesIn(model_versions),
                                             ::testing::ValuesIn(appHeader)),
                          ImportBatchTest::getTestCaseName);
 }  // namespace LayerTestsDefinitions
