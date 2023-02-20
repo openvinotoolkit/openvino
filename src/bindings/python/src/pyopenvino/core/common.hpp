@@ -49,14 +49,20 @@ template <typename T>
 T create_copied(py::array& array);
 
 template <typename T>
+T create_copied(ov::Tensor& array);
+
+template <typename T>
 T create_shared(py::array& array);
 
 template <typename T>
-T object_from_numpy(py::array& array, bool shared_memory) {
+T create_shared(ov::Tensor& array);
+
+template <typename T, typename D>
+T object_from_data(D& data, bool shared_memory) {
     if (shared_memory) {
-        return create_shared<T>(array);
+        return create_shared<T>(data);
     }
-    return create_copied<T>(array);
+    return create_copied<T>(data);
 }
 
 ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const ov::element::Type& ov_type);

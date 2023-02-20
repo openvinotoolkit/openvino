@@ -125,6 +125,12 @@ ov::op::v0::Constant create_copied(py::array& array) {
 }
 
 template <>
+ov::op::v0::Constant create_copied(ov::Tensor& tensor) {
+    // Create actual Constant and a constructor is copying data.
+    return ov::op::v0::Constant(tensor.get_element_type(), tensor.get_shape(), const_cast<void*>(tensor.data()));
+}
+
+template <>
 ov::op::v0::Constant create_shared(py::array& array) {
     // Check if passed array has C-style contiguous memory layout.
     // If memory is going to be shared it needs to be contiguous before passing to the constructor.
@@ -138,6 +144,11 @@ ov::op::v0::Constant create_shared(py::array& array) {
     // If passed array is not C-style, throw an error.
     throw ov::Exception(
         "SHARED MEMORY MODE FOR THIS CONSTANT IS NOT APPLICABLE! Passed numpy array must be C contiguous.");
+}
+
+template <>
+ov::op::v0::Constant create_shared(ov::Tensor& tensor) {
+    return ov::op::v0::Constant(tensor);
 }
 
 template <>
