@@ -10,10 +10,10 @@
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <ngraph/variant.hpp>
 
 #include "default_opset.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov::frontend::paddle::op::default_opset;
 using namespace ov;
@@ -21,87 +21,108 @@ using namespace ov::pass;
 using namespace ov::frontend::paddle::op;
 
 /*
-                                                                       x
-                                                                   |  |  |  |
-                                                                   |  |  |  |
-                                 /                                 V  v  v  v
-                                |              +-----------+     +-----------+
-                                |   scale -->  | Multiply  | --> |  Divide   |
-    +------------------+        |              +-----------+     +-----------+
-    |                  |        |                                      |
-    |  quantize_linear |  -->   |                                      v
-    |                  |        |                                +-----------+
-    +------------------+        |                                |   Round   |
-                                 \                               +-----------+                  |   |   |   |
-                                                                       |                        v   v   v   v
-                                                                       v                    +-------------------+
-                                 /                               +-----------+              |                   |
-                                |                                |   Clamp   |     === >    |   FakeQuantize    |
-                                |                                +-----------+              |                   |
-                                |                                      |                    +-------------------+
-                                |                                      v                        |   |   |   |
-     +------------------+       |                                +-----------+                  v   v   v   v
-     |                  |       |                                |  Convert  |
-     |dequantize_linear |  -->  |                                +-----------+
-     |                  |       |                                      |
-     +------------------+       |                                      v
-                                |              +-----------+     +-----------+
-                                |   scale -->  | Multiply  | --> | Multiply  |
-                                |              +-----------+     +-----------+
-                                |                                 |  |  |  |
-                                 \                                |  |  |  |
-                                                                  v  v  v  v
-                                                                       Y
+                                  zero_point
+                                      /
+                        input    convert     scale
+                           \        /         /
+                            subtract  Multiply
+   quantize_linear   ==>>        \      /
+                                  Divide
+                                     \
+                                      Round
+                                         \
+                                          Clamp
+                                             \
+  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _   => FakeQuantize
+                                               \           zero_point
+                                                \              /
+                                                Convert   Convert   scale
+   dequantize_linear  ==>>                          \      /        /
+                                                   Subtract    Multiply
+                                                       \        /
+                                                        Multiply
 */
 ov::frontend::paddle::pass::TransformFakeQuantize::TransformFakeQuantize() {
-    // quantize phase
     const auto input_label = ngraph::pattern::any_input();
+    const auto q_zp_label = ngraph::pattern::any_input();
+    // quantize phase
+    const auto q_zp_cvt_label = ngraph::pattern::wrap_type<Convert>({q_zp_label});
+    const auto q_sub_label = ngraph::pattern::wrap_type<Subtract>({input_label, q_zp_cvt_label});
     const auto q_real_scale_label = ngraph::pattern::wrap_type<Multiply>();
-    const auto div_label = ngraph::pattern::wrap_type<Divide>({input_label, q_real_scale_label});
+    const auto div_label = ngraph::pattern::wrap_type<Divide>({q_sub_label, q_real_scale_label});
     const auto round_label = ngraph::pattern::wrap_type<Round>({div_label});
     const auto q_clamp_label = ngraph::pattern::wrap_type<Clamp>({round_label});
     // dequantize phase
     const auto dq_cvt_label = ngraph::pattern::wrap_type<Convert>({q_clamp_label});
+    const auto dq_zp_label = ngraph::pattern::any_input();
+    const auto dq_zp_cvt_label = ngraph::pattern::wrap_type<Convert>({dq_zp_label});
+    const auto dq_sub_label = ngraph::pattern::wrap_type<Subtract>({dq_cvt_label, dq_zp_cvt_label});
     const auto dq_real_scale_label = ngraph::pattern::wrap_type<Multiply>();
-    const auto output_label = ngraph::pattern::wrap_type<Multiply>({dq_cvt_label, dq_real_scale_label});
+    const auto output_label = ngraph::pattern::wrap_type<Multiply>({dq_sub_label, dq_real_scale_label});
 
     matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) -> bool {
         const auto& opsMap = m.get_pattern_value_map();
         if (transformation_callback(m.get_match_root())) {
             return false;
         }
+        // get the input
+        const auto& sub_node = opsMap.at(q_sub_label).get_node_shared_ptr();
+        if (!sub_node->get_input_node_shared_ptr(0)) {
+            return false;
+        }
+        const auto& input_item = sub_node->get_input_source_output(0);
+
         // prepare for replace
         const auto& output_node = opsMap.at(output_label).get_node_shared_ptr();
+
+        // check round mode
+        // Fallback to the PDPD FE if the round_mode is HALF_AWAY_FROM_ZERO.
+        const auto& round_node_cast = std::dynamic_pointer_cast<Round>(opsMap.at(round_label).get_node_shared_ptr());
+        if (!round_node_cast || round_node_cast->get_mode() != Round::RoundMode::HALF_TO_EVEN) {
+            return false;
+        }
+
+        // check quantize_linear zero_point
+        auto zp_node_cast = std::dynamic_pointer_cast<Constant>(opsMap.at(dq_zp_label).get_node_shared_ptr());
+        float zp;
+        if (!zp_node_cast || !ov::op::util::get_single_value(zp_node_cast, zp)) {
+            return false;
+        }
+
         // prepare levels
-        const auto& clamp_node = opsMap.at(q_clamp_label).get_node_shared_ptr();
-        const auto& clamp_node_cast = std::dynamic_pointer_cast<Clamp>(clamp_node);
-        const auto& high_range = static_cast<int>(clamp_node_cast->get_max());
-        const auto& low_range = static_cast<int>(clamp_node_cast->get_min());
-        const auto& levels = high_range - low_range + 1;
-        // get the input
-        const auto& div_node = opsMap.at(div_label).get_node_shared_ptr();
-        if (!div_node->get_input_node_shared_ptr(0)) {
+        const auto& clamp_node_cast = std::dynamic_pointer_cast<Clamp>(opsMap.at(q_clamp_label).get_node_shared_ptr());
+        if (!clamp_node_cast) {
             return false;
         }
-        const auto& input_item = div_node->get_input_source_output(0);
+        const auto high_range = static_cast<int>(clamp_node_cast->get_max());
+        const auto low_range = static_cast<int>(clamp_node_cast->get_min());
+        const auto levels = high_range - low_range + 1;
+
         // get the scale
-        const auto& scale_node = opsMap.at(q_real_scale_label).get_node_shared_ptr();
-        const auto& scale_item = scale_node->get_input_node_shared_ptr(0);
-        const auto& scale_value_cast = std::dynamic_pointer_cast<Constant>(scale_item);
-        if (!scale_node) {
+        const auto& scale_node_cast = std::dynamic_pointer_cast<Constant>(
+            opsMap.at(q_real_scale_label).get_node_shared_ptr()->get_input_node_shared_ptr(0));
+        float scale;
+        if (!scale_node_cast || !ov::op::util::get_single_value(scale_node_cast, scale)) {
             return false;
         }
-        std::vector<float> scales = scale_value_cast->cast_vector<float>();
-        const auto scale = scales[0];
-        const auto scale_low = scale * low_range / high_range;
-        const auto scale_high = scale;
-        const auto input_clamp = std::make_shared<Clamp>(input_item, scale_low, scale_high);
-        const auto input_low = std::make_shared<Constant>(element::f32, Shape{1}, scale_low);
-        const auto input_high = std::make_shared<Constant>(element::f32, Shape{1}, scale_high);
-        const auto output_low = std::make_shared<Constant>(element::f32, Shape{1}, scale_low);
-        const auto output_high = std::make_shared<Constant>(element::f32, Shape{1}, scale_high);
+        // The PaddleSlim scale value is not equal to scale definition in OpenVINO.
+        // scale_ov = scale_pdpd / half_range.
+        const auto real_scale = scale / high_range;
+
+        // calculate the input_low/input_high/output_low/output_high
+        // In order to reduce the imported nodes, try to achieve the value from the Constant.
+        // The formula:
+        // i8: which is used in PDPD
+        //      low = (-128 - zero_point) * scale
+        //      high = (127 - zero_point) * scale
+        // u8: which is not used in PDPD
+        //      low = (0 - zero_point) * scale
+        //      high = (255 - zero_point) * scale
+        const auto limit_low = std::make_shared<Constant>(element::f32, Shape{1}, (low_range - zp) * real_scale);
+        const auto limit_high = std::make_shared<Constant>(element::f32, Shape{1}, (high_range - zp) * real_scale);
+
         auto fake_node =
-            std::make_shared<FakeQuantize>(input_clamp, input_low, input_high, output_low, output_high, levels);
+            std::make_shared<FakeQuantize>(input_item, limit_low, limit_high, limit_low, limit_high, levels);
         fake_node->set_friendly_name(output_node->get_friendly_name());
         replace_node(output_node, fake_node);
         return true;
