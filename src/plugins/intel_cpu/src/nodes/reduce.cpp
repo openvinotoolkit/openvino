@@ -2008,7 +2008,7 @@ void Reduce::execute(dnnl::stream strm) {
 
     if (jit_mode) {
         if (is_hybrid_layout) {
-            dst_data = reinterpret_cast<uint8_t *>(prc_mem->get_data_handle());
+            dst_data = reinterpret_cast<uint8_t *>(prc_mem.get_data_handle());
         }
         reduce_type(src_data, dst_data, dst_size);
     } else {
@@ -2639,7 +2639,7 @@ inline void Reduce::create_working_memory() {
                                                      : (mayiuse(cpu::x64::avx512_core) ? memory::format_tag::nCdhw16c : memory::format_tag::nCdhw8c));
     auto prc_dims = rank == 4 ? std::vector<size_t>{OB, OC, OH, OW} : std::vector<size_t>{OB, OC, OD, OH, OW};
     auto desc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(prc_dims), DnnlExtensionUtils::IEPrecisionToDataType(output_prec), format);
-    prc_mem = std::make_shared<dnnl::memory>(desc, getEngine());
+    prc_mem = dnnl::memory(desc, getEngine());
     dst_size = desc.get_size();
 }
 

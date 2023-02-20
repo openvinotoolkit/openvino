@@ -306,7 +306,7 @@ public:
 
     void WriteDnnText(const char* filename, intel_dnn_number_type_t logging_precision);
 
-    void InitGNAStruct(Gna2Model* gnaModel, const std::string& gnaCompileTarget = common::kGnaTarget2_0);
+    void InitGNAStruct(Gna2Model* gnaModel);
 
     void DestroyGNAStruct(Gna2Model* gnaModel);
 
