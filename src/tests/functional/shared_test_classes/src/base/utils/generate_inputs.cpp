@@ -812,6 +812,13 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::Round>& node,
     return Activation::generate(elemType, targetShape, InputGenerateData(-10, 20, 4));
 }
 
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v8::Softmax>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    return ov::test::utils::create_and_fill_tensor_normal_distribution(elemType, targetShape, -5.f, 0.5f, 7235346);
+}
+
 template<typename T>
 ov::runtime::Tensor generateInput(const std::shared_ptr<ov::Node>& node,
                                   size_t port,

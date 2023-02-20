@@ -71,7 +71,7 @@ protected:
 
         // TODO: This workaround is needed as there is no full support for f16 type in the reference implementation
         if (ngPrc == element::Type_t::f16) {
-            abs_threshold = 0.005;
+            abs_threshold = 0.0001;
         }
 
         function = std::make_shared<ngraph::Function>(results, params, "softMax");
