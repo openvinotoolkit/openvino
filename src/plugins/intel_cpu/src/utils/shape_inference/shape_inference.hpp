@@ -33,8 +33,19 @@ public:
 
 class IStaticShapeInfer : public IShapeInferCommon {
 public:
+    using port_mask_t = uint32_t;  //!< Operator's port mask to indicate input data dependency
+
     virtual std::vector<StaticShape> infer(const std::vector<StaticShape>& input_shapes,
                                            tensor_data_accessor_func_t get_tensor) = 0;
+
+    /**
+     * @brief Some shape inference implementation may require input data stored inside the input tensors. To define
+     * which inputs data are required, the port mask is used. Each set bit corresponds to the specific input port
+     * number.
+     *
+     * @return port_mask_t a bit mask where each bit corresponds to an input port number.
+     */
+    virtual port_mask_t get_port_mask() const = 0;
 };
 
 template <class TShapeInferIface = IShapeInferCommon>

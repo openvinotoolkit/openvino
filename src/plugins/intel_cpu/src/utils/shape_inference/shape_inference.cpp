@@ -73,6 +73,7 @@
 #include "transpose_shape_inference.hpp"
 #include "unsqueeze_shape_inference.hpp"
 #include "utils.hpp"
+#include "utils/bit_util.hpp"
 #include "variadic_split_shape_inference.hpp"
 
 namespace ov {
@@ -321,7 +322,7 @@ public:
 template <typename OP, bool is_grouped>
 class entryConv : public entryBase {
 public:
-    entryConv(std::shared_ptr<Node> node) : entryBase(std::move(node)) {}
+    entryConv(std::shared_ptr<ov::Node> node) : entryBase(std::move(node)) {}
     const ov::CoordinateDiff& get_pads_begin() override {
         return pads_begin;
     }
@@ -347,7 +348,7 @@ protected:
 template <typename OP, bool is_grouped>
 class entryConvBackprop : public entryBase {
 public:
-    entryConvBackprop(std::shared_ptr<Node> node) : entryBase{std::move(node)} {}
+    entryConvBackprop(std::shared_ptr<ov::Node> node) : entryBase{std::move(node)} {}
 
     const ov::CoordinateDiff& get_pads_begin() override {
         return pads_begin;
@@ -381,13 +382,13 @@ protected:
     ov::CoordinateDiff pads_begin, pads_end;
 };
 
-template <class TOp>
+template <class TOp, uint32_t mask>
 class ShapeInferBase : public IStaticShapeInfer {
 public:
     using iface_type = IStaticShapeInfer;
     virtual ~ShapeInferBase() = default;
 
-    ShapeInferBase(std::shared_ptr<Node> node) : m_node{node} {
+    ShapeInferBase(std::shared_ptr<ov::Node> node) : m_node{node} {
         static_assert(std::is_same<int64_t, Dimension::value_type>::value, "Rank type not match to input_ranks type.");
         for (size_t i = 0; i < node->get_input_size(); ++i) {
             const auto& shape = node->get_input_partial_shape(i);
@@ -419,9 +420,13 @@ public:
         return m_input_ranks;
     }
 
+    port_mask_t get_port_mask() const override {
+        return mask;
+    }
+
 protected:
     std::vector<int64_t> m_input_ranks;
-    std::shared_ptr<Node> m_node;
+    std::shared_ptr<ov::Node> m_node;
 };
 
 /**
@@ -468,18 +473,25 @@ std::shared_ptr<typename TShapeInfer<TOp>::iface_type> make_infer(Args&&... args
     return std::make_shared<TShapeInfer<TOp>>(std::forward<Args>(args)...);
 }
 
+template <template <class, IStaticShapeInfer::port_mask_t> class TShapeInfer,
+          class TOp,
+          IStaticShapeInfer::port_mask_t mask>
+std::shared_ptr<typename TShapeInfer<TOp, mask>::iface_type> make_shape_infer(std::shared_ptr<ov::Node> node) {
+    return std::make_shared<TShapeInfer<TOp, mask>>(std::move(node));
+}
+
 template <template <class> class TShapeInfer, class TOp>
-std::shared_ptr<typename TShapeInfer<TOp>::iface_type> make_shape_infer(std::shared_ptr<Node> node) {
+std::shared_ptr<typename TShapeInfer<TOp>::iface_type> make_shape_infer(std::shared_ptr<ov::Node> node) {
     return make_infer<TShapeInfer, TOp>(std::move(node));
 }
 
 template <class TShapeInfer>
-std::shared_ptr<typename TShapeInfer::iface_type> make_shape_infer(std::shared_ptr<Node> node) {
+std::shared_ptr<typename TShapeInfer::iface_type> make_shape_infer(std::shared_ptr<ov::Node> node) {
     return std::make_shared<TShapeInfer>(std::move(node));
 }
 
 template <template <class, bool> class TConvInfer, class TOp, bool flag>
-std::shared_ptr<typename TConvInfer<TOp, flag>::iface_type> make_shape_infer(std::shared_ptr<Node> node) {
+std::shared_ptr<typename TConvInfer<TOp, flag>::iface_type> make_shape_infer(std::shared_ptr<ov::Node> node) {
     return std::make_shared<TConvInfer<TOp, flag>>(std::move(node));
 }
 
@@ -493,11 +505,12 @@ using namespace ov::opset10;
 #define _OV_OP_SHAPE_INFER_VA_REG(OP, ...) \
     { OP::get_type_info_static(), make_shape_infer<__VA_ARGS__> }
 #define _OV_OP_SHAPE_INFER_REG(OP, SHAPE_INFER)              _OV_OP_SHAPE_INFER_VA_REG(OP, SHAPE_INFER, OP)
+#define _OV_OP_SHAPE_INFER_MASK_REG(OP, SHAPE_INFER, MASK)   _OV_OP_SHAPE_INFER_VA_REG(OP, SHAPE_INFER, OP, MASK)
 #define _OV_OP_NON_TEMPLATE_SHAPE_INFER_REG(OP, SHAPE_INFER) _OV_OP_SHAPE_INFER_VA_REG(OP, SHAPE_INFER)
 
 // Helper types for IShapeInferCommon makers map.
 using IShapeInferCommonFactory =
-    ShapeInferFactory<ShapeInferKey, std::shared_ptr<IShapeInferCommon>, std::shared_ptr<Node>>;
+    ShapeInferFactory<ShapeInferKey, std::shared_ptr<IShapeInferCommon>, std::shared_ptr<ov::Node>>;
 
 // Initialization map for operators supporting IShapeInferCommon objects.
 // First group in map is 'default' opset defined by alias above.
@@ -626,7 +639,7 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
 
 // Helper types for IStaticShapeInfer makers.
 using IStaticShapeInferFactory =
-    ShapeInferFactory<ShapeInferKey, std::shared_ptr<IStaticShapeInfer>, std::shared_ptr<Node>>;
+    ShapeInferFactory<ShapeInferKey, std::shared_ptr<IStaticShapeInfer>, std::shared_ptr<ov::Node>>;
 
 // Initialization map for operators supporting IStaticShapeInfer objects.
 // First group in map is 'default' opset defined by alias above.
@@ -634,17 +647,18 @@ using IStaticShapeInferFactory =
 template <>
 const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     // Default opset
-    _OV_OP_SHAPE_INFER_REG(Tile, ShapeInferBase),
+    _OV_OP_SHAPE_INFER_MASK_REG(Tile, ShapeInferBase, util::bit::mask(1)),
     // Operators shape inferences for specific opset version should be specified below
     // opset1
-    _OV_OP_SHAPE_INFER_REG(opset1::Reverse, ShapeInferBase),
+    _OV_OP_SHAPE_INFER_MASK_REG(opset1::Reverse, ShapeInferBase, util::bit::mask(1)),
 };
 
 #undef _OV_OP_NON_TEMPLATE_SHAPE_INFER_REG
+#undef _OV_OP_SHAPE_INFER_MASK_REG
 #undef _OV_OP_SHAPE_INFER_REG
 #undef _OV_OP_SHAPE_INFER_VA_REG
 template <>
-std::shared_ptr<IShapeInferCommon> make_shape_inference<IShapeInferCommon>(std::shared_ptr<Node> op) {
+std::shared_ptr<IShapeInferCommon> make_shape_inference<IShapeInferCommon>(std::shared_ptr<ov::Node> op) {
     if (auto shape_infer = IShapeInferCommonFactory::make(op->get_type_info(), op)) {
         return shape_infer;
     } else if (auto shape_infer = make_shape_inference<IStaticShapeInfer>(op)) {
