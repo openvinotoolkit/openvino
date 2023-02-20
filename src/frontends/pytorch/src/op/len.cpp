@@ -4,9 +4,9 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
-#include "openvino/op/squeeze.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -24,8 +24,8 @@ OutputVector translate_len(NodeContext& context) {
     auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i64));
 
     auto slice = context.mark_node(std::make_shared<v8::Slice>(input_shape, const_0, const_1, const_1));
-    auto squeeze = std::make_shared<v0::Squeeze>(slice, const_0);
-    return {context.mark_node(squeeze)};
+    // Slice will return empty tensor for empty lists, we use the fact that ReduceSum(empty tensor) = 0
+    return {context.mark_node(std::make_shared<v1::ReduceSum>(slice, const_0, false))};
 };
 
 }  // namespace op

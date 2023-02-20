@@ -49,3 +49,27 @@ class TestLen(PytorchLayerTest):
         self.input_tensor = input_tensor
         self._test(*self.create_model_int_list(),
                    ie_device, precision, ir_version)
+
+
+class TestLenEmpty(PytorchLayerTest):
+
+    def _prepare_input(self):
+        input_tensor = np.random.randn(1, 2, 3) * 10
+        return (input_tensor.astype(np.int64),)
+
+    def create_model_empty(self):
+        class aten_len(torch.nn.Module):
+
+            def forward(self, input_tensor):
+                # len of empty slice
+                return torch.as_tensor(len(input_tensor[0:0]), dtype=torch.int)
+
+        ref_net = None
+
+        return aten_len(), ref_net, "aten::len"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_len_empty(self, ie_device, precision, ir_version):
+        self._test(*self.create_model_empty(),
+                   ie_device, precision, ir_version)
