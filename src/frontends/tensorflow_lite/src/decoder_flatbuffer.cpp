@@ -25,7 +25,7 @@ void DecoderFlatBuffer::get_input_node(size_t input_port_idx,
                             input_port_idx,
                             ". Number of inputs: ",
                             inputs->size());
-    auto input_tensor_idx = (*inputs)[input_port_idx];
+    auto input_tensor_idx = (*inputs)[static_cast<flatbuffers::uoffset_t>(input_port_idx)];
     auto tensor = m_input_info.at(input_port_idx).tensor;
     std::string name = (*tensor).name()->str();
     producer_name = name;
