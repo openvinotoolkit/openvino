@@ -607,6 +607,7 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
 
     DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, args, dims, 1, isINT8);
 
+    useLegacyPostOps = false;
     DEBUG_LOG(getName(), " useLegacyPostOps=", useLegacyPostOps, " initWeights=", initWeights);
 
     for (int i = 0; i < fusedWith.size(); ++i) {
@@ -1029,6 +1030,11 @@ void Convolution::initDescriptor(const NodeConfig& config) {
         isStridedBlobsSupported = false;
     }
 
+    auto rightConfig = selectedPD->getConfig();
+
+    descs.clear();
+    createDescriptor({rightConfig.inConfs[0].getMemDesc()}, {rightConfig.outConfs[0].getMemDesc()});
+
     if (isStridedBlobsSupported) {
         createDescriptor({config.inConfs[0].getMemDesc()}, {config.outConfs[0].getMemDesc()});
     }
@@ -1052,63 +1058,69 @@ void Convolution::initDescriptor(const NodeConfig& config) {
     //attr[1] for stock per-tensor zero point.
     preferLegacyZeroPoint = (n == 0);
 
-    auto rightConfig = selectedPD->getConfig();
-    primitive_desc_iterator itpd = *descs.back();
+    for (auto& desc : descs) {
+        primitive_desc_iterator itpd = *desc;
 
-    while (itpd) {
-        NodeConfig cfg;
-        cfg.dynBatchSupport = true;
-        for (size_t j = 0; j < descInputNumbers(); j++) {
-            PortConfig dataConfig;
-            dataConfig.inPlace(-1);
-            dataConfig.constant(false);
-            dataConfig.setMemDesc(getSrcMemDesc(itpd, j));
-            cfg.inConfs.push_back(dataConfig);
-        }
-
-        if (withDWConv) {
-            auto weightsPrc = DnnlExtensionUtils::IEPrecisionToDataType(dw_conv_in_dt == dnnl_u8 ? Precision::I8 : Precision::FP32);
-            auto biasPrc = memory::data_type::f32;
-
-            std::vector <size_t> dwWeightsDims({dw_conv_oc, 1, 1, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS]});
-            std::vector <size_t> dwBiasesDims({dw_conv_oc});
-
-            PortConfig dataConfig;
-            dataConfig.inPlace(-1);
-            dataConfig.constant(false);
-            dataConfig.setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(Shape(dwWeightsDims), weightsPrc, memory::format_tag::Goihw8g));
-            cfg.inConfs.push_back(dataConfig);
-
-            dataConfig.setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(Shape(dwBiasesDims), biasPrc, memory::format_tag::x));
-            cfg.inConfs.push_back(dataConfig);
-        }
-
-        for (size_t j = 0; j < descOutputNumbers(); j++) {
-            PortConfig dataConfig;
-            dataConfig.inPlace(-1);
-            dataConfig.constant(false);
-            dataConfig.setMemDesc(getDstMemDesc(itpd, j));
-            if (withSum) {
-                auto eltwiseConfig = dataConfig;
-                eltwiseConfig.setMemDesc(eltwiseConfig.getMemDesc()->cloneWithNewPrecision(eltwisePrecision));
-                cfg.inConfs.push_back(eltwiseConfig);
-                dataConfig.inPlace(getParentEdges().size() - 1);
+        while (itpd) {
+            NodeConfig cfg;
+            cfg.dynBatchSupport = true;
+            for (size_t j = 0; j < descInputNumbers(); j++) {
+                PortConfig dataConfig;
+                dataConfig.inPlace(-1);
+                dataConfig.constant(false);
+                dataConfig.setMemDesc(getSrcMemDesc(itpd, j));
+                cfg.inConfs.push_back(dataConfig);
             }
 
-            cfg.outConfs.push_back(dataConfig);
+            if (withDWConv) {
+                auto weightsPrc = DnnlExtensionUtils::IEPrecisionToDataType(dw_conv_in_dt == dnnl_u8 ? Precision::I8 : Precision::FP32);
+                auto biasPrc = memory::data_type::f32;
+
+                std::vector <size_t> dwWeightsDims({dw_conv_oc, 1, 1, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS]});
+                std::vector <size_t> dwBiasesDims({dw_conv_oc});
+
+                PortConfig dataConfig;
+                dataConfig.inPlace(-1);
+                dataConfig.constant(false);
+                dataConfig.setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(Shape(dwWeightsDims), weightsPrc, memory::format_tag::Goihw8g));
+                cfg.inConfs.push_back(dataConfig);
+
+                dataConfig.setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(Shape(dwBiasesDims), biasPrc, memory::format_tag::x));
+                cfg.inConfs.push_back(dataConfig);
+            }
+
+            for (size_t j = 0; j < descOutputNumbers(); j++) {
+                PortConfig dataConfig;
+                dataConfig.inPlace(-1);
+                dataConfig.constant(false);
+                dataConfig.setMemDesc(getDstMemDesc(itpd, j));
+                if (withSum) {
+                    auto eltwiseConfig = dataConfig;
+                    eltwiseConfig.setMemDesc(eltwiseConfig.getMemDesc()->cloneWithNewPrecision(eltwisePrecision));
+                    cfg.inConfs.push_back(eltwiseConfig);
+                    dataConfig.inPlace(getParentEdges().size() - 1);
+                }
+
+                cfg.outConfs.push_back(dataConfig);
+            }
+
+            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+
+            // if (selected_count == selectedPrimitiveDescriptorIndex) {
+            if (impl_type == selectedPD->getImplementationType()) {
+                rightConfig = cfg;
+                break;
+            }
+
+            if (!itpd.next_impl())
+                break;
         }
-
-        impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-
-        // if (selected_count == selectedPrimitiveDescriptorIndex) {
-        if (impl_type == selectedPD->getImplementationType()) {
-            rightConfig = cfg;
-            break;
-        }
-
-        if (!itpd.next_impl())
-            break;
     }
+
+    // if (!rightConfigFound) {
+    //     if (rightConfig.inConfs.size() > 3)
+    //         std::cout << getName() << ": right config not found! Output precision: " << rightConfig.inConfs[3].getMemDesc()->getPrecision() << "\n";
+    // }
 
     selectedPD->setConfig(rightConfig);
 }
