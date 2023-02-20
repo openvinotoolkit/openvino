@@ -10,7 +10,6 @@
 #include <pybind11/stl.h>
 
 #include <stdexcept>
-#include <vector>
 
 #include "openvino/core/shape.hpp"
 #include "openvino/runtime/tensor.hpp"
