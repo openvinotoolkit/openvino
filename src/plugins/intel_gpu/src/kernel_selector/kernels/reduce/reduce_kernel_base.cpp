@@ -38,15 +38,7 @@ JitConstants ReduceKernelBase::GetJitConstants(const reduce_params& params) cons
         auto f = toCodeString(output.Feature(), output_offset + 1);
         auto b = toCodeString(output.Batch(), output_offset);
 
-        auto multiply = [](std::vector<std::string> dims) -> std::string {
-            std::string res = "(";
-            for (size_t i = 0; i < dims.size() - 1; ++i) {
-                res += dims[i] + "*";
-            }
-            res += dims.back() + ")";
-            return res;
-        };
-        jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", multiply({x, y, z, w, f, b})));
+        jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", toVectorMulString({x, y, z, w, f, b})));
     } else {
         jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", params.outputs[0].LogicalSize()));
     }

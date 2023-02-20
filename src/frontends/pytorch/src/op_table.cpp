@@ -53,6 +53,7 @@ OP_CONVERTER(translate_group_norm);
 OP_CONVERTER(translate_hardtanh);
 OP_CONVERTER(translate_if);
 OP_CONVERTER(translate_im2col);
+OP_CONVERTER(translate_index_put_);
 OP_CONVERTER(translate_instance_norm);
 OP_CONVERTER(translate_int);
 OP_CONVERTER(translate_layer_norm);
@@ -117,7 +118,7 @@ OP_CONVERTER(translate_zeros_like);
 
 }  // namespace op
 
-const std::map<std::string, CreatorFunction> get_supported_ops() {
+const std::map<std::string, PytorchCreatorFunction> get_supported_ops() {
     return {
         {"aten::__and__", op::translate_1to1_match_2_inputs<opset10::LogicalAnd>},  // TODO: cover numerical cases
         {"aten::__getitem__", op::translate_getitem},
@@ -208,6 +209,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::hardtanh", op::translate_hardtanh},
         {"aten::hardtanh_", op::inplace_op<op::translate_hardtanh>},
         {"aten::im2col", op::translate_im2col},
+        {"aten::index_put_", op::inplace_op<op::translate_index_put_>},
         {"aten::instance_norm", op::translate_instance_norm},
         {"aten::Int", op::translate_int},
         {"aten::IntImplicit", op::translate_int},

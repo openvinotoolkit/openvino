@@ -327,6 +327,12 @@ KERNEL(strided_slice_ref)(OPTIONAL_SHAPE_INFO_ARG
             y * OUTPUT_Y_PITCH +
             x * OUTPUT_X_PITCH;
 
+#if HAS_FUSED_OPS
+    INPUT0_TYPE input_data = input[input_index];
+    FUSED_OPS;
+    output[output_index] = FUSED_OPS_RESULT;
+#else
     output[output_index] = ACTIVATION(input[input_index], ACTIVATION_PARAMS);
+#endif
 #endif // NEW_AXIS_MODE
 }
