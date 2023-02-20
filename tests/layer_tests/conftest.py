@@ -66,6 +66,11 @@ def pytest_addoption(parser):
         action="store_true",
         help="Use Model Optimizer with new FrontEnd")
     parser.addoption(
+        "--use_legacy_frontend",
+        required=False,
+        action="store_true",
+        help="Use Model Optimizer with legacy FrontEnd")
+    parser.addoption(
         "--use_old_api",
         action="store_true",
         help="Use old API for model processing in Inference Engine",
@@ -87,6 +92,12 @@ def ir_version(request):
 def use_new_frontend(request):
     """Fixture function for command-line option."""
     return request.config.getoption('use_new_frontend')
+
+
+@pytest.fixture(scope="session")
+def use_legacy_frontend(request):
+    """Fixture function for command-line option."""
+    return request.config.getoption('use_legacy_frontend')
 
 
 @pytest.fixture(scope="session")
