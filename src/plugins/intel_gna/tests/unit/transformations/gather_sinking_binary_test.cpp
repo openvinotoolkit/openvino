@@ -81,7 +81,7 @@ std::shared_ptr<Gather> MakeGather(NodePtr input_node, CreateIndicesF create_ind
     const std::vector<size_t> indexes = create_indices_func(input_shape[axis], 0);
     auto gather_indexes_node = Constant::create(ngraph::element::i64, ov::Shape{indexes.size()}, indexes);
 
-    auto gather_axis_node = Constant::create(ngraph::element::i64, ngraph::Shape{1}, {axis});
+    auto gather_axis_node = Constant::create(ngraph::element::i64, ngraph::Shape{}, {axis});
 
     return std::make_shared<Gather>(input_node, gather_indexes_node, gather_axis_node);
 }
