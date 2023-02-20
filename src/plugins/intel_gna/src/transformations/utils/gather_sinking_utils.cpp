@@ -195,8 +195,8 @@ void UpdateInputGather(NodePtr main_node, const GatherInputsInfo& gather_input_i
 
     const auto max_input_rank = GetMaxInputRank(main_node);
     if (max_input_rank < 0)
-        return;
-
+        return; 
+        
     for (size_t i = 0; i < main_node->get_input_size(); ++i) {
         auto input_node = main_node->input_value(i);
         if (i == gather_input_info.input_idx) {
@@ -389,7 +389,7 @@ GatherInfo GetGatherInfo(Node* node) {
 }
 
 Node* FindFirstConsumer(NodePtr node) {
-    for (auto output : node->outputs()) {
+    for (auto& output : node->outputs()) {
         auto inputs = output.get_target_inputs();
         if (inputs.empty())
             continue;
