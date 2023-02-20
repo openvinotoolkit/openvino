@@ -298,15 +298,15 @@ TEST_F(TransformationTestsF, ConcatReverseInfer) {
     {
         auto data1 = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
         // Specify rank and type in one of Concat input to inherit in another
-        auto data2 = std::make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic(4));
+        auto data2 = std::make_shared<opset10::Parameter>(element::f32, PartialShape{1, 3, 224, 224});
         auto concat = std::make_shared<opset10::Concat>(OutputVector{data1, data2}, 0);
         auto result = std::make_shared<opset10::Result>(concat);
         model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data1, data2});
         manager.register_pass<pass::ReverseShapeAndTypeInfer>();
     }
     {
-        auto data1 = std::make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic(4));
-        auto data2 = std::make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic(4));
+        auto data1 = std::make_shared<opset10::Parameter>(element::f32, PartialShape{DYN, 3, 224, 224});
+        auto data2 = std::make_shared<opset10::Parameter>(element::f32, PartialShape{1, 3, 224, 224});
         auto concat = std::make_shared<opset10::Concat>(OutputVector{data1, data2}, 0);
         auto result = std::make_shared<opset10::Result>(concat);
         model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data1, data2});
@@ -482,7 +482,7 @@ TEST_F(TransformationTestsF, IfReverseInfer) {
         auto if_op = std::make_shared<opset10::If>(cond);
         if_op->set_then_body(then_body);
         if_op->set_else_body(else_body);
-        if_op->set_input(X, Xt, Xe);        
+        if_op->set_input(X, Xt, Xe);
         auto res = if_op->set_output(then_op_res, else_op_res);
         // Convolution is needed to produce static rank
         auto weights =
@@ -518,7 +518,7 @@ TEST_F(TransformationTestsF, IfReverseInfer) {
         auto if_op = std::make_shared<opset10::If>(cond);
         if_op->set_then_body(then_body);
         if_op->set_else_body(else_body);
-        if_op->set_input(X, Xt, Xe);        
+        if_op->set_input(X, Xt, Xe);
         auto res = if_op->set_output(then_op_res, else_op_res);
         // Convolution is needed to produce static rank
         auto weights =

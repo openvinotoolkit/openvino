@@ -141,11 +141,25 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                 }
             }
             is_changed |= inherit_output_type(op, {0, 1});
-        } else if (std::dynamic_pointer_cast<Concat>(op)) {
-            std::vector<size_t> inp_idxs(op->get_input_size());
-            std::iota(inp_idxs.begin(), inp_idxs.end(), 0);
-            is_changed |= inherit_output_rank(op, inp_idxs);
-            is_changed |= inherit_output_type(op, inp_idxs);
+        } else if (const auto& concat = std::dynamic_pointer_cast<Concat>(op)) {
+            std::vector<size_t> input_idxs(op->get_input_size());
+            std::iota(input_idxs.begin(), input_idxs.end(), 0);
+
+            auto axis = concat->get_axis();
+            if (output_shape.rank().is_static()) {
+                if (axis < 0) {
+                    axis = output_shape.rank().get_length() + axis;
+                }
+                auto input_pshape = output_shape;
+                input_pshape[axis] = Dimension::dynamic();
+                for (auto idx : input_idxs) {
+                    if (idx < op->get_input_size() && op->get_input_partial_shape(idx).rank().is_dynamic()) {
+                        op->get_input_tensor(idx).m_partial_shape = input_pshape;
+                        is_changed = true;
+                    }
+                }
+            }
+            is_changed |= inherit_output_type(op, input_idxs);
         } else if (std::dynamic_pointer_cast<Slice>(op)) {
             is_changed |= inherit_output_rank(op, {0});
             is_changed |= inherit_output_type(op, {0});
