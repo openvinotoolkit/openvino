@@ -123,7 +123,7 @@ TEST_P(IEClassGetMetricTest_GPU_OPTIMAL_BATCH_SIZE, GetMetricAndPrintNoThrow) {
 
     std::map<std::string, InferenceEngine::Parameter> _options = {{"MODEL_PTR", simpleCnnNetwork.getFunction()}};
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(OPTIMAL_BATCH_SIZE), _options).as<unsigned int>());
-    auto int t = p.as<unsigned int>();
+    auto t = p.as<unsigned int>();
 
     std::cout << "GPU device optimal batch size: " << t << std::endl;
 
