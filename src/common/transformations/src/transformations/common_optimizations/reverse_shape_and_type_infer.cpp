@@ -268,7 +268,7 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                     }
                     is_changed = true;
                 } else {
-                    is_changed |= inherit_output_shape(op, {0});
+                    is_changed |= inherit_output_rank(op, {0});
                 }
             } else if (transpose_order) {
                 auto order_value = transpose_order->cast_vector<int64_t>();
