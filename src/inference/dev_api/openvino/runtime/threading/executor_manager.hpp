@@ -63,4 +63,3 @@ public:
 OPENVINO_API std::shared_ptr<ExecutorManager> executor_manager();
 
 }  // namespace ov
-
