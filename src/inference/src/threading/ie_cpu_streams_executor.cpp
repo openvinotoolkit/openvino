@@ -370,6 +370,18 @@ int CPUStreamsExecutor::GetNumaNodeId() {
 
 CPUStreamsExecutor::CPUStreamsExecutor(const IStreamsExecutor::Config& config) : _impl{new Impl{config}} {}
 
+CPUStreamsExecutor::CPUStreamsExecutor(const ov::IStreamsExecutor::Config& config)
+    : _impl{new Impl{IStreamsExecutor::Config(
+          config._name,
+          config._streams,
+          config._threadsPerStream,
+          static_cast<InferenceEngine::IStreamsExecutor::ThreadBindingType>(config._threadBindingType),
+          config._threadBindingStep,
+          config._threadBindingOffset,
+          config._threads,
+          static_cast<InferenceEngine::IStreamsExecutor::Config::PreferredCoreType>(
+              config._threadPreferredCoreType))}} {}
+
 CPUStreamsExecutor::~CPUStreamsExecutor() {
     {
         std::lock_guard<std::mutex> lock(_impl->_mutex);

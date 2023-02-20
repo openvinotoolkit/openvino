@@ -12,6 +12,7 @@
 #include <memory>
 #include <string>
 
+#include "openvino/runtime/threading/istreams_executor.hpp"
 #include "threading/ie_istreams_executor.hpp"
 
 namespace InferenceEngine {
@@ -34,6 +35,7 @@ public:
      * @param config Stream executor parameters
      */
     explicit CPUStreamsExecutor(const Config& config = {});
+    explicit CPUStreamsExecutor(const ov::IStreamsExecutor::Config& config = {});
 
     /**
      * @brief A class destructor
