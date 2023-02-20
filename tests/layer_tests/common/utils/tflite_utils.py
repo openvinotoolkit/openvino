@@ -1,7 +1,58 @@
 import os
 
 import tensorflow as tf
+import numpy as np
 from common.utils.tf_utils import summarize_graph, transpose_nhwc_to_nchw
+
+
+def make_positive_array(inputs_dict):
+    for input in inputs_dict.keys():
+        inputs_dict[input] = np.random.randint(1, 10, inputs_dict[input]).astype(np.float32)
+    return inputs_dict
+
+
+def short_range(inputs_dict):
+    for input in inputs_dict.keys():
+        inputs_dict[input] = np.random.randint(-1, 1, inputs_dict[input]).astype(np.float32)
+    return inputs_dict
+
+
+def make_boolean_array(inputs_dict):
+    for input in inputs_dict.keys():
+        inputs_dict[input] = np.random.randint(0, 1, inputs_dict[input]) > 1
+    return inputs_dict
+
+
+data_generators = {
+    'positive': make_positive_array,
+    'short_range': short_range,
+    'boolean': make_boolean_array,
+}
+
+
+def activation_helper(input_node, activation_name):
+    if activation_name is None:
+        return input_node
+    if activation_name == 'RELU_N1_TO_1':
+        return tf.math.minimum(tf.math.maximum(-1, tf.cast(input_node, tf.int32)), 1)
+    else:
+        return activation_name(input_node)
+
+
+additional_test_params = [
+    [
+        {'axis': None},
+        {'axis': -1}
+        ],
+    [
+        {'activation': None},
+        {'activation': tf.nn.relu},
+        {'activation': tf.nn.relu6},
+        {'activation': tf.math.tanh},
+        {'activation': tf.experimental.numpy.signbit},
+        {'activation': 'RELU_N1_TO_1'}
+        ]
+]
 
 
 def save_pb_to_tflite(pb_model):
@@ -67,3 +118,4 @@ def get_tensors_from_graph(graph, ops: list):
             tensors.append(op_out_tensor)
 
     return tensors
+

@@ -7,33 +7,10 @@ import numpy as np
 import pytest
 import tensorflow as tf
 from common.tflite_layer_test_class import TFLiteLayerTest
+from common.utils.tflite_utils import data_generators
 
 np.random.seed(42)
 
-
-def make_positive_array(inputs_dict):
-    for input in inputs_dict.keys():
-        inputs_dict[input] = np.random.randint(1, 10, inputs_dict[input]).astype(np.float32)
-    return inputs_dict
-
-
-def short_range(inputs_dict):
-    for input in inputs_dict.keys():
-        inputs_dict[input] = np.random.randint(-1, 1, inputs_dict[input]).astype(np.float32)
-    return inputs_dict
-
-
-def make_boolean_array(inputs_dict):
-    for input in inputs_dict.keys():
-        inputs_dict[input] = np.random.randint(0, 1, inputs_dict[input]) > 1
-    return inputs_dict
-
-
-data_generators = {
-    'positive': make_positive_array,
-    'short_range': short_range,
-    'boolean': make_boolean_array,
-}
 
 test_ops = [
     {'op_name': 'ABS', 'op_func': tf.math.abs},

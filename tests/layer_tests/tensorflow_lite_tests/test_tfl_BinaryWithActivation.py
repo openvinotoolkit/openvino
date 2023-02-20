@@ -4,7 +4,7 @@ import tensorflow as tf
 import pytest
 
 from common.tflite_layer_test_class import TFLiteLayerTest
-from tensorflow_lite_tests.test_tfl_Unary import data_generators
+from common.utils.tflite_utils import data_generators, additional_test_params, activation_helper
 
 test_ops = [
     {'op_name': 'ADD', 'op_func': tf.math.add},
@@ -18,34 +18,19 @@ test_params = [
     {'shape': [2, 10]}
 ]
 
-activations = [
-    {'activation': None},
-    {'activation': tf.nn.relu},
-    {'activation': tf.nn.relu6},
-    {'activation': tf.math.tanh},
-    {'activation': tf.experimental.numpy.signbit},
-    # n1
-]
 
 test_data = list(itertools.product(test_ops, test_params))
 for i, (parameters, shapes) in enumerate(test_data):
     parameters.update(shapes)
     test_data[i] = parameters.copy()
 
-test_data = list(itertools.product(test_data, activations))
-for i, (parameters, activations) in enumerate(test_data):
-    parameters.update(activations)
+test_data = list(itertools.product(test_data, additional_test_params[1]))
+for i, (parameters, additional_test_params[1]) in enumerate(test_data):
+    parameters.update(additional_test_params[1])
     test_data[i] = parameters.copy()
 
 
-def activation_helper(input_node, activation_name: callable):
-    if activation_name is None:
-        return input_node
-    else:
-        return activation_name(input_node)
-
-
-class TestTFLiteBinaryWith_ActivationLayerTest(TFLiteLayerTest):
+class TestTFLiteBinaryWithActivationLayerTest(TFLiteLayerTest):
     inputs = ["Input_0", "Input_1"]
     outputs = ["BinaryOperation"]
 
@@ -61,10 +46,10 @@ class TestTFLiteBinaryWith_ActivationLayerTest(TFLiteLayerTest):
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
             in0 = tf.compat.v1.placeholder(params.get('dtype', tf.float32), params['shape'],
-                                           name=TestTFLiteBinaryWith_ActivationLayerTest.inputs[0])
+                                           name=TestTFLiteBinaryWithActivationLayerTest.inputs[0])
             in1 = tf.compat.v1.placeholder(params.get('dtype', tf.float32), params['shape'],
-                                           name=TestTFLiteBinaryWith_ActivationLayerTest.inputs[1])
-            op = params['op_func'](in0, in1, name=TestTFLiteBinaryWith_ActivationLayerTest.outputs[0])
+                                           name=TestTFLiteBinaryWithActivationLayerTest.inputs[1])
+            op = params['op_func'](in0, in1, name=TestTFLiteBinaryWithActivationLayerTest.outputs[0])
             op = activation_helper(op, params['activation'])
 
             net = sess.graph_def
