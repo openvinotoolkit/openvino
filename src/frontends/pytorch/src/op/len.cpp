@@ -4,10 +4,9 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/reduce_sum.hpp"
 #include "utils.hpp"
 
 namespace ov {
