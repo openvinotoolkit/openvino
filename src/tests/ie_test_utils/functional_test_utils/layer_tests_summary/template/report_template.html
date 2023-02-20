@@ -119,13 +119,13 @@
             <tr>
                 <th class="table-primary" scope="row">AVG passrate per op (=sum_pass_rates/covered_ops_num):</th>
                 {% for d in devices -%}
-                <td class="table-primary  {{ d }} avg_pass_rate">{{pass_rate_avg[d]}} {% if pass_rate_avg[d] != "NOT RUN" -%}%{% endif -%}</td>
+                <td class="table-primary  {{ d }} avg_pass_rate">{{pass_rate_avg[d]}} / {{pass_rate_avg_rel[d]}} {% if pass_rate_avg[d] != "NOT RUN" -%}%{% endif -%}</td>
                 {% endfor %}
             </tr>
             <tr>
                 <th class="table-primary" scope="row">General passrate (=passed_tests/all_tests):</th>
                 {% for d in devices -%}
-                <td class="table-primary  {{ d }} general_pass_rate">{{general_pass_rate[d]}} {% if general_pass_rate[d] != "NOT RUN" -%}%{% endif -%}</td>
+                <td class="table-primary  {{ d }} general_pass_rate">{{general_pass_rate[d]}} / {{general_pass_rate_rel[d]}} {% if general_pass_rate[d] != "NOT RUN" -%}%{% endif -%}</td>
                 {% endfor %}
             </tr>
         </tbody>
@@ -151,7 +151,7 @@
                                 {% endif -%}">
                             <span class="{% if results[d][op].implemented == 'true' -%} checkmark {% else -%} check {% endif -%}"></span>
                             {% if (results[d][op].passed != '0' or results[d][op].failed != '0' or results[d][op].crashed != '0' or results[d][op].skipped != '0' or results[d][op].hanged != '0') -%}
-                                {{ results[d][op].passrate }} % <br />
+                                {{ results[d][op].passrate }} %  / {{ results[d][op].relative_passrate }} % <br />
                             {% else -%}
                                 ---<br />
                             {% endif -%}

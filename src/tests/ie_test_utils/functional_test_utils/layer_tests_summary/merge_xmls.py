@@ -37,7 +37,7 @@ def parse_arguments():
 
 def update_result_node(xml_node: SubElement, aggregated_res: SubElement):
     for attr_name in xml_node.attrib:
-        if attr_name == "passrate":
+        if attr_name == "passrate" or attr_name == "relative_passrate":
             continue
         if attr_name == "implemented":
             xml_value = xml_node.attrib.get(attr_name) == "true"

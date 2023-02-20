@@ -36,12 +36,14 @@ struct PassRate {
 
     PassRate() = default;
 
-    PassRate(unsigned long p, unsigned long f, unsigned long s, unsigned long c, unsigned long h) {
+    PassRate(unsigned long p, unsigned long f, unsigned long s, unsigned long c, unsigned long h, unsigned long rel_p = 0, unsigned long rel_a = 0) {
         passed = p;
         failed = f;
         skipped = s;
         crashed = c;
         hanged = h;
+        rel_passed = rel_p;
+        rel_all = rel_a;
         if (!isImplemented && passed > 0) {
             isImplemented = true;
         }

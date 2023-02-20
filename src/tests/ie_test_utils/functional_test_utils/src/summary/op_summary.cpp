@@ -126,7 +126,9 @@ std::map<std::string, PassRate> OpSummary::getStatisticFromReport() {
         auto s = std::stoi(child.attribute("skipped").value());
         auto c = std::stoi(child.attribute("crashed").value());
         auto h = std::stoi(child.attribute("hanged").value());
-        PassRate obj(p, f, s, c, h);
+        auto rel_passed = std::stoi(child.attribute("rel_passed").value());
+        auto rel_all = std::stoi(child.attribute("rel_all").value());
+        PassRate obj(p, f, s, c, h, rel_passed, rel_all);
         oldOpsStat.insert({entry, obj});
     }
     return oldOpsStat;
@@ -316,6 +318,8 @@ void OpSummary::saveReport() {
         entry.append_attribute("crashed").set_value(static_cast<unsigned long long>(it.second.crashed));
         entry.append_attribute("hanged").set_value(static_cast<unsigned long long>(it.second.hanged));
         entry.append_attribute("passrate").set_value(it.second.getPassrate());
+        entry.append_attribute("relative_passed").set_value(it.second.rel_passed);
+        entry.append_attribute("relative_all").set_value(it.second.rel_all);
         entry.append_attribute("relative_passrate").set_value(it.second.getRelPassrate());
     }
 
@@ -332,6 +336,8 @@ void OpSummary::saveReport() {
                 entry.append_attribute("crashed").set_value(static_cast<unsigned long long>(item.second.crashed));
                 entry.append_attribute("hanged").set_value(static_cast<unsigned long long>(item.second.hanged));
                 entry.append_attribute("passrate").set_value(item.second.getPassrate());
+                entry.append_attribute("relative_passed").set_value(item.second.rel_passed);
+                entry.append_attribute("relative_all").set_value(item.second.rel_all);
                 entry.append_attribute("relative_passrate").set_value(item.second.getRelPassrate());
             } else {
                 entry = currentDeviceNode.child(item.first.c_str());
@@ -341,8 +347,9 @@ void OpSummary::saveReport() {
                 auto s = std::stoi(entry.attribute("skipped").value()) + item.second.skipped;
                 auto c = std::stoi(entry.attribute("crashed").value()) + item.second.crashed;
                 auto h = std::stoi(entry.attribute("hanged").value()) + item.second.hanged;
-                auto rel_pr = (std::stoi(entry.attribute("relative_passrate").value()) + item.second.getRelPassrate()) * 0.5f;
-                PassRate obj(p, f, s, c, h);
+                auto rel_passed = std::stoi(entry.attribute("relative_passed").value()) + item.second.rel_passed;
+                auto rel_all = std::stoi(entry.attribute("relative_all").value()) + item.second.rel_all;
+                PassRate obj(p, f, s, c, h, rel_passed, rel_all);
 
                 (implStatus || obj.isImplemented)
                 ? entry.attribute("implemented").set_value(true)
@@ -353,7 +360,9 @@ void OpSummary::saveReport() {
                 entry.attribute("crashed").set_value(static_cast<unsigned long long>(obj.crashed));
                 entry.attribute("hanged").set_value(static_cast<unsigned long long>(obj.hanged));
                 entry.attribute("passrate").set_value(obj.getPassrate());
-                entry.attribute("relative_passrate").set_value(rel_pr);
+                entry.attribute("relative_passed").set_value(item.second.rel_passed);
+                entry.attribute("relative_all").set_value(item.second.rel_all);
+                entry.attribute("relative_passrate").set_value(item.second.getRelPassrate());
             }
         }
     }
