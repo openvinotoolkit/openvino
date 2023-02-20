@@ -640,3 +640,15 @@ TEST(type_prop, nms_v5_dynamic_boxes_and_scores) {
     EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension::dynamic(), 3}));
     EXPECT_EQ(nms->get_output_shape(2), (Shape{1}));
 }
+
+TEST(type_prop, nms_v9_dynamic_types) {
+    const auto boxes = make_shared<op::Parameter>(element::dynamic, Shape{5, 2, 4});
+    const auto scores = make_shared<op::Parameter>(element::dynamic, Shape{5, 3, 2});
+
+    const auto nms = make_shared<op::v9::NonMaxSuppression>(boxes, scores);
+
+    ASSERT_TRUE(nms->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 3}));
+    ASSERT_TRUE(nms->get_output_partial_shape(1).same_scheme(PartialShape{Dimension::dynamic(), 3}));
+
+    EXPECT_EQ(nms->get_output_shape(2), (Shape{1}));
+}
