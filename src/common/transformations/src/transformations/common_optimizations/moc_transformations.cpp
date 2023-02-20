@@ -167,7 +167,6 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     eliminations->set_name("ov::pass::CommonEliminations");
 
     manager.register_pass<ov::pass::ConstantFolding>();
-
     auto common_fusions = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(common_fusions, ConvertScatterElementsToScatter)
     ADD_MATCHER(common_fusions, SoftPlusFusion)
@@ -193,14 +192,14 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
 
     ADD_MATCHER(common_fusions, DivideFusion)
     ADD_MATCHER(common_fusions, SubtractFusion)
-    //ADD_MATCHER(common_fusions, TransposeToReshape)
+    ADD_MATCHER(common_fusions, TransposeToReshape)
     ADD_MATCHER(common_fusions, ReshapeSequenceFusion, m_use_shapes)
     ADD_MATCHER(common_fusions, MatMulConstTransposesExtraction)
     ADD_MATCHER(common_fusions, PReluFusion)
     ADD_MATCHER(common_fusions, DepthToSpaceFusion)
     ADD_MATCHER(common_fusions, ShuffleChannelsFusion, !m_use_shapes)
     common_fusions->set_name("ov::pass::CommonFusions");
-    manager.register_pass<Serialize>("/home/tikhonov/OpenVINO/tmp/serialized/ts_before_align_eltwise.xml", "/home/tikhonov/OpenVINO/tmp/serialized/ts_before_align_eltwise.bin");
+
     REGISTER_PASS(manager, BinarizeWeights)
     REGISTER_PASS(manager, ConvToBinaryConv)
 

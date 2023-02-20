@@ -55,9 +55,9 @@ ov::pass::TransposeToReshape::TransposeToReshape() {
         };
         std::vector<DimensionToPosition> dims;
         for (size_t i = 0; i < input_shape_rank; ++i) {
-            //if (order_value[i] != static_cast<int64_t>(i)) {
+            if (order_value[i] != static_cast<int64_t>(i)) {
                 dims.push_back({input_shape[order_value[i]], i});
-            //}
+            }
         }
 
         // If number of dimensions != 1 to move equal to 0 we can remove this Transpose
@@ -79,7 +79,6 @@ ov::pass::TransposeToReshape::TransposeToReshape() {
 
         Output<Node> reshape_dim;
         NodeVector new_ops;
-        std::cout << "XXXX Replace Transpose " << std::endl;
         if (count_if(dims.begin(), dims.end(), [](const DimensionToPosition& item) {
                 return item.dim.is_dynamic();
             }) < 2) {
@@ -87,10 +86,6 @@ ov::pass::TransposeToReshape::TransposeToReshape() {
             for (const auto& item : dims) {
                 reshape_value[item.pos] = item.dim.is_dynamic() ? -1 : item.dim.get_length();
                 std::cout << reshape_value[item.pos] << std::endl;
-            }
-            std::cout << "reshape value" << std::endl;
-            for (const auto &it : reshape_value) {
-                std::cout << it << std::endl;
             }
             reshape_dim = opset3::Constant::create(element::i64, Shape{reshape_value.size()}, reshape_value);
         } else {
