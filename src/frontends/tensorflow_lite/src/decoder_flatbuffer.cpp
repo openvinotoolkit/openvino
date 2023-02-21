@@ -25,7 +25,7 @@ void DecoderFlatBuffer::get_input_node(size_t input_port_idx,
                             input_port_idx,
                             ". Number of inputs: ",
                             inputs->size());
-    auto input_tensor_idx = (*inputs)[input_port_idx];
+    auto input_tensor_idx = (*inputs)[static_cast<flatbuffers::uoffset_t>(input_port_idx)];
     auto tensor = m_input_info.at(input_port_idx).tensor;
     std::string name = (*tensor).name()->str();
     producer_name = name;
@@ -81,7 +81,7 @@ std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> DecoderFlatBuffe
 
     return std::make_shared<ov::frontend::tensorflow_lite::TensorLitePlace>(
         model,
-        ov::frontend::tensorflow_lite::get_ov_shape(tensor->shape()),
+        ov::frontend::tensorflow_lite::get_ov_shape(tensor->shape(), tensor->shape_signature()),
         ov::frontend::tensorflow_lite::get_ov_type(tensor->type()),
         names,
         ov::frontend::tensorflow_lite::get_quantization(tensor->quantization()),
