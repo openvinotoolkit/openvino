@@ -264,7 +264,7 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                     for (int64_t dim_idx = 0; dim_idx < rank_length; ++dim_idx) {
                         OPENVINO_ASSERT(0 <= order_value[dim_idx] && order_value[dim_idx] < rank_length,
                                         "Transpose order is out-of-range");
-                        op->get_input_tensor(0).m_partial_shape[dim_idx] = output_shape[order_value[dim_idx]];
+                        op->get_input_tensor(0).m_partial_shape[order_value[dim_idx]] = output_shape[dim_idx];
                     }
                     is_changed = true;
                 } else {
