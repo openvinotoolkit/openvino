@@ -227,7 +227,6 @@ macro(ie_register_plugins_dynamic)
 
     # Combine all <device_name>.xml files into plugins.xml
 
-    ie_option(GENERATE_PLUGINS_XML "Generate plugins.xml configuration file or not" OFF)
     if(GENERATE_PLUGINS_XML)
         add_custom_command(TARGET ${IE_REGISTER_MAIN_TARGET} POST_BUILD
                           COMMAND

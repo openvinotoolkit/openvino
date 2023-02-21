@@ -14,6 +14,8 @@ ie_option (ENABLE_COMPILE_TOOL "Enables compile_tool" ON)
 
 ie_option (ENABLE_STRICT_DEPENDENCIES "Skip configuring \"convinient\" dependencies for efficient parallel builds" ON)
 
+ie_option(GENERATE_PLUGINS_XML "Generate plugins.xml configuration file or not" OFF)
+
 ie_dependent_option (ENABLE_CLDNN "clDnn based plugin for OpenVINO Runtime" ON "X86_64;NOT APPLE;NOT MINGW;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)
 ie_dependent_option (ENABLE_INTEL_GPU "GPU plugin for OpenVINO Runtime on Intel GPU" ON "ENABLE_CLDNN" OFF)
 
