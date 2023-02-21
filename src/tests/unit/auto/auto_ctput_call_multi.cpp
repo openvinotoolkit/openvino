@@ -179,6 +179,7 @@ TEST_P(AutoCTPUTCallMulti, CTPUTSingleDevLogicTest) {
         targetDev += ((deviceName == targetDevices.back()) ? "" : ",");
     }
     if (AutoCallMulti) {
+        std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> exeNetwork;
         config.insert({{CONFIG_KEY(PERFORMANCE_HINT), InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT}});
         config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, targetDev});
         EXPECT_CALL(*core,
@@ -191,7 +192,8 @@ TEST_P(AutoCTPUTCallMulti, CTPUTSingleDevLogicTest) {
                                 ::testing::Matcher<const std::string&>(CommonTestUtils::DEVICE_GPU),
                                 ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
             .Times(1);
-        ASSERT_NO_THROW(plugin->LoadExeNetworkImpl(simpleCnnNetwork, config));
+        ASSERT_NO_THROW(exeNetwork = plugin->LoadExeNetworkImpl(simpleCnnNetwork, config));
+        EXPECT_EQ(exeNetwork->GetMetric(ov::execution_devices.name()).as<std::string>(), CommonTestUtils::DEVICE_CPU);
     } else {
         config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, targetDev});
         EXPECT_CALL(*core,
