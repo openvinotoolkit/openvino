@@ -11,13 +11,14 @@
 
 #include <exception>
 #include <memory>
-#include <openvino/runtime/tensor.hpp>
 #include <unordered_map>
 #include <vector>
 
+#include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/profiling_info.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 
@@ -31,7 +32,7 @@ public:
      *
      * @param compiled_model pointer to compiled model
      */
-    ISyncInferRequest(const std::shared_ptr<ov::ICompiledModel>& compiled_model);
+    ISyncInferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model);
 
     /**
      * @brief Gets an input/output tensor for inference.
@@ -102,7 +103,7 @@ public:
      *
      * @return Pointer to the compiled model
      */
-    const std::shared_ptr<ov::ICompiledModel>& get_compiled_model() const override;
+    const std::shared_ptr<const ov::ICompiledModel>& get_compiled_model() const override;
 
 protected:
     struct FoundPort {
@@ -121,11 +122,6 @@ protected:
     };
 
     /**
-     * @brief Finds input or output port
-     * @return structure which contains index of Input/Output or report that port wasn't found
-     */
-    FoundPort find_port(const ov::Output<const ov::Node>& port) const;
-    /**
      * @brief Converts batched tensors to tensor
      */
     void convert_batched_tensors();
@@ -142,12 +138,28 @@ protected:
      */
     void check_tensors() const override;
 
-    std::vector<ov::Tensor> m_input_tensors;
-    std::vector<ov::Tensor> m_output_tensors;
-    std::unordered_map<size_t, std::vector<ov::Tensor>> m_batched_tensors;
+    /**
+     * @brief Allocate tensor with using custom allocator
+     *
+     * @param port input/output port for tensor
+     * @param allocate_callback function which allocates the tensor
+     */
+    void allocate_tensor(const ov::Output<const ov::Node>& port,
+                         const std::function<void(ov::Tensor& tensor)>& allocate_callback);
+
+    std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, std::vector<ov::Tensor>> m_batched_tensors;
 
 private:
-    std::shared_ptr<ov::ICompiledModel> m_compiled_model;
+    std::shared_ptr<const ov::ICompiledModel> m_compiled_model;
+    // Mutable to return reference to ov::Tensor
+    mutable std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, ov::Tensor> m_tensors;
+    ov::Tensor& get_ref_tensor(const ov::Output<const ov::Node>& port) const;
+
+    /**
+     * @brief Finds input or output port
+     * @return structure which contains index of Input/Output or report that port wasn't found
+     */
+    FoundPort find_port(const ov::Output<const ov::Node>& port) const;
 };
 
 };  // namespace ov

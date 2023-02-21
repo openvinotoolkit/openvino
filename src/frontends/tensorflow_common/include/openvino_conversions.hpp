@@ -15,6 +15,9 @@ namespace tensorflow {
 std::shared_ptr<ov::opset8::Transpose> make_transpose(const ov::Output<ov::Node>& arg,
                                                       const ov::AxisVector& input_order);
 
+std::shared_ptr<ov::opset8::Reshape> make_reshape(const ov::Output<ov::Node>& arg,
+                                                  const std::vector<int64_t>& new_shape);
+
 namespace detail {
 template <typename T>
 void convert_nhwc_to_hw(const std::vector<T>& src, std::vector<size_t>& dst) {
