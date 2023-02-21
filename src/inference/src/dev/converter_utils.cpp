@@ -467,15 +467,27 @@ public:
     }
 
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data) override {
-        m_request->set_tensor(find_port(name), ov::Tensor{data, {}});
+        try {
+            m_request->set_tensor(find_port(name), ov::Tensor{data, {}});
+        } catch (const ov::Exception& ex) {
+            const std::string what = ex.what();
+            if (what.find("Failed to set tensor") != std::string::npos) {
+                IE_THROW(ParameterMismatch) << what;
+            }
+            IE_THROW(GeneralError) << what;
+        }
     }
 
     void SetBlobs(const std::string& name, const std::vector<InferenceEngine::Blob::Ptr>& blobs) override {
-        std::vector<ov::Tensor> tensors;
-        for (const auto& blob : blobs) {
-            tensors.emplace_back(ov::Tensor{blob, {}});
+        try {
+            std::vector<ov::Tensor> tensors;
+            for (const auto& blob : blobs) {
+                tensors.emplace_back(ov::Tensor{blob, {}});
+            }
+            m_request->set_tensors(find_port(name), tensors);
+        } catch (const ov::Exception& ex) {
+            IE_THROW(GeneralError) << ex.what();
         }
-        m_request->set_tensors(find_port(name), tensors);
     }
 
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override {
@@ -678,7 +690,7 @@ public:
         m_request->SetCallback(std::move(callback));
     }
 
-    const std::shared_ptr<ov::ICompiledModel>& get_compiled_model() const override {
+    const std::shared_ptr<const ov::ICompiledModel>& get_compiled_model() const override {
         if (!m_compiled_model) {
             std::lock_guard<std::mutex> lock(m_mutex);
             if (!m_compiled_model) {
@@ -700,7 +712,7 @@ public:
 
 private:
     std::shared_ptr<InferenceEngine::IInferRequestInternal> m_request;
-    mutable std::shared_ptr<ov::ICompiledModel> m_compiled_model;
+    mutable std::shared_ptr<const ov::ICompiledModel> m_compiled_model;
     mutable std::mutex m_mutex;
 };
 

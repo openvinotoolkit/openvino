@@ -136,7 +136,7 @@ public:
      *
      * @return Pointer to the compiled model
      */
-    const std::shared_ptr<ov::ICompiledModel>& get_compiled_model() const override;
+    const std::shared_ptr<const ov::ICompiledModel>& get_compiled_model() const override;
 
     /**
      * @brief Gets inputs for infer request

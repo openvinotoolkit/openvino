@@ -71,7 +71,7 @@ jobs:
     maxParallel: '2'
 
   # About 150% of total time
-  timeoutInMinutes: '120'
+  timeoutInMinutes: '180'
 
   pool:
     name: LIN_VMSS_VENV_F16S_U20_WU2
