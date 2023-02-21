@@ -65,7 +65,11 @@ for a better explanation. For more information on how to use ports and connectio
 ## Model Conversion Pipeline <a name="model-conversion-pipeline"></a>
 A model conversion pipeline can be represented with the following diagram:
 
-![Model Conversion pipeline](../../../img/MO_conversion_pipeline.png)
+@sphinxdirective`
+
+.. image:: _static/images/MO_conversion_pipeline.svg
+
+@endsphinxdirective
 
 Each conversion step is reviewed in details below.
 
@@ -81,7 +85,7 @@ is a separate loader for each supported framework. These loaders are implemented
 
 The result of a model loading step is a `Graph` object, which can be depicted like in the following example:
 
-![Graph After Load](../../../img/MO_graph_after_loader.png)
+![Graph After Load](../../../img/MO_graph_after_loader.svg)
 
 Model Optimizer loader saves an operation instance framework description (usually it is a Protobuf message) into a node
 attribute usually with a name `pb` for each operation of an input model. It is important that this is a
@@ -117,7 +121,7 @@ The extractors execution order is the following:
 
 The result of operations attributes extracting step can be depicted like in the following example:
 
-![Graph After Attributes Extraction](../../../img/MO_graph_after_extractors.png)
+![Graph After Attributes Extraction](../../../img/MO_graph_after_extractors.svg)
 
 The only difference in the graph from the previous step is that nodes contain dictionary with extracted attributes and
 operation-specific attributes needed for Model Optimizer. However, from this step, Model Optimizer does not
@@ -189,7 +193,11 @@ Model Optimizer does not have value propagation implementation for the operation
 
 Before running partial inference, the graph can be depicted like in the following example:
 
-![Graph Before Partial Inference](../../../img/MO_graph_before_partial_inference.png)
+@sphinxdirective`
+
+.. image:: _static/images/MO_graph_before_partial_inference.svg
+
+@endsphinxdirective
 
 The difference in a graph structure with a graph during the front phase is not only in the data nodes, but also in the
 edge attributes. Note that an `out` attribute is specified for edges **from operation** nodes only, while an `in`
