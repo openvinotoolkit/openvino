@@ -489,8 +489,7 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
     auto params = _ngraph_function->get_parameters();
 
     bool parameter_replaced = false;
-    for (size_t i = 0; i < params.size(); i++) {
-        auto& param = params[i];
+    for (auto& param : params) {
         if (inputShapes.find(param->get_friendly_name()) == inputShapes.end())
             continue;
         param->set_partial_shape(inputShapes.at(param->get_friendly_name()));
@@ -498,43 +497,6 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
     }
     if (parameter_replaced)
         _ngraph_function->validate_nodes_and_infer_types();
-
-    const auto& results = _ngraph_function->get_results();
-    bool outputs_are_static = all_of(begin(results), end(results), [](const std::shared_ptr<ngraph::Node>& n) {
-        return n->get_output_partial_shape(0).is_static();
-    });
-
-    {
-        shared_ptr<Function> specialized_ngraph_function = nullptr;
-        if (outputs_are_static) {
-            specialized_ngraph_function = _ngraph_function;
-        } else {
-            specialized_ngraph_function = ngraph::clone_function(*_ngraph_function);
-            {
-                OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetworkNGraphImpl::ConvertToLegacy");
-                ::ngraph::pass::Manager manager;
-                // resolves dynamism by replacing dynamic operation with static version
-                using namespace ngraph::pass;
-                using namespace ov::pass;
-                REGISTER_PASS(manager, ConvertNMS5ToLegacyMatcher, false)
-                REGISTER_PASS(manager, ConvertMulticlassNmsToMulticlassNmsIE, false)
-                REGISTER_PASS(manager, ConvertMatrixNmsToMatrixNmsIE, false)
-                REGISTER_PASS(manager, ConvertNMS9ToNMSIEInternal)
-                REGISTER_PASS(manager, ConvertGP9ToGPIEInternal)
-                REGISTER_PASS(
-                    manager,
-                    MarkDequantizationSubgraph,
-                    ov::element::TypeVector{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4})
-                REGISTER_PASS(manager, DisableDecompressionConvertConstantFolding)
-                REGISTER_PASS(manager, ConstantFolding)
-
-                // OneHotToLegacy changes output precision
-                manager.register_pass<::ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(
-                    specialized_ngraph_function);
-                manager.run_passes(specialized_ngraph_function);
-            }
-            specialized_ngraph_function->validate_nodes_and_infer_types();
-        }
 
 #if 0
         bool obfuscate = true;  // set to false to get exact dimensions
@@ -547,19 +509,18 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
                 std::cout << item.first << " " << shape_to_count.second << "x " << shape_to_count.first << std::endl;
 #endif
 
-        std::unordered_set<std::string> opName;
-        for (const auto& result : specialized_ngraph_function->get_results()) {
-            addOutput(result->input_value(0));
-        }
+    std::unordered_set<std::string> opName;
+    for (const auto& result : _ngraph_function->get_results()) {
+        addOutput(result->input_value(0));
+    }
 
-        for (const auto& parameter : specialized_ngraph_function->get_parameters()) {
-            const auto& outName = parameter->get_friendly_name();
-            if (opName.find(outName) != opName.end()) {
-                IE_THROW() << "All operations in nGraph function should have unique friendly names!";
-            }
-            opName.insert(outName);
-            createDataForResult(parameter, outName, _data[outName]);
+    for (const auto& parameter : _ngraph_function->get_parameters()) {
+        const auto& outName = parameter->get_friendly_name();
+        if (opName.find(outName) != opName.end()) {
+            IE_THROW() << "All operations in nGraph function should have unique friendly names!";
         }
+        opName.insert(outName);
+        createDataForResult(parameter, outName, _data[outName]);
     }
 }
 
