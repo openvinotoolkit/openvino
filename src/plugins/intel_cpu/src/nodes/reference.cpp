@@ -72,7 +72,7 @@ void Reference::executeDynamicImpl(dnnl::stream strm) {
     auto result = Node::shapeInfer();
     if (ShapeInferStatus::update == result.status) {
         Node::redefineOutputMemory(result.dims);
-        auto outputs = prepareOutputs();
+        outputs = prepareOutputs();
     } else if (ShapeInferStatus::skip == result.status) {
         outputs.reserve(outputShapes.size());
         for (size_t i = 0; i < outputShapes.size(); ++i) {
@@ -102,7 +102,7 @@ void Reference::executeDynamicImpl(dnnl::stream strm) {
             auto memory = getChildEdgesAtPort(i)[0]->getMemoryPtr();
             auto& tensor = outputs[i];
             if (memory->GetSize() != tensor.get_byte_size()) {
-                IE_THROW(Unexpected) << "Output tensor data size mismatch happened during the inference of a node with type " <<
+                IE_THROW(Unexpected) << "Output tensor data size mismatch occurred during the inference of a node with type " <<
                 getTypeStr() << " and name " << getName() << " on output port number " << i;
             }
             cpu_memcpy(memory->GetData(), tensor.data(), tensor.get_byte_size());
