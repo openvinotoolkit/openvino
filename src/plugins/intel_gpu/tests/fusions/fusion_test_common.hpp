@@ -78,11 +78,11 @@ public:
         auto val_opt=get_output_values_to_float(fused, outputs_fused.begin()->first);
         ASSERT_EQ(val_ref.size(), val_opt.size());
         for (size_t i = 0; i < val_ref.size(); i++) {
-            ASSERT_TRUE(abs(val_ref[i] - val_opt[i]) < tolerance + 1e-9)
+            ASSERT_NEAR(val_ref[i], val_opt[i], tolerance)
                 << "tolerance = " << tolerance
                 << "\ni = " << i
                 << "\nref[i] = " << val_ref[i]
-                << "\nopt[i] = " << val_opt[i] << std::endl;
+                << "\nopt[i] = " << val_opt[i];
         }
     }
 
