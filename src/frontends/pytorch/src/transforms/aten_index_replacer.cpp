@@ -18,9 +18,9 @@
 #include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
-#include "openvino/op/strided_slice.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
@@ -35,11 +35,11 @@ namespace pass {
 using namespace ov::op;
 namespace {
 
-std::shared_ptr<Node> flatten(const Output<Node>& value, int axis) {
+std::shared_ptr<Node> flatten(const Output<Node>& value, size_t axis) {
     // First dimension of output tensor is the product of [d_0, ... d_{axis-1}] dimensions of
     // input tensor. The last dimension is the product of the rest of input tensor dimensions:
     // [d_{axis}, ..., d_n]
-    std::shared_ptr<Node> output_shape;
+    Output<Node> output_shape;
     if (axis == 0) {
         output_shape = v0::Constant::create(element::i64, Shape{2}, {1, -1});
     } else if (axis == 1) {
@@ -48,17 +48,13 @@ std::shared_ptr<Node> flatten(const Output<Node>& value, int axis) {
         const auto value_shape = std::make_shared<v3::ShapeOf>(value);
         const auto value_rank = std::make_shared<v3::ShapeOf>(value_shape);
         const auto axis_node = v0::Constant::create(element::i64, Shape{}, {axis});
-        const auto first_part_dims = std::make_shared<v1::StridedSlice>(value_shape,
-                                                                        v0::Constant::create(element::i64, {1}, {0}),
-                                                                        axis_node,
-                                                                        std::vector<int64_t>{0},
-                                                                        std::vector<int64_t>{0});
-        Output<Node> first_part_dims_length =
-            std::make_shared<ov::op::v1::ReduceProd>(first_part_dims,
-                                                     v0::Constant::create(element::i64, {}, {0}),
-                                                     true);
+        auto start = v0::Constant::create(element::i64, Shape{}, {0});
+        auto step = v0::Constant::create(element::i64, Shape{}, {1});
+        const auto first_part_dims = std::make_shared<v8::Slice>(value_shape, start, axis_node, step);
+        auto zero = v0::Constant::create(element::i64, {}, {0});
+        auto first_part_dims_length = std::make_shared<ov::op::v1::ReduceProd>(first_part_dims, zero, true);
 
-        Output<Node> remaining_part_length = v0::Constant::create(element::i64, {1}, {-1});
+        auto remaining_part_length = v0::Constant::create(element::i64, {1}, {-1});
 
         output_shape = std::make_shared<v0::Concat>(OutputVector{first_part_dims_length, remaining_part_length}, 0);
     }
@@ -103,7 +99,8 @@ AtenIndexToSelect::AtenIndexToSelect() {
             for (size_t i = 0; i < ids.size(); i++) {
                 auto const_input = cast_fw_node(ids[i].get_node_shared_ptr(), "prim::Constant");
 
-                if (const_input != nullptr) {
+                // skip dimensions where index is None
+                if (const_input) {
                     const auto& attrs = const_input->get_attrs();
                     if (attrs.find("none_value") != attrs.end()) {
                         masked_indicies.push_back(ids[i]);
@@ -136,13 +133,13 @@ AtenIndexToSelect::AtenIndexToSelect() {
             if (advanced_ids.size() == 1) {
                 auto index = masked_indicies[advanced_ids[0]];
                 index = std::make_shared<v0::Convert>(index, element::i64);
-                auto dim = v0::Constant::create(element::i64, Shape{}, {advanced_ids[0]});
                 if (is_masked_bool[advanced_ids[0]]) {
                     auto gather = std::make_shared<v8::GatherND>(input_node, index);
                     copy_runtime_info({index_op, input_node, indicies}, gather);
                     replace_node(index_op, gather);
                     return true;
                 }
+                auto dim = v0::Constant::create(element::i64, Shape{}, {advanced_ids[0]});
                 auto gather = std::make_shared<v8::Gather>(input_node, index, dim);
                 copy_runtime_info({index_op, input_node, indicies}, gather);
                 replace_node(index_op, gather);
@@ -170,7 +167,7 @@ AtenIndexToSelect::AtenIndexToSelect() {
             auto flatten_input = flatten(transposed_input, adv_idx_count);
             auto cum_adv_index = masked_indicies[advanced_ids[adv_idx_count - 1]];
             auto multiplier = input_dims->output(advanced_ids[adv_idx_count - 1]);
-            for (int i = adv_idx_count - 2; i > 0; i--) {
+            for (int i = static_cast<int>(adv_idx_count) - 2; i > 0; i--) {
                 auto adv_index = std::make_shared<v1::Multiply>(masked_indicies[i], multiplier);
                 cum_adv_index = std::make_shared<v1::Add>(cum_adv_index, adv_index);
                 auto input_id = advanced_ids[i];
@@ -203,9 +200,9 @@ AtenIndexToSelect::AtenIndexToSelect() {
                     adv_idx_permute.push_back(i);
                 }
                 // Transpose folded advanced indexed axis to its original location.
-                gather = std::make_shared<v1::Transpose>(
-                    gather,
-                    v0::Constant::create(element::i64, Shape{adv_idx_permute.size()}, adv_idx_permute));
+                auto permute_indicies =
+                    v0::Constant::create(element::i64, Shape{adv_idx_permute.size()}, adv_idx_permute);
+                gather = std::make_shared<v1::Transpose>(gather, permute_indicies);
                 // unfold advanced index axes
                 for (size_t i = 0; i <= advanced_ids[0]; i++) {
                     concat_dims.push_back(input_dims->output(i));
@@ -233,7 +230,8 @@ AtenIndexToSelect::AtenIndexToSelect() {
         } else {
             auto const_input = cast_fw_node(indicies, "prim::Constant");
 
-            if (const_input != nullptr) {
+            if (const_input) {
+                // index is None, stay input as is
                 const auto& attrs = const_input->get_attrs();
                 if (attrs.find("none_value") != attrs.end()) {
                     copy_runtime_info({index_op, input_node, indicies}, input_node);
