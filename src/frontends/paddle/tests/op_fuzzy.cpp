@@ -194,7 +194,6 @@ static const std::vector<std::string> models{
     std::string("flip_3"),
     std::string("flip_4"),
     std::string("flip_5"),
-    std::string("flip_6"),
     std::string("fill_any_like"),
     std::string("fill_any_like_f16"),
     std::string("fill_any_like_f32"),

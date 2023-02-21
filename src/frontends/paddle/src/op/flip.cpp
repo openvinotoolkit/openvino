@@ -14,13 +14,14 @@ NamedOutputs flip(const NodeContext& node) {
     const auto axes = node.get_attribute<std::vector<int32_t>>("axis");
     const auto input_shape = data_node.get_partial_shape().get_shape();
     const auto dims = static_cast<int32_t>(data_node.get_partial_shape().rank().get_length());
+    const auto dtype = data_node.get_element_type();
     // for zero-dim input
     PADDLE_OP_CHECK(node, (dims > 0), "Input dims must be greater than 0");
 
     Output<Node> temp = data_node;
     std::vector<Output<Node>> temp_split_out;
     int32_t axis;
-    for (int idx = 0; idx < dims; idx++) {
+    for (int idx = 0; idx < axes.size(); idx++) {
         axis = axes[idx];
         if (axis < 0)
             axis += dims;
@@ -34,7 +35,8 @@ NamedOutputs flip(const NodeContext& node) {
             temp = std::make_shared<default_opset::Concat>(temp_split_out, axis);
         }
     }
-    return node.default_single_output_mapping({std::make_shared<default_opset::Result>(temp)}, {"Out"});
+    // for output, convert Output<Node> to shared_ptr<Node>
+    return node.default_single_output_mapping({std::make_shared<default_opset::Convert>(temp, dtype)}, {"Out"});
 }
 }  // namespace op
 }  // namespace paddle

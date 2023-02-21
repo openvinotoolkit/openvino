@@ -40,25 +40,20 @@ def main():
     x = np.random.randn(3, 2, 1, 5).astype(data_type)
     flip("flip_2", x, axis)
 
-    data_type = 'bool'
-    axis = [0, -2]
-    x = np.random.randint(0, 1, (1, 2, 4, 3)).astype(data_type)
-    flip("flip_3", x, axis)
-    
     data_type = 'float32'
     axis = [0, 1]
     x = np.random.randn(1, 1, 1, 1).astype(data_type)
+    flip("flip_3", x, axis)
+
+    data_type = 'int64'
+    axis = 1
+    x = np.random.randint(-1, 3, (5, 3, 1, 1)).astype(data_type)
     flip("flip_4", x, axis)
 
-    data_type = 'float64'
-    axis = 1
-    x = np.random.randn(5, 3, 1, 1).astype(data_type)
-    flip("flip_5", x, axis)
-
     data_type = 'float32'
-    axis = 0
+    axis = -1
     x = np.random.randn(1).astype(data_type)
-    flip("flip_6", x, axis)
+    flip("flip_5", x, axis)
 
 
 if __name__ == "__main__":
