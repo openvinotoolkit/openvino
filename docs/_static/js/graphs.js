@@ -572,7 +572,11 @@ $(document).ready(function () {
                 $(this).addClass('selected');
             }
             var fPlatforms = filterClientPlatforms(graphDataArr, getSelectedNetworkModels(), getSelectedIeType(), Modal.getCoreTypes(getSelectedCoreTypes()));
+<<<<<<< HEAD
             renderClientPlatformsItems(modal, Graph.getPlatformNames(fPlatforms), true);
+=======
+            renderClientPlatformsItems(modal, Graph.getPlatformNames(fPlatforms), checkAll=true);
+>>>>>>> 2871466ec3 (Bugfix and restyle Graph Builder)
             validateSelections();
         });
     }
