@@ -22,21 +22,59 @@ namespace {
 using NodePtr = std::shared_ptr<ov::Node>;
 using NodePair = std::pair<NodePtr, NodePtr>;
 
-NodePair SinkForward(NodePtr transpose, NodePtr reshape) {
-    const Shape& pattern_input_shape = transpose->get_input_shape(0);
-    const Shape& pattern_output_shape = reshape->get_output_shape(0);
-    auto compare_shapes = [](const Shape& first, const Shape& second) { return first.size() < second.size(); };
-    const Shape& max_shape = std::max(pattern_input_shape, pattern_output_shape, compare_shapes);
-    const Shape& min_shape = std::min(pattern_input_shape, pattern_output_shape, compare_shapes);
+std::vector<std::vector<size_t>> partition_by_increment_order(const Shape& transpose_order) {
+    if (transpose_order.empty())
+        return {};
 
-    const int64_t gather_axis_value = min_shape.size() - 1;
+    std::vector<std::vector<size_t>> partition;
+    std::vector<size_t> sub_order;
 
-    const Shape transposed_shape_part(max_shape.end() - 2, max_shape.end());
-
-    std::vector<int64_t> gather_indices_value(min_shape.back());
-    for (size_t i = 0; i < gather_indices_value.size(); ++i) {
-        gather_indices_value[i] = transposed_shape_part[1] * (i % transposed_shape_part[0]) + i / transposed_shape_part[0];
+    for (size_t i = 0; i < transpose_order.size(); ++i) {
+        if (!i || transpose_order[i] == transpose_order[i - 1] + 1) {
+            sub_order.push_back(transpose_order[i]);
+            continue;
+        }
+        if (!sub_order.empty()) {
+            partition.push_back(sub_order);
+        }
+        sub_order.clear();
+        sub_order.push_back(transpose_order[i]);
     }
+    if (!sub_order.empty()) {
+        partition.push_back(sub_order);
+    }
+
+    return partition;
+}
+
+std::vector<int64_t> CreateForwardSinkingGatherIndices(const Shape& transpose_input_shape,
+                                                       const Shape& reshape_output_shape,
+                                                       const Shape& transpose_order) {
+    const auto partition = partition_by_increment_order(transpose_order);
+    if (partition.size() != 3)
+        return {};
+    const int64_t transpose_part_0 = std::accumulate(partition[2].begin(), partition[2].end(), 1,
+                                 [&transpose_input_shape](int64_t result, int64_t order_value) {
+                                    return result *= transpose_input_shape[order_value];
+                                 });
+    const int64_t transpose_part_1 = std::accumulate(partition[1].begin(), partition[1].end(), 1,
+                                 [&transpose_input_shape](int64_t result, int64_t order_value) {
+                                    return result *= transpose_input_shape[order_value];
+                                 });
+
+    std::vector<int64_t> gather_indices_value(reshape_output_shape.back());
+    for (size_t i = 0; i < gather_indices_value.size(); ++i) {
+        gather_indices_value[i] = transpose_part_1 * (i % transpose_part_0) + i / transpose_part_0;
+    }
+
+    return gather_indices_value;
+}
+
+NodePair SinkForward(NodePtr transpose, std::shared_ptr<Constant> transpose_constant, NodePtr reshape) {
+    const auto gather_indices_value = CreateForwardSinkingGatherIndices(transpose->get_input_shape(0),
+                                                                        reshape->get_output_shape(0),
+                                                                        transpose_constant->get_axis_vector_val());
+    const int64_t gather_axis_value = reshape->get_output_shape(0).size() - 1;
 
     auto reshape_new = reshape->clone_with_new_inputs({transpose->input_value(0), reshape->input_value(1)});
 
@@ -125,15 +163,17 @@ bool IsUnflatten2D(const Output<Node>& output) {
 GatherSinkingTransposeReshapeForward::GatherSinkingTransposeReshapeForward() {
     MATCHER_SCOPE(GatherSinkingTransposeReshapeForward);
 
-    auto transpose_label = wrap_type<Transpose>({any_input(), any_input()});
-    auto reshape_label = wrap_type<Reshape>({transpose_label, any_input()}, IsFlatten2D);
+    auto transpose_const_label = wrap_type<Constant>();
+    auto transpose_label = wrap_type<Transpose>({any_input(), transpose_const_label});
+    auto reshape_label = wrap_type<Reshape>({transpose_label, any_input()}/*, IsFlatten2D*/); // TODO
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
+        auto transpose_const = as_type_ptr<Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
         auto reshape = pattern_to_output.at(reshape_label).get_node_shared_ptr();
 
-        const NodePair new_nodes = SinkForward(transpose, reshape);
+        const NodePair new_nodes = SinkForward(transpose, transpose_const, reshape);
 
         register_new_node(new_nodes.first);
         register_new_node(new_nodes.second);
