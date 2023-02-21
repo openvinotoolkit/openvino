@@ -209,7 +209,7 @@ GatherInfo GetGatherInfo(Node* node) {
 }
 
 Node* FindFirstConsumer(NodePtr node) {
-    for (auto& output : node->outputs()) {
+    for (const auto& output : node->outputs()) {
         auto inputs = output.get_target_inputs();
         if (inputs.empty())
             continue;
