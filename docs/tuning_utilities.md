@@ -8,6 +8,5 @@
    
    omz_tools_accuracy_checker
    omz_data_datasets
-   openvino_inference_engine_tools_cross_check_tool_README
 
 @endsphinxdirective

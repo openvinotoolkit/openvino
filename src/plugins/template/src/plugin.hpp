@@ -42,7 +42,7 @@ public:
 
 private:
     friend class TemplatePlugin::CompiledModel;
-    friend class TemplateInferRequest;
+    friend class InferRequest;
 
     std::shared_ptr<ngraph::runtime::Backend> _backend;
     InferenceEngine::ITaskExecutor::Ptr _waitExecutor;

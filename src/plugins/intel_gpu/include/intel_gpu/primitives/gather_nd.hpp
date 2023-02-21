@@ -57,5 +57,17 @@ struct gather_nd : public primitive_base<gather_nd> {
         seed = hash_combine(seed, batch_merged_output);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const gather_nd>(rhs);
+
+        return input_rank == rhs_casted.input_rank &&
+               indices_rank == rhs_casted.indices_rank &&
+               batch_dims == rhs_casted.batch_dims &&
+               batch_merged_output == rhs_casted.batch_merged_output;
+    }
 };
 }  // namespace cldnn

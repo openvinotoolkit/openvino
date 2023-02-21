@@ -8,7 +8,6 @@
 #include <memory>
 
 #include "ngraph/descriptor/tensor.hpp"
-#include "ngraph/variant.hpp"
 #include "openvino/core/descriptor/input.hpp"
 
 namespace ngraph {

@@ -10,11 +10,11 @@
 #include "openvino/runtime/tensor.hpp"
 #include "rw_properties.hpp"
 #include "template_config.hpp"
-#include "template_infer_request.hpp"
 
 namespace TemplatePlugin {
 
 class Plugin;
+class InferRequest;
 
 /**
  * @class ExecutableNetwork
@@ -40,7 +40,7 @@ protected:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
 private:
-    friend class TemplateInferRequest;
+    friend class InferRequest;
     friend class Plugin;
 
     void compile_model(const std::shared_ptr<ov::Model>& model);
@@ -48,8 +48,6 @@ private:
 
     std::atomic<std::size_t> _requestId = {0};
     std::shared_ptr<ov::Model> m_model;
-    std::map<std::string, std::size_t> _inputIndex;
-    std::map<std::string, std::size_t> _outputIndex;
     RwProperties m_rw_properties;
 };
 // ! [executable_network:header]

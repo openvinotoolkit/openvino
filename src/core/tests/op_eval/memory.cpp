@@ -12,7 +12,6 @@
 #include "ngraph/opsets/opset7.hpp"
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
-#include "ngraph/variant.hpp"
 #include "util/all_close_f.hpp"
 #include "util/test_tools.hpp"
 
