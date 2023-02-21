@@ -6,7 +6,6 @@
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_security_guide_workbench
    openvino_docs_OV_UG_protecting_model_guide
 
 @endsphinxdirective

@@ -45,7 +45,6 @@ Similarly, different devices require a different number of execution streams to 
 In some cases, combination of streams and batching may be required to maximize the throughput.
 
 One possible throughput optimization strategy is to **set an upper bound for latency and then increase the batch size and/or number of the streams until that tail latency is met (or the throughput is not growing anymore)**.
-Consider [OpenVINO Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) that builds handy latency vs throughput charts, iterating over possible values of the batch size and number of streams.
 
 > **NOTE**: When playing with [dynamically-shaped inputs](../OV_Runtime_UG/ov_dynamic_shapes.md), use only the streams (no batching), as they tolerate individual requests having different shapes. 
 

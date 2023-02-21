@@ -30,7 +30,7 @@ Users in China might encounter errors while downloading sources via PIP during O
 
 ### <a name="proxy-issues"></a>Proxy Issues
 
-If you met proxy issues during the installation with Docker, you need set up proxy settings for Docker. See the [Set Proxy section in DL Workbench Installation](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Prerequisites.html#set-proxy) for more details.
+If you met proxy issues during the installation with Docker, you need set up proxy settings for Docker. See the [Docker guide](https://docs.docker.com/network/proxy/) for more details.
 
 
 @anchor yocto-install-issues
