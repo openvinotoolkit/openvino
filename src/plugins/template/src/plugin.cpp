@@ -11,6 +11,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "template/config.hpp"
+#include "template_itt.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
@@ -124,7 +125,7 @@ std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::import_model(std::is
     ov::Tensor weights;
     model.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
     if (0 != dataSize) {
-        weights = ov::Tensor(ov::element::from<char>(), ov::Shape{dataSize});
+        weights = ov::Tensor(ov::element::from<char>(), ov::Shape{static_cast<ov::Shape::size_type>(dataSize)});
         model.read(weights.data<char>(), dataSize);
     }
 
@@ -150,7 +151,7 @@ std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::import_model(std::is
 // ! [plugin:query_network]
 ov::SupportedOpsMap TemplatePlugin::Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                                         const ov::AnyMap& properties) const {
-    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::query_model");
+    OV_ITT_SCOPED_TASK(TemplatePlugin::itt::domains::TemplatePlugin, "Plugin::query_model");
 
     Configuration fullConfig{properties, _cfg, false};
 

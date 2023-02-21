@@ -29,6 +29,7 @@ class CoreImpl;
 class InferRequest;
 class RemoteContext;
 class VariableState;
+class ISyncInferRequest;
 class IInferRequestInternalWrapper;
 
 /**
@@ -54,6 +55,7 @@ protected:
     friend class ov::InferRequest;
     friend class ov::RemoteContext;
     friend class ov::VariableState;
+    friend class ov::ISyncInferRequest;
     friend class ov::IInferRequestInternalWrapper;
     friend class InferenceEngine::IAsyncInferRequestWrapper;
 
@@ -155,11 +157,18 @@ public:
     Shape get_shape() const;
 
     /**
-     * @brief Copy tensor
+     * @brief Copy tensor, destination tensor should have the same element type and shape
      *
-     * @param dst destination tensor, should have the same element type and shape
+     * @param dst destination tensor
      */
     void copy_to(const ov::Tensor& dst) const;
+
+    /**
+     * @brief Reports whether the tensor is continuous or not
+     *
+     * @return true if blob is continuous
+     */
+    bool is_continuous() const;
 
     /**
      * @brief Returns the total number of elements (a product of all the dims or 1 for scalar)

@@ -3,7 +3,6 @@
 //
 
 #include <ngraph/rt_info.hpp>
-#include <ngraph/variant.hpp>
 #include <cpu/x64/jit_generator.hpp>
 
 #include "jit_snippets_emitters.hpp"
