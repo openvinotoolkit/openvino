@@ -177,16 +177,18 @@ function(ov_download_tbbbind_2_5)
 
     if(WIN32 AND X86_64)
         RESOLVE_DEPENDENCY(TBBBIND_2_5
-                ARCHIVE_WIN "tbbbind_2_5_static_win_v1.zip"
+                ARCHIVE_WIN "tbbbind_2_5_static_win_v2.zip"
                 TARGET_PATH "${TEMP}/tbbbind_2_5"
                 ENVIRONMENT "TBBBIND_2_5_ROOT"
-                SHA256 "a67afeea8cf194f97968c800dab5b5459972908295242e282045d6b8953573c1")
+                SHA256 "6e764e06d75f52c7d775ccd8c81d4472f4084b27906e6213b93df39f728b6e64"
+                USE_NEW_LOCATION TRUE)
     elseif(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(TBBBIND_2_5
-                ARCHIVE_LIN "tbbbind_2_5_static_lin_v2.tgz"
+                ARCHIVE_LIN "tbbbind_2_5_static_lin_20230112_v3.1.tgz"
                 TARGET_PATH "${TEMP}/tbbbind_2_5"
                 ENVIRONMENT "TBBBIND_2_5_ROOT"
-                SHA256 "865e7894c58402233caf0d1b288056e0e6ab2bf7c9d00c9dc60561c484bc90f4")
+                SHA256 "186c2461d7913a3a8a07df1c3963c356850184f9ca2cf441c34f886d79a33d86"
+                USE_NEW_LOCATION TRUE)
     else()
         # TMP: for Apple Silicon TBB does not provide TBBBind
         if(NOT (APPLE AND AARCH64))
