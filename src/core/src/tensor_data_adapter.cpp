@@ -19,7 +19,7 @@ const void* TensorAdapter::data() const {
     return m_ptr->data();
 }
 
-HostTensorAdapter::HostTensorAdapter(const ngraph::runtime::HostTensor* ptr) : m_ptr{ptr} {}
+HostTensorAdapter::HostTensorAdapter(const HostTensor* ptr) : m_ptr{ptr} {}
 
 element::Type_t HostTensorAdapter::get_element_type() const {
     return m_ptr->get_element_type();

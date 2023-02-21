@@ -36,7 +36,7 @@ public:
     using port_mask_t = uint32_t;  //!< Operator's port mask to indicate input data dependency
 
     virtual std::vector<StaticShape> infer(const std::vector<StaticShape>& input_shapes,
-                                           tensor_data_accessor_func_t get_tensor) = 0;
+                                           const ITensorAccessor& tensor_accessor) = 0;
 
     /**
      * @brief Some shape inference implementation may require input data stored inside the input tensors. To define

@@ -18,14 +18,14 @@ namespace cldnn {
  */
 class MemoryAdapter : public ov::ITensorDataAdapter {
 public:
-    MemoryAdapter(cldnn::memory::ptr ptr, const cldnn::stream& stream);
+    MemoryAdapter(memory::ptr ptr, const stream& stream);
 
     ov::element::Type_t get_element_type() const override;
     size_t get_size() const override;
     const void* data() const override;
 
 private:
-    cldnn::memory::ptr m_ptr;                                  //!< Pointer to cldnn::memory.
+    memory::ptr m_ptr;                                         //!< Pointer to cldnn::memory.
     cldnn::mem_lock<uint8_t, mem_lock_type::read> m_ptr_lock;  //!< Store cldnn memory lock.
 };
 }  // namespace cldnn

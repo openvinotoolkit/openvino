@@ -6,7 +6,7 @@
 #include "tile_shape_inference.hpp"
 
 #include "primitive_type_base.h"
-#include "memory_adapter.hpp"
+#include "memory_accessor.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/format.hpp"
@@ -52,21 +52,13 @@ std::vector<layout> tile_inst::calc_output_layouts(tile_node const& /*node*/, co
         repeats_shape
     };
 
-    auto repeats_data = desc->repeats;
-    // Example of lambda to access plugin data during shape inference.
-    auto get_memory_as_tensor = [&impl_param, &repeats_data](size_t i) -> ov::ITensorDataAdapter::UPtr {
-        const auto mem_it = impl_param.memory_deps.find(i);
-        if (mem_it != impl_param.memory_deps.cend()) {
-            return std::unique_ptr<MemoryAdapter>(new MemoryAdapter{mem_it->second, impl_param.prog->get_stream()});
-        } else if (i == 1) {
-            return std::unique_ptr<ov::ContainerDataAdapter<std::vector<int64_t>>>(
-                new ov::ContainerDataAdapter<std::vector<int64_t>>{&repeats_data});
-        } else {
-            return nullptr;
-        }
-    };
+    const auto repeats_data = ov::ContainerDataAdapter<std::vector<int64_t>>{desc->repeats};
+    const auto data_accessor =
+        MemoryAccessor(&impl_param.memory_deps, impl_param.prog->get_stream(), [&repeats_data](size_t port) {
+            return (port == 1) ? &repeats_data : nullptr;
+        });
 
-    std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes, get_memory_as_tensor);
+    std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes, data_accessor);
 
     format output_format = format::adjust_to_rank(input0_layout.format, output_shapes[0].size());
 

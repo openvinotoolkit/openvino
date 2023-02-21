@@ -404,8 +404,8 @@ public:
     }
 
     std::vector<StaticShape> infer(const std::vector<StaticShape>& input_shapes,
-                                   tensor_data_accessor_func_t get_tensor) override {
-        return shape_infer(static_cast<TOp*>(m_node.get()), input_shapes, std::move(get_tensor));
+                                   const ITensorAccessor& tensor_accessor) override {
+        return shape_infer(static_cast<TOp*>(m_node.get()), input_shapes, tensor_accessor);
     }
 
     const ov::CoordinateDiff& get_pads_begin() override {

@@ -4,10 +4,12 @@
 
 #pragma once
 
-#include "ngraph/runtime/host_tensor.hpp"
-#include "openvino/runtime/tensor.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ov {
+
+template <class>
+class TensorAccessor;
 
 /**
  * @brief Tensor adapter interface to read object data like tensor.
@@ -15,8 +17,6 @@ namespace ov {
  * @todo Replace it by ITensor and/or TensorView when implemented.
  */
 struct OPENVINO_API ITensorDataAdapter {
-    using UPtr = std::unique_ptr<ITensorDataAdapter>;  //!< Unique smart pointer to data adapter.
-
     /**
      * @brief Get the element type.
      * @return element::Type_t
@@ -50,13 +50,15 @@ public:
      * @param ptr  Pointer to tensor.
      */
     TensorAdapter(const Tensor* ptr);
+    TensorAdapter() = default;
 
     element::Type_t get_element_type() const override;
     size_t get_size() const override;
     const void* data() const override;
 
 private:
-    const Tensor* m_ptr;
+    friend class TensorAccessor<TensorVector>;
+    const Tensor* m_ptr{};
 };
 
 /**
@@ -70,14 +72,17 @@ public:
      *
      * @param ptr  Pointer to HostTensor.
      */
-    HostTensorAdapter(const ngraph::runtime::HostTensor* ptr);
+    HostTensorAdapter(const HostTensor* ptr);
+    HostTensorAdapter() = default;
 
     element::Type_t get_element_type() const override;
     size_t get_size() const override;
     const void* data() const override;
 
 private:
-    const ngraph::runtime::HostTensor* m_ptr;
+    friend class TensorAccessor<HostTensorVector>;
+    friend class TensorAccessor<std::map<size_t, HostTensorPtr>>;
+    const HostTensor* m_ptr{};
 };
 
 /**
@@ -92,22 +97,49 @@ public:
      *
      * @param ptr  Pointer to container.
      */
-    ContainerDataAdapter(const TContainer* ptr) : m_c_ptr{ptr} {}
+    ContainerDataAdapter(const TContainer& ptr) : m_ptr{&ptr} {}
 
     element::Type_t get_element_type() const override {
         return element::from<typename TContainer::value_type>();
     }
 
     size_t get_size() const override {
-        return m_c_ptr->size();
+        return m_ptr->size();
     };
 
     const void* data() const override {
-        return m_c_ptr->data();
+        return m_ptr->data();
     }
 
 private:
-    const TContainer* m_c_ptr;
+    const TContainer* m_ptr{};
 };
+
+/**
+ * @brief Trait to get adapter type for specific type.
+ *
+ * @tparam T  Input type for which corresponding adapter type is provided.
+ */
+template <class T>
+struct adapter_type_for {};
+
+template <>
+struct adapter_type_for<Tensor> {
+    using value_type = TensorAdapter;
+};
+
+template <>
+struct adapter_type_for<std::shared_ptr<ngraph::runtime::HostTensor>> {
+    using value_type = HostTensorAdapter;
+};
+
+template <>
+struct adapter_type_for<std::pair<const size_t, std::shared_ptr<ngraph::runtime::HostTensor>>> {
+    using value_type = HostTensorAdapter;
+};
+
+/** @brief Helper to provide adapter type from T. */
+template <class T>
+using adapter_type_for_t = typename adapter_type_for<T>::value_type;
 
 }  // namespace ov
