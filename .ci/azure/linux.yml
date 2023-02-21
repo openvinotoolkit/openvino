@@ -513,7 +513,7 @@ jobs:
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
       export TEST_DEVICE=CPU
-      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow2_keras_tests/test_tf2_keras_activation.py -- use_legacy_frontend --ir_version=11 --junitxml=./TEST-tf2_Activation.xmlTEST -k "sigmoid"
+      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow2_keras_tests/test_tf2_keras_activation.py --use_legacy_frontend --ir_version=11 --junitxml=./TEST-tf2_Activation.xmlTEST -k "sigmoid"
     displayName: 'TensorFlow 2 Layer Tests - Legacy FE'
 
   - script: |
