@@ -90,22 +90,26 @@ bool SoftmaxKernelBaseBF::Validate(const Params& p, const optional_params& o) co
         return true;
     }
 
-    if (!params.has_dynamic_inputs()) {
-        switch (params.dim) {
-            case SoftmaxDim::X:
-                return input.Y().v == 1 && input.Z().v == 1 && input.Feature().v == 1;
-            case SoftmaxDim::Y:
-                return input.X().v == 1 && input.Z().v == 1 && (input.Feature().v == 1 || input.GetLayout() == DataLayout::bfyx);
-            case SoftmaxDim::Z:
-                return input.X().v == 1 && input.Y().v == 1 && input.Feature().v == 1;
-            case SoftmaxDim::FEATURE:
-                return input.X().v == 1 && input.Y().v == 1 && input.Z().v == 1;
-            default:
-                return false;
-        }
+    switch (params.dim) {
+        case SoftmaxDim::X:
+            return !input.Y().is_dynamic && input.Y().v == 1 &&
+                   !input.Z().is_dynamic && input.Z().v == 1 &&
+                   !input.Feature().is_dynamic && input.Feature().v == 1;
+        case SoftmaxDim::Y:
+            return !input.X().is_dynamic && input.X().v == 1 &&
+                   !input.Z().is_dynamic && input.Z().v == 1 &&
+                   ((!input.Feature().is_dynamic && input.Feature().v == 1) || input.GetLayout() == DataLayout::bfyx);
+        case SoftmaxDim::Z:
+            return !input.X().is_dynamic && input.X().v == 1 &&
+                   !input.Y().is_dynamic && input.Y().v == 1 &&
+                   !input.Feature().is_dynamic && input.Feature().v == 1;
+        case SoftmaxDim::FEATURE:
+            return !input.X().is_dynamic && input.X().v == 1 &&
+                   !input.Y().is_dynamic && input.Y().v == 1 &&
+                   !input.Z().is_dynamic && input.Z().v == 1;
+        default:
+            return false;
     }
-
-    return true;
 }
 
 SoftmaxKernelBase::DispatchData SoftmaxKernelBaseBF::SetDefault(const softmax_params& params) const {
