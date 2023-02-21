@@ -2,19 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+/**
+ * @brief OpenVINO Runtime IVariableState interface
+ * @file openvino/runtime/ivariable_state.hpp
+ */
+
 #pragma once
 
 #include <memory>
 #include <string>
 
+#include "openvino/core/core_visibility.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 
 /**
- * @interface IVariableStateInternal
+ * @interface IVariableState
  * @brief Minimal interface for variable state implementation
- * @ingroup ie_dev_api_variable_state_api
+ * @ingroup ov_dev_api_variable_state_api
  */
 class OPENVINO_API IVariableState : public std::enable_shared_from_this<IVariableState> {
 public:
@@ -48,7 +54,7 @@ protected:
     /**
      * @brief A default dtor
      */
-    virtual ~IVariableState() = default;
+    virtual ~IVariableState();
 
     std::string m_name;
     ov::Tensor m_state;

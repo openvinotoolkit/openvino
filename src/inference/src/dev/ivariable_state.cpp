@@ -8,6 +8,8 @@
 
 ov::IVariableState::IVariableState(const std::string& name) : m_name(name) {}
 
+ov::IVariableState::~IVariableState() = default;
+
 const std::string& ov::IVariableState::get_name() const {
     return m_name;
 }
