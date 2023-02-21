@@ -353,7 +353,7 @@ private:
     // new_node - node which will replace the old one
     void replace(program_node& old_node, program_node& new_node);
 
-    void prepare_tools();
+    void init_program();
 };
 
 }  // namespace cldnn

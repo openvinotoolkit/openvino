@@ -112,13 +112,8 @@ program::program(engine& engine_ref,
       is_subgroup_local_block_io_supported(-1) {
     _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
-    set_options();
-    query_local_block_io_supported();
-    _task_executor = make_task_executor(_config);
-
     GPU_DEBUG_INFO << "Program config\n" << config.to_string();
-
-    prepare_tools();
+    init_program();
     prepare_nodes(topology);
     program_node::reset_unique_id();
 
@@ -143,10 +138,7 @@ program::program(engine& engine_ref,
       is_subgroup_local_block_io_supported(-1) {
     _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
-    set_options();
-    query_local_block_io_supported();
-
-    prepare_tools();
+    init_program();
     prepare_nodes(nodes);
     build_program(is_internal);
     calc_nodes_hash();
@@ -166,18 +158,24 @@ program::~program() {
     query_local_block_io_supported();
 }
 
-void program::prepare_tools() {
+void program::init_program() {
+    set_options();
+    query_local_block_io_supported();
+
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
+
     _task_executor = make_task_executor(_config);
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
+
     _compilation_context = ICompilationContext::create(make_task_executor_config(_config,
                                                             "Task executor config for CompilationContext in GPU plugin"));
+
     _impls_cache = cldnn::make_unique<ImplementationsCache>(_impls_cache_capacity);
     // Remove items of compilation context's internal queue when some impl is popped in kernels_cache
     // compilation context's queue check duplication of inserted task
-    _impls_cache->set_remove_item_callback([this](size_t key) {
-        get_compilation_context().remove_keys({key});
+    _impls_cache->set_remove_item_callback([this](std::pair<long unsigned int, std::shared_ptr<cldnn::primitive_impl>> item) {
+        get_compilation_context().remove_keys({item.first});
     });
 }
 
