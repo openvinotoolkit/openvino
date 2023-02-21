@@ -52,6 +52,7 @@ OP_CONVERTER(greater_than);
 OP_CONVERTER(group_norm);
 OP_CONVERTER(hard_sigmoid);
 OP_CONVERTER(hard_swish);
+OP_CONVERTER(index_select);
 OP_CONVERTER(layer_norm);
 OP_CONVERTER(leaky_relu);
 OP_CONVERTER(less_than);
@@ -162,6 +163,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"group_norm", op::group_norm},
             {"hard_sigmoid", op::hard_sigmoid},
             {"hard_swish", op::hard_swish},
+            {"index_select", op::index_select},
             {"layer_norm", op::layer_norm},
             {"leaky_relu", op::leaky_relu},
             {"less_than", op::less_than},

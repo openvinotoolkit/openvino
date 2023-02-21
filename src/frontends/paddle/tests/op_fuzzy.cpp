@@ -241,6 +241,7 @@ static const std::vector<std::string> models{
     std::string("group_norm_3"),
     std::string("hard_sigmoid"),
     std::string("hard_swish"),
+    std::string("index_select"),
     std::string("layer_norm"),
     std::string("layer_norm_noall"),
     std::string("layer_norm_noscale"),
