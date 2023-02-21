@@ -4,10 +4,10 @@
 
 #include "gna_memory_state.hpp"
 
-#include "pre_post_process/preprocessing.hpp"
 #include "frontend/quantized_layer_params.hpp"
 #include "gna_graph_tools.hpp"
 #include "ie_layouts.h"
+#include "pre_post_process/preprocessing.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -71,10 +71,10 @@ void GNAVariableState::SetState(const InferenceEngine::Blob::Ptr& newState) {
                 InferenceEngine::getInjectedData<ov::intel_gna::frontend::QuantizedLayerParams>(state->getInput());
             auto scale_factor = quantized != nullptr ? quantized->_dst_quant.GetScale() : state->scale_factor;
             pre_post_process::ConvertToInt16(static_cast<int16_t*>(state->gna_ptr),
-                           newState->buffer().as<float*>(),
-                           1,
-                           data_elements,
-                           scale_factor);
+                                             newState->buffer().as<float*>(),
+                                             1,
+                                             data_elements,
+                                             scale_factor);
         } else {
             THROW_GNA_EXCEPTION
                 << "Failed to SetState for VariableState " << name

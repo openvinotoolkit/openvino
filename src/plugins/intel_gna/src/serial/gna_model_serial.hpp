@@ -12,8 +12,8 @@
 #include "descriptions/gna_desc.hpp"
 #include "gna2-model-api.h"
 #include "gna_device_allocation.hpp"
-#include "serial/headers/latest/gna_model_header.hpp"
 #include "pre_post_process/transposition_info.hpp"
+#include "serial/headers/latest/gna_model_header.hpp"
 
 using namespace ov::intel_gna::pre_post_process;
 
