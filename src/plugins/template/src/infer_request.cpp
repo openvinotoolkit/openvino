@@ -35,17 +35,18 @@ TemplatePlugin::InferRequest::InferRequest(const std::shared_ptr<const TemplateP
     : ov::ISyncInferRequest(model) {
     // TODO: allocate infer request device and host buffers if needed, fill actual list of profiling tasks
 
-    auto requestID = std::to_string(get_template_model()->_requestId.fetch_add(1));
+    auto compiled_model = std::const_pointer_cast<TemplatePlugin::CompiledModel>(model);
+    auto requestID = std::to_string(compiled_model->_requestId.fetch_add(1));
 
     std::string name = get_template_model()->m_model->get_friendly_name() + "_Req" + requestID;
     m_profiling_task = {
-        openvino::itt::handle("Template" + std::to_string(get_template_model()->_cfg.deviceId) + "_" + name +
+        openvino::itt::handle("Template" + get_template_model()->get_properties().get(ov::device::id) + "_" + name +
                               "_Preprocess"),
-        openvino::itt::handle("Template" + std::to_string(get_template_model()->_cfg.deviceId) + "_" + name +
+        openvino::itt::handle("Template" + get_template_model()->get_properties().get(ov::device::id) + "_" + name +
                               "_Postprocess"),
-        openvino::itt::handle("Template" + std::to_string(get_template_model()->_cfg.deviceId) + "_" + name +
+        openvino::itt::handle("Template" + get_template_model()->get_properties().get(ov::device::id) + "_" + name +
                               "_StartPipeline"),
-        openvino::itt::handle("Template" + std::to_string(get_template_model()->_cfg.deviceId) + "_" + name +
+        openvino::itt::handle("Template" + get_template_model()->get_properties().get(ov::device::id) + "_" + name +
                               "_WaitPipline"),
     };
 
