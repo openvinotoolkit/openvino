@@ -2,31 +2,31 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <gtest/gtest.h>
+
+#include <map>
 #include <memory>
 #include <vector>
-#include <map>
 
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "openvino/core/shape.hpp"
-#include "openvino/core/model.hpp"
-#include "openvino/core/type.hpp"
-#include "openvino/opsets/opset9.hpp"
 #include "helpers/test_model_repo.hpp"
 #include "ngraph_functions/builders.hpp"
-
+#include "openvino/core/model.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/opsets/opset9.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 using namespace ov::opset9;
 
-typedef std::tuple<
-        ov::element::Type,                  // Network Precision
-        std::string,                        // Target Device
-        std::string,                        // Name Export Model
-        std::map<std::string, std::string>, // Export Configuration
-        std::map<std::string, std::string>  // Import Configuration
-> exportImportNetworkParams;
+typedef std::tuple<ov::element::Type,                   // Network Precision
+                   std::string,                         // Target Device
+                   std::string,                         // Name Export Model
+                   std::map<std::string, std::string>,  // Export Configuration
+                   std::map<std::string, std::string>   // Import Configuration
+                   >
+    exportImportNetworkParams;
 
 class BackwardCompatibility : public testing::WithParamInterface<exportImportNetworkParams>,
-                                   virtual public LayerTestsUtils::LayerTestsCommon {
+                              virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<exportImportNetworkParams> obj) {
         ov::element::Type input_prc;
@@ -104,7 +104,8 @@ protected:
         auto split = std::make_shared<Split>(inputs[0], axis_const, 2);
 
         std::vector<int32_t> reshape_pattern{1, 2, 1, -1};
-        auto reshape_const = std::make_shared<Constant>(ov::element::i32, ov::Shape{reshape_pattern.size()}, reshape_pattern);
+        auto reshape_const =
+            std::make_shared<Constant>(ov::element::i32, ov::Shape{reshape_pattern.size()}, reshape_pattern);
 
         auto split_0_reshape = std::make_shared<Reshape>(split->output(0), reshape_const, true);
         auto split_1_reshape = std::make_shared<Reshape>(split->output(1), reshape_const, true);
@@ -138,7 +139,8 @@ protected:
         vi.variable_id = "test_variable";
         vi.data_type = prc;
         const auto var = std::make_shared<ov::op::util::Variable>(vi);
-        std::vector<float> initial_state = CommonTestUtils::generate_float_numbers(ov::shape_size(conv_shape), -3.f, 3.f);
+        std::vector<float> initial_state =
+            CommonTestUtils::generate_float_numbers(ov::shape_size(conv_shape), -3.f, 3.f);
         auto initial_state_node = std::make_shared<Constant>(prc, conv_shape, initial_state);
         auto read = std::make_shared<ReadValue>(initial_state_node, var);
         auto mul = std::make_shared<Multiply>(split_1_reshape, read);
@@ -175,67 +177,53 @@ protected:
     }
 };
 
-
-TEST_P(BackwardCompatibility, smoke_BackwardCompatibility){
+TEST_P(BackwardCompatibility, smoke_BackwardCompatibility) {
     Run();
 }
 
-TEST_P(BackwardCompatibilityLegacy, smoke_BackwardCompatibility){
+TEST_P(BackwardCompatibilityLegacy, smoke_BackwardCompatibility) {
     Run();
 }
 
-const std::vector<ov::element::Type> input_precisions = {
-        ov::element::f32,
-        ov::element::f16
-};
+const std::vector<ov::element::Type> input_precisions = {ov::element::f32, ov::element::f16};
 
 const std::vector<std::map<std::string, std::string>> export_configs_legacy = {
-        {
-                {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-                {"GNA_SCALE_FACTOR_0", "327.67"}
-        }
-};
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "327.67"}}};
 
 const std::vector<std::map<std::string, std::string>> import_configs_legacy = {
-        {
-                {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-                {"GNA_SCALE_FACTOR_0", "327.67"}
-        },
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "327.67"}},
 };
 
 const std::vector<std::map<std::string, std::string>> export_configs = {
-        {
-                {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-                {"GNA_SCALE_FACTOR_0", "327.67"},
-                {"GNA_SCALE_FACTOR_1", "327.67"}
-        }
-};
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "327.67"}, {"GNA_SCALE_FACTOR_1", "327.67"}}};
 
 const std::vector<std::map<std::string, std::string>> import_configs = {
-        {
-                {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-                {"GNA_SCALE_FACTOR_0", "327.67"},
-                {"GNA_SCALE_FACTOR_1", "327.67"}
-        }
-};
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "327.67"}, {"GNA_SCALE_FACTOR_1", "327.67"}}};
 
-const std::vector<std::string> export_models_legacy = {"export2dot1.blob", "export2dot2.blob", "export2dot3.blob", "export2dot4.blob", "export2dot5.blob"};
-const std::vector<std::string> export_models = {"export2dot6.blob", "export2dot7.blob", "export2dot8.blob", "export2dot9.blob"};
+const std::vector<std::string> export_models_legacy = {"export2dot1.blob",
+                                                       "export2dot2.blob",
+                                                       "export2dot3.blob",
+                                                       "export2dot4.blob",
+                                                       "export2dot5.blob"};
+const std::vector<std::string> export_models = {"export2dot6.blob",
+                                                "export2dot7.blob",
+                                                "export2dot8.blob",
+                                                "export2dot9.blob"};
 
-INSTANTIATE_TEST_SUITE_P(smoke_OldVersion, BackwardCompatibilityLegacy,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(input_precisions),
-                                ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                ::testing::ValuesIn(export_models_legacy),
-                                ::testing::ValuesIn(export_configs_legacy),
-                                ::testing::ValuesIn(import_configs_legacy)),
-                        BackwardCompatibilityLegacy::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_OldVersion,
+                         BackwardCompatibilityLegacy,
+                         ::testing::Combine(::testing::ValuesIn(input_precisions),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::ValuesIn(export_models_legacy),
+                                            ::testing::ValuesIn(export_configs_legacy),
+                                            ::testing::ValuesIn(import_configs_legacy)),
+                         BackwardCompatibilityLegacy::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_OldVersion, BackwardCompatibility,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(input_precisions),
-                                ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                ::testing::ValuesIn(export_models),
-                                ::testing::ValuesIn(export_configs),
-                                ::testing::ValuesIn(import_configs)),
-                        BackwardCompatibility::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_OldVersion,
+                         BackwardCompatibility,
+                         ::testing::Combine(::testing::ValuesIn(input_precisions),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::ValuesIn(export_models),
+                                            ::testing::ValuesIn(export_configs),
+                                            ::testing::ValuesIn(import_configs)),
+                         BackwardCompatibility::getTestCaseName);
