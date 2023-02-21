@@ -422,7 +422,57 @@ def create_pytorch_nn_module_mean_list(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
 
     return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]],
+                                 'onnx_opset_version': 11, 'compress_to_fp16': False, "use_legacy_frontend": True}
+
+
+def create_pytorch_nn_module_mean_list_default_compression(tmp_dir):
+    # by default compression should be enabled (same as setting 'compress_to_fp16': True)
+    # therefore decompression Converts will be present
+    pt_model = make_pt_model_two_inputs()
+    shape = [1, 10, 10, 3]
+
+    shape = PartialShape(shape)
+    param1 = ov.opset8.parameter(shape)
+    param2 = ov.opset8.parameter(shape)
+    const1 = ov.opset8.constant([[[[0, 0, 0]]]], dtype=np.float16)
+    const1_decompressed = ov.opset8.convert(const1, destination_type=np.float32)
+    const2 = ov.opset8.constant([[[[0, 0, 0]]]], dtype=np.float16)
+    const2_decompressed = ov.opset8.convert(const2, destination_type=np.float32)
+    sub1 = ov.opset8.subtract(param1, const1_decompressed)
+    sub2 = ov.opset8.subtract(param2, const2_decompressed)
+    add = ov.opset8.add(sub1, sub2)
+    relu = ov.opset8.relu(add)
+    sigm = ov.opset8.sigmoid(relu)
+
+    parameter_list = [param1, param2]
+    ref_model = Model([sigm], parameter_list, "test")
+
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]],
                                  'onnx_opset_version': 11, "use_legacy_frontend": True}
+
+
+def create_pytorch_nn_module_mean_list_compressin_enabled(tmp_dir):
+    pt_model = make_pt_model_two_inputs()
+    shape = [1, 10, 10, 3]
+
+    shape = PartialShape(shape)
+    param1 = ov.opset8.parameter(shape)
+    param2 = ov.opset8.parameter(shape)
+    const1 = ov.opset8.constant([[[[0, 0, 0]]]], dtype=np.float16)
+    const1_decompressed = ov.opset8.convert(const1, destination_type=np.float32)
+    const2 = ov.opset8.constant([[[[0, 0, 0]]]], dtype=np.float16)
+    const2_decompressed = ov.opset8.convert(const2, destination_type=np.float32)
+    sub1 = ov.opset8.subtract(param1, const1_decompressed)
+    sub2 = ov.opset8.subtract(param2, const2_decompressed)
+    add = ov.opset8.add(sub1, sub2)
+    relu = ov.opset8.relu(add)
+    sigm = ov.opset8.sigmoid(relu)
+
+    parameter_list = [param1, param2]
+    ref_model = Model([sigm], parameter_list, "test")
+
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]],
+                                 'onnx_opset_version': 11, 'compress_to_fp16': True, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_scale_list(tmp_dir):
@@ -444,7 +494,57 @@ def create_pytorch_nn_module_scale_list(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
 
     return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]],
+                                 'onnx_opset_version': 11, 'compress_to_fp16': False, "use_legacy_frontend": True}
+
+
+def create_pytorch_nn_module_scale_list_default_compression(tmp_dir):
+    # by default compression should be enabled (same as setting 'compress_to_fp16': True)
+    # therefore decompression Converts will be present
+    pt_model = make_pt_model_two_inputs()
+    shape = [1, 10, 10, 3]
+
+    shape = PartialShape(shape)
+    param1 = ov.opset8.parameter(shape)
+    param2 = ov.opset8.parameter(shape)
+    const1 = ov.opset8.constant([[[[1, 1, 1]]]], dtype=np.float16)
+    const1_decompressed = ov.opset8.convert(const1, destination_type=np.float32)
+    const2 = ov.opset8.constant([[[[1, 1, 1]]]], dtype=np.float16)
+    const2_decompressed = ov.opset8.convert(const2, destination_type=np.float32)
+    sub1 = ov.opset8.multiply(param1, const1_decompressed)
+    sub2 = ov.opset8.multiply(param2, const2_decompressed)
+    add = ov.opset8.add(sub1, sub2)
+    relu = ov.opset8.relu(add)
+    sigm = ov.opset8.sigmoid(relu)
+
+    parameter_list = [param1, param2]
+    ref_model = Model([sigm], parameter_list, "test")
+
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]],
                                  'onnx_opset_version': 11, "use_legacy_frontend": True}
+
+
+def create_pytorch_nn_module_scale_list_compression_enabled(tmp_dir):
+    pt_model = make_pt_model_two_inputs()
+    shape = [1, 10, 10, 3]
+
+    shape = PartialShape(shape)
+    param1 = ov.opset8.parameter(shape)
+    param2 = ov.opset8.parameter(shape)
+    const1 = ov.opset8.constant([[[[1, 1, 1]]]], dtype=np.float16)
+    const1_decompressed = ov.opset8.convert(const1, destination_type=np.float32)
+    const2 = ov.opset8.constant([[[[1, 1, 1]]]], dtype=np.float16)
+    const2_decompressed = ov.opset8.convert(const2, destination_type=np.float32)
+    sub1 = ov.opset8.multiply(param1, const1_decompressed)
+    sub2 = ov.opset8.multiply(param2, const2_decompressed)
+    add = ov.opset8.add(sub1, sub2)
+    relu = ov.opset8.relu(add)
+    sigm = ov.opset8.sigmoid(relu)
+
+    parameter_list = [param1, param2]
+    ref_model = Model([sigm], parameter_list, "test")
+
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]],
+                                 'onnx_opset_version': 11, 'compress_to_fp16': True, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_shapes_list_static(tmp_dir):
@@ -607,7 +707,11 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         create_pytorch_nn_module_layout_list,
         create_pytorch_nn_module_layout_list_case2,
         create_pytorch_nn_module_mean_list,
+        create_pytorch_nn_module_mean_list_default_compression,
+        create_pytorch_nn_module_mean_list_compressin_enabled,
         create_pytorch_nn_module_scale_list,
+        create_pytorch_nn_module_scale_list_default_compression,
+        create_pytorch_nn_module_scale_list_compression_enabled,
         create_pytorch_nn_module_shapes_list_static,
         create_pytorch_nn_module_shapes_list_dynamic,
         create_pytorch_nn_module_shapes_list_dynamic_single_input,
