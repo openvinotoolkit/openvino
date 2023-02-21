@@ -5,6 +5,14 @@
 #pragma once
 
 namespace LayerTestsUtils {
+
+struct ModelInfo {
+    size_t op_cnt;
+    std::set<std::string> model_paths;
+
+    ModelInfo(size_t _op_cnt = 0, const std::set<std::string>& _model_paths = {}) : op_cnt(_op_cnt), model_paths(_model_paths) {}
+};
+
 struct PortInfo {
     double min;
     double max;
@@ -20,12 +28,11 @@ struct PortInfo {
 };
 
 struct OPInfo {
-    std::string source_model;
-    std::map<std::string, size_t> found_in_models;
+    std::map<std::string, ModelInfo> found_in_models;
     std::map<size_t, PortInfo> ports_info;
 
-    OPInfo(const std::string &source_model) : source_model(source_model) {
-        found_in_models = {{source_model, 1}};
+    OPInfo(const std::string& source_model, const std::string& model_path) {
+        found_in_models = {{source_model, ModelInfo(1, {model_path})}};
         ports_info = {};
     }
 
