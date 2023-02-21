@@ -298,7 +298,7 @@ MemoryPtr DynamicBuffer::create_buffer(const dnnl::engine& eng) {
     auto _descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
     auto new_buffer_desc = _descCreator->createSharedDesc(from->getDesc().getPrecision(), _shape);
 
-    auto _ptr = MemoryPtr(new Memory(eng));
+    auto _ptr = std::make_shared<Memory>(eng);
     _ptr->Create(*new_buffer_desc);
     return _ptr;
 }
