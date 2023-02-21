@@ -10,5 +10,7 @@ def test_legacy_extensions():
     args = [sys.executable, '-m', 'pytest',
             os.path.join(os.path.dirname(__file__), 'legacy_extensions_test_actual.py'), '-s']
 
-    status = subprocess.run(args, env=os.environ)
+    status = subprocess.run(args, env=os.environ, capture_output=True)
+    print(status.stderr)
+    print(status.stdout)
     assert not status.returncode
