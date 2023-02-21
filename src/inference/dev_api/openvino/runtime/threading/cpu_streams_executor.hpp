@@ -34,7 +34,7 @@ public:
      * @brief Constructor
      * @param config Stream executor parameters
      */
-    explicit CPUStreamsExecutor(const Config& config = {});
+    explicit CPUStreamsExecutor(const Configuration& config = {});
 
     /**
      * @brief A class destructor

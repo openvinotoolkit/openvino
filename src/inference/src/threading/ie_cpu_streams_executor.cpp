@@ -370,7 +370,7 @@ int CPUStreamsExecutor::GetNumaNodeId() {
 
 CPUStreamsExecutor::CPUStreamsExecutor(const IStreamsExecutor::Config& config) : _impl{new Impl{config}} {}
 
-CPUStreamsExecutor::CPUStreamsExecutor(const ov::IStreamsExecutor::Config& config)
+CPUStreamsExecutor::CPUStreamsExecutor(const ov::IStreamsExecutor::Configuration& config)
     : _impl{new Impl{IStreamsExecutor::Config(
           config._name,
           config._streams,

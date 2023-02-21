@@ -32,7 +32,7 @@ struct Configuration {
 
     int deviceId = 0;
     bool perfCount = true;
-    ov::IStreamsExecutor::Config _streamsExecutorConfig;
+    ov::IStreamsExecutor::Configuration _streamsExecutorConfig;
     ov::hint::PerformanceMode performance_mode = ov::hint::PerformanceMode::UNDEFINED;
 };
 // ! [configuration:header]

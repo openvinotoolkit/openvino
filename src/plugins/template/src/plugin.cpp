@@ -91,7 +91,7 @@ std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::compile_model(const 
 
     auto fullConfig = Configuration{properties, _cfg};
     auto streamsExecutorConfig =
-        ov::IStreamsExecutor::Config::MakeDefaultMultiThreaded(fullConfig._streamsExecutorConfig);
+        ov::IStreamsExecutor::Configuration::MakeDefaultMultiThreaded(fullConfig._streamsExecutorConfig);
     streamsExecutorConfig._name = stream_executor_name;
     auto compiled_model =
         std::make_shared<CompiledModel>(model->clone(),
@@ -131,7 +131,7 @@ std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::import_model(std::is
 
     auto ov_model = get_core()->read_model(xmlString, weights);
     auto streamsExecutorConfig =
-        ov::IStreamsExecutor::Config::MakeDefaultMultiThreaded(fullConfig._streamsExecutorConfig);
+        ov::IStreamsExecutor::Configuration::MakeDefaultMultiThreaded(fullConfig._streamsExecutorConfig);
     streamsExecutorConfig._name = stream_executor_name;
     auto compiled_model =
         std::make_shared<CompiledModel>(ov_model,
@@ -236,8 +236,9 @@ ov::Any TemplatePlugin::Plugin::get_property(const std::string& name, const ov::
         return to_string_vector(metrics);
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         auto configs = default_rw_properties();
-        auto streamExecutorConfigKeys =
-            ov::IStreamsExecutor::Config{}.get_property(ov::supported_properties.name()).as<std::vector<std::string>>();
+        auto streamExecutorConfigKeys = ov::IStreamsExecutor::Configuration{}
+                                            .get_property(ov::supported_properties.name())
+                                            .as<std::vector<std::string>>();
         for (auto&& configKey : streamExecutorConfigKeys) {
             if (configKey != InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) {
                 configs.emplace_back(configKey);

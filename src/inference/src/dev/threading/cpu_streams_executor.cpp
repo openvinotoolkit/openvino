@@ -82,12 +82,12 @@ struct CPUStreamsExecutor::Impl {
             const auto concurrency = (0 == _impl->_config._threadsPerStream) ? custom::task_arena::automatic
                                                                              : _impl->_config._threadsPerStream;
             if (ThreadBindingType::HYBRID_AWARE == _impl->_config._threadBindingType) {
-                if (Config::PreferredCoreType::ROUND_ROBIN != _impl->_config._threadPreferredCoreType) {
-                    if (Config::PreferredCoreType::ANY == _impl->_config._threadPreferredCoreType) {
+                if (Configuration::PreferredCoreType::ROUND_ROBIN != _impl->_config._threadPreferredCoreType) {
+                    if (Configuration::PreferredCoreType::ANY == _impl->_config._threadPreferredCoreType) {
                         _taskArena.reset(new custom::task_arena{concurrency});
                     } else {
                         const auto selected_core_type =
-                            Config::PreferredCoreType::BIG == _impl->_config._threadPreferredCoreType
+                            Configuration::PreferredCoreType::BIG == _impl->_config._threadPreferredCoreType
                                 ? custom::info::core_types().back()    // running on Big cores only
                                 : custom::info::core_types().front();  // running on Little cores only
                         _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
@@ -232,7 +232,7 @@ struct CPUStreamsExecutor::Impl {
 #endif
     };
 
-    explicit Impl(const Config& config)
+    explicit Impl(const Configuration& config)
         : _config{config},
           _streams([this] {
               return std::make_shared<Impl::Stream>(this);
@@ -336,7 +336,7 @@ struct CPUStreamsExecutor::Impl {
         }
     }
 
-    Config _config;
+    Configuration _config;
     std::mutex _streamIdMutex;
     int _streamId = 0;
     std::queue<int> _streamIdQueue;
@@ -369,7 +369,7 @@ int CPUStreamsExecutor::get_numa_node_id() {
     return stream->_numaNodeId;
 }
 
-CPUStreamsExecutor::CPUStreamsExecutor(const IStreamsExecutor::Config& config) : _impl{new Impl{config}} {}
+CPUStreamsExecutor::CPUStreamsExecutor(const IStreamsExecutor::Configuration& config) : _impl{new Impl{config}} {}
 
 CPUStreamsExecutor::~CPUStreamsExecutor() {
     {

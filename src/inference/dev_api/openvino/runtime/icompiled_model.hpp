@@ -51,9 +51,9 @@ public:
     ICompiledModel(const std::shared_ptr<const ov::Model>& model,
                    const std::shared_ptr<const ov::IPlugin>& plugin,
                    const std::shared_ptr<ov::ITaskExecutor>& task_executor =
-                       std::make_shared<ov::CPUStreamsExecutor>(ov::IStreamsExecutor::Config{"Default"}),
+                       std::make_shared<ov::CPUStreamsExecutor>(ov::IStreamsExecutor::Configuration{"Default"}),
                    const std::shared_ptr<ov::ITaskExecutor>& callback_executor =
-                       std::make_shared<ov::CPUStreamsExecutor>(ov::IStreamsExecutor::Config{"Callback"}));
+                       std::make_shared<ov::CPUStreamsExecutor>(ov::IStreamsExecutor::Configuration{"Callback"}));
 
     /**
      * @brief Gets all outputs from compiled model

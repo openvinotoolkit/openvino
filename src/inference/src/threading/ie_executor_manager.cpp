@@ -79,8 +79,8 @@ private:
     std::shared_ptr<ov::IStreamsExecutor> m_streams_executor;
 };
 
-ov::IStreamsExecutor::Config convert_config(const InferenceEngine::IStreamsExecutor::Config& config) {
-    ov::IStreamsExecutor::Config ov_config(
+ov::IStreamsExecutor::Configuration convert_config(const InferenceEngine::IStreamsExecutor::Config& config) {
+    ov::IStreamsExecutor::Configuration ov_config(
         config._name,
         config._streams,
         config._threadsPerStream,
@@ -88,7 +88,7 @@ ov::IStreamsExecutor::Config convert_config(const InferenceEngine::IStreamsExecu
         config._threadBindingStep,
         config._threadBindingOffset,
         config._threads,
-        static_cast<ov::IStreamsExecutor::Config::PreferredCoreType>(config._threadPreferredCoreType));
+        static_cast<ov::IStreamsExecutor::Configuration::PreferredCoreType>(config._threadPreferredCoreType));
     return ov_config;
 }
 

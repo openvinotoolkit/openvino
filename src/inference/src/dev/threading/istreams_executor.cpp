@@ -16,7 +16,7 @@
 
 ov::IStreamsExecutor::~IStreamsExecutor() {}
 
-int ov::IStreamsExecutor::Config::GetDefaultNumStreams(const bool enable_hyper_thread) {
+int ov::IStreamsExecutor::Configuration::GetDefaultNumStreams(const bool enable_hyper_thread) {
     const int sockets = static_cast<int>(get_available_numa_nodes().size());
     // bare minimum of streams (that evenly divides available number of core)
     const int num_cores = sockets == 1 ? (enable_hyper_thread ? parallel_get_max_threads() : get_number_of_cpu_cores())
@@ -31,7 +31,7 @@ int ov::IStreamsExecutor::Config::GetDefaultNumStreams(const bool enable_hyper_t
         return 1;
 }
 
-int ov::IStreamsExecutor::Config::GetHybridNumStreams(ov::AnyMap& config, const int stream_mode) {
+int ov::IStreamsExecutor::Configuration::GetHybridNumStreams(ov::AnyMap& config, const int stream_mode) {
     const int num_cores = parallel_get_max_threads();
     const int num_cores_phy = get_number_of_cpu_cores();
     const int num_big_cores_phy = get_number_of_cpu_cores(true);
@@ -90,10 +90,10 @@ int ov::IStreamsExecutor::Config::GetHybridNumStreams(ov::AnyMap& config, const 
     return big_core_streams + small_core_streams;
 }
 
-void ov::IStreamsExecutor::Config::set_property(const std::string& key, const ov::Any& value) {
+void ov::IStreamsExecutor::Configuration::set_property(const std::string& key, const ov::Any& value) {
     set_property(ov::AnyMap{{key, value}});
 }
-void ov::IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
+void ov::IStreamsExecutor::Configuration::set_property(const ov::AnyMap& property) {
     for (const auto& it : property) {
         const auto& key = it.first;
         const auto value = it.second;
@@ -279,7 +279,7 @@ void ov::IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
     }
 }
 
-ov::Any ov::IStreamsExecutor::Config::get_property(const std::string& key) const {
+ov::Any ov::IStreamsExecutor::Configuration::get_property(const std::string& key) const {
     if (key == ov::supported_properties) {
         std::vector<std::string> properties{
             CONFIG_KEY(CPU_THROUGHPUT_STREAMS),
@@ -347,7 +347,7 @@ ov::Any ov::IStreamsExecutor::Config::get_property(const std::string& key) const
     return {};
 }
 
-void ov::IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config) {
+void ov::IStreamsExecutor::Configuration::UpdateHybridCustomThreads(Configuration& config) {
     const auto num_cores = parallel_get_max_threads();
     const auto num_cores_phys = get_number_of_cpu_cores();
     const auto num_big_cores_phys = get_number_of_cpu_cores(true);
@@ -410,8 +410,8 @@ void ov::IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config) {
     }
 }
 
-ov::IStreamsExecutor::Config ov::IStreamsExecutor::Config::MakeDefaultMultiThreaded(
-    const IStreamsExecutor::Config& initial,
+ov::IStreamsExecutor::Configuration ov::IStreamsExecutor::Configuration::MakeDefaultMultiThreaded(
+    const IStreamsExecutor::Configuration& initial,
     const bool fp_intesive) {
     const auto envThreads = parallel_get_env_threads();
     const auto& numaNodes = get_available_numa_nodes();
@@ -435,9 +435,9 @@ ov::IStreamsExecutor::Config ov::IStreamsExecutor::Config::MakeDefaultMultiThrea
             num_big_cores_phys > (num_little_cores / (fp_intesive ? fp32_threshold : int8_threshold));
         // selecting the preferred core type
         streamExecutorConfig._threadPreferredCoreType =
-            bLatencyCase ? (bLatencyCaseBigOnly ? IStreamsExecutor::Config::PreferredCoreType::BIG
-                                                : IStreamsExecutor::Config::PreferredCoreType::ANY)
-                         : IStreamsExecutor::Config::PreferredCoreType::ROUND_ROBIN;
+            bLatencyCase ? (bLatencyCaseBigOnly ? IStreamsExecutor::Configuration::PreferredCoreType::BIG
+                                                : IStreamsExecutor::Configuration::PreferredCoreType::ANY)
+                         : IStreamsExecutor::Configuration::PreferredCoreType::ROUND_ROBIN;
         // additionally selecting the #cores to use in the "Big-only" case
         if (bLatencyCaseBigOnly) {
             const int hyper_threading_threshold =

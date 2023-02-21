@@ -46,7 +46,7 @@ public:
     /**
      * @brief Defines IStreamsExecutor configuration
      */
-    struct OPENVINO_API Config {
+    struct OPENVINO_API Configuration {
         /**
          * @brief Parses configuration key/value pair
          * @param key configuration key
@@ -77,11 +77,11 @@ public:
          * intensive)
          * @return configured values
          */
-        static Config MakeDefaultMultiThreaded(const Config& initial, const bool fp_intesive = true);
+        static Configuration MakeDefaultMultiThreaded(const Configuration& initial, const bool fp_intesive = true);
         static int GetDefaultNumStreams(
             const bool enable_hyper_thread = true);  // no network specifics considered (only CPU's caps);
         static int GetHybridNumStreams(ov::AnyMap& config, const int stream_mode);
-        static void UpdateHybridCustomThreads(Config& config);
+        static void UpdateHybridCustomThreads(Configuration& config);
 
         std::string _name;          //!< Used by `ITT` to name executor threads
         int _streams = 1;           //!< Number of streams.
@@ -122,14 +122,14 @@ public:
          * @param[in]  threads              @copybrief Config::_threads
          * @param[in]  threadPreferBigCores @copybrief Config::_threadPreferBigCores
          */
-        Config(std::string name = "StreamsExecutor",
-               int streams = 1,
-               int threadsPerStream = 0,
-               ThreadBindingType threadBindingType = ThreadBindingType::NONE,
-               int threadBindingStep = 1,
-               int threadBindingOffset = 0,
-               int threads = 0,
-               PreferredCoreType threadPreferredCoreType = PreferredCoreType::ANY)
+        Configuration(std::string name = "StreamsExecutor",
+                      int streams = 1,
+                      int threadsPerStream = 0,
+                      ThreadBindingType threadBindingType = ThreadBindingType::NONE,
+                      int threadBindingStep = 1,
+                      int threadBindingOffset = 0,
+                      int threads = 0,
+                      PreferredCoreType threadPreferredCoreType = PreferredCoreType::ANY)
             : _name{name},
               _streams{streams},
               _threadsPerStream{threadsPerStream},

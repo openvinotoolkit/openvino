@@ -33,7 +33,8 @@ public:
     virtual std::shared_ptr<ITaskExecutor> get_executor(const std::string& id) = 0;
 
     /// @private
-    virtual std::shared_ptr<IStreamsExecutor> get_idle_cpu_streams_executor(const IStreamsExecutor::Config& config) = 0;
+    virtual std::shared_ptr<IStreamsExecutor> get_idle_cpu_streams_executor(
+        const IStreamsExecutor::Configuration& config) = 0;
 
     /**
      * @cond

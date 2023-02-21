@@ -56,7 +56,7 @@ ov::Any Configuration::Get(const std::string& name) const {
     } else if (name == ov::template_plugin::throughput_streams || name == CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) {
         return {std::to_string(_streamsExecutorConfig._streams)};
     } else if (name == CONFIG_KEY(CPU_BIND_THREAD)) {
-        return const_cast<ov::IStreamsExecutor::Config&>(_streamsExecutorConfig).get_property(name);
+        return const_cast<ov::IStreamsExecutor::Configuration&>(_streamsExecutorConfig).get_property(name);
     } else if (name == CONFIG_KEY(CPU_THREADS_NUM)) {
         return {std::to_string(_streamsExecutorConfig._threads)};
     } else if (name == CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM)) {

@@ -66,7 +66,7 @@ int IStreamsExecutor::Config::GetHybridNumStreams(std::map<std::string, std::str
     int threads_per_stream_big = 0;
     int threads_per_stream_small = 0;
 
-    if (stream_mode == ov::IStreamsExecutor::Config::DEFAULT) {
+    if (stream_mode == ov::IStreamsExecutor::Configuration::DEFAULT) {
         // bare minimum of streams (that evenly divides available number of core)
         if (0 == num_big_cores_phy % 4) {
             threads_per_stream_big = 4;
@@ -92,12 +92,12 @@ int IStreamsExecutor::Config::GetHybridNumStreams(std::map<std::string, std::str
         } else {
             small_core_streams = num_small_cores / threads_per_stream_small;
         }
-    } else if (stream_mode == ov::IStreamsExecutor::Config::AGGRESSIVE) {
+    } else if (stream_mode == ov::IStreamsExecutor::Configuration::AGGRESSIVE) {
         big_core_streams = num_big_cores;
         small_core_streams = num_small_cores;
         threads_per_stream_big = num_big_cores / big_core_streams;
         threads_per_stream_small = num_small_cores == 0 ? 0 : num_small_cores / small_core_streams;
-    } else if (stream_mode == ov::IStreamsExecutor::Config::LESSAGGRESSIVE) {
+    } else if (stream_mode == ov::IStreamsExecutor::Configuration::LESSAGGRESSIVE) {
         big_core_streams = num_big_cores / 2;
         small_core_streams = num_small_cores / 2;
         threads_per_stream_big = num_big_cores / big_core_streams;

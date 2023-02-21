@@ -181,8 +181,9 @@ ov::Any TemplatePlugin::CompiledModel::get_property(const std::string& name) con
         return to_string_vector(metrics);
     } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         auto configs = default_rw_properties();
-        auto streamExecutorConfigKeys =
-            ov::IStreamsExecutor::Config{}.get_property(ov::supported_properties.name()).as<std::vector<std::string>>();
+        auto streamExecutorConfigKeys = ov::IStreamsExecutor::Configuration{}
+                                            .get_property(ov::supported_properties.name())
+                                            .as<std::vector<std::string>>();
         for (auto&& configKey : streamExecutorConfigKeys) {
             configs.emplace_back(configKey);
         }

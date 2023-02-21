@@ -27,7 +27,8 @@ class ExecutorManagerImpl : public ExecutorManager {
 public:
     ~ExecutorManagerImpl();
     std::shared_ptr<ITaskExecutor> get_executor(const std::string& id) override;
-    std::shared_ptr<IStreamsExecutor> get_idle_cpu_streams_executor(const IStreamsExecutor::Config& config) override;
+    std::shared_ptr<IStreamsExecutor> get_idle_cpu_streams_executor(
+        const IStreamsExecutor::Configuration& config) override;
     size_t get_executors_number() const override;
     size_t get_idle_cpu_streams_executors_number() const override;
     void clear(const std::string& id = {}) override;
@@ -37,7 +38,7 @@ public:
 private:
     void reset_tbb();
     std::unordered_map<std::string, std::shared_ptr<ITaskExecutor>> executors;
-    std::vector<std::pair<IStreamsExecutor::Config, std::shared_ptr<IStreamsExecutor>>> cpuStreamsExecutors;
+    std::vector<std::pair<IStreamsExecutor::Configuration, std::shared_ptr<IStreamsExecutor>>> cpuStreamsExecutors;
     mutable std::mutex streamExecutorMutex;
     mutable std::mutex taskExecutorMutex;
     bool tbbTerminateFlag = false;
@@ -106,7 +107,7 @@ std::shared_ptr<ITaskExecutor> ExecutorManagerImpl::get_executor(const std::stri
     std::lock_guard<std::mutex> guard(taskExecutorMutex);
     auto foundEntry = executors.find(id);
     if (foundEntry == executors.end()) {
-        auto newExec = std::make_shared<ov::CPUStreamsExecutor>(IStreamsExecutor::Config{id});
+        auto newExec = std::make_shared<ov::CPUStreamsExecutor>(IStreamsExecutor::Configuration{id});
         tbbThreadsCreated = true;
         executors[id] = newExec;
         return newExec;
@@ -115,7 +116,7 @@ std::shared_ptr<ITaskExecutor> ExecutorManagerImpl::get_executor(const std::stri
 }
 
 std::shared_ptr<IStreamsExecutor> ExecutorManagerImpl::get_idle_cpu_streams_executor(
-    const IStreamsExecutor::Config& config) {
+    const IStreamsExecutor::Configuration& config) {
     std::lock_guard<std::mutex> guard(streamExecutorMutex);
     for (const auto& it : cpuStreamsExecutors) {
         const auto& executor = it.second;
@@ -157,11 +158,12 @@ void ExecutorManagerImpl::clear(const std::string& id) {
     } else {
         executors.erase(id);
         cpuStreamsExecutors.erase(
-            std::remove_if(cpuStreamsExecutors.begin(),
-                           cpuStreamsExecutors.end(),
-                           [&](const std::pair<IStreamsExecutor::Config, std::shared_ptr<IStreamsExecutor>>& it) {
-                               return it.first._name == id;
-                           }),
+            std::remove_if(
+                cpuStreamsExecutors.begin(),
+                cpuStreamsExecutors.end(),
+                [&](const std::pair<IStreamsExecutor::Configuration, std::shared_ptr<IStreamsExecutor>>& it) {
+                    return it.first._name == id;
+                }),
             cpuStreamsExecutors.end());
     }
 }
