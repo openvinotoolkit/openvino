@@ -14,8 +14,8 @@ def one_hot_v2(name: str, x, num_classes):
     paddle.enable_static()
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
-        x = paddle.static.data(name="x", shape=x.shape, dtype=x.dtype)
-        out = paddle.one_hot(x, num_classes=num_classes)
+        x_node = paddle.static.data(name="x", shape=x.shape, dtype=x.dtype)
+        out = paddle.nn.functional.one_hot(x_node, num_classes=num_classes)
         place = paddle.CPUPlace()
         exe = paddle.static.Executor(place)
         outs = exe.run(feed={"x": x}, fetch_list=[out])
@@ -25,7 +25,7 @@ def one_hot_v2(name: str, x, num_classes):
             feedkeys=["x"],
             fetchlist=[out],
             inputs=[x],
-            outputs=[out],
+            outputs=[outs[0]],
             target_dir=sys.argv[1],
         )
 
