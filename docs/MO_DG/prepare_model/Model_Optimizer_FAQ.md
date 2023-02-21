@@ -2,6 +2,7 @@
 
 If your question is not covered by the topics below, use the [OpenVINO Support page](https://software.intel.com/en-us/openvino-toolkit/documentation/get-started), where you can participate on a free forum.
 
+@anchor mo-question-1
 #### Q1. What does the message "[ ERROR ]: Current caffe.proto does not contain field" mean? <a name="question-1"></a>
 
 **A** : Internally, Model Optimizer uses a protobuf library to parse and load Caffe models. This library requires a file grammar and a generated parser. For a Caffe fallback, Model Optimizer uses a Caffe-generated parser for a Caffe-specific `.proto` file (which is usually located in the `src/caffe/proto` directory). Make sure that you install exactly the same version of Caffe (with Python interface) as that was used to create the model.
