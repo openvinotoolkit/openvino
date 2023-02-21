@@ -49,8 +49,10 @@ class TestTFLiteBinaryWithActivationLayerTest(TFLiteLayerTest):
                                            name=TestTFLiteBinaryWithActivationLayerTest.inputs[0])
             in1 = tf.compat.v1.placeholder(params.get('dtype', tf.float32), params['shape'],
                                            name=TestTFLiteBinaryWithActivationLayerTest.inputs[1])
-            op = params['op_func'](in0, in1, name=TestTFLiteBinaryWithActivationLayerTest.outputs[0])
-            op = activation_helper(op, params['activation'])
+            bin_op_name = TestTFLiteBinaryWithActivationLayerTest.outputs[0] if not params['activation'] else \
+            TestTFLiteBinaryWithActivationLayerTest.outputs[0] + "/op"
+            op = params['op_func'](in0, in1, name=bin_op_name)
+            op = activation_helper(op, params['activation'], TestTFLiteBinaryWithActivationLayerTest.outputs[0])
 
             net = sess.graph_def
         return net
