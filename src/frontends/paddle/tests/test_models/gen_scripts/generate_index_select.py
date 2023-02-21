@@ -49,8 +49,9 @@ def index_select(name: str, x, index, axis):
 
 def main():
     x = np.random.rand(8, 24, 32).astype(data_type)
-    index = np.random.randint(0, 24, (10)).astype("int32")
-    index_select("index_select", x, index, axis=1)
+    index = np.random.randint(0, 24, (5)).astype("int32")
+    index_select("index_select_axis_0", x, index, axis=0)
+    index_select("index_select_axis_1", x, index, axis=1)
 
 
 if __name__ == "__main__":

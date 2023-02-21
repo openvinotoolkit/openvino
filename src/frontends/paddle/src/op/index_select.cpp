@@ -10,11 +10,13 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs index_select(const NodeContext& node) {
-    auto data = node.get_ng_input("X");
-    auto index = node.get_ng_input("Index");
-    auto axis = node.get_attribute<int64_t>("axis");
-    auto out = std::make_shared<default_opset::Gather>(data, index, axis);
-    return node.default_single_output_mapping({out}, {"Out"});
+    auto data = node.get_input("X");
+    auto index = node.get_input("Index");
+    Output<Node> axis_node;
+    const auto axis_value = node.get_attribute<int>("dim");
+    axis_node = default_opset::Constant::create(element::i32, Shape{}, {axis_value});
+    return node.default_single_output_mapping({std::make_shared<default_opset::Gather>(data, index, axis_node)},
+                                              {"Out"});
 }
 
 }  // namespace op
