@@ -1,4 +1,5 @@
 import importlib
+import shutil
 import os
 import sys
 import subprocess
@@ -258,11 +259,7 @@ def getActualPath(pathName, cfg):
 def safeClearDir(path):
     if not os.path.exists(path):
         os.makedirs(path)
-    p = subprocess.Popen(
-        "rm -rf *", cwd=path,
-        stdout=subprocess.PIPE, shell=True
-    )
-    p.wait()
+    shutil.rmtree(path)
     return
 
 
