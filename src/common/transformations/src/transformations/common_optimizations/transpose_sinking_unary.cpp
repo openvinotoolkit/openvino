@@ -72,6 +72,8 @@ NodePair SwapOutputs(NodePtr first_node, NodePtr second_node) {
     second_node->output(0).replace(first_node->output(0));
 
     first_node->input(0).replace_source_output(out_2);
+    second_node->validate_and_infer_types();
+    first_node->validate_and_infer_types();
 
     swap_names();
 
@@ -109,7 +111,7 @@ ov::pass::TransposeSinkingUnaryForward::TransposeSinkingUnaryForward() {
         register_new_node(new_nodes.second);
 
         UpdateForwardSinkingAbility(new_nodes.second);
-
+        ValidateForward(unary_label);
         return true;
     };
 
@@ -141,7 +143,7 @@ ov::pass::TransposeSinkingUnaryBackwardSingleConsumer::TransposeSinkingUnaryBack
 
         register_new_node(new_nodes.first);
         register_new_node(new_nodes.second);
-
+        ValidateBackward(unary_label);
         return true;
     };
 
@@ -184,7 +186,7 @@ ov::pass::TransposeSinkingUnaryBackwardMultiConsumers::TransposeSinkingUnaryBack
 
         // remove output transposes
         RemoveSingleOutputConsumers(unary);
-
+        ValidateBackward(unary_label);
         return true;
     };
 

@@ -176,7 +176,7 @@ ov::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
 
         // remove split output transposes
         RemoveSingleOutputConsumers(split);
-
+        ValidateBackward(split);
         return true;
     };
 
@@ -217,10 +217,9 @@ ov::pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
         auto new_split_axis_const =
             std::make_shared<Constant>(split_axis_constant->get_element_type(), Shape{}, transposed_split_axis);
         split->input(1).replace_source_output(new_split_axis_const);
-        split->validate_and_infer_types();
         copy_runtime_info({split_axis_constant, transpose_input_info.transpose, transpose_input_info.transpose_const},
                           new_split_axis_const);
-
+        ValidateForward(main_node);
         return true;
     };
 

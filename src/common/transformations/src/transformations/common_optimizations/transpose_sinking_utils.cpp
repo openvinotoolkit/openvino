@@ -386,4 +386,20 @@ void RemoveSingleOutputConsumers(const NodePtr& node) {
     }
 }
 
+void ValidateForward(const std::shared_ptr<ov::Node>& main_node) {
+    main_node->validate_and_infer_types();
+    for (const auto& out : main_node->outputs()) {
+        for (const auto consumer : out.get_target_inputs()) {
+            consumer.get_node()->validate_and_infer_types();
+        }
+    }
+}
+
+void ValidateBackward(const std::shared_ptr<ov::Node>& main_node) {
+    for (size_t i = 0; i < main_node->get_input_size(); ++i) {
+        main_node->get_input_node_shared_ptr(i)->validate_and_infer_types();
+    }
+    main_node->validate_and_infer_types();
+}
+
 }  // namespace transpose_sinking

@@ -52,6 +52,7 @@ ov::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
         const int64_t transposed_concat_axis = transpose_axis_order[concat_axis];
         concat_node->set_axis(transposed_concat_axis);
         concat_node->set_concatenation_axis(-1);
+        ValidateForward(main_node);
         return true;
     };
 
@@ -97,6 +98,7 @@ ov::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
         const int64_t transposed_concat_axis = reversed_traspose_axis_order[concat_axis];
         concat_node->set_axis(transposed_concat_axis);
         concat_node->set_concatenation_axis(-1);
+        ValidateBackward(main_node);
         return true;
     };
 

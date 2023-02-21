@@ -42,7 +42,7 @@ ov::pass::TransposeSinkingBinaryForward::TransposeSinkingBinaryForward() {
             register_new_node(new_node);
             transpose_sinking::UpdateForwardSinkingAbility(new_node);
         }
-
+        ValidateForward(main_node);
         return true;
     };
 
@@ -79,7 +79,7 @@ ov::pass::TransposeSinkingBinaryBackward::TransposeSinkingBinaryBackward() {
         RemoveSingleOutputConsumers(main_node);
 
         SwapNames(transpose, main_node);
-
+        ValidateBackward(main_node);
         return true;
     };
 

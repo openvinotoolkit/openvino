@@ -330,12 +330,16 @@ ov::pass::TransposeReduction::TransposeReduction() {
         auto new_transpose_order = std::make_shared<opset6::Constant>(transpose_order->get_element_type(),
                                                                       Shape{transpose_order_values.size()},
                                                                       transpose_order_values);
-        auto new_const = std::make_shared<opset6::Constant>(reduction_axes->get_element_type(),
-                                                            reduction_axes->get_shape(),
-                                                            new_values);
 
-        auto new_reduction = reduction->clone_with_new_inputs(
-            {transpose->input_value(0), !unsqueeze ? new_const : reduction->input_value(1)});
+        std::shared_ptr<Node> new_reduction;
+        if (!unsqueeze) {
+            auto new_const = std::make_shared<opset6::Constant>(reduction_axes->get_element_type(),
+                                                                reduction_axes->get_shape(),
+                                                                new_values);
+            new_reduction = reduction->clone_with_new_inputs({transpose->input_value(0), new_const});
+        } else {
+            new_reduction = reduction->clone_with_new_inputs({transpose->input_value(0), reduction->input_value(1)});
+        }
         auto new_transpose = transpose->clone_with_new_inputs({new_reduction, new_transpose_order});
         replace_node(reduction, new_transpose);
         new_reduction->set_friendly_name(transpose->get_friendly_name());
