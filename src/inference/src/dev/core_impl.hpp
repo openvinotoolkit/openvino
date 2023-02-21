@@ -249,7 +249,7 @@ public:
             if (deviceName.find('.') != std::string::npos) {
                 IE_THROW() << "Device name must not contain dot '.' symbol";
             }
-            if (pluginRegistry.find(deviceName) == pluginRegistry.end() {
+            if (pluginRegistry.find(deviceName) == pluginRegistry.end()) {
                 const auto& value = plugin.second;
                 ov::AnyMap config = any_copy(value.m_default_config);
                 PluginDescriptor desc{value.m_create_plugin_func, config, value.m_create_extension_func};
