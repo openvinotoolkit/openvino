@@ -11,6 +11,7 @@
 #include <intel_gpu/primitives/fully_connected.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/crop.hpp>
+#include <test_utils.h>
 
 #include "permute_inst.h"
 
@@ -1624,7 +1625,9 @@ public:
     }
 
     template<data_types Data_Type>
-    void run_test(const std::vector<cldnn::tensor::value_type>& sizes, cldnn::format format_fsv);
+    void run_test(const std::vector<cldnn::tensor::value_type>& sizes, cldnn::format format_fsv,
+                  const std::string & permute_opt = "permute_tile_8x8_4x4_fsv",
+                  std::vector<uint16_t> permute_order = {});
 };
 
 template<>
@@ -1650,16 +1653,12 @@ void TiledPermuteTest::set_random_values<int8_t>(const cldnn::memory::ptr mem) c
 }
 
 template<data_types Data_Type>
-void TiledPermuteTest::run_test(const std::vector<cldnn::tensor::value_type>& sizes, cldnn::format format_fsv)
+void TiledPermuteTest::run_test(const std::vector<cldnn::tensor::value_type>& sizes, cldnn::format format_fsv,
+                                const std::string & permute_opt, std::vector<uint16_t> permute_order)
 {
     // convert half_t to FLOAT16
     using type_ = typename data_type_to_type<Data_Type>::type;
     using type = typename std::conditional<std::is_same<type_, half_t>::value, FLOAT16, type_>::type;
-
-    size_t input_size = 1;
-    for (size_t i = 0; i<sizes.size(); ++i) {
-        input_size *= sizes.at(i);
-    }
 
     std::vector<cldnn::tensor::value_type> internal_sizes(sizes);
     std::swap(internal_sizes.at(2), internal_sizes.back());
@@ -1668,10 +1667,14 @@ void TiledPermuteTest::run_test(const std::vector<cldnn::tensor::value_type>& si
     cldnn::format format = sizes.size() == 4 ? cldnn::format::bfyx : cldnn::format::bfzyx;
 
     std::vector<uint16_t> order = {0};
-    for (uint16_t i = 1; i < (sizes.size() - 1); ++i) {
-        order.push_back(i+1);
+    if (permute_order.empty()) {
+        for (uint16_t i = 1; i < (sizes.size() - 1); ++i) {
+            order.push_back(i+1);
+        }
+        order.push_back(1);
+    } else {
+        std::swap(order, permute_order);
     }
-    order.push_back(1);
 
     auto input = engine.allocate_memory({Data_Type, format, tensor});
     set_random_values<type>(input);
@@ -1693,10 +1696,10 @@ void TiledPermuteTest::run_test(const std::vector<cldnn::tensor::value_type>& si
     auto output_ref = outputs_ref.begin()->second.get_memory();
     cldnn::mem_lock<type> output_ref_ptr(output_ref, get_test_stream());
 
-    // run with permute_tile_8x8_4x4_fsv16
+    // run with optimized kernel, e.g. permute_tile_8x8_4x4_fsv16
     ExecutionConfig config_tile;
-    ov::intel_gpu::ImplementationDesc permute_tile_8x8_4x4_fsv = { format_fsv, "permute_tile_8x8_4x4_fsv" };
-    config_tile.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"output", permute_tile_8x8_4x4_fsv} }));
+    ov::intel_gpu::ImplementationDesc permute_tile_opt = { format_fsv, permute_opt };
+    config_tile.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"output", permute_tile_opt} }));
 
     cldnn::network network_tile(engine, topology_ref, config_tile);
     network_tile.set_input_data("input", input);
@@ -1709,6 +1712,9 @@ void TiledPermuteTest::run_test(const std::vector<cldnn::tensor::value_type>& si
     for (size_t i = 0; i < output_size; i++)
     {
         compare_value<type>(output_ref_ptr[i], output_tile_ptr[i]);
+        if (output_ref_ptr[i] != output_tile_ptr[i]) {
+            break;
+        }
     }
 }
 
@@ -1899,4 +1905,18 @@ TEST(permute_gpu_f32_dynamic, bfyx_0_2_3_1) {
     for (size_t i = 0; i < array_size; i++) {
         ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
     }
+}
+
+class permute_bfzyx_to_bfyxz: public TiledPermuteTest {};
+
+INSTANTIATE_TEST_SUITE_P(, permute_bfzyx_to_bfyxz,
+    ::testing::ValuesIn(std::vector<TiledPermuteParam> {
+            {{1, 3, 85, 20, 20}, format::bfzyx},
+            {{1, 3, 85, 40, 40}, format::bfzyx},
+            {{1, 3, 85, 80, 80}, format::bfzyx}
+        }));
+
+TEST_P(permute_bfzyx_to_bfyxz, combined) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::f32>(p.sizes, p.format_fsv, "permute_bfzyx_to_bfyxz", {0, 1, 3, 4, 2});
 }
