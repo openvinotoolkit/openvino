@@ -20,11 +20,11 @@ using Time = std::chrono::high_resolution_clock;
 
 namespace {
 
-void allocate_tensor_impl(ov::Tensor& tensor, const ov::element::Type& element_type, const ov::Shape& shape) {
-    if (!tensor || tensor.get_element_type() != element_type) {
-        tensor = ov::Tensor(element_type, shape);
+void allocate_tensor_impl(ov::Tensor& tensor, const ov::Output<const ov::Node>& port) {
+    if (!tensor || tensor.get_element_type() != port.get_element_type()) {
+        tensor = ov::Tensor(port);
     } else {
-        tensor.set_shape(shape);
+        tensor.set_shape(port.get_shape());
     }
 }
 
@@ -59,17 +59,13 @@ TemplatePlugin::InferRequest::InferRequest(const std::shared_ptr<const TemplateP
     for (const auto& input : get_inputs()) {
         allocate_tensor(input, [input](ov::Tensor& tensor) {
             // Can add a check to avoid double work in case of shared tensors
-            allocate_tensor_impl(tensor,
-                                 input.get_element_type(),
-                                 input.get_partial_shape().is_dynamic() ? ov::Shape{0} : input.get_shape());
+            allocate_tensor_impl(tensor, input);
         });
     }
     for (const auto& output : get_outputs()) {
         allocate_tensor(output, [output](ov::Tensor& tensor) {
             // Can add a check to avoid double work in case of shared tensors
-            allocate_tensor_impl(tensor,
-                                 output.get_element_type(),
-                                 output.get_partial_shape().is_dynamic() ? ov::Shape{0} : output.get_shape());
+            allocate_tensor_impl(tensor, output);
         });
     }
 }

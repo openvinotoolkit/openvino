@@ -126,13 +126,15 @@ Shape Tensor::get_shape() const {
     OV_TENSOR_STATEMENT({ return _impl->getTensorDesc().getBlockingDesc().getBlockDims(); });
 }
 
-void Tensor::copy_to(const ov::Tensor& dst) const {
+void Tensor::copy_to(ov::Tensor& dst) const {
     OPENVINO_ASSERT(dst.get_element_type() == get_element_type(),
                     "Tensor element types are not equal. (src: ",
                     get_element_type(),
                     " != dst: ",
                     dst.get_element_type(),
                     ")");
+    if (dst.get_shape() == ov::Shape{0})
+        dst.set_shape(get_shape());
     OPENVINO_ASSERT(dst.get_shape() == get_shape(),
                     "Tensor shapes are not equal. (src: ",
                     get_shape(),
@@ -149,7 +151,7 @@ void Tensor::copy_to(const ov::Tensor& dst) const {
     ov::Shape max_pos{1};
     size_t step(1);
 
-    if (get_element_type().bitwidth() < 8 || (get_strides() == dst.get_strides() /* && is_continuous() */)) {
+    if (get_element_type().bitwidth() < 8 || (get_strides() == dst.get_strides() && is_continuous())) {
         // OpenVINO doesn't support strides for LP types
         // or both tensors have default strides
         step = tensor_size * get_element_type().size();

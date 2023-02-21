@@ -161,7 +161,7 @@ public:
      *
      * @param dst destination tensor
      */
-    void copy_to(const ov::Tensor& dst) const;
+    void copy_to(ov::Tensor& dst) const;
 
     /**
      * @brief Reports whether the tensor is continuous or not
