@@ -82,5 +82,18 @@ struct arg_max_min : public primitive_base<arg_max_min> {
         seed = hash_combine(seed, values_first);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const arg_max_min>(rhs);
+
+        return mode == rhs_casted.mode &&
+               top_k == rhs_casted.top_k &&
+               axis == rhs_casted.axis &&
+               sort == rhs_casted.sort &&
+               values_first == rhs_casted.values_first;
+    }
 };
 }  // namespace cldnn

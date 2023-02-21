@@ -13,6 +13,7 @@
 #include "ngraph/type/bfloat16.hpp"
 #include "ngraph/type/float16.hpp"
 #include "ngraph/util.hpp"
+#include "tensor_conversion_util.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -85,7 +86,8 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
     // map function outputs -> HostTensor
     for (size_t output_count = 0; output_count < get_results().size(); ++output_count) {
         auto output = get_results()[output_count]->output(0).get_tensor_ptr();
-        results_map.emplace(output, results_map.size());
+        if (!results_map.count(output))
+            results_map.emplace(output, output_count);
     }
 
     EvaluationContext eval_context;
@@ -130,21 +132,6 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
             op_outputs.push_back(host_tensor);
         }
 
-        // get op type
-        element::Type type;
-        if (ov::is_type<op::Convert>(op) || ov::is_type<op::v0::PriorBox>(op) || ov::is_type<op::v8::PriorBox>(op)) {
-            type = op->get_input_element_type(0);
-        } else if (ov::is_type<op::v1::Equal>(op) || ov::is_type<op::v1::Greater>(op) ||
-                   ov::is_type<op::v1::GreaterEqual>(op) || ov::is_type<op::v1::Less>(op) ||
-                   ov::is_type<op::v1::LessEqual>(op) || ov::is_type<op::v1::NotEqual>(op)) {
-            // Get the type of the second input, not the first
-            // All BinaryElementwiseComparision ops have the same type for inputs
-            // Select has bool for first input and the type we are interested in for the second
-            type = op->get_input_element_type(1);
-        } else {
-            type = op->get_output_element_type(0);
-        }
-
         if (m_performance_counters_enabled) {
             m_timer_map[op].start();
         }
@@ -159,8 +146,13 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
             }
         }
 
+        const auto tensor_inputs = ov::util::wrap_tensors(op_inputs);
+        auto tensor_outputs = ov::util::wrap_tensors(op_outputs);
+
         // Call evaluate for cloned_node with static shapes
-        if (!cloned_node->evaluate(op_outputs, op_inputs, eval_context)) {
+        if (cloned_node->evaluate(tensor_outputs, tensor_inputs, eval_context)) {
+            ov::util::update_output_host_tensors(op_outputs, tensor_outputs);
+        } else {
             evaluate_node(cloned_node, op_outputs, op_inputs);
         }
         if (m_performance_counters_enabled) {
