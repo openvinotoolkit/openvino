@@ -20,9 +20,9 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
         auto multi_subgraph_op = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(*it);
         if (!multi_subgraph_op)
             continue;
-        auto if_op = std::dynamic_pointer_cast<opset8::If>(multi_subgraph_op);
-        auto loop_op = std::dynamic_pointer_cast<opset8::Loop>(multi_subgraph_op);
-        auto ti_op = std::dynamic_pointer_cast<opset8::TensorIterator>(multi_subgraph_op);
+        auto if_op = std::dynamic_pointer_cast<opset10::If>(multi_subgraph_op);
+        auto loop_op = std::dynamic_pointer_cast<opset10::Loop>(multi_subgraph_op);
+        auto ti_op = std::dynamic_pointer_cast<opset10::TensorIterator>(multi_subgraph_op);
         // Only If, Loop and TensorIterator are supported
         if (!if_op && !loop_op && !ti_op)
             continue;
@@ -45,6 +45,8 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
         std::vector<ov::op::util::MultiSubGraphOp::MultiSubgraphOutputDescriptionVector> new_op_out_desc;
         for (size_t body_idx = 0; body_idx < subgraphs_size; ++body_idx) {
             auto body = multi_subgraph_op->get_function(static_cast<int>(body_idx));
+            // recursive call of this transformation on each body
+            run_on_model(body);
             const auto& out_desc = multi_subgraph_op->get_output_descriptions(static_cast<int>(body_idx));
             ov::op::util::MultiSubGraphOp::MultiSubgraphOutputDescriptionVector new_out_desc;
             std::set<size_t> results_idxs_to_remove;
@@ -149,15 +151,15 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
             // existing op
             std::shared_ptr<ov::op::util::MultiSubGraphOp> new_op;
             if (if_op) {
-                new_op = std::make_shared<opset8::If>(if_op->input_value(0));
+                new_op = std::make_shared<opset10::If>(if_op->input_value(0));
                 new_op->set_arguments(multi_subgraph_op->input_values());
             } else if (loop_op) {
-                auto new_loop_op = std::make_shared<opset8::Loop>(loop_op->input_value(0), loop_op->input_value(1));
+                auto new_loop_op = std::make_shared<opset10::Loop>(loop_op->input_value(0), loop_op->input_value(1));
                 new_loop_op->set_special_body_ports(loop_op->get_special_body_ports());
                 new_op = new_loop_op;
                 new_op->set_arguments(multi_subgraph_op->input_values());
             } else if (ti_op) {
-                new_op = std::make_shared<opset8::TensorIterator>(multi_subgraph_op->input_values());
+                new_op = std::make_shared<opset10::TensorIterator>(multi_subgraph_op->input_values());
             }
             copy_runtime_info(multi_subgraph_op, new_op);
             new_op->set_friendly_name(multi_subgraph_op->get_friendly_name());
