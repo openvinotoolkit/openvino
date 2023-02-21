@@ -117,7 +117,7 @@ private:
         //  2. Don't overwritten this config if they have been in input config
         //  3. Add default core config into input config if it doesn't have.
         template <typename T>
-        void update_input_config(ov::Plugin& plugin, std::map<std::string, T>& config) const;
+        void update_input_config(const ov::Plugin& plugin, std::map<std::string, T>& config) const;
 
         std::set<std::string> query_core_config_keys() const;
 

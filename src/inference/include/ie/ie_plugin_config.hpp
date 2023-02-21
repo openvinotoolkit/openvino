@@ -83,11 +83,6 @@ DECLARE_METRIC_KEY(SUPPORTED_METRICS, std::vector<std::string>);
 DECLARE_METRIC_KEY(SUPPORTED_CONFIG_KEYS, std::vector<std::string>);
 
 /**
- * @brief Core supported property keys
- */
-DECLARE_METRIC_KEY(CORE_PROPERTY_KEYS, std::set<std::string>);
-
-/**
  * @brief Metric to get a std::string value representing a full device name. String value is "FULL_DEVICE_NAME"
  */
 DECLARE_METRIC_KEY(FULL_DEVICE_NAME, std::string);
