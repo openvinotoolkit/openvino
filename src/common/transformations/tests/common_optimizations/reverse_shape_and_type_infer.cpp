@@ -533,3 +533,91 @@ TEST_F(TransformationTestsF, IfReverseInfer) {
         model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{X, cond});
     }
 }
+
+TEST_F(TransformationTestsF, TransposeWithDynamicOrderReverseInfer) {
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
+        auto order = std::make_shared<opset10::Parameter>(element::i32, PartialShape::dynamic());
+        auto transpose = std::make_shared<opset10::Transpose>(data, order);
+        // Convolution is needed to produce static rank
+        auto weights =
+            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
+        auto conv = std::make_shared<opset10::Convolution>(transpose,
+                                                           weights,
+                                                           Strides{2, 2},
+                                                           CoordinateDiff{3, 3},
+                                                           CoordinateDiff{3, 3},
+                                                           Strides{1, 1});
+        auto result = std::make_shared<opset10::Result>(conv);
+        model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data, order});
+        manager.register_pass<pass::ReverseShapeAndTypeInfer>();
+    }
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic(4));
+        auto order = std::make_shared<opset10::Parameter>(element::i32, PartialShape::dynamic());
+        auto transpose = std::make_shared<opset10::Transpose>(data, order);
+        // Convolution is needed to produce static rank
+        auto weights =
+            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
+        auto conv = std::make_shared<opset10::Convolution>(transpose,
+                                                           weights,
+                                                           Strides{2, 2},
+                                                           CoordinateDiff{3, 3},
+                                                           CoordinateDiff{3, 3},
+                                                           Strides{1, 1});
+        auto result = std::make_shared<opset10::Result>(conv);
+        model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data, order});
+    }
+}
+
+TEST_F(TransformationTestsF, TransposeWithConstantOrderReverseInfer) {
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
+        auto order = std::make_shared<opset10::Constant>(element::i32, Shape{3}, std::vector<int64_t>{1, 0, 2});
+        auto transpose = std::make_shared<opset10::Transpose>(data, order);
+        auto result = std::make_shared<opset10::Result>(transpose);
+        model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+        manager.register_pass<pass::ReverseShapeAndTypeInfer>();
+    }
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic(3));
+        auto order = std::make_shared<opset10::Constant>(element::i32, Shape{3}, std::vector<int64_t>{1, 0, 2});
+        auto transpose = std::make_shared<opset10::Transpose>(data, order);
+        auto result = std::make_shared<opset10::Result>(transpose);
+        model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, TransposeWithConstantOrderReverseInfer2) {
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
+        auto order = std::make_shared<opset10::Constant>(element::i32, Shape{4}, std::vector<int64_t>{0, 3, 1, 2});
+        auto transpose = std::make_shared<opset10::Transpose>(data, order);
+        auto weights =
+            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
+        auto conv = std::make_shared<opset10::Convolution>(transpose,
+                                                           weights,
+                                                           Strides{2, 2},
+                                                           CoordinateDiff{3, 3},
+                                                           CoordinateDiff{3, 3},
+                                                           Strides{1, 1});
+        auto result = std::make_shared<opset10::Result>(conv);
+        model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+        manager.register_pass<pass::ReverseShapeAndTypeInfer>();
+    }
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape{DYN, DYN, DYN, 3});
+        auto order = std::make_shared<opset10::Constant>(element::i32, Shape{4}, std::vector<int64_t>{0, 3, 1, 2});
+        auto transpose = std::make_shared<opset10::Transpose>(data, order);
+        auto weights =
+            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
+        auto conv = std::make_shared<opset10::Convolution>(transpose,
+                                                           weights,
+                                                           Strides{2, 2},
+                                                           CoordinateDiff{3, 3},
+                                                           CoordinateDiff{3, 3},
+                                                           Strides{1, 1});
+        auto result = std::make_shared<opset10::Result>(conv);
+        model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+    }
+}
