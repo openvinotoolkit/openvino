@@ -26,19 +26,52 @@ struct crop_impl : typed_primitive_impl_ocl<crop> {
     }
 
 public:
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
-        auto params = get_default_params<kernel_selector::eltwise_params>(impl_param);
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
+        const auto& primitive = impl_param.typed_desc<crop>();
+        auto params = get_default_params<kernel_selector::eltwise_params>(impl_param, is_shape_agnostic);
         auto optional_params = get_default_optional_params<kernel_selector::eltwise_optional_params>(impl_param.get_program());
 
         params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0)}, kernel_selector::eltwise_mode::ASSIGN});
         params.inputs[0] = convert_data_tensor(impl_param.get_input_layout(), impl_param.input_offsets[0]);
+        if (impl_param.get_program().get_node(primitive->id).is_dynamic()) {
+            // WA to always match compiled dynamic kernel with dispatch data
+            // W/O enforcing this option we may generate kernel for "broadcast" scneario due to umatched tensor dimensions
+            // but in runtime dispatch data will be generated for non-broadcast case as shapes are actually same.
+            params.broadcast = true;
+        }
         return {params, optional_params};
+    }
+        void update_dispatch_data(const kernel_impl_params& impl_param) override {
+            auto kernel_params = get_kernel_params(impl_param, true);
+            (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+            update_kernels_list_to_skip();
     }
 };
 
 namespace detail {
 
 attach_crop_impl::attach_crop_impl() {
+    auto dyn_types = {
+        data_types::f32,
+        data_types::f16,
+        data_types::i8,
+        data_types::u8,
+        data_types::i32,
+        data_types::i64
+    };
+
+    auto dyn_formats = {
+        format::bfyx,
+        format::bfzyx,
+        format::bfwzyx
+    };
+
+    implementation_map<crop>::add(impl_types::ocl,
+                                     shape_types::dynamic_shape,
+                                     typed_primitive_impl_ocl<crop>::create<crop_impl>,
+                                     dyn_types,
+                                     dyn_formats);
+
     implementation_map<crop>::add(impl_types::ocl, typed_primitive_impl_ocl<crop>::create<crop_impl>, {
         std::make_tuple(data_types::f32, format::yxfb),
         std::make_tuple(data_types::f16, format::yxfb),
