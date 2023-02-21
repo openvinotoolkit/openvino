@@ -10,6 +10,7 @@
 #include <memory>
 #include <stack>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -219,12 +220,20 @@ void replace_nodes(const std::shared_ptr<Model>& f,
                        parameter_replacement_map,
                    const std::unordered_map<std::shared_ptr<Node>, std::shared_ptr<Node>>& body_replacement_map);
 
+namespace {
+struct EdgeHash {
+    inline size_t operator()(const std::tuple<Node*, Node*, size_t>& v) const {
+        return (size_t(std::get<0>(v)) << 2) + (size_t(std::get<1>(v)) << 1) + std::get<2>(v);
+    }
+};
+}  // namespace
+
 /// Topological sort of nodes needed to compute root_nodes
 template <typename T>
 std::vector<std::shared_ptr<Node>> topological_sort(T root_nodes) {
     std::stack<Node*, std::vector<Node*>> nodes_to_do;
     std::unordered_set<Node*> nodes_done;
-    std::unordered_map<Node*, size_t /*visit_count*/> nodes_visited;
+    std::unordered_set<std::tuple<Node* /*from*/, Node* /*to*/, size_t /*edge_dx*/>, EdgeHash> visited_edges;
     std::vector<std::shared_ptr<Node>> result;
 
     for (auto& node : root_nodes) {
@@ -232,29 +241,32 @@ std::vector<std::shared_ptr<Node>> topological_sort(T root_nodes) {
     }
     while (nodes_to_do.size() > 0) {
         Node* node = nodes_to_do.top();
-        size_t arg_count = node->get_input_size();
-        size_t node_degree =
-            arg_count + node->get_control_dependencies().size() + node->get_control_dependents().size();
-        for (size_t i = 0; i < node->get_output_size(); ++i)
-            node_degree += node->get_output_target_inputs(i).size();
-        nodes_visited[node] += 1;
-        if (nodes_visited[node] > node_degree + 1)
-            throw Exception("Detected loop during topological sort starting from '" + node->get_friendly_name() +
-                            "' node.");
         if (nodes_done.count(node) == 0) {
             bool can_add = true;
+            size_t arg_count = node->get_input_size();
             for (size_t i = 0; i < arg_count; ++i) {
                 Node* dep = node->get_input_node_ptr(arg_count - i - 1);
                 if (nodes_done.count(dep) == 0) {
                     can_add = false;
                     nodes_to_do.push(dep);
+                    std::tuple<Node*, Node*, size_t> edge{node, dep, arg_count - i - 1};
+                    if (visited_edges.find(edge) != visited_edges.end())
+                        throw Exception("Loop detected during topological sort starting from '" +
+                                        node->get_friendly_name() + " node.");
+                    visited_edges.insert(edge);
                 }
             }
-            for (auto& depptr : node->get_control_dependencies()) {
-                Node* dep = depptr.get();
+            auto dependencies = node->get_control_dependencies();
+            for (size_t i = 0; i < dependencies.size(); ++i) {
+                Node* dep = dependencies[i].get();
                 if (nodes_done.count(dep) == 0) {
                     can_add = false;
                     nodes_to_do.push(dep);
+                    std::tuple<Node*, Node*, size_t> edge{node, dep, arg_count + i};
+                    if (visited_edges.find(edge) != visited_edges.end())
+                        throw Exception("Loop detected during topological sort starting from '" +
+                                        node->get_friendly_name() + "' node.");
+                    visited_edges.insert(edge);
                 }
             }
             if (can_add) {
