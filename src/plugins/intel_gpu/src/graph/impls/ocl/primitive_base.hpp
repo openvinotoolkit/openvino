@@ -96,8 +96,27 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         return make_unique<ImplType>(best_kernel);
     }
 
+    void build_kernels(kernels_cache& kernels_cache) override {
+        auto kernels = kernels_cache.compile(get_kernels_source());
+        set_kernels(kernels);
+    }
+
+
 private:
     using primitive_impl::get_arguments;
+
+    void set_kernels(std::map<const std::string, kernel::ptr>& kernels) {
+        if (is_cpu())
+            return;
+
+        _kernel_ids.clear();
+        _kernels.clear();
+        _kernels.reserve(kernels.size());
+        for (auto& k : kernels) {
+            _kernel_ids.push_back(k.first);
+            _kernels.emplace_back(std::move(k.second));
+        }
+    }
 
 protected:
     virtual kernel_arguments_data get_arguments(const typed_primitive_inst<PType>& instance) const {
@@ -250,8 +269,8 @@ protected:
         return aggregate_events(all_events, stream, group_events);
     }
 
-    void set_kernel_ids(std::vector<kernel_id> kernel_ids) override {
-        _kernel_ids = kernel_ids;
+    void set_kernel_ids(kernels_cache& kc) override {
+        _kernel_ids = kc.add_kernels_source(get_kernels_source());
     }
 
     std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() override {
@@ -274,19 +293,6 @@ protected:
             auto gws = _kernel_data.kernels[0].params.workGroups.global;
             _kernel_data.kernels[0].skip_execution =
                 (std::accumulate(gws.begin(), gws.end(), 1, std::multiplies<size_t>()) == 0);
-        }
-    }
-
-    void set_kernels(std::map<const std::string, kernel::ptr>& kernels) override {
-        if (is_cpu())
-            return;
-
-        _kernel_ids.clear();
-        _kernels.clear();
-        _kernels.reserve(kernels.size());
-        for (auto& k : kernels) {
-            _kernel_ids.push_back(k.first);
-            _kernels.emplace_back(std::move(k.second));
         }
     }
 };

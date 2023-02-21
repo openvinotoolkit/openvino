@@ -351,8 +351,7 @@ bool primitive_inst::update_impl() {
                         }
 
                         auto impl = _node->type()->choose_impl(*_node, updated_params);
-                        auto kernels = _program->get_kernels_cache().compile_threadsafe(impl->get_kernels_source());
-                        impl->set_kernels(kernels);
+                        impl->build_kernels(_program->get_kernels_cache());
                         cache.add(impl_key, impl->clone());
                     } catch (std::exception& ex) {
                         std::cout << " Exception " << ex.what() << std::endl;
@@ -365,10 +364,7 @@ bool primitive_inst::update_impl() {
                 update_shape_info(*_impl_params);
             } else {
                 _impl = _node->type()->choose_impl(*_node, updated_params);
-
-                auto& kernels_cache = get_network().get_program()->get_kernels_cache();
-                auto kernels = kernels_cache.compile_threadsafe(_impl->get_kernels_source());
-                _impl->set_kernels(kernels);
+                _impl->build_kernels(get_network().get_program()->get_kernels_cache());
                 cache.add(impl_key, _impl->clone());
 
                 auto new_impl_str = _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
@@ -706,7 +702,7 @@ event::ptr primitive_inst::update_weights() {
             GPU_DEBUG_TRACE_DETAIL << id() << ": reorder weights from " << original_layout.to_short_string()
                                     << " to " << expected_layout.to_short_string() << std::endl;
             auto& kernels_cache = get_network().get_program()->get_kernels_cache();
-            auto kernels = kernels_cache.compile_threadsafe({weights_params.clKernel->code.kernelString});
+            auto kernels = kernels_cache.compile({weights_params.clKernel->code.kernelString});
             OPENVINO_ASSERT(kernels.size() == 1, "The output of kernel compile has issue");
             kernel = kernels.begin()->second;
             cache.add(kernel_key, kernel);

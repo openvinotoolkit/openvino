@@ -22,6 +22,9 @@
 #include "ocl/ocl_engine.hpp"
 
 namespace cldnn {
+
+class primitive_impl;
+
 class kernels_cache {
 public:
     using source_code = std::vector<std::string>;
@@ -122,10 +125,9 @@ public:
     }
     std::vector<kernel_id> add_kernels_source(std::vector<std::shared_ptr<kernel_string>> kernel_sources, bool dump_custom_program = false);
     void add_kernels(const std::vector<std::string>& kernel_ids, const std::vector<kernel::ptr>& kernels);
-    void compile();
     void save(BinaryOutputBuffer& ob) const;
     void load(BinaryInputBuffer& ib);
-    std::map<const std::string, kernel::ptr> compile_threadsafe(std::vector<std::shared_ptr<kernel_string>> kernel_sources, bool dump_custom_program = false);
+    std::map<const std::string, kernel::ptr> compile(std::vector<std::shared_ptr<kernel_string>> kernel_sources, bool dump_custom_program = false);
 };
 
 }  // namespace cldnn

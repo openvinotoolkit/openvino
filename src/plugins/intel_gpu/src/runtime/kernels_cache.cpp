@@ -462,35 +462,6 @@ void kernels_cache::add_kernels(const std::vector<std::string>& kernel_ids, cons
     }
 }
 
-void kernels_cache::compile() {
-    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::Compile");
-
-    std::unique_ptr<ocl::ocl_engine> _build_engine = nullptr;
-    if (_engine.type() == engine_types::ocl) {
-        _build_engine = std::unique_ptr<ocl::ocl_engine>(new ocl::ocl_engine(_engine.get_device(), runtime_types::ocl));
-    }
-
-    // create batches
-    std::vector<batch_program> batches;
-    get_program_source(_kernels_code, &batches);
-
-    // build batches
-    for (size_t idx = 0; idx < batches.size(); idx++) {
-        build_batch(*_build_engine, batches[idx], _kernels);
-    }
-
-    _kernels_code.clear();
-    _pending_compilation = false;
-#if defined(__unix__) && !defined(__ANDROID__)
-    //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system thought they are freed.
-    //  (It is at least 500 MB when we perform parallel compilation)
-    //  It is observed that freeing the memory manually with malloc_trim saves significant amount of the memory.
-    //  Also, this is not happening in Windows.
-    //  So, added malloc_trim for linux build until we figure out a better solution.
-        malloc_trim(0);
-#endif
-}
-
 void kernels_cache::save(BinaryOutputBuffer& ob) const {
     OPENVINO_ASSERT(_engine.type() == engine_types::ocl, "[GPU] Not supported engine type");
 
@@ -586,7 +557,7 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
     }
 }
 
-std::map<const std::string, kernel::ptr> kernels_cache::compile_threadsafe(std::vector<std::shared_ptr<kernel_string>> kernel_sources,
+std::map<const std::string, kernel::ptr> kernels_cache::compile(std::vector<std::shared_ptr<kernel_string>> kernel_sources,
                                                                                         bool dump_custom_program) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::Compile_ThreadSafe");
     kernels_code t_kernels_code;
@@ -598,10 +569,6 @@ std::map<const std::string, kernel::ptr> kernels_cache::compile_threadsafe(std::
         t_kernels_code.emplace(kernel_string, id, dump_custom_program);
     }
 
-    // std::unique_ptr<ocl::ocl_engine> _build_engine = nullptr;
-    // if (_engine.type() == engine_types::ocl) {
-    //     _build_engine = std::unique_ptr<ocl::ocl_engine>(new ocl::ocl_engine(_engine.get_device(), runtime_types::ocl));
-    // }
     ocl::ocl_engine& _build_engine = downcast<ocl::ocl_engine>(_engine);
 
     // Create batches

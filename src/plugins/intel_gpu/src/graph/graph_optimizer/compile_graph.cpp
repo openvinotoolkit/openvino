@@ -63,8 +63,7 @@ void compile_graph::run(program& p) {
                 try {
                     node->selected_impl = node->type()->choose_impl(*node);
                     if (node->selected_impl) {
-                        auto kernel_ids = p.get_kernels_cache().add_kernels_source(node->selected_impl->get_kernels_source());
-                        node->selected_impl->set_kernel_ids(kernel_ids);
+                        node->selected_impl->set_kernel_ids(p.get_kernels_cache());
                     }
                 } catch(...) {
                     exception = std::current_exception();
