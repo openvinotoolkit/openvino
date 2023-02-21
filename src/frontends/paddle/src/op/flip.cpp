@@ -21,7 +21,7 @@ NamedOutputs flip(const NodeContext& node) {
     Output<Node> temp = data_node;
     std::vector<Output<Node>> temp_split_out;
     int32_t axis;
-    for (int idx = 0; idx < axes.size(); idx++) {
+    for (size_t idx = 0; idx < axes.size(); idx++) {
         axis = axes[idx];
         if (axis < 0)
             axis += dims;
