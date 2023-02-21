@@ -56,6 +56,7 @@ OP_CONVERTER(layer_norm);
 OP_CONVERTER(leaky_relu);
 OP_CONVERTER(less_than);
 OP_CONVERTER(linear_interp_v2);
+OP_CONVERTER(linspace);
 OP_CONVERTER(lod_array_length);
 OP_CONVERTER(log);
 OP_CONVERTER(logical_and);
@@ -166,6 +167,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"leaky_relu", op::leaky_relu},
             {"less_than", op::less_than},
             {"linear_interp_v2", op::linear_interp_v2},
+            {"linspace", op::linspace},
             {"lod_array_length", op::lod_array_length},
             {"log", op::log},
             {"logical_and", op::logical_and},
