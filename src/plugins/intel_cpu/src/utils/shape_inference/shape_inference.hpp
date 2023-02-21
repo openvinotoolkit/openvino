@@ -16,13 +16,13 @@ namespace intel_cpu {
 
 class IShapeInferCommon {
 public:
-    struct ShapeInferResult {
+    struct Result {
         std::vector<StaticShape> shapes;
         ShapeInferStatus status;
     };
 
 public:
-    virtual ShapeInferResult infer(const std::vector<StaticShape>& input_shapes,
+    virtual Result infer(const std::vector<StaticShape>& input_shapes,
                                    const std::map<size_t, HostTensorPtr>& constant_data) = 0;
 
     // infer may generate padding as by-product, these APIs is designed to retrieve them back
@@ -36,7 +36,7 @@ class IStaticShapeInfer : public IShapeInferCommon {
 public:
     using IShapeInferCommon::infer;
 
-    virtual ShapeInferResult infer(
+    virtual Result infer(
         const std::vector<StaticShape>& input_shapes,
         const std::map<size_t, std::reference_wrapper<const Tensor>>& constant_data) = 0;
 };

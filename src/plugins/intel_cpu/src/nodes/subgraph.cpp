@@ -42,10 +42,10 @@ namespace node {
 class SnippetShapeInfer : public ShapeInferEmptyPads {
 public:
     SnippetShapeInfer(Snippet* node) : m_node(node) {}
-    ShapeInferResult infer(
+    Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        return {m_node->shapeInfer(), ShapeInferStatus::update};
+        return {m_node->shapeInfer(), ShapeInferStatus::success};
     }
 
     port_mask_t get_port_mask() const override {

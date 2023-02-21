@@ -6,7 +6,7 @@
 
 using namespace ov::intel_cpu;
 
-IShapeInfer::ShapeInferResult
+IShapeInfer::Result
 NgraphShapeInfer::infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) {

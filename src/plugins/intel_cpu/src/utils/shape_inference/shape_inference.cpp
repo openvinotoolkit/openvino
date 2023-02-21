@@ -116,12 +116,12 @@ class entryIO : public entryBase {
 public:
     using entryBase::entryBase;
 
-    IShapeInferCommon::ShapeInferResult
+    IShapeInferCommon::Result
     infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, HostTensorPtr>& constant_data) override {
         auto op = static_cast<OP*>(node.get());
         std::vector<StaticShape> output_shapes(op->get_output_size());
         shape_infer(op, input_shapes, output_shapes);
-        return {std::move(output_shapes), ShapeInferStatus::update};
+        return {std::move(output_shapes), ShapeInferStatus::success};
     }
 };
 
@@ -130,12 +130,12 @@ class entryIOC : public entryBase {
 public:
     using entryBase::entryBase;
 
-    IShapeInferCommon::ShapeInferResult
+    IShapeInferCommon::Result
     infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, HostTensorPtr>& constant_data) override {
         auto op = static_cast<OP*>(node.get());
         std::vector<StaticShape> output_shapes(op->get_output_size());
         shape_infer(op, input_shapes, output_shapes, constant_data);
-        return {std::move(output_shapes), ShapeInferStatus::update};
+        return {std::move(output_shapes), ShapeInferStatus::success};
     }
 };
 
@@ -143,12 +143,12 @@ class entryCopy : public entryBase {
 public:
     using entryBase::entryBase;
 
-    IShapeInferCommon::ShapeInferResult
+    IShapeInferCommon::Result
     infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, HostTensorPtr>& constant_data) override {
         auto op = node.get();
         std::vector<StaticShape> output_shapes(op->get_output_size());
         copy_shape_infer(op, input_shapes, output_shapes);
-        return {std::move(output_shapes), ShapeInferStatus::update};
+        return {std::move(output_shapes), ShapeInferStatus::success};
     }
 };
 
@@ -156,12 +156,12 @@ class entryFirstPassthrough : public entryBase {
 public:
     using entryBase::entryBase;
 
-    IShapeInferCommon::ShapeInferResult
+    IShapeInferCommon::Result
     infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, HostTensorPtr>& constant_data) override {
         auto op = node.get();
         std::vector<StaticShape> output_shapes(op->get_output_size());
         first_input_passthrough_infer(op, input_shapes, output_shapes);
-        return {std::move(output_shapes), ShapeInferStatus::update};
+        return {std::move(output_shapes), ShapeInferStatus::success};
     }
 };
 
@@ -169,12 +169,12 @@ class entryEltwise : public entryBase {
 public:
     using entryBase::entryBase;
 
-    IShapeInferCommon::ShapeInferResult
+    IShapeInferCommon::Result
     infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, HostTensorPtr>& constant_data) override {
         auto op = node.get();
         std::vector<StaticShape> output_shapes(op->get_output_size());
         eltwise_shape_infer(op, input_shapes, output_shapes);
-        return {std::move(output_shapes), ShapeInferStatus::update};
+        return {std::move(output_shapes), ShapeInferStatus::success};
     }
 };
 
@@ -199,7 +199,7 @@ public:
 
     virtual void post_validate_and_infer_types(const std::shared_ptr<ov::Node>& local_op) {}
 
-    IShapeInferCommon::ShapeInferResult
+    IShapeInferCommon::Result
     infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, HostTensorPtr>& constant_data) override {
         auto op = node.get();
         std::vector<StaticShape> output_shapes;
@@ -244,7 +244,7 @@ public:
 
         post_validate_and_infer_types(local_op);
 
-        return {std::move(output_shapes), ShapeInferStatus::update};
+        return {std::move(output_shapes), ShapeInferStatus::success};
     }
 };
 
@@ -287,14 +287,14 @@ class entryInterpolate : public entryBase {
 public:
     using entryBase::entryBase;
 
-    IShapeInferCommon::ShapeInferResult
+    IShapeInferCommon::Result
     infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, HostTensorPtr>& constant_data) override {
         std::vector<size_t> pads_begin, pads_end;
         auto op = static_cast<OP*>(node.get());
         std::vector<StaticShape> output_shapes(op->get_output_size());
         correct_pads_attr(op, pads_begin, pads_end, input_shapes);
         shape_infer(op, pads_begin, pads_end, input_shapes, output_shapes, constant_data);
-        return {std::move(output_shapes), ShapeInferStatus::update};
+        return {std::move(output_shapes), ShapeInferStatus::success};
     }
 };
 
@@ -308,7 +308,7 @@ public:
     const ov::CoordinateDiff& get_pads_end() override {
         return pads_end;
     }
-    IShapeInferCommon::ShapeInferResult
+    IShapeInferCommon::Result
     infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, HostTensorPtr>& constant_data) override {
         auto op = static_cast<OP*>(node.get());
         std::vector<StaticShape> output_shapes(op->get_output_size());
@@ -316,7 +316,7 @@ public:
         OPENVINO_ASSERT(status,
                         "Convolution shape inference doesn't have enough information to calculate static shapes");
         shape_infer(op, pads_begin, pads_end, input_shapes, output_shapes);
-        return {std::move(output_shapes), ShapeInferStatus::update};
+        return {std::move(output_shapes), ShapeInferStatus::success};
     }
 
 protected:
@@ -334,7 +334,7 @@ public:
     const ov::CoordinateDiff& get_pads_end() override {
         return pads_end;
     }
-    IShapeInferCommon::ShapeInferResult
+    IShapeInferCommon::Result
     infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, HostTensorPtr>& constant_data) override {
         StaticShape output_shape_input;
         auto op = static_cast<OP*>(node.get());
@@ -352,7 +352,7 @@ public:
             status,
             "ConvolutionBackpropData shape inference doesn't have enough information to calculate static shapes");
         shape_infer(op, pads_begin, pads_end, output_shape_input, input_shapes, output_shapes);
-        return {std::move(output_shapes), ShapeInferStatus::update};
+        return {std::move(output_shapes), ShapeInferStatus::success};
     }
 
 protected:
@@ -374,7 +374,7 @@ public:
         }
     }
 
-    IShapeInferCommon::ShapeInferResult
+    IShapeInferCommon::Result
     infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, HostTensorPtr>& constant_data) override {
         // For backward compatibility, create ov tensors and run shape inference.
         TensorVector tensors;
@@ -388,10 +388,10 @@ public:
         return infer(input_shapes, const_tensor_map);
     }
 
-    IShapeInferCommon::ShapeInferResult
+    IShapeInferCommon::Result
     infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, std::reference_wrapper<const Tensor>>& constant_data) override {
         auto result = shape_infer(static_cast<TOp*>(m_node.get()), input_shapes, constant_data);
-        return {std::move(result), ShapeInferStatus::update};
+        return {std::move(result), ShapeInferStatus::success};
     }
 
     const ov::CoordinateDiff& get_pads_begin() override {

@@ -314,11 +314,11 @@ public:
             native_order = RNN::testNativeOrder(op);
         }
 
-    ShapeInferResult infer(
+    Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         auto result = NgraphShapeInfer::infer(input_shapes, data_dependency);
-        if (ShapeInferStatus::update != result.status) {
+        if (ShapeInferStatus::success != result.status) {
             IE_THROW(Unexpected) << "Unexpected shape inference result status";
         }
 

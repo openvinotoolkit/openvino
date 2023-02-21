@@ -578,7 +578,7 @@ VectorDims Deconvolution::shapeInferInternal(const VectorDims &inDims, std::vect
     }
 
     auto result = shapeInference->infer(inputShapesRefs, inputValues);
-    if (ShapeInferStatus::update != result.status) {
+    if (ShapeInferStatus::success != result.status) {
         IE_THROW(Unexpected) << "Unexpected shape inference result status in node of type " << getTypeStr() << " with name " << getName();
     }
     return std::move(result.dims.back());

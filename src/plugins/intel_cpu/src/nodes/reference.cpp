@@ -70,7 +70,7 @@ void Reference::executeDynamicImpl(dnnl::stream strm) {
     auto inputs = prepareInputs();
     ov::TensorVector outputs;
     auto result = Node::shapeInfer();
-    if (ShapeInferStatus::update == result.status) {
+    if (ShapeInferStatus::success == result.status) {
         Node::redefineOutputMemory(result.dims);
         outputs = prepareOutputs();
     } else if (ShapeInferStatus::skip == result.status) {

@@ -8,7 +8,7 @@ namespace ov {
 namespace intel_cpu {
 
 enum class ShapeInferStatus {
-    update, // shapes were successfully calculated
+    success, // shapes were successfully calculated
     skip // shape infer was skipped
 };
 

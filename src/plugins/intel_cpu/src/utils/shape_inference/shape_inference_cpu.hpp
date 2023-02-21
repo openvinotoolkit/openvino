@@ -20,7 +20,7 @@ class IShapeInfer {
 public:
     using port_mask_t = uint32_t;
 
-    struct ShapeInferResult {
+    struct Result {
         std::vector<VectorDims> dims;
         ShapeInferStatus status;
     };
@@ -36,7 +36,7 @@ public:
      * which inputs data are actually required, get_port_mask() is used
      * @return ShapeInferResult which contains resulting array of calculated shapes (per each output port) plus status of the shape infer call
      */
-    virtual ShapeInferResult infer(
+    virtual Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) = 0;
 
