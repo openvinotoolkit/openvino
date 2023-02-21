@@ -6,15 +6,12 @@
 
 #include <memory>
 
-#include "converter_utils.hpp"
+#include "async_infer_request.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
-#include "openvino/core/except.hpp"
-#include "openvino/runtime/iinfer_request.hpp"
-#include "openvino/runtime/isync_infer_request.hpp"
 #include "plugin.hpp"
 #include "template/config.hpp"
-#include "template_async_infer_request.hpp"
+#include "template_itt.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace TemplatePlugin;
@@ -109,65 +106,25 @@ void transform_model(const std::shared_ptr<ov::Model>& model);
 void TemplatePlugin::CompiledModel::compile_model(const std::shared_ptr<ov::Model>& model) {
     // apply plugins transformations
     transform_model(model);
-    // Generate backend specific blob mappings. For example Inference Engine uses not ngraph::Result nodes friendly name
-    // as inference request output names but the name of the layer before.
-    // TODO: Remove it
-    size_t idx = 0;
-    for (auto&& result : model->get_results()) {
-        const auto& input = result->input_value(0);
-        auto name = ov::op::util::get_ie_output_name(input);
-        if (_outputIndex.emplace(name, idx).second)
-            idx++;
-    }
-    for (auto&& parameter : model->get_parameters()) {
-        _inputIndex.emplace(parameter->get_friendly_name(), model->get_parameter_index(parameter));
-    }
-
     // Perform any other steps like allocation and filling backend specific memory handles and so on
 }
 // ! [executable_network:map_graph]
 
 // ! [executable_network:create_infer_request]
 std::shared_ptr<ov::IAsyncInferRequest> TemplatePlugin::CompiledModel::create_infer_request() const {
-    // auto internal_request = create_sync_infer_request();
-    std::vector<std::shared_ptr<const ov::Node>> _inputs, _outputs;
-    for (const auto& output : m_model->inputs()) {
-        _inputs.emplace_back(output.get_node_shared_ptr());
-    }
-    for (const auto& output : outputs()) {
-        _outputs.emplace_back(output.get_node_shared_ptr());
-    }
+    auto internal_request = create_sync_infer_request();
+    auto async_infer_request =
+        std::make_shared<AsyncInferRequest>(std::static_pointer_cast<TemplatePlugin::InferRequest>(internal_request),
+                                            get_task_executor(),
+                                            get_template_plugin()->_waitExecutor,
+                                            get_callback_executor());
 
-    auto internal_request = std::make_shared<TemplateInferRequest>(
-        _inputs,
-        _outputs,
-        std::static_pointer_cast<const TemplatePlugin::CompiledModel>(shared_from_this()));
-    auto async_infer_request = std::make_shared<TemplateAsyncInferRequest>(
-        std::static_pointer_cast<TemplatePlugin::TemplateInferRequest>(internal_request),
-        get_task_executor(),
-        get_template_plugin()->_waitExecutor,
-        get_callback_executor());
-
-    async_infer_request->setPointerToExecutableNetworkInternal(
-        ov::legacy_convert::convert_compiled_model(std::const_pointer_cast<ov::ICompiledModel>(shared_from_this())));
-
-    return ov::legacy_convert::convert_infer_request(async_infer_request);
+    return async_infer_request;
 }
 
 std::shared_ptr<ov::ISyncInferRequest> TemplatePlugin::CompiledModel::create_sync_infer_request() const {
-    OPENVINO_NOT_IMPLEMENTED;
-    // std::vector<std::shared_ptr<const ov::Node>> _inputs, _outputs;
-    // for (const auto& output : m_model->inputs()) {
-    //     _inputs.emplace_back(output.get_node_shared_ptr());
-    // }
-    // for (const auto& output : outputs()) {
-    //     _outputs.emplace_back(output.get_node_shared_ptr());
-    // }
-    //
-    // return std::make_shared<TemplateInferRequest>(
-    //     _inputs,
-    //     _outputs,
-    //     std::static_pointer_cast<const TemplatePlugin::CompiledModel>(shared_from_this()));
+    return std::make_shared<InferRequest>(
+        std::static_pointer_cast<const TemplatePlugin::CompiledModel>(shared_from_this()));
 }
 // ! [executable_network:create_infer_request]
 
