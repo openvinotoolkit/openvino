@@ -165,7 +165,7 @@ bool cpu_map_available() {
 }
 std::vector<int> get_available_cpus(const column_of_processor_type_table core_type,
                                     const int num_cpus,
-                                    const bool cpu_task) {
+                                    const int plugin_task) {
     return {};
 }
 std::vector<int> get_logic_cores(const std::vector<int> cpu_ids) {
