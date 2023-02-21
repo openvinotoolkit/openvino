@@ -308,7 +308,7 @@ void DynamicBuffer::move_buffer(MemoryPtr& new_buffer) {
 
     // copy data from old buffer to new buffer
     const auto src_stride = chunk_stride_in_byte;
-    const auto dst_stride = new_buffer->getDesc().as<BlockedMemoryDesc>()->getBlockDims()[1] * len;
+    const auto dst_stride = new_buffer->getStaticDims()[1] * len;
 
     const auto valid_size = chunk_unit_in_byte * num_execs;
     const auto src_offset_in_byte = stride > 0 ? 0 : (src_stride - valid_size);
