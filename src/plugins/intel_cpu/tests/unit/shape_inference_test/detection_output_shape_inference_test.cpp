@@ -9,6 +9,8 @@
 #include <utils/shape_inference/shape_inference.hpp>
 
 #include "utils/shape_inference/static_shape.hpp"
+#include "detection_output_shape_inference.hpp"
+
 
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -30,7 +32,7 @@ std::shared_ptr<Node> create_detection_output(const PartialShape& box_logits_sha
     return std::make_shared<T1>(box_logits, class_preds, proposals, aux_class_preds, aux_box_preds, attrs);
 }
 
-TEST(StaticShapeInferenceTest, detection_output_top_k) {
+TEST(StaticShapeInferenceTest, detection_output_v0_top_k) {
     op::v0::DetectionOutput::Attributes attrs;
     attrs.keep_top_k = {-1};
     attrs.top_k = 7;
@@ -55,7 +57,7 @@ TEST(StaticShapeInferenceTest, detection_output_top_k) {
     ASSERT_EQ(output_shapes[0], StaticShape({1, 1, 56, 7}));
 }
 
-TEST(StaticShapeInferenceTest, detection_output_no_share_location) {
+TEST(StaticShapeInferenceTest, detection_output_v0_no_share_location) {
     op::v0::DetectionOutput::Attributes attrs;
     attrs.keep_top_k = {-1};
     attrs.top_k = -1;
@@ -81,7 +83,7 @@ TEST(StaticShapeInferenceTest, detection_output_no_share_location) {
     ASSERT_EQ(output_shapes[0], StaticShape({1, 1, 40, 7}));
 }
 
-TEST(StaticShapeInferenceTest, detection_output) {
+TEST(StaticShapeInferenceTest, detection_output_v0_basic) {
     op::v0::DetectionOutput::Attributes attrs;
     attrs.keep_top_k = {200};
     attrs.num_classes = 2;
@@ -105,7 +107,27 @@ TEST(StaticShapeInferenceTest, detection_output) {
     ASSERT_EQ(output_shapes[0], (StaticShape{1, 1, 800, 7}));
 }
 
-TEST(StaticShapeInferenceTest, detection_outputv8_top_k) {
+TEST(StaticShapeInferenceTest, detection_output_v0_default_ctor) {
+    auto op = std::make_shared<op::v0::DetectionOutput>();
+
+    op::v0::DetectionOutput::Attributes attrs;
+    attrs.keep_top_k = {200};
+    attrs.num_classes = 2;
+    attrs.normalized = true;
+    op->set_attrs(attrs);
+
+    const std::vector<StaticShape> input_shapes = {StaticShape{4, 20},
+                                                   StaticShape{4, 10},
+                                                   StaticShape{4, 2, 20},
+                                                   StaticShape{4, 10},
+                                                   StaticShape{4, 20}};
+    std::vector<StaticShape> output_shapes = {StaticShape{}};
+
+    shape_infer(op.get(), input_shapes, output_shapes);
+    EXPECT_EQ(output_shapes[0], (StaticShape{1, 1, 800, 7}));
+}
+
+TEST(StaticShapeInferenceTest, detection_output_v8_top_k) {
     op::v8::DetectionOutput::Attributes attrs;
     attrs.keep_top_k = {-1};
     attrs.top_k = 7;
@@ -129,7 +151,7 @@ TEST(StaticShapeInferenceTest, detection_outputv8_top_k) {
     ASSERT_EQ(output_shapes[0], StaticShape({1, 1, 56, 7}));
 }
 
-TEST(StaticShapeInferenceTest, detection_outputv8_no_share_location) {
+TEST(StaticShapeInferenceTest, detection_output_v8_no_share_location) {
     op::v8::DetectionOutput::Attributes attrs;
     attrs.keep_top_k = {-1};
     attrs.top_k = -1;
@@ -154,7 +176,7 @@ TEST(StaticShapeInferenceTest, detection_outputv8_no_share_location) {
     ASSERT_EQ(output_shapes[0], StaticShape({1, 1, 40, 7}));
 }
 
-TEST(StaticShapeInferenceTest, detection_output_v8) {
+TEST(StaticShapeInferenceTest, detection_output_v8_basic) {
     op::v8::DetectionOutput::Attributes attrs;
     attrs.keep_top_k = {200};
     attrs.normalized = true;
@@ -175,4 +197,23 @@ TEST(StaticShapeInferenceTest, detection_output_v8) {
     std::vector<StaticShape> output_shapes = {StaticShape{}};
     shape_inference(op.get(), input_shapes, output_shapes);
     ASSERT_EQ(output_shapes[0], (StaticShape{1, 1, 800, 7}));
+}
+
+TEST(StaticShapeInferenceTest, detection_output_v8_default_ctor) {
+    auto op = std::make_shared<op::v8::DetectionOutput>();
+
+    op::v8::DetectionOutput::Attributes attrs;
+    attrs.keep_top_k = {200};
+    attrs.normalized = true;
+    op->set_attrs(attrs);
+
+    const std::vector<StaticShape> input_shapes = {StaticShape{4, 20},
+                                                   StaticShape{4, 10},
+                                                   StaticShape{4, 2, 20},
+                                                   StaticShape{4, 10},
+                                                   StaticShape{4, 20}};
+    std::vector<StaticShape> output_shapes = {StaticShape{}};
+
+    shape_infer(op.get(), input_shapes, output_shapes);
+    EXPECT_EQ(output_shapes[0], (StaticShape{1, 1, 800, 7}));
 }
