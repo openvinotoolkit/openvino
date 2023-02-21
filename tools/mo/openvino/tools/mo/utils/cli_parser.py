@@ -819,6 +819,7 @@ class CanonicalizeExtensionsPathCheckExistenceAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         list_of_paths = canonicalize_and_check_paths(values, param_name=option_string,
                                                      try_mo_root=False, check_existance=True)
+        # Extensions paths are needed to be stored as list
         setattr(namespace, self.dest, list_of_paths)
 
 
