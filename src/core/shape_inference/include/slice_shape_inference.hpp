@@ -97,7 +97,7 @@ void shape_infer(const Slice* op,
     // compute constant values of begin, end, and strides if possible
     const auto start = slice::get_input_bounds<T>(op, 1, constant_data);
     const auto stop = slice::get_input_bounds<T>(op, 2, constant_data);
-    const auto steps = get_input_const_data_as<T, int64_t>(op, 3, constant_data);
+    const auto steps = get_input_const_data_as<T, ssize_t>(op, 3, constant_data);
 
     slice::AxesMap axes_map;
     if (input_shapes.size() > 4) {

@@ -152,7 +152,7 @@ protected:
 
         if (!labels.empty()) {
             auto repeats = repeats_val;
-            int64_t size_diff = labels.size() - repeats.size();
+            ssize_t size_diff = labels.size() - repeats.size();
 
             if (size_diff >= 0) {
                 repeats.insert(repeats.begin(), size_diff, 1);

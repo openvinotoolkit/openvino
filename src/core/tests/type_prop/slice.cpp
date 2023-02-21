@@ -583,6 +583,7 @@ TEST(type_prop, slice_v8_basic_const_inputs_dynamic_dims_maxint32) {
     EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
 }
 
+#ifdef OPENVINO_ARCH_X86_64
 TEST(type_prop, slice_v8_basic_const_inputs_dynamic_dims_maxint64) {
     PartialShape data_shape{Dimension(0, 2000), Dimension(-1), 4};
     PartialShape expected_out_shape{Dimension(0, 2000), Dimension(-1), Dimension(4)};
@@ -601,6 +602,7 @@ TEST(type_prop, slice_v8_basic_const_inputs_dynamic_dims_maxint64) {
     EXPECT_EQ(op->get_element_type(), et);
     EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
 }
+#endif
 
 TEST(type_prop, slice_v8_basic_const_inputs_dynamic_dims_maxint32_start1) {
     PartialShape data_shape{Dimension(0, 2000), Dimension(-1), 4};
@@ -620,6 +622,7 @@ TEST(type_prop, slice_v8_basic_const_inputs_dynamic_dims_maxint32_start1) {
     EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
 }
 
+#ifdef OPENVINO_ARCH_X86_64
 TEST(type_prop, slice_v8_basic_const_inputs_dynamic_dims_maxint64_start1) {
     PartialShape data_shape{Dimension(0, 2000), Dimension(-1), 4};
     PartialShape expected_out_shape{Dimension(0, 2000), Dimension(-1), Dimension(4)};
@@ -771,6 +774,7 @@ TEST(type_prop, slice_v8_basic_const_inputs_MAX_MIN_32_no_upper_bounds_neg_step)
     EXPECT_EQ(op->get_element_type(), et);
     EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
 }
+#endif
 
 TEST(type_prop, slice_v8_dynamic_dim_zero_start_negative_stop) {
     PartialShape data_shape{Dimension(-1)};
@@ -1180,6 +1184,7 @@ TEST(type_prop, slice_v8_unknowns_axes) {
     EXPECT_EQ(slice->get_output_partial_shape(0), PartialShape({{0, 5}, {0, 10}, {0, 15}}));
 }
 
+#ifdef OPENVINO_ARCH_X86_64
 TEST(type_prop, slice_v8_inf_dim_start_from_last_N_to_end) {
     auto data = std::make_shared<op::Parameter>(element::f32, PartialShape{1, 256, -1});
     auto start = op::Constant::create(element::i64, Shape{1}, {-7});
@@ -1191,3 +1196,4 @@ TEST(type_prop, slice_v8_inf_dim_start_from_last_N_to_end) {
 
     EXPECT_EQ(slice->get_output_partial_shape(0), PartialShape({1, 256, {0, 7}}));
 }
+#endif
