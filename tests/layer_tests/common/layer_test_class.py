@@ -27,7 +27,7 @@ class CommonLayerTest:
                            " the specific framework")
 
     def _test(self, framework_model, ref_net, ie_device, precision, ir_version, temp_dir, use_old_api,
-              use_new_frontend=True, infer_timeout=60, enabled_transforms='',
+              use_new_frontend, use_legacy_frontend, infer_timeout=60, enabled_transforms='',
               disabled_transforms='', **kwargs):
         """
         :param enabled_transforms/disabled_transforms: string with idxs of transforms that should be enabled/disabled.
@@ -53,11 +53,6 @@ class CommonLayerTest:
 
         if 'input_names' in kwargs and len(kwargs['input_names']):
             mo_params.update(dict(input=','.join(kwargs['input_names'])))
-
-        if use_new_frontend:
-            mo_params["use_new_frontend"] = True
-        else:
-            mo_params["use_legacy_frontend"] = True
 
         exit_code, stderr = generate_ir(**mo_params)
 
