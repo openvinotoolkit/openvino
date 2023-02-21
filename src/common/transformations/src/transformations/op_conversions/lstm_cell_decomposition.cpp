@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,10 +62,10 @@ ov::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
         // it = f(Xt*(Wi^T) + Ht-1*(Ri^T) + Wbi + Rbi)
         // ct = g(Xt*(Wc^T) + Ht-1*(Rc^T) + Wbc + Rbc)
         // ot = f(Xt*(Wo^T) + Ht-1*(Ro^T) + Wbo + Rbo)
-        auto f_t = ngraph::op::util::activation(lstm_cell->get_activations()[0], f);
-        auto i_t = ngraph::op::util::activation(lstm_cell->get_activations()[0], i);
-        auto c_t = ngraph::op::util::activation(lstm_cell->get_activations()[1], c);
-        auto o_t = ngraph::op::util::activation(lstm_cell->get_activations()[0], o);
+        auto f_t = ov::op::util::activation(lstm_cell->get_activations()[0], f);
+        auto i_t = ov::op::util::activation(lstm_cell->get_activations()[0], i);
+        auto c_t = ov::op::util::activation(lstm_cell->get_activations()[1], c);
+        auto o_t = ov::op::util::activation(lstm_cell->get_activations()[0], o);
 
         // Ct = ft (.) Ct-1 + it (.) ct
         auto mul1 = std::make_shared<opset4::Multiply>(f_t, C_t);
@@ -73,7 +73,7 @@ ov::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
         auto out_C = std::make_shared<opset4::Add>(mul1, mul2);
 
         // H = ot (.) h(Ct)
-        auto hC = ngraph::op::util::activation(lstm_cell->get_activations()[2], out_C);
+        auto hC = ov::op::util::activation(lstm_cell->get_activations()[2], out_C);
         auto out_H = std::make_shared<opset4::Multiply>(o_t, hC);
 
         out_H->set_friendly_name(lstm_cell->get_friendly_name() + ".0");

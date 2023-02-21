@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,10 +90,6 @@ bool MVNKey::operator==(const MVNKey& rhs) const {
 // some utility functions
 static inline bool isFloatCompatible(Precision prc) {
     return Precision::FP32 == prc || Precision::BF16 == prc;
-}
-
-static inline bool isFloatCompatible(memory::data_type type) {
-    return memory::data_type::f32 == type || memory::data_type::bf16 == type;
 }
 
 // normalize_variance = false : src->mean

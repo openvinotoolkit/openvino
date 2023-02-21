@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,5 +63,24 @@ struct batch_to_space : public primitive_base<batch_to_space> {
     tensor crops_begin;
     tensor crops_end;
     tensor out_size;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, block_shape.hash());
+        seed = hash_combine(seed, crops_begin.hash());
+        seed = hash_combine(seed, crops_end.hash());
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const batch_to_space>(rhs);
+
+        return block_shape == rhs_casted.block_shape &&
+               crops_begin == rhs_casted.crops_begin &&
+               crops_end == rhs_casted.crops_end;
+    }
 };
 }  // namespace cldnn

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace MultiDevicePlugin {
 namespace {
 std::string GetNetworkPrecision(const IE::CNNNetwork& network) {
     auto nGraphFunc = network.getFunction();
-    bool isINTModel = ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>
+    bool isINTModel = ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>
         (nGraphFunc);
     if (isINTModel) {
         return METRIC_VALUE(INT8);
@@ -113,41 +113,54 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
     }
     _autoSContext->_config[IE::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = _autoSContext->_strDevices;
     std::string profilingTask = "AutoSchedule::AutoSchedule:AutoMode";
-    bool isCumulative = (_autoSContext->_performanceHint == IE::PluginConfigParams::CUMULATIVE_THROUGHPUT) ? true : false;
     // loadContext[ACTUALDEVICE] is always enabled,
     // when there is CPU and there are more than two devices, loadContext[CPU] is enabled
     _loadContext[ACTUALDEVICE].isEnabled = true;
     if (_autoSContext->_modelPath.empty())
         _loadContext[ACTUALDEVICE].networkPrecision = GetNetworkPrecision(_autoSContext->_network);
     _loadContext[ACTUALDEVICE].metaDevices = _autoSContext->_devicePriorities;
+    bool isCumulative =
+        (_autoSContext->_performanceHint == IE::PluginConfigParams::CUMULATIVE_THROUGHPUT) ? true : false;
     if (isCumulative) {
         std::list<DeviceInformation> validDevices =
             _autoSContext->_plugin->GetValidDevice(_autoSContext->_devicePriorities,
                                                    _loadContext[ACTUALDEVICE].networkPrecision);
-
-        std::string deviceName = "MULTI:";
-        for (auto& device : validDevices) {
-            deviceName += device.deviceName;
-            deviceName += ((device.deviceName == validDevices.back().deviceName) ? "" : ",");
+        if (validDevices.size() == 1) {
+            // When the hint is ctput and there is only one device, the single-device logic is used instead of
+            // the MULTI logic
+            // can not change _autoSContext->_performanceHint to THROUGHPUT, because GetMetric needs to return CTPUT
+            _loadContext[ACTUALDEVICE].deviceInfo = validDevices.front();
+            _loadContext[ACTUALDEVICE].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] =
+                IE::PluginConfigParams::THROUGHPUT;
+            isCumulative = false;
+        } else {
+            // When the hint is ctput and there are more than one device, the MULTI logic is used
+            std::string deviceName = "MULTI:";
+            for (auto& device : validDevices) {
+                deviceName += device.deviceName;
+                deviceName += ((device.deviceName == validDevices.back().deviceName) ? "" : ",");
+            }
+            _loadContext[ACTUALDEVICE].deviceInfo.deviceName = deviceName;
+            _loadContext[ACTUALDEVICE].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] =
+                InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT;
+            _loadContext[ACTUALDEVICE].deviceInfo.config[CONFIG_KEY(PERF_COUNT)] =
+                _autoSContext->_needPerfCounters ? InferenceEngine::PluginConfigParams::YES
+                                                 : InferenceEngine::PluginConfigParams::NO;
+            if (_autoSContext->_bindBuffer)
+                _loadContext[ACTUALDEVICE].deviceInfo.config[ov::intel_auto::device_bind_buffer.name()] =
+                    InferenceEngine::PluginConfigParams::YES;
         }
-        _loadContext[ACTUALDEVICE].deviceInfo.deviceName = deviceName;
-        _loadContext[ACTUALDEVICE].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] =
-            InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT;
-        _loadContext[ACTUALDEVICE].deviceInfo.config[CONFIG_KEY(PERF_COUNT)] =
-            _autoSContext->_needPerfCounters ? InferenceEngine::PluginConfigParams::YES
-                                             : InferenceEngine::PluginConfigParams::NO;
-        if (_autoSContext->_bindBuffer)
-            _loadContext[ACTUALDEVICE].deviceInfo.config[ov::intel_auto::device_bind_buffer.name()] = InferenceEngine::PluginConfigParams::YES;
     } else {
-        _loadContext[ACTUALDEVICE].deviceInfo = _autoSContext->_plugin->SelectDevice(_autoSContext->_devicePriorities,
-                                                                           _loadContext[ACTUALDEVICE].networkPrecision,
-                                                                           _autoSContext->_modelPriority);
+        _loadContext[ACTUALDEVICE].deviceInfo =
+            _autoSContext->_plugin->SelectDevice(_autoSContext->_devicePriorities,
+                                                 _loadContext[ACTUALDEVICE].networkPrecision,
+                                                 _autoSContext->_modelPriority);
     }
     LOG_INFO_TAG("select device:%s", _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
     bool isActualDevCPU =
         _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") !=std::string::npos && !isCumulative;
-    // if Actual device is CPU, disabled _loadContext[CPU], only use _loadContext[ACTUALDEVICE]
-    if (isActualDevCPU || isCumulative) {
+    // if Actual device is CPU or perf_hint is cumulative, disabled _loadContext[CPU], only use _loadContext[ACTUALDEVICE]
+    if (isActualDevCPU || isCumulative || !_autoSContext->_startupfallback) {
         _loadContext[CPU].isEnabled = false;
     } else {
         const auto CPUIter = std::find_if(_autoSContext->_devicePriorities.begin(), _autoSContext->_devicePriorities.end(),
@@ -199,7 +212,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                                         deviceName.c_str(),
                                         cfg.c_str(),
                                         contextPtr->executableNetwork->GetConfig(cfg).as<std::string>().c_str());
-                                } catch (...) {
+                                } catch (const IE::Exception&) {
                                 }
                             }
                         });
@@ -310,7 +323,7 @@ void AutoSchedule::TryToLoadNetWork(AutoLoadContext& context, const std::string&
             int maxNumThreads = 0;
             try {
                 maxNumThreads = _autoSContext->_core->GetConfig(device, GPU_CONFIG_KEY(MAX_NUM_THREADS)).as<int>();
-            } catch (...) {
+            } catch (const IE::Exception&) {
                 LOG_DEBUG_TAG("cannot get MAX_NUM_THREADS from GPU");
             }
             if (maxNumThreads == static_cast<int>(std::thread::hardware_concurrency())) {
@@ -519,12 +532,15 @@ IInferPtr AutoSchedule::CreateInferRequest() {
         syncRequestImpl = CreateInferRequestImpl(execNetwork->_networkInputs, execNetwork->_networkOutputs);
     syncRequestImpl->setPointerToExecutableNetworkInternal(execNetwork);
     bool isCumulative = (_autoSContext->_performanceHint == IE::PluginConfigParams::CUMULATIVE_THROUGHPUT) ? true : false;
-    if (_passthroughExeNet && !isCumulative) {
+    bool isCTPUTSingleDevice =
+        isCumulative && _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("MULTI:") == std::string::npos ? true
+                                                                                                            : false;
+    if ((_passthroughExeNet && !isCumulative) || isCTPUTSingleDevice) {
         std::string perfmode;
         try {
             perfmode = _passthroughExeNet->GetConfig(
                                 CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>();
-        } catch(...) {
+        } catch (const IE::Exception&) {
             LOG_INFO("query perf hint from passthrough network failed");
         }
         if (_autoSContext->_batchingDisabled || perfmode != CONFIG_VALUE(THROUGHPUT)) {

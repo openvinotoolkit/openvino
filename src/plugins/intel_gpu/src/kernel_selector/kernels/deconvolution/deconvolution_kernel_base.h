@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,6 +58,7 @@ public:
 
 protected:
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    using WeightBiasKernelBase::GetJitConstants;
     virtual JitConstants GetJitConstants(const deconvolution_params& params) const;
     virtual DispatchData SetDefault(const deconvolution_params& params) const;
     virtual WeightsLayout GetPreferredWeightsLayout(const deconvolution_params &params) const {

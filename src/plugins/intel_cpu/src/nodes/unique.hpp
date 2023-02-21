@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,8 +52,6 @@ private:
     InferenceEngine::Precision dataPrecision;
     int64_t dataTypeSize = 1;
     size_t uniqueLen = 1;
-
-    int threadsNum = 1;
 
     static constexpr size_t IN_DATA = 0;
     static constexpr size_t AXIS    = 1;

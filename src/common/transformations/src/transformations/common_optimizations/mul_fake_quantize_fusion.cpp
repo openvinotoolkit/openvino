@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,7 +41,7 @@ ov::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
             return false;
 
         auto const_shape = mul_const->get_shape();
-        if (ngraph::op::util::check_for_broadcast(input.get_partial_shape(), const_shape)) {
+        if (ov::op::util::check_for_broadcast(input.get_partial_shape(), const_shape)) {
             // We can't eliminate Multiply if Constant input broadcasts another input shape because
             // when we reconnect input from Multiply to FQ won't broadcast given input, so it will result
             // in shape collision.

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,8 @@
 #include <unordered_map>
 #include <functional>
 #include <iostream>
+
+#include "kernel.hpp"
 
 namespace cldnn {
 
@@ -163,5 +165,5 @@ private:
 };
 
 using ImplementationsCache = cldnn::LruCache<size_t, std::shared_ptr<primitive_impl>>;
-using KernelsCache = cldnn::LruCache<std::string, cldnn::kernel::ptr>;
+using KernelsCache = cldnn::LruCache<size_t, cldnn::kernel::ptr>;
 }  // namespace cldnn

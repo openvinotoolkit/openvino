@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,7 +41,7 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cl
     auto out_rank = out_pshape.size();
     // New shape infer is supposed to work w/o extra reshapes/reorders
     // So the code below must be removed once new shape infer is enabled
-    if (out_pshape.is_static()) {
+    if (out_pshape.is_static() && !p.use_new_shape_infer()) {
         for (size_t i = 0; i < inputs.size(); ++i) {
             auto input_pshape = op->get_input_partial_shape(i);
             auto input_rank = input_pshape.size();
@@ -158,7 +158,7 @@ static void CreatePowerOp(Program& p, const std::shared_ptr<ngraph::op::v1::Powe
     if (power_node) {
         if (ngraph::shape_size(power_node->get_output_shape(0)) == 1) {
             float pow;
-            if (!ngraph::op::util::get_single_value(power_node, pow))
+            if (!ov::op::util::get_single_value(power_node, pow))
                 IE_THROW() << "Invalid parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
             CreateUnaryEltwiseOp(p, op, cldnn::activation_func::pow, {pow});
             return;

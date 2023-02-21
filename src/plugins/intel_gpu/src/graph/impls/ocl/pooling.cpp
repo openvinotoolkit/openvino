@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -168,7 +168,7 @@ public:
 namespace detail {
 
 attach_pooling_impl::attach_pooling_impl() {
-    std::set<implementation_map<resample>::key_type> keys;
+    std::set<implementation_map<pooling>::key_type> keys;
 
     auto types = { data_types::f16, data_types::f32, data_types::i8, data_types::u8 };
     auto formats = { format::bfyx,

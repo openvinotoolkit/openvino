@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6078,4 +6078,100 @@ TEST(TransformationTests, SplitMaskPropagationInvalidateMaskOnFirstAndThirdOutpu
         auto res = compare_functions(function, function_ref);
         ASSERT_TRUE(res.first) << res.second;
     }
+}
+
+TEST_F(TransformationTestsF, PruningReshapeNegativeOne) {
+    {
+        auto input = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 2, 3});
+        auto weights1 = create_constant_with_zeros({1, 3, 12}, {{}, {}, {}});
+        auto matmul1 = std::make_shared<opset10::MatMul>(input, weights1);
+        auto reshape =
+            std::make_shared<opset10::Reshape>(matmul1,
+                                               opset10::Constant::create(element::i32, Shape{4}, {0, 2, 6, -1}),
+                                               true);
+
+        auto weights2 = create_constant_with_zeros({1, 3, 6}, {{}, {}, {1, 2}});
+        auto matmul2 = std::make_shared<opset10::MatMul>(input, weights2);
+
+        auto matmul3 = std::make_shared<opset10::MatMul>(matmul2, reshape);
+
+        function = std::make_shared<ngraph::Function>(OutputVector{matmul3}, ParameterVector{input});
+    }
+    {
+        auto input = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 2, 3});
+        auto weights1 = create_constant_with_zeros({1, 3, 8}, {{}, {}, {}});
+        auto matmul1 = std::make_shared<opset10::MatMul>(input, weights1);
+        auto reshape =
+            std::make_shared<opset10::Reshape>(matmul1,
+                                               opset10::Constant::create(element::i32, Shape{4}, {0, 2, 4, -1}),
+                                               true);
+
+        auto weights2 = create_constant_with_zeros({1, 3, 4}, {{}, {}, {}});
+        auto matmul2 = std::make_shared<opset10::MatMul>(input, weights2);
+
+        auto matmul3 = std::make_shared<opset10::MatMul>(matmul2, reshape);
+
+        function_ref = std::make_shared<ngraph::Function>(OutputVector{matmul3}, ParameterVector{input});
+    }
+    manager.register_pass<pass::Pruning>();
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+TEST_F(TransformationTestsF, PruningReshapeNegativeOneNonConstantShape) {
+    {
+        auto input = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 2, 3});
+        auto weights1 = create_constant_with_zeros({1, 3, 12}, {{}, {}, {}});
+        auto matmul1 = std::make_shared<opset10::MatMul>(input, weights1);
+
+        auto shape = std::make_shared<opset10::ShapeOf>(matmul1);
+        auto second_dim = std::make_shared<opset10::Gather>(shape,
+                                                            opset10::Constant::create(element::i32, Shape{1}, {1}),
+                                                            opset10::Constant::create(element::i32, Shape{1}, {0}));
+        auto concat =
+            std::make_shared<opset10::Concat>(OutputVector{opset10::Constant::create(element::i64, Shape{1}, {0}),
+                                                           second_dim,
+                                                           opset10::Constant::create(element::i64, Shape{1}, {6}),
+                                                           opset10::Constant::create(element::i64, Shape{1}, {-1})},
+                                              0);
+        auto reshape = std::make_shared<opset10::Reshape>(matmul1, concat, true);
+
+        auto weights2 = create_constant_with_zeros({1, 3, 6}, {{}, {}, {1, 2}});
+        auto matmul2 = std::make_shared<opset10::MatMul>(input, weights2);
+
+        auto matmul3 = std::make_shared<opset10::MatMul>(matmul2, reshape);
+
+        function = std::make_shared<ngraph::Function>(OutputVector{matmul3}, ParameterVector{input});
+    }
+    {
+        auto input = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 2, 3});
+        auto weights1 = create_constant_with_zeros({1, 3, 8}, {{}, {}, {}});
+        auto matmul1 = std::make_shared<opset10::MatMul>(input, weights1);
+
+        auto shape = std::make_shared<opset10::ShapeOf>(matmul1);
+        auto second_dim = std::make_shared<opset10::Gather>(shape,
+                                                            opset10::Constant::create(element::i32, Shape{1}, {1}),
+                                                            opset10::Constant::create(element::i32, Shape{1}, {0}));
+        auto concat =
+            std::make_shared<opset10::Concat>(OutputVector{opset10::Constant::create(element::i64, Shape{1}, {0}),
+                                                           second_dim,
+                                                           opset10::Constant::create(element::i64, Shape{1}, {6}),
+                                                           opset10::Constant::create(element::i64, Shape{1}, {-1})},
+                                              0);
+        auto sub = std::make_shared<opset10::Subtract>(concat,
+                                                       opset10::Constant::create(element::i64, Shape{4}, {0, 0, 2, 0}));
+        auto reshape = std::make_shared<opset10::Reshape>(matmul1, sub, true);
+
+        auto weights2 = create_constant_with_zeros({1, 3, 4}, {{}, {}, {}});
+        auto matmul2 = std::make_shared<opset10::MatMul>(input, weights2);
+
+        auto matmul3 = std::make_shared<opset10::MatMul>(matmul2, reshape);
+
+        function_ref = std::make_shared<ngraph::Function>(OutputVector{matmul3}, ParameterVector{input});
+    }
+    manager.register_pass<pass::Pruning>();
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }

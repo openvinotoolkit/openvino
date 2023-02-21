@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,8 @@
 
 #include "descriptions/gna_desc.hpp"
 #include "layers/gna_layer_info.hpp"
-#include "quantized_layer_params.hpp"
 #include "quantization.hpp"
+#include "quantized_layer_params.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -72,8 +72,8 @@ class LayerQuantizer {
     void QuantizeWeightsPrep(InferenceEngine::WeightableLayer& wl, QuantizationData& common_data);
 
     void QuantizeWeightsPrep(InferenceEngine::Precision precision,
-                            InferenceEngine::WeightableLayer& wl,
-                            QuantizationData& common_data);
+                             InferenceEngine::WeightableLayer& wl,
+                             QuantizationData& common_data);
 
     template <class BiasesType>
     void QuantizeBiasesPrep(InferenceEngine::WeightableLayer& wl, QuantizationData& common_data);

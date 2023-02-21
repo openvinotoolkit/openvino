@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,11 +72,11 @@ TEST(TransformationTests, LowLatencyLSTM) {
                                                ngraph::ParameterVector{X, H_init, C_init});
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         NGRAPH_SUPPRESS_DEPRECATED_START
         manager.register_pass<ngraph::pass::LowLatency>();
         NGRAPH_SUPPRESS_DEPRECATED_END
-        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
     }
     {
@@ -159,11 +159,11 @@ TEST(TransformationTests, LowLatencyGRU) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y});
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         NGRAPH_SUPPRESS_DEPRECATED_START
         manager.register_pass<ngraph::pass::LowLatency>();
         NGRAPH_SUPPRESS_DEPRECATED_END
-        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));
@@ -241,11 +241,11 @@ TEST(TransformationTests, LowLatencyRNN) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y});
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         NGRAPH_SUPPRESS_DEPRECATED_START
         manager.register_pass<ngraph::pass::LowLatency>();
         NGRAPH_SUPPRESS_DEPRECATED_END
-        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));
@@ -337,11 +337,11 @@ TEST(TransformationTests, LowLatencyLSTMReshape) {
         f->validate_nodes_and_infer_types();
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         NGRAPH_SUPPRESS_DEPRECATED_START
         manager.register_pass<ngraph::pass::LowLatency>();
         NGRAPH_SUPPRESS_DEPRECATED_END
-        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
     }
     {
@@ -349,8 +349,8 @@ TEST(TransformationTests, LowLatencyLSTMReshape) {
         auto H_t = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 128});
         auto C_t = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 128});
 
-        const std::string variable_name_H("LSTMTensorIterator/H_t/variable");
-        const std::string variable_name_C("LSTMTensorIterator/C_t/variable");
+        const std::string variable_name_H("LSTMTensorIterator/H_t/variable_2");
+        const std::string variable_name_C("LSTMTensorIterator/C_t/variable_0");
         auto variable_H =
             std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto variable_C =
@@ -438,11 +438,11 @@ TEST(TransformationTests, LowLatencyLSTM_Loop) {
                                                ngraph::ParameterVector{X, H_init, C_init});
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         NGRAPH_SUPPRESS_DEPRECATED_START
         manager.register_pass<ngraph::pass::LowLatency>();
         NGRAPH_SUPPRESS_DEPRECATED_END
-        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
     }
     {
@@ -450,8 +450,8 @@ TEST(TransformationTests, LowLatencyLSTM_Loop) {
         auto H_t = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 128});
         auto C_t = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 128});
 
-        const std::string variable_name_H("LSTMLoop/H_t/variable");
-        const std::string variable_name_C("LSTMLoop/C_t/variable");
+        const std::string variable_name_H("LSTMLoop/H_t/variable_2");
+        const std::string variable_name_C("LSTMLoop/C_t/variable_0");
         auto variable_H =
             std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto variable_C =

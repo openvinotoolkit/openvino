@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -8,7 +8,7 @@ import numpy as np
 import openvino.runtime as ov
 import pytest
 import torch
-from openvino.runtime import PartialShape, Dimension, Model
+from openvino.runtime import PartialShape, Dimension, Model, Type
 
 from common.mo_convert_test_class import CommonMOConvertTest
 
@@ -84,7 +84,7 @@ def create_pytorch_nn_module_case1(tmp_dir):
     sample_input = sample_input1, sample_input2
 
     return pt_model, ref_model, {'input_shape': [PartialShape([-1, 3, -1, -1]), PartialShape([-1, 3, -1, -1])],
-                                 'example_input': sample_input}
+                                 'example_input': sample_input, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_case2(tmp_dir):
@@ -96,7 +96,7 @@ def create_pytorch_nn_module_case2(tmp_dir):
     sample_input = sample_input1, sample_input2
 
     return pt_model, ref_model, {'input_shape': ["[?,3,?,?]", PartialShape([-1, 3, -1, -1])],
-                                 'example_input': sample_input, 'onnx_opset_version': 11}
+                                 'example_input': sample_input, 'onnx_opset_version': 11, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_case3(tmp_dir):
@@ -107,7 +107,7 @@ def create_pytorch_nn_module_case3(tmp_dir):
     sample_input2 = torch.zeros(1, 3, 10, 10)
     sample_input = tuple([sample_input1, sample_input2])
 
-    return pt_model, ref_model, {'input_shape': "[?,3,?,?],[?,3,?,?]", 'example_input': sample_input}
+    return pt_model, ref_model, {'input_shape': "[?,3,?,?],[?,3,?,?]", 'example_input': sample_input, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_case4(tmp_dir):
@@ -117,7 +117,7 @@ def create_pytorch_nn_module_case4(tmp_dir):
 
     ref_model = make_ref_pt_model_one_input([1, 3, 10, 10])
 
-    return pt_model, ref_model, {'example_input': sample_input}
+    return pt_model, ref_model, {'example_input': sample_input, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_case5(tmp_dir):
@@ -127,7 +127,7 @@ def create_pytorch_nn_module_case5(tmp_dir):
 
     sample_input = torch.zeros(3, 3, 10, 10)
     return pt_model, ref_model, {'example_input': sample_input,
-                                 'input_shape': inp_shape}
+                                 'input_shape': inp_shape, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_case6(tmp_dir):
@@ -135,14 +135,14 @@ def create_pytorch_nn_module_case6(tmp_dir):
     shape = PartialShape([1, 3, Dimension(2, -1), Dimension(-1, 10)])
     ref_model = make_ref_pt_model_one_input(shape)
 
-    return pt_model, ref_model, {'input_shape': shape}
+    return pt_model, ref_model, {'input_shape': shape, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_torch_size(tmp_dir):
     pt_model = make_pt_model_one_input()
     ref_model = make_ref_pt_model_one_input([1, 3, 2, 10])
 
-    return pt_model, ref_model, {'input_shape': torch.Size([1, 3, 2, 10])}
+    return pt_model, ref_model, {'input_shape': torch.Size([1, 3, 2, 10]), "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_sample_input_int32(tmp_dir):
@@ -154,7 +154,7 @@ def create_pytorch_nn_module_sample_input_int32(tmp_dir):
     ref_model = make_ref_pt_model_one_input(shape, dtype=numpy.int32)
 
     return pt_model, ref_model, {'example_input': sample_input,
-                                 'input_shape': shape}
+                                 'input_shape': shape, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_sample_input_int32_two_inputs(tmp_dir):
@@ -167,7 +167,7 @@ def create_pytorch_nn_module_sample_input_int32_two_inputs(tmp_dir):
     ref_model = make_ref_pt_model_two_inputs([PartialShape([-1, 3, -1, -1]), inp_shapes[1]], dtype=np.int32)
 
     return pt_model, ref_model, {'input_shape': inp_shapes,
-                                 'example_input': sample_input, 'onnx_opset_version': 11}
+                                 'example_input': sample_input, 'onnx_opset_version': 11, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_compare_convert_paths_case1(tmp_dir):
@@ -179,7 +179,7 @@ def create_pytorch_nn_module_compare_convert_paths_case1(tmp_dir):
     torch.onnx.export(pt_model, sample_input, onnx_model_path, opset_version=16)
 
     ref_model = convert_model(onnx_model_path)
-    return pt_model, ref_model, {'example_input': sample_input, 'onnx_opset_version': 16}
+    return pt_model, ref_model, {'example_input': sample_input, 'onnx_opset_version': 16, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_compare_convert_paths_case2(tmp_dir):
@@ -193,7 +193,9 @@ def create_pytorch_nn_module_compare_convert_paths_case2(tmp_dir):
     ref_model = convert_model(onnx_model_path)
     return pt_model, ref_model, {'example_input': sample_input,
                                  'input_shape': [1, 3, 10, 10],
-                                 'onnx_opset_version': 16}
+                                 'onnx_opset_version': 16,
+                                 "use_legacy_frontend": True
+                                 }
 
 
 def create_pytorch_nn_module_compare_convert_paths_case3(tmp_dir):
@@ -206,7 +208,7 @@ def create_pytorch_nn_module_compare_convert_paths_case3(tmp_dir):
 
     ref_model = convert_model(onnx_model_path)
     return pt_model, ref_model, {'input_shape': [1, 3, 10, 10],
-                                 'onnx_opset_version': 16}
+                                 'onnx_opset_version': 16, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_compare_convert_paths_case4(tmp_dir):
@@ -222,7 +224,7 @@ def create_pytorch_nn_module_compare_convert_paths_case4(tmp_dir):
 
     ref_model = convert_model(onnx_model_path)
 
-    return pt_model, ref_model, {'example_input': sample_input, 'onnx_opset_version': 16}
+    return pt_model, ref_model, {'example_input': sample_input, 'onnx_opset_version': 16, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_compare_convert_paths_case5(tmp_dir):
@@ -240,7 +242,7 @@ def create_pytorch_nn_module_compare_convert_paths_case5(tmp_dir):
 
     return pt_model, ref_model, {'example_input': sample_input,
                                  'input_shape': [torch.Size([1, 3, 10, 10]), PartialShape([1, 3, 10, 10])],
-                                 'onnx_opset_version': 16}
+                                 'onnx_opset_version': 16, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_compare_convert_paths_case6(tmp_dir):
@@ -257,7 +259,7 @@ def create_pytorch_nn_module_compare_convert_paths_case6(tmp_dir):
     ref_model = convert_model(onnx_model_path)
 
     return pt_model, ref_model, {'input_shape': [torch.Size([1, 3, 10, 10]), torch.Size([1, 3, 10, 10])],
-                                 'onnx_opset_version': 16}
+                                 'onnx_opset_version': 16, "use_legacy_frontend": True}
 
 
 def create_pytorch_jit_script_module(tmp_dir):
@@ -267,7 +269,7 @@ def create_pytorch_jit_script_module(tmp_dir):
     scripted_model = torch.jit.script(net)
 
     model_ref = make_ref_pt_model_two_inputs([1, 3, 5, 5])
-    return scripted_model, model_ref, {'input_shape': [PartialShape([1, 3, 5, 5]), PartialShape([1, 3, 5, 5])]}
+    return scripted_model, model_ref, {'input_shape': [PartialShape([1, 3, 5, 5]), PartialShape([1, 3, 5, 5])], "use_legacy_frontend": True}
 
 
 def create_pytorch_jit_script_function(tmp_dir):
@@ -279,7 +281,7 @@ def create_pytorch_jit_script_function(tmp_dir):
 
     inp_shape = PartialShape([Dimension(1, -1), Dimension(-1, 5), 10])
     ref_model = make_ref_pt_model_two_inputs(inp_shape)
-    return scripted_fn, ref_model, {'input_shape': [inp_shape, inp_shape]}
+    return scripted_fn, ref_model, {'input_shape': [inp_shape, inp_shape], "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_sample_input_numpy(tmp_dir):
@@ -293,7 +295,7 @@ def create_pytorch_nn_module_sample_input_numpy(tmp_dir):
     ref_model = convert_model(onnx_model_path)
     return pt_model, ref_model, {'example_input': example_inputs,
                                  'input_shape': [1, 3, 10, 10],
-                                 'onnx_opset_version': 16}
+                                 'onnx_opset_version': 16, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_sample_input_dict(tmp_dir):
@@ -306,7 +308,7 @@ def create_pytorch_nn_module_sample_input_dict(tmp_dir):
 
     ref_model = convert_model(onnx_model_path)
     return pt_model, ref_model, {'example_input': example_inputs,
-                                 'onnx_opset_version': 16}
+                                 'onnx_opset_version': 16, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_sample_input_dict_two_inputs(tmp_dir):
@@ -321,7 +323,7 @@ def create_pytorch_nn_module_sample_input_dict_two_inputs(tmp_dir):
 
     ref_model = convert_model(onnx_model_path)
     return pt_model, ref_model, {'example_input': example_inputs,
-                                 'onnx_opset_version': 16}
+                                 'onnx_opset_version': 16, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_sample_list_of_tensors(tmp_dir):
@@ -335,7 +337,7 @@ def create_pytorch_nn_module_sample_list_of_tensors(tmp_dir):
 
     ref_model = convert_model(onnx_model_path)
     return pt_model, ref_model, {'example_input': example_inputs,
-                                 'onnx_opset_version': 16}
+                                 'onnx_opset_version': 16, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_sample_input_ov_host_tensor(tmp_dir):
@@ -350,7 +352,7 @@ def create_pytorch_nn_module_sample_input_ov_host_tensor(tmp_dir):
     ref_model = convert_model(onnx_model_path)
     return pt_model, ref_model, {'example_input': sample_input,
                                  'input_shape': [1, 3, 10, 10],
-                                 'onnx_opset_version': 16}
+                                 'onnx_opset_version': 16, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_sample_input_ov_host_tensor_two_inputs(tmp_dir):
@@ -370,7 +372,7 @@ def create_pytorch_nn_module_sample_input_ov_host_tensor_two_inputs(tmp_dir):
     ref_model = convert_model(onnx_model_path)
 
     return pt_model, ref_model, {'example_input': sample_input,
-                                 'onnx_opset_version': 16}
+                                 'onnx_opset_version': 16, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_layout_list(tmp_dir):
@@ -384,7 +386,7 @@ def create_pytorch_nn_module_layout_list(tmp_dir):
     ref_model.inputs[1].node.layout = Layout('nhwc')
 
     return pt_model, ref_model, {'input_shape': [shape, shape], 'layout': ['nchw', Layout('nhwc')],
-                                 'onnx_opset_version': 11}
+                                 'onnx_opset_version': 11, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_layout_list_case2(tmp_dir):
@@ -398,7 +400,7 @@ def create_pytorch_nn_module_layout_list_case2(tmp_dir):
     ref_model.inputs[1].node.layout = Layout('nhwc')
 
     return pt_model, ref_model, {'input_shape': [shape, shape], 'layout': ('nchw', Layout('nhwc')),
-                                 'onnx_opset_version': 11}
+                                 'onnx_opset_version': 11, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_mean_list(tmp_dir):
@@ -420,7 +422,7 @@ def create_pytorch_nn_module_mean_list(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
 
     return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]],
-                                 'onnx_opset_version': 11}
+                                 'onnx_opset_version': 11, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_scale_list(tmp_dir):
@@ -442,14 +444,14 @@ def create_pytorch_nn_module_scale_list(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
 
     return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]],
-                                 'onnx_opset_version': 11}
+                                 'onnx_opset_version': 11, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_shapes_list_static(tmp_dir):
     pt_model = make_pt_model_two_inputs()
     ref_model = make_ref_pt_model_two_inputs([1, 3, 20, 20])
 
-    return pt_model, ref_model, {'input_shape': [[1, 3, 20, 20], [1, 3, 20, 20]], 'onnx_opset_version': 11}
+    return pt_model, ref_model, {'input_shape': [[1, 3, 20, 20], [1, 3, 20, 20]], 'onnx_opset_version': 11, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_shapes_list_dynamic(tmp_dir):
@@ -464,21 +466,118 @@ def create_pytorch_nn_module_shapes_list_dynamic(tmp_dir):
 
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
-    return pt_model, ref_model, {'input_shape': inp_shapes, 'onnx_opset_version': 11}
+    return pt_model, ref_model, {'input_shape': inp_shapes, 'onnx_opset_version': 11, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_shapes_list_dynamic_single_input(tmp_dir):
     pt_model = make_pt_model_one_input()
     inp_shapes = [[Dimension(-1), 3, 20, Dimension(20, -1)]]
     ref_model = make_ref_pt_model_one_input(inp_shapes[0])
-    return pt_model, ref_model, {'input_shape': inp_shapes, 'onnx_opset_version': 11}
+    return pt_model, ref_model, {'input_shape': inp_shapes, 'onnx_opset_version': 11, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_shapes_list_static_single_input(tmp_dir):
     pt_model = make_pt_model_one_input()
     inp_shapes = [[1, 3, 20, 20]]
     ref_model = make_ref_pt_model_one_input(inp_shapes[0])
-    return pt_model, ref_model, {'input_shape': inp_shapes, 'onnx_opset_version': 11}
+    return pt_model, ref_model, {'input_shape': inp_shapes, 'onnx_opset_version': 11, "use_legacy_frontend": True}
+
+
+def create_pytorch_nn_module_convert_pytorch_frontend1(tmp_dir):
+    pt_model = make_pt_model_one_input()
+    shape = [-1, -1, -1, -1]
+    shape = PartialShape(shape)
+    param = ov.opset10.parameter(shape)
+    relu = ov.opset10.relu(param)
+    sigm = ov.opset10.sigmoid(relu)
+
+    parameter_list = [param]
+    ref_model = Model([sigm], parameter_list, "test")
+    return pt_model, ref_model, {"example_input": torch.zeros((1, 3, 10, 10))}
+
+
+def create_pytorch_nn_module_convert_pytorch_frontend2(tmp_dir):
+    pt_model = make_pt_model_one_input()
+    shape = [-1, -1, -1, -1]
+    shape = PartialShape(shape)
+    param = ov.opset10.parameter(shape)
+    relu = ov.opset10.relu(param)
+    sigm = ov.opset10.sigmoid(relu)
+
+    parameter_list = [param]
+    ref_model = Model([sigm], parameter_list, "test")
+    ref_model.input(0).get_node().set_element_type(Type.i32)
+    ref_model.validate_nodes_and_infer_types()
+    return pt_model, ref_model, {"example_input": torch.zeros((1, 3, 10, 10), dtype=torch.int32)}
+
+
+def create_pytorch_nn_module_convert_pytorch_frontend3(tmp_dir):
+    pt_model = make_pt_model_two_inputs()
+    shape = [-1, -1, -1, -1]
+    shape = PartialShape(shape)
+    param1 = ov.opset10.parameter(shape)
+    param2 = ov.opset10.parameter(shape)
+    param2_convert = ov.opset10.convert_like(param2, param1)
+    add = ov.opset10.add(param1, param2_convert)
+    relu = ov.opset10.relu(add)
+    sigm = ov.opset10.sigmoid(relu)
+
+    parameter_list = [param1, param2]
+    ref_model = Model([sigm], parameter_list, "test")
+    return pt_model, ref_model, {"example_input": [torch.zeros((1, 3, 10, 10)), torch.ones((1, 3, 10, 10))]}
+
+
+def create_pytorch_nn_module_convert_pytorch_frontend4(tmp_dir):
+    pt_model = make_pt_model_two_inputs()
+    shape = [-1, -1, -1, -1]
+    shape = PartialShape(shape)
+    param1 = ov.opset10.parameter(shape)
+    param2 = ov.opset10.parameter(shape)
+    param2_convert = ov.opset10.convert_like(param2, param1)
+    add = ov.opset10.add(param1, param2_convert)
+    relu = ov.opset10.relu(add)
+    sigm = ov.opset10.sigmoid(relu)
+
+    parameter_list = [param1, param2]
+    ref_model = Model([sigm], parameter_list, "test")
+    return pt_model, ref_model, {"example_input": {"x": torch.zeros((1, 3, 10, 10)), "y": torch.ones((1, 3, 10, 10))}}
+
+
+def create_pytorch_jit_script_module_convert_pytorch_frontend(tmp_dir):
+    import torch
+
+    net = make_pt_model_two_inputs()
+    scripted_model = torch.jit.script(net)
+    shape = [-1, -1, -1, -1]
+    shape = PartialShape(shape)
+    param1 = ov.opset10.parameter(shape)
+    param2 = ov.opset10.parameter(shape)
+    param2_convert = ov.opset10.convert_like(param2, param1)
+    add = ov.opset10.add(param1, param2_convert)
+    relu = ov.opset10.relu(add)
+    sigm = ov.opset10.sigmoid(relu)
+    parameter_list = [param1, param2]
+    ref_model = Model([sigm], parameter_list, "test")
+    return scripted_model, ref_model,  {"example_input": {"x": torch.zeros((1, 3, 10, 10)), "y": torch.ones((1, 3, 10, 10))}}
+
+
+def create_pytorch_jit_trace_module_convert_pytorch_frontend(tmp_dir):
+    import torch
+
+    net = make_pt_model_two_inputs()
+    example_input = [torch.zeros((1, 3, 10, 10)), torch.ones((1, 3, 10, 10))]
+    scripted_model = torch.jit.trace(net, example_input)
+    shape = [-1, -1, -1, -1]
+    shape = PartialShape(shape)
+    param1 = ov.opset10.parameter(shape)
+    param2 = ov.opset10.parameter(shape)
+    param2_convert = ov.opset10.convert_like(param2, param1)
+    add = ov.opset10.add(param1, param2_convert)
+    relu = ov.opset10.relu(add)
+    sigm = ov.opset10.sigmoid(relu)
+    parameter_list = [param1, param2]
+    ref_model = Model([sigm], parameter_list, "test")
+    return scripted_model, ref_model,  {"example_input": example_input}
 
 
 class TestMoConvertPyTorch(CommonMOConvertTest):
@@ -512,7 +611,13 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         create_pytorch_nn_module_shapes_list_static,
         create_pytorch_nn_module_shapes_list_dynamic,
         create_pytorch_nn_module_shapes_list_dynamic_single_input,
-        create_pytorch_nn_module_shapes_list_static_single_input
+        create_pytorch_nn_module_shapes_list_static_single_input,
+        create_pytorch_nn_module_convert_pytorch_frontend1,
+        create_pytorch_nn_module_convert_pytorch_frontend2,
+        create_pytorch_nn_module_convert_pytorch_frontend3,
+        create_pytorch_nn_module_convert_pytorch_frontend4,
+        create_pytorch_jit_script_module_convert_pytorch_frontend,
+        create_pytorch_jit_trace_module_convert_pytorch_frontend
     ]
 
     @pytest.mark.parametrize("create_model", test_data)

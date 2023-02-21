@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -144,6 +144,10 @@ public:
         params.sort_result_descending = primitive->sort_result_descending;
         params.box_encoding = primitive->center_point_box ? kernel_selector::BoxEncodingType::BOX_ENCODING_CENTER
                                                           : kernel_selector::BoxEncodingType::BOX_ENCODING_CORNER;
+        if (impl_param.get_program().get_node(primitive->id).is_dynamic()) {
+            params.reuse_internal_buffer = true;
+        }
+
         auto& kernel_selector = kernel_selector::non_max_suppression_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
 

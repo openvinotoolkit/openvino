@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,6 +74,23 @@ struct fully_connected : public primitive_base<fully_connected> {
     primitive_id bias;
     /// @brief Primitive dimension size.
     size_t input_size;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, input_size);
+        seed = hash_combine(seed, bias.empty());
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const fully_connected>(rhs);
+
+        return input_size == rhs_casted.input_size &&
+               bias.empty() == rhs_casted.bias.empty();
+    }
 
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,7 +61,6 @@ protected:
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<roi_align>();
-        const auto& input_layout = impl_param.get_input_layout(0);
         const auto& rois_layout = impl_param.get_input_layout(1);
         const auto& batches_layout = impl_param.get_input_layout(2);
 

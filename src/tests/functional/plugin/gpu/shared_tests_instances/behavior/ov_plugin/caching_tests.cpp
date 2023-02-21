@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -83,6 +83,12 @@ namespace {
                                 ::testing::ValuesIn(LoadFromFileConfigs)),
                         CompileModelLoadFromFileTestBase::getTestCaseName);
 
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_CachingSupportCase_GPU,
+                             CompileModelLoadFromMemoryTestBase,
+                             ::testing::Combine(::testing::ValuesIn(TestTargets),
+                                                ::testing::ValuesIn(LoadFromFileConfigs)),
+                             CompileModelLoadFromMemoryTestBase::getTestCaseName);
+
     const std::vector<ov::AnyMap> GPULoadFromFileConfigs = {
         {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
         {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
@@ -94,4 +100,9 @@ namespace {
                                 ::testing::ValuesIn(GPULoadFromFileConfigs)),
                         CompileModelLoadFromFileTestBase::getTestCaseName);
 
+    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GPU,
+                             CompileModelLoadFromMemoryTestBase,
+                             ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                                ::testing::ValuesIn(GPULoadFromFileConfigs)),
+                             CompileModelLoadFromMemoryTestBase::getTestCaseName);
 } // namespace

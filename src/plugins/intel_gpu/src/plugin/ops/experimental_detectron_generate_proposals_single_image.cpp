@@ -33,7 +33,7 @@ static void CreateExperimentalDetectronGenerateProposalsSingleImageOp(
     const cldnn::layout mutable_layout{cldnn::element_type_to_data_type(mutable_precision),
                                        cldnn::format::get_default_format(output_shape.size()),
                                        tensor_from_dims(output_shape)};
-    cldnn::memory::ptr shared_memory{p.GetEngine().allocate_memory(mutable_layout)};
+    cldnn::memory::ptr shared_memory{p.get_engine().allocate_memory(mutable_layout)};
 
     const auto mutable_id_w = layer_type_name + "_md_write";
     const cldnn::mutable_data mutable_prim_w{mutable_id_w, shared_memory};

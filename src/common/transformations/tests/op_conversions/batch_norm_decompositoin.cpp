@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ TEST_F(TransformationTestsF, BatchNormDecompositionStaticRankOpset1) {
         auto batch_norm = std::make_shared<ngraph::opset1::BatchNormInference>(input, gamma, beta, mean, var, 0.001);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{batch_norm}, ngraph::ParameterVector{input});
-        manager.register_pass<ngraph::pass::BatchNormDecomposition>();
+        manager.register_pass<ov::pass::BatchNormDecomposition>();
         comparator.enable(FunctionsComparator::CONST_VALUES);
     }
     {
@@ -57,7 +57,7 @@ TEST_F(TransformationTestsF, BatchNormDecompositionStaticRankOpset5) {
         auto batch_norm = std::make_shared<ngraph::opset5::BatchNormInference>(input, gamma, beta, mean, var, 0.001);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{batch_norm}, ngraph::ParameterVector{input});
-        manager.register_pass<ngraph::pass::BatchNormDecomposition>();
+        manager.register_pass<ov::pass::BatchNormDecomposition>();
         comparator.enable(FunctionsComparator::CONST_VALUES);
     }
     {
@@ -84,6 +84,6 @@ TEST_F(TransformationTestsF, BatchNormDecompositionDynamicRank) {
         broadcast->set_friendly_name("broadcast");
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{broadcast}, ngraph::ParameterVector{input});
-        manager.register_pass<ngraph::pass::BatchNormDecomposition>();
+        manager.register_pass<ov::pass::BatchNormDecomposition>();
     }
 }

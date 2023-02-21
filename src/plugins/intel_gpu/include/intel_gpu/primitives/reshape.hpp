@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -79,6 +79,16 @@ struct reshape : public primitive_base<reshape> {
     ov::PartialShape output_partial_shape;
 
     reshape_mode mode;
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const reshape>(rhs);
+
+        return special_zero == rhs_casted.special_zero &&
+               mode == rhs_casted.mode;
+    }
 };
 
 }  // namespace cldnn

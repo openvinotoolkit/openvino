@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ TEST_F(TransformationTestsF, ConvertShuffleChannelsAxis0) {
     int64_t group = 4;
     auto ps = ::PartialShape{12, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()};
     function = buildInputGraph(0, group, ps);
-    manager.register_pass<ngraph::pass::ConvertShuffleChannels3>();
+    manager.register_pass<ov::pass::ConvertShuffleChannels3>();
 
     auto input = std::make_shared<::opset3::Parameter>(::element::f32, ps);
 
@@ -58,7 +58,7 @@ TEST_F(TransformationTestsF, ConvertShuffleChannelsAxis1) {
     int64_t group = 4;
     auto ps = ::PartialShape{Dimension::dynamic(), 12, Dimension::dynamic(), Dimension::dynamic()};
     function = buildInputGraph(1, group, ps);
-    manager.register_pass<ngraph::pass::ConvertShuffleChannels3>();
+    manager.register_pass<ov::pass::ConvertShuffleChannels3>();
 
     auto input = std::make_shared<::opset3::Parameter>(::element::f32, ps);
 
@@ -89,7 +89,7 @@ TEST_F(TransformationTestsF, ConvertShuffleChannelsAxis2) {
     int64_t group = 4;
     auto ps = ::PartialShape{Dimension::dynamic(), Dimension::dynamic(), 12, Dimension::dynamic()};
     function = buildInputGraph(2, group, ps);
-    manager.register_pass<ngraph::pass::ConvertShuffleChannels3>();
+    manager.register_pass<ov::pass::ConvertShuffleChannels3>();
 
     auto input = std::make_shared<::opset3::Parameter>(::element::f32, ps);
 
@@ -120,7 +120,7 @@ TEST_F(TransformationTestsF, ConvertShuffleChannelsLastAxis) {
     int64_t group = 4;
     auto ps = ::PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 12};
     function = buildInputGraph(-1, group, ps);
-    manager.register_pass<ngraph::pass::ConvertShuffleChannels3>();
+    manager.register_pass<ov::pass::ConvertShuffleChannels3>();
 
     auto input = std::make_shared<::opset3::Parameter>(::element::f32, ps);
 

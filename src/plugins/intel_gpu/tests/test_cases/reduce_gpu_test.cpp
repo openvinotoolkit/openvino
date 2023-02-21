@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/reduce.hpp>
 #include <intel_gpu/primitives/data.hpp>
+#include "reduce_inst.h"
 
 #include <cmath>
 #include <algorithm>
@@ -525,11 +526,11 @@ public:
         }
         topology.add(input_layout("input", input_mem->get_layout()));
         topology.add(red);
-        build_options options;
-        options.set_option(build_option::optimize_data(true));
-        implementation_desc reduce_impl = {input_format, kernel_name};
-        options.set_option(build_option::force_implementations({{"reduce", reduce_impl}}));
-        network network(engine, topology, options);
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        ov::intel_gpu::ImplementationDesc reduce_impl = {input_format, kernel_name};
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"reduce", reduce_impl}}));
+        network network(engine, topology, config);
         network.set_input_data("input", input_mem);
 
         network.execute();
@@ -1641,6 +1642,153 @@ TEST(reduce_gpu, common_bfwzyx_log_sum_exp_keepdims) {
     }
 }
 
+TEST(reduce_gpu, dynamic) {
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+
+    layout in_dyn_layout { ov::PartialShape::dynamic(6), data_types::f32, format::bfwzyx };
+
+    set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
+
+    topology topology;
+    topology.add(input_layout("input", in_dyn_layout));
+    topology.add(reduce("reduce", input_info("input"), reduce_mode::prod, {1, 2}, 1));
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto inst = network.get_primitive("reduce");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reduce");
+
+    auto output = outputs.at("reduce").get_memory();
+
+    std::vector<float> ref_data = {0.0f, 60.0f};
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < ref_data.size(); ++i) {
+        ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
+    }
+}
+
+TEST(reduce_gpu, b_fs_yx_fsv16_min_dynamic) {
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 17, 1, 2}});
+
+    set_values(input, {
+        1.0f, -1.0f,
+        2.0f, -2.0f,
+        3.0f, -3.0f,
+        4.0f, -4.0f,
+        5.0f, -5.0f,
+        6.0f, -6.0f,
+        7.0f, -7.0f,
+        8.0f, -8.0f,
+        9.0f, -9.0f,
+        8.0f, -8.0f,
+        7.0f, -7.0f,
+        6.0f, -6.0f,
+        5.0f, -5.0f,
+        4.0f, -4.0f,
+        3.0f, -3.0f,
+        2.0f, -2.0f,
+        1.0f, -1.0f
+    });
+
+    topology topology;
+    auto in_layout = layout(ov::PartialShape::dynamic(4), data_types::f32, format::bfyx);
+    const auto used_layout = layout({1, 17, 1, 2}, data_types::f32, format::b_fs_yx_fsv16);
+
+    topology.add(input_layout("input", in_layout));
+    topology.add(reorder("reorder", input_info("input"), used_layout));
+    topology.add(reduce("reduce", input_info("reorder"), reduce_mode::min, {1}, 0));
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reduce");
+
+    auto output = outputs.at("reduce").get_memory();
+
+    std::vector<float> ref_data = {1.0f, -9.0f};
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < ref_data.size(); ++i) {
+        ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
+    }
+}
+
+TEST(reduce_gpu, b_fs_yx_fsv16_max_dynamic) {
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 17, 1, 2}});
+
+    set_values(input, {
+        1.0f, -1.0f,
+        2.0f, -2.0f,
+        3.0f, -3.0f,
+        4.0f, -4.0f,
+        5.0f, -5.0f,
+        6.0f, -6.0f,
+        7.0f, -7.0f,
+        8.0f, -8.0f,
+        9.0f, -9.0f,
+        8.0f, -8.0f,
+        7.0f, -7.0f,
+        6.0f, -6.0f,
+        5.0f, -5.0f,
+        4.0f, -4.0f,
+        3.0f, -3.0f,
+        2.0f, -2.0f,
+        1.0f, -1.0f
+    });
+
+    topology topology;
+    auto in_layout = layout(ov::PartialShape::dynamic(4), data_types::f32, format::bfyx);
+    const auto used_layout = layout({1, 17, 1, 2}, data_types::f32, format::b_fs_yx_fsv16);
+
+    topology.add(input_layout("input", in_layout));
+    topology.add(reorder("reorder", input_info("input"), used_layout));
+    topology.add(reduce("reduce", input_info("reorder"), reduce_mode::max, {1}, 0)); 
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reduce");
+
+    auto output = outputs.at("reduce").get_memory();
+
+    std::vector<float> ref_data = {9.0f, -1.0f};
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < ref_data.size(); ++i) {
+        ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
+    }
+}
+
 template <data_types InputT, data_types OutputT>
 class ReduceXYWithBigTensorTestBase : public ::testing::TestWithParam<TestParamType_general_reduce_gpu> {
 protected:
@@ -1739,11 +1887,11 @@ public:
             }
             topology.add(input_layout("input", input_mem->get_layout()));
             topology.add(red);
-            build_options options;
-            options.set_option(build_option::optimize_data(true));
-            implementation_desc reduce_impl = {input_format, kernel_name};
-            options.set_option(build_option::force_implementations({{"reduce", reduce_impl}}));
-            network network(engine, topology, options);
+            ExecutionConfig config;
+            config.set_property(ov::intel_gpu::optimize_data(true));
+            ov::intel_gpu::ImplementationDesc reduce_impl = {input_format, kernel_name};
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"reduce", reduce_impl}}));
+            network network(engine, topology, config);
             network.set_input_data("input", input_mem);
 
             network.execute();
@@ -1816,7 +1964,7 @@ INSTANTIATE_TEST_SUITE_P(reduce_gpu_b_fs_yx_fsv16_xy_i8,
 template <data_types InputT, data_types OutputT>
 class ReduceOnednnTestBase : public ::testing::TestWithParam<TestParamType_general_reduce_gpu> {
 protected:
-    cldnn::engine& engine = get_onednn_test_engine();
+    cldnn::engine& engine = get_test_engine();
     int batch_num, input_f, input_w, input_z, input_y, input_x;
     cldnn::format input_format = format::any;
     cldnn::reduce_mode reduce_mode;
@@ -1893,11 +2041,12 @@ public:
         }
         topology.add(input_layout("input", input_mem->get_layout()));
         topology.add(red);
-        build_options options;
-        options.set_option(build_option::optimize_data(true));
-        implementation_desc reduce_impl = {input_format, kernel_name, impl_types::onednn};
-        options.set_option(build_option::force_implementations({{"reduce", reduce_impl}}));
-        network network(engine, topology, options);
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        ov::intel_gpu::ImplementationDesc reduce_impl = {input_format, kernel_name, impl_types::onednn};
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"reduce", reduce_impl}}));
+        config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+        network network(engine, topology, config);
         network.set_input_data("input", input_mem);
 
         network.execute();

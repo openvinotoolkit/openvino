@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ TEST_F(TransformationTestsF, ConvertPriorBox8To0) {
         auto prior_box = std::make_shared<opset8::PriorBox>(input, image, attrs);
 
         function = std::make_shared<Function>(NodeVector{prior_box}, ParameterVector{input, image});
-        manager.register_pass<pass::ConvertPriorBox8To0>();
+        manager.register_pass<ov::pass::ConvertPriorBox8To0>();
     }
 
     {
@@ -72,6 +72,6 @@ TEST_F(TransformationTestsF, ConvertPriorBox8To0_min_max_aspect_ratios_order) {
         auto prior_box = std::make_shared<opset8::PriorBox>(input, image, attrs);
 
         function = std::make_shared<Function>(NodeVector{prior_box}, ParameterVector{input, image});
-        manager.register_pass<pass::ConvertPriorBox8To0>();
+        manager.register_pass<ov::pass::ConvertPriorBox8To0>();
     }
 }

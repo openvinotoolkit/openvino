@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
@@ -49,6 +49,7 @@ from tests import (
     xfail_issue_90649,
     xfail_issue_91151,
     xfail_issue_91490,
+<<<<<<< HEAD
     xfail_issue_99949,
     xfail_issue_99950,
     xfail_issue_99952,
@@ -65,6 +66,9 @@ from tests import (
     xfail_issue_99970,
     xfail_issue_99972,
     xfail_issue_99973,
+=======
+    xfail_issue_101965,
+>>>>>>> upstream/master
 )
 from tests.test_onnx.utils.onnx_backend import OpenVinoTestBackend
 
@@ -199,11 +203,8 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_33595,
-        "OnnxBackendNodeModelTest.test_unique_not_sorted_without_axis_cpu",
         "OnnxBackendNodeModelTest.test_unique_sorted_with_negative_axis_cpu",
-        "OnnxBackendNodeModelTest.test_unique_sorted_with_axis_cpu",
         "OnnxBackendNodeModelTest.test_unique_sorted_with_axis_3d_cpu",
-        "OnnxBackendNodeModelTest.test_unique_sorted_without_axis_cpu",
     ),
     (
         xfail_issue_33651,
@@ -393,9 +394,6 @@ tests_expected_to_fail = [
         xfail_issue_90649,
         "OnnxBackendNodeModelTest.test_blackmanwindow_cpu",
         "OnnxBackendNodeModelTest.test_blackmanwindow_symmetric_cpu",
-        "OnnxBackendNodeModelTest.test_dft_axis_cpu",
-        "OnnxBackendNodeModelTest.test_dft_cpu",
-        "OnnxBackendNodeModelTest.test_dft_inverse_cpu",
         "OnnxBackendNodeModelTest.test_hammingwindow_cpu",
         "OnnxBackendNodeModelTest.test_hammingwindow_symmetric_cpu",
         "OnnxBackendNodeModelTest.test_hannwindow_cpu",
@@ -601,6 +599,11 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_split_2d_uneven_split_opset18_cpu",
         "OnnxBackendNodeModelTest.test_split_zero_size_splits_opset13_cpu",
         "OnnxBackendNodeModelTest.test_split_zero_size_splits_opset18_cpu",
+    ),
+        xfail_issue_101965,
+        "OnnxBackendNodeModelTest.test_dft_axis_cpu",
+        "OnnxBackendNodeModelTest.test_dft_cpu",
+        "OnnxBackendNodeModelTest.test_dft_inverse_cpu",
     ),
 ]
 

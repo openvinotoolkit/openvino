@@ -101,6 +101,7 @@ sudo apt-get install libpython3.7
 - [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/en-us/openvino-toolkit)
 - [OpenVINO™ Documentation](https://docs.openvino.ai/)
 - [OpenVINO™ Notebooks](https://github.com/openvinotoolkit/openvino_notebooks)
+- [OpenVINO Installation Selector Tool](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html)
 
 Copyright © 2018-2022 Intel Corporation
 > **LEGAL NOTICE**: Your use of this software and any required dependent software (the

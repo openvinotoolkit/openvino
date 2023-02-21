@@ -1,17 +1,17 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <gtest/gtest.h>
+#include <gmock/gmock-matchers.h>
 
 #include <string>
 
 #include <ie_data.h>
 #include <ie_input_info.hpp>
 #include <ie_blob.h>
-#include <ie_common.h>
 #include <ie_preprocess.hpp>
 #include "openvino/util/pp.hpp"
 

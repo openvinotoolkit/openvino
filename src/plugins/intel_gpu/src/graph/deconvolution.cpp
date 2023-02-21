@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "deconvolution_inst.h"
@@ -7,6 +7,8 @@
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
+
+#include "convolution_shape_inference.hpp"
 
 using namespace ov::intel_gpu;
 
@@ -93,6 +95,131 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node, ke
     return {data_type, out_fmt, output_size};
 }
 
+template<typename ShapeType>
+std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node const& node, const kernel_impl_params& impl_param) {
+    auto desc = impl_param.typed_desc<deconvolution>();
+
+    auto input_layout = impl_param.get_input_layout(0);
+    auto weights_layout = *impl_param.weights_layout;
+    weights_layout = weights_layout.convert_to_weights_layout(desc->grouped_weights_shape);
+
+    if (input_layout.is_dynamic())
+        return {layout{ShapeType::dynamic(input_layout.get<ShapeType>().rank()), input_layout.data_type, input_layout.format}};
+
+    auto input_type = input_layout.data_type;
+    auto output_type = input_type;
+    if ((input_type == data_types::i8 || input_type == data_types::u8) && !impl_param.has_fused_primitives()) {
+        output_type = data_types::f32;
+    }
+
+    if (impl_param.has_fused_primitives()) {
+        output_type = impl_param.get_fused_output_layout().data_type;
+    }
+
+    auto strides = desc->stride;
+    auto dilations = desc->dilations;
+    auto pads_begin = desc->pads_begin;
+    auto pads_end = desc->pads_end;
+    auto output_padding = desc->out_padding;
+    auto output_partial_shape = desc->output_partial_shape;
+
+    int32_t number_of_features = weights_layout.group() * weights_layout.ofm();
+
+    format out_fmt = input_layout.format;
+    if (node.get_preferred_impl_type() == impl_types::onednn && node.get_preferred_output_fmt() != format::any) {
+        out_fmt = node.get_preferred_output_fmt();
+    }
+
+    if (desc->with_output_size) {
+        CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
+                                       "User-defined output spatial X",
+                                       desc->output_size.spatial[0],
+                                       "value 0",
+                                       0,
+                                       "User-defined size of output layout must be positive (>= 1)");
+        CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
+                                       "User-defined output spatial Y",
+                                       desc->output_size.spatial[1],
+                                       "value 0",
+                                       0,
+                                       "User-defined size of output layout must be positive (>= 1)");
+        CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
+                                       "User-defined output spatial Z",
+                                       desc->output_size.spatial[2],
+                                       "value 0",
+                                       0,
+                                       "User-defined size of output layout must be positive (>= 1)");
+
+        tensor output_size(input_layout.batch(),
+                           number_of_features,
+                           desc->output_size.spatial[0],
+                           desc->output_size.spatial[1],
+                           desc->output_size.spatial[2]);
+        return {layout{output_type, out_fmt, output_size}};
+    }
+
+    std::vector<ShapeType> input_shapes = {
+        input_layout.get<ShapeType>()
+    };
+    std::vector<ShapeType> output_shapes = {ShapeType()};
+    auto& memory_deps = impl_param.memory_deps;
+    // Dimensions order of weights is IOYX, but the selected format is OIYX by default and I/O dimensions are
+    // already swapped when creating constant op. So we need to swap I/O dimensions according to the original
+    // dimension order for shape inference.
+    auto weights_pshape = weights_layout.get_partial_shape();
+    if (desc->groups > 1) {
+        ov::op::v1::GroupConvolutionBackpropData op;
+        op.set_strides(strides);
+        op.set_dilations(dilations);
+        op.set_output_padding(output_padding);
+        op.set_auto_pad(ov::op::PadType::EXPLICIT);
+        std::swap(weights_pshape[2], weights_pshape[1]);
+        input_shapes.push_back(weights_pshape);
+        if (output_partial_shape.size() != 0) {
+            ShapeType output_shape = ov::Shape{ output_partial_shape.size() };
+            input_shapes.push_back(output_shape);
+            ov::op::v1::shape_infer(&op, pads_begin, pads_end, output_partial_shape, input_shapes, output_shapes);
+        } else if (memory_deps.count(2)) {
+            auto mem = memory_deps.at(2);
+            std::vector<int64_t> dims = read_vector<int64_t>(mem, impl_param.prog->get_stream());
+            ov::Shape shape(dims.begin(), dims.end());
+            ov::PartialShape output_pshape(shape);
+            ShapeType output_shape = ov::Shape{ output_pshape.size() };
+            input_shapes.push_back(output_shape);
+            ov::op::v1::shape_infer(&op, pads_begin, pads_end, output_pshape, input_shapes, output_shapes);
+        } else {
+            ov::op::v1::shape_infer(&op, pads_begin, pads_end, ov::PartialShape{}, input_shapes, output_shapes);
+        }
+    } else {
+        ov::op::v1::ConvolutionBackpropData op;
+        op.set_strides(strides);
+        op.set_dilations(dilations);
+        op.set_output_padding(output_padding);
+        op.set_auto_pad(ov::op::PadType::EXPLICIT);
+        std::swap(weights_pshape[1], weights_pshape[0]);
+        input_shapes.push_back(weights_pshape);
+        if (output_partial_shape.size() != 0) {
+            ShapeType output_shape = ov::Shape{ output_partial_shape.size() };
+            input_shapes.push_back(output_shape);
+            ov::op::v1::shape_infer(&op, pads_begin, pads_end, output_partial_shape, input_shapes, output_shapes);
+        } else if (memory_deps.count(2)) {
+            auto mem = memory_deps.at(2);
+            std::vector<int64_t> dims = read_vector<int64_t>(mem, impl_param.prog->get_stream());
+            ov::Shape shape(dims.begin(), dims.end());
+            ov::PartialShape output_pshape(shape);
+            ShapeType output_shape = ov::Shape{ output_pshape.size() };
+            input_shapes.push_back(output_shape);
+            ov::op::v1::shape_infer(&op, pads_begin, pads_end, output_pshape, input_shapes, output_shapes);
+        } else {
+            ov::op::v1::shape_infer(&op, pads_begin, pads_end, ov::PartialShape{}, input_shapes, output_shapes);
+        }
+    }
+    return {layout{output_shapes[0], output_type, out_fmt.value}};
+}
+
+template std::vector<layout> deconvolution_inst::calc_output_layouts<ov::PartialShape>(deconvolution_node const& node,
+                                                                                       const kernel_impl_params& impl_param);
+
 std::string deconvolution_inst::to_string(deconvolution_node const& node) {
     auto desc = node.get_primitive();
     auto strd = desc->stride;
@@ -122,6 +249,8 @@ std::string deconvolution_inst::to_string(deconvolution_node const& node) {
 
 deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node const& node)
     : parent(network, node) {
+    if (node.is_dynamic())
+        return;
     auto stride = argument->stride;
     auto pad = argument->pad;
 

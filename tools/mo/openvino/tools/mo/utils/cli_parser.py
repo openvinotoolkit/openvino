@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -704,7 +704,11 @@ mo_convert_params = {
     'example_input': ParamDescription('Sample of model input in original framework. '
                                        'For PyTorch it can be torch.Tensor.', '', '', None),
     'onnx_opset_version': ParamDescription('Version of ONNX opset that is used for converting from PyTorch to ONNX.',
-                                           '', '', None)
+                                           '', '', None),
+    'input_signature': ParamDescription('PyTorch model forward method input signature, ' 
+                                        'will be detected automatically for torch.nn.Module based model instances, '
+                                        'for for scripted models may requires to set manually. Example of usage: for forward method defined as'
+                                        ' def forward(self, x, y), it will be ["x", "y"]', '', '', None)
     }
 }
 
@@ -723,9 +727,9 @@ class DeprecatedStoreTrue(argparse.Action):
 
 class DeprecatedOptionCommon(argparse.Action):
     def __call__(self, parser, args, values, option_string):
-       dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(option_string)
-       log.error(dep_msg, extra={'is_warning': True})
-       setattr(args, self.dest, values)
+        dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(option_string)
+        log.error(dep_msg, extra={'is_warning': True})
+        setattr(args, self.dest, values)
 
 
 class IgnoredAction(argparse.Action):
@@ -1025,19 +1029,6 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               help=mo_convert_params_common['transform'].description.format(
                                   mo_convert_params_common['transform'].possible_types_command_line),
                               default="")
-    common_group.add_argument('--disable_fusing',
-                              help='[DEPRECATED] Turn off fusing of linear operations to Convolution.',
-                              action=DeprecatedStoreTrue)
-    common_group.add_argument('--disable_resnet_optimization',
-                              help='[DEPRECATED] Turn off ResNet optimization.',
-                              action=DeprecatedStoreTrue, default=False)
-    common_group.add_argument('--finegrain_fusing',
-                              help='[DEPRECATED] Regex for layers/operations that won\'t be fused. ' +
-                                   'Example: --finegrain_fusing Convolution1,.*Scale.*',
-                              action=DeprecatedOptionCommon)
-    common_group.add_argument('--enable_concat_optimization',
-                              help='[DEPRECATED] Turn on Concat optimization.',
-                              action=DeprecatedStoreTrue, default=False)
     # we use CanonicalizeDirCheckExistenceAction instead of readable_dirs to handle empty strings
     common_group.add_argument("--extensions",
                               help=mo_convert_params_common['extensions'].description.format(
@@ -1067,9 +1058,6 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     common_group.add_argument('--static_shape',
                               help=mo_convert_params_common['static_shape'].description,
                               action='store_true', default=False)
-    common_group.add_argument('--disable_weights_compression',
-                              help='[DEPRECATED] Disable compression and store weights with original precision.',
-                              action=DeprecatedStoreTrue, default=False)
     common_group.add_argument('--progress',
                               help=mo_convert_params_common['progress'].description,
                               action='store_true', default=False)
@@ -1106,7 +1094,6 @@ def get_common_cli_options(model_name):
     d['scale_values'] = ['- Scale values', lambda x: x if x else 'Not specified']
     d['scale'] = ['- Scale factor', lambda x: x if x else 'Not specified']
     d['data_type'] = ['- Precision of IR', lambda x: 'FP32' if x == 'float' else 'FP16' if x == 'half' else x]
-    d['disable_fusing'] = ['- Enable fusing', lambda x: not x]
     d['transform'] = ['- User transformations', lambda x: x if x else 'Not specified']
     d['reverse_input_channels'] = '- Reverse input channels'
     d['static_shape'] = '- Enable IR generation for fixed input shape'
@@ -1126,7 +1113,6 @@ def get_caffe_cli_options():
         'input_proto': ['- Path to the Input prototxt', lambda x: x],
         'caffe_parser_path': ['- Path to Python Caffe* parser generated from caffe.proto', lambda x: x],
         'k': '- Path to CustomLayersMapping.xml',
-        'disable_resnet_optimization': ['- Enable resnet optimization', lambda x: not x],
     }
 
     return OrderedDict(sorted(d.items(), key=lambda t: t[0]))

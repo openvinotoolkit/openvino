@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,6 +58,9 @@ struct TestNode : public TestNodeBase {
 }  // namespace
 
 TEST(ConditionalCompilationTests, SimpleScopeAnalysys) {
+    auto func = SIMPLE_CCTests;
+    (void)func;
+
     int n = 0;
 
     OV_SCOPE(CCTests, Scope0) n = 42;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,10 +45,3 @@ public:
     OPENVINO_RTTI("Proposal4Scales", "0");
     Proposal4Scales();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::Proposal1Scales;
-using ov::pass::Proposal4Scales;
-}  // namespace pass
-}  // namespace ngraph

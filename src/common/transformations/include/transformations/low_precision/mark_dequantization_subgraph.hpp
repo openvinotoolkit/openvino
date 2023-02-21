@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ namespace pass {
 class TRANSFORMATIONS_API MarkDequantizationSubgraph : public MatcherPass {
 public:
     OPENVINO_RTTI("MarkDequantizationSubgraph", "0");
-    MarkDequantizationSubgraph(const element::TypeVector& precisions = {});
+    MarkDequantizationSubgraph(const element::TypeVector& precisions);
 };
 }  // namespace pass
 }  // namespace ov

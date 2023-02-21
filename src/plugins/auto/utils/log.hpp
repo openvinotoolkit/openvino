@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,7 +52,7 @@ inline int parseInteger(const char* str) {
     std::string var(str ? str : "");
     try {
         return std::stoi(var);
-    } catch (...) {
+    } catch (const std::exception&) {
         return INT32_MAX;
     }
 }

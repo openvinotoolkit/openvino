@@ -50,6 +50,25 @@ struct adaptive_pooling : public primitive_base<adaptive_pooling> {
     primitive_id indices_output;
     data_types index_element_type{data_types::i64};
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, mode);
+        seed = hash_combine(seed, index_element_type);
+        seed = hash_combine(seed, indices_output.empty());
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const adaptive_pooling>(rhs);
+
+        return mode == rhs_casted.mode &&
+               indices_output == rhs_casted.indices_output &&
+               index_element_type == rhs_casted.index_element_type;
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;

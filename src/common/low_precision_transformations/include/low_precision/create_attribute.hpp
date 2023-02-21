@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,6 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/variant.hpp>
 #include "low_precision/lpt_visibility.hpp"
 #include "low_precision/base_matcher_pass.hpp"
 #include "low_precision/lpt_itt.hpp"

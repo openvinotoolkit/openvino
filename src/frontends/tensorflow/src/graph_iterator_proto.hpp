@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,8 @@ class GraphIteratorProto : public GraphIterator {
     size_t node_index = 0;
     std::vector<std::shared_ptr<DecoderBase>> m_decoders;
     std::unordered_map<std::string, int> m_library_map;
+    std::vector<std::string> m_input_names;
+    std::vector<std::string> m_output_names;
 
 public:
     GraphIteratorProto(const std::shared_ptr<::tensorflow::GraphDef>& graph_def,
@@ -42,6 +44,7 @@ public:
         // they are not NodeDef so we use separate Decoder class
         for (int input_ind = 0; input_ind < input_size; ++input_ind) {
             auto input_arg = &m_func_def->signature().input_arg(input_ind);
+            m_input_names.push_back(input_arg->name());
             m_decoders.push_back(std::make_shared<DecoderArgDef>(input_arg, "input_arg"));
         }
 
@@ -55,6 +58,7 @@ public:
         // they are not NodeDef so we use separate Decoder class
         for (int output_ind = 0; output_ind < output_size; ++output_ind) {
             auto output_arg = &m_func_def->signature().output_arg(output_ind);
+            m_output_names.push_back(output_arg->name());
             auto producer_name = ret_map.at(output_arg->name());
             m_decoders.push_back(std::make_shared<DecoderArgDef>(output_arg, "output_arg", producer_name));
         }
@@ -121,6 +125,14 @@ public:
         }
 
         return nullptr;
+    }
+
+    std::vector<std::string> get_input_names() const override {
+        return m_input_names;
+    }
+
+    std::vector<std::string> get_output_names() const override {
+        return m_output_names;
     }
 };
 }  // namespace tensorflow

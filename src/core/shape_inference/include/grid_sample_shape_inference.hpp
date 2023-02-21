@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,15 +41,9 @@ void shape_infer(const GridSample* op, const std::vector<shape_t>& input_shapes,
         if (data_shape.rank().is_static()) {
             NODE_VALIDATION_CHECK(
                 op,
-                data_shape[0].compatible(grid_shape[0]),
+                shape_t::value_type::merge(batch_dim, grid_shape[0], data_shape[0]),
                 "The batch dimension in the input data tensor's shape doesn't match the batch dimension in "
                 "the grid tensor's shape.");
-
-            // both dimensions should match but use the one which is (possibly) static for the output shape
-            if (data_shape[0].is_static()) {
-                batch_dim = data_shape[0];
-            }
-
             channel_dim = data_shape[1];
         }
     } else if (data_shape.rank().is_static()) {
