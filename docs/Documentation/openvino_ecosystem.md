@@ -7,14 +7,12 @@
    :hidden:
 
    ovtf_integration
-   ote_documentation
    ovsa_get_started
    openvino_inference_engine_tools_compile_tool_README
    openvino_docs_tuning_utilities
    workbench_docs_Workbench_DG_Introduction
 
 @endsphinxdirective
-
 
 
 OpenVINO™ is not just one tool. It is an expansive ecosystem of utilities, providing a comprehensive workflow for deep learning solution development. Learn more about each of them to reach the full potential of OpenVINO™ Toolkit.
@@ -58,7 +56,7 @@ More resources:
 * [Docker Hub](https://hub.docker.com/r/openvino/workbench)
 * [PyPI](https://pypi.org/project/openvino-workbench/)
 
-### OpenVINO™ Training Extensions (OTE)
+### OpenVINO™ Training Extensions (OTX)
 A convenient environment to train Deep Learning models and convert them using the OpenVINO™ toolkit for optimized inference.
 
 More resources:
