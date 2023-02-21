@@ -21,7 +21,7 @@ and their attributes. Examples of such methods and functions are:
    * `node.insert_node_after(n1, y)`,
    * `create_edge(n1, n2)`
 
-   **There are some `Node` class methods not recommended for use and some functions defined in the `mo.graph.graph` have been deprecated**. For more details, refer to the `mo/graph/graph.py` file. 
+   **There are some "Node" class methods not recommended for use and some functions defined in the mo.graph.graph have been deprecated**. For more details, refer to the `mo/graph/graph.py` file. 
 
 3. The high-level API called Model Optimizer Graph API, which uses `mo.graph.graph.Graph`, `mo.graph.port.Port` and
 `mo.graph.connection.Connection` classes. For example, the following methods belong to this API level:
