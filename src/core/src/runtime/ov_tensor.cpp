@@ -193,7 +193,7 @@ void Tensor::copy_to(ov::Tensor& dst) const {
                     // In case of default continuous strides we can copy several elements
                     // In other case only one element
                     size_t dim = 1;
-                    size_t strides = 1;
+                    size_t strides = type.size();
 
                     if (strides_size < default_strides.size()) {
                         strides = default_strides[strides_size];

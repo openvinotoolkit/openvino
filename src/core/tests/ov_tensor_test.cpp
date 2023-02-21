@@ -328,12 +328,19 @@ TEST_F(OVTensorTest, copy_to_empty) {
 
 TEST_F(OVTensorTest, copy_to_strided_dst) {
     ov::Tensor full_tensor{ov::element::i32, {3, 2, 2}};
-    ov::Tensor dst_tensor{ov::element::i32, {3, 4, 8}};
     {
         const auto origPtr = full_tensor.data<int32_t>();
         ASSERT_NE(nullptr, origPtr);
         for (size_t i = 0; i < full_tensor.get_size(); ++i) {
             origPtr[i] = static_cast<int32_t>(i);
+        }
+    }
+    ov::Tensor dst_tensor{ov::element::i32, {3, 4, 8}};
+    {
+        const auto origPtr = dst_tensor.data<int32_t>();
+        ASSERT_NE(nullptr, origPtr);
+        for (size_t i = 0; i < dst_tensor.get_size(); ++i) {
+            origPtr[i] = static_cast<int32_t>(-1);
         }
     }
     ov::Tensor with_strides{ov::element::i32, ov::Shape{3, 2, 2}, dst_tensor.data(), ov::Strides{32 * 4, 6 * 4, 2 * 4}};
@@ -346,9 +353,9 @@ TEST_F(OVTensorTest, copy_to_strided_dst) {
         auto strides = with_strides.get_strides();
         size_t i = 0;
         for (auto&& c : ngraph::CoordinateTransformBasic{with_strides.get_shape()}) {
-            auto actual = *(roi + (c[2] * strides[2] + c[1] * strides[1] + c[0] * strides[0]) /
-                                      with_strides.get_element_type().size());
-            ASSERT_EQ(actual, expected[i]);
+            auto idx =
+                (c[2] * strides[2] + c[1] * strides[1] + c[0] * strides[0]) / with_strides.get_element_type().size();
+            EXPECT_EQ(roi[idx], expected[i]);
             i++;
         }
     }
@@ -356,13 +363,20 @@ TEST_F(OVTensorTest, copy_to_strided_dst) {
 
 TEST_F(OVTensorTest, copy_to_roi_dst_simple) {
     ov::Tensor full_tensor{ov::element::i32, {3, 4, 4}};
-    ov::Tensor src_tensor{full_tensor, {0, 2, 0}, {3, 4, 2}};
-    ov::Tensor dst_tensor{ov::element::i32, {3, 2, 2}};
     {
         const auto origPtr = full_tensor.data<int32_t>();
         ASSERT_NE(nullptr, origPtr);
         for (size_t i = 0; i < full_tensor.get_size(); ++i) {
             origPtr[i] = static_cast<int32_t>(i);
+        }
+    }
+    ov::Tensor src_tensor{full_tensor, {0, 2, 0}, {3, 4, 2}};
+    ov::Tensor dst_tensor{ov::element::i32, {3, 2, 2}};
+    {
+        const auto origPtr = dst_tensor.data<int32_t>();
+        ASSERT_NE(nullptr, origPtr);
+        for (size_t i = 0; i < dst_tensor.get_size(); ++i) {
+            origPtr[i] = static_cast<int32_t>(-1);
         }
     }
     EXPECT_EQ(src_tensor.get_shape(), dst_tensor.get_shape());
@@ -393,13 +407,20 @@ TEST_F(OVTensorTest, copy_to_roi_dst_simple) {
 
 TEST_F(OVTensorTest, copy_to_roi_dst_roi) {
     ov::Tensor full_tensor{ov::element::i32, {3, 4, 4}};
-    ov::Tensor src_tensor{full_tensor, {0, 2, 0}, {3, 4, 2}};
-    ov::Tensor dst_tensor{ov::element::i32, {3, 4, 8}};
     {
         const auto origPtr = full_tensor.data<int32_t>();
         ASSERT_NE(nullptr, origPtr);
         for (size_t i = 0; i < full_tensor.get_size(); ++i) {
             origPtr[i] = static_cast<int32_t>(i);
+        }
+    }
+    ov::Tensor src_tensor{full_tensor, {0, 2, 0}, {3, 4, 2}};
+    ov::Tensor dst_tensor{ov::element::i32, {3, 4, 8}};
+    {
+        const auto origPtr = dst_tensor.data<int32_t>();
+        ASSERT_NE(nullptr, origPtr);
+        for (size_t i = 0; i < dst_tensor.get_size(); ++i) {
+            origPtr[i] = static_cast<int32_t>(-1);
         }
     }
     ov::Tensor with_strides{ov::element::i32, ov::Shape{3, 2, 2}, dst_tensor.data(), ov::Strides{32 * 4, 6 * 4, 2 * 4}};
