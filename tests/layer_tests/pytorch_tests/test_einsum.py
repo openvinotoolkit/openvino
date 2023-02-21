@@ -26,7 +26,7 @@ class TestEinsumBatchMatMul(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_eiinsum_batch_matmul(self, ie_device, precision, ir_version):
+    def test_einsum_batch_matmul(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version)
 
 
@@ -51,7 +51,7 @@ class TestEinsumBatchDiagonal(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.xfail(reason='OpenVINO CPU plugin does not support einsum diagonal')
-    def test_eiinsum_batch_diagonal(self, ie_device, precision, ir_version):
+    def test_einsum_batch_diagonal(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version, dynamic_shapes=False)
 
 
@@ -75,7 +75,7 @@ class TestEinsumInnerProd(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_eiinsum_inner_prod(self, ie_device, precision, ir_version):
+    def test_einsum_inner_prod(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version)
 
 
@@ -99,5 +99,5 @@ class TestEinsumTranspose(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_eiinsum_transpose(self, ie_device, precision, ir_version):
+    def test_einsum_transpose(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version)
