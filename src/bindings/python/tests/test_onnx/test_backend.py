@@ -49,7 +49,6 @@ from tests import (
     xfail_issue_90649,
     xfail_issue_91151,
     xfail_issue_91490,
-<<<<<<< HEAD
     xfail_issue_99949,
     xfail_issue_99950,
     xfail_issue_99952,
@@ -60,15 +59,12 @@ from tests import (
     xfail_issue_99959,
     xfail_issue_99960,
     xfail_issue_99961,
-    xfail_issue_99962,
     xfail_issue_99968,
     xfail_issue_99969,
     xfail_issue_99970,
     xfail_issue_99972,
     xfail_issue_99973,
-=======
     xfail_issue_101965,
->>>>>>> upstream/master
 )
 from tests.test_onnx.utils.onnx_backend import OpenVinoTestBackend
 
@@ -600,6 +596,7 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_split_zero_size_splits_opset13_cpu",
         "OnnxBackendNodeModelTest.test_split_zero_size_splits_opset18_cpu",
     ),
+    (
         xfail_issue_101965,
         "OnnxBackendNodeModelTest.test_dft_axis_cpu",
         "OnnxBackendNodeModelTest.test_dft_cpu",
