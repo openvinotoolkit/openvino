@@ -53,6 +53,7 @@
 #include "request/worker_pool_impl.hpp"
 #include "runtime/gna_float_runtime.hpp"
 #include "scale_factor_helper.hpp"
+#include "serial/gna_model_serial.hpp"
 
 using namespace ov::intel_gna::ngraph_util;
 
