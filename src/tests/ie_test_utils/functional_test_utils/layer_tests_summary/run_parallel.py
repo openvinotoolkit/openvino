@@ -400,7 +400,7 @@ class TestParallelRunner:
                 test_name = None
                 test_log = list()
                 dir = None
-                ref_k = 0
+                ref_k = None
                 test_cnt_expected = test_cnt_real_saved_now = test_cnt_real_saved_before = 0
                 for line in log_file.readlines():
                     if constants.GTEST_FILTER in line:
@@ -431,9 +431,9 @@ class TestParallelRunner:
                                     test_results[dir] += 1
                                 else:
                                     test_results[dir] = 1
-                                if dir != "passed":
+                                if dir != "passed" and ref_k != None:
                                     fix_priority.append((ref_k, test_name))
-                                ref_k = 0
+                                ref_k = None
                                 test_cnt_real_saved_now += 1
                                 test_name = None
                                 test_log = list()
