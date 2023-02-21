@@ -1,9 +1,10 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <threading/ie_cpu_streams_executor.hpp>
 #include <functional>
 #include <memory>
 
@@ -18,7 +19,7 @@ public:
     virtual bool is_stopped() = 0;
     virtual void cancel() = 0;
 
-    static std::unique_ptr<ICompilationContext> create(InferenceEngine::CPUStreamsExecutor::Ptr task_executor);
+    static std::unique_ptr<ICompilationContext> create(InferenceEngine::CPUStreamsExecutor::Config task_executor_config);
 };
 
 }  // namespace cldnn

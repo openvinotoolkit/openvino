@@ -312,7 +312,9 @@ private:
     void cleanup();
     void transfer_memory_to_device();
 
+    InferenceEngine::CPUStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags = "") const;
     std::shared_ptr<InferenceEngine::CPUStreamsExecutor> make_task_executor(const ExecutionConfig& config) const;
+
     /*
     ** Analysis functions
     */

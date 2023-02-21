@@ -162,6 +162,7 @@ program::program(engine& engine)
       }
 
 program::~program() {
+    _compilation_context->cancel();
     query_local_block_io_supported();
 }
 
@@ -170,9 +171,9 @@ void program::prepare_tools() {
     _task_executor = make_task_executor(_config);
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
-    _compilation_context = ICompilationContext::create(_task_executor);
+    _compilation_context = ICompilationContext::create(make_task_executor_config(_config,
+                                                            "Task executor config for CompilationContext in GPU plugin"));
     _impls_cache = cldnn::make_unique<ImplementationsCache>(_impls_cache_capacity);
-
     // Remove items of compilation context's internal queue when some impl is popped in kernels_cache
     // compilation context's queue check duplication of inserted task
     _impls_cache->set_remove_item_callback([this](size_t key) {
@@ -213,8 +214,8 @@ static void adjust_num_cores(InferenceEngine::CPUStreamsExecutor::Config& config
     config._streams = std::min(config._streams, num_cores);
 }
 
-std::shared_ptr<InferenceEngine::CPUStreamsExecutor> program::make_task_executor(const ExecutionConfig& config) const {
-    InferenceEngine::CPUStreamsExecutor::Config task_executor_config("CPU Tasks executor for GPU plugin", 1);
+InferenceEngine::CPUStreamsExecutor::Config program::make_task_executor_config(const ExecutionConfig& config, std::string tags) const {
+    InferenceEngine::CPUStreamsExecutor::Config task_executor_config(tags, 1);
     task_executor_config._streams = config.get_property(ov::compilation_num_threads);
     auto priority = config.get_property(ov::intel_gpu::hint::host_task_priority);
     switch (priority) {
@@ -226,6 +227,11 @@ std::shared_ptr<InferenceEngine::CPUStreamsExecutor> program::make_task_executor
 
     adjust_num_cores(task_executor_config);
 
+    return task_executor_config;
+}
+
+std::shared_ptr<InferenceEngine::CPUStreamsExecutor> program::make_task_executor(const ExecutionConfig& config) const {
+    InferenceEngine::CPUStreamsExecutor::Config task_executor_config = make_task_executor_config(config, "CPU Tasks executor for GPU plugin");
     return std::make_shared<InferenceEngine::CPUStreamsExecutor>(task_executor_config);
 }
 
