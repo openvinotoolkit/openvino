@@ -35,7 +35,7 @@ public:
      * @param config Stream executor parameters
      */
     explicit CPUStreamsExecutor(const Config& config = {});
-    explicit CPUStreamsExecutor(const ov::IStreamsExecutor::Config& config = {});
+    explicit CPUStreamsExecutor(const ov::IStreamsExecutor::Config& config);
 
     /**
      * @brief A class destructor

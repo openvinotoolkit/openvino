@@ -143,7 +143,6 @@ using ov::with_cpu_x86_avx512_core_amx_bf16;
 using ov::with_cpu_x86_avx512_core_amx;
 
 /**
- * @enum       column_of_processor_type_table
  * @brief      This enum contains defination of each columns in processor type table which bases on cpu core types. Will
  * extend to support other CPU core type like ARM.
  *
@@ -163,7 +162,6 @@ using ov::with_cpu_x86_avx512_core_amx;
 using ov::column_of_processor_type_table;
 
 /**
- * @enum       column_of_cpu_mapping_table
  * @brief      This enum contains defination of each columns in CPU mapping table which use processor id as index.
  *
  * GROUP_ID is generated according to the following rules.
