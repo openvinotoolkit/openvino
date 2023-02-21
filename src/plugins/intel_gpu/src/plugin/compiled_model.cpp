@@ -317,14 +317,6 @@ IInferRequestInternal::Ptr CompiledModel::CreateInferRequest() {
                                                _callbackExecutor);
 }
 
-bool CompiledModel::is_serializable() {
-    // Dynamic model serialization is not yet supported.
-    if (m_graphs[0]->GetNetwork()->is_dynamic())
-        return false;
-
-    return true;
-}
-
 // Cache blob format:
 //     [ ConstInputsDataMap / ConstOutputsDataMap ]
 //     [ ov::Node::Input/ ov::Node::Output ]
@@ -333,9 +325,6 @@ void CompiledModel::Export(std::ostream& networkModel) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::Export");
     if (m_graphs.empty())
         IE_THROW(NetworkNotLoaded);
-
-    if (!is_serializable())
-        return;
 
     cldnn::BinaryOutputBuffer ob(networkModel);
 
