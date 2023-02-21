@@ -404,7 +404,7 @@ public:
     }
 
     std::vector<StaticShape> infer(const std::vector<StaticShape>& input_shapes,
-                                   const ITensorAccessor& tensor_accessor) override {
+                                   const ov::ITensorAccessor& tensor_accessor) override {
         return shape_infer(static_cast<TOp*>(m_node.get()), input_shapes, tensor_accessor);
     }
 

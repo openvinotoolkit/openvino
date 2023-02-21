@@ -6,9 +6,9 @@
 
 namespace ov {
 template <>
-auto TensorAccessor<TensorVector>::operator()(size_t idx) const -> const ITensorDataAdapter* {
-    if (idx < m_tensors->size()) {
-        m_adapter.m_ptr = &(*m_tensors)[idx];
+const ITensorDataAdapter* TensorAccessor<TensorVector>::operator()(size_t port) const {
+    if (port < m_tensors->size()) {
+        m_adapter.m_ptr = &(*m_tensors)[port];
         return &m_adapter;
     } else {
         return nullptr;
@@ -16,9 +16,9 @@ auto TensorAccessor<TensorVector>::operator()(size_t idx) const -> const ITensor
 }
 
 template <>
-auto TensorAccessor<HostTensorVector>::operator()(size_t idx) const -> const ITensorDataAdapter* {
-    if (idx < m_tensors->size()) {
-        m_adapter.m_ptr = (*m_tensors)[idx].get();
+const ITensorDataAdapter* TensorAccessor<HostTensorVector>::operator()(size_t port) const {
+    if (port < m_tensors->size()) {
+        m_adapter.m_ptr = (*m_tensors)[port].get();
         return &m_adapter;
     } else {
         return nullptr;
@@ -26,8 +26,8 @@ auto TensorAccessor<HostTensorVector>::operator()(size_t idx) const -> const ITe
 }
 
 template <>
-auto TensorAccessor<std::map<size_t, HostTensorPtr>>::operator()(size_t idx) const -> const ITensorDataAdapter* {
-    const auto t_iter = m_tensors->find(idx);
+const ITensorDataAdapter* TensorAccessor<std::map<size_t, HostTensorPtr>>::operator()(size_t port) const {
+    const auto t_iter = m_tensors->find(port);
     if (t_iter != m_tensors->cend()) {
         m_adapter.m_ptr = t_iter->second.get();
         return &m_adapter;

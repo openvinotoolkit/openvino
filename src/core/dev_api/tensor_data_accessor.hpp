@@ -9,7 +9,8 @@
 namespace ov {
 
 /** @brief Interface for data accessor. */
-struct OPENVINO_API ITensorAccessor {
+class OPENVINO_API ITensorAccessor {
+public:
     /**
      * @brief Get tensor adapter at index
      *
@@ -17,6 +18,8 @@ struct OPENVINO_API ITensorAccessor {
      * @return      Constant pointer to tensor adapter interface.
      */
     virtual auto operator()(size_t port) const -> const ITensorDataAdapter* = 0;
+
+    virtual ~ITensorAccessor() = default;
 };
 
 /**
@@ -54,7 +57,8 @@ inline auto null_tensor_accessor() -> const ITensorAccessor& {
  * @tparam TContainer Type of tensor container.
  */
 template <class TContainer>
-struct OPENVINO_API TensorAccessor : public ITensorAccessor {
+class OPENVINO_API TensorAccessor : public ITensorAccessor {
+public:
     /**
      * @brief Construct a new Tensor Accessor object for tensors container.
      *
@@ -77,13 +81,13 @@ private:
 };
 
 template <>
-auto TensorAccessor<TensorVector>::operator()(size_t port) const -> const ITensorDataAdapter*;
+OPENVINO_API const ITensorDataAdapter* TensorAccessor<TensorVector>::operator()(size_t port) const;
 
 template <>
-auto TensorAccessor<HostTensorVector>::operator()(size_t port) const -> const ITensorDataAdapter*;
+OPENVINO_API const ITensorDataAdapter* TensorAccessor<HostTensorVector>::operator()(size_t port) const;
 
 template <>
-auto TensorAccessor<std::map<size_t, HostTensorPtr>>::operator()(size_t port) const -> const ITensorDataAdapter*;
+OPENVINO_API const ITensorDataAdapter* TensorAccessor<std::map<size_t, HostTensorPtr>>::operator()(size_t port) const;
 
 /**
  * @brief Makes TensorAccessor for specific tensor container.
