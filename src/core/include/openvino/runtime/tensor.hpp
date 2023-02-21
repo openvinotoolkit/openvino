@@ -166,7 +166,7 @@ public:
     /**
      * @brief Reports whether the tensor is continuous or not
      *
-     * @return true if blob is continuous
+     * @return true if tensor is continuous
      */
     bool is_continuous() const;
 

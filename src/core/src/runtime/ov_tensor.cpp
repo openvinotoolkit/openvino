@@ -144,17 +144,15 @@ void Tensor::copy_to(ov::Tensor& dst) const {
     const auto& shape = get_shape();
     auto* src_data = static_cast<const uint8_t*>(data());
     auto* dst_data = static_cast<uint8_t*>(dst.data());
-    size_t tensor_size = ov::shape_size(get_shape());
-    ov::Strides src_strides{1};
-    ov::Strides dst_strides{1};
+    ov::Strides src_strides{get_byte_size()};
+    ov::Strides dst_strides{dst.get_byte_size()};
     ov::Shape cur_pos{0};
     ov::Shape max_pos{1};
-    size_t step(1);
 
     if (get_element_type().bitwidth() < 8 || (get_strides() == dst.get_strides() && is_continuous())) {
         // OpenVINO doesn't support strides for LP types
         // or both tensors have default strides
-        step = tensor_size * get_element_type().size();
+        // Strides and positions already initialized
     } else {
         // Tensors have default strides
         const auto& type = get_element_type();
@@ -186,56 +184,60 @@ void Tensor::copy_to(ov::Tensor& dst) const {
                     continue;
                 } else {
                     found_step = true;
-                    size_t strides_size = inverted_idx + 2;
-                    if (i != 0)
-                        // Take step from previous stride
-                        step = default_strides[strides_size];
+                    size_t strides_size = inverted_idx + 1;
                     // Set right size
-                    src_str.resize(strides_size);
-                    dst_str.resize(strides_size);
-                    max_pos.resize(strides_size);
-                    cur_pos.resize(strides_size);
+                    src_str.resize(strides_size + 1);
+                    dst_str.resize(strides_size + 1);
+                    max_pos.resize(strides_size + 1);
+                    cur_pos.resize(strides_size + 1);
+                    // In case of default continuous strides we can copy several elements
+                    // In other case only one element
+                    size_t dim = 1;
+                    size_t strides = 1;
 
-                    src_str[inverted_idx + 1] = step;
-                    src_str[inverted_idx + 1] = step;
-                    max_pos[inverted_idx + 1] = 1;
-                    cur_pos[inverted_idx + 1] = 0;
+                    if (strides_size < default_strides.size()) {
+                        strides = default_strides[strides_size];
+                        dim = get_shape()[strides_size];
+                    }
+                    src_str[strides_size] = strides;
+                    dst_str[strides_size] = strides;
+                    max_pos[strides_size] = dim;
+                    cur_pos[strides_size] = 0;
                 }
             }
             src_str[inverted_idx] = src_strides[inverted_idx];
-            src_str[inverted_idx] = src_strides[inverted_idx];
+            dst_str[inverted_idx] = dst_strides[inverted_idx];
             max_pos[inverted_idx] = shape[inverted_idx];
             cur_pos[inverted_idx] = 0;
         }
+        src_strides = src_str;
+        dst_strides = dst_str;
     }
 
     const auto update_index = [](const ov::Shape& pos, const ov::Shape& shape, const ov::Strides& strides) {
-        ov::Shape off_v = pos;
-        size_t size = pos.size(), offset = 0;
+        size_t offset = 0;
 
-        for (size_t i = 1; i <= size; i++) {
-            size_t blocked_shift = off_v[size - i] % shape[size - i];
-            off_v[size - i] /= shape[size - i];
-            offset += blocked_shift * strides[size - i];
+        for (size_t i = 0; i < pos.size(); i++) {
+            offset += pos[i] * strides[i];
         }
         return offset;
     };
 
-    const auto& update_pos = [](ov::Shape& cur_pos, const ov::Shape& max_pos) {
+    bool finish = false;
+    for (size_t dst_idx = 0, src_idx = 0; !finish;) {
+        memcpy(dst_data + dst_idx, src_data + src_idx, src_strides[src_strides.size() - 1]);
+        // update indexes
         for (size_t i = 0; i < cur_pos.size(); i++) {
             size_t inverted_idx = cur_pos.size() - i - 1;
             cur_pos[inverted_idx]++;
             if (cur_pos[inverted_idx] != max_pos[inverted_idx]) {
                 break;
             }
-            cur_pos[inverted_idx] = 0;
+            if (inverted_idx)
+                cur_pos[inverted_idx] = 0;
+            else
+                finish = true;
         }
-    };
-
-    for (size_t dst_idx = 0, src_idx = 0; dst_idx < tensor_size && src_idx < tensor_size;) {
-        memcpy(dst_data + dst_idx, src_data + src_idx, step);
-        // update indexes
-        update_pos(cur_pos, max_pos);
         src_idx = update_index(cur_pos, max_pos, src_strides);
         dst_idx = update_index(cur_pos, max_pos, dst_strides);
     }

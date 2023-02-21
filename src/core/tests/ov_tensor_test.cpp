@@ -303,3 +303,128 @@ TEST_F(OVTensorTest, readRangeRoiBlob) {
         }
     }
 }
+
+TEST_F(OVTensorTest, copy_to_empty) {
+    ov::Tensor full_tensor{ov::element::i32, {1, 3, 4, 8}};
+    {
+        const auto origPtr = full_tensor.data<int32_t>();
+        ASSERT_NE(nullptr, origPtr);
+        for (size_t i = 0; i < full_tensor.get_size(); ++i) {
+            origPtr[i] = static_cast<int32_t>(i);
+        }
+    }
+    ov::Tensor empty_tensor{ov::element::i32, {0}};
+    full_tensor.copy_to(empty_tensor);
+    EXPECT_EQ(empty_tensor.get_shape(), full_tensor.get_shape());
+    EXPECT_TRUE(empty_tensor.is_continuous());
+    {
+        const auto data = empty_tensor.data<int32_t>();
+        ASSERT_NE(nullptr, data);
+        for (size_t i = 0; i < empty_tensor.get_size(); ++i) {
+            EXPECT_EQ(data[i], static_cast<int32_t>(i));
+        }
+    }
+}
+
+TEST_F(OVTensorTest, copy_to_strided_dst) {
+    ov::Tensor full_tensor{ov::element::i32, {3, 2, 2}};
+    ov::Tensor dst_tensor{ov::element::i32, {3, 4, 8}};
+    {
+        const auto origPtr = full_tensor.data<int32_t>();
+        ASSERT_NE(nullptr, origPtr);
+        for (size_t i = 0; i < full_tensor.get_size(); ++i) {
+            origPtr[i] = static_cast<int32_t>(i);
+        }
+    }
+    ov::Tensor with_strides{ov::element::i32, ov::Shape{3, 2, 2}, dst_tensor.data(), ov::Strides{32 * 4, 6 * 4, 2 * 4}};
+    full_tensor.copy_to(with_strides);
+    EXPECT_FALSE(with_strides.is_continuous());
+    {
+        const int32_t* expected = full_tensor.data<const int32_t>();
+        const int32_t* roi = with_strides.data<const int32_t>();
+        ASSERT_NE(nullptr, roi);
+        auto strides = with_strides.get_strides();
+        size_t i = 0;
+        for (auto&& c : ngraph::CoordinateTransformBasic{with_strides.get_shape()}) {
+            auto actual = *(roi + (c[2] * strides[2] + c[1] * strides[1] + c[0] * strides[0]) /
+                                      with_strides.get_element_type().size());
+            ASSERT_EQ(actual, expected[i]);
+            i++;
+        }
+    }
+}
+
+TEST_F(OVTensorTest, copy_to_roi_dst_simple) {
+    ov::Tensor full_tensor{ov::element::i32, {3, 4, 4}};
+    ov::Tensor src_tensor{full_tensor, {0, 2, 0}, {3, 4, 2}};
+    ov::Tensor dst_tensor{ov::element::i32, {3, 2, 2}};
+    {
+        const auto origPtr = full_tensor.data<int32_t>();
+        ASSERT_NE(nullptr, origPtr);
+        for (size_t i = 0; i < full_tensor.get_size(); ++i) {
+            origPtr[i] = static_cast<int32_t>(i);
+        }
+    }
+    EXPECT_EQ(src_tensor.get_shape(), dst_tensor.get_shape());
+    src_tensor.copy_to(dst_tensor);
+    EXPECT_FALSE(src_tensor.is_continuous());
+    EXPECT_TRUE(dst_tensor.is_continuous());
+    {
+        const auto fill_data = [](const ov::Tensor& tensor) {
+            std::vector<int32_t> actual;
+            const int32_t* data = tensor.data<int32_t>();
+            auto strides = tensor.get_strides();
+            for (auto&& c : ngraph::CoordinateTransformBasic{tensor.get_shape()}) {
+                actual.emplace_back(*(data + (c[2] * strides[2] + c[1] * strides[1] + c[0] * strides[0]) /
+                                                 tensor.get_element_type().size()));
+            }
+            return actual;
+        };
+        auto source_vec = fill_data(src_tensor);
+        auto dest_vec = fill_data(dst_tensor);
+
+        ASSERT_EQ(source_vec.size(), dest_vec.size());
+
+        for (size_t i = 0; i < source_vec.size(); i++) {
+            EXPECT_EQ(source_vec[i], dest_vec[i]);
+        }
+    }
+}
+
+TEST_F(OVTensorTest, copy_to_roi_dst_roi) {
+    ov::Tensor full_tensor{ov::element::i32, {3, 4, 4}};
+    ov::Tensor src_tensor{full_tensor, {0, 2, 0}, {3, 4, 2}};
+    ov::Tensor dst_tensor{ov::element::i32, {3, 4, 8}};
+    {
+        const auto origPtr = full_tensor.data<int32_t>();
+        ASSERT_NE(nullptr, origPtr);
+        for (size_t i = 0; i < full_tensor.get_size(); ++i) {
+            origPtr[i] = static_cast<int32_t>(i);
+        }
+    }
+    ov::Tensor with_strides{ov::element::i32, ov::Shape{3, 2, 2}, dst_tensor.data(), ov::Strides{32 * 4, 6 * 4, 2 * 4}};
+    EXPECT_EQ(src_tensor.get_shape(), with_strides.get_shape());
+    src_tensor.copy_to(with_strides);
+    EXPECT_FALSE(src_tensor.is_continuous());
+    EXPECT_FALSE(with_strides.is_continuous());
+    {
+        const auto fill_data = [](const ov::Tensor& tensor) {
+            std::vector<int32_t> actual;
+            const int32_t* data = tensor.data<int32_t>();
+            auto strides = tensor.get_strides();
+            for (auto&& c : ngraph::CoordinateTransformBasic{tensor.get_shape()}) {
+                actual.emplace_back(*(data + (c[2] * strides[2] + c[1] * strides[1] + c[0] * strides[0]) /
+                                                 tensor.get_element_type().size()));
+            }
+            return actual;
+        };
+        auto source_vec = fill_data(src_tensor);
+        auto dest_vec = fill_data(with_strides);
+
+        ASSERT_EQ(source_vec.size(), dest_vec.size());
+
+        for (size_t i = 0; i < source_vec.size(); i++) {
+            EXPECT_EQ(source_vec[i], dest_vec[i]);
+        }
+    }
+}
