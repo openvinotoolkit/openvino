@@ -91,10 +91,6 @@ public:
     void set_auto_pad(const PadType& auto_pad) {
         m_auto_pad = auto_pad;
     }
-    /// \return The default value for Convolution.
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    std::shared_ptr<Node> get_default_value() const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
 protected:
     Strides m_strides;
