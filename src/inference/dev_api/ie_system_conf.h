@@ -153,7 +153,7 @@ INFERENCE_ENGINE_API_CPP(void) set_cpu_used(std::vector<int> cpu_ids, int used);
  * @param[in]  plugin_task plugin task.
  * @return     Number of CPU cores with core_type.
  */
-INFERENCE_ENGINE_API_CPP(std::vector<std::vector<int>>) get_num_available_cpu_cores(const int plugin_task);
+INFERENCE_ENGINE_API_CPP(std::vector<std::vector<int>>) get_num_available_cpu_cores(const int plugin_task = -1);
 
 /**
  * @brief      Returns corresponding logical cores

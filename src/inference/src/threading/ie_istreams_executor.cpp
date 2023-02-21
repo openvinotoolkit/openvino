@@ -435,29 +435,36 @@ IStreamsExecutor::Config IStreamsExecutor::Config::SetExecutorConfig(std::string
     if (cpu_map_available()) {
         if (name.find("CPU") == std::string::npos) {
             streamExecutorConfig._logic_core_disable = true;
-            streamExecutorConfig._plugin_task = GPU_PRE_USED;
+            if (name.find("GPU") != std::string::npos) {
+                streamExecutorConfig._plugin_task = GPU_PRE_USED;
+            }
         }
-        streamExecutorConfig._threads = num_streams;
+        const auto proc_type_table = get_num_available_cpu_cores();
+        streamExecutorConfig._threads = streamExecutorConfig._streams;
         streamExecutorConfig._threadBindingType = thread_binding_type;
         streamExecutorConfig._threadPreferredCoreType = thread_core_type;
         if (streamExecutorConfig._threadBindingType == CORES) {
             streamExecutorConfig._bind_cores = true;
         }
         if (streamExecutorConfig._threadPreferredCoreType == LITTLE) {
-            streamExecutorConfig._small_core_streams = num_streams;
+            streamExecutorConfig._small_core_streams = std::min(num_streams, proc_type_table[0][EFFICIENT_CORE_PROC]);
             streamExecutorConfig._threads_per_stream_small = 1;
         } else {
-            streamExecutorConfig._big_core_streams = num_streams;
+            streamExecutorConfig._big_core_streams = std::min(num_streams, proc_type_table[0][MAIN_CORE_PROC]);
             streamExecutorConfig._threads_per_stream_big = 1;
         }
-        if (streamExecutorConfig._bind_cores && streamExecutorConfig._plugin_task > 0) {
+        if (streamExecutorConfig._bind_cores) {
             auto core_type =
                 streamExecutorConfig._threadPreferredCoreType == LITTLE ? EFFICIENT_CORE_PROC : MAIN_CORE_PROC;
             auto num_cores = streamExecutorConfig._threadPreferredCoreType == LITTLE
                                  ? streamExecutorConfig._small_core_streams
                                  : streamExecutorConfig._big_core_streams;
             auto cpu_ids = get_available_cpus(core_type, num_cores);
-            set_cpu_used(cpu_ids, GPU_PRE_USED);
+            if (cpu_ids.size() == 0) {
+                streamExecutorConfig._bind_cores = false;
+            } else {
+                set_cpu_used(cpu_ids, streamExecutorConfig._plugin_task);
+            }
         }
     }
     OPENVINO_DEBUG << "[ " << name << " SetExecutorConfig ] streams: " << num_streams

@@ -282,8 +282,6 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
             streams = static_cast<int>(getAvailableNUMANodes().size());
         } else if (perf_hint_name == CONFIG_VALUE(THROUGHPUT)) {
             streams = 0;
-        } else if (perf_hint_name.empty()) {
-            streams = streams > 1 ? streams : 0;
         }
         const auto common_hints = getNumStreams(streams);
 
