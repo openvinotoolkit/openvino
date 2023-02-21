@@ -10,14 +10,23 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs one_hot_v2(const NodeContext& node) {
-    auto data = node.get_input("x"); 
-    auto classes = node.get_attribute<int>("num_classes");
-    auto depth = default_opset::Constant::create(element::i32, {}, {classes});
-    auto on_value = default_opset::Constant::create(element::i32, {}, {0});
-    auto off_value = default_opset::Constant::create(element::i32, {}, {1});
+    auto data = node.get_input("X");
+    Output<Node> depth;
+    if (node.has_attribute("depth")) {
+        auto depth_value = node.get_attribute<int>("depth");
+        depth = default_opset::Constant::create(element::i32, Shape{}, {depth_value});
+    } else {
+        bool t = node.has_input("depth_tensor");
+        PADDLE_OP_CHECK(node, !t, "depth/num_class could only be scalar!");
+        auto axis = default_opset::Constant::create(element::i32, Shape{}, {1});
+        auto max = std::make_shared<default_opset::ReduceMax>(node.get_input("depth_tensor"), axis, false);
+        depth = default_opset::Constant::create(element::i32, Shape{}, {5});
+    }
+    auto on_value = default_opset::Constant::create(element::f32, Shape{}, {1});
+    auto off_value = default_opset::Constant::create(element::f32, Shape{}, {0});
     const auto indices_axis = 1;
-    auto one_hot = std::make_shared<default_opset::OneHot>(data, depth, on_value, off_value, indices_axis);
-    return node.default_single_output_mapping({one_hot}, {"Out"});
+    auto result = std::make_shared<default_opset::OneHot>(data, depth, on_value, off_value, indices_axis);
+    return node.default_single_output_mapping({result}, {"Out"});
 }
 }  // namespace op
 }  // namespace paddle
