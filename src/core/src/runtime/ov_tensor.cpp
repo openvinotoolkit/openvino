@@ -9,6 +9,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "runtime/blob_allocator.hpp"
+#include "shape_util.hpp"
 
 namespace ov {
 
@@ -40,7 +41,7 @@ Tensor::Tensor(const element::Type element_type, const Shape& shape, const Alloc
     auto blob_allocator =
         (allocator_impl != nullptr) ? allocator_impl->_impl : std::make_shared<ie::BlobAllocator>(allocator._impl);
     _impl = make_blob_with_precision(
-        {ie::details::convertPrecision(element_type), shape, ie::TensorDesc::getLayoutByRank(shape.size())},
+        {ie::details::convertPrecision(element_type), shape, ie::TensorDesc::getLayoutByDims(shape)},
         blob_allocator);
     _impl->allocate();
 }
@@ -98,11 +99,18 @@ element::Type Tensor::get_element_type() const {
 }
 
 void Tensor::set_shape(const ov::Shape& shape) {
-    OV_TENSOR_STATEMENT(_impl->setShape({shape.begin(), shape.end()}));
+    // WA for tensor conversion from host tensor with dynamic shape.
+    if (util::is_dynamic_shape(get_shape())) {
+        _impl = make_blob_with_precision(
+            {_impl->getTensorDesc().getPrecision(), shape, ie::TensorDesc::getLayoutByRank(shape.size())});
+        _impl->allocate();
+    } else {
+        OV_TENSOR_STATEMENT(_impl->setShape({shape.begin(), shape.end()}));
+    }
 }
 
 Shape Tensor::get_shape() const {
-    OV_TENSOR_STATEMENT({ return _impl->getTensorDesc().getDims(); });
+    OV_TENSOR_STATEMENT({ return _impl->getTensorDesc().getBlockingDesc().getBlockDims(); });
 }
 
 Strides Tensor::get_strides() const {
@@ -163,6 +171,27 @@ bool Tensor::operator!() const noexcept {
 
 Tensor::operator bool() const noexcept {
     return (!!_impl);
+}
+
+bool Tensor::is_continuous() const {
+    if (get_element_type().bitwidth() < 8)
+        // OpenVINO doesn't support strides for lp types
+        return true;
+    const auto& shape = get_shape();
+    const auto& type = get_element_type();
+    std::vector<size_t> strides(shape.size());
+    if (!shape.empty()) {
+        strides[shape.size() - 1] = 1;
+    }
+    auto size = shape.size();
+    for (size_t i = 1; i < size; i++) {
+        strides[size - i - 1] = strides[size - i] * shape[size - i];
+    }
+
+    ov::Strides byte_strides(strides.size());
+    for (size_t i = 0; i < strides.size(); ++i)
+        byte_strides[i] = strides[i] * type.size();
+    return byte_strides == get_strides();
 }
 
 }  // namespace ov

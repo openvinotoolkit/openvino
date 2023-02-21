@@ -8,14 +8,15 @@
 #include "openvino/op/subtract.hpp"
 #include "utils.hpp"
 
-using namespace ov::op;
-
 namespace ov {
 namespace frontend {
 namespace pytorch {
 namespace op {
 
+using namespace ov::op;
+
 OutputVector translate_sub(NodeContext& context) {
+    num_inputs_check(context, 2, 3);
     auto x = context.get_input(0);
     auto y = context.get_input(1);
     align_eltwise_input_types(context, x, y);

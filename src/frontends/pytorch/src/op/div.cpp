@@ -18,6 +18,7 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_div(NodeContext& context) {
+    num_inputs_check(context, 2, 3);
     auto x = context.get_input(0);
     auto y = context.get_input(1);
     std::string rounding_mode = "";

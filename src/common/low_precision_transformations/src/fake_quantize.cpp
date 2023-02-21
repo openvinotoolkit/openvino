@@ -179,8 +179,8 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
 
         inputLowConst_f32 = fold<opset1::Divide>(inputLowConst_f32, value);
         inputHighConst_f32 = fold<opset1::Divide>(inputHighConst_f32, value);
-        if (!NetworkHelper::checkConstantOnInf(inputLowConst_f32) ||
-            !NetworkHelper::checkConstantOnInf(inputHighConst_f32)) {
+        if (!NetworkHelper::checkConstantNotInf(inputLowConst_f32) ||
+            !NetworkHelper::checkConstantNotInf(inputHighConst_f32)) {
             return nullptr;
         }
 

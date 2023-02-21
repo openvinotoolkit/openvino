@@ -1,9 +1,41 @@
-﻿
-### Attached licenses
+# OpenVINO Intel GPU Plugin
+
+GPU plugin in [OpenVINO toolkit](https://github.com/openvinotoolkit/openvino) supports inference on Intel® GPUs starting from Gen8 architecture.
+
+## Key Contacts
+
+Please contact a member of [openvino-ie-gpu-maintainers](https://github.com/orgs/openvinotoolkit/teams/openvino-ie-gpu-maintainers) group, for assistance regarding GPU.
+
+## Components
+
+GPU Plugin contains the following components:
+
+* [docs](./docs/) - developer documentation pages for the component.
+* [include](./include/) - public API.
+* [src](./src/) - sources of the component.
+* [tests](./tests/) - tests for OpenVINO Plugin component.
+* [thirdparty](./thirdparty/) - third-party modules.
+
+## Tutorials
+
+* [Source code structure](./docs/source_code_structure.md)
+  * [Basic data structures of gpu graph and overall flow](./docs/basic_data_structures.md)
+  * [Memory allocation in GPU plugin](./docs/memory_allocation_gpu_plugin.md)
+* [Simplified workflow](./docs/simplified_workflow.md)
+  * [Graph Optimization Passes](./docs/graph_optimization_passes.md)
+  * [Execution of Inference](./docs/execution_of_inference.md)
+* [Memory formats](./docs/gpu_memory_formats.md)
+* [Kernels and kernel selectors](./docs/gpu_kernels.md)
+* [GPU plugin operations enabling flow](./docs/gpu_plugin_ops_enabling.md)
+* [Debug utils](./docs/gpu_debug_utils.md)
+* [OpenCL Runtime issues troubleshooting](./docs/gpu_plugin_driver_troubleshooting.md)
+* [GPU plugin unit test](./docs/gpu_plugin_unit_test.md)
+
+## Attached licenses
 GPU plugin uses 3<sup>rd</sup>-party components licensed under following licenses:
-- *googletest* under [Google\* License](https://github.com/google/googletest/blob/master/googletest/LICENSE)
-- *OpenCL™ ICD and C++ Wrapper* under [Khronos™ License](https://github.com/KhronosGroup/OpenCL-CLHPP/blob/master/LICENSE.txt)
-- *RapidJSON* under [Tencent\* License](https://github.com/Tencent/rapidjson/blob/master/license.txt)
+- *googletest* under [Google License](https://github.com/google/googletest/blob/master/googletest/LICENSE)
+- *OpenCL™ ICD and C++ Wrapper under [Khronos™ License](https://github.com/KhronosGroup/OpenCL-CLHPP/blob/master/LICENSE.txt)
+- *RapidJSON* under [Tencent License](https://github.com/Tencent/rapidjson/blob/master/license.txt)
 
 ## Support
 Please report issues and suggestions
@@ -32,9 +64,9 @@ GPU plugin requires CPU with Intel® SSE/Intel® AVX support.
 ---
 
 The software dependencies are:
-- [CMake\*](https://cmake.org/download/) 3.5 or later
+- [CMake](https://cmake.org/download/) 3.5 or later
 - C++ compiler with C++11 standard support compatible with:
-    * GNU\* Compiler Collection 4.8 or later
+    * GNU Compiler Collection 4.8 or later
     * clang 3.5 or later
     * [Intel® C++ Compiler](https://software.intel.com/en-us/intel-parallel-studio-xe) 17.0 or later
     * Visual C++ 2015 (MSVC++ 19.0) or later
@@ -43,7 +75,7 @@ The software dependencies are:
 
 - [python™](https://www.python.org/downloads/) 3.7 or later.
 
-# Trademark Information
+## Trademark Information
 
 Intel, the Intel logo, Intel Atom, Intel Core, Intel Xeon Phi, Iris, OpenVINO,
 the OpenVINO logo, Pentium, VTune, and Xeon are trademarks
@@ -59,3 +91,10 @@ OpenCL and the OpenCL logo are trademarks of Apple Inc. used by permission
 by Khronos.
 
 Copyright © 2021, Intel Corporation
+
+## See also
+
+ * [OpenVINO™ README](../../../README.md)
+ * [OpenVINO Core Components](../../README.md)
+ * [OpenVINO Plugins](../README.md)
+ * [Developer documentation](../../../docs/dev/index.md)
