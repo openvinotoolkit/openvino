@@ -12,7 +12,7 @@
 #include <memory>
 #include <string>
 
-#include "openvino/core/core_visibility.hpp"
+#include "openvino/runtime/common.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace ov {
@@ -22,7 +22,7 @@ namespace ov {
  * @brief Minimal interface for variable state implementation
  * @ingroup ov_dev_api_variable_state_api
  */
-class OPENVINO_API IVariableState : public std::enable_shared_from_this<IVariableState> {
+class OPENVINO_RUNTIME_API IVariableState : public std::enable_shared_from_this<IVariableState> {
 public:
     explicit IVariableState(const std::string& name);
 
