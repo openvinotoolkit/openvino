@@ -39,7 +39,7 @@ TEST(GatherSinkingTransposeReshape, ForwardSinking) {
 
     std::shared_ptr<Model> orig_function = function->clone();
     ov::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::intel_gna::pass::GatherSinkingTransposeReshapeForward>();
     manager.run_passes(function);
     ASSERT_NO_THROW(check_rt_info(function));
@@ -95,7 +95,7 @@ TEST(GatherSinkingTransposeReshape, BackwardSinking) {
 
     std::shared_ptr<Model> orig_function = function->clone();
     ov::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::intel_gna::pass::GatherSinkingTransposeReshapeBackward>();
     manager.run_passes(function);
     ASSERT_NO_THROW(check_rt_info(function));
@@ -151,7 +151,7 @@ TEST(GatherSinkingTransposeReshape, ForwardSinkingNoSinkOnes) {
 
     std::shared_ptr<Model> orig_function = function->clone();
     ov::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::intel_gna::pass::GatherSinkingTransposeReshapeForward>();
     manager.run_passes(function);
     ASSERT_NO_THROW(check_rt_info(function));
@@ -180,7 +180,7 @@ TEST(GatherSinkingTransposeReshape, ForwardSinkingNoSinkNot2d) {
 
     std::shared_ptr<Model> orig_function = function->clone();
     ov::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::intel_gna::pass::GatherSinkingTransposeReshapeForward>();
     manager.run_passes(function);
     ASSERT_NO_THROW(check_rt_info(function));
@@ -209,7 +209,7 @@ TEST(GatherSinkingTransposeReshape, BackwardSinkingNoSinkOnes) {
 
     std::shared_ptr<Model> orig_function = function->clone();
     ov::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::intel_gna::pass::GatherSinkingTransposeReshapeBackward>();
     manager.run_passes(function);
     ASSERT_NO_THROW(check_rt_info(function));
@@ -238,7 +238,7 @@ TEST(GatherSinkingTransposeReshape, BackwardSinkingNoSinkNot2d) {
 
     std::shared_ptr<Model> orig_function = function->clone();
     ov::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::intel_gna::pass::GatherSinkingTransposeReshapeBackward>();
     manager.run_passes(function);
     ASSERT_NO_THROW(check_rt_info(function));
