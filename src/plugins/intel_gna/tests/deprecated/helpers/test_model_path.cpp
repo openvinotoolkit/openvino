@@ -6,7 +6,7 @@
 // Created by user on 19.10.18.
 //
 
-#include "test_model_repo.hpp"
+#include "helpers/test_model_repo.hpp"
 #include "test_model_path.hpp"
 
 #ifndef _WIN32
