@@ -63,7 +63,7 @@ public:
     void SetUp() override {
         set_api_entity();
         auto test_name = this->GetTestName();
-        k = test_name.find("_req") != std::string::npos ? 1 : 0;
+        k = test_name.find("_mandatory") != std::string::npos || test_name.find("mandatory_") != std::string::npos ? 1 : 0;
         std::cout << "[ CONFORMANCE ] Influence coefficient: " << k << std::endl;
         api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::CRASHED, k);
 #ifdef _WIN32
