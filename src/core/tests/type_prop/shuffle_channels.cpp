@@ -41,7 +41,7 @@ TEST(type_prop, shuffle_channels_dynamic_4D) {
 
     EXPECT_EQ(shuffle_channels->get_element_type(), element::f32);
     EXPECT_EQ(shuffle_channels->get_output_partial_shape(0), data_input_shape);
-    EXPECT_THAT(get_shape_labels(shuffle_channels->get_output_partial_shape(0)), ElementsAre(10, 11, 12, 13));
+    EXPECT_THAT(get_shape_labels(shuffle_channels->get_output_partial_shape(0)), ElementsAre(10, ov::no_label, 12, 13));
 }
 
 TEST(type_prop, shuffle_channels_dynamic_fully) {
