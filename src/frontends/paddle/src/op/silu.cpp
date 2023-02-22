@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset6.hpp"
 
@@ -10,7 +11,6 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs rilu(const NodeContext& node) {
-    // rilu = \frac{x}{1+e^{-x}}
     auto data = node.get_input("X");
     auto one = default_opset::Constant::create(data.get_element_type(), data.get_shape(), {1});
     auto neg = std::make_shared<ov::opset6::Negative>(data);
