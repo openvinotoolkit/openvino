@@ -28,7 +28,7 @@ public:
     ~InferRequest();
 
     void infer() override;
-    std::vector<ov::VariableState> query_state() const override;
+    std::vector<std::shared_ptr<ov::IVariableState>> query_state() const override;
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
     // pipeline methods-stages which are used in async infer request implementation and assigned to particular executor

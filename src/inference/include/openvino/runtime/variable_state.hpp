@@ -16,13 +16,13 @@
 #include "openvino/runtime/tensor.hpp"
 
 namespace InferenceEngine {
-class IVariableStateInternal;
 class IAsyncInferRequestWrapper;
 }  // namespace InferenceEngine
 
 namespace ov {
 
 class InferRequest;
+class IVariableState;
 class IInferRequestInternalWrapper;
 
 /**
@@ -30,7 +30,7 @@ class IInferRequestInternalWrapper;
  * @ingroup ov_runtime_cpp_api
  */
 class OPENVINO_RUNTIME_API VariableState {
-    std::shared_ptr<InferenceEngine::IVariableStateInternal> _impl;
+    std::shared_ptr<ov::IVariableState> _impl;
     std::vector<std::shared_ptr<void>> _so;
 
     /**
@@ -39,8 +39,7 @@ class OPENVINO_RUNTIME_API VariableState {
      * @param so Optional: plugin to use. This is required to ensure that VariableState can work properly even if a
      * plugin object is destroyed.
      */
-    VariableState(const std::shared_ptr<InferenceEngine::IVariableStateInternal>& impl,
-                  const std::vector<std::shared_ptr<void>>& so);
+    VariableState(const std::shared_ptr<ov::IVariableState>& impl, const std::vector<std::shared_ptr<void>>& so);
 
     friend class ov::InferRequest;
     friend class ov::IInferRequestInternalWrapper;

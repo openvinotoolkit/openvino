@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -87,7 +88,7 @@ public:
      * State control essential for recurrent models.
      * @return Vector of Variable State objects.
      */
-    virtual std::vector<ov::VariableState> query_state() const = 0;
+    virtual std::vector<std::shared_ptr<ov::IVariableState>> query_state() const = 0;
 
     /**
      * @brief Gets pointer to compiled model (usually synchronous request holds the compiled model)
