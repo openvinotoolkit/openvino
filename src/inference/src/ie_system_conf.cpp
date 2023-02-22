@@ -6,9 +6,14 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
+#include <iostream>
+#include <map>
 #include <vector>
 
+#include "ie_common.h"
 #include "openvino/core/visibility.hpp"
+#include "streams_executor.hpp"
 #include "threading/ie_parallel_custom_arena.hpp"
 
 #define XBYAK_NO_OP_NAMES
@@ -201,5 +206,215 @@ std::vector<int> getAvailableCoresTypes() {
     return {-1};
 }
 #endif
+
+struct CPU {
+    int _processors = 0;
+    int _sockets = 0;
+    int _cores = 0;
+
+    std::vector<std::vector<int>> _proc_type_table;
+    std::vector<std::vector<int>> _cpu_mapping_table;
+
+    CPU() {
+#ifdef _WIN32
+        DWORD len = 0;
+        if (GetLogicalProcessorInformationEx(RelationAll, nullptr, &len) ||
+            GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
+            return;
+        }
+
+        std::shared_ptr<char> base_shared_ptr(new char[len]);
+        char* base_ptr = base_shared_ptr.get();
+        if (!GetLogicalProcessorInformationEx(RelationAll, (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)base_ptr, &len)) {
+            return;
+        }
+
+        _processors = GetMaximumProcessorCount(ALL_PROCESSOR_GROUPS);
+
+        parse_processor_info_win(base_ptr, len, _processors, _sockets, _cores, _proc_type_table, _cpu_mapping_table);
+#else
+        std::vector<std::vector<std::string>> system_info_table;
+
+        auto GetCatchInfoLinux = [&]() {
+            _processors = sysconf(_SC_NPROCESSORS_ONLN);
+            system_info_table.resize(_processors, std::vector<std::string>(3));
+
+            for (int n = 0; n < _processors; n++) {
+                for (int m = 0; m < 3; m++) {
+                    int Ln = (m == 0) ? m : m + 1;
+
+                    std::ifstream cache_file("/sys/devices/system/cpu/cpu" + std::to_string(n) + "/cache/index" +
+                                             std::to_string(Ln) + "/shared_cpu_list");
+                    if (!cache_file.is_open()) {
+                        return -1;
+                    }
+                    std::string cache_info;
+                    std::getline(cache_file, cache_info);
+                    system_info_table[n][m] += cache_info;
+                }
+            }
+            return 0;
+        };
+
+        if (!GetCatchInfoLinux()) {
+            parse_processor_info_linux(_processors,
+                                       system_info_table,
+                                       _sockets,
+                                       _cores,
+                                       _proc_type_table,
+                                       _cpu_mapping_table);
+        } else {
+            /*Previous CPU resource based on calculation*/
+            std::ifstream cpuinfo("/proc/cpuinfo");
+            std::vector<int> processors;
+            std::map<int, int> sockets;
+            int socketId = 0;
+            while (!cpuinfo.eof()) {
+                std::string line;
+                std::getline(cpuinfo, line);
+                if (line.empty())
+                    continue;
+                auto delimeter = line.find(':');
+                auto key = line.substr(0, delimeter);
+                auto value = line.substr(delimeter + 1);
+                if (0 == key.find("processor")) {
+                    processors.emplace_back(std::stoi(value));
+                }
+                if (0 == key.find("physical id")) {
+                    socketId = std::stoi(value);
+                }
+                if (0 == key.find("cpu cores")) {
+                    sockets[socketId] = std::stoi(value);
+                }
+            }
+            _processors = processors.size();
+            _sockets = sockets.size();
+            for (auto&& socket : sockets) {
+                _cores += socket.second;
+            }
+            if (_cores == 0) {
+                _cores = _processors;
+            }
+        }
+        std::vector<std::vector<std::string>>().swap(system_info_table);
+#endif
+    }
+};
+static CPU cpu;
+
+#ifndef _WIN32
+int getNumberOfCPUCores(bool bigCoresOnly) {
+    unsigned numberOfProcessors = cpu._processors;
+    unsigned totalNumberOfCpuCores = cpu._cores;
+    IE_ASSERT(totalNumberOfCpuCores != 0);
+    cpu_set_t usedCoreSet, currentCoreSet, currentCpuSet;
+    CPU_ZERO(&currentCpuSet);
+    CPU_ZERO(&usedCoreSet);
+    CPU_ZERO(&currentCoreSet);
+
+    sched_getaffinity(0, sizeof(currentCpuSet), &currentCpuSet);
+
+    for (unsigned processorId = 0u; processorId < numberOfProcessors; processorId++) {
+        if (CPU_ISSET(processorId, &currentCpuSet)) {
+            unsigned coreId = processorId % totalNumberOfCpuCores;
+            if (!CPU_ISSET(coreId, &usedCoreSet)) {
+                CPU_SET(coreId, &usedCoreSet);
+                CPU_SET(processorId, &currentCoreSet);
+            }
+        }
+    }
+    int phys_cores = CPU_COUNT(&currentCoreSet);
+#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+    auto core_types = custom::info::core_types();
+    if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
+        phys_cores = custom::info::default_concurrency(
+            custom::task_arena::constraints{}.set_core_type(core_types.back()).set_max_threads_per_core(1));
+    }
+#endif
+    return phys_cores;
+}
+#endif
+
+std::vector<std::vector<int>> get_num_available_cpu_cores(const int plugin_task) {
+    std::vector<std::vector<int>> proc_type_table;
+    std::vector<int> all_table;
+
+    if (plugin_task < 0) {
+        proc_type_table = cpu._proc_type_table;
+    } else {
+        if (cpu._sockets == 1) {
+            proc_type_table.resize(1, std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
+        } else {
+            proc_type_table.resize(2, std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
+        }
+        all_table.resize(PROC_TYPE_TABLE_SIZE, 0);
+        for (int i = 0; i < cpu._processors; i++) {
+            if (cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] == NOT_USED) {
+                proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID]]
+                               [cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE]]++;
+                proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID]][ALL_PROC]++;
+                all_table[cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE]]++;
+                all_table[ALL_PROC]++;
+            }
+        }
+        if (cpu._sockets > 1) {
+            proc_type_table.insert(proc_type_table.begin(), all_table);
+        }
+    }
+    return proc_type_table;
+}
+
+bool cpu_map_available() {
+    return cpu._cpu_mapping_table.size() > 0;
+}
+
+std::vector<int> get_available_cpus(const column_of_processor_type_table core_type,
+                                    const int num_cpus,
+                                    const int plugin_task) {
+    std::vector<int> cpu_ids;
+    if (core_type < PROC_TYPE_TABLE_SIZE && core_type >= ALL_PROC) {
+        for (int i = 0; i < cpu._processors; i++) {
+            if (cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == core_type &&
+                cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] == plugin_task) {
+                cpu_ids.push_back(cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
+            }
+            if (static_cast<int>(cpu_ids.size()) == num_cpus) {
+                break;
+            }
+        }
+    } else {
+        IE_THROW() << "Wrong value for core_type " << core_type;
+    }
+    return cpu_ids;
+}
+
+std::vector<int> get_logic_cores(const std::vector<int> cpu_ids) {
+    std::vector<int> logic_cores;
+    if (cpu._proc_type_table[0][HYPER_THREADING_PROC] > 0) {
+        int cpu_size = static_cast<int>(cpu_ids.size());
+        for (int i = 0; i < cpu._processors; i++) {
+            for (int j = 0; j < cpu_size; j++) {
+                if (cpu._cpu_mapping_table[i][CPU_MAP_CORE_ID] == cpu._cpu_mapping_table[cpu_ids[j]][CPU_MAP_CORE_ID] &&
+                    cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID] != cpu_ids[j]) {
+                    logic_cores.push_back(cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
+                }
+            }
+            if (cpu_ids.size() == logic_cores.size()) {
+                break;
+            }
+        }
+    }
+
+    return logic_cores;
+}
+
+void set_cpu_used(std::vector<int> cpu_ids, int used) {
+    const auto cpu_size = static_cast<int>(cpu_ids.size());
+    for (int i = 0; i < cpu_size; i++) {
+        if (cpu_ids[i] < cpu._processors) {
+            cpu._cpu_mapping_table[cpu_ids[i]][CPU_MAP_USED_FLAG] = used;
+        }
+    }
+}
 
 }  // namespace InferenceEngine
