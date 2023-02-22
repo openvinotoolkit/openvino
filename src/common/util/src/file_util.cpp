@@ -26,8 +26,10 @@
 /// @brief Get absolute file path, returns NULL in case of error
 #    define get_absolute_path(result, path) _fullpath(result, path.c_str(), MAX_ABS_PATH)
 /// @brief Windows-specific 'stat' wrapper
-#    define stat  _stat
-#    define wstat _wstat
+#    define stat _stat
+#    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#        define wstat _wstat
+#    endif
 /// @brief Windows-specific 'mkdir' wrapper
 #    define makedir(dir) _mkdir(dir)
 // Copied from linux libc sys/stat.h:
@@ -404,18 +406,20 @@ bool ov::util::directory_exists(const std::string& path) {
     return false;
 }
 
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 bool ov::util::directory_exists(const std::wstring& path) {
-#ifdef _WIN32
+#    ifdef _WIN32
     struct stat sb;
 
     if (wstat(path.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode)) {
         return true;
     }
     return false;
-#else
+#    else
     return directory_exists(wstring_to_string(path));
-#endif
+#    endif
 }
+#endif
 
 namespace {
 

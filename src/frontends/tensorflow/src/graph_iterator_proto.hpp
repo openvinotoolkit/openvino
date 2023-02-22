@@ -14,6 +14,7 @@
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/tensorflow/decoder.hpp"
 #include "openvino/frontend/tensorflow/graph_iterator.hpp"
+#include "openvino/util/file_util.hpp"
 #include "saved_model.pb.h"
 
 namespace ov {
@@ -162,6 +163,23 @@ public:
 
 struct SMBlock;
 
+template <typename T>
+std::basic_string<T> getSMName() {}
+template <typename T>
+std::basic_string<T> getVIName() {}
+
+template <>
+std::basic_string<char> getSMName<char>();
+template <>
+std::basic_string<char> getVIName<char>();
+
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+template <>
+std::basic_string<wchar_t> getSMName<wchar_t>();
+template <>
+std::basic_string<wchar_t> getVIName<wchar_t>();
+#endif
+
 // Loads graph from Tensorflow Saved Model file (saved_model.pb)
 class GraphIteratorSavedModel : public GraphIteratorProto {
     std::shared_ptr<::tensorflow::SavedModel> m_saved_model;
@@ -178,16 +196,16 @@ public:
     }
 
     static bool isSavedModel(const std::string& path);
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     static bool isSavedModel(const std::wstring& path);
+#endif
 
 private:
     bool isValidSignature(const ::tensorflow::SignatureDef& signature);
     bool readVariables(std::ifstream& vi_stream, const std::string& path);
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     bool readVariables(std::ifstream& vi_stream, const std::wstring& path);
-    template <typename T>
-    std::basic_string<T> getSMName() {}
-    template <typename T>
-    std::basic_string<T> getVIName() {}
+#endif
 
     template <typename T>
     bool readSavedModel(const std::basic_string<T>& path) {
@@ -241,23 +259,6 @@ private:
         }
 
         return true;
-    }
-
-    template <>
-    std::basic_string<char> getSMName<char>() {
-        return "/saved_model.pb";
-    }
-    template <>
-    std::basic_string<wchar_t> getSMName<wchar_t>() {
-        return L"/saved_model.pb";
-    }
-    template <>
-    std::basic_string<char> getVIName<char>() {
-        return "/variables/variables.index";
-    }
-    template <>
-    std::basic_string<wchar_t> getVIName<wchar_t>() {
-        return L"/variables/variables.index";
     }
 
     // Internal implementation of saved model reading

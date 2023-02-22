@@ -9,7 +9,6 @@
 #include <string>
 
 #include "graph_iterator_proto.hpp"
-#include "openvino/util/file_util.hpp"
 #include "tensor_bundle.pb.h"
 #include "trackable_object_graph.pb.h"
 
@@ -233,7 +232,7 @@ bool GraphIteratorSavedModel::readVariables(std::ifstream& vi_stream, const std:
 
     std::vector<char> suffix(20);
     for (int32_t shard = 0; shard < totalShards; ++shard) {
-        sprintf_s(suffix.data(), suffix.size(), "data-%05d-of-%05d", shard, totalShards);
+        std::snprintf(suffix.data(), suffix.size(), "data-%05d-of-%05d", shard, totalShards);
         std::string fullPath = ov::util::path_join({path, "variables", std::string("variables.") + suffix.data()});
         dataFiles[shard] =
             std::shared_ptr<std::ifstream>(new std::ifstream(fullPath, std::ifstream::in | std::ifstream::binary));
@@ -244,6 +243,7 @@ bool GraphIteratorSavedModel::readVariables(std::ifstream& vi_stream, const std:
     return true;
 }
 
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 bool GraphIteratorSavedModel::readVariables(std::ifstream& vi_stream, const std::wstring& path) {
     varIndex.clear();
     readVarIndex(vi_stream, varIndex);
@@ -262,14 +262,37 @@ bool GraphIteratorSavedModel::readVariables(std::ifstream& vi_stream, const std:
     readCMOGraph();
     return true;
 }
+#endif
 
 bool GraphIteratorSavedModel::isSavedModel(const std::string& path) {
     return ov::util::directory_exists(path) && ov::util::file_exists(ov::util::path_join({path, "saved_model.pb"}));
 }
 
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 bool GraphIteratorSavedModel::isSavedModel(const std::wstring& path) {
     return ov::util::directory_exists(path) && ov::util::file_exists(ov::util::path_join_w({path, L"saved_model.pb"}));
 }
+#endif
+
+template <>
+std::basic_string<char> getSMName<char>() {
+    return "/saved_model.pb";
+}
+template <>
+std::basic_string<char> getVIName<char>() {
+    return "/variables/variables.index";
+}
+
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+template <>
+std::basic_string<wchar_t> getSMName<wchar_t>() {
+    return L"/saved_model.pb";
+}
+template <>
+std::basic_string<wchar_t> getVIName<wchar_t>() {
+    return L"/variables/variables.index";
+}
+#endif
 
 }  // namespace tensorflow
 }  // namespace frontend
