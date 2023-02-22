@@ -49,7 +49,7 @@ OP_CONVERTER(gather);
 OP_CONVERTER(gather_nd);
 OP_CONVERTER(gelu);
 OP_CONVERTER(greater_than);
-OP_CONVERTER(grid_sample);
+OP_CONVERTER(grid_sampler);
 OP_CONVERTER(group_norm);
 OP_CONVERTER(hard_sigmoid);
 OP_CONVERTER(hard_swish);
@@ -160,7 +160,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"generate_proposals_v2", op::generate_proposals_v2},
             {"greater_equal", op::elementwise_greater_equal},
             {"greater_than", op::greater_than},
-            {"grid_sample", op::grid_sample},
+            {"grid_sampler", op::grid_sampler},
             {"group_norm", op::group_norm},
             {"hard_sigmoid", op::hard_sigmoid},
             {"hard_swish", op::hard_swish},

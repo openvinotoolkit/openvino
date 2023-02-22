@@ -236,7 +236,7 @@ static const std::vector<std::string> models{
     std::string("greater_than_float32"),
     std::string("greater_than_int32"),
     std::string("greater_than_int64"),
-    std::string("grid_sample_1"),
+    std::string("grid_sampler_1"),
     std::string("group_norm_1"),
     std::string("group_norm_2"),
     std::string("group_norm_3"),

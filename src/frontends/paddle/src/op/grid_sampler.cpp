@@ -9,19 +9,17 @@ namespace ov {
 namespace frontend {
 namespace paddle {
 namespace op {
-NamedOutputs grid_sample(const NodeContext& node) {
+NamedOutputs grid_sampler(const NodeContext& node) {
     auto data = node.get_input("X");
     auto grid = node.get_input("Grid");
-
     default_opset::GridSample::Attributes attributes{};
-    attributes.align_corners = node.get_attribute<int64_t>("align_corners", 0);
-    attributes.mode = EnumNames<default_opset::GridSample::InterpolationMode>::as_enum(
+    attributes.align_corners = node.get_attribute<bool>("align_corners", 0);
+    attributes.mode = ov::EnumNames<default_opset::GridSample::InterpolationMode>::as_enum(
         node.get_attribute<std::string>("mode", "bilinear"));
-    attributes.padding_mode = EnumNames<default_opset::GridSample::PaddingMode>::as_enum(
+    attributes.padding_mode = ov::EnumNames<default_opset::GridSample::PaddingMode>::as_enum(
         node.get_attribute<std::string>("padding_mode", "zeros"));
 
-    auto result = std::make_shared<default_opset::GridSample>(data, grid, attributes);
-    return node.default_single_output_mapping({result}, {"Output"});
+    return node.default_single_output_mapping({std::make_shared<default_opset::GridSample>(data, grid, attributes)}, {"Output"});
 }
 }  // namespace op
 }  // namespace paddle

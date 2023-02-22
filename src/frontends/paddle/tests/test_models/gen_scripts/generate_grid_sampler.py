@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 #
-# grid_sample paddle model generator
+# grid_sampler paddle model generator
 #
 import paddle
 import numpy as np
@@ -10,7 +10,7 @@ from save_model import saveModel
 import sys
 
 
-def grid_sample(name: str, x, grid, mode="bilinear", padding_mode="zeros", align_corners=False):
+def grid_sampler(name: str, x, grid, mode="bilinear", padding_mode="zeros", align_corners=False):
     paddle.enable_static()
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
@@ -35,7 +35,7 @@ def main():
     align_corners = False
     x = np.random.randn(*(x_shape)).astype(dtype)
     grid = np.random.uniform(-1, 1, grid_shape).astype(dtype)
-    grid_sample(name='grid_sample_1', x=x, grid=grid, mode=mode, padding_mode=padding_mode, align_corners=align_corners)
+    grid_sampler(name='grid_sampler_1', x=x, grid=grid, mode=mode, padding_mode=padding_mode, align_corners=align_corners)
 
 
 if __name__ == "__main__":
