@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,7 +42,9 @@ TEST_P(pad_test_three_input, shape_infer) {
     auto pads_begin_prim = std::make_shared<input_layout>("pads_begin", p.pads_begin_layout);
     auto pads_end_prim = std::make_shared<input_layout>("pads_end", p.pads_end_layout);
 
+    int32_t non_constant_input_mask = border::PAD_NON_CONST_INPUT::BEGIN | border::PAD_NON_CONST_INPUT::END;
     auto border_prim = std::make_shared<border>("output", std::vector<input_info>{input_info("input"), input_info("pads_begin"), input_info("pads_end")},
+                                                non_constant_input_mask,
                                                 std::vector<int64_t>{}, std::vector<int64_t>{},
                                                 p.pad_mode, p.pad_value);
     cldnn::program prog(engine);
@@ -95,7 +97,7 @@ TEST_P(pad_test_single_input, shape_infer) {
 
     auto input_prim = std::make_shared<input_layout>("input", p.in_layout);
 
-    auto border_prim = std::make_shared<border>("output", input_info("input"),
+    auto border_prim = std::make_shared<border>("output", std::vector<input_info>({input_info("input")}), 0,
                                                 p.pads_begin_data, p.pads_end_data,
                                                 p.pad_mode, p.pad_value);
     cldnn::program prog(engine);

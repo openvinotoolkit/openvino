@@ -44,8 +44,9 @@ std::vector<layout> border_inst::calc_output_layouts(border_node const& /*node*/
     ov::op::v1::Pad op;
     op.set_pad_mode(desc->pad_mode);
 
-    ShapeType pads_shape = desc->pads_begin.size() == 0 ? impl_param.get_input_layout(1).get<ShapeType>()
-                                                               : ov::Shape{ desc->pads_begin.size() };
+    const bool is_begin_mem = (desc->non_constant_input_mask & border::PAD_NON_CONST_INPUT::BEGIN);
+    const bool is_end_mem = (desc->non_constant_input_mask & border::PAD_NON_CONST_INPUT::END);
+    ShapeType pads_shape = is_begin_mem ? impl_param.get_input_layout(1).get<ShapeType>() : ov::Shape{ desc->pads_begin.size() };
     std::vector<ShapeType> output_shapes = {ShapeType{}};
     std::vector<ShapeType> input_shapes = {
         input0_layout.get<ShapeType>(),
@@ -55,9 +56,6 @@ std::vector<layout> border_inst::calc_output_layouts(border_node const& /*node*/
 
     auto& memory_deps = impl_param.memory_deps;
     std::map<size_t, ngraph::HostTensorPtr> const_data;
-
-    const bool is_begin_mem = (desc->pads_begin.size() == 0);
-    const bool is_end_mem = (desc->pads_end.size() == 0);
 
     if ((is_begin_mem && memory_deps.count(1)) && (is_end_mem && memory_deps.count(2))) {
         auto pads_begin_mem = memory_deps.at(1);
