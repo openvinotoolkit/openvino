@@ -264,8 +264,10 @@ TEST_P(fc_int8_eltwise, basic) {
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1, 9)),
         fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p)),
-        reorder("reorder_bfyx", input_info("fc_prim"), p.default_format, data_types::f32)
+        eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::sum),
+        reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
     tolerance = default_tolerance(p.data_type);
