@@ -75,7 +75,7 @@ TemplatePlugin::InferRequest::InferRequest(const std::shared_ptr<const TemplateP
 }
 // ! [infer_request:ctor]
 
-std::vector<ov::VariableState> TemplatePlugin::InferRequest::query_state() const {
+std::vector<std::shared_ptr<ov::IVariableState>> TemplatePlugin::InferRequest::query_state() const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
