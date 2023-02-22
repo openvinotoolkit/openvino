@@ -490,7 +490,7 @@ public:
             if (!attrs.decrease_label_id) {
                 // Caffe style
                 for (size_t c = 0; c < numClasses; ++c) {
-                    if (c == attrs.background_label_id) {
+                    if (c == (size_t)attrs.background_label_id) {
                         continue;
                     }
                     if (confScores.find(c) == confScores.end())
