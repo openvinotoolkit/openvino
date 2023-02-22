@@ -231,6 +231,8 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetConfig(const std::stri
                 return ov::util::from_string(val, ov::hint::model_priority);
             } else if (name == ov::hint::performance_mode) {
                 return ov::util::from_string(val, ov::hint::performance_mode);
+            } else if (name == ov::hint::execution_mode) {
+                return ov::util::from_string(val, ov::hint::execution_mode);
             } else if (name == ov::hint::num_requests) {
                 auto temp = ov::util::from_string(val, ov::hint::num_requests);
                 return temp;

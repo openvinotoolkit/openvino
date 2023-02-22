@@ -65,6 +65,7 @@ struct PluginConfig {
                                                        RW_property(ov::hint::allow_auto_batching.name()),
                                                        RW_property(ov::auto_batch_timeout.name()),
                                                        RW_property(ov::hint::performance_mode.name()),
+                                                       RW_property(ov::hint::execution_mode.name()),
                                                        RW_property(ov::hint::num_requests.name()),
                                                        RW_property(ov::intel_auto::device_bind_buffer.name()),
                                                        RW_property(ov::cache_dir.name()),
