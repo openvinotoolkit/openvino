@@ -10,6 +10,7 @@ from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape
 
 import warnings
 import torch
+import numpy as np
 
 
 def get_type_from_py_type(value):
@@ -38,7 +39,10 @@ def ivalue_to_constant(ivalue):
 
     if isinstance(ivalue, torch.Tensor):
         ivalue = ivalue.to(memory_format=torch.contiguous_format)
-        ov_const = op.Constant(ivalue.numpy(force=True), shared_memory=True)
+        narr = ivalue.numpy(force=True)
+        if not narr.flags['C_CONTIGUOUS']:
+            narr = np.ascontiguousarray(narr)
+        ov_const = op.Constant(narr, shared_memory=True)
         return ov_const.outputs()
     return None
 
@@ -252,10 +256,13 @@ class TorchScriptPythonDecoder (Decoder):
         ivalue = pt_value.toIValue()
         if pt_value.isCompleteTensor():
             ivalue = ivalue.to(memory_format=torch.contiguous_format)
+            narr = ivalue.numpy(force=True)
+            if not narr.flags['C_CONTIGUOUS']:
+                narr = np.ascontiguousarray(narr)
             # Constant interpretation doesn't respect new-full type of PT
             # It recognizes only tensors, and give lists as 1D tensors, and scalars as Tensor scalars
             # So only tensor-type constants are supported
-            ov_const = op.Constant(ivalue.numpy(force=True), shared_memory=True)
+            ov_const = op.Constant(narr, shared_memory=True)
             return ov_const.outputs()
         else:
             return ivalue_to_constant(ivalue)
