@@ -409,7 +409,8 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
     for (const auto& p_inst : _exec_order) {
         ib >> *p_inst;
         _primitives[p_inst->id()] = p_inst;
-        p_inst->init_kernels(kernels_cache);
+        if (p_inst->get_impl() != nullptr)
+            p_inst->init_kernels(kernels_cache);
     }
 
     for (auto& item : _primitives) {
