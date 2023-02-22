@@ -50,16 +50,13 @@ TEST(type_prop, scatter_elements_update_output_partial_dyn_shape) {
 TEST(type_prop, scatter_elements_update_data_has_interval_dimensions) {
     PartialShape data_shape{{5, 10}, -1, {-1, 3}, {8, -1}};
     set_shape_labels(data_shape, 10);
-    PartialShape indices_shape{1, 2, 2, {2, 3}};
-    PartialShape updates_shape{{0, 2}, -1, 2, -1};
-    PartialShape axis_shape = PartialShape::dynamic();
 
-    auto data = make_shared<op::Parameter>(element::i64, data_shape);
-    auto indices = make_shared<op::Parameter>(element::i16, indices_shape);
-    auto updates = make_shared<op::Parameter>(element::i64, updates_shape);
-    auto axis = make_shared<op::Parameter>(element::i16, axis_shape);
+    const auto data = make_shared<op::Parameter>(element::i64, data_shape);
+    const auto indices = make_shared<op::Parameter>(element::i16, PartialShape{1, 2, 2, {2, 3}};);
+    const auto updates = make_shared<op::Parameter>(element::i64, PartialShape{{0, 2}, -1, 2, -1};);
+    const auto axis = make_shared<op::Parameter>(element::i16, PartialShape::dynamic());
 
-    auto scatter = make_shared<op::v3::ScatterElementsUpdate>(data, indices, updates, axis);
+    const auto scatter = make_shared<op::v3::ScatterElementsUpdate>(data, indices, updates, axis);
 
     EXPECT_EQ(scatter->get_output_element_type(0), element::i64);
     EXPECT_EQ(scatter->get_output_partial_shape(0), data_shape);
@@ -83,6 +80,23 @@ TEST(type_prop, scatter_elements_update_output_full_dyn_shape) {
     EXPECT_EQ(scatter->get_output_partial_shape(0), data_shape);
 }
 
+TEST(type_prop, scatter_elements_update_default_ctor) {
+    const auto data = make_shared<op::Parameter>(element::f32, PartialShape{2, 5, 5, 6});
+    const auto indices = make_shared<op::Parameter>(element::i16, PartialShape{1, 2, 1, 3});
+    const auto updates = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, 1, 3});
+    const auto axis = make_shared<op::Constant>(element::i16, Shape{}, -4);
+
+    const auto scatter = make_shared<op::v3::ScatterElementsUpdate>(data, indices, updates, axis);
+    scatter->set_arguments(OutputVector{data, indices, updates, axis});
+    scatter->validate_and_infer_types();
+
+    EXPECT_EQ(scatter->get_input_size(), 4);
+    EXPECT_EQ(scatter->get_output_size(), 1);
+    EXPECT_EQ(scatter->get_output_element_type(0), element::f32);
+    EXPECT_EQ(scatter->get_output_partial_shape(0), PartialShape({2, 5, 5, 6}));
+    EXPECT_THAT(get_shape_labels(scatter->get_output_partial_shape(0)), Each(ov::no_label));
+}
+
 TEST(type_prop, scatter_elements_update_axis_validation) {
     Shape data_shape{2, 4, 5, 7};
     Shape indices_shape{2, 2, 2, 2};
@@ -94,14 +108,9 @@ TEST(type_prop, scatter_elements_update_axis_validation) {
     auto updates = make_shared<op::Parameter>(element::f32, updates_shape);
     auto axis = make_shared<op::Constant>(element::i16, axis_shape, std::vector<int>{8});
 
-    try {
-        auto scatter = make_shared<op::v3::ScatterElementsUpdate>(data, indices, updates, axis);
-        FAIL() << "Not detected axis with value out of the range";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Axis value has to be in range"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(auto scatter = make_shared<op::v3::ScatterElementsUpdate>(data, indices, updates, axis),
+                    ov::AssertFailure,
+                    HasSubstr("Parameter axis 8 out of the tensor rank range [-4, 3]"));
 }
 
 TEST(type_prop, scatter_elements_updates_indices_shape) {

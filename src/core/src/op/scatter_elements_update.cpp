@@ -51,17 +51,9 @@ void op::v3::ScatterElementsUpdate::validate_and_infer_types() {
                           " and: ",
                           updates_et);
 
-    const auto& data = get_input_partial_shape(0);
-    const auto& indices = get_input_partial_shape(1);
-    const auto& updates = get_input_partial_shape(2);
-    const auto& axis = get_input_partial_shape(3);
-
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
-    std::vector<ov::PartialShape> input_shapes = {data, indices, updates, axis};
-
-    shape_infer(this, input_shapes, output_shapes);
-    set_output_type(0, data_et, output_shapes[0]);
-    if (output_shapes[0].is_dynamic())
+    const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
+    set_output_type(0, data_et, output_shape);
+    if (output_shape.is_dynamic())
         set_input_is_relevant_to_shape(0);
 }
 
