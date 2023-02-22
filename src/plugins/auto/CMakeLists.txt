@@ -9,14 +9,14 @@ endif()
 
 set (TARGET_NAME "openvino_auto_plugin")
 
-file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/utils/*.cpp)
+file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/*.cpp)
 
 if(ENABLE_AUTO AND ENABLE_MULTI)
     ie_add_plugin(NAME ${TARGET_NAME}
                   DEVICE_NAME "MULTI"
                   PSEUDO_DEVICE
                   SOURCES ${SOURCES}
-                  VERSION_DEFINES_FOR plugin.cpp)
+                  VERSION_DEFINES_FOR src/plugin.cpp)
 
     ie_add_plugin(NAME ${TARGET_NAME}
                   DEVICE_NAME "AUTO"
@@ -27,13 +27,17 @@ elseif(ENABLE_AUTO)
                   DEVICE_NAME "AUTO"
                   PSEUDO_DEVICE
                   SOURCES ${SOURCES}
-                  VERSION_DEFINES_FOR plugin.cpp)
+                  VERSION_DEFINES_FOR src/plugin.cpp)
 elseif(ENABLE_MULTI)
     ie_add_plugin(NAME ${TARGET_NAME}
                   DEVICE_NAME "MULTI"
                   PSEUDO_DEVICE
                   SOURCES ${SOURCES}
-                  VERSION_DEFINES_FOR plugin.cpp)
+                  VERSION_DEFINES_FOR src/plugin.cpp)
+endif()
+
+if(ENABLE_TESTS)
+    add_subdirectory(tests)
 endif()
 
 set_ie_threading_interface_for(${TARGET_NAME})

@@ -12,8 +12,8 @@
 #include <ngraph_functions/subgraph_builders.hpp>
 #include <openvino/runtime/core.hpp>
 
-#include "mock_common.hpp"
-#include "plugin/mock_load_network_properties.hpp"
+#include "test_utils/mock_common.hpp"
+#include "test_utils/mock_load_network_properties.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"

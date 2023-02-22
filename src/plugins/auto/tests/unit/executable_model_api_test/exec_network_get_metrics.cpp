@@ -20,10 +20,10 @@
 #include <ngraph_functions/subgraph_builders.hpp>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include "plugin/mock_auto_device_plugin.hpp"
+#include "test_utils/mock_auto_device_plugin.hpp"
 #include <chrono>
 #include <thread>
-#include "mock_common.hpp"
+#include "test_utils/mock_common.hpp"
 
 using ::testing::MatcherCast;
 using ::testing::AllOf;
