@@ -80,5 +80,17 @@ struct border : public primitive_base<border> {
         seed = hash_combine(seed, pad_value);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const border>(rhs);
+
+        return pads_begin == rhs_casted.pads_begin &&
+               pads_end == rhs_casted.pads_end &&
+               pad_mode == rhs_casted.pad_mode &&
+               pad_value == rhs_casted.pad_value;
+    }
 };
 }  // namespace cldnn

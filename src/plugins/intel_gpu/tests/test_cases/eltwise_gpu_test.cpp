@@ -4155,24 +4155,7 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
         ExecutionConfig config_opt;
         config_opt.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"eltwise_opt"}));
 
-        std::shared_ptr<cldnn::network> net_opt;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topo_opt, config_opt);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                net_opt = std::make_shared<cldnn::network>(ib, config_opt, get_test_stream_ptr(), engine);
-            }
-        } else {
-            net_opt = std::make_shared<cldnn::network>(engine, topo_opt, config_opt);
-        }
+        cldnn::network::ptr net_opt = get_network(engine, topo_opt, config_opt, get_test_stream_ptr(), is_caching_test);
 
         net_opt->set_input_data("input1", input1);
         net_opt->set_input_data("input2", input2);
