@@ -49,6 +49,7 @@ OP_CONVERTER(gather);
 OP_CONVERTER(gather_nd);
 OP_CONVERTER(gelu);
 OP_CONVERTER(greater_than);
+OP_CONVERTER(grid_sample);
 OP_CONVERTER(group_norm);
 OP_CONVERTER(hard_sigmoid);
 OP_CONVERTER(hard_swish);
@@ -56,7 +57,6 @@ OP_CONVERTER(layer_norm);
 OP_CONVERTER(leaky_relu);
 OP_CONVERTER(less_than);
 OP_CONVERTER(linear_interp_v2);
-OP_CONVERTER(linspace);
 OP_CONVERTER(lod_array_length);
 OP_CONVERTER(log);
 OP_CONVERTER(logical_and);
@@ -160,6 +160,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"generate_proposals_v2", op::generate_proposals_v2},
             {"greater_equal", op::elementwise_greater_equal},
             {"greater_than", op::greater_than},
+            {"grid_sample", op::grid_sample},
             {"group_norm", op::group_norm},
             {"hard_sigmoid", op::hard_sigmoid},
             {"hard_swish", op::hard_swish},
@@ -167,7 +168,6 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"leaky_relu", op::leaky_relu},
             {"less_than", op::less_than},
             {"linear_interp_v2", op::linear_interp_v2},
-            {"linspace", op::linspace},
             {"lod_array_length", op::lod_array_length},
             {"log", op::log},
             {"logical_and", op::logical_and},
