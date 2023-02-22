@@ -718,7 +718,13 @@ inline void update_output_tensors(ov::TensorVector& output_values, const ngraph:
     OPENVINO_ASSERT(output_values.size() == outputs.size());
     for (size_t i = 0; i < outputs.size(); i++) {
         if (auto dyn_output = std::dynamic_pointer_cast<DynamicTensor>(outputs[i])) {
-            output_values[i] = dyn_output->get_tensor();
+            auto tensor = dyn_output->get_tensor();
+            // In some cases (e.g. output with zero dims) we get empty tensor after casting to DynamicTensor.
+            // However we still can try to extract precision and shape from the corresponding HostTensor
+            if (!tensor && outputs[i]->get_partial_shape().is_static()) {
+                tensor = ov::Tensor(outputs[i]->get_element_type(), outputs[i]->get_shape());
+            }
+            output_values[i] = tensor;
         }
     }
 }
