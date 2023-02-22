@@ -8,6 +8,7 @@
 #include "transformations/gather_sinking_transpose_reshape.hpp"
 
 #include "transformations/utils/transformation_helper.hpp"
+#include "transformations/utils/gather_sinking_utils.hpp"
 
 #include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -16,12 +17,17 @@ using namespace ov::intel_gna::pass;
 using namespace ov;
 using namespace ov::opset9;
 using namespace ov::pass::pattern;
+using namespace gather_sinking;
 
 namespace {
 
 using NodePtr = std::shared_ptr<ov::Node>;
 using NodePair = std::pair<NodePtr, NodePtr>;
 
+/*
+ * Finds the end of the slice transpose order. Slice here is the subvector
+ * with increasing values transpose_order[i + 1] == transpose_order[i] + 1
+ */
 size_t FindEndOfSlice(const Shape& transpose_order, size_t start_idx) {
     size_t slice_end = start_idx;
     for (size_t i = start_idx + 1; i < transpose_order.size(); ++i) {
@@ -30,6 +36,16 @@ size_t FindEndOfSlice(const Shape& transpose_order, size_t start_idx) {
         slice_end = i;
     }
     return slice_end;
+}
+
+size_t GetSliceNum(const Shape& transpose_order) {
+    size_t slice_count = 0;
+    for (size_t i = 0; i < transpose_order.size(); ++i) {
+        if (!i || transpose_order[i] != transpose_order[i - 1] + 1) {
+            ++slice_count;
+        }
+    }
+    return slice_count;
 }
 
 std::vector<int64_t> CreateGatherIndices(const Shape& transpose_input_shape,
@@ -117,33 +133,45 @@ NodePair SinkBackward(NodePtr transpose, std::shared_ptr<Constant> transpose_con
 
     return std::make_pair(transpose, reshape_new);
 }
-#if 0
-bool IsFlatten2D(const Output<Node>& output) {
-    std::shared_ptr<ov::Node> reshape_node = output.get_node_shared_ptr();
-    if (reshape_node->get_output_partial_shape(0).rank().is_dynamic() ||
-        reshape_node->get_input_partial_shape(0).rank().is_dynamic())
-        return false;
-    const Shape& input_shape = reshape_node->get_input_shape(0);
-    const Shape& output_shape = reshape_node->get_output_shape(0);
-    return (input_shape.size() == 3 &&
-            output_shape.size() == 2 &&
-            input_shape[0] == output_shape[0] &&
-            output_shape[1] == input_shape[1] * input_shape[2]);
+
+bool AreFlattenShapes(const Shape& shape1, const Shape& shape2) {
+    size_t i = 0;
+    // find non-equal parts
+    while(shape1[i] == shape2[i]) { ++i; }
+    // min_shape.back() == MULTIPLY(max_shape.begin() + i, max_shape.end())
+    const size_t mult1 = std::accumulate(shape1.begin() + i, shape1.end(), 1, std::multiplies<size_t>());
+    const size_t mult2 = std::accumulate(shape2.begin() + i, shape2.end(), 1, std::multiplies<size_t>());
+    return mult1 == mult2;
 }
 
-bool IsUnflatten2D(const Output<Node>& output) {
+bool Is2DTransposeConstant(const Output<Node>& output) {
+    std::shared_ptr<Constant> transpose_constant = as_type_ptr<Constant>(output.get_node_shared_ptr());
+    if (!transpose_constant)
+        return false;
+    return GetSliceNum(transpose_constant->get_axis_vector_val()) == 3;
+}
+
+bool IsTailFlatten(const Output<Node>& output) {
     std::shared_ptr<ov::Node> reshape_node = output.get_node_shared_ptr();
     if (reshape_node->get_output_partial_shape(0).rank().is_dynamic() ||
         reshape_node->get_input_partial_shape(0).rank().is_dynamic())
         return false;
     const Shape& input_shape = reshape_node->get_input_shape(0);
     const Shape& output_shape = reshape_node->get_output_shape(0);
-    return (input_shape.size() == 2 &&
-            output_shape.size() == 3 &&
-            output_shape[0] == input_shape[0] &&
-            input_shape[1] == output_shape[1] * output_shape[2]);
+    return output_shape.size() < input_shape.size() &&
+           AreFlattenShapes(input_shape, output_shape);
 }
-#endif
+
+bool IsTailUnflatten(const Output<Node>& output) {
+    std::shared_ptr<ov::Node> reshape_node = output.get_node_shared_ptr();
+    if (reshape_node->get_output_partial_shape(0).rank().is_dynamic() ||
+        reshape_node->get_input_partial_shape(0).rank().is_dynamic())
+        return false;
+    const Shape& input_shape = reshape_node->get_input_shape(0);
+    const Shape& output_shape = reshape_node->get_output_shape(0);
+    return output_shape.size() > input_shape.size() &&
+           AreFlattenShapes(input_shape, output_shape);
+}
 } // namespace
 
 // working with situation when we transpose dims that are flatten/unflatten
@@ -151,9 +179,9 @@ bool IsUnflatten2D(const Output<Node>& output) {
 GatherSinkingTransposeReshapeForward::GatherSinkingTransposeReshapeForward() {
     MATCHER_SCOPE(GatherSinkingTransposeReshapeForward);
 
-    auto transpose_const_label = wrap_type<Constant>();
+    auto transpose_const_label = wrap_type<Constant>(Is2DTransposeConstant);
     auto transpose_label = wrap_type<Transpose>({any_input(), transpose_const_label});
-    auto reshape_label = wrap_type<Reshape>({transpose_label, any_input()}/*, IsFlatten2D*/); // TODO
+    auto reshape_label = wrap_type<Reshape>({transpose_label, any_input()}, IsTailFlatten);
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -166,7 +194,7 @@ GatherSinkingTransposeReshapeForward::GatherSinkingTransposeReshapeForward() {
         register_new_node(new_nodes.first);
         register_new_node(new_nodes.second);
 
-        // UpdateForwardSinkingAbility(new_nodes.second); TODO
+        UpdateForwardGatherSinkingAbility(new_nodes.second);
         return true;
     };
 
@@ -177,8 +205,8 @@ GatherSinkingTransposeReshapeForward::GatherSinkingTransposeReshapeForward() {
 GatherSinkingTransposeReshapeBackward::GatherSinkingTransposeReshapeBackward() {
     MATCHER_SCOPE(GatherSinkingTransposeReshapeBackward);
 
-    auto reshape_label = wrap_type<Reshape>({any_input(), any_input()}/*, IsUnflatten2D*//*check if it is sinkable */); // TODO: IsUnflatten2D
-    auto transpose_const_label = wrap_type<Constant>();
+    auto reshape_label = wrap_type<Reshape>({any_input(), any_input()}, IsTailUnflatten);
+    auto transpose_const_label = wrap_type<Constant>(Is2DTransposeConstant);
     auto transpose_label = wrap_type<Transpose>({reshape_label, transpose_const_label});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {

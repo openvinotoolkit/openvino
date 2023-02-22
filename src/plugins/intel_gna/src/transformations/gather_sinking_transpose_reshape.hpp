@@ -11,9 +11,6 @@ namespace ov {
 namespace intel_gna {
 namespace pass {
 
-class TRANSFORMATIONS_API GatherSinkingTransposeReshapeForward;
-class TRANSFORMATIONS_API GatherSinkingTransposeReshapeBackward;
-
 class GatherSinkingTransposeReshapeForward : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("GatherSinkingTransposeReshapeForward", "0");
