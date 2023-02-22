@@ -55,6 +55,12 @@ There are two different namespaces:
 
 @endsphinxtab
 
+@sphinxtab{C}
+
+@snippet docs/snippets/ov_preprocessing_migration.c c_api_ppp
+
+@endsphinxtab
+
 @endsphinxtabset
 
 **API 2.0**
@@ -70,6 +76,12 @@ There are two different namespaces:
 @sphinxtab{Python}
 
 @snippet  docs/snippets/ov_preprocessing_migration.py ov_mean_scale
+
+@endsphinxtab
+
+@sphinxtab{C}
+
+@snippet docs/snippets/ov_preprocessing_migration.c ov_mean_scale
 
 @endsphinxtab
 
@@ -93,6 +105,12 @@ There are two different namespaces:
 
 @endsphinxtab
 
+@sphinxtab{C}
+
+@snippet docs/snippets/ov_preprocessing_migration.c c_api_ppp
+
+@endsphinxtab
+
 @endsphinxtabset
 
 **API 2.0**
@@ -108,6 +126,12 @@ There are two different namespaces:
 @sphinxtab{Python}
 
 @snippet  docs/snippets/ov_preprocessing_migration.py ov_conversions
+
+@endsphinxtab
+
+@sphinxtab{C}
+
+@snippet docs/snippets/ov_preprocessing_migration.c ov_conversions
 
 @endsphinxtab
 
@@ -131,6 +155,12 @@ There are two different namespaces:
 
 @endsphinxtab
 
+@sphinxtab{C}
+
+@snippet docs/snippets/ov_preprocessing_migration.c c_api_ppp
+
+@endsphinxtab
+
 @endsphinxtabset
 
 **API 2.0**
@@ -146,6 +176,12 @@ There are two different namespaces:
 @sphinxtab{Python}
 
 @snippet  docs/snippets/ov_preprocessing_migration.py ov_image_scale
+
+@endsphinxtab
+
+@sphinxtab{C}
+
+@snippet docs/snippets/ov_preprocessing_migration.c ov_image_scale
 
 @endsphinxtab
 
@@ -169,6 +205,12 @@ There are two different namespaces:
 
 @endsphinxtab
 
+@sphinxtab{C}
+
+@snippet docs/snippets/ov_preprocessing_migration.c c_api_ppp
+
+@endsphinxtab
+
 @endsphinxtabset
 
 **API 2.0**
@@ -184,6 +226,12 @@ There are two different namespaces:
 @sphinxtab{Python}
 
 @snippet  docs/snippets/ov_preprocessing_migration.py ov_color_space
+
+@endsphinxtab
+
+@sphinxtab{C}
+
+@snippet docs/snippets/ov_preprocessing_migration.c ov_color_space
 
 @endsphinxtab
 

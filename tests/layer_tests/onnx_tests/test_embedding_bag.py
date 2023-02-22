@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -8,7 +8,6 @@ import pytest
 import torch
 import torch.nn as nn
 from common.layer_test_class import CommonLayerTest, check_ir_version
-
 from unit_tests.utils.graph import build_graph
 
 
@@ -132,6 +131,6 @@ class TestPytorchEmbeddingBag(PytorchLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_pytorch_embedding_bag(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_pytorch_embedding_bag(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params), ie_device, precision, ir_version, temp_dir=temp_dir,
-                   api_2=api_2)
+                   use_old_api=use_old_api)

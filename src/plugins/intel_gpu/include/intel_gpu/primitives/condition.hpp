@@ -1,20 +1,14 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include "intel_gpu/graph/topology.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
+
 /// @brief Function, which will be used during comparison.
 enum cond_functions : int32_t { EQUAL, GREATER, LESS };
 
@@ -32,24 +26,23 @@ struct condition : public primitive_base<condition> {
     /// @param id                 An identifier of new primitive.
     /// @param input              An identifier of primitive which is an input for newly created
     ///                           condition primitive.
-    /// @param topology_true      Topolgoy containg primitives, which will be executed when comparsion results
+    /// @param topology_true      Topology containg primitives, which will be executed when comparsion results
     ///                           true.
-    /// @param topology_false     Topolgoy containg primitives, which will be executed when comparsion results
+    /// @param topology_false     Topology containg primitives, which will be executed when comparsion results
     ///                           false..
     /// @param compare_Data       An identifier of primitive which contains compare values
     /// @param func               Used function during comparison.
     /// @param offset             Offset for compare data.
     /// @param output_padding     Optional padding for output from primitive.
     condition(const primitive_id& id,
-              const primitive_id& input,
+              const input_info& input,
               const topology& topology_true,
               const topology& topology_false,
               const primitive_id& compare_data,
               const cond_functions& func,
               const tensor& offset = {0, 0, 0, 0, 0},
-              const primitive_id& ext_prim_id = "",
               const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           topology_true(topology_true),
           topology_false(topology_false),
           compare_data(compare_data),

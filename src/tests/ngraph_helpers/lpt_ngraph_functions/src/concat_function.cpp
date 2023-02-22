@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "lpt_ngraph_functions/concat_function.hpp"
 
-#include <ngraph/opsets/opset1.hpp>
-#include "ngraph_ops/type_relaxed.hpp"
+#include <openvino/opsets/opset1.hpp>
+#include "ov_ops/type_relaxed.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
@@ -22,6 +22,46 @@ namespace builder {
 namespace subgraph {
 
 using namespace ngraph::pass;
+
+std::shared_ptr<ov::Model> ConcatFunction::get(
+    const ov::element::Type inputPrecision,
+    const ov::element::Type deqPrecision,
+    const std::vector<ov::PartialShape>& inputShapes,
+    const std::vector<DequantizationOperations>& dequantizationsBefore,
+    const std::int64_t concatAxis,
+    const ov::element::Type precisionAfter,
+    const DequantizationOperations& dequantizationAfter) {
+    auto modifyDeq = [](const DequantizationOperations& deq, const ov::element::Type deqOutPrc) {
+        auto dequantizationStructure = deq;
+        if (!dequantizationStructure.multiply.empty()) {
+            dequantizationStructure.multiply.outPrecision = deqOutPrc;
+        }
+        return dequantizationStructure;
+    };
+
+    ov::ParameterVector inputs;
+    ov::NodeVector concatInputs;
+    if (inputShapes.size() != dequantizationsBefore.size()) {
+        throw std::runtime_error("Concat builder: input and dequantization sizes aren't equal");
+    }
+
+    for (size_t i = 0; i < inputShapes.size(); ++i) {
+        const auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, inputShapes[i]);
+        const auto dequantization = makeDequantization(input, modifyDeq(dequantizationsBefore[i], deqPrecision));
+        inputs.push_back(input);
+        concatInputs.push_back(dequantization);
+    }
+
+    const auto concat = std::make_shared<ov::opset1::Concat>(concatInputs, concatAxis);
+    if (precisionAfter != ov::element::undefined && (concat->get_output_element_type(0).is_real() ^ precisionAfter.is_real())) {
+        throw std::runtime_error("Concat builder: requested precision after operation could't be set");
+    }
+
+    const auto deqAfter = makeDequantization(concat, modifyDeq(dequantizationAfter, deqPrecision));
+    deqAfter->set_friendly_name("Concat");
+    const auto result = std::make_shared<ov::opset1::Result>(deqAfter);
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, inputs, "ConcatTransformation");
+}
 
 std::shared_ptr<ngraph::Function> ConcatFunction::getOriginal(
     const ngraph::element::Type precision,
@@ -831,7 +871,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReference(
     input2->set_friendly_name("input2");
     const auto fakeQuantize2 = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(input2, precision, fqOnData2);
 
-    const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Concat>>(
+    const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Concat>>(
         ngraph::OutputVector{ fakeQuantize1->output(0), fakeQuantize2->output(0) }, 1);
     auto& rtInfo = concat->get_rt_info();
     rtInfo["Variant::std::string"] = "concat";
@@ -1126,11 +1166,11 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithNeighbors(
         convShape[1] = inputShape[1].get_length() + inputShape[1].get_length();
         convShape[0] = convShape[1] * 2;
         convShape[2] = convShape[3] = 1;
-        auto convolutionAddition = std::make_shared<op::TypeRelaxed<opset1::Convolution>>(
+        auto convolutionAddition = std::make_shared<ov::op::TypeRelaxed<opset1::Convolution>>(
                 element::TypeVector{ element::f32, element::f32 },
                 element::TypeVector{ element::f32 },
-                op::TemporaryReplaceOutputType(mainBranch, element::f32).get(),
-                op::TemporaryReplaceOutputType(opset1::Constant::create(element::i8, convShape, {1}), element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(mainBranch, element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(opset1::Constant::create(element::i8, convShape, {1}), element::f32).get(),
                 ngraph::Strides{ 1, 1 },
                 ngraph::CoordinateDiff{ 0, 0 },
                 ngraph::CoordinateDiff{ 0, 0 },
@@ -1171,11 +1211,11 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithNeighbors(
         convShape[0] = inputShape[1].get_length() * 2;
         convShape[1] = inputShape[1].get_length();
         convShape[2] = convShape[3] = 1;
-        auto convolutionNeighbor = std::make_shared<op::TypeRelaxed<ngraph::opset1::Convolution>>(
+        auto convolutionNeighbor = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Convolution>>(
                 element::TypeVector{ element::f32, element::f32 },
                 element::TypeVector{ element::f32 },
-                op::TemporaryReplaceOutputType(neighbor, element::f32).get(),
-                op::TemporaryReplaceOutputType(opset1::Constant::create(element::i8, convShape, {1}), element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(neighbor, element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(opset1::Constant::create(element::i8, convShape, {1}), element::f32).get(),
                 ngraph::Strides{ 1, 1 },
                 ngraph::CoordinateDiff{ 0, 0 },
                 ngraph::CoordinateDiff{ 0, 0 },
@@ -1350,10 +1390,10 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithIntermediateAv
     const std::shared_ptr<ngraph::Node> parent1 = makeDequantization(concat, dequantizationAfter1);
     parent1->set_friendly_name("concat");
 
-    std::shared_ptr<Node> parent2 = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::AvgPool>>(
+    std::shared_ptr<Node> parent2 = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::AvgPool>>(
         std::vector<ngraph::element::Type>{ element::f32, element::f32 },
         std::vector<ngraph::element::Type>{ element::f32 },
-        ngraph::op::TemporaryReplaceOutputType(intermediateOp, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(intermediateOp, element::f32).get(),
         Strides{ 1, 1 },
         Shape{ 1, 1 },
         Shape{ 0, 0 },

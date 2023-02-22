@@ -2,5 +2,5 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-include(${PYTHON_SOURCE_DIR}/pyopenvino/frontend/frontend_module.cmake)
-frontend_module(py_paddle_frontend paddle pyopenvino_${PYTHON_VERSION})
+include(${pyopenvino_SOURCE_DIR}/frontend/frontend_module.cmake)
+frontend_module(py_paddle_frontend paddle ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion})

@@ -1,19 +1,24 @@
 # Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from openvino.tools.mo.middle.passes.infer import type_infer
 
 from .editor import add_fullname_for_nodes
 from .special_operations import QUANTIZE_AGNOSTIC_OPERATIONS
 from .passes import InsertFakeQuantize, FakeQuantizePropagation, FakeQuantizeOptimization, RemoveFakeQuantize, \
     SpecialBlocksMarker, FakeQuantizeNameSwapper
-from .utils import find_operation_matches, get_operation_list, preprocess_ignored_params
+from .utils import find_operation_matches, get_operation_list, preprocess_ignored_params, \
+    get_operation_list_with_outputs
 
 
 class GraphTransformer:
     def __init__(self, hardware_config, quantize_inputs=False):
         self.target_device = hardware_config[0]['target_device']
+        input_priority_types = hardware_config[1]['input_priority_types']
         hw_ops = get_operation_list(hardware_config)
+        hw_config = {conf['type']: conf['quantization'] for conf in hardware_config if 'type' in conf}
+        quantize_output_operations = get_operation_list_with_outputs(hardware_config)
 
         quantize_agnostic_operations = [op[1] for op in find_operation_matches(
             QUANTIZE_AGNOSTIC_OPERATIONS, hw_ops)]
@@ -27,11 +32,15 @@ class GraphTransformer:
 
         self.fq_insertion = InsertFakeQuantize()
         self.fq_insertion.quantize_operations = quantize_operations
+        self.fq_insertion.quantize_output_operations = quantize_output_operations
+        self.fq_insertion.hardware_config = hw_config
+        self.fq_insertion.input_priority_types = input_priority_types
 
         self.fq_propagation = FakeQuantizePropagation()
         self.fq_propagation.quantize_agnostic_operations = quantize_agnostic_operations
         self.fq_propagation.quantize_inputs = quantize_inputs
         self.fq_propagation.quantize_operations = quantize_operations
+        self.fq_propagation.hardware_config = hw_config
 
         self.fq_optimization = FakeQuantizeOptimization()
 
@@ -75,10 +84,7 @@ class GraphTransformer:
         for model_dict in model.models:
             self.fq_insertion.ignored_params = ignored_params_[model_dict['name']] if model.is_cascade \
                 else ignored_params_
-            self._insert_fake_quantize(model_dict['model'])
-            # TODO: Uncomment to enable subgraphs quantization
-            # from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
-            # for_graph_and_each_sub_graph_recursively(model_dict['model'], self._insert_fake_quantize)
+            for_graph_and_each_sub_graph_recursively(model_dict['model'], self._insert_fake_quantize)
             add_fullname_for_nodes(model_dict['model'])
         return model
 

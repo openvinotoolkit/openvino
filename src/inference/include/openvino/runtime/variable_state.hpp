@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,11 +17,13 @@
 
 namespace InferenceEngine {
 class IVariableStateInternal;
+class IAsyncInferRequestWrapper;
 }  // namespace InferenceEngine
 
 namespace ov {
 
 class InferRequest;
+class IInferRequestInternalWrapper;
 
 /**
  * @brief VariableState class
@@ -29,7 +31,7 @@ class InferRequest;
  */
 class OPENVINO_RUNTIME_API VariableState {
     std::shared_ptr<InferenceEngine::IVariableStateInternal> _impl;
-    std::shared_ptr<void> _so;
+    std::vector<std::shared_ptr<void>> _so;
 
     /**
      * @brief Constructs VariableState from the initialized std::shared_ptr.
@@ -38,9 +40,11 @@ class OPENVINO_RUNTIME_API VariableState {
      * plugin object is destroyed.
      */
     VariableState(const std::shared_ptr<InferenceEngine::IVariableStateInternal>& impl,
-                  const std::shared_ptr<void>& so);
+                  const std::vector<std::shared_ptr<void>>& so);
 
     friend class ov::InferRequest;
+    friend class ov::IInferRequestInternalWrapper;
+    friend class InferenceEngine::IAsyncInferRequestWrapper;
 
 public:
     /**

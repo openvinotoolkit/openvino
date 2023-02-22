@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 //*****************************************************************************
@@ -77,7 +77,7 @@ NamedOutputs pool2d(const NodeContext& node) {
 
     PartialShape input_shape = data.get_partial_shape();
 
-    int32_t input_rank = input_shape.rank().get_length();
+    int32_t input_rank = static_cast<int32_t>(input_shape.rank().get_length());
     PADDLE_OP_CHECK(node, input_rank >= 2, "input tensor rank must be greater than 2");
 
     auto auto_pad = ov::op::PadType::EXPLICIT;

@@ -24,15 +24,25 @@ from ..statistics.function_selector import ACTIVATIONS, get_stats_function
 # pylint: disable=R0912
 class StatisticGraphBuilder:
     def insert_statistic(self, model, stats_layout, stat_aliases=None):
-        output_to_node_names = {}
+        node_to_result_names = {}
         nodes_names_map = {m['model'].name: {} for m in model.models}
-        if stat_aliases is None or model is None:
+        if stat_aliases is None:
             for node_name in stats_layout.keys():
                 node_name_in_graph = self.get_graph_node_name(node_name)
                 node = get_node_by_name(model, node_name_in_graph)
                 node_graph = node.graph
-                nodes_names_map[node_graph.name][node_name] = convert_to_outputs_name(node_name)
-            return model, nodes_names_map, output_to_node_names
+                node_in_main_graph = get_node_by_name(model, node_name_in_graph.split('|')[0])
+                model_graph = node_in_main_graph.graph
+
+                if model_graph == node_graph:
+                    nodes_names_map[model_graph.name][node_name] = convert_to_outputs_name(node_name)
+                else:
+                    result_name = self.add_subgraph_output(model_graph, node_name)
+                    node_to_result_names[node_name] = result_name
+            for node_name, result_name in node_to_result_names.items():
+                stats_layout[result_name] = stats_layout.pop(node_name)
+            return model, nodes_names_map, node_to_result_names
+
         copy_stat_aliases = deepcopy(stat_aliases)
         for algo_name, node_stats in copy_stat_aliases.items():
             for node_name, stats in node_stats.items():
@@ -42,17 +52,17 @@ class StatisticGraphBuilder:
                 model_graph = node_in_main_graph.graph
                 for stat, _ in list(stats.items()):
                     if not isinstance(stat, Statistic) or not stat.kwargs.get('inplace_statistics', False):
-                        if node_name not in nodes_names_map[model_graph.name]:
+                        if node_name not in nodes_names_map[model_graph.name] and model_graph == node.graph:
                             nodes_names_map[model_graph.name][node_name] = convert_to_outputs_name(node_name)
                         continue
                     type_stat = stat.kwargs['type']
                     add_output_node, op_name = getattr(self, f'insert_{type_stat}')(model_graph,
                                                                                     node,
                                                                                     type_stat,
-                                                                                    node_name,
+                                                                                    node_name, # name with port
                                                                                     **stat.kwargs)
                     if add_output_node:
-                        if node_name not in nodes_names_map[model_graph.name]:
+                        if node_name not in nodes_names_map[model_graph.name] and model_graph == node.graph:
                             nodes_names_map[model_graph.name][node_name] = convert_to_outputs_name(op_name)
                         class_statistic = TensorStatistic if isinstance(stat, TensorStatistic) else TensorStatisticAxis
                         fn = get_stats_function(ACTIVATIONS, type_stat, stat.kwargs.get('granularity'),
@@ -76,35 +86,31 @@ class StatisticGraphBuilder:
 
                 # add output if node in subgraph
                 if model_graph != node.graph:
-                    if node_name in nodes_names_map[model_graph.name]:
-                        del nodes_names_map[model_graph.name][node_name]
-
                     # Don't need adding extra output to the same node, but for another algo
-                    if node_name_in_graph in output_to_node_names.values():
-                        result_name = next((result for result, node in output_to_node_names.items()
-                                            if node == node_name_in_graph))
+                    if node_name in node_to_result_names:
+                        result_name = node_to_result_names[node_name]
                     else:
-                        model_graph.graph['additional_outputs'] = node_name_in_graph.split('|')
-                        results = AddOutputRecursive().find_and_replace_pattern(model_graph)
-                        assert len(results) == 1
-                        result_name = results[0].name
-                    if node_name in stats_layout:
-                        stats_layout[result_name] = stats_layout.pop(node_name)
-                    stat_aliases[algo_name][result_name] = stat_aliases[algo_name].pop(node_name)
-                    output_to_node_names[result_name] = node_name_in_graph
+                        result_name = self.add_subgraph_output(model_graph, node_name)
+                        node_to_result_names[node_name] = result_name
 
-        return model, nodes_names_map, output_to_node_names
+        for node_name, result_name in node_to_result_names.items():
+            stats_layout[result_name] = stats_layout.pop(node_name)
+            for algo_name in copy_stat_aliases:
+                if node_name in stat_aliases[algo_name]:
+                    stat_aliases[algo_name][result_name] = stat_aliases[algo_name].pop(node_name)
+
+        return model, nodes_names_map, node_to_result_names
 
     def insert_reduce(self, model_graph, insert_op, node, granularity, type_stat, node_name, axis=1):
-        axis_const = self.find_axis(node, granularity, axis)
+        out_port = self.get_out_port(node_name)
+        axis_const = self.find_axis(node, granularity, axis, port=out_port)
         if isinstance(axis_const, str):
             return (True, node.name)
 
-        out_port = self.get_out_port(node_name)
         if out_port is not None:
             node_name = f'{node_name[0]}.{out_port}'
         reduce_op = create_op_node_with_second_input(node.graph, insert_op, int64_array(axis_const),
-                                                     dict(name=f'{type_stat}_{node_name}'))
+                                                     dict(name=f'{type_stat}_{node_name.split("|")[-1]}'))
         reduce_op['fullname'] = reset_node_fullname(node.fullname, reduce_op.name)
         if node.graph != model_graph:
             Op.create_data_node(reduce_op.graph, reduce_op, {'shape': [1]})
@@ -129,17 +135,18 @@ class StatisticGraphBuilder:
                                   axis_channel)
 
     def insert_abs_max(self, model_graph, node, type_stat, node_name, **kwargs):
-        axis_const = self.find_axis(node, kwargs.get('granularity'))
+        out_port = self.get_out_port(node_name)
+        axis_const = self.find_axis(node, kwargs.get('granularity'), port=out_port)
         if isinstance(axis_const, str):
             return (True, node.name)
 
-        out_port = self.get_out_port(node_name)
         if out_port is not None:
             node_name = f'{node_name[0]}.{out_port}'
-        abs_node = Abs(node.graph, {"name": f'abs_{node_name}'}). \
+        clean_name = node_name.split("|")[-1]
+        abs_node = Abs(node.graph, {"name": f'abs_{clean_name}'}). \
                     create_node_with_data([node.out_node(out_port if out_port else 0)]).in_node(0)
         max_op = create_op_node_with_second_input(node.graph, ReduceMax, int64_array(axis_const),
-                                                  dict(name=f'{type_stat}_{node_name}'))
+                                                  dict(name=f'{type_stat}_{clean_name}'))
 
         if node.graph != model_graph:
             Op.create_data_node(max_op.graph, max_op, {'shape': [1]})
@@ -147,12 +154,11 @@ class StatisticGraphBuilder:
         abs_node.out_port(0).connect(max_op.in_port(0))
         return self.insert_result(model_graph, node, max_op, type_stat, out_port)
 
-    @staticmethod
-    def insert_result(model_graph, node, child_node, name, port=None):
+    def insert_result(self, model_graph, node, child_node, name, port=None):
         if node.graph != model_graph:
             model_graph.graph['additional_outputs'] = child_node.fullname.split('|')
             res_op = AddOutputRecursive().find_and_replace_pattern(model_graph)
-            ie_result_name = res_op[0].name
+            ie_result_name = self.add_subgraph_output(model_graph, child_node.fullname)
         else:
             ie_result_name = f'{name}_{node.name}'
             if port is not None:
@@ -162,8 +168,8 @@ class StatisticGraphBuilder:
         return (False, ie_result_name)
 
     @staticmethod
-    def find_axis(node, granularity, axis=1):
-        shape = len(get_output_shape(node, 0))
+    def find_axis(node, granularity, axis=1, port=None):
+        shape = len(get_output_shape(node, port if port else 0))
         if shape < 3 and granularity == 'perchannel':
             return node.name
         axis_const = list(i for i in range(shape))
@@ -182,3 +188,11 @@ class StatisticGraphBuilder:
     def get_out_port(node_name):
         out_port = node_name[1] if isinstance(node_name, tuple) else None
         return out_port
+
+    def add_subgraph_output(self, model_graph, node_name):
+        name = self.get_graph_node_name(node_name)
+        port = node_name[1] if isinstance(node_name, tuple) else 0
+        model_graph.graph['additional_outputs'] = name.split('|')
+        results = AddOutputRecursive().find_and_replace_pattern(model_graph)
+        result_name = results[port].name
+        return result_name

@@ -27,9 +27,12 @@ if (CMAKE_COMPILER_IS_GNUCXX)
     target_compile_options(${TARGET_NAME} PRIVATE -Wall)
 endif()
 
-target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime format_reader gflags)
+# for cross-compilation with gflags
+find_package(Threads REQUIRED)
 
-find_package(OpenCV COMPONENTS core QUIET)
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime format_reader gflags Threads::Threads)
+
+find_package(OpenCV QUIET COMPONENTS core)
 if(NOT OpenCV_FOUND)
     message(WARNING "OpenCV is disabled or not found, ${TARGET_NAME} will be built without OpenCV support. Set OpenCV_DIR")
 else()

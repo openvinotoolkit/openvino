@@ -1,20 +1,15 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
+#include "openvino/op/util/attr_types.hpp"
+
 #include <algorithm>
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Finds the index of the k max values of input.
 /// @details Returns indices in f32, because we currently does not support int32 data type.
@@ -24,56 +19,81 @@ namespace cldnn {
 struct arg_max_min : public primitive_base<arg_max_min> {
     CLDNN_DECLARE_PRIMITIVE(arg_max_min)
 
-    /// @brief Enum type to specify axis to return values from.
-    enum out_type {
-        max,
-        min,
-    };
-
-    /// @brief Enum type to specify axis to maximize/minimize along.
-    enum axis_name { batch, feature, x, y, z, xyf };
-
-    /// @brief Enum type to specify sort by values or indices.
-    enum sort_type { sort_by_values, sort_by_indices };
-
     /// @brief Constructs arg_max_min primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
-    /// @param out_type Type of output - max or min.
+    /// @param mode Type of output - max or min.
     /// @param top_k Number of indices to output.
     /// @param axis Axis to maximize/minimize along.
+    /// @param sort Type of sorting - by values or indices.
     arg_max_min(const primitive_id& id,
-                const std::vector<primitive_id>& input,
-                out_type output_type,
-                uint32_t top_k = 1,
-                axis_name axis = axis_name::xyf,
-                sort_type sort = sort_type::sort_by_values,
+                const std::vector<input_info>& inputs,
+                ov::op::TopKMode mode,
+                uint32_t top_k,
+                int64_t axis,
+                ov::op::TopKSortType sort = ov::op::TopKSortType::SORT_VALUES,
                 bool values_first = false,
-                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding(),
-                data_types output_data_type = data_types::f32)
-        : primitive_base(id, {input}, ext_prim_id, output_padding, optional_data_type {output_data_type}),
+                data_types output_data_type = data_types::f32,
+                const size_t num_outputs = 1)
+        : primitive_base(id, inputs, {output_padding}, {optional_data_type{output_data_type}}, num_outputs),
+          mode(mode),
           top_k(top_k),
-          output_type(output_type),
           axis(axis),
           sort(sort),
-          with_axis(axis == axis_name::xyf ? false : true),
           values_first(values_first) {}
 
+    /// @brief Constructs arg_max_min for top_k parameter
+    arg_max_min(const primitive_id& id,
+                const input_info& input,
+                const input_info& topk_id,
+                ov::op::TopKMode mode,
+                uint32_t top_k,
+                int64_t axis,
+                ov::op::TopKSortType sort = ov::op::TopKSortType::SORT_VALUES,
+                bool values_first = false,
+                const padding& output_padding = padding(),
+                data_types output_data_type = data_types::f32,
+                const size_t num_outputs = 1)
+        : primitive_base(id, {input, topk_id}, {output_padding}, {optional_data_type{output_data_type}}, num_outputs),
+          mode(mode),
+          top_k(top_k),
+          axis(axis),
+          sort(sort),
+          values_first(values_first) {}
+
+    /// @brief Type of output - max or min.
+    ov::op::TopKMode mode;
     /// @brief Number of indices to output.
     uint32_t top_k;
-    /// @brief Type of output - max or min.
-    out_type output_type;
     /// @brief Axis to maximize/minimize along. If not set, maximize the flattened trailing dimensions for each index of the batch dimension.
-    axis_name axis;
+    int64_t axis;
     /// @brief Type of sorting - by values or indices.
-    sort_type sort;
-    /// @brief Indicates that the primitive has user defined axis to maximize/minimize along;
-    bool with_axis;
+    ov::op::TopKSortType sort;
     /// @brief Sets output order: if True than first output contains values and second (optional) - indices.
     bool values_first;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, mode);
+        seed = hash_combine(seed, top_k);
+        seed = hash_combine(seed, axis);
+        seed = hash_combine(seed, sort);
+        seed = hash_combine(seed, values_first);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const arg_max_min>(rhs);
+
+        return mode == rhs_casted.mode &&
+               top_k == rhs_casted.top_k &&
+               axis == rhs_casted.axis &&
+               sort == rhs_casted.sort &&
+               values_first == rhs_casted.values_first;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

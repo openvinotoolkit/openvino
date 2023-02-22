@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,9 +17,10 @@ TEST(attributes, idft_op) {
     auto axes = op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2});
     auto idft = make_shared<op::v7::IDFT>(data, axes);
 
-    NodeBuilder builder(idft);
-    const auto expected_attr_count = 0;
+    NodeBuilder builder(idft, {data, axes});
+    EXPECT_NO_THROW(auto g_idft = ov::as_type_ptr<op::v7::IDFT>(builder.create()));
 
+    const auto expected_attr_count = 0;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 }
 
@@ -30,8 +31,9 @@ TEST(attributes, idft_op_signal) {
     auto signal = op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {20});
     auto idft = make_shared<op::v7::IDFT>(data, axes, signal);
 
-    NodeBuilder builder(idft);
-    const auto expected_attr_count = 0;
+    NodeBuilder builder(idft, {data, axes, signal});
+    EXPECT_NO_THROW(auto g_idft = ov::as_type_ptr<op::v7::IDFT>(builder.create()));
 
+    const auto expected_attr_count = 0;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 }

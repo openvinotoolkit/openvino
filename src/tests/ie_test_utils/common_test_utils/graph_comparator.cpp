@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,7 +68,7 @@ bool compare_rt_keys(const T& node1, const T& node2, std::ostream& err_log) {
                 err_log << "Values for " << key << " key are not equal.\n";
                 return false;
             }
-        } catch (ov::Exception& e) {
+        } catch (const ov::Exception&) {
             // Handle cases wen equality operator is not defined for some rt attribute
         }
     }
@@ -76,12 +76,16 @@ bool compare_rt_keys(const T& node1, const T& node2, std::ostream& err_log) {
 }
 
 bool less_by_name(const std::shared_ptr<ngraph::op::v0::Result>& l, const std::shared_ptr<ngraph::op::v0::Result>& r) {
-    return l->get_friendly_name() < r->get_friendly_name();
+    const auto& l_name = l->get_friendly_name();
+    const auto& r_name = r->get_friendly_name();
+    return l_name.size() < r_name.size() || (l_name.size() == r_name.size() && l_name < r_name);
 }
 
 bool less_by_parent_name(const std::shared_ptr<ngraph::op::v0::Result>& l,
                          const std::shared_ptr<ngraph::op::v0::Result>& r) {
-    return l->get_input_node_shared_ptr(0)->get_friendly_name() < r->get_input_node_shared_ptr(0)->get_friendly_name();
+    const auto& l_name = l->get_input_node_shared_ptr(0)->get_friendly_name();
+    const auto& r_name = r->get_input_node_shared_ptr(0)->get_friendly_name();
+    return l_name.size() < r_name.size() || (l_name.size() == r_name.size() && l_name < r_name);
 }
 
 std::string typeInfoToStr(const ngraph::Node::type_info_t& typeInfo) {
@@ -116,6 +120,11 @@ Ptr not_null(Ptr&& p) {
 template <typename InOut1, typename InOut2>
 bool equal_type_and_partial_shape(const InOut1& lhs, const InOut2& rhs) {
     return lhs.get_element_type() == rhs.get_element_type() && lhs.get_partial_shape() == rhs.get_partial_shape();
+}
+
+template <typename InOut1, typename InOut2>
+bool equal_type_and_partial_shape_compatible(const InOut1& lhs, const InOut2& rhs) {
+    return lhs.get_element_type() == rhs.get_element_type() && lhs.get_partial_shape().compatible(rhs.get_partial_shape());
 }
 
 class NodeAndInputDescription {
@@ -187,7 +196,8 @@ public:
             return true;
         } else if (m_description->get_type_info() == SubGraphOp::MergedInputDescription::get_type_info_static() ||
                    m_description->get_type_info() == SubGraphOp::InvariantInputDescription::get_type_info_static()) {
-            return equal_type_and_partial_shape(*m_parameter, m_input);
+            // If loop op has back edge it may change the parameter to dynamic. The shape will be different with the initial op
+            return equal_type_and_partial_shape_compatible(*m_parameter, m_input);
         }
 
         std::stringstream ss;
@@ -313,7 +323,30 @@ public:
               m_result(not_null(result)) {}
 
     bool result_and_parameter_match() const {
-        return equal_type_and_partial_shape(m_result->output(0), *m_parameter);
+        if (m_parameter->get_element_type() != m_result->output(0).get_element_type()) {
+            return false;
+        }
+        const auto& param_shape = m_parameter->get_partial_shape();
+        const auto& result_shape = m_result->output(0).get_partial_shape();
+        const auto& param_rank = param_shape.rank();
+        const auto& result_rank = result_shape.rank();
+        if (!param_rank.compatible(result_rank)) {
+            return false;
+        }
+        if (param_rank.is_static() && result_rank.is_static()) {
+            if (param_rank.get_length() != result_rank.get_length()) {
+                return false;
+            }
+            for (int i=0; i < param_rank.get_length(); ++i) {
+                if (param_shape[i].is_static() && param_shape[i].get_length() == 0) {
+                    continue; // zero-dim-shape is acceptable for subgraph op param and can be not compatible with a result shape
+                }
+                if (!param_shape[i].compatible(result_shape[i])) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     friend bool operator==(const BackEdge& lhs, const BackEdge& rhs) {
@@ -422,7 +455,7 @@ public:
     using Result = Comparator::Result;
     using SubGraphOp = ov::op::util::SubGraphOp;
 
-    Result compare(SubGraphOp* sub_lhs, SubGraphOp* sub_rhs) {
+    Result compare(SubGraphOp* sub_lhs, SubGraphOp* sub_rhs, bool compare_in_outs) {
         const auto lhs_it_no = get_num_iterations(sub_lhs);
         const auto rhs_it_no = get_num_iterations(sub_rhs);
         if (lhs_it_no != rhs_it_no) {
@@ -431,14 +464,16 @@ public:
 
         not_valid_input_output = lhs_it_no;
 
-        const auto result_for_inputs = compare_inputs(sub_lhs, sub_rhs);
-        if (!result_for_inputs.valid) {
-            return result_for_inputs;
-        }
+        if (compare_in_outs) {
+            const auto& result_for_inputs = compare_inputs(sub_lhs, sub_rhs);
+            if (!result_for_inputs.valid) {
+                return result_for_inputs;
+            }
 
-        const auto result_for_outputs = compare_outputs(sub_lhs, sub_rhs);
-        if (!result_for_outputs.valid) {
-            return result_for_outputs;
+            const auto& result_for_outputs = compare_outputs(sub_lhs, sub_rhs);
+            if (!result_for_outputs.valid) {
+                return result_for_outputs;
+            }
         }
 
         return compare_backedges(sub_lhs, sub_rhs);
@@ -530,8 +565,10 @@ private:
 
 }  // namespace detail
 
-Comparator::Result compare_io(ov::op::util::SubGraphOp* sub_lhs, ov::op::util::SubGraphOp* sub_rhs) {
-    return detail::CompareSubGraphs{}.compare(sub_lhs, sub_rhs);
+Comparator::Result compare_io(ov::op::util::SubGraphOp* sub_lhs,
+                              ov::op::util::SubGraphOp* sub_rhs,
+                              bool compare_in_outs) {
+    return detail::CompareSubGraphs{}.compare(sub_lhs, sub_rhs, compare_in_outs);
 }
 }  // namespace subgraph
 }  // namespace
@@ -602,7 +639,7 @@ Comparator::Result Comparator::compare(const std::shared_ptr<ngraph::Function>& 
                                              "' is not a variable - graph comparison is not supported");
                     }
                     auto name2 = assign2->get_variable_id();
-                    if (name2.find(name1) != std::string::npos || name1.find(name2) != std::string::npos) {
+                    if (name2 == name1) {
                         found_sink2 = sink2;
                         break;
                     }
@@ -660,7 +697,8 @@ Comparator::Result Comparator::compare(ngraph::Node* node1, ngraph::Node* node2,
     auto type_info2 = node2->get_type_info();
 
     if (!compare_type_info(type_info1, type_info2)) {
-        return Result::error(typeInfoToStr(type_info1) + " != " + typeInfoToStr(type_info2));
+        return Result::error(name(node1) + " and " + name(node2) + "have different type info: " +
+                             typeInfoToStr(type_info1) + " != " + typeInfoToStr(type_info2));
     }
 
     auto subgraph1 = dynamic_cast<ov::op::util::SubGraphOp*>(node1);
@@ -669,7 +707,7 @@ Comparator::Result Comparator::compare(ngraph::Node* node1, ngraph::Node* node2,
     const bool subgraph_nodes = subgraph1 && subgraph2;
 
     if (subgraph_nodes) {
-        const auto result = subgraph::compare_io(subgraph1, subgraph2);
+        const auto result = subgraph::compare_io(subgraph1, subgraph2, should_compare(CmpValues::SUBGRAPH_DESCRIPTORS));
         if (!result.valid) {
             return result;
         }
@@ -770,6 +808,14 @@ void Comparator::compare_outputs(ngraph::Node* node1, ngraph::Node* node2, std::
             err_log << "Different runtime info detected at output(" << i << ")\n"
                     << name(node1) << " and " << name(node2) << " not equal runtime info." << std::endl;
         }
+
+        if (should_compare(CmpValues::CONSUMERS_COUNT)) {
+            if (node1->output(i).get_target_inputs().size() != node2->output(i).get_target_inputs().size()) {
+                err_log << "Different consumers number detected\n"
+                        << name(node1) << " Output(" << i << ") " << node1->output(i).get_target_inputs().size() << " and "
+                        << name(node2) << " Output(" << i << ") " << node2->output(i).get_target_inputs().size() << std::endl;
+            }
+        }
     }
 }
 
@@ -804,10 +850,8 @@ void check_rt_info(const std::shared_ptr<ngraph::Function>& f) {
     static const std::vector<std::string> attrs_to_check{"fused_names_0"};
 
     std::ostringstream err_log;
-    for (auto& op : f->get_ops()) {
-        if (ov::op::util::is_constant(op))
-            continue;
 
+    for (auto& op : f->get_ops()) {
         const auto& rt_info = op->get_rt_info();
         for (const auto& attr_name : attrs_to_check) {
             if (!rt_info.count(attr_name)) {

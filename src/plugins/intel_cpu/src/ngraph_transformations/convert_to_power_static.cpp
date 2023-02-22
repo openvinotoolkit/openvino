@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,6 +52,7 @@ bool isConvertableToPowerStatic(const std::shared_ptr<BaseOp> &node) {
                                  ngraph::opset1::GroupConvolution::get_type_info_static(),
                                  ngraph::opset1::ConvolutionBackpropData::get_type_info_static(),
                                  ngraph::opset1::GroupConvolutionBackpropData::get_type_info_static(),
+                                 ngraph::opset1::MatMul::get_type_info_static(),
                                  ov::intel_cpu::FullyConnectedNode::get_type_info_static(),
                                  ngraph::op::v0::MVN::get_type_info_static(),
                                  ngraph::opset6::MVN::get_type_info_static());
@@ -108,7 +109,7 @@ ov::intel_cpu::ConvertToPowerStatic::ConvertToPowerStatic() {
     auto mult = ngraph::pattern::wrap_type<ngraph::opset1::Multiply>(twoInputs);
     const auto candidate = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{power, add, sub, mult});
 
-    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
         auto node = m.get_match_root();
 
         std::shared_ptr<ngraph::Node> toReplace = node;
@@ -134,7 +135,6 @@ ov::intel_cpu::ConvertToPowerStatic::ConvertToPowerStatic() {
         toReplace->set_friendly_name(node->get_friendly_name());
         ngraph::copy_runtime_info(node, toReplace);
         ngraph::replace_node(node, toReplace);
-        MATCHER_SCOPE_ENABLE(ConvertToPowerStatic);
         return true;
     };
 

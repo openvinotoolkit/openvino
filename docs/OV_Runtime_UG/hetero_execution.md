@@ -31,6 +31,9 @@ Following the OpenVINO™ naming convention, the Hetero execution plugin is assi
 #### The Manual Mode
 It assumes setting affinities explicitly for all operations in the model using `ov::Node::get_rt_info` with the `"affinity"` key. 
 
+If you assign specific operation to a specific device, make sure that the device actually supports the operation. 
+Randomly selecting operations and setting affinities may lead to decrease in model accuracy. To avoid that, try to set the related operations or subgraphs of this operation to the same affinity, such as the constant operation that will be folded into this operation.
+
 @sphinxtabset
 
 @sphinxtab{C++}
@@ -51,7 +54,7 @@ It assumes setting affinities explicitly for all operations in the model using `
 
 
 #### The Automatic Mode
-It decides automatically which operation is assigned to which device according to the support from dedicated devices (`GPU`, `CPU`, `MYRIAD`, etc.) and query model step is called implicitly by Hetero device during model compilation.
+It decides automatically which operation is assigned to which device according to the support from dedicated devices (`GPU`, `CPU`, `GNA`, etc.) and query model step is called implicitly by Hetero device during model compilation.
 
 The automatic mode causes "greedy" behavior and assigns all operations that can be executed on a given device to it, according to the priorities you specify (for example, `ov::device::priorities("GPU,CPU")`).
 It does not take into account device peculiarities such as the inability to infer certain operations without other special operations placed before or after that layer. If the device plugin does not support the subgraph topology constructed by the HETERO device, then you should set affinity manually.
@@ -162,7 +165,8 @@ where:
 - `HETERO` stands for the Heterogeneous execution
 - `GPU,CPU` points to a fallback policy with the priority on GPU and fallback to CPU
 
-You can also point to more than two devices: `-d HETERO:MYRIAD,GPU,CPU`
+You can also point to more than two devices: `-d HETERO:GNA,GPU,CPU`
 
-### See Also
-[Supported Devices](supported_plugins/Supported_Devices.md)
+### Additional Resources
+
+* [Supported Devices](supported_plugins/Supported_Devices.md)

@@ -1,6 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include "pyopenvino/core/extension.hpp"
 
 #include <pybind11/functional.h>
 #include <pybind11/pybind11.h>

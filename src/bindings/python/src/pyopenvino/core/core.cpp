@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@
 
 namespace py = pybind11;
 
-std::string to_string(py::handle handle) {
+inline std::string to_string(py::handle handle) {
     auto encodedString = PyUnicode_AsUTF8String(handle.ptr());
     return PyBytes_AsString(encodedString);
 }
@@ -47,7 +47,7 @@ void regclass_Core(py::module m) {
     cls.def(
         "set_property",
         [](ov::Core& self, const std::pair<std::string, py::object>& property) {
-            ov::AnyMap _properties{{property.first, py_object_to_any(property.second)}};
+            ov::AnyMap _properties{{property.first, Common::utils::py_object_to_any(property.second)}};
             self.set_property(_properties);
         },
         py::arg("property"),
@@ -78,7 +78,7 @@ void regclass_Core(py::module m) {
     cls.def(
         "set_property",
         [](ov::Core& self, const std::string& device_name, const std::pair<std::string, py::object>& property) {
-            ov::AnyMap _properties{{property.first, py_object_to_any(property.second)}};
+            ov::AnyMap _properties{{property.first, Common::utils::py_object_to_any(property.second)}};
             self.set_property(device_name, _properties);
         },
         py::arg("device_name"),
@@ -104,6 +104,21 @@ void regclass_Core(py::module m) {
 
             :param device_name: A name of a device to get a properties value.
             :type device_name: str
+            :param property: Property or name of Property.
+            :type property: str
+            :return: Extracted information from property.
+            :rtype: object
+        )");
+
+    cls.def(
+        "get_property",
+        [](ov::Core& self, const std::string& property) -> py::object {
+            return Common::utils::from_ov_any(self.get_property(property));
+        },
+        py::arg("property"),
+        R"(
+            Gets properties dedicated to Core behaviour.
+
             :param property: Property or name of Property.
             :type property: str
             :return: Extracted information from property.
@@ -169,12 +184,13 @@ void regclass_Core(py::module m) {
     cls.def(
         "compile_model",
         [](ov::Core& self,
-           const std::string& model_path,
+           const py::object& model_path,
            const std::string& device_name,
            const std::map<std::string, py::object>& properties) {
             auto _properties = Common::utils::properties_to_any_map(properties);
+            std::string path = Common::utils::convert_path_to_string(model_path);
             py::gil_scoped_release release;
-            return self.compile_model(model_path, device_name, _properties);
+            return self.compile_model(path, device_name, _properties);
         },
         py::arg("model_path"),
         py::arg("device_name"),
@@ -187,7 +203,7 @@ void regclass_Core(py::module m) {
             GIL is released while running this function.
 
             :param model_path: A path to a model in IR / ONNX / PDPD format.
-            :type model_path: str
+            :type model_path: Union[str, pathlib.Path]
             :param device_name: Name of the device to load the model to.
             :type device_name: str
             :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
@@ -198,10 +214,11 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "compile_model",
-        [](ov::Core& self, const std::string& model_path, const std::map<std::string, py::object>& properties) {
+        [](ov::Core& self, const py::object& model_path, const std::map<std::string, py::object>& properties) {
             auto _properties = Common::utils::properties_to_any_map(properties);
+            std::string path = Common::utils::convert_path_to_string(model_path);
             py::gil_scoped_release release;
-            return self.compile_model(model_path, _properties);
+            return self.compile_model(path, _properties);
         },
         py::arg("model_path"),
         py::arg("properties"),
@@ -213,7 +230,7 @@ void regclass_Core(py::module m) {
             GIL is released while running this function.
 
             :param model_path: A path to a model in IR / ONNX / PDPD format.
-            :type model_path: str
+            :type model_path: Union[str, pathlib.Path]
             :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
             :type properties: dict
             :return: A compiled model.
@@ -309,26 +326,57 @@ void regclass_Core(py::module m) {
     cls.def(
         "read_model",
         [](ov::Core& self, py::object model_path, py::object weights_path) {
-            std::string model_path_cpp{py::str(model_path)};
-            std::string weights_path_cpp{py::str(weights_path)};
-            py::gil_scoped_release release;
-            return self.read_model(model_path_cpp, weights_path_cpp);
+            if (py::isinstance(model_path, pybind11::module::import("io").attr("BytesIO"))) {
+                std::stringstream _stream;
+                model_path.attr("seek")(0);  // Always rewind stream!
+                _stream << model_path
+                               .attr("read")()  // alternative: model_path.attr("get_value")()
+                               .cast<std::string>();
+                py::buffer_info info;
+                if (!py::isinstance<py::none>(weights_path)) {
+                    auto p = weights_path.cast<py::bytes>();
+                    info = py::buffer(p).request();
+                }
+                size_t bin_size = static_cast<size_t>(info.size);
+                ov::Tensor tensor(ov::element::Type_t::u8, {bin_size});
+                // if weights are not empty
+                if (bin_size) {
+                    const uint8_t* bin = reinterpret_cast<const uint8_t*>(info.ptr);
+                    std::memcpy(tensor.data(), bin, bin_size);
+                }
+                py::gil_scoped_release release;
+                return self.read_model(_stream.str(), tensor);
+            } else if (py::isinstance(model_path, py::module_::import("pathlib").attr("Path")) ||
+                       py::isinstance<py::str>(model_path)) {
+                const std::string model_path_cpp{py::str(model_path)};
+                std::string weights_path_cpp;
+                if (!py::isinstance<py::none>(weights_path)) {
+                    weights_path_cpp = py::str(weights_path);
+                }
+                py::gil_scoped_release release;
+                return self.read_model(model_path_cpp, weights_path_cpp);
+            }
+
+            std::stringstream str;
+            str << "Provided python object type " << model_path.get_type().str()
+                << " isn't supported as 'model' argument.";
+            throw ov::Exception(str.str());
         },
         py::arg("model"),
-        py::arg("weights") = "",
+        py::arg("weights") = py::none(),
         R"(
             Reads models from IR / ONNX / PDPD formats.
 
             GIL is released while running this function.
 
-            :param model: A string with model in IR / ONNX / PDPD format.
-            :type model: str
+            :param model: A path to a model in IR / ONNX / PDPD format or a model itself wrapped in io.ByesIO format.
+            :type model: Union[pathlib.Path, io.BytesIO]
             :param weights: A path to a data file For IR format (*.bin): if path is empty,
                             it tries to read a bin file with the same name as xml and if the bin
                             file with the same name was not found, loads IR without weights.
                             For ONNX format (*.onnx): weights parameter is not used.
                             For PDPD format (*.pdmodel) weights parameter is not used.
-            :type weights: str
+            :type weights: pathlib.Path
             :return: A model.
             :rtype: openvino.runtime.Model
         )");
@@ -440,9 +488,10 @@ void regclass_Core(py::module m) {
             R"(
                 Register a new device and plugin which enable this device inside OpenVINO Runtime.
 
-                :param plugin_name: A name of plugin. Depending on platform `plugin_name` is wrapped with shared library
-                                    suffix and prefix to identify library full name E.g. on Linux platform plugin name
-                                    specified as `plugin_name` will be wrapped as `libplugin_name.so`.
+                :param plugin_name: A path (absolute or relative) or name of a plugin. Depending on platform,
+                                    `plugin_name` is wrapped with shared library suffix and prefix to identify
+                                    library full name E.g. on Linux platform plugin name specified as `plugin_name`
+                                    will be wrapped as `libplugin_name.so`.
                 :type plugin_name: str
                 :param device_name: A device name to register plugin for.
                 :type device_name: str
@@ -538,7 +587,7 @@ void regclass_Core(py::module m) {
 
                                     GIL is released while running this function.
 
-                                    :returns: A list of devices. The devices are returned as: CPU, GPU.0, GPU.1, MYRIAD...
+                                    :returns: A list of devices. The devices are returned as: CPU, GPU.0, GPU.1, GNA...
                                         If there more than one device of specific type, they are enumerated with .# suffix.
                                         Such enumerated device can later be used as a device name in all Core methods like:
                                         compile_model, query_model, set_property and so on.

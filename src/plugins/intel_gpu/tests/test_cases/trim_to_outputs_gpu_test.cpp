@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "test_utils.h"
 
@@ -26,9 +24,9 @@ using namespace ::tests;
 */
 TEST(trim_to_outputs, one_node_to_eliminate_case1) {
     auto& engine = get_test_engine();
-    build_options build_opt;
-    build_opt.set_option(cldnn::build_option::outputs({ "conv1" }));
-    build_opt.set_option(build_option::optimize_data(false));             // to avoid adding reorders
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "conv1" }));
+    config.set_property(ov::intel_gpu::optimize_data(false));             // to avoid adding reorders
 
     auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 1, 1 } });
     auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
@@ -44,25 +42,25 @@ TEST(trim_to_outputs, one_node_to_eliminate_case1) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights", weights));
     topology.add(data("bias", bias));
-    topology.add(cldnn::convolution("conv1", { "input" }, { "weights" }, { "bias" }));
-    topology.add(cldnn::convolution("conv2", { "input" }, { "weights" }, { "bias" }));
+    topology.add(cldnn::convolution("conv1", { input_info("input") }, { "weights" }, { "bias" }));
+    topology.add(cldnn::convolution("conv2", { input_info("input") }, { "weights" }, { "bias" }));
 
-    network network(engine, topology, build_opt);
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), (size_t)1); // there is only one output
-    EXPECT_EQ(network.get_executed_primitives().size(), (size_t)2);   // input and conv1 where executed
-    EXPECT_EQ(network.get_all_primitive_ids().size(), (size_t)4);     // also bias and weights still exist
+    ASSERT_EQ(outputs.size(), (size_t)1); // there is only one output
+    ASSERT_EQ(network.get_executed_primitives().size(), (size_t)2);   // input and conv1 where executed
+    ASSERT_EQ(network.get_all_primitive_ids().size(), (size_t)4);     // also bias and weights still exist
 
     for (auto& it : outputs)
     {
         cldnn::mem_lock<float> output_ptr(it.second.get_memory(), get_test_stream());
         for (size_t cntr = 0; cntr < out_data.size(); cntr++)
         {
-            EXPECT_NEAR(output_ptr[cntr], out_data[cntr], 1e-4);
+            ASSERT_NEAR(output_ptr[cntr], out_data[cntr], 1e-4);
         }
-        EXPECT_EQ(it.first, "conv1");
+        ASSERT_EQ(it.first, "conv1");
     }
 }
 
@@ -75,9 +73,9 @@ Network structure:  input  -> conv1 (output)
 */
 TEST(trim_to_outputs, one_node_to_eliminate_case2) {
     auto& engine = get_test_engine();
-    build_options build_opt;
-    build_opt.set_option(cldnn::build_option::outputs({ "conv1" }));
-    build_opt.set_option(build_option::optimize_data(false));             // to avoid adding reorders
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "conv1" }));
+    config.set_property(ov::intel_gpu::optimize_data(false));             // to avoid adding reorders
 
     auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 1, 1, 1, 1 } });
     auto weights1 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
@@ -97,18 +95,18 @@ TEST(trim_to_outputs, one_node_to_eliminate_case2) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights1", weights1));
     topology.add(data("bias1", bias1));
-    topology.add(cldnn::convolution("conv1", { "input" }, { "weights1" }, { "bias1" }));
+    topology.add(cldnn::convolution("conv1", { input_info("input") }, { "weights1" }, { "bias1" }));
     topology.add(data("weights2", weights2));
     topology.add(data("bias2", bias2));
-    topology.add(cldnn::convolution("conv2", { "input" }, { "weights2" }, { "bias2" }));
+    topology.add(cldnn::convolution("conv2", { input_info("input") }, { "weights2" }, { "bias2" }));
 
-    network network(engine, topology, build_opt);
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), (size_t)1); // there is only one output
-    EXPECT_EQ(network.get_executed_primitives().size(), (size_t)2);   // input and conv1 where executed
-    EXPECT_EQ(network.get_all_primitive_ids().size(), (size_t)4);     // also bias1 and weights1 still exist
+    ASSERT_EQ(outputs.size(), (size_t)1); // there is only one output
+    ASSERT_EQ(network.get_executed_primitives().size(), (size_t)2);   // input and conv1 where executed
+    ASSERT_EQ(network.get_all_primitive_ids().size(), (size_t)4);     // also bias1 and weights1 still exist
 
     for (auto& it : outputs)
     {
@@ -116,9 +114,9 @@ TEST(trim_to_outputs, one_node_to_eliminate_case2) {
 
         for (size_t cntr = 0; cntr < out_data.size(); cntr++)
         {
-            EXPECT_NEAR(output_ptr[cntr], out_data[cntr], 1e-4);
+            ASSERT_NEAR(output_ptr[cntr], out_data[cntr], 1e-4);
         }
-        EXPECT_EQ(it.first, "conv1");
+        ASSERT_EQ(it.first, "conv1");
     }
 }
 
@@ -132,9 +130,9 @@ Convolutions conv2, conv3 should be optimized out along with weights23 shered by
 */
 TEST(trim_to_outputs, two_nodes_to_eliminate_case1) {
     auto& engine = get_test_engine();
-    build_options build_opt;
-    build_opt.set_option(cldnn::build_option::outputs({ "conv4" }));
-    build_opt.set_option(build_option::optimize_data(false));             // to avoid adding reorders
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "conv4" }));
+    config.set_property(ov::intel_gpu::optimize_data(false));             // to avoid adding reorders
 
     auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 1, 1, 1, 1 } });
     auto weights1 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
@@ -154,20 +152,20 @@ TEST(trim_to_outputs, two_nodes_to_eliminate_case1) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights1", weights1));
     topology.add(data("bias", bias));
-    topology.add(cldnn::convolution("conv1", { "input" }, { "weights1" }, { "bias" }));
+    topology.add(cldnn::convolution("conv1", { input_info("input") }, { "weights1" }, { "bias" }));
     topology.add(data("weights23", weights23));
-    topology.add(cldnn::convolution("conv2", { "input" }, { "weights23" }, { "bias" }));
-    topology.add(cldnn::convolution("conv3", { "conv2" }, { "weights23" }, { "bias" }));
+    topology.add(cldnn::convolution("conv2", { input_info("input") }, { "weights23" }, { "bias" }));
+    topology.add(cldnn::convolution("conv3", { input_info("conv2") }, { "weights23" }, { "bias" }));
     topology.add(data("weights4", weights4));
-    topology.add(cldnn::convolution("conv4", { "conv1" }, { "weights4" }, { "bias" }));
+    topology.add(cldnn::convolution("conv4", { input_info("conv1") }, { "weights4" }, { "bias" }));
 
-    network network(engine, topology, build_opt);
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), (size_t)1); // there is only one output
-    EXPECT_EQ(network.get_executed_primitives().size(), (size_t)3);   // input, conv1 and conv4  where executed
-    EXPECT_EQ(network.get_all_primitive_ids().size(), (size_t)6);     // also bias weights1 and weights4 still exist
+    ASSERT_EQ(outputs.size(), (size_t)1); // there is only one output
+    ASSERT_EQ(network.get_executed_primitives().size(), (size_t)3);   // input, conv1 and conv4  where executed
+    ASSERT_EQ(network.get_all_primitive_ids().size(), (size_t)6);     // also bias weights1 and weights4 still exist
 
     for (auto& it : outputs)
     {
@@ -175,8 +173,8 @@ TEST(trim_to_outputs, two_nodes_to_eliminate_case1) {
 
         for (size_t cntr = 0; cntr < out_data.size(); cntr++)
         {
-            EXPECT_NEAR(output_ptr[cntr], out_data[cntr], 1e-4);
+            ASSERT_NEAR(output_ptr[cntr], out_data[cntr], 1e-4);
         }
-        EXPECT_EQ(it.first, "conv4");
+        ASSERT_EQ(it.first, "conv4");
     }
 }

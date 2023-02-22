@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -220,7 +220,7 @@ void avg_pool(const T* arg,
                 out[output_transform.index(out_coord)] =
                     static_cast<T>(std::nearbyint(static_cast<float>(result) / n_elements));
             } else {
-                out[output_transform.index(out_coord)] = result / n_elements;
+                out[output_transform.index(out_coord)] = result / static_cast<T>(n_elements);
             }
         } else {
             out[output_transform.index(out_coord)] = T{0};

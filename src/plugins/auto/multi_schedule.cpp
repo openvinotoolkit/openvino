@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,12 +90,12 @@ Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInf
             // as the scheduling algo may select any device, this stage accepts the scheduling decision (actual workerRequest)
             // then sets the device-agnostic blobs to the actual (device-specific) request
             Stage {
-                /*TaskExecutor*/std::dynamic_pointer_cast<IE::ITaskExecutor>(shared_from_this()), /*task*/ [this, &syncInferRequest, workerInferRequest]() {
+                /*TaskExecutor*/std::dynamic_pointer_cast<IE::ITaskExecutor>(shared_from_this()), /*task*/ [&syncInferRequest, workerInferRequest]() {
                     *workerInferRequest = _thisWorkerInferRequest;
                     auto multiSyncInferRequest = std::dynamic_pointer_cast<MultiDeviceInferRequest>(syncInferRequest);
                     multiSyncInferRequest->SetBlobsToAnotherRequest(_thisWorkerInferRequest->_inferRequest);
                     INFO_RUN([workerInferRequest]() {
-                        (*workerInferRequest)->_startTimes.push_back(std::move(std::chrono::steady_clock::now()));
+                        (*workerInferRequest)->_startTimes.push_back(std::chrono::steady_clock::now());
                 });
                 }},
             // final task in the pipeline:
@@ -107,11 +107,11 @@ Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInf
                     if (_multiSContext->_needPerfCounters) {
                         auto multiSyncInferRequest = std::dynamic_pointer_cast<MultiDeviceInferRequest>
                             (syncInferRequest);
-                        multiSyncInferRequest->_perfMap =
-                            (*workerInferRequest)->_inferRequest->GetPerformanceCounts();
+                        multiSyncInferRequest->_scheduledRequest =
+                            (*workerInferRequest)->_inferRequest;
                     }
                     INFO_RUN([workerInferRequest]() {
-                    (*workerInferRequest)->_endTimes.push_back(std::move(std::chrono::steady_clock::now()));
+                    (*workerInferRequest)->_endTimes.push_back(std::chrono::steady_clock::now());
                     });
                 }}
         };
@@ -237,7 +237,7 @@ MultiSchedule::~MultiSchedule() {
                 reqAllStartTimes.splice(reqAllStartTimes.end(), request._startTimes);
                 reqAllEndTimes.splice(reqAllEndTimes.end(), request._endTimes);
             }
-            unsigned int count = reqAllStartTimes.size();
+            size_t count = reqAllStartTimes.size();
             IE_ASSERT(count == reqAllEndTimes.size());
             reqAllStartTimes.sort(std::less<Time>());
             reqAllEndTimes.sort(std::less<Time>());
@@ -303,6 +303,30 @@ IInferPtr MultiSchedule::CreateInferRequest() {
     if (!syncRequestImpl)
         syncRequestImpl = CreateInferRequestImpl(execNetwork->_networkInputs, execNetwork->_networkOutputs);
     syncRequestImpl->setPointerToExecutableNetworkInternal(execNetwork);
+    if (_passthroughExeNet) {
+        std::string perfmode;
+        try {
+            perfmode = _passthroughExeNet->GetConfig(
+                                CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>();
+        } catch (const IE::Exception&) {
+            LOG_INFO("query perf hint from passthrough network failed");
+        }
+        if (_multiSContext->_batchingDisabled || perfmode != CONFIG_VALUE(THROUGHPUT)) {
+            syncRequestImpl->setPointerToSo(_passthroughExeNet._so);
+        } else {
+            auto so = _passthroughExeNet._ptr->GetPointerToSo();
+            // Get the _so from passthrough executable network when batch plugin is disable.
+            if (!so)
+                so = _passthroughExeNet._so;
+            syncRequestImpl->setPointerToSo(so);
+        }
+    } else if (_multiSContext->_bindBuffer) {
+        auto sharedRequest = std::static_pointer_cast<MultiDeviceInferRequest>(syncRequestImpl)->GetSharedRequest();
+        if (sharedRequest._ptr->getPointerToSo())
+             syncRequestImpl->setPointerToSo(sharedRequest._ptr->getPointerToSo());
+        else
+            syncRequestImpl->setPointerToSo(sharedRequest._so);
+    }
     return std::make_shared<AsyncInferRequest>(shared_from_this(),
                                                syncRequestImpl,
                                                execNetwork->_callbackExecutor);

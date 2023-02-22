@@ -118,7 +118,7 @@ class MTCNNEngine(IEEngine):
         if sampler is None:
             sampler = BatchSampler(self.data_loader)
         if stats_layout:
-            model_with_stat_op, nodes_names_map, output_to_node_names = self._statistic_graph_builder. \
+            model_with_stat_op, nodes_names_map, node_to_result_names = self._statistic_graph_builder. \
                 insert_statistic(copy.deepcopy(self._nx_model),
                                  stats_layout, stat_aliases)
             self.set_model(model_with_stat_op)
@@ -137,7 +137,7 @@ class MTCNNEngine(IEEngine):
 
             align_stat_names_with_results(model_output_names,
                                           nodes_name,
-                                          output_to_node_names,
+                                          node_to_result_names,
                                           stats_layout,
                                           stat_aliases)
 
@@ -153,8 +153,8 @@ class MTCNNEngine(IEEngine):
             process_accumulated_stats(stat_names_aliases=stat_names_aliases,
                                       accumulated_stats=self._accumulated_layer_stats)
 
-        if stats_layout:
-            restore_original_node_names(output_to_node_names, accumulated_stats, stats_layout, stat_aliases)
+        if stats_layout and stat_aliases:
+            restore_original_node_names(node_to_result_names, accumulated_stats, stats_layout, stat_aliases)
 
         metrics = None
         if self._metric:
@@ -229,7 +229,7 @@ class MTCNNEngine(IEEngine):
 
         def postprocess(output):
             # extract_predictions
-            total_boxes = np.zeros((0, 9), np.float)
+            total_boxes = np.zeros((0, 9), float)
             for idx, outputs in enumerate(output):
                 scales = input_meta['scales'][idx]
                 mapping = outputs[[i for i, _ in outputs.items()

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,6 @@ ClampTransformation::ClampTransformation(const Params& params) : LayerTransforma
         if (transformation_callback(op)) {
             return false;
         }
-        MATCHER_SCOPE_ENABLE(ClampTransformation);
         return transform(*context, m);
     };
 

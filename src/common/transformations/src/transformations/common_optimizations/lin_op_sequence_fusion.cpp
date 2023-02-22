@@ -1,30 +1,30 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset3.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset3.hpp>
 #include <transformations/utils/utils.hpp>
 #include <vector>
 
 #include "itt.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
-ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
+ov::pass::AddMultiplyFusion::AddMultiplyFusion() {
     MATCHER_SCOPE(AddMultiplyFusion);
     // Create Add->Multiply pattern where Add has exactly one consumer
-    auto m_data = ngraph::pattern::any_input();
+    auto m_data = pass::pattern::any_input();
     auto m_add_constant = ngraph::pattern::wrap_type<opset3::Constant>();
     auto m_add = ngraph::pattern::wrap_type<opset3::Add>({m_data, m_add_constant}, pattern::consumers_count(1));
     auto m_mul_constant = ngraph::pattern::wrap_type<opset3::Constant>();
     auto m_mul = ngraph::pattern::wrap_type<opset3::Multiply>({m_add, m_mul_constant});
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) -> bool {
+    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) -> bool {
         auto& label_to_output = m.get_pattern_value_map();
 
         auto mul = label_to_output[m_mul].get_node_shared_ptr();
@@ -55,7 +55,6 @@ ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
         copy_runtime_info({add, mul}, {new_mul, new_add});
         new_add->set_friendly_name(mul->get_friendly_name());
         replace_node(mul, new_add);
-        MATCHER_SCOPE_ENABLE(AddMultiplyFusion);
         return true;
     };
 
@@ -63,16 +62,16 @@ ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
     this->register_matcher(m, callback);
 }
 
-ngraph::pass::AddAddFusion::AddAddFusion() {
+ov::pass::AddAddFusion::AddAddFusion() {
     MATCHER_SCOPE(AddAddFusion);
     // Create Add->Add pattern where first Add has exactly one consumer
-    auto m_data = ngraph::pattern::any_input();
+    auto m_data = pass::pattern::any_input();
     auto m_add1_constant = ngraph::pattern::wrap_type<opset3::Constant>();
     auto m_add1 = ngraph::pattern::wrap_type<opset3::Add>({m_data, m_add1_constant}, pattern::consumers_count(1));
     auto m_add2_constant = ngraph::pattern::wrap_type<opset3::Constant>();
     auto m_add2 = ngraph::pattern::wrap_type<opset3::Add>({m_add1, m_add2_constant});
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) -> bool {
+    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) -> bool {
         auto& label_to_output = m.get_pattern_value_map();
 
         auto add1 = label_to_output[m_add1].get_node_shared_ptr();
@@ -90,7 +89,6 @@ ngraph::pass::AddAddFusion::AddAddFusion() {
         copy_runtime_info({add1, add2}, new_add);
         new_add->set_friendly_name(add2->get_friendly_name());
         replace_node(add2, new_add);
-        MATCHER_SCOPE_ENABLE(AddAddFusion);
         return true;
     };
 
@@ -98,16 +96,16 @@ ngraph::pass::AddAddFusion::AddAddFusion() {
     this->register_matcher(m, callback);
 }
 
-ngraph::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
+ov::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
     MATCHER_SCOPE(MultiplyMultiplyFusion);
     // Create Multiply->Multiply pattern where first Multiply has exactly one consumer
-    auto m_data = ngraph::pattern::any_input();
+    auto m_data = pass::pattern::any_input();
     auto m_mul1_constant = ngraph::pattern::wrap_type<opset3::Constant>();
     auto m_mul1 = ngraph::pattern::wrap_type<opset3::Multiply>({m_data, m_mul1_constant}, pattern::consumers_count(1));
     auto m_mul2_constant = ngraph::pattern::wrap_type<opset3::Constant>();
-    auto m_mul2 = ngraph::pattern::wrap_type<ngraph::opset3::Multiply>({m_mul1, m_mul2_constant});
+    auto m_mul2 = ngraph::pattern::wrap_type<opset3::Multiply>({m_mul1, m_mul2_constant});
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) -> bool {
+    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) -> bool {
         auto& label_to_output = m.get_pattern_value_map();
 
         auto mul1 = label_to_output[m_mul1].get_node_shared_ptr();
@@ -126,7 +124,6 @@ ngraph::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
         copy_runtime_info({mul1, mul2}, new_mul);
         new_mul->set_friendly_name(mul2->get_friendly_name());
         replace_node(mul2, new_mul);
-        MATCHER_SCOPE_ENABLE(MultiplyMultiplyFusion);
         return true;
     };
 

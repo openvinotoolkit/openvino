@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all ngraph ops."""
@@ -87,9 +87,7 @@ def gather_nd(
     """
     inputs = as_nodes(data, indices)
 
-    attributes = {
-        "batch_dims": batch_dims
-    }
+    attributes = {"batch_dims": batch_dims}
 
     return _get_node_factory_opset5().create("GatherND", inputs, attributes)
 
@@ -140,13 +138,9 @@ def non_max_suppression(
     if score_threshold is None:
         score_threshold = make_constant_node(0, np.float32)
     if soft_nms_sigma is None:
-        inputs = as_nodes(
-            boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold
-        )
+        inputs = as_nodes(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold)
     else:
-        inputs = as_nodes(
-            boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, soft_nms_sigma
-        )
+        inputs = as_nodes(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, soft_nms_sigma)
 
     attributes = {
         "box_encoding": box_encoding,
@@ -173,20 +167,20 @@ def round(data: NodeInput, mode: str = "half_to_even", name: Optional[str] = Non
 
 @nameable_op
 def lstm_sequence(
-        X: NodeInput,
-        initial_hidden_state: NodeInput,
-        initial_cell_state: NodeInput,
-        sequence_lengths: NodeInput,
-        W: NodeInput,
-        R: NodeInput,
-        B: NodeInput,
-        hidden_size: int,
-        direction: str,
-        activations: List[str] = None,
-        activations_alpha: List[float] = None,
-        activations_beta: List[float] = None,
-        clip: float = 0.0,
-        name: Optional[str] = None,
+    X: NodeInput,
+    initial_hidden_state: NodeInput,
+    initial_cell_state: NodeInput,
+    sequence_lengths: NodeInput,
+    W: NodeInput,
+    R: NodeInput,
+    B: NodeInput,
+    hidden_size: int,
+    direction: str,
+    activations: Optional[List[str]] = None,
+    activations_alpha: Optional[List[float]] = None,
+    activations_beta: Optional[List[float]] = None,
+    clip: float = 0.0,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs LSTMSequence operation.
 
@@ -235,7 +229,10 @@ def lstm_sequence(
     return _get_node_factory_opset5().create("LSTMSequence", node_inputs, attributes)
 
 
-def hsigmoid(data: NodeInput, name: Optional[str] = None,) -> Node:
+def hsigmoid(
+    data: NodeInput,
+    name: Optional[str] = None,
+) -> Node:
     """Return a node which performs HSigmoid.
 
     :param data: Tensor with input data floating point type.
@@ -246,20 +243,20 @@ def hsigmoid(data: NodeInput, name: Optional[str] = None,) -> Node:
 
 @nameable_op
 def gru_sequence(
-        X: NodeInput,
-        initial_hidden_state: NodeInput,
-        sequence_lengths: NodeInput,
-        W: NodeInput,
-        R: NodeInput,
-        B: NodeInput,
-        hidden_size: int,
-        direction: str,
-        activations: List[str] = None,
-        activations_alpha: List[float] = None,
-        activations_beta: List[float] = None,
-        clip: float = 0.0,
-        linear_before_reset: bool = False,
-        name: Optional[str] = None,
+    X: NodeInput,
+    initial_hidden_state: NodeInput,
+    sequence_lengths: NodeInput,
+    W: NodeInput,
+    R: NodeInput,
+    B: NodeInput,
+    hidden_size: int,
+    direction: str,
+    activations: Optional[List[str]] = None,
+    activations_alpha: Optional[List[float]] = None,
+    activations_beta: Optional[List[float]] = None,
+    clip: float = 0.0,
+    linear_before_reset: bool = False,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs GRUSequence operation.
 
@@ -310,19 +307,19 @@ def gru_sequence(
 
 @nameable_op
 def rnn_sequence(
-        X: NodeInput,
-        initial_hidden_state: NodeInput,
-        sequence_lengths: NodeInput,
-        W: NodeInput,
-        R: NodeInput,
-        B: NodeInput,
-        hidden_size: int,
-        direction: str,
-        activations: List[str] = None,
-        activations_alpha: List[float] = None,
-        activations_beta: List[float] = None,
-        clip: float = 0.0,
-        name: Optional[str] = None,
+    X: NodeInput,
+    initial_hidden_state: NodeInput,
+    sequence_lengths: NodeInput,
+    W: NodeInput,
+    R: NodeInput,
+    B: NodeInput,
+    hidden_size: int,
+    direction: str,
+    activations: Optional[List[str]] = None,
+    activations_alpha: Optional[List[float]] = None,
+    activations_beta: Optional[List[float]] = None,
+    clip: float = 0.0,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs RNNSequence operation.
 
@@ -415,13 +412,15 @@ def loop(
     """
     attributes = {
         "body": graph_body.serialize(),
-        "input_descriptions": {"slice_input_desc": [desc.serialize() for desc in slice_input_desc],
-                               "merged_input_desc": [desc.serialize() for desc in merged_input_desc],
-                               "invariant_input_desc": [desc.serialize() for desc in invariant_input_desc]},
-        "output_descriptions": {"body_output_desc": [desc.serialize() for desc in body_output_desc],
-                                "concat_output_desc": [desc.serialize() for desc in concat_output_desc]},
-        "special_body_ports": {"body_condition_output_idx": body_condition_output_idx,
-                               "current_iteration_input_idx": current_iteration_input_idx}
+        "input_descriptions": {
+            "slice_input_desc": [desc.serialize() for desc in slice_input_desc],
+            "merged_input_desc": [desc.serialize() for desc in merged_input_desc],
+            "invariant_input_desc": [desc.serialize() for desc in invariant_input_desc],
+        },
+        "output_descriptions": {
+            "body_output_desc": [desc.serialize() for desc in body_output_desc],
+            "concat_output_desc": [desc.serialize() for desc in concat_output_desc],
+        },
+        "special_body_ports": {"body_condition_output_idx": body_condition_output_idx, "current_iteration_input_idx": current_iteration_input_idx},
     }
-    return _get_node_factory_opset5().create("Loop", as_nodes(trip_count, execution_condition, *inputs),
-                                             attributes)
+    return _get_node_factory_opset5().create("Loop", as_nodes(trip_count, execution_condition, *inputs), attributes)

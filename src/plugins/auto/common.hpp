@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@
 #include "threading/ie_thread_safe_containers.hpp"
 #include "utils/log_util.hpp"
 #include <ie_performance_hints.hpp>
-#include "openvino/runtime/intel_auto/properties.hpp"
+#include "openvino/runtime/auto/properties.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/log_util.hpp"
@@ -121,7 +121,9 @@ public:
     DeviceMap<SoExecNetwork>                       _networksPerDevice;
     std::mutex                                     _mutex;
     bool                                           _needPerfCounters;
+    bool                                           _batchingDisabled = {false};
     bool                                           _bindBuffer = false;
+    bool                                           _startupfallback = true;
     virtual ~MultiScheduleContext() = default;
 };
 
@@ -133,7 +135,6 @@ public:
     IE::CNNNetwork              _network;
     std::string                 _strDevices;
     unsigned int                _modelPriority = 0;
-    bool                        _batchingDisabled = {false};
     std::string                 _performanceHint;
     std::mutex                  _confMutex;
     MultiDeviceInferencePlugin* _plugin;

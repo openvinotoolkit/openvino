@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,6 @@ namespace v4 {
 class OPENVINO_API HSwish : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("HSwish", "opset4", op::util::UnaryElementwiseArithmetic, 4);
-    BWDCMP_RTTI_DECLARATION;
     HSwish() = default;
 
     /// \brief Constructs a HSwish (hard version of Swish) operation.

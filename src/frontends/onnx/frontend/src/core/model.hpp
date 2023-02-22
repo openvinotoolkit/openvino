@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,6 +52,16 @@ public:
 
     const std::string& get_producer_version() const {
         return m_model_proto->producer_version();
+    }
+
+    std::map<std::string, std::string> get_metadata() const {
+        std::map<std::string, std::string> metadata;
+
+        const auto& model_metadata = m_model_proto->metadata_props();
+        for (const auto& prop : model_metadata) {
+            metadata.emplace(prop.key(), prop.value());
+        }
+        return metadata;
     }
 
     /// \brief Access an operator object by its type name and domain name

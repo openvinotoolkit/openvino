@@ -27,7 +27,7 @@ class typed_primitive_inst<experimental_detectron_prior_grid_generator>
 public:
     using typed_primitive_inst_base::typed_primitive_inst_base;
 
-    static layout calc_output_layout(experimental_detectron_prior_grid_generator_node const& node);
+    static layout calc_output_layout(experimental_detectron_prior_grid_generator_node const& node, kernel_impl_params const& impl_param);
 
     static std::string to_string(experimental_detectron_prior_grid_generator_node const& node);
 };

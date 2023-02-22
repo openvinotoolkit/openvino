@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,8 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
 #include <transformations/utils/utils.hpp>
-#include <ngraph/variant.hpp>
 
 #include "itt.hpp"
 
@@ -53,8 +53,8 @@ namespace {
         if (seqAxis == 0) {
             ngraph::Output<ngraph::Node> in_0 = sequenceOp->get_input_node_shared_ptr(0)->input_value(0);
 
-            auto shapeBeforeTranspose = ngraph::op::util::make_try_fold<ngraph::opset1::ShapeOf>(in_0);
-            auto newInShape = ngraph::op::util::make_try_fold<ngraph::opset8::Gather>(shapeBeforeTranspose,
+            auto shapeBeforeTranspose = ov::op::util::make_try_fold<ngraph::opset1::ShapeOf>(in_0);
+            auto newInShape = ov::op::util::make_try_fold<ngraph::opset8::Gather>(shapeBeforeTranspose,
                 ngraph::opset1::Constant::create(ngraph::element::i32, { 3 }, { 1, 0, 2 }),
                 ngraph::opset1::Constant::create(ngraph::element::i32, {}, { 0 }));
             auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(in_0, newInShape, false);
@@ -66,8 +66,8 @@ namespace {
                 return false;
             auto transposeAfter = seqTargetInputs.begin()->get_node()->shared_from_this();
 
-            auto lstmOutShape = ngraph::op::util::make_try_fold<ngraph::opset1::ShapeOf>(sequenceOp->output(0));
-            auto newOutShape = ngraph::op::util::make_try_fold<ngraph::opset8::Gather>(lstmOutShape,
+            auto lstmOutShape = ov::op::util::make_try_fold<ngraph::opset1::ShapeOf>(sequenceOp->output(0));
+            auto newOutShape = ov::op::util::make_try_fold<ngraph::opset8::Gather>(lstmOutShape,
                 ngraph::opset1::Constant::create(ngraph::element::i32, { 4 }, { 2, 1, 0, 3 }),
                 ngraph::opset1::Constant::create(ngraph::element::i32, {}, { 0 }));
 
@@ -95,7 +95,7 @@ ov::intel_cpu::OptimizeGRUSequenceTransposes::OptimizeGRUSequenceTransposes() {
         // Bidirectional cases are not supported
         if (gruSequence->get_direction() == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
             return false;
-        MATCHER_SCOPE_ENABLE(OptimizeGRUSequenceTransposes);
+
         return transform(gruSequence);
     };
 
@@ -115,7 +115,7 @@ ov::intel_cpu::OptimizeRNNSequenceTransposes::OptimizeRNNSequenceTransposes() {
         // Bidirectional cases are not supported
         if (rnnSequence->get_direction() == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
             return false;
-        MATCHER_SCOPE_ENABLE(OptimizeRNNSequenceTransposes);
+
         return transform(rnnSequence);
     };
 
@@ -138,7 +138,6 @@ ov::intel_cpu::OptimizeLSTMSequenceTransposes::OptimizeLSTMSequenceTransposes() 
             }
         };
 
-        MATCHER_SCOPE_ENABLE(OptimizeLSTMSequenceTransposes);
         std::shared_ptr<ngraph::Node> lstmSequence = m.get_match_root();
         return checkSequence(lstmSequence) ? transform(lstmSequence) : false;
     };
@@ -148,7 +147,7 @@ ov::intel_cpu::OptimizeLSTMSequenceTransposes::OptimizeLSTMSequenceTransposes() 
 }
 
 ov::intel_cpu::OptimizeSequenceTransposes::OptimizeSequenceTransposes() {
-    add_matcher<OptimizeLSTMSequenceTransposes>();
-    add_matcher<OptimizeRNNSequenceTransposes>();
-    add_matcher<OptimizeGRUSequenceTransposes>();
+    ADD_MATCHER_FOR_THIS(OptimizeLSTMSequenceTransposes)
+    ADD_MATCHER_FOR_THIS(OptimizeRNNSequenceTransposes)
+    ADD_MATCHER_FOR_THIS(OptimizeGRUSequenceTransposes)
 }

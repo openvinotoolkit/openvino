@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -14,13 +14,9 @@ class TestPooling(CommonTFLayerTest):
         """
             Tensorflow net                 IR net
 
-            Input->Pooling        =>       Input->Pooling
+            Input->Pooling        =>       Input->Pooling (AvgPool, MaxPool)
 
         """
-
-        #
-        #   Create Tensorflow model
-        #
 
         import tensorflow as tf
 
@@ -40,10 +36,10 @@ class TestPooling(CommonTFLayerTest):
                 kernel = [1, kernel_size[0], kernel_size[1], 1]
 
                 if method == 'max':
-                    tf.nn.max_pool2d(input=input, ksize=kernel, strides=stride, padding=padding,
+                    tf.raw_ops.MaxPool(input=input, ksize=kernel, strides=stride, padding=padding,
                                      name='Operation')
                 elif method == 'avg':
-                    tf.nn.avg_pool2d(input=input, ksize=kernel, strides=stride, padding=padding,
+                    tf.raw_ops.AvgPool(value=input, ksize=kernel, strides=stride, padding=padding,
                                      name='Operation')
 
             # 5D tensors
@@ -55,50 +51,16 @@ class TestPooling(CommonTFLayerTest):
                 kernel = [1, kernel_size[0], kernel_size[1], kernel_size[2], 1]
 
                 if method == 'max':
-                    tf.nn.max_pool3d(input, kernel, stride, padding,
-                                     name='Operation')  # , data_format='NCHW')
+                    tf.raw_ops.MaxPool3D(input=input, ksize=kernel, strides=stride, padding=padding,
+                                     name='Operation')
                 elif method == 'avg':
-                    tf.nn.avg_pool3d(input, kernel, stride, padding,
-                                     name='Operation')  # , data_format='NCHW')
+                    tf.raw_ops.AvgPool3D(input=input, ksize=kernel, strides=stride, padding=padding,
+                                     name='Operation')
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
-        #
-        #   Create reference IR net
-        #   Please, specify 'type': 'Input' for input node
-        #   Moreover, do not forget to validate ALL layer attributes!!!
-        #
-
         ref_net = None
-
-        if check_ir_version(10, None, ir_version) and not use_new_frontend:
-            nodes_attributes = {
-                'input': {'kind': 'op', 'type': 'Parameter'},
-                'input_data': {'shape': in_shape, 'kind': 'data'},
-                'pooling': {'kernel': kernel_size, 'pads_begin': pads_begin, 'pads_end': pads_end,
-                            'strides': strides, 'kind': 'op', 'type': None},
-                'pooling_data': {'shape': out_shape, 'kind': 'data'},
-                'result': {'kind': 'op', 'type': 'Result'},
-                'pooling_indicies_data': {'kind': 'data', 'shape': out_shape}
-            }
-
-            if method == 'avg':
-                nodes_attributes['pooling']['type'] = 'AvgPool'
-            elif method == 'max':
-                nodes_attributes['pooling']['type'] = 'MaxPool'
-
-            edges = [('input', 'input_data'),
-                     ('input_data', 'pooling'),
-                     ('pooling', 'pooling_data', {'out': 0}),
-                     ('pooling_data', 'result')]
-
-            if method == 'max':
-                edges.append(('pooling', 'pooling_indicies_data', {'out': 1}))
-
-            ref_net = build_graph(nodes_attributes,
-                                  edges=edges,
-                                  nodes_with_edges_only=True)
 
         return tf_net, ref_net
 
@@ -107,9 +69,11 @@ class TestPooling(CommonTFLayerTest):
         test_data_4D.extend([dict(kernel_size=[1, 1], strides=[1, 1], pads=[[0, 0], [0, 0], 'SAME'],
                                   in_shape=[1, 3, 224, 224], out_shape=[1, 3, 224, 224],
                                   method=method),
+                             pytest.param(
                              dict(kernel_size=[2, 2], strides=[2, 2], pads=[[0, 0], [0, 0], 'SAME'],
                                   in_shape=[1, 3, 224, 224], out_shape=[1, 3, 112, 112],
                                   method=method),
+                             marks=pytest.mark.precommit_tf_fe),
                              dict(kernel_size=[2, 4], strides=[2, 4], pads=[[0, 0], [0, 0], 'SAME'],
                                   in_shape=[1, 3, 224, 224], out_shape=[1, 3, 112, 56],
                                   method=method),
@@ -131,9 +95,11 @@ class TestPooling(CommonTFLayerTest):
                              dict(kernel_size=[2, 3], strides=[2, 3], pads=[[0, 0], [0, 1], 'SAME'],
                                   in_shape=[1, 3, 224, 224], out_shape=[1, 3, 112, 75],
                                   method=method),
+                             pytest.param(
                              dict(kernel_size=[111, 111], strides=[111, 111],
                                   pads=[[54, 54], [55, 55], 'SAME'],
                                   in_shape=[1, 3, 224, 224], out_shape=[1, 3, 3, 3], method=method),
+                             marks=pytest.mark.precommit_tf_fe),
                              dict(kernel_size=[111, 113], strides=[111, 113],
                                   pads=[[54, 1], [55, 1], 'SAME'],
                                   in_shape=[1, 3, 224, 224], out_shape=[1, 3, 3, 2], method=method),
@@ -150,8 +116,10 @@ class TestPooling(CommonTFLayerTest):
                   in_shape=[1, 3, 224, 224], out_shape=[1, 3, 224, 224], method=method),
              dict(kernel_size=[2, 2], strides=[2, 2], pads=[[0, 0], [0, 0], 'VALID'],
                   in_shape=[1, 3, 224, 224], out_shape=[1, 3, 112, 112], method=method),
+             pytest.param(
              dict(kernel_size=[2, 4], strides=[2, 4], pads=[[0, 0], [0, 0], 'VALID'],
                   in_shape=[1, 3, 224, 224], out_shape=[1, 3, 112, 56], method=method),
+             marks=pytest.mark.precommit_tf_fe),
              dict(kernel_size=[4, 2], strides=[4, 2], pads=[[0, 0], [0, 0], 'VALID'],
                   in_shape=[1, 3, 224, 224], out_shape=[1, 3, 56, 112], method=method),
              dict(kernel_size=[2, 3], strides=[2, 3], pads=[[0, 0], [0, 0], 'VALID'],
@@ -178,19 +146,21 @@ class TestPooling(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
     def test_pool_4D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                     api_2):
+                     use_old_api):
         self._test(*self.create_pooling_net(**params, ir_version=ir_version,
                                             use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_5D = []
     for method in ['max', 'avg']:
         test_data_5D.extend(
             [dict(kernel_size=[1, 1, 1], strides=[1, 1, 1], pads=[[0, 0, 0], [0, 0, 0], 'SAME'],
                   in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 224, 224, 224], method=method),
+             pytest.param(
              dict(kernel_size=[2, 2, 2], strides=[2, 2, 2], pads=[[0, 0, 0], [0, 0, 0], 'SAME'],
                   in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 112, 112, 112], method=method),
+             marks=pytest.mark.precommit_tf_fe),
              dict(kernel_size=[2, 2, 4], strides=[2, 2, 4], pads=[[0, 0, 0], [0, 0, 0], 'SAME'],
                   in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 112, 112, 56], method=method),
              dict(kernel_size=[4, 2, 2], strides=[4, 2, 2], pads=[[0, 0, 0], [0, 0, 0], 'SAME'],
@@ -221,8 +191,10 @@ class TestPooling(CommonTFLayerTest):
         test_data_5D.extend(
             [dict(kernel_size=[1, 1, 1], strides=[1, 1, 1], pads=[[0, 0, 0], [0, 0, 0], 'VALID'],
                   in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 224, 224, 224], method=method),
+             pytest.param(
              dict(kernel_size=[2, 2, 2], strides=[2, 2, 2], pads=[[0, 0, 0], [0, 0, 0], 'VALID'],
                   in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 112, 112, 112], method=method),
+             marks=pytest.mark.precommit_tf_fe),
              dict(kernel_size=[2, 2, 4], strides=[2, 2, 4], pads=[[0, 0, 0], [0, 0, 0], 'VALID'],
                   in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 112, 112, 56], method=method),
              dict(kernel_size=[4, 2, 2], strides=[4, 2, 2], pads=[[0, 0, 0], [0, 0, 0], 'VALID'],
@@ -256,10 +228,10 @@ class TestPooling(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
     def test_pool_5D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                     api_2):
+                     use_old_api):
         if ie_device == 'GPU':
             pytest.skip("5D tensors is not supported on GPU")
         self._test(*self.create_pooling_net(**params, ir_version=ir_version,
                                             use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)

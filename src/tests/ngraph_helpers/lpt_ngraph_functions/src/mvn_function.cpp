@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "lpt_ngraph_functions/common/builders.hpp"
-#include "ngraph_ops/type_relaxed.hpp"
+#include "ov_ops/type_relaxed.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -77,11 +77,11 @@ std::shared_ptr<ngraph::Function> MVNFunction::getReference(
     const std::shared_ptr<Node> dequantizationOpBefore = makeDequantization(input, deqBeforeStructure);
     std::shared_ptr<Node> mvn;
     if (opset_version == 2) {
-        mvn = std::make_shared<ngraph::op::TypeRelaxed<ngraph::op::MVN>>(
+        mvn = std::make_shared<ov::op::TypeRelaxed<ngraph::op::MVN>>(
             op::MVN(dequantizationOpBefore, reductionAxes, normalizeVariance),
             dequantizationAfter.empty() ? precision : element::f32);
     } else if (opset_version == 6) {
-        mvn = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset6::MVN>>(
+        mvn = std::make_shared<ov::op::TypeRelaxed<ngraph::opset6::MVN>>(
             opset6::MVN(dequantizationOpBefore,
                 std::make_shared<opset1::Constant>(element::i64, Shape{reductionAxes.size()}, reductionAxes.to_vector()),
                 normalizeVariance,

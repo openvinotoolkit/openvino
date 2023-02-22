@@ -12,7 +12,7 @@
 
 Inference Engine Plugin API provides the helper InferenceEngine::ExecutableNetworkThreadSafeDefault class recommended to use as a base class for an executable network. Based on that, a declaration of an executable network class can look as follows: 
 
-@snippet src/template_executable_network.hpp executable_network:header
+@snippet src/compiled_model.hpp executable_network:header
 
 #### Class Fields
 
@@ -29,7 +29,7 @@ The example class has several fields:
 
 This constructor accepts a generic representation of a neural network as an InferenceEngine::ICNNNetwork reference and is compiled into a backend specific device graph:
 
-@snippet src/template_executable_network.cpp executable_network:ctor_cnnnetwork
+@snippet src/compiled_model.cpp executable_network:ctor_cnnnetwork
 
 The implementation `CompileNetwork` is fully device-specific.
 
@@ -41,7 +41,7 @@ The function accepts a const shared pointer to `ngraph::Function` object and per
 2. Maps the transformed graph to a backend specific graph representation (for example, to CPU plugin internal graph representation).
 3. Allocates and fills memory for graph weights, backend specific memory handles and so on.
 
-@snippet src/template_executable_network.cpp executable_network:map_graph
+@snippet src/compiled_model.cpp executable_network:map_graph
 
 > **NOTE**: After all these steps, the backend specific graph is ready to create inference requests and perform inference.
 
@@ -51,13 +51,11 @@ This constructor creates a backend specific graph by importing from a stream obj
 
 > **NOTE**: The export of backend specific graph is done in the `Export` method, and data formats must be the same for both import and export.
 
-@snippet src/template_executable_network.cpp executable_network:ctor_import_stream
-
 ### `Export()`
 
 The implementation of the method should write all data to the `model` stream, which is required to import a backend specific graph later in the `Plugin::Import` method:
 
-@snippet src/template_executable_network.cpp executable_network:export
+@snippet src/compiled_model.cpp executable_network:export
 
 ### `CreateInferRequest()`
 
@@ -69,13 +67,7 @@ The method creates an asynchronous inference request and returns it. While the p
    - For pipelines with multiple stages, such as performing some preprocessing on host, uploading input data to a device, running inference on a device, or downloading and postprocessing output data, schedule stages on several task executors to achieve better device use and performance. You can do it by creating a sufficient number of inference requests running in parallel. In this case, device stages of different inference requests are overlapped with preprocessing and postprocessing stage giving better performance.
    > **IMPORTANT**: It is up to you to decide how many task executors you need to optimally execute a device pipeline.
 
-@snippet src/template_executable_network.cpp executable_network:create_infer_request
-
-### `CreateInferRequestImpl()`
-
-This is a helper method used by `CreateInferRequest` to create a [synchronous inference request](@ref openvino_docs_ie_plugin_dg_infer_request), which is later wrapped with the asynchronous inference request class:
-
-@snippet src/template_executable_network.cpp executable_network:create_infer_request_impl
+@snippet src/compiled_model.cpp executable_network:create_infer_request
 
 ### `GetMetric()`
 
@@ -83,9 +75,7 @@ Returns a metric value for a metric with the name `name`.  A metric is a static 
 
 - EXEC_NETWORK_METRIC_KEY(NETWORK_NAME) - name of an executable network
 - EXEC_NETWORK_METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS) - heuristic to denote an optimal (or at least sub-optimal) number of inference requests needed to run asynchronously to use the current device fully
-- Any other executable network metric specific for a particular device. Such metrics and possible values must be declared in a plugin configuration public header, for example, `template/template_config.hpp`
-
-@snippet src/template_executable_network.cpp executable_network:get_metric
+- Any other executable network metric specific for a particular device. Such metrics and possible values must be declared in a plugin configuration public header, for example, `template/config.hpp`
 
 The IE_SET_METRIC_RETURN helper macro sets metric value and checks that the actual metric type matches a type of the specified value.
 
@@ -93,8 +83,8 @@ The IE_SET_METRIC_RETURN helper macro sets metric value and checks that the actu
 
 Returns a current value for a configuration key with the name `name`. The method extracts configuration values an executable network is compiled with.
 
-@snippet src/template_executable_network.cpp executable_network:get_config
+@snippet src/compiled_model.cpp executable_network:get_config
 
-This function is the only way to get configuration values when a network is imported and compiled by other developers and tools (for example, the [Compile tool](../_inference_engine_tools_compile_tool_README.html)).
+This function is the only way to get configuration values when a network is imported and compiled by other developers and tools (for example, the [Compile tool](@ref openvino_inference_engine_tools_compile_tool_README).
 
 The next step in plugin library implementation is the [Synchronous Inference Request](@ref openvino_docs_ie_plugin_dg_infer_request) class.

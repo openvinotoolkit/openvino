@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,8 @@
 #include "openvino/frontend/visibility.hpp"
 
 namespace ov {
+// Forward declaration
+void FRONTEND_API shutdown();
 namespace frontend {
 // -------------- FrontEndManager -----------------
 using FrontEndFactory = std::function<FrontEnd::Ptr()>;
@@ -22,8 +24,6 @@ using FrontEndFactory = std::function<FrontEnd::Ptr()>;
 /// frontends This is a main frontend entry point for client applications
 class FRONTEND_API FrontEndManager final {
 public:
-    using Ptr = std::shared_ptr<FrontEndManager>;
-
     /// \brief Default constructor. Searches and loads of available frontends
     FrontEndManager();
 
@@ -71,17 +71,29 @@ public:
     /// be created
     void register_front_end(const std::string& name, FrontEndFactory creator);
 
+    /// \brief Register frontend with name and factory loaded from provided library
+    ///
+    /// \param name Name of front end
+    ///
+    /// \param library_path Path (absolute or relative) or name of a frontend library. If name is
+    /// provided, depending on platform, it will be wrapped with shared library suffix and prefix
+    /// to identify library full name
+    void register_front_end(const std::string& name, const std::string& library_path);
+
 private:
     class Impl;
 
     FrontEnd::Ptr load_by_model_impl(const std::vector<ov::Any>& variants);
 
     std::unique_ptr<Impl> m_impl;
+
+    friend FRONTEND_API void ov::shutdown();
+    /// \brief Shutdown the manager by try releasing frontend libraries
+    static void shutdown();
 };
 
 template <>
 FRONTEND_API FrontEnd::Ptr FrontEndManager::load_by_model(const std::vector<ov::Any>& variants);
-FRONTEND_API FrontEndManager::Ptr get_frontend_manager();
 
 // --------- Plugin exporting information --------------
 

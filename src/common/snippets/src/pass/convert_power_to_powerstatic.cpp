@@ -15,7 +15,7 @@ ngraph::snippets::pass::ConvertPowerToPowerStatic::ConvertPowerToPowerStatic() {
                                                         return is_type<ov::op::v1::Power>(n) &&
                                                                is_type<snippets::op::Scalar>(n->get_input_node_shared_ptr(1));
                                                     });
-    ngraph::graph_rewrite_callback callback = [this](ngraph::pattern::Matcher &m) {
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher &m) {
         OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::ConvertConstantsToScalars")
         auto power = ov::as_type_ptr<ov::op::v1::Power>(m.get_match_root());
         auto scalar = ov::as_type_ptr<snippets::op::Scalar>(power->get_input_node_shared_ptr(1));
@@ -24,8 +24,8 @@ ngraph::snippets::pass::ConvertPowerToPowerStatic::ConvertPowerToPowerStatic() {
         power_static->set_friendly_name(power->get_friendly_name());
         ngraph::copy_runtime_info(power, power_static);
         ngraph::replace_node(power, power_static);
-        MATCHER_SCOPE_ENABLE(ConvertPowerToPowerStatic);
+
         return true;
     };
-    register_matcher(std::make_shared<ov::pass::pattern::Matcher>(scalarPower), callback);
+    register_matcher(std::make_shared<ov::pass::pattern::Matcher>(scalarPower, matcher_name), callback);
 }

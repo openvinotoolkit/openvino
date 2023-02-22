@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023  Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -35,7 +35,7 @@ add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 # Add an alias so that library can be used inside the build tree, e.g. when testing
 add_library(ngraph::builder ALIAS ${TARGET_NAME})
 
-ov_install_static_lib(ngraph_builders core)
+ov_install_static_lib(ngraph_builders ${OV_CPACK_COMP_CORE})
 
 # developer package
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -107,12 +107,14 @@ public:
     Blob::Ptr GetBlob(const std::string& name);
 
     /**
+     * @deprecated This method will be removed in 2023.1 release
      * @brief Sets blob with a pre-process information
      * @note Returns an error in case if data blob is output
      * @param name Name of input blob.
      * @param data A reference to input. The type of Blob must correspond to the network input precision and size.
      * @param info Preprocess info for blob.
      */
+    INFERENCE_ENGINE_DEPRECATED("This method is deprecated and will be removed in 2023.1 release")
     void SetBlob(const std::string& name, const Blob::Ptr& data, const PreProcessInfo& info);
 
     /**

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -16,5 +16,4 @@ try:
     from openvino.frontend.tensorflow.py_tensorflow_frontend import ConversionExtensionTensorflow as ConversionExtension
     from openvino.frontend.tensorflow.py_tensorflow_frontend import OpExtensionTensorflow as OpExtension
 except ImportError as err:
-    raise ImportError("OpenVINO Tensorflow frontend is not available, please make sure the frontend is built. "
-                      "{}".format(err))
+    raise ImportError("OpenVINO Tensorflow frontend is not available, please make sure the frontend is built. " "{}".format(err))

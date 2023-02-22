@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// clang-format off
 #include <gtest/gtest.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <opencv2/opencv.hpp>
 #include <condition_variable>
 #include <mutex>
 #include <c_api/ie_c_api.h>
@@ -15,41 +15,27 @@
 
 std::string xml_std = TestDataHelpers::generate_model_path("test_model", "test_model_fp32.xml"),
             bin_std = TestDataHelpers::generate_model_path("test_model", "test_model_fp32.bin"),
-            input_image_std = TestDataHelpers::generate_image_path("224x224", "dog.bmp"),
             input_image_nv12_std = TestDataHelpers::generate_image_path("224x224", "dog6.yuv");
 
 const char* xml = xml_std.c_str();
 const char* bin = bin_std.c_str();
-const char* input_image = input_image_std.c_str();
 const char* input_image_nv12 = input_image_nv12_std.c_str();
 
 std::mutex m;
 bool ready = false;
 std::condition_variable condVar;
-#ifdef _WIN32
-    #ifdef __MINGW32__
-        std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins_mingw.xml");
-    #else
-        std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins_win.xml");
-    #endif
-#elif defined __APPLE__
-        std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins_apple.xml");
-#else
-        std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins.xml");
-#endif
-const char* plugins_xml = plugins_xml_std.c_str();
 
 #define IE_EXPECT_OK(...) EXPECT_EQ(IEStatusCode::OK, __VA_ARGS__)
 #define IE_ASSERT_OK(...) ASSERT_EQ(IEStatusCode::OK, __VA_ARGS__)
 #define IE_EXPECT_NOT_OK(...) EXPECT_NE(IEStatusCode::OK, __VA_ARGS__)
 
-size_t read_image_from_file(const char* img_path, unsigned char *img_data, size_t size) {
+inline size_t read_image_from_file(const char* img_path, unsigned char *img_data, size_t size) {
     FILE *fp = fopen(img_path, "rb+");
     size_t read_size = 0;
 
     if (fp) {
         fseek(fp, 0, SEEK_END);
-        if (ftell(fp) >= size) {
+        if (ftell(fp) >= static_cast<long int>(size)) {
             fseek(fp, 0, SEEK_SET);
             read_size = fread(img_data, 1, size, fp);
         }
@@ -58,30 +44,7 @@ size_t read_image_from_file(const char* img_path, unsigned char *img_data, size_
     return read_size;
 }
 
-void Mat2Blob(const cv::Mat& img, ie_blob_t *blob)
-{
-    dimensions_t dimenison;
-    IE_EXPECT_OK(ie_blob_get_dims(blob, &dimenison));
-    size_t channels = dimenison.dims[1];
-    size_t width = dimenison.dims[3];
-    size_t height = dimenison.dims[2];
-    ie_blob_buffer_t buffer;
-    IE_EXPECT_OK(ie_blob_get_buffer(blob, &buffer));
-    uint8_t *blob_data = (uint8_t *)(buffer.buffer);
-    cv::Mat resized_image;
-    cv::resize(img, resized_image, cv::Size(width, height));
-
-    for (size_t c = 0; c < channels; c++) {
-        for (size_t  h = 0; h < height; h++) {
-            for (size_t w = 0; w < width; w++) {
-                blob_data[c * width * height + h * width + w] =
-                        resized_image.at<cv::Vec3b>(h, w)[c];
-            }
-        }
-    }
-}
-
-size_t find_device(ie_available_devices_t avai_devices, const char *device_name) {
+inline size_t find_device(ie_available_devices_t avai_devices, const char *device_name) {
     for (size_t i = 0; i < avai_devices.num_devices; ++i) {
         if (strstr(avai_devices.devices[i], device_name))
             return i;
@@ -99,11 +62,10 @@ TEST(ie_c_api_version, apiVersion) {
     ie_version_free(&version);
 }
 
-void completion_callback(void *args) {
+static void completion_callback(void *args) {
     ie_infer_request_t *infer_request = (ie_infer_request_t *)args;
     ie_blob_t *output_blob = nullptr;
 
-    printf("async infer callback...\n");
     IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, "fc_out", &output_blob));
 
     ie_blob_buffer_t buffer;
@@ -119,11 +81,13 @@ void completion_callback(void *args) {
 }
 
 TEST(ie_core_create, coreCreatewithConfig) {
+    std::string plugins_xml = TestDataHelpers::generate_test_xml_file();
     ie_core_t *core = nullptr;
-    IE_ASSERT_OK(ie_core_create(plugins_xml, &core));
+    IE_ASSERT_OK(ie_core_create(plugins_xml.c_str(), &core));
     ASSERT_NE(nullptr, core);
 
     ie_core_free(&core);
+    TestDataHelpers::delete_test_xml_file();
 }
 
 TEST(ie_core_create, coreCreateNoConfig) {
@@ -153,66 +117,38 @@ TEST(ie_core_register_plugin, registerPlugin) {
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
-    ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
-    EXPECT_NE(nullptr, network);
-
-    const char *plugin_name = "openvino_intel_cpu_plugin";
+    const char *plugin_name = "test_plugin";
     const char *device_name = "BLA";
     IE_EXPECT_OK(ie_core_register_plugin(core, plugin_name, device_name));
 
-    ie_config_t config = {nullptr, nullptr, nullptr};
-    ie_executable_network_t *exe_network = nullptr;
-    IE_EXPECT_OK(ie_core_load_network(core, network, device_name, &config, &exe_network));
-    EXPECT_NE(nullptr, exe_network);
-
-    ie_exec_network_free(&exe_network);
-    ie_network_free(&network);
     ie_core_free(&core);
 }
 
 TEST(ie_core_register_plugins, registerPlugins) {
+    std::string plugins_xml = TestDataHelpers::generate_test_xml_file();
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
-    ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
-    EXPECT_NE(nullptr, network);
+    IE_EXPECT_OK(ie_core_register_plugins(core, plugins_xml.c_str()));
 
-    IE_EXPECT_OK(ie_core_register_plugins(core, plugins_xml));
-
-    ie_config_t config = {nullptr, nullptr, nullptr};
-    const char *device_name = "CUSTOM";
-    ie_executable_network_t *exe_network = nullptr;
-    IE_EXPECT_OK(ie_core_load_network(core, network, device_name, &config, &exe_network));
-    EXPECT_NE(nullptr, exe_network);
-
-    ie_exec_network_free(&exe_network);
-    ie_network_free(&network);
     ie_core_free(&core);
+    TestDataHelpers::delete_test_xml_file();
 }
 
-TEST(ie_core_unregister_plugin, unregisterPlugin) {
+TEST(ie_core_unload_plugin, unloadPlugin) {
     ie_core_t *core = nullptr;
-    IE_ASSERT_OK(ie_core_create(plugins_xml, &core));
+    IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
-    ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
-    EXPECT_NE(nullptr, network);
-
-    ie_config_t config = {nullptr, nullptr, nullptr};
-    const char *device_name = "CUSTOM";
-    ie_executable_network_t *exe_network = nullptr;
-    IE_EXPECT_OK(ie_core_load_network(core, network, device_name, &config, &exe_network));
-    EXPECT_NE(nullptr, exe_network);
-
-    ie_exec_network_free(&exe_network);
-    ie_network_free(&network);
-
+    const char *device_name = "CPU";
+    ie_core_versions_t versions = {0};
+    // Trigger plugin loading
+    IE_EXPECT_OK(ie_core_get_versions(core, device_name, &versions));
+    // Unload plugin
     IE_EXPECT_OK(ie_core_unregister_plugin(core, device_name));
 
+    ie_core_versions_free(&versions);
     ie_core_free(&core);
 }
 
@@ -363,7 +299,7 @@ TEST(ie_core_import_network_from_memory, importNetworkFromMem) {
     std::string export_path = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");
     IE_EXPECT_OK(ie_core_export_network(exe_network, export_path.c_str()));
 
-    std::vector<uchar> buffer(content_from_file(export_path.c_str(), true));
+    std::vector<uint8_t> buffer(content_from_file(export_path.c_str(), true));
     ie_executable_network_t *network = nullptr;
 
     IE_EXPECT_OK(ie_core_import_network_from_memory(core, buffer.data(), buffer.size(), "HETERO:CPU", nullptr, &network));
@@ -1189,9 +1125,14 @@ TEST(ie_infer_request_infer, infer) {
     ie_blob_t *blob = nullptr;
     IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, "data", &blob));
 
+    dimensions_t dims;
+    IE_EXPECT_OK(ie_blob_get_dims(blob, &dims));
+    const size_t blob_elems_count = dims.dims[0] * dims.dims[1] * dims.dims[2] * dims.dims[3];
 
-    cv::Mat image = cv::imread(input_image);
-    Mat2Blob(image, blob);
+    ie_blob_buffer_t buffer;
+    IE_EXPECT_OK(ie_blob_get_buffer(blob, &buffer));
+    auto* blob_internal_buffer = (uint8_t*)buffer.buffer;
+    std::fill(blob_internal_buffer, blob_internal_buffer + blob_elems_count, uint8_t{0});
 
     IE_EXPECT_OK(ie_infer_request_infer(infer_request));
 
@@ -1202,9 +1143,9 @@ TEST(ie_infer_request_infer, infer) {
     EXPECT_EQ(dim_res.ranks, 2);
     EXPECT_EQ(dim_res.dims[1], 10);
 
-    ie_blob_buffer_t buffer;
-    IE_EXPECT_OK(ie_blob_get_buffer(output_blob, &buffer));
-    float *output_data = (float *)(buffer.buffer);
+    ie_blob_buffer_t out_buffer;
+    IE_EXPECT_OK(ie_blob_get_buffer(output_blob, &out_buffer));
+    float *output_data = (float *)(out_buffer.buffer);
     EXPECT_NEAR(output_data[9], 0.f, 1.e-5);
 
     ie_blob_free(&output_blob);
@@ -1239,9 +1180,14 @@ TEST(ie_infer_request_infer_async, inferAsyncWaitFinish) {
     ie_blob_t *blob = nullptr;
     IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, "data", &blob));
 
+    dimensions_t dims;
+    IE_EXPECT_OK(ie_blob_get_dims(blob, &dims));
+    const size_t blob_elems_count = dims.dims[0] * dims.dims[1] * dims.dims[2] * dims.dims[3];
 
-    cv::Mat image = cv::imread(input_image);
-    Mat2Blob(image, blob);
+    ie_blob_buffer_t buffer;
+    IE_EXPECT_OK(ie_blob_get_buffer(blob, &buffer));
+    auto* blob_internal_buffer = (uint8_t*)buffer.buffer;
+    std::fill(blob_internal_buffer, blob_internal_buffer + blob_elems_count, uint8_t{0});
 
     IE_EXPECT_OK(ie_infer_request_infer_async(infer_request));
 
@@ -1252,9 +1198,9 @@ TEST(ie_infer_request_infer_async, inferAsyncWaitFinish) {
         IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, "fc_out", &output_blob));
         EXPECT_NE(nullptr, output_blob);
 
-        ie_blob_buffer_t buffer;
-        IE_EXPECT_OK(ie_blob_get_buffer(output_blob, &buffer));
-        float *output_data = (float *)(buffer.buffer);
+        ie_blob_buffer_t out_buffer;
+        IE_EXPECT_OK(ie_blob_get_buffer(output_blob, &out_buffer));
+        float *output_data = (float *)(out_buffer.buffer);
         EXPECT_NEAR(output_data[9], 0.f, 1.e-5);
     }
 
@@ -1291,9 +1237,14 @@ TEST(ie_infer_request_infer_async, inferAsyncWaitTime) {
     IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, "data", &blob));
     EXPECT_NE(nullptr, blob);
 
+    dimensions_t dims;
+    IE_EXPECT_OK(ie_blob_get_dims(blob, &dims));
+    const size_t blob_elems_count = dims.dims[0] * dims.dims[1] * dims.dims[2] * dims.dims[3];
 
-    cv::Mat image = cv::imread(input_image);
-    Mat2Blob(image, blob);
+    ie_blob_buffer_t buffer;
+    IE_EXPECT_OK(ie_blob_get_buffer(blob, &buffer));
+    auto* blob_internal_buffer = (uint8_t*)buffer.buffer;
+    std::fill(blob_internal_buffer, blob_internal_buffer + blob_elems_count, uint8_t{0});
 
     IE_EXPECT_OK(ie_infer_request_infer_async(infer_request));
 
@@ -1307,9 +1258,9 @@ TEST(ie_infer_request_infer_async, inferAsyncWaitTime) {
 
         IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, "fc_out", &output_blob));
 
-        ie_blob_buffer_t buffer;
-        IE_EXPECT_OK(ie_blob_get_buffer(output_blob, &buffer));
-        float *output_data = (float *)(buffer.buffer);
+        ie_blob_buffer_t out_buffer;
+        IE_EXPECT_OK(ie_blob_get_buffer(output_blob, &out_buffer));
+        float *output_data = (float *)(out_buffer.buffer);
         EXPECT_NEAR(output_data[9], 0.f, 1.e-5);
     }
 
@@ -1321,6 +1272,8 @@ TEST(ie_infer_request_infer_async, inferAsyncWaitTime) {
     ie_core_free(&core);
 }
 
+// For ARM plugin, no "Batch" related operations support for now, so skip related APIs
+#ifndef __aarch64__
 TEST(ie_infer_request_set_batch, setBatch) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
@@ -1407,6 +1360,7 @@ TEST(ie_infer_request_set_batch, setNegativeBatch) {
     ie_network_free(&network);
     ie_core_free(&core);
 }
+#endif
 
 TEST(ie_blob_make_memory, makeMemory) {
 
@@ -1434,7 +1388,7 @@ TEST(ie_blob_make_memory_from_preallocated, makeMemoryfromPreallocated) {
     tensor.dims = dim_t ;
     tensor.precision = precision_e::U8;
     tensor.layout = layout_e::NCHW;
-    uint8_t array[1][3][4][4]= {0};
+    uint8_t array[1][3][4][4]= {{{{0}}}};
 
     size_t size = 48;
     ie_blob_t *blob = nullptr;
@@ -1654,8 +1608,14 @@ TEST(ie_infer_set_completion_callback, setCallback) {
     ie_blob_t *blob = nullptr;
     IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, "data", &blob));
 
-    cv::Mat image = cv::imread(input_image);
-    Mat2Blob(image, blob);
+    dimensions_t dims;
+    IE_EXPECT_OK(ie_blob_get_dims(blob, &dims));
+    const size_t blob_elems_count = dims.dims[0] * dims.dims[1] * dims.dims[2] * dims.dims[3];
+
+    ie_blob_buffer_t buffer;
+    IE_EXPECT_OK(ie_blob_get_buffer(blob, &buffer));
+    auto* blob_internal_buffer = (uint8_t*)buffer.buffer;
+    std::fill(blob_internal_buffer, blob_internal_buffer + blob_elems_count, uint8_t{0});
 
     ie_complete_call_back_t callback;
     callback.completeCallBackFunc = completion_callback;
@@ -2248,3 +2208,4 @@ TEST(ie_blob_make_memory_i420, inferRequestWithI420) {
 }
 
 #endif // ENABLE_GAPI_PREPROCESSING
+// clang-format on

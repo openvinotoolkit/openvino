@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -131,6 +131,30 @@ inline InferenceEngine::Precision getMaxPrecision(std::vector<InferenceEngine::P
     }
 
     return InferenceEngine::Precision::UNSPECIFIED;
+}
+
+inline std::vector<std::string> split(const std::string &str, char delim) {
+    std::stringstream ss(str);
+    std::string item;
+    std::vector<std::string> elements;
+    while (std::getline(ss, item, delim)) {
+        elements.emplace_back(item);
+    }
+    return elements;
+}
+
+template<class Container>
+inline std::string join(const Container& strs, char delim) {
+    if (strs.empty())
+        return std::string();
+
+    std::stringstream result;
+    auto it = strs.begin();
+    result << *it++;
+    for (; it != strs.end(); it++) {
+        result << delim << *it;
+    }
+    return result.str();
 }
 
 }   // namespace intel_cpu

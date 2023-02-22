@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v4::Swish);
-
 op::v4::Swish::Swish(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
 }
@@ -26,22 +24,23 @@ op::v4::Swish::Swish(const Output<Node>& arg, const Output<Node>& beta) : Op({ar
 }
 
 bool op::v4::Swish::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v4_Swish_visit_attributes);
+    OV_OP_SCOPE(v4_Swish_visit_attributes);
     return true;
 }
 
 void op::v4::Swish::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v4_Swish_validate_and_infer_types);
+    OV_OP_SCOPE(v4_Swish_validate_and_infer_types);
     auto inputs_count = input_values().size();
     NODE_VALIDATION_CHECK(this,
                           inputs_count == 1 || inputs_count == 2,
                           "Swish must have 1 or 2 inputs, but it has: ",
                           inputs_count);
 
+    auto in_type = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(0).is_real(),
+                          in_type.is_dynamic() || in_type.is_real(),
                           "Swish input tensor must be floating point type(",
-                          get_input_element_type(0),
+                          in_type,
                           ").");
 
     if (inputs_count == 2) {
@@ -64,7 +63,7 @@ void op::v4::Swish::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v4::Swish::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v4_Swish_clone_with_new_inputs);
+    OV_OP_SCOPE(v4_Swish_clone_with_new_inputs);
     if (new_args.size() == 1) {
         return make_shared<op::v4::Swish>(new_args.at(0));
     } else {
@@ -112,14 +111,14 @@ bool evaluate_swish(const HostTensorVector& inputs, const HostTensorPtr& out) {
 }  // namespace swish
 
 bool op::v4::Swish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v4_Swish_evaluate);
+    OV_OP_SCOPE(v4_Swish_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) &&
                  (validate_host_tensor_vector(inputs, 2) || validate_host_tensor_vector(inputs, 1)));
     return swish::evaluate_swish(inputs, outputs[0]);
 }
 
 bool op::v4::Swish::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v4_Swish_has_evaluate);
+    OV_OP_SCOPE(v4_Swish_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::f16:
     case ngraph::element::f32:

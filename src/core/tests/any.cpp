@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,6 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 #include "openvino/core/any.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_END
 
-#include <ngraph/variant.hpp>
 #include <string>
 
 #include "gtest/gtest.h"
@@ -32,7 +31,7 @@ public:
         constructorCount++;
     }
 
-    ~DestructorTest() {
+    virtual ~DestructorTest() {
         destructorCount++;
     }
 
@@ -227,6 +226,13 @@ TEST_F(AnyTests, CompareAnysWithoutEqualOperator) {
     public:
         TestClass(int test, int* testPtr) : test(test), testPtr(testPtr) {}
 
+        int get_test() {
+            return test;
+        }
+        int* get_test_ptr() {
+            return testPtr;
+        }
+
     private:
         int test;
         int* testPtr;
@@ -399,71 +405,6 @@ TEST_F(AnyTests, PrintToMapOfAnys) {
     }
 }
 
-TEST_F(AnyTests, constructFromVariantImpl) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto parameter = Any{4};
-    auto get_impl = [&] {
-        return std::make_shared<ngraph::VariantImpl<int>>();
-    };
-    auto other_parameter = Any{get_impl()};
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
-
-TEST_F(AnyTests, dynamicPointerCastToVariantWrapper) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    Any p = std::make_shared<ngraph::VariantWrapper<std::string>>("42");
-    auto str_variant = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::string>>(p);
-    ASSERT_EQ("42", str_variant->get());
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
-
-TEST_F(AnyTests, asTypePtrToVariantWrapper) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    Any p = std::make_shared<ngraph::VariantWrapper<std::string>>("42");
-    auto str_variant = ov::as_type_ptr<ngraph::VariantWrapper<std::string>>(p);
-    ASSERT_EQ("42", str_variant->get());
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
-
-TEST_F(AnyTests, castToVariantWrapper) {
-    {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        Any p = std::make_shared<ngraph::VariantWrapper<std::string>>("42");
-        std::shared_ptr<ngraph::VariantWrapper<std::string>> str_variant = p;
-        ASSERT_EQ("42", str_variant->get());
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    }
-    {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        Any p = std::make_shared<ngraph::VariantWrapper<std::string>>("42");
-        auto f = [](const std::shared_ptr<ngraph::VariantWrapper<std::string>>& str_variant) {
-            ASSERT_EQ("42", str_variant->get());
-        };
-        f(p);
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    }
-    {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        Any p = std::make_shared<ngraph::VariantWrapper<std::string>>("42");
-        auto f = [](std::shared_ptr<ngraph::VariantWrapper<std::string>>& str_variant) {
-            ASSERT_EQ("42", str_variant->get());
-        };
-        f(p);
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    }
-    {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        std::shared_ptr<RuntimeAttribute> v = std::make_shared<ngraph::VariantWrapper<std::string>>("42");
-        Any p = v;
-        auto f = [](std::shared_ptr<ngraph::VariantWrapper<std::string>>& str_variant) {
-            ASSERT_NE(nullptr, str_variant);
-            ASSERT_EQ("42", str_variant->get());
-        };
-        f(p);
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    }
-}
-
 TEST_F(AnyTests, accessUsingBaseReference) {
     ASSERT_EQ(0, DestructorTest::constructorCount);
     ASSERT_EQ(0, DestructorTest::destructorCount);
@@ -539,4 +480,14 @@ TEST_F(AnyTests, AddressofNoThrow) {
     ASSERT_EQ(nullptr, p.addressof());
     p = 42;
     ASSERT_NE(nullptr, p.addressof());
+}
+
+TEST_F(AnyTests, EmptyStringAsAny) {
+    Any p = "";
+    std::vector<float> ref_f;
+    std::vector<int> ref_i;
+    ASSERT_TRUE(p.is<std::string>());
+    ASSERT_EQ(p.as<int>(), 0);
+    ASSERT_EQ(p.as<std::vector<float>>(), ref_f);
+    ASSERT_EQ(p.as<std::vector<int>>(), ref_i);
 }

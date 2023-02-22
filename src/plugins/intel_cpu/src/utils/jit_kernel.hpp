@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -326,7 +326,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res += rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator += (arithmetic_type rhs) const {
         base::_kernel.add(base::reg(), rhs);
@@ -336,7 +336,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res += rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator -= (reg_type & rhs) const {
         base::_kernel.sub(base::reg(), rhs);
@@ -346,7 +346,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res -= rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator -= (arithmetic_type rhs) const {
         base::_kernel.sub(base::reg(), rhs);
@@ -356,7 +356,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res -= rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator *= (reg_type & rhs) const {
         base::_kernel.imul(base::reg(), rhs);
@@ -366,7 +366,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res *= rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator *= (arithmetic_type rhs) const {
         base::_kernel.imul(base::reg(), base::reg(), static_cast<int>(rhs));
@@ -376,7 +376,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res *= rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator &= (reg_type & rhs) const {
         base::_kernel.and_(base::reg(), rhs);
@@ -386,7 +386,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res &= rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator &= (T rhs) const {
         base::_kernel.and_(base::reg(), rhs);
@@ -396,7 +396,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res &= rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator |= (reg_type & rhs) const {
         base::_kernel.or_(base::reg(), rhs);
@@ -406,7 +406,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res |= rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator |= (T rhs) const {
         base::_kernel.or_(base::reg(), rhs);
@@ -416,7 +416,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res |= rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator >>= (size_t rhs) const {
         base::_kernel.shr(base::reg(), rhs);
@@ -426,7 +426,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res >>= rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator <<= (size_t rhs) const {
         base::_kernel.shl(base::reg(), rhs);
@@ -436,7 +436,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res <<= rhs;
-        return std::move(res);
+        return res;
     }
 
     boolean_expression<T> operator == (const variable & rhs) const {
@@ -634,7 +634,7 @@ struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator {
         return { *this, internal::make_shared(res, *this) };
     }
 
-    jit_kernel();
+    jit_kernel(const char *name);
 
     template<typename RegType>
     const RegType & reserve();
@@ -697,11 +697,8 @@ struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator {
 private:
     reg_indices _free_x64regs;
     reg_indices _free_rmmregs;
-    bool _is_load_emitter_used = false;
-    bool _is_store_emitter_used = false;
-    jit_load_emitter _load_emitter;
-    jit_store_emitter _store_emitter;
     internal::consts_table _consts;
+    std::unordered_map<size_t, std::unique_ptr<jit_emitter>> _emitters;
 };
 
 template<typename T>
@@ -746,17 +743,18 @@ void jit_kernel::load(const variable<DstT[N]> & dst, const variable<SrcT> & src,
     const std::vector<size_t> pool_vec_idxs(_free_rmmregs.begin(), _free_rmmregs.end());
     const std::vector<size_t> pool_gpr_idxs(_free_x64regs.begin(), _free_x64regs.end());
 
-    _load_emitter.emit_code(
+    const auto src_prc = internal::type2precision<src_type>();
+    const auto dst_prc = internal::type2precision<dst_type>();
+
+    const auto key = load_emitter_params(src_prc, dst_prc, length).hash();
+    if (!_emitters[key]) {
+        _emitters[key].reset(new jit_load_emitter(this, internal::get_current_isa(), src_prc, dst_prc, length));
+    }
+    _emitters[key]->emit_code(
         { static_cast<size_t>(static_cast<const Xbyak::Operand&>(src).getIdx()) },
         { static_cast<size_t>(static_cast<const Xbyak::Operand&>(dst).getIdx()) },
-        std::make_shared<load_emitter_context>(
-            internal::type2precision<src_type>(),
-            internal::type2precision<dst_type>(),
-            static_cast<int>(length)),
         pool_vec_idxs,
         pool_gpr_idxs);
-
-    _is_load_emitter_used = true;
 }
 
 template<typename DstT, size_t N, typename SrcT>
@@ -788,17 +786,18 @@ void jit_kernel::store(const variable<DstT> & dst, const variable<SrcT[N]> & src
     const std::vector<size_t> pool_vec_idxs(_free_rmmregs.begin(), _free_rmmregs.end());
     const std::vector<size_t> pool_gpr_idxs(_free_x64regs.begin(), _free_x64regs.end());
 
-    _store_emitter.emit_code(
+    const auto src_prc = internal::type2precision<src_type>();
+    const auto dst_prc = internal::type2precision<dst_type>();
+
+    const auto key = store_emitter_params(src_prc, dst_prc, length).hash();
+    if (!_emitters[key]) {
+        _emitters[key].reset(new jit_store_emitter(this, internal::get_current_isa(), src_prc, dst_prc, length));
+    }
+    _emitters[key]->emit_code(
         { static_cast<size_t>(static_cast<const Xbyak::Operand&>(src).getIdx()) },
         { static_cast<size_t>(static_cast<const Xbyak::Operand&>(dst).getIdx()) },
-        std::make_shared<store_emitter_context>(
-            internal::type2precision<src_type>(),
-            internal::type2precision<dst_type>(),
-            static_cast<int>(length)),
         pool_vec_idxs,
         pool_gpr_idxs);
-
-    _is_store_emitter_used = true;
 }
 
 template<typename DstT, typename SrcT, size_t N>
@@ -853,7 +852,7 @@ jit_kernel::variable<T> jit_kernel::var(const T & val) {
     const auto & reg = reserve<reg_type>();
     variable<T> res(*this, internal::make_shared(reg, *this));
     res = val;
-    return std::move(res);
+    return res;
 }
 
 template<typename T>
@@ -885,7 +884,7 @@ shared_reg<Reg> make_shared(Reg & reg, jit_kernel & kernel) {
             kernel.free(*preg);
         } catch(...) {}
     });
-    return std::move(ptr);
+    return ptr;
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

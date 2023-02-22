@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,6 @@ class OPENVINO_API Sink : public Op {
 public:
     ~Sink() override = 0;
     OPENVINO_OP("Sink");
-    BWDCMP_RTTI_DECLARATION;
 
 protected:
     Sink() : Op() {}

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,12 +13,24 @@ namespace ov {
 namespace op {
 namespace v1 {
 
+/**
+ * \brief Shape inference for Split V1 operator.
+ *
+ * \note The split operation cause label lost on splitted dimension even if number of splits is one,
+ * because in this case split will be removed by transformation (as NOP) and in fact label will be propagated.
+ *
+ * \tparam T             Type of shape.
+ *
+ * \param op             Split operator pointer.
+ * \param input_shapes   Split input shapes.
+ * \param output_shapes  Split output shapes.
+ * \param constant_data  Map of constant data.
+ */
 template <typename T>
 void shape_infer(const Split* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
                  const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 2));
 
     output_shapes.clear();
@@ -32,7 +44,7 @@ void shape_infer(const Split* op,
     const auto data_rank = data_ps.rank();
 
     std::vector<int64_t> axes_values;
-    const auto & num_splits = op->get_num_splits();
+    const auto& num_splits = op->get_num_splits();
     if (get_data_as_int64<T>(1, op, axes_values, constant_data) && data_rank.is_static()) {
         NODE_VALIDATION_CHECK(op,
                               axes_values.size() == 1,
@@ -76,8 +88,7 @@ void shape_infer(const Split* op,
         each_output_shape = ov::PartialShape::dynamic(data_ps.rank());
     }
 
-    for (size_t i = 0; i < num_splits; ++i)
-        output_shapes.push_back(each_output_shape);
+    output_shapes.resize(num_splits, each_output_shape);
 }
 
 }  // namespace v1

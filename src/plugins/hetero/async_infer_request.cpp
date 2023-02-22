@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,13 +48,20 @@ StatusCode HeteroAsyncInferRequest::Wait(int64_t millis_timeout) {
     auto waitStatus = StatusCode::OK;
     try {
         waitStatus = AsyncInferRequestThreadSafeDefault::Wait(millis_timeout);
-    } catch (...) {
+    } catch (const InferenceEngine::Exception&) {
         for (auto&& requestDesc : _heteroInferRequest->_inferRequests) {
             requestDesc._request->Wait(InferRequest::RESULT_READY);
         }
         throw;
     }
     return waitStatus;
+}
+
+InferenceEngine::Blob::Ptr HeteroAsyncInferRequest::GetBlob(const std::string& name) {
+    CheckState();
+    auto blob = _heteroInferRequest->GetBlob(name);
+    setPointerToSo(_heteroInferRequest->getPointerToSo());
+    return blob;
 }
 
 HeteroAsyncInferRequest::~HeteroAsyncInferRequest() {

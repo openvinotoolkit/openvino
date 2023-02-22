@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,52 @@ using graph_rewrite_callback = std::function<bool(pass::pattern::Matcher& m)>;
 using recurrent_graph_rewrite_callback = std::function<bool(pass::pattern::RecurrentMatcher& m)>;
 using handler_callback = std::function<bool(const std::shared_ptr<Node>& node)>;
 namespace pass {
+/// \brief Register openvino node pointers into container.
+/// Can create and/or add existing node pointers into register
+class NodeRegistry {
+public:
+    /// \brief Make new node and add it to register.
+    ///
+    /// \tparam T     Node type.
+    /// \tparam Args  Node ctor args types.
+    ///
+    /// \param args   New node ctor arguments.
+    /// \return Shared pointer to node of type T.
+    template <typename T, class... Args>
+    std::shared_ptr<T> make(Args&&... args) {
+        auto node = std::make_shared<T>(std::forward<Args>(args)...);
+        return add(node);
+    }
+
+    /// \brief Add node to register
+    ///
+    /// \tparam T  Node type.
+    ///
+    /// \param node  Node to add
+    ///
+    /// \return Shared pointer to new node added of type T.
+    template <typename T>
+    std::shared_ptr<T> add(const std::shared_ptr<T>& node) {
+        m_nodes.push_back(node);
+        return node;
+    }
+
+    /// \brief Get nodes container.
+    ///
+    /// \return Const reference to nodes container.
+    const std::vector<std::shared_ptr<Node>>& get() const {
+        return m_nodes;
+    }
+
+    /// \brief Clear register.
+    void clear() {
+        m_nodes.clear();
+    }
+
+private:
+    std::vector<std::shared_ptr<Node>> m_nodes;  //!< Stores added nodes.
+};
+
 /// \brief MatcherPass is a basic block for pattern based transformations. It describes
 /// pattern and
 /// action that is applied if pattern is matched.
@@ -69,15 +115,12 @@ public:
 
     template <typename T, class... Args>
     std::shared_ptr<T> register_new_node(Args&&... args) {
-        auto node = std::make_shared<T>(std::forward<Args>(args)...);
-        m_new_nodes.push_back(node);
-        return node;
+        return m_new_nodes.make<T>(std::forward<Args>(args)...);
     }
 
     template <typename T>
     std::shared_ptr<T> register_new_node(const std::shared_ptr<T>& node) {
-        m_new_nodes.push_back(node);
-        return node;
+        return m_new_nodes.add(node);
     }
 
     std::shared_ptr<ov::Node> register_new_node_(const std::shared_ptr<ov::Node>& node) {
@@ -85,11 +128,13 @@ public:
     }
 
     const std::vector<std::shared_ptr<ov::Node>>& get_new_nodes() {
-        return m_new_nodes;
+        return m_new_nodes.get();
     }
+
     void clear_new_nodes() {
         m_new_nodes.clear();
     }
+
     std::shared_ptr<pattern::Matcher> get_matcher() {
         return m_matcher;
     }
@@ -104,7 +149,7 @@ protected:
 private:
     handler_callback m_handler;
     std::shared_ptr<pattern::Matcher> m_matcher;
-    std::vector<std::shared_ptr<ov::Node>> m_new_nodes;
+    NodeRegistry m_new_nodes;
 };
 
 /// \brief GraphRewrite is a container for MatcherPasses that allows to run them on Function

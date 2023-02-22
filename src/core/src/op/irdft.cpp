@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,6 @@
 
 using namespace std;
 
-BWDCMP_RTTI_DEFINITION(ov::op::v9::IRDFT);
-
 ov::op::v9::IRDFT::IRDFT(const Output<Node>& data, const Output<Node>& axes) : FFTBase(data, axes) {
     constructor_validate_and_infer_types();
 }
@@ -23,12 +21,12 @@ ov::op::v9::IRDFT::IRDFT(const Output<Node>& data, const Output<Node>& axes, con
 }
 
 bool ov::op::v9::IRDFT::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v9_IRDFT_visit_attributes);
+    OV_OP_SCOPE(v9_IRDFT_visit_attributes);
     return true;
 }
 
 std::shared_ptr<ov::Node> ov::op::v9::IRDFT::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v9_IRDFT_clone_with_new_inputs);
+    OV_OP_SCOPE(v9_IRDFT_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(this, new_args.size() == 2 || new_args.size() == 3, "Number of inputs must be 2 or 3");
 
@@ -40,7 +38,7 @@ std::shared_ptr<ov::Node> ov::op::v9::IRDFT::clone_with_new_inputs(const OutputV
 }
 
 void ov::op::v9::IRDFT::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v9_IRDFT_validate_and_infer_types);
+    OV_OP_SCOPE(v9_IRDFT_validate_and_infer_types);
 
     validate_types();
 

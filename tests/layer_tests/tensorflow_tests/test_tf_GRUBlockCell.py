@@ -1,10 +1,10 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import pytest
 import numpy as np
-
+import pytest
 from common.tf_layer_test_class import CommonTFLayerTest
+
 
 class TestTFGRUBlockCell(CommonTFLayerTest):
     def _prepare_input(self, inputs_dict):
@@ -13,10 +13,6 @@ class TestTFGRUBlockCell(CommonTFLayerTest):
         return inputs_dict
 
     def create_tf_gru_block_cell(self, batch_size, input_size, hidden_size):
-        #
-        #   Create Tensorflow model
-        #
-
         import tensorflow as tf
         tf.compat.v1.reset_default_graph()
 
@@ -58,16 +54,16 @@ class TestTFGRUBlockCell(CommonTFLayerTest):
         dict(batch_size=1, input_size=15, hidden_size=10),
         dict(batch_size=2, input_size=6, hidden_size=6),
         dict(batch_size=2, input_size=12, hidden_size=6),
-        dict(batch_size=2, input_size=6, hidden_size=12),
+        pytest.param(dict(batch_size=2, input_size=6, hidden_size=12), marks=pytest.mark.precommit_tf_fe),
     ]
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_tf_gru_block_cell(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend, api_2):
+                               use_new_frontend, use_old_api):
         if ie_device == 'GPU':
             pytest.skip("Skip TF GRUBlockCell test on GPU")
         self._test(*self.create_tf_gru_block_cell(**params),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_new_frontend=use_new_frontend, api_2=api_2, custom_eps=1e-3, **params)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api, custom_eps=1e-3, **params)

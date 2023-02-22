@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,11 +16,10 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-class OVPropertiesBase : public CommonTestUtils::TestsCommon {
+class OVPropertiesBase : public OVPluginTestBase {
 public:
     std::shared_ptr<Core> core = utils::PluginCache::get().core();
     std::shared_ptr<Model> model;
-    std::string device_name;
     AnyMap properties;
 };
 
@@ -46,6 +45,8 @@ public:
 
 using OVPropertiesIncorrectTests = OVPropertiesTests;
 using OVPropertiesDefaultTests = OVPropertiesTests;
+using OVSetSupportPropComplieModleWithoutConfigTests = OVPropertiesTests;
+using OVSetUnsupportPropComplieModleWithoutConfigTests = OVPropertiesTests;
 
 using CompileModelPropertiesParams = std::tuple<std::string, AnyMap, AnyMap>;
 class OVSetPropComplieModleGetPropTests : public testing::WithParamInterface<CompileModelPropertiesParams>,
@@ -58,6 +59,44 @@ public:
     AnyMap compileModelProperties;
 };
 
+using OVSetPropComplieModleWihtIncorrectPropTests = OVSetPropComplieModleGetPropTests;
+
+class OVPropertiesTestsWithComplieModelProps : public testing::WithParamInterface<PropertiesParams>,
+                                               public OVPropertiesBase {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<PropertiesParams> obj);
+
+    void SetUp() override;
+
+    void TearDown() override;
+
+    AnyMap compileModelProperties;
+
+    static std::vector<ov::AnyMap> getPropertiesValues();
+    static std::vector<ov::AnyMap> getModelDependcePropertiesValues();
+};
+
+using OVCheckChangePropComplieModleGetPropTests = OVPropertiesTestsWithComplieModelProps;
+using OVCheckChangePropComplieModleGetPropTests_DEVICE_ID = OVPropertiesTestsWithComplieModelProps;
+using OVCheckChangePropComplieModleGetPropTests_ModelDependceProps = OVPropertiesTestsWithComplieModelProps;
+
+using OvPropertiesParams = std::tuple<
+        std::string,                          // device name
+        std::pair<ov::AnyMap, std::string>    // device and expect execution device configuration
+>;
+class OVCompileModelGetExecutionDeviceTests : public testing::WithParamInterface<OvPropertiesParams>,
+                                          public OVPropertiesBase {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<OvPropertiesParams> obj);
+
+    void SetUp() override;
+
+    AnyMap compileModelProperties;
+
+    std::string expectedDeviceName;
+};
+
+using OVClassExecutableNetworkGetMetricTest_EXEC_DEVICES = OVCompileModelGetExecutionDeviceTests;
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

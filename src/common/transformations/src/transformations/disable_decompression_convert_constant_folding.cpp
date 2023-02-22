@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,6 @@ ov::pass::DisableDecompressionConvertConstantFolding::DisableDecompressionConver
         if (!ov::is_decompression(node))
             return false;
         disable_constant_folding(node);
-        MATCHER_SCOPE_ENABLE(DisableDecompressionConvertConstantFolding);
         return true;
     };
 

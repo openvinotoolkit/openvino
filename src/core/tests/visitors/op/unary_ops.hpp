@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,10 @@ TYPED_TEST_P(UnaryOperatorVisitor, No_Attribute_4D) {
     const auto A = std::make_shared<ngraph::op::Parameter>(element_type, ngraph::PartialShape{2, 2, 2, 2});
 
     const auto op_func = std::make_shared<OP_Type>(A);
-    ngraph::test::NodeBuilder builder(op_func);
+    ngraph::test::NodeBuilder builder(op_func, {A});
+
+    EXPECT_NO_THROW(auto g_op_func = ov::as_type_ptr<OP_Type>(builder.create()));
+
     const auto expected_attr_count = 0;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 }

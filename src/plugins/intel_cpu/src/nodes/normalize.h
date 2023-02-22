@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -78,7 +78,7 @@ struct jit_uni_normalize_kernel {
 
 class NormalizeL2 : public Node {
 public:
-    NormalizeL2(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    NormalizeL2(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override {};
@@ -91,7 +91,6 @@ public:
     }
     bool canFuse(const NodePtr& node) const override;
 
-    std::vector<VectorDims> shapeInfer() const override;
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override;
 
@@ -157,9 +156,9 @@ private:
         };
     };
 
-    template <typename in_data_t, typename out_data_t> struct NormalizeL2CornerCaseExecutor;
-    template <typename in_data_t, typename out_data_t> struct NormalizeL2JitExecutor;
-    template <typename in_data_t, typename out_data_t> struct NormalizeL2ReferenceExecutor;
+    template <typename in_data_t, typename out_data_t> class NormalizeL2CornerCaseExecutor;
+    template <typename in_data_t, typename out_data_t> class NormalizeL2JitExecutor;
+    template <typename in_data_t, typename out_data_t> class NormalizeL2ReferenceExecutor;
 
     dnnl::primitive_attr kernel_attrs;
 

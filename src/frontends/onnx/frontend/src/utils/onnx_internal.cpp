@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include "core/graph.hpp"
 #include "core/model.hpp"
 #include "core/transform.hpp"
+#include "ngraph/file_util.hpp"
 #include "onnx_framework_node.hpp"
 #include "onnx_import/core/null_node.hpp"
 
@@ -51,9 +52,8 @@ void remove_dangling_results(std::shared_ptr<Function>& function) {
     }
 }
 
-void apply_transformations(ONNX_NAMESPACE::ModelProto& model_proto, const std::string& model_path) {
+void apply_transformations(ONNX_NAMESPACE::ModelProto& model_proto) {
     transform::fixup_legacy_operators(model_proto);
-    transform::update_external_data_paths(model_proto, model_path);
 }
 
 }  // namespace
@@ -89,16 +89,20 @@ void convert_decoded_function(std::shared_ptr<Function> function) {
 std::shared_ptr<Function> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
                                             const std::string& model_path,
                                             ov::frontend::ExtensionHolder extensions) {
-    apply_transformations(*model_proto, model_path);
-    Graph graph{model_proto, std::move(extensions)};
+    apply_transformations(*model_proto);
+    NGRAPH_SUPPRESS_DEPRECATED_START
+    Graph graph{file_util::get_directory(model_path), model_proto, std::move(extensions)};
+    NGRAPH_SUPPRESS_DEPRECATED_END
     return graph.convert();
 }
 
 std::shared_ptr<Function> decode_to_framework_nodes(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
                                                     const std::string& model_path,
                                                     ov::frontend::ExtensionHolder extensions) {
-    apply_transformations(*model_proto, model_path);
-    auto graph = std::make_shared<Graph>(model_proto, extensions);
+    apply_transformations(*model_proto);
+    NGRAPH_SUPPRESS_DEPRECATED_START
+    auto graph = std::make_shared<Graph>(file_util::get_directory(model_path), model_proto, extensions);
+    NGRAPH_SUPPRESS_DEPRECATED_END
     return graph->decode();
 }
 }  // namespace detail

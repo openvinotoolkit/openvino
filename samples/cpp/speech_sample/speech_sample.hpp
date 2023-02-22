@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,15 +14,16 @@
 static const char help_message[] = "Print a usage message.";
 
 /// @brief message for input data argument
-static const char input_message[] =
-    "Required. Paths to input files. Example of usage: <file1.ark,file2.ark> or <file.ark> or <file.npz>.";
+static const char input_message[] = "Required. Paths to input file or Layers names with corresponding paths to the "
+                                    "input files. Example of usage for single file: <file.ark> or <file.npz>. Example "
+                                    "of usage for named layers: <layer1>=<file1.ark>,<layer2>=<file2.ark>.";
 
 /// @brief message for model argument
 static const char model_message[] = "Required. Path to an .xml file with a trained model (required if -rg is missing).";
 
 /// @brief message for assigning calculation to device
 static const char target_device_message[] =
-    "Optional. Specify a target device to infer on. CPU, GPU, MYRIAD, GNA_AUTO, GNA_HW, "
+    "Optional. Specify a target device to infer on. CPU, GPU, VPUX, GNA_AUTO, GNA_HW, "
     "GNA_HW_WITH_SW_FBACK, GNA_SW_FP32, "
     "GNA_SW_EXACT and HETERO with combination of GNA as the primary device and CPU"
     " as a secondary (e.g. HETERO:GNA,CPU) are supported. "
@@ -60,11 +61,15 @@ static const char custom_cpu_library_message[] = "Required for CPU plugin custom
 
 /// @brief message for score output argument
 static const char output_message[] =
-    "Optional. Output file name to save scores. Example of usage: <output.ark> or <output.npz>";
+    "Optional. Output file name to save scores or Layer names with corresponding files names to save scores. Example "
+    "of usage for single file: <output.ark> or <output.npz>. Example of usage for named layers: "
+    "<layer1:port_num>=<output_file1.ark>,<layer2:port_num>=<output_file2.ark>.";
 
 /// @brief message for reference score file argument
 static const char reference_score_message[] =
-    "Optional. Read reference score file and compare scores. Example of usage: <reference.ark> or <reference.npz>";
+    "Optional. Read reference score file or named layers with corresponding score files and compare scores. Example of "
+    "usage for single file: <reference.ark> or <reference.npz>. Example of usage for named layers: "
+    "<layer1:port_num>=<reference_file2.ark>,<layer2:port_num>=<reference_file2.ark>.";
 
 /// @brief message for read GNA model argument
 static const char read_gna_model_message[] =
@@ -84,7 +89,7 @@ static const char write_embedded_model_generation_message[] =
 
 /// @brief message for quantization argument
 static const char quantization_message[] =
-    "Optional. Input quantization mode:  static (default), dynamic, or user (use with -sf).";
+    "Optional. Input quantization mode: static (default), dynamic, or user (use with -sf).";
 
 /// @brief message for quantization bits argument
 static const char quantization_bits_message[] = "Optional. Weight bits for quantization: 8 or 16 (default)";
@@ -111,15 +116,6 @@ static const char context_window_message_r[] =
     "Works only with context window networks."
     " If you use the cw_r or cw_l flag, then batch size argument is ignored.";
 
-/// @brief message for output layer names
-static const char output_layer_names_message[] = "Optional. Layer names for output blobs. "
-                                                 "The names are separated with \",\" "
-                                                 "Example: Output1:port,Output2:port ";
-
-/// @brief message for inputs layer names
-static const char input_layer_names_message[] = "Optional. Layer names for input blobs. "
-                                                "The names are separated with \",\" "
-                                                "Example: Input1,Input2 ";
 /// @brief message for inputs layer names
 static const char layout_message[] =
     "Optional. Prompts how network layouts should be treated by application. "
@@ -192,12 +188,6 @@ DEFINE_int32(cw_r, 0, context_window_message_r);
 /// @brief Left context window size (default 0)
 DEFINE_int32(cw_l, 0, context_window_message_l);
 
-/// @brief Output layer name
-DEFINE_string(oname, "", output_layer_names_message);
-
-/// @brief Input layer name
-DEFINE_string(iname, "", input_layer_names_message);
-
 /// @brief Input layer name
 DEFINE_string(layout, "", layout_message);
 
@@ -228,13 +218,11 @@ static void show_usage() {
     std::cout << "    -we \"<path>\"               " << write_embedded_model_message << std::endl;
     std::cout << "    -cw_l \"<integer>\"          " << context_window_message_l << std::endl;
     std::cout << "    -cw_r \"<integer>\"          " << context_window_message_r << std::endl;
-    std::cout << "    -oname \"<string>\"          " << output_layer_names_message << std::endl;
-    std::cout << "    -iname \"<string>\"          " << input_layer_names_message << std::endl;
     std::cout << "    -layout \"<string>\"         " << layout_message << std::endl;
     std::cout << "    -pwl_me \"<double>\"         " << pwl_max_error_percent_message << std::endl;
     std::cout << "    -exec_target \"<string>\"    " << execution_target_message << std::endl;
     std::cout << "    -compile_target \"<string>\" " << compile_target_message << std::endl;
-    std::cout << "    -memory_reuse_off            " << memory_reuse_message << std::endl;
+    std::cout << "    -memory_reuse_off          " << memory_reuse_message << std::endl;
 }
 
 /**
@@ -284,7 +272,7 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
                                                  "HETERO:GNA_HW,CPU",
                                                  "HETERO:GNA_SW_EXACT,CPU",
                                                  "HETERO:GNA_SW_FP32,CPU",
-                                                 "MYRIAD"};
+                                                 "VPUX"};
 
     if (std::find(supportedDevices.begin(), supportedDevices.end(), FLAGS_d) == supportedDevices.end()) {
         throw std::logic_error("Specified device is not supported.");

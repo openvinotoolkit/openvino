@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <limits.h>
@@ -103,7 +103,7 @@ NamedOutputs slice_op(const NodeContext& node, const bool& stride_input) {
         const auto decreased_node = std::make_shared<default_opset::Squeeze>(stride_slice_node, squeeze_index_node);
 
         const auto input_rank = input_shape.rank().get_length();
-        if (input_rank == decrease_axis.size()) {
+        if ((size_t)input_rank == decrease_axis.size()) {
             auto restore_node = std::make_shared<default_opset::Reshape>(
                 decreased_node,
                 std::make_shared<default_opset::Constant>(element::i64, Shape{1}, 1),

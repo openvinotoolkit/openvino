@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -250,7 +250,12 @@ static void regclass_graph_InputTensorInfo(py::module m) {
         [](ov::preprocess::InputTensorInfo& self, const ov::Layout& layout) {
             return &self.set_layout(layout);
         },
-        py::arg("layout"));
+        py::arg("layout"),
+        R"(
+            Set layout for input tensor info 
+            :param layout: layout to be set
+            :type layout: Union[str, openvino.runtime.Layout]
+        )");
 
     info.def("set_spatial_dynamic_shape", [](ov::preprocess::InputTensorInfo& self) {
         return &self.set_spatial_dynamic_shape();
@@ -359,7 +364,12 @@ static void regclass_graph_OutputTensorInfo(py::module m) {
         [](ov::preprocess::OutputTensorInfo& self, const ov::Layout& layout) {
             return &self.set_layout(layout);
         },
-        py::arg("layout"));
+        py::arg("layout"),
+        R"(
+            Set layout for output tensor info 
+            :param layout: layout to be set
+            :type layout: Union[str, openvino.runtime.Layout]
+        )");
 }
 
 static void regclass_graph_InputInfo(py::module m) {
@@ -407,7 +417,12 @@ static void regclass_graph_OutputModelInfo(py::module m) {
         [](ov::preprocess::OutputModelInfo& self, const ov::Layout& layout) {
             return &self.set_layout(layout);
         },
-        py::arg("layout"));
+        py::arg("layout"),
+        R"(
+            Set layout for output model info 
+            :param layout: layout to be set
+            :type layout: Union[str, openvino.runtime.Layout]
+        )");
 }
 
 static void regclass_graph_InputModelInfo(py::module m) {
@@ -421,7 +436,12 @@ static void regclass_graph_InputModelInfo(py::module m) {
         [](ov::preprocess::InputModelInfo& self, const ov::Layout& layout) {
             return &self.set_layout(layout);
         },
-        py::arg("layout"));
+        py::arg("layout"),
+        R"(
+            Set layout for input model
+            :param layout: layout to be set
+            :type layout: Union[str, openvino.runtime.Layout]
+        )");
 }
 
 static void regenum_graph_ColorFormat(py::module m) {
@@ -433,6 +453,7 @@ static void regenum_graph_ColorFormat(py::module m) {
         .value("I420_THREE_PLANES", ov::preprocess::ColorFormat::I420_THREE_PLANES)
         .value("RGB", ov::preprocess::ColorFormat::RGB)
         .value("BGR", ov::preprocess::ColorFormat::BGR)
+        .value("GRAY", ov::preprocess::ColorFormat::GRAY)
         .value("RGBX", ov::preprocess::ColorFormat::RGBX)
         .value("BGRX", ov::preprocess::ColorFormat::BGRX)
         .export_values();

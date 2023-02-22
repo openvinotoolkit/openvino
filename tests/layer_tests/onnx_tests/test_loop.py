@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -18,7 +18,7 @@ class TestLoop(OnnxRuntimeLayerTest):
         elif tensor_type == TensorProto.FLOAT:
             np_type = np.float
         elif tensor_type == TensorProto.BOOL:
-            np_type = np.bool
+            np_type = bool
         else:
             return None
         return helper.make_node('Constant', inputs=[], outputs=[name],
@@ -42,7 +42,7 @@ class TestLoop(OnnxRuntimeLayerTest):
         assert len(input_nodes) == len(input_names)
         assert len(output_nodes) == len(output_names)
         other_inputs_count = len(input_nodes) - 2
-        one_value = np.ones(input_shape, dtype=np.float)
+        one_value = np.ones(input_shape, dtype=float)
 
         one = TestLoop.create_const('one_' + graph_name, TensorProto.FLOAT, one_value)
         one_int = TestLoop.create_const('one_int_' + graph_name, TensorProto.INT64, np.ones([1]))
@@ -108,7 +108,7 @@ class TestLoop(OnnxRuntimeLayerTest):
         cond_out_1 = helper.make_tensor_value_info('cond_out_1', TensorProto.BOOL, [1])
 
         m_1_value = np.array([10], dtype=np.int64)
-        cond_value = np.array([True], np.bool)
+        cond_value = np.array([True], bool)
 
         M_1 = self.create_const('M_1', TensorProto.INT64, m_1_value)
         cond = self.create_const('cond', TensorProto.BOOL, cond_value)
@@ -179,8 +179,8 @@ class TestLoop(OnnxRuntimeLayerTest):
 
         m_1_value = np.array([10], dtype=np.int64)
         m_2_value = np.array([5], dtype=np.int64)
-        cond_value = np.array([True], np.bool)
-        one_value = np.ones(input_shape, dtype=np.float)
+        cond_value = np.array([True], bool)
+        one_value = np.ones(input_shape, dtype=float)
 
         M_1 = self.create_const('M_1', TensorProto.INT64, m_1_value)
         M_2 = self.create_const('M_2', TensorProto.INT64, m_2_value)
@@ -273,14 +273,14 @@ class TestLoop(OnnxRuntimeLayerTest):
 
     @pytest.mark.precommit
     @pytest.mark.timeout(250)
-    def test_loop_simple_precommit(self, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_loop_simple_precommit(self, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_loop(), ie_device, precision, ir_version, temp_dir=temp_dir,
-                   infer_timeout=150, api_2=api_2)
+                   infer_timeout=150, use_old_api=use_old_api)
 
     @pytest.mark.precommit
     @pytest.mark.timeout(250)
-    def test_loop_in_loop_simple_precommit(self, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_loop_in_loop_simple_precommit(self, ie_device, precision, ir_version, temp_dir, use_old_api):
         if ie_device == 'GPU':
             pytest.xfail("Program doesn't contain primitive: constant:res/10/M_2 that is input to: loop")
         self._test(*self.create_loop_in_loop(), ie_device, precision, ir_version, temp_dir=temp_dir,
-                   infer_timeout=150, api_2=api_2)
+                   infer_timeout=150, use_old_api=use_old_api)

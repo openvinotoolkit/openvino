@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,11 +27,11 @@ TEST(type_prop, deformable_psroi_pooling_no_offsets_group_size_3) {
 }
 
 TEST(type_prop, deformable_psroi_pooling_group_size_3) {
-    const float spatial_scale = 0.0625;
+    const float spatial_scale = 0.0625f;
     const int64_t output_dim = 882;
     const int64_t group_size = 3;
     const int64_t part_size = 3;
-    const double spatial_bins = 4;
+    const int64_t spatial_bins = 4;
 
     const auto rois_dim = 300;
 
@@ -48,7 +48,7 @@ TEST(type_prop, deformable_psroi_pooling_group_size_3) {
                                                                       "bilinear_deformable",
                                                                       spatial_bins,
                                                                       spatial_bins,
-                                                                      0.1,
+                                                                      0.1f,
                                                                       part_size);
 
     const PartialShape expected_output{rois_dim, output_dim, group_size, group_size};
@@ -56,11 +56,11 @@ TEST(type_prop, deformable_psroi_pooling_group_size_3) {
 }
 
 TEST(type_prop, deformable_psroi_pooling_group_size_7) {
-    const float spatial_scale = 0.0625;
+    const float spatial_scale = 0.0625f;
     const int64_t output_dim = 162;
     const int64_t group_size = 7;
     const int64_t part_size = 7;
-    const double spatial_bins = 4;
+    const int64_t spatial_bins = 4;
 
     const auto rois_dim = 300;
 
@@ -77,7 +77,7 @@ TEST(type_prop, deformable_psroi_pooling_group_size_7) {
                                                                       "bilinear_deformable",
                                                                       spatial_bins,
                                                                       spatial_bins,
-                                                                      0.1,
+                                                                      0.1f,
                                                                       part_size);
 
     const PartialShape expected_output{rois_dim, output_dim, group_size, group_size};
@@ -170,7 +170,7 @@ TEST(type_prop, deformable_psroi_pooling_invalid_data_input_rank) {
     const int64_t output_dim = 162;
     const int64_t group_size = 7;
     const int64_t part_size = 7;
-    const double spatial_bins = 4;
+    const int64_t spatial_bins = 4;
 
     const auto rois_dim = 300;
 
@@ -188,7 +188,7 @@ TEST(type_prop, deformable_psroi_pooling_invalid_data_input_rank) {
                                                                           "bilinear_deformable",
                                                                           spatial_bins,
                                                                           spatial_bins,
-                                                                          0.1,
+                                                                          0.1f,
                                                                           part_size);
 
         // Should have thrown, so fail if it didn't
@@ -202,7 +202,7 @@ TEST(type_prop, deformable_psroi_pooling_invalid_data_input_rank) {
 
 TEST(type_prop, deformable_psroi_pooling_invalid_box_coordinates_rank) {
     const int64_t output_dim = 4;
-    const float spatial_scale = 0.9;
+    const float spatial_scale = 0.9f;
     const int64_t group_size = 7;
 
     const auto rois_dim = 300;
@@ -229,7 +229,7 @@ TEST(type_prop, deformable_psroi_pooling_invalid_offstes_rank) {
     const int64_t output_dim = 162;
     const int64_t group_size = 7;
     const int64_t part_size = 7;
-    const double spatial_bins = 4;
+    const int64_t spatial_bins = 4;
 
     const auto rois_dim = 300;
 
@@ -246,7 +246,7 @@ TEST(type_prop, deformable_psroi_pooling_invalid_offstes_rank) {
                                                                           "bilinear_deformable",
                                                                           spatial_bins,
                                                                           spatial_bins,
-                                                                          0.1,
+                                                                          0.1f,
                                                                           part_size);
 
         // Should have thrown, so fail if it didn't

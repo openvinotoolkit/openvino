@@ -37,10 +37,9 @@ To build the sample, please use instructions available at [Build the Sample Appl
 hello_nv12_input_classification <path_to_model> <path_to_image> <image_size> <device_name>
 ```
 
-To run the sample, you need specify a model and image:
-
-- you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
-- you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
+To run the sample, you need to specify a model and image:
+- You can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
+- You can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
 
 The sample accepts an uncompressed image in the NV12 color format. To run the sample, you need to
 convert your BGR/RGB image to NV12. To do this, you can use one of the widely available tools such
@@ -69,27 +68,24 @@ ffmpeg -i cat.jpg -pix_fmt nv12 car.yuv
 ### Example
 
 1. Install openvino-dev python package if you don't have it to use Open Model Zoo Tools:
-
-```
-python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
-```
+   ```
+   python -m pip install openvino-dev[caffe]
+   ```
 
 2. Download a pre-trained model:
-```
-omz_downloader --name alexnet
-```
+   ```
+   omz_downloader --name alexnet
+   ```
 
 3. If a model is not in the IR or ONNX format, it must be converted. You can do this using the model converter:
-
-```
-omz_converter --name alexnet
-```
+   ```
+   omz_converter --name alexnet
+   ```
 
 4. Perform inference of NV12 image using `alexnet` model on a `CPU`, for example:
-
-```
-hello_nv12_input_classification alexnet.xml car.yuv 300x300 CPU
-```
+   ```
+   hello_nv12_input_classification alexnet.xml car.yuv 300x300 CPU
+   ```
 
 ## Sample Output
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -318,6 +318,15 @@ public:
         return os;
     }
 
+    size_t hash() const {
+        size_t seed = 0;
+        seed = hash_range(seed, batch.begin(),      batch.end());
+        seed = hash_range(seed, feature.begin(),    feature.end());
+        seed = hash_range(seed, spatial.begin(),    spatial.end());
+        seed = hash_range(seed, group.begin(),      group.end());
+        return seed;
+    }
+
     std::string to_string() const {
         std::stringstream out;
         const char* delim = "";
@@ -488,11 +497,12 @@ public:
             }
 
             // skip z for the formats that do not have it
-            if (((new_fmt != format::bfzyx && new_fmt != format::b_fs_zyx_fsv16 && new_fmt != format::b_fs_zyx_fsv32 &&
+            if (((new_fmt != format::bfzyx && new_fmt != format::b_fs_zyx_fsv16 && new_fmt != format::b_fs_zyx_fsv32 && new_fmt != format::bzyxf &&
                   new_fmt != format::bfwzyx && new_fmt != format::bs_fs_zyx_bsv16_fsv16 && new_fmt != format::bs_fs_zyx_bsv16_fsv32 &&
                   new_fmt != format::bs_fs_zyx_bsv32_fsv16 && new_fmt != format::bs_fs_zyx_bsv32_fsv32 &&
                   new_fmt != format::b_fs_zyx_fsv2 && new_fmt != format::b_fs_zyx_fsv4 &&
-                  new_fmt != format::bs_fs_zyx_bsv8_fsv2 && new_fmt != format::bs_fs_zyx_bsv8_fsv4)) && (c == 'z')) {
+                  new_fmt != format::bs_fs_zyx_bsv8_fsv2 && new_fmt != format::bs_fs_zyx_bsv8_fsv4 &&
+                  new_fmt != format::bs_fs_zyx_bsv16_fsv2 && new_fmt != format::bs_fs_zyx_bsv16_fsv4)) && (c == 'z')) {
                 if (new_order[i] == '?')
                     new_sizes[i] = default_size;
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,10 +7,12 @@
 #include <string>
 #include <vector>
 
-#include "attr_value.pb.h"
-#include "node_def.pb.h"
 #include "openvino/frontend/tensorflow/decoder.hpp"
-#include "types.pb.h"
+
+namespace tensorflow {
+class NodeDef;
+class AttrValue;
+}  // namespace tensorflow
 
 namespace ov {
 namespace frontend {
@@ -21,8 +23,6 @@ public:
     explicit DecoderProto(const ::tensorflow::NodeDef* node_def) : m_node_def(node_def) {}
 
     ov::Any get_attribute(const std::string& name) const override;
-
-    ov::Any get_native_attribute(const std::string& name) const override;
 
     size_t get_input_size() const override;
 

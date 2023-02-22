@@ -1,11 +1,10 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import pytest
 import numpy as np
+import pytest
 from common.layer_test_class import check_ir_version
 from common.onnx_layer_test_class import OnnxRuntimeLayerTest
-
 from unit_tests.utils.graph import build_graph
 
 
@@ -134,10 +133,10 @@ class TestROIAlign(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_roi_alignv10(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_roi_alignv10(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         # TODO: ticket for investigating GPU failures: CVS-86300
         if ie_device != "GPU":
             self._test(*self.create_net(**params, ir_version=ir_version, onnx_version=10), ie_device, precision,
-                        ir_version,
-                        temp_dir=temp_dir, api_2=api_2,
-                        use_legacy_frontend=True)
+                       ir_version,
+                       temp_dir=temp_dir, use_old_api=use_old_api,
+                       use_legacy_frontend=True)

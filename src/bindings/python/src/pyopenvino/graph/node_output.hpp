@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,6 +28,10 @@ template<>
 void def_type_dependent_functions<ov::Node>(py::class_<ov::Output<ov::Node>,
                                             std::shared_ptr<ov::Output<ov::Node>>>& output);
 
+template<>
+void def_type_dependent_functions<const ov::Node>(py::class_<ov::Output<const ov::Node>,
+                                                  std::shared_ptr<ov::Output<const ov::Node>>>& output);
+
 template <typename VT>
 void regclass_graph_Output(py::module m, std::string typestring)
 {
@@ -48,6 +52,17 @@ void regclass_graph_Output(py::module m, std::string typestring)
 
     output.def("__hash__", [](ov::Output<VT>& self) {
         return std::hash<VT*>()(self.get_node()) + self.get_index();
+    });
+
+    output.def("__copy__", [](ov::Output<VT>& self) {
+        return ov::Output<VT>(self);
+    });
+
+    output.def("__deepcopy__", [typestring](ov::Output<VT>& self, py::dict& memo) {
+        auto error_message = py::detail::c_str(std::string("cannot deepcopy 'openvino.runtime.")
+                                                + typestring + std::string("Output' object."));
+        PyErr_SetString(PyExc_TypeError, error_message);
+        throw py::error_already_set();
     });
 
     output.def("get_node",
@@ -128,7 +143,7 @@ void regclass_graph_Output(py::module m, std::string typestring)
                 A reference to the tensor descriptor for this output.
 
                 :return: Tensor of the output.
-                :rtype: openvino.pyopenvino.DescriptorTensor
+                :rtype: openvino._pyopenvino.DescriptorTensor
                )");
     output.def("get_rt_info",
              (ov::RTMap & (ov::Output<VT>::*)()) &  ov::Output<VT>::get_rt_info,

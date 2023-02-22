@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include "activation.hpp"
@@ -10,12 +9,6 @@
 #include <algorithm>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Weights orders
 /// @details Specifies the order in which the weights are concatenated.
@@ -72,7 +65,7 @@ struct lstm : public primitive_base<lstm> {
     /// @brief Output selection. Default the entire hidden sequence is returned.
     /// @param offset_order Order of the concatenated weights, recurrent, and bias. ONNX default is iofz [input, output, forget, block].
     lstm(const primitive_id& id,
-         const std::vector<primitive_id>& input,
+         const std::vector<input_info>& input,
          const primitive_id& weights,
          const primitive_id& recurrent,
          const primitive_id& bias = "",
@@ -85,9 +78,8 @@ struct lstm : public primitive_base<lstm> {
          const std::vector<activation_additional_params> activation_params = {},
          const lstm_output_selection output_selection = lstm_output_selection::sequence,
          const lstm_weights_order offset_order = lstm_weights_order::iofz,
-         const primitive_id& ext_prim_id = "",
          const padding& output_padding = padding())
-        : primitive_base(id, input, ext_prim_id, output_padding),
+        : primitive_base(id, input, {output_padding}),
           weights(weights),
           recurrent(recurrent),
           bias(bias),
@@ -132,6 +124,51 @@ struct lstm : public primitive_base<lstm> {
     // tensor sequence_lens;
     // /// @brief The sequence output for the hidden.
     // uint32_t output_sequence;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, peepholes.empty());
+        seed = hash_combine(seed, clip);
+        seed = hash_combine(seed, input_forget);
+        seed = hash_range(seed, activations.begin(), activations.end());
+        for (auto& act_param : activation_params) {
+            seed = hash_combine(seed, act_param.a);
+            seed = hash_combine(seed, act_param.b);
+        }
+        seed = hash_combine(seed, output_selection);
+        seed = hash_combine(seed, offset_order);
+        seed = hash_combine(seed, bias.empty());
+        seed = hash_combine(seed, initial_hidden.empty());
+        seed = hash_combine(seed, initial_cell.empty());
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const lstm>(rhs);
+
+        bool act_params_eq = activation_params.size() == rhs_casted.activation_params.size();
+        for (size_t i = 0; i < activation_params.size(); ++i) {
+            act_params_eq &= activation_params[i].a == rhs_casted.activation_params[i].a &&
+                             activation_params[i].b == rhs_casted.activation_params[i].b;
+        }
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return act_params_eq &&
+               cmp_fields(clip) &&
+               cmp_fields(input_forget) &&
+               cmp_fields(activations) &&
+               cmp_fields(output_selection) &&
+               cmp_fields(offset_order) &&
+               cmp_fields(initial_hidden.empty()) &&
+               cmp_fields(initial_cell.empty()) &&
+               cmp_fields(peepholes.empty()) &&
+               cmp_fields(bias.empty());
+        #undef cmp_fields
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
@@ -161,15 +198,14 @@ struct lstm_gemm : public primitive_base<lstm_gemm> {
     /// @param input hidden Primitive id containing hidden data. Provide empty string if using lstm without hidden values.
     /// @param direction default = 0, bidirectional = 1.
     lstm_gemm(const primitive_id& id,
-              const primitive_id& input,
+              const input_info& input,
               const primitive_id& weights,
               const primitive_id& recurrent,
               const primitive_id& bias = "",
               const primitive_id& hidden = "",
               const uint32_t direction = 0,
-              const primitive_id& ext_prim_id = "",
               const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           weights(weights),
           recurrent(recurrent),
           bias(bias),
@@ -186,6 +222,25 @@ struct lstm_gemm : public primitive_base<lstm_gemm> {
     primitive_id hidden;
     /// @brief direction default = 0, bidirectional = 1.
     uint32_t direction;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, direction);
+        seed = hash_combine(seed, bias.empty());
+        seed = hash_combine(seed, hidden.empty());
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const lstm_gemm>(rhs);
+
+        return direction == rhs_casted.direction &&
+               bias.empty() == rhs_casted.bias.empty() &&
+               hidden.empty() == rhs_casted.hidden.empty();
+    }
 
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
@@ -214,7 +269,7 @@ struct lstm_elt : public primitive_base<lstm_elt> {
     /// @param offset_order. Order of the concatenated weights, recurrent, and bias. ONNX default is iofz [input, output, forget, block].
     /// @param direction default = 0, bidirectional = 1.
     lstm_elt(const primitive_id& id,
-             const primitive_id& input,
+             const input_info& input,
              const primitive_id& cell = "",
              const float clip = 0,
              const bool input_forget = 0,
@@ -224,9 +279,8 @@ struct lstm_elt : public primitive_base<lstm_elt> {
              const std::vector<activation_additional_params> activation_params = {},
              const lstm_weights_order offset_order = lstm_weights_order::iofz,
              const uint32_t direction = 0,
-             const primitive_id& ext_prim_id = "",
              const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           cell(cell),
           clip(clip),
           input_forget(input_forget),
@@ -250,6 +304,44 @@ struct lstm_elt : public primitive_base<lstm_elt> {
     /// @brief direction default = 0, bidirectional = 1.
     uint32_t direction;
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, clip);
+        seed = hash_combine(seed, input_forget);
+        seed = hash_range(seed, activations.begin(), activations.end());
+        for (auto& act_param : activation_params) {
+            seed = hash_combine(seed, act_param.a);
+            seed = hash_combine(seed, act_param.b);
+        }
+        seed = hash_combine(seed, offset_order);
+        seed = hash_combine(seed, direction);
+        seed = hash_combine(seed, cell.empty());
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const lstm_elt>(rhs);
+
+        bool act_params_eq = activation_params.size() == rhs_casted.activation_params.size();
+        for (size_t i = 0; i < activation_params.size(); ++i) {
+            act_params_eq &= activation_params[i].a == rhs_casted.activation_params[i].a &&
+                             activation_params[i].b == rhs_casted.activation_params[i].b;
+        }
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return act_params_eq &&
+               cmp_fields(clip) &&
+               cmp_fields(input_forget) &&
+               cmp_fields(activations) &&
+               cmp_fields(offset_order) &&
+               cmp_fields(direction) &&
+               cmp_fields(cell.empty());
+        #undef cmp_fields
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
@@ -259,7 +351,4 @@ protected:
     }
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

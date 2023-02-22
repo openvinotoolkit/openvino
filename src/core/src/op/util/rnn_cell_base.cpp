@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,6 @@
 #include "ngraph/util.hpp"
 
 using namespace std;
-
-BWDCMP_RTTI_DEFINITION(ov::op::util::RNNCellBase);
 
 std::shared_ptr<ov::Node> ov::op::util::convert_lstm_node_format(const Output<Node>& node,
                                                                  LSTMWeightsFormat from_format,
@@ -92,7 +90,7 @@ ov::op::util::RNNCellBase::RNNCellBase(const OutputVector& args,
       m_activations_beta(activations_beta) {}
 
 bool ngraph::op::util::RNNCellBase::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(util_RNNCellBase_visit_attributes);
+    OV_OP_SCOPE(util_RNNCellBase_visit_attributes);
     visitor.on_attribute("hidden_size", m_hidden_size);
     visitor.on_attribute("activations", m_activations);
     visitor.on_attribute("activations_alpha", m_activations_alpha);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,6 +72,7 @@ enum class Type {
     Gather,
     GatherElements,
     GatherND,
+    GridSample,
     OneHot,
     RegionYolo,
     Select,
@@ -79,6 +80,7 @@ enum class Type {
     Reference,
     ShuffleChannels,
     DFT,
+    RDFT,
     Math,
     CTCLoss,
     Bucketize,
@@ -107,6 +109,9 @@ enum class Type {
     Subgraph,
     PriorBox,
     PriorBoxClustered,
+    Interaction,
+    MHA,
+    Unique
 };
 
 enum class Algorithm {
@@ -130,6 +135,9 @@ enum class Algorithm {
 
     // Elementwise algorithms
     EltwiseAdd,
+    EltwiseIsFinite,
+    EltwiseIsInf,
+    EltwiseIsNaN,
     EltwiseMultiply,
     EltwiseSubtract,
     EltwiseDivide,
@@ -169,6 +177,7 @@ enum class Algorithm {
     EltwiseRoundHalfToEven,
     EltwiseRoundHalfAwayFromZero,
     EltwiseErf,
+    EltwiseSoftSign,
 
     // FakeQuantize algorithms
     FQCommon,

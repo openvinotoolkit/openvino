@@ -1,6 +1,10 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+
+if (NOT ENABLE_AUTO_BATCH)
+    return()
+endif()
 
 set(TARGET_NAME "openvino_auto_batch_plugin")
 
@@ -10,6 +14,7 @@ file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
 ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "BATCH"
+              PSEUDO_DEVICE
               SOURCES ${SOURCES} ${HEADERS}
               VERSION_DEFINES_FOR auto_batch.cpp ADD_CLANG_FORMAT)
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,3 +67,15 @@ const float *output_buffer = output.data<const float>();
 //! [part6]
 return 0;
 }
+/*
+//! [part7]
+project/
+   ├── CMakeLists.txt  - CMake file to build
+   ├── ...             - Additional folders like includes/
+   └── src/            - source folder
+       └── main.cpp
+build/                  - build directory
+   ... 
+
+//! [part7]
+*/

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 #include <string>
 
 namespace cldnn {
-
+int device_query::device_id = -1;
 device_query::device_query(engine_types engine_type,
                            runtime_types runtime_type,
                            void* user_context,

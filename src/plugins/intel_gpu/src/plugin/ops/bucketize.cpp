@@ -10,21 +10,18 @@
 #include "intel_gpu/plugin/program.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 namespace {
 
 void CreateBucketizeOp(Program& p, const std::shared_ptr<ngraph::op::v3::Bucketize>& op) {
-    p.ValidateInputs(op, {2});
+    validate_inputs_count(op, {2});
 
     const cldnn::bucketize bucketize_prim(layer_type_name_ID(op),
-                                          p.GetInputPrimitiveIDs(op),
-                                          DataTypeFromPrecision(op->get_output_type()),
-                                          op->get_with_right_bound(),
-                                          op->get_friendly_name());
-    p.AddPrimitive(bucketize_prim);
-    p.AddPrimitiveToProfiler(op);
+                                          p.GetInputInfo(op),
+                                          cldnn::element_type_to_data_type(op->get_output_type()),
+                                          op->get_with_right_bound());
+    p.add_primitive(*op, bucketize_prim);
 }
 
 }  // namespace
@@ -32,5 +29,4 @@ void CreateBucketizeOp(Program& p, const std::shared_ptr<ngraph::op::v3::Bucketi
 REGISTER_FACTORY_IMPL(v3, Bucketize);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

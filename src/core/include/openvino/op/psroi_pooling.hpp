@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,6 @@ namespace v0 {
 class OPENVINO_API PSROIPooling : public Op {
 public:
     OPENVINO_OP("PSROIPooling", "opset1");
-    BWDCMP_RTTI_DECLARATION;
 
     PSROIPooling() = default;
     /// \brief Constructs a PSROIPooling operation

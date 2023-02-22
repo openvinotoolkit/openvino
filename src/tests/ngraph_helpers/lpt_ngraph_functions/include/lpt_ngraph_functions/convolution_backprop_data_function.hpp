@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,6 +26,12 @@ public:
         const Shape& shape,
         const element::Type& netPrecision,
         const builder::subgraph::FakeQuantizeOnWeights& fqOnWeights,
+        const std::shared_ptr<opset1::Constant>& value = nullptr);
+    static std::shared_ptr<Node> getWeights(
+        const Shape& shape,
+        const element::Type& netPrecision,
+        const builder::subgraph::FakeQuantizeOnWeights& fqOnWeights,
+        const builder::subgraph::DequantizationOperations& dequantizationOnWeights,
         const std::shared_ptr<opset1::Constant>& value = nullptr);
     static std::shared_ptr<Function> get(
         const element::Type netPrecision,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 
 
 #include "common_test_utils/test_common.hpp"
-#include <ie_core.hpp>
+#include "base/behavior_test_utils.hpp"
 
 namespace BehaviorTestsDefinitions {
 typedef std::tuple<
@@ -16,7 +16,7 @@ typedef std::tuple<
         std::map<std::string, std::string>> // device configuration
 memoryStateParams;
 
-class InferRequestVariableStateTest : public CommonTestUtils::TestsCommon,
+class InferRequestVariableStateTest : public BehaviorTestsUtils::IEInferRequestTestBase,
                                       public testing::WithParamInterface<memoryStateParams> {
 protected:
     InferenceEngine::CNNNetwork net;

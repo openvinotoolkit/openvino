@@ -1,10 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/runtime/reference/convert.hpp"
 
-#include "jit_generator.hpp"
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+
+#    include "jit_generator.hpp"
 
 namespace ngraph {
 namespace runtime {
@@ -28,7 +30,7 @@ void jit_convert_vec<uint8_t, float16>(jit::Generator& gen, const Xbyak::RegExp&
     gen.vcvtdq2ps(fvec, i32vec);
     gen.vcvtps2ph(f16vec, fvec, 0);
     gen.vzeroupper();
-    gen.movdqu(gen.xword[dst], f16vec);
+    gen.vmovdqu(gen.xword[dst], f16vec);
 }
 
 template <>
@@ -36,7 +38,7 @@ void jit_convert_vec<float16, float>(jit::Generator& gen, const Xbyak::RegExp& s
     auto f16vec = gen.xmm3;
     auto f32vec = gen.ymm4;
 
-    gen.movdqu(f16vec, gen.xword[src]);
+    gen.vmovdqu(f16vec, gen.xword[src]);
     gen.vcvtph2ps(f32vec, f16vec);
     gen.vmovups(gen.yword[dst], f32vec);
 }
@@ -122,8 +124,8 @@ class jit_convert_array : public jit::Generator {
 
         foreach (rsi, 1, r8, [&, this](const Xbyak::Reg64& idx) {
             ctx.convert_vec(*this, reg_src, reg_dst);
-            add(reg_src, ctx.src.type_size * vlen);
-            add(reg_dst, ctx.dst.type_size * vlen);
+            add(reg_src, static_cast<uint32_t>(ctx.src.type_size * vlen));
+            add(reg_dst, static_cast<uint32_t>(ctx.dst.type_size * vlen));
         })
             ;
 
@@ -213,6 +215,9 @@ template <>
 void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count) {
     convert_impl(arg, out, count);
 }
+
 }  // namespace reference
 }  // namespace runtime
 }  // namespace ngraph
+
+#endif  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64

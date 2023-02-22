@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -111,27 +111,27 @@ class TestLRN(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_lrn_precommit(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_lrn_precommit(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         # onnxruntime only supports 4D tensors for LRN
         self.skip_framework = True
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_lrn(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_lrn(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         # onnxruntime only supports 4D tensors for LRN
         self.skip_framework = True
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_lrn_4D(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_lrn_4D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self.skip_framework = False
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)

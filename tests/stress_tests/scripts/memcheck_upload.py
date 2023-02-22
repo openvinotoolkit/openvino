@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -17,10 +17,12 @@ import logging
 import os
 import re
 import sys
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 from glob import glob
 from inspect import getsourcefile
 from types import SimpleNamespace
+import requests
+from copy import deepcopy
 
 import yaml
 from pymongo import MongoClient
@@ -164,6 +166,58 @@ def upload_memcheck_records(records, db_url, db_collection):
         collection.replace_one({'_id': record['_id']}, record, upsert=True)
 
 
+def modify_data_for_push_to_new_db(records):
+    new_records = deepcopy(records)
+    records_to_push = []
+
+    for record in new_records:
+        if '_id' in record:
+            del record['_id']
+        if 'os_name' in record and 'os_version' in record:
+            record['os'] = '{} {}.{}'.format(record['os_name'], record['os_version'][0], record['os_version'][1])
+            del record['os_name']
+            del record['os_version']
+        if 'repo_url' in record:
+            del record['repo_url']
+        if 'commit_sha' in record:
+            del record['commit_sha']
+        if 'event_type' in record:
+            del record['event_type']
+        if 'framework' in record:
+            record['framework'] = str(record['framework'])
+        try:
+            with open(record['log_path'], 'r') as log_file:
+                log = log_file.read()
+        except FileNotFoundError:
+            log = ''
+        record['log'] = log
+        record['ext'] = {}
+        records_to_push.append({'data': [record]})
+
+    return records_to_push
+
+
+def push_to_db_facade(records, db_api_handler):
+    headers = {"Content-Type": "application/json", "accept": "application/json"}
+    uploaded = False
+    errors = []
+    for record in records:
+        try:
+            response = requests.post(db_api_handler, json=record, headers=headers)
+            if response.ok:
+                uploaded = True
+            else:
+                errors.append(str(response.json()))
+        except Exception as e:
+            errors.append(e)
+
+    if uploaded and not errors:
+        logging.info("Uploaded records by API url {}".format(db_api_handler))
+    else:
+        logging.info("Failed to upload records by API url {} due to errors {}".format(db_api_handler, errors))
+
+
+
 def _transpose_dicts(items, template=None):
     """ Build dictionary of arrays from array of dictionaries
     Example:
@@ -274,6 +328,10 @@ def main():
     parser.add_argument('--db_collection', required=not is_dryrun,
                         help=f'Collection name in {DATABASE} database to upload.',
                         choices=DB_COLLECTIONS)
+    parser.add_argument('--db_api_handler',
+                        help='API handler url for push data to database',
+                        default='',
+                        )
     parser.add_argument('--artifact_root', required=True,
                         help=f'A root directory to strip from log path before upload.')
     parser.add_argument('--append', help='JSON to append to each item.')
@@ -298,6 +356,9 @@ def main():
     if not args.dryrun:
         upload_memcheck_records(records, args.db_url, args.db_collection)
         logging.info('Uploaded to %s', args.db_url)
+        if args.db_api_handler:
+            new_format_records = modify_data_for_push_to_new_db(records)
+            push_to_db_facade(new_format_records, args.db_api_handler)
     else:
         print(json.dumps(records, sort_keys=True, indent=4))
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,7 +38,7 @@ TEST(attributes, strided_slice_op) {
                                                            new_axis_mask,
                                                            shrink_axis_mask,
                                                            ellipsis_mask);
-    NodeBuilder builder(strided_slice);
+    NodeBuilder builder(strided_slice, {data, begin, end, stride});
     auto g_strided_slice = ov::as_type_ptr<opset1::StridedSlice>(builder.create());
 
     EXPECT_EQ(g_strided_slice->get_begin_mask(), strided_slice->get_begin_mask());

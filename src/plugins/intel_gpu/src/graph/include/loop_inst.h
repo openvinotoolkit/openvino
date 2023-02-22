@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "intel_gpu/primitives/loop.hpp"
@@ -41,8 +40,8 @@ public:
         back_edges(this->get_primitive()->back_edges),
         use_current_iteration(!this->get_primitive()->current_iteration_id.empty()),
         use_execution_condition(!this->get_primitive()->condition_id.empty()),
-        max_iteration(this->get_primitive()->max_iteration < 0 ? DEFAULT_MAX_NUM_ITERATION : this->get_primitive()->max_iteration),
-        iteration_axis(0) {}
+        iteration_axis(0),
+        max_iteration(this->get_primitive()->max_iteration < 0 ? DEFAULT_MAX_NUM_ITERATION : this->get_primitive()->max_iteration) {}
 
     mutable size_t iteration_axis;
     int64_t max_iteration;
@@ -51,36 +50,6 @@ public:
     program::ptr get_body_program() const { return body_program; }
     bool is_current_iteration_used() const { return use_current_iteration; }
     bool is_execution_condition_used() const { return use_execution_condition; }
-
-    std::vector<const loop::io_primitive_map*> find_io_primitive_maps(
-                                                            const primitive_id& prim_id,
-                                                            bool is_external) const {
-        std::vector<const loop::io_primitive_map*> ret;
-        if (is_external) {
-            for (const auto& it : input_primitive_maps) {
-                if (it.external_id == prim_id) {
-                    ret.push_back(&it);
-                }
-            }
-            for (const auto& it : output_primitive_maps) {
-                if (it.external_id == prim_id) {
-                    ret.push_back(&it);
-                }
-            }
-        } else {
-            for (const auto& it : input_primitive_maps) {
-                if (it.internal_id == prim_id) {
-                    ret.push_back(&it);
-                }
-            }
-            for (const auto& it : output_primitive_maps) {
-                if (it.internal_id == prim_id) {
-                    ret.push_back(&it);
-                }
-            }
-        }
-        return ret;
-    }
 
     static size_t convert_to_raw_axis(size_t axis, size_t ndim) {
         // convert between bfyx, bfzyx, bfzyxw and tensor.size.raw
@@ -167,18 +136,20 @@ public:
 
     layout calc_body_input_layout(const loop::io_primitive_map& inputDesc) const {
         const auto& dependency_list = this->get_dependencies();
-        auto input = std::find_if(dependency_list.begin(), dependency_list.end(), [&inputDesc](const program_node* p){
-            return p->id() == inputDesc.external_id;
+        auto input = std::find_if(dependency_list.begin(), dependency_list.end(), [&inputDesc](const std::pair<program_node*, int32_t>& dep){
+            return dep.first->id() == inputDesc.external_id;
         });
         if (input == dependency_list.end()) {
             throw std::runtime_error("Can't find input from dependency_list");
         }
-        layout calculated_layout = (*input)->get_output_layout();
-        auto shape = calculated_layout.size.sizes(calculated_layout.format);
+        layout calculated_layout = (*input).first->get_output_layout();
+        auto shape = calculated_layout.get_tensor().sizes(calculated_layout.format);
 
         if (inputDesc.axis >= 0) {
             iteration_axis = convert_to_raw_axis(static_cast<size_t>(inputDesc.axis), shape.size());
-            calculated_layout.size.raw[iteration_axis] = 1; // cropped inputs shape
+            auto calculated_size = calculated_layout.get_tensor();
+            calculated_size.raw[iteration_axis] = 1; // cropped inputs shape
+            calculated_layout.set_tensor(calculated_size);
         }
 
         return calculated_layout;
@@ -340,10 +311,10 @@ public:
             output_names.insert(get_condition_id());
         }
 
-        auto opts = get_program().get_options();
         std::vector<primitive_id> output_names_vec(output_names.begin(), output_names.end());
-        opts.set_option(build_option::outputs(output_names_vec));
-        body_program = program::build_program(get_program().get_engine(), body, opts, false, false, true);
+        auto config = get_program().get_config();
+        config.set_property(ov::intel_gpu::custom_outputs(output_names_vec));
+        body_program = program::build_program(get_program().get_engine(), body, config, false, false, true);
     }
 
     const primitive_id& get_trip_count_id() const { return get_primitive()->trip_count_id; }
@@ -359,6 +330,7 @@ using loop_node = typed_program_node<loop>;
 template <>
 class typed_primitive_inst<loop> : public typed_primitive_inst_base<loop> {
     using parent = typed_primitive_inst_base<loop>;
+    using parent::parent;
 
 public:
     struct backedge_memory_mapping {
@@ -480,10 +452,10 @@ private:
 
             int64_t batch_size = 1;
             for (int64_t i = 0; i < axis; ++i) {
-                batch_size *= mem_layout.size.raw[i];
+                batch_size *= mem_layout.get_tensor().raw[i];
             }
             for (int64_t i = axis-1; i >= 2; --i) {
-                batch_size *= mem_layout.size.raw[i];
+                batch_size *= mem_layout.get_tensor().raw[i];
             }
             return batch_size;
         }
@@ -510,7 +482,7 @@ private:
         }
 
         memory::ptr get_sliced_mem(int64_t iteration) const {
-            mem_lock<uint8_t> from_lock{ concatenated_mem, stream };
+            mem_lock<uint8_t, mem_lock_type::read> from_lock{ concatenated_mem, stream };
             int64_t batch_offset = 0;
             const int64_t iteration_offset = bytes_iteration_initial_offset +
                 bytes_iteration_stride * iteration;
@@ -546,7 +518,7 @@ private:
         const int64_t bytes_iteration_initial_offset;
     };
 
-    static layout calc_output_layout(const loop_node& node);
+    static layout calc_output_layout(const loop_node& node, kernel_impl_params const& impl_param);
     bool preproc_memories_done;
     std::vector<backedge_memory_mapping> backedge_memory_mappings;
     std::vector<concatenated_memory_mapping> concatenated_input_mem_mappings;
@@ -562,18 +534,29 @@ public:
     void preprocess_output_memory();
     void preprocess_backedge_memory();
     void update_mapped_memory();
-    void set_output_memory(memory::ptr mem, bool check = true) override;
+    void set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
     const backedge_memory_mapping& get_current_iteration_backedge_mapping() const {
-        if (!node.is_current_iteration_used()) {
-            CLDNN_ERROR_MESSAGE(node.id(), "no backedge mapping for current_iteration");
+        if (!node->is_current_iteration_used()) {
+            CLDNN_ERROR_MESSAGE(node->id(), "no backedge mapping for current_iteration");
         }
         return backedge_memory_mappings.at(current_iteratoin_backedge_mapping_idx);
     }
+    void save(BinaryOutputBuffer& ob) const override;
+    void load(BinaryInputBuffer& ib) override;
 
 private:
     network::ptr body_network;
     memory::ptr get_external_memory(const primitive_id& external_id) const;
     std::vector<memory::ptr> get_sliced_mem(const primitive_id& internal_id) const;
+    std::vector<loop::io_primitive_map> _input_primitive_maps;
+    std::vector<loop::io_primitive_map> _output_primitive_maps;
+    std::vector<loop::backedge_mapping> _back_edges;
+    primitive_id _trip_count_id;
+    primitive_id _initial_execution_id;
+    primitive_id _current_iteration_id;
+    primitive_id _condition_id;
+    primitive_id _num_iteration_id;
+    int64_t _max_iteration;
 };
 
 using loop_inst = typed_primitive_inst<loop>;

@@ -8,8 +8,6 @@
 
 **Detailed description**
 
-*SoftPlus* operation is introduced in this [article](https://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.165.6419).
-
 *SoftPlus* performs element-wise activation function on a given input tensor, based on the following mathematical formula:
 
 \f[

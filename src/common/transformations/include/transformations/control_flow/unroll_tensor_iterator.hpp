@@ -1,21 +1,21 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 #include <vector>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API UnrollTensorIterator;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -25,8 +25,8 @@ class TRANSFORMATIONS_API UnrollTensorIterator;
  * are added to the network.
  */
 
-class ngraph::pass::UnrollTensorIterator : public ngraph::pass::FunctionPass {
+class ov::pass::UnrollTensorIterator : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("UnrollTensorIterator", "0");
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,6 @@ namespace util {
 class OPENVINO_API GatherNDBase : public Op {
 public:
     OPENVINO_OP("GatherNDBase", "util");
-    BWDCMP_RTTI_DECLARATION;
     GatherNDBase() = default;
 
     /// \brief Constructs a GatherND operation.
@@ -26,6 +25,10 @@ public:
 
     size_t get_batch_dims() const {
         return m_batch_dims;
+    }
+
+    void set_batch_dims(size_t batch_dims) {
+        m_batch_dims = batch_dims;
     }
 
     void validate_inputs_and_infer_shape();

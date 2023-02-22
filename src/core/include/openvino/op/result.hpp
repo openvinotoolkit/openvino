@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,6 @@ namespace v0 {
 class OPENVINO_API Result : public Op {
 public:
     OPENVINO_OP("Result", "opset1");
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Allows a value to be used as a function result.
     Result() = default;
@@ -66,7 +65,6 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     OPENVINO_RTTI("AttributeAdapter<ResultVector>");
-    BWDCMP_RTTI_DECLARATION;
 
 protected:
     ResultVector& m_ref;

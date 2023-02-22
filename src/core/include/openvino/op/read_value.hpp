@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,6 @@ namespace v3 {
 class OPENVINO_API ReadValue : public util::ReadValueBase {
 public:
     OPENVINO_OP("ReadValue", "opset3", util::ReadValueBase, 3);
-    BWDCMP_RTTI_DECLARATION;
     ReadValue() = default;
 
     /// \brief Constructs a ReadValue operation.
@@ -47,7 +46,6 @@ namespace v6 {
 class OPENVINO_API ReadValue : public util::ReadValueBase {
 public:
     OPENVINO_OP("ReadValue", "opset6", util::ReadValueBase, 6);
-    BWDCMP_RTTI_DECLARATION;
     ReadValue() = default;
 
     /// \brief Constructs a ReadValue operation.

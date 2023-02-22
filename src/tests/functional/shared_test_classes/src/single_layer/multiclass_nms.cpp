@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -389,14 +389,11 @@ void MulticlassNmsLayerTest::SetUp() {
     m_attrs.background_class = backgroundClass;
     m_attrs.normalized = normalized;
 
-    std::shared_ptr<opset9::MulticlassNms> nms;
-    if (paramOuts.size() > 2) {
-        nms = std::make_shared<opset9::MulticlassNms>(paramOuts[0], paramOuts[1], paramOuts[2], m_attrs);
-    } else {
-        nms = std::make_shared<opset9::MulticlassNms>(paramOuts[0], paramOuts[1], m_attrs);
-    }
+    const auto nms = CreateNmsOp(paramOuts);
 
-    if (!m_outStaticShape) {
+    if (targetDevice == CommonTestUtils::DEVICE_GPU) {
+        function = std::make_shared<Function>(nms, params, "MulticlassNMS");
+    } else if (!m_outStaticShape) {
         OutputVector results = {
             std::make_shared<opset5::Result>(nms->output(0)),
             std::make_shared<opset5::Result>(nms->output(1)),

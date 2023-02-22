@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,7 +48,6 @@ protected:
 
 public:
     OPENVINO_OP("BinaryElementwiseArithmetic", "util");
-    BWDCMP_RTTI_DECLARATION;
 
     void validate_and_infer_types() override;
 
@@ -59,14 +58,12 @@ public:
         m_autob = autob;
     }
     bool visit_attributes(AttributeVisitor& visitor) override;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate_lower(const HostTensorVector& outputs) const override;
-    bool evaluate_upper(const HostTensorVector& outputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate_lower(TensorVector& outputs) const override;
+    bool evaluate_upper(TensorVector& outputs) const override;
 
 private:
     AutoBroadcastSpec m_autob;
-    void validate_and_infer_elementwise_arithmetic(const op::AutoBroadcastSpec& autob);
+    void validate_and_infer_elementwise_arithmetic();
 };
 }  // namespace util
 }  // namespace op

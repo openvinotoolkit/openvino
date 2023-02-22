@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ TEST(attributes, random_uniform_op) {
 
     const auto random_uniform =
         make_shared<opset8::RandomUniform>(out_shape, min_val, max_val, element::Type_t::f32, 150, 10);
-    NodeBuilder builder(random_uniform);
+    NodeBuilder builder(random_uniform, {out_shape, min_val, max_val});
     auto g_random_uniform = ov::as_type_ptr<opset8::RandomUniform>(builder.create());
 
     const auto expected_attr_count = 3;

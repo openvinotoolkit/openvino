@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,8 @@ OutputVector mean_variance_normalization(const Node& node) {
     const std::vector<std::size_t> normalized_axes =
         ngraph::normalize_axes(node.get_description(), axes, data.get_partial_shape().rank());
     auto const_axes = default_opset::Constant::create(element::i64, Shape{normalized_axes.size()}, normalized_axes);
-    return {std::make_shared<ngraph::op::v6::MVN>(data, const_axes, true, 1e-09, ngraph::op::MVNEpsMode::OUTSIDE_SQRT)};
+    return {
+        std::make_shared<ngraph::op::v6::MVN>(data, const_axes, true, 1e-09f, ngraph::op::MVNEpsMode::OUTSIDE_SQRT)};
 }
 
 }  // namespace set_9

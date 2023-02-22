@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -160,14 +160,14 @@ class TestClip(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_clip_opset6(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_clip_opset6(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, ir_version=ir_version, opset=6), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_clip_opset11(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_clip_opset11(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, ir_version=ir_version, opset=11), ie_device,
                    precision, ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)

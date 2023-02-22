@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,8 @@ void gru_cell(const T* X,
               const std::string& activation_f,
               const std::string& activation_g,
               float clip,
-              bool linear_before_reset) {
+              bool linear_before_reset,
+              const T* A = nullptr) {
     // ------ VARIABLE'S NAMES AND ACRONYM DEFINITIONS ------
     // The names used below are analogous to the one used in ONNX documentation.
     //
@@ -59,7 +60,7 @@ void gru_cell(const T* X,
     //          true
     // Wb[zrh] - W bias vectors for update, reset and hidden gates.
     // Rb[zrh] - R bias vectors for update, reset and hidden gates.
-
+    // A       - Attentional update gate.
     // (.) - Denotes element-wise multiplication.
     // *   - Denotes dot product.
 
@@ -72,13 +73,14 @@ void gru_cell(const T* X,
     //                                                      # (default)
     // ht = g(Xt*(Wh^T) + (rt (.) (Ht-1*(Rh^T) + Rbh)) + Wbh) # when linear_before_reset
     // := true
-    // Ht = (1 - zt) (.) ht + zt (.) Ht-1
+    // zt' = (1-A) (.) zt
+    // Ht = (1 - zt') (.) ht + zt' (.) Ht-1
     // -------------------
 
-    Shape gate_shape{X_shape[0], H_shape[1]};
-    Shape all_gates_shape{X_shape[0], 3 * H_shape[1]};
-    Shape bias_shape{H_shape[1], H_shape[1]};
-    auto gate_shape_size = X_shape[0] * H_shape[1];
+    Shape gate_shape{X_shape[0], H_shape[1]};           // [batch_size, hidden_size]
+    Shape all_gates_shape{X_shape[0], 3 * H_shape[1]};  // [batch_size, 3*hidden_size]
+    Shape bias_shape{H_shape[1], H_shape[1]};           // [hidden_size, hidden_size]
+    auto gate_shape_size = X_shape[0] * H_shape[1];     // batch_size * hidden_size
     auto all_gates_shape_size = gate_shape_size * 3;
     auto bias_shape_size = H_shape[1] * H_shape[1];
 
@@ -144,10 +146,18 @@ void gru_cell(const T* X,
                    z_t.data(),
                    gate_shape,
                    {B_shape[0] / num_b_splits},
-                   op::AutoBroadcastType::NUMPY);  //
-    reference::add(X_W_zrh[0].data(), z_t.data(), z_t.data(), gate_shape, gate_shape,
-                   op::AutoBroadcastType::NUMPY);  //
+                   op::AutoBroadcastType::NUMPY);
+    reference::add(X_W_zrh[0].data(), z_t.data(), z_t.data(), gate_shape, gate_shape, op::AutoBroadcastType::NUMPY);
+
     clip_activation(z_t, activation_f);
+
+    T one[] = {1};
+    if (A) {  // Attention score input provided
+        const Shape a_shape{gate_shape[0], 1};
+        std::vector<T> a_t(gate_shape[0]);
+        reference::subtract(one, A, a_t.data(), {1}, a_shape, op::AutoBroadcastType::NUMPY);
+        reference::multiply(a_t.data(), z_t.data(), z_t.data(), a_shape, gate_shape, op::AutoBroadcastType::NUMPY);
+    }
 
     // calculate r_t
     // steps:
@@ -199,7 +209,6 @@ void gru_cell(const T* X,
     // Ht = (1 - zt) (.) ht + zt (.) Ht-1
     std::vector<T> mul1(gate_shape_size);
     std::vector<T> mul2(gate_shape_size);
-    T one[] = {1};
     reference::subtract(one, z_t.data(), mul1.data(), {1}, gate_shape, op::AutoBroadcastType::NUMPY);
     reference::multiply(mul1.data(), h_t.data(), mul1.data(), gate_shape, gate_shape, op::AutoBroadcastType::NUMPY);
     reference::multiply(z_t.data(), H, mul2.data(), gate_shape, gate_shape, op::AutoBroadcastType::NUMPY);

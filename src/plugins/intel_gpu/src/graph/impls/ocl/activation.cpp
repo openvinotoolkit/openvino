@@ -1,14 +1,22 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "activation/activation_kernel_base.h"
+#include "activation/activation_kernel_selector.h"
 #include "activation_inst.h"
-#include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
-#include "activation/activation_kernel_selector.h"
-#include "activation/activation_kernel_base.h"
+#include "primitive_base.hpp"
+
+namespace {
+inline void convert_new_activation_func(const activation& prim, std::vector<kernel_selector::base_activation_params>& params) {
+    params.insert(params.begin(), {get_kernel_selector_activation_param(prim.activation_function),
+                                   prim.additional_params.a,
+                                   prim.additional_params.b});
+}
+}  // namespace
 
 namespace cldnn {
 namespace ocl {
@@ -16,62 +24,78 @@ namespace ocl {
 struct activation_impl : typed_primitive_impl_ocl<activation> {
     using parent = typed_primitive_impl_ocl<activation>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::activation_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::activation_params, kernel_selector::activation_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<activation_impl>(*this);
     }
 
-    kernel_arguments_data get_arguments(typed_primitive_inst<activation>& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
+    kernel_arguments_data get_arguments(const typed_primitive_inst<activation>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
 
-        if (_outer.is_parameterized()) {
+        if (instance.is_parameterized()) {
             args.slope = instance.slope_memory();
         }
 
         return args;
     }
 
-    static primitive_impl* create(const activation_node& arg) {
-        auto activation_params = get_default_params<kernel_selector::activation_params>(arg);
-        auto activation_optional_params =
-            get_default_optional_params<kernel_selector::activation_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
+        const auto& primitive = impl_param.typed_desc<activation>();
+        auto params = get_default_params<kernel_selector::activation_params>(impl_param, is_shape_agnostic);
+        auto optional_params = get_default_optional_params<kernel_selector::activation_optional_params>(impl_param.get_program());
 
-        convert_new_activation_func(arg.get_primitive(), activation_params.activations);
+        convert_new_activation_func(*primitive, params.activations);
 
-        if (arg.is_parameterized()) {
-            const auto& slope_layout = arg.slope_input().get_output_layout();
-            const auto& output_layout = arg.get_output_layout();
+        bool is_parameterized = !primitive->additional_params_input.empty();
+        if (is_parameterized) {
+            const auto& slope_layout = impl_param.input_layouts[1];
+            const auto& output_layout = impl_param.get_output_layout();
 
-            const auto params_num =
-                kernel_selector::GetActivationAdditionalParamsNumber(activation_params.activations[0].function);
+            const auto params_num = kernel_selector::GetActivationAdditionalParamsNumber(params.activations[0].function);
 
-            CLDNN_ERROR_LESS_THAN(arg.id(),
-                                  "Slope layout size count",
-                                  slope_layout.size.count(),
-                                  "output_layout.feature() * params_num",
-                                  static_cast<size_t>(output_layout.feature() * params_num),
-                                  "Error - not enough data inside additional params buffer");
+            OPENVINO_ASSERT(slope_layout.count() >= static_cast<size_t>(output_layout.feature() * params_num), "[GPU] Invalid slope size in ", primitive->id);
 
-            activation_params.inputActivationParams.push_back(convert_data_tensor(slope_layout));
+            params.inputActivationParams.push_back(convert_data_tensor(slope_layout));
         }
 
-        auto& kernel_selector = kernel_selector::activation_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(activation_params, activation_optional_params);
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
+        return {params, optional_params};
+    }
 
-        auto activation = new activation_impl(arg, best_kernels[0]);
-
-        return activation;
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        auto kernel_params = get_kernel_params(impl_param, true);
+        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        update_kernels_list_to_skip();
     }
 };
 
 namespace detail {
 
 attach_activation_impl::attach_activation_impl() {
-    implementation_map<activation>::add(impl_types::ocl, activation_impl::create, {
+     auto dyn_types = {
+        data_types::f32,
+        data_types::f16,
+        data_types::i8,
+        data_types::u8,
+        data_types::i32
+    };
+
+    auto dyn_formats = {
+        format::bfyx,
+        format::bfzyx,
+        format::bfwzyx
+    };
+
+    implementation_map<activation>::add(impl_types::ocl,
+                                        shape_types::dynamic_shape,
+                                        typed_primitive_impl_ocl<activation>::create<activation_impl>,
+                                        dyn_types,
+                                        dyn_formats);
+
+    implementation_map<activation>::add(impl_types::ocl, shape_types::static_shape, typed_primitive_impl_ocl<activation>::create<activation_impl>, {
         std::make_tuple(data_types::f32, format::yxfb),
         std::make_tuple(data_types::f16, format::yxfb),
         std::make_tuple(data_types::f32, format::bfyx),
@@ -137,3 +161,5 @@ attach_activation_impl::attach_activation_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::activation_impl)

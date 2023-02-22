@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ TEST(attributes, extractimagepatches_op) {
     auto padtype_padding = ngraph::op::PadType::VALID;
 
     auto extractimagepatches = make_shared<opset3::ExtractImagePatches>(data, sizes, strides, rates, padtype_padding);
-    NodeBuilder builder(extractimagepatches);
+    NodeBuilder builder(extractimagepatches, {data});
     auto g_extractimagepatches = ov::as_type_ptr<opset3::ExtractImagePatches>(builder.create());
 
     const auto expected_attr_count = 4;

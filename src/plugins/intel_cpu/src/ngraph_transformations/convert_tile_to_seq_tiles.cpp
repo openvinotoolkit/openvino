@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -88,7 +88,6 @@ ov::intel_cpu::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
         last_node.get_node_shared_ptr()->set_friendly_name(tile->get_friendly_name());
         ngraph::copy_runtime_info(tile, new_ops);
         ngraph::replace_node(tile, {last_node});
-        MATCHER_SCOPE_ENABLE(ConvertTileToSeqTiles);
         return true;
     };
 

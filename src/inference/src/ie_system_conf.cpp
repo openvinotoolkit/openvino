@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <cstring>
 #include <vector>
 
+#include "openvino/core/visibility.hpp"
 #include "threading/ie_parallel_custom_arena.hpp"
 
 #define XBYAK_NO_OP_NAMES
@@ -15,6 +16,11 @@
 #include <xbyak/xbyak_util.h>
 
 namespace InferenceEngine {
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+
+// note: MSVC 2022 (17.4) is not able to compile the next line for ARM and ARM64
+// so, we disable this code since for non-x86 platforms it returns 'false' anyway
 
 static Xbyak::util::Cpu& get_cpu_info() {
     static Xbyak::util::Cpu cpu;
@@ -41,6 +47,10 @@ bool with_cpu_x86_avx512_core() {
     return get_cpu_info().has(Xbyak::util::Cpu::tAVX512F | Xbyak::util::Cpu::tAVX512DQ | Xbyak::util::Cpu::tAVX512BW);
 }
 
+bool with_cpu_x86_avx512_core_vnni() {
+    return with_cpu_x86_avx512_core() && get_cpu_info().has(Xbyak::util::Cpu::tAVX512_VNNI);
+}
+
 bool with_cpu_x86_bfloat16() {
     return get_cpu_info().has(Xbyak::util::Cpu::tAVX512_BF16);
 }
@@ -56,6 +66,41 @@ bool with_cpu_x86_avx512_core_amx_bf16() {
 bool with_cpu_x86_avx512_core_amx() {
     return with_cpu_x86_avx512_core_amx_int8() || with_cpu_x86_avx512_core_amx_bf16();
 }
+
+#else  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
+
+bool with_cpu_x86_sse42() {
+    return false;
+}
+bool with_cpu_x86_avx() {
+    return false;
+}
+bool with_cpu_x86_avx2() {
+    return false;
+}
+bool with_cpu_x86_avx512f() {
+    return false;
+}
+bool with_cpu_x86_avx512_core() {
+    return false;
+}
+bool with_cpu_x86_avx512_core_vnni() {
+    return false;
+}
+bool with_cpu_x86_bfloat16() {
+    return false;
+}
+bool with_cpu_x86_avx512_core_amx_int8() {
+    return false;
+}
+bool with_cpu_x86_avx512_core_amx_bf16() {
+    return false;
+}
+bool with_cpu_x86_avx512_core_amx() {
+    return false;
+}
+
+#endif  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
 
 bool checkOpenMpEnvVars(bool includeOMPNumThreads) {
     for (auto&& var : {"GOMP_CPU_AFFINITY",
@@ -96,7 +141,7 @@ bool checkOpenMpEnvVars(bool includeOMPNumThreads) {
     return false;
 }
 
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
 // for Linux and Windows the getNumberOfCPUCores (that accounts only for physical cores) implementation is OS-specific
 // (see cpp files in corresponding folders), for __APPLE__ it is default :
 int getNumberOfCPUCores(bool) {

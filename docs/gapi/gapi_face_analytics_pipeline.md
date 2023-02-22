@@ -9,8 +9,8 @@ In this tutorial you will learn:
 ## Prerequisites
 This sample requires:
 
-* PC with GNU/Linux* or Microsoft Windows* (Apple macOS* is supported but was not tested)
-* OpenCV 4.2 or higher built with [Intel® Distribution of OpenVINO™ Toolkit](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html) (building with [Intel® TBB](https://www.threadingbuildingblocks.org/intel-tbb-tutorial)
+* PC with GNU/Linux or Microsoft Windows (Apple macOS is supported but was not tested)
+* OpenCV 4.2 or higher built with [Intel® Distribution of OpenVINO™ Toolkit](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html) (building with [Intel® TBB](https://www.threadingbuildingblocks.org/intel-tbb-tutorial) is a plus)
 * The following pre-trained models from the [Open Model Zoo](@ref omz_models_group_intel):
     * [face-detection-adas-0001](@ref omz_models_model_face_detection_adas_0001)
     * [age-gender-recognition-retail-0013](@ref omz_models_model_age_gender_recognition_retail_0013)

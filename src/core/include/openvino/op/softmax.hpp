@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,6 @@ namespace v1 {
 class OPENVINO_API Softmax : public Op {
 public:
     OPENVINO_OP("Softmax", "opset1", op::Op, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     Softmax() = default;
     /// \brief Constructs a softmax operation.
@@ -55,7 +54,6 @@ namespace v8 {
 class OPENVINO_API Softmax : public Op {
 public:
     OPENVINO_OP("Softmax", "opset8");
-    BWDCMP_RTTI_DECLARATION;
 
     Softmax() = default;
     /// \brief Constructs a softmax operation.

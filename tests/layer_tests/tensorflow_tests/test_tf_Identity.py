@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -17,10 +17,6 @@ class TestIdentity(CommonTFLayerTest):
             Input->Identity->ReLU     =>     Input->ReLU
 
         """
-
-        #
-        #   Create Tensorflow model
-        #
 
         import tensorflow as tf
 
@@ -69,23 +65,23 @@ class TestIdentity(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
     def test_identity_precommit(self, params, ie_device, precision, ir_version, temp_dir,
-                                use_new_frontend, api_2):
+                                use_new_frontend, use_old_api):
         self._test(*self.create_identity_net(**params, ir_version=ir_version,
                                              use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data = [dict(shape=[1]),
-                 dict(shape=[1, 224]),
-                 pytest.param(dict(shape=[1, 3, 224]), marks=pytest.mark.xfail(reason="*-19053")),
+                 pytest.param(dict(shape=[1, 224]), marks=pytest.mark.precommit_tf_fe),
+                 dict(shape=[1, 3, 224]),
                  dict(shape=[1, 3, 100, 224]),
                  dict(shape=[1, 3, 50, 100, 224])]
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_identity(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                      api_2):
+                      use_old_api):
         self._test(*self.create_identity_net(**params, ir_version=ir_version,
                                              use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)

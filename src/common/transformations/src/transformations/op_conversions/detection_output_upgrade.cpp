@@ -1,20 +1,20 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/op_conversions/detection_output_upgrade.hpp"
 
 #include <ngraph/op/util/detection_output_base.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 #include "itt.hpp"
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::op::util;
+using namespace ov;
+using namespace ov::op::util;
 
 pass::ConvertDetectionOutput1ToDetectionOutput8::ConvertDetectionOutput1ToDetectionOutput8() {
     MATCHER_SCOPE(ConvertDetectionOutput1ToDetectionOutput8);
@@ -64,7 +64,6 @@ pass::ConvertDetectionOutput1ToDetectionOutput8::ConvertDetectionOutput1ToDetect
         detection_output_v8_node->set_friendly_name(detection_output_v1_node->get_friendly_name());
         ngraph::copy_runtime_info(detection_output_v1_node, detection_output_v8_node);
         ngraph::replace_node(detection_output_v1_node, detection_output_v8_node);
-        MATCHER_SCOPE_ENABLE(ConvertDetectionOutput1ToDetectionOutput8);
         return true;
     };
 

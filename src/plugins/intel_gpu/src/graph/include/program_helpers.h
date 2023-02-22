@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
@@ -100,13 +98,6 @@ struct program_helpers {
         else
             do_for_types<RestOfT...>(node, rest...);
     }
-    static void merge_buffers(engine& engine,
-                              program_node& node,
-                              const layout& target_layout,
-                              size_t begin_offset,
-                              size_t end_offset);
-
-    static std::pair<bool, bool> are_layouts_identical(layout const& l1, layout const& l2);
 
     // helper functions for deconvolution optimizations
     static void reshape_deconvolution_weights(const std::vector<float> &deconv_weights,
@@ -126,7 +117,6 @@ struct program_helpers {
             }
         }
     }
-    static layout get_weights_layout(typed_program_node<cldnn::data>& data_node, int32_t split);
 };
 
 struct onednn_add_fusing_helpers {
@@ -140,7 +130,7 @@ struct onednn_add_fusing_helpers {
     static bool is_full_tensor(const layout& layout);
     static std::vector<fused_primitive_desc> get_fused_eltwise_primitives();
     static void for_eltwise(const program_node& conv_node, eltwise_mode mode,
-                            std::function<void(const program_node&, const eltwise_node&, const fused_primitive_desc&)> func);
+                            std::function<void(const program_node&, const fused_primitive_desc&)> func);
     static add_fusing_type get_add_fusing_type(const program_node& node, const fused_primitive_desc& desc);
 };
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -55,7 +55,8 @@ def get_input_layouts(layout_string: str, inputs: List[Output]) -> Dict[str, str
         return {_input.get_any_name(): layout_string[1:-1] for _input in inputs}
     else:
         sep = '],' if ',' in layout_string else ']'
-        return dict([_input.split('[') for _input in layout_string[:-1].split(sep)])
+        tmp = [_input.split('[') for _input in layout_string[:-1].split(sep)]
+        return {_input[0]: _input[1] for _input in tmp}
 
 
 def get_sorted_scale_factors(scale_factor_arg: Tuple[List[str], List[str]], inputs: List[Output]) -> List[str]:

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ TEST(attributes, interpolate_op1) {
     interp_atrs.pads_end = vector<size_t>{0, 0};
 
     auto interpolate = make_shared<opset1::Interpolate>(img, out_shape, interp_atrs);
-    NodeBuilder builder(interpolate);
+    NodeBuilder builder(interpolate, {img, out_shape});
     auto g_interpolate = ov::as_type_ptr<opset1::Interpolate>(builder.create());
 
     const auto i_attrs = interpolate->get_attrs();
@@ -61,7 +61,7 @@ TEST(attributes, interpolate_op4) {
     attrs.cube_coeff = -0.75;
 
     auto interpolate = make_shared<opset4::Interpolate>(img, out_shape, scales, attrs);
-    NodeBuilder builder(interpolate);
+    NodeBuilder builder(interpolate, {img, out_shape, scales});
     auto g_interpolate = ov::as_type_ptr<opset4::Interpolate>(builder.create());
 
     const auto i_attrs = interpolate->get_attrs();

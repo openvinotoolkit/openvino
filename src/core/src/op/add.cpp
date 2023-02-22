@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,32 +56,41 @@ bool evaluate_add(const HostTensorPtr& arg0,
 
 // ------------------------------- v1 ------------------------------------------
 
-BWDCMP_RTTI_DEFINITION(ov::op::v1::Add);
-
 op::v1::Add::Add(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast) {
     constructor_validate_and_infer_types();
 }
 
 bool op::v1::Add::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_Add_visit_attributes);
+    OV_OP_SCOPE(v1_Add_visit_attributes);
     BinaryElementwiseArithmetic::visit_attributes(visitor);
     return true;
 }
 
 shared_ptr<Node> op::v1::Add::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_Add_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_Add_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v1::Add>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
 bool op::v1::Add::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v1_Add_evaluate);
+    OV_OP_SCOPE(v1_Add_evaluate);
     return add::evaluate_add(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
+bool op::v1::Add::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
+    OV_OP_SCOPE(v1_Add_evaluate);
+    if (std::none_of(inputs.cbegin(), inputs.cend(), [](const ov::Tensor& t) {
+            return is_vector(t.get_shape()) && t.get_shape().front() == 0;
+        })) {
+        return BinaryElementwiseArithmetic::evaluate(outputs, inputs);
+    } else {
+        return true;
+    }
+}
+
 bool op::v1::Add::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_Add_has_evaluate);
+    OV_OP_SCOPE(v1_Add_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i8:
     case ngraph::element::i16:

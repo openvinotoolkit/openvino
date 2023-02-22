@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -93,52 +93,7 @@ namespace rnd_generators
 
         static output_type convert(const calc_type value)
         {
-            constexpr std::uint32_t fp32_one = 1;
-
-            constexpr std::uint32_t fp32_scd_bits = 23;
-            constexpr std::uint32_t fp32_exp_bits = 8;
-            constexpr std::uint32_t fp32_sgn_bits = 1;
-
-            constexpr std::uint32_t fp32_scd_off = 0;
-            constexpr std::uint32_t fp32_exp_off = fp32_scd_off + fp32_scd_bits;
-            constexpr std::uint32_t fp32_sgn_off = fp32_exp_off + fp32_exp_bits;
-
-            constexpr std::uint32_t fp32_scd_mask = ((fp32_one << fp32_scd_bits) - 1) << fp32_scd_off;
-            constexpr std::uint32_t fp32_exp_mask = ((fp32_one << fp32_exp_bits) - 1) << fp32_exp_off;
-            constexpr std::uint32_t fp32_sgn_mask = ((fp32_one << fp32_sgn_bits) - 1) << fp32_sgn_off;
-
-            constexpr std::uint32_t fp32_exp_bias = (fp32_one << (fp32_exp_bits - 1)) - 1;
-
-            constexpr std::uint16_t fp16_one = 1;
-
-            constexpr std::uint32_t fp16_scd_bits = 10;
-            constexpr std::uint32_t fp16_exp_bits = 5;
-            constexpr std::uint32_t fp16_sgn_bits = 1;
-
-            constexpr std::uint32_t fp16_scd_off = 0;
-            constexpr std::uint32_t fp16_exp_off = fp16_scd_off + fp16_scd_bits;
-            constexpr std::uint32_t fp16_sgn_off = fp16_exp_off + fp16_exp_bits;
-
-            constexpr std::uint16_t fp16_scd_mask = ((fp16_one << fp16_scd_bits) - 1) << fp16_scd_off;
-            constexpr std::uint16_t fp16_exp_mask = ((fp16_one << fp16_exp_bits) - 1) << fp16_exp_off;
-            constexpr std::uint16_t fp16_sgn_mask = ((fp16_one << fp16_sgn_bits) - 1) << fp16_sgn_off;
-
-            constexpr std::uint32_t fp16_exp_bias = (fp16_one << (fp16_exp_bits - 1)) - 1;
-
-            std::uint32_t repr = reinterpret_cast<const std::uint32_t&>(value);
-            std::uint16_t significand = static_cast<std::uint16_t>((repr & fp32_scd_mask) >> (fp32_scd_bits - fp16_scd_bits)) & fp16_scd_mask;
-            std::uint32_t fp32_exponent = (repr & fp32_exp_mask) >> fp32_exp_off;
-            if (fp32_exponent == 0)
-                fp32_exponent = fp32_exp_bias - fp16_exp_bias; // handle +/-0 correctly.
-            if (fp32_exponent > fp32_exp_bias + fp16_exp_bias)
-                throw std::logic_error("Conversion to half_t failed. Please use smaller scale (<= 65504).");
-
-            std::uint16_t exponent = static_cast<std::uint16_t>((fp32_exponent + fp16_exp_bias - fp32_exp_bias) << fp16_exp_off) & fp16_exp_mask;
-            std::uint16_t sign = static_cast<std::uint16_t>((repr & fp32_sgn_mask) >> (fp32_sgn_off - fp16_sgn_off)) & fp16_sgn_mask;
-
-            std::uint16_t conv_repr = significand | exponent | sign;
-
-            return reinterpret_cast<const output_type&>(conv_repr);
+            return FLOAT16(cldnn::float_to_half(value));
         }
     };
 

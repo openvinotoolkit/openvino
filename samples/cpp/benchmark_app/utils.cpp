@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <map>
-#include <nlohmann/json.hpp>
 #include <regex>
 #include <string>
 #include <utility>
@@ -19,6 +18,12 @@
 
 #include "utils.hpp"
 // clang-format on
+
+#ifdef JSON_HEADER
+#    include <json.hpp>
+#else
+#    include <nlohmann/json.hpp>
+#endif
 
 #ifdef USE_OPENCV
 #    include <opencv2/core.hpp>
@@ -56,9 +61,6 @@ size_t InputInfo::depth() const {
 uint32_t device_default_device_duration_in_seconds(const std::string& device) {
     static const std::map<std::string, uint32_t> deviceDefaultDurationInSeconds{{"CPU", 60},
                                                                                 {"GPU", 60},
-                                                                                {"VPU", 60},
-                                                                                {"MYRIAD", 60},
-                                                                                {"HDDL", 60},
                                                                                 {"UNKNOWN", 120}};
     uint32_t duration = 0;
     for (const auto& deviceDurationInSeconds : deviceDefaultDurationInSeconds) {
@@ -108,20 +110,52 @@ std::vector<float> split_float(const std::string& s, char delim) {
 std::vector<std::string> parse_devices(const std::string& device_string) {
     std::string comma_separated_devices = device_string;
     auto colon = comma_separated_devices.find(":");
+    std::vector<std::string> result;
     if (colon != std::string::npos) {
-        if (comma_separated_devices.substr(0, colon) == "AUTO") {
-            std::vector<std::string> result;
-            result.push_back("AUTO");
-            return result;
+        auto target_device = comma_separated_devices.substr(0, colon);
+        if (target_device == "AUTO" || target_device == "MULTI") {
+            result.push_back(target_device);
         }
         auto bracket = comma_separated_devices.find("(");  // e.g. in BATCH:GPU(4)
         comma_separated_devices = comma_separated_devices.substr(colon + 1, bracket - colon - 1);
     }
-    if ((comma_separated_devices == "MULTI") || (comma_separated_devices == "HETERO"))
-        return std::vector<std::string>();
 
     auto devices = split(comma_separated_devices, ',');
-    return devices;
+    result.insert(result.end(), devices.begin(), devices.end());
+    return result;
+}
+
+void parse_value_for_virtual_device(const std::string& device, std::map<std::string, std::string>& values_string) {
+    auto item_virtual = values_string.find(device);
+    if (item_virtual != values_string.end() && values_string.size() > 1) {
+        if (device == "MULTI") {
+            // Remove the element that the key is virtual device MULTI
+            // e.g. MULTI:xxx -nstreams 2 will set nstreams 2 to xxx.
+            values_string.erase(item_virtual);
+        } else if (device == "AUTO") {
+            // Just keep the element that the key is virtual device AUTO
+            // e.g. AUTO:xxx,xxx -nstreams 2 will trigger exception that AUTO plugin didn't support nstream property.
+            auto value = item_virtual->second;
+            values_string.clear();
+            values_string[device] = value;
+            return;
+        }
+    }
+    auto iter = values_string.begin();
+    while (iter != values_string.end()) {
+        if (iter->first == device) {
+            iter++;
+            continue;
+        }
+        values_string[device] += iter->first + " " + iter->second + " ";
+        iter = values_string.erase(iter);
+    }
+    if (values_string.find(device) != values_string.end()) {
+        auto& nstreams = values_string[device];
+        // Remove the space at the tail.
+        nstreams.pop_back();
+    }
+    return;
 }
 
 std::map<std::string, std::string> parse_value_per_device(const std::vector<std::string>& devices,
@@ -133,13 +167,17 @@ std::map<std::string, std::string> parse_value_per_device(const std::vector<std:
         auto device_value_vec = split(device_value_string, ':');
         if (device_value_vec.size() == 2) {
             auto device_name = device_value_vec.at(0);
-            auto nstreams = device_value_vec.at(1);
+            auto value = device_value_vec.at(1);
             auto it = std::find(devices.begin(), devices.end(), device_name);
             if (it != devices.end()) {
-                result[device_name] = nstreams;
+                result[device_name] = value;
             } else {
-                throw std::logic_error("Can't set nstreams value " + std::string(nstreams) + " for device '" +
-                                       device_name + "'! Incorrect device name!");
+                std::string devices_list = "";
+                for (auto& device : devices)
+                    devices_list += device + " ";
+                devices_list.pop_back();
+                throw std::logic_error("Failed to set property to '" + device_name +
+                                       "' which is not found whthin the target devices list '" + devices_list + "'!");
             }
         } else if (device_value_vec.size() == 1) {
             auto value = device_value_vec.at(0);
@@ -165,18 +203,9 @@ size_t get_batch_size(const benchmark_app::InputsInfo& inputs_info) {
         }
     }
     if (batch_size == 0) {
-        slog::warn << "No batch dimension was found at any input, asssuming batch to be 1. Beware: this might affect "
-                      "FPS calculation."
-                   << slog::endl;
         batch_size = 1;
     }
     return batch_size;
-}
-
-std::string get_shape_string(const ov::Shape& shape) {
-    std::stringstream ss;
-    ss << shape;
-    return ss.str();
 }
 
 std::string get_shapes_string(const benchmark_app::PartialShapes& shapes) {
@@ -191,7 +220,7 @@ std::string get_shapes_string(const benchmark_app::PartialShapes& shapes) {
 
 std::map<std::string, std::vector<float>> parse_scale_or_mean(const std::string& scale_mean,
                                                               const benchmark_app::InputsInfo& inputs_info) {
-    //  Format: data:[255,255,255],info[255,255,255]
+    //  Format: data[255,255,255],info[255,255,255]
     std::map<std::string, std::vector<float>> return_value;
 
     std::string search_string = scale_mean;
@@ -226,36 +255,6 @@ std::map<std::string, std::vector<float>> parse_scale_or_mean(const std::string&
     if (!search_string.empty())
         throw std::logic_error("Can't parse input parameter string: " + scale_mean);
     return return_value;
-}
-
-std::vector<ngraph::Dimension> parse_partial_shape(const std::string& partial_shape) {
-    std::vector<ngraph::Dimension> shape;
-    for (auto& dim : split(partial_shape, ',')) {
-        if (dim == "?" || dim == "-1") {
-            shape.push_back(ngraph::Dimension::dynamic());
-        } else {
-            const std::string range_divider = "..";
-            size_t range_index = dim.find(range_divider);
-            if (range_index != std::string::npos) {
-                std::string min = dim.substr(0, range_index);
-                std::string max = dim.substr(range_index + range_divider.length());
-                shape.push_back(ngraph::Dimension(min.empty() ? 0 : std::stoi(min),
-                                                  max.empty() ? ngraph::Interval::s_max : std::stoi(max)));
-            } else {
-                shape.push_back(std::stoi(dim));
-            }
-        }
-    }
-
-    return shape;
-}
-
-ov::Shape parse_data_shape(const std::string& dataShapeStr) {
-    std::vector<size_t> shape;
-    for (auto& dim : split(dataShapeStr, ',')) {
-        shape.push_back(std::stoi(dim));
-    }
-    return shape;
 }
 
 std::pair<std::string, std::vector<std::string>> parse_input_files(const std::string& file_paths_string) {
@@ -448,7 +447,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
     }
 
     std::vector<benchmark_app::InputsInfo> info_maps;
-    for (size_t i = 0; i < min_size; ++i) {
+    for (size_t input_id = 0; input_id < min_size; ++input_id) {
         benchmark_app::InputsInfo info_map;
 
         bool is_there_at_least_one_batch_dim = false;
@@ -463,7 +462,6 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                         "layout command line parameter doesn't support multiple layouts for one input.");
                 }
                 info.layout = ov::Layout(layout_map.at(name)[0]);
-                // reshape_required = true;
             } else {
                 info.layout = dynamic_cast<const ov::op::v0::Parameter&>(*item.get_node()).get_layout();
             }
@@ -506,7 +504,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                     throw std::logic_error(
                         "shape command line parameter doesn't support multiple shapes for one input.");
                 }
-                info.partialShape = parse_partial_shape(shape_map.at(name)[0]);
+                info.partialShape = shape_map.at(name)[0];
                 reshape_required = true;
             } else {
                 info.partialShape = item.get_partial_shape();
@@ -519,7 +517,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
 
             // Tensor Shape
             if (info.partialShape.is_dynamic() && data_shapes_map.count(name)) {
-                info.dataShape = parse_data_shape(data_shapes_map.at(name)[i % data_shapes_map.at(name).size()]);
+                info.dataShape = data_shapes_map.at(name)[input_id % data_shapes_map.at(name).size()];
             } else if (info.partialShape.is_dynamic() && fileNames.count(filesInputName) && info.is_image()) {
                 auto& namesVector = fileNames.at(filesInputName);
                 if (contains_binaries(namesVector)) {
@@ -529,7 +527,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                 }
 
                 info.dataShape = ov::Shape(info.partialShape.size(), 0);
-                for (int i = 0; i < info.partialShape.size(); i++) {
+                for (size_t i = 0; i < info.partialShape.size(); i++) {
                     auto& dim = info.partialShape[i];
                     if (dim.is_static()) {
                         info.dataShape[i] = dim.get_length();
@@ -545,8 +543,9 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                     }
                 }
 
-                size_t w = 0;
                 size_t h = 0;
+                size_t w = 0;
+                std::vector<size_t> shape;
                 size_t fileIdx = currentFileCounters[item.get_any_name()];
                 for (; fileIdx < currentFileCounters[item.get_any_name()] + tensorBatchSize; fileIdx++) {
                     if (fileIdx >= namesVector.size()) {
@@ -555,28 +554,47 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                             "size if -data_shape parameter is omitted and shape is dynamic)");
                     }
                     FormatReader::ReaderPtr reader(namesVector[fileIdx].c_str());
-                    if ((w && w != reader->width()) || (h && h != reader->height())) {
-                        throw std::logic_error("Image sizes putting into one batch should be of the same size if input "
-                                               "shape is dynamic and -data_shape is omitted. Problem file: " +
-                                               namesVector[fileIdx]);
+                    if ((w && w != reader->width()) || (h && h != reader->height()) ||
+                        (!shape.empty() && shape != reader->shape())) {
+                        throw std::logic_error(
+                            "File dimensions putting into one batch should be of the same dimensionality if input "
+                            "shape is dynamic and -data_shape is omitted. Problem file: " +
+                            namesVector[fileIdx]);
                     }
-                    w = reader->width();
                     h = reader->height();
+                    w = reader->width();
+                    shape = reader->shape();
                 }
                 currentFileCounters[item.get_any_name()] = fileIdx;
-
-                if (!info.dataShape[ov::layout::height_idx(info.layout)]) {
-                    info.dataShape[ov::layout::height_idx(info.layout)] = h;
-                }
-                if (!info.dataShape[ov::layout::width_idx(info.layout)]) {
-                    info.dataShape[ov::layout::width_idx(info.layout)] = w;
+                if (shape.size() == 2) {  // Has only h and w
+                    if (!info.dataShape[ov::layout::height_idx(info.layout)]) {
+                        info.dataShape[ov::layout::height_idx(info.layout)] = h;
+                    }
+                    if (!info.dataShape[ov::layout::width_idx(info.layout)]) {
+                        info.dataShape[ov::layout::width_idx(info.layout)] = w;
+                    }
+                } else {  // Is numpy array
+                    size_t shape_idx = 0;
+                    if (info.dataShape.size() != shape.size()) {
+                        throw std::logic_error("Shape required by the input and file shape do not have the same rank. "
+                                               "Input: " +
+                                               item.get_any_name() + ", File name: " + namesVector[fileIdx - 1]);
+                    }
+                    for (size_t i = ov::layout::batch_idx(info.layout);
+                         i < ov::layout::batch_idx(info.layout) + info.dataShape.size();
+                         ++i) {
+                        if (!info.dataShape[i]) {
+                            info.dataShape[i] = shape.at(shape_idx);
+                        }
+                        shape_idx++;
+                    }
                 }
 
                 if (std::any_of(info.dataShape.begin(), info.dataShape.end(), [](size_t d) {
                         return d == 0;
                     })) {
-                    throw std::logic_error("Not enough information in shape and image to determine tensor shape "
-                                           "automatically autmatically. Input: " +
+                    throw std::logic_error("Not enough information in shape and file to determine tensor shape "
+                                           "autmatically. Input: " +
                                            item.get_any_name() + ", File name: " + namesVector[fileIdx - 1]);
                 }
 
@@ -584,15 +602,15 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                 info.dataShape = info.partialShape.get_shape();
                 if (data_shapes_map.find(name) != data_shapes_map.end()) {
                     throw std::logic_error(
-                        "Network's input \"" + name +
+                        "Model's input \"" + name +
                         "\" is static. Use -shape argument for static inputs instead of -data_shape.");
                 }
             } else if (!data_shapes_map.empty()) {
-                throw std::logic_error("Can't find network input name \"" + name + "\" in \"-data_shape " +
+                throw std::logic_error("Can't find model input name \"" + name + "\" in \"-data_shape " +
                                        data_shapes_string + "\" command line parameter");
             } else {
                 throw std::logic_error("-i or -data_shape command line parameter should be set for all inputs in case "
-                                       "of network with dynamic shapes.");
+                                       "of model with dynamic shapes.");
             }
 
             // Update shape with batch if needed (only in static shape case)
@@ -629,9 +647,6 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
 
         for (auto& item : info_map) {
             if (item.second.is_image()) {
-                item.second.scale.assign({1, 1, 1});
-                item.second.mean.assign({0, 0, 0});
-
                 if (scale_map.count(item.first)) {
                     item.second.scale = scale_map.at(item.first);
                 }
@@ -667,73 +682,31 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                            reshape_required);
 }
 
-#ifdef USE_OPENCV
-void dump_config(const std::string& filename, const std::map<std::string, ov::AnyMap>& config) {
-    slog::warn << "YAML and XML formats for config file won't be supported soon." << slog::endl;
-    auto plugin_to_opencv_format = [](const std::string& str) -> std::string {
-        if (str.find("_") != std::string::npos) {
-            slog::warn
-                << "Device name contains \"_\" and will be changed during loading of configuration due to limitations."
-                   "This configuration file could not be loaded correctly."
-                << slog::endl;
-        }
-        std::string new_str(str);
-        auto pos = new_str.find(".");
-        if (pos != std::string::npos) {
-            new_str.replace(pos, 1, "_");
-        }
-        return new_str;
-    };
-    cv::FileStorage fs(filename, cv::FileStorage::WRITE);
-    if (!fs.isOpened())
-        throw std::runtime_error("Error: Can't open config file : " + filename);
-    for (auto device_it = config.begin(); device_it != config.end(); ++device_it) {
-        fs << plugin_to_opencv_format(device_it->first) << "{:";
-        std::stringstream strm;
-        for (auto param_it = device_it->second.begin(); param_it != device_it->second.end(); ++param_it) {
-            strm << param_it->first;
-            param_it->second.print(strm);
-        }
-        fs << strm.str();
-        fs << "}";
-    }
-    fs.release();
-}
-
-void load_config(const std::string& filename, std::map<std::string, ov::AnyMap>& config) {
-    slog::warn << "YAML and XML formats for config file won't be supported soon." << slog::endl;
-    auto opencv_to_plugin_format = [](const std::string& str) -> std::string {
-        std::string new_str(str);
-        auto pos = new_str.find("_");
-        if (pos != std::string::npos) {
-            new_str.replace(pos, 1, ".");
-        }
-        return new_str;
-    };
-    cv::FileStorage fs(filename, cv::FileStorage::READ);
-    if (!fs.isOpened())
-        throw std::runtime_error("Error: Can't load config file : " + filename);
-    cv::FileNode root = fs.root();
-    for (auto it = root.begin(); it != root.end(); ++it) {
-        auto device = *it;
-        if (!device.isMap()) {
-            throw std::runtime_error("Error: Can't parse config file : " + filename);
-        }
-        for (auto iit = device.begin(); iit != device.end(); ++iit) {
-            auto item = *iit;
-            config[opencv_to_plugin_format(device.name())][item.name()] = item.string();
-        }
-    }
-}
-#else
 void dump_config(const std::string& filename, const std::map<std::string, ov::AnyMap>& config) {
     nlohmann::json jsonConfig;
     for (const auto& item : config) {
         std::string deviceName = item.first;
+        std::map<std::string, ov::AnyMap> device_properties;
         for (const auto& option : item.second) {
-            std::stringstream strm;
-            option.second.print(strm);
-            jsonConfig[deviceName][option.first] = strm.str();
+            if (option.second.is<ov::AnyMap>()) {
+                // hw device properties
+                device_properties[option.first] = option.second.as<ov::AnyMap>();
+            } else {
+                // primary property
+                std::stringstream strm;
+                option.second.print(strm);
+                auto property_string = strm.str();
+                jsonConfig[deviceName][option.first] = property_string;
+            }
+            if (!device_properties.empty()) {
+                for (auto& item : device_properties) {
+                    auto hw_device_name = item.first;
+                    for (auto& property : item.second) {
+                        jsonConfig[deviceName]["DEVICE_PROPERTIES"][hw_device_name][property.first] =
+                            property.second.as<std::string>();
+                    }
+                }
+            }
         }
     }
 
@@ -754,26 +727,34 @@ void load_config(const std::string& filename, std::map<std::string, ov::AnyMap>&
     nlohmann::json jsonConfig;
     try {
         ifs >> jsonConfig;
-    } catch (const nlohmann::json::parse_error& e) {
+    } catch (const std::exception& e) {
         throw std::runtime_error("Can't parse config file \"" + filename + "\".\n" + e.what());
     }
 
-    for (const auto& item : jsonConfig.items()) {
-        std::string deviceName = item.key();
-        for (const auto& option : item.value().items()) {
-            config[deviceName][option.key()] = option.value().get<std::string>();
+    for (auto item = jsonConfig.cbegin(), end = jsonConfig.cend(); item != end; ++item) {
+        const std::string& deviceName = item.key();
+        const auto& itemValue = item.value();
+        for (auto option = itemValue.cbegin(), itemValueEnd = itemValue.cend(); option != itemValueEnd; ++option) {
+            if (option.key() != "DEVICE_PROPERTIES") {
+                config[deviceName][option.key()] = option.value().get<std::string>();
+                continue;
+            }
+            const auto& optionValue = option.value();
+            for (auto hw_properties = optionValue.cbegin(), optionValueEnd = optionValue.cend();
+                 hw_properties != optionValueEnd;
+                 ++hw_properties) {
+                const std::string& hw_device_name = hw_properties.key();
+                std::map<std::string, ov::Any> hw_device_properties;
+                const auto& hw_propertiesValue = hw_properties.value();
+                for (auto property = hw_propertiesValue.cbegin(), hw_propertiesEnd = hw_propertiesValue.cend();
+                     property != hw_propertiesEnd;
+                     ++property)
+                    hw_device_properties[property.key()] = property.value().get<std::string>();
+                config[deviceName][hw_device_name] = hw_device_properties;
+            }
         }
     }
 }
-#endif
-
-#ifdef USE_OPENCV
-const std::vector<std::string> supported_image_extensions =
-    {"bmp", "dib", "jpeg", "jpg", "jpe", "jp2", "png", "pbm", "pgm", "ppm", "sr", "ras", "tiff", "tif"};
-#else
-const std::vector<std::string> supported_image_extensions = {"bmp"};
-#endif
-const std::vector<std::string> supported_binary_extensions = {"bin"};
 
 std::string get_extension(const std::string& name) {
     auto extensionPosition = name.rfind('.', name.size());
@@ -783,36 +764,38 @@ std::string get_extension(const std::string& name) {
 bool is_binary_file(const std::string& filePath) {
     auto extension = get_extension(filePath);
     std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-    return std::find(supported_binary_extensions.begin(), supported_binary_extensions.end(), extension) !=
-           supported_binary_extensions.end();
+    return supported_binary_extensions.find(extension) != supported_binary_extensions.end();
+}
+
+bool is_numpy_file(const std::string& filePath) {
+    auto extension = get_extension(filePath);
+    std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+    return supported_numpy_extensions.find(extension) != supported_numpy_extensions.end();
 }
 
 bool is_image_file(const std::string& filePath) {
     auto extension = get_extension(filePath);
     std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-    return std::find(supported_binary_extensions.begin(), supported_binary_extensions.end(), extension) !=
-           supported_binary_extensions.end();
+    return supported_image_extensions.find(extension) != supported_image_extensions.end();
 }
 
 bool contains_binaries(const std::vector<std::string>& filePaths) {
     std::vector<std::string> filtered;
     for (auto& filePath : filePaths) {
-        auto extension = get_extension(filePath);
-        std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-        if (std::find(supported_binary_extensions.begin(), supported_binary_extensions.end(), extension) !=
-            supported_binary_extensions.end()) {
+        if (is_binary_file(filePath)) {
             return true;
         }
     }
     return false;
 }
+
 std::vector<std::string> filter_files_by_extensions(const std::vector<std::string>& filePaths,
-                                                    const std::vector<std::string>& extensions) {
+                                                    const std::unordered_set<std::string>& extensions) {
     std::vector<std::string> filtered;
     for (auto& filePath : filePaths) {
         auto extension = get_extension(filePath);
         std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-        if (std::find(extensions.begin(), extensions.end(), extension) != extensions.end()) {
+        if (extensions.find(extension) != extensions.end()) {
             filtered.push_back(filePath);
         }
     }

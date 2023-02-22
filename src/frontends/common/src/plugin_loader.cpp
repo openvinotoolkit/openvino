@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,7 +45,9 @@ void load_static_plugins(std::vector<PluginInfo>& res) {
             {"ir", "ir"},
             {"onnx", "onnx"},
             {"tf", "tensorflow"},
+            {"tflite", "tensorflow_lite"},
             {"paddle", "paddle"},
+            {"pytorch", "pytorch"},
         };
         auto it = predefined_frontends.find(factory.m_name);
         if (it != predefined_frontends.end()) {
@@ -135,7 +137,11 @@ bool PluginInfo::load() {
 bool PluginInfo::load_internal() {
     std::shared_ptr<void> so;
     try {
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+        so = ov::util::load_shared_object(ov::util::string_to_wstring(m_file_path).c_str());
+#else
         so = ov::util::load_shared_object(m_file_path.c_str());
+#endif
     } catch (const std::exception& ex) {
         OPENVINO_DEBUG << "Error loading FrontEnd '" << m_file_path << "': " << ex.what() << std::endl;
         return false;

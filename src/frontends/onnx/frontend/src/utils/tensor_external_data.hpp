@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ public:
     ///             the invalid_external_data exception is thrown.
     ///
     /// \return     External binary data loaded into a std::string
-    std::string load_external_data() const;
+    std::string load_external_data(const std::string& model_dir) const;
 
     /// \brief      Represets parameter of external data as string
     ///
@@ -30,9 +30,9 @@ public:
 
 private:
     std::string m_data_location{};
-    int m_offset = 0;
-    int m_data_length = 0;
-    int m_sha1_digest = 0;
+    uint64_t m_offset = 0;
+    uint64_t m_data_length = 0;
+    std::string m_sha1_digest{};
 };
 }  // namespace detail
 }  // namespace onnx_import

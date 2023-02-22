@@ -1,23 +1,23 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/op_conversions/convert_mod.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <vector>
 
 #include "itt.hpp"
 
-ngraph::pass::ConvertMod::ConvertMod() {
+ov::pass::ConvertMod::ConvertMod() {
     MATCHER_SCOPE(ConvertMod);
     auto mod = ngraph::pattern::wrap_type<opset1::Mod>();
 
-    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto mod = std::dynamic_pointer_cast<ngraph::opset1::Mod>(m.get_match_root());
+    matcher_pass_callback callback = [this](pattern::Matcher& m) {
+        auto mod = std::dynamic_pointer_cast<ov::opset1::Mod>(m.get_match_root());
         if (!mod) {
             return false;
         }
@@ -44,7 +44,6 @@ ngraph::pass::ConvertMod::ConvertMod() {
             mod,
             {dividend, dividend_sign, divisor, div, convert_to_i64, convert, multiplication, sub, mul});
         ngraph::replace_node(mod, mul);
-        MATCHER_SCOPE_ENABLE(ConvertMod);
         return true;
     };
 

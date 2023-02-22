@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ class Eltwise;
 
 class Convolution : public Node {
 public:
-    Convolution(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    Convolution(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
@@ -45,10 +45,16 @@ public:
 
     bool canBeExecutedInInt8() const;
     size_t getGroupNum() const { return groupNum; }
-
-    std::vector<uint8_t> inputZeroPoints;
-    std::vector<float> weightsZeroPoints;
-    std::vector<int32_t> outputCompensation;
+    //OV Legacy input zero point mechanism can support per-channel zero point.
+    //Hold legacy input zero point.
+    std::vector<uint8_t> legacyInputZeroPoints;
+    //Hold legacy weight zero point.
+    std::vector<float> legacyWeightsZeroPoints;
+    //Hold legacy pre-calculated output compensation
+    std::vector<int32_t> legacyOutputCompensation;
+    //Hold stock per-tensor input zero point. Pass to onednn to calculate output compensation.
+    std::vector<int32_t> inputZeroPoints;
+    void initializeInputZeroPoints(const uint8_t* inputZpData, const size_t inputZpSize);
 
     const InferenceEngine::SizeVector &getWeightDims() { return weightDims; }
     const std::vector<size_t> &getStride() { return stride; }
@@ -69,8 +75,14 @@ protected:
     InferenceEngine::Precision fusedEltwisePrecision(const NodePtr& fusingNode) const;
     void redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) override;
     void addFusedNode(const NodePtr &fusingNode) override;
+    const std::vector<impl_desc_type>& getPrimitivesPriority() override;
 
 private:
+    enum class zpType {
+        None,
+        PerTensor,
+        PerChannel
+    };
     class FusedSubgraph;
     using FusedSubgraphPtr = std::shared_ptr<FusedSubgraph>;
     using executorPtr = std::shared_ptr<DnnlExecutor>;
@@ -88,9 +100,10 @@ private:
     void prepareParams() override;
     void execute(dnnl::stream strm) override;
     void executeDynamicImpl(dnnl::stream strm) override;
-
+    void addLegacyZeroPoints(dnnl::primitive_attr& attr);
     void addZeroPoints(dnnl::primitive_attr& attr);
     void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool useLegacyPostOps, bool initWeights = false);
+    void SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &attrs);
     void filterSupportedDescriptors();
     bool isPossibleToSkipInitConfig(DnnlDesriptor &desc) const;
     bool isNspcAvailable() const;
@@ -99,8 +112,11 @@ private:
     void updatePadding();
     MemoryDescPtr getSumMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it);
     MemoryPtr getOutputMemory() const;
-
+    VectorDims makeInputDummyShape(const Shape& inpShape) const;
+    VectorDims outputStaticShape() const;
+    void appendLegacyZeroPointsArgs();
     void appendZeroPointsArgs();
+    void initTryBrgconvFlag();
 
     bool withBiases;
     bool withSum;
@@ -109,13 +125,16 @@ private:
     bool isPrimitivesPriorityDefined = false;
     bool withSumBroadcast = false;
     bool preferLegacyPostOps = false;
+    bool preferLegacyZeroPoint = false;
+    zpType inputZeroPointType = zpType::None;
+
     std::vector<size_t> stride;
     std::vector<ptrdiff_t> dilation;
     std::vector<ptrdiff_t> paddingL;
     std::vector<ptrdiff_t> paddingR;
     InferenceEngine::SizeVector weightDims;
     InferenceEngine::SizeVector biasesDims;
-    std::vector<MemoryPtr> convPostOpsArgs[2];
+    std::unordered_map<int, MemoryPtr> convPostOpsArgs[2];
 
     size_t dw_conv_oc;
     size_t dw_conv_ih;
@@ -135,15 +154,17 @@ private:
     const size_t Y_AXIS = 1;
 
     bool isWino = false;
+    bool shouldTryBrgconv = false;
+    std::vector<dnnl::primitive_attr> attrs;
     AttrPtr pAttr;
     bool autoPadding = false;
     FusedSubgraphPtr subgraph;
     std::unordered_map<NodePtr, std::vector<NodePtr>> fusedConstNodes;
 
-    MemoryPtr inputZeroPointsMemPtr;
-    MemoryPtr weightsZeroPointsMemPtr;
-    MemoryPtr outputCompensationMemPtr;
-
+    MemoryPtr legacyInputZeroPointsMemPtr;
+    MemoryPtr legacyWeightsZeroPointsMemPtr;
+    MemoryPtr legacyOutputCompensationMemPtr;
+    MemoryPtr stockInputZeroPointsMemPtr;
     dnnl::memory::data_type outputDataType;
     InferenceEngine::Precision sumPrc = InferenceEngine::Precision::UNSPECIFIED;
 };

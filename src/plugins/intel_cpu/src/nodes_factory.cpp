@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,6 +56,7 @@
 #include "nodes/matrix_nms.h"
 #include "nodes/mvn.h"
 #include "nodes/gather.h"
+#include "nodes/grid_sample.hpp"
 #include "nodes/scatter_update.h"
 #include "nodes/gather_tree.h"
 #include "nodes/def_conv.h"
@@ -68,6 +69,7 @@
 #include "nodes/log_softmax.h"
 #include "nodes/strided_slice.h"
 #include "nodes/dft.h"
+#include "nodes/rdft.h"
 #include "nodes/non_max_suppression.h"
 #include "nodes/convert.h"
 #include "nodes/rnn.h"
@@ -87,6 +89,9 @@
 #include "nodes/priorbox.h"
 #include "nodes/priorbox_clustered.h"
 #include "nodes/eye.h"
+#include "nodes/interaction.h"
+#include "nodes/mha.h"
+#include "nodes/unique.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -123,6 +128,7 @@ Node::NodesFactory::NodesFactory()
     INTEL_CPU_NODE(MemoryOutput, Type::MemoryOutput);
     INTEL_CPU_NODE(Tile, Type::Tile);
     INTEL_CPU_NODE(DFT, Type::DFT);
+    INTEL_CPU_NODE(RDFT, Type::RDFT);
     INTEL_CPU_NODE(GatherTree, Type::GatherTree);
     INTEL_CPU_NODE(SpaceToDepth, Type::SpaceToDepth);
     INTEL_CPU_NODE(FullyConnected, Type::FullyConnected);
@@ -175,6 +181,7 @@ Node::NodesFactory::NodesFactory()
     INTEL_CPU_NODE(DepthToSpace, Type::DepthToSpace);
     INTEL_CPU_NODE(Deconvolution, Type::Deconvolution);
     INTEL_CPU_NODE(Gather, Type::Gather);
+    INTEL_CPU_NODE(GridSample, Type::GridSample);
     INTEL_CPU_NODE(RegionYolo, Type::RegionYolo);
     INTEL_CPU_NODE(Range, Type::Range);
     INTEL_CPU_NODE(TopK, Type::TopK);
@@ -186,6 +193,9 @@ Node::NodesFactory::NodesFactory()
     INTEL_CPU_NODE(PriorBox, Type::PriorBox);
     INTEL_CPU_NODE(PriorBoxClustered, Type::PriorBoxClustered);
     INTEL_CPU_NODE(Eye, Type::Eye);
+    INTEL_CPU_NODE(Interaction, Type::Interaction);
+    INTEL_CPU_NODE(MHA, Type::MHA);
+    INTEL_CPU_NODE(Unique, Type::Unique);
 }
 
 #undef INTEL_CPU_NODE

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,6 @@
 #include "intel_gpu/plugin/infer_request.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 class AsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
@@ -23,7 +22,6 @@ public:
 
     ~AsyncInferRequest();
 
-    void Infer_ThreadUnsafe() override;
     void StartAsync_ThreadUnsafe() override;
 
 private:
@@ -32,5 +30,4 @@ private:
 };
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

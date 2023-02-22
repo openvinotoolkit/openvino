@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -17,10 +17,20 @@ file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/ie_api.pyx
 file(GLOB PYX_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.pyx)
 set_source_files_properties(${PYX_SOURCES} PROPERTIES CYTHON_IS_CXX ON)
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # 'argument': conversion from 'size_t' to 'int', possible loss of data
+    ie_add_compiler_flags(/wd4267)
+    ie_add_compiler_flags(/wd4244)
+endif()
+if(UNUSED_BUT_SET_VARIABLE_SUPPORTED)
+    ie_add_compiler_flags(-Wno-unused-but-set-variable)
+endif()
+
 # create target
 
 cython_add_module(${TARGET_NAME} ${SOURCES})
 ov_python_disable_intel_warnings(${TARGET_NAME})
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 set(INSTALLED_TARGETS ${TARGET_NAME})
 list(REMOVE_ITEM PYX_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ie_api.pyx")
@@ -34,6 +44,7 @@ foreach(PYX_FILE IN LISTS PYX_SOURCES)
     target_link_libraries(${PYX_NAME} PRIVATE openvino::runtime)
     list(APPEND INSTALLED_TARGETS ${PYX_NAME})
     ie_python_minimal_api(${PYX_NAME})
+    set_target_properties(${PYX_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 endforeach()
 
 if(COMMAND ie_add_vs_version_file)
@@ -43,13 +54,13 @@ if(COMMAND ie_add_vs_version_file)
     endforeach()
 endif()
 
-function(python_disable_deprecated_warnings)
-    disable_deprecated_warnings()
+function(python_ov_disable_deprecated_warnings)
+    ov_disable_deprecated_warnings()
     set(pyx_file "${CMAKE_CURRENT_BINARY_DIR}/ie_api.cxx" "${CMAKE_CURRENT_BINARY_DIR}/constants.cxx")
     set_source_files_properties(${pyx_file} PROPERTIES COMPILE_OPTIONS ${ie_c_cxx_deprecated})
 endfunction()
 
-python_disable_deprecated_warnings()
+python_ov_disable_deprecated_warnings()
 ie_python_minimal_api(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -65,20 +76,18 @@ add_custom_command(TARGET ${TARGET_NAME}
     POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/../__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../__init__.py
-    COMMAND ${CMAKE_COMMAND} -E copy ${PYTHON_BRIDGE_SRC_ROOT}/requirements.txt ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../../requirements.txt
-    COMMAND ${CMAKE_COMMAND} -E copy ${PYTHON_BRIDGE_SRC_ROOT}/requirements.txt ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/../../requirements.txt
 )
 
 # install
 
 install(TARGETS ${INSTALLED_TARGETS}
-        RUNTIME DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/inference_engine
+        RUNTIME DESTINATION ${OV_CPACK_PYTHONDIR}/openvino/inference_engine
         COMPONENT ${PYTHON_COMPONENT}
-        LIBRARY DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/inference_engine
+        LIBRARY DESTINATION ${OV_CPACK_PYTHONDIR}/openvino/inference_engine
         COMPONENT ${PYTHON_COMPONENT})
 
 install(PROGRAMS __init__.py
-        DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/inference_engine
+        DESTINATION ${OV_CPACK_PYTHONDIR}/openvino/inference_engine
         COMPONENT ${PYTHON_COMPONENT})
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ OutputVector hardmax(const Node& node) {
     }
 
     // reshape to 2D - "batch size" x "input feature dimensions" (NxD)
-    const auto coerced_tensor = ngraph::builder::opset1::flatten(input, axis);
+    const auto coerced_tensor = ngraph::builder::opset1::flatten(input, static_cast<int>(axis));
 
     const auto coerced_tensor_shape = std::make_shared<default_opset::ShapeOf>(coerced_tensor);
     Output<ngraph::Node> row_size =

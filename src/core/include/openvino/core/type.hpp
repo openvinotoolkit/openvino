@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,8 @@
 #include <utility>
 #include <vector>
 
-#include "ngraph/compatibility.hpp"
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/deprecated.hpp"
 
 namespace ov {
 
@@ -37,8 +37,8 @@ struct OPENVINO_API DiscreteTypeInfo {
     // exact type identification
     const DiscreteTypeInfo* parent;
 
-    DiscreteTypeInfo() = default;
     OPENVINO_SUPPRESS_DEPRECATED_START
+    DiscreteTypeInfo() = default;
     DiscreteTypeInfo(const DiscreteTypeInfo&) = default;
     DiscreteTypeInfo(DiscreteTypeInfo&&) = default;
     DiscreteTypeInfo& operator=(const DiscreteTypeInfo&) = default;
@@ -96,26 +96,14 @@ std::ostream& operator<<(std::ostream& s, const DiscreteTypeInfo& info);
 
 /// \brief Tests if value is a pointer/shared_ptr that can be statically cast to a
 /// Type*/shared_ptr<Type>
-OPENVINO_SUPPRESS_DEPRECATED_START
 template <typename Type, typename Value>
 typename std::enable_if<
-    ngraph::HasTypeInfoMember<Type>::value &&
-        std::is_convertible<decltype(std::declval<Value>()->get_type_info().is_castable(Type::type_info)), bool>::value,
-    bool>::type
-is_type(Value value) {
-    return value->get_type_info().is_castable(Type::type_info);
-}
-
-template <typename Type, typename Value>
-typename std::enable_if<
-    !ngraph::HasTypeInfoMember<Type>::value &&
-        std::is_convertible<decltype(std::declval<Value>()->get_type_info().is_castable(Type::get_type_info_static())),
-                            bool>::value,
+    std::is_convertible<decltype(std::declval<Value>()->get_type_info().is_castable(Type::get_type_info_static())),
+                        bool>::value,
     bool>::type
 is_type(Value value) {
     return value->get_type_info().is_castable(Type::get_type_info_static());
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 /// Casts a Value* to a Type* if it is of type Type, nullptr otherwise
 template <typename Type, typename Value>

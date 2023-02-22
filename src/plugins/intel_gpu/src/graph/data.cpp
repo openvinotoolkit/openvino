@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "data_inst.h"
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/memory.hpp"
@@ -13,10 +11,7 @@
 #include <algorithm>
 
 namespace cldnn {
-primitive_type_id data::type_id() {
-    static primitive_type_base<data> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(data)
 
 namespace {
 memory::ptr attach_or_copy_data(network& network, memory::ptr mem) {
@@ -55,5 +50,51 @@ std::string data_inst::to_string(data_node const& node) {
 
 data_inst::typed_primitive_inst(network& network, data_node const& node)
     : parent(network, node, attach_or_copy_data(network, node.get_attached_memory_ptr())) {}
+
+// Cache blob format:
+//     [ kernel_impl_params ]
+//     [ output memory information ]
+//     [ data stored in memory ]
+void data_inst::save(cldnn::BinaryOutputBuffer& ob) const {
+    parent::save(ob);
+    ob << _outputs[0]->get_layout();
+
+    const auto _allocation_type = _outputs[0]->get_allocation_type();
+    ob << make_data(&_allocation_type, sizeof(_allocation_type));
+
+    size_t data_size = _outputs[0]->size();
+    ob << make_data(&data_size, sizeof(size_t));
+
+    if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
+        ob << make_data(_outputs[0]->buffer_ptr(), data_size);
+    } else {
+        std::vector<uint8_t> _buf;
+        _buf.resize(data_size);
+        _outputs[0]->copy_to(get_network().get_stream(), _buf.data());
+        ob << make_data(_buf.data(), data_size);
+    }
+}
+
+void data_inst::load(BinaryInputBuffer& ib) {
+    parent::load(ib);
+    layout output_layout = layout();
+    ib >> output_layout;
+
+    allocation_type _allocation_type;
+    ib >> make_data(&_allocation_type, sizeof(_allocation_type));
+
+    size_t data_size;
+    ib >> make_data(&data_size, sizeof(size_t));
+    _outputs[0] = get_network().get_memory_pool().get_memory(output_layout, _allocation_type, false);
+
+    if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
+        ib >> make_data(_outputs[0]->buffer_ptr(), data_size);
+    } else {
+        std::vector<uint8_t> _buf;
+        _buf.resize(data_size);
+        ib >> make_data(_buf.data(), data_size);
+        _outputs[0]->copy_from(get_network().get_stream(), _buf.data());
+    }
+}
 
 }  // namespace cldnn

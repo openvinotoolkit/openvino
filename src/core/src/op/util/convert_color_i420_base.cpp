@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ ov::op::util::ConvertColorI420Base::ConvertColorI420Base(const Output<Node>& arg
 }
 
 void ov::op::util::ConvertColorI420Base::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v8_Convert_I420_Base_validate_and_infer_types);
+    OV_OP_SCOPE(v8_Convert_I420_Base_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this,
                           get_input_size() == 1 || get_input_size() == 3,

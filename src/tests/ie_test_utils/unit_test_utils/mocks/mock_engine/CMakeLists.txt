@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -40,4 +40,4 @@ target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
 install(TARGETS ${TARGET_NAME}
-        LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
+        LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
