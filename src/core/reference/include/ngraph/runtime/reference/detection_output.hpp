@@ -67,7 +67,7 @@ private:
             std::map<int, std::vector<dataType>>& labelScores = confPreds[i];
             for (size_t p = 0; p < numPriors; ++p) {
                 size_t startIdx = p * numClasses;
-                for (int c = 0; c < numClasses; ++c) {
+                for (size_t c = 0; c < numClasses; ++c) {
                     labelScores[c].push_back(confData[startIdx + c]);
                 }
             }
@@ -84,11 +84,11 @@ private:
             for (size_t p = 0; p < numPriors; ++p) {
                 size_t startIdx = p * numClasses;
                 if (armConfData[p * 2 + 1] < attrs.objectness_score) {
-                    for (int c = 0; c < numClasses; ++c) {
+                    for (size_t c = 0; c < numClasses; ++c) {
                         c == attrs.background_label_id ? labelScores[c].push_back(1) : labelScores[c].push_back(0);
                     }
                 } else {
-                    for (int c = 0; c < numClasses; ++c) {
+                    for (size_t c = 0; c < numClasses; ++c) {
                         labelScores[c].push_back(confData[startIdx + c]);
                     }
                 }
@@ -372,7 +372,7 @@ private:
         for (size_t p = 0; p < numPriors; p++) {
             dataType conf = -1;
             int id = 0;
-            for (int c = 1; c < numClasses; c++) {
+            for (size_t c = 1; c < numClasses; c++) {
                 if (attrs.background_label_id > -1 && c == attrs.background_label_id)
                     continue;
                 dataType temp = confScores.at(c)[p];
