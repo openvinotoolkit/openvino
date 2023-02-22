@@ -367,6 +367,7 @@ TEST(type_prop, strided_slice_out_of_bounds_different_stride) {
     EXPECT_EQ(strided_slice->get_output_partial_shape(0), PartialShape({0, 0, 0, 0, 0}));
 }
 
+#if INTPTR_MAX == INT64_MAX
 TEST(type_prop, strided_slice_reverse_end_is_int64_min) {
     auto data = std::make_shared<op::Parameter>(element::f32, PartialShape{{0, 20}, -1});
     const auto data_rank_size = data->get_partial_shape().size();
@@ -380,6 +381,7 @@ TEST(type_prop, strided_slice_reverse_end_is_int64_min) {
 
     EXPECT_EQ(ss->get_output_partial_shape(0), PartialShape({{0, 20}, {0, 21}}));
 }
+#endif
 
 TEST(type_prop, strided_slice_dynamic_value_and_label_propagation) {
     // Use evaluate upper,lower and labels
@@ -430,6 +432,7 @@ TEST(type_prop, strided_slice_use_default_ctor) {
     ASSERT_EQ(slice->get_output_partial_shape(0), PartialShape({1, 5, 12}));
 }
 
+#if INTPTR_MAX == INT64_MAX
 TEST(type_prop, strided_slice_inf_dim_start_from_last_N_to_end) {
     auto data = std::make_shared<op::Parameter>(element::f32, PartialShape{1, 256, -1});
     auto start = op::Constant::create(element::i64, Shape{3}, {0, 0, -7});
@@ -445,6 +448,7 @@ TEST(type_prop, strided_slice_inf_dim_start_from_last_N_to_end) {
 
     EXPECT_EQ(slice->get_output_partial_shape(0), PartialShape({1, 256, {0, 7}}));
 }
+#endif
 
 struct StridedSliceTestParams {
     std::string case_name;

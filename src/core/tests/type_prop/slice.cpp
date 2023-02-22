@@ -583,7 +583,7 @@ TEST(type_prop, slice_v8_basic_const_inputs_dynamic_dims_maxint32) {
     EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
 }
 
-#ifdef OPENVINO_ARCH_X86_64
+#if INTPTR_MAX == INT64_MAX
 TEST(type_prop, slice_v8_basic_const_inputs_dynamic_dims_maxint64) {
     PartialShape data_shape{Dimension(0, 2000), Dimension(-1), 4};
     PartialShape expected_out_shape{Dimension(0, 2000), Dimension(-1), Dimension(4)};
@@ -622,7 +622,7 @@ TEST(type_prop, slice_v8_basic_const_inputs_dynamic_dims_maxint32_start1) {
     EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
 }
 
-#ifdef OPENVINO_ARCH_X86_64
+#if INTPTR_MAX == INT64_MAX
 TEST(type_prop, slice_v8_basic_const_inputs_dynamic_dims_maxint64_start1) {
     PartialShape data_shape{Dimension(0, 2000), Dimension(-1), 4};
     PartialShape expected_out_shape{Dimension(0, 2000), Dimension(-1), Dimension(4)};
@@ -733,13 +733,18 @@ TEST(type_prop, slice_v8_basic_const_inputs_MAX_MIN_64_no_upper_bounds) {
     EXPECT_EQ(op->get_element_type(), et);
     EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
 }
+#endif
 
 TEST(type_prop, slice_v8_basic_const_inputs_MAX_MIN_32_no_upper_bounds) {
     PartialShape data_shape{Dimension(-1), Dimension(0, INT64_MAX), Dimension(0, INT32_MAX), Dimension(0, INT32_MAX)};
+#if INTPTR_MAX == INT64_MAX
     PartialShape expected_out_shape{Dimension(-1),
                                     Dimension(0, INT64_MAX),
                                     Dimension(0, INT32_MAX),
                                     Dimension(0, INT32_MAX)};
+#else
+    PartialShape expected_out_shape{Dimension(-1), Dimension(-1), Dimension(-1), Dimension(-1)};
+#endif
 
     std::vector<int32_t> start_val{INT32_MIN, INT32_MIN, INT32_MIN, INT32_MIN};
     std::vector<int32_t> stop_val{INT32_MAX, INT32_MAX, INT32_MAX, INT32_MAX};
@@ -758,7 +763,11 @@ TEST(type_prop, slice_v8_basic_const_inputs_MAX_MIN_32_no_upper_bounds) {
 
 TEST(type_prop, slice_v8_basic_const_inputs_MAX_MIN_32_no_upper_bounds_neg_step) {
     PartialShape data_shape{Dimension(-1), Dimension(0, INT64_MAX), Dimension(0, INT32_MAX), Dimension(0, INT32_MAX)};
+#if INTPTR_MAX == INT64_MAX
     PartialShape expected_out_shape{Dimension(-1), Dimension(-1), Dimension(0, INT32_MAX), Dimension(0, INT32_MAX)};
+#else
+    PartialShape expected_out_shape{Dimension(-1), Dimension(-1), Dimension(-1), Dimension(-1)};
+#endif
 
     std::vector<int32_t> start_val{INT32_MAX, INT32_MAX, INT32_MAX, INT32_MAX};
     std::vector<int32_t> stop_val{INT32_MIN, INT32_MIN, INT32_MIN, INT32_MIN};
@@ -774,7 +783,6 @@ TEST(type_prop, slice_v8_basic_const_inputs_MAX_MIN_32_no_upper_bounds_neg_step)
     EXPECT_EQ(op->get_element_type(), et);
     EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
 }
-#endif
 
 TEST(type_prop, slice_v8_dynamic_dim_zero_start_negative_stop) {
     PartialShape data_shape{Dimension(-1)};
@@ -1184,11 +1192,14 @@ TEST(type_prop, slice_v8_unknowns_axes) {
     EXPECT_EQ(slice->get_output_partial_shape(0), PartialShape({{0, 5}, {0, 10}, {0, 15}}));
 }
 
-#ifdef OPENVINO_ARCH_X86_64
 TEST(type_prop, slice_v8_inf_dim_start_from_last_N_to_end) {
     auto data = std::make_shared<op::Parameter>(element::f32, PartialShape{1, 256, -1});
     auto start = op::Constant::create(element::i64, Shape{1}, {-7});
+#if INTPTR_MAX == INT64_MAX
     auto stop = op::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{INT64_MAX});
+#else
+    auto stop = op::Constant::create(element::i64, Shape{1}, std::vector<int32_t>{INT32_MAX});
+#endif
     auto step = op::Constant::create(element::i64, Shape{1}, {1});
     auto axes = op::Constant::create(element::i64, Shape{1}, {2});
 
@@ -1196,4 +1207,3 @@ TEST(type_prop, slice_v8_inf_dim_start_from_last_N_to_end) {
 
     EXPECT_EQ(slice->get_output_partial_shape(0), PartialShape({1, 256, {0, 7}}));
 }
-#endif
