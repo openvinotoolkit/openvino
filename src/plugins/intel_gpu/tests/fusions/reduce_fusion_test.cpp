@@ -120,7 +120,7 @@ public:
 
 class reduce_eltwise_activation_quantize : public ReduceFusingTest {};
 TEST_P(reduce_eltwise_activation_quantize, basic) {
-    // TODO: Fix me, refer PR(#)
+    // TODO: Fix me, refer PR(#15873)
     if (engine.get_device_info().supports_immad)
         return;
     auto p = GetParam();

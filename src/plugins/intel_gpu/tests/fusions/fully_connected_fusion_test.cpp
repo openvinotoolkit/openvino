@@ -151,6 +151,7 @@ public:
 /* ----------------------------------------------------------------------------------------------------- */
 class fc_fp32_activation : public FullyConnectedFusingTest {};
 TEST_P(fc_fp32_activation, basic) {
+    // TODO: Fix me, refer PR(#15873)
     if (engine.get_device_info().supports_immad)
         return;
     auto p = GetParam();
@@ -203,6 +204,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp32_activation_dynamic, ::testing::Val
 
 class fc_fp32_bias : public FullyConnectedFusingTest {};
 TEST_P(fc_fp32_bias, basic) {
+    // TODO: Fix me, refer PR(#15873)
     if (engine.get_device_info().supports_immad)
         return;
     auto p = GetParam();
@@ -281,6 +283,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_eltwise, ::testing::ValuesIn(std::
 
 class fc_int8_quantize_u8 : public FullyConnectedFusingTest {};
 TEST_P(fc_int8_quantize_u8, basic) {
+    // TODO: Fix me, refer PR(#15873)
     if (engine.get_device_info().supports_immad)
         return;
     auto p = GetParam();
@@ -313,6 +316,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_quantize_u8, ::testing::ValuesIn(s
 
 class fc_int8_eltwise_quantize_i8 : public FullyConnectedFusingTest {};
 TEST_P(fc_int8_eltwise_quantize_i8, basic) {
+    // TODO: Fix me, refer PR(#15873)
     if (engine.get_device_info().supports_immad)
         return;
     auto p = GetParam();
@@ -347,6 +351,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_eltwise_quantize_i8, ::testing::Va
 
 class fc_int8_eltwise_activation_quantize_i8 : public FullyConnectedFusingTest {};
 TEST_P(fc_int8_eltwise_activation_quantize_i8, basic) {
+    // TODO: Fix me, refer PR(#15873)
     if (engine.get_device_info().supports_immad)
         return;
     auto p = GetParam();
