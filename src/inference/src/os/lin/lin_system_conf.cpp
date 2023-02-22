@@ -162,12 +162,4 @@ void parse_processor_info_linux(const int _processors,
     }
 };
 
-#if !((IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO))
-std::vector<int> getAvailableNUMANodes() {
-    std::vector<int> nodes((0 == cpu._sockets) ? 1 : cpu._sockets);
-    std::iota(std::begin(nodes), std::end(nodes), 0);
-    return nodes;
-}
-#endif
-
 }  // namespace InferenceEngine
