@@ -115,12 +115,6 @@ U get_value_or_limit_of(const element::Type_t& type, const T& value) {
 namespace op {
 namespace slice {
 
-#if INTPTR_MAX == INT64_MAX
-using data_type = int64_t;
-#else
-using data_type = int32_t;
-#endif
-
 /**
  * \brief Get sliced value in step for given dimension value and start, stop, step.
  *
@@ -133,19 +127,16 @@ using data_type = int32_t;
  *
  * \return -1 for infinite number otherwise [0..int64_max] for finit step.
  */
-inline data_type get_sliced_value(const data_type& dim,
-                                  const data_type& start,
-                                  const data_type& stop,
-                                  const data_type& step) {
+inline int64_t get_sliced_value(const int64_t& dim, const int64_t& start, const int64_t& stop, const int64_t& step) {
     const auto is_reverse_step = step < 0;
 
-    constexpr data_type min_bound = 0;
-    constexpr data_type inf_bound = -1;
+    constexpr int64_t min_bound = 0;
+    constexpr int64_t inf_bound = -1;
 
-    const auto& norm_dim = dim == inf_bound ? std::numeric_limits<data_type>::max() : dim;
-    const auto is_norm_dim_max = ov::internal::is_max(norm_dim);
-    const data_type lower_max = is_reverse_step ? norm_dim - 1 : norm_dim;
-    const data_type upper_min = is_reverse_step ? inf_bound : min_bound;
+    const auto& norm_dim = dim == inf_bound ? std::numeric_limits<int64_t>::max() : dim;
+    const auto is_norm_dim_max = ov::internal::is_max(size_t(norm_dim));
+    const int64_t lower_max = is_reverse_step ? norm_dim - 1 : norm_dim;
+    const int64_t upper_min = is_reverse_step ? inf_bound : min_bound;
 
     const auto is_start_lt_min_bound = start < min_bound;
     const auto are_bounds_diff_sign = is_start_lt_min_bound != (stop < 0);
@@ -155,7 +146,7 @@ inline data_type get_sliced_value(const data_type& dim,
     const auto is_stop_max = ov::internal::is_max(stop);
     const auto any_bound_max = is_start_max || is_stop_max;
     // Prepare bounds for sliced value calculation.
-    data_type lb, ub;
+    int64_t lb, ub;
     if (is_norm_dim_max && (are_bounds_diff_sign || any_bound_max || is_start_limit)) {
         if (is_reverse_step) {
             ub = (is_start_lt_min_bound || any_bound_max) ? inf_bound : inf_bound - start;
@@ -176,7 +167,7 @@ inline data_type get_sliced_value(const data_type& dim,
     } else {
         // Limit sliced value to not-positive for negative step or not-negative for positive step
         auto sliced_value =
-            is_reverse_step ? std::min<data_type>(min_bound, (ub - lb)) : std::max<data_type>(min_bound, (ub - lb));
+            is_reverse_step ? std::min<int64_t>(min_bound, (ub - lb)) : std::max<int64_t>(min_bound, (ub - lb));
 
         if (step == -1) {
             // Sliced value is negative for negative step return opposite
@@ -207,7 +198,7 @@ inline element::Type get_input_const_element_type(const ov::Node* op,
     }
 }
 
-using Bounds = std::pair<data_type, data_type>;  //!< Alias to dimension bounds for slice.
+using Bounds = std::pair<int64_t, int64_t>;  //!< Alias to dimension bounds for slice.
 
 /**
  * \brief Get the input bounds from constant input (constant map) or evaluate bunds
@@ -227,14 +218,14 @@ std::unique_ptr<TResult> get_input_bounds(const ov::Node* op,
                                           const std::map<size_t, HostTensorPtr>& constant_data) {
     // Helper to create TResult from lowers and uppers.
     const auto make_bounds_vec =
-        [](const element::Type& et, const std::vector<data_type>& lowers, const std::vector<data_type>& uppers) {
+        [](const element::Type& et, const std::vector<int64_t>& lowers, const std::vector<int64_t>& uppers) {
             TResult out;
             out.reserve(lowers.size());
             std::transform(lowers.begin(),
                            lowers.end(),
                            uppers.begin(),
                            std::back_inserter(out),
-                           [&et](data_type lb, data_type ub) {
+                           [&et](int64_t lb, int64_t ub) {
                                return std::make_pair(element::get_value_or_limit_of(et, lb),
                                                      element::get_value_or_limit_of(et, ub));
                            });
@@ -242,7 +233,7 @@ std::unique_ptr<TResult> get_input_bounds(const ov::Node* op,
         };
 
     std::unique_ptr<TResult> out;
-    if (auto lowers = op::get_input_const_data_as<TShape, data_type>(op, idx, constant_data)) {
+    if (auto lowers = op::get_input_const_data_as<TShape, int64_t>(op, idx, constant_data)) {
         const auto& et = get_input_const_element_type(op, idx, constant_data);
         out.reset(new TResult(make_bounds_vec(et, *lowers, *lowers)));
     } else {
@@ -252,9 +243,9 @@ std::unique_ptr<TResult> get_input_bounds(const ov::Node* op,
         if (lb && ub) {
             const auto& et = op->get_input_element_type(idx);
             auto lowers = std::make_shared<op::v0::Constant>(lb.get_element_type(), lb.get_shape(), lb.data())
-                              ->cast_vector<data_type>();
+                              ->cast_vector<int64_t>();
             auto uppers = std::make_shared<op::v0::Constant>(ub.get_element_type(), ub.get_shape(), ub.data())
-                              ->cast_vector<data_type>();
+                              ->cast_vector<int64_t>();
             out.reset(new TResult(make_bounds_vec(et, lowers, uppers)));
         }
     }
@@ -274,7 +265,7 @@ std::unique_ptr<TResult> get_input_bounds(const ov::Node* op,
  * \return Dimension with upper/lower values set according slice inputs.
  */
 template <class TDim>
-TDim make_dim(const TDim& dim, const Bounds& start, const Bounds& stop, data_type step) {
+TDim make_dim(const TDim& dim, const Bounds& start, const Bounds& stop, int64_t step) {
     using TDimVal = typename TDim::value_type;
     auto lb = static_cast<TDimVal>(get_sliced_value(dim.get_min_length(), start.second, stop.first, step));
     auto ub = static_cast<TDimVal>(get_sliced_value(dim.get_max_length(), start.first, stop.second, step));
