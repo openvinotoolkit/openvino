@@ -1,6 +1,6 @@
 #include <napi.h>
 
-#include "AddClassBinding.h"
+
 #include "CompiledModelWrap.hpp"
 #include "CoreWrap.hpp"
 #include "InferRequestWrap.hpp"
