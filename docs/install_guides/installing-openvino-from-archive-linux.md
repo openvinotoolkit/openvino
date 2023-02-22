@@ -27,7 +27,7 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
 
   * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
   * `Python 3.7 - 3.10, 64-bit <https://www.python.org/downloads/>`_
-  * GCC
+  * GCC:
 
   .. tab:: Ubuntu 18.04
 
