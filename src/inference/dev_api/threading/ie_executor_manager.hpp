@@ -18,7 +18,15 @@
 #include "threading/ie_istreams_executor.hpp"
 #include "threading/ie_itask_executor.hpp"
 
+namespace ov {
+
+class ExecutorManager;
+
+}
+
 namespace InferenceEngine {
+
+class IPluginWrapper;
 
 /**
  * @interface ExecutorManager
@@ -76,8 +84,15 @@ public:
      */
     virtual void setTbbFlag(bool flag) = 0;
     virtual bool getTbbFlag() = 0;
+
+private:
+    virtual std::shared_ptr<ov::ExecutorManager> get_ov_manager() const = 0;
+    friend class IPluginWrapper;
 };
 
 INFERENCE_ENGINE_API_CPP(ExecutorManager::Ptr) executorManager();
+
+std::shared_ptr<InferenceEngine::ExecutorManager> create_old_manager(
+    const std::shared_ptr<ov::ExecutorManager>& manager);
 
 }  // namespace InferenceEngine
