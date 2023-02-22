@@ -1179,7 +1179,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, Infer
         // Perform preprocessing on CPU
         std::shared_ptr<ov::Model> model = inputs_ptr_->at(input_name).pre_post_process_model;
         if (model != nullptr) {
-            Precision output_prc = details::convertPrecision(model->get_result()->get_element_type());
+            Precision output_prc = inputs_ptr_->at(input_name).model_precision;
             SizeVector output_dims = model->get_result()->get_shape();
             TensorDesc output_desc(output_prc, output_dims, InferenceEngine::Layout::ANY);
             Blob::Ptr output_blob = make_blob_with_precision(output_desc);
@@ -1288,15 +1288,17 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
             isScalar ? 1 : (is1D ? dims.front() : details::product(++std::begin(dims), std::end(dims)));
 
         OutputDesc& gna_output_desc = outputs_.at(output_name);
-        TensorDesc tensor_desc(gna_output_desc.tensor_precision, gna_output_desc.dims, gna_output_desc.model_layout);
+        // WA: evaluate gather with int16 precision as fp16
+        Precision preproc_prc = (gna_output_desc.tensor_precision == Precision::I16) ? Precision(Precision::FP16)
+                                                                                     : gna_output_desc.tensor_precision;
+        TensorDesc tensor_desc(preproc_prc, gna_output_desc.dims, gna_output_desc.model_layout);
         Blob::Ptr gna_output_blob = make_blob_with_precision(tensor_desc, gna_output_desc.ptrs[request_idx]);
 
         // Perform postprocessing on CPU
-        std::shared_ptr<ov::Model> model = outputs_.at(output_name).pre_post_process_model;
+        std::shared_ptr<ov::Model> model = gna_output_desc.pre_post_process_model;
         if (model) {
-            Precision output_prc = outputs_.at(output_name).tensor_precision;
             SizeVector output_dims = model->get_result()->get_shape();
-            TensorDesc output_desc(output_prc, output_dims, InferenceEngine::Layout::ANY);
+            TensorDesc output_desc(preproc_prc, output_dims, InferenceEngine::Layout::ANY);
             Blob::Ptr output_blob = make_blob_with_precision(output_desc);
             output_blob->allocate();
             pre_post_process(gna_output_blob, output_blob, model);
