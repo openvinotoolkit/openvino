@@ -12,7 +12,8 @@
 using namespace cldnn;
 using namespace ::tests;
 
-TEST(resample_gpu, basic_in2x3x2x2_nearest) {
+template <typename T>
+void test_basic_in2x3x2x2_nearest(bool is_caching_test) {
     //  Input  : 2x2x3x2
     //  Output : 2x2x6x4
     //  Sample Type: Nearest
@@ -46,16 +47,16 @@ TEST(resample_gpu, basic_in2x3x2x2_nearest) {
         12.f, 9.f, -17.f,
     });
 
-    cldnn::network net{ engine, topology };
+    cldnn::network::ptr net = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
-    net.set_input_data("input", input);
+    net->set_input_data("input", input);
 
-    auto outputs = net.execute();
+    auto outputs = net->execute();
 
     auto output = outputs.at("upsampling").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
-    float answers[96] = {
+    T answers[96] = {
         1.f, 1.f, 2.f,   2.f,   -10.f,  -10.f,
         1.f, 1.f, 2.f,   2.f,   -10.f,  -10.f,
         3.f, 3.f, 4.f,   4.f,   -14.f,  -14.f,
@@ -84,6 +85,10 @@ TEST(resample_gpu, basic_in2x3x2x2_nearest) {
             }
         }
     }
+}
+
+TEST(resample_gpu, basic_in2x3x2x2_nearest) {
+    test_basic_in2x3x2x2_nearest<float>(false);
 }
 
 TEST(resample_gpu, basic_in2x3x2x2_bilinear) {
@@ -456,7 +461,7 @@ struct resample_random_test : testing::TestWithParam<resample_random_test_params
         }
     }
 
-    void execute(const resample_random_test_params& params) {
+    void execute(const resample_random_test_params& params, bool is_caching_test) {
         auto& engine = get_test_engine();
 
         auto in_layout = layout(params.input_type, params.in_format, params.input_size);
@@ -467,26 +472,27 @@ struct resample_random_test : testing::TestWithParam<resample_random_test_params
         topo.add(prim);
 
         ExecutionConfig config(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"resample", {params.out_format, ""}} }));
-        cldnn::network net(engine, topo, config);
+        cldnn::network::ptr net = get_network(engine, topo, config, get_test_stream_ptr(), is_caching_test);
 
         auto in_mem = engine.allocate_memory(in_layout);
         fill_random(in_mem);
-        net.set_input_data("in", in_mem);
+        net->set_input_data("in", in_mem);
 
-        auto result = net.execute();
+        auto result = net->execute();
         auto output = result.at("resample").get_memory();
 
         std::string kernel = "";
-        for (auto& info : net.get_primitives_info()) {
-            if (info.original_id == "resample")
-                kernel = info.kernel_id;
+        if (!is_caching_test) {
+            for (auto& info : net->get_primitives_info()) {
+                if (info.original_id == "resample")
+                    kernel = info.kernel_id;
+            }
         }
-
     }
 };
 
 TEST_P(resample_random_test, random) {
-    execute(GetParam());
+    execute(GetParam(), false);
 }
 
 struct resample_random_test_param_generator : std::vector<resample_random_test_params> {
@@ -611,7 +617,7 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
         }
     }
 
-    void execute_compare(const caffe_resample_random_test_params& params, bool check_result) {
+    void execute_compare(const caffe_resample_random_test_params& params, bool check_result, bool is_caching_test) {
         auto& engine = get_test_engine();
 
         auto in_layout = layout(params.input_type, params.in_format, params.input_size);
@@ -647,12 +653,12 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
         config_opt.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"resample_opt"}));
         config_opt.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"resample_opt", {params.in_format, "resample_opt"}} }));
 
-        cldnn::network net_opt(engine, topo_opt, config_opt);
+        cldnn::network::ptr net_opt = get_network(engine, topo_opt, config_opt, get_test_stream_ptr(), is_caching_test);
 
         // Use in_mem from ref network
-        net_opt.set_input_data("in", in_mem);
+        net_opt->set_input_data("in", in_mem);
 
-        auto result_opt = net_opt.execute();
+        auto result_opt = net_opt->execute();
         auto output_opt = result_opt.at("resample_opt").get_memory();
 
         if (check_result == true) {
@@ -695,7 +701,7 @@ struct caffe_resample_random_test_param_generator : std::vector<caffe_resample_r
 
 TEST_P(caffe_resample_random_test, random) {
     auto param = GetParam();
-    execute_compare(param, true);
+    execute_compare(param, true, false);
 }
 
 INSTANTIATE_TEST_SUITE_P(caffe_smoke_caffe_fsv16,
@@ -2004,7 +2010,8 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
         }
     }
 
-    void execute_compare(const resample_opt_random_test_params& params, bool check_result, const std::string& kernel = "resample_opt") {
+    void execute_compare(const resample_opt_random_test_params& params, bool check_result,
+                         bool is_caching_test, const std::string& kernel = "resample_opt") {
         auto& engine = get_test_engine();
 
         const format origin_format = format::dimension(params.in_format) == 4 ? format::bfyx : format::bfzyx;
@@ -2042,13 +2049,13 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
         ExecutionConfig config_opt;
         config_opt.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"resample_opt", "res_to_bfyx"}));
 
-        network net_opt(engine, topo_opt, config_opt);
+        cldnn::network::ptr net_opt = get_network(engine, topo_opt, config_opt, get_test_stream_ptr(), is_caching_test);
 
         // Use in_mem from ref network
-        net_opt.set_input_data("in", in_mem);
+        net_opt->set_input_data("in", in_mem);
 
         // first execution of opt
-        auto result_opt = net_opt.execute();
+        auto result_opt = net_opt->execute();
         auto output_opt = result_opt.at("res_to_bfyx").get_memory();
         if (!format::is_simple_data_format(params.in_format)) {
             ASSERT_FALSE(format::is_simple_data_format(result_opt.at("resample_opt").get_memory()->get_layout().format));
@@ -2176,7 +2183,7 @@ struct resample_opt_random_test_ext : resample_opt_random_test
 
 TEST_P(resample_opt_random_test, random) {
     auto param = GetParam();
-    execute_compare(param, true);
+    execute_compare(param, true, false);
 }
 
 TEST_P(resample_opt_random_test_ext, DISABLED_random) {
@@ -2329,3 +2336,22 @@ INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_linear_onnx_5d_3axes_simple,
                                 { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32, {}, {}},
                             }
                         ));
+
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+TEST_P(resample_random_test, random_cached) {
+    execute(GetParam(), true);
+}
+
+TEST_P(caffe_resample_random_test, random_cached) {
+    auto param = GetParam();
+    execute_compare(param, true, true);
+}
+
+TEST_P(resample_opt_random_test, random_cached) {
+    auto param = GetParam();
+    execute_compare(param, true, true);
+}
+#endif
+TEST(resample_gpu, basic_in2x3x2x2_nearest_cached) {
+    test_basic_in2x3x2x2_nearest<float>(true);
+}

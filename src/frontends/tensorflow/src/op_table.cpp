@@ -29,6 +29,7 @@ TF_OP_CONVERTER(translate_iterator_op);
 TF_OP_CONVERTER(translate_lookup_table_insert_op);
 TF_OP_CONVERTER(translate_partitioned_call_op);
 TF_OP_CONVERTER(translate_queue_dequeue_op);
+TF_OP_CONVERTER(translate_queue_dequeue_many_op);
 TF_OP_CONVERTER(translate_sparse_fill_empty_rows_op);
 TF_OP_CONVERTER(translate_sparse_reshape_op);
 TF_OP_CONVERTER(translate_sparse_segment_sum_op);
@@ -186,9 +187,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"PadV2", translate_padv2_op},
         {"QueueDequeue", translate_queue_dequeue_op},
         {"QueueDequeueV2", translate_queue_dequeue_op},
-        {"QueueDequeueUpTo", translate_queue_dequeue_op},
-        {"QueueDequeueUpToV2", translate_queue_dequeue_op},
-        {"QueueDequeueMany", translate_queue_dequeue_op},
+        {"QueueDequeueUpTo", translate_queue_dequeue_many_op},
+        {"QueueDequeueUpToV2", translate_queue_dequeue_many_op},
+        {"QueueDequeueMany", translate_queue_dequeue_many_op},
         {"DynamicStitch", translate_parallel_dynamic_stitch_op},
         {"ParallelDynamicStitch", translate_parallel_dynamic_stitch_op},
         {"PartitionedCall", translate_partitioned_call_op},
