@@ -405,12 +405,16 @@ bool ov::util::directory_exists(const std::string& path) {
 }
 
 bool ov::util::directory_exists(const std::wstring& path) {
+#ifdef _WIN32
     struct stat sb;
 
     if (wstat(path.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode)) {
         return true;
     }
     return false;
+#else
+    return directory_exists(wstring_to_string(path));
+#endif
 }
 
 namespace {
