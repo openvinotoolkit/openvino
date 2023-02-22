@@ -130,9 +130,9 @@ void TemplatePlugin::InferRequest::infer_preprocess() {
                 get_template_model()->get_template_plugin()->_backend->create_tensor(tensor.get_element_type(),
                                                                                      tensor.get_shape());
             auto* src_data = static_cast<uint8_t*>(tensor.data());
-            auto dst_tensor = std::dynamic_pointer_cast<ngraph::runtime::HostTensor>(m_backend_input_tensors[i]);
-            OPENVINO_ASSERT(dst_tensor, "Template plugin error: Can't cast created tensor to HostTensor");
-            auto* dst_data = dst_tensor->get_data_ptr<uint8_t>();
+            // TODO: Copy to
+            auto dst_tensor = m_backend_input_tensors[i];
+            auto* dst_data = static_cast<uint8_t*>(dst_tensor.data());
             std::vector<size_t> indexes(shape.size());
             for (size_t dst_idx = 0; dst_idx < ov::shape_size(shape); dst_idx++) {
                 size_t val = dst_idx;
@@ -195,9 +195,10 @@ void TemplatePlugin::InferRequest::infer_postprocess() {
             auto host_tensor = m_backend_output_tensors[i];
             ov::Output<const ov::Node> output{result->output(0).get_node(), result->output(0).get_index()};
             allocate_tensor(output, [host_tensor](ov::Tensor& tensor) {
-                allocate_tensor_impl(tensor, host_tensor->get_element_type(), host_tensor->get_shape());
+                allocate_tensor_impl(tensor, host_tensor.get_element_type(), host_tensor.get_shape());
                 // tensor.set_shape(host_tensor->get_shape());
-                host_tensor->read(static_cast<char*>(tensor.data()), host_tensor->get_size_in_bytes());
+                // TODO: copy_to after 15811
+                // host_tensor->read(static_cast<char*>(tensor.data()), host_tensor->get_size_in_bytes());
             });
         }
     }

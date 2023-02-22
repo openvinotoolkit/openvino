@@ -48,7 +48,7 @@ private:
     friend class TemplatePlugin::CompiledModel;
     friend class InferRequest;
 
-    std::shared_ptr<ngraph::runtime::Backend> _backend;
+    std::shared_ptr<ov::runtime::Backend> _backend;
     Configuration _cfg;
     InferenceEngine::ITaskExecutor::Ptr _waitExecutor;
 };

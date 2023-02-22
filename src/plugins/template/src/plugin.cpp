@@ -32,7 +32,7 @@ Plugin::Plugin() {
     set_device_name("TEMPLATE");
 
     // create ngraph backend which performs inference using ngraph reference implementations
-    _backend = ngraph::runtime::Backend::create();
+    _backend = ov::runtime::Backend::create();
 
     // create default stream executor with a given name
     _waitExecutor = get_executor_manager()->getIdleCPUStreamsExecutor({wait_executor_name});
