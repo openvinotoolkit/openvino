@@ -125,7 +125,7 @@ Options:
                                'throughput' or 'tput': device performance mode will be set to THROUGHPUT.
                                'cumulative_throughput' or 'ctput': device performance mode will be set to CUMULATIVE_THROUGHPUT.
                                'latency': device performance mode will be set to LATENCY.
-                               'none': no device performance mode will be set.
+                               'none': device performance mode will be set to UNDEFINED.
                               Using explicit 'nstreams' or other device-specific options, please set hint to 'none'
     -niter  <integer>             Optional. Number of iterations. If not specified, the number of iterations is calculated depending on a device.
     -t                            Optional. Time in seconds to execute topology.
