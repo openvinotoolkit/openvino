@@ -32,7 +32,7 @@ data_generators = {
 
 def activation_helper(input_node, activation_name, name):
     if activation_name is None:
-        return
+        return input_node
     else:
         return activation_name(input_node, name=name)
 
