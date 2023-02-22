@@ -54,19 +54,19 @@ const std::map<std::string, ov::element::Type>& dtype_to_ov_type() {
 
 namespace array_helpers {
 
-inline bool is_contiguous(const py::array& array) {
+bool is_contiguous(const py::array& array) {
     return C_CONTIGUOUS == (array.flags() & C_CONTIGUOUS);
 }
 
-inline ov::element::Type get_ov_type(const py::array& array) {
+ov::element::Type get_ov_type(const py::array& array) {
     return Common::dtype_to_ov_type().at(py::str(array.dtype()));
 }
 
-inline std::vector<size_t> get_shape(const py::array& array) {
+std::vector<size_t> get_shape(const py::array& array) {
     return std::vector<size_t>(array.shape(), array.shape() + array.ndim());
 }
 
-inline std::vector<size_t> get_strides(const py::array& array) {
+std::vector<size_t> get_strides(const py::array& array) {
     return std::vector<size_t>(array.strides(), array.strides() + array.ndim());
 }
 

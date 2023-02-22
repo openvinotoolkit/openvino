@@ -13,6 +13,7 @@
 #include <ngraph/runtime/shared_buffer.hpp>
 #include <string>
 #include <iterator>
+#include <climits>
 
 #include "Python.h"
 #include "openvino/runtime/compiled_model.hpp"
@@ -26,6 +27,14 @@
 namespace py = pybind11;
 
 namespace Common {
+
+namespace values {
+
+// Minimum amount of bits for common numpy types. Used to perform checks against OV types.
+constexpr size_t min_bitwidth = sizeof(int8_t) * CHAR_BIT;
+
+}; // namespace values
+
 const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype();
 
 const std::map<std::string, ov::element::Type>& dtype_to_ov_type();
@@ -33,13 +42,13 @@ const std::map<std::string, ov::element::Type>& dtype_to_ov_type();
 // Helpers for numpy arrays
 namespace array_helpers {
 
-inline bool is_contiguous(const py::array& array);
+bool is_contiguous(const py::array& array);
 
-inline ov::element::Type get_ov_type(const py::array& array);
+ov::element::Type get_ov_type(const py::array& array);
 
-inline std::vector<size_t> get_shape(const py::array& array);
+std::vector<size_t> get_shape(const py::array& array);
 
-inline std::vector<size_t> get_strides(const py::array& array);
+std::vector<size_t> get_strides(const py::array& array);
 
 py::array as_contiguous(py::array& array, ov::element::Type type);
 

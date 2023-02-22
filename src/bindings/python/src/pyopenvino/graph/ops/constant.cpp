@@ -201,7 +201,7 @@ void regclass_graph_op_Constant(py::module m) {
         [](ov::op::v0::Constant& self) {
             auto ov_type = self.get_element_type();
             auto dtype = Common::ov_type_to_dtype().at(ov_type);
-            if (ov_type.bitwidth() < 8) {
+            if (ov_type.bitwidth() < Common::values::min_bitwidth) {
                 return py::array(dtype, self.get_byte_size(), self.get_data_ptr(), py::cast(self));
             }
             return py::array(dtype, self.get_shape(), _get_strides(self), self.get_data_ptr(), py::cast(self));
