@@ -1627,7 +1627,7 @@ public:
     template<data_types Data_Type>
     void run_test(const std::vector<cldnn::tensor::value_type>& sizes, cldnn::format format_fsv,
                   const std::string & permute_opt = "permute_tile_8x8_4x4_fsv",
-                  std::vector<uint16_t> permute_order = {});
+                  std::vector<uint16_t> permute_order = {}, bool is_caching_test = false);
 };
 
 template<>
@@ -1654,7 +1654,7 @@ void TiledPermuteTest::set_random_values<int8_t>(const cldnn::memory::ptr mem) c
 
 template<data_types Data_Type>
 void TiledPermuteTest::run_test(const std::vector<cldnn::tensor::value_type>& sizes, cldnn::format format_fsv,
-                                const std::string & permute_opt, std::vector<uint16_t> permute_order)
+                                const std::string & permute_opt, std::vector<uint16_t> permute_order, bool is_caching_test)
 {
     // convert half_t to FLOAT16
     using type_ = typename data_type_to_type<Data_Type>::type;
@@ -1690,9 +1690,9 @@ void TiledPermuteTest::run_test(const std::vector<cldnn::tensor::value_type>& si
     ov::intel_gpu::ImplementationDesc permute_ref = { format_fsv, "permute_ref" };
     config_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"output", permute_ref} }));
 
-    cldnn::network network_ref(engine, topology_ref, config_ref);
-    network_ref.set_input_data("input", input);
-    auto outputs_ref = network_ref.execute();
+    cldnn::network::ptr network_ref = get_network(engine, topology_ref, config_ref, get_test_stream_ptr(), is_caching_test);
+    network_ref->set_input_data("input", input);
+    auto outputs_ref = network_ref->execute();
     auto output_ref = outputs_ref.begin()->second.get_memory();
     cldnn::mem_lock<type> output_ref_ptr(output_ref, get_test_stream());
 
@@ -1701,9 +1701,9 @@ void TiledPermuteTest::run_test(const std::vector<cldnn::tensor::value_type>& si
     ov::intel_gpu::ImplementationDesc permute_tile_opt = { format_fsv, permute_opt };
     config_tile.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"output", permute_tile_opt} }));
 
-    cldnn::network network_tile(engine, topology_ref, config_tile);
-    network_tile.set_input_data("input", input);
-    auto outputs_tile = network_tile.execute();
+    cldnn::network::ptr network_tile = get_network(engine, topology_ref, config_tile, get_test_stream_ptr(), is_caching_test);
+    network_tile->set_input_data("input", input);
+    auto outputs_tile = network_tile->execute();
     auto output_tile = outputs_tile.begin()->second.get_memory();
     cldnn::mem_lock<type> output_tile_ptr(output_tile, get_test_stream());
 
@@ -1919,4 +1919,60 @@ INSTANTIATE_TEST_SUITE_P(, permute_bfzyx_to_bfyxz,
 TEST_P(permute_bfzyx_to_bfyxz, combined) {
     auto p = GetParam();
     run_test<cldnn::data_types::f32>(p.sizes, p.format_fsv, "permute_bfzyx_to_bfyxz", {0, 1, 3, 4, 2});
+}
+
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+TEST_P(permute_tile_fsv_4d, f16_cached) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::f16>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
+}
+
+TEST_P(permute_tile_fsv_4d, f32_cached) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::f32>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
+}
+
+TEST_P(permute_tile_fsv_4d, i8_cached) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::i8>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
+}
+
+TEST_P(permute_tile_fsv_4d, i32_cached) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::i32>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
+}
+
+TEST_P(permute_tile_fsv_4d, i64_cached) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::i64>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
+}
+
+TEST_P(permute_tile_fsv_5d, f16_cached) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::f16>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
+}
+
+TEST_P(permute_tile_fsv_5d, f32_cached) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::f32>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
+}
+
+TEST_P(permute_tile_fsv_5d, i8_cached) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::i8>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
+}
+
+TEST_P(permute_tile_fsv_5d, i32_cached) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::i32>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
+}
+
+TEST_P(permute_bfzyx_to_bfyxz, combined_cached) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::f32>(p.sizes, p.format_fsv, "permute_bfzyx_to_bfyxz", {0, 1, 3, 4, 2}, true);
+}
+#endif
+TEST_P(permute_tile_fsv_5d, i64_cached) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::i64>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
 }
