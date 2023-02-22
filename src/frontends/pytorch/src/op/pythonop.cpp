@@ -21,7 +21,7 @@ OutputVector translate_pythonop(NodeContext& context) {
     std::map<size_t, ParameterVector> inputs_map;
     for (const auto& param : body->get_parameters()) {
         auto tensor_idx = session->decode_tensor_name(param->output(0));
-        if (inputs_map.count(tensor_idx)) {
+        if (!inputs_map.count(tensor_idx)) {
             inputs_map[tensor_idx] = {param};
         } else {
             inputs_map[tensor_idx].push_back(param);
