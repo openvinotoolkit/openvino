@@ -542,8 +542,8 @@ def test_infer_queue_iteration(device):
     it = iter(infer_queue)
     infer_request = next(it)
     assert isinstance(infer_request, InferRequest)
-    assert infer_request.get_userdata() == None
-    assert infer_request.userdata == None
+    assert infer_request.get_userdata() is None
+    assert infer_request.userdata is None
     with pytest.raises(StopIteration):
         next(it)
 

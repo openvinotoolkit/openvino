@@ -8,15 +8,15 @@ from openvino.runtime import Dimension
 def test_dynamic_dimension():
     dim = Dimension()
     assert dim.is_dynamic
-    assert str(dim) == '?'
-    assert dim.to_string() == '?'
-    assert str(dim.__repr__) == '<bound method PyCapsule.__repr__ of <Dimension: ?>>'
+    assert str(dim) == "?"
+    assert dim.to_string() == "?"
+    assert str(dim.__repr__) == "<bound method PyCapsule.__repr__ of <Dimension: ?>>"
 
 
 def test_dynamic_dimension_with_bounds():
     dim = Dimension(2, 5)
-    assert str(dim) == '2..5'
-    assert dim.to_string() == '2..5'
+    assert str(dim) == "2..5"
+    assert dim.to_string() == "2..5"
     assert not dim.is_static
     assert dim.is_dynamic
     assert dim.get_min_length() == 2
@@ -27,8 +27,8 @@ def test_dynamic_dimension_with_bounds():
 
 def test_static_dimension():
     dim = Dimension(2)
-    assert str(dim) == '2'
-    assert dim.to_string() == '2'
+    assert str(dim) == "2"
+    assert dim.to_string() == "2"
     assert dim.is_static
     assert not dim.is_dynamic
     assert len(dim) == 2
