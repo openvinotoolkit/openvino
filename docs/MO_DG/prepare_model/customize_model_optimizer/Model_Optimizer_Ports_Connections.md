@@ -10,7 +10,7 @@ the `mo.graph.graph.Graph` object. For example, the following methods belong to 
    * `graph.out_edges(node_id)` 
    * other methods where `graph` is a an instance of the `networkx.MultiDiGraph` class.
 
-   **This is the lowest-level API. Avoid using it in the Model Optimizer transformations**. For more details, refer to the [Model Representation in Memory](#model-representation-in-memory) section. 
+   **This is the lowest-level API. Avoid using it in the Model Optimizer transformations**. For more details, refer to the [Model Representation in Memory](@ref mo-model-representation-in-memory) section. 
 
 2. The API built around the `mo.graph.graph.Node` class. The `Node` class is the primary class to work with graph nodes
 and their attributes. Examples of such methods and functions are:
