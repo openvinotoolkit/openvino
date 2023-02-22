@@ -13,48 +13,6 @@
 
 namespace InferenceEngine {
 
-class ExecutorManagerWrapper : public ov::ExecutorManager {
-private:
-    std::shared_ptr<InferenceEngine::ExecutorManager> m_manager;
-
-public:
-    ExecutorManagerWrapper(const std::shared_ptr<InferenceEngine::ExecutorManager>& manager) : m_manager(manager) {}
-
-    InferenceEngine::ITaskExecutor::Ptr get_executor(const std::string& id) override {
-        return m_manager->getExecutor(id);
-    }
-
-    /// @private
-    InferenceEngine::IStreamsExecutor::Ptr get_idle_cpu_streams_executor(
-        const InferenceEngine::IStreamsExecutor::Config& config) override {
-        return m_manager->getIdleCPUStreamsExecutor(config);
-    }
-
-    size_t get_executors_number() const override {
-        return m_manager->getExecutorsNumber();
-    }
-
-    size_t get_idle_cpu_streams_executors_number() const override {
-        return m_manager->getIdleCPUStreamsExecutorsNumber();
-    }
-
-    void clear(const std::string& id = {}) override {
-        return m_manager->clear(id);
-    }
-
-    void set_property(const ov::AnyMap& property) override {
-        for (const auto& it : property) {
-            if (it.first == ov::force_tbb_terminate.name())
-                m_manager->setTbbFlag(it.second.as<bool>());
-        }
-    }
-    ov::Any get_property(const std::string& name) const override {
-        if (name == ov::force_tbb_terminate.name())
-            return m_manager->getTbbFlag();
-        OPENVINO_UNREACHABLE("Cannot find property ", name);
-    }
-};
-
 IPluginWrapper::IPluginWrapper(const std::shared_ptr<InferenceEngine::IInferencePlugin>& ptr) : m_old_plugin(ptr) {
     OPENVINO_ASSERT(m_old_plugin);
     auto& ver = m_old_plugin->GetVersion();
@@ -63,7 +21,7 @@ IPluginWrapper::IPluginWrapper(const std::shared_ptr<InferenceEngine::IInference
     m_plugin_name = m_old_plugin->GetName();
     m_is_new_api = m_old_plugin->IsNewAPI();
     m_core = m_old_plugin->GetCore();
-    m_executor_manager = std::make_shared<InferenceEngine::ExecutorManagerWrapper>(m_old_plugin->executorManager());
+    m_executor_manager = m_old_plugin->executorManager()->get_ov_manager();
 }
 
 const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& IPluginWrapper::update_exec_network(

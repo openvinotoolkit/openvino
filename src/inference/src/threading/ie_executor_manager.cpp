@@ -36,6 +36,9 @@ public:
 
 private:
     std::shared_ptr<ov::ExecutorManager> m_manager;
+    std::shared_ptr<ov::ExecutorManager> get_ov_manager() const override {
+        return m_manager;
+    }
 };
 
 }  // namespace
