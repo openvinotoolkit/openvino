@@ -340,23 +340,18 @@ bool primitive_inst::update_impl() {
                 compilation_context.push_task(impl_key, [this, &compilation_context, updated_params, impl_key]() {
                     if (compilation_context.is_stopped())
                         return;
-                    try {
-                        auto _program = get_network().get_program();
-                        auto& cache = _program->get_implementations_cache();
-                        {
-                            // Check existense in the cache one more time as several iterations of model execution could happens and multiple compilation
-                            // tasks created for same shapes
-                            if (cache.has(impl_key))
-                                return;
-                        }
-
-                        auto impl = _node->type()->choose_impl(*_node, updated_params);
-                        impl->build_kernels(_program->get_kernels_cache());
-                        cache.add(impl_key, impl->clone());
-                    } catch (std::exception& ex) {
-                        std::cout << " Exception " << ex.what() << std::endl;
-                        throw ex;
+                    auto _program = get_network().get_program();
+                    auto& cache = _program->get_implementations_cache();
+                    {
+                        // Check existense in the cache one more time as several iterations of model execution could happens and multiple compilation
+                        // tasks created for same shapes
+                        if (cache.has(impl_key))
+                            return;
                     }
+
+                    auto impl = _node->type()->choose_impl(*_node, updated_params);
+                    impl->build_kernels(_program->get_kernels_cache());
+                    cache.add(impl_key, impl->clone());
                 });
                 _impl = _dynamic_impl->clone();
                 _impl->update_dispatch_data(*_impl_params);

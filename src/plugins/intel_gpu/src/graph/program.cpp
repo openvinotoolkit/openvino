@@ -154,7 +154,6 @@ program::program(engine& engine)
       }
 
 program::~program() {
-    _compilation_context->cancel();
     query_local_block_io_supported();
 }
 

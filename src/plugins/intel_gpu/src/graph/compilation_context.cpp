@@ -52,10 +52,7 @@ public:
             return;
 
         _stop_compilation = true;
-        if (_task_executor != nullptr) {
-            _task_executor.reset();
-            _task_executor = nullptr;
-        }
+        _task_executor.reset();
         _task_keys.clear();
     }
 
