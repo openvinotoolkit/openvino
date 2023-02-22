@@ -10,6 +10,7 @@ from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape
 
 import warnings
 import torch
+from torch.onnx._internal import jit_utils
 
 
 def get_type_from_py_type(value):
@@ -214,6 +215,14 @@ class TorchScriptPythonDecoder (Decoder):
     def get_schema(self) -> str:
         return self.graph_element.schema()
 
+    def get_device(self) -> str:
+        if self.graph_element.kind() == "prim::device":
+            device = jit_utils.get_device_from_value(self.raw_inputs[0])
+            if device is not None:
+                return str(device)
+        # Device cannot be statically determined.
+        return "cpu"
+
     def outputs(self) -> list:
         return [x.unique() for x in self.raw_outputs]
 
@@ -259,6 +268,8 @@ class TorchScriptPythonDecoder (Decoder):
 
         if str(pt_value.type()) in ["torch.StringType", "str"]:
             return pt_value.toIValue()
+        elif str(pt_value.type()) == "Device":
+            return pt_value.toIValue().type
         return None
 
     @staticmethod
