@@ -163,7 +163,6 @@ public:
 struct SMBlock;
 
 // Loads graph from Tensorflow Saved Model file (saved_model.pb)
-//GraphIteratorSavedModel
 class GraphIteratorSavedModel : public GraphIteratorProto {
     std::shared_ptr<::tensorflow::SavedModel> m_saved_model;
     std::map<std::string, std::vector<char>> varIndex;
@@ -212,13 +211,13 @@ private:
         FRONT_END_GENERAL_CHECK(meta_graph.has_graph_def(), "Saved Model doesn't contain GraphDef");
 
         std::vector<std::string> validSignatures = {};
-        for (auto sit = meta_graph.signature_def().begin(); sit != meta_graph.signature_def().end(); ++sit) {
-            const std::string& key = sit->first;
-            const ::tensorflow::SignatureDef& val = sit->second;
+        for (auto& sit : meta_graph.signature_def()) {
+            const std::string& key = sit.first;
+            const ::tensorflow::SignatureDef& val = sit.second;
             if (isValidSignature(val)) {
                 validSignatures.push_back(key);
             } else {
-                return false;
+                OPENVINO_ASSERT(false, "Saved Model contains invalid signatures");
             }
         }
 
@@ -271,7 +270,7 @@ private:
     void readVarIndex(std::ifstream& fs, std::map<std::string, std::vector<char>>& varIndex);
     void readBundleHeader();
     void readCMOGraph();
-};  // SavedModelIteratorProto
+};  // GraphIteratorSavedModel
 
 }  // namespace tensorflow
 }  // namespace frontend
