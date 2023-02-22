@@ -84,7 +84,11 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, RemoteContextImpl::Ptr context, const
     ib >> primitiveIDs;
     ib >> outputDims;
 
-    m_networks.emplace_back(std::make_shared<cldnn::network>(ib, get_engine().create_stream(config), get_engine(), m_stream_id));
+    size_t num_networks;
+    ib >> num_networks;
+    for (size_t i = 0; i < num_networks; ++i) {
+        m_networks.emplace_back(std::make_shared<cldnn::network>(ib, get_engine().create_stream(config), get_engine(), m_stream_id));
+    }
 }
 
 Graph::Graph(std::shared_ptr<Graph> graph, uint16_t stream_id)
@@ -500,9 +504,10 @@ void Graph::Export(cldnn::BinaryOutputBuffer &ob) {
     ob << primitiveIDs;
     ob << outputDims;
 
-    auto m_network = m_networks.back();
-
-    m_network->save(ob);
+    ob << m_networks.size();
+    for (auto net : m_networks) {
+        net->save(ob);
+    }
 }
 
 std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfo() {
