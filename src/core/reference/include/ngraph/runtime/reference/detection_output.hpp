@@ -38,7 +38,7 @@ private:
     size_t offset;
     size_t numResults;
     size_t outTotalSize;
-    size_t numClasses;
+    int numClasses;
 
     void GetLocPredictions(const dataType* locData, std::vector<LabelBBox>& locations) {
         locations.resize(numImages);
@@ -67,7 +67,7 @@ private:
             std::map<int, std::vector<dataType>>& labelScores = confPreds[i];
             for (size_t p = 0; p < numPriors; ++p) {
                 size_t startIdx = p * numClasses;
-                for (size_t c = 0; c < numClasses; ++c) {
+                for (int c = 0; c < numClasses; ++c) {
                     labelScores[c].push_back(confData[startIdx + c]);
                 }
             }
@@ -84,12 +84,11 @@ private:
             for (size_t p = 0; p < numPriors; ++p) {
                 size_t startIdx = p * numClasses;
                 if (armConfData[p * 2 + 1] < attrs.objectness_score) {
-                    for (size_t c = 0; c < numClasses; ++c) {
-                        c == (size_t)attrs.background_label_id ? labelScores[c].push_back(1)
-                                                               : labelScores[c].push_back(0);
+                    for (int c = 0; c < numClasses; ++c) {
+                        c == attrs.background_label_id ? labelScores[c].push_back(1) : labelScores[c].push_back(0);
                     }
                 } else {
-                    for (size_t c = 0; c < numClasses; ++c) {
+                    for (int c = 0; c < numClasses; ++c) {
                         labelScores[c].push_back(confData[startIdx + c]);
                     }
                 }
@@ -373,8 +372,8 @@ private:
         for (size_t p = 0; p < numPriors; p++) {
             dataType conf = -1;
             int id = 0;
-            for (size_t c = 1; c < numClasses; c++) {
-                if (attrs.background_label_id > -1 && c == (size_t)attrs.background_label_id)
+            for (int c = 1; c < numClasses; c++) {
+                if (attrs.background_label_id > -1 && c == attrs.background_label_id)
                     continue;
                 dataType temp = confScores.at(c)[p];
                 if (temp > conf) {
@@ -490,8 +489,8 @@ public:
             int numDet = 0;
             if (!attrs.decrease_label_id) {
                 // Caffe style
-                for (size_t c = 0; c < numClasses; ++c) {
-                    if (c == (size_t)attrs.background_label_id) {
+                for (int c = 0; c < numClasses; ++c) {
+                    if (c == attrs.background_label_id) {
                         continue;
                     }
                     if (confScores.find(c) == confScores.end())
