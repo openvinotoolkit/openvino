@@ -1,5 +1,7 @@
 # Graph Traversal and Modification {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer_Model_Optimizer_Ports_Connections}
 
+@sphinxdirective
+
 There are three APIs for a graph traversal and transformation used in the Model Optimizer:
 
 1. The API provided with the `networkx` Python library for the `networkx.MultiDiGraph` class, which is the base class for
@@ -10,7 +12,7 @@ the `mo.graph.graph.Graph` object. For example, the following methods belong to 
    * `graph.out_edges(node_id)` 
    * other methods where `graph` is a an instance of the `networkx.MultiDiGraph` class.
 
-   **This is the lowest-level API. Avoid using it in the Model Optimizer transformations**. For more details, refer to the [Model Representation in Memory](@ref mo-model-representation-in-memory) section. 
+   **This is the lowest-level API. Avoid using it in the Model Optimizer transformations**. For more details, refer to the :doc:`Model Representation in Memory <mo-model-representation-in-memory>` section. 
 
 2. The API built around the `mo.graph.graph.Node` class. The `Node` class is the primary class to work with graph nodes
 and their attributes. Examples of such methods and functions are:
@@ -30,7 +32,7 @@ and their attributes. Examples of such methods and functions are:
    * `node.out_port(y)`, 
    * `port.get_connection()`, 
    * `connection.get_source()`,
-   * `connection.set_destination(dest_port)` 
+   * `connection.set_destination(dest_port)`
    
    **This is the recommended API for the Model Optimizer transformations and operations implementation**.
 
@@ -38,36 +40,35 @@ The main benefit of using the Model Optimizer Graph API is that it hides some in
 the graph contains data nodes), provides API to perform safe and predictable graph manipulations, and adds operation
 semantic to the graph. This is achieved with introduction of concepts of ports and connections. 
 
-> **NOTE**: This article is dedicated to the Model Optimizer Graph API only and does not cover other two non-recommended APIs.
+.. note:: 
+   This article is dedicated to the Model Optimizer Graph API only and does not cover other two non-recommended APIs.
 
 @anchor mo-intro-ports
-## Ports <a name="intro-ports"></a>
+Ports
+-----
+
 An operation semantic describes how many inputs and outputs the operation has. For example, 
-[Parameter](../../../ops/infrastructure/Parameter_1.md) and [Const](../../../ops/infrastructure/Constant_1.md) operations have no
-inputs and have one output, [ReLU](../../../ops/activation/ReLU_1.md) operation has one input and one output, 
-[Split](../../../ops/movement/Split_1.md) operation has 2 inputs and a variable number of outputs depending on the value of the
+:doc:`Parameter <openvino_docs_ops_infrastructure_Parameter_1>` and :doc:`Const <openvino_docs_ops_infrastructure_Constant_1>` operations have no
+inputs and have one output, :doc:`ReLU <openvino_docs_ops_activation_ReLU_1>` operation has one input and one output, 
+:doc:`Split <openvino_docs_ops_movement_Split_1>` operation has 2 inputs and a variable number of outputs depending on the value of the
 attribute `num_splits`.
 
 Each operation node in the graph (an instance of the `Node` class) has 0 or more input and output ports (instances of
 the `mo.graph.port.Port` class). The `Port` object has several attributes:
+
 * `node` - the instance of the `Node` object the port belongs to.
 * `idx` - the port number. Input and output ports are numbered independently, starting from `0`. Thus, 
-[ReLU](../../../ops/activation/ReLU_1.md) operation has one input port (with index `0`) and one output port (with index `0`).
+:doc:`ReLU <openvino_docs_ops_activation_ReLU_1>` operation has one input port (with index `0`) and one output port (with index `0`).
 * `type` - the type of the port. Could be equal to either `"in"` or `"out"`.
-* `data` - the object that should be used to get attributes of the corresponding data node. This object has methods
-`get_shape()` / `set_shape()` and `get_value()` / `set_value()` to get/set shape/value of the corresponding data node.
-For example, `in_port.data.get_shape()` returns an input shape of a tensor connected to input port `in_port`
-(`in_port.type == 'in'`), `out_port.data.get_value()` returns a value of a tensor produced from output port `out_port`
-(`out_port.type == 'out'`).
+* `data` - the object that should be used to get attributes of the corresponding data node. This object has methods `get_shape()` / `set_shape()` and `get_value()` / `set_value()` to get/set shape/value of the corresponding data node. For example, `in_port.data.get_shape()` returns an input shape of a tensor connected to input port `in_port` (`in_port.type == 'in'`), `out_port.data.get_value()` returns a value of a tensor produced from output port `out_port` (`out_port.type == 'out'`).
 
-> **NOTE**: Functions `get_shape()` and `get_value()` return `None` until the partial inference phase. For more information 
-> about model conversion phases, refer to the [Model Conversion Pipeline](@ref mo-model-conversion-pipeline). For information
-> about partial inference phase, see the [Partial Inference](@ref mo-partial-inference).
+.. note:: 
+   Functions `get_shape()` and `get_value()` return `None` until the partial inference phase. For more information  about model conversion phases, refer to the :doc:`Model Conversion Pipeline <mo-model-conversion-pipeline>`. For information about partial inference phase, see the :doc:`Partial Inference <mo-partial-inference>`.
 
 There are several methods of the `Node` class to get the instance of a corresponding port:
+
 * `in_port(x)` and `out_port(x)` to get the input/output port with number `x`.
-* `in_ports()` and `out_ports()` to get a dictionary, where key is a port number and the value is the corresponding
-input/output port.
+* `in_ports()` and `out_ports()` to get a dictionary, where key is a port number and the value is the corresponding input/output port.
 
 Attributes `in_ports_count` and `out_ports_count` of the `Op` class instance define default number of input and output
 ports to be created for the `Node`. However, additional input/output ports can be added using methods
@@ -81,13 +82,9 @@ port with `idx = 2` corresponds to the incoming edge of a node with an attribute
 Consider the example of a graph part with 4 operation nodes "Op1", "Op2", "Op3", and "Op4" and a number of data nodes
 depicted with light green boxes.
 
-@sphinxdirective`
-
 .. image:: _static/images/MO_ports_example_1.svg
    :scale: 80 %
    :align: center
-
-@endsphinxdirective
 
 Operation nodes have input ports (yellow squares) and output ports (light purple squares). Input port may not be
 connected. For example, the input **port 2** of node **Op1** does not have incoming edge, while output port always has an
@@ -116,22 +113,20 @@ data nodes do not exist, the method creates edge and properly sets `in` and `out
 
 For example, applying the following two methods to the graph above will result in the graph depicted below:
 
-```py
-op4.in_port(1).disconnect()
-op3.out_port(0).connect(op4.in_port(1))
-```
-
-@sphinxdirective`
+.. code-block:: sh
+   op4.in_port(1).disconnect()
+   op3.out_port(0).connect(op4.in_port(1))
 
 .. image:: _static/images/MO_ports_example_2.svg
    :scale: 80 %
    :align: center
 
-@endsphinxdirective
+.. note:: 
+   For a full list of available methods, refer to the `Node` class implementation in the `mo/graph/graph.py` and `Port` class implementation in the `mo/graph/port.py` files.
 
-> **NOTE**: For a full list of available methods, refer to the `Node` class implementation in the `mo/graph/graph.py` and `Port` class implementation in the `mo/graph/port.py` files.
+Connections
+-----------
 
-## Connections <a name="intro-conneсtions"></a>
 Connection is a concept introduced to easily and reliably perform graph modifications. Connection corresponds to a
 link between a source output port with one or more destination input ports or a link between a destination input port
 and source output port producing data. So each port is connected with one or more ports with help of a connection.
@@ -144,23 +139,19 @@ For example, the `op3.out_port(0).get_connection()` method returns a `Connection
 **Op3** to data node **data_3_0** and two edges from data node **data_3_0** to two ports of the node **Op4**.
 
 The `Connection` class provides methods to get source and destination(s) ports the connection corresponds to:
+
 * `connection.get_source()` - returns an output `Port` object producing the tensor.
 * `connection.get_destinations()`* - returns a list of input `Port` consuming the data.
-* `connection.get_destination()`* - returns a single input `Port` consuming the data. If there are multiple consumers,
-the exception is raised.
+* `connection.get_destination()`* - returns a single input `Port` consuming the data. If there are multiple consumers, the exception is raised.
 
 The `Connection` class provides methods to modify a graph by changing a source or destination(s) of a connection. For
 example, the function call `op3.out_port(0).get_connection().set_source(op1.out_port(0))` changes source port of edges
 consuming data from port `op3.out_port(0)` to `op1.out_port(0)`. The transformed graph from the sample above is depicted
 below:
 
-@sphinxdirective`
-
 .. image:: _static/images/MO_connection_example_1.svg
    :scale: 80 %
    :align: center
-
-@endsphinxdirective
 
 Another example is the `connection.set_destination(dest_port)` method. It disconnects `dest_port` and all input ports to which
 the connection is currently connected and connects the connection source port to `dest_port`.
@@ -168,11 +159,14 @@ the connection is currently connected and connects the connection source port to
 Note that connection works seamlessly during front, middle, and back phases and hides the fact that the graph structure is
 different.
 
-> **NOTE**: For a full list of available methods, refer to the `Connection` class implementation in the `mo/graph/connection.py` file.
+.. note:: 
+   For a full list of available methods, refer to the `Connection` class implementation in the `mo/graph/connection.py` file.
 
-## Additional Resources
+Additional Resources
+--------------------
 
-* [Model Optimizer Extensibility](Customize_Model_Optimizer.md)
-* [Model Optimizer Extensions](Model_Optimizer_Extensions.md)
-* [Extending Model Optimizer with Caffe Python Layers](Extending_Model_Optimizer_with_Caffe_Python_Layers.md)
+* :doc:`Model Optimizer Extensibility <Customize_Model_Optimizer.md>`
+* :doc:`Model Optimizer Extensions <Model_Optimizer_Extensions.md>`
+* :doc:`Extending Model Optimizer with Caffe Python Layers <Extending_Model_Optimizer_with_Caffe_Python_Layers.md>`
 
+@endsphinxdirective
