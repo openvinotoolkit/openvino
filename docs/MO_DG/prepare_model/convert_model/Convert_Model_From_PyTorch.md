@@ -1,24 +1,31 @@
 # Converting a PyTorch Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch}
 
-The PyTorch framework is supported through export to the ONNX format. Model Optimizer Python API allows the conversion of PyTorch models using the `convert_model()` method, which internally converts a model to ONNX.
+This page provides instructions on how to convert a model from the PyTorch format to the OpenVINO IR format using Model Optimizer.
+Model Optimizer Python API allows the conversion of PyTorch models using the `convert_model()` method.
 
-## Converting a PyTorch model from memory with Python API (Experimental Functionality)
+## Converting a PyTorch model with MO Python API
 
-To convert a PyTorch model using `convert_model()`, provide the `input_shape` or `example_input`.
+Example of PyTorch model converting:
+```sh
+import torchvision
+import torch
+from openvino.tools.mo import convert_model
 
-`input_shape` is used to set shapes of model inputs, including dynamic shapes or shapes with boundaries.
-`example_input` is used to provide model input example.
+model = torchvision.models.resnet50(pretrained=True)
+ov_model = convert_model(model)
+```
 
-PyTorch model exporting to ONNX requires providing a dummy input to `torch.onnx.export()`. 
-If `example_input` is set then it is used as a dummy input, otherwise `input_shape` is used to construct a dummy input.
+Following PyTorch model formats are supported:
+* `torch.nn.Module`
+* `torch.jit.ScriptModule`
+* `torch.jit.ScriptFunction`
 
-If `input_shape` is set and provided shape is static then zero-filled float `torch.Tensor` is created with the specified shape, and it is used as dummy input for `torch.onnx.export()`. 
-If dynamic shape is specified then for creating a dummy input all fully dynamic dimensions are replaced with ones, dimensions with boundaries are replaced with lower bound or upper bound if lower bound is not set.
-After exporting to ONNX the model is converted with original dynamic shape from `input_shape` parameter.
+Converting of some PyTorch models may require model tracing which need setting of `input_shape` or `example_input` parameters.
 
-If both `input_shape` and `example_input` are set then `example_input` is used as dummy input for exporting model to ONNX and then the model is converted with the shape from `input_shape` parameter.
+`example_input` is used as example input for model tracing.
+`input_shape` is used for constructing a float zero-filled torch.Tensor for model tracing.
 
-
+Example:
 ```sh
 import torchvision
 import torch
@@ -28,7 +35,7 @@ model = torchvision.models.resnet50(pretrained=True)
 ov_model = convert_model(model, example_input=torch.zeros(1, 3, 100, 100))
 ```
 
-'example_input' accepts the following formats:
+`example_input` accepts the following formats:
 
 * `openvino.runtime.Tensor`
 * `torch.Tensor`
@@ -36,6 +43,20 @@ ov_model = convert_model(model, example_input=torch.zeros(1, 3, 100, 100))
 * `list` or `tuple` with tensors (`openvino.runtime.Tensor` / `torch.Tensor` / `np.ndarray`)
 * `dictionary` where key is the input name, value is the tensor (`openvino.runtime.Tensor` / `torch.Tensor` / `np.ndarray`)
 
+If PyTorch model is scripted it can be converted using `convert_model()` with `input_signature` parameter for keeping dynamic dimensions of the original model.
+
+```sh
+import inspect
+
+model = torchvision.models.resnet50(pretrained=True)
+
+model_signature = list(inspect.signature(model.forward).parameters.keys())
+traced_model = torch.jit.trace(model, example_inputs=torch.zeros(1, 3, 224, 224))
+
+ov_model = convert_model(traced_model, input_signature=model_signature) # the model has [?,3,?,?] input shape
+```
+
+If `use_legacy_frontend` is set, it enables PyTorch model converting using temporary ONNX model.
 ONNX opset version can be set using an optional `onnx_opset_version` parameter.
 If the `onnx_opset_version` is not set, the default opset from `torch.onnx.export()` is used.
 
