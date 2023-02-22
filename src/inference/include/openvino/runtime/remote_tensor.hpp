@@ -44,6 +44,8 @@ public:
     template <typename T>
     T* data() = delete;
 
+    void copy_to(ov::Tensor& dst) const = delete;
+
     /**
      * @brief Returns a map of device-specific parameters required for low-level
      * operations with underlying object.
