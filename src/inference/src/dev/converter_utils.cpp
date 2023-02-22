@@ -13,7 +13,6 @@
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
-#include "dev/executor_manager_wrapper.hpp"
 #include "icompiled_model_wrapper.hpp"
 #include "ie_blob.h"
 #include "ie_common.h"
@@ -188,6 +187,11 @@ std::shared_ptr<const ov::Model> ov::legacy_convert::convert_model(const Inferen
     return cloned_model;
 }
 
+namespace InferenceEngine {
+extern std::shared_ptr<InferenceEngine::ExecutorManager> create_old_manager(
+    const std::shared_ptr<ov::ExecutorManager>& manager);
+}
+
 namespace ov {
 
 class IVariableStateInternalWrapper : public InferenceEngine::IVariableStateInternal {
@@ -224,7 +228,7 @@ public:
         version.description = ver.description;
         SetVersion(version);
         _isNewAPI = plugin->is_new_api();
-        _executorManager = std::make_shared<ExecutorManagerWrapper>(plugin->get_executor_manager());
+        _executorManager = InferenceEngine::create_old_manager(plugin->get_executor_manager());
     }
     std::string GetName() const noexcept override {
         return m_plugin->get_device_name();
