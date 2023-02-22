@@ -8,13 +8,15 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset7.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <vector>
 
 #include "itt.hpp"
 
 ov::pass::ConvertGather0D::ConvertGather0D() {
     MATCHER_SCOPE(ConvertGather0D);
-    auto gather = ngraph::pattern::wrap_type<opset1::Gather>();
+    auto gather1 = ngraph::pattern::wrap_type<opset1::Gather>();
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto gather = std::dynamic_pointer_cast<ov::opset1::Gather>(m.get_match_root());
@@ -50,6 +52,6 @@ ov::pass::ConvertGather0D::ConvertGather0D() {
         return true;
     };
 
-    auto m1 = std::make_shared<ngraph::pattern::Matcher>(gather, matcher_name);
+    auto m1 = std::make_shared<ngraph::pattern::Matcher>(gather1, matcher_name);
     this->register_matcher(m1, callback);
 }

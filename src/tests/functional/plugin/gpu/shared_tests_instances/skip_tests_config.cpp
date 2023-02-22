@@ -60,8 +60,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*Behavior.*OVInferRequestIOTensorTest.*canInferAfterIOBlobReallocation.*)",
             R"(.*Behavior.*OVInferRequestDynamicTests.*InferUpperBoundNetworkAfterIOTensorsReshaping.*)",
             R"(.*(Auto|Multi).*Behavior.*IncorrectConfigTests.*CanNotLoadNetworkWithIncorrectConfig.*)",
-            // TODO: until issue is xxx-59670 is resolved
-            R"(.*Gather8LayerTest.*)",
             // Not implemented yet:
             R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
             R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",

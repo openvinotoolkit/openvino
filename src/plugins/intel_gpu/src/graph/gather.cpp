@@ -18,29 +18,13 @@ layout gather_inst::calc_output_layout(gather_node const& node, kernel_impl_para
 
     auto input_layout = impl_param.get_input_layout();
     std::vector<tensor::value_type> dims_converted(desc->output_shape.begin(), desc->output_shape.end());
+
     // extend shape to 4d
     for (size_t i = dims_converted.size(); i < 4; i++)
         dims_converted.push_back(1);
 
-    format output_format = input_layout.format;
-    if (dims_converted.size() == 5) {
-        switch (input_layout.format) {
-        case format::bfyx:
-            output_format = format::get_default_format(dims_converted.size());
-            break;
-        case format::b_fs_yx_fsv16:
-            output_format = format::b_fs_zyx_fsv16;
-            break;
-        case format::b_fs_yx_fsv32:
-            output_format = format::b_fs_zyx_fsv32;
-            break;
-        case format::bs_fs_yx_bsv16_fsv16:
-            output_format = format::bs_fs_zyx_bsv16_fsv16;
-            break;
-        default:
-            break;
-        }
-    } else if (dims_converted.size() == 6) {
+    format output_format = format::adjust_to_rank(input_layout.format, dims_converted.size());
+    if (dims_converted.size() == 6) {
         switch (input_layout.format) {
         case format::bfyx:
         case format::bfzyx:
