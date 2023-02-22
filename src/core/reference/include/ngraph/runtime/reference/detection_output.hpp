@@ -85,7 +85,7 @@ private:
                 size_t startIdx = p * numClasses;
                 if (armConfData[p * 2 + 1] < attrs.objectness_score) {
                     for (size_t c = 0; c < numClasses; ++c) {
-                        c == attrs.background_label_id ? labelScores[c].push_back(1) : labelScores[c].push_back(0);
+                        c == (size_t)attrs.background_label_id ? labelScores[c].push_back(1) : labelScores[c].push_back(0);
                     }
                 } else {
                     for (size_t c = 0; c < numClasses; ++c) {
@@ -373,7 +373,7 @@ private:
             dataType conf = -1;
             int id = 0;
             for (size_t c = 1; c < numClasses; c++) {
-                if (attrs.background_label_id > -1 && c == attrs.background_label_id)
+                if (attrs.background_label_id > -1 && c == (size_t)attrs.background_label_id)
                     continue;
                 dataType temp = confScores.at(c)[p];
                 if (temp > conf) {
