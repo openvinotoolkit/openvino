@@ -447,6 +447,7 @@ static const std::vector<std::string> models{
     std::string("scale_tensor_bias_before"),
     std::string("shape"),
     std::string("sigmoid"),
+    std::string("silu"),
     std::string("slice"),
     std::string("slice_1d"),
     std::string("slice_decrease_axis/slice_decrease_axis.pdmodel"),

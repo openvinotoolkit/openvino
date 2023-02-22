@@ -92,6 +92,7 @@ OP_CONVERTER(slice);
 OP_CONVERTER(softmax);
 OP_CONVERTER(softplus);
 OP_CONVERTER(sigmoid);
+OP_CONVERTER(silu);
 OP_CONVERTER(split);
 OP_CONVERTER(sqrt);
 OP_CONVERTER(squeeze);
@@ -206,6 +207,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"softmax", op::softmax},
             {"softplus", op::softplus},
             {"sigmoid", op::sigmoid},
+            {"silu", op::silu},
             {"split", op::split},
             {"sqrt", op::sqrt},
             {"squeeze2", op::squeeze},
