@@ -142,9 +142,9 @@ InferenceEngine::RemoteBlob::Ptr RemoteContextImpl::reuse_surface(InferenceEngin
     cldnn::shared_surface surf = extract_object<cldnn::shared_surface>(params, GPU_PARAM_KEY(DEV_OBJECT_HANDLE));
 #endif
 
-    cldnn::layout layout(ov::PartialShape(desc.getDims()),
-                         DataTypeFromPrecision(desc.getPrecision()),
-                         FormatFromLayout(desc.getLayout()));
+    cldnn::layout layout(DataTypeFromPrecision(desc.getPrecision()),
+                         ImageFormatFromLayout(desc.getLayout()),
+                         tensor_from_dims(desc.getDims()));
 
 #ifdef _WIN32
     auto blob = std::make_shared<RemoteD3DSurface>(public_context, stream,
@@ -164,9 +164,10 @@ InferenceEngine::RemoteBlob::Ptr RemoteContextImpl::reuse_memory(InferenceEngine
                                                                  cldnn::shared_handle mem,
                                                                  BlobType blob_type) {
     auto& stream = m_engine->get_service_stream();
-    cldnn::layout layout(ov::PartialShape(desc.getDims()),
-                         DataTypeFromPrecision(desc.getPrecision()),
-                         FormatFromLayout(desc.getLayout()));
+
+    cldnn::layout layout(DataTypeFromPrecision(desc.getPrecision()),
+                         FormatFromLayout(desc.getLayout()),
+                         tensor_from_dims(desc.getDims()));
 
     switch (blob_type) {
     case BlobType::BT_BUF_SHARED: {
@@ -193,10 +194,9 @@ InferenceEngine::RemoteBlob::Ptr RemoteContextImpl::reuse_memory(InferenceEngine
 
 InferenceEngine::RemoteBlob::Ptr RemoteContextImpl::create_buffer(InferenceEngine::gpu::ClContext::Ptr public_context,
                                                                   const InferenceEngine::TensorDesc& desc) {
-    cldnn::layout layout(ov::PartialShape(desc.getDims()),
-                         DataTypeFromPrecision(desc.getPrecision()),
-                         FormatFromLayout(desc.getLayout()));
-
+    cldnn::layout layout(DataTypeFromPrecision(desc.getPrecision()),
+                         FormatFromLayout(desc.getLayout()),
+                         tensor_from_dims(desc.getDims()));
     auto& stream = m_engine->get_service_stream();
     return std::make_shared<RemoteCLbuffer>(public_context,
                                             stream,
@@ -209,10 +209,9 @@ InferenceEngine::RemoteBlob::Ptr RemoteContextImpl::create_buffer(InferenceEngin
 InferenceEngine::RemoteBlob::Ptr RemoteContextImpl::create_usm(InferenceEngine::gpu::ClContext::Ptr public_context,
                                                                const InferenceEngine::TensorDesc& desc,
                                                                BlobType alloc_type) {
-    cldnn::layout layout(ov::PartialShape(desc.getDims()),
-                         DataTypeFromPrecision(desc.getPrecision()),
-                         FormatFromLayout(desc.getLayout()));
-
+    cldnn::layout layout(DataTypeFromPrecision(desc.getPrecision()),
+                         FormatFromLayout(desc.getLayout()),
+                         tensor_from_dims(desc.getDims()));
     auto& stream = m_engine->get_service_stream();
 
     return std::make_shared<RemoteUSMbuffer>(public_context,
