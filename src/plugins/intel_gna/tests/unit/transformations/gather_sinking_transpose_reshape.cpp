@@ -251,7 +251,7 @@ TEST(GatherSinkingTransposeReshape, BackwardSinking) {
     const FunctionsComparator::Result result = func_comparator(function, reference_function);
     ASSERT_TRUE(result.valid) << result.message;
 }
-#if 0
+
 TEST(GatherSinkingTransposeReshape, BackwardSinking3D) {
     std::shared_ptr<Model> function;
     {
@@ -283,10 +283,10 @@ TEST(GatherSinkingTransposeReshape, BackwardSinking3D) {
 
         auto generate_indices = []() -> std::vector<int64_t> {
             std::vector<int64_t> indices;
-            for (int i = 0; i < 80; ++i) { // FIXME
-                indices.push_back(i);
-                indices.push_back(i + 80);
-                indices.push_back(i + 160);
+            for (int j = 0; j < 4; ++j) {
+                for (int i = 0; i < 14; ++i) {
+                    indices.push_back(j + 4 * i);
+                }
             }
             return indices;
         };
@@ -306,8 +306,9 @@ TEST(GatherSinkingTransposeReshape, BackwardSinking3D) {
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(function, reference_function);
     ASSERT_TRUE(result.valid) << result.message;
+    CompareOutput(function, reference_function); // DEBUG
 }
-#endif
+
 #if 0
 TEST(GatherSinkingTransposeReshape, ForwardSinkingNoSinkOnes) {
     std::shared_ptr<Model> function;
