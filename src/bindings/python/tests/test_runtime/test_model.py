@@ -48,8 +48,10 @@ def test_function_add_outputs_tensor_name():
     relu2 = ops.relu(relu1, name="relu2")
     function = Model(relu2, [param], "TestFunction")
     assert len(function.get_results()) == 1
+    assert len(function.results) == 1
     new_outs = function.add_outputs("relu_t1")
     assert len(function.get_results()) == 2
+    assert len(function.results) == 2
     assert "relu_t1" in function.outputs[1].get_tensor().names
     assert len(new_outs) == 1
     assert new_outs[0].get_node() == function.outputs[1].get_node()
@@ -64,8 +66,10 @@ def test_function_add_outputs_op_name():
     relu2 = ops.relu(relu1, name="relu2")
     function = Model(relu2, [param], "TestFunction")
     assert len(function.get_results()) == 1
+    assert len(function.results) == 1
     new_outs = function.add_outputs(("relu1", 0))
     assert len(function.get_results()) == 2
+    assert len(function.results) == 2
     assert len(new_outs) == 1
     assert new_outs[0].get_node() == function.outputs[1].get_node()
     assert new_outs[0].get_index() == function.outputs[1].get_index()
@@ -78,9 +82,9 @@ def test_function_add_output_port():
     relu1.get_output_tensor(0).set_names({"relu_t1"})
     relu2 = ops.relu(relu1, name="relu2")
     function = Model(relu2, [param], "TestFunction")
-    assert len(function.get_results()) == 1
+    assert len(function.results) == 1
     new_outs = function.add_outputs(relu1.output(0))
-    assert len(function.get_results()) == 2
+    assert len(function.results) == 2
     assert len(new_outs) == 1
     assert new_outs[0].get_node() == function.outputs[1].get_node()
     assert new_outs[0].get_index() == function.outputs[1].get_index()
@@ -94,6 +98,7 @@ def test_function_add_output_incorrect_tensor_name():
     relu2 = ops.relu(relu1, name="relu2")
     function = Model(relu2, [param], "TestFunction")
     assert len(function.get_results()) == 1
+    assert len(function.results) == 1
     with pytest.raises(RuntimeError) as e:
         function.add_outputs("relu_t")
     # Verify that absent output name is present in error message
@@ -108,6 +113,7 @@ def test_function_add_output_incorrect_idx():
     relu2 = ops.relu(relu1, name="relu2")
     function = Model(relu2, [param], "TestFunction")
     assert len(function.get_results()) == 1
+    assert len(function.results) == 1
     with pytest.raises(RuntimeError) as e:
         function.add_outputs(("relu1", 1234))
     # Verify that op name and port number are present in error message
@@ -123,6 +129,7 @@ def test_function_add_output_incorrect_name():
     relu2 = ops.relu(relu1, name="relu2")
     function = Model(relu2, [param], "TestFunction")
     assert len(function.get_results()) == 1
+    assert len(function.results) == 1
     with pytest.raises(RuntimeError) as e:
         function.add_outputs(("relu_1", 0))
     # Verify that absent op name is present in error message
@@ -139,8 +146,10 @@ def test_add_outputs_several_tensors():
     relu3 = ops.relu(relu2, name="relu3")
     function = Model(relu3, [param], "TestFunction")
     assert len(function.get_results()) == 1
+    assert len(function.results) == 1
     new_outs = function.add_outputs(["relu_t1", "relu_t2"])
     assert len(function.get_results()) == 3
+    assert len(function.results) == 3
     assert len(new_outs) == 2
     assert new_outs[0].get_node() == function.outputs[1].get_node()
     assert new_outs[0].get_index() == function.outputs[1].get_index()
@@ -158,8 +167,10 @@ def test_add_outputs_several_ports():
     relu3 = ops.relu(relu2, name="relu3")
     function = Model(relu3, [param], "TestFunction")
     assert len(function.get_results()) == 1
+    assert len(function.results) == 1
     new_outs = function.add_outputs([("relu1", 0), ("relu2", 0)])
     assert len(function.get_results()) == 3
+    assert len(function.results) == 3
     assert len(new_outs) == 2
     assert new_outs[0].get_node() == function.outputs[1].get_node()
     assert new_outs[0].get_index() == function.outputs[1].get_index()
@@ -175,6 +186,7 @@ def test_add_outputs_incorrect_value():
     relu2 = ops.relu(relu1, name="relu2")
     function = Model(relu2, [param], "TestFunction")
     assert len(function.get_results()) == 1
+    assert len(function.results) == 1
     with pytest.raises(TypeError) as e:
         function.add_outputs(0)
     assert "Incorrect type of a value to add as output." in str(e.value)
@@ -187,6 +199,7 @@ def test_add_outputs_incorrect_outputs_list():
     relu1.get_output_tensor(0).set_names({"relu_t1"})
     function = Model(relu1, [param], "TestFunction")
     assert len(function.get_results()) == 1
+    assert len(function.results) == 1
     with pytest.raises(TypeError) as e:
         function.add_outputs([0, 0])
     assert "Incorrect type of a value to add as output at index 0" in str(e.value)
@@ -283,6 +296,9 @@ def test_get_batch():
     param = model.get_parameters()[0]
     param.set_layout(Layout("NC"))
     assert get_batch(model) == 2
+    param = model.parameters[0]
+    param.set_layout(Layout("NC"))
+    assert get_batch(model) == 2
 
 
 def test_get_batch_chwn():
@@ -292,41 +308,53 @@ def test_get_batch_chwn():
     add = ops.add(param1, param2)
     add2 = ops.add(add, param3)
     model = Model(add2, [param1, param2, param3], "TestFunction")
-    param = model.get_parameters()[0]
-    param.set_layout(Layout("CHWN"))
+    param_method = model.get_parameters()[0]
+    param_attr = model.parameters[0]
+    param_method.set_layout(Layout("CHWN"))
+    param_attr.set_layout(Layout("CHWN"))
     assert get_batch(model) == 4
 
 
 def test_set_batch_dimension():
     model = generate_add_model()
-    model_param1 = model.get_parameters()[0]
-    model_param2 = model.get_parameters()[1]
+    model_param1_method = model.get_parameters()[0]
+    model_param2_method = model.get_parameters()[1]
+    model_param1_attr = model.parameters[0]
+    model_param2_attr = model.parameters[1]
     # check batch == 2
-    model_param1.set_layout(Layout("NC"))
+    model_param1_method.set_layout(Layout("NC"))
+    model_param1_attr.set_layout(Layout("NC"))
     assert get_batch(model) == 2
     # set batch to 1
     set_batch(model, Dimension(1))
     assert get_batch(model) == 1
     # check if shape of param 1 has changed
-    assert model_param1.get_output_shape(0) == PartialShape([1, 1])
+    assert model_param1_method.get_output_shape(0) == PartialShape([1, 1])
+    assert model_param1_attr.get_output_shape(0) == PartialShape([1, 1])
     # check if shape of param 2 has not changed
-    assert model_param2.get_output_shape(0) == PartialShape([2, 1])
+    assert model_param2_method.get_output_shape(0) == PartialShape([2, 1])
+    assert model_param2_attr.get_output_shape(0) == PartialShape([2, 1])
 
 
 def test_set_batch_int():
     model = generate_add_model()
-    model_param1 = model.get_parameters()[0]
-    model_param2 = model.get_parameters()[1]
+    model_param1_method = model.get_parameters()[0]
+    model_param2_method = model.get_parameters()[1]
+    model_param1_attr = model.parameters[0]
+    model_param2_attr = model.parameters[1]
     # check batch == 2
-    model_param1.set_layout(Layout("NC"))
+    model_param1_method.set_layout(Layout("NC"))
+    model_param1_attr.set_layout(Layout("NC"))
     assert get_batch(model) == 2
     # set batch to 1
     set_batch(model, 1)
     assert get_batch(model) == 1
     # check if shape of param 1 has changed
-    assert model_param1.get_output_shape(0) == PartialShape([1, 1])
+    assert model_param1_method.get_output_shape(0) == PartialShape([1, 1])
+    assert model_param1_attr.get_output_shape(0) == PartialShape([1, 1])
     # check if shape of param 2 has not changed
-    assert model_param2.get_output_shape(0) == PartialShape([2, 1])
+    assert model_param2_method.get_output_shape(0) == PartialShape([2, 1])
+    assert model_param2_attr.get_output_shape(0) == PartialShape([2, 1])
 
 
 def test_set_batch_default_batch_size():
@@ -335,6 +363,7 @@ def test_set_batch_default_batch_size():
     model_param1.set_layout(Layout("NC"))
     set_batch(model)
     assert model.is_dynamic()
+    assert model.dynamic
 
 
 def test_reshape_with_ports():

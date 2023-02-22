@@ -176,11 +176,13 @@ def test_get_version(device):
 
 def test_available_devices(device):
     core = Core()
-    devices = core.available_devices
-    assert device in devices, (
-        f"Current device '{device}' is not listed in "
-        f"available devices '{', '.join(devices)}'"
-    )
+    devices_attr = core.available_devices
+    devices_method = core.get_available_devices()
+    for devices in (devices_attr, devices_method):
+        assert device in devices, (
+            f"Current device '{device}' is not listed in "
+            f"available devices '{', '.join(devices)}'"
+        )
 
 
 def test_get_property(device):
